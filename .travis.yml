@@ -1,0 +1,13 @@
+# Config file for automatic testing at travis-ci.org
+
+language: python
+python:
+  - 3.6
+
+# Command to install dependencies, e.g. 
+install: pip install -r requirements.txt
+
+# Command to run tests
+script: python setup.py test
+
+
