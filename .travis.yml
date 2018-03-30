@@ -8,6 +8,7 @@ python:
 install: pip install -r requirements.txt
 
 # Command to run tests
-script: python setup.py test
-
+script:
+  - flake8
+  - coverage run setup.py test
 
