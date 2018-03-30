@@ -1,7 +1,8 @@
 # single-cell Variational Inference (scVI)
 
-NIPS MLCB Submission https://arxiv.org/abs/1709.02082
-bioRxiv preprint https://www.biorxiv.org/content/early/2018/03/30/292037
++ NIPS MLCB Submission: https://arxiv.org/abs/1709.02082
++ bioRxiv preprint: https://www.biorxiv.org/content/early/2018/03/30/292037
++ implementation for the preprint: https://github.com/romain-lopez/scVI-reproducibility
 
 ### Title
 Bayesian Inference for a Generative Model of Transcriptome Profiles from Single-cell RNA Sequencing
@@ -23,7 +24,7 @@ By doing so, scVI pools information between similar cells or genes while taking 
 + TensorFlow 1.2.0
 
 ## Codes
-In this github repo, we will provide you with minimal code to run the model. For reproducability of the scVI paper, we refer to our other repo https://github.com/romain-lopez/scVI-reproducibility
+In this github repo, we will provide you with minimal code to run the model on a public dataset
 
 ## Additional comments
 Some effort might be needed to have a functional installation of the GPU version of TensorFlow. A great tutorial is given here: https://www.tensorflow.org/install/install_linux#gpu_support
