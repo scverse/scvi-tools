@@ -1,6 +1,7 @@
 # single-cell Variational Inference (scVI)
 
 NIPS MLCB Submission https://arxiv.org/abs/1709.02082
+bioRxiv preprint https://www.biorxiv.org/content/early/2018/03/30/292037
 
 ### Title
 Bayesian Inference for a Generative Model of Transcriptome Profiles from Single-cell RNA Sequencing
