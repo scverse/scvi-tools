@@ -53,7 +53,7 @@ lint: ## check style with flake8
 	flake8 scvi tests
 
 test: ## run tests quickly with the default Python
-	py.test
+	python3 setup.py test
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source scvi -m pytest
