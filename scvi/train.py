@@ -8,30 +8,23 @@ import scvi.log_likelihood as lkl
 def train(vae, data_loader, n_epochs=20):
     # Defining the optimizer
     optimizer = torch.optim.Adam(vae.parameters(), lr=0.001)
-
-    # For now, just numeric mode. The values chosen are just exemples.
-    library_size_mean, library_size_var = np.array([10]), np.array([3])
-    local_l_mean = Variable((torch.from_numpy(library_size_mean)).type(torch.FloatTensor))
-    local_l_var = Variable((torch.from_numpy(library_size_var)).type(torch.FloatTensor))
-
     iter_per_epoch = len(data_loader)
 
     # Training the model
     for epoch in range(n_epochs):
-        for i_batch, sample_batched in enumerate(data_loader):
-            sample_batched = Variable(sample_batched)
+        for i_batch, (sample_batched, local_l_mean, local_l_var) in enumerate(data_loader):
+            sample_batched = Variable(sample_batched, requires_grad=False)
+            local_l_mean = Variable(local_l_mean.type(torch.FloatTensor), requires_grad=False)
+            local_l_var = Variable(local_l_var.type(torch.FloatTensor), requires_grad=False)
 
             out, px_r, px_rate, px_dropout, mu_z, log_var_z, mu_l, log_var_l = vae(sample_batched)
 
+            approx = lkl.log_zinb_positive_approx(sample_batched, px_rate, torch.exp(px_r), px_dropout).data[0]
+            real = lkl.log_zinb_positive_real(sample_batched, px_rate, torch.exp(px_r), px_dropout).data[0]
+            delta = np.abs(approx - real)
             # Checking if the approximation for the log-likelihood is valid
-            if np.abs(lkl.log_zinb_positive_approx(sample_batched, px_rate, torch.exp(px_r), px_dropout).data[0] -
-                      lkl.log_zinb_positive_real(sample_batched, px_rate, torch.exp(px_r), px_dropout).data[
-                          0]) > 1e-1:
-                print("Error due to numerical approximation is: ")
-                print(
-                    np.abs(lkl.log_zinb_positive_approx(sample_batched, px_rate, torch.exp(px_r), px_dropout).data[0] -
-                           lkl.log_zinb_positive_real(sample_batched, px_rate, torch.exp(px_r), px_dropout).data[0]))
-                print("Careful with the numerical approximations!")
+            if delta > 1e-1:
+                print("Error due to numerical approximation is: ", delta)
 
             # Computing the reconstruction loss
             reconst_loss = -lkl.log_zinb_positive_approx(sample_batched, px_rate, torch.exp(px_r), px_dropout)

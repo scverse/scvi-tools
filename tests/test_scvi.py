@@ -6,12 +6,11 @@
 
 import numpy as np
 import pytest
-import torch
-from scvi.train import train
 from torch.utils.data import DataLoader
 
 from scvi.dataset import GeneExpressionDataset
 from scvi.scvi import VAE
+from scvi.train import train
 
 
 @pytest.fixture
@@ -30,6 +29,7 @@ def test_content(response):
     # assert 'GitHub' in BeautifulSoup(response.content).title.string
     pass
 
+
 def test_benchmark():
     # Generating samples according to a ZINB process
     batch_size = 20
@@ -40,9 +40,8 @@ def test_benchmark():
     for i in range(batch_size):
         newdata[i, :] = data[i, :] / np.sum(data[i, :])
         newdata[i, :] = newdata[i, :] * mask[i, :]
-    dataset = torch.Tensor(newdata)
     # Creating a GeneExpressionDataset and a DataLoader
-    gene_dataset = GeneExpressionDataset(dataset)
+    gene_dataset = GeneExpressionDataset([newdata])
     data_loader = DataLoader(gene_dataset, batch_size=4,
                              shuffle=True, num_workers=4)
 
@@ -64,9 +63,8 @@ def test_imputation():
     for i in range(batch_size):
         newdata[i, :] = data[i, :] / np.sum(data[i, :])
         newdata[i, :] = newdata[i, :] * mask[i, :]
-    dataset = torch.Tensor(newdata)
     # Creating a GeneExpressionDataset and a DataLoader
-    gene_dataset = GeneExpressionDataset(dataset)
+    gene_dataset = GeneExpressionDataset([newdata])
     data_loader = DataLoader(gene_dataset, batch_size=4,
                              shuffle=True, num_workers=4)
 

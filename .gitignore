@@ -103,3 +103,7 @@ ENV/
 
 # PyCharm
 .idea/
+
+# Floobits
+.floo
+.flooignore
