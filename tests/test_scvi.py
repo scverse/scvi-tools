@@ -4,9 +4,7 @@
 
 """Tests for `scvi` package."""
 
-
 import pytest
-
 
 from scvi import scvi
 
