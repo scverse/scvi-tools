@@ -2,23 +2,15 @@
 
 
 """Main module."""
-import torch.nn as nn
 import collections
-import scvi.training as tr
 import torch
+import torch.nn as nn
 from torch.autograd import Variable
 
 
 def benchmark():
-    vae = VAE()
-    tr.train(vae)
+    # TODO: better in terms of code logic to put in test?
     pass
-
-
-def to_var(x):
-    if torch.cuda.is_available():
-        x = x.cuda()
-    return Variable(x)
 
 
 # VAE model
@@ -84,7 +76,7 @@ class VAE(nn.Module):
 
         # mean gamma
         self.px_scale_decoder = nn.Sequential(self.decoder_first_layer, self.decoder_hidden_layers,
-                                              nn.Linear(self.h_dim, self.nb_genes), nn.Softmax())
+                                              nn.Linear(self.h_dim, self.nb_genes), nn.Softmax(dim=1))
 
         # dispersion: here we only deal with gene-cell dispersion case
         self.px_r_decoder = nn.Sequential(self.decoder_first_layer, self.decoder_hidden_layers,
@@ -96,7 +88,7 @@ class VAE(nn.Module):
 
     def reparameterize(self, mu, log_var):
         """"z = mean + eps * sigma where eps is sampled from N(0, 1)."""
-        eps = to_var(torch.randn(mu.size(0), mu.size(1)))
+        eps = Variable(torch.randn(mu.size(0), mu.size(1)))
         z = mu + eps * torch.exp(log_var / 2)  # 2 for converting variance to std
         return z
 
@@ -123,6 +115,3 @@ class VAE(nn.Module):
 
     def sample(self, z):
         return self.px_scale_decoder(z)
-
-
-benchmark()

@@ -1,23 +1,11 @@
-import torch
 import numpy as np
-from torch.utils.data import DataLoader
-import scvi.dataset as dt
-import scvi.log_likelihood as lkl
+import torch
 from torch.autograd import Variable
 
-# Generating samples according to a ZINB process
-batch_size = 20
-nb_genes = 100
-data = np.random.negative_binomial(5, 0.3, size=(batch_size, nb_genes))
-newdata = np.ones((batch_size, nb_genes))
-mask = np.random.binomial(n=1, p=0.7, size=(batch_size, nb_genes))
-for i in range(batch_size):
-    newdata[i, :] = data[i, :] / np.sum(data[i, :])
-    newdata[i, :] = newdata[i, :] * mask[i, :]
-data = torch.Tensor(newdata)
+import scvi.log_likelihood as lkl
 
 
-def train(vae, data=data, n_epochs=20):
+def train(vae, data_loader, n_epochs=20):
     # Defining the optimizer
     optimizer = torch.optim.Adam(vae.parameters(), lr=0.001)
 
@@ -25,11 +13,6 @@ def train(vae, data=data, n_epochs=20):
     library_size_mean, library_size_var = np.array([10]), np.array([3])
     local_l_mean = Variable((torch.from_numpy(library_size_mean)).type(torch.FloatTensor))
     local_l_var = Variable((torch.from_numpy(library_size_var)).type(torch.FloatTensor))
-
-    # Creating a GeneExpressionDataset and a DataLoader
-    gene_dataset = dt.GeneExpressionDataset(data)
-    data_loader = DataLoader(gene_dataset, batch_size=4,
-                             shuffle=True, num_workers=4)
 
     iter_per_epoch = len(data_loader)
 
@@ -42,7 +25,8 @@ def train(vae, data=data, n_epochs=20):
 
             # Checking if the approximation for the log-likelihood is valid
             if np.abs(lkl.log_zinb_positive_approx(sample_batched, px_rate, torch.exp(px_r), px_dropout).data[0] -
-                      lkl.log_zinb_positive_real(sample_batched, px_rate, torch.exp(px_r), px_dropout).data[0]) > 1e-1:
+                      lkl.log_zinb_positive_real(sample_batched, px_rate, torch.exp(px_r), px_dropout).data[
+                          0]) > 1e-1:
                 print("Error due to numerical approximation is: ")
                 print(
                     np.abs(lkl.log_zinb_positive_approx(sample_batched, px_rate, torch.exp(px_r), px_dropout).data[0] -
