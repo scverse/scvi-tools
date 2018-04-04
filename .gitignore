@@ -100,3 +100,10 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# PyCharm
+.idea/
+
+# Floobits
+.floo
+.flooignore

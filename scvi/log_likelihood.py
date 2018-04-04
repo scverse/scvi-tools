@@ -1,6 +1,24 @@
 """File for computing log likelihood of the data"""
 
 import torch
+from scipy.special import digamma
+from torch.autograd import Function, Variable
+
+
+class Lgamma(Function):
+    @staticmethod
+    def forward(self, input):
+        self.save_for_backward(input)
+        return torch.lgamma(input)
+
+    @staticmethod
+    def backward(self, grad_output):
+        input, = self.saved_tensors
+        res = Variable(torch.from_numpy(digamma(input.numpy())).type_as(input), requires_grad=False)
+        return grad_output * res
+
+
+lgamma = Lgamma.apply
 
 
 def log_zinb_positive_real(x, mu, theta, pi, eps=1e-8):
@@ -29,7 +47,7 @@ def log_zinb_positive_real(x, mu, theta, pi, eps=1e-8):
     mask[mask >= eps] = 0
     res = torch.mul(mask, case_zero) + torch.mul(1 - mask, case_non_zero)
 
-    return torch.sum(res)
+    return torch.sum(res, dim=-1)
 
 
 def log_zinb_positive_approx(x, mu, theta, pi, eps=1e-8):
@@ -46,19 +64,28 @@ def log_zinb_positive_approx(x, mu, theta, pi, eps=1e-8):
     pi: logit of the dropout parameter (real support) (shape: minibatch x genes)
     eps: numerical stability constant
     """
-    case_zero = torch.log(torch.exp((- pi + theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps))) + 1)
+    # case_zero = torch.log(
+    # torch.exp((- pi + theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps))) + 1)
+    # - torch.log(torch.exp(-pi) + 1)
+    #
+    # case_non_zero = - pi - torch.log(torch.exp(-pi) + 1) + theta * torch.log(theta + eps) - theta * torch.log(
+    #     theta + mu + eps) + x * torch.log(mu + eps) - x * torch.log(theta + mu + eps) - torch.log(
+    #     x + theta) + torch.log(theta + eps) + torch.log(x + 1)
+
+    case_zero = torch.log(
+        torch.exp((- pi + theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps))) + 1)
     - torch.log(torch.exp(-pi) + 1)
 
     case_non_zero = - pi - torch.log(torch.exp(-pi) + 1) + theta * torch.log(theta + eps) - theta * torch.log(
-        theta + mu + eps) + x * torch.log(mu + eps) - x * torch.log(theta + mu + eps) - torch.log(
-        x + theta) + torch.log(theta + eps) + torch.log(x + 1)
+        theta + mu + eps) + x * torch.log(mu + eps) - x * torch.log(theta + mu + eps) + lgamma(
+        x + theta) - lgamma(theta) - lgamma(x + 1)
 
     mask = x.clone()
     mask[mask < eps] = 1
     mask[mask >= eps] = 0
     res = torch.mul(mask, case_zero) + torch.mul(1 - mask, case_non_zero)
 
-    return torch.sum(res)
+    return torch.sum(res, dim=-1)
 
 
 def log_nb_positive(x, mu, theta, eps=1e-8):
@@ -72,6 +99,6 @@ def log_nb_positive(x, mu, theta, eps=1e-8):
     eps: numerical stability constant
     """
     res = theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps) + x * torch.log(
-        mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(x + theta) - torch.lgamma(theta) - torch.lgamma(
+        mu + eps) - x * torch.log(theta + mu + eps) + lgamma(x + theta) - lgamma(theta) - lgamma(
         x + 1)
     return torch.sum(res)

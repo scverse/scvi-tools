@@ -2,127 +2,137 @@
 
 
 """Main module."""
-import torch.nn as nn
 import collections
-import scvi.training as tr
+
+import numpy as np
 import torch
+import torch.nn as nn
 from torch.autograd import Variable
-
-
-def benchmark():
-    vae = VAE()
-    tr.train(vae)
-    pass
-
-
-def to_var(x):
-    if torch.cuda.is_available():
-        x = x.cuda()
-    return Variable(x)
 
 
 # VAE model
 class VAE(nn.Module):
-    def __init__(self, nb_genes=100, h_dim=128, latent_dim=5, n_layers=1,
-                 keep_prob=0.9):
+    def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1,
+                 dropout_rate=0.0, dispersion="gene"):
         super(VAE, self).__init__()
 
-        self.dropout_layer_prob = 1 - keep_prob
-        self.latent_dim = latent_dim
-        self.h_dim = h_dim
-        self.nb_genes = nb_genes
+        self.dropout_rate = dropout_rate
+        self.n_latent = n_latent
+        self.n_hidden = n_hidden
+        self.n_input = n_input
         self.n_layers = n_layers
-        self.l_m = 0
+        self.library = 0
         self.z = 0
-        # Encoding q(z/x)
+        self.dispersion = dispersion
+        if self.dispersion == "gene":
+            np.random.seed(1)
+            eps = np.random.normal(0, 1, (self.n_input,))
+            self.px_r = Variable(torch.from_numpy(eps).type(torch.FloatTensor))
 
+        # Encoding q(z/x)
+        # TODO: BatchNorm with params : eps=1e-3, momentum=0.99
+        # (After checking that models coincide)
         # There is always a first layer
         self.first_layer = nn.Sequential(
-            nn.Dropout(p=self.dropout_layer_prob),
-            nn.Linear(nb_genes, h_dim),
+            nn.Dropout(p=self.dropout_rate),
+            nn.Linear(n_input, n_hidden),
+            # nn.BatchNorm1d(n_hidden, eps=1e-3, momentum=0.99),
             nn.ReLU())
 
         # We then add more layers if specified by the user, with a ReLU activation function
         self.hidden_layers = collections.OrderedDict(
-            [('Layer {}'.format(i), nn.Sequential(nn.Dropout(p=self.dropout_layer_prob),
-                                                  nn.Linear(h_dim, h_dim),
+            [('Layer {}'.format(i), nn.Sequential(nn.Dropout(p=self.dropout_rate),
+                                                  nn.Linear(n_hidden, n_hidden),
+                                                  # nn.BatchNorm1d(n_hidden, eps=1e-3, momentum=0.99),
                                                   nn.ReLU()))
              for i in range(2, n_layers + 1)])
 
         # Then, there are two different layers that compute the means and the variances of the normal distribution
         # that represents the data in the latent space
         self.z_mean_encoder = nn.Sequential(self.first_layer, nn.Sequential(self.hidden_layers),
-                                            nn.Linear(h_dim, latent_dim))
-        self.z_logvar_encoder = nn.Sequential(self.first_layer, nn.Sequential(self.hidden_layers),
-                                              nn.Linear(h_dim, latent_dim))
+                                            nn.Linear(n_hidden, n_latent))
+        self.z_var_encoder = nn.Sequential(self.first_layer, nn.Sequential(self.hidden_layers),
+                                           nn.Linear(n_hidden, n_latent))
 
         # Encoding q(l/x)
         # The process is similar than for encoding q(z/x), except there is always only one hidden layer
         self.l_encoder_initial = nn.Sequential(
-            nn.Dropout(p=self.dropout_layer_prob),
-            nn.Linear(nb_genes, h_dim),
+            nn.Dropout(p=self.dropout_rate),
+            nn.Linear(n_input, n_hidden),
+            # nn.BatchNorm1d(n_hidden, eps=1e-3, momentum=0.99),
             nn.ReLU())
 
         self.l_mean_encoder = nn.Sequential(self.l_encoder_initial,
-                                            nn.Linear(h_dim, 1))
-        self.l_logvar_encoder = nn.Sequential(self.l_encoder_initial,
-                                              nn.Linear(h_dim, 1))
+                                            nn.Linear(n_hidden, 1))
+        self.l_var_encoder = nn.Sequential(self.l_encoder_initial,
+                                           nn.Linear(n_hidden, 1))
 
         # Now the decoder that transforms a element of the latent spade into a potential gene-cell output
 
         # There is always a first layer
         self.decoder_first_layer = nn.Sequential(
-            nn.Linear(latent_dim, h_dim),
+            nn.Linear(n_latent, n_hidden),
+            # nn.BatchNorm1d(n_hidden, eps=1e-3, momentum=0.99),
             nn.ReLU())
 
         # We then add more layers if specified by the user, with a ReLU activation function
         self.decoder_hidden_layers = nn.Sequential(
-            collections.OrderedDict([('Layer {}'.format(i), nn.Sequential(nn.Dropout(p=self.dropout_layer_prob),
-                                                                          nn.Linear(h_dim, h_dim),
+            collections.OrderedDict([('Layer {}'.format(i), nn.Sequential(nn.Dropout(p=self.dropout_rate),
+                                                                          nn.Linear(n_hidden, n_hidden),
+                                                                          # nn.BatchNorm1d(n_hidden),
                                                                           nn.ReLU()))
                                      for i in range(2, n_layers + 1)]))
 
+        # TODO: remove this artificial checkpoint
+        self.tmp_decoder = nn.Sequential(self.decoder_first_layer, self.decoder_hidden_layers)
         # mean gamma
         self.px_scale_decoder = nn.Sequential(self.decoder_first_layer, self.decoder_hidden_layers,
-                                              nn.Linear(self.h_dim, self.nb_genes), nn.Softmax())
+                                              nn.Linear(self.n_hidden, self.n_input), nn.Softmax(dim=-1))
 
         # dispersion: here we only deal with gene-cell dispersion case
         self.px_r_decoder = nn.Sequential(self.decoder_first_layer, self.decoder_hidden_layers,
-                                          nn.Linear(self.h_dim, self.nb_genes))
+                                          nn.Linear(self.n_hidden, self.n_input))
 
         # dropout
         self.px_dropout_decoder = nn.Sequential(self.decoder_first_layer, self.decoder_hidden_layers,
-                                                nn.Linear(self.h_dim, self.nb_genes))
+                                                nn.Linear(self.n_hidden, self.n_input))
 
-    def reparameterize(self, mu, log_var):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                m.weight.data.fill_(0.01)
+
+    def reparameterize(self, mu, var):
         """"z = mean + eps * sigma where eps is sampled from N(0, 1)."""
-        eps = to_var(torch.randn(mu.size(0), mu.size(1)))
-        z = mu + eps * torch.exp(log_var / 2)  # 2 for converting variance to std
+        np.random.seed(1)
+        eps = np.random.normal(0, 1, mu.shape)
+
+        # eps = mu.data.new(mu.shape)
+        # eps = Variable(eps.normal_(), requires_grad=False)
+        eps = Variable(torch.from_numpy(eps).type(torch.FloatTensor), requires_grad=False)
+        z = mu + eps * torch.sqrt(var)  # 2 for converting variance to std
         return z
 
     def forward(self, x):
         # Parameters for z latent distribution
-        mu_z = self.z_mean_encoder(x)
-        log_var_z = self.z_logvar_encoder(x)
+        qz_m = self.z_mean_encoder(x)
+        qz_v = torch.exp(self.z_var_encoder(x))
 
         # Parameters for l latent distribution
-        mu_l = self.l_mean_encoder(x)
-        log_var_l = self.l_logvar_encoder(x)
-
+        ql_m = self.l_mean_encoder(x)
+        ql_v = torch.exp(self.l_var_encoder(x))
         # Sampling
-        self.z = self.reparameterize(mu_z, log_var_z)
-        self.l_m = self.reparameterize(mu_l, log_var_l)
+        self.z = self.reparameterize(qz_m, qz_v)
+        self.library = self.reparameterize(ql_m, ql_v)
 
         # The decoder returns values for the parameters of the ZINB distribution
         px_scale = self.px_scale_decoder(self.z)
-        px_r = self.px_r_decoder(self.z)
-        px_dropout = self.px_dropout_decoder(self.z)
-        px_rate = torch.exp(self.l_m) * px_scale
+        if self.dispersion == "gene-cell":
+            self.px_r = self.px_r_decoder(self.z)
 
-        return px_scale, px_r, px_rate, px_dropout, mu_z, log_var_z, mu_l, log_var_l
+        px_dropout = self.px_dropout_decoder(self.z)
+        px_rate = torch.exp(self.library) * px_scale
+
+        return px_scale, self.px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v
 
     def sample(self, z):
-        return self.px_scale_decoder(z)
-
-
-benchmark()
+        return self.px_scale_decoder(z)  # , self.px_rate_decoder(z), self.px_dropout_decoder(z)
