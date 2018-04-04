@@ -4,8 +4,8 @@ language: python
 python:
   - 3.6
 
-# Command to install dependencies, e.g. 
-install: pip install -r requirements.txt
+# Command to install dependencies, e.g.
+install: pip install --quiet -r requirements.txt
 
 # Command to run tests
 script:

@@ -7,7 +7,7 @@ import scvi.log_likelihood as lkl
 
 def train(vae, data_loader, n_epochs=20):
     # Defining the optimizer
-    optimizer = torch.optim.Adam(vae.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(vae.parameters(), lr=0.0001)
     iter_per_epoch = len(data_loader)
 
     # Training the model
@@ -17,7 +17,7 @@ def train(vae, data_loader, n_epochs=20):
             local_l_mean = Variable(local_l_mean.type(torch.FloatTensor), requires_grad=False)
             local_l_var = Variable(local_l_var.type(torch.FloatTensor), requires_grad=False)
 
-            out, px_r, px_rate, px_dropout, mu_z, log_var_z, mu_l, log_var_l = vae(sample_batched)
+            px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v = vae(sample_batched)
 
             approx = lkl.log_zinb_positive_approx(sample_batched, px_rate, torch.exp(px_r), px_dropout).data[0]
             real = lkl.log_zinb_positive_real(sample_batched, px_rate, torch.exp(px_r), px_dropout).data[0]
@@ -27,17 +27,18 @@ def train(vae, data_loader, n_epochs=20):
                 print("Error due to numerical approximation is: ", delta)
 
             # Computing the reconstruction loss
+
             reconst_loss = -lkl.log_zinb_positive_approx(sample_batched, px_rate, torch.exp(px_r), px_dropout)
 
             # Computing the kl divergence
-            kl_divergence_z = torch.sum(0.5 * (mu_z ** 2 + torch.exp(log_var_z) - log_var_z - 1))
+            kl_divergence_z = torch.sum(0.5 * (qz_m ** 2 + qz_v - torch.log(qz_v + 1e-8) - 1), dim=-1)
             kl_divergence_l = torch.sum(0.5 * (
-                ((mu_l - local_l_mean) ** 2) / local_l_var + torch.exp(log_var_l) / local_l_var
-                + torch.log(local_l_var) - log_var_l - 1))
+                ((ql_m - local_l_mean) ** 2) / local_l_var + ql_v / local_l_var
+                + torch.log(local_l_var + 1e-8) - torch.log(ql_v + 1e-8) - 1), dim=-1)
             kl_divergence = kl_divergence_z + kl_divergence_l
 
             # Backprop + Optimize
-            total_loss = reconst_loss + kl_divergence
+            total_loss = torch.mean(reconst_loss + kl_divergence)
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
