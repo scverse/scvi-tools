@@ -26,4 +26,11 @@ Single-cell Variational Inference
 Features
 --------
 
+To load the Cortex data, and run the benchmarks:
+
+.. code-block::
+
+    python ./contrib/preprocess_cortex.py
+    python ./run_benchmarks.py --epochs=3 --dataset=cortex 
+
 * TODO
