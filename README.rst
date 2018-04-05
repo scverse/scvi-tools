@@ -3,17 +3,12 @@ scVI
 ====
 
 
-.. image:: https://img.shields.io/pypi/v/scvi.svg
-        :target: https://pypi.python.org/pypi/scvi
-
-.. image:: https://img.shields.io/travis/romain-lopez/scvi.svg
-        :target: https://travis-ci.org/romain-lopez/scvi
+.. image:: https://travis-ci.com/YosefLab/scVI-dev.svg?token=8fTCTxKs9oey1mCVd3zh&branch=master
+        :target: https://travis-ci.com/YosefLab/scVI-dev
 
 .. image:: https://readthedocs.org/projects/scvi/badge/?version=latest
         :target: https://scvi.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
-
-
 
 
 Single-cell Variational Inference
