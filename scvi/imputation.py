@@ -1,5 +1,7 @@
 import numpy as np
 
+from scvi.dataset import GeneExpressionDataset
+
 
 def dropout(X, rate=0.1):
     """
@@ -33,3 +35,12 @@ def imputation_error(X_pred, X, i, j, ix):
     all_index = i[ix], j[ix]
     x, y = X_pred[all_index], X[all_index]
     return np.median(np.abs(x - y))
+
+
+def imputation(vae, gene_dataset):
+    X = gene_dataset.get_all().numpy()
+    X_zero, i, j, ix = dropout(X)
+    gene_dataset = GeneExpressionDataset([X_zero])
+    _, _, px_rate, _, _, _, _, _ = vae(gene_dataset.get_all())
+    mae = imputation_error(px_rate.data.numpy(), X, i, j, ix)
+    return mae
