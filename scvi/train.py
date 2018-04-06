@@ -19,7 +19,7 @@ def train(vae, data_loader, n_epochs=20, learning_rate=0.001, kl=None):
     # Training the model
     for epoch in range(n_epochs):
         for i_batch, (sample_batched, local_l_mean, local_l_var, batch_index) in enumerate(data_loader):
-            sample_batched = Variable(sample_batched, requires_grad=False)
+            sample_batched = Variable(sample_batched.type(dtype), requires_grad=False)
             local_l_mean = Variable(local_l_mean.type(dtype), requires_grad=False)
             local_l_var = Variable(local_l_var.type(dtype), requires_grad=False)
 

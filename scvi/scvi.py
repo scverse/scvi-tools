@@ -132,8 +132,6 @@ class VAE(nn.Module):
 
     def forward(self, x):
         # Parameters for z latent distribution
-        if torch.cuda.is_available():
-            x = x.cuda()
         if self.log_variational:
             x = torch.log(1 + x)
 
