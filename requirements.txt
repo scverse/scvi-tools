@@ -4,8 +4,6 @@ coverage==4.5.1
 Sphinx==1.7.1
 pytest==3.4.2
 pytest-runner==2.11.1
-scipy==1.0.0
 numpy==1.14.0
 
 torch==0.3.1
-scikit-learn==0.19.1

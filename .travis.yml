@@ -5,7 +5,13 @@ python:
   - 3.6
 
 # Command to install dependencies, e.g.
-install: pip install --quiet -r requirements.txt
+install:
+  - pip install --quiet -r requirements.txt
+  - git clone https://github.com/Edouard360/lgamma.git
+  - cd lgamma; ./make.sh; cd ..
+  - mv ./lgamma/_ext _ext; mv ./lgamma/functions functions
+  - rm -rf ./lgamma
+
 
 # Command to run tests
 script:
