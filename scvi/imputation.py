@@ -42,5 +42,5 @@ def imputation(vae, gene_dataset):
     X_zero, i, j, ix = dropout(X)
     gene_dataset = GeneExpressionDataset([X_zero])
     _, _, px_rate, _, _, _, _, _ = vae(gene_dataset.get_all())
-    mae = imputation_error(px_rate.data.numpy(), X, i, j, ix)
+    mae = imputation_error(px_rate.data.cpu().numpy(), X, i, j, ix)
     return mae
