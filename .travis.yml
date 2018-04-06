@@ -1,10 +1,16 @@
 # Config file for automatic testing at travis-ci.org
 
 language: python
+
 python:
   - 3.6
 
-# Command to install dependencies, e.g.
+os:
+  - linux
+
+notifications:
+  email: false
+
 install:
   - pip install --quiet -r requirements.txt
   - git clone https://github.com/Edouard360/lgamma.git
@@ -12,8 +18,6 @@ install:
   - mv ./lgamma/_ext _ext; mv ./lgamma/functions functions
   - rm -rf ./lgamma
 
-
-# Command to run tests
 script:
   - flake8
   - coverage run setup.py test

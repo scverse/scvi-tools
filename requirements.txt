@@ -8,3 +8,4 @@ numpy==1.14.0
 torch==0.3.1
 pandas
 scipy
+scikit-learn
