@@ -10,6 +10,11 @@ import torch.nn as nn
 from scipy.stats import truncnorm
 from torch.autograd import Variable
 
+if torch.cuda.is_available():
+    dtype = torch.cuda.FloatTensor
+else:
+    dtype = torch.FloatTensor
+
 
 # VAE model
 class VAE(nn.Module):
@@ -30,7 +35,7 @@ class VAE(nn.Module):
         if self.dispersion == "gene":
             np.random.seed(1)
             pxr = np.random.normal(0, 1, (self.n_input,))
-            self.px_r = Variable(torch.from_numpy(pxr).type(torch.FloatTensor))
+            self.px_r = Variable(torch.from_numpy(pxr).type(dtype))
 
         # Encoding q(z/x)
         # TODO: BatchNorm with params : eps=1e-3, momentum=0.99
@@ -108,9 +113,11 @@ class VAE(nn.Module):
                 # initializer=np.random.normal(0, 0.01,size=(m.in_features,m.out_features)).T
                 STD = 0.01
                 initializer = truncnorm.rvs(-2 * STD, 2 * STD, loc=0, scale=STD, size=(m.out_features, m.in_features))
-                m.weight.data = torch.from_numpy(initializer).type(torch.FloatTensor)
+                m.weight.data = torch.from_numpy(initializer).type(dtype)
 
                 # m.weight.data.fill_(0.01)
+        if torch.cuda.is_available():
+            self.cuda()
 
     def reparameterize(self, mu, var):
         """"z = mean + eps * sigma where eps is sampled from N(0, 1)."""
@@ -119,12 +126,14 @@ class VAE(nn.Module):
 
         # eps = mu.data.new(mu.shape)
         # eps = Variable(eps.normal_(), requires_grad=False)
-        eps = Variable(torch.from_numpy(eps).type(torch.FloatTensor), requires_grad=False)
+        eps = Variable(torch.from_numpy(eps).type(dtype), requires_grad=False)
         z = mu + eps * torch.sqrt(var)  # 2 for converting variance to std
         return z
 
     def forward(self, x):
         # Parameters for z latent distribution
+        if torch.cuda.is_available():
+            x = x.cuda()
         if self.log_variational:
             x = torch.log(1 + x)
 
@@ -149,4 +158,4 @@ class VAE(nn.Module):
         return px_scale, self.px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v
 
     def sample(self, z):
-        return self.px_scale_decoder(z)  # , self.px_rate_decoder(z), self.px_dropout_decoder(z)
+        return self.px_scale_decoder(z)

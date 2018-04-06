@@ -48,25 +48,3 @@ class GeneExpressionDataset(Dataset):
         # Returns the triplet (X, local_mean, local_var)
         return self.X[idx, :self.nb_genes], self.X[idx, self.nb_genes], self.X[idx, self.nb_genes + 1], \
                self.X[idx, self.nb_genes + 2]
-
-
-def generate_data(batch_size=20, nb_genes=100):
-    # Generating samples according to a ZINB process
-    data = np.random.negative_binomial(5, 0.3, size=(batch_size, nb_genes))
-    newdata = np.ones((batch_size, nb_genes))
-    mask = np.random.binomial(n=1, p=0.7, size=(batch_size, nb_genes))
-    for i in range(batch_size):
-        newdata[i, :] = data[i, :] / np.sum(data[i, :])
-        newdata[i, :] = newdata[i, :] * mask[i, :]
-    return newdata
-
-
-def load_dataset(dataset_name):
-    if dataset_name == 'synthetic':
-        expression_train = generate_data()
-    elif dataset_name == 'cortex':
-        # Should run preprocess_cortex.py before running - Maybe do check here ?
-        expression_train = np.load('data/expression_train.npy')
-    else:
-        raise "No such dataset available"
-    return GeneExpressionDataset([expression_train])

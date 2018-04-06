@@ -3,7 +3,12 @@ import torch
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
-import scvi.log_likelihood as lkl
+from scvi.log_likelihood import log_zinb_positive
+
+if torch.cuda.is_available():
+    dtype = torch.cuda.FloatTensor
+else:
+    dtype = torch.FloatTensor
 
 
 def train(vae, data_loader, n_epochs=20, learning_rate=0.001, kl=None):
@@ -15,14 +20,14 @@ def train(vae, data_loader, n_epochs=20, learning_rate=0.001, kl=None):
     for epoch in range(n_epochs):
         for i_batch, (sample_batched, local_l_mean, local_l_var, batch_index) in enumerate(data_loader):
             sample_batched = Variable(sample_batched, requires_grad=False)
-            local_l_mean = Variable(local_l_mean.type(torch.FloatTensor), requires_grad=False)
-            local_l_var = Variable(local_l_var.type(torch.FloatTensor), requires_grad=False)
+            local_l_mean = Variable(local_l_mean.type(dtype), requires_grad=False)
+            local_l_var = Variable(local_l_var.type(dtype), requires_grad=False)
 
             px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v = vae(sample_batched)
 
             # Computing the reconstruction loss
 
-            reconst_loss = -lkl.log_zinb_positive_approx(sample_batched, px_rate, torch.exp(px_r), px_dropout)
+            reconst_loss = -log_zinb_positive(sample_batched, px_rate, torch.exp(px_r), px_dropout)
 
             # Computing the kl divergence
             kl_divergence_z = torch.sum(0.5 * (qz_m ** 2 + qz_v - torch.log(qz_v + 1e-8) - 1), dim=1)
@@ -35,7 +40,7 @@ def train(vae, data_loader, n_epochs=20, learning_rate=0.001, kl=None):
             else:
                 kl_ponderation = kl
 
-            kl_ponderation = Variable(torch.from_numpy(np.array([kl_ponderation])).type(torch.FloatTensor),
+            kl_ponderation = Variable(torch.from_numpy(np.array([kl_ponderation])).type(dtype),
                                       requires_grad=False)
             kl_divergence = (kl_divergence_z + kl_divergence_l)
 
@@ -58,6 +63,6 @@ def compute_log_likelihood(vae, gene_dataset):
     for i_batch, (sample_batched, local_l_mean, local_l_var, batch_index) in enumerate(data_loader_test):
         sample_batched = Variable(sample_batched, requires_grad=False)
         px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v = vae(sample_batched)
-        log_lkl = torch.mean(-lkl.log_zinb_positive_approx(sample_batched, px_rate, torch.exp(px_r), px_dropout)).data[
+        log_lkl = torch.mean(-log_zinb_positive(sample_batched, px_rate, torch.exp(px_r), px_dropout)).data[
             0]
     return log_lkl
