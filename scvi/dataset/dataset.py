@@ -6,6 +6,11 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+if torch.cuda.is_available():
+    dtype = torch.cuda.FloatTensor
+else:
+    dtype = torch.FloatTensor
+
 
 class GeneExpressionDataset(Dataset):
     """Gene Expression dataset. It deals with:
@@ -32,14 +37,15 @@ class GeneExpressionDataset(Dataset):
                            torch.from_numpy(i * np.ones((X.size()[0], 1))).type(torch.FloatTensor)),
                           dim=1)]
 
-        self.X = torch.cat(new_Xs, dim=0).type(torch.FloatTensor)
+        self.X = torch.cat(new_Xs, dim=0)  # .type(dtype)
         self.total_size = self.X.size(0)
 
     def get_all(self):
         return self.X[:, :-3]
 
     def get_batches(self):
-        return self.X[:, -1].type(torch.IntTensor).numpy()
+        dtype = torch.cuda.IntTensor if torch.cuda.is_available() else torch.IntTensor
+        return self.X[:, -1].type(dtype).numpy()
 
     def __len__(self):
         return self.total_size
