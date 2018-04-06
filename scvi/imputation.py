@@ -38,9 +38,16 @@ def imputation_error(X_pred, X, i, j, ix):
 
 
 def imputation(vae, gene_dataset):
-    X = gene_dataset.get_all().numpy()
+    if gene_dataset.get_all().is_cuda:
+        X = gene_dataset.get_all().cpu().numpy()
+    else:
+        X = gene_dataset.get_all().numpy()
+
     X_zero, i, j, ix = dropout(X)
     gene_dataset = GeneExpressionDataset([X_zero])
     _, _, px_rate, _, _, _, _, _ = vae(gene_dataset.get_all())
-    mae = imputation_error(px_rate.data.cpu().numpy(), X, i, j, ix)
+    if px_rate.data.is_cuda:
+        mae = imputation_error(px_rate.data.cpu().numpy(), X, i, j, ix)
+    else:
+        mae = imputation_error(px_rate.data.numpy(), X, i, j, ix)
     return mae
