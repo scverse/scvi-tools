@@ -10,3 +10,7 @@ from scvi.dataset import load_dataset
 
 def test_benchmark():
     run_benchmarks(load_dataset("synthetic"), n_epochs=1)
+
+
+def test_cortex():
+    run_benchmarks(load_dataset("cortex"), n_epochs=1)

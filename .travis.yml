@@ -18,3 +18,5 @@ script:
   - flake8
   - coverage run setup.py test
 
+after_success:
+  - codecov
