@@ -20,7 +20,7 @@ Single-cell Variational Inference
 * Documentation: https://scvi.readthedocs.io.
 
 
-Features
+Installation
 --------
 
 To load the Cortex data, and run the benchmarks:
@@ -29,5 +29,3 @@ To load the Cortex data, and run the benchmarks:
 
     python ./contrib/preprocess_cortex.py
     python ./run_benchmarks.py --epochs=3 --dataset=cortex 
-
-* TODO
