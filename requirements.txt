@@ -10,3 +10,4 @@ torch==0.3.1
 pandas
 scipy
 scikit-learn
+codecov

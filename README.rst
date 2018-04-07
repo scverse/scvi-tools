@@ -5,6 +5,9 @@ scVI
 .. image:: https://travis-ci.org/YosefLab/scVI-dev.svg?branch=master
     :target: https://travis-ci.org/YosefLab/scVI-dev
 
+.. image:: https://codecov.io/gh/YosefLab/scVI-dev/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/YosefLab/scVI-dev
+
 .. image:: https://readthedocs.org/projects/scvi/badge/?version=latest
         :target: https://scvi.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
