@@ -4,7 +4,6 @@
 """Main module."""
 import collections
 
-import numpy as np
 import torch
 import torch.nn as nn
 from scipy.stats import truncnorm
@@ -33,13 +32,61 @@ class VAE(nn.Module):
         self.log_variational = log_variational
         self.kl_scale = kl_scale
         if self.dispersion == "gene":
-            np.random.seed(1)
-            pxr = np.random.normal(0, 1, (self.n_input,))
-            self.px_r = Variable(torch.from_numpy(pxr).type(dtype))
+            # np.random.seed(1)
+            # pxr = np.random.normal(0, 1, (self.n_input,))
+            # self.px_r = Variable(torch.from_numpy(pxr).type(dtype))
+            self.px_r = Variable(torch.randn(self.n_input,).type(dtype), requires_grad=False)
+
+        self.encoder = Encoder(n_input, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1)
+        self.decoder = Decoder(n_input, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1)
+
+    def reparameterize(self, mu, var):
+        """"z = mean + eps * sigma where eps is sampled from N(0, 1)."""
+        # np.random.seed(1)
+        # eps = np.random.normal(0, 1, mu.shape)
+        # eps = Variable(torch.from_numpy(eps).type(dtype), requires_grad=False)
+        # z = mu + eps * torch.sqrt(var)  # 2 for converting variance to std
+        # return z
+        std = torch.sqrt(var)
+        eps = Variable(std.data.new(std.size()).normal_())
+        return eps.mul(std).add_(mu)
+
+    def forward(self, x):
+        # Parameters for z latent distribution
+        if torch.cuda.is_available():
+            x = x.cuda()
+        if self.log_variational:
+            x = torch.log(1 + x)
+
+        qz_m, qz_v, ql_m, ql_v = self.encoder.forward(x)
+
+        # Sampling
+        self.z = self.reparameterize(qz_m, qz_v)
+        self.library = self.reparameterize(ql_m, ql_v)
+        if self.dispersion == "gene-cell":
+            px_scale, self.px_r, px_rate, px_dropout = self.decoder.forward(self.dispersion, self.z, self.library)
+        elif self.dispersion == "gene":
+            px_scale, px_rate, px_dropout = self.decoder.forward(self.dispersion, self.z, self.library)
+
+        return px_scale, self.px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v
+
+    def sample(self, z):
+        return self.px_scale_decoder(z)
+
+
+# Encoder
+class Encoder(nn.Module):
+    def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1,
+                 dropout_rate=0.1):
+        super(Encoder, self).__init__()
+
+        self.dropout_rate = dropout_rate
+        self.n_latent = n_latent
+        self.n_hidden = n_hidden
+        self.n_input = n_input
+        self.n_layers = n_layers
 
         # Encoding q(z/x)
-        # TODO: BatchNorm with params : eps=1e-3, momentum=0.99
-        # (After checking that models coincide)
         # There is always a first layer
         self.first_layer = nn.Sequential(
             nn.Dropout(p=self.dropout_rate),
@@ -77,6 +124,46 @@ class VAE(nn.Module):
 
         # Now the decoder that transforms a element of the latent spade into a potential gene-cell output
 
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                # np.random.seed(1)
+                # initializer=np.random.normal(0, 0.01,size=(m.in_features,m.out_features)).T
+                STD = 0.01
+                initializer = truncnorm.rvs(-2 * STD, 2 * STD, loc=0, scale=STD,
+                                            size=(m.out_features, m.in_features))
+                m.weight.data = torch.from_numpy(initializer).type(dtype)
+
+                # m.weight.data.fill_(0.01)
+        if torch.cuda.is_available():
+            self.cuda()
+
+    def forward(self, x):
+        # Parameters for z latent distribution
+
+        qz_m = self.z_mean_encoder(x)
+        qz_v = torch.exp(self.z_var_encoder(x))
+
+        # Parameters for l latent distribution
+        ql_m = self.l_mean_encoder(x)
+        ql_v = torch.exp(self.l_var_encoder(x))
+
+        return qz_m, qz_v, ql_m, ql_v
+
+
+# Decoder
+class Decoder(nn.Module):
+    def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1,
+                 dropout_rate=0.1):
+        super(Decoder, self).__init__()
+
+        self.dropout_rate = dropout_rate
+        self.n_latent = n_latent
+        self.n_hidden = n_hidden
+        self.n_input = n_input
+        self.n_layers = n_layers
+
+        # Now the decoder that transforms a element of the latent space into a potential gene-cell output
+
         # There is always a first layer
         self.decoder_first_layer = nn.Sequential(
             nn.Linear(n_latent, n_hidden),
@@ -93,8 +180,6 @@ class VAE(nn.Module):
                                                                           nn.ReLU()))
                                      for i in range(2, n_layers + 1)]))
 
-        # TODO: remove this artificial checkpoint
-        self.tmp_decoder = nn.Sequential(self.decoder_first_layer, self.decoder_hidden_layers)
         # mean gamma
         self.px_scale_decoder = nn.Sequential(self.decoder_first_layer, self.decoder_hidden_layers,
                                               nn.Linear(self.n_hidden, self.n_input), nn.Softmax(dim=-1))
@@ -112,50 +197,21 @@ class VAE(nn.Module):
                 # np.random.seed(1)
                 # initializer=np.random.normal(0, 0.01,size=(m.in_features,m.out_features)).T
                 STD = 0.01
-                initializer = truncnorm.rvs(-2 * STD, 2 * STD, loc=0, scale=STD, size=(m.out_features, m.in_features))
+                initializer = truncnorm.rvs(-2 * STD, 2 * STD, loc=0, scale=STD,
+                                            size=(m.out_features, m.in_features))
                 m.weight.data = torch.from_numpy(initializer).type(dtype)
 
                 # m.weight.data.fill_(0.01)
         if torch.cuda.is_available():
             self.cuda()
 
-    def reparameterize(self, mu, var):
-        """"z = mean + eps * sigma where eps is sampled from N(0, 1)."""
-        np.random.seed(1)
-        eps = np.random.normal(0, 1, mu.shape)
-
-        # eps = mu.data.new(mu.shape)
-        # eps = Variable(eps.normal_(), requires_grad=False)
-        eps = Variable(torch.from_numpy(eps).type(dtype), requires_grad=False)
-        z = mu + eps * torch.sqrt(var)  # 2 for converting variance to std
-        return z
-
-    def forward(self, x):
-        # Parameters for z latent distribution
-        if torch.cuda.is_available():
-            x = x.cuda()
-        if self.log_variational:
-            x = torch.log(1 + x)
-
-        qz_m = self.z_mean_encoder(x)
-        qz_v = torch.exp(self.z_var_encoder(x))
-
-        # Parameters for l latent distribution
-        ql_m = self.l_mean_encoder(x)
-        ql_v = torch.exp(self.l_var_encoder(x))
-        # Sampling
-        self.z = self.reparameterize(qz_m, qz_v)
-        self.library = self.reparameterize(ql_m, ql_v)
-
+    def forward(self, dispersion, z, library):
         # The decoder returns values for the parameters of the ZINB distribution
-        px_scale = self.px_scale_decoder(self.z)
-        if self.dispersion == "gene-cell":
-            self.px_r = self.px_r_decoder(self.z)
-
-        px_dropout = self.px_dropout_decoder(self.z)
-        px_rate = torch.exp(self.library) * px_scale
-
-        return px_scale, self.px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v
-
-    def sample(self, z):
-        return self.px_scale_decoder(z)
+        px_scale = self.px_scale_decoder(z)
+        px_dropout = self.px_dropout_decoder(z)
+        px_rate = torch.exp(library) * px_scale
+        if dispersion == "gene-cell":
+            px_r = self.px_r_decoder(z)
+            return px_scale, px_r, px_rate, px_dropout
+        elif dispersion == "gene":
+            return px_scale, px_rate, px_dropout
