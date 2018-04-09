@@ -1,5 +1,4 @@
 import numpy as np
-import scipy.sparse
 from sklearn.neighbors import NearestNeighbors
 
 
@@ -20,7 +19,7 @@ def entropy_batch_mixing(latent_space, batches):
 
     nne = NearestNeighbors(n_neighbors=51, n_jobs=8)
     nne.fit(latent_space)
-    kmatrix = nne.kneighbors_graph(latent_space) - scipy.sparse.identity(latent_space.shape[0])
+    kmatrix = nne.kneighbors_graph(latent_space) - np.identity(latent_space.shape[0])
 
     score = 0
     for t in range(50):
