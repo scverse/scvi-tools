@@ -7,7 +7,6 @@ pytest-runner==2.11.1
 numpy==1.14.0
 cffi==1.6.0
 torch==0.3.1
-pandas
 scipy
 scikit-learn
 codecov
