@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from torch.autograd import Variable
-from torch.utils.data import DataLoader
 
 from scvi.log_likelihood import log_zinb_positive
 
@@ -56,13 +55,3 @@ def train(vae, data_loader, n_epochs=20, learning_rate=0.001, kl=None):
                       "Reconst Loss: %.4f, KL Div: %.7f"
                       % (epoch + 1, n_epochs, i_batch + 1, iter_per_epoch, total_loss.data[0],
                          torch.mean(reconst_loss).data[0], torch.mean(kl_divergence).data[0]))
-
-
-def compute_log_likelihood(vae, gene_dataset):
-    data_loader_test = DataLoader(gene_dataset, batch_size=gene_dataset.total_size, shuffle=False, num_workers=1)
-    for i_batch, (sample_batched, local_l_mean, local_l_var, batch_index) in enumerate(data_loader_test):
-        sample_batched = Variable(sample_batched.type(dtype), requires_grad=False)
-        px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v = vae(sample_batched)
-        log_lkl = torch.mean(-log_zinb_positive(sample_batched, px_rate, torch.exp(px_r), px_dropout)).data[
-            0]
-    return log_lkl
