@@ -1,11 +1,10 @@
+import csv
 import os
 import urllib.request
 
 import numpy as np
-import pandas as pd
 
 from .dataset import GeneExpressionDataset
-from .utils import train_test_split
 
 
 class CortexDataset(GeneExpressionDataset):
@@ -20,7 +19,6 @@ class CortexDataset(GeneExpressionDataset):
     def download(self):
         url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt"
         r = urllib.request.urlopen(url)
-        # total_size = int(r.headers['content-length']) / 1000
         print("Downloading Cortex data")
 
         def readIter(f, blocksize=1000):
@@ -33,7 +31,6 @@ class CortexDataset(GeneExpressionDataset):
                 yield data
 
         # Create the path to save the data
-
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
 
@@ -43,21 +40,30 @@ class CortexDataset(GeneExpressionDataset):
 
     def preprocess(self):
         print("Preprocessing Cortex data")
-        X = pd.read_csv(self.save_path + self.download_name, sep="\t", low_memory=False).T
-        clusters = np.array(X[7], dtype=str)[2:]
-        cell_types, labels = np.unique(clusters, return_inverse=True)
-        gene_names = np.array(X.iloc[0], dtype=str)[10:]
-        X = X.loc[:, 10:]
-        X = X.drop(X.index[0])
-        expression_data = np.array(X, dtype=np.int)[1:]
+        rows = []
+        gene_names = []
+        with open(self.save_path + self.download_name, 'r') as csvfile:
+            data_reader = csv.reader(csvfile, delimiter='\t')
+            clusters = None
+            for i, row in enumerate(data_reader):
+                if i == 8:  # 7 + 1 in pandas
+                    clusters = np.array(row, dtype=str)[2:]
+                if i >= 11:  # 10 + 1 in pandas
+                    rows.append(row[1:])
+                    gene_names.append(row[0])
 
-        # keep the most variable genes according to the Biscuit ICML paper
+        cell_types, labels = np.unique(clusters, return_inverse=True)
+
+        expression_data = np.array(rows, dtype=np.int).T[1:]
+        gene_names = np.array(gene_names, dtype=np.str)
+
         selected = np.std(expression_data, axis=0).argsort()[-558:][::-1]
         expression_data = expression_data[:, selected]
-        gene_names = gene_names[selected].astype(str)
+        gene_names = gene_names[selected]
 
         # train test split for log-likelihood scores
-        expression_train, expression_test, c_train, c_test = train_test_split(expression_data, labels)
+        expression_train, expression_test, c_train, c_test = GeneExpressionDataset.train_test_split(expression_data,
+                                                                                                    labels)
 
         np.save(self.save_path + self.final_name, expression_train)
         np.save(self.save_path + 'expression_test.npy', expression_test)
