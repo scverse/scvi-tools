@@ -4,7 +4,6 @@
 """Main module."""
 import collections
 
-import numpy as np
 import torch
 import torch.nn as nn
 from scipy.stats import truncnorm
@@ -216,6 +215,3 @@ class Decoder(nn.Module):
             return px_scale, px_r, px_rate, px_dropout
         elif dispersion == "gene":
             return px_scale, px_rate, px_dropout
-
-
-
