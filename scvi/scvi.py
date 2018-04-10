@@ -2,7 +2,6 @@
 """Main module."""
 import collections
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -76,8 +75,7 @@ class VAE(nn.Module):
             ((ql_m - local_l_mean) ** 2) / local_l_var + ql_v / local_l_var
             + torch.log(local_l_var + 1e-8) - torch.log(ql_v + 1e-8) - 1), dim=1)
 
-        kl_ponderation = Variable(torch.from_numpy(np.array([kl_ponderation])).type(dtype),
-                                  requires_grad=False)
+        kl_ponderation = Variable(dtype([kl_ponderation]), requires_grad=False)
         kl_divergence = (kl_divergence_z + kl_divergence_l)
 
         # Total Loss

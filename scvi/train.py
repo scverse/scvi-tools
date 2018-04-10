@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 from torch.autograd import Variable
 
@@ -21,7 +20,7 @@ def train(vae, data_loader, n_epochs=20, learning_rate=0.001, kl=None):
             local_l_var = Variable(local_l_var.type(dtype), requires_grad=False)
 
             if kl is None:
-                kl_ponderation = np.minimum(1, epoch / 400.)
+                kl_ponderation = min(1, epoch / 400.)
             else:
                 kl_ponderation = kl
 
