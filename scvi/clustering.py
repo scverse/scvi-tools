@@ -1,5 +1,4 @@
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
 
 
 # CLUSTERING METRICS
@@ -17,9 +16,16 @@ def entropy_batch_mixing(latent_space, batches):
             return 0
         return -frequency * np.log(frequency) - (1 - frequency) * np.log(1 - frequency)
 
-    nne = NearestNeighbors(n_neighbors=51, n_jobs=8)
-    nne.fit(latent_space)
-    kmatrix = nne.kneighbors_graph(latent_space) - np.identity(latent_space.shape[0])
+    n_samples = latent_space.shape[0]
+    distance = np.zeros((n_samples, n_samples))
+    neighbors_graph = np.zeros((n_samples, n_samples))
+    for i in range(n_samples):
+        for j in range(i, n_samples):
+            distance[i, j] = distance[j, i] = sum((latent_space[i] - latent_space[j]) ** 2)
+
+    for i, d in enumerate(distance):
+        neighbors_graph[i, d.argsort()[:51]] = 1
+    kmatrix = neighbors_graph - np.identity(latent_space.shape[0])
 
     score = 0
     for t in range(50):
