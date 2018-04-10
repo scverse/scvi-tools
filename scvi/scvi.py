@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
-
-
 """Main module."""
 import collections
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+
+from scvi.log_likelihood import log_zinb_positive
 
 if torch.cuda.is_available():
     dtype = torch.cuda.FloatTensor
@@ -62,6 +63,26 @@ class VAE(nn.Module):
 
     def sample(self, z):
         return self.px_scale_decoder(z)
+
+    def loss(self, sampled_batch, local_l_mean, local_l_var, kl_ponderation):
+        px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v = self(sampled_batch)
+
+        # Reconstruction Loss
+        reconst_loss = -log_zinb_positive(sampled_batch, px_rate, torch.exp(px_r), px_dropout)
+
+        # KL Divergence
+        kl_divergence_z = torch.sum(0.5 * (qz_m ** 2 + qz_v - torch.log(qz_v + 1e-8) - 1), dim=1)
+        kl_divergence_l = torch.sum(0.5 * (
+            ((ql_m - local_l_mean) ** 2) / local_l_var + ql_v / local_l_var
+            + torch.log(local_l_var + 1e-8) - torch.log(ql_v + 1e-8) - 1), dim=1)
+
+        kl_ponderation = Variable(torch.from_numpy(np.array([kl_ponderation])).type(dtype),
+                                  requires_grad=False)
+        kl_divergence = (kl_divergence_z + kl_divergence_l)
+
+        # Total Loss
+        total_loss = torch.mean(reconst_loss + kl_ponderation * kl_divergence)
+        return total_loss, reconst_loss, kl_divergence
 
 
 # Encoder
