@@ -8,11 +8,6 @@ from torch.autograd import Variable
 
 from scvi.log_likelihood import log_zinb_positive
 
-if torch.cuda.is_available():
-    dtype = torch.cuda.FloatTensor
-else:
-    dtype = torch.FloatTensor
-
 
 # VAE model
 class VAE(nn.Module):
@@ -31,10 +26,12 @@ class VAE(nn.Module):
         self.log_variational = log_variational
         self.kl_scale = kl_scale
         if self.dispersion == "gene":
-            self.px_r = Variable(torch.randn(self.n_input, ).type(dtype), requires_grad=False)
+            self.register_buffer('px_r', torch.randn(self.n_input, ))
 
-        self.encoder = Encoder(n_input, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1)
-        self.decoder = Decoder(n_input, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1)
+        self.encoder = Encoder(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
+                               dropout_rate=dropout_rate)
+        self.decoder = Decoder(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
+                               dropout_rate=dropout_rate)
 
     def reparameterize(self, mu, var):
         std = torch.sqrt(var)
@@ -43,8 +40,6 @@ class VAE(nn.Module):
 
     def forward(self, x):
         # Parameters for z latent distribution
-        if torch.cuda.is_available():
-            x = x.cuda()
         if self.log_variational:
             x = torch.log(1 + x)
 
@@ -67,7 +62,7 @@ class VAE(nn.Module):
         px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v = self(sampled_batch)
 
         # Reconstruction Loss
-        reconst_loss = -log_zinb_positive(sampled_batch, px_rate, torch.exp(px_r), px_dropout)
+        reconst_loss = -log_zinb_positive(sampled_batch, px_rate, torch.exp(Variable(px_r)), px_dropout)
 
         # KL Divergence
         kl_divergence_z = torch.sum(0.5 * (qz_m ** 2 + qz_v - torch.log(qz_v + 1e-8) - 1), dim=1)
@@ -75,7 +70,7 @@ class VAE(nn.Module):
             ((ql_m - local_l_mean) ** 2) / local_l_var + ql_v / local_l_var
             + torch.log(local_l_var + 1e-8) - torch.log(ql_v + 1e-8) - 1), dim=1)
 
-        kl_ponderation = Variable(dtype([kl_ponderation]), requires_grad=False)
+        kl_ponderation = Variable(kl_ponderation)
         kl_divergence = (kl_divergence_z + kl_divergence_l)
 
         # Total Loss
@@ -112,34 +107,34 @@ class Encoder(nn.Module):
 
         # Then, there are two different layers that compute the means and the variances of the normal distribution
         # that represents the data in the latent space
-        self.z_mean_encoder = nn.Sequential(self.first_layer, self.hidden_layers, nn.Linear(n_hidden, n_latent))
-        self.z_var_encoder = nn.Sequential(self.first_layer, self.hidden_layers, nn.Linear(n_hidden, n_latent))
+        self.z_encoder = nn.Sequential(self.first_layer, self.hidden_layers)
+        self.z_mean_encoder = nn.Linear(n_hidden, n_latent)
+        self.z_var_encoder = nn.Linear(n_hidden, n_latent)
 
         # Encoding q(l/x)
         # The process is similar than for encoding q(z/x), except there is always only one hidden layer
-        self.l_encoder_initial = nn.Sequential(
+        self.l_encoder = nn.Sequential(
             nn.Dropout(p=self.dropout_rate),
             nn.Linear(n_input, n_hidden),
             nn.BatchNorm1d(n_hidden, eps=1e-3, momentum=0.99),
             nn.ReLU())
 
-        self.l_mean_encoder = nn.Sequential(self.l_encoder_initial,
-                                            nn.Linear(n_hidden, 1))
-        self.l_var_encoder = nn.Sequential(self.l_encoder_initial,
-                                           nn.Linear(n_hidden, 1))
+        self.l_mean_encoder = nn.Linear(n_hidden, 1)
+        self.l_var_encoder = nn.Linear(n_hidden, 1)
 
         if torch.cuda.is_available():
             self.cuda()
 
     def forward(self, x):
         # Parameters for z latent distribution
-
-        qz_m = self.z_mean_encoder(x)
-        qz_v = torch.exp(self.z_var_encoder(x))
+        qz = self.z_encoder(x)
+        qz_m = self.z_mean_encoder(qz)
+        qz_v = torch.exp(self.z_var_encoder(qz))
 
         # Parameters for l latent distribution
-        ql_m = self.l_mean_encoder(x)
-        ql_v = torch.exp(self.l_var_encoder(x))
+        ql = self.l_encoder(x)
+        ql_m = self.l_mean_encoder(ql)
+        ql_v = torch.exp(self.l_var_encoder(ql))
 
         return qz_m, qz_v, ql_m, ql_v
 
@@ -169,28 +164,25 @@ class Decoder(nn.Module):
                 nn.BatchNorm1d(n_hidden, eps=1e-3, momentum=0.99),
                 nn.ReLU())) for i in range(1, n_layers)]))
 
+        self.x_decoder = nn.Sequential(self.decoder_first_layer, self.decoder_hidden_layers)
+
         # mean gamma
-        self.px_scale_decoder = nn.Sequential(self.decoder_first_layer, self.decoder_hidden_layers,
-                                              nn.Linear(self.n_hidden, self.n_input), nn.Softmax(dim=-1))
+        self.px_scale_decoder = nn.Sequential(nn.Linear(self.n_hidden, self.n_input), nn.Softmax(dim=-1))
 
         # dispersion: here we only deal with gene-cell dispersion case
-        self.px_r_decoder = nn.Sequential(self.decoder_first_layer, self.decoder_hidden_layers,
-                                          nn.Linear(self.n_hidden, self.n_input))
+        self.px_r_decoder = nn.Linear(self.n_hidden, self.n_input)
 
         # dropout
-        self.px_dropout_decoder = nn.Sequential(self.decoder_first_layer, self.decoder_hidden_layers,
-                                                nn.Linear(self.n_hidden, self.n_input))
-
-        if torch.cuda.is_available():
-            self.cuda()
+        self.px_dropout_decoder = nn.Linear(self.n_hidden, self.n_input)
 
     def forward(self, dispersion, z, library):
         # The decoder returns values for the parameters of the ZINB distribution
-        px_scale = self.px_scale_decoder(z)
-        px_dropout = self.px_dropout_decoder(z)
+        px = self.x_decoder(z)
+        px_scale = self.px_scale_decoder(px)
+        px_dropout = self.px_dropout_decoder(px)
         px_rate = torch.exp(library) * px_scale
         if dispersion == "gene-cell":
-            px_r = self.px_r_decoder(z)
+            px_r = self.px_r_decoder(px)
             return px_scale, px_r, px_rate, px_dropout
         elif dispersion == "gene":
             return px_scale, px_rate, px_dropout
