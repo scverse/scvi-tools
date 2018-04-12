@@ -8,18 +8,15 @@ from scvi.log_likelihood import log_zinb_positive
 from scvi.scvi import VAE
 from scvi.train import train
 
-if torch.cuda.is_available():
-    dtype = torch.cuda.FloatTensor
-else:
-    dtype = torch.FloatTensor
-
 
 def compute_log_likelihood(vae, gene_dataset):
     data_loader_test = DataLoader(gene_dataset, batch_size=gene_dataset.total_size, shuffle=False, num_workers=1)
     for i_batch, (sample_batched, local_l_mean, local_l_var, batch_index) in enumerate(data_loader_test):
-        sample_batched = Variable(sample_batched.type(dtype), requires_grad=False)
+        sample_batched = Variable(sample_batched)
         px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v = vae(sample_batched)
-        log_lkl = torch.mean(-log_zinb_positive(sample_batched, px_rate, torch.exp(px_r), px_dropout)).data[0]
+        log_lkl = torch.mean(
+            -log_zinb_positive(sample_batched, px_rate, Variable(torch.exp(px_r)), px_dropout)
+        ).data[0]
     return log_lkl
 
 
@@ -36,6 +33,8 @@ def run_benchmarks(gene_dataset, n_epochs=1000, learning_rate=1e-3):
 
     data_loader = DataLoader(gene_dataset, batch_size=128, shuffle=True, num_workers=1)
     vae = VAE(gene_dataset.nb_genes)
+    if torch.cuda.is_available():
+        vae.cuda()
     train(vae, data_loader, n_epochs=n_epochs, learning_rate=learning_rate)
 
     # - log-likelihood
