@@ -4,8 +4,9 @@
 """Run all the benchmarks with specific parameters"""
 import argparse
 import time
-from scvi.dataset import load_dataset
+
 from scvi.benchmark import run_benchmarks
+from scvi.dataset import load_datasets
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -17,9 +18,9 @@ if __name__ == '__main__':
     # parser.add_argument("-b", "--bool", help="a bool", action="store_true", default=False)
 
     args = parser.parse_args()
-    gene_dataset = load_dataset(args.dataset)
+    gene_dataset_train, gene_dataset_test = load_datasets(args.dataset)
     start = time.time()
-    run_benchmarks(gene_dataset, n_epochs=args.epochs)
+    run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=args.epochs)
     end = time.time()
     print("Total runtime for " + str(args.epochs) + " epochs is: " + str((end - start))
-          + " seconds for a mean per epoch runtime of " + str((end - start)/args.epochs) + " seconds.")
+          + " seconds for a mean per epoch runtime of " + str((end - start) / args.epochs) + " seconds.")

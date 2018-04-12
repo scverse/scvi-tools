@@ -1,23 +1,21 @@
 import torch
 from torch.autograd import Variable
 
-if torch.cuda.is_available():
-    dtype = torch.cuda.FloatTensor
-else:
-    dtype = torch.FloatTensor
 
-
-def train(vae, data_loader, n_epochs=20, learning_rate=0.001, kl=None):
+def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0.001, kl=None):
     # Defining the optimizer
     optimizer = torch.optim.Adam(vae.parameters(), lr=learning_rate, eps=0.01)
-    iter_per_epoch = len(data_loader)
 
     # Training the model
     for epoch in range(n_epochs):
-        for i_batch, (sample_batch, local_l_mean, local_l_var, batch_index) in enumerate(data_loader):
+        for i_batch, (sample_batch, local_l_mean, local_l_var, batch_index) in enumerate(data_loader_train):
             sample_batch = Variable(sample_batch)
             local_l_mean = Variable(local_l_mean)
             local_l_var = Variable(local_l_var)
+            if torch.cuda.is_available():
+                sample_batch.cuda()
+                local_l_mean.cuda()
+                local_l_var.cuda()
 
             if kl is None:
                 kl_ponderation = min(1, epoch / 400.)
@@ -26,7 +24,7 @@ def train(vae, data_loader, n_epochs=20, learning_rate=0.001, kl=None):
 
             # Train loss is actually different from the real loss due to kl_ponderation
             train_loss, reconst_loss, kl_divergence = vae.loss(
-                sample_batch, local_l_mean, local_l_var, dtype([kl_ponderation])
+                sample_batch, local_l_mean, local_l_var, kl_ponderation
             )
             real_loss = reconst_loss + kl_divergence
             optimizer.zero_grad()
@@ -34,8 +32,10 @@ def train(vae, data_loader, n_epochs=20, learning_rate=0.001, kl=None):
             optimizer.step()
 
             # Simply printing the results
-            if i_batch % 100 == 0 and epoch % 1 == 0:
-                print("Epoch[%d/%d], Step [%d/%d], Total Loss: %.4f, "
-                      "Reconst Loss: %.4f, KL Div: %.7f"
-                      % (epoch + 1, n_epochs, i_batch + 1, iter_per_epoch, real_loss.data[0],
-                         torch.mean(reconst_loss).data[0], torch.mean(kl_divergence).data[0]))
+        if epoch % 10 == 0:
+            vae.eval()
+            log_likelihood_train = vae.compute_log_likelihood(data_loader_train)
+            log_likelihood_test = vae.compute_log_likelihood(data_loader_test)
+            print("Epoch[%d/%d], LL-Train %.4f, LL-Test %.4f, Total Loss: %.4f, "
+                  % (epoch + 1, n_epochs, log_likelihood_train, log_likelihood_test, real_loss.data[0]))
+            vae.train()

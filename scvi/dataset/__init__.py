@@ -7,11 +7,11 @@ __all__ = ['SyntheticDataset',
            'GeneExpressionDataset']
 
 
-def load_dataset(dataset_name):
+def load_datasets(dataset_name):
     if dataset_name == 'synthetic':
-        gene_dataset = SyntheticDataset()
+        gene_dataset_train, gene_dataset_test = SyntheticDataset(), SyntheticDataset()
     elif dataset_name == 'cortex':
-        gene_dataset = CortexDataset()
+        gene_dataset_train, gene_dataset_test = CortexDataset(type="train"), CortexDataset(type="test")
     else:
         raise "No such dataset available"
-    return gene_dataset
+    return gene_dataset_train, gene_dataset_test

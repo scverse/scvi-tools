@@ -8,11 +8,14 @@ from .dataset import GeneExpressionDataset
 
 
 class CortexDataset(GeneExpressionDataset):
-    def __init__(self):
+    def __init__(self, type='train'):
         # Generating samples according to a ZINB process
         self.save_path = 'data/'
         self.download_name = 'expression.bin'
-        self.final_name = 'expression_train.npy'
+        if type == 'train':
+            self.final_name = 'expression_train.npy'
+        elif type == 'test':
+            self.final_name = 'expression_test.npy'
         self.download_and_preprocess()
         super(CortexDataset, self).__init__([np.load(self.save_path + self.final_name)])
 

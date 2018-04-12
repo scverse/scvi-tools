@@ -4,11 +4,6 @@ import torch
 
 from functions.gamma import Lgamma
 
-if torch.cuda.is_available():
-    dtype = torch.cuda.FloatTensor
-else:
-    dtype = torch.FloatTensor
-
 
 def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     """
@@ -23,9 +18,6 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     pi: logit of the dropout parameter (real support) (shape: minibatch x genes)
     eps: numerical stability constant
     """
-    # CAREFUL: MODIFICATION WITH APPROXIMATION OF THE LGAMMA FUNCTION
-    x, mu, theta, pi = x.type(dtype), mu.type(dtype), theta.type(dtype), pi.type(dtype)
-
     def softplus(x):
         return torch.log(1 + torch.exp(x))
 

@@ -5,12 +5,14 @@
 """Tests for `scvi` package."""
 
 from run_benchmarks import run_benchmarks
-from scvi.dataset import load_dataset
+from scvi.dataset import load_datasets
 
 
 def test_benchmark():
-    run_benchmarks(load_dataset("synthetic"), n_epochs=1)
+    gene_dataset_train, gene_dataset_test = load_datasets("synthetic")
+    run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1)
 
 
 def test_cortex():
-    run_benchmarks(load_dataset("cortex"), n_epochs=1)
+    gene_dataset_train, gene_dataset_test = load_datasets("cortex")
+    run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1)
