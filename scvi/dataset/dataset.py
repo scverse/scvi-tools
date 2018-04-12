@@ -33,8 +33,6 @@ class GeneExpressionDataset(Dataset):
                           dim=1)]
 
         self.X = torch.cat(new_Xs, dim=0)
-        if torch.cuda.is_available():  # TODO: check valid
-            self.X.cuda()
         self.total_size = self.X.size(0)
 
     def get_all(self):
@@ -49,6 +47,7 @@ class GeneExpressionDataset(Dataset):
 
     def __getitem__(self, idx):
         # Returns the triplet (X, local_mean, local_var)
+        # Shouldn't we call .cuda here ?
         return self.X[idx, :self.nb_genes], self.X[idx, -3:-2], self.X[idx, -2:-1], self.X[idx, -1:]
 
     @staticmethod
