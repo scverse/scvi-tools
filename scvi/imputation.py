@@ -1,6 +1,6 @@
 import numpy as np
-from scvi.dataset import GeneExpressionDataset
 from torch.utils.data import DataLoader
+
 
 def imputation_error(X_pred, X, i, j, ix):
     """
@@ -24,7 +24,8 @@ def imputation(vae, gene_dataset):
         X = gene_dataset.get_all().numpy()
 
     gene_dropout_dataset, i, j, ix = gene_dataset.dropout(rate=0.1)
-    data_loader_dropout = DataLoader(gene_dropout_dataset, batch_size=len(gene_dropout_dataset), shuffle=True, num_workers=1)
+    data_loader_dropout = DataLoader(gene_dropout_dataset, batch_size=len(gene_dropout_dataset),
+                                     shuffle=True, num_workers=1)
     for sample_batch, local_l_mean, local_l_var, batch_index in data_loader_dropout:
         _, _, px_rate, _, _, _, _, _ = vae(sample_batch, batch_index)
     if px_rate.data.is_cuda:

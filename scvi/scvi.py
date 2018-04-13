@@ -12,7 +12,8 @@ from scvi.log_likelihood import log_zinb_positive, log_nb_positive
 # VAE model
 class VAE(nn.Module):
     def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1,
-                 dropout_rate=0.1, dispersion="gene", log_variational=True, kl_scale=1, reconstruction_loss="zinb",batch=False, n_batch=0):
+                 dropout_rate=0.1, dispersion="gene", log_variational=True, kl_scale=1, reconstruction_loss="zinb",
+                 batch=False, n_batch=0):
         super(VAE, self).__init__()
 
         self.dropout_rate = dropout_rate
@@ -59,11 +60,11 @@ class VAE(nn.Module):
         self.library = self.reparameterize(ql_m, ql_v)
 
         if self.dispersion == "gene-cell":
-            px_scale, self.px_r, px_rate, px_dropout = self.decoder.forward(self.dispersion, self.z,
-                                                                         self.library, batch_index)
+            px_scale, self.px_r, px_rate, px_dropout = self.decoder.forward(self.dispersion,
+                                                                            self.z, self.library, batch_index)
         elif self.dispersion == "gene":
-            px_scale, px_rate, px_dropout = self.decoder.forward(self.dispersion, self.z,
-                                                                 self.library, batch_index)
+            px_scale, px_rate, px_dropout = self.decoder.forward(self.dispersion,
+                                                                 self.z, self.library, batch_index)
 
         return px_scale, self.px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v
 
@@ -222,8 +223,8 @@ class Decoder(nn.Module):
                 batch_ind = batch_ind.type(torch.cuda.LongTensor)
             else:
                 batch_ind = batch_ind.type(torch.LongTensor)
-            onehot = torch.zeros(list(batch_index.size())[0],n_batch).type(dtype)
-            onehot[:,batch_ind] = 1
+            onehot = torch.zeros(list(batch_index.size())[0], n_batch).type(dtype)
+            onehot[:, batch_ind] = 1
             # Returns a variable hopefully with the same type as z
             return Variable(onehot)
 
