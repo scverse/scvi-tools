@@ -23,8 +23,25 @@ Single-cell Variational Inference
 Installation
 --------
 
-To load the Cortex data, and run the benchmarks:
+1. Install PyTorch 0.4: http://pytorch.org
+
+2. Install this repository from source: ``git clone https://github.com/YosefLab/scVI-dev.git``
+
+3. Refer to the `examples/` subdirectory for Jupyter notebooks that illustrate usage. 
+
+
+Benchmarks
+--------
+
+To recreate the results appearing in the paper referenced below, run
 
 .. code-block::
 
     python ./run_benchmarks.py --dataset=cortex 
+
+References
+--------
+
+Romain Lopez, Jeffrey Regier, Michael B Cole, Michael Jordan, Nir Yosef.
+**"Bayesian Inference for a Generative Model of Transcriptome Profiles from Single-cell RNA Sequencing."**
+In submission. Preprint available at https://www.biorxiv.org/content/early/2018/03/30/292037
