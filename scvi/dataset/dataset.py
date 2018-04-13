@@ -4,7 +4,6 @@
 For the moment, is initialized with a torch Tensor of size (n_cells, nb_genes)"""
 import numpy as np
 import torch
-import copy
 from torch.utils.data import Dataset
 
 
@@ -46,16 +45,6 @@ class GeneExpressionDataset(Dataset):
     def get_batches_as_numpy(self):
         dtype = torch.cuda.IntTensor if torch.cuda.is_available() else torch.IntTensor
         return self.X[:, -1:].type(dtype).numpy()
-
-    def dropout(self, rate):
-        dropout_dataset = copy.deepcopy(self)
-        indices = torch.nonzero(dropout_dataset.X[:, :-3])
-        i, j = indices[:, 0], indices[:, 1]
-
-        # choice number 1 : select 10 percent of the non zero values (so that distributions overlap enough)
-        ix = torch.LongTensor(np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False))
-        dropout_dataset.X[:, :-3][i[ix], j[ix]] *= 0  # *np.random.binomial(1, rate)
-        return dropout_dataset, i.numpy(), j.numpy(), ix
 
     def __len__(self):
         return self.total_size
