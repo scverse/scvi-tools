@@ -1,26 +1,6 @@
 import numpy as np
-
 from scvi.dataset import GeneExpressionDataset
-
-
-def dropout(X, rate=0.1):
-    """
-    X: original testing set
-    ========
-    returns:
-    X_zero: copy of X with zeros
-    i, j, ix: indices of where dropout is applied
-    """
-    X_zero = np.copy(X)
-    # select non-zero subset
-    i, j = np.nonzero(X_zero)
-
-    # choice number 1 : select 10 percent of the non zero values (so that distributions overlap enough)
-    ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
-    X_zero[i[ix], j[ix]] *= 0  # *np.random.binomial(1, rate)
-
-    return X_zero, i, j, ix
-
+from torch.utils.data import DataLoader
 
 def imputation_error(X_pred, X, i, j, ix):
     """
@@ -43,9 +23,10 @@ def imputation(vae, gene_dataset):
     else:
         X = gene_dataset.get_all().numpy()
 
-    X_zero, i, j, ix = dropout(X)
-    gene_dataset = GeneExpressionDataset([X_zero])
-    _, _, px_rate, _, _, _, _, _ = vae(gene_dataset.get_all())
+    gene_dropout_dataset, i, j, ix = gene_dataset.dropout(rate=0.1)
+    data_loader_dropout = DataLoader(gene_dropout_dataset, batch_size=len(gene_dropout_dataset), shuffle=True, num_workers=1)
+    for sample_batch, local_l_mean, local_l_var, batch_index in data_loader_dropout:
+        _, _, px_rate, _, _, _, _, _ = vae(sample_batch, batch_index)
     if px_rate.data.is_cuda:
         mae = imputation_error(px_rate.data.cpu().numpy(), X, i, j, ix)
     else:

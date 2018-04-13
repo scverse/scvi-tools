@@ -7,7 +7,7 @@ from scvi.scvi import VAE
 from scvi.train import train
 
 
-def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learning_rate=1e-3):
+def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learning_rate=1e-3, use_batches=False):
     # options:
     # - gene_dataset: a GeneExpressionDataset object
     # call each of the 4 benchmarks:
@@ -20,7 +20,7 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
 
     data_loader_train = DataLoader(gene_dataset_train, batch_size=128, shuffle=True, num_workers=1)
     data_loader_test = DataLoader(gene_dataset_test, batch_size=128, shuffle=True, num_workers=1)
-    vae = VAE(gene_dataset_train.nb_genes)
+    vae = VAE(gene_dataset_train.nb_genes, batch=use_batches, n_batch=gene_dataset_train.n_batches)
     if torch.cuda.is_available():
         vae.cuda()
     train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, learning_rate=learning_rate)
@@ -39,7 +39,7 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
 
     # - batch mixing
     if gene_dataset_train.n_batches == 2:
-        vae(gene_dataset_train.get_all())  # Just run a forward pass on all the data
+        vae(gene_dataset_train.get_all(), gene_dataset_train.get_batches())  # Just run a forward pass on all the data
         latent = vae.z.data.numpy()
-        batches = gene_dataset_train.get_batches()
-        print("Entropy batch mixing :", entropy_batch_mixing(latent, batches))
+        batches_as_np = gene_dataset_train.get_batches_as_numpy()
+        print("Entropy batch mixing :", entropy_batch_mixing(latent, batches_as_np))
