@@ -24,5 +24,3 @@ if __name__ == '__main__':
     end = time.time()
     print("Total runtime for " + str(args.epochs) + " epochs is: " + str((end - start))
           + " seconds for a mean per epoch runtime of " + str((end - start) / args.epochs) + " seconds.")
-
-
