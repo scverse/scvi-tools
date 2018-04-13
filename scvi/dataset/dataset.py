@@ -43,8 +43,7 @@ class GeneExpressionDataset(Dataset):
         return self.X[:, -1:].type(dtype)
 
     def get_batches_as_numpy(self):
-        dtype = torch.cuda.IntTensor if torch.cuda.is_available() else torch.IntTensor
-        return self.X[:, -1:].type(dtype).numpy()
+        return self.get_batches().numpy()
 
     def __len__(self):
         return self.total_size

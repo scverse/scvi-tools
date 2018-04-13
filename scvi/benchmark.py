@@ -39,7 +39,11 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
 
     # - batch mixing
     if gene_dataset_train.n_batches == 2:
-        vae(gene_dataset_train.get_all(), gene_dataset_train.get_batches())  # Just run a forward pass on all the data
-        latent = vae.z.data.numpy()
-        batches_as_np = gene_dataset_train.get_batches_as_numpy()
-        print("Entropy batch mixing :", entropy_batch_mixing(latent, batches_as_np))
+        latent = []
+        batch_indices = []
+        for sample_batch, local_l_mean, local_l_var, batch_index in data_loader_train:
+            latent += [vae.sample_from_posterior(sample_batch)]  # Just run a forward pass on all the data
+            batch_indices += [batch_index]
+        latent = torch.cat(latent)
+        batch_indices = torch.cat(batch_indices)
+        print("Entropy batch mixing :", entropy_batch_mixing(latent.data.numpy(), batch_indices.numpy()))
