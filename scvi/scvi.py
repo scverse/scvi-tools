@@ -107,6 +107,7 @@ class VAE(nn.Module):
             sample_batched = Variable(sample_batched)
             if torch.cuda.is_available():
                 sample_batched = sample_batched.cuda()
+                batch_index = batch_index.cuda()
             px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v = self(sample_batched, batch_index)
             if self.reconstruction_loss == 'zinb':
                 sample_loss = -log_zinb_positive(sample_batched, px_rate, torch.exp(px_r), px_dropout)
@@ -225,13 +226,18 @@ class Decoder(nn.Module):
     def forward(self, dispersion, z, library, batch_index=None):
         # The decoder returns values for the parameters of the ZINB distribution
 
-        def one_hot(batch_ind, n_batch, dtype):
-            if batch_ind.is_cuda:
-                batch_ind = batch_ind.type(torch.cuda.LongTensor)
+        def one_hot(batch_index, n_batch, dtype):
+            batch_size = batch_index.size()[0]
+            arange_index = torch.arange(batch_size).view(-1, 1)
+            if batch_index.is_cuda:
+                batch_index = batch_index.type(torch.cuda.LongTensor)
+                arange_index = arange_index.type(torch.cuda.LongTensor)
             else:
-                batch_ind = batch_ind.type(torch.LongTensor)
-            onehot = torch.zeros(list(batch_index.size())[0], n_batch).type(dtype)
-            onehot[:, batch_ind] = 1
+                batch_index = batch_index.type(torch.LongTensor)
+                arange_index = arange_index.type(torch.LongTensor)
+
+            onehot = torch.zeros(batch_size, n_batch).type(dtype)
+            onehot[arange_index, batch_index] = 1
             # Returns a variable hopefully with the same type as z
             return Variable(onehot)
 
