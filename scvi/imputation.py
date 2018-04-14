@@ -1,53 +1,16 @@
 import numpy as np
 
-from scvi.dataset import GeneExpressionDataset
+import torch
 
 
-def dropout(X, rate=0.1):
-    """
-    X: original testing set
-    ========
-    returns:
-    X_zero: copy of X with zeros
-    i, j, ix: indices of where dropout is applied
-    """
-    X_zero = np.copy(X)
-    # select non-zero subset
-    i, j = np.nonzero(X_zero)
-
-    # choice number 1 : select 10 percent of the non zero values (so that distributions overlap enough)
-    ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
-    X_zero[i[ix], j[ix]] *= 0  # *np.random.binomial(1, rate)
-
-    return X_zero, i, j, ix
-
-
-def imputation_error(X_pred, X, i, j, ix):
-    """
-    X_pred: imputed dataset
-    X: original dataset
-    X_zero: zeros dataset
-    i, j, ix: indices of where dropout was applied
-    ========
-    returns:
-    median L1 distance between datasets at indices given
-    """
-    all_index = i[ix], j[ix]
-    x, y = X_pred[all_index], X[all_index]
-    return np.median(np.abs(x - y))
-
-
-def imputation(vae, gene_dataset):
-    if gene_dataset.get_all().is_cuda:
-        X = gene_dataset.get_all().cpu().numpy()
-    else:
-        X = gene_dataset.get_all().numpy()
-
-    X_zero, i, j, ix = dropout(X)
-    gene_dataset = GeneExpressionDataset([X_zero])
-    _, _, px_rate, _, _, _, _, _ = vae(gene_dataset.get_all())
-    if px_rate.data.is_cuda:
-        mae = imputation_error(px_rate.data.cpu().numpy(), X, i, j, ix)
-    else:
-        mae = imputation_error(px_rate.data.numpy(), X, i, j, ix)
-    return mae
+def imputation(vae, data_loader, rate=0.1):
+    distance_list = torch.FloatTensor([])
+    for sample_batch, local_l_mean, local_l_var, batch_index in data_loader:
+        dropout_batch = sample_batch.clone()
+        indices = torch.nonzero(dropout_batch)
+        i, j = indices[:, 0], indices[:, 1]
+        ix = torch.LongTensor(np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False))
+        dropout_batch[i[ix], j[ix]] *= 0
+        _, _, px_rate, _, _, _, _, _ = vae(dropout_batch, batch_index)
+        distance_list = torch.cat([distance_list, torch.abs(px_rate[i[ix], j[ix]].data - sample_batch[i[ix], j[ix]])])
+    return torch.median(distance_list)
