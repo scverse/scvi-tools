@@ -9,6 +9,9 @@ from torch.autograd import Variable
 from scvi.log_likelihood import log_zinb_positive, log_nb_positive
 
 
+torch.backends.cudnn.benchmark = True
+
+
 # VAE model
 class VAE(nn.Module):
     def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1,

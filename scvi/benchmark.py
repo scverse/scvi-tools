@@ -16,8 +16,6 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
     # - batch mixing
     # - cluster scores
 
-    torch.backends.cudnn.benchmark = True
-
     data_loader_train = DataLoader(gene_dataset_train, batch_size=128, shuffle=True, num_workers=1)
     data_loader_test = DataLoader(gene_dataset_test, batch_size=128, shuffle=True, num_workers=1)
     vae = VAE(gene_dataset_train.nb_genes, batch=use_batches, n_batch=gene_dataset_train.n_batches)
