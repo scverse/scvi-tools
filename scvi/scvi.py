@@ -163,9 +163,6 @@ class Encoder(nn.Module):
         self.l_mean_encoder = nn.Linear(n_hidden, 1)
         self.l_var_encoder = nn.Linear(n_hidden, 1)
 
-        if torch.cuda.is_available():
-            self.cuda()
-
     def forward(self, x):
         # Parameters for z latent distribution
         qz = self.z_encoder(x)
