@@ -12,12 +12,11 @@ class CortexDataset(GeneExpressionDataset):
         # Generating samples according to a ZINB process
         self.save_path = 'data/'
         self.download_name = 'expression.bin'
-        if type == 'train':
-            self.final_name = 'expression_train.npy'
-        elif type == 'test':
-            self.final_name = 'expression_test.npy'
+        self.data_filename = 'expression_%s.npy' % type
+        self.labels_filename = 'labels_%s.npy' % type
         self.download_and_preprocess()
-        super(CortexDataset, self).__init__([np.load(self.save_path + self.final_name)])
+        super(CortexDataset, self).__init__([np.load(self.save_path + self.data_filename)],
+                                            [np.load(self.save_path + self.labels_filename)])
 
     def download(self):
         url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt"
@@ -68,11 +67,14 @@ class CortexDataset(GeneExpressionDataset):
         expression_train, expression_test, c_train, c_test = GeneExpressionDataset.train_test_split(expression_data,
                                                                                                     labels)
 
-        np.save(self.save_path + self.final_name, expression_train)
+        np.save(self.save_path + 'expression_train.npy', expression_train)
         np.save(self.save_path + 'expression_test.npy', expression_test)
+        np.save(self.save_path + 'labels_train.npy', c_train)
+        np.save(self.save_path + 'labels_test.npy', c_test)
 
     def download_and_preprocess(self):
-        if not os.path.exists(self.save_path + self.final_name):
+        if not os.path.exists(self.save_path + self.data_filename) and \
+                os.path.exists(self.save_path + self.labels_filename):
             if not os.path.exists(self.save_path + self.download_name):
                 self.download()
             self.preprocess()

@@ -42,7 +42,7 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
     if gene_dataset_train.n_batches == 2:
         latent = []
         batch_indices = []
-        for sample_batch, local_l_mean, local_l_var, batch_index in data_loader_train:
+        for sample_batch, local_l_mean, local_l_var, batch_index, _ in data_loader_train:
             if vae.using_cuda:
                 sample_batch = sample_batch.cuda(async=True)
             latent += [vae.sample_from_posterior(sample_batch)]  # Just run a forward pass on all the data
