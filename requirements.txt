@@ -9,4 +9,5 @@ cffi==1.6.0
 torch==0.3.1
 matplotlib==2.2.2
 scikit-learn==0.19.1
+scipy==1.0.0
 codecov
