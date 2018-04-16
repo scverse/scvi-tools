@@ -23,7 +23,7 @@ Single-cell Variational Inference
 Installation
 --------
 
-1. Install PyTorch 0.4: http://pytorch.org
+1. Install PyTorch: http://pytorch.org
 
 2. Install this repository from source: ``git clone https://github.com/YosefLab/scVI-dev.git``
 
