@@ -3,11 +3,12 @@ from torch.utils.data import DataLoader
 
 from scvi.clustering import entropy_batch_mixing
 from scvi.dataset import CortexDataset
+from scvi.differential_expression import get_statistics
 from scvi.imputation import imputation
 from scvi.log_likelihood import compute_log_likelihood
 from scvi.scvi import VAE
 from scvi.train import train
-from scvi.differential_expression import get_statistics
+
 
 def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learning_rate=1e-3,
                    use_batches=False, use_cuda=True):
@@ -43,7 +44,7 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
     if gene_dataset_train.n_batches == 2:
         latent = []
         batch_indices = []
-        for sample_batch, local_l_mean, local_l_var, batch_index in data_loader_train:
+        for sample_batch, local_l_mean, local_l_var, batch_index, _ in data_loader_train:
             if vae.using_cuda:
                 sample_batch = sample_batch.cuda(async=True)
             latent += [vae.sample_from_posterior(sample_batch)]  # Just run a forward pass on all the data
@@ -53,8 +54,6 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
         print("Entropy batch mixing :", entropy_batch_mixing(latent.data.cpu().numpy(), batch_indices.numpy()))
 
     # - differential expression
-    #gene_dataset_train.
-    if type(gene_dataset_train)==CortexDataset:
-        get_statistics(vae, gene_dataset_train)
-
-
+    #
+    if type(gene_dataset_train) == CortexDataset:
+        get_statistics(vae, data_loader_train)
