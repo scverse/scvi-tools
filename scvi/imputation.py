@@ -5,7 +5,7 @@ import torch
 
 def imputation(vae, data_loader, rate=0.1):
     distance_list = torch.FloatTensor([])
-    for sample_batch, local_l_mean, local_l_var, batch_index in data_loader:
+    for sample_batch, local_l_mean, local_l_var, batch_index, _ in data_loader:
         dropout_batch = sample_batch.clone()
         indices = torch.nonzero(dropout_batch)
         i, j = indices[:, 0], indices[:, 1]
