@@ -21,37 +21,33 @@ class GeneExpressionDataset(Dataset):
         assert all(X.shape[1] == self.nb_genes for X in Xs), "All tensors must have same size"
 
         new_Xs = []
+        local_means = []
+        local_vars = []
+        batch_indices = []
         for i, X in enumerate(Xs):
             X = torch.Tensor(X)
             log_counts = torch.log(torch.sum(X, dim=1))
             local_mean = torch.mean(log_counts)
             local_var = torch.var(log_counts)
-            new_Xs += [
-                torch.cat((X, local_mean * torch.ones((X.size()[0], 1)),
-                           local_var * torch.ones((X.size()[0], 1)),
-                           torch.from_numpy(i * np.ones((X.size()[0], 1))).type(torch.FloatTensor)),
-                          dim=1)]
+            new_Xs += [X]
+            local_means += [local_mean * torch.ones((X.size()[0], 1))]
+            local_vars += [local_var * torch.ones((X.size()[0], 1))]
+            batch_indices += [torch.LongTensor(i * np.ones((X.size()[0], 1)))]
 
+        self.local_means = torch.cat(local_means, dim=0)
+        self.local_vars = torch.cat(local_vars, dim=0)
+        self.batch_indices = torch.cat(batch_indices)
         self.X = torch.cat(new_Xs, dim=0)
         self.total_size = self.X.size(0)
 
     def get_all(self):
-        return self.X[:, :-3]
-
-    def get_batches(self):
-        dtype = torch.cuda.IntTensor if torch.cuda.is_available() else torch.IntTensor
-        return self.X[:, -1:].type(dtype)
-
-    def get_batches_as_numpy(self):
-        return self.get_batches().numpy()
+        return self.X
 
     def __len__(self):
         return self.total_size
 
     def __getitem__(self, idx):
-        # Returns the triplet (X, local_mean, local_var)
-        # Shouldn't we call .cuda here ?
-        return self.X[idx, :self.nb_genes], self.X[idx, -3:-2], self.X[idx, -2:-1], self.X[idx, -1:]
+        return self.X[idx], self.local_means[idx], self.local_vars[idx], self.batch_indices[idx]
 
     @staticmethod
     def train_test_split(*Xs, train_size=0.75):
