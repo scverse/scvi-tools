@@ -14,7 +14,7 @@ def show_t_sne(latent, labels, title, cmap=plt.get_cmap("tab10", 7), return_t_sn
     plt.title(title)
     plt.axis("off")
     plt.tight_layout()
-    # plt.show()
+    plt.show()
 
     if return_t_sne:
         return latent

@@ -11,7 +11,7 @@ from scvi.visualization import show_t_sne
 
 
 def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learning_rate=1e-3,
-                   use_batches=False, use_cuda=True):
+                   use_batches=False, use_cuda=True, show_batch_mixing=False):
     # options:
     # - gene_dataset: a GeneExpressionDataset object
     # call each of the 4 benchmarks:
@@ -53,6 +53,6 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
         batch_indices = torch.cat(batch_indices)
         if gene_dataset_train.n_batches == 2:
             print("Entropy batch mixing :", entropy_batch_mixing(latent.data.cpu().numpy(), batch_indices.numpy()))
-
-        show_t_sne(latent.data.cpu().numpy(), np.array([batch[0] for batch in batch_indices.numpy()]),
-                   "Batch mixing t_SNE plot")
+        if show_batch_mixing:
+            show_t_sne(latent.data.cpu().numpy(), np.array([batch[0] for batch in batch_indices.numpy()]),
+                       "Batch mixing t_SNE plot")
