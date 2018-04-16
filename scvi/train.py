@@ -16,7 +16,7 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
             local_l_mean = Variable(local_l_mean)
             local_l_var = Variable(local_l_var)
 
-            if torch.cuda.is_available():
+            if vae.using_cuda:
                 sample_batch = sample_batch.cuda(async=True)
                 local_l_mean = local_l_mean.cuda(async=True)
                 local_l_var = local_l_var.cuda(async=True)
