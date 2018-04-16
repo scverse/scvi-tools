@@ -48,6 +48,12 @@ class VAE(nn.Module):
         qz_v = torch.exp(self.encoder.z_var_encoder(qz))
         return self.reparameterize(qz_m, qz_v)
 
+    def get_sample_rate(self, x, batch_index=None):
+        z = self.sample_from_posterior(x)
+        px = self.decoder.px_decoder_batch(z, batch_index)
+        px_scale = self.decoder.px_scale_decoder(px)
+        return px_scale
+
     def reparameterize(self, mu, var):
         std = torch.sqrt(var)
         eps = Variable(std.data.new(std.size()).normal_())
@@ -195,7 +201,7 @@ class Decoder(nn.Module):
                 nn.BatchNorm1d(n_hidden, eps=1e-3, momentum=0.99),
                 nn.ReLU())) for i in range(1, n_layers)]))
 
-        self.x_decoder = nn.Sequential(self.decoder_first_layer, self.decoder_hidden_layers)
+        self.px_decoder = nn.Sequential(self.decoder_first_layer, self.decoder_hidden_layers)
 
         # mean gamma
         self.px_scale_decoder = nn.Sequential(nn.Linear(self.n_hidden_real, self.n_input), nn.Softmax(dim=-1))
@@ -208,22 +214,7 @@ class Decoder(nn.Module):
 
     def forward(self, dispersion, z, library, batch_index=None):
         # The decoder returns values for the parameters of the ZINB distribution
-
-        def one_hot(batch_index, n_batch, dtype):
-            if batch_index.is_cuda:
-                batch_index = batch_index.type(torch.cuda.LongTensor)
-            else:
-                batch_index = batch_index.type(torch.LongTensor)
-            onehot = batch_index.new(batch_index.size(0), n_batch).fill_(0)
-            onehot.scatter_(1, batch_index, 1)
-            return Variable(onehot.type(dtype))
-
-        if self.batch:
-            one_hot_batch = one_hot(batch_index, self.n_batch, z.data.type())
-            z = torch.cat((z, one_hot_batch), 1)
-        px = self.x_decoder(z)
-        if self.batch:
-            px = torch.cat((px, one_hot_batch), 1)
+        px = self.px_decoder_batch(z, batch_index)
         px_scale = self.px_scale_decoder(px)
         px_dropout = self.px_dropout_decoder(px)
         px_rate = torch.exp(library) * px_scale
@@ -232,3 +223,20 @@ class Decoder(nn.Module):
             return px_scale, px_r, px_rate, px_dropout
         elif dispersion == "gene":
             return px_scale, px_rate, px_dropout
+
+    def px_decoder_batch(self, z, batch_index):
+
+        def one_hot(batch_index, n_batch, dtype):
+            if torch.cuda.is_available():
+                batch_index = batch_index.cuda()
+            onehot = batch_index.new(batch_index.size(0), n_batch).fill_(0)
+            onehot.scatter_(1, batch_index, 1)
+            return Variable(onehot.type(dtype))
+
+        if self.batch:
+            one_hot_batch = one_hot(batch_index, self.n_batch, z.data.type())
+            z = torch.cat((z, one_hot_batch), 1)
+        px = self.px_decoder(z)
+        if self.batch:
+            px = torch.cat((px, one_hot_batch), 1)
+        return px
