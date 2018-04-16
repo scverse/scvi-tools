@@ -1,8 +1,26 @@
 """File for computing log likelihood of the data"""
 
 import torch
+from torch.autograd import Variable
 
 from functions.gamma import Lgamma
+
+
+def compute_log_likelihood(vae, data_loader):
+    # Iterate once over the data_loader and computes the total log_likelihood
+    log_lkl = 0
+    for i_batch, (sample_batched, local_l_mean, local_l_var, batch_index) in enumerate(data_loader):
+        sample_batched = Variable(sample_batched)
+        if torch.cuda.is_available():
+            sample_batched = sample_batched.cuda()
+            batch_index = batch_index.cuda()
+        px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v = vae(sample_batched, batch_index)
+        if vae.reconstruction_loss == 'zinb':
+            sample_loss = -log_zinb_positive(sample_batched, px_rate, torch.exp(px_r), px_dropout)
+        elif vae.reconstruction_loss == 'nb':
+            sample_loss = -log_nb_positive(sample_batched, px_rate, torch.exp(px_r))
+        log_lkl += torch.sum(sample_loss).data[0]
+    return log_lkl / len(data_loader.dataset)
 
 
 def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
@@ -18,6 +36,7 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     pi: logit of the dropout parameter (real support) (shape: minibatch x genes)
     eps: numerical stability constant
     """
+
     def softplus(x):
         return torch.log(1 + torch.exp(x))
 

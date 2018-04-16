@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 
 from scvi.clustering import entropy_batch_mixing
 from scvi.imputation import imputation
+from scvi.log_likelihood import compute_log_likelihood
 from scvi.scvi import VAE
 from scvi.train import train
 
@@ -25,8 +26,8 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
 
     # - log-likelihood
     vae.eval()  # Test mode - affecting dropout and batchnorm
-    log_likelihood_train = vae.compute_log_likelihood(data_loader_train)
-    log_likelihood_test = vae.compute_log_likelihood(data_loader_test)
+    log_likelihood_train = compute_log_likelihood(vae, data_loader_train)
+    log_likelihood_test = compute_log_likelihood(vae, data_loader_test)
     print("Log-likelihood Train:", log_likelihood_train)
     print("Log-likelihood Test:", log_likelihood_test)
 
@@ -40,8 +41,10 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
         latent = []
         batch_indices = []
         for sample_batch, local_l_mean, local_l_var, batch_index in data_loader_train:
+            if torch.cuda.is_available():
+                sample_batch = sample_batch.cuda(async=True)
             latent += [vae.sample_from_posterior(sample_batch)]  # Just run a forward pass on all the data
             batch_indices += [batch_index]
         latent = torch.cat(latent)
         batch_indices = torch.cat(batch_indices)
-        print("Entropy batch mixing :", entropy_batch_mixing(latent.data.numpy(), batch_indices.numpy()))
+        print("Entropy batch mixing :", entropy_batch_mixing(latent.data.cpu().numpy(), batch_indices.numpy()))

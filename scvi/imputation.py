@@ -18,8 +18,8 @@ def imputation(vae, data_loader, rate=0.1):
             sample_batch = sample_batch.cuda(async=True)
             distance_list = distance_list.cuda(async=True)
             ix = ix.cuda(async=True)
-            i = i.cuda(async=True)
-            j = j.cuda(async=True)
+            i = i.cuda()  # Source tensor must be contiguous - async=True : ERROR
+            j = j.cuda()
 
         _, _, px_rate, _, _, _, _, _ = vae(dropout_batch, batch_index)
         distance_list = torch.cat([distance_list, torch.abs(px_rate[i[ix], j[ix]].data - sample_batch[i[ix], j[ix]])])

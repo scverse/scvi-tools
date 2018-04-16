@@ -8,7 +8,6 @@ from torch.autograd import Variable
 
 from scvi.log_likelihood import log_zinb_positive, log_nb_positive
 
-
 torch.backends.cudnn.benchmark = True
 
 
@@ -102,21 +101,6 @@ class VAE(nn.Module):
         # Train Loss # Not real total loss
         train_loss = torch.mean(reconst_loss + kl_ponderation * kl_divergence)
         return train_loss, reconst_loss, kl_divergence
-
-    def compute_log_likelihood(self, data_loader):
-        # Iterate once over the data_loader and computes the total log_likelihood
-        log_lkl = 0
-        for i_batch, (sample_batched, local_l_mean, local_l_var, batch_index) in enumerate(data_loader):
-            sample_batched = Variable(sample_batched)
-            if torch.cuda.is_available():
-                sample_batched = sample_batched.cuda()
-            px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v = self(sample_batched, batch_index)
-            if self.reconstruction_loss == 'zinb':
-                sample_loss = -log_zinb_positive(sample_batched, px_rate, torch.exp(px_r), px_dropout)
-            elif self.reconstruction_loss == 'nb':
-                sample_loss = -log_nb_positive(sample_batched, px_rate, torch.exp(px_r))
-            log_lkl += torch.sum(sample_loss).data[0]
-        return log_lkl / len(data_loader.dataset)
 
 
 # Encoder
@@ -225,15 +209,14 @@ class Decoder(nn.Module):
     def forward(self, dispersion, z, library, batch_index=None):
         # The decoder returns values for the parameters of the ZINB distribution
 
-        def one_hot(batch_ind, n_batch, dtype):
-            if batch_ind.is_cuda:
-                batch_ind = batch_ind.type(torch.cuda.LongTensor)
+        def one_hot(batch_index, n_batch, dtype):
+            if batch_index.is_cuda:
+                batch_index = batch_index.type(torch.cuda.LongTensor)
             else:
-                batch_ind = batch_ind.type(torch.LongTensor)
-            onehot = torch.zeros(list(batch_index.size())[0], n_batch).type(dtype)
-            onehot[:, batch_ind] = 1
-            # Returns a variable hopefully with the same type as z
-            return Variable(onehot)
+                batch_index = batch_index.type(torch.LongTensor)
+            onehot = batch_index.new(batch_index.size(0), n_batch).fill_(0)
+            onehot.scatter_(1, batch_index, 1)
+            return Variable(onehot.type(dtype))
 
         if self.batch:
             one_hot_batch = one_hot(batch_index, self.n_batch, z.data.type())
