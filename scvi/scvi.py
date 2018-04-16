@@ -214,9 +214,7 @@ class Decoder(nn.Module):
 
         def one_hot(batch_index, n_batch, dtype):
             if self.using_cuda:
-                batch_index = batch_index.type(torch.cuda.LongTensor)
-            else:
-                batch_index = batch_index.type(torch.LongTensor)
+                batch_index = batch_index.cuda()
             onehot = batch_index.new(batch_index.size(0), n_batch).fill_(0)
             onehot.scatter_(1, batch_index, 1)
             return Variable(onehot.type(dtype))
