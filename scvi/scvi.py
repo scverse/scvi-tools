@@ -9,6 +9,9 @@ from torch.autograd import Variable
 from scvi.log_likelihood import log_zinb_positive, log_nb_positive
 
 
+torch.backends.cudnn.benchmark = True
+
+
 # VAE model
 class VAE(nn.Module):
     def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1,
@@ -160,9 +163,6 @@ class Encoder(nn.Module):
 
         self.l_mean_encoder = nn.Linear(n_hidden, 1)
         self.l_var_encoder = nn.Linear(n_hidden, 1)
-
-        if torch.cuda.is_available():
-            self.cuda()
 
     def forward(self, x):
         # Parameters for z latent distribution
