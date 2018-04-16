@@ -1,5 +1,8 @@
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
+import matplotlib
+
+matplotlib.use('agg')
 
 
 def show_t_sne(latent, labels, title, cmap=plt.get_cmap("tab10", 7), return_t_sne=False):
