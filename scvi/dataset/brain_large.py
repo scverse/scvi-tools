@@ -61,7 +61,7 @@ def save_matrix_to_h5(gbm, filename, genome):
 
 
 class BrainLargeDataset(GeneExpressionDataset):
-    def __init__(self, subsample_size=20):
+    def __init__(self, subsample_size=1):
         """
         :param subsample_size: In thousands of barcodes kept (by default 1*1000=1000 kept)
         """
@@ -72,7 +72,8 @@ class BrainLargeDataset(GeneExpressionDataset):
         self.genome = "mm10"
         self.download_and_preprocess()
         h5_object = get_matrix_from_h5(self.save_path + self.final_name, self.genome)
-        super(BrainLargeDataset, self).__init__([np.array(h5_object.matrix.transpose().todense())])
+        super(BrainLargeDataset, self).__init__([h5_object.matrix.transpose().tocsr(copy=False)], sparse=True)
+        # super(BrainLargeDataset, self).__init__([h5_object.matrix.transpose()], sparse=True)
 
     def download(self):
 
