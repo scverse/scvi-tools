@@ -13,11 +13,12 @@ class GeneExpressionDataset(Dataset):
     - local library size normalization (mean, var) per batch
     """
 
-    def __init__(self, Xs, list_labels=None):
+    def __init__(self, Xs, list_labels=None, gene_names=None):
         # Args:
         # Xs: a list of numpy tensors with .shape[1] identical (total_size*nb_genes)
         self.nb_genes = Xs[0].shape[1]
         self.n_batches = len(Xs)
+        self.gene_names = np.char.upper(gene_names)  # Take an upper case convention for gene names
         assert all(X.shape[1] == self.nb_genes for X in Xs), "All tensors must have same size"
 
         new_Xs = []

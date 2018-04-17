@@ -14,9 +14,11 @@ class CortexDataset(GeneExpressionDataset):
         self.download_name = 'expression.bin'
         self.data_filename = 'expression_%s.npy' % type
         self.labels_filename = 'labels_%s.npy' % type
+        self.gene_names = 'genes_names.npy'
         self.download_and_preprocess()
         super(CortexDataset, self).__init__([np.load(self.save_path + self.data_filename)],
-                                            [np.load(self.save_path + self.labels_filename)])
+                                            [np.load(self.save_path + self.labels_filename)],
+                                            np.load(self.save_path + self.gene_names))
 
     def download(self):
         url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt"
@@ -71,10 +73,12 @@ class CortexDataset(GeneExpressionDataset):
         np.save(self.save_path + 'expression_test.npy', expression_test)
         np.save(self.save_path + 'labels_train.npy', c_train)
         np.save(self.save_path + 'labels_test.npy', c_test)
+        np.save(self.save_path + self.gene_names, gene_names)
 
     def download_and_preprocess(self):
         if not (os.path.exists(self.save_path + self.data_filename) and
-                os.path.exists(self.save_path + self.labels_filename)):
+                os.path.exists(self.save_path + self.labels_filename) and
+                os.path.exists(self.save_path + self.gene_names)):
             if not os.path.exists(self.save_path + self.download_name):
                 self.download()
             self.preprocess()
