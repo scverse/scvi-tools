@@ -9,7 +9,7 @@ from functions.gamma import Lgamma
 def compute_log_likelihood(vae, data_loader):
     # Iterate once over the data_loader and computes the total log_likelihood
     log_lkl = 0
-    for i_batch, (sample_batched, local_l_mean, local_l_var, batch_index) in enumerate(data_loader):
+    for i_batch, (sample_batched, local_l_mean, local_l_var, batch_index, _) in enumerate(data_loader):
         sample_batched = Variable(sample_batched)
         if vae.using_cuda:
             sample_batched = sample_batched.cuda()
