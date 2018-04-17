@@ -20,7 +20,7 @@ if __name__ == '__main__':
     gene_dataset_train, gene_dataset_test = load_datasets(args.dataset)
     start = time.time()
     run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=args.epochs,
-                   use_batches=(not args.nobatches), use_cuda=(not args.nocuda))
+                   use_batches=(not args.nobatches), use_cuda=(not args.nocuda), show_batch_mixing=True)
     end = time.time()
     print("Total runtime for " + str(args.epochs) + " epochs is: " + str((end - start))
           + " seconds for a mean per epoch runtime of " + str((end - start) / args.epochs) + " seconds.")
