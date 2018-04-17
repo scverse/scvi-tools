@@ -73,7 +73,6 @@ class BrainLargeDataset(GeneExpressionDataset):
         self.download_and_preprocess()
         h5_object = get_matrix_from_h5(self.save_path + self.final_name, self.genome)
         super(BrainLargeDataset, self).__init__([h5_object.matrix.transpose().tocsr(copy=False)], sparse=True)
-        # super(BrainLargeDataset, self).__init__([h5_object.matrix.transpose()], sparse=True)
 
     def download(self):
 
