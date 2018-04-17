@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 
-def get_statistics(vae, data_loader, M_sampling=2, M_permutation=100, permutation=False):
+def get_statistics(vae, data_loader, M_sampling=100, M_permutation=100000, permutation=False):
     """
     Output average over statistics in a symmetric way (a against b)
     forget the sets if permutation is True
@@ -24,11 +24,22 @@ def get_statistics(vae, data_loader, M_sampling=2, M_permutation=100, permutatio
         if torch.cuda.is_available():
             sample_batch = sample_batch.cuda(async=True)
             batch_index = batch_index.cuda(async=True)
+            labels = labels.cuda(async=True)
         px_scales += [vae.get_sample_rate(sample_batch, batch_index)]
         all_labels += [labels]
 
-    couple_celltypes = (2, 4)  # the couple types on which to study DE
+    # #TODO: Cell types are not yet saved to the dataset object (should it be saved as .npy/.txt file then loaded ?)
+    # Or maybe we can take advantage of the h5 format to save such fields.
+    cell_types = np.array(['astrocytes_ependymal', 'endothelial-mural', 'interneurons', 'microglia',
+                           'oligodendrocytes', 'pyramidal CA1', 'pyramidal SS'], dtype=np.str)
+    # oligodendrocytes (#4) VS pyramidal CA1 (#5)
+    couple_celltypes = (4, 5)  # the couple types on which to study DE
+
+    print("\nDifferential Expression A/B for cell types\nA: %s\nB: %s\n" %
+          tuple((cell_types[couple_celltypes[i]] for i in [0, 1])))
+
     px_scale = torch.cat(px_scales)
+    # Here instead of A, B = 200, 400: we do on whole dataset then select cells
     all_labels = torch.cat(all_labels)
     sample_rate_a = px_scale[all_labels == couple_celltypes[0]].view(-1, px_scale.size(1)).cpu().data.numpy()
     sample_rate_b = px_scale[all_labels == couple_celltypes[1]].view(-1, px_scale.size(1)).cpu().data.numpy()
@@ -52,5 +63,10 @@ def get_statistics(vae, data_loader, M_sampling=2, M_permutation=100, permutatio
     second_set = samples[v]
 
     res = np.mean(first_set >= second_set, 0)
-    res = np.log(res) - np.log(1 - res)
+    res = np.log(res + 1e-8) - np.log(1 - res + 1e-8)
+
+    genes_of_interest = ["Thy1", "Mbp"]
+    gene_names = data_loader.dataset.gene_names
+    result = [(gene_name, res[np.where(gene_names == gene_name.upper())[0]][0]) for gene_name in genes_of_interest]
+    print('\n'.join([gene_name + " : " + str(r) for (gene_name, r) in result]))
     return res

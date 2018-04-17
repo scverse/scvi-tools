@@ -18,7 +18,6 @@ class GeneExpressionDataset(Dataset):
         # Xs: a list of numpy tensors with .shape[1] identical (total_size*nb_genes)
         self.nb_genes = Xs[0].shape[1]
         self.n_batches = len(Xs)
-        self.gene_names = np.char.upper(gene_names)  # Take an upper case convention for gene names
         assert all(X.shape[1] == self.nb_genes for X in Xs), "All tensors must have same size"
 
         new_Xs = []
@@ -41,6 +40,7 @@ class GeneExpressionDataset(Dataset):
         self.X = torch.cat(new_Xs, dim=0)
         self.total_size = self.X.size(0)
 
+        # This will be changed by the .h5 file format
         all_labels = []
         if list_labels is not None:
             for labels in list_labels:
@@ -48,6 +48,9 @@ class GeneExpressionDataset(Dataset):
             self.all_labels = torch.cat(all_labels, dim=0)
         else:
             self.all_labels = torch.zeros_like(self.batch_indices)  # We might want default label values
+
+        if gene_names is not None:
+            self.gene_names = np.char.upper(gene_names)  # Take an upper case convention for gene names
 
     def get_all(self):
         return self.X
@@ -65,6 +68,8 @@ class GeneExpressionDataset(Dataset):
         """
         Xs = [np.array(X) for X in Xs]
         split_idx = int(train_size * len(Xs[0]))
-
-        split_list = [[X[:split_idx], X[split_idx:]] for X in Xs]
+        all_indices = np.arange(len(Xs[0]))
+        train_indices = np.random.choice(all_indices, size=split_idx, replace=False)
+        test_indices = np.array(list(set(all_indices).difference(set(train_indices))))
+        split_list = [[X[train_indices], X[test_indices]] for X in Xs]
         return [X for Xs in split_list for X in Xs]
