@@ -3,9 +3,9 @@
 """Handling datasets.
 For the moment, is initialized with a torch Tensor of size (n_cells, nb_genes)"""
 import numpy as np
+import scipy.sparse as sp_sparse
 import torch
 from torch.utils.data import Dataset
-import scipy.sparse as sp_sparse
 
 
 class GeneExpressionDataset(Dataset):
@@ -42,8 +42,7 @@ class GeneExpressionDataset(Dataset):
         self.local_vars = torch.cat(local_vars, dim=0)
         self.batch_indices = torch.cat(batch_indices)
 
-        self.X = sp_sparse.vstack(new_Xs)
-
+        self.X = sp_sparse.vstack(new_Xs).astype(np.float32)
         self.total_size = self.X.shape[0]
 
         # This will be changed by the .h5 file format
@@ -62,8 +61,8 @@ class GeneExpressionDataset(Dataset):
         return self.total_size
 
     def __getitem__(self, idx):
-        return torch.Tensor(np.resize(self.X[idx, :].toarray(), (self.X[idx, :].toarray().shape[1]))), \
-               self.local_means[idx], self.local_vars[idx], self.batch_indices[idx], self.all_labels[idx]
+        return self.X[idx].toarray()[0], self.local_means[idx], self.local_vars[idx], \
+               self.batch_indices[idx], self.all_labels[idx]
 
     @staticmethod
     def train_test_split(*Xs, train_size=0.75):

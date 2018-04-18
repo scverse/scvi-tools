@@ -2,10 +2,13 @@ import numpy as np
 
 
 # CLUSTERING METRICS
-def entropy_batch_mixing(latent_space, batches):
+def entropy_batch_mixing(latent_space, batches, max_number=500):
     # latent space: numpy matrix of size (number_of_cells, latent_space_dimension)
     # with the encoding of the different inputs in the latent space
     # batches: numpy vector with the batch indices of the cells
+    n_samples = len(latent_space)
+    keep_idx = np.random.choice(np.arange(n_samples), size=min(len(latent_space), max_number), replace=False)
+    latent_space, batches = latent_space[keep_idx], batches[keep_idx]
 
     def entropy(hist_data):
         n_batches = len(np.unique(hist_data))
