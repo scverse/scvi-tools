@@ -21,7 +21,7 @@ def get_statistics(vae, data_loader, M_sampling=100, M_permutation=100000, permu
             1))  # sample_batch.repeat(1, sample_batch)
         batch_index = batch_index.repeat(1, M_sampling).view(-1, 1)
         labels = labels.repeat(1, M_sampling).view(-1, 1)
-        if torch.cuda.is_available():
+        if vae.using_cuda:
             sample_batch = sample_batch.cuda(async=True)
             batch_index = batch_index.cuda(async=True)
             labels = labels.cuda(async=True)

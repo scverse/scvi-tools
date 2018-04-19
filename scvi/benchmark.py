@@ -13,7 +13,7 @@ from scvi.visualization import show_t_sne
 
 
 def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learning_rate=1e-3,
-                   use_batches=False, use_cuda=True, show_batch_mixing=False):
+                   use_batches=False, use_cuda=True, show_batch_mixing=True):
     # options:
     # - gene_dataset: a GeneExpressionDataset object
     # call each of the 4 benchmarks:
@@ -22,8 +22,10 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
     # - batch mixing
     # - cluster scores
 
-    data_loader_train = DataLoader(gene_dataset_train, batch_size=128, shuffle=True, num_workers=1, pin_memory=True)
-    data_loader_test = DataLoader(gene_dataset_test, batch_size=128, shuffle=True, num_workers=1, pin_memory=True)
+    data_loader_train = DataLoader(gene_dataset_train, batch_size=128, shuffle=True,
+                                   num_workers=4, pin_memory=use_cuda)
+    data_loader_test = DataLoader(gene_dataset_test, batch_size=128, shuffle=True,
+                                  num_workers=4, pin_memory=use_cuda)
     vae = VAE(gene_dataset_train.nb_genes, batch=use_batches, n_batch=gene_dataset_train.n_batches,
               using_cuda=use_cuda)
     if vae.using_cuda:
@@ -56,9 +58,9 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
 
     if gene_dataset_train.n_batches == 2:
         print("Entropy batch mixing :", entropy_batch_mixing(latent.data.cpu().numpy(), batch_indices.numpy()))
-    if show_batch_mixing:
-        show_t_sne(latent.data.cpu().numpy(), np.array([batch[0] for batch in batch_indices.numpy()]),
-                   "Batch mixing t_SNE plot")
+        if show_batch_mixing:
+            show_t_sne(latent.data.cpu().numpy(), np.array([batch[0] for batch in batch_indices.numpy()]),
+                       "Batch mixing t_SNE plot")
 
     # - differential expression
     #
