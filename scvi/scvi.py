@@ -42,25 +42,41 @@ class VAE(nn.Module):
         self.decoder = Decoder(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
                                dropout_rate=dropout_rate, batch=batch, n_batch=n_batch, using_cuda=self.using_cuda)
 
-    def sample_from_posterior(self, x):
+    def sample_from_posterior_z(self, x):
         # Here we compute as little as possible to have q(z|x)
         qz = self.encoder.z_encoder(x)
         qz_m = self.encoder.z_mean_encoder(qz)
         qz_v = torch.exp(self.encoder.z_var_encoder(qz))
         return self.reparameterize(qz_m, qz_v)
 
-    def get_sample_rate(self, x, batch_index=None):
-        z = self.sample_from_posterior(x)
+    def sample_from_posterior_l(self, x):
+        # Here we compute as little as possible to have q(z|x)
+        ql = self.encoder.l_encoder(x)
+        ql_m = self.encoder.l_mean_encoder(ql)
+        ql_v = torch.exp(self.encoder.l_var_encoder(ql))
+        return self.reparameterize(ql_m, ql_v)
+
+    def get_sample_scale(self, x, batch_index=None):
+        z = self.sample_from_posterior_z(x)
         px = self.decoder.px_decoder_batch(z, batch_index)
         px_scale = self.decoder.px_scale_decoder(px)
         return px_scale
+
+    def get_sample_rate(self, x, batch_index=None):
+        z = self.sample_from_posterior_z(x)
+        library = self.sample_from_posterior_l(x)
+        px = self.decoder.px_decoder_batch(z, batch_index)
+        return self.decoder.px_scale_decoder(px)*torch.exp(library)
 
     def reparameterize(self, mu, var):
         std = torch.sqrt(var)
         eps = Variable(std.data.new(std.size()).normal_())
         return eps.mul(std).add_(mu)
 
-    def forward(self, x, batch_index=None):
+    def sample(self, z):
+        return self.px_scale_decoder(z)
+
+    def forward(self, x, local_l_mean, local_l_var, batch_index=None):  # same signature as loss
         # Parameters for z latent distribution
         if self.batch and batch_index is None:
             raise ("This VAE was trained to take batches into account:"
@@ -76,25 +92,18 @@ class VAE(nn.Module):
         self.library = self.reparameterize(ql_m, ql_v)
 
         if self.dispersion == "gene-cell":
-            px_scale, self.px_r, px_rate, px_dropout = self.decoder.forward(self.dispersion,
-                                                                            self.z, self.library, batch_index)
+            px_scale, self.px_r, px_rate, px_dropout = self.decoder(self.dispersion, self.z, self.library, batch_index)
         elif self.dispersion == "gene":
-            px_scale, px_rate, px_dropout = self.decoder.forward(self.dispersion,
-                                                                 self.z, self.library, batch_index)
+            px_scale, px_rate, px_dropout = self.decoder(self.dispersion, self.z, self.library, batch_index)
 
-        return px_scale, self.px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v
-
-    def sample(self, z):
-        return self.px_scale_decoder(z)
-
-    def loss(self, sampled_batch, local_l_mean, local_l_var, kl_ponderation, batch_index=None):
-        px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v = self(sampled_batch, batch_index)
+        # return px_scale, self.px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v
+        # px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v = self(sampled_batch, batch_index)
 
         # Reconstruction Loss
         if self.reconstruction_loss == 'zinb':
-            reconst_loss = -log_zinb_positive(sampled_batch, px_rate, torch.exp(px_r), px_dropout)
+            reconst_loss = -log_zinb_positive(x, px_rate, torch.exp(self.px_r), px_dropout)
         elif self.reconstruction_loss == 'nb':
-            reconst_loss = -log_nb_positive(sampled_batch, px_rate, torch.exp(px_r))
+            reconst_loss = -log_nb_positive(x, px_rate, torch.exp(self.px_r))
 
         # KL Divergence
         kl_divergence_z = torch.sum(0.5 * (qz_m ** 2 + qz_v - torch.log(qz_v + 1e-8) - 1), dim=1)
@@ -104,9 +113,7 @@ class VAE(nn.Module):
 
         kl_divergence = (kl_divergence_z + kl_divergence_l)
 
-        # Train Loss # Not real total loss
-        train_loss = torch.mean(reconst_loss + kl_ponderation * kl_divergence)
-        return train_loss, reconst_loss, kl_divergence
+        return reconst_loss, kl_divergence
 
 
 # Encoder

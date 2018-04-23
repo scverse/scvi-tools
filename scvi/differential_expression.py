@@ -25,7 +25,7 @@ def get_statistics(vae, data_loader, M_sampling=100, M_permutation=100000, permu
             sample_batch = sample_batch.cuda(async=True)
             batch_index = batch_index.cuda(async=True)
             labels = labels.cuda(async=True)
-        px_scales += [vae.get_sample_rate(sample_batch, batch_index)]
+        px_scales += [vae.get_sample_scale(sample_batch, batch_index)]
         all_labels += [labels]
 
     # #TODO: Cell types are not yet saved to the dataset object (should it be saved as .npy/.txt file then loaded ?)

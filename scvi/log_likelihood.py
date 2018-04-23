@@ -9,17 +9,17 @@ from functions.gamma import Lgamma
 def compute_log_likelihood(vae, data_loader):
     # Iterate once over the data_loader and computes the total log_likelihood
     log_lkl = 0
-    for i_batch, (sample_batched, local_l_mean, local_l_var, batch_index, _) in enumerate(data_loader):
-        sample_batched = Variable(sample_batched)
+    for i_batch, (sample_batch, local_l_mean, local_l_var, batch_index, _) in enumerate(data_loader):
+        sample_batch = Variable(sample_batch)
+        local_l_mean = Variable(local_l_mean)
+        local_l_var = Variable(local_l_var)
         if vae.using_cuda:
-            sample_batched = sample_batched.cuda()
-            batch_index = batch_index.cuda()
-        px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, ql_m, ql_v = vae(sample_batched, batch_index)
-        if vae.reconstruction_loss == 'zinb':
-            sample_loss = -log_zinb_positive(sample_batched, px_rate, torch.exp(px_r), px_dropout)
-        elif vae.reconstruction_loss == 'nb':
-            sample_loss = -log_nb_positive(sample_batched, px_rate, torch.exp(px_r))
-        log_lkl += torch.sum(sample_loss).data[0]
+            sample_batch = sample_batch.cuda(async=True)
+            local_l_mean = local_l_mean.cuda(async=True)
+            local_l_var = local_l_var.cuda(async=True)
+            batch_index = batch_index.cuda(async=True)
+        reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index)
+        log_lkl += torch.sum(reconst_loss).data[0]
     return log_lkl / len(data_loader.dataset)
 
 

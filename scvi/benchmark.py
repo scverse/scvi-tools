@@ -49,7 +49,7 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
         for sample_batch, local_l_mean, local_l_var, batch_index, _ in data_loader_train:
             if vae.using_cuda:
                 sample_batch = sample_batch.cuda(async=True)
-            latent += [vae.sample_from_posterior(sample_batch)]  # Just run a forward pass on all the data
+            latent += [vae.sample_from_posterior_z(sample_batch)]  # Just run a forward pass on all the data
             batch_indices += [batch_index]
         latent = torch.cat(latent)
         batch_indices = torch.cat(batch_indices)
