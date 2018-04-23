@@ -13,7 +13,7 @@ def format_time(seconds):
     h, m = divmod(m, 60)
     return "%d:%02d:%02d" % (h, m, s)
 
-def train_model(model, expression, sess, num_epochs, step=None, batch=None, kl=None):
+def train_model(model, expression, sess, num_epochs, step=None, batch=None, kl=None, batch_size=128):
     
     expression_train, expression_test = expression
     
@@ -24,7 +24,6 @@ def train_model(model, expression, sess, num_epochs, step=None, batch=None, kl=N
     if step is None:
         step = model.train_step
         
-    batch_size = 128
     iterep = int(expression_train.shape[0]/float(batch_size))-1
     
     training_history = {"t_loss":[], "v_loss":[], "time":[], "epoch":[]}
