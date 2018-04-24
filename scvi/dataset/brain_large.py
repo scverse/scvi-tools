@@ -73,7 +73,7 @@ class BrainLargeDataset(GeneExpressionDataset):
         else:
             self.download_name = "../tests/data/genomics_subsampled.h5"
 
-        if subsample_size is None:
+        if self.subsample_size is None:
             self.final_name = self.download_name
         else:
             self.final_name = "genomics_subsampled_%d.h5" % subsample_size
