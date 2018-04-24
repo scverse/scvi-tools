@@ -2,6 +2,9 @@
 
 """Handling datasets.
 For the moment, is initialized with a torch Tensor of size (n_cells, nb_genes)"""
+import os
+import urllib.request
+
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
@@ -36,6 +39,27 @@ class GeneExpressionDataset(Dataset):
     def __getitem__(self, idx):
         return self.X[idx].toarray()[0], self.local_means[idx], self.local_vars[idx], \
                self.batch_indices[idx], self.labels[idx]
+
+    def download(self):
+        r = urllib.request.urlopen(self.url)
+        print("Downloading data")
+
+        def readIter(f, blocksize=1000):
+            """Given a file 'f', returns an iterator that returns bytes of
+            size 'blocksize' from the file, using read()."""
+            while True:
+                data = f.read(blocksize)
+                if not data:
+                    break
+                yield data
+
+        # Create the path to save the data
+        if not os.path.exists(self.save_path):
+            os.makedirs(self.save_path)
+
+        with open(self.save_path + self.download_name, 'wb') as f:
+            for data in readIter(r):
+                f.write(data)
 
     @staticmethod
     def train_test_split(*Xs, train_size=0.75):
