@@ -22,6 +22,26 @@ class VAEC(VAE):
     def classify(self, x):
         return self.classifier(x)
 
+    def sample_from_posterior_z(self, x, y):
+        x = torch.cat((Variable(x), one_hot(y, self.n_labels, x.type())), 1)
+        return super(VAEC, self).sample_from_posterior_z(x)
+
+    def sample_from_posterior_l(self, x, y):
+        x = torch.cat((Variable(x), one_hot(y, self.n_labels, x.type())), 1)
+        return super(VAEC, self).sample_from_posterior_l(x)
+
+    def get_sample_scale(self, x, y, batch_index=None):
+        z = self.sample_from_posterior_z(x, y)
+        px = self.decoder.px_decoder_batch(z, batch_index)
+        px_scale = self.decoder.px_scale_decoder(px)
+        return px_scale
+
+    def get_sample_rate(self, x, y, batch_index=None):
+        z = self.sample_from_posterior_z(x, y)
+        library = self.sample_from_posterior_l(x, y)
+        px = self.decoder.px_decoder_batch(z, batch_index)
+        return self.decoder.px_scale_decoder(px) * torch.exp(library)
+
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
         is_labelled = False if y is None else True
 

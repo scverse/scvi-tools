@@ -15,7 +15,7 @@ torch.backends.cudnn.benchmark = True
 class VAE(nn.Module):
     def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1,
                  dropout_rate=0.1, dispersion="gene", log_variational=True, kl_scale=1, reconstruction_loss="zinb",
-                 batch=False, n_batch=0, using_cuda=True):
+                 batch=False, n_batch=0, using_cuda=True, n_labels=None):
         super(VAE, self).__init__()
 
         self.dropout_rate = dropout_rate
@@ -44,23 +44,23 @@ class VAE(nn.Module):
         self.decoder = Decoder(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
                                dropout_rate=dropout_rate, batch=batch, n_batch=n_batch, using_cuda=self.using_cuda)
 
-    def sample_from_posterior_z(self, x):
+    def sample_from_posterior_z(self, x, y=None):
         # Here we compute as little as possible to have q(z|x)
         qz_m, qz_v, z = self.z_encoder.forward(x)
         return z
 
-    def sample_from_posterior_l(self, x):
+    def sample_from_posterior_l(self, x, y=None):
         # Here we compute as little as possible to have q(z|x)
         ql_m, ql_v, library = self.l_encoder.forward(x)
         return library
 
-    def get_sample_scale(self, x, batch_index=None):
+    def get_sample_scale(self, x, y=None, batch_index=None):
         z = self.sample_from_posterior_z(x)
         px = self.decoder.px_decoder_batch(z, batch_index)
         px_scale = self.decoder.px_scale_decoder(px)
         return px_scale
 
-    def get_sample_rate(self, x, batch_index=None):
+    def get_sample_rate(self, x, y=None, batch_index=None):
         z = self.sample_from_posterior_z(x)
         library = self.sample_from_posterior_l(x)
         px = self.decoder.px_decoder_batch(z, batch_index)
@@ -69,7 +69,7 @@ class VAE(nn.Module):
     def sample(self, z):
         return self.px_scale_decoder(z)
 
-    def forward(self, x, local_l_mean, local_l_var, batch_index=None):  # same signature as loss
+    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):  # same signature as loss
         # Parameters for z latent distribution
         if self.batch and batch_index is None:
             raise ("This VAE was trained to take batches into account:"

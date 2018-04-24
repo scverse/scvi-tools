@@ -1,3 +1,5 @@
+import random
+
 import torch
 from torch.autograd import Variable
 
@@ -6,7 +8,6 @@ from scvi.log_likelihood import compute_log_likelihood
 
 def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0.001, kl=None,
           early_stopping_criterion=(20, 0.01)):
-
     # Defining the optimizer
     optimizer = torch.optim.Adam(vae.parameters(), lr=learning_rate, eps=0.01)
 
@@ -25,13 +26,13 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
             sample_batch = Variable(sample_batch)
             local_l_mean = Variable(local_l_mean)
             local_l_var = Variable(local_l_var)
-
+            labels = labels if random.random() < 0.5 else None
             if vae.using_cuda:
                 sample_batch = sample_batch.cuda(async=True)
                 local_l_mean = local_l_mean.cuda(async=True)
                 local_l_var = local_l_var.cuda(async=True)
                 batch_index = batch_index.cuda(async=True)
-                labels = labels.cuda(async=True)
+                # labels = labels.cuda(async=True)
 
             if kl is None:
                 kl_ponderation = min(1, epoch / 400.)
@@ -48,7 +49,7 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
             total_current_kl += torch.mean(kl_divergence)
             total_current_reconst += torch.mean(reconst_loss)
 
-            train_loss = torch.mean(reconst_loss) + kl_ponderation*torch.mean(kl_divergence)
+            train_loss = torch.mean(reconst_loss) + kl_ponderation * torch.mean(kl_divergence)
             real_loss = torch.mean(reconst_loss) + torch.mean(kl_divergence)
 
             optimizer.zero_grad()

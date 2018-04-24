@@ -1,8 +1,6 @@
 import numpy as np
 
 import torch
-from torch.autograd import Variable
-from scvi.utils import one_hot
 
 
 def imputation(vae, data_loader, rate=0.1):
@@ -23,7 +21,6 @@ def imputation(vae, data_loader, rate=0.1):
             ix = ix.cuda(async=True)
             i = i.cuda()  # Source tensor must be contiguous - async=True : ERROR
             j = j.cuda()
-        x = torch.cat((Variable(dropout_batch), one_hot(labels, vae.n_labels, dropout_batch.type())), 1)
-        px_rate = vae.get_sample_rate(x, batch_index)
+        px_rate = vae.get_sample_rate(dropout_batch, labels, batch_index=batch_index)
         distance_list = torch.cat([distance_list, torch.abs(px_rate[i[ix], j[ix]].data - sample_batch[i[ix], j[ix]])])
     return torch.median(distance_list)
