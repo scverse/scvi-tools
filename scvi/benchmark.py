@@ -7,10 +7,11 @@ from scvi.dataset import CortexDataset
 from scvi.differential_expression import get_statistics
 from scvi.imputation import imputation
 from scvi.log_likelihood import compute_log_likelihood
-from scvi.scvi import VAE
+from scvi.semi_supervised_scVI import DGM
 from scvi.train import train
+from scvi.utils import one_hot
 from scvi.visualization import show_t_sne
-
+from torch.autograd import Variable
 
 def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learning_rate=1e-3,
                    use_batches=False, use_cuda=True, show_batch_mixing=False):
@@ -24,8 +25,8 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
 
     data_loader_train = DataLoader(gene_dataset_train, batch_size=128, shuffle=True, num_workers=1, pin_memory=True)
     data_loader_test = DataLoader(gene_dataset_test, batch_size=128, shuffle=True, num_workers=1, pin_memory=True)
-    vae = VAE(gene_dataset_train.nb_genes, batch=use_batches, n_batch=gene_dataset_train.n_batches,
-              using_cuda=use_cuda)
+    vae = DGM(gene_dataset_train.nb_genes, batch=use_batches, n_batch=gene_dataset_train.n_batches,
+              using_cuda=use_cuda, n_labels=7)
     if vae.using_cuda:
         vae.cuda()
     train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, learning_rate=learning_rate)
@@ -46,19 +47,20 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
     if gene_dataset_train.n_batches >= 2:
         latent = []
         batch_indices = []
-        for sample_batch, local_l_mean, local_l_var, batch_index, _ in data_loader_train:
+        for sample_batch, local_l_mean, local_l_var, batch_index, labels in data_loader_train:
             if vae.using_cuda:
                 sample_batch = sample_batch.cuda(async=True)
-            latent += [vae.sample_from_posterior_z(sample_batch)]  # Just run a forward pass on all the data
+            x = torch.cat((Variable(sample_batch), one_hot(labels, vae.n_labels, sample_batch.type())), 1)
+            latent += [vae.sample_from_posterior_z(x)]  # Just run a forward pass on all the data
             batch_indices += [batch_index]
         latent = torch.cat(latent)
         batch_indices = torch.cat(batch_indices)
 
     if gene_dataset_train.n_batches == 2:
         print("Entropy batch mixing :", entropy_batch_mixing(latent.data.cpu().numpy(), batch_indices.numpy()))
-    if show_batch_mixing:
-        show_t_sne(latent.data.cpu().numpy(), np.array([batch[0] for batch in batch_indices.numpy()]),
-                   "Batch mixing t_SNE plot")
+        if show_batch_mixing:
+            show_t_sne(latent.data.cpu().numpy(), np.array([batch[0] for batch in batch_indices.numpy()]),
+                       "Batch mixing t_SNE plot")
 
     # - differential expression
     #

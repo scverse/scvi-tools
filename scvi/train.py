@@ -10,16 +10,18 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
 
     # Training the model
     for epoch in range(n_epochs):
-        for i_batch, (sample_batch, local_l_mean, local_l_var, batch_index, _) in enumerate(data_loader_train):
+        for i_batch, (sample_batch, local_l_mean, local_l_var, batch_index, labels) in enumerate(data_loader_train):
 
             sample_batch = Variable(sample_batch)
             local_l_mean = Variable(local_l_mean)
             local_l_var = Variable(local_l_var)
+            #labels = Variable(labels)
             if vae.using_cuda:
                 sample_batch = sample_batch.cuda(async=True)
                 local_l_mean = local_l_mean.cuda(async=True)
                 local_l_var = local_l_var.cuda(async=True)
                 batch_index = batch_index.cuda(async=True)
+                labels = labels.cuda(async=True)
 
             if kl is None:
                 kl_ponderation = min(1, epoch / 400.)
@@ -29,7 +31,7 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
             # Train loss is actually different from the real loss due to kl_ponderation
             if vae.batch:
                 reconst_loss, kl_divergence = vae(
-                    sample_batch, local_l_mean, local_l_var, batch_index)
+                    sample_batch, local_l_mean, local_l_var, batch_index=batch_index, y=None)
             else:
                 reconst_loss, kl_divergence = vae(
                     sample_batch, local_l_mean, local_l_var)

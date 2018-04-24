@@ -10,7 +10,7 @@ def show_t_sne(latent, labels, title, return_t_sne=False):
     plt.title(title)
     plt.axis("off")
     plt.tight_layout()
-    plt.show()
+    #plt.show()
 
     if return_t_sne:
         return latent

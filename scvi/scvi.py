@@ -9,7 +9,7 @@ from torch.autograd import Variable
 from scvi.log_likelihood import log_zinb_positive, log_nb_positive
 
 torch.backends.cudnn.benchmark = True
-
+from scvi.utils import one_hot
 
 # VAE model
 class VAE(nn.Module):
@@ -211,14 +211,6 @@ class Decoder(nn.Module):
             return px_scale, px_rate, px_dropout
 
     def px_decoder_batch(self, z, batch_index):
-
-        def one_hot(batch_index, n_batch, dtype):
-            if self.using_cuda:
-                batch_index = batch_index.cuda()
-            onehot = batch_index.new(batch_index.size(0), n_batch).fill_(0)
-            onehot.scatter_(1, batch_index, 1)
-            return Variable(onehot.type(dtype))
-
         if self.batch:
             one_hot_batch = one_hot(batch_index, self.n_batch, z.data.type())
             z = torch.cat((z, one_hot_batch), 1)

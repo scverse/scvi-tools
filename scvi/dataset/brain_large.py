@@ -68,7 +68,8 @@ class BrainLargeDataset(GeneExpressionDataset):
         self.subsample_size = subsample_size
         self.save_path = 'data/'
         self.download_name = "genomics.h5"  # originally: "1M_neurons_filtered_gene_bc_matrices_h5.h5"
-        self.final_name = "1M_neurons_matrix_subsampled_%dk.h5" % subsample_size
+        #self.final_name = "1M_neurons_matrix_subsampled_%dk.h5" % subsample_size
+        self.final_name = "small.h5"
         self.genome = "mm10"
         self.download_and_preprocess()
         h5_object = get_matrix_from_h5(self.save_path + self.final_name, self.genome)
@@ -77,6 +78,7 @@ class BrainLargeDataset(GeneExpressionDataset):
     def download(self):
 
         url = "http://cf.10xgenomics.com/samples/cell-exp/1.3.0/1M_neurons/1M_neurons_filtered_gene_bc_matrices_h5.h5"
+        url = "http://cf.10xgenomics.com/samples/cell-exp/2.1.0/neurons_900/neurons_900_molecule_info.h5"
         r = urllib.request.urlopen(url)
         print("Downloading Brain Large data")
 
@@ -106,9 +108,10 @@ class BrainLargeDataset(GeneExpressionDataset):
 
         gene_bc_matrix = get_matrix_from_h5(filtered_matrix_h5, self.genome)
 
-        subsample_bcs = self.subsample_size * 1000  # Warning : 20e3 is a float in python3
-        subset = np.sort(np.random.choice(gene_bc_matrix.barcodes.size, size=subsample_bcs, replace=False))
-        subsampled_matrix = subsample_barcodes(gene_bc_matrix, subset)
+        # subsample_bcs = self.subsample_size * 1000  # Warning : 20e3 is a float in python3
+        # subset = np.sort(np.random.choice(gene_bc_matrix.barcodes.size, size=subsample_bcs, replace=False))
+        # subsampled_matrix = subsample_barcodes(gene_bc_matrix, subset)
+        subsampled_matrix = gene_bc_matrix
         # subset = np.argsort(np.sum(np.array(gene_bc_matrix.matrix.todense()), axis=1).ravel())[::-1][:subsample_bcs]
 
         save_matrix_to_h5(subsampled_matrix, self.save_path + self.final_name, "mm10")
