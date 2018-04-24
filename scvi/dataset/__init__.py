@@ -1,5 +1,3 @@
-import numpy as np
-
 from .brain_large import BrainLargeDataset
 from .cortex import CortexDataset
 from .dataset import GeneExpressionDataset
@@ -13,16 +11,13 @@ __all__ = ['SyntheticDataset',
 
 def load_datasets(dataset_name):
     if dataset_name == 'synthetic':
-        gene_dataset_train, gene_dataset_test = SyntheticDataset(), SyntheticDataset()
+        gene_dataset_train, gene_dataset_test = SyntheticDataset.get_dataset(), SyntheticDataset.get_dataset()
     elif dataset_name == 'cortex':
-        gene_dataset_train, gene_dataset_test = CortexDataset(type="train"), CortexDataset(type="test")
+        gene_dataset_train = CortexDataset.get_dataset(type="train")
+        gene_dataset_test = CortexDataset.get_dataset(type="test")
     elif dataset_name == 'brain_large':
-        gene_dataset = BrainLargeDataset(subsample_size=None)
-        gene_dataset_train, gene_dataset_test = gene_dataset, gene_dataset  # Return same object for now
-    elif dataset_name.endswith('.npy'):
-        data = np.load(dataset_name)
-        train_data, test_data = GeneExpressionDataset.train_test_split(data)
-        gene_dataset_train, gene_dataset_test = GeneExpressionDataset([train_data]), GeneExpressionDataset([test_data])
+        gene_dataset = BrainLargeDataset.get_dataset(subsample_size=1)
+        gene_dataset_train, gene_dataset_test = gene_dataset, gene_dataset
     else:
         raise "No such dataset available"
     return gene_dataset_train, gene_dataset_test
