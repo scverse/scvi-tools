@@ -15,7 +15,7 @@ def load_datasets(dataset_name, test=False):
     elif dataset_name == 'cortex':
         gene_dataset_train, gene_dataset_test = CortexDataset(type="train"), CortexDataset(type="test")
     elif dataset_name == 'brain_large':
-        gene_dataset = BrainLargeDataset(subsample_size=128, test=test)
+        gene_dataset = BrainLargeDataset(test=test)
         gene_dataset_train, gene_dataset_test = gene_dataset, gene_dataset
     else:
         raise "No such dataset available"

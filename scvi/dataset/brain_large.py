@@ -63,7 +63,7 @@ class BrainLargeDataset(GeneExpressionDataset):
         :param subsample_size: In thousands of barcodes kept (by default 1*1000=1000 kept)
         :param test: A boolean to indicate if we use pytest subsampled file
         """
-        self.subsample_size = subsample_size
+        self.subsample_size = subsample_size if not test else 128
         self.save_path = 'data/'
         self.test = test
         # originally: "1M_neurons_filtered_gene_bc_matrices_h5.h5"
