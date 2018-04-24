@@ -17,7 +17,7 @@ def load_datasets(dataset_name):
     elif dataset_name == 'cortex':
         gene_dataset_train, gene_dataset_test = CortexDataset(type="train"), CortexDataset(type="test")
     elif dataset_name == 'brain_large':
-        gene_dataset = BrainLargeDataset()
+        gene_dataset = BrainLargeDataset(subsample_size=None)
         gene_dataset_train, gene_dataset_test = gene_dataset, gene_dataset  # Return same object for now
     elif dataset_name.endswith('.npy'):
         data = np.load(dataset_name)

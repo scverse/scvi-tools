@@ -1,11 +1,11 @@
 import collections
 import os
 import time
+import urllib.request
 
 import numpy as np
 import scipy.sparse as sp_sparse
 import tables
-import urllib.request
 
 from .dataset import GeneExpressionDataset
 
@@ -68,7 +68,10 @@ class BrainLargeDataset(GeneExpressionDataset):
         self.subsample_size = subsample_size
         self.save_path = 'data/'
         self.download_name = "genomics.h5"  # originally: "1M_neurons_filtered_gene_bc_matrices_h5.h5"
-        self.final_name = "1M_neurons_matrix_subsampled_%dk.h5" % subsample_size
+        if subsample_size is None:
+            self.final_name = self.download_name
+        else:
+            self.final_name = "1M_neurons_matrix_subsampled_%dk.h5" % subsample_size
         self.genome = "mm10"
         self.download_and_preprocess()
         h5_object = get_matrix_from_h5(self.save_path + self.final_name, self.genome)
@@ -106,10 +109,9 @@ class BrainLargeDataset(GeneExpressionDataset):
 
         gene_bc_matrix = get_matrix_from_h5(filtered_matrix_h5, self.genome)
 
-        subsample_bcs = self.subsample_size * 1000  # Warning : 20e3 is a float in python3
+        subsample_bcs = self.subsample_size * 1000
         subset = np.sort(np.random.choice(gene_bc_matrix.barcodes.size, size=subsample_bcs, replace=False))
         subsampled_matrix = subsample_barcodes(gene_bc_matrix, subset)
-        # subset = np.argsort(np.sum(np.array(gene_bc_matrix.matrix.todense()), axis=1).ravel())[::-1][:subsample_bcs]
 
         save_matrix_to_h5(subsampled_matrix, self.save_path + self.final_name, "mm10")
         toc = time.time()

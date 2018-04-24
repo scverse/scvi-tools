@@ -42,7 +42,7 @@ class GeneExpressionDataset(Dataset):
         self.local_vars = torch.cat(local_vars, dim=0)
         self.batch_indices = torch.cat(batch_indices)
 
-        self.X = sp_sparse.vstack(new_Xs).astype(np.float32)
+        self.X = new_Xs[0] if len(new_Xs) == 1 else sp_sparse.vstack(new_Xs)
         self.total_size = self.X.shape[0]
 
         # This will be changed by the .h5 file format

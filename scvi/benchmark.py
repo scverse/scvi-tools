@@ -47,6 +47,7 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
         latent = []
         batch_indices = []
         for sample_batch, local_l_mean, local_l_var, batch_index, _ in data_loader_train:
+            sample_batch = sample_batch.type(torch.FloatTensor)
             if vae.using_cuda:
                 sample_batch = sample_batch.cuda(async=True)
             latent += [vae.sample_from_posterior(sample_batch)]  # Just run a forward pass on all the data
@@ -56,9 +57,9 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
 
     if gene_dataset_train.n_batches == 2:
         print("Entropy batch mixing :", entropy_batch_mixing(latent.data.cpu().numpy(), batch_indices.numpy()))
-    if show_batch_mixing:
-        show_t_sne(latent.data.cpu().numpy(), np.array([batch[0] for batch in batch_indices.numpy()]),
-                   "Batch mixing t_SNE plot")
+        if show_batch_mixing:
+            show_t_sne(latent.data.cpu().numpy(), np.array([batch[0] for batch in batch_indices.numpy()]),
+                       "Batch mixing t_SNE plot")
 
     # - differential expression
     #
