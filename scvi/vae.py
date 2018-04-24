@@ -9,7 +9,7 @@ from torch.autograd import Variable
 from scvi.log_likelihood import log_zinb_positive, log_nb_positive
 
 torch.backends.cudnn.benchmark = True
-from scvi.utils import one_hot
+
 
 # VAE model
 class VAE(nn.Module):
@@ -114,7 +114,6 @@ class Encoder(nn.Module):
         self.n_hidden = n_hidden
         self.n_input = n_input
         self.n_layers = n_layers
-        self.using_cuda = using_cuda and torch.cuda.is_available()
         # Encoding q(z/x)
         # There is always a first layer
         self.first_layer = nn.Sequential(
@@ -164,7 +163,6 @@ class Decoder(nn.Module):
         self.n_layers = n_layers
         self.n_batch = n_batch
         self.batch = batch
-        self.using_cuda = using_cuda and torch.cuda.is_available()
 
         if batch:
             self.n_hidden_real = n_hidden + n_batch
@@ -211,6 +209,11 @@ class Decoder(nn.Module):
             return px_scale, px_rate, px_dropout
 
     def px_decoder_batch(self, z, batch_index):
+        def one_hot(batch_index, n_batch, dtype):
+            onehot = batch_index.new(batch_index.size(0), n_batch).fill_(0)
+            onehot.scatter_(1, batch_index, 1)
+            return Variable(onehot.type(dtype))
+
         if self.batch:
             one_hot_batch = one_hot(batch_index, self.n_batch, z.data.type())
             z = torch.cat((z, one_hot_batch), 1)

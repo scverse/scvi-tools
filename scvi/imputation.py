@@ -1,4 +1,5 @@
 import numpy as np
+
 import torch
 from torch.autograd import Variable
 from scvi.utils import one_hot
@@ -7,6 +8,7 @@ from scvi.utils import one_hot
 def imputation(vae, data_loader, rate=0.1):
     distance_list = torch.FloatTensor([])
     for sample_batch, local_l_mean, local_l_var, batch_index, labels in data_loader:
+        sample_batch = sample_batch.type(torch.FloatTensor)
         dropout_batch = sample_batch.clone()
         indices = torch.nonzero(dropout_batch)
         i, j = indices[:, 0], indices[:, 1]

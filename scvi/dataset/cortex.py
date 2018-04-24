@@ -1,13 +1,15 @@
 import csv
 import os
-import urllib.request
-import scipy.sparse as sp_sparse
+
 import numpy as np
+import scipy.sparse as sp_sparse
 
 from .dataset import GeneExpressionDataset
 
 
 class CortexDataset(GeneExpressionDataset):
+    url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt"
+
     def __init__(self, type='train'):
         # Generating samples according to a ZINB process
         self.save_path = 'data/'
@@ -16,31 +18,12 @@ class CortexDataset(GeneExpressionDataset):
         self.labels_filename = 'labels_%s.npy' % type
         self.gene_names = 'genes_names.npy'
         self.download_and_preprocess()
-        super(CortexDataset, self).__init__([sp_sparse.csr_matrix(np.load(self.save_path + self.data_filename))],
-                                            [np.load(self.save_path + self.labels_filename)],
-                                            np.load(self.save_path + self.gene_names))
 
-    def download(self):
-        url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt"
-        r = urllib.request.urlopen(url)
-        print("Downloading Cortex data")
-
-        def readIter(f, blocksize=1000):
-            """Given a file 'f', returns an iterator that returns bytes of
-            size 'blocksize' from the file, using read()."""
-            while True:
-                data = f.read(blocksize)
-                if not data:
-                    break
-                yield data
-
-        # Create the path to save the data
-        if not os.path.exists(self.save_path):
-            os.makedirs(self.save_path)
-
-        with open(self.save_path + self.download_name, 'wb') as f:
-            for data in readIter(r):  # tqdm(readIter(r), total=total_size, unit='KB', unit_scale=False):
-                f.write(data)
+        super(CortexDataset, self).__init__(
+            *GeneExpressionDataset.get_attributes_from_matrix(
+                sp_sparse.csr_matrix(np.load(self.save_path + self.data_filename)),
+                labels=np.load(self.save_path + self.labels_filename)),
+            gene_names=np.load(self.save_path + self.gene_names))
 
     def preprocess(self):
         print("Preprocessing Cortex data")

@@ -1,20 +1,21 @@
-import torch
-from torch.utils.data import DataLoader
 import numpy as np
+import torch
+from torch.autograd import Variable
+from torch.utils.data import DataLoader
 
 from scvi.clustering import entropy_batch_mixing
 from scvi.dataset import CortexDataset
 from scvi.differential_expression import get_statistics
 from scvi.imputation import imputation
 from scvi.log_likelihood import compute_log_likelihood
-from scvi.semi_supervised_scVI import DGM
+from scvi.vaec import VAEC
 from scvi.train import train
 from scvi.utils import one_hot
 from scvi.visualization import show_t_sne
-from torch.autograd import Variable
+
 
 def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learning_rate=1e-3,
-                   use_batches=False, use_cuda=True, show_batch_mixing=False):
+                   use_batches=False, use_cuda=True, show_batch_mixing=True):
     # options:
     # - gene_dataset: a GeneExpressionDataset object
     # call each of the 4 benchmarks:
@@ -23,10 +24,12 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
     # - batch mixing
     # - cluster scores
 
-    data_loader_train = DataLoader(gene_dataset_train, batch_size=128, shuffle=True, num_workers=1, pin_memory=True)
-    data_loader_test = DataLoader(gene_dataset_test, batch_size=128, shuffle=True, num_workers=1, pin_memory=True)
-    vae = DGM(gene_dataset_train.nb_genes, batch=use_batches, n_batch=gene_dataset_train.n_batches,
-              using_cuda=use_cuda, n_labels=7)
+    data_loader_train = DataLoader(gene_dataset_train, batch_size=128, shuffle=True,
+                                   num_workers=4, pin_memory=use_cuda)
+    data_loader_test = DataLoader(gene_dataset_test, batch_size=128, shuffle=True,
+                                  num_workers=4, pin_memory=use_cuda)
+    vae = VAEC(gene_dataset_train.nb_genes, batch=use_batches, n_batch=gene_dataset_train.n_batches,
+               using_cuda=use_cuda, n_labels=7)
     if vae.using_cuda:
         vae.cuda()
     train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, learning_rate=learning_rate)
@@ -48,6 +51,7 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
         latent = []
         batch_indices = []
         for sample_batch, local_l_mean, local_l_var, batch_index, labels in data_loader_train:
+            sample_batch = sample_batch.type(torch.FloatTensor)
             if vae.using_cuda:
                 sample_batch = sample_batch.cuda(async=True)
             x = torch.cat((Variable(sample_batch), one_hot(labels, vae.n_labels, sample_batch.type())), 1)
