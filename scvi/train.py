@@ -22,7 +22,7 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
         total_current_reconst = 0
 
         for i_batch, (sample_batch, local_l_mean, local_l_var, batch_index, _) in enumerate(data_loader_train):
-
+            sample_batch = sample_batch.type(torch.FloatTensor)
             sample_batch = Variable(sample_batch)
             local_l_mean = Variable(local_l_mean)
             local_l_var = Variable(local_l_var)
