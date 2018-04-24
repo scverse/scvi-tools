@@ -51,50 +51,38 @@ class GeneExpressionDataset(Dataset):
         return [X for Xs in split_list for X in Xs]
 
     @staticmethod
-    def compute_attributes(X, batch_index=0):
+    def get_attributes_from_matrix(X, batch_index=0, labels=None):
         log_counts = torch.log(torch.from_numpy(np.asarray((X.sum(axis=1)), dtype=float)).type(torch.FloatTensor))
         local_mean = torch.mean(log_counts) * torch.ones((X.shape[0], 1))
         local_var = torch.var(log_counts) * torch.ones((X.shape[0], 1))
         batch_index = torch.LongTensor(batch_index * np.ones((X.shape[0], 1)))
-        return X, local_mean, local_var, batch_index
+        labels = torch.LongTensor(labels.reshape(-1, 1)) if labels is not None else torch.zeros_like(batch_index)
+        return X, local_mean, local_var, batch_index, labels
 
-    @classmethod
-    def from_list_batches(cls, Xs, list_labels=None, gene_names=None):
+    @staticmethod
+    def get_attributes_from_list(Xs, list_labels=None):
         nb_genes = Xs[0].shape[1]
-        n_batches = len(Xs)
+        # n_batches = len(Xs)
         assert all(X.shape[1] == nb_genes for X in Xs), "All tensors must have same size"
 
         new_Xs = []
         local_means = []
         local_vars = []
         batch_indices = []
+        labels = []
         for i, X in enumerate(Xs):
-            X, local_mean, local_var, batch_index = GeneExpressionDataset.compute_attributes(X, batch_index=i)
+            label = list_labels[i] if list_labels is not None else list_labels
+            X, local_mean, local_var, batch_index, label = (
+                GeneExpressionDataset.get_attributes_from_matrix(X, batch_index=i, labels=label)
+            )
             new_Xs += [X]
             local_means += [local_mean]
             local_vars += [local_var]
             batch_indices += [batch_index]
+            labels += [label]
         local_means = torch.cat(local_means)
         local_vars = torch.cat(local_vars)
         batch_indices = torch.cat(batch_indices)
-
-        if list_labels is not None:
-            labels = []
-            for labels in list_labels:
-                labels += [torch.LongTensor(labels.reshape(-1, 1))]
-            labels = torch.cat(labels, dim=0)
-        else:
-            labels = torch.zeros_like(batch_indices)
-
+        labels = torch.cat(labels)
         X = sp_sparse.vstack(new_Xs)
-        return cls(X, local_means, local_vars, batch_indices, labels, gene_names=gene_names, n_batches=n_batches)
-
-    @classmethod
-    def from_matrix(cls, X, labels=None, gene_names=None):
-        if labels is None:
-            labels = torch.zeros(X.shape[0], 1).type(torch.LongTensor)
-        return cls(*GeneExpressionDataset.compute_attributes(X), labels=labels, gene_names=gene_names)
-
-    @classmethod
-    def get_dataset(cls, **kargs):
-        return cls.get_dataset(**kargs)
+        return X, local_means, local_vars, batch_indices, labels

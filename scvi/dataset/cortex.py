@@ -9,11 +9,20 @@ from .dataset import GeneExpressionDataset
 
 
 class CortexDataset(GeneExpressionDataset):
-    save_path = 'data/'
-    download_name = 'expression.bin'
-    data_filename = 'expression_%s.npy'
-    labels_filename = 'labels_%s.npy'
-    gene_names = 'genes_names.npy'
+    def __init__(self, type='train'):
+        # Generating samples according to a ZINB process
+        self.save_path = 'data/'
+        self.download_name = 'expression.bin'
+        self.data_filename = 'expression_%s.npy' % type
+        self.labels_filename = 'labels_%s.npy' % type
+        self.gene_names = 'genes_names.npy'
+        self.download_and_preprocess()
+
+        super(CortexDataset, self).__init__(
+            *GeneExpressionDataset.get_attributes_from_matrix(
+                sp_sparse.csr_matrix(np.load(self.save_path + self.data_filename)),
+                labels=np.load(self.save_path + self.labels_filename)),
+            gene_names=np.load(self.save_path + self.gene_names))
 
     def download(self):
         url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt"
@@ -63,28 +72,17 @@ class CortexDataset(GeneExpressionDataset):
         # train test split for log-likelihood scores
         expression_train, expression_test, c_train, c_test = GeneExpressionDataset.train_test_split(expression_data,
                                                                                                     labels)
+
         np.save(self.save_path + 'expression_train.npy', expression_train)
         np.save(self.save_path + 'expression_test.npy', expression_test)
         np.save(self.save_path + 'labels_train.npy', c_train)
         np.save(self.save_path + 'labels_test.npy', c_test)
         np.save(self.save_path + self.gene_names, gene_names)
 
-    @classmethod
-    def download_and_preprocess(self, type='train'):
-        if not (os.path.exists(self.save_path + self.data_filename % type) and
-                os.path.exists(self.save_path + self.labels_filename % type) and
+    def download_and_preprocess(self):
+        if not (os.path.exists(self.save_path + self.data_filename) and
+                os.path.exists(self.save_path + self.labels_filename) and
                 os.path.exists(self.save_path + self.gene_names)):
             if not os.path.exists(self.save_path + self.download_name):
                 self.download()
             self.preprocess()
-
-    @classmethod
-    def get_attributes(self, type='train'):
-        return sp_sparse.csr_matrix(np.load(self.save_path + self.data_filename % type)), \
-               np.load(self.save_path + self.labels_filename % type), \
-               np.load(self.save_path + self.gene_names)
-
-    @classmethod
-    def get_dataset(cls, type='train'):
-        cls.download_and_preprocess(type=type)
-        return cls.from_matrix(*cls.get_attributes(type=type))

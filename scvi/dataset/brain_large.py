@@ -1,11 +1,11 @@
 import collections
 import os
 import time
-import urllib.request
 
 import numpy as np
 import scipy.sparse as sp_sparse
 import tables
+import urllib.request
 
 from .dataset import GeneExpressionDataset
 
@@ -61,9 +61,20 @@ def save_matrix_to_h5(gbm, filename, genome):
 
 
 class BrainLargeDataset(GeneExpressionDataset):
-    save_path = 'data/'
-    download_name = "genomics.h5"  # originally: "1M_neurons_filtered_gene_bc_matrices_h5.h5"
-    genome = "mm10"
+    def __init__(self, subsample_size=20):
+        """
+        :param subsample_size: In thousands of barcodes kept (by default 1*1000=1000 kept)
+        """
+        self.subsample_size = subsample_size
+        self.save_path = 'data/'
+        self.download_name = "genomics.h5"  # originally: "1M_neurons_filtered_gene_bc_matrices_h5.h5"
+        self.final_name = "1M_neurons_matrix_subsampled_%dk.h5" % subsample_size
+        self.genome = "mm10"
+        self.download_and_preprocess()
+        h5_object = get_matrix_from_h5(self.save_path + self.final_name, self.genome)
+        super(BrainLargeDataset, self).__init__(
+            *GeneExpressionDataset.get_attributes_from_matrix(h5_object.matrix.transpose().tocsr(copy=False))
+        )
 
     def download(self):
 
@@ -97,36 +108,17 @@ class BrainLargeDataset(GeneExpressionDataset):
 
         gene_bc_matrix = get_matrix_from_h5(filtered_matrix_h5, self.genome)
 
-        subsample_bcs = self.subsample_size * 1000
+        subsample_bcs = self.subsample_size * 1000  # Warning : 20e3 is a float in python3
         subset = np.sort(np.random.choice(gene_bc_matrix.barcodes.size, size=subsample_bcs, replace=False))
         subsampled_matrix = subsample_barcodes(gene_bc_matrix, subset)
+        # subset = np.argsort(np.sum(np.array(gene_bc_matrix.matrix.todense()), axis=1).ravel())[::-1][:subsample_bcs]
 
         save_matrix_to_h5(subsampled_matrix, self.save_path + self.final_name, "mm10")
         toc = time.time()
         print("Preprocessing finished in : %d sec." % int(toc - tic))
 
-    @classmethod
-    def download_and_preprocess(self, subsample_size=None):
-        if subsample_size is None:
-            final_name = self.download_name
-        else:
-            final_name = "1M_neurons_matrix_subsampled_%dk.h5" % subsample_size
-        if not os.path.exists(self.save_path + final_name):
+    def download_and_preprocess(self):
+        if not os.path.exists(self.save_path + self.final_name):
             if not os.path.exists(self.save_path + self.download_name):
                 self.download()
             self.preprocess()
-
-    @classmethod
-    def get_attributes(self, subsample_size=None):
-        if subsample_size is None:
-            final_name = self.download_name
-        else:
-            final_name = "1M_neurons_matrix_subsampled_%dk.h5" % subsample_size
-        print(final_name)
-        h5_object = get_matrix_from_h5(self.save_path + final_name, self.genome)
-        return h5_object.matrix.transpose().tocsr(copy=False)
-
-    @classmethod
-    def get_dataset(cls, type='train', subsample_size=None):
-        cls.download_and_preprocess(subsample_size=subsample_size)
-        return cls.from_matrix(cls.get_attributes(subsample_size=subsample_size))
