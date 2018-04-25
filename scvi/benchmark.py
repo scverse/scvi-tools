@@ -25,7 +25,7 @@ def run_benchmarks(gene_dataset, n_epochs=1000, learning_rate=1e-3, use_batches=
     example_indices = np.random.permutation(len(gene_dataset))
     tt_split = int(0.9 * len(gene_dataset))  # 10%/90% test/train split
 
-    data_loader_train = DataLoader(gene_dataset, batch_size=128,pin_memory=use_cuda,
+    data_loader_train = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
                                    sampler=SubsetRandomSampler(example_indices[:tt_split]))
     data_loader_test = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
                                   sampler=SubsetRandomSampler(example_indices[tt_split:]))
@@ -53,19 +53,20 @@ def run_benchmarks(gene_dataset, n_epochs=1000, learning_rate=1e-3, use_batches=
     if gene_dataset.n_batches >= 2:
         latent = []
         batch_indices = []
-        for sample_batch, local_l_mean, local_l_var, batch_index, labels in data_loader_train:
-            sample_batch = sample_batch.type(torch.FloatTensor)
-            if vae.using_cuda:
-                sample_batch = sample_batch.cuda(async=True)
-            latent += [vae.sample_from_posterior_z(sample_batch, y=labels)]  # Just run a forward pass on all the data
-            batch_indices += [batch_index]
+        with torch.no_grad():
+            for sample_batch, local_l_mean, local_l_var, batch_index, labels in data_loader_train:
+                sample_batch = sample_batch.type(torch.FloatTensor)
+                if vae.using_cuda:
+                    sample_batch = sample_batch.cuda(async=True)
+                latent += [vae.sample_from_posterior_z(sample_batch, y=labels)]
+                batch_indices += [batch_index]
         latent = torch.cat(latent)
         batch_indices = torch.cat(batch_indices)
 
     if gene_dataset.n_batches == 2:
-        print("Entropy batch mixing :", entropy_batch_mixing(latent.data.cpu().numpy(), batch_indices.numpy()))
+        print("Entropy batch mixing :", entropy_batch_mixing(latent.cpu().numpy(), batch_indices.numpy()))
         if show_batch_mixing:
-            show_t_sne(latent.data.cpu().numpy(), np.array([batch[0] for batch in batch_indices.numpy()]),
+            show_t_sne(latent.cpu().numpy(), np.array([batch[0] for batch in batch_indices.numpy()]),
                        "Batch mixing t_SNE plot")
 
     # - differential expression

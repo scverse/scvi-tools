@@ -2,7 +2,6 @@ import collections
 
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 
 from scvi.utils import enumerate_discrete, one_hot
 from scvi.vae import VAE
@@ -23,11 +22,11 @@ class VAEC(VAE):
         return self.classifier(x)
 
     def sample_from_posterior_z(self, x, y):
-        x = torch.cat((Variable(x), one_hot(y, self.n_labels, x.type())), 1)
+        x = torch.cat((x, one_hot(y, self.n_labels, x.type())), 1)
         return super(VAEC, self).sample_from_posterior_z(x)
 
     def sample_from_posterior_l(self, x, y):
-        x = torch.cat((Variable(x), one_hot(y, self.n_labels, x.type())), 1)
+        x = torch.cat((x, one_hot(y, self.n_labels, x.type())), 1)
         return super(VAEC, self).sample_from_posterior_l(x)
 
     def get_sample_scale(self, x, y, batch_index=None):
@@ -57,7 +56,7 @@ class VAEC(VAE):
             local_l_var = local_l_var.repeat(self.n_labels, 1)
             local_l_mean = local_l_mean.repeat(self.n_labels, 1)
         else:
-            ys = one_hot(ys, self.n_labels, xs.data.type())
+            ys = one_hot(ys, self.n_labels, xs.type())
 
         reconst_loss, kl_divergence = super(VAEC, self).forward(torch.cat((xs, ys), 1), local_l_mean, local_l_var,
                                                                 batch_index=batch_index)
@@ -70,7 +69,7 @@ class VAEC(VAE):
         proba = self.classify(x)
         reconst_loss = (reconst_loss.t() * proba).sum(dim=1)
         kl_divergence = (kl_divergence.t() * proba).sum(dim=1)
-        y_prior = Variable(self.y_prior.type(proba.data.type()))
+        y_prior = self.y_prior.type(proba.type())
         kl_divergence += torch.sum(torch.mul(proba, torch.log(y_prior) - torch.log(proba + 1e-8)), dim=-1)
 
         return reconst_loss, kl_divergence

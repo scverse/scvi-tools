@@ -1,25 +1,23 @@
 """File for computing log likelihood of the data"""
 
 import torch
-from torch.autograd import Variable
 
 
 def compute_log_likelihood(vae, data_loader):
     # Iterate once over the data_loader and computes the total log_likelihood
     log_lkl = 0
-    for i_batch, (sample_batch, local_l_mean, local_l_var, batch_index, labels) in enumerate(data_loader):
-        sample_batch = sample_batch.type(torch.FloatTensor)
-        sample_batch = Variable(sample_batch)
-        local_l_mean = Variable(local_l_mean)
-        local_l_var = Variable(local_l_var)
-        if vae.using_cuda:
-            sample_batch = sample_batch.cuda(async=True)
-            local_l_mean = local_l_mean.cuda(async=True)
-            local_l_var = local_l_var.cuda(async=True)
-            batch_index = batch_index.cuda(async=True)
-            labels = labels.cuda(async=True)
-        reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index, y=labels)
-        log_lkl += torch.sum(reconst_loss).item()
+    with torch.no_grad():
+        for i_batch, (sample_batch, local_l_mean, local_l_var, batch_index, labels) in enumerate(data_loader):
+            sample_batch = sample_batch.type(torch.FloatTensor)
+            if vae.using_cuda:
+                sample_batch = sample_batch.cuda(async=True)
+                local_l_mean = local_l_mean.cuda(async=True)
+                local_l_var = local_l_var.cuda(async=True)
+                batch_index = batch_index.cuda(async=True)
+                labels = labels.cuda(async=True)
+            reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
+                                              y=labels)
+            log_lkl += torch.sum(reconst_loss).item()
     return log_lkl / len(data_loader.sampler.indices)
 
 
