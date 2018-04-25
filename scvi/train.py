@@ -1,5 +1,4 @@
 import torch
-from torch.autograd import Variable
 
 from scvi.log_likelihood import compute_log_likelihood
 
@@ -22,9 +21,6 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
 
         for i_batch, (sample_batch, local_l_mean, local_l_var, batch_index, _) in enumerate(data_loader_train):
             sample_batch = sample_batch.type(torch.FloatTensor)
-            sample_batch = Variable(sample_batch)
-            local_l_mean = Variable(local_l_mean)
-            local_l_var = Variable(local_l_var)
             if vae.using_cuda:
                 sample_batch = sample_batch.cuda(async=True)
                 local_l_mean = local_l_mean.cuda(async=True)
@@ -54,8 +50,8 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
 
         current_performances_kl[:-1] = current_performances_kl[1:]
         current_performances_reconst[:-1] = current_performances_reconst[1:]
-        current_performances_kl[-1] = total_current_kl.data[0]
-        current_performances_reconst[-1] = total_current_reconst.data[0]
+        current_performances_kl[-1] = total_current_kl.item()
+        current_performances_reconst[-1] = total_current_reconst.item()
 
         # Computing the relative improvment of kl and reconstruction loss
         # over the chosen number of epochs
