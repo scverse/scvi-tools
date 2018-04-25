@@ -25,9 +25,9 @@ def run_benchmarks(gene_dataset, n_epochs=1000, learning_rate=1e-3, use_batches=
     example_indices = np.random.permutation(len(gene_dataset))
     tt_split = int(0.9 * len(gene_dataset))  # 10%/90% test/train split
 
-    data_loader_train = DataLoader(gene_dataset, batch_size=128, num_workers=4, pin_memory=use_cuda,
+    data_loader_train = DataLoader(gene_dataset, batch_size=128,pin_memory=use_cuda,
                                    sampler=SubsetRandomSampler(example_indices[:tt_split]))
-    data_loader_test = DataLoader(gene_dataset, batch_size=128, num_workers=4, pin_memory=use_cuda,
+    data_loader_test = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
                                   sampler=SubsetRandomSampler(example_indices[tt_split:]))
     cls = VAEC if semi_supervised else VAE
     vae = cls(gene_dataset.nb_genes, batch=use_batches, n_batch=gene_dataset.n_batches,
