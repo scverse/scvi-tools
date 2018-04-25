@@ -1,5 +1,6 @@
 import random
 
+import numpy as np
 import torch
 from torch.autograd import Variable
 
@@ -13,8 +14,8 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
 
     # initialize
     (patience, threshold) = (early_stopping_criterion[0], early_stopping_criterion[1])
-    current_performances_kl = torch.ones(patience)
-    current_performances_reconst = torch.ones(patience)
+    current_performances_kl = np.ones((patience))
+    current_performances_reconst = np.ones((patience))
 
     # Training the model
     for epoch in range(n_epochs):
@@ -46,11 +47,14 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
             else:
                 reconst_loss, kl_divergence = vae(
                     sample_batch, local_l_mean, local_l_var, y=labels)
-            total_current_kl += torch.mean(kl_divergence)
-            total_current_reconst += torch.mean(reconst_loss)
 
-            train_loss = torch.mean(reconst_loss) + kl_ponderation * torch.mean(kl_divergence)
-            real_loss = torch.mean(reconst_loss) + torch.mean(kl_divergence)
+            reconst_loss_mean = torch.mean(reconst_loss)
+            kl_divergence_mean = torch.mean(kl_divergence)
+            train_loss = reconst_loss_mean + kl_ponderation * kl_divergence_mean
+
+            batch_size = sample_batch.size(0)
+            total_current_kl += kl_divergence_mean.item() * batch_size
+            total_current_reconst += reconst_loss_mean.item() * batch_size
 
             optimizer.zero_grad()
             train_loss.backward()
@@ -58,8 +62,8 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
 
         current_performances_kl[:-1] = current_performances_kl[1:]
         current_performances_reconst[:-1] = current_performances_reconst[1:]
-        current_performances_kl[-1] = total_current_kl.data[0]
-        current_performances_reconst[-1] = total_current_reconst.data[0]
+        current_performances_kl[-1] = total_current_kl / len(data_loader_train.sampler.indices)
+        current_performances_reconst[-1] = total_current_reconst / len(data_loader_train.sampler.indices)
 
         # Computing the relative improvment of kl and reconstruction loss
         # over the chosen number of epochs
@@ -80,8 +84,9 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
         if epoch % 10 == 0:
             vae.eval()
             # No need to compute it twice
-            log_likelihood_train = total_current_reconst.data[0] + total_current_kl.data[0]
+            log_likelihood_train = compute_log_likelihood(vae, data_loader_train)
             log_likelihood_test = compute_log_likelihood(vae, data_loader_test)
-            print("Epoch[%d/%d], LL-Train %.4f, LL-Test %.4f, Total Loss: %.4f, "
-                  % (epoch + 1, n_epochs, log_likelihood_train, log_likelihood_test, real_loss.data[0]))
+            real_loss = current_performances_reconst[-1] + current_performances_kl[-1]
+            print("Epoch[%d/%d], LL-Train %.4f, LL-Test %.4f, Total Loss: %.4f"
+                  % (epoch + 1, n_epochs, log_likelihood_train, log_likelihood_test, real_loss))
             vae.train()

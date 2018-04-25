@@ -3,8 +3,6 @@
 import torch
 from torch.autograd import Variable
 
-from functions.gamma import Lgamma
-
 
 def compute_log_likelihood(vae, data_loader):
     # Iterate once over the data_loader and computes the total log_likelihood
@@ -14,7 +12,6 @@ def compute_log_likelihood(vae, data_loader):
         sample_batch = Variable(sample_batch)
         local_l_mean = Variable(local_l_mean)
         local_l_var = Variable(local_l_var)
-        # labels = (labels)
         if vae.using_cuda:
             sample_batch = sample_batch.cuda(async=True)
             local_l_mean = local_l_mean.cuda(async=True)
@@ -22,8 +19,8 @@ def compute_log_likelihood(vae, data_loader):
             batch_index = batch_index.cuda(async=True)
             labels = labels.cuda(async=True)
         reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index, y=labels)
-        log_lkl += torch.sum(reconst_loss).data[0]
-    return log_lkl / len(data_loader.dataset)
+        log_lkl += torch.sum(reconst_loss).item()
+    return log_lkl / len(data_loader.sampler.indices)
 
 
 def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
@@ -47,8 +44,8 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     - softplus(-pi)
 
     case_non_zero = - pi - softplus(-pi) + theta * torch.log(theta + eps) - theta * torch.log(
-        theta + mu + eps) + x * torch.log(mu + eps) - x * torch.log(theta + mu + eps) + Lgamma()(
-        x + theta) - Lgamma()(theta.resize(1, theta.size(0))) - Lgamma()(x + 1)
+        theta + mu + eps) + x * torch.log(mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(
+        x + theta) - torch.lgamma(theta.resize(1, theta.size(0))) - torch.lgamma(x + 1)
 
     mask = x.clone()
     mask[mask < eps] = 1
@@ -68,7 +65,7 @@ def log_nb_positive(x, mu, theta, eps=1e-8):
     eps: numerical stability constant
     """
     res = theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps) + x * torch.log(
-        mu + eps) - x * torch.log(theta + mu + eps) + Lgamma()(x + theta) - Lgamma()(
-        theta.resize(1, theta.size(0))) - Lgamma()(
+        mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(x + theta) - torch.lgamma(
+        theta.resize(1, theta.size(0))) - torch.lgamma(
         x + 1)
     return torch.sum(res)

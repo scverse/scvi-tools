@@ -42,8 +42,8 @@ def get_statistics(vae, data_loader, M_sampling=100, M_permutation=100000, permu
     px_scale = torch.cat(px_scales)
     # Here instead of A, B = 200, 400: we do on whole dataset then select cells
     all_labels = torch.cat(all_labels)
-    sample_rate_a = px_scale[all_labels == couple_celltypes[0]].view(-1, px_scale.size(1)).cpu().data.numpy()
-    sample_rate_b = px_scale[all_labels == couple_celltypes[1]].view(-1, px_scale.size(1)).cpu().data.numpy()
+    sample_rate_a = px_scale[all_labels.view(-1) == couple_celltypes[0]].view(-1, px_scale.size(1)).cpu().data.numpy()
+    sample_rate_b = px_scale[all_labels.view(-1) == couple_celltypes[1]].view(-1, px_scale.size(1)).cpu().data.numpy()
 
     # agregate dataset
     samples = np.vstack((sample_rate_a, sample_rate_b))
