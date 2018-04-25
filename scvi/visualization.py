@@ -13,6 +13,5 @@ def show_t_sne(latent, labels, title):
     plt.title(title)
     plt.axis("off")
     plt.tight_layout()
-
     print("saving tsne figure as tsne.png")
     plt.savefig("tsne.png")
