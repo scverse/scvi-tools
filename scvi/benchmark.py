@@ -1,6 +1,7 @@
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
-import numpy as np
+from torch.utils.data.sampler import SubsetRandomSampler
 
 from scvi.clustering import entropy_batch_mixing
 from scvi.dataset import CortexDataset
@@ -12,8 +13,8 @@ from scvi.train import train
 from scvi.visualization import show_t_sne
 
 
-def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learning_rate=1e-3,
-                   use_batches=False, use_cuda=True, show_batch_mixing=True):
+def run_benchmarks(gene_dataset, n_epochs=1000, learning_rate=1e-3, use_batches=False, use_cuda=True,
+                   show_batch_mixing=True):
     # options:
     # - gene_dataset: a GeneExpressionDataset object
     # call each of the 4 benchmarks:
@@ -22,12 +23,14 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
     # - batch mixing
     # - cluster scores
 
-    data_loader_train = DataLoader(gene_dataset_train, batch_size=128, shuffle=True,
-                                   num_workers=4, pin_memory=use_cuda)
-    data_loader_test = DataLoader(gene_dataset_test, batch_size=128, shuffle=True,
-                                  num_workers=4, pin_memory=use_cuda)
-    vae = VAE(gene_dataset_train.nb_genes, batch=use_batches, n_batch=gene_dataset_train.n_batches,
-              using_cuda=use_cuda)
+    example_indices = np.random.permutation(len(gene_dataset))
+    tt_split = int(0.9 * len(gene_dataset))  # 10%/90% test/train split
+
+    data_loader_train = DataLoader(gene_dataset, batch_size=128, num_workers=4, pin_memory=use_cuda,
+                                   sampler=SubsetRandomSampler(example_indices[:tt_split]))
+    data_loader_test = DataLoader(gene_dataset, batch_size=128, num_workers=4, pin_memory=use_cuda,
+                                  sampler=SubsetRandomSampler(example_indices[tt_split:]))
+    vae = VAE(gene_dataset.nb_genes, batch=use_batches, n_batch=gene_dataset.n_batches, using_cuda=use_cuda)
     if vae.using_cuda:
         vae.cuda()
     train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, learning_rate=learning_rate)
@@ -45,7 +48,7 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
     print("Imputation score on train (MAE) is:", imputation_train)
 
     # - batch mixing
-    if gene_dataset_train.n_batches >= 2:
+    if gene_dataset.n_batches >= 2:
         latent = []
         batch_indices = []
         for sample_batch, local_l_mean, local_l_var, batch_index, _ in data_loader_train:
@@ -57,7 +60,7 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
         latent = torch.cat(latent)
         batch_indices = torch.cat(batch_indices)
 
-    if gene_dataset_train.n_batches == 2:
+    if gene_dataset.n_batches == 2:
         print("Entropy batch mixing :", entropy_batch_mixing(latent.data.cpu().numpy(), batch_indices.numpy()))
         if show_batch_mixing:
             show_t_sne(latent.data.cpu().numpy(), np.array([batch[0] for batch in batch_indices.numpy()]),
@@ -65,5 +68,5 @@ def run_benchmarks(gene_dataset_train, gene_dataset_test, n_epochs=1000, learnin
 
     # - differential expression
     #
-    if type(gene_dataset_train) == CortexDataset:
+    if type(gene_dataset) == CortexDataset:
         get_statistics(vae, data_loader_train, M_sampling=1, M_permutation=1)  # 200 - 100000
