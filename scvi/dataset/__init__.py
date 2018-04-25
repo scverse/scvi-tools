@@ -9,14 +9,13 @@ __all__ = ['SyntheticDataset',
            'GeneExpressionDataset']
 
 
-def load_datasets(dataset_name, test=False):
+def load_datasets(dataset_name, unit_test=False):
     if dataset_name == 'synthetic':
-        gene_dataset_train, gene_dataset_test = SyntheticDataset(), SyntheticDataset()
+        gene_dataset = SyntheticDataset()
     elif dataset_name == 'cortex':
-        gene_dataset_train, gene_dataset_test = CortexDataset(type="train"), CortexDataset(type="test")
+        gene_dataset = CortexDataset()
     elif dataset_name == 'brain_large':
-        gene_dataset = BrainLargeDataset(test=test)
-        gene_dataset_train, gene_dataset_test = gene_dataset, gene_dataset
+        gene_dataset = BrainLargeDataset(unit_test=unit_test)
     else:
         raise "No such dataset available"
-    return gene_dataset_train, gene_dataset_test
+    return gene_dataset

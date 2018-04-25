@@ -3,11 +3,11 @@
 """Handling datasets.
 For the moment, is initialized with a torch Tensor of size (n_cells, nb_genes)"""
 import os
-import urllib.request
 
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
+import urllib.request
 from torch.utils.data import Dataset
 
 
@@ -60,6 +60,11 @@ class GeneExpressionDataset(Dataset):
         with open(self.save_path + self.download_name, 'wb') as f:
             for data in readIter(r):
                 f.write(data)
+
+    def download_and_preprocess(self):
+        if not os.path.exists(self.save_path + self.download_name):
+            self.download()
+        return self.preprocess()
 
     @staticmethod
     def train_test_split(*Xs, train_size=0.75):

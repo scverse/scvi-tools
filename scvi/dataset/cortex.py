@@ -1,5 +1,4 @@
 import csv
-import os
 
 import numpy as np
 import scipy.sparse as sp_sparse
@@ -10,20 +9,17 @@ from .dataset import GeneExpressionDataset
 class CortexDataset(GeneExpressionDataset):
     url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt"
 
-    def __init__(self, type='train'):
+    def __init__(self):
         # Generating samples according to a ZINB process
         self.save_path = 'data/'
         self.download_name = 'expression.bin'
-        self.data_filename = 'expression_%s.npy' % type
-        self.labels_filename = 'labels_%s.npy' % type
-        self.gene_names = 'genes_names.npy'
-        self.download_and_preprocess()
+        expression_data, labels, gene_names = self.download_and_preprocess()
 
         super(CortexDataset, self).__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
-                sp_sparse.csr_matrix(np.load(self.save_path + self.data_filename)),
-                labels=np.load(self.save_path + self.labels_filename)),
-            gene_names=np.load(self.save_path + self.gene_names))
+                sp_sparse.csr_matrix(expression_data),
+                labels=labels),
+            gene_names=gene_names)
 
     def preprocess(self):
         print("Preprocessing Cortex data")
@@ -48,20 +44,4 @@ class CortexDataset(GeneExpressionDataset):
         expression_data = expression_data[:, selected]
         gene_names = gene_names[selected]
 
-        # train test split for log-likelihood scores
-        expression_train, expression_test, c_train, c_test = GeneExpressionDataset.train_test_split(expression_data,
-                                                                                                    labels)
-
-        np.save(self.save_path + 'expression_train.npy', expression_train)
-        np.save(self.save_path + 'expression_test.npy', expression_test)
-        np.save(self.save_path + 'labels_train.npy', c_train)
-        np.save(self.save_path + 'labels_test.npy', c_test)
-        np.save(self.save_path + self.gene_names, gene_names)
-
-    def download_and_preprocess(self):
-        if not (os.path.exists(self.save_path + self.data_filename) and
-                os.path.exists(self.save_path + self.labels_filename) and
-                os.path.exists(self.save_path + self.gene_names)):
-            if not os.path.exists(self.save_path + self.download_name):
-                self.download()
-            self.preprocess()
+        return expression_data, labels, gene_names
