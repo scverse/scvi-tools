@@ -6,7 +6,6 @@ from scvi.log_likelihood import compute_log_likelihood
 
 def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0.001, kl=None,
           early_stopping_criterion=(20, 0.01)):
-
     # Defining the optimizer
     optimizer = torch.optim.Adam(vae.parameters(), lr=learning_rate, eps=0.01)
 
@@ -77,7 +76,7 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
         if epoch % 10 == 0:
             vae.eval()
             # No need to compute it twice
-            log_likelihood_train = total_current_reconst.data[0] + total_current_kl.data[0]
+            log_likelihood_train = compute_log_likelihood(vae, data_loader_train)
             log_likelihood_test = compute_log_likelihood(vae, data_loader_test)
             print("Epoch[%d/%d], LL-Train %.4f, LL-Test %.4f, Total Loss: %.4f, "
                   % (epoch + 1, n_epochs, log_likelihood_train, log_likelihood_test, real_loss.data[0]))

@@ -21,7 +21,7 @@ def compute_log_likelihood(vae, data_loader):
         elif vae.reconstruction_loss == 'nb':
             sample_loss = -log_nb_positive(sample_batched, px_rate, torch.exp(px_r))
         log_lkl += torch.sum(sample_loss).data[0]
-    return log_lkl / len(data_loader.dataset)
+    return log_lkl / len(data_loader.sampler.indices)
 
 
 def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
