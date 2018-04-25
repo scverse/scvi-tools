@@ -4,7 +4,6 @@ import collections
 
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 
 from scvi.log_likelihood import log_zinb_positive, log_nb_positive
 
@@ -35,7 +34,7 @@ class VAE(nn.Module):
         self.batch = batch
 
         if self.dispersion == "gene":
-            self.register_buffer('px_r', Variable(torch.randn(self.n_input, )))
+            self.register_buffer('px_r', torch.randn(self.n_input, ))
 
         self.encoder = Encoder(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
                                dropout_rate=dropout_rate, using_cuda=self.using_cuda)
@@ -57,7 +56,7 @@ class VAE(nn.Module):
 
     def reparameterize(self, mu, var):
         std = torch.sqrt(var)
-        eps = Variable(std.data.new(std.size()).normal_())
+        eps = std.new(std.size()).normal_()
         return eps.mul(std).add_(mu)
 
     def forward(self, x, batch_index=None):
@@ -229,10 +228,10 @@ class Decoder(nn.Module):
         def one_hot(batch_index, n_batch, dtype):
             onehot = batch_index.new(batch_index.size(0), n_batch).fill_(0)
             onehot.scatter_(1, batch_index, 1)
-            return Variable(onehot.type(dtype))
+            return onehot.type(dtype)
 
         if self.batch:
-            one_hot_batch = one_hot(batch_index, self.n_batch, z.data.type())
+            one_hot_batch = one_hot(batch_index, self.n_batch, z.type())
             z = torch.cat((z, one_hot_batch), 1)
         px = self.px_decoder(z)
         if self.batch:
