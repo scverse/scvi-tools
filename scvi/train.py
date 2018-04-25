@@ -29,7 +29,6 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
                 local_l_mean = local_l_mean.cuda(async=True)
                 local_l_var = local_l_var.cuda(async=True)
                 batch_index = batch_index.cuda(async=True)
-                # labels = labels.cuda(async=True)
 
             if kl is None:
                 kl_ponderation = min(1, epoch / 400.)

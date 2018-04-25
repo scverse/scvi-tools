@@ -100,7 +100,9 @@ class VAE(nn.Module):
 
         kl_divergence = (kl_divergence_z + kl_divergence_l)
 
-        return reconst_loss, kl_divergence
+        # Train Loss # Not real total loss
+        train_loss = torch.mean(reconst_loss + kl_ponderation * kl_divergence)
+        return train_loss, reconst_loss, kl_divergence
 
 
 # Encoder

@@ -21,3 +21,8 @@ def test_cortex():
 def test_brain_large():
     gene_dataset = load_datasets("brain_large", unit_test=True)
     run_benchmarks(gene_dataset, n_epochs=1)
+
+
+def test_retina():
+    gene_dataset = load_datasets("retina", unit_test=True)
+    run_benchmarks(gene_dataset, n_epochs=1, show_batch_mixing=False)
