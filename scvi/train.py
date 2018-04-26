@@ -4,6 +4,7 @@ import numpy as np
 import torch
 
 from scvi.log_likelihood import compute_log_likelihood
+from scvi.utils import to_cuda
 
 
 def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0.001, kl=None,
@@ -21,14 +22,13 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
         # initialize kl, reconst
         total_current_kl = 0
         total_current_reconst = 0
-        for i_batch, (sample_batch, local_l_mean, local_l_var, batch_index, labels) in enumerate(data_loader_train):
-            sample_batch = sample_batch.type(torch.FloatTensor)
-            labels = labels if random.random() < 0.5 else None
+        for i_batch, tensor_list in enumerate(data_loader_train):
             if vae.using_cuda:
-                sample_batch = sample_batch.cuda(async=True)
-                local_l_mean = local_l_mean.cuda(async=True)
-                local_l_var = local_l_var.cuda(async=True)
-                batch_index = batch_index.cuda(async=True)
+                tensor_list = to_cuda(tensor_list)
+            sample_batch, local_l_mean, local_l_var, batch_index, labels = tensor_list
+            sample_batch = sample_batch.type(torch.float32)
+
+            labels = labels if random.random() < 0.5 else None
 
             if kl is None:
                 kl_ponderation = min(1, epoch / 400.)
