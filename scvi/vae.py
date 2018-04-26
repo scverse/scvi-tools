@@ -74,12 +74,13 @@ class VAE(nn.Module):
             raise ("This VAE was trained to take batches into account:"
                    "please provide batch indexes when running the forward pass")
 
+        x_ = x
         if self.log_variational:
-            x = torch.log(1 + x)
+            x_ = torch.log(1 + x_)
 
         # Sampling
-        qz_m, qz_v, z = self.z_encoder(x)
-        ql_m, ql_v, library = self.l_encoder(x)
+        qz_m, qz_v, z = self.z_encoder(x_)
+        ql_m, ql_v, library = self.l_encoder(x_)
 
         if self.dispersion == "gene-cell":
             px_scale, self.px_r, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index)

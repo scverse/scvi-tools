@@ -43,7 +43,7 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
 
     case_non_zero = - pi - softplus(-pi) + theta * torch.log(theta + eps) - theta * torch.log(
         theta + mu + eps) + x * torch.log(mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(
-        x + theta) - torch.lgamma(theta) - torch.lgamma(x + 1)
+        x + theta) - torch.lgamma(theta.view(1, theta.size(0))) - torch.lgamma(x + 1)
 
     mask = x.clone()
     mask[mask < eps] = 1
@@ -64,6 +64,6 @@ def log_nb_positive(x, mu, theta, eps=1e-8):
     """
     res = theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps) + x * torch.log(
         mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(x + theta) - torch.lgamma(
-        theta.resize(1, theta.size(0))) - torch.lgamma(
+        theta.view(1, theta.size(0))) - torch.lgamma(
         x + 1)
     return torch.sum(res)

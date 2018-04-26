@@ -36,7 +36,7 @@ def subsample_genes(gbm, genes_indices, unit_test=False):
     gene_ids = gbm.gene_ids[genes_indices] if not unit_test else gbm.gene_ids
     gene_names = gbm.gene_names[genes_indices] if not unit_test else gbm.gene_names
     return GeneBCMatrix(gene_ids, gene_names, gbm.barcodes,
-                        gbm.matrix[:, :])
+                        gbm.matrix[genes_indices, :])
 
 
 def get_expression(gbm, gene_name):
@@ -67,7 +67,7 @@ class BrainLargeDataset(GeneExpressionDataset):
         self.genome = "mm10"
         h5_object = self.download_and_preprocess()
         super(BrainLargeDataset, self).__init__(
-            *GeneExpressionDataset.get_attributes_from_matrix(h5_object.matrix.transpose())
+            *GeneExpressionDataset.get_attributes_from_matrix(h5_object.matrix.transpose().toarray())
         )
 
     def preprocess(self):
@@ -79,17 +79,18 @@ class BrainLargeDataset(GeneExpressionDataset):
 
         gene_bc_matrix = get_matrix_from_h5(filtered_matrix_h5, self.genome)
 
-        # Subsample 720 genes with highest variance
-        std_scaler = StandardScaler(with_mean=False)
-        std_scaler.fit(gene_bc_matrix.matrix.transpose().astype(np.float64))
-        subset_genes = np.argsort(std_scaler.var_)[::-1][:720]
-        subsampled_matrix = subsample_genes(gene_bc_matrix, subset_genes, unit_test=self.unit_test)
-
+        subsampled_matrix = gene_bc_matrix
         # Subsample barcodes
         subsample_bcs = self.subsample_size
         subset_barcodes = np.sort(
             np.random.choice(subsampled_matrix.matrix.shape[1], size=subsample_bcs, replace=self.unit_test))
         subsampled_matrix = subsample_barcodes(subsampled_matrix, subset_barcodes, unit_test=self.unit_test)
+
+        # Subsample 720 genes with highest variance
+        std_scaler = StandardScaler(with_mean=False)
+        std_scaler.fit(subsampled_matrix.matrix.transpose().astype(np.float64))
+        subset_genes = np.argsort(std_scaler.var_)[::-1][:720]
+        subsampled_matrix = subsample_genes(subsampled_matrix, subset_genes, unit_test=self.unit_test)
 
         toc = time.time()
         print("Preprocessing finished in : %d sec." % int(toc - tic))

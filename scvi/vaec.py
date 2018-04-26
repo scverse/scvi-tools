@@ -66,7 +66,9 @@ class VAEC(VAE):
 
         reconst_loss = reconst_loss.view(self.n_labels, -1)
         kl_divergence = kl_divergence.view(self.n_labels, -1)
-        proba = self.classify(x)
+        if self.log_variational:
+            x_ = torch.log(1 + x)
+        proba = self.classify(x_)
         reconst_loss = (reconst_loss.t() * proba).sum(dim=1)
         kl_divergence = (kl_divergence.t() * proba).sum(dim=1)
         y_prior = self.y_prior.type(proba.type())
