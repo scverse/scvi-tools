@@ -2,22 +2,20 @@
 
 import torch
 
+from scvi.utils import to_cuda
+
 
 def compute_log_likelihood(vae, data_loader):
     # Iterate once over the data_loader and computes the total log_likelihood
     log_lkl = 0
-    with torch.no_grad():
-        for i_batch, (sample_batch, local_l_mean, local_l_var, batch_index, labels) in enumerate(data_loader):
-            sample_batch = sample_batch.type(torch.FloatTensor)
-            if vae.using_cuda:
-                sample_batch = sample_batch.cuda(async=True)
-                local_l_mean = local_l_mean.cuda(async=True)
-                local_l_var = local_l_var.cuda(async=True)
-                batch_index = batch_index.cuda(async=True)
-                labels = labels.cuda(async=True)
-            reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
-                                              y=labels)
-            log_lkl += torch.sum(reconst_loss).item()
+    for i_batch, tensor_list in enumerate(data_loader):
+        if vae.using_cuda:
+            tensor_list = to_cuda(tensor_list)
+        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensor_list
+        sample_batch = sample_batch.type(torch.float32)
+        reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
+                                          y=labels)
+        log_lkl += torch.sum(reconst_loss).item()
     return log_lkl / len(data_loader.sampler.indices)
 
 

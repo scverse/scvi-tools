@@ -9,8 +9,11 @@ from scvi.differential_expression import get_statistics
 from scvi.imputation import imputation
 from scvi.log_likelihood import compute_log_likelihood
 from scvi.train import train
+from scvi.utils import to_cuda
 from scvi.vaec import VAEC, VAE
 from scvi.visualization import show_t_sne
+
+torch.set_grad_enabled(False)
 
 
 def run_benchmarks(gene_dataset, n_epochs=1000, learning_rate=1e-3, use_batches=False, use_cuda=True,
@@ -35,7 +38,8 @@ def run_benchmarks(gene_dataset, n_epochs=1000, learning_rate=1e-3, use_batches=
 
     if vae.using_cuda:
         vae.cuda()
-    train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, learning_rate=learning_rate)
+    with torch.set_grad_enabled(True):
+        train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, learning_rate=learning_rate)
 
     # - log-likelihood
     vae.eval()  # Test mode - affecting dropout and batchnorm
@@ -53,20 +57,20 @@ def run_benchmarks(gene_dataset, n_epochs=1000, learning_rate=1e-3, use_batches=
     if gene_dataset.n_batches >= 2:
         latent = []
         batch_indices = []
-        with torch.no_grad():
-            for sample_batch, local_l_mean, local_l_var, batch_index, labels in data_loader_train:
-                sample_batch = sample_batch.type(torch.FloatTensor)
-                if vae.using_cuda:
-                    sample_batch = sample_batch.cuda(async=True)
-                latent += [vae.sample_from_posterior_z(sample_batch, y=labels)]
-                batch_indices += [batch_index]
+        for tensor_list in data_loader_train:
+            if vae.using_cuda:
+                tensor_list = to_cuda(tensor_list)
+            sample_batch, local_l_mean, local_l_var, batch_index, labels = tensor_list
+            sample_batch = sample_batch.type(torch.float32)
+            latent += [vae.sample_from_posterior_z(sample_batch, y=labels)]
+            batch_indices += [batch_index]
         latent = torch.cat(latent)
         batch_indices = torch.cat(batch_indices)
 
     if gene_dataset.n_batches == 2:
-        print("Entropy batch mixing :", entropy_batch_mixing(latent.cpu().numpy(), batch_indices.numpy()))
+        print("Entropy batch mixing :", entropy_batch_mixing(latent.cpu().numpy(), batch_indices.cpu().numpy()))
         if show_batch_mixing:
-            show_t_sne(latent.cpu().numpy(), np.array([batch[0] for batch in batch_indices.numpy()]),
+            show_t_sne(latent.cpu().numpy(), np.array([batch[0] for batch in batch_indices.cpu().numpy()]),
                        "Batch mixing t_SNE plot")
 
     # - differential expression

@@ -15,18 +15,17 @@ class VAEC(VAE):
         self.n_input = n_input
 
         self.y_prior = y_prior if y_prior is not None else (1 / self.n_labels) * torch.ones(self.n_labels)
-        self.classifier = Classifier(self.n_input, self.n_hidden, self.n_labels, self.n_layers, self.dropout_rate,
-                                     self.using_cuda)
+        self.classifier = Classifier(self.n_input, self.n_hidden, self.n_labels, self.n_layers, self.dropout_rate)
 
     def classify(self, x):
         return self.classifier(x)
 
     def sample_from_posterior_z(self, x, y):
-        x = torch.cat((x, one_hot(y, self.n_labels, x.type())), 1)
+        x = torch.cat((x, one_hot(y, self.n_labels)), 1)
         return super(VAEC, self).sample_from_posterior_z(x)
 
     def sample_from_posterior_l(self, x, y):
-        x = torch.cat((x, one_hot(y, self.n_labels, x.type())), 1)
+        x = torch.cat((x, one_hot(y, self.n_labels)), 1)
         return super(VAEC, self).sample_from_posterior_l(x)
 
     def get_sample_scale(self, x, y, batch_index=None):
@@ -56,7 +55,7 @@ class VAEC(VAE):
             local_l_var = local_l_var.repeat(self.n_labels, 1)
             local_l_mean = local_l_mean.repeat(self.n_labels, 1)
         else:
-            ys = one_hot(ys, self.n_labels, xs.type())
+            ys = one_hot(ys, self.n_labels)
 
         reconst_loss, kl_divergence = super(VAEC, self).forward(torch.cat((xs, ys), 1), local_l_mean, local_l_var,
                                                                 batch_index=batch_index)
@@ -79,7 +78,7 @@ class VAEC(VAE):
 
 # Classifier
 class Classifier(nn.Module):
-    def __init__(self, n_input, n_hidden=128, n_labels=10, n_layers=1, dropout_rate=0.1, using_cuda=True):
+    def __init__(self, n_input, n_hidden=128, n_labels=10, n_layers=1, dropout_rate=0.1):
         super(Classifier, self).__init__()
 
         self.dropout_rate = dropout_rate
@@ -87,7 +86,6 @@ class Classifier(nn.Module):
         self.n_hidden = n_hidden
         self.n_input = n_input
         self.n_layers = n_layers
-        self.using_cuda = using_cuda and torch.cuda.is_available()
         # Encoding q(z/x)
         # There is always a first layer
         self.first_layer = nn.Sequential(

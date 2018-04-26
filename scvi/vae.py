@@ -4,8 +4,10 @@ import collections
 
 import torch
 import torch.nn as nn
+from torch.distributions import Normal
 
 from scvi.log_likelihood import log_zinb_positive, log_nb_positive
+from scvi.utils import one_hot
 
 torch.backends.cudnn.benchmark = True
 
@@ -37,11 +39,11 @@ class VAE(nn.Module):
             self.register_buffer('px_r', torch.randn(self.n_input, ))
 
         self.z_encoder = Encoder(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
-                                 dropout_rate=dropout_rate, using_cuda=self.using_cuda)
+                                 dropout_rate=dropout_rate)
         self.l_encoder = Encoder(n_input, n_hidden=n_hidden, n_latent=1, n_layers=1,
-                                 dropout_rate=dropout_rate, using_cuda=self.using_cuda)
+                                 dropout_rate=dropout_rate)
         self.decoder = Decoder(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
-                               dropout_rate=dropout_rate, batch=batch, n_batch=n_batch, using_cuda=self.using_cuda)
+                               dropout_rate=dropout_rate, batch=batch, n_batch=n_batch)
 
     def sample_from_posterior_z(self, x, y=None):
         # Here we compute as little as possible to have q(z|x)
@@ -106,7 +108,7 @@ class VAE(nn.Module):
 
 # Encoder
 class Encoder(nn.Module):
-    def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1, using_cuda=True):
+    def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1):
         super(Encoder, self).__init__()
 
         self.dropout_rate = dropout_rate
@@ -137,9 +139,7 @@ class Encoder(nn.Module):
         self.var_encoder = nn.Linear(n_hidden, n_latent)
 
     def reparameterize(self, mu, var):
-        std = torch.sqrt(var)
-        eps = std.new(std.size()).normal_()
-        return eps.mul(std).add_(mu)
+        return Normal(mu, var.sqrt()).rsample()
 
     def forward(self, x):
         # Parameters for latent distribution
@@ -152,8 +152,7 @@ class Encoder(nn.Module):
 
 # Decoder
 class Decoder(nn.Module):
-    def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1, batch=False, n_batch=0,
-                 using_cuda=True):
+    def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1, batch=False, n_batch=0):
         super(Decoder, self).__init__()
 
         self.dropout_rate = dropout_rate
@@ -209,13 +208,8 @@ class Decoder(nn.Module):
             return px_scale, px_rate, px_dropout
 
     def px_decoder_batch(self, z, batch_index):
-        def one_hot(batch_index, n_batch, dtype):
-            onehot = batch_index.new(batch_index.size(0), n_batch).fill_(0)
-            onehot.scatter_(1, batch_index, 1)
-            return onehot.type(dtype)
-
         if self.batch:
-            one_hot_batch = one_hot(batch_index, self.n_batch, z.type())
+            one_hot_batch = one_hot(batch_index, self.n_batch)
             z = torch.cat((z, one_hot_batch), 1)
         px = self.px_decoder(z)
         if self.batch:
