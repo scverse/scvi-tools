@@ -1,12 +1,18 @@
 import numpy as np
-
 import torch
+
+from scvi.utils import to_cuda
 
 
 def imputation(vae, data_loader, rate=0.1):
     distance_list = torch.FloatTensor([])
-    for sample_batch, local_l_mean, local_l_var, batch_index, _ in data_loader:
-        sample_batch = sample_batch.type(torch.FloatTensor)
+    if vae.using_cuda:
+        distance_list = distance_list.cuda(async=True)
+    for tensorlist in data_loader:
+        if vae.using_cuda:
+            tensorlist = to_cuda(tensorlist)
+        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensorlist
+        sample_batch = sample_batch.type(torch.float32)
         dropout_batch = sample_batch.clone()
         indices = torch.nonzero(dropout_batch)
         i, j = indices[:, 0], indices[:, 1]
@@ -14,14 +20,7 @@ def imputation(vae, data_loader, rate=0.1):
         dropout_batch[i[ix], j[ix]] *= 0
 
         if vae.using_cuda:
-            batch_index = batch_index.cuda(async=True)
-            dropout_batch = dropout_batch.cuda(async=True)
-            sample_batch = sample_batch.cuda(async=True)
-            distance_list = distance_list.cuda(async=True)
-            ix = ix.cuda(async=True)
-            i = i.cuda()  # Source tensor must be contiguous - async=True : ERROR
-            j = j.cuda()
-
-        _, _, px_rate, _, _, _, _, _ = vae(dropout_batch, batch_index)
-        distance_list = torch.cat([distance_list, torch.abs(px_rate[i[ix], j[ix]].data - sample_batch[i[ix], j[ix]])])
+            ix, i, j = to_cuda([ix, i, j], async=False)
+        px_rate = vae.get_sample_rate(dropout_batch, labels, batch_index=batch_index)
+        distance_list = torch.cat([distance_list, torch.abs(px_rate[i[ix], j[ix]] - sample_batch[i[ix], j[ix]])])
     return torch.median(distance_list)

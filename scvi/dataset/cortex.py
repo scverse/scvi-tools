@@ -1,7 +1,6 @@
 import csv
 
 import numpy as np
-import scipy.sparse as sp_sparse
 
 from .dataset import GeneExpressionDataset
 
@@ -17,7 +16,7 @@ class CortexDataset(GeneExpressionDataset):
 
         super(CortexDataset, self).__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
-                sp_sparse.csr_matrix(expression_data),
+                expression_data,
                 labels=labels),
             gene_names=gene_names)
 

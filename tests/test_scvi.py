@@ -15,7 +15,7 @@ def test_benchmark():
 
 def test_cortex():
     gene_dataset = load_datasets("cortex")
-    run_benchmarks(gene_dataset, n_epochs=1)
+    run_benchmarks(gene_dataset, n_epochs=1, semi_supervised=True)
 
 
 def test_brain_large():
