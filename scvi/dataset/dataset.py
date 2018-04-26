@@ -27,6 +27,7 @@ class GeneExpressionDataset(Dataset):
         self.local_means = local_means
         self.local_vars = local_vars
         self.batch_indices = batch_indices
+        self.dense = type(X) is np.ndarray
         self.X = X
         self.labels = labels
         self.n_labels = len(np.unique(labels.numpy()))
@@ -38,8 +39,8 @@ class GeneExpressionDataset(Dataset):
         return self.total_size
 
     def __getitem__(self, idx):
-        return self.X[idx].toarray()[0], self.local_means[idx], self.local_vars[idx], \
-               self.batch_indices[idx], self.labels[idx]
+        return self.X[idx] if self.dense else self.X[idx].toarray()[0], \
+               self.local_means[idx], self.local_vars[idx], self.batch_indices[idx], self.labels[idx]
 
     def download(self):
         r = urllib.request.urlopen(self.url)
@@ -114,5 +115,5 @@ class GeneExpressionDataset(Dataset):
         local_vars = torch.cat(local_vars)
         batch_indices = torch.cat(batch_indices)
         labels = torch.cat(labels)
-        X = sp_sparse.vstack(new_Xs)
+        X = np.concatenate(new_Xs) if type(new_Xs[0]) is np.ndarray else sp_sparse.vstack(new_Xs)
         return X, local_means, local_vars, batch_indices, labels
