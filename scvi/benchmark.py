@@ -7,7 +7,6 @@ from scvi.clustering import entropy_batch_mixing
 from scvi.dataset import CortexDataset
 from scvi.differential_expression import get_statistics
 from scvi.imputation import imputation
-from scvi.log_likelihood import compute_log_likelihood
 from scvi.models import VAE
 from scvi.train import train
 from scvi.utils import to_cuda
