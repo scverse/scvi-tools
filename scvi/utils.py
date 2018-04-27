@@ -26,7 +26,7 @@ def compute_accuracy(vae, data_loader, classifier=None):
 
     with torch.no_grad():
         for i_batch, (sample_batch, _, _, _, labels) in enumerate(data_loader):
-            sample_batch = sample_batch.type(torch.FloatTensor)
+            sample_batch = sample_batch.type(torch.float32)
             if vae.using_cuda:
                 sample_batch = sample_batch.cuda(async=True)
                 labels = labels.cuda(async=True)

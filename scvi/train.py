@@ -4,8 +4,7 @@ import numpy as np
 import torch
 
 from scvi.models.stats import Stats
-from scvi.log_likelihood import compute_log_likelihood
-from scvi.utils import to_cuda, compute_accuracy
+from scvi.utils import to_cuda
 
 
 def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0.001, kl=None,
@@ -82,5 +81,3 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
         stats.callback(vae, data_loader_train, data_loader_test)
         stats.n_epoch += 1
     return stats
-
-
