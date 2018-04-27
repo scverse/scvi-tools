@@ -10,10 +10,9 @@ class VAEC(VAE):
     def __init__(self, n_input, n_labels=7, y_prior=None, n_layers=3, **kargs):
         super(VAEC, self).__init__(n_input=n_input + n_labels, n_layers=n_layers, **kargs)
         self.n_labels = n_labels
-        self.n_input = n_input
 
         self.y_prior = y_prior if y_prior is not None else (1 / self.n_labels) * torch.ones(self.n_labels)
-        self.classifier = Classifier(self.n_input, self.n_hidden, self.n_labels, n_layers=n_layers,
+        self.classifier = Classifier(n_input, self.n_hidden, self.n_labels, n_layers=n_layers,
                                      dropout_rate=self.dropout_rate)
 
     def classify(self, x):
