@@ -1,5 +1,7 @@
 from .vae import VAE
 from .vaec import VAEC
+from .svaec import SVAEC
 
-__all__ = ['VAE',
-           'VAEC']
+__all__ = ['VAEC',
+           'SVAEC',
+           'VAE']

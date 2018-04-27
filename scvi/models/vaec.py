@@ -1,8 +1,8 @@
 import torch
 
-from scvi.models.vae import VAE
 from scvi.modules import Classifier
 from scvi.utils import enumerate_discrete, one_hot
+from . import VAE
 
 
 # VAE model - for classification: VAEC
