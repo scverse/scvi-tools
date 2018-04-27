@@ -38,14 +38,10 @@ def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, learning_rate=1e-3, u
     if vae.using_cuda:
         vae.cuda()
     with torch.set_grad_enabled(True):
-        train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, learning_rate=learning_rate)
+        stats = train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, learning_rate=learning_rate)
 
-    # - log-likelihood
-    vae.eval()  # Test mode - affecting dropout and batchnorm
-    log_likelihood_train = compute_log_likelihood(vae, data_loader_train)
-    log_likelihood_test = compute_log_likelihood(vae, data_loader_test)
-    print("Log-likelihood Train:", log_likelihood_train)
-    print("Log-likelihood Test:", log_likelihood_test)
+    print("Log-likelihood Train:", stats["LL_train"][-1])
+    print("Log-likelihood Test:", stats["LL_test"][-1])
 
     # - imputation
 
