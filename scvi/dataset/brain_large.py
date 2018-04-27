@@ -49,7 +49,7 @@ def get_expression(gbm, gene_name):
 class BrainLargeDataset(GeneExpressionDataset):
     url = "http://cf.10xgenomics.com/samples/cell-exp/1.3.0/1M_neurons/1M_neurons_filtered_gene_bc_matrices_h5.h5"
 
-    def __init__(self, subsample_size=None, unit_test=False):
+    def __init__(self, subsample_size=None, unit_test=False, nb_genes_kept=720):
         """
         :param subsample_size: In thousands of barcodes kept (by default 1*1000=1000 kept)
         :param unit_test: A boolean to indicate if we use pytest subsampled file
@@ -57,6 +57,7 @@ class BrainLargeDataset(GeneExpressionDataset):
         self.subsample_size = subsample_size if not unit_test else 128
         self.save_path = 'data/'
         self.unit_test = unit_test
+        self.nb_genes_kept = nb_genes_kept
         # originally: "1M_neurons_filtered_gene_bc_matrices_h5.h5"
 
         if not self.unit_test:
@@ -89,7 +90,7 @@ class BrainLargeDataset(GeneExpressionDataset):
         # Subsample 720 genes with highest variance
         std_scaler = StandardScaler(with_mean=False)
         std_scaler.fit(subsampled_matrix.matrix.transpose().astype(np.float64))
-        subset_genes = np.argsort(std_scaler.var_)[::-1][:720]
+        subset_genes = np.argsort(std_scaler.var_)[::-1][:self.nb_genes_kept]
         subsampled_matrix = subsample_genes(subsampled_matrix, subset_genes, unit_test=self.unit_test)
 
         toc = time.time()

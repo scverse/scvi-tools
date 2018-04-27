@@ -8,9 +8,9 @@ from scvi.dataset import CortexDataset
 from scvi.differential_expression import get_statistics
 from scvi.imputation import imputation
 from scvi.log_likelihood import compute_log_likelihood
+from scvi.models import VAEC, VAE
 from scvi.train import train
 from scvi.utils import to_cuda
-from scvi.vaec import VAEC, VAE
 from scvi.visualization import show_t_sne
 
 torch.set_grad_enabled(False)

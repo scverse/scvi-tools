@@ -1,21 +1,20 @@
-import collections
-
 import torch
-import torch.nn as nn
 
+from scvi.models.vae import VAE
+from scvi.modules import Classifier
 from scvi.utils import enumerate_discrete, one_hot
-from scvi.vae import VAE
 
 
 # VAE model - for classification: VAEC
 class VAEC(VAE):
-    def __init__(self, n_input, n_labels=7, y_prior=None, **kargs):
-        super(VAEC, self).__init__(n_input=n_input + n_labels, **kargs)
+    def __init__(self, n_input, n_labels=7, y_prior=None, n_layers=3, **kargs):
+        super(VAEC, self).__init__(n_input=n_input + n_labels, n_layers=n_layers, **kargs)
         self.n_labels = n_labels
         self.n_input = n_input
 
         self.y_prior = y_prior if y_prior is not None else (1 / self.n_labels) * torch.ones(self.n_labels)
-        self.classifier = Classifier(self.n_input, self.n_hidden, self.n_labels, self.n_layers, self.dropout_rate)
+        self.classifier = Classifier(self.n_input, self.n_hidden, self.n_labels, n_layers=n_layers,
+                                     dropout_rate=self.dropout_rate)
 
     def classify(self, x):
         return self.classifier(x)
@@ -66,47 +65,11 @@ class VAEC(VAE):
         reconst_loss = reconst_loss.view(self.n_labels, -1)
         kl_divergence = kl_divergence.view(self.n_labels, -1)
         if self.log_variational:
-            x_ = torch.log(1 + x)
-        proba = self.classify(x_)
+            x_ = torch.log(1 + x)  # Necessarily goes from z ! No not necessarily ! goes from x
+        proba = self.classify(x_)  # Here it passes through z since that's inherited ! That's the magic
         reconst_loss = (reconst_loss.t() * proba).sum(dim=1)
         kl_divergence = (kl_divergence.t() * proba).sum(dim=1)
         y_prior = self.y_prior.type(proba.type())
         kl_divergence += torch.sum(torch.mul(proba, torch.log(y_prior) - torch.log(proba + 1e-8)), dim=-1)
 
         return reconst_loss, kl_divergence
-
-
-# Classifier
-class Classifier(nn.Module):
-    def __init__(self, n_input, n_hidden=128, n_labels=10, n_layers=1, dropout_rate=0.1):
-        super(Classifier, self).__init__()
-
-        self.dropout_rate = dropout_rate
-        self.n_latent = n_labels
-        self.n_hidden = n_hidden
-        self.n_input = n_input
-        self.n_layers = n_layers
-        # Encoding q(z/x)
-        # There is always a first layer
-        self.first_layer = nn.Sequential(
-            nn.Dropout(p=self.dropout_rate),
-            nn.Linear(n_input, n_hidden),
-            nn.BatchNorm1d(n_hidden, eps=1e-3, momentum=0.99),
-            nn.ReLU())
-
-        # We then add more layers if specified by the user, with a ReLU activation function
-        self.hidden_layers = nn.Sequential(collections.OrderedDict(
-            [('Layer {}'.format(i), nn.Sequential(
-                nn.Dropout(p=self.dropout_rate),
-                nn.Linear(n_hidden, n_hidden),
-                nn.BatchNorm1d(n_hidden, eps=1e-3, momentum=0.99),
-                nn.ReLU())) for i in range(1, n_layers)]))
-
-        # Then, there are two different layers that compute the means and the variances of the normal distribution
-        # that represents the data in the latent space
-        self.encoder = nn.Sequential(self.first_layer, self.hidden_layers, nn.Linear(n_hidden, n_labels),
-                                     nn.Softmax(dim=-1))
-
-    def forward(self, x):
-        # Parameters for latent distribution
-        return self.encoder(x)
