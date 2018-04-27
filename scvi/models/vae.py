@@ -40,7 +40,7 @@ class VAE(nn.Module):
                                  dropout_rate=dropout_rate)
         self.l_encoder = Encoder(n_input, n_hidden=n_hidden, n_latent=1, n_layers=1,
                                  dropout_rate=dropout_rate)
-        self.decoder = DecoderSCVI(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
+        self.decoder = DecoderSCVI(n_latent, n_input, n_hidden=n_hidden, n_layers=n_layers,
                                    dropout_rate=dropout_rate, batch=batch, n_batch=n_batch)
 
     def sample_from_posterior_z(self, x, y=None):

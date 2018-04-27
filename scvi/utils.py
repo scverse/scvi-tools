@@ -18,3 +18,29 @@ def enumerate_discrete(x, y_dim):
 
 def to_cuda(tensor_list, async=True):
     return [t.cuda(async=async) for t in tensor_list]
+
+
+def compute_accuracy(vae, data_loader, classifier=None):
+    all_y_pred = []
+    all_labels = []
+
+    with torch.no_grad():
+        for i_batch, (sample_batch, _, _, _, labels) in enumerate(data_loader):
+            sample_batch = sample_batch.type(torch.FloatTensor)
+            if vae.using_cuda:
+                sample_batch = sample_batch.cuda(async=True)
+                labels = labels.cuda(async=True)
+            all_labels += [labels.view(-1)]
+
+            if classifier is not None:
+                # Then we use the specified classifier
+                mu_z, _, _ = vae.z_encoder(sample_batch)
+                y_pred = classifier(mu_z).argmax(dim=-1)
+            else:
+                # Then the vae must implement a classify function
+                y_pred = vae.classify(sample_batch).argmax(dim=-1)
+            all_y_pred += [y_pred]
+
+    accuracy = (torch.cat(all_y_pred) == torch.cat(all_labels)).type(torch.FloatTensor).mean().item()
+
+    return accuracy
