@@ -79,5 +79,4 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
             break
 
         stats.callback(vae, data_loader_train, data_loader_test)
-        stats.n_epoch += 1
     return stats

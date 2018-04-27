@@ -1,8 +1,6 @@
 from scvi.utils import compute_accuracy
 from scvi.log_likelihood import compute_log_likelihood
-from scvi.models.vae import VAE
-from scvi.models.vaec import VAEC
-from scvi.models.svaec import SVAEC
+from . import VAE, VAEC, SVAEC
 
 
 class Stats:
@@ -26,6 +24,7 @@ class Stats:
             self.add_accuracy_train(model, data_loader_train)
             self.add_accuracy_test(model, data_loader_test)
             model.train()
+        self.n_epoch += 1
 
     def add_ll_train(self, model, data_loader):
         models = [VAE, VAEC, SVAEC]
