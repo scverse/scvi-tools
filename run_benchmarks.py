@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-
 """Run all the benchmarks with specific parameters"""
 import argparse
 import time
