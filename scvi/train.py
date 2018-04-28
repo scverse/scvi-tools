@@ -8,9 +8,10 @@ from scvi.utils import to_cuda
 
 
 def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0.001, kl=None,
-          early_stopping_criterion=(20, 0.01), verbose=True, verbose_frequency=5):
+          early_stopping_criterion=(20, 0.01), verbose=True, record_frequency=1,
+          reconstruction_ratio=1, classification_ratio=0):
     # Defining the optimizer
-    optimizer = torch.optim.Adam(vae.parameters(), lr=learning_rate, eps=0.01)
+    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, vae.parameters()), lr=learning_rate, eps=0.01)
 
     # initialize
     (patience, threshold) = (early_stopping_criterion[0], early_stopping_criterion[1])
@@ -18,7 +19,7 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
     current_performances_reconst = np.ones((patience))
 
     # Getting access to the stats during training
-    stats = Stats(verbose, verbose_frequency)
+    stats = Stats(verbose, record_frequency)
 
     # Training the model
     for epoch in range(n_epochs):
@@ -46,13 +47,19 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
                 reconst_loss, kl_divergence = vae(
                     sample_batch, local_l_mean, local_l_var, y=labels)
 
-            reconst_loss_mean = torch.mean(reconst_loss)
+            reconst_loss_mean = reconstruction_ratio * torch.mean(reconst_loss)
             kl_divergence_mean = torch.mean(kl_divergence)
             train_loss = reconst_loss_mean + kl_ponderation * kl_divergence_mean
 
             batch_size = sample_batch.size(0)
             total_current_kl += kl_divergence_mean.item() * batch_size
             total_current_reconst += reconst_loss_mean.item() * batch_size
+
+            # Add a classification loss (most semi supervised VAE papers do)
+            criterion = torch.nn.CrossEntropyLoss()
+            if hasattr(vae, "classify") and labels is not None:
+                classification_loss = criterion(vae.classify(sample_batch), labels.view(-1))
+                train_loss += classification_loss * classification_ratio
 
             optimizer.zero_grad()
             train_loss.backward()
@@ -79,4 +86,36 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
             break
 
         stats.callback(vae, data_loader_train, data_loader_test)
+    return stats
+
+
+def train_classifier(vae, classifier, data_loader_train, data_loader_test, n_epochs=250, learning_rate=0.1,
+                     verbose=True, record_frequency=1):
+
+    criterion = torch.nn.CrossEntropyLoss()
+    # Train classifier on the z latent space of a vae
+    optimizer = torch.optim.Adam(classifier.parameters(), lr=learning_rate, eps=0.01)
+
+    # Getting access to the stats during training
+    stats = Stats(verbose, record_frequency)
+
+    for epoch in range(1, n_epochs+1):
+        for i_batch, (
+            (sample_batch_train, _, _, _, labels_train)
+        ) in enumerate(data_loader_train):
+            sample_batch_train = sample_batch_train.type(torch.float32)
+            if vae.using_cuda:
+                sample_batch_train = sample_batch_train.cuda(async=True)
+                labels_train = labels_train.cuda(async=True)
+
+            # Get the latent space
+            z = vae.sample_from_posterior_z(sample_batch_train, labels_train)
+
+            optimizer.zero_grad()
+            loss = criterion(classifier(z), labels_train.view(-1))
+            loss.backward()
+            optimizer.step()
+
+        stats.callback(vae, data_loader_train, data_loader_test, classifier)
+
     return stats
