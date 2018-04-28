@@ -35,13 +35,8 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
             else:
                 kl_ponderation = kl
 
-            # Train loss is actually different from the real loss due to kl_ponderation
-            if vae.batch:
-                reconst_loss, kl_divergence = vae(
-                    sample_batch, local_l_mean, local_l_var, batch_index=batch_index, y=labels)
-            else:
-                reconst_loss, kl_divergence = vae(
-                    sample_batch, local_l_mean, local_l_var, y=labels)
+            reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var,
+                                              batch_index=batch_index, y=labels)
 
             reconst_loss_mean = torch.mean(reconst_loss)
             kl_divergence_mean = torch.mean(kl_divergence)

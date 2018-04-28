@@ -32,8 +32,7 @@ def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, learning_rate=1e-3, u
                                    sampler=SubsetRandomSampler(example_indices[:tt_split]))
     data_loader_test = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
                                   sampler=SubsetRandomSampler(example_indices[tt_split:]))
-    vae = model(gene_dataset.nb_genes, batch=use_batches, n_batch=gene_dataset.n_batches,
-                using_cuda=use_cuda, n_labels=gene_dataset.n_labels)
+    vae = model(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * use_batches, n_labels=gene_dataset.n_labels)
 
     if vae.using_cuda:
         vae.cuda()
