@@ -8,7 +8,7 @@ def show_t_sne(latent, labels, title):
     if latent.shape[1] != 2:
         latent = TSNE().fit_transform(latent)
     plt.figure(figsize=(10, 10))
-    plt.scatter(latent[:, 0], latent[:, 1], c=labels, edgecolors='none')  # cmap=cmap,cmap=plt.get_cmap("tab10", 7)
+    plt.scatter(latent[:, 0], latent[:, 1], c=labels, edgecolors='none')
     plt.title(title)
     plt.axis("off")
     plt.tight_layout()

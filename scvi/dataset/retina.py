@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.sparse as sp_sparse
+
 from . import GeneExpressionDataset
 
 
@@ -19,6 +20,9 @@ class RetinaDataset(GeneExpressionDataset):
             labels = np.reshape((np.load(self.save_path + self.labels_filename)), (5, 1))
             data = np.load(self.save_path + self.data_filename)['data']
             data = np.reshape(data, (5, 13166))
+            data = data.repeat(100, 0)
+            cell_batches = cell_batches.repeat(100, 0)
+            labels = np.arange(5).reshape(5, 1).repeat(100, 0)  # np.arange(1,5)#labels.repeat(100, 0)
         else:
             cell_batches = np.reshape((np.loadtxt(self.save_path + self.batches_filename) - 1), (19829, 1))
             labels = np.reshape((np.loadtxt(self.save_path + self.labels_filename)), (19829, 1))
@@ -31,4 +35,4 @@ class RetinaDataset(GeneExpressionDataset):
         print("Finished preprocessing for Retina %s dataset" % type)
         super(RetinaDataset, self).__init__(*GeneExpressionDataset.get_attributes_from_list(
             [sp_sparse.csr_matrix(first_batch[:, :-1]), sp_sparse.csr_matrix(second_batch[:, :-1])],
-            list_labels=[first_batch[:, -1] - 1, second_batch[:, -1] - 1]), n_batches=2)
+            list_labels=[first_batch[:, -1], second_batch[:, -1]]), n_batches=2)

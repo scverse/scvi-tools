@@ -1,18 +1,18 @@
 import torch
 import torch.nn as nn
+from torch.distributions import Normal, Multinomial, kl_divergence as kl
 
-from scvi.log_likelihood import log_nb_positive, log_zinb_positive
-from scvi.modules import Classifier
-from scvi.modules import Encoder, DecoderSCVI
-from scvi.utils import enumerate_discrete, one_hot
+from scvi.metrics.log_likelihood import log_nb_positive, log_zinb_positive
+from scvi.models.modules import Classifier
+from scvi.models.modules import Encoder, DecoderSCVI
+from scvi.models.utils import enumerate_discrete, one_hot
 
 
 # VAE model - for classification: VAEC
 class VAEC(nn.Module):
     def __init__(self, n_input, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1, dispersion="gene",
-                 log_variational=True, reconstruction_loss="zinb", n_batch=0, y_prior=None, using_cuda=False):
+                 log_variational=True, reconstruction_loss="zinb", n_batch=0, y_prior=None, use_cuda=False):
         super(VAEC, self).__init__()
-        self.using_cuda = using_cuda
         self.dispersion = dispersion
         self.log_variational = log_variational
         self.reconstruction_loss = reconstruction_loss
@@ -34,6 +34,10 @@ class VAEC(nn.Module):
 
         self.y_prior = y_prior if y_prior is not None else (1 / n_labels) * torch.ones(n_labels)
         self.classifier = Classifier(n_input, n_hidden, n_labels, n_layers=n_layers, dropout_rate=dropout_rate)
+
+        self.use_cuda = use_cuda and torch.cuda.is_available()
+        if self.use_cuda:
+            self.cuda()
 
     def classify(self, x):
         return self.classifier(x)
@@ -97,12 +101,9 @@ class VAEC(nn.Module):
             reconst_loss = -log_nb_positive(xs, px_rate, torch.exp(self.px_r))
 
         # KL Divergence
-        kl_divergence_z = torch.sum(0.5 * (qz_m ** 2 + qz_v - torch.log(qz_v + 1e-8) - 1), dim=1)
-        kl_divergence_l = torch.sum(0.5 * (
-            ((ql_m - local_l_mean) ** 2) / local_l_var + ql_v / local_l_var
-            + torch.log(local_l_var + 1e-8) - torch.log(ql_v + 1e-8) - 1), dim=1)
-
-        kl_divergence = (kl_divergence_z + kl_divergence_l)
+        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(0, 1)).sum(dim=1)
+        kl_divergence_l = kl(Normal(ql_m, torch.sqrt(ql_v)), Normal(local_l_mean, torch.sqrt(local_l_var))).sum(dim=1)
+        kl_divergence = kl_divergence_z + kl_divergence_l
 
         if is_labelled:
             return reconst_loss, kl_divergence
@@ -112,10 +113,10 @@ class VAEC(nn.Module):
 
         if self.log_variational:
             x_ = torch.log(1 + x)
-        proba = self.classify(x_)
-        reconst_loss = (reconst_loss.t() * proba).sum(dim=1)
-        kl_divergence = (kl_divergence.t() * proba).sum(dim=1)
-        y_prior = self.y_prior.type(proba.type())
-        kl_divergence += torch.sum(torch.mul(proba, torch.log(y_prior) - torch.log(proba + 1e-8)), dim=-1)
+
+        probs = self.classifier(x_)
+        reconst_loss = (reconst_loss.t() * probs).sum(dim=1)
+        kl_divergence = (kl_divergence.t() * probs).sum(dim=1)
+        kl_divergence += kl(Multinomial(probs=probs), Multinomial(probs=self.y_prior))
 
         return reconst_loss, kl_divergence

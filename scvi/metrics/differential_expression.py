@@ -1,9 +1,11 @@
 import numpy as np
 import torch
 
-from scvi.utils import to_cuda
+from scvi.utils import to_cuda, no_grad, eval_modules
 
 
+@no_grad()
+@eval_modules()
 def get_statistics(vae, data_loader, M_sampling=100, M_permutation=100000, permutation=False):
     """
     Output average over statistics in a symmetric way (a against b)
@@ -18,10 +20,10 @@ def get_statistics(vae, data_loader, M_sampling=100, M_permutation=100000, permu
     # Compute sample rate for the whole dataset ?
     px_scales = []
     all_labels = []
-    for tensor_list in data_loader:
-        if vae.using_cuda:
-            tensor_list = to_cuda(tensor_list)
-        sample_batch, _, _, batch_index, labels = tensor_list
+    for tensors in data_loader:
+        if vae.use_cuda:
+            tensors = to_cuda(tensors)
+        sample_batch, _, _, batch_index, labels = tensors
         sample_batch = sample_batch.type(torch.float32)
         sample_batch = sample_batch.repeat(1, M_sampling).view(-1, sample_batch.size(1))
         batch_index = batch_index.repeat(1, M_sampling).view(-1, 1)

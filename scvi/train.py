@@ -1,17 +1,19 @@
-import random
+from itertools import cycle
 
 import numpy as np
 import torch
+from torch.nn import functional as F
 
-from scvi.models.stats import Stats
-from scvi.utils import to_cuda
+from scvi.metrics.stats import Stats
+from scvi.utils import to_cuda, enable_grad
 
 
-def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0.001, kl=None,
-          early_stopping_criterion=(20, 0.01), verbose=True, record_frequency=1,
+@enable_grad()
+def train(vae, data_loader_train, data_loader_test, n_epochs=20, lr=0.001, kl=None,
+          early_stopping_criterion=(20, 0.01), verbose=True, record_frequency=10,
           reconstruction_ratio=1, classification_ratio=0):
     # Defining the optimizer
-    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, vae.parameters()), lr=learning_rate, eps=0.01)
+    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, vae.parameters()), lr=lr, eps=0.01)
 
     # initialize
     (patience, threshold) = (early_stopping_criterion[0], early_stopping_criterion[1])
@@ -19,41 +21,47 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
     current_performances_reconst = np.ones((patience))
 
     # Getting access to the stats during training
-    stats = Stats(verbose, record_frequency)
+    stats = Stats(verbose, record_frequency, n_epochs=n_epochs)
+    stats.callback(vae, data_loader_train, data_loader_test)
 
     # Training the model
     for epoch in range(n_epochs):
         # initialize kl, reconst
         total_current_kl = 0
         total_current_reconst = 0
-        for i_batch, tensor_list in enumerate(data_loader_train):
-            if vae.using_cuda:
-                tensor_list = to_cuda(tensor_list)
-            sample_batch, local_l_mean, local_l_var, batch_index, labels = tensor_list
-            sample_batch = sample_batch.type(torch.float32)
-
-            labels = labels if random.random() < 0.5 else None
+        for i_batch, (tensors_train, tensors_test) in enumerate(zip(data_loader_train, cycle(data_loader_test))):
+            if vae.use_cuda:
+                tensors_train = to_cuda(tensors_train)
+                tensors_test = to_cuda(tensors_test)
+            sample_batch_train, local_l_mean_train, local_l_var_train, batch_index_train, labels_train = tensors_train
+            sample_batch_test, local_l_mean_test, local_l_var_test, batch_index_test, _ = tensors_test
+            sample_batch_train = sample_batch_train.type(torch.float32)
+            sample_batch_test = sample_batch_test.type(torch.float32)
 
             if kl is None:
                 kl_ponderation = min(1, epoch / 400.)
             else:
                 kl_ponderation = kl
 
-            reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var,
-                                              batch_index=batch_index, y=labels)
+            reconst_loss_train, kl_divergence_train = vae(sample_batch_train, local_l_mean_train, local_l_var_train,
+                                                          batch_index=batch_index_train, y=labels_train)
+            reconst_loss_test, kl_divergence_test = vae(sample_batch_test, local_l_mean_test, local_l_var_test,
+                                                        batch_index=batch_index_test, y=None)
+            reconst_loss_mean_train = reconstruction_ratio * torch.mean(reconst_loss_train)
+            kl_divergence_mean_train = torch.mean(kl_divergence_train)
+            reconst_loss_mean_test = reconstruction_ratio * torch.mean(reconst_loss_test)
+            kl_divergence_mean_test = torch.mean(kl_divergence_test)
 
-            reconst_loss_mean = reconstruction_ratio * torch.mean(reconst_loss)
-            kl_divergence_mean = torch.mean(kl_divergence)
-            train_loss = reconst_loss_mean + kl_ponderation * kl_divergence_mean
+            train_loss = (reconst_loss_mean_test + reconst_loss_mean_train +
+                          kl_ponderation * (kl_divergence_mean_train + kl_divergence_mean_test))
 
-            batch_size = sample_batch.size(0)
-            total_current_kl += kl_divergence_mean.item() * batch_size
-            total_current_reconst += reconst_loss_mean.item() * batch_size
+            batch_size = sample_batch_train.size(0)
+            total_current_kl += kl_divergence_mean_train.item() * batch_size
+            total_current_reconst += reconst_loss_mean_train.item() * batch_size
 
             # Add a classification loss (most semi supervised VAE papers do)
-            criterion = torch.nn.CrossEntropyLoss()
-            if hasattr(vae, "classify") and labels is not None:
-                classification_loss = criterion(vae.classify(sample_batch), labels.view(-1))
+            if hasattr(vae, "classify") and labels_train is not None:
+                classification_loss = F.cross_entropy(vae.classify(sample_batch_train), labels_train.view(-1))
                 train_loss += classification_loss * classification_ratio
 
             optimizer.zero_grad()
@@ -84,30 +92,27 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, learning_rate=0
     return stats
 
 
-def train_classifier(vae, classifier, data_loader_train, data_loader_test, n_epochs=250, learning_rate=0.1,
+@enable_grad()
+def train_classifier(vae, classifier, data_loader_train, data_loader_test, n_epochs=250, lr=0.1,
                      verbose=True, record_frequency=1):
-
-    criterion = torch.nn.CrossEntropyLoss()
     # Train classifier on the z latent space of a vae
-    optimizer = torch.optim.Adam(classifier.parameters(), lr=learning_rate, eps=0.01)
+    optimizer = torch.optim.Adam(classifier.parameters(), lr=lr, eps=0.01)
 
     # Getting access to the stats during training
-    stats = Stats(verbose, record_frequency)
+    stats = Stats(verbose, record_frequency, n_epochs=n_epochs)
+    stats.callback(vae, data_loader_train, data_loader_test, classifier)
 
-    for epoch in range(1, n_epochs+1):
-        for i_batch, (
-            (sample_batch_train, _, _, _, labels_train)
-        ) in enumerate(data_loader_train):
+    for epoch in range(1, n_epochs + 1):
+        for i_batch, tensors in enumerate(data_loader_train):
+            if vae.use_cuda:
+                tensors = to_cuda(tensors)
+            sample_batch_train, _, _, _, labels_train = tensors
             sample_batch_train = sample_batch_train.type(torch.float32)
-            if vae.using_cuda:
-                sample_batch_train = sample_batch_train.cuda(async=True)
-                labels_train = labels_train.cuda(async=True)
-
             # Get the latent space
             z = vae.sample_from_posterior_z(sample_batch_train, labels_train)
 
             optimizer.zero_grad()
-            loss = criterion(classifier(z), labels_train.view(-1))
+            loss = F.cross_entropy(classifier(z), labels_train.view(-1))
             loss.backward()
             optimizer.step()
 

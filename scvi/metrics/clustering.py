@@ -1,4 +1,22 @@
 import numpy as np
+import torch
+
+from scvi.utils import to_cuda, no_grad, eval_modules
+
+
+@no_grad()
+@eval_modules()
+def get_latent(vae, data_loader):
+    latent = []
+    batch_indices = []
+    for tensors in data_loader:
+        if vae.use_cuda:
+            tensors = to_cuda(tensors)
+        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
+        sample_batch = sample_batch.type(torch.float32)
+        latent += [vae.sample_from_posterior_z(sample_batch, y=labels)]
+        batch_indices += [batch_index]
+    return torch.cat(latent), torch.cat(batch_indices)
 
 
 # CLUSTERING METRICS
