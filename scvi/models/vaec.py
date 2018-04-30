@@ -38,6 +38,7 @@ class VAEC(nn.Module):
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
             self.cuda()
+            self.y_prior = self.y_prior.cuda()
 
     def classify(self, x):
         return self.classifier(x)
@@ -101,7 +102,10 @@ class VAEC(nn.Module):
             reconst_loss = -log_nb_positive(xs, px_rate, torch.exp(self.px_r))
 
         # KL Divergence
-        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(0, 1)).sum(dim=1)
+        mean = torch.zeros_like(qz_m)
+        scale = torch.zeros_like(qz_v)
+
+        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(dim=1)
         kl_divergence_l = kl(Normal(ql_m, torch.sqrt(ql_v)), Normal(local_l_mean, torch.sqrt(local_l_var))).sum(dim=1)
         kl_divergence = kl_divergence_z + kl_divergence_l
 
