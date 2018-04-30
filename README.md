@@ -4,6 +4,10 @@
 + bioRxiv preprint: https://www.biorxiv.org/content/early/2018/03/30/292037
 + implementation for the preprint: https://github.com/romain-lopez/scVI-reproducibility
 
+#### Note:
+We are now working on a more collaborative version of scVI. Remarks, Notes or collaborations are appreciated. Please contact Romain, Jeffrey and Nir for more information.
+https://github.com/YosefLab/scVI-dev
+
 ### Title
 Bayesian Inference for a Generative Model of Transcriptome Profiles from Single-cell RNA Sequencing
 
