@@ -76,7 +76,8 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
 
     # ========== The M1 model ===========
     print("Trying M1 model")
-    vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * use_batches, use_cuda=use_cuda,
+    vae = VAE(gene_dataset.nb_genes, n_latent=n_latent,
+              n_batch=gene_dataset.n_batches * use_batches, use_cuda=use_cuda,
               n_labels=gene_dataset.n_labels)
     train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs,
           lr=lr, verbose=verbose, record_frequency=record_frequency)
