@@ -103,7 +103,7 @@ class SVAEC(nn.Module):
 
         # KL Divergence
         mean = torch.zeros_like(qz2_m)
-        scale = torch.zeros_like(qz2_v)
+        scale = torch.ones_like(qz2_v)
 
         kl_divergence_z2 = kl(Normal(qz2_m, torch.sqrt(qz2_v)), Normal(mean, scale)).sum(dim=1)
         kl_divergence_z1 = kl(Normal(qz1_m, torch.sqrt(qz1_v)), Normal(pz1_m, torch.sqrt(pz1_v))).sum(dim=1)
