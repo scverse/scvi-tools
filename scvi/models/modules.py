@@ -67,6 +67,8 @@ class ManyOneHotFCLayers(nn.Module):
                 one_hot_o = o
                 if o.size(1) != self.n_cat_list[i]:
                     one_hot_o = one_hot(o, self.n_cat_list[i])
+                elif o.size(1) == 1 and self.n_cat_list[i] == 1:
+                    one_hot_o = o.type(torch.float32)
                 one_hot_os += [one_hot_o]
         for layer in self.fc_layers:
             x = layer(torch.cat((x,) + tuple(one_hot_os), 1))
