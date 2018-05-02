@@ -30,7 +30,7 @@ class SVAEC(nn.Module):
                                    dropout_rate=dropout_rate, n_batch=n_batch)
 
         self.dispersion = 'gene'
-        self.register_buffer('px_r', torch.randn(n_input, ))
+        self.px_r = torch.nn.Parameter(torch.randn(n_input, ))
 
         # Classifier takes n_latent as input
         self.classifier = Classifier(n_latent, n_hidden, self.n_labels, n_layers, dropout_rate)
@@ -43,7 +43,7 @@ class SVAEC(nn.Module):
             self.y_prior = self.y_prior.cuda()
 
     def classify(self, x):
-        x_ = torch.log(1+x)
+        x_ = torch.log(1 + x)
         qz_m, _, z = self.z_encoder(x_)
 
         if self.training:
@@ -58,16 +58,18 @@ class SVAEC(nn.Module):
 
     def sample_from_posterior_l(self, x):
         # Here we compute as little as possible to have q(z|x)
-        ql_m, ql_v, library = self.l_encoder.forward(x)
+        ql_m, ql_v, library = self.l_encoder(x)
         return library
 
     def get_sample_scale(self, x, y=None, batch_index=None):
+        x = torch.log(1 + x)
         z = self.sample_from_posterior_z(x, y)
         px = self.decoder.px_decoder(z, batch_index, y)
         px_scale = self.decoder.px_scale_decoder(px)
         return px_scale
 
     def get_sample_rate(self, x, y=None, batch_index=None):
+        x = torch.log(1 + x)
         z = self.sample_from_posterior_z(x)
         library = self.sample_from_posterior_l(x)
         px = self.decoder.px_decoder(z, batch_index, y)
