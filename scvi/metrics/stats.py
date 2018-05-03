@@ -19,7 +19,8 @@ class Stats:
                         "Accuracy_train": [], "Accuracy_test": []}
 
     def callback(self, model, data_loader_train, data_loader_test, classifier=None):
-        if self.epoch==0 or self.epoch==self.n_epochs or (self.epoch % self.record_freq == 0 and not self.benchmark):
+        if self.epoch == 0 or self.epoch == self.n_epochs or (
+                    self.epoch % self.record_freq == 0 and not self.benchmark):
             # In this case we do add the stats
             if self.verbose:
                 print("EPOCH [%d/%d]: " % (self.epoch, self.n_epochs))
@@ -73,9 +74,11 @@ class EarlyStopping:
         self.patience = patience
         self.threshold = threshold
         self.current_performances = np.ones((patience))
+        self.epoch = 0
 
     def update(self, scalar):
-        if self.benchmark:
+        self.epoch += 1
+        if self.benchmark or self.epoch <= self.patience:
             return True
         else:
             # Shift
@@ -83,7 +86,7 @@ class EarlyStopping:
             self.current_performances[-1] = scalar
 
             # Compute improvement
-            improvement = ((self.current_performances[0] - self.current_performances[-1])
+            improvement = ((self.current_performances[-1] - self.current_performances[0])
                            / self.current_performances[0])
 
             # Returns true if improvement is good enough

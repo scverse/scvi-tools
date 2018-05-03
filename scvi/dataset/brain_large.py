@@ -4,8 +4,10 @@ import time
 import numpy as np
 import scipy.sparse as sp_sparse
 import tables
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
+from .const import string_10x
 from .dataset import GeneExpressionDataset
 
 GeneBCMatrix = collections.namedtuple('GeneBCMatrix', ['gene_ids', 'gene_names', 'barcodes', 'matrix'])
@@ -66,10 +68,18 @@ class BrainLargeDataset(GeneExpressionDataset):
             self.download_name = "../tests/data/genomics_subsampled.h5"
 
         self.genome = "mm10"
-        h5_object = self.download_and_preprocess()
-        super(BrainLargeDataset, self).__init__(
-            *GeneExpressionDataset.get_attributes_from_matrix(h5_object.matrix.transpose().toarray())
-        )
+        if False:
+            h5_object = self.download_and_preprocess()
+            super(BrainLargeDataset, self).__init__(
+                *GeneExpressionDataset.get_attributes_from_matrix(h5_object.matrix.transpose().toarray())
+            )
+        if True:  # Romain's preprocessing
+            Xs, idx_train, idx_test = self.download_and_preprocess()
+            super(BrainLargeDataset, self).__init__(
+                *GeneExpressionDataset.get_attributes_from_list(Xs)
+            )
+            self.idx_train = idx_train
+            self.idx_test = idx_test
 
     def preprocess(self):
         print("Preprocessing Brain Large data")
@@ -77,22 +87,55 @@ class BrainLargeDataset(GeneExpressionDataset):
         np.random.seed(0)
 
         filtered_matrix_h5 = self.save_path + self.download_name
-
         gene_bc_matrix = get_matrix_from_h5(filtered_matrix_h5, self.genome)
 
-        subsampled_matrix = gene_bc_matrix
-        # Subsample barcodes
-        subsample_bcs = self.subsample_size
-        subset_barcodes = np.sort(
-            np.random.choice(subsampled_matrix.matrix.shape[1], size=subsample_bcs, replace=self.unit_test))
-        subsampled_matrix = subsample_barcodes(subsampled_matrix, subset_barcodes, unit_test=self.unit_test)
+        if True:
+            # Downsample from 1306127 to 100000 (~1/10) to get most variable genes
+            matrix = gene_bc_matrix.matrix[:, :100000]
+            variance = (np.array(matrix.multiply(matrix).mean(1)) - np.array(matrix.mean(1)) ** 2)[:, 0]
+            mask_small = variance >= 1.912
 
-        # Subsample 720 genes with highest variance
-        std_scaler = StandardScaler(with_mean=False)
-        std_scaler.fit(subsampled_matrix.matrix.transpose().astype(np.float64))
-        subset_genes = np.argsort(std_scaler.var_)[::-1][:self.nb_genes_kept]
-        subsampled_matrix = subsample_genes(subsampled_matrix, subset_genes, unit_test=self.unit_test)
+            subsampled_matrix = subsample_genes(gene_bc_matrix, mask_small, unit_test=self.unit_test)
+            print(subsampled_matrix.matrix.shape)  # 720 * ...
 
-        toc = time.time()
-        print("Preprocessing finished in : %d sec." % int(toc - tic))
-        return subsampled_matrix
+            if not self.unit_test:
+                batch = [int(x[8:10]) - 9 for x in string_10x.split("\n")]
+                batch_id = np.array([batch[int(x.split(b"-")[-1]) - 1] for x in subsampled_matrix.barcodes])
+            else:
+                batch_id = np.random.randint(0, 2, size=subsampled_matrix.matrix.T.shape[0])
+
+            X_train, X_test, b_train, b_test = train_test_split(subsampled_matrix.matrix.T, batch_id, test_size=0.1,
+                                                                random_state=0)
+            X_train = X_train[:50000]
+            b_train = b_train[:50000]
+            X_test = X_test[:10000]
+            b_test = b_test[:10000]
+
+            i0 = np.sum(b_train == 0)
+            i1 = np.sum(b_test == 0) + i0
+            i2 = np.sum(b_train == 1) + i1
+            i3 = np.sum(b_test == 1) + i2
+            idx_train = np.concatenate((np.arange(i0), np.arange(i1, i2)))
+            idx_test = np.concatenate((np.arange(i0, i1), np.arange(i2, i3)))
+            Xs = [np.concatenate((X_train[b_train == batch].A, X_test[b_test == batch].A)) for batch in (0, 1)]
+            print(Xs[0].shape)
+            toc = time.time()
+            print("Preprocessing finished in : %d sec." % int(toc - tic))
+            return Xs, idx_train, idx_test
+        else:
+
+            subsampled_matrix = gene_bc_matrix
+            # Subsample barcodes
+            subsample_bcs = self.subsample_size  # 60000
+            subset_barcodes = np.sort(
+                np.random.choice(subsampled_matrix.matrix.shape[1], size=subsample_bcs, replace=self.unit_test))
+            subsampled_matrix = subsample_barcodes(subsampled_matrix, subset_barcodes, unit_test=self.unit_test)
+
+            # Subsample 720 genes with highest variance
+            std_scaler = StandardScaler(with_mean=False)
+            std_scaler.fit(subsampled_matrix.matrix.transpose().astype(np.float64))
+            subset_genes = np.argsort(std_scaler.var_)[::-1][:self.nb_genes_kept]
+            subsampled_matrix = subsample_genes(subsampled_matrix, subset_genes, unit_test=self.unit_test)
+            toc = time.time()
+            print("Preprocessing finished in : %d sec." % int(toc - tic))
+            return subsampled_matrix
