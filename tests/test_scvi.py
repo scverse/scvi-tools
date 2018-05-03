@@ -17,7 +17,7 @@ def test_synthetic_1():
 
 def test_synthetic_2():
     gene_dataset = load_datasets("synthetic")
-    run_benchmarks(gene_dataset, n_epochs=1, model=SVAEC)
+    run_benchmarks(gene_dataset, n_epochs=1, model=SVAEC, benchmark=True)
 
 
 def test_cortex():

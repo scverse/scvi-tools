@@ -2,7 +2,6 @@
 
 """Run all the benchmarks with specific parameters"""
 import argparse
-import time
 
 from scvi.benchmark import run_benchmarks
 from scvi.dataset import load_datasets
@@ -16,10 +15,5 @@ if __name__ == '__main__':
                         help="whether to use cuda (will apply only if cuda is available")
     args = parser.parse_args()
     gene_dataset = load_datasets(args.dataset)
-    start = time.time()
     run_benchmarks(gene_dataset, n_epochs=args.epochs, use_batches=(not args.nobatches), use_cuda=(not args.nocuda),
                    show_batch_mixing=True)
-
-    end = time.time()
-    print("Total runtime for " + str(args.epochs) + " epochs is: " + str((end - start))
-          + " seconds for a mean per epoch runtime of " + str((end - start) / args.epochs) + " seconds.")

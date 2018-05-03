@@ -1,30 +1,32 @@
+import time
+
+import numpy as np
+
 from scvi.metrics.classification import compute_accuracy
 from scvi.metrics.log_likelihood import compute_log_likelihood
 from scvi.models import VAE, VAEC, SVAEC
 
 
 class Stats:
-    def __init__(self, verbose=True, record_freq=5, n_epochs=-1):
+    def __init__(self, verbose=True, record_freq=5, n_epochs=-1, benchmark=False):
+        self.benchmark = benchmark
         self.verbose = verbose
         self.record_freq = record_freq
         self.epoch = 0
         self.n_epochs = n_epochs
+        self.begin = time.time()
         self.history = {"LL_train": [], "LL_test": [],
                         "Accuracy_train": [], "Accuracy_test": []}
 
     def callback(self, model, data_loader_train, data_loader_test, classifier=None):
-        if self.epoch % self.record_freq == 0:
+        if self.epoch==0 or self.epoch==self.n_epochs or (self.epoch % self.record_freq == 0 and not self.benchmark):
             # In this case we do add the stats
-
-            # Avoid dropout and batch normalization
-            model.eval()
             if self.verbose:
                 print("EPOCH [%d/%d]: " % (self.epoch, self.n_epochs))
             self.add_ll_train(model, data_loader_train)
             self.add_ll_test(model, data_loader_test)
             self.add_accuracy_train(model, data_loader_train, classifier)
             self.add_accuracy_test(model, data_loader_test, classifier)
-            model.train()
         self.epoch += 1
 
     def add_ll_train(self, model, data_loader):
@@ -58,3 +60,31 @@ class Stats:
             self.history["Accuracy_test"].append(accuracy_test)
             if self.verbose:
                 print("Accuracy test is: %4f" % accuracy_test)
+
+    def display_time(self):
+        end = time.time()
+        print("Total runtime for " + str(self.epoch) + " epochs is: " + str((end - self.begin))
+              + " seconds for a mean per epoch runtime of " + str((end - self.begin) / self.epoch) + " seconds.")
+
+
+class EarlyStopping:
+    def __init__(self, patience=20, threshold=0.01, benchmark=False):
+        self.benchmark = benchmark
+        self.patience = patience
+        self.threshold = threshold
+        self.current_performances = np.ones((patience))
+
+    def update(self, scalar):
+        if self.benchmark:
+            return True
+        else:
+            # Shift
+            self.current_performances[:-1] = self.current_performances[1:]
+            self.current_performances[-1] = scalar
+
+            # Compute improvement
+            improvement = ((self.current_performances[0] - self.current_performances[-1])
+                           / self.current_performances[0])
+
+            # Returns true if improvement is good enough
+            return improvement >= self.threshold
