@@ -6,9 +6,10 @@ import scipy.sparse as sp_sparse
 import tables
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-
+import pickle
 from .const import string_10x
 from .dataset import GeneExpressionDataset
+import os
 
 GeneBCMatrix = collections.namedtuple('GeneBCMatrix', ['gene_ids', 'gene_names', 'barcodes', 'matrix'])
 
@@ -85,11 +86,11 @@ class BrainLargeDataset(GeneExpressionDataset):
         print("Preprocessing Brain Large data")
         tic = time.time()
         np.random.seed(0)
+        filename='data/tmp.p'
+        if not os.path.exists(filename):
+            filtered_matrix_h5 = self.save_path + self.download_name
+            gene_bc_matrix = get_matrix_from_h5(filtered_matrix_h5, self.genome)
 
-        filtered_matrix_h5 = self.save_path + self.download_name
-        gene_bc_matrix = get_matrix_from_h5(filtered_matrix_h5, self.genome)
-
-        if True:
             # Downsample from 1306127 to 100000 (~1/10) to get most variable genes
             matrix = gene_bc_matrix.matrix[:, :100000]
             variance = (np.array(matrix.multiply(matrix).mean(1)) - np.array(matrix.mean(1)) ** 2)[:, 0]
@@ -121,21 +122,7 @@ class BrainLargeDataset(GeneExpressionDataset):
             print(Xs[0].shape)
             toc = time.time()
             print("Preprocessing finished in : %d sec." % int(toc - tic))
-            return Xs, idx_train, idx_test
+            pickle.dump((Xs, idx_train, idx_test), open(filename, 'wb'))
         else:
-
-            subsampled_matrix = gene_bc_matrix
-            # Subsample barcodes
-            subsample_bcs = self.subsample_size  # 60000
-            subset_barcodes = np.sort(
-                np.random.choice(subsampled_matrix.matrix.shape[1], size=subsample_bcs, replace=self.unit_test))
-            subsampled_matrix = subsample_barcodes(subsampled_matrix, subset_barcodes, unit_test=self.unit_test)
-
-            # Subsample 720 genes with highest variance
-            std_scaler = StandardScaler(with_mean=False)
-            std_scaler.fit(subsampled_matrix.matrix.transpose().astype(np.float64))
-            subset_genes = np.argsort(std_scaler.var_)[::-1][:self.nb_genes_kept]
-            subsampled_matrix = subsample_genes(subsampled_matrix, subset_genes, unit_test=self.unit_test)
-            toc = time.time()
-            print("Preprocessing finished in : %d sec." % int(toc - tic))
-            return subsampled_matrix
+            (Xs, idx_train, idx_test) = pickle.load(open(filename, 'rb'))
+        return Xs, idx_train, idx_test

@@ -12,7 +12,7 @@ from scvi.metrics.visualization import show_t_sne
 from scvi.models import VAE, SVAEC
 from scvi.models.modules import Classifier
 from scvi.train import train, train_classifier, train_semi_supervised
-
+from scvi.metrics.adapt_encoder import adapt_encoder
 
 def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=False, use_cuda=True,
                    show_batch_mixing=True, benchmark=False, tt_split=0.9):
@@ -36,21 +36,25 @@ def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
     print("Train dataset has ", len(idx_train), " barcodes(/samples)")
     print("Test dataset has ", len(idx_test), " barcodes(/samples)")
     print("Nb genes: ", gene_dataset.X.shape[1])
-    data_loader_train = DataLoader(gene_dataset, batch_size=512, pin_memory=use_cuda,
+    data_loader_train = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
                                    sampler=SubsetRandomSampler(idx_train))
-    data_loader_test = DataLoader(gene_dataset, batch_size=512, pin_memory=use_cuda,
+    data_loader_test = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
                                   sampler=SubsetRandomSampler(idx_test))
     vae = model(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * use_batches, n_labels=gene_dataset.n_labels,
                 use_cuda=use_cuda)
     stats = train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, lr=lr, benchmark=benchmark)
+
+    if isinstance(vae, VAE):
+        best_ll = adapt_encoder(vae, data_loader_test)
+        print("Best ll was :", best_ll)
 
     # - log-likelihood
     print("Log-likelihood Train:", stats.history["LL_train"][-1])
     print("Log-likelihood Test:", stats.history["LL_test"][-1])
 
     # - imputation
-    imputation_train = imputation(vae, data_loader_train)
-    print("Imputation score on train (MAE) is:", imputation_train.item())
+    imputation_test = imputation(vae, data_loader_test)
+    print("Imputation score on test (MAE) is:", imputation_test.item())
 
     # - batch mixing
     if gene_dataset.n_batches == 2:

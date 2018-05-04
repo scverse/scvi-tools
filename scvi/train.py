@@ -6,7 +6,6 @@ from torch.nn import functional as F
 from scvi.metrics.stats import Stats, EarlyStopping
 from scvi.utils import to_cuda, enable_grad
 
-
 @enable_grad()
 def train(vae, data_loader_train, data_loader_test, n_epochs=20, lr=0.001, kl=None, benchmark=False):
     # Defining the optimizer
@@ -21,9 +20,8 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, lr=0.001, kl=No
     for epoch in range(n_epochs):
         total_train_loss = 0
         for i_batch, (tensors_train) in enumerate(data_loader_train):
-            with torch.no_grad():
-                if vae.use_cuda:
-                    tensors_train = to_cuda(tensors_train)
+            if vae.use_cuda:
+                tensors_train = to_cuda(tensors_train)
             sample_batch_train, local_l_mean_train, local_l_var_train, batch_index_train, labels_train = tensors_train
             sample_batch_train = sample_batch_train.type(torch.float32)
 

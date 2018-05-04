@@ -85,7 +85,7 @@ class Encoder(nn.Module):
         self.var_encoder = nn.Linear(n_hidden, n_latent)
 
     def reparameterize(self, mu, var):
-        return Normal(mu, var.sqrt()).sample()
+        return Normal(mu, var.sqrt()).rsample()
 
     def forward(self, x, o=None):
         # Parameters for latent distribution
