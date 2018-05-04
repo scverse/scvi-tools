@@ -40,8 +40,8 @@ def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
         print("Best ll was :", best_ll)
 
     # - log-likelihood
-    print("Log-likelihood Train:", stats.history["LL_train"][-1])
-    print("Log-likelihood Test:", stats.history["LL_test"][-1])
+    print("Log-likelihood Train:", stats.history["LL_train"][stats.best_index])
+    print("Log-likelihood Test:", stats.history["LL_test"][stats.best_index])
 
     # - imputation
     imputation_test = imputation(vae, data_loader_test)
