@@ -4,7 +4,6 @@
 import argparse
 
 from scvi.benchmark import run_benchmarks
-from scvi.dataset import load_datasets
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -16,6 +15,6 @@ if __name__ == '__main__':
     parser.add_argument("--benchmark", action='store_true',
                         help="whether to use cuda (will apply only if cuda is available")
     args = parser.parse_args()
-    gene_dataset = load_datasets(args.dataset)
-    run_benchmarks(gene_dataset, n_epochs=args.epochs, use_batches=(not args.nobatches), use_cuda=(not args.nocuda),
+
+    run_benchmarks(args.dataset, n_epochs=args.epochs, use_batches=(not args.nobatches), use_cuda=(not args.nocuda),
                    show_batch_mixing=True, benchmark=args.benchmark)

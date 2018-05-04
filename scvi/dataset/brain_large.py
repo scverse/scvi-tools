@@ -6,10 +6,14 @@ import scipy.sparse as sp_sparse
 import tables
 from sklearn.preprocessing import StandardScaler
 
-from .const import string_10x
 from .dataset import GeneExpressionDataset
 
 GeneBCMatrix = collections.namedtuple('GeneBCMatrix', ['gene_ids', 'gene_names', 'barcodes', 'matrix'])
+
+batch_idx_10x = [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+                 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
 
 def get_matrix_from_h5(filename, genome):
@@ -89,8 +93,7 @@ class BrainLargeDataset(GeneExpressionDataset):
 
         # Extracting batch indices
         if not self.unit_test:
-            batch = [int(x[8:10]) - 9 for x in string_10x.split("\n")]
-            batch_id = np.array([batch[int(x.split(b"-")[-1]) - 1] for x in subsampled_matrix.barcodes])
+            batch_id = np.array([batch_idx_10x[int(x.split(b"-")[-1]) - 1] for x in subsampled_matrix.barcodes])
         else:
             batch_id = np.random.randint(0, 2, size=subsampled_matrix.matrix.T.shape[0])
 
