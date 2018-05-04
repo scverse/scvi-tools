@@ -32,7 +32,6 @@ class pickle_result:
     def __call__(self, function):
         def wrapper(*args, **kwargs):
             if os.path.exists(self.filename):
-                print("Loading pickled result")
                 return pickle.load(open(self.filename, 'rb'))
             else:
                 result = function(*args, **kwargs)

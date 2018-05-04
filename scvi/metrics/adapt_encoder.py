@@ -22,7 +22,7 @@ def adapt_encoder(vae, dataloader, n_path=10, n_epochs=50, record_freq=5):
         vae.z_encoder.load_state_dict(z_encoder_state)
         vae.l_encoder.load_state_dict(l_encoder_state)
         for epoch in range(n_epochs):
-            for i_batch, (tensors) in enumerate(dataloader):
+            for i_batch, tensors in enumerate(dataloader):
                 if vae.use_cuda:
                     tensors = to_cuda(tensors)
                 sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors

@@ -3,8 +3,8 @@
 
 
 """Tests for `scvi` package."""
-from scvi.benchmark import run_benchmarks_classification
 from run_benchmarks import run_benchmarks
+from scvi.benchmark import run_benchmarks_classification
 from scvi.dataset import load_datasets
 from scvi.models import VAEC, VAE, SVAEC
 
@@ -27,7 +27,7 @@ def test_cortex():
 
 def test_brain_large():
     gene_dataset = load_datasets("brain_large", unit_test=True)
-    run_benchmarks(gene_dataset, n_epochs=1)
+    run_benchmarks(gene_dataset, n_epochs=1, use_batches=False, tt_split=0.5)
 
 
 def test_retina():

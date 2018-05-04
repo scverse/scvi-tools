@@ -29,7 +29,7 @@ class Stats:
             for data_loader, name in zip(data_loaders, self.names):
 
                 self.add_ll(model, data_loader, name=name)
-                self.add_accuracy(model, data_loader, classifier, name=name)
+                self.add_accuracy(model, data_loader, classifier=classifier, name=name)
         self.epoch += 1
 
     def add_ll(self, model, data_loader, name='train'):

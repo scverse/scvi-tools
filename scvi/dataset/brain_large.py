@@ -4,8 +4,8 @@ import time
 import numpy as np
 import scipy.sparse as sp_sparse
 import tables
+from sklearn.preprocessing import StandardScaler
 
-from scvi.utils import pickle_result
 from .const import string_10x
 from .dataset import GeneExpressionDataset
 
@@ -72,7 +72,6 @@ class BrainLargeDataset(GeneExpressionDataset):
             *GeneExpressionDataset.get_attributes_from_list(Xs)
         )
 
-    @pickle_result('data/first')
     def preprocess(self):
         print("Preprocessing Brain Large data")
         tic = time.time()
@@ -82,11 +81,10 @@ class BrainLargeDataset(GeneExpressionDataset):
 
         # Downsample *barcodes* from 1306127 to 100000 (~1/10) to
         matrix = gene_bc_matrix.matrix[:, :100000]
-        variance = (np.array(matrix.multiply(matrix).mean(1)) - np.array(matrix.mean(1)) ** 2)[:, 0]
-        mask_small = variance >= 1.912  # Get most variable genes
-
-        # Subsample *genes* original matrix from mask
-        subsampled_matrix = subsample_genes(gene_bc_matrix, mask_small, unit_test=self.unit_test)
+        std_scaler = StandardScaler(with_mean=False)
+        std_scaler.fit(matrix.transpose().astype(np.float64))
+        subset_genes = np.argsort(std_scaler.var_)[::-1][:self.nb_genes_kept]
+        subsampled_matrix = subsample_genes(gene_bc_matrix, subset_genes, unit_test=self.unit_test)
         print("%d genes subsampled" % subsampled_matrix.matrix.shape[0])
 
         # Extracting batch indices
