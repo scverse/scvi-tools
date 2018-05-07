@@ -8,6 +8,7 @@ from scvi.utils import to_cuda, no_grad, eval_modules
 @no_grad()
 @eval_modules()
 def compute_log_likelihood(vae, data_loader):
+    # Bad since depends on the sampler
     # Iterate once over the data_loader and computes the total log_likelihood
     log_lkl = 0
     for i_batch, tensors in enumerate(data_loader):
@@ -18,7 +19,7 @@ def compute_log_likelihood(vae, data_loader):
         reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
                                           y=labels)
         log_lkl += torch.sum(reconst_loss).item()
-    return log_lkl / len(data_loader.sampler.indices)
+    return log_lkl / len(data_loader.dataset)  # sampler.indices)
 
 
 def log_zinb_positive(x, mu, theta, pi, eps=1e-8):

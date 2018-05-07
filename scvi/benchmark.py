@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
-from scvi.dataset import CortexDataset, load_datasets
+from scvi.dataset import CortexDataset, GeneExpressionDataset, load_datasets
 from scvi.metrics.adapt_encoder import adapt_encoder
 from scvi.metrics.clustering import entropy_batch_mixing, get_latent
 from scvi.metrics.differential_expression import get_statistics
@@ -29,9 +29,11 @@ def run_benchmarks(dataset_name, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
     tt_split = int(tt_split * len(gene_dataset))  # 90%/10% train/test split
 
     data_loader_train = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
-                                   sampler=SubsetRandomSampler(example_indices[:tt_split]))
+                                   sampler=SubsetRandomSampler(example_indices[:tt_split]),
+                                   collate_fn=GeneExpressionDataset.collate_fn)
     data_loader_test = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
-                                  sampler=SubsetRandomSampler(example_indices[tt_split:]))
+                                  sampler=SubsetRandomSampler(example_indices[tt_split:]),
+                                  collate_fn=GeneExpressionDataset.collate_fn)
     vae = model(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * use_batches, n_labels=gene_dataset.n_labels,
                 use_cuda=use_cuda)
     stats = train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, lr=lr, benchmark=benchmark)
@@ -73,9 +75,11 @@ def run_benchmarks_classification(dataset_name, n_latent=10, n_epochs=10, n_epoc
     tt_split = int(tt_split * len(gene_dataset))  # 90%/10% train/test split
 
     data_loader_train = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
-                                   sampler=SubsetRandomSampler(example_indices[:tt_split]))
+                                   sampler=SubsetRandomSampler(example_indices[:tt_split]),
+                                   collate_fn=GeneExpressionDataset.collate_fn)
     data_loader_test = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
-                                  sampler=SubsetRandomSampler(example_indices[tt_split:]))
+                                  sampler=SubsetRandomSampler(example_indices[tt_split:]),
+                                  collate_fn=GeneExpressionDataset.collate_fn)
 
     # Now we try out the different models and compare the classification accuracy
 
@@ -97,8 +101,7 @@ def run_benchmarks_classification(dataset_name, n_latent=10, n_epochs=10, n_epoc
 
     # ========== The M1+M2 model, first encoder frozen ===========
     print("Trying out standard M1+M2 model")
-    prior = torch.FloatTensor(
-        [(gene_dataset.labels == i).type(torch.float32).mean() for i in range(gene_dataset.n_labels)])
+    prior = torch.FloatTensor([(gene_dataset.labels == i).mean() for i in range(gene_dataset.n_labels)])
 
     svaec = SVAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * use_batches, n_labels=gene_dataset.n_labels,
                   y_prior=prior, n_latent=n_latent, use_cuda=use_cuda)
@@ -116,9 +119,6 @@ def run_benchmarks_classification(dataset_name, n_latent=10, n_epochs=10, n_epoc
 
     # ========== The M1+M2 model trained jointly ===========
     print("Trying out M1+M2 optimized jointly")
-    prior = torch.FloatTensor(
-        [(gene_dataset.labels == i).type(torch.float32).mean() for i in range(gene_dataset.n_labels)])
-
     svaec = SVAEC(gene_dataset.nb_genes, n_labels=gene_dataset.n_labels, y_prior=prior, n_latent=n_latent,
                   use_cuda=use_cuda)
 
