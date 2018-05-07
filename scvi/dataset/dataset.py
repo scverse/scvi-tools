@@ -26,12 +26,10 @@ class GeneExpressionDataset(Dataset):
         self.n_batches = n_batches
         self.local_means = local_means
         self.local_vars = local_vars
+        self.labels = labels
         self.batch_indices = batch_indices
         self.dense = type(X) is np.ndarray
-        if type(X) is np.ndarray:
-            self.structured_array = np.concatenate([X, local_means, local_vars, batch_indices, labels], axis=1)
-        else:  # sparse case
-            self.structured_array = sp_sparse.hstack([X, local_means, local_vars, batch_indices, labels], format='csr')
+        self.X = X
         self.labels = labels
         self.n_labels = len(np.unique(labels))
 
@@ -42,7 +40,7 @@ class GeneExpressionDataset(Dataset):
         return self.total_size
 
     def __getitem__(self, idx):
-        return self.structured_array[idx] if self.dense else self.structured_array[idx].toarray()[0]
+        return idx
 
     def download(self):
         r = urllib.request.urlopen(self.url)
@@ -70,12 +68,13 @@ class GeneExpressionDataset(Dataset):
             self.download()
         return self.preprocess()
 
-    @staticmethod
-    def collate_fn(batch):
-        cat_batch = np.concatenate(batch).reshape((len(batch), -1))
-        return torch.FloatTensor(cat_batch[:, :-4]), torch.FloatTensor(cat_batch[:, [-4]]), \
-            torch.FloatTensor(cat_batch[:, [-3]]), torch.FloatTensor(cat_batch[:, [-2]]).type(torch.long), \
-            torch.FloatTensor(cat_batch[:, [-1]]).type(torch.long)
+    def collate_fn(self, batch):
+        indexes = np.array(batch)
+        X = torch.FloatTensor(self.X[indexes]) if self.dense else torch.FloatTensor(self.X[indexes].toarray())
+        return X, torch.FloatTensor(self.local_means[indexes]), \
+            torch.FloatTensor(self.local_vars[indexes]), \
+            torch.LongTensor(self.batch_indices[indexes]), \
+            torch.LongTensor(self.labels[indexes])
 
     @staticmethod
     def train_test_split(*Xs, train_size=0.75):
