@@ -26,11 +26,12 @@ class GeneExpressionDataset(Dataset):
         self.n_batches = n_batches
         self.local_means = local_means
         self.local_vars = local_vars
+        self.labels = labels
         self.batch_indices = batch_indices
         self.dense = type(X) is np.ndarray
         self.X = X
         self.labels = labels
-        self.n_labels = len(np.unique(labels.numpy()))
+        self.n_labels = len(np.unique(labels))
 
         if gene_names is not None:
             self.gene_names = np.char.upper(gene_names)  # Take an upper case convention for gene names
@@ -39,8 +40,7 @@ class GeneExpressionDataset(Dataset):
         return self.total_size
 
     def __getitem__(self, idx):
-        return self.X[idx] if self.dense else self.X[idx].toarray()[0], \
-               self.local_means[idx], self.local_vars[idx], self.batch_indices[idx], self.labels[idx]
+        return idx
 
     def download(self):
         r = urllib.request.urlopen(self.url)
@@ -68,6 +68,14 @@ class GeneExpressionDataset(Dataset):
             self.download()
         return self.preprocess()
 
+    def collate_fn(self, batch):
+        indexes = np.array(batch)
+        X = torch.FloatTensor(self.X[indexes]) if self.dense else torch.FloatTensor(self.X[indexes].toarray())
+        return X, torch.FloatTensor(self.local_means[indexes]), \
+            torch.FloatTensor(self.local_vars[indexes]), \
+            torch.LongTensor(self.batch_indices[indexes]), \
+            torch.LongTensor(self.labels[indexes])
+
     @staticmethod
     def train_test_split(*Xs, train_size=0.75):
         """
@@ -83,11 +91,11 @@ class GeneExpressionDataset(Dataset):
 
     @staticmethod
     def get_attributes_from_matrix(X, batch_index=0, labels=None):
-        log_counts = torch.log(torch.from_numpy(np.asarray((X.sum(axis=1)), dtype=float)).type(torch.FloatTensor))
-        local_mean = torch.mean(log_counts) * torch.ones((X.shape[0], 1))
-        local_var = torch.var(log_counts) * torch.ones((X.shape[0], 1))
-        batch_index = torch.LongTensor(batch_index * np.ones((X.shape[0], 1)))
-        labels = torch.LongTensor(labels.reshape(-1, 1)) if labels is not None else torch.zeros_like(batch_index)
+        log_counts = np.log(X.sum(axis=1))
+        local_mean = (np.mean(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
+        local_var = (np.var(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
+        batch_index = batch_index * np.ones((X.shape[0], 1))
+        labels = labels.reshape(-1, 1) if labels is not None else np.zeros_like(batch_index)
         return X, local_mean, local_var, batch_index, labels
 
     @staticmethod
@@ -111,9 +119,9 @@ class GeneExpressionDataset(Dataset):
             local_vars += [local_var]
             batch_indices += [batch_index]
             labels += [label]
-        local_means = torch.cat(local_means)
-        local_vars = torch.cat(local_vars)
-        batch_indices = torch.cat(batch_indices)
-        labels = torch.cat(labels)
+        local_means = np.concatenate(local_means)
+        local_vars = np.concatenate(local_vars)
+        batch_indices = np.concatenate(batch_indices)
+        labels = np.concatenate(labels)
         X = np.concatenate(new_Xs) if type(new_Xs[0]) is np.ndarray else sp_sparse.vstack(new_Xs)
         return X, local_means, local_vars, batch_indices, labels
