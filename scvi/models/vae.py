@@ -37,11 +37,13 @@ class VAE(nn.Module):
             self.cuda()
 
     def sample_from_posterior_z(self, x, y=None):
+        x = torch.log(1 + x)
         # Here we compute as little as possible to have q(z|x)
         qz_m, qz_v, z = self.z_encoder(x)
         return z
 
     def sample_from_posterior_l(self, x):
+        x = torch.log(1 + x)
         # Here we compute as little as possible to have q(z|x)
         ql_m, ql_v, library = self.l_encoder(x)
         return library
