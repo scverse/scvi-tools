@@ -91,7 +91,7 @@ def train_semi_supervised(vae, data_loader_train, data_loader_test, n_epochs=20,
             # Add a classification loss (most semi supervised VAE papers do)
             if hasattr(vae, "classify") and labels_train is not None:
                 classification_loss = F.cross_entropy(vae.classify(sample_batch_train), labels_train.view(-1))
-                train_loss += classification_loss * classification_ratio
+                train_test_loss += classification_loss * classification_ratio
 
             batch_size = sample_batch_train.size(0)
             total_train_loss += train_loss.item() * batch_size

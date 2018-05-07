@@ -50,7 +50,7 @@ def run_benchmarks(dataset_name, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
 
     # - batch mixing
     if gene_dataset.n_batches == 2:
-        latent, batch_indices = get_latent(vae, data_loader_train)
+        latent, batch_indices, labels = get_latent(vae, data_loader_train)
         print("Entropy batch mixing :", entropy_batch_mixing(latent.cpu().numpy(), batch_indices.cpu().numpy()))
         if show_batch_mixing:
             show_t_sne(latent.cpu().numpy(), np.array([batch[0] for batch in batch_indices.cpu().numpy()]))
