@@ -3,10 +3,12 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence as kl
 
 from scvi.metrics.log_likelihood import log_zinb_positive, log_nb_positive
 from scvi.models.modules import Encoder, DecoderSCVI
+from scvi.models.utils import one_hot
 
 torch.backends.cudnn.benchmark = True
 
@@ -21,9 +23,16 @@ class VAE(nn.Module):
         self.reconstruction_loss = reconstruction_loss
         # Automatically desactivate if useless
         self.n_batch = 0 if n_batch == 1 else n_batch
+        self.n_labels = n_labels
 
-        if self.dispersion == "gene":
+        if self.dispersion == "gene":  #
             self.px_r = torch.nn.Parameter(torch.randn(n_input, ))
+        elif self.dispersion == "gene-batch":
+            self.px_r = torch.nn.Parameter(torch.randn(n_input, n_batch))
+        elif self.dispersion == "gene-label":
+            self.px_r = torch.nn.Parameter(torch.randn(n_input, n_labels))
+        else:  # gene-cell
+            pass
 
         self.z_encoder = Encoder(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
                                  dropout_rate=dropout_rate)
@@ -77,14 +86,21 @@ class VAE(nn.Module):
 
         if self.dispersion == "gene-cell":
             px_scale, self.px_r, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index)
-        elif self.dispersion == "gene":
+        else:  # self.dispersion == "gene", "gene-batch",  "gene-label"
             px_scale, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index)
+
+        if self.dispersion == "gene-label":
+            px_r = F.linear(one_hot(y, self.n_labels), self.px_r)  # px_r gets transposed - last dimension is nb genes
+        elif self.dispersion == "gene-batch":
+            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+        else:
+            px_r = self.px_r
 
         # Reconstruction Loss
         if self.reconstruction_loss == 'zinb':
-            reconst_loss = -log_zinb_positive(x, px_rate, torch.exp(self.px_r), px_dropout)
+            reconst_loss = -log_zinb_positive(x, px_rate, torch.exp(px_r), px_dropout)
         elif self.reconstruction_loss == 'nb':
-            reconst_loss = -log_nb_positive(x, px_rate, torch.exp(self.px_r))
+            reconst_loss = -log_nb_positive(x, px_rate, torch.exp(px_r))
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)

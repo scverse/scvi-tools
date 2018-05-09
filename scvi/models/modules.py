@@ -122,7 +122,7 @@ class DecoderSCVI(nn.Module):
         if dispersion == "gene-cell":
             px_r = self.px_r_decoder(px)
             return px_scale, px_r, px_rate, px_dropout
-        elif dispersion == "gene":
+        else:  # dispersion == "gene" / "gene-batch" / "gene-label"
             return px_scale, px_rate, px_dropout
 
 
