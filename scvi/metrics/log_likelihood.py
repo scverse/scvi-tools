@@ -47,10 +47,7 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
         theta + mu + eps) + x * torch.log(mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(
         x + theta) - torch.lgamma(theta.view(1, theta.size(0))) - torch.lgamma(x + 1)
 
-    mask = x.clone()
-    mask[mask < eps] = 1
-    mask[mask >= eps] = 0
-    res = torch.mul(mask, case_zero) + torch.mul(1 - mask, case_non_zero)
+    res = torch.mul((x < eps).type(torch.float32), case_zero) + torch.mul((x > eps).type(torch.float32), case_non_zero)
     return torch.sum(res, dim=-1)
 
 
