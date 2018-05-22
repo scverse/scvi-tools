@@ -2,8 +2,8 @@ import collections
 import time
 
 import numpy as np
-import scipy.sparse as sp_sparse
-import tables
+from scipy.sparse import csc_matrix
+import h5py
 from sklearn.preprocessing import StandardScaler
 
 from .dataset import GeneExpressionDataset
@@ -14,21 +14,6 @@ batch_idx_10x = [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 
                  0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0,
                  0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0,
                  0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-
-
-def get_matrix_from_h5(filename, genome):
-    with tables.open_file(filename, 'r') as f:
-        try:
-            dsets = {}
-            for node in f.walk_nodes('/' + genome, 'Array'):
-                dsets[node.name] = node.read()
-            matrix = sp_sparse.csc_matrix((dsets['data'], dsets['indices'], dsets['indptr']),
-                                          shape=dsets['shape'])
-            return GeneBCMatrix(dsets['genes'], dsets['gene_names'], dsets['barcodes'], matrix)
-        except tables.NoSuchNodeError:
-            raise Exception("Genome %s does not exist in this file." % genome)
-        except KeyError:
-            raise Exception("File is missing one or more required datasets.")
 
 
 def subsample_barcodes(gbm, barcode_indices, unit_test=False):
@@ -70,7 +55,6 @@ class BrainLargeDataset(GeneExpressionDataset):
         else:
             self.download_name = "../tests/data/genomics_subsampled.h5"
 
-        self.genome = "mm10"
         Xs = self.download_and_preprocess()
         super(BrainLargeDataset, self).__init__(
             *GeneExpressionDataset.get_attributes_from_list(Xs)
@@ -81,7 +65,10 @@ class BrainLargeDataset(GeneExpressionDataset):
         tic = time.time()
 
         filtered_matrix_h5 = self.save_path + self.download_name
-        gene_bc_matrix = get_matrix_from_h5(filtered_matrix_h5, self.genome)
+        with h5py.File(filtered_matrix_h5) as f:
+            dset = f["mm10"]
+            matrix = csc_matrix((dset['data'], dset['indices'], dset['indptr']), shape=dset['shape'])
+            gene_bc_matrix = GeneBCMatrix(dset['genes'][:], dset['gene_names'][:], dset['barcodes'][:], matrix)
 
         # Downsample *barcodes* from 1306127 to 100000 (~1/10) to
         matrix = gene_bc_matrix.matrix[:, :100000]
@@ -90,6 +77,7 @@ class BrainLargeDataset(GeneExpressionDataset):
         subset_genes = np.argsort(std_scaler.var_)[::-1][:self.nb_genes_kept]
         subsampled_matrix = subsample_genes(gene_bc_matrix, subset_genes, unit_test=self.unit_test)
         print("%d genes subsampled" % subsampled_matrix.matrix.shape[0])
+        print("%d cells subsampled" % subsampled_matrix.matrix.shape[1])
 
         # Extracting batch indices
         if not self.unit_test:
