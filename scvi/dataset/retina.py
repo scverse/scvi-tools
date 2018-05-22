@@ -35,4 +35,4 @@ class RetinaDataset(GeneExpressionDataset):
         print("Finished preprocessing for Retina %s dataset" % type)
         super(RetinaDataset, self).__init__(*GeneExpressionDataset.get_attributes_from_list(
             [sp_sparse.csr_matrix(first_batch[:, :-1]), sp_sparse.csr_matrix(second_batch[:, :-1])],
-            list_labels=[first_batch[:, -1], second_batch[:, -1]]), n_batches=2)
+            list_labels=[first_batch[:, -1], second_batch[:, -1]]))
