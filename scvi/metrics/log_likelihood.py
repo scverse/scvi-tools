@@ -40,12 +40,16 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     def softplus(x):
         return torch.log(1 + torch.exp(x))
 
+    # theta is the dispersion rate. If .ndimension() == 1, it is shared for all cells (regardless of batch or labels)
+    if theta.ndimension() == 1:
+        theta = theta.view(1, theta.size(0))  # In this case, we reshape theta for broadcasting
+
     case_zero = softplus((- pi + theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps)))
     - softplus(-pi)
 
     case_non_zero = - pi - softplus(-pi) + theta * torch.log(theta + eps) - theta * torch.log(
         theta + mu + eps) + x * torch.log(mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(
-        x + theta) - torch.lgamma(theta.view(1, theta.size(0))) - torch.lgamma(x + 1)
+        x + theta) - torch.lgamma(theta) - torch.lgamma(x + 1)
 
     res = torch.mul((x < eps).type(torch.float32), case_zero) + torch.mul((x > eps).type(torch.float32), case_non_zero)
     return torch.sum(res, dim=-1)
