@@ -25,7 +25,7 @@ class VAE(nn.Module):
         self.n_batch = 0 if n_batch == 1 else n_batch
         self.n_labels = n_labels
 
-        if self.dispersion == "gene":  #
+        if self.dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input, ))
         elif self.dispersion == "gene-batch":
             self.px_r = torch.nn.Parameter(torch.randn(n_input, n_batch))

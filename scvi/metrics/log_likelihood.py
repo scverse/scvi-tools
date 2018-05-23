@@ -1,6 +1,7 @@
 """File for computing log likelihood of the data"""
 
 import torch
+import torch.nn.functional as F
 
 from scvi.utils import to_cuda, no_grad, eval_modules
 
@@ -8,7 +9,6 @@ from scvi.utils import to_cuda, no_grad, eval_modules
 @no_grad()
 @eval_modules()
 def compute_log_likelihood(vae, data_loader):
-    # Bad since depends on the sampler
     # Iterate once over the data_loader and computes the total log_likelihood
     log_lkl = 0
     for i_batch, tensors in enumerate(data_loader):
@@ -19,7 +19,9 @@ def compute_log_likelihood(vae, data_loader):
         reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
                                           y=labels)
         log_lkl += torch.sum(reconst_loss).item()
-    n_samples = len(data_loader.dataset) if data_loader.sampler is None else len(data_loader.sampler.indices)
+    n_samples = (len(data_loader.dataset)
+                 if not (hasattr(data_loader, 'sampler') and hasattr(data_loader.sampler, 'indices')) else
+                 len(data_loader.sampler.indices))
     return log_lkl / n_samples
 
 
@@ -37,19 +39,16 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     eps: numerical stability constant
     """
 
-    def softplus(x):
-        return torch.log(1 + torch.exp(x))
-
     # theta is the dispersion rate. If .ndimension() == 1, it is shared for all cells (regardless of batch or labels)
     if theta.ndimension() == 1:
         theta = theta.view(1, theta.size(0))  # In this case, we reshape theta for broadcasting
 
-    case_zero = softplus((- pi + theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps)))
-    - softplus(-pi)
+    case_zero = (F.softplus((- pi + theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps)))
+                 - F.softplus(-pi))
 
-    case_non_zero = - pi - softplus(-pi) + theta * torch.log(theta + eps) - theta * torch.log(
+    case_non_zero = - pi - F.softplus(-pi) + theta * torch.log(theta + eps) - theta * torch.log(
         theta + mu + eps) + x * torch.log(mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(
-        x + theta) - torch.lgamma(theta) - torch.lgamma(x + 1)
+        x + theta + eps) - torch.lgamma(theta + eps) - torch.lgamma(x + 1)
 
     res = torch.mul((x < eps).type(torch.float32), case_zero) + torch.mul((x > eps).type(torch.float32), case_non_zero)
     return torch.sum(res, dim=-1)
