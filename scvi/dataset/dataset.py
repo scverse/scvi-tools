@@ -8,6 +8,7 @@ import numpy as np
 import scipy.sparse as sp_sparse
 import torch
 import urllib.request
+from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
 
 
@@ -22,22 +23,21 @@ class GeneExpressionDataset(Dataset):
         # Xs: a list of numpy tensors with .shape[1] identical (total_size*nb_genes)
         # or a list of scipy CSR sparse matrix,
         # or transposed CSC sparse matrix (the argument sparse must then be set to true)
-        self.total_size, self.nb_genes = X.shape
+        self.X = X
+        self.total_size, self.nb_genes = self.X.shape
         self.local_means = local_means
         self.local_vars = local_vars
         self.labels = labels
         self.batch_indices = batch_indices
         self.n_batches = len(np.unique(batch_indices))
-        self.dense = type(X) is np.ndarray
-        self.X = X
-        self.labels = labels
+        self.dense = type(self.X) is np.ndarray
         self.n_labels = len(np.unique(labels))
 
         if gene_names is not None:
             self.gene_names = np.char.upper(gene_names)  # Take an upper case convention for gene names
 
     def __len__(self):
-        return self.total_size
+        return self.X.shape[0]
 
     def __getitem__(self, idx):
         return idx
@@ -76,18 +76,32 @@ class GeneExpressionDataset(Dataset):
             torch.LongTensor(self.batch_indices[indexes]), \
             torch.LongTensor(self.labels[indexes])
 
-    @staticmethod
-    def train_test_split(*Xs, train_size=0.75):
-        """
-        A substitute for the sklearn function to avoid the dependency
-        """
-        Xs = [np.array(X) for X in Xs]
-        split_idx = int(train_size * len(Xs[0]))
-        all_indices = np.arange(len(Xs[0]))
-        train_indices = np.random.choice(all_indices, size=split_idx, replace=False)
-        test_indices = np.array(list(set(all_indices).difference(set(train_indices))))
-        split_list = [[X[train_indices], X[test_indices]] for X in Xs]
-        return [X for Xs in split_list for X in Xs]
+    def subsample_genes(self, p_genes=1., subset_genes=None):
+        n_cells, n_genes = self.X.shape
+        new_n_genes = int(p_genes * n_genes) if type(p_genes) is not int else p_genes
+        if subset_genes is None:
+            print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))
+            std_scaler = StandardScaler(with_mean=False)
+            std_scaler.fit(self.X.astype(np.float64))
+            subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
+        else:
+            print("Downsampling from %i to %i genes" % (n_genes, len(subset_genes)))
+        self.X = self.X[:, subset_genes]
+        self.nb_genes = self.X.shape[1]
+        self.gene_names = self.gene_names[subset_genes]
+
+    def subsample_cells(self, p_cells=1.):
+        n_cells, n_genes = self.X.shape
+        new_n_cells = int(p_cells * n_genes) if type(p_cells) is not int else p_cells
+        print("Downsampling from %i to %i cells" % (n_cells, new_n_cells))
+        indices = np.argsort(self.X.sum(axis=1))[::-1][:new_n_cells]
+
+        def _subsample(a, indices):
+            return a[indices]
+
+        self.X, self.local_means, self.local_vars, self.batch_indices, self.labels = (
+            _subsample(a, indices) for a in (self.X, self.local_means, self.local_vars,
+                                             self.batch_indices, self.labels))
 
     @staticmethod
     def get_attributes_from_matrix(X, batch_index=0, labels=None):
@@ -101,7 +115,6 @@ class GeneExpressionDataset(Dataset):
     @staticmethod
     def get_attributes_from_list(Xs, list_labels=None):
         nb_genes = Xs[0].shape[1]
-        # n_batches = len(Xs)
         assert all(X.shape[1] == nb_genes for X in Xs), "All tensors must have same size"
 
         new_Xs = []
