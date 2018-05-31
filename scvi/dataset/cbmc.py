@@ -33,11 +33,15 @@ class CbmcDataset(GeneExpressionDataset):
         gene_names = []
         with gzip.open(self.save_path + self.download_name, "rt", encoding="utf8") as csvfile:
             data_reader = csv.reader(csvfile, delimiter=',')
-            for i, row in enumerate(data_reader):
+            for row in data_reader:
                 rows.append(row[1:])
                 gene_names.append(row[0])
 
         expression_data = np.array(rows[1:], dtype=np.int).T
         gene_names = np.array(gene_names[1:], dtype=np.str)
+
+        selected = np.std(expression_data, axis=0).argsort()[-600:][::-1]
+        expression_data = expression_data[:, selected]
+        gene_names = gene_names[selected]
 
         return expression_data, gene_names
