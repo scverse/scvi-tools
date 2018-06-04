@@ -91,7 +91,7 @@ class Encoder(nn.Module):
         # Parameters for latent distribution
         q = self.encoder(x, o)
         q_m = self.mean_encoder(q)
-        q_v = torch.exp(self.var_encoder(q))
+        q_v = torch.exp(torch.clamp(self.var_encoder(q), -5, 5))  # (computational stability safeguard)
         latent = self.reparameterize(q_m, q_v)
         return q_m, q_v, latent
 
@@ -118,7 +118,8 @@ class DecoderSCVI(nn.Module):
         px = self.px_decoder(z, batch_index, y)
         px_scale = self.px_scale_decoder(px)
         px_dropout = self.px_dropout_decoder(px)
-        px_rate = torch.exp(torch.clamp(library, 0, 8)) * px_scale  # Total UMI counts clamped to exp(8) ~ 3000
+        # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
+        px_rate = torch.exp(torch.clamp(library, max=12)) * px_scale
         if dispersion == "gene-cell":
             px_r = self.px_r_decoder(px)
             return px_scale, px_r, px_rate, px_dropout
