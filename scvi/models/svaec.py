@@ -4,7 +4,7 @@ from torch.distributions import Normal, Multinomial, kl_divergence as kl
 
 from scvi.metrics.log_likelihood import log_zinb_positive
 from scvi.models.modules import Decoder, Encoder, Classifier, DecoderSCVI
-from scvi.models.utils import enumerate_discrete, one_hot
+from scvi.models.utils import broadcast_labels
 
 
 class SVAEC(nn.Module):
@@ -85,18 +85,11 @@ class SVAEC(nn.Module):
         qz1_m, qz1_v, z1_ = self.z_encoder(xs_)
         z1 = z1_
         # Enumerate choices of label
-        if not is_labelled:
-            ys = enumerate_discrete(xs, self.n_labels)
-            xs = xs.repeat(self.n_labels, 1)
-            if batch_index is not None:
-                batch_index = batch_index.repeat(self.n_labels, 1)
-            local_l_var = local_l_var.repeat(self.n_labels, 1)
-            local_l_mean = local_l_mean.repeat(self.n_labels, 1)
-            qz1_m = qz1_m.repeat(self.n_labels, 1)
-            qz1_v = qz1_v.repeat(self.n_labels, 1)
-            z1 = z1.repeat(self.n_labels, 1)
-        else:
-            ys = one_hot(ys, self.n_labels)
+        ys, xs, batch_index, local_l_var, local_l_mean, qz1_m, qz1_v, z1 = (
+            broadcast_labels(
+                ys, xs, batch_index, local_l_var, local_l_mean, qz1_m, qz1_v, z1, n_broadcast=self.n_labels
+            )
+        )
 
         xs_ = torch.log(1 + xs)
 

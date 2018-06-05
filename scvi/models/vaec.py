@@ -5,7 +5,7 @@ from torch.distributions import Normal, Multinomial, kl_divergence as kl
 from scvi.metrics.log_likelihood import log_nb_positive, log_zinb_positive
 from scvi.models.modules import Classifier
 from scvi.models.modules import Encoder, DecoderSCVI
-from scvi.models.utils import enumerate_discrete, one_hot
+from scvi.models.utils import broadcast_labels
 
 
 # VAE model - for classification: VAEC
@@ -77,15 +77,11 @@ class VAEC(nn.Module):
         xs, ys = (x, y)
 
         # Enumerate choices of label
-        if not is_labelled:
-            ys = enumerate_discrete(xs, self.n_labels)
-            xs = xs.repeat(self.n_labels, 1)
-            if batch_index is not None:
-                batch_index = batch_index.repeat(self.n_labels, 1)
-            local_l_var = local_l_var.repeat(self.n_labels, 1)
-            local_l_mean = local_l_mean.repeat(self.n_labels, 1)
-        else:
-            ys = one_hot(ys, self.n_labels)
+        ys, xs, batch_index, local_l_var, local_l_mean = (
+            broadcast_labels(
+                ys, xs, batch_index, local_l_var, local_l_mean, n_broadcast=self.n_labels
+            )
+        )
 
         xs_ = xs
         if self.log_variational:
