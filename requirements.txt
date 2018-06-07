@@ -12,3 +12,4 @@ scikit-learn==0.19.1
 scipy==1.0.0
 h5py
 codecov
+pandas==0.23.0
