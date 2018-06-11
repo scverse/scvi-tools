@@ -43,3 +43,7 @@ def test_hemato():
 
 def test_pbmc():
     run_benchmarks("pbmc", n_epochs=1, show_batch_mixing=False, unit_test=True)
+
+
+def test_loom():
+    run_benchmarks("tests/data/retina.loom", n_epochs=1, show_batch_mixing=False, unit_test=True)

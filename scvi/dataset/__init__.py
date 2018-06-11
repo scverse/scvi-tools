@@ -7,6 +7,7 @@ from .cbmc import CbmcDataset
 from .brain_small import BrainSmallDataset
 from .hemato import HematoDataset
 from .pbmc import PbmcDataset
+from .loom import LoomDataset
 
 __all__ = ['SyntheticDataset',
            'CortexDataset',
@@ -16,7 +17,8 @@ __all__ = ['SyntheticDataset',
            'CbmcDataset',
            'BrainSmallDataset',
            'HematoDataset',
-           'PbmcDataset']
+           'PbmcDataset',
+           'LoomDataset']
 
 
 def load_datasets(dataset_name, unit_test=False):
@@ -36,6 +38,8 @@ def load_datasets(dataset_name, unit_test=False):
         gene_dataset = HematoDataset(unit_test=unit_test)
     elif dataset_name == 'pbmc':
         gene_dataset = PbmcDataset(unit_test=unit_test)
+    elif dataset_name[-5:] == ".loom":
+        gene_dataset = LoomDataset(dataset_name, unit_test=unit_test)
     else:
         raise "No such dataset available"
     return gene_dataset

@@ -13,3 +13,4 @@ scipy==1.0.0
 h5py
 codecov
 pandas==0.23.0
+loompy==2.0.9
