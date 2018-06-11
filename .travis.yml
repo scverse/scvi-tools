@@ -1,0 +1,22 @@
+# Config file for automatic testing at travis-ci.org
+
+language: python
+
+python:
+  - 3.6
+
+os:
+  - linux
+
+notifications:
+  email: false
+
+install:
+  - pip install --quiet -r requirements.txt
+
+script:
+  - flake8
+  - coverage run setup.py test
+
+after_success:
+  - codecov
