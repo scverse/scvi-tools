@@ -7,4 +7,3 @@ History
 ------------------
 
 * First release on PyPI.
-* Second release on PyPI.
