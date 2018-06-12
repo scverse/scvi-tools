@@ -25,7 +25,7 @@ Installation
 
 1. Install PyTorch: http://pytorch.org
 
-2. Install this repository from source: ``git clone https://github.com/YosefLab/scVI-dev.git``
+2. Install this repository from source: ``git clone https://github.com/YosefLab/scVI.git``
 
 3. Refer to the examples_ subdirectory for Jupyter notebooks that illustrate usage. 
 
