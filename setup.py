@@ -18,8 +18,12 @@ setup_requirements = ['pytest-runner', ]
 test_requirements = ['pytest', ]
 
 setup(
-    author="Romain Lopez",
-    author_email='romain_lopez@berkeley.edu',
+    author="Romain Lopez, Jeffrey Regier, Maxime Langevin, Edouard Mehlman, Yining Liu",
+    author_email="""Romain Lopez <romain_lopez@berkeley.edu>, 
+            Jeffrey Regier <jregier@eecs.berkeley.edu>, 
+            Maxime Langevin <maxime.langevin@polytechnique.edu>, 
+            Edouard Mehlman <edouard.mehlman@polytechnique.edu>, 
+            Yining Liu <lyining@berkeley.edu>""",
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
@@ -40,6 +44,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/romain-lopez/scvi',
-    version='0.1.0',
+    version='0.2.0',
     zip_safe=False,
 )
