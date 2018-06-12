@@ -27,8 +27,9 @@ Installation
 
 2. Install this repository from source: ``git clone https://github.com/YosefLab/scVI-dev.git``
 
-3. Refer to the `examples/` subdirectory for Jupyter notebooks that illustrate usage. 
+3. Refer to the examples_ subdirectory for Jupyter notebooks that illustrate usage. 
 
+.. _examples: https://github.com/YosefLab/scVI/tree/master/examples
 
 Benchmarks
 --------
