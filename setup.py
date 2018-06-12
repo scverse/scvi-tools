@@ -4,7 +4,6 @@
 """The setup script."""
 
 from setuptools import setup, find_packages
-from pathlib import Path
 
 package_name = 'scvi'
 
@@ -14,11 +13,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-
-req_path = Path('requirements.txt')
-if not req_path.is_file():
-    req_path = Path(package_name + '.egg-info') / req_path
-with req_path.open() as requires:
+with open('requirements.txt') as requires:
     requirements = [l.strip() for l in requires]
 
 setup_requirements = ['pytest-runner', ]
