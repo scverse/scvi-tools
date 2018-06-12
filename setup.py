@@ -19,11 +19,11 @@ test_requirements = ['pytest', ]
 
 setup(
     author="Romain Lopez, Jeffrey Regier, Maxime Langevin, Edouard Mehlman, Yining Liu",
-    author_email="""Romain Lopez <romain_lopez@berkeley.edu>, 
-            Jeffrey Regier <jregier@eecs.berkeley.edu>, 
-            Maxime Langevin <maxime.langevin@polytechnique.edu>, 
-            Edouard Mehlman <edouard.mehlman@polytechnique.edu>, 
-            Yining Liu <lyining@berkeley.edu>""",
+    author_email="Romain Lopez <romain_lopez@berkeley.edu>, "
+                 "Jeffrey Regier <jregier@eecs.berkeley.edu>, "
+                 "Maxime Langevin <maxime.langevin@polytechnique.edu>, "
+                 "Edouard Mehlman <edouard.mehlman@polytechnique.edu>, "
+                 "Yining Liu <lyining@berkeley.edu>",
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
