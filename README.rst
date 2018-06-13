@@ -2,11 +2,11 @@
 scVI
 ====
 
-.. image:: https://travis-ci.org/YosefLab/scVI-dev.svg?branch=master
-    :target: https://travis-ci.org/YosefLab/scVI-dev
+.. image:: https://travis-ci.org/YosefLab/scVI.svg?branch=master
+    :target: https://travis-ci.org/YosefLab/scVI
 
-.. image:: https://codecov.io/gh/YosefLab/scVI-dev/branch/master/graph/badge.svg
-  :target: https://codecov.io/gh/YosefLab/scVI-dev
+.. image:: https://codecov.io/gh/YosefLab/scVI/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/YosefLab/scVI
 
 .. image:: https://readthedocs.org/projects/scvi/badge/?version=latest
         :target: https://scvi.readthedocs.io/en/latest/?badge=latest
@@ -25,10 +25,11 @@ Installation
 
 1. Install PyTorch: http://pytorch.org
 
-2. Install this repository from source: ``git clone https://github.com/YosefLab/scVI-dev.git``
+2. Install this repository from source: ``git clone https://github.com/YosefLab/scVI.git``
 
-3. Refer to the `examples/` subdirectory for Jupyter notebooks that illustrate usage. 
+3. Refer to the examples_ subdirectory for Jupyter notebooks that illustrate usage. 
 
+.. _examples: https://github.com/YosefLab/scVI/tree/master/examples
 
 Benchmarks
 --------
