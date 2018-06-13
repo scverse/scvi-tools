@@ -3,7 +3,7 @@
 
 
 """Tests for `scvi` package."""
-from run_benchmarks import run_benchmarks
+from scvi.benchmark import run_benchmarks
 from scvi.benchmark import run_benchmarks_classification
 from scvi.models import VAEC, VAE, SVAEC
 
@@ -22,28 +22,28 @@ def test_cortex():
 
 
 def test_brain_large():
-    run_benchmarks("brain_large", n_epochs=1, use_batches=False, tt_split=0.5, unit_test=True)
+    run_benchmarks("brain_large", n_epochs=1, use_batches=False, tt_split=0.5, save_path='tests/data/')
 
 
 def test_retina():
-    run_benchmarks("retina", n_epochs=1, show_batch_mixing=False, unit_test=True)
+    run_benchmarks("retina", n_epochs=1, show_batch_mixing=False, save_path='tests/data/')
 
 
 def test_cbmc():
-    run_benchmarks("cbmc", n_epochs=1, show_batch_mixing=False, unit_test=True)
+    run_benchmarks("cbmc", n_epochs=1, show_batch_mixing=False, save_path='tests/data/')
 
 
 def test_brain_small():
-    run_benchmarks("brain_small", n_epochs=1, show_batch_mixing=False, unit_test=True)
+    run_benchmarks("brain_small", n_epochs=1, show_batch_mixing=False, save_path='tests/data/')
 
 
 def test_hemato():
-    run_benchmarks("hemato", n_epochs=1, show_batch_mixing=False, unit_test=True)
+    run_benchmarks("hemato", n_epochs=1, show_batch_mixing=False, save_path='tests/data/HEMATO/')
 
 
 def test_pbmc():
-    run_benchmarks("pbmc", n_epochs=1, show_batch_mixing=False, unit_test=True)
+    run_benchmarks("pbmc", n_epochs=1, show_batch_mixing=False, save_path='tests/data/PBMC/')
 
 
 def test_loom():
-    run_benchmarks("tests/data/retina.loom", n_epochs=1, show_batch_mixing=False, unit_test=True)
+    run_benchmarks(dataset_name="retina.loom", n_epochs=1, show_batch_mixing=False, save_path='tests/data/')

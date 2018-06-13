@@ -1,11 +1,10 @@
-pip==9.0.1
+pip>=9.0.1
 flake8==3.5.0
 coverage==4.5.1
 Sphinx==1.7.1
 pytest==3.4.2
 pytest-runner==2.11.1
 numpy==1.14.0
-cffi==1.6.0
 torch==0.4
 matplotlib==2.2.2
 scikit-learn==0.19.1

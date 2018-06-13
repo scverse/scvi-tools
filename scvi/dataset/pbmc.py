@@ -3,6 +3,7 @@ import numpy as np
 import urllib.request
 import os
 from scipy import io
+from pathlib import Path
 from zipfile import ZipFile
 
 
@@ -12,8 +13,8 @@ from .dataset import GeneExpressionDataset
 class PbmcDataset(GeneExpressionDataset):
     datazip_url = "https://github.com/romain-lopez/scVI-reproducibility/raw/master/additional/data.zip"
 
-    def __init__(self, unit_test=False):
-        self.save_path = 'data/PBMC/' if not unit_test else 'tests/data/PBMC/'
+    def __init__(self, save_path='data/PBMC/'):
+        self.save_path = save_path
 
         self.download_name = "gene_info.csv"
         self.gene_names_filename = "michael_gene_names.csv"  # from romain, manually put into PBMC folder
@@ -36,14 +37,16 @@ class PbmcDataset(GeneExpressionDataset):
                     break
                 yield data
 
-        if not os.path.exists('data/'):
-            os.makedirs('data/')
-        with open('data/data.zip', 'wb') as f:
+        directory = str(Path(self.save_path).parent) + '/'
+
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        with open(directory + 'data.zip', 'wb') as f:
             for data in readIter(r):
                 f.write(data)
 
-        with ZipFile('data/data.zip', 'r') as zip:
-            zip.extractall(path='data/')
+        with ZipFile(directory + 'data.zip', 'r') as zip:
+            zip.extractall(path=directory)
 
     def preprocess(self):
         print("Preprocessing pbmc data")

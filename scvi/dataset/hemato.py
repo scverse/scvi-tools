@@ -2,6 +2,7 @@ import pandas as pd
 import os
 from zipfile import ZipFile
 import urllib.request
+from pathlib import Path
 from .dataset import GeneExpressionDataset
 
 
@@ -10,8 +11,8 @@ class HematoDataset(GeneExpressionDataset):
           "file=GSM2388072%5Fbasal%5Fbone%5Fmarrow%2Eraw%5Fumifm%5Fcounts%2Ecsv%2Egz"
     datazip_url = "https://github.com/romain-lopez/scVI-reproducibility/raw/master/additional/data.zip"
 
-    def __init__(self, unit_test=False):
-        self.save_path = 'data/HEMATO/' if not unit_test else 'tests/data/HEMATO/'
+    def __init__(self, save_path='data/HEMATO/'):
+        self.save_path = save_path
 
         # Originally: GSM2388072_basal_bone_marrow.raw_umifm_counts.csv.gz
 
@@ -19,7 +20,7 @@ class HematoDataset(GeneExpressionDataset):
         self.gene_names_filename = "bBM.filtered_gene_list.paper.txt"
         self.spring_and_pba_filename = "bBM.spring_and_pba.csv"
 
-        if not unit_test and not os.path.isfile('data/data.zip'):
+        if not os.path.isfile(str(Path(save_path).parent) + '/data.zip'):
             self.download_datazip()
 
         expression_data, gene_names = self.download_and_preprocess()
@@ -39,14 +40,16 @@ class HematoDataset(GeneExpressionDataset):
                     break
                 yield data
 
-        if not os.path.exists('data/'):
-            os.makedirs('data/')
-        with open('data/data.zip', 'wb') as f:
+        directory = str(Path(self.save_path).parent) + '/'
+
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        with open(directory + 'data.zip', 'wb') as f:
             for data in readIter(r):
                 f.write(data)
 
-        with ZipFile('data/data.zip', 'r') as zip:
-            zip.extractall(path='data/')
+        with ZipFile(directory + 'data.zip', 'r') as zip:
+            zip.extractall(path=directory)
 
     def preprocess(self):
         print("Preprocessing Hemato data")

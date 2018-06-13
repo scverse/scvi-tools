@@ -10,10 +10,10 @@ class BrainSmallDataset(GeneExpressionDataset):
     url = "http://cf.10xgenomics.com/samples/cell-exp/2.1.0/neuron_9k/" + \
           "neuron_9k_filtered_gene_bc_matrices.tar.gz"
 
-    def __init__(self, unit_test=False):
-        self.save_path = 'data/' if not unit_test else 'tests/data/'
+    def __init__(self, save_path='data/'):
+        self.save_path = save_path
 
-        fn = "filtered_gene_bc_matrices" if not unit_test else "brain_small_subsampled"
+        fn = "filtered_gene_bc_matrices"
         self.download_name = fn + ".tar.gz"
         self.gene_filename = fn + "/mm10/genes.tsv"
         self.expression_filename = fn + "/mm10/matrix.mtx"

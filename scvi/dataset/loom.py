@@ -1,16 +1,14 @@
 from .dataset import GeneExpressionDataset
 import loompy
-import os
 import numpy as np
 import scipy.sparse as sp_sparse
 
 
 class LoomDataset(GeneExpressionDataset):
 
-    def __init__(self, filepath, unit_test=False):
-        path, file = os.path.split(filepath)
-        self.save_path = path + '/' if not unit_test else 'tests/data/'
-        self.download_name = file if not unit_test else 'retina.loom'
+    def __init__(self, filename, save_path):
+        self.filename = filename
+        self.save_path = save_path
 
         data, labels, cell_batches = self.preprocess()
 
@@ -26,7 +24,7 @@ class LoomDataset(GeneExpressionDataset):
             list_labels=[first_batch[:, -1], second_batch[:, -1]]))
 
     def preprocess(self):
-        ds = loompy.connect(self.save_path + self.download_name)
+        ds = loompy.connect(self.save_path + self.filename)
         cell_batches = ds.ca['Batch_id']
         cell_batches = np.reshape(cell_batches, (cell_batches.shape[0], 1))
 
