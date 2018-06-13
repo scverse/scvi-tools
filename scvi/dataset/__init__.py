@@ -21,7 +21,7 @@ __all__ = ['SyntheticDataset',
            'LoomDataset']
 
 
-def load_datasets(dataset_name, unit_test=False):
+def load_datasets(dataset_name, save_path):
     if dataset_name == 'synthetic':
         gene_dataset = SyntheticDataset()
     elif dataset_name == 'cortex':
