@@ -3,6 +3,7 @@ import numpy as np
 import urllib.request
 import os
 from scipy import io
+from pathlib import Path
 from zipfile import ZipFile
 
 
@@ -36,14 +37,16 @@ class PbmcDataset(GeneExpressionDataset):
                     break
                 yield data
 
-        if not os.path.exists('data/'):
-            os.makedirs('data/')
-        with open('data/data.zip', 'wb') as f:
+        directory = str(Path(self.save_path).parent) + '/'
+
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        with open(directory + 'data.zip', 'wb') as f:
             for data in readIter(r):
                 f.write(data)
 
-        with ZipFile('data/data.zip', 'r') as zip:
-            zip.extractall(path='data/')
+        with ZipFile(directory + 'data.zip', 'r') as zip:
+            zip.extractall(path=directory)
 
     def preprocess(self):
         print("Preprocessing pbmc data")

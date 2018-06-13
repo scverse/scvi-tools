@@ -75,11 +75,7 @@ class BrainLargeDataset(GeneExpressionDataset):
         print("%d genes subsampled" % subsampled_matrix.matrix.shape[0])
         print("%d cells subsampled" % subsampled_matrix.matrix.shape[1])
 
-        # Extracting batch indices
-        if not self.save_path == 'tests/data/':
-            batch_id = np.array([batch_idx_10x[int(x.split(b"-")[-1]) - 1] for x in subsampled_matrix.barcodes])
-        else:
-            batch_id = np.random.randint(0, 2, size=subsampled_matrix.matrix.T.shape[0])
+        batch_id = np.random.randint(0, 2, size=subsampled_matrix.matrix.T.shape[0])
 
         # Choose if Xs should be sparse
         if self.subsample_size is not None:
