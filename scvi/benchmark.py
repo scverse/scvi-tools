@@ -16,7 +16,7 @@ from scvi.train import train, train_classifier, train_semi_supervised
 
 
 def run_benchmarks(dataset_name, model=VAE, n_epochs=1000, lr=1e-3, use_batches=False, use_cuda=True,
-                   show_batch_mixing=True, benchmark=False, tt_split=0.9, unit_test=False):
+                   show_batch_mixing=True, benchmark=False, tt_split=0.9, save_path='data/'):
     # options:
     # - gene_dataset: a GeneExpressionDataset object
     # call each of the 4 benchmarks:
@@ -24,7 +24,7 @@ def run_benchmarks(dataset_name, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
     # - imputation
     # - batch mixing
     # - cluster scores
-    gene_dataset = load_datasets(dataset_name, unit_test=unit_test)
+    gene_dataset = load_datasets(dataset_name, save_path=save_path)
     example_indices = np.random.permutation(len(gene_dataset))
     tt_split = int(tt_split * len(gene_dataset))  # 90%/10% train/test split
 

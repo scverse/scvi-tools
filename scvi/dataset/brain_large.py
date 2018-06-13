@@ -39,21 +39,17 @@ def get_expression(gbm, gene_name):
 class BrainLargeDataset(GeneExpressionDataset):
     url = "http://cf.10xgenomics.com/samples/cell-exp/1.3.0/1M_neurons/1M_neurons_filtered_gene_bc_matrices_h5.h5"
 
-    def __init__(self, subsample_size=None, unit_test=False, nb_genes_kept=720):
+    def __init__(self, subsample_size=None, save_path='data/', nb_genes_kept=720):
         """
         :param subsample_size: In thousands of barcodes kept (by default 1*1000=1000 kept)
         :param unit_test: A boolean to indicate if we use pytest subsampled file
         """
-        self.subsample_size = subsample_size if not unit_test else 128
-        self.save_path = 'data/'
-        self.unit_test = unit_test
+        self.subsample_size = subsample_size
+        self.save_path = save_path
         self.nb_genes_kept = nb_genes_kept
         # originally: "1M_neurons_filtered_gene_bc_matrices_h5.h5"
 
-        if not self.unit_test:
-            self.download_name = "genomics.h5"
-        else:
-            self.download_name = "../tests/data/genomics_subsampled.h5"
+        self.download_name = "genomics.h5"
 
         Xs = self.download_and_preprocess()
         super(BrainLargeDataset, self).__init__(
@@ -75,12 +71,12 @@ class BrainLargeDataset(GeneExpressionDataset):
         std_scaler = StandardScaler(with_mean=False)
         std_scaler.fit(matrix.transpose().astype(np.float64))
         subset_genes = np.argsort(std_scaler.var_)[::-1][:self.nb_genes_kept]
-        subsampled_matrix = subsample_genes(gene_bc_matrix, subset_genes, unit_test=self.unit_test)
+        subsampled_matrix = subsample_genes(gene_bc_matrix, subset_genes, unit_test=(self.save_path == 'tests/data/'))
         print("%d genes subsampled" % subsampled_matrix.matrix.shape[0])
         print("%d cells subsampled" % subsampled_matrix.matrix.shape[1])
 
         # Extracting batch indices
-        if not self.unit_test:
+        if not self.save_path == 'tests/data/':
             batch_id = np.array([batch_idx_10x[int(x.split(b"-")[-1]) - 1] for x in subsampled_matrix.barcodes])
         else:
             batch_id = np.random.randint(0, 2, size=subsampled_matrix.matrix.T.shape[0])

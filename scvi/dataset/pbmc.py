@@ -12,8 +12,8 @@ from .dataset import GeneExpressionDataset
 class PbmcDataset(GeneExpressionDataset):
     datazip_url = "https://github.com/romain-lopez/scVI-reproducibility/raw/master/additional/data.zip"
 
-    def __init__(self, unit_test=False):
-        self.save_path = 'data/PBMC/' if not unit_test else 'tests/data/PBMC/'
+    def __init__(self, save_path='data/PBMC/'):
+        self.save_path = save_path
 
         self.download_name = "gene_info.csv"
         self.gene_names_filename = "michael_gene_names.csv"  # from romain, manually put into PBMC folder

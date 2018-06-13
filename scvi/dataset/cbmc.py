@@ -8,8 +8,8 @@ class CbmcDataset(GeneExpressionDataset):
     url = "https://www.ncbi.nlm.nih.gov/geo/download/" + \
           "?acc=GSE100866&format=file&file=GSE100866%5FCBMC%5F8K%5F13AB%5F10X%2DRNA%5Fumi%2Ecsv%2Egz"
 
-    def __init__(self, unit_test=False):
-        self.save_path = 'tests/data/' if unit_test else 'data/'
+    def __init__(self, save_path='data/'):
+        self.save_path = save_path
 
         # originally: GSE100866_CBMC_8K_13AB_10X-RNA_umi.csv.gz
 

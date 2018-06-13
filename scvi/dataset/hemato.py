@@ -10,8 +10,8 @@ class HematoDataset(GeneExpressionDataset):
           "file=GSM2388072%5Fbasal%5Fbone%5Fmarrow%2Eraw%5Fumifm%5Fcounts%2Ecsv%2Egz"
     datazip_url = "https://github.com/romain-lopez/scVI-reproducibility/raw/master/additional/data.zip"
 
-    def __init__(self, unit_test=False):
-        self.save_path = 'data/HEMATO/' if not unit_test else 'tests/data/HEMATO/'
+    def __init__(self, save_path='data/HEMATO/'):
+        self.save_path = save_path
 
         # Originally: GSM2388072_basal_bone_marrow.raw_umifm_counts.csv.gz
 
@@ -19,7 +19,7 @@ class HematoDataset(GeneExpressionDataset):
         self.gene_names_filename = "bBM.filtered_gene_list.paper.txt"
         self.spring_and_pba_filename = "bBM.spring_and_pba.csv"
 
-        if not unit_test and not os.path.isfile('data/data.zip'):
+        if not save_path == 'tests/data/HEMATO/' and not os.path.isfile('data/data.zip'):
             self.download_datazip()
 
         expression_data, gene_names = self.download_and_preprocess()
