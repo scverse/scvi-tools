@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.distributions import Normal, Multinomial, kl_divergence as kl
 
-from scvi.metrics.log_likelihood import log_nb_positive, log_zinb_positive
+from scvi.metrics.log_likelihood import log_zinb_positive
 from scvi.models.classifier import Classifier
 from scvi.models.modules import Encoder, DecoderSCVI
 from scvi.models.utils import broadcast_labels
@@ -84,33 +84,25 @@ class VAEC(nn.Module, SemiSupervisedModel):
         is_labelled = False if y is None else True
 
         # Prepare for sampling
-        xs, ys = (x, y)
+        x_ = torch.log(1 + x)
+        ql_m, ql_v, library = self.l_encoder(x_)
 
         # Enumerate choices of label
-        ys, xs, batch_index, local_l_var, local_l_mean = (
+        ys, xs, library_s, batch_index_s = (
             broadcast_labels(
-                ys, xs, batch_index, local_l_var, local_l_mean, n_broadcast=self.n_labels
+                y, x, library, batch_index, n_broadcast=self.n_labels
             )
         )
 
-        xs_ = xs
         if self.log_variational:
-            xs_ = torch.log(1 + xs_)
+            xs_ = torch.log(1 + xs)
 
         # Sampling
-        qz_m, qz_v, z = self.z_encoder(xs_, ys)
-        ql_m, ql_v, library = self.l_encoder(xs_)
+        qz_m, qz_v, zs = self.z_encoder(xs_, ys)
 
-        if self.dispersion == "gene-cell":
-            px_scale, self.px_r, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index, y=ys)
-        elif self.dispersion == "gene":
-            px_scale, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index, y=ys)
+        px_scale, px_rate, px_dropout = self.decoder(self.dispersion, zs, library_s, batch_index_s, y=ys)
 
-        # Reconstruction Loss
-        if self.reconstruction_loss == 'zinb':
-            reconst_loss = -log_zinb_positive(xs, px_rate, torch.exp(self.px_r), px_dropout)
-        elif self.reconstruction_loss == 'nb':
-            reconst_loss = -log_nb_positive(xs, px_rate, torch.exp(self.px_r))
+        reconst_loss = -log_zinb_positive(xs, px_rate, torch.exp(self.px_r), px_dropout)
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)
@@ -118,20 +110,17 @@ class VAEC(nn.Module, SemiSupervisedModel):
 
         kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(dim=1)
         kl_divergence_l = kl(Normal(ql_m, torch.sqrt(ql_v)), Normal(local_l_mean, torch.sqrt(local_l_var))).sum(dim=1)
-        kl_divergence = kl_divergence_z + kl_divergence_l
 
         if is_labelled:
-            return reconst_loss, kl_divergence
+            return reconst_loss, kl_divergence_z + kl_divergence_l
 
         reconst_loss = reconst_loss.view(self.n_labels, -1)
-        kl_divergence = kl_divergence.view(self.n_labels, -1)
-
-        if self.log_variational:
-            x_ = torch.log(1 + x)
 
         probs = self.classifier(x_)
         reconst_loss = (reconst_loss.t() * probs).sum(dim=1)
-        kl_divergence = (kl_divergence.t() * probs).sum(dim=1)
+
+        kl_divergence = (kl_divergence_z.view(self.n_labels, -1).t() * probs).sum(dim=1)
         kl_divergence += kl(Multinomial(probs=probs), Multinomial(probs=self.y_prior))
+        kl_divergence += kl_divergence_l
 
         return reconst_loss, kl_divergence
