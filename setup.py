@@ -44,6 +44,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/YosefLab/scVI',
-    version='0.1.1',
+    version='0.1.2',
     zip_safe=False,
 )
