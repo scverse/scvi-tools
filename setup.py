@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""The setup script."""
-
 from setuptools import setup, find_packages
-
-package_name = 'scvi'
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -27,17 +23,14 @@ setup(
     author_email='romain_lopez@berkeley.edu',
     classifiers=[
         'Development Status :: 4 - Beta',
-        'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: Microsoft :: Windows',
         'Operating System :: POSIX :: Linux',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
-        'Topic :: Scientific/Engineering :: Visualization',
     ],
     description="Single-cell Variational Inference",
     install_requires=requirements,
@@ -45,7 +38,7 @@ setup(
     long_description=readme + '\n\n' + history,
     include_package_data=True,
     keywords='scvi',
-    name=package_name,
+    name='scvi',
     packages=find_packages(),
     setup_requires=setup_requirements,
     test_suite='tests',
