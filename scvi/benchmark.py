@@ -13,7 +13,7 @@ from scvi.metrics.imputation import imputation
 from scvi.metrics.visualization import show_t_sne
 from scvi.models import VAE, SVAEC
 from scvi.models.classifier import Classifier
-from scvi.train import train, train_classifier, train_semi_supervised_jointly, train_semi_supervised_alternatively
+from scvi.train import train, train_classifier, train_semi_supervised_jointly, train_semi_supervised_alternately
 
 
 def run_benchmarks(dataset_name, model=VAE, n_epochs=1000, lr=1e-3, use_batches=False, use_cuda=True,
@@ -122,8 +122,8 @@ def run_benchmarks_classification(dataset_name, n_latent=10, n_epochs=10, n_epoc
     svaec = SVAEC(gene_dataset.nb_genes, n_labels=gene_dataset.n_labels, y_prior=prior, n_latent=n_latent,
                   use_cuda=use_cuda, logreg_classifier=True)
 
-    stats = train_semi_supervised_alternatively(svaec, data_loader_all, data_loader_labelled, data_loader_unlabelled,
-                                                n_epochs=n_epochs, lr=lr, record_freq=10, lr_classification=0.05)
+    stats = train_semi_supervised_alternately(svaec, data_loader_all, data_loader_labelled, data_loader_unlabelled,
+                                              n_epochs=n_epochs, lr=lr, record_freq=10, lr_classification=0.05)
 
     axes[0].plot(stats.history["Accuracy_train"], label='M1+M2 (train all)')
     axes[1].plot(stats.history["Accuracy_test"])

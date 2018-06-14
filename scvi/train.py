@@ -101,9 +101,9 @@ def train_semi_supervised_jointly(vae, data_loader_all, data_loader_labelled, da
 
 
 @enable_grad()
-def train_semi_supervised_alternatively(vae, data_loader_all, data_loader_labelled, data_loader_unlabelled,
-                                        n_epochs=20, lr=0.001, kl=None, benchmark=False, lr_classification=0.1,
-                                        record_freq=1, n_epochs_classifier=1):
+def train_semi_supervised_alternately(vae, data_loader_all, data_loader_labelled, data_loader_unlabelled,
+                                      n_epochs=20, lr=0.001, kl=None, benchmark=False, lr_classification=0.1,
+                                      record_freq=1, n_epochs_classifier=1):
     # Defining the optimizer
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, vae.parameters()), lr=lr)
 
