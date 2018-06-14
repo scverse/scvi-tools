@@ -76,13 +76,11 @@ def run_benchmarks_classification(dataset_name, n_latent=10, n_epochs=10, n_epoc
                                                                                      pin_memory=use_cuda)
     # Now we try out the different models and compare the classification accuracy
 
-
     (data_train, labels_train), (data_test, labels_test) = get_raw_data(data_loader_labelled, data_loader_unlabelled)
     accuracy_train_svc, accuracy_test_svc = compute_accuracy_svc(data_train, labels_train, data_test, labels_test,
                                                                  unit_test=True)
     accuracy_train_rf, accuracy_test_rf = compute_accuracy_rf(data_train, labels_train, data_test, labels_test,
                                                               unit_test=True)
-
 
     # ========== The M1 model ===========
     print("Trying M1 model")
