@@ -5,8 +5,9 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
 from scvi.dataset import CortexDataset, load_datasets
-from scvi.dataset.utils import get_data_loaders
+from scvi.dataset.utils import get_data_loaders, get_raw_data
 from scvi.metrics.adapt_encoder import adapt_encoder
+from scvi.metrics.classification import compute_accuracy_rf, compute_accuracy_svc
 from scvi.metrics.clustering import entropy_batch_mixing, get_latent
 from scvi.metrics.differential_expression import get_statistics
 from scvi.metrics.imputation import imputation
@@ -74,6 +75,14 @@ def run_benchmarks_classification(dataset_name, n_latent=10, n_epochs=10, n_epoc
                                                                                      batch_size=128,
                                                                                      pin_memory=use_cuda)
     # Now we try out the different models and compare the classification accuracy
+
+
+    (data_train, labels_train), (data_test, labels_test) = get_raw_data(data_loader_labelled, data_loader_unlabelled)
+    accuracy_train_svc, accuracy_test_svc = compute_accuracy_svc(data_train, labels_train, data_test, labels_test,
+                                                                 unit_test=True)
+    accuracy_train_rf, accuracy_test_rf = compute_accuracy_rf(data_train, labels_train, data_test, labels_test,
+                                                              unit_test=True)
+
 
     # ========== The M1 model ===========
     print("Trying M1 model")

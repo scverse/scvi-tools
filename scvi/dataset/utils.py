@@ -40,3 +40,23 @@ def get_data_loaders(gene_dataset, n_labelled_samples_per_class, **kwargs_data_l
     data_loader_unlabelled = DataLoader(gene_dataset, collate_fn=gene_dataset.collate_fn,
                                         sampler=SubsetRandomSampler(indices_unlabelled), **kwargs_data_loader)
     return data_loader_all, data_loader_labelled, data_loader_unlabelled
+
+
+def get_raw_data(*data_loaders):
+    """
+    From a list of data_loaders, return the numpy array suitable for classification with sklearn
+    :param data_loaders: a sequence of data_loaders arguments
+    :return: a sequence of (data, labels) for each data_loader
+    """
+
+    def get_data_labels(data_loader):
+        if hasattr(data_loader, 'sampler'):
+            if hasattr(data_loader.sampler, 'indices'):
+                data = data_loader.dataset.X[data_loader.sampler.indices]
+                labels = data_loader.dataset.labels[data_loader.sampler.indices]
+        else:
+            data = data_loader.dataset.X
+            labels = data_loader.dataset.labels
+        return data, labels.ravel()
+
+    return [get_data_labels(data_loader) for data_loader in data_loaders]
