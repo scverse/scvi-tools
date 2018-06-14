@@ -10,7 +10,7 @@ from scvi.models import VAE, VAEC, SVAEC
 
 class Stats:
     def __init__(self, verbose=True, record_freq=5, n_epochs=-1, benchmark=False, names=['train', 'test', 'val']):
-        self.verbose = verbose
+        self.verbose = verbose if not benchmark else False
         self.record_freq = record_freq
         self.n_epochs = n_epochs
         self.benchmark = benchmark

@@ -143,20 +143,3 @@ class Decoder(nn.Module):
         p_m = self.mean_decoder(p)
         p_v = torch.exp(self.var_decoder(p))
         return p_m, p_v
-
-
-# Classifier
-class Classifier(nn.Module):
-    def __init__(self, n_input, n_hidden=128, n_labels=10, n_layers=1, dropout_rate=0.1, use_cuda=False):
-        super(Classifier, self).__init__()
-        self.layers = FCLayers(n_in=n_input, n_out=n_hidden, n_layers=n_layers, n_hidden=n_hidden,
-                               dropout_rate=dropout_rate)
-        self.classifier = nn.Sequential(self.layers, nn.Linear(n_hidden, n_labels), nn.Softmax(dim=-1))
-
-        self.use_cuda = use_cuda and torch.cuda.is_available()
-        if self.use_cuda:
-            self.cuda()
-
-    def forward(self, x):
-        # Parameters for latent distribution
-        return self.classifier(x)

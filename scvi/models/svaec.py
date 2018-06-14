@@ -3,21 +3,24 @@ import torch.nn as nn
 from torch.distributions import Normal, Multinomial, kl_divergence as kl
 
 from scvi.metrics.log_likelihood import log_zinb_positive
-from scvi.models.modules import Decoder, Encoder, Classifier, DecoderSCVI
+from scvi.models.classifier import Classifier, LinearLogRegClassifier
+from scvi.models.modules import Decoder, Encoder, DecoderSCVI
 from scvi.models.utils import broadcast_labels
+from .base import SemiSupervisedModel
 
 
-class SVAEC(nn.Module):
+class SVAEC(nn.Module, SemiSupervisedModel):
     '''
     "Stacked" variational autoencoder for classification - SVAEC
     (from the stacked generative model M1 + M2)
     '''
 
     def __init__(self, n_input, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1, n_batch=0,
-                 y_prior=None, use_cuda=False):
+                 y_prior=None, use_cuda=False, logreg_classifier=True):
         super(SVAEC, self).__init__()
         self.n_labels = n_labels
         self.n_input = n_input
+        self.n_latent_layers = 2
 
         self.y_prior = y_prior if y_prior is not None else (1 / self.n_labels) * torch.ones(self.n_labels)
         # Automatically desactivate if useless
@@ -33,7 +36,11 @@ class SVAEC(nn.Module):
         self.px_r = torch.nn.Parameter(torch.randn(n_input, ))
 
         # Classifier takes n_latent as input
-        self.classifier = Classifier(n_latent, n_hidden, self.n_labels, n_layers, dropout_rate)
+        if logreg_classifier:
+            self.classifier = LinearLogRegClassifier(n_latent, self.n_labels)
+        else:
+            self.classifier = Classifier(n_latent, n_hidden, self.n_labels, n_layers, dropout_rate)
+
         self.encoder_z2_z1 = Encoder(n_input=n_latent, n_cat=self.n_labels, n_latent=n_latent, n_layers=n_layers)
         self.decoder_z1_z2 = Decoder(n_latent, n_latent, n_cat=self.n_labels, n_layers=n_layers)
 
@@ -45,11 +52,17 @@ class SVAEC(nn.Module):
     def classify(self, x):
         x_ = torch.log(1 + x)
         qz_m, _, z = self.z_encoder(x_)
+        if not self.training:
+            z = qz_m
+        return self.classifier(z)
 
-        if self.training:
-            return self.classifier(z)
-        else:
-            return self.classifier(qz_m)
+    def get_latents(self, x, y=None):
+        x = torch.log(1 + x)
+        # Here we compute as little as possible to have q(z|x)
+        qz_m, qz_v, z = self.z_encoder(x)
+        if not self.training:
+            z = qz_m
+        return [z]
 
     def sample_from_posterior_z(self, x, y=None):
         x = torch.log(1 + x)

@@ -3,19 +3,21 @@ import torch.nn as nn
 from torch.distributions import Normal, Multinomial, kl_divergence as kl
 
 from scvi.metrics.log_likelihood import log_nb_positive, log_zinb_positive
-from scvi.models.modules import Classifier
+from scvi.models.classifier import Classifier
 from scvi.models.modules import Encoder, DecoderSCVI
 from scvi.models.utils import broadcast_labels
+from .base import SemiSupervisedModel
 
 
 # VAE model - for classification: VAEC
-class VAEC(nn.Module):
+class VAEC(nn.Module, SemiSupervisedModel):
     def __init__(self, n_input, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1, dispersion="gene",
                  log_variational=True, reconstruction_loss="zinb", n_batch=0, y_prior=None, use_cuda=False):
         super(VAEC, self).__init__()
         self.dispersion = dispersion
         self.log_variational = log_variational
         self.reconstruction_loss = reconstruction_loss
+        self.n_latent_layers = 1
         # Automatically desactivate if useless
         self.n_batch = 0 if n_batch == 1 else n_batch
         self.n_labels = 0 if n_labels == 1 else n_labels
@@ -43,6 +45,14 @@ class VAEC(nn.Module):
     def classify(self, x):
         x = torch.log(1 + x)
         return self.classifier(x)
+
+    def get_latents(self, x, y=None):
+        x = torch.log(1 + x)
+        # Here we compute as little as possible to have q(z|x)
+        qz_m, qz_v, z = self.z_encoder(x, y)
+        if self.training:
+            z = qz_m
+        return [z]
 
     def sample_from_posterior_z(self, x, y):
         x = torch.log(1 + x)
