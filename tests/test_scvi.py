@@ -30,7 +30,7 @@ def test_retina():
 
 
 def test_cbmc():
-    run_benchmarks("cbmc", n_epochs=1, show_batch_mixing=False, save_path='tests/data/')
+    run_benchmarks("cite_seq_cbmc", n_epochs=1, show_batch_mixing=False, save_path='tests/data/')
 
 
 def test_brain_small():
