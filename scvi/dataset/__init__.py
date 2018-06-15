@@ -22,7 +22,7 @@ __all__ = ['SyntheticDataset',
            'load_datasets']
 
 
-def load_datasets(dataset_name, save_path='data/', gene_row=False, batch_col=False, cluster_col=False, url=False):
+def load_datasets(dataset_name, save_path='data/', gene_row=None, batch_col=None, cluster_col=None, url=None):
     if dataset_name == 'synthetic':
         gene_dataset = SyntheticDataset()
     elif dataset_name == 'cortex':
