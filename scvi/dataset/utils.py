@@ -2,6 +2,34 @@ import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
+from scvi.dataset import GeneExpressionDataset
+
+
+def concat_datasets(*gene_datasets):
+    """
+    Combines multiple unlabelled gene_datasets based on the intersection of gene names intersection.
+    Datasets should all have gene_dataset.n_labels=0.
+    Batch indices are generated in the same order as datasets are given.
+    :param gene_datasets: a sequence of gene_datasets object
+    :return: a GeneExpressionDataset instance of the concatenated datasets
+    """
+    assert all([hasattr(gene_dataset, 'gene_names') for gene_dataset in gene_datasets])
+
+    def filter_genes(gene_dataset, gene_names_ref):
+        """
+        :return: gene_dataset.X filtered by the corresponding genes ( / columns / features)
+        """
+        gene_names = list(gene_dataset.gene_names)
+        idx_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.byte)
+        print(len(idx_genes))
+        return gene_dataset.X[:, idx_genes]
+
+    gene_names = set.intersection(*[set(gene_dataset.gene_names) for gene_dataset in gene_datasets])
+    GeneExpressionDataset(
+        *GeneExpressionDataset.get_attributes_from_list(
+            [filter_genes(gene_dataset, gene_names) for gene_dataset in gene_datasets]
+        ), gene_names=np.array(list(gene_names)))
+
 
 def get_indices(labels, n_labelled_samples_per_class_array):
     labels = np.array(labels).ravel()
