@@ -62,7 +62,7 @@ def test_loom():
 
 
 def test_remote_loom():
-    FISH_dataset = load_datasets("osmFISH_SScortex_mouse_all_cell.loom", gene_row='Gene',
+    fish_dataset = load_datasets("osmFISH_SScortex_mouse_all_cell.loom", gene_row='Gene',
                                  cluster_col='ClusterID', save_path='data/',
                                  url='http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom')
-    run_benchmarks(FISH_dataset, n_epochs=10, show_batch_mixing=False)
+    run_benchmarks(fish_dataset, n_epochs=10, show_batch_mixing=False)
