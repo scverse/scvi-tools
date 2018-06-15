@@ -1,5 +1,5 @@
 {% set name = "scvi" %}
-{% set version = "0.1.1" %}
+{% set version = "0.1.2" %}
 {% set file_ext = "tar.gz" %}
 {% set hash_type = "sha256" %}
 {% set hash_value = "ca87155662d85605f86c5e86b7b9f64d881b882177b9642fff8f0ea215c6cb1a" %}
@@ -19,40 +19,27 @@ build:
 
 requirements:
   host:
-    - python
+    - python 3.6
     - setuptools
-    - pip >=9.0.1
-    - flake8 ==3.5.0
-    - coverage ==4.5.1
-    - sphinx ==1.7.1
-    - pytest ==3.4.2
-    - pytest-runner ==2.11.1
-    - numpy ==1.14.0
-    - torch ==0.4.0
-    - matplotlib ==2.2.2
-    - scikit-learn ==0.19.1
-    - scipy ==1.0.0
-    - h5py
-    - codecov
-    - pandas ==0.23.0
-    - loompy ==2.0.9
+    - numpy>=1.0
+    - torch>=0.4
+    - matplotlib>=2.0
+    - scikit-learn>=0.18
+    - scipy>=1.0
+    - h5py>=2.8
+    - pandas>=0.2
+    - loompy>=2.0
   run:
-    - python
-    - pip >=9.0.1
-    - flake8 ==3.5.0
-    - coverage ==4.5.1
-    - sphinx ==1.7.1
-    - pytest ==3.4.2
-    - pytest-runner ==2.11.1
-    - numpy ==1.14.0
-    - torch ==0.4
-    - matplotlib ==2.2.2
-    - scikit-learn ==0.19.1
-    - scipy ==1.0.0
-    - h5py
-    - codecov
-    - pandas ==0.23.0
-    - loompy ==2.0.9
+    - python 3.6
+    - setuptools
+    - numpy>=1.0
+    - torch>=0.4
+    - matplotlib>=2.0
+    - scikit-learn>=0.18
+    - scipy>=1.0
+    - h5py>=2.8
+    - pandas>=0.2
+    - loompy>=2.0
 
 test:
   imports:
