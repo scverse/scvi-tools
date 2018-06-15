@@ -3,21 +3,24 @@ import torch.nn as nn
 from torch.distributions import Normal, Multinomial, kl_divergence as kl
 
 from scvi.metrics.log_likelihood import log_zinb_positive
-from scvi.models.modules import Decoder, Encoder, Classifier, DecoderSCVI
+from scvi.models.classifier import Classifier, LinearLogRegClassifier
+from scvi.models.modules import Decoder, Encoder, DecoderSCVI
 from scvi.models.utils import broadcast_labels
+from .base import SemiSupervisedModel
 
 
-class SVAEC(nn.Module):
+class SVAEC(nn.Module, SemiSupervisedModel):
     '''
     "Stacked" variational autoencoder for classification - SVAEC
     (from the stacked generative model M1 + M2)
     '''
 
     def __init__(self, n_input, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1, n_batch=0,
-                 y_prior=None, use_cuda=False):
+                 y_prior=None, use_cuda=False, logreg_classifier=True):
         super(SVAEC, self).__init__()
         self.n_labels = n_labels
         self.n_input = n_input
+        self.n_latent_layers = 2
 
         self.y_prior = y_prior if y_prior is not None else (1 / self.n_labels) * torch.ones(self.n_labels)
         # Automatically desactivate if useless
@@ -33,7 +36,11 @@ class SVAEC(nn.Module):
         self.px_r = torch.nn.Parameter(torch.randn(n_input, ))
 
         # Classifier takes n_latent as input
-        self.classifier = Classifier(n_latent, n_hidden, self.n_labels, n_layers, dropout_rate)
+        if logreg_classifier:
+            self.classifier = LinearLogRegClassifier(n_latent, self.n_labels)
+        else:
+            self.classifier = Classifier(n_latent, n_hidden, self.n_labels, n_layers, dropout_rate)
+
         self.encoder_z2_z1 = Encoder(n_input=n_latent, n_cat=self.n_labels, n_latent=n_latent, n_layers=n_layers)
         self.decoder_z1_z2 = Decoder(n_latent, n_latent, n_cat=self.n_labels, n_layers=n_layers)
 
@@ -45,11 +52,17 @@ class SVAEC(nn.Module):
     def classify(self, x):
         x_ = torch.log(1 + x)
         qz_m, _, z = self.z_encoder(x_)
+        if not self.training:
+            z = qz_m
+        return self.classifier(z)
 
-        if self.training:
-            return self.classifier(z)
-        else:
-            return self.classifier(qz_m)
+    def get_latents(self, x, y=None):
+        x = torch.log(1 + x)
+        # Here we compute as little as possible to have q(z|x)
+        qz_m, qz_v, z = self.z_encoder(x)
+        if not self.training:
+            z = qz_m
+        return [z]
 
     def sample_from_posterior_z(self, x, y=None):
         x = torch.log(1 + x)
@@ -80,49 +93,37 @@ class SVAEC(nn.Module):
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
         is_labelled = False if y is None else True
 
-        xs, ys = (x, y)
-        xs_ = torch.log(1 + xs)
-        qz1_m, qz1_v, z1_ = self.z_encoder(xs_)
-        z1 = z1_
+        x_ = torch.log(1 + x)
+        qz1_m, qz1_v, z1 = self.z_encoder(x_)
+        ql_m, ql_v, library = self.l_encoder(x_)
+
         # Enumerate choices of label
-        ys, xs, batch_index, local_l_var, local_l_mean, qz1_m, qz1_v, z1 = (
+        ys, z1s = (
             broadcast_labels(
-                ys, xs, batch_index, local_l_var, local_l_mean, qz1_m, qz1_v, z1, n_broadcast=self.n_labels
+                y, z1, n_broadcast=self.n_labels
             )
         )
-
-        xs_ = torch.log(1 + xs)
-
-        qz2_m, qz2_v, z2 = self.encoder_z2_z1(z1, ys)
+        qz2_m, qz2_v, z2 = self.encoder_z2_z1(z1s, ys)
         pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
-
-        # Sampling
-        ql_m, ql_v, library = self.l_encoder(xs_)  # let's keep that ind. of y
-
         px_scale, px_rate, px_dropout = self.decoder(self.dispersion, z1, library, batch_index)
-
-        reconst_loss = -log_zinb_positive(xs, px_rate, torch.exp(self.px_r), px_dropout)
+        reconst_loss = -log_zinb_positive(x, px_rate, torch.exp(self.px_r), px_dropout)
 
         # KL Divergence
         mean = torch.zeros_like(qz2_m)
         scale = torch.ones_like(qz2_v)
 
         kl_divergence_z2 = kl(Normal(qz2_m, torch.sqrt(qz2_v)), Normal(mean, scale)).sum(dim=1)
-        loss_z1 = (- Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1) +
-                   Normal(qz1_m, torch.sqrt(qz1_v)).log_prob(z1)).sum(dim=1)
+        loss_z1_unweight = - Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1s).sum(dim=-1)
+        loss_z1_weight = Normal(qz1_m, torch.sqrt(qz1_v)).log_prob(z1).sum(dim=-1)
         kl_divergence_l = kl(Normal(ql_m, torch.sqrt(ql_v)), Normal(local_l_mean, torch.sqrt(local_l_var))).sum(dim=1)
-        kl_divergence = kl_divergence_z2 + loss_z1 + kl_divergence_l
 
         if is_labelled:
-            return reconst_loss, kl_divergence
+            return reconst_loss + loss_z1_weight + loss_z1_unweight, kl_divergence_z2 + kl_divergence_l
 
-        reconst_loss = reconst_loss.view(self.n_labels, -1)
-        kl_divergence = kl_divergence.view(self.n_labels, -1)
+        probs = self.classifier(z1)
+        reconst_loss += (loss_z1_weight + ((loss_z1_unweight).view(self.n_labels, -1).t() * probs).sum(dim=1))
 
-        probs = self.classifier(z1_)
-        reconst_loss = (reconst_loss.t() * probs).sum(dim=1)
-        kl_divergence = (kl_divergence.t() * probs).sum(dim=1)
-
+        kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(dim=1)
         kl_divergence += kl(Multinomial(probs=probs), Multinomial(probs=self.y_prior))
 
         return reconst_loss, kl_divergence
