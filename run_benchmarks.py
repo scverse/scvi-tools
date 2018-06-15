@@ -15,7 +15,7 @@ if __name__ == '__main__':
                         help="whether to use cuda (will apply only if cuda is available")
     parser.add_argument("--benchmark", action='store_true',
                         help="whether to use cuda (will apply only if cuda is available")
-    parser.add_argument("--url", help="the url for downloading dataset")
+    parser.add_argument("--url", type=str, help="the url for downloading dataset")
     args = parser.parse_args()
 
     dataset = load_datasets(args.dataset, url=args.url)
