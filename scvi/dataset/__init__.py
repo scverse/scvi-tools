@@ -18,10 +18,11 @@ __all__ = ['SyntheticDataset',
            'BrainSmallDataset',
            'HematoDataset',
            'PbmcDataset',
-           'LoomDataset']
+           'LoomDataset',
+           'load_datasets']
 
 
-def load_datasets(dataset_name, save_path='data/'):
+def load_datasets(dataset_name, save_path='data/', gene_row=False, batch_col=False, cluster_col=False, url=False):
     if dataset_name == 'synthetic':
         gene_dataset = SyntheticDataset()
     elif dataset_name == 'cortex':
@@ -39,7 +40,8 @@ def load_datasets(dataset_name, save_path='data/'):
     elif dataset_name == 'pbmc':
         gene_dataset = PbmcDataset(save_path=save_path)
     elif dataset_name[-5:] == ".loom":
-        gene_dataset = LoomDataset(filename=dataset_name, save_path=save_path)
+        gene_dataset = LoomDataset(filename=dataset_name, save_path=save_path, gene_row=gene_row,
+                                   batch_col=batch_col, cluster_col=cluster_col, url=url)
     else:
         raise "No such dataset available"
     return gene_dataset

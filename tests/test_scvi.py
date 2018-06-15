@@ -6,44 +6,63 @@
 from scvi.benchmark import run_benchmarks
 from scvi.benchmark import run_benchmarks_classification
 from scvi.models import VAEC, VAE, SVAEC
+from scvi.dataset import load_datasets
 
 
 def test_synthetic_1():
-    run_benchmarks("synthetic", n_epochs=1, use_batches=True, model=VAE)
-    run_benchmarks_classification("synthetic", n_epochs=1, n_epochs_classifier=1)
+    synthetic_dataset = load_datasets("synthetic")
+    run_benchmarks(synthetic_dataset, n_epochs=1, use_batches=True, model=VAE)
+    run_benchmarks_classification(synthetic_dataset, n_epochs=1, n_epochs_classifier=1)
 
 
 def test_synthetic_2():
-    run_benchmarks("synthetic", n_epochs=1, model=SVAEC, benchmark=True)
+    synthetic_dataset = load_datasets("synthetic")
+    run_benchmarks(synthetic_dataset, n_epochs=1, model=SVAEC, benchmark=True)
 
 
 def test_cortex():
-    run_benchmarks("cortex", n_epochs=1, model=VAEC)
+    cortex_dataset = load_datasets("cortex")
+    run_benchmarks(cortex_dataset, n_epochs=1, model=VAEC)
 
 
 def test_brain_large():
-    run_benchmarks("brain_large", n_epochs=1, use_batches=False, tt_split=0.5, save_path='tests/data/')
+    brain_large_dataset = load_datasets("brain_large", save_path='tests/data/')
+    run_benchmarks(brain_large_dataset, n_epochs=1, use_batches=False, tt_split=0.5)
 
 
 def test_retina():
-    run_benchmarks("retina", n_epochs=1, show_batch_mixing=False, save_path='tests/data/')
+    retina_dataset = load_datasets("retina", save_path='tests/data/')
+    run_benchmarks(retina_dataset, n_epochs=1, show_batch_mixing=False)
 
 
 def test_cbmc():
-    run_benchmarks("cbmc", n_epochs=1, show_batch_mixing=False, save_path='tests/data/')
+    cbmc_dataset = load_datasets("cbmc", save_path='tests/data/')
+    run_benchmarks(cbmc_dataset, n_epochs=1, show_batch_mixing=False)
 
 
 def test_brain_small():
-    run_benchmarks("brain_small", n_epochs=1, show_batch_mixing=False, save_path='tests/data/')
+    brain_small_dataset = load_datasets("brain_small", save_path='tests/data/')
+    run_benchmarks(brain_small_dataset, n_epochs=1, show_batch_mixing=False)
 
 
 def test_hemato():
-    run_benchmarks("hemato", n_epochs=1, show_batch_mixing=False, save_path='tests/data/HEMATO/')
+    hemato_dataset = load_datasets("hemato", save_path='tests/data/HEMATO/')
+    run_benchmarks(hemato_dataset, n_epochs=1, show_batch_mixing=False)
 
 
 def test_pbmc():
-    run_benchmarks("pbmc", n_epochs=1, show_batch_mixing=False, save_path='tests/data/PBMC/')
+    pbmc_dataset = load_datasets("pbmc", save_path='tests/data/PBMC/')
+    run_benchmarks(pbmc_dataset, n_epochs=1, show_batch_mixing=False)
 
 
 def test_loom():
-    run_benchmarks(dataset_name="retina.loom", n_epochs=1, show_batch_mixing=False, save_path='tests/data/')
+    retina_dataset = load_datasets("retina.loom", save_path='tests/data/',
+                                   batch_col='Batch_id', cluster_col='Clusters')
+    run_benchmarks(retina_dataset, n_epochs=1, show_batch_mixing=False)
+
+
+def test_remote_loom():
+    FISH_dataset = load_datasets("osmFISH_SScortex_mouse_all_cell.loom", gene_row='Gene',
+                                 cluster_col='ClusterID', save_path='data/',
+                                 url='http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom')
+    run_benchmarks(FISH_dataset, n_epochs=10, show_batch_mixing=False)

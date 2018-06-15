@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
-from scvi.dataset import CortexDataset, load_datasets
+from scvi.dataset import CortexDataset
 from scvi.metrics.adapt_encoder import adapt_encoder
 from scvi.metrics.clustering import entropy_batch_mixing, get_latent
 from scvi.metrics.differential_expression import get_statistics
@@ -15,8 +15,8 @@ from scvi.models.modules import Classifier
 from scvi.train import train, train_classifier, train_semi_supervised
 
 
-def run_benchmarks(dataset_name, model=VAE, n_epochs=1000, lr=1e-3, use_batches=False, use_cuda=True,
-                   show_batch_mixing=True, benchmark=False, tt_split=0.9, save_path='data/'):
+def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=False, use_cuda=True,
+                   show_batch_mixing=True, benchmark=False, tt_split=0.9):
     # options:
     # - gene_dataset: a GeneExpressionDataset object
     # call each of the 4 benchmarks:
@@ -24,7 +24,6 @@ def run_benchmarks(dataset_name, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
     # - imputation
     # - batch mixing
     # - cluster scores
-    gene_dataset = load_datasets(dataset_name, save_path=save_path)
     example_indices = np.random.permutation(len(gene_dataset))
     tt_split = int(tt_split * len(gene_dataset))  # 90%/10% train/test split
 
@@ -63,9 +62,8 @@ def run_benchmarks(dataset_name, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
 
 
 # Pipeline to compare different semi supervised models
-def run_benchmarks_classification(dataset_name, n_latent=10, n_epochs=10, n_epochs_classifier=10, lr=1e-2,
+def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epochs_classifier=10, lr=1e-2,
                                   use_batches=False, use_cuda=True, tt_split=0.9):
-    gene_dataset = load_datasets(dataset_name)
     fig, axes = plt.subplots(1, 2, sharey=True, figsize=(12, 5))
 
     alpha = 100  # in Kingma, 0.1 * len(gene_dataset), but pb when : len(gene_dataset) >> 1
