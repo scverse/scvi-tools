@@ -14,5 +14,4 @@ class RetinaDataset(LoomDataset):
             self.download()
 
         print("Finished preprocessing Retina dataset")
-        super(RetinaDataset, self).__init__(filename=self.download_name, save_path=self.save_path,
-                                            batch_col="Batch_id", cluster_col="Clusters")
+        super(RetinaDataset, self).__init__(filename=self.download_name, save_path=self.save_path)
