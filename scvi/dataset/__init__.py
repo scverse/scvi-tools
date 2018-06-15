@@ -3,7 +3,7 @@ from .cortex import CortexDataset
 from .dataset import GeneExpressionDataset
 from .synthetic import SyntheticDataset
 from .retina import RetinaDataset
-from .cbmc import CbmcDataset
+from .cite_seq import CiteSeqDataset
 from .brain_small import BrainSmallDataset
 from .hemato import HematoDataset
 from .pbmc import PbmcDataset
@@ -14,8 +14,9 @@ __all__ = ['SyntheticDataset',
            'BrainLargeDataset',
            'RetinaDataset',
            'GeneExpressionDataset',
-           'CbmcDataset',
+           'CiteSeqDataset',
            'BrainSmallDataset',
            'HematoDataset',
            'PbmcDataset',
            'LoomDataset']
+

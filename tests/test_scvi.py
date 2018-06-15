@@ -39,7 +39,6 @@ def test_cbmc():
     cbmc_dataset = CbmcDataset(save_path='tests/data/')
     run_benchmarks(cbmc_dataset, n_epochs=1, show_batch_mixing=False)
 
-
 def test_brain_small():
     brain_small_dataset = BrainSmallDataset(save_path='tests/data/')
     run_benchmarks(brain_small_dataset, n_epochs=1, show_batch_mixing=False)

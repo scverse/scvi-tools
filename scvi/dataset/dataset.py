@@ -43,25 +43,7 @@ class GeneExpressionDataset(Dataset):
         return idx
 
     def download(self):
-        r = urllib.request.urlopen(self.url)
-        print("Downloading data")
-
-        def readIter(f, blocksize=1000):
-            """Given a file 'f', returns an iterator that returns bytes of
-            size 'blocksize' from the file, using read()."""
-            while True:
-                data = f.read(blocksize)
-                if not data:
-                    break
-                yield data
-
-        # Create the path to save the data
-        if not os.path.exists(self.save_path):
-            os.makedirs(self.save_path)
-
-        with open(self.save_path + self.download_name, 'wb') as f:
-            for data in readIter(r):
-                f.write(data)
+        GeneExpressionDataset._download(self.url, self.save_path, self.download_name)
 
     def download_and_preprocess(self):
         if not os.path.exists(self.save_path + self.download_name):
@@ -102,6 +84,31 @@ class GeneExpressionDataset(Dataset):
         self.X, self.local_means, self.local_vars, self.batch_indices, self.labels = (
             _subsample(a, indices) for a in (self.X, self.local_means, self.local_vars,
                                              self.batch_indices, self.labels))
+
+    @staticmethod
+    def _download(url, save_path, download_name):
+        if os.path.exists(save_path + download_name):
+            print("File %s already downloaded"%download_name)
+            return
+        r = urllib.request.urlopen(url)
+        print("Downloading data")
+
+        def readIter(f, blocksize=1000):
+            """Given a file 'f', returns an iterator that returns bytes of
+            size 'blocksize' from the file, using read()."""
+            while True:
+                data = f.read(blocksize)
+                if not data:
+                    break
+                yield data
+
+        # Create the path to save the data
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+
+        with open(save_path + download_name, 'wb') as f:
+            for data in readIter(r):
+                f.write(data)
 
     @staticmethod
     def get_attributes_from_matrix(X, batch_index=0, labels=None):
