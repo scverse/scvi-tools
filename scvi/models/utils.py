@@ -46,4 +46,4 @@ def enumerate_discrete(x, y_dim):
 
 @register_kl(Multinomial, Multinomial)
 def kl_multinomial_multinomial(p, q):
-    return torch.sum(torch.mul(p.probs, torch.log(q.probs) - torch.log(p.probs + 1e-8)), dim=-1)
+    return torch.sum(torch.mul(p.probs, torch.log(p.probs + 1e-8) - torch.log(q.probs + 1e-8)), dim=-1)
