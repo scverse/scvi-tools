@@ -9,8 +9,16 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-with open('requirements.txt') as requires:
-    requirements = [l.strip() for l in requires]
+requirements = [
+    "numpy>=1.0",
+    "torch>=0.4",
+    "matplotlib>=2.0",
+    "scikit-learn>=0.18",
+    "scipy>=1.0",
+    "h5py>=2.8",
+    "pandas>=0.2",
+    "loompy>=2.0"
+]
 
 setup_requirements = ['pytest-runner', ]
 
