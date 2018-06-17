@@ -19,19 +19,9 @@ build:
 
 requirements:
   host:
-    - python 3.6
-    - setuptools
-    - pytest-runner ==2.11.1
-    - numpy >=1.0
-    - pytorch >=0.4
-    - matplotlib >=2.0
-    - scikit-learn >=0.18
-    - scipy >=1.0
-    - pandas >=0.2
-    - loompy >=2.0
+    - pytest-runner
   run:
     - python 3.6
-    - pytest-runner ==2.11.1
     - numpy >=1.0
     - pytorch >=0.4
     - matplotlib >=2.0
@@ -48,6 +38,7 @@ test:
     - scvi.models
   requires:
     - pytest
+    - pytest-runner
 
 
 about:
