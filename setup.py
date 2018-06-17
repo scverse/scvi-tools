@@ -2,12 +2,15 @@
 # -*- coding: utf-8 -*-
 
 from setuptools import setup, find_packages
+import scvi
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
+
+version = scvi.__version__
 
 requirements = [
     "numpy>=1.0",
@@ -52,6 +55,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/YosefLab/scVI',
-    version='0.1.2',
+    version=version,
     zip_safe=False,
 )
