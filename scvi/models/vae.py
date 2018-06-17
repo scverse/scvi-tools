@@ -9,12 +9,13 @@ from torch.distributions import Normal, kl_divergence as kl
 from scvi.metrics.log_likelihood import log_zinb_positive, log_nb_positive
 from scvi.models.modules import Encoder, DecoderSCVI
 from scvi.models.utils import one_hot
+from .base import BaseModel
 
 torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class VAE(nn.Module):
+class VAE(nn.Module, BaseModel):
     def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1, dispersion="gene",
                  log_variational=True, reconstruction_loss="zinb", n_batch=0, n_labels=0, use_cuda=False):
         super(VAE, self).__init__()
@@ -24,6 +25,7 @@ class VAE(nn.Module):
         # Automatically desactivate if useless
         self.n_batch = 0 if n_batch == 1 else n_batch
         self.n_labels = n_labels
+        self.n_latent_layers = 1
 
         if self.dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input, ))
@@ -44,6 +46,14 @@ class VAE(nn.Module):
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
             self.cuda()
+
+    def get_latents(self, x, y=None):
+        x = torch.log(1 + x)
+        # Here we compute as little as possible to have q(z|x)
+        qz_m, qz_v, z = self.z_encoder(x)
+        if self.training:
+            z = qz_m
+        return [z]
 
     def sample_from_posterior_z(self, x, y=None):
         x = torch.log(1 + x)
@@ -74,7 +84,7 @@ class VAE(nn.Module):
     def sample(self, z):
         return self.px_scale_decoder(z)
 
-    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):  # same signature as loss
+    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
         # Parameters for z latent distribution
         x_ = x
         if self.log_variational:
