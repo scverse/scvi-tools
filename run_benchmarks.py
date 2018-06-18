@@ -4,15 +4,8 @@
 import argparse
 
 from scvi.benchmark import run_benchmarks
-from scvi.dataset.brain_large import BrainLargeDataset
-from scvi.dataset.cortex import CortexDataset
-from scvi.dataset.synthetic import SyntheticDataset
-from scvi.dataset.retina import RetinaDataset
-from scvi.dataset.cbmc import CbmcDataset
-from scvi.dataset.brain_small import BrainSmallDataset
-from scvi.dataset.hemato import HematoDataset
-from scvi.dataset.pbmc import PbmcDataset
-from scvi.dataset.loom import LoomDataset
+from scvi.dataset import BrainLargeDataset, CortexDataset, SyntheticDataset, \
+    RetinaDataset, CbmcDataset, BrainSmallDataset, HematoDataset, PbmcDataset, LoomDataset
 
 
 def load_datasets(dataset_name, save_path='data/', url=None):

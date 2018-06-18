@@ -3,18 +3,10 @@
 
 
 """Tests for `scvi` package."""
-from scvi.benchmark import run_benchmarks
-from scvi.benchmark import run_benchmarks_classification
+from scvi.benchmark import run_benchmarks, run_benchmarks_classification
 from scvi.models import VAEC, VAE, SVAEC
-from scvi.dataset.brain_large import BrainLargeDataset
-from scvi.dataset.cortex import CortexDataset
-from scvi.dataset.synthetic import SyntheticDataset
-from scvi.dataset.retina import RetinaDataset
-from scvi.dataset.cbmc import CbmcDataset
-from scvi.dataset.brain_small import BrainSmallDataset
-from scvi.dataset.hemato import HematoDataset
-from scvi.dataset.pbmc import PbmcDataset
-from scvi.dataset.loom import LoomDataset
+from scvi.dataset import BrainLargeDataset, CortexDataset, SyntheticDataset, \
+    RetinaDataset, CbmcDataset, BrainSmallDataset, HematoDataset, PbmcDataset, LoomDataset
 
 
 def test_synthetic_1():
