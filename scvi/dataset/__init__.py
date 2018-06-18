@@ -8,7 +8,7 @@ from .brain_small import BrainSmallDataset
 from .hemato import HematoDataset
 from .pbmc import PbmcDataset
 from .loom import LoomDataset
-#
+
 __all__ = ['SyntheticDataset',
            'CortexDataset',
            'BrainLargeDataset',
