@@ -5,11 +5,10 @@
 # either filtered or raw data
 import os
 import tarfile
-
-import numpy as np
 import pandas as pd
-from scipy.io import mmread
-from scipy.sparse import csr_matrix
+import numpy as np
+from scipy import io
+
 
 from scvi.dataset import GeneExpressionDataset
 
@@ -31,27 +30,33 @@ available_specification = ['filtered', 'raw']
 
 
 class Dataset10X(GeneExpressionDataset):
-    def __init__(self, name, type='filtered'):
+    def __init__(self, name, type='filtered', p_genes=1., save_path='data/'):
         group = to_groups[name]
         self.url = ("http://cf.10xgenomics.com/samples/cell-exp/%s/%s/%s_%s_gene_bc_matrices.tar.gz" %
                     (group, name, name, type))
-        self.save_path = 'data/10X/%s/' % name
-        self.download_name = 'gene_bc_matrices.tar.gz'
-        self.save_name = 'gene_bc_matrices'
+        self.save_path = save_path + '10X/%s/' % name
+        self.save_name = '%s_gene_bc_matrices' % type
+
+        self.download_name = self.save_name + '.tar.gz'
         expression_data, gene_names = self.download_and_preprocess()
         super(Dataset10X, self).__init__(*GeneExpressionDataset.get_attributes_from_matrix(
             expression_data), gene_names=gene_names)
 
+        if p_genes != 1. and not p_genes > len(self.gene_names):
+            self.subsample_genes(p_genes)
+
     def preprocess(self):
-        path = self.save_path + self.download_name
+        print("Preprocessing data")
         if len(os.listdir(self.save_path)) == 1:  # nothing extracted yet
             print("Extracting tar file")
-            tar = tarfile.open(path, "r:gz")
-            tar.extractall()
+            tar = tarfile.open(self.save_path + self.download_name, "r:gz")
+            tar.extractall(path=self.save_path)
             tar.close()
-        path = self.save_path + [dir for dir in os.listdir(self.save_path) if dir != self.download_name][0] + '/'
+
+        path = self.save_path + self.save_name + '/'
         path += os.listdir(path)[0] + '/'
         genes_info = pd.read_csv(path + 'genes.tsv', sep='\t', header=None)
         gene_names = genes_info.values[:, 0].astype(np.str).ravel()
-        expression_data = csr_matrix(mmread(path + "matrix.mtx").T)
+        expression_data = io.mmread(path + 'matrix.mtx').T.A
+
         return expression_data, gene_names
