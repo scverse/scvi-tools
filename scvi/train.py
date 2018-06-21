@@ -11,7 +11,7 @@ from scvi.utils import to_cuda, enable_grad
 try:
     get_ipython
     from tqdm import tqdm_notebook as tqdm
-except:
+except NameError:
     from tqdm import tqdm
 
 
