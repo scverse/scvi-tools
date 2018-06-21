@@ -13,3 +13,4 @@ h5py==2.8.0
 codecov==2.0.8
 pandas==0.23.0
 loompy==2.0.9
+tqdm==4.23.4
