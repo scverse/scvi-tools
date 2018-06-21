@@ -5,7 +5,14 @@ from torch.nn import functional as F
 
 from scvi.metrics.stats import Stats, EarlyStopping
 from scvi.utils import to_cuda, enable_grad
-from tqdm import tqdm
+
+# If we're running in Jupyter notebook, then we want to use
+# `tqdm_notebook`. Otherwise, we want to use `tqdm`.
+try:
+    get_ipython
+    from tqdm import tqdm_notebook as tqdm
+except:
+    from tqdm import tqdm
 
 
 @enable_grad()
@@ -19,7 +26,7 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, lr=0.001, kl=No
     early_stopping = EarlyStopping(benchmark=benchmark)
 
     # Training the model
-    for epoch in tqdm(range(n_epochs)):
+    for epoch in tqdm(range(n_epochs), desc="training"):
         total_train_loss = 0
         for i_batch, (tensors_train) in enumerate(data_loader_train):
             if vae.use_cuda:
