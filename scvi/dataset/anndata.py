@@ -8,7 +8,7 @@ import numpy as np
 class AnnDataset(GeneExpressionDataset):
 
     def __init__(self, filename, download_name=None, save_path='data/', url=None):
-        self.download_name = download_name
+        self.download_name = download_name if download_name is not None else filename
         self.filename = filename
         self.save_path = save_path
         self.url = url
