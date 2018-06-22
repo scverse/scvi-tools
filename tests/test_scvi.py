@@ -73,6 +73,6 @@ def test_cortex_loom():
 
 
 def test_anndata():
-    ann_dataset = AnnDataset("TM_droplet_mat.h5ad", download_name="TabulaMuris.zip",
+    ann_dataset = AnnDataset("tests.h5ad", download_name="tests.h5ad.zip", save_path='tests/data/',
                              url='https://s3.amazonaws.com/czbiohub-tabula-muris/TabulaMuris.h5ad.zip')
     run_benchmarks(ann_dataset)
