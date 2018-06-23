@@ -28,7 +28,7 @@ def load_datasets(dataset_name, save_path='data/', url=None):
     elif dataset_name[-5:] == ".loom":
         gene_dataset = LoomDataset(filename=dataset_name, save_path=save_path, url=url)
     elif dataset_name[-5:] == ".h5ad":
-        gene_dataset = AnnDataset(filename=dataset_name, save_path=save_path, url=url)
+        gene_dataset = AnnDataset(dataset_name, save_path=save_path, url=url)
         # Need to be fixed - currently doesnt support reading from a .zip folder from the web
     else:
         raise "No such dataset available"

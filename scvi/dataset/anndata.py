@@ -7,9 +7,8 @@ import numpy as np
 
 class AnnDataset(GeneExpressionDataset):
 
-    def __init__(self, filename, download_name=None, save_path='data/', url=None):
-        self.download_name = download_name if download_name is not None else filename
-        self.filename = filename
+    def __init__(self, download_name, save_path='data/', url=None):
+        self.download_name = download_name
         self.save_path = save_path
         self.url = url
 
@@ -21,12 +20,8 @@ class AnnDataset(GeneExpressionDataset):
 
     def preprocess(self):
         print("Preprocessing data")
-        if not os.path.isfile(self.save_path + self.filename):  # nothing extracted yet
-            with zipfile.ZipFile(self.save_path + self.download_name) as zf:
-                print("Extracting zip file")
-                zf.extractall(path=self.save_path)
 
-        ad = anndata.read_h5ad(self.save_path + self.filename)
+        ad = anndata.read_h5ad(self.save_path + self.download_name)
         gene_names = np.array(ad.obs.index.values, dtype=str)
         data = ad.X.T  # change gene * cell to cell * gene
         select = data.sum(axis=1) > 0  # Take out cells that doesn't express any gene
