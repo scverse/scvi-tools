@@ -5,7 +5,7 @@ import argparse
 
 from scvi.benchmark import run_benchmarks
 from scvi.dataset import BrainLargeDataset, CortexDataset, SyntheticDataset, \
-    RetinaDataset, CbmcDataset, BrainSmallDataset, HematoDataset, PbmcDataset, LoomDataset
+    RetinaDataset, CbmcDataset, BrainSmallDataset, HematoDataset, PbmcDataset, LoomDataset, AnnDataset
 
 
 def load_datasets(dataset_name, save_path='data/', url=None):
@@ -27,6 +27,9 @@ def load_datasets(dataset_name, save_path='data/', url=None):
         gene_dataset = PbmcDataset(save_path=save_path)
     elif dataset_name[-5:] == ".loom":
         gene_dataset = LoomDataset(filename=dataset_name, save_path=save_path, url=url)
+    elif dataset_name[-5:] == ".h5ad":
+        gene_dataset = AnnDataset(dataset_name, save_path=save_path, url=url)
+        # Need to be fixed - currently doesnt support reading from a .zip folder from the web
     else:
         raise "No such dataset available"
     return gene_dataset

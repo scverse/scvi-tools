@@ -6,7 +6,7 @@
 from scvi.benchmark import run_benchmarks, run_benchmarks_classification
 from scvi.models import VAEC, VAE, SVAEC
 from scvi.dataset import BrainLargeDataset, CortexDataset, SyntheticDataset, \
-    RetinaDataset, CbmcDataset, BrainSmallDataset, HematoDataset, PbmcDataset, LoomDataset
+    RetinaDataset, CbmcDataset, BrainSmallDataset, HematoDataset, PbmcDataset, LoomDataset, AnnDataset
 
 
 def test_synthetic_1():
@@ -70,3 +70,8 @@ def test_cortex_loom():
     cortex_dataset = LoomDataset("Cortex.loom", save_path='tests/data/',
                                  url='http://loom.linnarssonlab.org/clone/Previously%20Published/Cortex.loom')
     run_benchmarks(cortex_dataset, n_epochs=1, show_batch_mixing=False)
+
+
+def test_anndata():
+    ann_dataset = AnnDataset("tests.h5ad", save_path='tests/data/')
+    run_benchmarks(ann_dataset, n_epochs=1, show_batch_mixing=False)
