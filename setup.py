@@ -17,7 +17,8 @@ requirements = [
     "scipy>=1.0",
     "h5py>=2.8",
     "pandas>=0.2",
-    "loompy>=2.0"
+    "loompy>=2.0",
+    "tqdm >= 4"
 ]
 
 setup_requirements = ['pytest-runner', ]
