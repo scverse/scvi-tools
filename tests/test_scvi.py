@@ -74,4 +74,4 @@ def test_cortex_loom():
 
 def test_anndata():
     ann_dataset = AnnDataset("tests.h5ad", save_path='tests/data/')
-    run_benchmarks(ann_dataset)
+    run_benchmarks(ann_dataset, n_epochs=1, show_batch_mixing=False)
