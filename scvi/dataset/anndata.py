@@ -1,7 +1,5 @@
 from .dataset import GeneExpressionDataset
 import anndata
-import os
-import zipfile
 import numpy as np
 
 

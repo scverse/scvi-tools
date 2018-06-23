@@ -73,6 +73,5 @@ def test_cortex_loom():
 
 
 def test_anndata():
-    ann_dataset = AnnDataset("tests.h5ad", save_path='tests/data/',
-                             url='https://s3.amazonaws.com/czbiohub-tabula-muris/TabulaMuris.h5ad.zip')
+    ann_dataset = AnnDataset("tests.h5ad", save_path='tests/data/')
     run_benchmarks(ann_dataset)
