@@ -61,13 +61,15 @@ def test_loom():
 
 
 def test_remote_loom():
-    fish_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom",  save_path='data/',
+    fish_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom",
+                               save_path='data/',
                                url='http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom')
     run_benchmarks(fish_dataset, n_epochs=10, show_batch_mixing=False)
 
 
 def test_cortex_loom():
-    cortex_dataset = LoomDataset("Cortex.loom", save_path='tests/data/',
+    cortex_dataset = LoomDataset("Cortex.loom",
+                                 save_path='tests/data/',
                                  url='http://loom.linnarssonlab.org/clone/Previously%20Published/Cortex.loom')
     run_benchmarks(cortex_dataset, n_epochs=1, show_batch_mixing=False)
 

@@ -6,7 +6,7 @@ import numpy as np
 class CsvDataset(GeneExpressionDataset):
 
     def __init__(self, filename, save_path='data/', url=None, p_genes=1., subset_genes=None, compression=None):
-        self.download_name = filename
+        self.download_name = filename  # The given csv file is
         self.save_path = save_path
         self.url = url
         self.compression = compression
