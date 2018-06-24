@@ -77,6 +77,8 @@ class GeneExpressionDataset(Dataset):
             torch.LongTensor(self.labels[indexes])
 
     def subsample_genes(self, p_genes=1., subset_genes=None):
+        if p_genes > len(self.gene_names):
+            return None  # Do nothing if subsample more genes than total number of genes
         n_cells, n_genes = self.X.shape
         new_n_genes = int(p_genes * n_genes) if type(p_genes) is not int else p_genes
         if subset_genes is None:
