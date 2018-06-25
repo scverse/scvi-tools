@@ -8,5 +8,4 @@ class CbmcDataset(CsvDataset):
     def __init__(self, save_path='data/'):
         super(CbmcDataset, self).__init__(filename='GSE100866_CBMC_8K_13AB_10X-RNA_umi.csv.gz',
                                           save_path=save_path,
-                                          p_genes=600,
                                           compression='gzip')

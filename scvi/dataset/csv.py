@@ -5,7 +5,7 @@ import numpy as np
 
 class CsvDataset(GeneExpressionDataset):
 
-    def __init__(self, filename, save_path='data/', url=None, p_genes=1., subset_genes=None, compression=None):
+    def __init__(self, filename, save_path='data/', url=None, new_n_genes=600, subset_genes=None, compression=None):
         self.download_name = filename  # The given csv file is
         self.save_path = save_path
         self.url = url
@@ -17,7 +17,7 @@ class CsvDataset(GeneExpressionDataset):
             *GeneExpressionDataset.get_attributes_from_matrix(
                 data), gene_names=gene_names)
 
-        self.subsample_genes(p_genes, subset_genes)
+        self.subsample_genes(new_n_genes, subset_genes)
 
     def preprocess(self):
         print("Preprocessing cbmc data")

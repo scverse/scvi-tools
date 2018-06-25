@@ -10,7 +10,8 @@ cluster_col = 'ClusterID'
 
 class LoomDataset(GeneExpressionDataset):
 
-    def __init__(self, filename, save_path='data/', url=None, p_genes=1., subset_genes=None):
+    def __init__(self, filename, save_path='data/', url=None, new_n_genes=558, subset_genes=None):
+        # 558 is for Cortex
         self.download_name = filename
         self.save_path = save_path
         self.url = url
@@ -34,7 +35,7 @@ class LoomDataset(GeneExpressionDataset):
                 *GeneExpressionDataset.get_attributes_from_matrix(
                     data, labels=labels), gene_names=gene_names)
 
-        self.subsample_genes(p_genes=p_genes, subset_genes=subset_genes)
+        self.subsample_genes(new_n_genes=new_n_genes, subset_genes=subset_genes)
 
     def preprocess(self):
         gene_names, labels, cell_batches = None, None, None

@@ -76,11 +76,10 @@ class GeneExpressionDataset(Dataset):
             torch.LongTensor(self.batch_indices[indexes]), \
             torch.LongTensor(self.labels[indexes])
 
-    def subsample_genes(self, p_genes=1., subset_genes=None):
-        if p_genes > self.X.shape[1] or p_genes == 1.:
-            return None  # Do nothing if subsample more genes than total number of genes
+    def subsample_genes(self, new_n_genes=None, subset_genes=None):
         n_cells, n_genes = self.X.shape
-        new_n_genes = int(p_genes * n_genes) if type(p_genes) is not int else p_genes
+        if not hasattr(self, 'gene_names') and new_n_genes is not None or new_n_genes >= n_genes:
+            return None  # Do nothing if subsample more genes than total number of genes
         if subset_genes is None:
             print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))
             std_scaler = StandardScaler(with_mean=False)

@@ -69,8 +69,7 @@ def test_remote_loom():
 
 def test_cortex_loom():
     cortex_dataset = LoomDataset("Cortex.loom",
-                                 save_path='tests/data/',
-                                 url='http://loom.linnarssonlab.org/clone/Previously%20Published/Cortex.loom')
+                                 save_path='tests/data/')
     run_benchmarks(cortex_dataset, n_epochs=1, show_batch_mixing=False)
 
 
