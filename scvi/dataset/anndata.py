@@ -11,13 +11,12 @@ class AnnDataset(GeneExpressionDataset):
         self.url = url
 
         data, gene_names = self.download_and_preprocess()
-        print("Finished preprocessing dataset")
 
         super(AnnDataset, self).__init__(*GeneExpressionDataset.get_attributes_from_matrix(data),
                                          gene_names=gene_names)
 
     def preprocess(self):
-        print("Preprocessing data")
+        print("Preprocessing dataset")
 
         ad = anndata.read_h5ad(self.save_path + self.download_name)
         gene_names = np.array(ad.obs.index.values, dtype=str)
@@ -25,4 +24,5 @@ class AnnDataset(GeneExpressionDataset):
         select = data.sum(axis=1) > 0  # Take out cells that doesn't express any gene
         data = data[select, :]
 
+        print("Finished preprocessing dataset")
         return data, gene_names

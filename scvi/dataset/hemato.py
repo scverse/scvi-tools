@@ -68,4 +68,5 @@ class HematoDataset(GeneExpressionDataset):
 
         expression_data = expression_data.values
 
+        print("Finished preprocessing Hemato data")
         return expression_data, gene_names

@@ -7,6 +7,7 @@ from .cite_seq import CiteSeqDataset
 from .brain_small import BrainSmallDataset
 from .hemato import HematoDataset
 from .loom import LoomDataset
+from .dataset10X import Dataset10X
 from .anndata import AnnDataset
 from .csv import CsvDataset
 from .dataset10X import Dataset10X
@@ -20,6 +21,7 @@ __all__ = ['SyntheticDataset',
            'BrainSmallDataset',
            'HematoDataset',
            'LoomDataset',
+           'Dataset10X',
            'AnnDataset',
            'CsvDataset',
            'Dataset10X']

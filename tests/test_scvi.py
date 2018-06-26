@@ -61,7 +61,7 @@ def test_loom():
 
 def test_remote_loom():
     fish_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom",
-                               save_path='data/',
+                               save_path='tests/data/',
                                url='http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom')
     run_benchmarks(fish_dataset, n_epochs=10, show_batch_mixing=False)
 
