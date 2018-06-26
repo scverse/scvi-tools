@@ -5,7 +5,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from scvi.dataset import GeneExpressionDataset
 
 
-def concat_datasets(*gene_datasets):
+def concat_datasets(*gene_datasets, on='gene_names'):
     """
     Combines multiple unlabelled gene_datasets based on the intersection of gene names intersection.
     Datasets should all have gene_dataset.n_labels=0.
@@ -13,22 +13,25 @@ def concat_datasets(*gene_datasets):
     :param gene_datasets: a sequence of gene_datasets object
     :return: a GeneExpressionDataset instance of the concatenated datasets
     """
-    assert all([hasattr(gene_dataset, 'gene_names') for gene_dataset in gene_datasets])
+    assert all([hasattr(gene_dataset, on) for gene_dataset in gene_datasets])
 
     def filter_genes(gene_dataset, gene_names_ref):
         """
         :return: gene_dataset.X filtered by the corresponding genes ( / columns / features)
         """
-        gene_names = list(gene_dataset.gene_names)
-        idx_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.byte)
-        print(len(idx_genes))
+        gene_names = list(getattr(gene_dataset, on))
+        idx_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.int64)  # np.byte)
         return gene_dataset.X[:, idx_genes]
 
-    gene_names = set.intersection(*[set(gene_dataset.gene_names) for gene_dataset in gene_datasets])
-    GeneExpressionDataset(
+    gene_names_ref = set.intersection(*[set(getattr(gene_dataset, on)) for gene_dataset in gene_datasets])
+    # keep the order of first dataset
+    gene_names_ref = [gene_name for gene_name in getattr(gene_datasets[0], on) if gene_name in gene_names_ref]
+    print("Keeping %d genes" % len(gene_names_ref))
+
+    return GeneExpressionDataset(
         *GeneExpressionDataset.get_attributes_from_list(
-            [filter_genes(gene_dataset, gene_names) for gene_dataset in gene_datasets]
-        ), gene_names=np.array(list(gene_names)))
+            [filter_genes(gene_dataset, gene_names_ref) for gene_dataset in gene_datasets]
+        ), gene_names=np.array(gene_names_ref))
 
 
 def get_indices(labels, n_labelled_samples_per_class_array):
