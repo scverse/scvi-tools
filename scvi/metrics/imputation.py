@@ -23,4 +23,4 @@ def imputation(vae, data_loader, rate=0.1):
             ix, i, j = to_cuda([ix, i, j], async=False)
         px_rate = vae.get_sample_rate(dropout_batch, labels, batch_index=batch_index)
         distance_list = torch.cat([distance_list, torch.abs(px_rate[i[ix], j[ix]] - sample_batch[i[ix], j[ix]]).cpu()])
-    return torch.median(distance_list)
+    return distance_list
