@@ -42,7 +42,8 @@ class Dataset10X(GeneExpressionDataset):
         super(Dataset10X, self).__init__(*GeneExpressionDataset.get_attributes_from_matrix(
             expression_data), gene_names=gene_names)
 
-        self.subsample_genes(new_n_genes)
+        if new_n_genes is not None:
+            self.subsample_genes(new_n_genes)
 
     def preprocess(self):
         print("Preprocessing data")

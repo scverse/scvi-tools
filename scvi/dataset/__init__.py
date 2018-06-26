@@ -6,10 +6,10 @@ from .retina import RetinaDataset
 from .cite_seq import CiteSeqDataset
 from .brain_small import BrainSmallDataset
 from .hemato import HematoDataset
-from .pbmc import PbmcDataset
 from .loom import LoomDataset
 from .anndata import AnnDataset
 from .csv import CsvDataset
+from .dataset10X import Dataset10X
 
 __all__ = ['SyntheticDataset',
            'CortexDataset',
@@ -19,7 +19,7 @@ __all__ = ['SyntheticDataset',
            'CiteSeqDataset',
            'BrainSmallDataset',
            'HematoDataset',
-           'PbmcDataset',
            'LoomDataset',
            'AnnDataset',
-           'CsvDataset']
+           'CsvDataset',
+           'Dataset10X']

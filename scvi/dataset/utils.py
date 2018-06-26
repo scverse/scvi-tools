@@ -4,8 +4,8 @@ from torch.utils.data.sampler import SubsetRandomSampler
 
 from scvi.dataset import GeneExpressionDataset
 
-# TODO : verify on concat dataset that they have the same sparse type: import scipy.sparse as sp_sparse
-# sp_sparse.csr_matrix(
+
+
 
 def concat_datasets(*gene_datasets, on='gene_names'):
     """
@@ -21,14 +21,14 @@ def concat_datasets(*gene_datasets, on='gene_names'):
         """
         :return: gene_dataset.X filtered by the corresponding genes ( / columns / features)
         """
-        gene_names = list(getattr(gene_dataset,on))
-        idx_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.int64)#np.byte)
-        print(len(idx_genes))
+        gene_names = list(getattr(gene_dataset, on))
+        idx_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.int64)  # np.byte)
         return gene_dataset.X[:, idx_genes]
 
-    gene_names_ref = set.intersection(*[set(getattr(gene_dataset,on)) for gene_dataset in gene_datasets])
+    gene_names_ref = set.intersection(*[set(getattr(gene_dataset, on)) for gene_dataset in gene_datasets])
     # keep the order of first dataset
-    gene_names_ref = [gene_name for gene_name in getattr(gene_datasets[0],on) if gene_name in gene_names_ref]
+    gene_names_ref = [gene_name for gene_name in getattr(gene_datasets[0], on) if gene_name in gene_names_ref]
+    print("Keeping %d genes" % len(gene_names_ref))
 
     return GeneExpressionDataset(
         *GeneExpressionDataset.get_attributes_from_list(
