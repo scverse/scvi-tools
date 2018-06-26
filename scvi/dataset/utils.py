@@ -5,8 +5,6 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from scvi.dataset import GeneExpressionDataset
 
 
-
-
 def concat_datasets(*gene_datasets, on='gene_names'):
     """
     Combines multiple unlabelled gene_datasets based on the intersection of gene names intersection.

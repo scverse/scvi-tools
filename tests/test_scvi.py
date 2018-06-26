@@ -88,3 +88,4 @@ def test_concat_datasets():
     cortex_dataset_2 = CortexDataset()
     cortex_dataset_2.subsample_genes(subset_genes=np.arange(100, 400))
     cortex_dataset_merged = concat_datasets(cortex_dataset_1, cortex_dataset_2)
+    print("Final nb. genes : ", cortex_dataset_merged.nb_genes)
