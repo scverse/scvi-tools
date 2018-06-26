@@ -25,7 +25,13 @@ Installation
 
 1. Install PyTorch: http://pytorch.org
 
-2. Install this repository from source: ``git clone https://github.com/YosefLab/scVI.git``
+2. Install scvi using either pip or conda, or by cloning this repository.
+
+    By pip: ``pip install scvi``
+
+    By conda: ``conda install scvi -c bioconda``
+
+    By cloning the repository: ``git clone https://github.com/YosefLab/scVI.git``
 
 3. Refer to the examples_ subdirectory for Jupyter notebooks that illustrate usage. 
 
