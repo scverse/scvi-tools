@@ -27,11 +27,13 @@ Installation
 
 2. Install PyTorch: http://pytorch.org
 
-3. Install scvi through either conda or pip, or by cloning this repository.
+3. Install scvi through either conda or pip, or by cloning this repository and manually installing all the requirements listed in setup.py_.
 
-    By conda: ``conda install scvi -c bioconda``
+.. _setup.py: https://github.com/YosefLab/scVI/tree/master/setup.py
 
-    By pip: ``pip install scvi``
+    Through conda: ``conda install scvi -c bioconda``
+
+    Through pip: ``pip install scvi``
 
     By cloning this repository: ``git clone https://github.com/YosefLab/scVI.git``
 
