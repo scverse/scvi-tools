@@ -25,7 +25,7 @@ Installation
 
 1. Install PyTorch: http://pytorch.org
 
-2. Install scvi using either pip or conda, or by cloning this repository.
+2. Install scvi through either pip or conda, or by cloning this repository.
 
     By pip: ``pip install scvi``
 
