@@ -6,7 +6,7 @@
 from scvi.benchmark import run_benchmarks, run_benchmarks_classification
 from scvi.models import VAEC, VAE, SVAEC
 from scvi.dataset import BrainLargeDataset, CortexDataset, SyntheticDataset, \
-    RetinaDataset, CbmcDataset, BrainSmallDataset, HematoDataset, PbmcDataset, LoomDataset
+    RetinaDataset, CbmcDataset, BrainSmallDataset, HematoDataset, PbmcDataset, LoomDataset, AnnDataset, CsvDataset
 
 
 def test_synthetic_1():
@@ -60,12 +60,23 @@ def test_loom():
 
 
 def test_remote_loom():
-    fish_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom",  save_path='data/',
+    fish_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom",
+                               save_path='data/',
                                url='http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom')
     run_benchmarks(fish_dataset, n_epochs=10, show_batch_mixing=False)
 
 
 def test_cortex_loom():
-    cortex_dataset = LoomDataset("Cortex.loom", save_path='tests/data/',
-                                 url='http://loom.linnarssonlab.org/clone/Previously%20Published/Cortex.loom')
+    cortex_dataset = LoomDataset("Cortex.loom",
+                                 save_path='tests/data/')
     run_benchmarks(cortex_dataset, n_epochs=1, show_batch_mixing=False)
+
+
+def test_anndata():
+    ann_dataset = AnnDataset("test.h5ad", save_path='tests/data/')
+    run_benchmarks(ann_dataset, n_epochs=1, show_batch_mixing=False)
+
+
+def test_csv():
+    csv_dataet = CsvDataset("GSE100866_CBMC_8K_13AB_10X-RNA_umi.csv.gz", save_path='tests/data/', compression='gzip')
+    run_benchmarks(csv_dataet, n_epochs=1, show_batch_mixing=False)

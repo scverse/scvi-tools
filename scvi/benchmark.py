@@ -9,7 +9,7 @@ from scvi.dataset.utils import get_data_loaders, get_raw_data
 from scvi.metrics.adapt_encoder import adapt_encoder
 from scvi.metrics.classification import compute_accuracy_rf, compute_accuracy_svc
 from scvi.metrics.clustering import entropy_batch_mixing, get_latent
-from scvi.metrics.differential_expression import get_statistics
+from scvi.metrics.differential_expression import de_stats, de_cortex
 from scvi.metrics.imputation import imputation
 from scvi.metrics.visualization import show_t_sne
 from scvi.models import VAE, SVAEC
@@ -49,7 +49,7 @@ def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
 
     # - imputation
     imputation_test = imputation(vae, data_loader_test)
-    print("Imputation score on test (MAE) is:", imputation_test.item())
+    print("Imputation score on test (MAE) is:", torch.median(imputation_test).item())
 
     # - batch mixing
     if gene_dataset.n_batches == 2:
@@ -60,7 +60,8 @@ def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
 
     # - differential expression
     if type(gene_dataset) == CortexDataset:
-        get_statistics(vae, data_loader_train, M_sampling=1, M_permutation=1)  # 200 - 100000
+        px_scale, all_labels = de_stats(vae, data_loader_train, M_sampling=1)
+        de_cortex(px_scale, all_labels, gene_dataset.gene_names, M_permutation=1)
 
 
 # Pipeline to compare different semi supervised models

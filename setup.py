@@ -17,7 +17,8 @@ requirements = [
     "scipy>=1.0",
     "h5py>=2.8",
     "pandas>=0.2",
-    "loompy>=2.0"
+    "loompy>=2.0",
+    "tqdm >= 4"
 ]
 
 setup_requirements = ['pytest-runner', ]
@@ -52,6 +53,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/YosefLab/scVI',
-    version='version='0.1.2'',
+    version='0.1.3',
     zip_safe=False,
 )

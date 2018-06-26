@@ -8,6 +8,8 @@ from .brain_small import BrainSmallDataset
 from .hemato import HematoDataset
 from .pbmc import PbmcDataset
 from .loom import LoomDataset
+from .anndata import AnnDataset
+from .csv import CsvDataset
 
 __all__ = ['SyntheticDataset',
            'CortexDataset',
@@ -18,5 +20,6 @@ __all__ = ['SyntheticDataset',
            'BrainSmallDataset',
            'HematoDataset',
            'PbmcDataset',
-           'LoomDataset']
-
+           'LoomDataset',
+           'AnnDataset',
+           'CsvDataset']

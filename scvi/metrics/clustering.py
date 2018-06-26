@@ -4,35 +4,26 @@ import torch
 from scvi.utils import to_cuda, no_grad, eval_modules
 
 
-@no_grad()
-def get_latents(vae, data_loader):
-    latents = [[]] * vae.n_latent_layers
-    batch_indices = []
-    labels = []
-    for tensorlist in data_loader:
-        if vae.use_cuda:
-            tensorlist = to_cuda(tensorlist)
-        sample_batch, local_l_mean, local_l_var, batch_index, label = tensorlist
-        sample_batch = sample_batch.type(torch.float32)
-        latents_ = vae.get_latents(sample_batch, label)
-        latents = [l + [l_] for l, l_ in zip(latents, latents_)]
-        labels += [label]
-        batch_indices += [batch_index]
-
-    latents = [np.array(torch.cat(l)) for l in latents]
-    labels = np.array(torch.cat(labels)).ravel()
-    batch_indices = np.array(torch.cat(batch_indices))
-    return latents, batch_indices, labels
-
-
 @eval_modules()
 def get_latent_mean(vae, data_loader):
     return get_latent(vae, data_loader)
 
 
+@no_grad()
+@eval_modules()
 def get_latent(vae, data_loader):
-    latents, batch_indices, labels = get_latents(vae, data_loader)
-    return latents[0], batch_indices, labels
+    latent = []
+    batch_indices = []
+    labels = []
+    for tensors in data_loader:
+        if vae.use_cuda:
+            tensors = to_cuda(tensors)
+        sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
+        sample_batch = sample_batch.type(torch.float32)
+        latent += [vae.sample_from_posterior_z(sample_batch, y=label)]
+        batch_indices += [batch_index]
+        labels += [label]
+    return np.array(torch.cat(latent)), np.array(torch.cat(batch_indices)), np.array(torch.cat(labels)).ravel()
 
 
 # CLUSTERING METRICS
