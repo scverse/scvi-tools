@@ -1,5 +1,4 @@
 import collections
-# import time
 
 import numpy as np
 from scipy.sparse import csc_matrix
@@ -58,7 +57,6 @@ class BrainLargeDataset(GeneExpressionDataset):
 
     def preprocess(self):
         print("Preprocessing Brain Large data")
-        # tic = time.time()
 
         filtered_matrix_h5 = self.save_path + self.download_name
         with h5py.File(filtered_matrix_h5) as f:
@@ -88,6 +86,5 @@ class BrainLargeDataset(GeneExpressionDataset):
             b = batch_id
             Xs = [X[b == batch] for batch in (0, 1)]
 
-        # toc = time.time()
         print("Finished preprocessing data")
         return Xs  # the list of X (n_barcodes*n_genes)

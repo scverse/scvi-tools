@@ -5,7 +5,7 @@ import numpy as np
 
 class AnnDataset(GeneExpressionDataset):
 
-    def __init__(self, download_name, save_path='data/', url=None):
+    def __init__(self, download_name, save_path='data/', url=None, new_n_genes=False, subset_genes=None):
         self.download_name = download_name
         self.save_path = save_path
         self.url = url
@@ -14,6 +14,8 @@ class AnnDataset(GeneExpressionDataset):
 
         super(AnnDataset, self).__init__(*GeneExpressionDataset.get_attributes_from_matrix(data),
                                          gene_names=gene_names)
+
+        self.subsample_genes(new_n_genes=new_n_genes, subset_genes=subset_genes)
 
     def preprocess(self):
         print("Preprocessing dataset")
