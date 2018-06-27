@@ -23,7 +23,7 @@ def load_datasets(dataset_name, save_path='data/', url=None):
     elif dataset_name == 'brain_small':
         gene_dataset = BrainSmallDataset(save_path=save_path)
     elif dataset_name == 'hemato':
-        gene_dataset = HematoDataset(save_path=save_path)
+        gene_dataset = HematoDataset(save_path='data/HEMATO/')
     elif dataset_name == 'pbmc':
         gene_dataset = concat_datasets(
             Dataset10X("pbmc8k", save_path=save_path),
