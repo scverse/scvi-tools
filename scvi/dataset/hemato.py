@@ -1,8 +1,5 @@
 import pandas as pd
-import os
 from zipfile import ZipFile
-import urllib.request
-from pathlib import Path
 from .dataset import GeneExpressionDataset
 
 
@@ -11,7 +8,7 @@ class HematoDataset(GeneExpressionDataset):
         self.save_path = save_path
 
         # file and datazip file
-        self.urls = [ "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSM2388072&format=file&"
+        self.urls = ["https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSM2388072&format=file&"
                       "file=GSM2388072%5Fbasal%5Fbone%5Fmarrow%2Eraw%5Fumifm%5Fcounts%2Ecsv%2Egz",
                       "https://github.com/romain-lopez/scVI-reproducibility/raw/master/additional/data.zip"]
 
@@ -29,9 +26,8 @@ class HematoDataset(GeneExpressionDataset):
     def preprocess(self):
         print("Preprocessing Hemato data")
 
-        directory = str(Path(self.save_path).parent) + '/'
-        with ZipFile(directory + 'data.zip', 'r') as zip:
-            zip.extractall(path=directory)
+        with ZipFile(self.save_path + 'data.zip', 'r') as zip:
+            zip.extractall(path=self.save_path)
 
         raw_counts = pd.read_csv(self.save_path + self.download_name, compression='gzip')
         raw_counts.drop(raw_counts.index[raw_counts["library_id"] == "basal_bm1"], inplace=True)
