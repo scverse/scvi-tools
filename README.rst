@@ -31,17 +31,12 @@ Quick Start
 
 .. _PyTorch: http://pytorch.org
 
-3. Install scvi through either conda or pip, or by cloning this repository and manually installing all the requirements listed in setup.py_.
+3. Install ``scvi`` through conda (``conda install scvi -c bioconda``) or through pip (``pip install scvi``). Alternatively, you may clone this repository and manually install the dependencies listed in setup.py_.
 
 .. _setup.py: https://github.com/YosefLab/scVI/tree/master/setup.py
 
-    Through conda: ``conda install scvi -c bioconda``
 
-    Through pip: ``pip install scvi``
-
-    By cloning this repository: ``git clone https://github.com/YosefLab/scVI.git``
-
-4. Refer to the `this Jupyter notebook`__ to see how to import datasets into scvi.
+4. Refer to `this Jupyter notebook`__ to see how to import datasets into scvi.
 
 .. __: https://github.com/YosefLab/scVI/tree/master/examples/scVI-data-loading.ipynb
 
