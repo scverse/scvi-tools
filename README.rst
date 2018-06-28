@@ -37,7 +37,7 @@ Quick Start
 
     By cloning this repository: ``git clone https://github.com/YosefLab/scVI.git``
 
-4. Refer to the `this Jupyter notebook`__ to see how to import dataset into scvi.
+4. Refer to the `this Jupyter notebook`__ to see how to import datasets into scvi.
 
 .. __: https://github.com/YosefLab/scVI/tree/master/examples/scVI-data-loading.ipynb
 
