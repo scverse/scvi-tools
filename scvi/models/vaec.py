@@ -67,14 +67,12 @@ class VAEC(nn.Module, SemiSupervisedModel):
         return library
 
     def get_sample_scale(self, x, y=None, batch_index=None):
-        x = torch.log(1 + x)
         z = self.sample_from_posterior_z(x, y)
         px = self.decoder.px_decoder(z, batch_index, y)
         px_scale = self.decoder.px_scale_decoder(px)
         return px_scale
 
     def get_sample_rate(self, x, y=None, batch_index=None):
-        x = torch.log(1 + x)
         z = self.sample_from_posterior_z(x, y)
         library = self.sample_from_posterior_l(x)
         px = self.decoder.px_decoder(z, batch_index, y)
