@@ -20,7 +20,7 @@ Single-cell Variational Inference
 * Documentation: https://scvi.readthedocs.io.
 
 
-Installation
+Quick Start
 --------
 
 1. Install Python 3.6 or later. We typically use the Miniconda Python distribution: https://conda.io/miniconda.html
@@ -37,9 +37,13 @@ Installation
 
     By cloning this repository: ``git clone https://github.com/YosefLab/scVI.git``
 
-4. Refer to the examples_ subdirectory for Jupyter notebooks that illustrate usage. 
+4. Refer to the `this Jupyter notebook`__ to see how to import dataset into scvi.
 
-.. _examples: https://github.com/YosefLab/scVI/tree/master/examples
+.. __: https://github.com/YosefLab/scVI/tree/master/examples/scVI-data-loading.ipynb
+
+5. Refer to `this Jupyter notebook`__ to see how to train the scVI model, impute missing data, detect differential expression, and more!
+
+.. __: https://github.com/YosefLab/scVI/tree/master/examples/scVI-dev.ipynb
 
 
 Benchmarks
