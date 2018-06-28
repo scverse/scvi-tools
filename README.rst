@@ -23,9 +23,13 @@ Single-cell Variational Inference
 Quick Start
 --------
 
-1. Install Python 3.6 or later. We typically use the Miniconda Python distribution: https://conda.io/miniconda.html
+1. Install Python 3.6 or later. We typically use the Miniconda_ Python distribution.
 
-2. Install PyTorch: http://pytorch.org
+.. _Miniconda: https://conda.io/miniconda.html
+
+2. Install PyTorch_.
+
+.. _PyTorch: http://pytorch.org
 
 3. Install scvi through either conda or pip, or by cloning this repository and manually installing all the requirements listed in setup.py_.
 
