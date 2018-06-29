@@ -6,6 +6,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 
 from scvi.dataset import CortexDataset
 from scvi.dataset.utils import get_data_loaders, get_raw_data
+from scvi.dataset.benchmark_hyperparameters import benchmark_hyperparameters
 from scvi.metrics.adapt_encoder import adapt_encoder
 from scvi.metrics.classification import compute_accuracy_rf, compute_accuracy_svc
 from scvi.metrics.clustering import entropy_batch_mixing, get_latent
@@ -35,8 +36,10 @@ def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
     data_loader_test = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
                                   sampler=SubsetRandomSampler(example_indices[tt_split:]),
                                   collate_fn=gene_dataset.collate_fn)
+
+    hyperparameters = benchmark_hyperparameters(gene_dataset)
     vae = model(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * use_batches, n_labels=gene_dataset.n_labels,
-                use_cuda=use_cuda)
+                use_cuda=use_cuda, **hyperparameters)
     stats = train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, lr=lr, benchmark=benchmark)
 
     if isinstance(vae, VAE):
