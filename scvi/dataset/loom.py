@@ -19,7 +19,6 @@ class LoomDataset(GeneExpressionDataset):
         self.has_gene, self.has_batch, self.has_cluster = False, False, False
 
         data, gene_names, labels, cell_batches = self.download_and_preprocess()
-        print("Finished preprocessing dataset")
 
         if self.has_cluster and self.has_batch:  # File has cluster and batch info
             data_with_info = np.hstack((data, labels, cell_batches))
@@ -38,6 +37,7 @@ class LoomDataset(GeneExpressionDataset):
         self.subsample_genes(new_n_genes=new_n_genes, subset_genes=subset_genes)
 
     def preprocess(self):
+        print("Preprocessing dataset")
         gene_names, labels, cell_batches = None, None, None
         ds = loompy.connect(self.save_path + self.download_name)
         select = ds[:, :].sum(axis=0) > 0  # Take out cells that doesn't express any gene
@@ -60,4 +60,5 @@ class LoomDataset(GeneExpressionDataset):
         data = ds[:, select].T  # change matrix to cells by genes
         ds.close()
 
+        print("Finished preprocessing dataset")
         return data, gene_names, labels, cell_batches
