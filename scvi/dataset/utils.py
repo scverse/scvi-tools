@@ -75,10 +75,9 @@ def get_raw_data(*data_loaders):
     """
 
     def get_data_labels(data_loader):
-        if hasattr(data_loader, 'sampler'):
-            if hasattr(data_loader.sampler, 'indices'):
-                data = data_loader.dataset.X[data_loader.sampler.indices]
-                labels = data_loader.dataset.labels[data_loader.sampler.indices]
+        if hasattr(data_loader, 'sampler') and hasattr(data_loader.sampler, 'indices'):
+            data = data_loader.dataset.X[data_loader.sampler.indices]
+            labels = data_loader.dataset.labels[data_loader.sampler.indices]
         else:
             data = data_loader.dataset.X
             labels = data_loader.dataset.labels
