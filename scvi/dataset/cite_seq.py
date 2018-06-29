@@ -74,6 +74,6 @@ class CbmcDataset(CiteSeqDataset):
         super(CbmcDataset, self).__init__(name="cbmc", save_path=save_path)
 
 
-class PbmcDataset(CiteSeqDataset):
-    def __init__(self, save_path='data/citeSeq/'):
-        super(PbmcDataset, self).__init__(name="pbmc", save_path=save_path)
+# class PbmcDataset(CiteSeqDataset):
+#     def __init__(self, save_path='data/citeSeq/'):
+#         super(PbmcDataset, self).__init__(name="pbmc", save_path=save_path)

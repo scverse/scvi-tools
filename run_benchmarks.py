@@ -4,9 +4,8 @@
 import argparse
 
 from scvi.benchmark import run_benchmarks
-from scvi.dataset import BrainLargeDataset, CortexDataset, SyntheticDataset, \
-    RetinaDataset, BrainSmallDataset, HematoDataset, LoomDataset, AnnDataset, CiteSeqDataset, Dataset10X
-from scvi.dataset.utils import concat_datasets
+from scvi.dataset import BrainLargeDataset, CortexDataset, SyntheticDataset, CsvDataset, \
+    RetinaDataset, BrainSmallDataset, HematoDataset, LoomDataset, AnnDataset, CbmcDataset, PbmcDataset
 
 
 def load_datasets(dataset_name, save_path='data/', url=None):
@@ -19,21 +18,19 @@ def load_datasets(dataset_name, save_path='data/', url=None):
     elif dataset_name == 'retina':
         gene_dataset = RetinaDataset(save_path=save_path)
     elif dataset_name == 'cbmc':
-        gene_dataset = CiteSeqDataset('cmbc', save_path=save_path)
+        gene_dataset = CbmcDataset(save_path=save_path)
     elif dataset_name == 'brain_small':
         gene_dataset = BrainSmallDataset(save_path=save_path)
     elif dataset_name == 'hemato':
         gene_dataset = HematoDataset(save_path='data/HEMATO/')
     elif dataset_name == 'pbmc':
-        gene_dataset = concat_datasets(
-            Dataset10X("pbmc8k", save_path=save_path),
-            Dataset10X("pbmc4k", save_path=save_path)
-        )
+        gene_dataset = PbmcDataset(save_path=save_path)
     elif dataset_name[-5:] == ".loom":
         gene_dataset = LoomDataset(filename=dataset_name, save_path=save_path, url=url)
     elif dataset_name[-5:] == ".h5ad":
         gene_dataset = AnnDataset(dataset_name, save_path=save_path, url=url)
-        # Need to be fixed - currently doesnt support reading from a .zip folder from the web
+    elif ".csv" in dataset_name:
+        gene_dataset = CsvDataset(dataset_name, save_path=save_path)
     else:
         raise "No such dataset available"
     return gene_dataset
