@@ -2,36 +2,30 @@ import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
-from scvi.dataset import GeneExpressionDataset
 
-
-def concat_datasets(*gene_datasets, on='gene_names'):
+def filter_genes(gene_dataset, gene_names_ref, on='gene_names'):
     """
-    Combines multiple unlabelled gene_datasets based on the intersection of gene names intersection.
-    Datasets should all have gene_dataset.n_labels=0.
-    Batch indices are generated in the same order as datasets are given.
-    :param gene_datasets: a sequence of gene_datasets object
-    :return: a GeneExpressionDataset instance of the concatenated datasets
+    :return: gene_dataset.X filtered by the corresponding genes ( / columns / features), idx_genes
     """
-    assert all([hasattr(gene_dataset, on) for gene_dataset in gene_datasets])
+    gene_names = list(getattr(gene_dataset, on))
+    subset_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.int64)
+    return gene_dataset.X[:, subset_genes], subset_genes
 
-    def filter_genes(gene_dataset, gene_names_ref):
-        """
-        :return: gene_dataset.X filtered by the corresponding genes ( / columns / features)
-        """
-        gene_names = list(getattr(gene_dataset, on))
-        idx_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.int64)  # np.byte)
-        return gene_dataset.X[:, idx_genes]
 
-    gene_names_ref = set.intersection(*[set(getattr(gene_dataset, on)) for gene_dataset in gene_datasets])
-    # keep the order of first dataset
-    gene_names_ref = [gene_name for gene_name in getattr(gene_datasets[0], on) if gene_name in gene_names_ref]
-    print("Keeping %d genes" % len(gene_names_ref))
+def arrange_categories(original_categories, mapping_from=None, mapping_to=None):
+    unique_categories = np.unique(original_categories)
+    n_categories = len(unique_categories)
+    if mapping_to is None:
+        mapping_to = range(n_categories)
+    if mapping_from is None:
+        mapping_from = unique_categories
+    assert n_categories == len(mapping_from)
+    assert n_categories == len(mapping_to)
 
-    return GeneExpressionDataset(
-        *GeneExpressionDataset.get_attributes_from_list(
-            [filter_genes(gene_dataset, gene_names_ref) for gene_dataset in gene_datasets]
-        ), gene_names=np.array(gene_names_ref))
+    new_categories = np.copy(original_categories)
+    for idx_from, idx_to in zip(mapping_from, mapping_to):
+        new_categories[original_categories == idx_from] = idx_to
+    return new_categories, n_categories
 
 
 def get_indices(labels, n_labelled_samples_per_class_array):

@@ -14,11 +14,19 @@ class CortexDataset(GeneExpressionDataset):
         self.download_name = 'expression.bin'
         expression_data, labels, gene_names = self.download_and_preprocess()
 
+        cell_types = ["astrocytes_ependymal",
+                      "endothelial-mural",
+                      "interneurons",
+                      "microglia",
+                      "oligodendrocytes",
+                      "pyramidalCA1",
+                      "pyramidal-SS"]
+
         super(CortexDataset, self).__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
                 expression_data,
                 labels=labels),
-            gene_names=gene_names)
+            gene_names=np.char.upper(gene_names), cell_types=cell_types)
 
     def preprocess(self):
         print("Preprocessing Cortex data")
