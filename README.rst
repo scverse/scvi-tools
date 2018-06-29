@@ -52,7 +52,7 @@ To recreate the results appearing in the paper referenced below, run
 
     python ./run_benchmarks.py --dataset=cortex 
 
-Other choices for ``--dataset`` include ``synthetic``, ``cortex``, ``brain_large``, ``retina``, ``cbmc``, ``hemato``, and ``pbmc``. You may also specify an arbitrary ``.loom``, ``.h5ad`` (AnnData), or ``.csv`` file.
+Valid choices for ``--dataset`` include ``synthetic``, ``cortex``, ``brain_large``, ``retina``, ``cbmc``, ``hemato``, and ``pbmc``. You may also specify an arbitrary ``.loom``, ``.h5ad`` (AnnData), or ``.csv`` file.
 
 References
 --------
