@@ -20,22 +20,30 @@ Single-cell Variational Inference
 * Documentation: https://scvi.readthedocs.io.
 
 
-Installation
+Quick Start
 --------
 
-1. Install PyTorch: http://pytorch.org
+1. Install Python 3.6 or later. We typically use the Miniconda_ Python distribution.
 
-2. Install scvi through either pip or conda, or by cloning this repository.
+.. _Miniconda: https://conda.io/miniconda.html
 
-    By pip: ``pip install scvi``
+2. Install PyTorch_.
 
-    By conda: ``conda install scvi -c bioconda``
+.. _PyTorch: http://pytorch.org
 
-    By cloning the repository: ``git clone https://github.com/YosefLab/scVI.git``
+3. Install ``scvi`` through conda (``conda install scvi -c bioconda``) or through pip (``pip install scvi``). Alternatively, you may clone this repository and manually install the dependencies listed in setup.py_.
 
-3. Refer to the examples_ subdirectory for Jupyter notebooks that illustrate usage. 
+.. _setup.py: https://github.com/YosefLab/scVI/tree/master/setup.py
 
-.. _examples: https://github.com/YosefLab/scVI/tree/master/examples
+
+4. Refer to `this Jupyter notebook`__ to see how to import datasets into scvi.
+
+.. __: https://github.com/YosefLab/scVI/tree/master/examples/scVI-data-loading.ipynb
+
+5. Refer to `this Jupyter notebook`__ to see how to train the scVI model, impute missing data, detect differential expression, and more!
+
+.. __: https://github.com/YosefLab/scVI/tree/master/examples/scVI-dev.ipynb
+
 
 Benchmarks
 --------

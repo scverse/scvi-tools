@@ -73,7 +73,8 @@ class GeneExpressionDataset(Dataset):
 
     def subsample_genes(self, new_n_genes=None, subset_genes=None):
         n_cells, n_genes = self.X.shape
-        if subset_genes is None and (new_n_genes is None or new_n_genes >= n_genes):
+        if subset_genes is None and \
+                (not hasattr(self, 'gene_names') or new_n_genes is False or new_n_genes >= n_genes):
             return None  # Do nothing if subsample more genes than total number of genes
         if subset_genes is None:
             print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))

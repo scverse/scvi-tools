@@ -51,4 +51,5 @@ class CortexDataset(GeneExpressionDataset):
         expression_data = expression_data[:, selected]
         gene_names = gene_names[selected]
 
+        print("Finished preprocessing Cortex data")
         return expression_data, labels, gene_names
