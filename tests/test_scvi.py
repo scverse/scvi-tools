@@ -118,5 +118,3 @@ def test_filter_and_concat_datasets():
 
     synthetic_dataset_1.subsample_cells(50)
     assert len(synthetic_dataset_1) == 50
-
-
