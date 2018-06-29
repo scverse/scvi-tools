@@ -87,7 +87,7 @@ def test_cbmc():
 
 
 def test_pbmc():
-    pbmc_dataset = PbmcDataset(save_path='tests/data/citeSeq/')
+    pbmc_dataset = PbmcDataset(save_path='tests/data/')
     run_benchmarks(pbmc_dataset, n_epochs=1, show_batch_mixing=False)
 
 

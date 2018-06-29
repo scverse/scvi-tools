@@ -3,7 +3,8 @@ from .cortex import CortexDataset
 from .dataset import GeneExpressionDataset
 from .synthetic import SyntheticDataset
 from .retina import RetinaDataset
-from .cite_seq import CiteSeqDataset, CbmcDataset, PbmcDataset
+from .cite_seq import CiteSeqDataset, CbmcDataset
+from .pbmc import PbmcDataset
 from .brain_small import BrainSmallDataset
 from .hemato import HematoDataset
 from .loom import LoomDataset
