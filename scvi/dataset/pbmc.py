@@ -1,12 +1,11 @@
 from .dataset10X import Dataset10X
 from .dataset import GeneExpressionDataset
-from .utils import concat_datasets
 
 
 class PbmcDataset(GeneExpressionDataset):
 
     def __init__(self, save_path='data/'):
-        pbmc = concat_datasets(
+        pbmc = GeneExpressionDataset.concat_datasets(
                     Dataset10X("pbmc8k", save_path=save_path),
                     Dataset10X("pbmc4k", save_path=save_path)
                 )
