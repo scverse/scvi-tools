@@ -1,5 +1,5 @@
 ====
-scVI: Single-cell Variational Inference
+scVI
 ====
 
 .. image:: https://travis-ci.org/YosefLab/scVI.svg?branch=master
@@ -11,6 +11,8 @@ scVI: Single-cell Variational Inference
 .. image:: https://readthedocs.org/projects/scvi/badge/?version=latest
         :target: https://scvi.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
+
+Single-cell Variational Inference
 
 * Free software: MIT license
 * Documentation: https://scvi.readthedocs.io.
