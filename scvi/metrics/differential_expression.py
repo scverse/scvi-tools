@@ -80,7 +80,7 @@ def de_cortex(px_scale, all_labels, gene_names, M_permutation=100000, permutatio
     res = np.mean(first_set >= second_set, 0)
     res = np.log(res + 1e-8) - np.log(1 - res + 1e-8)
 
-    genes_of_interest = ["Thy1", "Mbp"]
-    result = [(gene_name, res[np.where(gene_names == gene_name.upper())[0]][0]) for gene_name in genes_of_interest]
+    genes_of_interest = np.char.upper(["Thy1", "Mbp"])
+    result = [(gene_name, res[np.where(gene_names == gene_name)[0]][0]) for gene_name in genes_of_interest]
     print('\n'.join([gene_name + " : " + str(r) for (gene_name, r) in result]))
     return res
