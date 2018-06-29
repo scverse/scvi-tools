@@ -1,5 +1,5 @@
 ====
-scVI
+scVI: Single-cell Variational Inference
 ====
 
 .. image:: https://travis-ci.org/YosefLab/scVI.svg?branch=master
@@ -12,10 +12,6 @@ scVI
         :target: https://scvi.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
 
-
-Single-cell Variational Inference
-
-
 * Free software: MIT license
 * Documentation: https://scvi.readthedocs.io.
 
@@ -27,7 +23,7 @@ Quick Start
 
 .. _Miniconda: https://conda.io/miniconda.html
 
-2. Install PyTorch_.
+2. Install PyTorch_. If you have an Nvidia GPU, be sure to install a version of PyTorch that supports it -- scVI runs much faster with a discrete GPU.
 
 .. _PyTorch: http://pytorch.org
 
@@ -36,7 +32,7 @@ Quick Start
 .. _setup.py: https://github.com/YosefLab/scVI/tree/master/setup.py
 
 
-4. Refer to `this Jupyter notebook`__ to see how to import datasets into scvi.
+4. Refer to `this Jupyter notebook`__ to see how to import datasets into scVI.
 
 .. __: https://github.com/YosefLab/scVI/tree/master/examples/scVI-data-loading.ipynb
 
@@ -53,6 +49,8 @@ To recreate the results appearing in the paper referenced below, run
 .. code-block::
 
     python ./run_benchmarks.py --dataset=cortex 
+
+Other choices for ``--dataset`` include ``synthetic``, ``cortex``, ``brain_large``, ``retina``, ``cbmc``, ``hemato``, and ``pbmc``. You may also specify an arbitrary ``.loom``, ``.h5ad`` (AnnData), or ``.csv`` file.
 
 References
 --------
