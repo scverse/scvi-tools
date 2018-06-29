@@ -19,7 +19,7 @@ def load_datasets(dataset_name, save_path='data/', url=None):
     elif dataset_name == 'retina':
         gene_dataset = RetinaDataset(save_path=save_path)
     elif dataset_name == 'cbmc':
-        gene_dataset = CiteSeqDataset('cmbc', save_path=save_path)
+        gene_dataset = CiteSeqDataset('cbmc', save_path=save_path)
     elif dataset_name == 'brain_small':
         gene_dataset = BrainSmallDataset(save_path=save_path)
     elif dataset_name == 'hemato':
