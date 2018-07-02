@@ -8,7 +8,7 @@ import numpy as np
 from scvi.benchmark import run_benchmarks, run_benchmarks_classification
 from scvi.dataset import GeneExpressionDataset, BrainLargeDataset, CortexDataset, SyntheticDataset, \
     RetinaDataset, BrainSmallDataset, HematoDataset, LoomDataset, AnnDataset, CsvDataset, \
-    CiteSeqDataset, CbmcDataset, PbmcDataset
+    CiteSeqDataset, CbmcDataset, PbmcDataset, SeqfishDataset
 from scvi.models import VAEC, VAE, SVAEC
 
 
@@ -118,3 +118,8 @@ def test_filter_and_concat_datasets():
 
     synthetic_dataset_1.subsample_cells(50)
     assert len(synthetic_dataset_1) == 50
+
+
+def test_seqfish():
+    seqfish_dataset = SeqfishDataset(save_path='tests/data/')
+    run_benchmarks(seqfish_dataset, n_epochs=1, show_batch_mixing=False)

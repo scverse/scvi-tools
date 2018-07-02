@@ -61,3 +61,19 @@ class Dataset10X(GeneExpressionDataset):
 
         print("Finished preprocessing dataset")
         return expression_data, gene_names
+
+
+class BrainSmallDataset(Dataset10X):
+    def __init__(self, save_path='data/'):
+        super(BrainSmallDataset, self).__init__(filename="neuron_9k",
+                                                save_path=save_path)
+
+
+class PbmcDataset(GeneExpressionDataset):
+    def __init__(self, save_path='data/'):
+        pbmc = GeneExpressionDataset.concat_datasets(
+                    Dataset10X("pbmc8k", save_path=save_path),
+                    Dataset10X("pbmc4k", save_path=save_path)
+                )
+        super(PbmcDataset, self).__init__(pbmc.X, pbmc.local_means, pbmc.local_vars,
+                                          pbmc.batch_indices, pbmc.labels, pbmc.gene_names)
