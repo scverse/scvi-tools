@@ -16,7 +16,7 @@ def get_latent(vae, data_loader):
     batch_indices = []
     labels = []
     for tensors in data_loader:
-        if vae.use_cuda:
+        if data_loader.pin_memory:
             tensors = to_cuda(tensors)
         sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
         sample_batch = sample_batch.type(torch.float32)

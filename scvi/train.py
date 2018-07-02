@@ -29,7 +29,7 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, lr=0.001, kl=No
     for epoch in tqdm(range(n_epochs), desc="training"):
         total_train_loss = 0
         for i_batch, (tensors_train) in enumerate(data_loader_train):
-            if vae.use_cuda:
+            if data_loader_train.pin_memory:
                 tensors_train = to_cuda(tensors_train)
             sample_batch_train, local_l_mean_train, local_l_var_train, batch_index_train, labels_train = tensors_train
             sample_batch_train = sample_batch_train.type(torch.float32)
@@ -75,9 +75,9 @@ def train_semi_supervised_jointly(vae, data_loader_all, data_loader_labelled, da
         total_train_loss = 0
         for i_batch, (tensors, tensor_classification) in enumerate(zip(data_loader_all, cycle(data_loader_labelled))):
             with torch.no_grad():
-                if vae.use_cuda:
+                if data_loader_all.pin_memory:
                     tensors = to_cuda(tensors)
-            sample_batch, local_l_mean, local_l_var, batch_index, _ = tensors
+            sample_batch, local_l_mean, local_l_var, batch_index, y = tensors
             sample_batch = sample_batch.type(torch.float32)
 
             if kl is None:
@@ -85,13 +85,13 @@ def train_semi_supervised_jointly(vae, data_loader_all, data_loader_labelled, da
             else:
                 kl_ponderation = kl
 
-            reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index, y=None)
+            reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index, y=y)
             loss = torch.mean(reconst_loss + kl_ponderation * kl_divergence)
 
             # Add a classification loss
             if hasattr(vae, "classify"):
                 with torch.no_grad():
-                    if vae.use_cuda:
+                    if data_loader_all.pin_memory:
                         tensor_classification = to_cuda(tensor_classification)
                 sample_batch_cl, _, _, _, labels_cl = tensor_classification
                 sample_batch_cl = sample_batch_cl.type(torch.float32)
@@ -126,7 +126,7 @@ def train_semi_supervised_alternately(vae, data_loader_all, data_loader_labelled
         total_train_loss = 0
         for i_batch, tensors in enumerate(data_loader_all):
             with torch.no_grad():
-                if vae.use_cuda:
+                if data_loader_all.pin_memory:
                     tensors = to_cuda(tensors)
             sample_batch, local_l_mean, local_l_var, batch_index, _ = tensors
             sample_batch = sample_batch.type(torch.float32)
@@ -169,7 +169,7 @@ def train_classifier(vae, classifier, *data_loaders, n_epochs=250, lr=0.1, bench
 
     for epoch in range(n_epochs):
         for i_batch, tensors in enumerate(data_loaders[0]):
-            if vae.use_cuda:
+            if data_loaders[0].pin_memory:
                 tensors = to_cuda(tensors)
             sample_batch_train, _, _, _, labels_train = tensors
             sample_batch_train = sample_batch_train.type(torch.float32)

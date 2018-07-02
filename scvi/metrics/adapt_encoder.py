@@ -5,7 +5,7 @@ from scvi.utils import to_cuda, enable_grad
 
 
 @enable_grad()
-def adapt_encoder(vae, dataloader, n_path=10, n_epochs=50, record_freq=5):
+def adapt_encoder(vae, data_loader, n_path=10, n_epochs=50, record_freq=5):
     parameters = list(vae.z_encoder.parameters()) + list(vae.l_encoder.parameters())
     z_encoder_state = vae.z_encoder.state_dict()
     l_encoder_state = vae.l_encoder.state_dict()
@@ -13,7 +13,7 @@ def adapt_encoder(vae, dataloader, n_path=10, n_epochs=50, record_freq=5):
     optimizer = torch.optim.Adam(parameters, eps=0.01)
     # Getting access to the stats during training
     stats = Stats(n_epochs=n_epochs, record_freq=record_freq, names=['test'], verbose=False)
-    stats.callback(vae, dataloader)
+    stats.callback(vae, data_loader)
     best_ll = stats.history["LL_test"][0]
 
     # Training the model
@@ -22,8 +22,8 @@ def adapt_encoder(vae, dataloader, n_path=10, n_epochs=50, record_freq=5):
         vae.z_encoder.load_state_dict(z_encoder_state)
         vae.l_encoder.load_state_dict(l_encoder_state)
         for epoch in range(n_epochs):
-            for i_batch, tensors in enumerate(dataloader):
-                if vae.use_cuda:
+            for i_batch, tensors in enumerate(data_loader):
+                if data_loader.pin_memory:
                     tensors = to_cuda(tensors)
                 sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
                 sample_batch = sample_batch.type(torch.float32)
@@ -35,6 +35,6 @@ def adapt_encoder(vae, dataloader, n_path=10, n_epochs=50, record_freq=5):
                 train_loss.backward()
                 optimizer.step()
 
-            stats.callback(vae, dataloader)
+            stats.callback(vae, data_loader)
         best_ll = min(min(stats.history["LL_test"]), best_ll)
     return best_ll
