@@ -32,12 +32,12 @@ def compute_accuracy_tuple(y, labels):
 
 @no_grad()
 @eval_modules()
-def compute_accuracy(vae, data_loader, classifier=None):
+def compute_accuracy(vae, data_loader, classifier=None, use_cuda=True):
     all_y_pred = []
     all_labels = []
 
     for i_batch, tensors in enumerate(data_loader):
-        if data_loader.pin_memory:
+        if use_cuda:
             tensors = to_cuda(tensors)
         sample_batch, _, _, _, labels = tensors
         sample_batch = sample_batch.type(torch.float32)

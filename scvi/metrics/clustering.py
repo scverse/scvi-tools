@@ -11,12 +11,12 @@ def get_latent_mean(vae, data_loader):
 
 @no_grad()
 @eval_modules()
-def get_latent(vae, data_loader):
+def get_latent(vae, data_loader, use_cuda=True):
     latent = []
     batch_indices = []
     labels = []
     for tensors in data_loader:
-        if data_loader.pin_memory:
+        if use_cuda:
             tensors = to_cuda(tensors)
         sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
         sample_batch = sample_batch.type(torch.float32)

@@ -16,12 +16,13 @@ except NameError:
 
 
 @enable_grad()
-def train(vae, data_loader_train, data_loader_test, n_epochs=20, lr=0.001, kl=None, benchmark=False, verbose=False):
+def train(vae, data_loader_train, data_loader_test, n_epochs=20, lr=0.001, kl=None, benchmark=False, verbose=False,
+          use_cuda=True):
     # Defining the optimizer
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, vae.parameters()), lr=lr)
 
     # Getting access to the stats during training
-    stats = Stats(n_epochs=n_epochs, benchmark=benchmark, verbose=verbose)
+    stats = Stats(n_epochs=n_epochs, benchmark=benchmark, verbose=verbose, use_cuda=use_cuda)
     stats.callback(vae, data_loader_train, data_loader_test)
     early_stopping = EarlyStopping(benchmark=benchmark)
 
@@ -29,7 +30,7 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, lr=0.001, kl=No
     for epoch in tqdm(range(n_epochs), desc="training"):
         total_train_loss = 0
         for i_batch, (tensors_train) in enumerate(data_loader_train):
-            if data_loader_train.pin_memory:
+            if use_cuda:
                 tensors_train = to_cuda(tensors_train)
             sample_batch_train, local_l_mean_train, local_l_var_train, batch_index_train, labels_train = tensors_train
             sample_batch_train = sample_batch_train.type(torch.float32)
@@ -60,12 +61,13 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, lr=0.001, kl=No
 @enable_grad()
 def train_semi_supervised_jointly(vae, data_loader_all, data_loader_labelled, data_loader_unlabelled, n_epochs=20,
                                   lr=0.001,
-                                  kl=None, benchmark=False, record_freq=1, classification_ratio=100):
+                                  kl=None, benchmark=False, record_freq=1, classification_ratio=100, use_cuda=True):
     # Defining the optimizer
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, vae.parameters()), lr=lr)
 
     # Getting access to the stats during training
-    stats = Stats(n_epochs=n_epochs, benchmark=benchmark, names=["labelled", "unlabelled"], record_freq=record_freq)
+    stats = Stats(n_epochs=n_epochs, benchmark=benchmark, names=["labelled", "unlabelled"], record_freq=record_freq,
+                  use_cuda=use_cuda)
     stats.callback(vae, data_loader_labelled, data_loader_unlabelled)
     early_stopping = EarlyStopping(benchmark=benchmark)
 
@@ -91,7 +93,7 @@ def train_semi_supervised_jointly(vae, data_loader_all, data_loader_labelled, da
             # Add a classification loss
             if hasattr(vae, "classify"):
                 with torch.no_grad():
-                    if data_loader_all.pin_memory:
+                    if use_cuda:
                         tensor_classification = to_cuda(tensor_classification)
                 sample_batch_cl, _, _, _, labels_cl = tensor_classification
                 sample_batch_cl = sample_batch_cl.type(torch.float32)
@@ -111,12 +113,13 @@ def train_semi_supervised_jointly(vae, data_loader_all, data_loader_labelled, da
 @enable_grad()
 def train_semi_supervised_alternately(vae, data_loader_all, data_loader_labelled, data_loader_unlabelled,
                                       n_epochs=20, lr=0.001, kl=None, benchmark=False, lr_classification=0.1,
-                                      record_freq=1, n_epochs_classifier=1):
+                                      record_freq=1, n_epochs_classifier=1, use_cuda=True):
     # Defining the optimizer
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, vae.parameters()), lr=lr)
 
     # Getting access to the stats during training
-    stats = Stats(n_epochs=n_epochs, benchmark=benchmark, names=["labelled", "unlabelled"], record_freq=record_freq)
+    stats = Stats(n_epochs=n_epochs, benchmark=benchmark, names=["labelled", "unlabelled"], record_freq=record_freq,
+                  use_cuda=use_cuda)
     stats.callback(vae, data_loader_labelled, data_loader_unlabelled)
     early_stopping = EarlyStopping(benchmark=benchmark)
 
@@ -126,7 +129,7 @@ def train_semi_supervised_alternately(vae, data_loader_all, data_loader_labelled
         total_train_loss = 0
         for i_batch, tensors in enumerate(data_loader_all):
             with torch.no_grad():
-                if data_loader_all.pin_memory:
+                if use_cuda:
                     tensors = to_cuda(tensors)
             sample_batch, local_l_mean, local_l_var, batch_index, _ = tensors
             sample_batch = sample_batch.type(torch.float32)
@@ -159,17 +162,17 @@ def train_semi_supervised_alternately(vae, data_loader_all, data_loader_labelled
 
 
 @enable_grad()
-def train_classifier(vae, classifier, *data_loaders, n_epochs=250, lr=0.1, benchmark=False):
+def train_classifier(vae, classifier, *data_loaders, n_epochs=250, lr=0.1, benchmark=False, use_cuda=True):
     # Train classifier on the z latent space of a vae
     optimizer = torch.optim.Adam(classifier.parameters(), lr=lr)
 
     # Getting access to the stats during training
-    stats = Stats(n_epochs=n_epochs, benchmark=benchmark)
+    stats = Stats(n_epochs=n_epochs, benchmark=benchmark, use_cuda=use_cuda)
     stats.callback(vae, *data_loaders, classifier=classifier)
 
     for epoch in range(n_epochs):
         for i_batch, tensors in enumerate(data_loaders[0]):
-            if data_loaders[0].pin_memory:
+            if use_cuda:
                 tensors = to_cuda(tensors)
             sample_batch_train, _, _, _, labels_train = tensors
             sample_batch_train = sample_batch_train.type(torch.float32)

@@ -9,7 +9,8 @@ from scvi.models import VAE, VAEC, SVAEC
 
 
 class Stats:
-    def __init__(self, verbose=True, record_freq=5, n_epochs=-1, benchmark=False, names=['train', 'test', 'val']):
+    def __init__(self, verbose=True, record_freq=5, n_epochs=-1, benchmark=False, names=['train', 'test', 'val'],
+                 use_cuda=True):
         self.verbose = verbose if not benchmark else False
         self.record_freq = record_freq
         self.n_epochs = n_epochs
@@ -21,6 +22,7 @@ class Stats:
         self.begin = time.time()
         self.epoch = 0
         self.history = defaultdict(lambda: [])
+        self.use_cuda = use_cuda
 
     def callback(self, model, *data_loaders, classifier=None):
         if self.epoch == 0 or self.epoch == self.n_epochs or (
@@ -37,7 +39,7 @@ class Stats:
     def add_ll(self, model, data_loader, name='train'):
         models = [VAE, VAEC, SVAEC]
         if type(model) in models:
-            log_likelihood = compute_log_likelihood(model, data_loader)
+            log_likelihood = compute_log_likelihood(model, data_loader, use_cuda=self.use_cuda)
             self.history["LL_%s" % name].append(log_likelihood)
             if self.verbose:
                 print("LL %s is: %4f" % (name, log_likelihood))
@@ -45,7 +47,7 @@ class Stats:
     def add_accuracy(self, model, data_loader, classifier=None, name='train'):
         models = [VAEC, SVAEC]
         if type(model) in models or classifier:
-            accuracy = compute_accuracy(model, data_loader, classifier)
+            accuracy = compute_accuracy(model, data_loader, classifier, use_cuda=self.use_cuda)
             self.history["Accuracy_%s" % name].append(accuracy)
             if self.verbose:
                 print("Accuracy %s is: %4f" % (name, accuracy))

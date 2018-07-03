@@ -62,10 +62,11 @@ def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
     if use_cuda:
         vae.cuda()
 
-    stats = train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, lr=lr, benchmark=benchmark)
+    stats = train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, lr=lr, benchmark=benchmark,
+                  use_cuda=use_cuda)
 
     if isinstance(vae, VAE):
-        best_ll = adapt_encoder(vae, data_loader_test, n_path=1, n_epochs=1, record_freq=1)
+        best_ll = adapt_encoder(vae, data_loader_test, n_path=1, n_epochs=1, record_freq=1, use_cuda=use_cuda)
         print("Best ll was :", best_ll)
 
     # - log-likelihood
@@ -73,19 +74,19 @@ def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
     print("Log-likelihood Test:", stats.history["LL_test"][stats.best_index])
 
     # - imputation
-    imputation_test = imputation(vae, data_loader_test)
+    imputation_test = imputation(vae, data_loader_test, use_cuda=use_cuda)
     print("Imputation score on test (MAE) is:", torch.median(imputation_test).item())
 
     # - batch mixing
     if gene_dataset.n_batches == 2:
-        latent, batch_indices, labels = get_latent(vae, data_loader_train)
+        latent, batch_indices, labels = get_latent(vae, data_loader_train, use_cuda=use_cuda)
         print("Entropy batch mixing :", entropy_batch_mixing(latent, batch_indices))
         if show_batch_mixing:
             show_t_sne(latent, np.array([batch[0] for batch in batch_indices]))
 
     # - differential expression
     if type(gene_dataset) == CortexDataset:
-        px_scale, all_labels = de_stats(vae, data_loader_train, M_sampling=1)
+        px_scale, all_labels = de_stats(vae, data_loader_train, M_sampling=1, use_cuda=use_cuda)
         de_cortex(px_scale, all_labels, gene_dataset.gene_names, M_permutation=1)
 
 
@@ -116,7 +117,7 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
     if use_cuda:
         vae.cuda()
     train_semi_supervised_jointly(vae, data_loader_all, data_loader_labelled, data_loader_unlabelled,
-                                  n_epochs=n_epochs, lr=lr)
+                                  n_epochs=n_epochs, lr=lr, use_cuda=use_cuda)
 
     # Then we train a classifier on the latent space
     cls = Classifier(n_input=n_latent, n_labels=gene_dataset.n_labels, n_layers=3)
@@ -125,7 +126,7 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
     for param in vae.z_encoder.parameters():
         param.requires_grad = False
     cls_stats = train_classifier(vae, cls, data_loader_labelled, data_loader_unlabelled, n_epochs=n_epochs_classifier,
-                                 lr=lr)
+                                 lr=lr, use_cuda=use_cuda)
 
     axes[0].plot(cls_stats.history["Accuracy_train"], label='classifier')
     axes[1].plot(cls_stats.history["Accuracy_test"])
@@ -158,7 +159,8 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
         svaec.cuda()
 
     stats = train_semi_supervised_jointly(svaec, data_loader_all, data_loader_labelled, data_loader_unlabelled,
-                                          n_epochs=n_epochs, lr=lr, classification_ratio=100, record_freq=10)
+                                          n_epochs=n_epochs, lr=lr, classification_ratio=100, record_freq=10,
+                                          use_cuda=use_cuda)
 
     svaec = SVAEC(gene_dataset.nb_genes, n_labels=gene_dataset.n_labels, y_prior=prior, n_latent=n_latent,
                   logreg_classifier=True)
@@ -166,7 +168,8 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
         svaec.cuda()
 
     stats = train_semi_supervised_alternately(svaec, data_loader_all, data_loader_labelled, data_loader_unlabelled,
-                                              n_epochs=n_epochs, lr=lr, record_freq=10, lr_classification=0.05)
+                                              n_epochs=n_epochs, lr=lr, record_freq=10, lr_classification=0.05,
+                                              use_cuda=use_cuda)
 
     axes[0].plot(stats.history["Accuracy_train"], label='M1+M2 (train all)')
     axes[1].plot(stats.history["Accuracy_test"])
@@ -178,7 +181,7 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
         cls.cuda()
 
     stats = train_classifier(svaec, cls, data_loader_labelled, data_loader_unlabelled, n_epochs=n_epochs_classifier,
-                             lr=lr)
+                             lr=lr, use_cuda=use_cuda)
 
     axes[0].plot(stats.history["Accuracy_train"], label='M1+M2+classifier')
     axes[1].plot(stats.history["Accuracy_test"])

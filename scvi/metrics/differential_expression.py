@@ -6,7 +6,7 @@ from scvi.utils import to_cuda, no_grad, eval_modules
 
 @no_grad()
 @eval_modules()
-def de_stats(vae, data_loader, M_sampling=100):
+def de_stats(vae, data_loader, M_sampling=100, use_cuda=True):
     """
     Output average over statistics in a symmetric way (a against b)
     forget the sets if permutation is True
@@ -18,7 +18,7 @@ def de_stats(vae, data_loader, M_sampling=100):
     px_scales = []
     all_labels = []
     for tensors in data_loader:
-        if data_loader.pin_memory:
+        if use_cuda:
             tensors = to_cuda(tensors)
         sample_batch, _, _, batch_index, labels = tensors
         sample_batch = sample_batch.type(torch.float32)
