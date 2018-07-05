@@ -13,6 +13,12 @@ Welcome to scVI's documentation!
    authors
    history
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Package Reference
+
+   dataset
+   
 Indices and tables
 ==================
 * :ref:`genindex`

@@ -36,16 +36,30 @@ def get_expression(gbm, gene_name):
 
 
 class BrainLargeDataset(GeneExpressionDataset):
-    url = "http://cf.10xgenomics.com/samples/cell-exp/1.3.0/1M_neurons/1M_neurons_filtered_gene_bc_matrices_h5.h5"
+    r""" Loads brain-large dataset.
+
+    This dataset contains 1.3 million brain cells from `10x Genomics`_. We randomly shuffle the data to get a 1M
+    subset of cells and order genes by variance to retain first 10,000 and then 720 sampled variable genes. This
+    dataset is then sampled multiple times in cells for the runtime and goodness-of-fit analysis. We report imputation
+    scores on the 10k cells and 720 genes samples only.
+
+    Args:
+        save_path (str, optional): Save path of raw data file
+
+    Examples:
+        >>> gene_dataset = BrainLargeDataset()
+
+    .. _10x Genomics:
+        https://support.10xgenomics.com/single-cell-gene-expression/datasets
+
+    """
 
     def __init__(self, subsample_size=None, save_path='data/', nb_genes_kept=720):
-        """
-        :param subsample_size: In thousands of barcodes kept (by default 1*1000=1000 kept)
-        :param unit_test: A boolean to indicate if we use pytest subsampled file
-        """
         self.subsample_size = subsample_size
         self.save_path = save_path
         self.nb_genes_kept = nb_genes_kept
+        self.url = "http://cf.10xgenomics.com/samples/cell-exp/1.3.0/1M_neurons/" \
+                   "1M_neurons_filtered_gene_bc_matrices_h5.h5"
         # originally: "1M_neurons_filtered_gene_bc_matrices_h5.h5"
 
         self.download_name = "genomics.h5"

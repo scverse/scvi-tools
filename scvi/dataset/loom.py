@@ -62,3 +62,23 @@ class LoomDataset(GeneExpressionDataset):
 
         print("Finished preprocessing dataset")
         return data, gene_names, labels, cell_batches
+
+
+class RetinaDataset(LoomDataset):
+    r""" Loads retina dataset.
+
+    The dataset of bipolar cells contains after their original pipeline for filtering 27,499 cells and
+    13,166 genes coming from two batches. We use the cluster annotation from 15 cell-types from the author. We also
+    extract their normalized data with Combat and use it for benchmarking.
+
+    Args:
+        save_path (str, optional): Save path of raw data file
+
+    Examples:
+        >>> gene_dataset = RetinaDataset()
+
+    """
+    def __init__(self, save_path='data/'):
+        super(RetinaDataset, self).__init__(filename='retina.loom',
+                                            save_path=save_path,
+                                            url='https://github.com/YosefLab/scVI-data/raw/master/retina.loom')
