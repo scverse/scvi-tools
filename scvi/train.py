@@ -2,7 +2,7 @@ from itertools import cycle
 
 import torch
 from torch.nn import functional as F
-from tqdm import tqdm, trange
+from tqdm import trange
 import sys
 
 from scvi.metrics.stats import Stats, EarlyStopping
