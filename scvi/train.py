@@ -2,17 +2,11 @@ from itertools import cycle
 
 import torch
 from torch.nn import functional as F
+from tqdm import tqdm
+import sys
 
 from scvi.metrics.stats import Stats, EarlyStopping
 from scvi.utils import to_cuda, enable_grad
-
-# If we're running in Jupyter notebook, then we want to use
-# `tqdm_notebook`. Otherwise, we want to use `tqdm`.
-try:
-    get_ipython
-    from tqdm import tqdm_notebook as tqdm
-except NameError:
-    from tqdm import tqdm
 
 
 @enable_grad()
@@ -26,32 +20,41 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, lr=0.001, kl=No
     early_stopping = EarlyStopping(benchmark=benchmark)
 
     # Training the model
-    for epoch in tqdm(range(n_epochs), desc="training"):
-        total_train_loss = 0
-        for i_batch, (tensors_train) in enumerate(data_loader_train):
-            if vae.use_cuda:
-                tensors_train = to_cuda(tensors_train)
-            sample_batch_train, local_l_mean_train, local_l_var_train, batch_index_train, labels_train = tensors_train
-            sample_batch_train = sample_batch_train.type(torch.float32)
+    with tqdm(total=n_epochs, file=sys.stdout) as pbar:
+        # We have to use tqdm this way so it works in Jupyter notebook.
+        # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
+        for epoch in range(n_epochs):
+            pbar.set_description('epoch %d' % epoch)
+            pbar.update(1)
 
-            if kl is None:
-                kl_ponderation = min(1, epoch / 400.)
-            else:
-                kl_ponderation = kl
+            total_train_loss = 0
+            for i_batch, (tensors_train) in enumerate(data_loader_train):
+                if vae.use_cuda:
+                    tensors_train = to_cuda(tensors_train)
+                sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors_train
+                sample_batch = sample_batch.type(torch.float32)
 
-            reconst_loss_train, kl_divergence_train = vae(sample_batch_train, local_l_mean_train, local_l_var_train,
-                                                          batch_index=batch_index_train, y=labels_train)
-            train_loss = torch.mean(reconst_loss_train + kl_ponderation * kl_divergence_train)
+                if kl is None:
+                    kl_ponderation = min(1, epoch / 400.)
+                else:
+                    kl_ponderation = kl
 
-            batch_size = sample_batch_train.size(0)
-            total_train_loss += train_loss.item() * batch_size
-            optimizer.zero_grad()
-            train_loss.backward()
-            optimizer.step()
+                reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var,
+                                                  batch_index=batch_index, y=labels)
+                train_loss = torch.mean(reconst_loss + kl_ponderation * kl_divergence)
 
-        if not early_stopping.update(total_train_loss):
-            break
-        stats.callback(vae, data_loader_train, data_loader_test)
+                batch_size = sample_batch.size(0)
+                total_train_loss += train_loss.item() * batch_size
+                optimizer.zero_grad()
+                train_loss.backward()
+                optimizer.step()
+
+            if not early_stopping.update(total_train_loss):
+                print("stopping early")
+                break
+
+            stats.callback(vae, data_loader_train, data_loader_test)
+
     stats.display_time()
     stats.set_best_params(vae)
     return stats
