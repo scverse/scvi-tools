@@ -49,7 +49,10 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, lr=0.001, kl=No
                 optimizer.step()
 
             if not early_stopping.update(total_train_loss):
-                print("\nstopping early")
+                print("\nStopping early: no improvement of more than " + str(early_stopping.threshold) +
+                      " nats in " + str(early_stopping.patience) + " epochs")
+                print("If the early stopping criterion is too strong, "
+                      "please instantiate it with different parameters in the train method.")
                 break
 
             stats.callback(vae, data_loader_train, data_loader_test)
