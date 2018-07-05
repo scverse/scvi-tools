@@ -2,7 +2,7 @@ from itertools import cycle
 
 import torch
 from torch.nn import functional as F
-from tqdm import tqdm
+from tqdm import tqdm, trange
 import sys
 
 from scvi.metrics.stats import Stats, EarlyStopping
@@ -20,11 +20,10 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, lr=0.001, kl=No
     early_stopping = EarlyStopping(benchmark=benchmark)
 
     # Training the model
-    with tqdm(total=n_epochs, file=sys.stdout) as pbar:
+    with trange(n_epochs, desc="training", file=sys.stdout) as pbar:
         # We have to use tqdm this way so it works in Jupyter notebook.
         # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
-        for epoch in range(n_epochs):
-            pbar.set_description('epoch %d' % epoch)
+        for epoch in pbar:
             pbar.update(1)
 
             total_train_loss = 0
@@ -50,7 +49,7 @@ def train(vae, data_loader_train, data_loader_test, n_epochs=20, lr=0.001, kl=No
                 optimizer.step()
 
             if not early_stopping.update(total_train_loss):
-                print("stopping early")
+                print("\nstopping early")
                 break
 
             stats.callback(vae, data_loader_train, data_loader_test)
