@@ -32,12 +32,12 @@ def compute_accuracy_tuple(y, labels):
 
 @no_grad()
 @eval_modules()
-def compute_accuracy(vae, data_loader, classifier=None):
+def compute_accuracy(vae, data_loader, classifier=None, use_cuda=True):
     all_y_pred = []
     all_labels = []
 
     for i_batch, tensors in enumerate(data_loader):
-        if vae.use_cuda:
+        if use_cuda:
             tensors = to_cuda(tensors)
         sample_batch, _, _, _, labels = tensors
         sample_batch = sample_batch.type(torch.float32)
@@ -57,13 +57,13 @@ def compute_accuracy(vae, data_loader, classifier=None):
     return accuracy
 
 
-def compute_accuracy_svc(data_train, labels_train, data_test, labels_test, unit_test=False, verbose=0):
+def compute_accuracy_svc(data_train, labels_train, data_test, labels_test, unit_test=False, verbose=0, max_iter=-1):
     param_grid = [
         {'C': [1, 10, 100, 1000], 'kernel': ['linear']},
         {'C': [1, 10, 100, 1000], 'gamma': [0.001, 0.0001], 'kernel': ['rbf']}]
     if unit_test:
         param_grid = [{'C': [1], 'kernel': ['linear']}]
-    svc = SVC()
+    svc = SVC(max_iter=max_iter)
 
     clf = GridSearchCV(svc, param_grid, verbose=verbose)
     clf.fit(data_train, labels_train)

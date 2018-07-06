@@ -44,6 +44,8 @@ def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
     # - imputation
     # - batch mixing
     # - cluster scores
+    use_cuda = use_cuda and torch.cuda.is_available()
+
     example_indices = np.random.permutation(len(gene_dataset))
     tt_split = int(tt_split * len(gene_dataset))  # 90%/10% train/test split
 
@@ -56,12 +58,14 @@ def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
 
     hyperparameters = benchmark_hyperparameters(gene_dataset)
     vae = model(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * use_batches, n_labels=gene_dataset.n_labels,
-                use_cuda=use_cuda, **hyperparameters)
+                **hyperparameters)
+    if use_cuda:
+        vae.cuda()
     stats = Trainer().train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, lr=lr, benchmark=benchmark,
                             use_cuda=use_cuda)
 
     if isinstance(vae, VAE):
-        best_ll = adapt_encoder(vae, data_loader_test, n_path=1, n_epochs=1, record_freq=1)
+        best_ll = adapt_encoder(vae, data_loader_test, n_path=1, n_epochs=1, record_freq=1, use_cuda=use_cuda)
         print("Best ll was :", best_ll)
 
     # - log-likelihood
@@ -69,31 +73,34 @@ def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
     print("Log-likelihood Test:", stats.history["LL_test"][stats.best_index])
 
     # - imputation
-    imputation_test = imputation(vae, data_loader_test)
+    imputation_test = imputation(vae, data_loader_test, use_cuda=use_cuda)
     print("Imputation score on test (MAE) is:", torch.median(imputation_test).item())
 
     # - batch mixing
     if gene_dataset.n_batches == 2:
-        latent, batch_indices, labels = get_latent(vae, data_loader_train)
+        latent, batch_indices, labels = get_latent(vae, data_loader_train, use_cuda=use_cuda)
         print("Entropy batch mixing :", entropy_batch_mixing(latent, batch_indices))
         if show_batch_mixing:
             show_t_sne(latent, np.array([batch[0] for batch in batch_indices]))
 
     # - differential expression
     if type(gene_dataset) == CortexDataset:
-        px_scale, all_labels = de_stats(vae, data_loader_train, M_sampling=1)
+        px_scale, all_labels = de_stats(vae, data_loader_train, M_sampling=1, use_cuda=use_cuda)
         de_cortex(px_scale, all_labels, gene_dataset.gene_names, M_permutation=1)
 
 
 # Pipeline to compare different semi supervised models
 def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epochs_classifier=10, lr=1e-2,
                                   use_batches=False, use_cuda=True, tt_split=0.9, verbose=True):
+    use_cuda = use_cuda and torch.cuda.is_available()
+
     fig, axes = plt.subplots(1, 2, sharey=True, figsize=(12, 5))
     alpha = 100  # in Kingma, 0.1 * len(gene_dataset), but pb when : len(gene_dataset) >> 1
 
     data_loader_all, data_loader_labelled, data_loader_unlabelled = get_data_loaders(gene_dataset, 10,
                                                                                      batch_size=128,
                                                                                      pin_memory=use_cuda)
+
     # Now we try out the different models and compare the classification accuracy
 
     (data_train, labels_train), (data_test, labels_test) = get_raw_data(data_loader_labelled, data_loader_unlabelled)
@@ -104,14 +111,17 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
 
     # ========== The M1 model ===========
     print("Trying M1 model")
-    vae = VAE(gene_dataset.nb_genes, n_latent=n_latent,
-              n_batch=gene_dataset.n_batches * use_batches, use_cuda=use_cuda,
+    vae = VAE(gene_dataset.nb_genes, n_latent=n_latent, n_batch=gene_dataset.n_batches * use_batches,
               n_labels=gene_dataset.n_labels)
+    if use_cuda:
+        vae.cuda()
     Trainer().train(vae, data_loader_all, data_loader_labelled, data_loader_unlabelled,
                     n_epochs=n_epochs, lr=lr, use_cuda=use_cuda, verbose=verbose)
 
     # Then we train a classifier on the latent space
-    cls = Classifier(n_input=n_latent, n_labels=gene_dataset.n_labels, n_layers=3, use_cuda=use_cuda)
+    cls = Classifier(n_input=n_latent, n_labels=gene_dataset.n_labels, n_layers=3)
+    if use_cuda:
+        cls.cuda()
     for param in vae.z_encoder.parameters():
         param.requires_grad = False
     cls_stats = ClassifierTrainer().train(vae, data_loader_labelled, data_loader_unlabelled,
@@ -126,7 +136,9 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
     prior = torch.FloatTensor([(gene_dataset.labels == i).mean() for i in range(gene_dataset.n_labels)])
 
     svaec = SVAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * use_batches, n_labels=gene_dataset.n_labels,
-                  y_prior=prior, n_latent=n_latent, use_cuda=use_cuda)
+                  y_prior=prior, n_latent=n_latent)
+    if use_cuda:
+        svaec.cuda()
 
     # Use a pretrained z encoder, freeze its weights
     svaec.z_encoder.load_state_dict(vae.z_encoder.state_dict())
@@ -143,7 +155,9 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
     # ========== The M1+M2 model trained jointly ===========
     print("Trying out M1+M2 optimized jointly")
     svaec = SVAEC(gene_dataset.nb_genes, n_labels=gene_dataset.n_labels, y_prior=prior, n_latent=n_latent,
-                  use_cuda=use_cuda, logreg_classifier=False)
+                  logreg_classifier=False)
+    if use_cuda:
+        svaec.cuda()
 
     stats = JointSemiSupervisedTrainer(classification_ratio=100).train(
         svaec, data_loader_all, data_loader_labelled, data_loader_unlabelled, n_epochs=n_epochs, lr=lr, record_freq=10,
@@ -151,7 +165,9 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
     )
 
     svaec = SVAEC(gene_dataset.nb_genes, n_labels=gene_dataset.n_labels, y_prior=prior, n_latent=n_latent,
-                  use_cuda=use_cuda, logreg_classifier=True)
+                  logreg_classifier=True)
+    if use_cuda:
+        svaec.cuda()
 
     stats = AlternateSemiSupervisedTrainer(lr_classification=0.05).train(svaec, data_loader_all, data_loader_labelled,
                                                                          data_loader_unlabelled, n_epochs=n_epochs,
@@ -162,7 +178,9 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
 
     # ========== Classifier trained on the latent space of M1+M2 ===========
     print("Trying to classify on M1+M2's z1 latent space")
-    cls = Classifier(n_input=n_latent, n_labels=gene_dataset.n_labels, n_layers=3, use_cuda=use_cuda)
+    cls = Classifier(n_input=n_latent, n_labels=gene_dataset.n_labels, n_layers=3)
+    if use_cuda:
+        cls.cuda()
 
     stats = ClassifierTrainer().train(svaec, data_loader_labelled, data_loader_unlabelled,
                                       n_epochs=n_epochs_classifier, lr=lr, use_cuda=use_cuda, classifier=cls)

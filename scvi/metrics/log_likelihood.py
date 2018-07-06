@@ -8,11 +8,11 @@ from scvi.utils import to_cuda, no_grad, eval_modules
 
 @no_grad()
 @eval_modules()
-def compute_log_likelihood(vae, data_loader):
+def compute_log_likelihood(vae, data_loader, use_cuda=True):
     # Iterate once over the data_loader and computes the total log_likelihood
     log_lkl = 0
     for i_batch, tensors in enumerate(data_loader):
-        if vae.use_cuda:
+        if use_cuda:
             tensors = to_cuda(tensors)
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
         sample_batch = sample_batch.type(torch.float32)

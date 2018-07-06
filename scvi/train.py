@@ -31,19 +31,18 @@ class Trainer:
         self.use_cuda = use_cuda
         self.epoch = 0
         self.optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr)
-        self.stats = Stats(n_epochs=n_epochs, benchmark=benchmark, verbose=verbose, record_freq=record_freq)
+        self.stats = Stats(n_epochs=n_epochs, benchmark=benchmark, verbose=verbose, record_freq=record_freq,
+                           use_cuda=use_cuda)
         self.stats.callback(model, *data_loaders, classifier=classifier)
         self.early_stopping = EarlyStopping(benchmark=benchmark)
 
         # Training the model
         with trange(n_epochs, desc="training", file=sys.stdout, disable=verbose or benchmark) as pbar:
-        # We have to use tqdm this way so it works in Jupyter notebook.
-        # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
-
+            # We have to use tqdm this way so it works in Jupyter notebook.
+            # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
             for epoch in pbar:
                 pbar.update(1)
                 self.on_epoch_begin()
-
                 for tensors_list in zip(data_loaders[0], *[cycle(data_loader) for data_loader in data_loaders[1:]]):
                     updated_tensors_list = []
                     for tensors in tensors_list:
@@ -97,7 +96,7 @@ class AlternateSemiSupervisedTrainer(Trainer):
     def on_epoch_end(self, model, *data_loaders):
         data_loader_labelled = data_loaders[-1]
         if hasattr(model.classifier, "update_parameters"):
-            model.classifier.update_parameters(model, data_loader_labelled)
+            model.classifier.update_parameters(model, data_loader_labelled, use_cuda=self.use_cuda)
         else:
             self.classifier_trainer.train(
                 model, data_loader_labelled, benchmark=True, verbose=False, n_epochs=self.n_epochs_classifier,
