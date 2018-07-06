@@ -14,7 +14,7 @@ from scvi.metrics.imputation import imputation
 from scvi.metrics.visualization import show_t_sne
 from scvi.models import VAE, SVAEC
 from scvi.models.classifier import Classifier
-from scvi.train import train, train_classifier, train_semi_supervised_jointly, train_semi_supervised_alternately
+from scvi.train import Trainer, ClassifierTrainer, JointSemiSupervisedTrainer, AlternateSemiSupervisedTrainer
 
 
 def benchmark_hyperparameters(gene_dataset):
@@ -57,7 +57,8 @@ def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
     hyperparameters = benchmark_hyperparameters(gene_dataset)
     vae = model(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * use_batches, n_labels=gene_dataset.n_labels,
                 use_cuda=use_cuda, **hyperparameters)
-    stats = train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, lr=lr, benchmark=benchmark)
+    stats = Trainer().train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, lr=lr, benchmark=benchmark,
+                            use_cuda=use_cuda)
 
     if isinstance(vae, VAE):
         best_ll = adapt_encoder(vae, data_loader_test, n_path=1, n_epochs=1, record_freq=1)
@@ -86,7 +87,7 @@ def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=
 
 # Pipeline to compare different semi supervised models
 def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epochs_classifier=10, lr=1e-2,
-                                  use_batches=False, use_cuda=True, tt_split=0.9):
+                                  use_batches=False, use_cuda=True, tt_split=0.9, verbose=True):
     fig, axes = plt.subplots(1, 2, sharey=True, figsize=(12, 5))
     alpha = 100  # in Kingma, 0.1 * len(gene_dataset), but pb when : len(gene_dataset) >> 1
 
@@ -106,15 +107,16 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
     vae = VAE(gene_dataset.nb_genes, n_latent=n_latent,
               n_batch=gene_dataset.n_batches * use_batches, use_cuda=use_cuda,
               n_labels=gene_dataset.n_labels)
-    train_semi_supervised_jointly(vae, data_loader_all, data_loader_labelled, data_loader_unlabelled,
-                                  n_epochs=n_epochs, lr=lr)
+    Trainer().train(vae, data_loader_all, data_loader_labelled, data_loader_unlabelled,
+                    n_epochs=n_epochs, lr=lr, use_cuda=use_cuda, verbose=verbose)
 
     # Then we train a classifier on the latent space
     cls = Classifier(n_input=n_latent, n_labels=gene_dataset.n_labels, n_layers=3, use_cuda=use_cuda)
     for param in vae.z_encoder.parameters():
         param.requires_grad = False
-    cls_stats = train_classifier(vae, cls, data_loader_labelled, data_loader_unlabelled, n_epochs=n_epochs_classifier,
-                                 lr=lr)
+    cls_stats = ClassifierTrainer().train(vae, data_loader_labelled, data_loader_unlabelled,
+                                          n_epochs=n_epochs_classifier,
+                                          lr=lr, classifier=cls, use_cuda=use_cuda)
 
     axes[0].plot(cls_stats.history["Accuracy_train"], label='classifier')
     axes[1].plot(cls_stats.history["Accuracy_test"])
@@ -130,8 +132,9 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
     svaec.z_encoder.load_state_dict(vae.z_encoder.state_dict())
     for param in svaec.z_encoder.parameters():
         param.requires_grad = False
-    stats = train_semi_supervised_jointly(svaec, data_loader_all, data_loader_labelled, data_loader_unlabelled,
-                                          n_epochs=n_epochs, lr=lr, classification_ratio=alpha)
+    stats = JointSemiSupervisedTrainer(classification_ratio=alpha).train(svaec, data_loader_all, data_loader_labelled,
+                                                                         data_loader_unlabelled,
+                                                                         n_epochs=n_epochs, lr=lr, use_cuda=use_cuda)
 
     # We don't train the first z encoder in this procedure
     axes[0].plot(stats.history["Accuracy_train"], label='M1+M2 (frozen)')
@@ -142,14 +145,17 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
     svaec = SVAEC(gene_dataset.nb_genes, n_labels=gene_dataset.n_labels, y_prior=prior, n_latent=n_latent,
                   use_cuda=use_cuda, logreg_classifier=False)
 
-    stats = train_semi_supervised_jointly(svaec, data_loader_all, data_loader_labelled, data_loader_unlabelled,
-                                          n_epochs=n_epochs, lr=lr, classification_ratio=100, record_freq=10)
+    stats = JointSemiSupervisedTrainer(classification_ratio=100).train(
+        svaec, data_loader_all, data_loader_labelled, data_loader_unlabelled, n_epochs=n_epochs, lr=lr, record_freq=10,
+        use_cuda=use_cuda
+    )
 
     svaec = SVAEC(gene_dataset.nb_genes, n_labels=gene_dataset.n_labels, y_prior=prior, n_latent=n_latent,
                   use_cuda=use_cuda, logreg_classifier=True)
 
-    stats = train_semi_supervised_alternately(svaec, data_loader_all, data_loader_labelled, data_loader_unlabelled,
-                                              n_epochs=n_epochs, lr=lr, record_freq=10, lr_classification=0.05)
+    stats = AlternateSemiSupervisedTrainer(lr_classification=0.05).train(svaec, data_loader_all, data_loader_labelled,
+                                                                         data_loader_unlabelled, n_epochs=n_epochs,
+                                                                         lr=lr, record_freq=10, use_cuda=use_cuda)
 
     axes[0].plot(stats.history["Accuracy_train"], label='M1+M2 (train all)')
     axes[1].plot(stats.history["Accuracy_test"])
@@ -158,8 +164,8 @@ def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epoc
     print("Trying to classify on M1+M2's z1 latent space")
     cls = Classifier(n_input=n_latent, n_labels=gene_dataset.n_labels, n_layers=3, use_cuda=use_cuda)
 
-    stats = train_classifier(svaec, cls, data_loader_labelled, data_loader_unlabelled, n_epochs=n_epochs_classifier,
-                             lr=lr)
+    stats = ClassifierTrainer().train(svaec, data_loader_labelled, data_loader_unlabelled,
+                                      n_epochs=n_epochs_classifier, lr=lr, use_cuda=use_cuda, classifier=cls)
 
     axes[0].plot(stats.history["Accuracy_train"], label='M1+M2+classifier')
     axes[1].plot(stats.history["Accuracy_test"])

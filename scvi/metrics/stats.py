@@ -35,16 +35,16 @@ class Stats:
         self.epoch += 1
 
     def add_ll(self, model, data_loader, name='train'):
-        models = [VAE, VAEC, SVAEC]
-        if type(model) in models:
+        available_models = [VAE, VAEC, SVAEC]
+        if type(model) in available_models:
             log_likelihood = compute_log_likelihood(model, data_loader)
             self.history["LL_%s" % name].append(log_likelihood)
             if self.verbose:
                 print("LL %s is: %4f" % (name, log_likelihood))
 
     def add_accuracy(self, model, data_loader, classifier=None, name='train'):
-        models = [VAEC, SVAEC]
-        if type(model) in models or classifier:
+        available_models = [VAEC, SVAEC]
+        if type(model) in available_models or classifier:
             accuracy = compute_accuracy(model, data_loader, classifier)
             self.history["Accuracy_%s" % name].append(accuracy)
             if self.verbose:
@@ -67,7 +67,8 @@ class Stats:
 
 
 class EarlyStopping:
-    def __init__(self, patience=250, threshold=0.01, benchmark=False):
+    def __init__(self, patience=250, threshold=0.01, benchmark=False, disable=True):
+        self.disable = disable
         self.benchmark = benchmark
         self.patience = patience
         self.threshold = threshold
@@ -75,17 +76,20 @@ class EarlyStopping:
         self.epoch = 0
 
     def update(self, scalar):
-        self.epoch += 1
-        if self.benchmark or self.epoch <= self.patience:
+        if self.disable:
             return True
         else:
-            # Shift
-            self.current_performances[:-1] = self.current_performances[1:]
-            self.current_performances[-1] = scalar
+            self.epoch += 1
+            if self.benchmark or self.epoch <= self.patience:
+                return True
+            else:
+                # Shift
+                self.current_performances[:-1] = self.current_performances[1:]
+                self.current_performances[-1] = scalar
 
-            # Compute improvement
-            improvement = ((self.current_performances[-1] - self.current_performances[0])
-                           / self.current_performances[0])
+                # Compute improvement
+                improvement = ((self.current_performances[-1] - self.current_performances[0])
+                               / self.current_performances[0])
 
-            # Returns true if improvement is good enough
-            return improvement >= self.threshold
+                # Returns true if improvement is good enough
+                return improvement >= self.threshold

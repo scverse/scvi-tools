@@ -24,4 +24,4 @@ class eval_modules:
 
 
 def to_cuda(tensors, async=True):
-    return [t.cuda(async=async) for t in tensors]
+    return (t.cuda(async=async) for t in tensors)
