@@ -8,7 +8,6 @@ Welcome to scVI's documentation!
    readme
    installation
    usage
-   modules
    contributing
    authors
    history
@@ -18,7 +17,7 @@ Welcome to scVI's documentation!
    :caption: Package Reference
 
    dataset
-   
+
 Indices and tables
 ==================
 * :ref:`genindex`
