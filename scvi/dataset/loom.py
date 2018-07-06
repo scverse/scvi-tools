@@ -9,7 +9,23 @@ cluster_col = 'ClusterID'
 
 
 class LoomDataset(GeneExpressionDataset):
+    r""" Loads a `.loom` file.
 
+    Args:
+        filename (str): Name of the `.loom` file
+        save_path (str, optional): Save path of the dataset
+        url (str, optional): Url of the remote dataset
+        new_n_genes (int, optional): Number of subsampled genes
+        subset_genes (list, optional): List of genes for subsampling
+
+    Examples:
+        >>> # Loading a remote dataset
+        >>> remote_loom_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom", save_path='data/',
+        ... url='http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom')
+        >>> # Loading a local dataset
+        >>> local_loom_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom", save_path='data/')
+
+    """
     def __init__(self, filename, save_path='data/', url=None, new_n_genes=558, subset_genes=None):
         # 558 is for Cortex
         self.download_name = filename

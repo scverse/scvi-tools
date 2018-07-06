@@ -30,7 +30,23 @@ available_specification = ['filtered', 'raw']
 
 
 class Dataset10X(GeneExpressionDataset):
-    def __init__(self, filename, save_path='data/', type='filtered', new_n_genes=3000):
+    r""" Loads a file from `10x`_ website.
+
+    Args:
+        filename (str): Name of the dataset file
+        save_path (str, optional): Save path of the dataset
+        type (str, optional): Either `filtered` data or `raw` data
+        new_n_genes (int, optional): Number of subsampled genes
+        subset_genes (list, optional): List of genes for subsampling
+
+    Examples:
+        >>> tenX_dataset = Dataset10X("neuron_9k")
+
+    .. _10x:
+        http://cf.10xgenomics.com/
+
+    """
+    def __init__(self, filename, save_path='data/', type='filtered', new_n_genes=3000, subset_genes=None):
         group = to_groups[filename]
         self.url = ("http://cf.10xgenomics.com/samples/cell-exp/%s/%s/%s_%s_gene_bc_matrices.tar.gz" %
                     (group, filename, filename, type))
@@ -43,7 +59,7 @@ class Dataset10X(GeneExpressionDataset):
             expression_data), gene_names=gene_names)
 
         if new_n_genes is not None:
-            self.subsample_genes(new_n_genes)
+            self.subsample_genes(new_n_genes, subset_genes)
 
     def preprocess(self):
         print("Preprocessing dataset")
