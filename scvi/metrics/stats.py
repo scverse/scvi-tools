@@ -24,7 +24,7 @@ class Stats:
         self.history = defaultdict(lambda: [])
         self.use_cuda = use_cuda
 
-    def callback(self, model, *data_loaders, classifier=None):
+    def callback(self, model, *data_loaders, classifier=None, increment=True):
         if self.epoch == 0 or self.epoch == self.n_epochs or (
                         self.epoch % self.record_freq == 0 and not self.benchmark):
             # In this case we do add the stats
@@ -34,7 +34,7 @@ class Stats:
                 self.add_ll(model, data_loader, name=name)
                 self.add_accuracy(model, data_loader, classifier=classifier, name=name)
             self.save_best_params(model)
-        self.epoch += 1
+        self.epoch += increment
 
     def add_ll(self, model, data_loader, name='train'):
         available_models = [VAE, VAEC, SVAEC]
@@ -63,9 +63,10 @@ class Stats:
         model.load_state_dict(self.best_params)
 
     def display_time(self):
-        end = time.time()
-        print("Total runtime for " + str(self.epoch) + " epochs is: " + str((end - self.begin))
-              + " seconds for a mean per epoch runtime of " + str((end - self.begin) / self.epoch) + " seconds.")
+        if self.verbose:
+            end = time.time()
+            print("Total runtime for " + str(self.epoch) + " epochs is: " + str((end - self.begin))
+                  + " seconds for a mean per epoch runtime of " + str((end - self.begin) / self.epoch) + " seconds.")
 
 
 class EarlyStopping:
@@ -87,9 +88,9 @@ class EarlyStopping:
     def update(self, scalar):
         self.epoch += 1
         if self.benchmark or self.epoch < self.patience:
-            return True
-        if self.wait >= self.patience:
-            return False
+            continue_training = True
+        elif self.wait >= self.patience:
+            continue_training = False
         else:
             # Shift
             self.current_performance = scalar
@@ -109,4 +110,10 @@ class EarlyStopping:
             else:
                 self.wait = 0
 
-            return True
+            continue_training = True
+        if not continue_training:
+            print("\nStopping early: no improvement of more than " + str(self.threshold) +
+                  " nats in " + str(self.patience) + " epochs")
+            print("If the early stopping criterion is too strong, "
+                  "please instantiate it with different parameters in the train method.")
+        return continue_training

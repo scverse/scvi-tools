@@ -20,6 +20,7 @@ class VAE(nn.Module, BaseModel):
                  dispersion="gene", log_variational=True, reconstruction_loss="zinb"):
         super(VAE, self).__init__()
         self.dispersion = dispersion
+        self.n_latent = n_latent
         self.log_variational = log_variational
         self.reconstruction_loss = reconstruction_loss
         # Automatically desactivate if useless

@@ -1,7 +1,7 @@
 # On the 10X website:
 # The main categories (Cell Ranger 1.1.0 / Cell Ranger 2.1.0 / ...)
-# have same access suffix for each of their dataset.
-# For dataset name (eg. 'pbmc8k', 'pbmc4k', ect...) their are two available specifications,
+# have same access suffix for each of their gene_dataset.
+# For gene_dataset name (eg. 'pbmc8k', 'pbmc4k', ect...) their are two available specifications,
 # either filtered or raw data
 import os
 import tarfile
@@ -60,7 +60,7 @@ class Dataset10X(GeneExpressionDataset):
             self.subsample_genes(new_n_genes)
 
     def preprocess(self):
-        print("Preprocessing dataset")
+        print("Preprocessing gene_dataset")
         if len(os.listdir(self.save_path)) == 1:  # nothing extracted yet
             print("Extracting tar file")
             tar = tarfile.open(self.save_path + self.download_name, "r:gz")
@@ -79,5 +79,5 @@ class Dataset10X(GeneExpressionDataset):
         else:
             expression_data = csr_matrix(expression_data)
 
-        print("Finished preprocessing dataset")
+        print("Finished preprocessing gene_dataset")
         return expression_data, gene_names

@@ -1,201 +1,117 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
-from torch.utils.data.sampler import SubsetRandomSampler
 
-from scvi.dataset import CortexDataset, BrainLargeDataset
-from scvi.dataset.utils import get_data_loaders, get_raw_data
+from scvi.dataset import CortexDataset
+from scvi.dataset.utils import DataLoaderHandler
 from scvi.metrics.adapt_encoder import adapt_encoder
 from scvi.metrics.classification import compute_accuracy_rf, compute_accuracy_svc
 from scvi.metrics.clustering import entropy_batch_mixing, get_latent
 from scvi.metrics.differential_expression import de_stats, de_cortex
 from scvi.metrics.imputation import imputation
 from scvi.metrics.visualization import show_t_sne
-from scvi.models import VAE, SVAEC
-from scvi.models.classifier import Classifier
-from scvi.train import Trainer, ClassifierTrainer, JointSemiSupervisedTrainer, AlternateSemiSupervisedTrainer
+from scvi.models import VAE
+from scvi.train import Trainer, JointSemiSupervisedTrainer, AlternateSemiSupervisedTrainer
 
 
-def benchmark_hyperparameters(gene_dataset):
-    """
-    Possibly specify hyper parameters according to Table2 in "Bayesian Inference for a Generative Model of
-    transcriptome Profiles from Single-cell RNA Sequencing"
-    :param gene_dataset:
-    :return:
-    """
-    hyperparameters = dict()
-    if isinstance(gene_dataset, BrainLargeDataset):
-        if gene_dataset.nb_genes > 10000 and gene_dataset.nb_genes < 15000:
-            hyperparameters["n_layers"] = 2
-        elif gene_dataset.nb_genes > 15000:
-            hyperparameters["n_layers"] = 3
-            hyperparameters["n_hidden"] = 256
+class Inference:
+    def __init__(self, gene_dataset, model, use_cuda=True):
+        self.gene_dataset = gene_dataset
+        self.model = model
+        self.use_cuda = use_cuda and torch.cuda.is_available()
+        if self.use_cuda:
+            self.model.cuda()
 
-    return hyperparameters
+    def ll(self):
+        if isinstance(self.model, VAE):
+            best_ll = adapt_encoder(self.model, self.data_loader_test, n_path=1, n_epochs=1, record_freq=1,
+                                    use_cuda=self.use_cuda)
+            print("Best ll was :", best_ll)
 
+        # - log-likelihood
+        print("Log-likelihood Train:", self.stats.history["LL_train"][self.stats.best_index])
+        print("Log-likelihood Test:", self.stats.history["LL_test"][self.stats.best_index])
 
-def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=False, use_cuda=True,
-                   show_batch_mixing=True, benchmark=False, tt_split=0.9):
-    # options:
-    # - gene_dataset: a GeneExpressionDataset object
-    # call each of the 4 benchmarks:
-    # - log-likelihood
-    # - imputation
-    # - batch mixing
-    # - cluster scores
-    use_cuda = use_cuda and torch.cuda.is_available()
+    def imputation(self, rate=0.1):
+        imputation_test = imputation(self.model, self.data_loader_test, rate=rate, use_cuda=self.use_cuda)
+        print("Imputation score on test (MAE) is:", torch.median(imputation_test).item())
 
-    example_indices = np.random.permutation(len(gene_dataset))
-    tt_split = int(tt_split * len(gene_dataset))  # 90%/10% train/test split
+    def de(self):
+        if type(self.gene_dataset) == CortexDataset:
+            px_scale, all_labels = de_stats(self.model, self.data_loader_train, M_sampling=1, use_cuda=self.use_cuda)
+            de_cortex(px_scale, all_labels, self.gene_dataset.gene_names, M_permutation=1)
 
-    data_loader_train = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
-                                   sampler=SubsetRandomSampler(example_indices[:tt_split]),
-                                   collate_fn=gene_dataset.collate_fn)
-    data_loader_test = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
-                                  sampler=SubsetRandomSampler(example_indices[tt_split:]),
-                                  collate_fn=gene_dataset.collate_fn)
-
-    hyperparameters = benchmark_hyperparameters(gene_dataset)
-    vae = model(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * use_batches, n_labels=gene_dataset.n_labels,
-                **hyperparameters)
-    if use_cuda:
-        vae.cuda()
-    stats = Trainer().train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, lr=lr, benchmark=benchmark,
-                            use_cuda=use_cuda)
-
-    if isinstance(vae, VAE):
-        best_ll = adapt_encoder(vae, data_loader_test, n_path=1, n_epochs=1, record_freq=1, use_cuda=use_cuda)
-        print("Best ll was :", best_ll)
-
-    # - log-likelihood
-    print("Log-likelihood Train:", stats.history["LL_train"][stats.best_index])
-    print("Log-likelihood Test:", stats.history["LL_test"][stats.best_index])
-
-    # - imputation
-    imputation_test = imputation(vae, data_loader_test, use_cuda=use_cuda)
-    print("Imputation score on test (MAE) is:", torch.median(imputation_test).item())
-
-    # - batch mixing
-    if gene_dataset.n_batches == 2:
-        latent, batch_indices, labels = get_latent(vae, data_loader_train, use_cuda=use_cuda)
-        print("Entropy batch mixing :", entropy_batch_mixing(latent, batch_indices))
-        if show_batch_mixing:
+    def show_tsne(self):
+        if self.gene_dataset.n_batches == 2:
+            latent, batch_indices, labels = get_latent(self.model, self.data_loader_train, use_cuda=self.use_cuda)
+            print("Entropy batch mixing :", entropy_batch_mixing(latent, batch_indices))
             show_t_sne(latent, np.array([batch[0] for batch in batch_indices]))
 
-    # - differential expression
-    if type(gene_dataset) == CortexDataset:
-        px_scale, all_labels = de_stats(vae, data_loader_train, M_sampling=1, use_cuda=use_cuda)
-        de_cortex(px_scale, all_labels, gene_dataset.gene_names, M_permutation=1)
+    def all(self, unit_test=True):
+        self.ll()
+        self.imputation()
+        self.de()
+        self.show_tsne()
 
 
-# Pipeline to compare different semi supervised models
-def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epochs_classifier=10, lr=1e-2,
-                                  use_batches=False, use_cuda=True, tt_split=0.9, verbose=True):
-    use_cuda = use_cuda and torch.cuda.is_available()
+class UnsupervisedInference(Inference):
+    def __init__(self, gene_dataset, model, use_cuda=True, train_size=0.1):
+        super(UnsupervisedInference, self).__init__(gene_dataset, model, use_cuda=use_cuda)
+        self.init_data_loaders(train_size)
 
-    fig, axes = plt.subplots(1, 2, sharey=True, figsize=(12, 5))
-    alpha = 100  # in Kingma, 0.1 * len(gene_dataset), but pb when : len(gene_dataset) >> 1
+    def init_data_loaders(self, train_size):
+        self.data_loader_train, self.data_loader_test = (
+            DataLoaderHandler(pin_memory=self.use_cuda).train_test_split(
+                self.gene_dataset, train_size=train_size
+            )
+        )
 
-    data_loader_all, data_loader_labelled, data_loader_unlabelled = get_data_loaders(gene_dataset, 10,
-                                                                                     batch_size=128,
-                                                                                     pin_memory=use_cuda)
+    def train(self, n_epochs=1000, lr=1e-3, benchmark=False, **kargs):
+        self.stats = Trainer().train(
+            self.model, self.data_loader_train, self.data_loader_test, n_epochs=n_epochs, lr=lr, benchmark=benchmark,
+            use_cuda=self.use_cuda, **kargs
+        )
+        return self.stats
 
-    # Now we try out the different models and compare the classification accuracy
 
-    (data_train, labels_train), (data_test, labels_test) = get_raw_data(data_loader_labelled, data_loader_unlabelled)
-    accuracy_train_svc, accuracy_test_svc = compute_accuracy_svc(data_train, labels_train, data_test, labels_test,
-                                                                 unit_test=True)
-    accuracy_train_rf, accuracy_test_rf = compute_accuracy_rf(data_train, labels_train, data_test, labels_test,
-                                                              unit_test=True)
+class SemiSupervisedInference(Inference):
+    def __init__(self, gene_dataset, model, use_cuda=True, n_labelled_samples_per_class=50):
+        super(SemiSupervisedInference, self).__init__(gene_dataset, model, use_cuda=use_cuda)
+        self.init_data_loaders(n_labelled_samples_per_class)
 
-    # ========== The M1 model ===========
-    print("Trying M1 model")
-    vae = VAE(gene_dataset.nb_genes, n_latent=n_latent, n_batch=gene_dataset.n_batches * use_batches,
-              n_labels=gene_dataset.n_labels)
-    if use_cuda:
-        vae.cuda()
-    Trainer().train(vae, data_loader_all, data_loader_labelled, data_loader_unlabelled,
-                    n_epochs=n_epochs, lr=lr, use_cuda=use_cuda, verbose=verbose)
+    def init_data_loaders(self, n_labelled_samples_per_class):
+        self.data_loader_all, self.data_loader_labelled, self.data_loader_unlabelled = (
+            DataLoaderHandler(pin_memory=self.use_cuda).all_labelled_unlabelled(
+                self.gene_dataset, n_labelled_samples_per_class
+            )
+        )
+        self.data_loader_train = self.data_loader_labelled
+        self.data_loader_test = self.data_loader_unlabelled
 
-    # Then we train a classifier on the latent space
-    cls = Classifier(n_input=n_latent, n_labels=gene_dataset.n_labels, n_layers=3)
-    if use_cuda:
-        cls.cuda()
-    for param in vae.z_encoder.parameters():
-        param.requires_grad = False
-    cls_stats = ClassifierTrainer().train(vae, data_loader_labelled, data_loader_unlabelled,
-                                          n_epochs=n_epochs_classifier,
-                                          lr=lr, classifier=cls, use_cuda=use_cuda)
+    def train(self, n_epochs=1000, lr=1e-3, benchmark=False, mode="alternately", verbose=False, record_freq=5):
+        if mode == "alternately":
+            self.stats = AlternateSemiSupervisedTrainer().train(
+                self.model, self.data_loader_all, self.data_loader_labelled, self.data_loader_unlabelled,
+                n_epochs=n_epochs, lr=lr, benchmark=benchmark, use_cuda=self.use_cuda, verbose=verbose,
+                record_freq=record_freq
+            )
+        elif mode == "jointly":
+            self.stats = JointSemiSupervisedTrainer().train(
+                self.model, self.data_loader_all, self.data_loader_labelled, self.data_loader_unlabelled,
+                n_epochs=n_epochs, lr=lr, benchmark=benchmark, use_cuda=self.use_cuda, verbose=verbose,
+                record_freq=record_freq
+            )
+        return self.stats
 
-    axes[0].plot(cls_stats.history["Accuracy_train"], label='classifier')
-    axes[1].plot(cls_stats.history["Accuracy_test"])
+    def svc_rf(self, unit_test=False):
+        (data_train, labels_train), (data_test, labels_test) = (
+            DataLoaderHandler.raw_data(self.data_loader_labelled, self.data_loader_unlabelled)
+        )
+        accuracy_train_svc, accuracy_test_svc = compute_accuracy_svc(data_train, labels_train, data_test, labels_test,
+                                                                     unit_test=unit_test)
+        accuracy_train_rf, accuracy_test_rf = compute_accuracy_rf(data_train, labels_train, data_test, labels_test,
+                                                                  unit_test=unit_test)
+        return accuracy_train_svc, accuracy_test_svc, accuracy_train_rf, accuracy_test_rf
 
-    # ========== The M1+M2 model, first encoder frozen ===========
-    print("Trying out standard M1+M2 model")
-    prior = torch.FloatTensor([(gene_dataset.labels == i).mean() for i in range(gene_dataset.n_labels)])
-
-    svaec = SVAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * use_batches, n_labels=gene_dataset.n_labels,
-                  y_prior=prior, n_latent=n_latent)
-    if use_cuda:
-        svaec.cuda()
-
-    # Use a pretrained z encoder, freeze its weights
-    svaec.z_encoder.load_state_dict(vae.z_encoder.state_dict())
-    for param in svaec.z_encoder.parameters():
-        param.requires_grad = False
-    stats = JointSemiSupervisedTrainer(classification_ratio=alpha).train(svaec, data_loader_all, data_loader_labelled,
-                                                                         data_loader_unlabelled,
-                                                                         n_epochs=n_epochs, lr=lr, use_cuda=use_cuda)
-
-    # We don't train the first z encoder in this procedure
-    axes[0].plot(stats.history["Accuracy_train"], label='M1+M2 (frozen)')
-    axes[1].plot(stats.history["Accuracy_test"])
-
-    # ========== The M1+M2 model trained jointly ===========
-    print("Trying out M1+M2 optimized jointly")
-    svaec = SVAEC(gene_dataset.nb_genes, n_labels=gene_dataset.n_labels, y_prior=prior, n_latent=n_latent,
-                  logreg_classifier=False)
-    if use_cuda:
-        svaec.cuda()
-
-    stats = JointSemiSupervisedTrainer(classification_ratio=100).train(
-        svaec, data_loader_all, data_loader_labelled, data_loader_unlabelled, n_epochs=n_epochs, lr=lr, record_freq=10,
-        use_cuda=use_cuda
-    )
-
-    svaec = SVAEC(gene_dataset.nb_genes, n_labels=gene_dataset.n_labels, y_prior=prior, n_latent=n_latent,
-                  logreg_classifier=True)
-    if use_cuda:
-        svaec.cuda()
-
-    stats = AlternateSemiSupervisedTrainer(lr_classification=0.05).train(svaec, data_loader_all, data_loader_labelled,
-                                                                         data_loader_unlabelled, n_epochs=n_epochs,
-                                                                         lr=lr, record_freq=10, use_cuda=use_cuda)
-
-    axes[0].plot(stats.history["Accuracy_train"], label='M1+M2 (train all)')
-    axes[1].plot(stats.history["Accuracy_test"])
-
-    # ========== Classifier trained on the latent space of M1+M2 ===========
-    print("Trying to classify on M1+M2's z1 latent space")
-    cls = Classifier(n_input=n_latent, n_labels=gene_dataset.n_labels, n_layers=3)
-    if use_cuda:
-        cls.cuda()
-
-    stats = ClassifierTrainer().train(svaec, data_loader_labelled, data_loader_unlabelled,
-                                      n_epochs=n_epochs_classifier, lr=lr, use_cuda=use_cuda, classifier=cls)
-
-    axes[0].plot(stats.history["Accuracy_train"], label='M1+M2+classifier')
-    axes[1].plot(stats.history["Accuracy_test"])
-
-    # Now plot the results
-    axes[0].set_ylim(0, 1)
-    axes[0].set_ylabel('accuracy')
-    axes[0].set_xlabel('n_epochs')
-    axes[0].set_title('acc. train')
-    axes[0].legend()
-    axes[1].set_xlabel('n_epochs')
-    axes[1].set_title('acc. test')
-
-    plt.tight_layout()
-    plt.savefig("result_classification.png")
+    def all(self, unit_test=False):
+        super(SemiSupervisedInference, self).all()
+        self.svc_rf(unit_test=unit_test)

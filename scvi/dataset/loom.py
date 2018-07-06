@@ -37,7 +37,7 @@ class LoomDataset(GeneExpressionDataset):
         self.subsample_genes(new_n_genes=new_n_genes, subset_genes=subset_genes)
 
     def preprocess(self):
-        print("Preprocessing dataset")
+        print("Preprocessing gene_dataset")
         gene_names, labels, cell_batches = None, None, None
         ds = loompy.connect(self.save_path + self.download_name)
         select = ds[:, :].sum(axis=0) > 0  # Take out cells that doesn't express any gene
@@ -60,5 +60,5 @@ class LoomDataset(GeneExpressionDataset):
         data = ds[:, select].T  # change matrix to cells by genes
         ds.close()
 
-        print("Finished preprocessing dataset")
+        print("Finished preprocessing gene_dataset")
         return data, gene_names, labels, cell_batches

@@ -1,9 +1,9 @@
+import sys
 from itertools import cycle
 
 import torch
 from torch.nn import functional as F
 from tqdm import trange
-import sys
 
 from scvi.metrics.stats import Stats, EarlyStopping
 from scvi.utils import to_cuda, enable_grad
@@ -30,10 +30,13 @@ class Trainer:
         self.kl = kl
         self.use_cuda = use_cuda
         self.epoch = 0
-        self.optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr)
+        trainable_parameters = list(model.parameters())
+        if classifier is not None:
+            trainable_parameters = list(classifier.parameters())
+        self.optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, trainable_parameters), lr=lr)
         self.stats = Stats(n_epochs=n_epochs, benchmark=benchmark, verbose=verbose, record_freq=record_freq,
                            use_cuda=use_cuda)
-        self.stats.callback(model, *data_loaders, classifier=classifier)
+        self.stats.callback(model, *data_loaders, classifier=classifier, increment=False)
         self.early_stopping = EarlyStopping(benchmark=benchmark)
 
         # Training the model
@@ -57,7 +60,7 @@ class Trainer:
                 self.epoch += 1
                 if not self.on_epoch_end(model, *data_loaders):
                     break
-            self.stats.callback(model, *data_loaders, classifier=classifier)
+            self.stats.callback(model, *data_loaders, classifier=classifier, increment=False)
             self.stats.display_time()
             self.stats.set_best_params(model)
             return self.stats
@@ -81,7 +84,7 @@ class JointSemiSupervisedTrainer(Trainer):
 
 
 class AlternateSemiSupervisedTrainer(Trainer):
-    def __init__(self, n_epochs_classifier=10, lr_classification=0.1):
+    def __init__(self, n_epochs_classifier=1, lr_classification=0.1):
         super(AlternateSemiSupervisedTrainer, self).__init__()
         self.n_epochs_classifier = n_epochs_classifier
         self.lr_classification = lr_classification
@@ -105,8 +108,10 @@ class AlternateSemiSupervisedTrainer(Trainer):
 
 
 class ClassifierTrainer(Trainer):
+    def __init__(self, use_model=False):
+        self.use_model = use_model
+
     def loop(self, model, *tensors_list, classifier=None):
-        sample_batch_train, _, _, _, labels_train = tensors_list[0]
-        sample_batch_train = sample_batch_train.type(torch.float32)
-        z = model.sample_from_posterior_z(sample_batch_train, labels_train)
-        return F.cross_entropy(classifier(z), labels_train.view(-1))
+        x, _, _, _, labels_train = tensors_list[0]
+        x = model.sample_from_posterior_z(x) if self.use_model else x
+        return F.cross_entropy(classifier(x), labels_train.view(-1))

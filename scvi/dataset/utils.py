@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
@@ -28,9 +29,9 @@ def arrange_categories(original_categories, mapping_from=None, mapping_to=None):
     return new_categories, n_categories
 
 
-def get_indices(labels, n_labelled_samples_per_class_array):
+def get_indices(labels, n_labelled_samples_per_class_array, seed=0):
     labels = np.array(labels).ravel()
-    np.random.seed(0)
+    np.random.seed(seed=seed)
     permutation_idx = np.random.permutation(len(labels))
     labels = labels[permutation_idx]
     indices = []
@@ -47,40 +48,70 @@ def get_indices(labels, n_labelled_samples_per_class_array):
     return permutation_idx[indices[:total_labelled]], permutation_idx[indices[total_labelled:]]
 
 
-def get_data_loaders(gene_dataset, n_labelled_samples_per_class, **kwargs_data_loader):
-    """
-    For use in train_semi_supervised
-    Get labelled/unlabelled/all data_loaders from gene_dataset
-    :param gene_dataset: the dataset to consider
-    :param n_labelled_samples_per_class: number of labelled samples per class
-    :param kwargs_data_loader: any additional keyword arguments to pass to the dataloaders
-    :return: data_loader_labelled/data_loader_unlabelled/data_loader_all
-    """
-    indices_labelled, indices_unlabelled = (
-        get_indices(gene_dataset.labels, [n_labelled_samples_per_class] * gene_dataset.n_labels)
-    )
-    data_loader_all = DataLoader(gene_dataset, collate_fn=gene_dataset.collate_fn, shuffle=True, **kwargs_data_loader)
-    data_loader_labelled = DataLoader(gene_dataset, collate_fn=gene_dataset.collate_fn,
-                                      sampler=SubsetRandomSampler(indices_labelled), **kwargs_data_loader)
-    data_loader_unlabelled = DataLoader(gene_dataset, collate_fn=gene_dataset.collate_fn,
-                                        sampler=SubsetRandomSampler(indices_unlabelled), **kwargs_data_loader)
-    return data_loader_all, data_loader_labelled, data_loader_unlabelled
+class DataLoaderHandler:
+    def __init__(self, batch_size=128, pin_memory=True, **kwargs_data_loader):
+        self.batch_size = batch_size
+        self.pin_memory = pin_memory
+        self.kwargs_data_loader = kwargs_data_loader
 
+    def train_test_split(self, gene_dataset, train_size=0.1, test_size=None, seed=0):
+        """
+        :param train_size: float, int, or None (default is 0.1)
+        :param test_size: float, int, or None (default is None)
+        :return: data_loader_labelled/data_loader_unlabelled/data_loader_all
+        """
+        n = len(gene_dataset)
+        n_train, n_test = _validate_shuffle_split(n, test_size, train_size)
+        np.random.seed(seed=seed)
+        permutation = np.random.permutation(n)
+        indices_test = permutation[:n_test]
+        indices_train = permutation[n_test:(n_test + n_train)]
 
-def get_raw_data(*data_loaders):
-    """
-    From a list of data_loaders, return the numpy array suitable for classification with sklearn
-    :param data_loaders: a sequence of data_loaders arguments
-    :return: a sequence of (data, labels) for each data_loader
-    """
+        data_loader_train = DataLoader(gene_dataset, batch_size=self.batch_size, pin_memory=self.pin_memory,
+                                       sampler=SubsetRandomSampler(indices_train),
+                                       collate_fn=gene_dataset.collate_fn, **self.kwargs_data_loader)
+        data_loader_test = DataLoader(gene_dataset, batch_size=self.batch_size, pin_memory=self.pin_memory,
+                                      sampler=SubsetRandomSampler(indices_test),
+                                      collate_fn=gene_dataset.collate_fn, **self.kwargs_data_loader)
+        return data_loader_train, data_loader_test
 
-    def get_data_labels(data_loader):
-        if hasattr(data_loader, 'sampler') and hasattr(data_loader.sampler, 'indices'):
-            data = data_loader.dataset.X[data_loader.sampler.indices]
-            labels = data_loader.dataset.labels[data_loader.sampler.indices]
-        else:
-            data = data_loader.dataset.X
-            labels = data_loader.dataset.labels
-        return data, labels.ravel()
+    def all_labelled_unlabelled(self, gene_dataset, n_labelled_samples_per_class):
+        """
+        For use in train_semi_supervised
+        Get labelled/unlabelled/all data_loaders from gene_dataset
+        :param gene_dataset: the gene_dataset to consider
+        :param n_labelled_samples_per_class: number of labelled samples per class
+        :param kwargs_data_loader: any additional keyword arguments to pass to the dataloaders
+        :return: data_loader_labelled/data_loader_unlabelled/data_loader_all
+        """
+        indices_labelled, indices_unlabelled = (
+            get_indices(gene_dataset.labels, [n_labelled_samples_per_class] * gene_dataset.n_labels)
+        )
+        data_loader_all = DataLoader(gene_dataset, batch_size=self.batch_size, pin_memory=self.pin_memory,
+                                     shuffle=True, collate_fn=gene_dataset.collate_fn, **self.kwargs_data_loader)
+        data_loader_labelled = DataLoader(gene_dataset, batch_size=self.batch_size, pin_memory=self.pin_memory,
+                                          sampler=SubsetRandomSampler(indices_labelled),
+                                          collate_fn=gene_dataset.collate_fn, **self.kwargs_data_loader)
+        data_loader_unlabelled = DataLoader(gene_dataset, batch_size=self.batch_size, pin_memory=self.pin_memory,
+                                            sampler=SubsetRandomSampler(indices_unlabelled),
+                                            collate_fn=gene_dataset.collate_fn, **self.kwargs_data_loader)
+        return data_loader_all, data_loader_labelled, data_loader_unlabelled
 
-    return [get_data_labels(data_loader) for data_loader in data_loaders]
+    @staticmethod
+    def raw_data(*data_loaders):
+        """
+        From a list of data_loaders, return the numpy array suitable for classification with sklearn
+        :param data_loaders: a sequence of data_loaders arguments
+        :return: a sequence of (data, labels) for each data_loader
+        """
+
+        def get_data_labels(data_loader):
+            if hasattr(data_loader, 'sampler') and hasattr(data_loader.sampler, 'indices'):
+                data = data_loader.dataset.X[data_loader.sampler.indices]
+                labels = data_loader.dataset.labels[data_loader.sampler.indices]
+            else:
+                data = data_loader.dataset.X
+                labels = data_loader.dataset.labels
+            return data, labels.ravel()
+
+        return [get_data_labels(data_loader) for data_loader in data_loaders]
