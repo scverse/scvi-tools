@@ -9,11 +9,12 @@ class AnnDataset(GeneExpressionDataset):
     ``AnnDataset`` class supports loading `Anndata`_ object.
 
     Args:
-        filename (str): Name of the `.h5ad` file.
-        save_path (str, optional): Save path of the dataset. Default: 'data/'.
-        url (str, optional): Url of the remote dataset. Default: None.
-        new_n_genes (int, optional): Number of subsampled genes. Default: ``False``.
-        subset_genes (list, optional): List of genes for subsampling. Default: None.
+        :filename: Name of the `.h5ad` file.
+        :save_path: Save path of the dataset. Default: ``'data/'``.
+        :url: Url of the remote dataset. Default: ``None``.
+        :new_n_genes: Number of subsampled genes. Default: ``False``.
+        :subset_genes: List of genes for subsampling. Default: ``None``.
+
 
     Examples:
         >>> # Loading a local dataset
@@ -24,8 +25,12 @@ class AnnDataset(GeneExpressionDataset):
 
     """
 
-    def __init__(self, download_name, save_path='data/', url=None, new_n_genes=False, subset_genes=None):
-        self.download_name = download_name
+    def __init__(self, filename, save_path='data/', url=None, new_n_genes=False, subset_genes=None):
+        """
+
+
+        """
+        self.download_name = filename
         self.save_path = save_path
         self.url = url
 

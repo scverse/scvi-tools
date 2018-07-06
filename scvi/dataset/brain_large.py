@@ -44,7 +44,7 @@ class BrainLargeDataset(GeneExpressionDataset):
     scores on the 10k cells and 720 genes samples only.
 
     Args:
-        save_path (str, optional): Save path of raw data file
+        :save_path: Save path of raw data file. Default: ``'data/'``.
 
     Examples:
         >>> gene_dataset = BrainLargeDataset()

@@ -33,11 +33,11 @@ class Dataset10X(GeneExpressionDataset):
     r""" Loads a file from `10x`_ website.
 
     Args:
-        filename (str): Name of the dataset file
-        save_path (str, optional): Save path of the dataset
-        type (str, optional): Either `filtered` data or `raw` data
-        new_n_genes (int, optional): Number of subsampled genes
-        subset_genes (list, optional): List of genes for subsampling
+        :filename: Name of the dataset file.
+        :save_path: Save path of the dataset. Default: ``'data/'``.
+        :type: Either `filtered` data or `raw` data. Default: ``'filtered'``.
+        :new_n_genes: Number of subsampled genes. Default: ``3000``.
+        :subset_genes: List of genes for subsampling. Default: ``None``.
 
     Examples:
         >>> tenX_dataset = Dataset10X("neuron_9k")
@@ -88,7 +88,7 @@ class BrainSmallDataset(Dataset10X):
     clusters provided by cellRanger for the correlation analysis of zero probabilities.
 
     Args:
-        save_path (str, optional): Save path of raw data file
+        :save_path: Save path of raw data file. Default: ``'data/'``.
 
     Examples:
         >>> gene_dataset = BrainSmallDataset()

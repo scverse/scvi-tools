@@ -12,7 +12,7 @@ class HematoDataset(GeneExpressionDataset):
     recommendation. We use their population balance analysis result as a potential function for differentiation.
 
     Args:
-        save_path (str, optional): Save path of raw data file
+        :save_path: Save path of raw data file. Default: ``'data/'``.
 
     Examples:
         >>> gene_dataset = HematoDataset()

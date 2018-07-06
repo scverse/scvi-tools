@@ -13,7 +13,7 @@ class PbmcDataset(GeneExpressionDataset):
     expression to be left with g = 3346.
 
     Args:
-        save_path (str, optional): Save path of raw data file
+        :save_path: Save path of raw data file. Default: ``'data/'``.
 
     Examples:
         >>> gene_dataset = PbmcDataset()

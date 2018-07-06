@@ -7,14 +7,15 @@ class CsvDataset(GeneExpressionDataset):
     r""" Loads a `.csv` file.
 
     Args:
-        filename (str): Name of the `.csv` file
-        save_path (str, optional): Save path of the dataset
-        url (str, optional): Url of the remote dataset
-        new_n_genes (int, optional): Number of subsampled genes
-        subset_genes (list, optional): List of genes for subsampling
-        compression(str, optional): For on-the-fly decompression of on-disk data. If ‘infer’ and filepath_or_buffer
-        is path-like, then detect compression from the following extensions: ‘.gz’, ‘.bz2’, ‘.zip’, or ‘.xz’
-        (otherwise no decompression). If using ‘zip’, the ZIP file must contain only one data file to be read in.
+        :filename: Name of the `.csv` file.
+        :save_path: Save path of the dataset. Default: ``'data/'``.
+        :url: Url of the remote dataset. Default: ``None``.
+        :new_n_genes: Number of subsampled genes. Default: ``600``.
+        :subset_genes: List of genes for subsampling. Default: ``None``.
+        :compression: For on-the-fly decompression of on-disk data. If ‘infer’ and filepath_or_buffer
+            is path-like, then detect compression from the following extensions: ‘.gz’, ‘.bz2’, ‘.zip’, or ‘.xz’
+            (otherwise no decompression). If using ‘zip’, the ZIP file must contain only one data file to be read in.
+            Default: ``None``.
 
     Examples:
         >>> # Loading a remote dataset

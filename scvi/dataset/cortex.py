@@ -13,7 +13,7 @@ class CortexDataset(GeneExpressionDataset):
     ordered by variance.
 
     Args:
-        save_path (str, optional): Save path of raw data file
+        :save_path: Save path of raw data file. Default: ``'data/'``.
 
     Examples:
         >>> gene_dataset = CortexDataset()

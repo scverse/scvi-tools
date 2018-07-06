@@ -12,11 +12,11 @@ class LoomDataset(GeneExpressionDataset):
     r""" Loads a `.loom` file.
 
     Args:
-        filename (str): Name of the `.loom` file
-        save_path (str, optional): Save path of the dataset
-        url (str, optional): Url of the remote dataset
-        new_n_genes (int, optional): Number of subsampled genes
-        subset_genes (list, optional): List of genes for subsampling
+        :filename: Name of the `.loom` file.
+        :save_path: Save path of the dataset. Default: ``'data/'``.
+        :url: Url of the remote dataset. Default: ``None``.
+        :new_n_genes: Number of subsampled genes. Default: ``558``.
+        :subset_genes: List of genes for subsampling. Default: ``None``.
 
     Examples:
         >>> # Loading a remote dataset
@@ -88,7 +88,7 @@ class RetinaDataset(LoomDataset):
     extract their normalized data with Combat and use it for benchmarking.
 
     Args:
-        save_path (str, optional): Save path of raw data file
+        :save_path: Save path of raw data file. Default: ``'data'``.
 
     Examples:
         >>> gene_dataset = RetinaDataset()

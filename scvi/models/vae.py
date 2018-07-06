@@ -16,6 +16,27 @@ torch.backends.cudnn.benchmark = True
 
 # VAE model
 class VAE(nn.Module, BaseModel):
+    r"""Variational auto-encoder model.
+
+    Args:
+        n_input(int): Number of input genes.
+        n_hidden(int, optional): Number of hidden
+        n_latent(int, optional):
+        n_layers(int, optional): Number of layers. Default: ``1``.
+        dropout_rate(float, optional): Default: ``0.1``.
+        dispersion(str, optional): Default: ``"gene"``.
+        log_variational(bool, optional): Default: ``True``.
+        reconstruction_loss(str, optional): Default: ``"zinb"``.
+        n_batch (int, optional): Default: ``0``.
+        n_labels (int, optional): Default: ``0``.
+        use_cuda (bool, optional): Default: ``False``.
+
+    Examples:
+        >>> gene_dataset = CortexDataset()
+        >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+        ... n_labels=gene_dataset.n_labels, use_cuda=True )
+
+    """
     def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1, dispersion="gene",
                  log_variational=True, reconstruction_loss="zinb", n_batch=0, n_labels=0, use_cuda=False):
         super(VAE, self).__init__()
