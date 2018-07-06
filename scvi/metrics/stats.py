@@ -67,29 +67,44 @@ class Stats:
 
 
 class EarlyStopping:
-    def __init__(self, patience=250, threshold=0.01, benchmark=False, disable=True):
-        self.disable = disable
+    def __init__(self, patience=15, threshold=3, benchmark=False, mode="min"):
         self.benchmark = benchmark
         self.patience = patience
         self.threshold = threshold
-        self.current_performances = np.ones((patience))
         self.epoch = 0
+        self.wait = 0
+        self.mode = mode
+        # We set the best to + inf because we're dealing with a loss we want to minimize
+        self.current_performance = np.inf
+        self.best_performance = np.inf
+        # If we want to maximize, we start at - inf
+        if self.mode == "max":
+            self.best *= -1
+            self.current_performance *= -1
 
     def update(self, scalar):
-        if self.disable:
+        self.epoch += 1
+        if self.benchmark or self.epoch < self.patience:
             return True
+        if self.wait >= self.patience:
+            return False
         else:
-            self.epoch += 1
-            if self.benchmark or self.epoch <= self.patience:
-                return True
+            # Shift
+            self.current_performance = scalar
+
+            # Compute improvement
+            if self.mode == "max":
+                improvement = self.current_performance - self.best_performance
+            elif self.mode == "min":
+                improvement = self.best_performance - self.current_performance
+
+            # updating best performance
+            if improvement > 0:
+                self.best_performance = self.current_performance
+
+            if improvement < self.threshold:
+                self.wait += 1
             else:
-                # Shift
-                self.current_performances[:-1] = self.current_performances[1:]
-                self.current_performances[-1] = scalar
+                self.wait = 0
 
-                # Compute improvement
-                improvement = ((self.current_performances[-1] - self.current_performances[0])
-                               / self.current_performances[0])
-
-                # Returns true if improvement is good enough
-                return improvement >= self.threshold
+            return True

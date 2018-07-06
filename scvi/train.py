@@ -1,16 +1,12 @@
+from itertools import cycle
+
 import torch
 from torch.nn import functional as F
+from tqdm import trange
+import sys
 
 from scvi.metrics.stats import Stats, EarlyStopping
 from scvi.utils import to_cuda, enable_grad
-
-# If we're running in Jupyter notebook, then we want to use
-# `tqdm_notebook`. Otherwise, we want to use `tqdm`.
-try:
-    get_ipython
-    from tqdm import tqdm_notebook as tqdm
-except NameError:
-    from tqdm import tqdm
 
 
 class Trainer:
@@ -37,29 +33,35 @@ class Trainer:
         self.optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr)
         self.stats = Stats(n_epochs=n_epochs, benchmark=benchmark, verbose=verbose, record_freq=record_freq)
         self.stats.callback(model, *data_loaders, classifier=classifier)
-        self.early_stopping = EarlyStopping(benchmark=benchmark, disable=True)
+        self.early_stopping = EarlyStopping(benchmark=benchmark)
 
         # Training the model
-        for epoch in tqdm(range(n_epochs), desc="training", disable=verbose or benchmark):
-            self.on_epoch_begin()
-            for tensors_list in zip(*data_loaders):
-                updated_tensors_list = []
-                for tensors in tensors_list:
-                    if self.use_cuda:
-                        tensors = to_cuda(tensors)
-                    tensors = (tensors[0].type(torch.float32),) + tensors[1:]
-                    updated_tensors_list += [tensors]
-                loss = self.loop(model, *updated_tensors_list, classifier=classifier)
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-            self.epoch += 1
-            if not self.on_epoch_end(model, *data_loaders):
-                break
-        self.stats.callback(model, *data_loaders, classifier=classifier)
-        self.stats.display_time()
-        self.stats.set_best_params(model)
-        return self.stats
+        with trange(n_epochs, desc="training", file=sys.stdout, disable=verbose or benchmark) as pbar:
+        # We have to use tqdm this way so it works in Jupyter notebook.
+        # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
+
+            for epoch in pbar:
+                pbar.update(1)
+                self.on_epoch_begin()
+
+                for tensors_list in zip(data_loaders[0], *[cycle(data_loader) for data_loader in data_loaders[1:]]):
+                    updated_tensors_list = []
+                    for tensors in tensors_list:
+                        if self.use_cuda:
+                            tensors = to_cuda(tensors)
+                        tensors = (tensors[0].type(torch.float32),) + tensors[1:]
+                        updated_tensors_list += [tensors]
+                    loss = self.loop(model, *updated_tensors_list, classifier=classifier)
+                    self.optimizer.zero_grad()
+                    loss.backward()
+                    self.optimizer.step()
+                self.epoch += 1
+                if not self.on_epoch_end(model, *data_loaders):
+                    break
+            self.stats.callback(model, *data_loaders, classifier=classifier)
+            self.stats.display_time()
+            self.stats.set_best_params(model)
+            return self.stats
 
 
 class JointSemiSupervisedTrainer(Trainer):
