@@ -3,15 +3,15 @@
 
 
 """Tests for `scvi` package."""
-import numpy as np
 
 from scvi.benchmark import run_benchmarks, run_benchmarks_classification
-from scvi.dataset import GeneExpressionDataset, BrainLargeDataset, CortexDataset, SyntheticDataset, \
+from scvi.dataset import BrainLargeDataset, CortexDataset, SyntheticDataset, \
     RetinaDataset, BrainSmallDataset, HematoDataset, LoomDataset, AnnDataset, CsvDataset, \
     CiteSeqDataset, CbmcDataset, PbmcDataset
 from scvi.models import VAEC, VAE, SVAEC
 
 use_cuda = True
+
 
 def test_synthetic_1():
     synthetic_dataset = SyntheticDataset()
@@ -90,7 +90,6 @@ def test_cbmc():
 def test_pbmc():
     pbmc_dataset = PbmcDataset(save_path='tests/data/')
     run_benchmarks(pbmc_dataset, n_epochs=1, show_batch_mixing=False, use_cuda=use_cuda)
-
 
 # def test_filter_and_concat_datasets():
 #     cortex_dataset_1 = CortexDataset()
