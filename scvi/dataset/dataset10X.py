@@ -60,7 +60,7 @@ class Dataset10X(GeneExpressionDataset):
             self.subsample_genes(new_n_genes)
 
     def preprocess(self):
-        print("Preprocessing gene_dataset")
+        print("Preprocessing dataset")
         if len(os.listdir(self.save_path)) == 1:  # nothing extracted yet
             print("Extracting tar file")
             tar = tarfile.open(self.save_path + self.download_name, "r:gz")
@@ -79,5 +79,5 @@ class Dataset10X(GeneExpressionDataset):
         else:
             expression_data = csr_matrix(expression_data)
 
-        print("Finished preprocessing gene_dataset")
+        print("Finished preprocessing dataset")
         return expression_data, gene_names

@@ -20,11 +20,11 @@ class CsvDataset(GeneExpressionDataset):
         self.subsample_genes(new_n_genes, subset_genes)
 
     def preprocess(self):
-        print("Preprocessing gene_dataset")
+        print("Preprocessing dataset")
 
         data = pd.read_csv(self.save_path + self.download_name, index_col=0, compression=self.compression).T
         gene_names = np.array(data.columns, dtype=str)
 
         data = data.values
-        print("Finished preprocessing gene_dataset")
+        print("Finished preprocessing dataset")
         return data, gene_names
