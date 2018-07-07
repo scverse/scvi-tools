@@ -24,13 +24,12 @@ class SVAEC(nn.Module, SemiSupervisedModel):
 
         self.y_prior = y_prior if y_prior is not None else (1 / self.n_labels) * torch.ones(self.n_labels)
         # Automatically desactivate if useless
-        self.n_batch = 0 if n_batch == 1 else n_batch
-        self.z_encoder = Encoder(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
+        self.n_batch = n_batch
+        self.z_encoder = Encoder(n_input, n_latent=n_latent, n_layers=n_layers, n_hidden=n_hidden,
                                  dropout_rate=dropout_rate)
-        self.l_encoder = Encoder(n_input, n_hidden=n_hidden, n_latent=1, n_layers=1,
-                                 dropout_rate=dropout_rate)
-        self.decoder = DecoderSCVI(n_latent, n_input, n_hidden=n_hidden, n_layers=n_layers,
-                                   dropout_rate=dropout_rate, n_batch=n_batch)
+        self.l_encoder = Encoder(n_input, n_latent=1, n_layers=1, n_hidden=n_hidden, dropout_rate=dropout_rate)
+        self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch], n_layers=n_layers, n_hidden=n_hidden,
+                                   dropout_rate=dropout_rate)
 
         self.dispersion = 'gene'
         self.px_r = torch.nn.Parameter(torch.randn(n_input, ))
@@ -41,8 +40,10 @@ class SVAEC(nn.Module, SemiSupervisedModel):
         else:
             self.classifier = Classifier(n_latent, n_hidden, self.n_labels, n_layers, dropout_rate)
 
-        self.encoder_z2_z1 = Encoder(n_input=n_latent, n_cat=self.n_labels, n_latent=n_latent, n_layers=n_layers)
-        self.decoder_z1_z2 = Decoder(n_latent, n_latent, n_cat=self.n_labels, n_layers=n_layers)
+        self.encoder_z2_z1 = Encoder(n_latent, n_latent, n_cat_list=[self.n_labels], n_layers=n_layers,
+                                     n_hidden=n_hidden, dropout_rate=dropout_rate)
+        self.decoder_z1_z2 = Decoder(n_latent, n_latent, n_cat_list=[self.n_labels], n_layers=n_layers,
+                                     n_hidden=n_hidden, dropout_rate=dropout_rate)
 
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
@@ -77,15 +78,15 @@ class SVAEC(nn.Module, SemiSupervisedModel):
         return library
 
     def get_sample_scale(self, x, y=None, batch_index=None):
-        z = self.sample_from_posterior_z(x, y)
-        px = self.decoder.px_decoder(z, batch_index, y)
+        z = self.sample_from_posterior_z(x)
+        px = self.decoder.px_decoder(z, batch_index)
         px_scale = self.decoder.px_scale_decoder(px)
         return px_scale
 
     def get_sample_rate(self, x, y=None, batch_index=None):
         z = self.sample_from_posterior_z(x)
         library = self.sample_from_posterior_l(x)
-        px = self.decoder.px_decoder(z, batch_index, y)
+        px = self.decoder.px_decoder(z, batch_index)
         return self.decoder.px_scale_decoder(px) * torch.exp(library)
 
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):

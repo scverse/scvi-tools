@@ -23,7 +23,7 @@ class VAE(nn.Module, BaseModel):
         self.log_variational = log_variational
         self.reconstruction_loss = reconstruction_loss
         # Automatically desactivate if useless
-        self.n_batch = 0 if n_batch == 1 else n_batch
+        self.n_batch = n_batch
         self.n_labels = n_labels
         self.n_latent_layers = 1
 
@@ -36,12 +36,11 @@ class VAE(nn.Module, BaseModel):
         else:  # gene-cell
             pass
 
-        self.z_encoder = Encoder(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
+        self.z_encoder = Encoder(n_input, n_latent=n_latent, n_layers=n_layers, n_hidden=n_hidden,
                                  dropout_rate=dropout_rate)
-        self.l_encoder = Encoder(n_input, n_hidden=n_hidden, n_latent=1, n_layers=1,
-                                 dropout_rate=dropout_rate)
-        self.decoder = DecoderSCVI(n_latent, n_input, n_hidden=n_hidden, n_layers=n_layers,
-                                   dropout_rate=dropout_rate, n_batch=n_batch)
+        self.l_encoder = Encoder(n_input, n_latent=1, n_layers=1, n_hidden=n_hidden, dropout_rate=dropout_rate)
+        self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch], n_layers=n_layers, n_hidden=n_hidden,
+                                   dropout_rate=dropout_rate)
 
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
