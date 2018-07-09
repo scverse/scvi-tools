@@ -11,13 +11,13 @@ def get_latent_mean(vae, data_loader, use_cuda=True):
 
 @no_grad()
 @eval_modules()
-def get_latent(vae, data_loader, use_cuda=True):
+def get_latent(infer, data_loader, use_cuda=True):
     latent = []
     batch_indices = []
     labels = []
+    vae = infer.model
     for tensors in data_loader:
-        if use_cuda:
-            tensors = to_cuda(tensors)
+        tensors = to_cuda(tensors, use_cuda=use_cuda)
         sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
         sample_batch = sample_batch.type(torch.float32)
         latent += [vae.sample_from_posterior_z(sample_batch, y=label)]

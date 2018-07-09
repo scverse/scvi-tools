@@ -1,3 +1,5 @@
+from itertools import cycle
+
 import numpy as np
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data import DataLoader
@@ -48,54 +50,27 @@ def get_indices(labels, n_labelled_samples_per_class_array, seed=0):
     return permutation_idx[indices[:total_labelled]], permutation_idx[indices[total_labelled:]]
 
 
-class DataLoaderHandler:
-    def __init__(self, batch_size=128, pin_memory=True, **kwargs_data_loader):
-        self.batch_size = batch_size
-        self.pin_memory = pin_memory
-        self.kwargs_data_loader = kwargs_data_loader
+def zip_first_cycle(*args):
+    return zip(args[0], *[cycle(arg) for arg in args[1:]])
 
-    def train_test_split(self, gene_dataset, train_size=0.1, test_size=None, seed=0):
-        """
-        :param train_size: float, int, or None (default is 0.1)
-        :param test_size: float, int, or None (default is None)
-        :return: data_loader_labelled/data_loader_unlabelled/data_loader_all
-        """
-        n = len(gene_dataset)
-        n_train, n_test = _validate_shuffle_split(n, test_size, train_size)
-        np.random.seed(seed=seed)
-        permutation = np.random.permutation(n)
-        indices_test = permutation[:n_test]
-        indices_train = permutation[n_test:(n_test + n_train)]
 
-        data_loader_train = DataLoader(gene_dataset, batch_size=self.batch_size, pin_memory=self.pin_memory,
-                                       sampler=SubsetRandomSampler(indices_train),
-                                       collate_fn=gene_dataset.collate_fn, **self.kwargs_data_loader)
-        data_loader_test = DataLoader(gene_dataset, batch_size=self.batch_size, pin_memory=self.pin_memory,
-                                      sampler=SubsetRandomSampler(indices_test),
-                                      collate_fn=gene_dataset.collate_fn, **self.kwargs_data_loader)
-        return data_loader_train, data_loader_test
+class DataLoaders:
+    def __init__(self, data_loaders_dict, data_loaders_loop, to_monitor):
+        """
 
-    def all_labelled_unlabelled(self, gene_dataset, n_labelled_samples_per_class):
+        :param data_loaders_loop: the data_loaders that will be provided in the loop
+        :param data_loaders_dict: a dictionary to access the data_loaders
+        :param data_loaders_monitor: string list that must be in data_loaders_dict's keys
         """
-        For use in train_semi_supervised
-        Get labelled/unlabelled/all data_loaders from gene_dataset
-        :param gene_dataset: the gene_dataset to consider
-        :param n_labelled_samples_per_class: number of labelled samples per class
-        :param kwargs_data_loader: any additional keyword arguments to pass to the dataloaders
-        :return: data_loader_labelled/data_loader_unlabelled/data_loader_all
-        """
-        indices_labelled, indices_unlabelled = (
-            get_indices(gene_dataset.labels, [n_labelled_samples_per_class] * gene_dataset.n_labels)
-        )
-        data_loader_all = DataLoader(gene_dataset, batch_size=self.batch_size, pin_memory=self.pin_memory,
-                                     shuffle=True, collate_fn=gene_dataset.collate_fn, **self.kwargs_data_loader)
-        data_loader_labelled = DataLoader(gene_dataset, batch_size=self.batch_size, pin_memory=self.pin_memory,
-                                          sampler=SubsetRandomSampler(indices_labelled),
-                                          collate_fn=gene_dataset.collate_fn, **self.kwargs_data_loader)
-        data_loader_unlabelled = DataLoader(gene_dataset, batch_size=self.batch_size, pin_memory=self.pin_memory,
-                                            sampler=SubsetRandomSampler(indices_unlabelled),
-                                            collate_fn=gene_dataset.collate_fn, **self.kwargs_data_loader)
-        return data_loader_all, data_loader_labelled, data_loader_unlabelled
+        self.data_loaders_dict = data_loaders_dict
+        self.data_loaders_loop = data_loaders_loop
+        self.to_monitor = to_monitor
+
+    def __getitem__(self, item):
+        return self.data_loaders_dict[item]
+
+    def __iter__(self):
+        return zip_first_cycle(*self.data_loaders_loop)
 
     @staticmethod
     def raw_data(*data_loaders):
@@ -115,3 +90,100 @@ class DataLoaderHandler:
             return data, labels.ravel()
 
         return [get_data_labels(data_loader) for data_loader in data_loaders]
+
+
+class TrainTestDataLoaders(DataLoaders):
+    def __init__(self, gene_dataset, train_size=0.1, test_size=None, seed=0, batch_size=128, pin_memory=True,
+                 **kwargs_data_loader):
+        """
+        :param train_size: float, int, or None (default is 0.1)
+        :param test_size: float, int, or None (default is None)
+        :return: data_loader_labelled/data_loader_unlabelled/data_loader_all
+        """
+        n = len(gene_dataset)
+        n_train, n_test = _validate_shuffle_split(n, test_size, train_size)
+        np.random.seed(seed=seed)
+        permutation = np.random.permutation(n)
+        indices_test = permutation[:n_test]
+        indices_train = permutation[n_test:(n_test + n_train)]
+
+        data_loader_train = DataLoader(gene_dataset, batch_size=batch_size, pin_memory=pin_memory,
+                                       sampler=SubsetRandomSampler(indices_train),
+                                       collate_fn=gene_dataset.collate_fn, **kwargs_data_loader)
+        data_loader_test = DataLoader(gene_dataset, batch_size=batch_size, pin_memory=pin_memory,
+                                      sampler=SubsetRandomSampler(indices_test),
+                                      collate_fn=gene_dataset.collate_fn, **kwargs_data_loader)
+        data_loaders_dict = {
+            'train': data_loader_train,
+            'test': data_loader_test
+        }
+
+        data_loaders_loop = [data_loader_train]
+        super(TrainTestDataLoaders, self).__init__(
+            data_loaders_dict=data_loaders_dict,
+            data_loaders_loop=data_loaders_loop,
+            to_monitor=['train']
+        )
+
+
+class SemiSupervisedDataLoaders(DataLoaders):
+    def create_data_loaders_dict(self, gene_dataset, n_labelled_samples_per_class=50, batch_size=128, pin_memory=True,
+                                 seed=0, **kwargs_data_loader):
+        """
+        For use in train_semi_supervised
+        Get labelled/unlabelled/all data_loaders from gene_dataset
+        :param gene_dataset: the gene_dataset to consider
+        :param n_labelled_samples_per_class: number of labelled samples per class
+        :param kwargs_data_loader: any additional keyword arguments to pass to the dataloaders
+        :return: data_loader_labelled/data_loader_unlabelled/data_loader_all
+        """
+        indices_labelled, indices_unlabelled = (
+            get_indices(gene_dataset.labels, [n_labelled_samples_per_class] * gene_dataset.n_labels, seed=seed)
+        )
+        data_loader_all = DataLoader(gene_dataset, batch_size=batch_size, pin_memory=pin_memory,
+                                     shuffle=True, collate_fn=gene_dataset.collate_fn, **kwargs_data_loader)
+        data_loader_labelled = DataLoader(gene_dataset, batch_size=batch_size, pin_memory=pin_memory,
+                                          sampler=SubsetRandomSampler(indices_labelled),
+                                          collate_fn=gene_dataset.collate_fn, **kwargs_data_loader)
+        data_loader_unlabelled = DataLoader(gene_dataset, batch_size=batch_size, pin_memory=pin_memory,
+                                            sampler=SubsetRandomSampler(indices_unlabelled),
+                                            collate_fn=gene_dataset.collate_fn, **kwargs_data_loader)
+
+        data_loaders_dict = {
+            'all': data_loader_all,
+            'labelled': data_loader_labelled,
+            'unlabelled': data_loader_unlabelled,
+        }
+        return data_loaders_dict
+
+
+class JointSemiSupervisedDataLoaders(SemiSupervisedDataLoaders):
+    def __init__(self, *args, **kwargs):
+        data_loaders_dict = self.create_data_loaders_dict(*args, **kwargs)
+        data_loaders_loop = [data_loaders_dict['all'], data_loaders_dict['labelled']]
+
+        super(JointSemiSupervisedDataLoaders, self).__init__(
+            data_loaders_dict=data_loaders_dict,
+            data_loaders_loop=data_loaders_loop,
+            to_monitor=['labelled', 'unlabelled']
+        )
+
+
+class AlternateSemiSupervisedDataLoaders(SemiSupervisedDataLoaders):
+    def __init__(self, *args, **kwargs):
+        data_loaders_dict = self.create_data_loaders_dict(*args, **kwargs)
+        data_loaders_loop = [data_loaders_dict['all']]
+
+        super(AlternateSemiSupervisedDataLoaders, self).__init__(
+            data_loaders_dict=data_loaders_dict,
+            data_loaders_loop=data_loaders_loop,
+            to_monitor=['labelled', 'unlabelled']
+        )
+
+    def classifier_data_loaders(self):
+        data_loaders_dict = {'train': self.data_loaders_dict['labelled'],
+                             'test': self.data_loaders_dict['unlabelled']}
+        data_loaders_loop = [self.data_loaders_dict['labelled']]
+        return DataLoaders(data_loaders_dict=data_loaders_dict,
+                           data_loaders_loop=data_loaders_loop,
+                           to_monitor=['train'])

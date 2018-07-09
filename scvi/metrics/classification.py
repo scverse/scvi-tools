@@ -32,25 +32,22 @@ def compute_accuracy_tuple(y, labels):
 
 @no_grad()
 @eval_modules()
-def compute_accuracy(vae, data_loader, classifier=None, use_cuda=True):
+def compute_accuracy(infer, data_loader, use_cuda=True):
     all_y_pred = []
     all_labels = []
 
     for i_batch, tensors in enumerate(data_loader):
-        if use_cuda:
-            tensors = to_cuda(tensors)
+        tensors = to_cuda(tensors, use_cuda=use_cuda)
         sample_batch, _, _, _, labels = tensors
         sample_batch = sample_batch.type(torch.float32)
         all_labels += [labels.view(-1)]
 
-        if hasattr(vae, 'classify'):
-            y_pred = vae.classify(sample_batch).argmax(dim=-1)
-        elif classifier is not None:
-            # Then we use the specified classifier
-            mu_z, _, _ = vae.z_encoder(sample_batch)
-            y_pred = classifier(mu_z).argmax(dim=-1)
-            # Then the vae must implement a classify function
-
+        if hasattr(infer, 'model') and hasattr(infer.model, 'classify'):
+            y_pred = infer.model.classify(sample_batch).argmax(dim=-1)
+        else:
+            if hasattr(infer, 'sampling_model') and infer.sampling_model is not None:
+                sample_batch = infer.sampling_model.sample_from_posterior_z(sample_batch)
+            y_pred = infer.model(sample_batch).argmax(dim=-1)
         all_y_pred += [y_pred]
 
     accuracy = (torch.cat(all_y_pred) == torch.cat(all_labels)).type(torch.float32).mean().item()

@@ -20,7 +20,7 @@ class SVAEC(VAE, SemiSupervisedModel):
     '''
 
     def __init__(self, n_input, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1, n_batch=0,
-                 y_prior=None, logreg_classifier=True, dispersion="gene", log_variational=True,
+                 y_prior=None, logreg_classifier=False, dispersion="gene", log_variational=True,
                  reconstruction_loss="zinb"):
         super(SVAEC, self).__init__(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
                                     dropout_rate=dropout_rate, n_batch=n_batch, dispersion=dispersion,

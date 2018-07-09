@@ -6,7 +6,7 @@ from scvi.utils import to_cuda, no_grad, eval_modules
 
 @no_grad()
 @eval_modules()
-def de_stats(vae, data_loader, M_sampling=100, use_cuda=True):
+def de_stats(infer, data_loader, M_sampling=100, use_cuda=True):
     """
     Output average over statistics in a symmetric way (a against b)
     forget the sets if permutation is True
@@ -15,6 +15,7 @@ def de_stats(vae, data_loader, M_sampling=100, use_cuda=True):
     :param M_sampling: number of samples
     :return: A 1-d vector of statistics of size n_genes
     """
+    vae = infer.model
     px_scales = []
     all_labels = []
     for tensors in data_loader:

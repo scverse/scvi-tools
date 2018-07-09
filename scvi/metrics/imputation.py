@@ -6,12 +6,12 @@ from scvi.utils import to_cuda, no_grad, eval_modules
 
 @no_grad()
 @eval_modules()
-def imputation(vae, data_loader, rate=0.1, use_cuda=True):
+def imputation(infer, data_loader, rate=0.1, use_cuda=True):
+    vae = infer.model
     distance_list = torch.FloatTensor([])
-    for tensorlist in data_loader:
-        if use_cuda:
-            tensorlist = to_cuda(tensorlist)
-        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensorlist
+    for tensors in data_loader:
+        tensors = to_cuda(tensors, use_cuda=use_cuda)
+        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
         sample_batch = sample_batch.type(torch.float32)
         dropout_batch = sample_batch.clone()
         indices = torch.nonzero(dropout_batch)
