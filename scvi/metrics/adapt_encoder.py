@@ -5,8 +5,7 @@ from scvi.utils import to_cuda, enable_grad
 
 
 @enable_grad()
-def adapt_encoder(infer, data_loader, n_path=10, n_epochs=50, record_freq=5, use_cuda=True):
-    vae = infer.model
+def adapt_encoder(vae, data_loader, n_path=10, n_epochs=50, record_freq=5, use_cuda=True):
     parameters = list(vae.z_encoder.parameters()) + list(vae.l_encoder.parameters())
     z_encoder_state = vae.z_encoder.state_dict()
     l_encoder_state = vae.l_encoder.state_dict()
