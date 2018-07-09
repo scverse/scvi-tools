@@ -2,17 +2,23 @@ import sys
 from collections import defaultdict
 
 import torch
-# model, *data_loaders are attributes of this class
 from tqdm import trange
 
-from scvi.metrics import AccuracyMetric, LLMetric
-# from scvi.inference.inferencetask import EarlyStopping
+from scvi.metrics import AccuracyMetric, LLMetric, DEStatsTask, ImputationTask, ImputationMetric, DEMetric, TsneTask, \
+    BEMetric
 from scvi.metrics.early_stopping import EarlyStopping
 from scvi.utils import to_cuda, enable_grad
 
 metrics = {'ll': LLMetric(),
-           'accuracy': AccuracyMetric()
+           'accuracy': AccuracyMetric(),
+           'imputation': ImputationMetric(),
+           'de': DEMetric(),
+           'be': BEMetric()
            }
+
+tasks = {'de_stats': DEStatsTask(),
+         'imputation_stats': ImputationTask(),
+         'show_t_sne': TsneTask()}
 
 
 class Inference:
@@ -20,45 +26,53 @@ class Inference:
     Inference class cares about the general training of a PyTorch model with its statistics
     """
     metrics = []
+    tasks = []
+    default_metrics_to_monitor = []
 
-    def __init__(self, model, gene_dataset, data_loaders=None, metrics_to_monitor=[], use_cuda=True, benchmark=False,
-                 record_freq=1, verbose=True, early_stopping_metric=None, save_best_state_metric=None, on=None):
+    def __init__(self, model, gene_dataset, data_loaders=None, metrics_to_monitor=None, use_cuda=True, benchmark=False,
+                 frequency=None, early_stopping_metric=None, save_best_state_metric=None, on=None):
         self.model = model
         self.gene_dataset = gene_dataset
         self.data_loaders = data_loaders
         self.benchmark = benchmark
         self.epoch = 0
 
-        self.metrics_to_monitor = metrics_to_monitor
+        if metrics_to_monitor is not None:
+            self.metrics_to_monitor = metrics_to_monitor
+        else:
+            self.metrics_to_monitor = self.default_metrics_to_monitor
+
         self.early_stopping_metric = early_stopping_metric
         self.save_best_state_metric = save_best_state_metric
         self.on = on
         mode = metrics[early_stopping_metric].mode if early_stopping_metric is not None else None
         mode_save_state = metrics[save_best_state_metric].mode if save_best_state_metric is not None else None
         self.early_stopping = EarlyStopping(benchmark=benchmark, mode=mode, mode_save_state=mode_save_state)
+
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
             self.model.cuda()
-        self.set_metrics_methods()
+        self.set_task_and_metric_methods()
 
-        self.verbose = verbose if not benchmark else False
-        self.record_freq = record_freq
+        self.frequency = frequency if not benchmark else None
 
         self.history = defaultdict(lambda: [])
 
-    def set_metrics_methods(self):
-        def metric_method_getter(metric):
-            def metric_method(name, **kargs):
-                return metrics[metric](self, self.data_loaders[name], name=name, use_cuda=self.use_cuda, **kargs)
+    def set_task_and_metric_methods(self):
+        def getter(_name, dictionary):
+            def method(name, **kargs):
+                return dictionary[_name](self, self.data_loaders[name], name=name, use_cuda=self.use_cuda, **kargs)
 
-            return metric_method
+            return method
 
         for metric in self.metrics:
-            setattr(self, metric, metric_method_getter(metric))
+            setattr(self, metric, getter(_name=metric, dictionary=metrics))
+        for task in self.tasks:
+            setattr(self, task, getter(_name=task, dictionary=tasks))
 
     def compute_metrics(self):
-        if self.verbose and (self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.record_freq == 0)):
-            print("EPOCH [%d/%d]: " % (self.epoch, self.n_epochs))
+        if self.frequency and (self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.frequency == 0)):
+            print("\nEPOCH [%d/%d]: " % (self.epoch, self.n_epochs))
             for name in self.data_loaders.to_monitor:
                 for metric in self.metrics_to_monitor:
                     result = getattr(self, metric)(name=name)
@@ -70,9 +84,7 @@ class Inference:
         self.epoch = 0
         self.n_epochs = n_epochs
         self.compute_metrics()
-        # Training the model
-
-        with trange(n_epochs, desc="training", file=sys.stdout, disable=self.benchmark or self.verbose) as pbar:
+        with trange(n_epochs, desc="training", file=sys.stdout, disable=self.frequency or self.benchmark) as pbar:
             # We have to use tqdm this way so it works in Jupyter notebook.
             # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
             self.on_epoch_begin()
@@ -87,7 +99,6 @@ class Inference:
                     break
         if self.save_best_state_metric is not None:
             self.model.load_state_dict(self.best_state_dict)
-            print("Now re-computing metric")
             self.compute_metrics()
 
     def on_epoch_begin(self):

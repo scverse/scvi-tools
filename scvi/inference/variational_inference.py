@@ -6,7 +6,9 @@ from . import Inference, ClassifierInference
 
 
 class VariationalInference(Inference):
-    metrics = ['ll']#, 'imputation']  # 'de','show_tsne'
+    metrics = ['ll', 'accuracy', 'imputation', 'de', 'be']
+    tasks = ['imputation_stats', 'de_stats', 'show_t_sne']
+    default_metrics_to_monitor = ['ll']
 
     def __init__(self, model, gene_dataset, train_size=0.1, **kwargs):
         super(VariationalInference, self).__init__(model, gene_dataset, **kwargs)
@@ -25,6 +27,7 @@ class VariationalInference(Inference):
 
 class SemiSupervisedVariationalInference(VariationalInference):
     metrics = VariationalInference.metrics + ['accuracy']
+    default_metrics_to_monitor = VariationalInference.default_metrics_to_monitor + ['accuracy']
 
 
 class AlternateSemiSupervisedVariationalInference(SemiSupervisedVariationalInference):
@@ -37,8 +40,8 @@ class AlternateSemiSupervisedVariationalInference(SemiSupervisedVariationalInfer
         self.data_loaders = AlternateSemiSupervisedDataLoaders(gene_dataset, n_labelled_samples_per_class)
 
         self.classifier_inference = ClassifierInference(
-            model.classifier, gene_dataset, metrics_to_monitor=['accuracy'],
-            data_loaders=self.data_loaders.classifier_data_loaders(), sampling_model=self.model,benchmark=True# verbose=True, record_freq=10
+            model.classifier, gene_dataset, metrics_to_monitor=[], benchmark=True,
+            data_loaders=self.data_loaders.classifier_data_loaders(), sampling_model=self.model
         )
 
     def on_epoch_end(self):
@@ -47,13 +50,9 @@ class AlternateSemiSupervisedVariationalInference(SemiSupervisedVariationalInfer
 
 
 class JointSemiSupervisedVariationalInference(SemiSupervisedVariationalInference):
-    def __init__(self, model, gene_dataset, n_labelled_samples_per_class=50, classification_ratio=100,
-                 **kwargs):
-        super(JointSemiSupervisedVariationalInference, self).__init__(
-            model, gene_dataset, **kwargs
-        )
+    def __init__(self, model, gene_dataset, n_labelled_samples_per_class=50, classification_ratio=100, **kwargs):
+        super(JointSemiSupervisedVariationalInference, self).__init__(model, gene_dataset, **kwargs)
         self.data_loaders = JointSemiSupervisedDataLoaders(gene_dataset, n_labelled_samples_per_class)
-
         self.classification_ratio = classification_ratio
 
     def loss(self, tensors_unlabelled, tensors_labelled):

@@ -5,6 +5,7 @@ from torch.nn import functional as F
 
 class ClassifierInference(Inference):
     metrics = ['accuracy']
+    default_metrics_to_monitor = ['accuracy']
 
     def __init__(self, *args, sampling_model=None, **kwargs):
         self.sampling_model = sampling_model

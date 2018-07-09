@@ -10,7 +10,10 @@ from scvi.benchmark import UnsupervisedInference, SemiSupervisedInference
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     GeneExpressionDataset
+from scvi.inference import JointSemiSupervisedVariationalInference, AlternateSemiSupervisedVariationalInference, \
+    ClassifierInference, VariationalInference
 from scvi.models import VAE, VAEC, SVAEC
+from scvi.models.classifier import Classifier
 
 use_cuda = True
 
@@ -40,19 +43,33 @@ def test_synthetic_1():
     infer.train(n_epochs=1, benchmark=False, mode="jointly", verbose=True)
     infer.all(unit_test=True)
 
-
-def run_benchmarks(gene_dataset, model=VAE, use_cuda=use_cuda, use_batches=True, train_size=0.5):
-    vae = model(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * use_batches, n_labels=gene_dataset.n_labels)
-    infer = UnsupervisedInference(gene_dataset, vae, use_cuda=use_cuda, train_size=train_size)
-    infer.train(n_epochs=1, benchmark=False, verbose=True)
-    infer.ll()
-    infer.imputation()
-    infer.de()
-
-
 def test_cortex():
     cortex_dataset = CortexDataset()
-    run_benchmarks(cortex_dataset, model=VAEC, use_cuda=use_cuda)
+    vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_labels, n_batch=cortex_dataset.n_batches)
+    infer_cortex_vae = VariationalInference(vae, cortex_dataset, train_size=0.1)
+    infer_cortex_vae.fit(n_epochs=1)
+    infer_cortex_vae.ll('train')
+    infer_cortex_vae.de_stats('train')
+    infer_cortex_vae.de_stats('test')
+    infer_cortex_vae.imputation_stats('test', rate=0.5)
+
+    svaec = SVAEC(cortex_dataset.nb_genes, cortex_dataset.n_labels, n_batch=cortex_dataset.n_batches)
+    infer_cortex_svaec = JointSemiSupervisedVariationalInference(svaec, cortex_dataset, n_labelled_samples_per_class=50)
+    infer_cortex_svaec.fit(n_epochs=1)
+    infer_cortex_svaec.accuracy('labelled')
+    infer_cortex_svaec.ll('all')
+
+    svaec = SVAEC(cortex_dataset.nb_genes, cortex_dataset.n_labels, n_batch=cortex_dataset.n_batches,
+                  logreg_classifier=True)
+    infer_cortex_svaec = AlternateSemiSupervisedVariationalInference(svaec, cortex_dataset,
+                                                                     n_labelled_samples_per_class=50)
+    infer_cortex_svaec.fit(n_epochs=1, lr=1e-2)
+    infer_cortex_svaec.accuracy('unlabelled')
+
+    cls = Classifier(cortex_dataset.nb_genes, n_labels=cortex_dataset.n_labels)
+    infer_cls = ClassifierInference(cls, cortex_dataset)
+    infer_cls.fit(n_epochs=1)
+    infer_cls.accuracy('train')
 
 
 def test_brain_large():

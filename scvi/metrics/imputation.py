@@ -18,8 +18,7 @@ def imputation(model, data_loader, rate=0.1, use_cuda=True):
         ix = torch.LongTensor(np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False))
         dropout_batch[i[ix], j[ix]] *= 0
 
-        if use_cuda:
-            ix, i, j = to_cuda([ix, i, j], async=False)
+        ix, i, j = to_cuda([ix, i, j], use_cuda=use_cuda, async=False)
         px_rate = model.get_sample_rate(dropout_batch, batch_index=batch_index, y=labels)
         distance_list = torch.cat([distance_list, torch.abs(px_rate[i[ix], j[ix]] - sample_batch[i[ix], j[ix]]).cpu()])
     return distance_list
