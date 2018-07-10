@@ -4,8 +4,9 @@ import numpy as np
 import torch
 
 from scvi.dataset import CortexDataset
+from scvi.dataset.utils import DataLoaders
 from scvi.metrics.clustering import get_latent, entropy_batch_mixing
-from .classification import compute_accuracy
+from .classification import compute_accuracy, compute_accuracy_svc, compute_accuracy_rf
 from .differential_expression import de_stats, de_cortex
 from .imputation import imputation
 from .log_likelihood import compute_log_likelihood
@@ -106,3 +107,21 @@ class TsneTask(Task):
         n_samples = kwargs.pop('n_samples')
         latent, batch_indices, labels = get_latent(infer.model, data_loader, use_cuda=use_cuda)
         show_t_sne(latent, np.array([batch[0] for batch in batch_indices]), n_samples=n_samples)
+
+
+class Baseline:
+    @abstractmethod
+    def __call__(self, infer, *args, **kwargs):
+        pass
+
+
+class SVC_RF(Baseline):
+    def __call__(self, infer, *args, **kwargs):
+        if 'train' in infer.data_loaders:
+            raw_data = DataLoaders.raw_data(infer.data_loaders['train'], infer.data_loaders['test'])
+        else:
+            raw_data = DataLoaders.raw_data(infer.data_loaders['labelled'], infer.data_loaders['unlabelled'])
+        (data_train, labels_train), (data_test, labels_test) = raw_data
+        score_train = compute_accuracy_svc(data_train, labels_train, data_test, labels_test, **kwargs)
+        score_test = compute_accuracy_rf(data_train, labels_train, data_test, labels_test, **kwargs)
+        return score_train, score_test

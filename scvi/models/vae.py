@@ -72,18 +72,7 @@ class VAE(nn.Module, BaseModel):
         px_scale = self.get_sample_scale(x, batch_index=batch_index, y=y)
         return px_scale * torch.exp(library)
 
-    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
-        # Parameters for z latent distribution
-        x_ = x
-        if self.log_variational:
-            x_ = torch.log(1 + x_)
-
-        # Sampling
-        qz_m, qz_v, z = self.z_encoder(x_)
-        ql_m, ql_v, library = self.l_encoder(x_)
-
-        px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index)
-
+    def _reconstruction_loss(self, x, px_rate, px_r, px_dropout, batch_index, y):
         if self.dispersion == "gene-label":
             px_r = F.linear(one_hot(y, self.n_labels), self.px_r)  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
@@ -96,6 +85,21 @@ class VAE(nn.Module, BaseModel):
             reconst_loss = -log_zinb_positive(x, px_rate, torch.exp(px_r), px_dropout)
         elif self.reconstruction_loss == 'nb':
             reconst_loss = -log_nb_positive(x, px_rate, torch.exp(px_r))
+        return reconst_loss
+
+    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
+        # Parameters for z latent distribution
+        x_ = x
+        if self.log_variational:
+            x_ = torch.log(1 + x_)
+
+        # Sampling
+        qz_m, qz_v, z = self.z_encoder(x_)
+        ql_m, ql_v, library = self.l_encoder(x_)
+
+        px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index)
+
+        reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout, batch_index, y)
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)

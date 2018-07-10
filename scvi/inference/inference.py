@@ -5,20 +5,22 @@ import torch
 from tqdm import trange
 
 from scvi.metrics import AccuracyMetric, LLMetric, DEStatsTask, ImputationTask, ImputationMetric, DEMetric, TsneTask, \
-    BEMetric
+    BEMetric, SVC_RF
 from scvi.metrics.early_stopping import EarlyStopping
 from scvi.utils import to_cuda, enable_grad
 
 metrics = {'ll': LLMetric(),
            'accuracy': AccuracyMetric(),
            'imputation': ImputationMetric(),
-           'de': DEMetric(),
-           'be': BEMetric()
+           'differential_expression': DEMetric(),
+           'batch_entropy_mixing': BEMetric()
            }
 
-tasks = {'de_stats': DEStatsTask(),
+tasks = {'differential_expression_stats': DEStatsTask(),
          'imputation_stats': ImputationTask(),
          'show_t_sne': TsneTask()}
+
+baselines = {'svc_rf': SVC_RF()}
 
 
 class Inference:
@@ -27,6 +29,7 @@ class Inference:
     """
     metrics = []
     tasks = []
+    baselines = []
     default_metrics_to_monitor = []
 
     def __init__(self, model, gene_dataset, data_loaders=None, metrics_to_monitor=None, use_cuda=True, benchmark=False,
@@ -69,6 +72,15 @@ class Inference:
             setattr(self, metric, getter(_name=metric, dictionary=metrics))
         for task in self.tasks:
             setattr(self, task, getter(_name=task, dictionary=tasks))
+
+        def getter_baseline(_name, dictionary):
+            def method_baseline(*args, **kargs):
+                return dictionary[_name](self, *args, **kargs)
+
+            return method_baseline
+
+        for baseline in self.baselines:
+            setattr(self, baseline, getter_baseline(_name=baseline, dictionary=baselines))
 
     def compute_metrics(self):
         if self.frequency and (self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.frequency == 0)):

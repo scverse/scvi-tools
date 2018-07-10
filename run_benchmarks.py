@@ -3,9 +3,11 @@
 """Run all the benchmarks with specific parameters"""
 import argparse
 
-from scvi.benchmark import cortex_benchmark
+from scvi.benchmark import harmonization_benchmarks, \
+    annotation_benchmarks, all_benchmarks
 from scvi.dataset import BrainLargeDataset, CortexDataset, SyntheticDataset, CsvDataset, \
     RetinaDataset, BrainSmallDataset, HematoDataset, LoomDataset, AnnDataset, CbmcDataset, PbmcDataset
+from scvi.inference import VariationalInference, JointSemiSupervisedVariationalInference
 from scvi.models import VAE, VAEC, SVAEC
 
 
@@ -66,13 +68,30 @@ if __name__ == '__main__':
     parser.add_argument("--epochs", type=int, default=250, help="how many times to process the gene_dataset")
     parser.add_argument("--dataset", type=str, default="cortex", help="which gene_dataset to process")
     parser.add_argument("--model", type=str, default="VAE", help="the model to use")
-    parser.add_argument("--semi_supervised", action='store_true', help="whether to use the semi-supervised model")
     parser.add_argument("--nobatches", action='store_true', help="whether to ignore batches")
     parser.add_argument("--nocuda", action='store_true',
+                        help="whether to use cuda (will apply only if cuda is available")
+    parser.add_argument("--harmonization", action='store_true',
+                        help="whether to use cuda (will apply only if cuda is available")
+    parser.add_argument("--annotation", action='store_true',
+                        help="whether to use cuda (will apply only if cuda is available")
+    parser.add_argument("--all", action='store_true',
                         help="whether to use cuda (will apply only if cuda is available")
     parser.add_argument("--benchmark", action='store_true',
                         help="whether to use cuda (will apply only if cuda is available")
     parser.add_argument("--url", type=str, help="the url for downloading gene_dataset")
     args = parser.parse_args()
 
-    cortex_benchmark()
+    n_epochs = args.n_epochs
+    if args.all:
+        all_benchmarks(n_epochs=n_epochs)
+    elif args.harmonization:
+        harmonization_benchmarks(n_epochs=n_epochs)
+    elif args.annotation:
+        annotation_benchmarks(n_epochs=n_epochs)
+    else:
+        dataset = load_datasets(args.dataset)
+        model = available_models[args.model](dataset.nb_genes, n_labels=dataset.n_labels)
+        inference_cls = VariationalInference if args.model == 'VAE' else JointSemiSupervisedVariationalInference
+        infer = inference_cls(dataset, dataset)
+        infer.fit(n_epochs=n_epochs)

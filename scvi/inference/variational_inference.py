@@ -6,8 +6,8 @@ from . import Inference, ClassifierInference
 
 
 class VariationalInference(Inference):
-    metrics = ['ll', 'accuracy', 'imputation', 'de', 'be']
-    tasks = ['imputation_stats', 'de_stats', 'show_t_sne']
+    metrics = ['ll', 'accuracy', 'imputation', 'differential_expression', 'batch_entropy_mixing']
+    tasks = ['imputation_stats', 'differential_expression_stats', 'show_t_sne']
     default_metrics_to_monitor = ['ll']
 
     def __init__(self, model, gene_dataset, train_size=0.1, **kwargs):
@@ -28,6 +28,7 @@ class VariationalInference(Inference):
 class SemiSupervisedVariationalInference(VariationalInference):
     metrics = VariationalInference.metrics + ['accuracy']
     default_metrics_to_monitor = VariationalInference.default_metrics_to_monitor + ['accuracy']
+    baselines = ['svc_rf']
 
 
 class AlternateSemiSupervisedVariationalInference(SemiSupervisedVariationalInference):

@@ -69,6 +69,9 @@ class DataLoaders:
     def __getitem__(self, item):
         return self.data_loaders_dict[item]
 
+    def __contains__(self, item):
+        return item in self.data_loaders_dict
+
     def __iter__(self):
         return zip_first_cycle(*self.data_loaders_loop)
 

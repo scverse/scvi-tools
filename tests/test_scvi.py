@@ -11,7 +11,7 @@ from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainS
     GeneExpressionDataset
 from scvi.inference import JointSemiSupervisedVariationalInference, AlternateSemiSupervisedVariationalInference, \
     ClassifierInference, VariationalInference
-from scvi.models import VAE, SVAEC
+from scvi.models import VAE, SVAEC, VAEC
 from scvi.models.classifier import Classifier
 
 use_cuda = True
@@ -23,8 +23,8 @@ def test_cortex():
     infer_cortex_vae = VariationalInference(vae, cortex_dataset, train_size=0.1, use_cuda=use_cuda)
     infer_cortex_vae.fit(n_epochs=1)
     infer_cortex_vae.ll('train')
-    infer_cortex_vae.de_stats('train')
-    infer_cortex_vae.de_stats('test')
+    infer_cortex_vae.differential_expression_stats('train')
+    infer_cortex_vae.differential_expression('test')
     infer_cortex_vae.imputation_stats('test', rate=0.5)
 
     svaec = SVAEC(cortex_dataset.nb_genes, cortex_dataset.n_labels, n_batch=cortex_dataset.n_batches)
@@ -42,6 +42,7 @@ def test_cortex():
                                                                      use_cuda=use_cuda)
     infer_cortex_svaec.fit(n_epochs=1, lr=1e-2)
     infer_cortex_svaec.accuracy('unlabelled')
+    infer_cortex_svaec.svc_rf(unit_test=True)
 
     cls = Classifier(cortex_dataset.nb_genes, n_labels=cortex_dataset.n_labels)
     infer_cls = ClassifierInference(cls, cortex_dataset)
@@ -52,9 +53,14 @@ def test_cortex():
 def test_synthetic_1():
     synthetic_dataset = SyntheticDataset()
     svaec = SVAEC(synthetic_dataset.nb_genes, synthetic_dataset.n_labels, n_batch=synthetic_dataset.n_batches)
-    infer_synthetic = JointSemiSupervisedVariationalInference(svaec, synthetic_dataset, use_cuda=use_cuda)
-    infer_synthetic.fit(n_epochs=1)
-    infer_synthetic.be('labelled')
+    infer_synthetic_svaec = JointSemiSupervisedVariationalInference(svaec, synthetic_dataset, use_cuda=use_cuda)
+    infer_synthetic_svaec.fit(n_epochs=1)
+    infer_synthetic_svaec.batch_entropy_mixing('labelled')
+
+    vaec = VAEC(synthetic_dataset.nb_genes, synthetic_dataset.n_labels, n_batch=synthetic_dataset.n_batches)
+    infer_synthetic_vaec = JointSemiSupervisedVariationalInference(vaec, synthetic_dataset, use_cuda=use_cuda)
+    infer_synthetic_vaec.fit(n_epochs=1)
+    infer_synthetic_vaec.svc_rf(unit_test=True)
 
 
 def base_benchmark(gene_dataset):

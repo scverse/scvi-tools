@@ -1,13 +1,10 @@
 import torch
-import torch.nn.functional as F
 from torch.distributions import Normal, Multinomial, kl_divergence as kl
 
-from scvi.metrics.log_likelihood import log_zinb_positive, log_nb_positive
 from scvi.models.base import SemiSupervisedModel
 from scvi.models.classifier import Classifier
 from scvi.models.modules import DecoderSCVI, Encoder
 from scvi.models.utils import broadcast_labels
-from scvi.models.utils import one_hot
 from scvi.models.vae import VAE
 
 
@@ -58,20 +55,9 @@ class VAEC(VAE, SemiSupervisedModel):
         # Sampling
         qz_m, qz_v, zs = self.z_encoder(xs_, ys)
 
-        px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, zs, library_s, batch_index_s, y=ys)
+        px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, zs, library_s, batch_index_s, ys)
 
-        if self.dispersion == "gene-label":
-            px_r = F.linear(one_hot(y, self.n_labels), self.px_r)  # px_r gets transposed - last dimension is nb genes
-        elif self.dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
-        elif self.dispersion == "gene":
-            px_r = self.px_r
-
-        # Reconstruction Loss
-        if self.reconstruction_loss == 'zinb':
-            reconst_loss = -log_zinb_positive(xs, px_rate, torch.exp(px_r), px_dropout)
-        elif self.reconstruction_loss == 'nb':
-            reconst_loss = -log_nb_positive(xs, px_rate, torch.exp(px_r))
+        reconst_loss = self._reconstruction_loss(xs, px_rate, px_r, px_dropout, batch_index_s, ys)
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)
