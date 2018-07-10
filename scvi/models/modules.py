@@ -14,10 +14,10 @@ class FCLayers(nn.Module):
         self.n_cat_list = [n_cat if n_cat > 1 else 0 for n_cat in n_cat_list]  # n_cat = 1 will be ignored
         self.fc_layers = nn.Sequential(collections.OrderedDict(
             [('Layer {}'.format(i), nn.Sequential(
-                nn.Dropout(p=dropout_rate),
-                nn.Linear(n_in + sum(n_cat_list), n_out),
+                nn.Linear(n_in + sum(self.n_cat_list), n_out),
                 nn.BatchNorm1d(n_out, eps=1e-3, momentum=0.99),
-                nn.ReLU())) for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))]))
+                nn.ReLU(),
+                nn.Dropout(p=dropout_rate))) for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))]))
 
     def forward(self, x, *cat_list):
         one_hot_cat_list = []  # for generality in this list many indices useless.
