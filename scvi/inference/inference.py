@@ -114,5 +114,7 @@ class Inference:
 
         continue_training = True
         if self.early_stopping_metric is not None and self.on is not None:
-            continue_training = self.early_stopping.update(self.history[self.early_stopping_metric + '_' + self.on][-1])
+            continue_training = self.early_stopping.update(
+                self.history[self.early_stopping_metric + '_' + self.on][-1]
+            )
         return continue_training

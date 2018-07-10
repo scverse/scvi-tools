@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class EarlyStopping:
     def __init__(self, patience=15, threshold=3, benchmark=False, mode="max", mode_save_state="max"):
         self.benchmark = benchmark

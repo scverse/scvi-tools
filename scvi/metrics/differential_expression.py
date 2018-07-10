@@ -83,4 +83,4 @@ def de_cortex(px_scale, all_labels, gene_names, M_permutation=100000, permutatio
     genes_of_interest = np.char.upper(["Thy1", "Mbp"])
     result = [(gene_name, res[np.where(gene_names == gene_name)[0]][0]) for gene_name in genes_of_interest]
     print('\n'.join([gene_name + " : " + str(r) for (gene_name, r) in result]))
-    return result[1][1] # if we had to give a metric to optimize
+    return result[1][1]  # if we had to give a metric to optimize
