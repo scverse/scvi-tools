@@ -64,7 +64,7 @@ class SVAEC(VAE, SemiSupervisedModel):
         )
         qz2_m, qz2_v, z2 = self.encoder_z2_z1(z1s, ys)
         pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
-        px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, z1, library, batch_index, y=ys)
+        px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, z1, library, batch_index)
 
         reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout, batch_index, y)
 

@@ -21,7 +21,7 @@ class FCLayers(nn.Module):
 
     def forward(self, x, *cat_list):
         one_hot_cat_list = []  # for generality in this list many indices useless.
-        assert len(self.n_cat_list) == len(cat_list), "nb. categorical args provided doesn't match init. params."
+        assert len(self.n_cat_list) <= len(cat_list), "nb. categorical args provided doesn't match init. params."
         for n_cat, cat in zip(self.n_cat_list, cat_list):
             assert not (n_cat and cat is None), "cat not provided while n_cat != 0 in init. params."
             if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
