@@ -2,10 +2,8 @@ import torch
 from torch.distributions import Normal, Multinomial, kl_divergence as kl
 
 from scvi.models.base import SemiSupervisedModel
-from scvi.models.classifier import Classifier
-from scvi.models.classifier import LinearLogRegClassifier
-from scvi.models.modules import Decoder
-from scvi.models.modules import Encoder
+from scvi.models.classifier import Classifier, LinearLogRegClassifier
+from scvi.models.modules import Decoder, Encoder
 from scvi.models.utils import broadcast_labels
 from scvi.models.vae import VAE
 
@@ -31,8 +29,10 @@ class SVAEC(VAE, SemiSupervisedModel):
         else:
             self.classifier = Classifier(n_latent, n_hidden, self.n_labels, n_layers, dropout_rate)
 
-        self.encoder_z2_z1 = Encoder(n_input=n_latent, n_cat=self.n_labels, n_latent=n_latent, n_layers=n_layers)
-        self.decoder_z1_z2 = Decoder(n_latent, n_latent, n_cat=self.n_labels, n_layers=n_layers)
+        self.encoder_z2_z1 = Encoder(n_latent, n_latent, n_cat_list=[self.n_labels], n_layers=n_layers,
+                                     n_hidden=n_hidden, dropout_rate=dropout_rate)
+        self.decoder_z1_z2 = Decoder(n_latent, n_latent, n_cat_list=[self.n_labels], n_layers=n_layers,
+                                     n_hidden=n_hidden, dropout_rate=dropout_rate)
 
         self.y_prior = torch.nn.Parameter(
             y_prior if y_prior is not None else (1 / self.n_labels) * torch.ones(self.n_labels), requires_grad=False

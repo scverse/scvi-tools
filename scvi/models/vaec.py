@@ -3,7 +3,7 @@ from torch.distributions import Normal, Multinomial, kl_divergence as kl
 
 from scvi.models.base import SemiSupervisedModel
 from scvi.models.classifier import Classifier
-from scvi.models.modules import DecoderSCVI, Encoder
+from scvi.models.modules import Encoder, DecoderSCVI
 from scvi.models.utils import broadcast_labels
 from scvi.models.vae import VAE
 
@@ -21,9 +21,9 @@ class VAEC(VAE, SemiSupervisedModel):
                                    reconstruction_loss=reconstruction_loss)
 
         self.z_encoder = Encoder(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
-                                 dropout_rate=dropout_rate, n_cat=n_labels)
-        self.decoder = DecoderSCVI(n_latent, n_input, n_hidden=n_hidden, n_layers=n_layers,
-                                   dropout_rate=dropout_rate, n_batch=n_batch, n_labels=n_labels)
+                                 dropout_rate=dropout_rate, n_cat_list=[n_labels])
+        self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch, n_labels], n_layers=n_layers,
+                                   n_hidden=n_hidden, dropout_rate=dropout_rate)
 
         self.y_prior = torch.nn.Parameter(
             y_prior if y_prior is not None else (1 / n_labels) * torch.ones(n_labels), requires_grad=False

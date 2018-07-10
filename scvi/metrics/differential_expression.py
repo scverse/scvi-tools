@@ -5,7 +5,6 @@ from scvi.utils import to_cuda, no_grad, eval_modules
 
 
 @no_grad()
-@eval_modules()
 def de_stats(model, data_loader, M_sampling=100, use_cuda=True):
     """
     Output average over statistics in a symmetric way (a against b)
