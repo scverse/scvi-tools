@@ -76,14 +76,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     cortex_benchmark()
-    # gene_dataset = load_datasets(args.dataset, url=args.url)
-    # model = available_models[args.model](gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * (not args.nobatches),
-    #                                      n_labels=gene_dataset.n_labels, **benchmark_hyperparameters(gene_dataset))
-    #
-    # if not args.semi_supervised:
-    #     infer = UnsupervisedInference(gene_dataset, model, use_cuda=(not args.nocuda))
-    # else:
-    #     infer = SemiSupervisedInference(gene_dataset, model, use_cuda=(not args.nocuda))
-    #
-    # infer.train(n_epochs=args.epochs, benchmark=args.benchmark)
-    # infer.all()
