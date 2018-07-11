@@ -32,7 +32,7 @@ def retina_benchmark(n_epochs=250, use_cuda=True):
     vae = VAE(brain_large_dataset.nb_genes)
     infer = VariationalInference(vae, brain_large_dataset, train_size=0.1, use_cuda=use_cuda)
     infer.fit(n_epochs=n_epochs)
-    infer.batch_entropy_mixing('test')  # Figure 8
+    infer.entropy_batch_mixing('test')  # Figure 8
     infer.imputation('test', rate=0.1)  # binomial perturbation scheme Fig 11
     return infer
 
@@ -42,7 +42,7 @@ def hemato_benchmark(n_epochs=250, use_cuda=True):
     vae = VAE(brain_large_dataset.nb_genes)
     infer = VariationalInference(vae, brain_large_dataset, train_size=0.1, use_cuda=use_cuda)
     infer.fit(n_epochs=n_epochs)
-    infer.batch_entropy_mixing('test')
+    infer.entropy_batch_mixing('test')
     infer.imputation('test', rate=0.1)
     # Fig. 9(d) - uniform perturbation scheme
     # Fig 11 - binomial perturbation scheme

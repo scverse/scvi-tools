@@ -14,8 +14,8 @@ class Inference:
     """
     default_metrics_to_monitor = []
 
-    def __init__(self, model, gene_dataset, data_loaders=None, metrics_to_monitor=None, use_cuda=True, benchmark=False,
-                 frequency=None, early_stopping_metric=None, save_best_state_metric=None, on=None):
+    def __init__(self, model, gene_dataset, use_cuda=True, metrics_to_monitor=None, data_loaders=None, benchmark=False,
+                 verbose=False, frequency=None, early_stopping_metric=None, save_best_state_metric=None, on=None):
         self.model = model
         self.gene_dataset = gene_dataset
         self.data_loaders = data_loaders
@@ -39,15 +39,17 @@ class Inference:
             self.model.cuda()
 
         self.frequency = frequency if not benchmark else None
+        self.verbose = verbose
 
         self.history = defaultdict(lambda: [])
 
     def compute_metrics(self):
         if self.frequency and (self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.frequency == 0)):
-            print("\nEPOCH [%d/%d]: " % (self.epoch, self.n_epochs))
+            if self.verbose:
+                print("\nEPOCH [%d/%d]: " % (self.epoch, self.n_epochs))
             for name in self.data_loaders.to_monitor:
                 for metric in self.metrics_to_monitor:
-                    result = getattr(self, metric)(name=name)
+                    result = getattr(self, metric)(name=name, verbose=self.verbose)
                     self.history[metric + '_' + name] += [result]
 
     @enable_grad()
@@ -56,7 +58,7 @@ class Inference:
         self.epoch = 0
         self.n_epochs = n_epochs
         self.compute_metrics()
-        with trange(n_epochs, desc="training", file=sys.stdout, disable=self.frequency or self.benchmark) as pbar:
+        with trange(n_epochs, desc="training", file=sys.stdout, disable=self.verbose) as pbar:
             # We have to use tqdm this way so it works in Jupyter notebook.
             # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
             self.on_epoch_begin()

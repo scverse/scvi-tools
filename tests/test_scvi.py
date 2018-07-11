@@ -25,7 +25,7 @@ def test_cortex():
     infer_cortex_vae.ll('train')
     infer_cortex_vae.differential_expression_stats('train')
     infer_cortex_vae.differential_expression('test')
-    infer_cortex_vae.imputation_stats('test', rate=0.5)
+    infer_cortex_vae.imputation_errors('test', rate=0.5)
 
     svaec = SVAEC(cortex_dataset.nb_genes, cortex_dataset.n_labels, n_batch=cortex_dataset.n_batches)
     infer_cortex_svaec = JointSemiSupervisedVariationalInference(svaec, cortex_dataset,
@@ -55,7 +55,7 @@ def test_synthetic_1():
     svaec = SVAEC(synthetic_dataset.nb_genes, synthetic_dataset.n_labels, n_batch=synthetic_dataset.n_batches)
     infer_synthetic_svaec = JointSemiSupervisedVariationalInference(svaec, synthetic_dataset, use_cuda=use_cuda)
     infer_synthetic_svaec.fit(n_epochs=1)
-    infer_synthetic_svaec.batch_entropy_mixing('labelled')
+    infer_synthetic_svaec.entropy_batch_mixing('labelled')
 
     vaec = VAEC(synthetic_dataset.nb_genes, synthetic_dataset.n_labels, n_batch=synthetic_dataset.n_batches)
     infer_synthetic_vaec = JointSemiSupervisedVariationalInference(vaec, synthetic_dataset, use_cuda=use_cuda)

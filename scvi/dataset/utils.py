@@ -116,16 +116,19 @@ class TrainTestDataLoaders(DataLoaders):
         data_loader_test = DataLoader(gene_dataset, batch_size=batch_size, pin_memory=pin_memory,
                                       sampler=SubsetRandomSampler(indices_test),
                                       collate_fn=gene_dataset.collate_fn, **kwargs_data_loader)
+        data_loader_sequential = DataLoader(gene_dataset, batch_size=batch_size, pin_memory=pin_memory, shuffle=False,
+                                            collate_fn=gene_dataset.collate_fn, **kwargs_data_loader)
         data_loaders_dict = {
             'train': data_loader_train,
-            'test': data_loader_test
+            'test': data_loader_test,
+            'sequential': data_loader_sequential
         }
 
         data_loaders_loop = [data_loader_train]
         super(TrainTestDataLoaders, self).__init__(
             data_loaders_dict=data_loaders_dict,
             data_loaders_loop=data_loaders_loop,
-            to_monitor=['train']
+            to_monitor=['train', 'test']
         )
 
 
@@ -151,11 +154,14 @@ class SemiSupervisedDataLoaders(DataLoaders):
         data_loader_unlabelled = DataLoader(gene_dataset, batch_size=batch_size, pin_memory=pin_memory,
                                             sampler=SubsetRandomSampler(indices_unlabelled),
                                             collate_fn=gene_dataset.collate_fn, **kwargs_data_loader)
+        data_loader_sequential = DataLoader(gene_dataset, batch_size=batch_size, pin_memory=pin_memory, shuffle=False,
+                                            collate_fn=gene_dataset.collate_fn, **kwargs_data_loader)
 
         data_loaders_dict = {
             'all': data_loader_all,
             'labelled': data_loader_labelled,
             'unlabelled': data_loader_unlabelled,
+            'sequential': data_loader_sequential
         }
         return data_loaders_dict
 
