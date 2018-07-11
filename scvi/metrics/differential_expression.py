@@ -5,11 +5,11 @@ from scvi.utils import to_cuda, no_grad, eval_modules
 
 
 @no_grad()
-def de_stats(model, data_loader, M_sampling=100, use_cuda=True):
+def de_stats(vae, data_loader, M_sampling=100, use_cuda=True):
     """
     Output average over statistics in a symmetric way (a against b)
     forget the sets if permutation is True
-    :param vae: The generative model and encoder network
+    :param vae: The generative vae and encoder network
     :param data_loader: a data loader for a particular dataset
     :param M_sampling: number of samples
     :return: A 1-d vector of statistics of size n_genes
@@ -24,7 +24,7 @@ def de_stats(model, data_loader, M_sampling=100, use_cuda=True):
         sample_batch = sample_batch.repeat(1, M_sampling).view(-1, sample_batch.size(1))
         batch_index = batch_index.repeat(1, M_sampling).view(-1, 1)
         labels = labels.repeat(1, M_sampling).view(-1, 1)
-        px_scales += [model.get_sample_scale(sample_batch, batch_index=batch_index, y=labels).cpu()]
+        px_scales += [vae.get_sample_scale(sample_batch, batch_index=batch_index, y=labels).cpu()]
         all_labels += [labels.cpu()]
 
     px_scale = torch.cat(px_scales)

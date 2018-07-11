@@ -60,8 +60,14 @@ class VariationalInferencePlugin:
 
 
 class AccuracyPlugin:
-    def accuracy(self, name, *args, **kwargs):
-        acc = compute_accuracy(self, self.data_loaders[name], *args, use_cuda=self.use_cuda, **kwargs)
+    def accuracy(self, name):
+        if hasattr(self, 'sampling_model'):
+            model = self.sampling_model
+            cls = self.model
+        else:
+            model = self.model
+            cls = None
+        acc = compute_accuracy(model, self.data_loaders[name], classifier=cls, use_cuda=self.use_cuda)
         print("Acc for %s is : %.4f" % (name, acc))
         return acc
 
@@ -73,9 +79,9 @@ class AccuracyPlugin:
         else:
             raw_data = DataLoaders.raw_data(self.data_loaders['labelled'], self.data_loaders['unlabelled'])
         (data_train, labels_train), (data_test, labels_test) = raw_data
-        score_train = compute_accuracy_svc(data_train, labels_train, data_test, labels_test, **kwargs)
-        score_test = compute_accuracy_rf(data_train, labels_train, data_test, labels_test, **kwargs)
-        return score_train, score_test
+        svc_scores = compute_accuracy_svc(data_train, labels_train, data_test, labels_test, **kwargs)
+        rf_scores = compute_accuracy_rf(data_train, labels_train, data_test, labels_test, **kwargs)
+        return svc_scores, rf_scores
 
 
 class SemiSupervisedVariationalInferencePlugin(VariationalInferencePlugin, AccuracyPlugin):

@@ -11,7 +11,7 @@ def get_latent_mean(vae, data_loader, use_cuda=True):
 
 @no_grad()
 @eval_modules()
-def get_latent(model, data_loader, use_cuda=True):
+def get_latent(vae, data_loader, use_cuda=True):
     latent = []
     batch_indices = []
     labels = []
@@ -19,7 +19,7 @@ def get_latent(model, data_loader, use_cuda=True):
         tensors = to_cuda(tensors, use_cuda=use_cuda)
         sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
         sample_batch = sample_batch.type(torch.float32)
-        latent += [model.sample_from_posterior_z(sample_batch, y=label)]
+        latent += [vae.sample_from_posterior_z(sample_batch, y=label)]
         batch_indices += [batch_index]
         labels += [label]
     return np.array(torch.cat(latent)), np.array(torch.cat(batch_indices)), np.array(torch.cat(labels)).ravel()

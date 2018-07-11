@@ -53,8 +53,8 @@ class JointSemiSupervisedVariationalInference(SemiSupervisedVariationalInference
         self.data_loaders = JointSemiSupervisedDataLoaders(gene_dataset, n_labelled_samples_per_class)
         self.classification_ratio = classification_ratio
 
-    def loss(self, tensors_unlabelled, tensors_labelled):
-        loss = super(JointSemiSupervisedVariationalInference, self).loss(tensors_unlabelled)
+    def loss(self, tensors_all, tensors_labelled):
+        loss = super(JointSemiSupervisedVariationalInference, self).loss(tensors_all)
         sample_batch, _, _, _, y = tensors_labelled
         classification_loss = F.cross_entropy(self.model.classify(sample_batch), y.view(-1))
         loss += classification_loss * self.classification_ratio
