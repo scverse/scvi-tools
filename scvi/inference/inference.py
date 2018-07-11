@@ -54,7 +54,8 @@ class Inference:
 
     @enable_grad()
     def fit(self, n_epochs=20, lr=1e-3):
-        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=lr)
+        optimizer = self.optimizer if hasattr(self, 'optimizer') else \
+            torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=lr)
         self.epoch = 0
         self.n_epochs = n_epochs
         self.compute_metrics()

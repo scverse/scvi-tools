@@ -1,9 +1,9 @@
-from scvi.dataset import CortexDataset, BrainLargeDataset, RetinaDataset
+from scvi.dataset import CortexDataset
 from scvi.inference import VariationalInference
 from scvi.models import VAE
 
 
-def cortex_benchmark(n_epochs=250, use_cuda=True):
+def cortex_benchmark(n_epochs=250, use_cuda=True, unit_test=False):
     cortex_dataset = CortexDataset()
     vae = VAE(cortex_dataset.nb_genes)
     infer_cortex_vae = VariationalInference(vae, cortex_dataset, use_cuda=use_cuda)
@@ -12,40 +12,17 @@ def cortex_benchmark(n_epochs=250, use_cuda=True):
     infer_cortex_vae.ll('test')  # assert ~ 1200
     infer_cortex_vae.differential_expression('test')
     infer_cortex_vae.imputation('test', rate=0.1)  # assert ~ 2.3
-    # binomial perturbation scheme Figure 11
-    infer_cortex_vae.show_t_sne('test', n_samples=1000)
+    n_samples = 1000 if not unit_test else 10
+    infer_cortex_vae.show_t_sne('test', n_samples=n_samples)
     return infer_cortex_vae
 
 
-def brain_large_benchmark(n_epochs=250, use_cuda=True):
-    brain_large_dataset = BrainLargeDataset()
-    vae = VAE(brain_large_dataset.nb_genes)
-    infer = VariationalInference(vae, brain_large_dataset, use_cuda=use_cuda)
+def benchmark(dataset, n_epochs=250, use_cuda=True):
+    vae = VAE(dataset.nb_genes, n_batch=dataset.n_batches)
+    infer = VariationalInference(vae, dataset, use_cuda=use_cuda)
     infer.fit(n_epochs=n_epochs)
     infer.ll('test')
     infer.imputation('test', rate=0.1)  # assert ~ 2.1
-    return infer
-
-
-def retina_benchmark(n_epochs=250, use_cuda=True):
-    brain_large_dataset = RetinaDataset()
-    vae = VAE(brain_large_dataset.nb_genes, n_batch=brain_large_dataset.n_batches)
-    infer = VariationalInference(vae, brain_large_dataset, use_cuda=use_cuda)
-    infer.fit(n_epochs=n_epochs)
-    infer.entropy_batch_mixing('test')  # Figure 8
-    infer.imputation('test', rate=0.1)  # binomial perturbation scheme Fig 11
-    return infer
-
-
-def hemato_benchmark(n_epochs=250, use_cuda=True):
-    brain_large_dataset = RetinaDataset()
-    vae = VAE(brain_large_dataset.nb_genes)
-    infer = VariationalInference(vae, brain_large_dataset, use_cuda=use_cuda)
-    infer.fit(n_epochs=n_epochs)
-    infer.entropy_batch_mixing('test')
-    infer.imputation('test', rate=0.1)
-    # Fig. 9(d) - uniform perturbation scheme
-    # Fig 11 - binomial perturbation scheme
     return infer
 
 
@@ -59,11 +36,8 @@ def annotation_benchmarks(n_epochs=1, use_cuda=True):
     pass
 
 
-def all_benchmarks(n_epochs=250, use_cuda=True):
-    cortex_benchmark(n_epochs=n_epochs, use_cuda=use_cuda)
-    hemato_benchmark(n_epochs=n_epochs, use_cuda=use_cuda)
-    brain_large_benchmark(n_epochs=n_epochs, use_cuda=use_cuda)
-    # retina_benchmark(n_epochs=n_epochs) the user should have the retina dataset
+def all_benchmarks(n_epochs=250, use_cuda=True, unit_test=False):
+    cortex_benchmark(n_epochs=n_epochs, use_cuda=use_cuda, unit_test=unit_test)
 
     harmonization_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)
     annotation_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)

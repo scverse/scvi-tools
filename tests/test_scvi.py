@@ -6,11 +6,13 @@
 
 import numpy as np
 
+from scvi.benchmark import all_benchmarks
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     GeneExpressionDataset
 from scvi.inference import JointSemiSupervisedVariationalInference, AlternateSemiSupervisedVariationalInference, \
     ClassifierInference, VariationalInference
+from scvi.metrics.adapt_encoder import adapt_encoder
 from scvi.models import VAE, SVAEC, VAEC
 from scvi.models.classifier import Classifier
 
@@ -61,13 +63,23 @@ def test_synthetic_1():
     infer_synthetic_vaec = JointSemiSupervisedVariationalInference(vaec, synthetic_dataset, use_cuda=use_cuda)
     infer_synthetic_vaec.fit(n_epochs=1)
     infer_synthetic_vaec.svc_rf(unit_test=True)
+    infer_synthetic_vaec.show_t_sne('labelled', n_samples=50)
 
 
 def base_benchmark(gene_dataset):
     vae = VAE(gene_dataset.nb_genes, gene_dataset.n_labels, n_batch=gene_dataset.n_batches)
-    infer_cortex_vae = VariationalInference(vae, gene_dataset, train_size=0.5, use_cuda=use_cuda)
-    infer_cortex_vae.fit(n_epochs=1)
-    return infer_cortex_vae
+    infer = VariationalInference(vae, gene_dataset, train_size=0.5, use_cuda=use_cuda)
+    infer.fit(n_epochs=1)
+    return infer
+
+
+def test_all_benchmarks():
+    all_benchmarks(n_epochs=1, unit_test=True)
+
+
+def test_synthetic_2():
+    infer = base_benchmark(SyntheticDataset())
+    adapt_encoder(infer, n_path=1, n_epochs=1, frequency=1)
 
 
 def test_brain_large():

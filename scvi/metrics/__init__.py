@@ -23,8 +23,8 @@ class VariationalInferencePlugin:
     def imputation_errors(self, name, **kwargs):
         return imputation(self.model, self.data_loaders[name], use_cuda=self.use_cuda, **kwargs)
 
-    def imputation(self, infer, data_loader, name, verbose=False, *args, **kwargs):
-        imputation_score = torch.median(self.imputation_errors(infer, data_loader, name, *args, **kwargs)).item()
+    def imputation(self, name, verbose=False, *args, **kwargs):
+        imputation_score = torch.median(self.imputation_errors(name, *args, **kwargs)).item()
         if verbose:
             print("Median Imputation Score for %s is : %.4f" % (name, imputation_score))
         return imputation_score
