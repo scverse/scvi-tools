@@ -82,16 +82,18 @@ if __name__ == '__main__':
     parser.add_argument("--url", type=str, help="the url for downloading gene_dataset")
     args = parser.parse_args()
 
-    n_epochs = args.n_epochs
+    n_epochs = args.epochs
+    use_cuda = not args.nocuda
     if args.all:
-        all_benchmarks(n_epochs=n_epochs)
+        all_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)
     elif args.harmonization:
-        harmonization_benchmarks(n_epochs=n_epochs)
+        harmonization_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)
     elif args.annotation:
-        annotation_benchmarks(n_epochs=n_epochs)
+        annotation_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)
     else:
-        dataset = load_datasets(args.dataset)
-        model = available_models[args.model](dataset.nb_genes, n_labels=dataset.n_labels)
+        dataset = load_datasets(args.dataset, url=args.url)
+        model = available_models[args.model](dataset.nb_genes, n_labels=dataset.n_labels,
+                                             n_batch=dataset.n_batches*args.nobatches)
         inference_cls = VariationalInference if args.model == 'VAE' else JointSemiSupervisedVariationalInference
-        infer = inference_cls(dataset, dataset)
+        infer = inference_cls(model, dataset, use_cuda=use_cuda)
         infer.fit(n_epochs=n_epochs)

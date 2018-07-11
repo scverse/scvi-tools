@@ -6,7 +6,7 @@ from scvi.models import VAE
 def cortex_benchmark(n_epochs=250, use_cuda=True):
     cortex_dataset = CortexDataset()
     vae = VAE(cortex_dataset.nb_genes)
-    infer_cortex_vae = VariationalInference(vae, cortex_dataset, train_size=0.1, use_cuda=use_cuda)
+    infer_cortex_vae = VariationalInference(vae, cortex_dataset, use_cuda=use_cuda)
     infer_cortex_vae.fit(n_epochs=n_epochs)
 
     infer_cortex_vae.ll('test')  # assert ~ 1200
@@ -20,7 +20,7 @@ def cortex_benchmark(n_epochs=250, use_cuda=True):
 def brain_large_benchmark(n_epochs=250, use_cuda=True):
     brain_large_dataset = BrainLargeDataset()
     vae = VAE(brain_large_dataset.nb_genes)
-    infer = VariationalInference(vae, brain_large_dataset, train_size=0.1, use_cuda=use_cuda)
+    infer = VariationalInference(vae, brain_large_dataset, use_cuda=use_cuda)
     infer.fit(n_epochs=n_epochs)
     infer.ll('test')
     infer.imputation('test', rate=0.1)  # assert ~ 2.1
@@ -29,8 +29,8 @@ def brain_large_benchmark(n_epochs=250, use_cuda=True):
 
 def retina_benchmark(n_epochs=250, use_cuda=True):
     brain_large_dataset = RetinaDataset()
-    vae = VAE(brain_large_dataset.nb_genes)
-    infer = VariationalInference(vae, brain_large_dataset, train_size=0.1, use_cuda=use_cuda)
+    vae = VAE(brain_large_dataset.nb_genes, n_batch=brain_large_dataset.n_batches)
+    infer = VariationalInference(vae, brain_large_dataset, use_cuda=use_cuda)
     infer.fit(n_epochs=n_epochs)
     infer.entropy_batch_mixing('test')  # Figure 8
     infer.imputation('test', rate=0.1)  # binomial perturbation scheme Fig 11
@@ -40,7 +40,7 @@ def retina_benchmark(n_epochs=250, use_cuda=True):
 def hemato_benchmark(n_epochs=250, use_cuda=True):
     brain_large_dataset = RetinaDataset()
     vae = VAE(brain_large_dataset.nb_genes)
-    infer = VariationalInference(vae, brain_large_dataset, train_size=0.1, use_cuda=use_cuda)
+    infer = VariationalInference(vae, brain_large_dataset, use_cuda=use_cuda)
     infer.fit(n_epochs=n_epochs)
     infer.entropy_batch_mixing('test')
     infer.imputation('test', rate=0.1)

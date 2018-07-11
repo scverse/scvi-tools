@@ -9,7 +9,7 @@ from . import Inference, ClassifierInference
 class VariationalInference(Inference, VariationalInferencePlugin):
     default_metrics_to_monitor = ['ll']
 
-    def __init__(self, model, gene_dataset, train_size=0.1, **kwargs):
+    def __init__(self, model, gene_dataset, train_size=0.8, **kwargs):
         super(VariationalInference, self).__init__(model, gene_dataset, **kwargs)
         self.kl = None
         self.data_loaders = TrainTestDataLoaders(self.gene_dataset, train_size=train_size, pin_memory=self.use_cuda)
