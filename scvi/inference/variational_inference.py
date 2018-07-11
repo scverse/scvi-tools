@@ -2,12 +2,11 @@ import torch
 from torch.nn import functional as F
 
 from scvi.dataset.utils import TrainTestDataLoaders, AlternateSemiSupervisedDataLoaders, JointSemiSupervisedDataLoaders
+from scvi.metrics import VariationalInferencePlugin, SemiSupervisedVariationalInferencePlugin
 from . import Inference, ClassifierInference
 
 
-class VariationalInference(Inference):
-    metrics = ['ll', 'accuracy', 'imputation', 'differential_expression', 'batch_entropy_mixing']
-    tasks = ['imputation_stats', 'differential_expression_stats', 'show_t_sne']
+class VariationalInference(Inference, VariationalInferencePlugin):
     default_metrics_to_monitor = ['ll']
 
     def __init__(self, model, gene_dataset, train_size=0.1, **kwargs):
@@ -25,10 +24,8 @@ class VariationalInference(Inference):
         self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / self.n_epochs)
 
 
-class SemiSupervisedVariationalInference(VariationalInference):
-    metrics = VariationalInference.metrics + ['accuracy']
+class SemiSupervisedVariationalInference(VariationalInference, SemiSupervisedVariationalInferencePlugin):
     default_metrics_to_monitor = VariationalInference.default_metrics_to_monitor + ['accuracy']
-    baselines = ['svc_rf']
 
 
 class AlternateSemiSupervisedVariationalInference(SemiSupervisedVariationalInference):

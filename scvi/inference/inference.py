@@ -4,32 +4,14 @@ from collections import defaultdict
 import torch
 from tqdm import trange
 
-from scvi.metrics import AccuracyMetric, LLMetric, DEStatsTask, ImputationTask, ImputationMetric, DEMetric, TsneTask, \
-    BEMetric, SVC_RF
 from scvi.metrics.early_stopping import EarlyStopping
 from scvi.utils import to_cuda, enable_grad
-
-metrics = {'ll': LLMetric(),
-           'accuracy': AccuracyMetric(),
-           'imputation': ImputationMetric(),
-           'differential_expression': DEMetric(),
-           'batch_entropy_mixing': BEMetric()
-           }
-
-tasks = {'differential_expression_stats': DEStatsTask(),
-         'imputation_stats': ImputationTask(),
-         'show_t_sne': TsneTask()}
-
-baselines = {'svc_rf': SVC_RF()}
 
 
 class Inference:
     """
     Inference class cares about the general training of a PyTorch model with its statistics
     """
-    metrics = []
-    tasks = []
-    baselines = []
     default_metrics_to_monitor = []
 
     def __init__(self, model, gene_dataset, data_loaders=None, metrics_to_monitor=None, use_cuda=True, benchmark=False,
@@ -48,39 +30,17 @@ class Inference:
         self.early_stopping_metric = early_stopping_metric
         self.save_best_state_metric = save_best_state_metric
         self.on = on
-        mode = metrics[early_stopping_metric].mode if early_stopping_metric is not None else None
-        mode_save_state = metrics[save_best_state_metric].mode if save_best_state_metric is not None else None
+        mode = getattr(self, early_stopping_metric).mode if early_stopping_metric is not None else None
+        mode_save_state = getattr(self, save_best_state_metric).mode if save_best_state_metric is not None else None
         self.early_stopping = EarlyStopping(benchmark=benchmark, mode=mode, mode_save_state=mode_save_state)
 
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
             self.model.cuda()
-        self.set_task_and_metric_methods()
 
         self.frequency = frequency if not benchmark else None
 
         self.history = defaultdict(lambda: [])
-
-    def set_task_and_metric_methods(self):
-        def getter(_name, dictionary):
-            def method(name, **kargs):
-                return dictionary[_name](self, self.data_loaders[name], name=name, use_cuda=self.use_cuda, **kargs)
-
-            return method
-
-        for metric in self.metrics:
-            setattr(self, metric, getter(_name=metric, dictionary=metrics))
-        for task in self.tasks:
-            setattr(self, task, getter(_name=task, dictionary=tasks))
-
-        def getter_baseline(_name, dictionary):
-            def method_baseline(*args, **kargs):
-                return dictionary[_name](self, *args, **kargs)
-
-            return method_baseline
-
-        for baseline in self.baselines:
-            setattr(self, baseline, getter_baseline(_name=baseline, dictionary=baselines))
 
     def compute_metrics(self):
         if self.frequency and (self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.frequency == 0)):

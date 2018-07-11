@@ -1,10 +1,11 @@
-from scvi.dataset.utils import TrainTestDataLoaders
-from . import Inference
 from torch.nn import functional as F
 
+from scvi.dataset.utils import TrainTestDataLoaders
+from scvi.metrics import AccuracyPlugin
+from . import Inference
 
-class ClassifierInference(Inference):
-    metrics = ['accuracy']
+
+class ClassifierInference(Inference, AccuracyPlugin):
     default_metrics_to_monitor = ['accuracy']
     baselines = ['svc_rf']
 
