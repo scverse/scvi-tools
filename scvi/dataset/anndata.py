@@ -44,9 +44,9 @@ class AnnDataset(GeneExpressionDataset):
     def preprocess(self):
         print("Preprocessing dataset")
 
-        ad = anndata.read_h5ad(self.save_path + self.download_name)
-        gene_names = np.array(ad.obs.index.values, dtype=str)
-        data = ad.X.T  # change gene * cell to cell * gene
+        ad = anndata.read_h5ad(self.save_path + self.download_name)  # obs = cells, var = genes
+        gene_names = np.array(ad.var.index.values, dtype=str)
+        data = ad.X
         select = data.sum(axis=1) > 0  # Take out cells that doesn't express any gene
         data = data[select, :]
 

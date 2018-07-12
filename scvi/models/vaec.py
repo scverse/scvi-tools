@@ -19,20 +19,19 @@ class VAEC(nn.Module, SemiSupervisedModel):
         self.reconstruction_loss = reconstruction_loss
         self.n_latent_layers = 1
         # Automatically desactivate if useless
-        self.n_batch = 0 if n_batch == 1 else n_batch
-        self.n_labels = 0 if n_labels == 1 else n_labels
+        self.n_batch = n_batch
+        self.n_labels = n_labels
         if self.n_labels == 0:
             raise ValueError("VAEC is only implemented for > 1 label dataset")
 
         if self.dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input, ))
 
-        self.z_encoder = Encoder(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
-                                 dropout_rate=dropout_rate, n_cat=n_labels)
-        self.l_encoder = Encoder(n_input, n_hidden=n_hidden, n_latent=1, n_layers=1,
-                                 dropout_rate=dropout_rate)
-        self.decoder = DecoderSCVI(n_latent, n_input, n_hidden=n_hidden, n_layers=n_layers,
-                                   dropout_rate=dropout_rate, n_batch=n_batch, n_labels=n_labels)
+        self.z_encoder = Encoder(n_input, n_latent=n_latent, n_cat_list=[n_labels], n_layers=n_layers,
+                                 n_hidden=n_hidden, dropout_rate=dropout_rate)
+        self.l_encoder = Encoder(n_input, n_latent=1, n_layers=1, n_hidden=n_hidden, dropout_rate=dropout_rate)
+        self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch, n_labels], n_layers=n_layers,
+                                   n_hidden=n_hidden, dropout_rate=dropout_rate)
 
         self.y_prior = y_prior if y_prior is not None else (1 / n_labels) * torch.ones(n_labels)
         self.classifier = Classifier(n_input, n_hidden, n_labels, n_layers=n_layers, dropout_rate=dropout_rate)
@@ -98,7 +97,7 @@ class VAEC(nn.Module, SemiSupervisedModel):
         # Sampling
         qz_m, qz_v, zs = self.z_encoder(xs_, ys)
 
-        px_scale, px_rate, px_dropout = self.decoder(self.dispersion, zs, library_s, batch_index_s, y=ys)
+        px_scale, px_rate, px_dropout = self.decoder(self.dispersion, zs, library_s, batch_index_s, ys)
 
         reconst_loss = -log_zinb_positive(xs, px_rate, torch.exp(self.px_r), px_dropout)
 
