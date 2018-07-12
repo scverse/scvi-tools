@@ -81,7 +81,7 @@ class Dataset10X(GeneExpressionDataset):
 
 class BrainSmallDataset(Dataset10X):
     r"""
-    This dataset consists in 9,128 mouse brain cells profiled using `10x`_ is used as a complement of PBMC for our
+    This dataset consists in 9,128 mouse brain cells profiled using `10x Genomics`_ is used as a complement of PBMC for our
     study of zero abundance and quality control metrics correlation with our generative posterior parameters. We
     derived quality control metrics using the cellrangerRkit R package (v.1.1.0). Quality metrics were extracted from
     CellRanger throughout the molecule specific information file. We kept the top 3000 genes by variance. We used the
@@ -93,7 +93,7 @@ class BrainSmallDataset(Dataset10X):
     Examples:
         >>> gene_dataset = BrainSmallDataset()
 
-    .. _10x:
+    .. _10x Genomics:
         https://support.10xgenomics.com/single-cell-gene-expression/datasets
 
     """

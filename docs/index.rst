@@ -17,7 +17,8 @@ Welcome to scVI's documentation!
    :caption: Package Reference
 
    dataset
-   models 
+   models
+   train
 
 Indices and tables
 ==================

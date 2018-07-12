@@ -19,17 +19,17 @@ class VAE(nn.Module, BaseModel):
     r"""Variational auto-encoder model.
 
     Args:
-        n_input(int): Number of input genes.
-        n_hidden(int, optional): Number of hidden
-        n_latent(int, optional):
-        n_layers(int, optional): Number of layers. Default: ``1``.
-        dropout_rate(float, optional): Default: ``0.1``.
-        dispersion(str, optional): Default: ``"gene"``.
-        log_variational(bool, optional): Default: ``True``.
-        reconstruction_loss(str, optional): Default: ``"zinb"``.
-        n_batch (int, optional): Default: ``0``.
-        n_labels (int, optional): Default: ``0``.
-        use_cuda (bool, optional): Default: ``False``.
+        :n_input: Number of input genes.
+        :n_hidden: Number of hidden. Default: ``128``.
+        :n_latent: Default: ``1``.
+        :n_layers: Number of layers. Default: ``1``.
+        :dropout_rate: Default: ``0.1``.
+        :dispersion: Default: ``"gene"``.
+        :log_variational: Default: ``True``.
+        :reconstruction_loss: Default: ``"zinb"``.
+        :n_batch: Default: ``0``.
+        :n_labels: Default: ``0``.
+        :use_cuda: Default: ``False``.
 
     Examples:
         >>> gene_dataset = CortexDataset()

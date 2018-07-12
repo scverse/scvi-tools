@@ -17,6 +17,33 @@ except NameError:
 
 @enable_grad()
 def train(vae, data_loader_train, data_loader_test, n_epochs=20, lr=0.001, kl=None, benchmark=False, verbose=False):
+    r""" Train the VAE model.
+
+    Args:
+        :vae: A VAE model object
+        :data_loader_train:
+        :data_loader_test:
+        :n_epochs: Number of epochs. Default: ``20``.
+        :lr: Learning rate. Default: ``0.001``.
+        :kl: Default: ``None``.
+        :benchmark: Default: ``False``.
+        :verbose: Default: ``False``.
+        :return:
+
+    Examples:
+        >>> example_indices = np.random.permutation(len(gene_dataset))
+        >>> tt_split = int(0.9 * len(gene_dataset))  # 90%/10% train/test split
+        >>> data_loader_train = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
+        ...                     sampler=SubsetRandomSampler(example_indices[:tt_split]),
+        ...                     collate_fn=gene_dataset.collate_fn)
+        >>> data_loader_test = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
+        ...                    sampler=SubsetRandomSampler(example_indices[tt_split:]),
+        ...                    collate_fn=gene_dataset.collate_fn)
+        >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+        ... n_labels=gene_dataset.n_labels, use_cuda=True )
+        >>> stats = train(vae, data_loader_train, data_loader_test, n_epochs=500, lr=1e-3, benchmark=False)
+
+    """
     # Defining the optimizer
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, vae.parameters()), lr=lr)
 
