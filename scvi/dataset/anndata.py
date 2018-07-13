@@ -4,9 +4,33 @@ import numpy as np
 
 
 class AnnDataset(GeneExpressionDataset):
+    r"""Loads a `.h5ad` file.
 
-    def __init__(self, download_name, save_path='data/', url=None, new_n_genes=False, subset_genes=None):
-        self.download_name = download_name
+    ``AnnDataset`` class supports loading `Anndata`_ object.
+
+    Args:
+        :filename: Name of the `.h5ad` file.
+        :save_path: Save path of the dataset. Default: ``'data/'``.
+        :url: Url of the remote dataset. Default: ``None``.
+        :new_n_genes: Number of subsampled genes. Default: ``False``.
+        :subset_genes: List of genes for subsampling. Default: ``None``.
+
+
+    Examples:
+        >>> # Loading a local dataset
+        >>> local_ann_dataset = AnnDataset("TM_droplet_mat.h5ad", save_path = 'data/')
+
+    .. _Anndata:
+        http://anndata.readthedocs.io/en/latest/
+
+    """
+
+    def __init__(self, filename, save_path='data/', url=None, new_n_genes=False, subset_genes=None):
+        """
+
+
+        """
+        self.download_name = filename
         self.save_path = save_path
         self.url = url
 
