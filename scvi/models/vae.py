@@ -36,8 +36,8 @@ class VAE(nn.Module, BaseModel):
         ... n_labels=gene_dataset.n_labels, use_cuda=True )
 
     """
-    def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1, dispersion="gene",
-                 log_variational=True, reconstruction_loss="zinb", n_batch=0, n_labels=0, use_cuda=False):
+    def __init__(self, n_input, n_batch=0, n_labels=0, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1,
+                 dispersion="gene", log_variational=True, reconstruction_loss="zinb"):
         super(VAE, self).__init__()
         self.dispersion = dispersion
         self.n_latent = n_latent
