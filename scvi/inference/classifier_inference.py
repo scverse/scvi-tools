@@ -1,6 +1,6 @@
 from torch.nn import functional as F
 
-from scvi.dataset.utils import TrainTestDataLoaders
+from scvi.dataset.data_loaders import TrainTestDataLoaders
 from scvi.metrics.classification import compute_accuracy
 from . import Inference
 
