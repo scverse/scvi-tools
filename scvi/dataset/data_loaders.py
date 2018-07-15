@@ -6,25 +6,6 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler, SequentialSampler, RandomSampler
 
 
-def get_indices(labels, n_labelled_samples_per_class_array, seed=0):
-    labels = np.array(labels).ravel()
-    np.random.seed(seed=seed)
-    permutation_idx = np.random.permutation(len(labels))
-    labels = labels[permutation_idx]
-    indices = []
-    current_nbrs = np.zeros(len(n_labelled_samples_per_class_array))
-    for idx, (label) in enumerate(labels):
-        label = int(label)
-        if current_nbrs[label] < n_labelled_samples_per_class_array[label]:
-            indices.insert(0, idx)
-            current_nbrs[label] += 1
-        else:
-            indices.append(idx)
-    indices = np.array(indices)
-    total_labelled = sum(n_labelled_samples_per_class_array)
-    return permutation_idx[indices[:total_labelled]], permutation_idx[indices[total_labelled:]]
-
-
 class DataLoaders:
     to_monitor = []
     data_loaders_loop = []
@@ -127,9 +108,26 @@ class SemiSupervisedDataLoaders(DataLoaders):
         :param n_labelled_samples_per_class: number of labelled samples per class
         """
         super(SemiSupervisedDataLoaders, self).__init__(gene_dataset, **data_loaders_kwargs)
-        indices_labelled, indices_unlabelled = (
-            get_indices(gene_dataset.labels, [n_labelled_samples_per_class] * gene_dataset.n_labels, seed=seed)
-        )
+
+        n_labelled_samples_per_class_array = [n_labelled_samples_per_class] * gene_dataset.n_labels
+        labels = np.array(gene_dataset.labels).ravel()
+        np.random.seed(seed=seed)
+        permutation_idx = np.random.permutation(len(labels))
+        labels = labels[permutation_idx]
+        indices = []
+        current_nbrs = np.zeros(len(n_labelled_samples_per_class_array))
+        for idx, (label) in enumerate(labels):
+            label = int(label)
+            if current_nbrs[label] < n_labelled_samples_per_class_array[label]:
+                indices.insert(0, idx)
+                current_nbrs[label] += 1
+            else:
+                indices.append(idx)
+        indices = np.array(indices)
+        total_labelled = sum(n_labelled_samples_per_class_array)
+        indices_labelled = permutation_idx[indices[:total_labelled]]
+        indices_unlabelled = permutation_idx[indices[total_labelled:]]
+
         data_loader_all = self(shuffle=True)
         data_loader_labelled = self(indices=indices_labelled)
         data_loader_unlabelled = self(indices=indices_unlabelled)
