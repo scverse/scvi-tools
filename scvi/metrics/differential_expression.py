@@ -5,11 +5,11 @@ from scvi.utils import to_cuda, no_grad, eval_modules
 
 
 @no_grad()
-def de_stats(vae, data_loader, M_sampling=100):
+def de_stats(vae, data_loader, M_sampling=100, use_cuda=True):
     """
     Output average over statistics in a symmetric way (a against b)
     forget the sets if permutation is True
-    :param vae: The generative model and encoder network
+    :param vae: The generative vae and encoder network
     :param data_loader: a data loader for a particular dataset
     :param M_sampling: number of samples
     :return: A 1-d vector of statistics of size n_genes
@@ -17,14 +17,14 @@ def de_stats(vae, data_loader, M_sampling=100):
     px_scales = []
     all_labels = []
     for tensors in data_loader:
-        if vae.use_cuda:
+        if use_cuda:
             tensors = to_cuda(tensors)
         sample_batch, _, _, batch_index, labels = tensors
         sample_batch = sample_batch.type(torch.float32)
         sample_batch = sample_batch.repeat(1, M_sampling).view(-1, sample_batch.size(1))
         batch_index = batch_index.repeat(1, M_sampling).view(-1, 1)
         labels = labels.repeat(1, M_sampling).view(-1, 1)
-        px_scales += [vae.get_sample_scale(sample_batch, y=labels, batch_index=batch_index).cpu()]
+        px_scales += [vae.get_sample_scale(sample_batch, batch_index=batch_index, y=labels).cpu()]
         all_labels += [labels.cpu()]
 
     px_scale = torch.cat(px_scales)
@@ -82,4 +82,4 @@ def de_cortex(px_scale, all_labels, gene_names, M_permutation=100000, permutatio
     genes_of_interest = np.char.upper(["Thy1", "Mbp"])
     result = [(gene_name, res[np.where(gene_names == gene_name)[0]][0]) for gene_name in genes_of_interest]
     print('\n'.join([gene_name + " : " + str(r) for (gene_name, r) in result]))
-    return res
+    return result[1][1]  # if we had to give a metric to optimize

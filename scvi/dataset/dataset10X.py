@@ -8,14 +8,26 @@ import tarfile
 import pandas as pd
 import numpy as np
 from scipy import io
-
+from scipy.sparse import csr_matrix
 
 from scvi.dataset import GeneExpressionDataset
 
 available_datasets = {"1.1.0":
                       ["frozen_pbmc_donor_a",
                        "frozen_pbmc_donor_b",
-                       "frozen_pbmc_donor_c"],
+                       "frozen_pbmc_donor_c",
+                       "fresh_68k_pbmc_donor_a",
+                       "cd14_monocyte",
+                       "b_cells",
+                       "cd34",
+                       "cd56_nk",
+                       "cd4_t_helper",
+                       "regulatory_t",
+                       "naive_t",
+                       "memory_t",
+                       "cytotoxic_t",
+                       "naive_cytotoxic"
+                       ],
                       "2.1.0":
                       ["pbmc8k",
                        "pbmc4k",
@@ -38,6 +50,7 @@ class Dataset10X(GeneExpressionDataset):
         :type: Either `filtered` data or `raw` data. Default: ``'filtered'``.
         :new_n_genes: Number of subsampled genes. Default: ``3000``.
         :subset_genes: List of genes for subsampling. Default: ``None``.
+        :dense: Whether to load as dense or sparse. Default: ``False``.
 
     Examples:
         >>> tenX_dataset = Dataset10X("neuron_9k")
@@ -46,12 +59,13 @@ class Dataset10X(GeneExpressionDataset):
         http://cf.10xgenomics.com/
 
     """
-    def __init__(self, filename, save_path='data/', type='filtered', new_n_genes=3000, subset_genes=None):
+    def __init__(self, filename, save_path='data/', type='filtered', new_n_genes=3000, subset_genes=None, dense=False):
         group = to_groups[filename]
         self.url = ("http://cf.10xgenomics.com/samples/cell-exp/%s/%s/%s_%s_gene_bc_matrices.tar.gz" %
                     (group, filename, filename, type))
         self.save_path = save_path + '10X/%s/' % filename
         self.save_name = '%s_gene_bc_matrices' % type
+        self.dense = dense
 
         self.download_name = self.save_name + '.tar.gz'
         expression_data, gene_names = self.download_and_preprocess()
@@ -69,11 +83,17 @@ class Dataset10X(GeneExpressionDataset):
             tar.extractall(path=self.save_path)
             tar.close()
 
-        path = self.save_path + self.save_name + '/'
+        path = (self.save_path +
+                [name for name in os.listdir(self.save_path) if os.path.isdir(self.save_path + name)][0] +
+                '/')
         path += os.listdir(path)[0] + '/'
         genes_info = pd.read_csv(path + 'genes.tsv', sep='\t', header=None)
         gene_names = genes_info.values[:, 0].astype(np.str).ravel()
-        expression_data = io.mmread(path + 'matrix.mtx').T.A
+        expression_data = io.mmread(path + 'matrix.mtx').T
+        if self.dense:
+            expression_data = expression_data.A
+        else:
+            expression_data = csr_matrix(expression_data)
 
         print("Finished preprocessing dataset")
         return expression_data, gene_names

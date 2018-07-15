@@ -66,7 +66,7 @@ class GeneExpressionDataset(Dataset):
         self.nb_genes = self.X.shape[1]
 
     def update_cells(self, subset_cells):
-        new_n_cells = len(subset_cells) if subset_cells.dtype is not np.bool else subset_cells.sum()
+        new_n_cells = len(subset_cells) if subset_cells.dtype is not np.dtype('bool') else subset_cells.sum()
         print("Downsampling from %i to %i cells" % (len(self), new_n_cells))
         for attr_name in ['X', 'local_means', 'local_vars', 'labels', 'batch_indices']:
             setattr(self, attr_name, getattr(self, attr_name)[subset_cells])
@@ -97,7 +97,7 @@ class GeneExpressionDataset(Dataset):
     def subsample_cells(self, size=1.):
         n_cells, n_genes = self.X.shape
         new_n_cells = int(size * n_genes) if type(size) is not int else size
-        indices = np.argsort(self.X.sum(axis=1))[::-1][:new_n_cells]
+        indices = np.argsort(np.array(self.X.sum(axis=1)).ravel())[::-1][:new_n_cells]
         self.update_cells(indices)
 
     def filter_cell_types(self, cell_types):
@@ -188,7 +188,7 @@ class GeneExpressionDataset(Dataset):
         return X, local_means, local_vars, batch_indices, labels
 
     @staticmethod
-    def concat_datasets(*gene_datasets, on='gene_names', shared_labels=True):
+    def concat_datasets(*gene_datasets, on='gene_names', shared_labels=True, shared_batches=False):
         """
         Combines multiple unlabelled gene_datasets based on the intersection of gene names intersection.
         Datasets should all have gene_dataset.n_labels=0.
@@ -215,7 +215,7 @@ class GeneExpressionDataset(Dataset):
         for gene_dataset in gene_datasets:
             next_index = current_index + len(gene_dataset)
             batch_indices[current_index:next_index] = gene_dataset.batch_indices + n_batch_offset
-            n_batch_offset += gene_dataset.n_batches
+            n_batch_offset += (gene_dataset.n_batches if not shared_batches else 0)
             current_index = next_index
 
         cell_types = None

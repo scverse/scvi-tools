@@ -3,9 +3,12 @@
 """Run all the benchmarks with specific parameters"""
 import argparse
 
-from scvi.benchmark import run_benchmarks
+from scvi.benchmark import harmonization_benchmarks, \
+    annotation_benchmarks, all_benchmarks
 from scvi.dataset import BrainLargeDataset, CortexDataset, SyntheticDataset, CsvDataset, \
     RetinaDataset, BrainSmallDataset, HematoDataset, LoomDataset, AnnDataset, CbmcDataset, PbmcDataset
+from scvi.inference import VariationalInference, JointSemiSupervisedVariationalInference
+from scvi.models import VAE, VAEC, SVAEC
 
 
 def load_datasets(dataset_name, save_path='data/', url=None):
@@ -36,18 +39,60 @@ def load_datasets(dataset_name, save_path='data/', url=None):
     return gene_dataset
 
 
+def benchmark_hyperparameters(gene_dataset):
+    """
+    Possibly specify hyper parameters according to Table2 in "Bayesian Inference for a Generative Model of
+    transcriptome Profiles from Single-cell RNA Sequencing"
+    :param gene_dataset:
+    :return:
+    """
+    hyperparameters = dict()
+    if isinstance(gene_dataset, BrainLargeDataset):
+        if gene_dataset.nb_genes > 10000 and gene_dataset.nb_genes < 15000:
+            hyperparameters["n_layers"] = 2
+        elif gene_dataset.nb_genes > 15000:
+            hyperparameters["n_layers"] = 3
+            hyperparameters["n_hidden"] = 256
+
+    return hyperparameters
+
+
+available_models = {
+    'VAE': VAE,
+    'VAEC': VAEC,
+    'SVAEC': SVAEC
+}
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs", type=int, default=250, help="how many times to process the dataset")
-    parser.add_argument("--dataset", type=str, default="cortex", help="which dataset to process")
+    parser.add_argument("--epochs", type=int, default=250, help="how many times to process the gene_dataset")
+    parser.add_argument("--dataset", type=str, default="cortex", help="which gene_dataset to process")
+    parser.add_argument("--model", type=str, default="VAE", help="the model to use")
     parser.add_argument("--nobatches", action='store_true', help="whether to ignore batches")
     parser.add_argument("--nocuda", action='store_true',
                         help="whether to use cuda (will apply only if cuda is available")
+    parser.add_argument("--harmonization", action='store_true',
+                        help="whether to use cuda (will apply only if cuda is available")
+    parser.add_argument("--annotation", action='store_true',
+                        help="whether to use cuda (will apply only if cuda is available")
+    parser.add_argument("--all", action='store_true',
+                        help="whether to use cuda (will apply only if cuda is available")
     parser.add_argument("--benchmark", action='store_true',
                         help="whether to use cuda (will apply only if cuda is available")
-    parser.add_argument("--url", type=str, help="the url for downloading dataset")
+    parser.add_argument("--url", type=str, help="the url for downloading gene_dataset")
     args = parser.parse_args()
 
-    dataset = load_datasets(args.dataset, url=args.url)
-    run_benchmarks(dataset, n_epochs=args.epochs, use_batches=(not args.nobatches), use_cuda=(not args.nocuda),
-                   show_batch_mixing=True, benchmark=args.benchmark)
+    n_epochs = args.epochs
+    use_cuda = not args.nocuda
+    if args.all:
+        all_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)
+    elif args.harmonization:
+        harmonization_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)
+    elif args.annotation:
+        annotation_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)
+    else:
+        dataset = load_datasets(args.dataset, url=args.url)
+        model = available_models[args.model](dataset.nb_genes, dataset.n_batches*args.nobatches, dataset.n_labels)
+        inference_cls = VariationalInference if args.model == 'VAE' else JointSemiSupervisedVariationalInference
+        infer = inference_cls(model, dataset, use_cuda=use_cuda)
+        infer.fit(n_epochs=n_epochs)

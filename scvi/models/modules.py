@@ -21,7 +21,7 @@ class FCLayers(nn.Module):
 
     def forward(self, x, *cat_list):
         one_hot_cat_list = []  # for generality in this list many indices useless.
-        assert len(self.n_cat_list) == len(cat_list), "nb. categorical args provided doesn't match init. params."
+        assert len(self.n_cat_list) <= len(cat_list), "nb. categorical args provided doesn't match init. params."
         for n_cat, cat in zip(self.n_cat_list, cat_list):
             assert not (n_cat and cat is None), "cat not provided while n_cat != 0 in init. params."
             if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
@@ -40,12 +40,12 @@ class FCLayers(nn.Module):
 
 # Encoder
 class Encoder(nn.Module):
-    def __init__(self, n_input, n_latent=10, n_cat_list=[], n_layers=1, n_hidden=128, dropout_rate=0.1):
+    def __init__(self, n_input, n_output, n_cat_list=[], n_layers=1, n_hidden=128, dropout_rate=0.1):
         super(Encoder, self).__init__()
         self.encoder = FCLayers(n_in=n_input, n_out=n_hidden, n_cat_list=n_cat_list, n_layers=n_layers,
                                 n_hidden=n_hidden, dropout_rate=dropout_rate)
-        self.mean_encoder = nn.Linear(n_hidden, n_latent)
-        self.var_encoder = nn.Linear(n_hidden, n_latent)
+        self.mean_encoder = nn.Linear(n_hidden, n_output)
+        self.var_encoder = nn.Linear(n_hidden, n_output)
 
     def reparameterize(self, mu, var):
         return Normal(mu, var.sqrt()).rsample()
@@ -61,19 +61,19 @@ class Encoder(nn.Module):
 
 # Decoder
 class DecoderSCVI(nn.Module):
-    def __init__(self, n_latent, n_input, n_cat_list=[], n_layers=1, n_hidden=128, dropout_rate=0.1):
+    def __init__(self, n_input, n_output, n_cat_list=[], n_layers=1, n_hidden=128, dropout_rate=0.1):
         super(DecoderSCVI, self).__init__()
-        self.px_decoder = FCLayers(n_in=n_latent, n_out=n_hidden, n_cat_list=n_cat_list, n_layers=n_layers,
+        self.px_decoder = FCLayers(n_in=n_input, n_out=n_hidden, n_cat_list=n_cat_list, n_layers=n_layers,
                                    n_hidden=n_hidden, dropout_rate=dropout_rate)
 
         # mean gamma
-        self.px_scale_decoder = nn.Sequential(nn.Linear(n_hidden, n_input), nn.Softmax(dim=-1))
+        self.px_scale_decoder = nn.Sequential(nn.Linear(n_hidden, n_output), nn.Softmax(dim=-1))
 
         # dispersion: here we only deal with gene-cell dispersion case
-        self.px_r_decoder = nn.Linear(n_hidden, n_input)
+        self.px_r_decoder = nn.Linear(n_hidden, n_output)
 
         # dropout
-        self.px_dropout_decoder = nn.Linear(n_hidden, n_input)
+        self.px_dropout_decoder = nn.Linear(n_hidden, n_output)
 
     def forward(self, dispersion, z, library, *cat_list):
         # The decoder returns values for the parameters of the ZINB distribution
@@ -82,18 +82,15 @@ class DecoderSCVI(nn.Module):
         px_dropout = self.px_dropout_decoder(px)
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
         px_rate = torch.exp(torch.clamp(library, max=12)) * px_scale
-        if dispersion == "gene-cell":
-            px_r = self.px_r_decoder(px)
-            return px_scale, px_r, px_rate, px_dropout
-        else:  # dispersion == "gene" / "gene-batch" / "gene-label"
-            return px_scale, px_rate, px_dropout
+        px_r = self.px_r_decoder(px) if dispersion == "gene-cell" else None
+        return px_scale, px_r, px_rate, px_dropout
 
 
 # Decoder
 class Decoder(nn.Module):
-    def __init__(self, n_latent, n_output, n_cat_list=[], n_layers=1, n_hidden=128, dropout_rate=0.1):
+    def __init__(self, n_input, n_output, n_cat_list=[], n_layers=1, n_hidden=128, dropout_rate=0.1):
         super(Decoder, self).__init__()
-        self.decoder = FCLayers(n_in=n_latent, n_out=n_hidden, n_cat_list=n_cat_list, n_layers=n_layers,
+        self.decoder = FCLayers(n_in=n_input, n_out=n_hidden, n_cat_list=n_cat_list, n_layers=n_layers,
                                 n_hidden=n_hidden, dropout_rate=dropout_rate)
 
         self.mean_decoder = nn.Linear(n_hidden, n_output)

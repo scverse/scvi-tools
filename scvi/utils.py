@@ -23,5 +23,5 @@ class eval_modules:
         return wrapper
 
 
-def to_cuda(tensors, async=True):
-    return [t.cuda(async=async) for t in tensors]
+def to_cuda(tensors, use_cuda=True, async=True):
+    return tuple(t.cuda(async=use_cuda and async) if use_cuda else t for t in tensors)

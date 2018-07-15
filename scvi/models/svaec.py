@@ -1,39 +1,28 @@
 import torch
-import torch.nn as nn
 from torch.distributions import Normal, Multinomial, kl_divergence as kl
 
-from scvi.metrics.log_likelihood import log_zinb_positive
+from scvi.models.base import SemiSupervisedModel
 from scvi.models.classifier import Classifier, LinearLogRegClassifier
-from scvi.models.modules import Decoder, Encoder, DecoderSCVI
+from scvi.models.modules import Decoder, Encoder
 from scvi.models.utils import broadcast_labels
-from .base import SemiSupervisedModel
+from scvi.models.vae import VAE
 
 
-class SVAEC(nn.Module, SemiSupervisedModel):
+class SVAEC(VAE, SemiSupervisedModel):
     '''
     "Stacked" variational autoencoder for classification - SVAEC
     (from the stacked generative model M1 + M2)
     '''
 
-    def __init__(self, n_input, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1, n_batch=0,
-                 y_prior=None, use_cuda=False, logreg_classifier=True):
-        super(SVAEC, self).__init__()
+    def __init__(self, n_input, n_batch, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1,
+                 y_prior=None, logreg_classifier=False, dispersion="gene", log_variational=True,
+                 reconstruction_loss="zinb"):
+        super(SVAEC, self).__init__(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
+                                    dropout_rate=dropout_rate, n_batch=n_batch, dispersion=dispersion,
+                                    log_variational=log_variational, reconstruction_loss=reconstruction_loss)
+
         self.n_labels = n_labels
-        self.n_input = n_input
         self.n_latent_layers = 2
-
-        self.y_prior = y_prior if y_prior is not None else (1 / self.n_labels) * torch.ones(self.n_labels)
-        # Automatically desactivate if useless
-        self.n_batch = n_batch
-        self.z_encoder = Encoder(n_input, n_latent=n_latent, n_layers=n_layers, n_hidden=n_hidden,
-                                 dropout_rate=dropout_rate)
-        self.l_encoder = Encoder(n_input, n_latent=1, n_layers=1, n_hidden=n_hidden, dropout_rate=dropout_rate)
-        self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch], n_layers=n_layers, n_hidden=n_hidden,
-                                   dropout_rate=dropout_rate)
-
-        self.dispersion = 'gene'
-        self.px_r = torch.nn.Parameter(torch.randn(n_input, ))
-
         # Classifier takes n_latent as input
         if logreg_classifier:
             self.classifier = LinearLogRegClassifier(n_latent, self.n_labels)
@@ -45,49 +34,20 @@ class SVAEC(nn.Module, SemiSupervisedModel):
         self.decoder_z1_z2 = Decoder(n_latent, n_latent, n_cat_list=[self.n_labels], n_layers=n_layers,
                                      n_hidden=n_hidden, dropout_rate=dropout_rate)
 
-        self.use_cuda = use_cuda and torch.cuda.is_available()
-        if self.use_cuda:
-            self.cuda()
-            self.y_prior = self.y_prior.cuda()
+        self.y_prior = torch.nn.Parameter(
+            y_prior if y_prior is not None else (1 / self.n_labels) * torch.ones(self.n_labels), requires_grad=False
+        )
 
     def classify(self, x):
-        x_ = torch.log(1 + x)
-        qz_m, _, z = self.z_encoder(x_)
-        if not self.training:
-            z = qz_m
+        z = self.sample_from_posterior_z(x)
         return self.classifier(z)
 
     def get_latents(self, x, y=None):
-        x = torch.log(1 + x)
-        # Here we compute as little as possible to have q(z|x)
-        qz_m, qz_v, z = self.z_encoder(x)
+        zs = super(SVAEC, self).get_latents(x)
+        qz2_m, qz2_v, z2 = self.encoder_z2_z1(zs[0], y)
         if not self.training:
-            z = qz_m
-        return [z]
-
-    def sample_from_posterior_z(self, x, y=None):
-        x = torch.log(1 + x)
-        # Here we compute as little as possible to have q(z|x)
-        qz_m, qz_v, z = self.z_encoder(x)
-        return z
-
-    def sample_from_posterior_l(self, x):
-        x = torch.log(1 + x)
-        # Here we compute as little as possible to have q(z|x)
-        ql_m, ql_v, library = self.l_encoder(x)
-        return library
-
-    def get_sample_scale(self, x, y=None, batch_index=None):
-        z = self.sample_from_posterior_z(x)
-        px = self.decoder.px_decoder(z, batch_index)
-        px_scale = self.decoder.px_scale_decoder(px)
-        return px_scale
-
-    def get_sample_rate(self, x, y=None, batch_index=None):
-        z = self.sample_from_posterior_z(x)
-        library = self.sample_from_posterior_l(x)
-        px = self.decoder.px_decoder(z, batch_index)
-        return self.decoder.px_scale_decoder(px) * torch.exp(library)
+            z2 = qz2_m
+        return [zs[0], z2]
 
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
         is_labelled = False if y is None else True
@@ -104,8 +64,9 @@ class SVAEC(nn.Module, SemiSupervisedModel):
         )
         qz2_m, qz2_v, z2 = self.encoder_z2_z1(z1s, ys)
         pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
-        px_scale, px_rate, px_dropout = self.decoder(self.dispersion, z1, library, batch_index)
-        reconst_loss = -log_zinb_positive(x, px_rate, torch.exp(self.px_r), px_dropout)
+        px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, z1, library, batch_index)
+
+        reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout, batch_index, y)
 
         # KL Divergence
         mean = torch.zeros_like(qz2_m)
