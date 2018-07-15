@@ -5,8 +5,9 @@ from sklearn.manifold import TSNE
 from torch.nn import functional as F
 
 from scvi.dataset import CortexDataset
-from scvi.dataset.utils import DataLoaders
-from scvi.dataset.utils import TrainTestDataLoaders, AlternateSemiSupervisedDataLoaders, JointSemiSupervisedDataLoaders
+from scvi.dataset.data_loaders import DataLoaders
+from scvi.dataset.data_loaders import TrainTestDataLoaders, AlternateSemiSupervisedDataLoaders, \
+    JointSemiSupervisedDataLoaders
 from scvi.metrics.classification import compute_accuracy, compute_accuracy_svc, compute_accuracy_rf
 from scvi.metrics.clustering import get_latent, entropy_batch_mixing
 from scvi.metrics.differential_expression import de_stats, de_cortex

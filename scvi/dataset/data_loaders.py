@@ -6,31 +6,6 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler, SequentialSampler, RandomSampler
 
 
-def filter_genes(gene_dataset, gene_names_ref, on='gene_names'):
-    """
-    :return: gene_dataset.X filtered by the corresponding genes ( / columns / features), idx_genes
-    """
-    gene_names = list(getattr(gene_dataset, on))
-    subset_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.int64)
-    return gene_dataset.X[:, subset_genes], subset_genes
-
-
-def arrange_categories(original_categories, mapping_from=None, mapping_to=None):
-    unique_categories = np.unique(original_categories)
-    n_categories = len(unique_categories)
-    if mapping_to is None:
-        mapping_to = range(n_categories)
-    if mapping_from is None:
-        mapping_from = unique_categories
-    assert n_categories == len(mapping_from)
-    assert n_categories == len(mapping_to)
-
-    new_categories = np.copy(original_categories)
-    for idx_from, idx_to in zip(mapping_from, mapping_to):
-        new_categories[original_categories == idx_from] = idx_to
-    return new_categories, n_categories
-
-
 def get_indices(labels, n_labelled_samples_per_class_array, seed=0):
     labels = np.array(labels).ravel()
     np.random.seed(seed=seed)
@@ -48,10 +23,6 @@ def get_indices(labels, n_labelled_samples_per_class_array, seed=0):
     indices = np.array(indices)
     total_labelled = sum(n_labelled_samples_per_class_array)
     return permutation_idx[indices[:total_labelled]], permutation_idx[indices[total_labelled:]]
-
-
-def zip_first_cycle(*args):
-    return zip(args[0], *[cycle(arg) for arg in args[1:]])
 
 
 class DataLoaders:
@@ -86,7 +57,8 @@ class DataLoaders:
         return item in self.data_loaders_dict
 
     def __iter__(self):
-        return zip_first_cycle(*[self[name] for name in self.data_loaders_loop])
+        data_loaders_loop = [self[name] for name in self.data_loaders_loop]
+        return zip(data_loaders_loop[0], *[cycle(data_loader) for data_loader in data_loaders_loop[1:]])
 
     def __call__(self, shuffle=False, indices=None):
         if indices is not None and shuffle:

@@ -11,8 +11,6 @@ import torch
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
 
-from scvi.dataset.utils import filter_genes, arrange_categories
-
 
 class GeneExpressionDataset(Dataset):
     """Gene Expression dataset. It deals with:
@@ -88,10 +86,10 @@ class GeneExpressionDataset(Dataset):
 
     def filter_genes(self, gene_names_ref, on='gene_names'):
         """
-        Same as filter_genes but overwrites on current dataset instead of returning data,
+        Same as _filter_genes but overwrites on current dataset instead of returning data,
         and updates genes names and symbols
         """
-        self.X, subset_genes = filter_genes(self, gene_names_ref, on=on)
+        self.X, subset_genes = GeneExpressionDataset._filter_genes(self, gene_names_ref, on=on)
         self.update_genes(subset_genes)
 
     def subsample_cells(self, size=1.):
@@ -203,7 +201,7 @@ class GeneExpressionDataset(Dataset):
         gene_names_ref = [gene_name for gene_name in getattr(gene_datasets[0], on) if gene_name in gene_names_ref]
         print("Keeping %d genes" % len(gene_names_ref))
 
-        Xs = [filter_genes(gene_dataset, gene_names_ref, on=on)[0] for gene_dataset in gene_datasets]
+        Xs = [GeneExpressionDataset._filter_genes(dataset, gene_names_ref, on=on)[0] for dataset in gene_datasets]
         if gene_datasets[0].dense:
             X = np.concatenate([X if type(X) is np.ndarray else X.A for X in Xs])
         else:
@@ -244,3 +242,28 @@ class GeneExpressionDataset(Dataset):
         _, local_mean, local_var, _, _ = GeneExpressionDataset.get_attributes_from_matrix(X)
         return GeneExpressionDataset(X, local_mean, local_var, batch_indices, labels,
                                      gene_names=gene_names_ref, cell_types=cell_types)
+
+    @staticmethod
+    def _filter_genes(gene_dataset, gene_names_ref, on='gene_names'):
+        """
+        :return: gene_dataset.X filtered by the corresponding genes ( / columns / features), idx_genes
+        """
+        gene_names = list(getattr(gene_dataset, on))
+        subset_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.int64)
+        return gene_dataset.X[:, subset_genes], subset_genes
+
+
+def arrange_categories(original_categories, mapping_from=None, mapping_to=None):
+    unique_categories = np.unique(original_categories)
+    n_categories = len(unique_categories)
+    if mapping_to is None:
+        mapping_to = range(n_categories)
+    if mapping_from is None:
+        mapping_from = unique_categories
+    assert n_categories == len(mapping_from)
+    assert n_categories == len(mapping_to)
+
+    new_categories = np.copy(original_categories)
+    for idx_from, idx_to in zip(mapping_from, mapping_to):
+        new_categories[original_categories == idx_from] = idx_to
+    return new_categories, n_categories
