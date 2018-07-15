@@ -5,6 +5,21 @@ from .dataset import GeneExpressionDataset
 
 
 class LoomDataset(GeneExpressionDataset):
+    r""" Loads a `.loom` file.
+
+    Args:
+        :filename: Name of the `.loom` file.
+        :save_path: Save path of the dataset. Default: ``'data/'``.
+        :url: Url of the remote dataset. Default: ``None``.
+
+    Examples:
+        >>> # Loading a remote dataset
+        >>> remote_loom_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom", save_path='data/',
+        ... url='http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom')
+        >>> # Loading a local dataset
+        >>> local_loom_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom", save_path='data/')
+
+    """
     def __init__(self, filename, save_path='data/', url=None):
         self.download_name = filename
         self.save_path = save_path
@@ -45,3 +60,23 @@ class LoomDataset(GeneExpressionDataset):
 
         print("Finished preprocessing dataset")
         return data, batch_indices, labels, gene_names, cell_types
+
+
+class RetinaDataset(LoomDataset):
+    r""" Loads retina dataset.
+
+    The dataset of bipolar cells contains after their original pipeline for filtering 27,499 cells and
+    13,166 genes coming from two batches. We use the cluster annotation from 15 cell-types from the author. We also
+    extract their normalized data with Combat and use it for benchmarking.
+
+    Args:
+        :save_path: Save path of raw data file. Default: ``'data'``.
+
+    Examples:
+        >>> gene_dataset = RetinaDataset()
+
+    """
+    def __init__(self, save_path='data/'):
+        super(RetinaDataset, self).__init__(filename='retina.loom',
+                                            save_path=save_path,
+                                            url='https://github.com/YosefLab/scVI-data/raw/master/retina.loom')

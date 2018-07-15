@@ -8,10 +8,17 @@ Welcome to scVI's documentation!
    readme
    installation
    usage
-   modules
    contributing
    authors
    history
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Package Reference
+
+   dataset
+   models
+   train
 
 Indices and tables
 ==================

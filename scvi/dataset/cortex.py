@@ -6,12 +6,29 @@ from .dataset import GeneExpressionDataset
 
 
 class CortexDataset(GeneExpressionDataset):
-    url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt"
+    r""" Loads cortex dataset.
 
-    def __init__(self):
+    The `Mouse Cortex Cells dataset`_ contains 3005 mouse cortex cells and gold-standard labels for
+    seven distinct cell types. Each cell type corresponds to a cluster to recover. We retain top 558 genes
+    ordered by variance.
+
+    Args:
+        :save_path: Save path of raw data file. Default: ``'data/'``.
+
+    Examples:
+        >>> gene_dataset = CortexDataset()
+
+    .. _Mouse Cortex Cells dataset:
+        https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt
+
+    """
+
+    def __init__(self, save_path='data/'):
         # Generating samples according to a ZINB process
-        self.save_path = 'data/'
+        self.save_path = save_path
         self.download_name = 'expression.bin'
+        self.url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/" \
+                   "expression_mRNA_17-Aug-2014.txt"
         expression_data, labels, gene_names = self.download_and_preprocess()
 
         cell_types = ["astrocytes_ependymal",
