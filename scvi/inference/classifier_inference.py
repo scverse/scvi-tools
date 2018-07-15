@@ -1,11 +1,11 @@
 from torch.nn import functional as F
 
 from scvi.dataset.utils import TrainTestDataLoaders
-from scvi.metrics import AccuracyPlugin
+from scvi.metrics.classification import compute_accuracy
 from . import Inference
 
 
-class ClassifierInference(Inference, AccuracyPlugin):
+class ClassifierInference(Inference):
     default_metrics_to_monitor = ['accuracy']
     baselines = ['svc_rf']
 
@@ -25,3 +25,12 @@ class ClassifierInference(Inference, AccuracyPlugin):
         x, _, _, _, labels_train = tensors_labelled
         x = self.sampling_model.sample_from_posterior_z(x) if self.sampling_model is not None else x
         return F.cross_entropy(self.model(x), labels_train.view(-1))
+
+    def accuracy(self, name, verbose=False):
+        model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
+        acc = compute_accuracy(model, self.data_loaders[name], classifier=cls, use_cuda=self.use_cuda)
+        if verbose:
+            print("Acc for %s is : %.4f" % (name, acc))
+        return acc
+
+    accuracy.mode = 'max'

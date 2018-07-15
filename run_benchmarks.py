@@ -92,8 +92,7 @@ if __name__ == '__main__':
         annotation_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)
     else:
         dataset = load_datasets(args.dataset, url=args.url)
-        model = available_models[args.model](dataset.nb_genes, n_labels=dataset.n_labels,
-                                             n_batch=dataset.n_batches*args.nobatches)
+        model = available_models[args.model](dataset.nb_genes, dataset.n_batches*args.nobatches, dataset.n_labels)
         inference_cls = VariationalInference if args.model == 'VAE' else JointSemiSupervisedVariationalInference
         infer = inference_cls(model, dataset, use_cuda=use_cuda)
         infer.fit(n_epochs=n_epochs)

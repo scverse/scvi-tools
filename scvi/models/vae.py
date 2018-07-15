@@ -16,7 +16,7 @@ torch.backends.cudnn.benchmark = True
 
 # VAE model
 class VAE(nn.Module, BaseModel):
-    def __init__(self, n_input, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1, n_batch=0, n_labels=0,
+    def __init__(self, n_input, n_batch=0, n_labels=0, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1,
                  dispersion="gene", log_variational=True, reconstruction_loss="zinb"):
         super(VAE, self).__init__()
         self.dispersion = dispersion
@@ -37,9 +37,9 @@ class VAE(nn.Module, BaseModel):
         else:  # gene-cell
             pass
 
-        self.z_encoder = Encoder(n_input, n_latent=n_latent, n_layers=n_layers, n_hidden=n_hidden,
+        self.z_encoder = Encoder(n_input, n_latent, n_layers=n_layers, n_hidden=n_hidden,
                                  dropout_rate=dropout_rate)
-        self.l_encoder = Encoder(n_input, n_latent=1, n_layers=1, n_hidden=n_hidden, dropout_rate=dropout_rate)
+        self.l_encoder = Encoder(n_input, 1, n_layers=1, n_hidden=n_hidden, dropout_rate=dropout_rate)
         self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch], n_layers=n_layers, n_hidden=n_hidden,
                                    dropout_rate=dropout_rate)
 

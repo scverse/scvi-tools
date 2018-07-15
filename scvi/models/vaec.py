@@ -1,5 +1,5 @@
 import torch
-from torch.distributions import Normal, Multinomial, kl_divergence as kl
+from torch.distributions import Normal, Categorical, kl_divergence as kl
 
 from scvi.models.base import SemiSupervisedModel
 from scvi.models.classifier import Classifier
@@ -13,20 +13,19 @@ class VAEC(VAE, SemiSupervisedModel):
     VAE model - for classification: VAEC
     '''
 
-    def __init__(self, n_input, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1, n_batch=0,
+    def __init__(self, n_input, n_batch, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1,
                  y_prior=None, dispersion="gene", log_variational=True, reconstruction_loss="zinb"):
-        super(VAEC, self).__init__(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
-                                   dropout_rate=dropout_rate, n_batch=n_batch, n_labels=n_labels,
-                                   dispersion=dispersion, log_variational=log_variational,
+        super(VAEC, self).__init__(n_input, n_batch, n_labels, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
+                                   dropout_rate=dropout_rate, dispersion=dispersion, log_variational=log_variational,
                                    reconstruction_loss=reconstruction_loss)
 
-        self.z_encoder = Encoder(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
-                                 dropout_rate=dropout_rate, n_cat_list=[n_labels])
+        self.z_encoder = Encoder(n_input, n_latent, n_cat_list=[n_labels], n_hidden=n_hidden, n_layers=n_layers,
+                                 dropout_rate=dropout_rate)
         self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch, n_labels], n_layers=n_layers,
                                    n_hidden=n_hidden, dropout_rate=dropout_rate)
 
         self.y_prior = torch.nn.Parameter(
-            y_prior if y_prior is not None else (1 / n_labels) * torch.ones(n_labels), requires_grad=False
+            y_prior if y_prior is not None else (1 / n_labels) * torch.ones(1, n_labels), requires_grad=False
         )
 
         self.classifier = Classifier(n_input, n_hidden, n_labels, n_layers=n_layers, dropout_rate=dropout_rate)
@@ -75,7 +74,8 @@ class VAEC(VAE, SemiSupervisedModel):
         reconst_loss = (reconst_loss.t() * probs).sum(dim=1)
 
         kl_divergence = (kl_divergence_z.view(self.n_labels, -1).t() * probs).sum(dim=1)
-        kl_divergence += kl(Multinomial(probs=probs), Multinomial(probs=self.y_prior))
+        kl_divergence += kl(Categorical(probs=probs),
+                            Categorical(probs=self.y_prior.repeat(probs.size(0), 1)))
         kl_divergence += kl_divergence_l
 
         return reconst_loss, kl_divergence
