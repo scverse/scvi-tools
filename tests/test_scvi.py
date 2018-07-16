@@ -9,6 +9,7 @@ import numpy as np
 from scvi.benchmark import all_benchmarks
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
+    SeqfishDataset, BreastCancerDataset, MouseOBDataset,
     GeneExpressionDataset
 from scvi.inference import JointSemiSupervisedVariationalInference, AlternateSemiSupervisedVariationalInference, \
     ClassifierInference, VariationalInference
@@ -50,7 +51,6 @@ def test_cortex():
     infer_cls = ClassifierInference(cls, cortex_dataset)
     infer_cls.fit(n_epochs=1)
     infer_cls.accuracy('train')
->>>>>>> master
 
 
 def test_synthetic_1():
@@ -179,14 +179,14 @@ def test_filter_and_concat_datasets():
 
 def test_seqfish():
     seqfish_dataset = SeqfishDataset(save_path='tests/data/')
-    run_benchmarks(seqfish_dataset, n_epochs=1, show_batch_mixing=False)
+    base_benchmark(seqfish_dataset, n_epochs=1, show_batch_mixing=False)
 
 
 def test_breast_cancer():
     breast_cancer_dataset = BreastCancerDataset(save_path='tests/data/')
-    run_benchmarks(breast_cancer_dataset, n_epochs=1, show_batch_mixing=False)
+    base_benchmark(breast_cancer_dataset, n_epochs=1, show_batch_mixing=False)
 
 
 def test_mouseob():
     mouseob_dataset = MouseOBDataset(save_path='tests/data/')
-    run_benchmarks(mouseob_dataset, n_epochs=1, show_batch_mixing=False)
+    base_benchmark(mouseob_dataset, n_epochs=1, show_batch_mixing=False)
