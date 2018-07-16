@@ -32,13 +32,13 @@ You can either clone the public repository:
 
 .. code-block:: console
 
-    $ git clone git://github.com/romain-lopez/scvi
+    $ git clone git://github.com/YosefLab/scvi
 
 Or download the `tarball`_:
 
 .. code-block:: console
 
-    $ curl  -OL https://github.com/romain-lopez/scvi/tarball/master
+    $ curl  -OL https://github.com/YosefLab/scvi/tarball/master
 
 Once you have a copy of the source, you can install it with:
 
@@ -47,5 +47,5 @@ Once you have a copy of the source, you can install it with:
     $ python setup.py install
 
 
-.. _Github repo: https://github.com/romain-lopez/scvi
-.. _tarball: https://github.com/romain-lopez/scvi/tarball/master
+.. _Github repo: https://github.com/YosefLab/scvi
+.. _tarball: https://github.com/YosefLab/scvi/tarball/master

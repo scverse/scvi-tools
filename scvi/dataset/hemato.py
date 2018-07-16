@@ -5,6 +5,19 @@ from pathlib import Path
 
 
 class HematoDataset(GeneExpressionDataset):
+    r""" Loads hemato dataset.
+
+    This dataset with continuous gene expression variations from hematopoeitic progenitor cells [31] contains
+    4,016 cells and 7,397 genes. We removed the library basal-bm1 which was of poor quality based on authors
+    recommendation. We use their population balance analysis result as a potential function for differentiation.
+
+    Args:
+        :save_path: Save path of raw data file. Default: ``'data/'``.
+
+    Examples:
+        >>> gene_dataset = HematoDataset()
+
+    """
     def __init__(self, save_path='data/HEMATO/'):
         self.save_path = save_path
 
