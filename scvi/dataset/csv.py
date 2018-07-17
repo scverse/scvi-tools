@@ -28,7 +28,8 @@ class CsvDataset(GeneExpressionDataset):
         ... save_path='data/', compression='gzip')
 
     """
-    def __init__(self, filename, save_path='data/', url=None, new_n_genes=600, subset_genes=None, compression=None):
+    def __init__(self, filename, save_path='data/', url=None, new_n_genes=600, subset_genes=None,
+                 compression=None, sep=',', gene_by_cell=True):
         self.download_name = filename  # The given csv file is
         self.save_path = save_path
         self.url = url

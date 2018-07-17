@@ -9,7 +9,7 @@ import numpy as np
 from scvi.benchmark import all_benchmarks
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
-    SeqfishDataset, BreastCancerDataset, MouseOBDataset,
+    SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
     GeneExpressionDataset
 from scvi.inference import JointSemiSupervisedVariationalInference, AlternateSemiSupervisedVariationalInference, \
     ClassifierInference, VariationalInference
@@ -179,14 +179,19 @@ def test_filter_and_concat_datasets():
 
 def test_seqfish():
     seqfish_dataset = SeqfishDataset(save_path='tests/data/')
-    base_benchmark(seqfish_dataset, n_epochs=1, show_batch_mixing=False)
+    base_benchmark(seqfish_dataset)
 
 
 def test_breast_cancer():
     breast_cancer_dataset = BreastCancerDataset(save_path='tests/data/')
-    base_benchmark(breast_cancer_dataset, n_epochs=1, show_batch_mixing=False)
+    base_benchmark(breast_cancer_dataset)
 
 
 def test_mouseob():
     mouseob_dataset = MouseOBDataset(save_path='tests/data/')
-    base_benchmark(mouseob_dataset, n_epochs=1, show_batch_mixing=False)
+    base_benchmark(mouseob_dataset)
+
+
+def test_smfish():
+    smfish_dataset = SmfishDataset(save_path='tests/data/')
+    base_benchmark(smfish_dataset)

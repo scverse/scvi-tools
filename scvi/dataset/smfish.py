@@ -15,7 +15,7 @@ class SmfishDataset(GeneExpressionDataset):
             *GeneExpressionDataset.get_attributes_from_matrix(
                 data,
                 labels=labels),
-            cell_types=cell_types, x_coord = x_coord, y_coord=y_coord)
+            x_coord=x_coord, y_coord=y_coord)
 
     def preprocess(self):
         print("Preprocessing smFISH dataset")
