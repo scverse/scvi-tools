@@ -88,7 +88,7 @@ class Dataset10X(GeneExpressionDataset):
                 '/')
         path += os.listdir(path)[0] + '/'
         genes_info = pd.read_csv(path + 'genes.tsv', sep='\t', header=None)
-        gene_names = genes_info.values[:, 0].astype(np.str).ravel()
+        gene_names = genes_info.values[:, 1].astype(np.str).ravel()
         expression_data = io.mmread(path + 'matrix.mtx').T
         if self.dense:
             expression_data = expression_data.A
