@@ -84,7 +84,8 @@ def base_benchmark(gene_dataset):
 
 
 def test_all_benchmarks():
-    all_benchmarks(n_epochs=1, unit_test=True)
+    with torch.no_grad():
+        all_benchmarks(n_epochs=1, unit_test=True)
 
 
 def test_synthetic_3():

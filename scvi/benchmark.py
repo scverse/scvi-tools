@@ -38,8 +38,7 @@ def annotation_benchmarks(n_epochs=1, use_cuda=True):
 
 
 def all_benchmarks(n_epochs=250, use_cuda=True, unit_test=False):
-    with torch.no_grad():
-        cortex_benchmark(n_epochs=n_epochs, use_cuda=use_cuda, unit_test=unit_test)
+    cortex_benchmark(n_epochs=n_epochs, use_cuda=use_cuda, unit_test=unit_test)
 
-        harmonization_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)
-        annotation_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)
+    harmonization_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)
+    annotation_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)
