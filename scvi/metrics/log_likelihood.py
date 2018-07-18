@@ -3,18 +3,12 @@
 import torch
 import torch.nn.functional as F
 
-from scvi.utils import to_cuda, no_grad, eval_modules
 
-
-@no_grad()
-@eval_modules()
-def compute_log_likelihood(vae, data_loader, use_cuda=True):
+def compute_log_likelihood(vae, data_loader):
     # Iterate once over the data_loader and computes the total log_likelihood
     log_lkl = 0
     for i_batch, tensors in enumerate(data_loader):
-        tensors = to_cuda(tensors, use_cuda=use_cuda)
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
-        sample_batch = sample_batch.type(torch.float32)
         reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
                                           y=labels)
         log_lkl += torch.sum(reconst_loss).item()

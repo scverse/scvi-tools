@@ -1,11 +1,8 @@
 import numpy as np
 import torch
 
-from scvi.utils import to_cuda, no_grad, eval_modules
 
-
-@no_grad()
-def de_stats(vae, data_loader, M_sampling=100, use_cuda=True):
+def de_stats(vae, data_loader, M_sampling=100):
     """
     Output average over statistics in a symmetric way (a against b)
     forget the sets if permutation is True
@@ -17,10 +14,7 @@ def de_stats(vae, data_loader, M_sampling=100, use_cuda=True):
     px_scales = []
     all_labels = []
     for tensors in data_loader:
-        if use_cuda:
-            tensors = to_cuda(tensors)
         sample_batch, _, _, batch_index, labels = tensors
-        sample_batch = sample_batch.type(torch.float32)
         sample_batch = sample_batch.repeat(1, M_sampling).view(-1, sample_batch.size(1))
         batch_index = batch_index.repeat(1, M_sampling).view(-1, 1)
         labels = labels.repeat(1, M_sampling).view(-1, 1)
@@ -33,8 +27,6 @@ def de_stats(vae, data_loader, M_sampling=100, use_cuda=True):
     return px_scale, all_labels
 
 
-@no_grad()
-@eval_modules()
 def de_cortex(px_scale, all_labels, gene_names, M_permutation=100000, permutation=False):
     """
     Output average over statistics in a symmetric way (a against b)

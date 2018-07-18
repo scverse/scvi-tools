@@ -1,24 +1,17 @@
 import numpy as np
 import torch
 
-from scvi.utils import to_cuda, no_grad, eval_modules
+
+def get_latent_mean(vae, data_loader):
+    return get_latent(vae, data_loader)
 
 
-@eval_modules()
-def get_latent_mean(vae, data_loader, use_cuda=True):
-    return get_latent(vae, data_loader, use_cuda=use_cuda)
-
-
-@no_grad()
-@eval_modules()
-def get_latent(vae, data_loader, use_cuda=True):
+def get_latent(vae, data_loader):
     latent = []
     batch_indices = []
     labels = []
     for tensors in data_loader:
-        tensors = to_cuda(tensors, use_cuda=use_cuda)
         sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
-        sample_batch = sample_batch.type(torch.float32)
         latent += [vae.sample_from_posterior_z(sample_batch, y=label)]
         batch_indices += [batch_index]
         labels += [label]
