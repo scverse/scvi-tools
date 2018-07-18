@@ -85,7 +85,7 @@ def test_all_benchmarks():
     all_benchmarks(n_epochs=1, unit_test=True)
 
 
-def test_synthetic_2():
+def test_synthetic_3():
     infer = base_benchmark(SyntheticDataset())
     adapt_encoder(infer, n_path=1, n_epochs=1, frequency=1)
 
