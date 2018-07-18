@@ -1,14 +1,13 @@
 import torch
 from torch.distributions import Normal, Multinomial, kl_divergence as kl
 
-from scvi.models.base import SemiSupervisedModel
 from scvi.models.classifier import Classifier, LinearLogRegClassifier
 from scvi.models.modules import Decoder, Encoder
 from scvi.models.utils import broadcast_labels
 from scvi.models.vae import VAE
 
 
-class SVAEC(VAE, SemiSupervisedModel):
+class SVAEC(VAE):
     r"""A semi-supervised Variational auto-encoder model - inspired from M1 + M2 model,
     as described in (https://arxiv.org/pdf/1406.5298.pdf). S stand for "Stacked" variational autoencoder
     and C for classification - SVAEC

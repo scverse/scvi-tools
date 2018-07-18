@@ -9,13 +9,12 @@ from torch.distributions import Normal, kl_divergence as kl
 from scvi.metrics.log_likelihood import log_zinb_positive, log_nb_positive
 from scvi.models.modules import Encoder, DecoderSCVI
 from scvi.models.utils import one_hot
-from .base import BaseModel
 
 torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class VAE(nn.Module, BaseModel):
+class VAE(nn.Module):
     r"""Variational auto-encoder model.
 
     Args:
@@ -36,6 +35,7 @@ class VAE(nn.Module, BaseModel):
         ... n_labels=gene_dataset.n_labels, use_cuda=True )
 
     """
+
     def __init__(self, n_input, n_batch=0, n_labels=0, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1,
                  dispersion="gene", log_variational=True, reconstruction_loss="zinb"):
         super(VAE, self).__init__()

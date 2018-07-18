@@ -1,14 +1,13 @@
 import torch
 from torch.distributions import Normal, Categorical, kl_divergence as kl
 
-from scvi.models.base import SemiSupervisedModel
 from scvi.models.classifier import Classifier
 from scvi.models.modules import Encoder, DecoderSCVI
 from scvi.models.utils import broadcast_labels
 from scvi.models.vae import VAE
 
 
-class VAEC(VAE, SemiSupervisedModel):
+class VAEC(VAE):
     r"""A semi-supervised Variational auto-encoder model - inspired from M2 model,
     as described in (https://arxiv.org/pdf/1406.5298.pdf)
 
