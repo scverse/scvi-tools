@@ -6,6 +6,23 @@ from . import Inference
 
 
 class ClassifierInference(Inference):
+    r"""The abstract Inference class for training a PyTorch model and monitoring its statistics.
+
+    Args:
+        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``, ...
+        :gene_dataset: A gene_dataset instance like ``CortexDataset()``
+        :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
+         to use Default: ``0.8``.
+        :**kwargs: Other keywords arguments from the general Inference class.
+
+    Examples:
+        >>> gene_dataset = CortexDataset()
+        >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+        ... n_labels=gene_dataset.n_labels)
+
+        >>> infer = VariationalInference(gene_dataset, vae, train_size=0.5)
+        >>> infer.fit(n_epochs=20, lr=1e-3)
+    """
     default_metrics_to_monitor = ['accuracy']
     baselines = ['svc_rf']
 
