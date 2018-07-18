@@ -5,8 +5,9 @@
 """Tests for `scvi` package."""
 
 import numpy as np
+import pytest
 
-from scvi.benchmark import all_benchmarks
+from scvi.benchmark import all_benchmarks, benchmark
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
@@ -69,6 +70,18 @@ def test_synthetic_1():
     infer_synthetic_vaec.show_t_sne('labelled', n_samples=50)
 
 
+@pytest.mark.xfail
+def test_nb_not_zinb():
+    synthetic_dataset = SyntheticDataset()
+    svaec = SVAEC(synthetic_dataset.nb_genes,
+                  synthetic_dataset.n_batches,
+                  synthetic_dataset.n_labels,
+                  reconstruction_loss="nb")
+    infer_synthetic_svaec = JointSemiSupervisedVariationalInference(svaec, synthetic_dataset, use_cuda=use_cuda)
+    infer_synthetic_svaec.fit(n_epochs=1)
+
+
+
 def base_benchmark(gene_dataset):
     vae = VAE(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels)
     infer = VariationalInference(vae, gene_dataset, train_size=0.5, use_cuda=use_cuda)
@@ -78,6 +91,11 @@ def base_benchmark(gene_dataset):
 
 def test_all_benchmarks():
     all_benchmarks(n_epochs=1, unit_test=True)
+
+
+def test_particular_benchmark():
+    synthetic_dataset = SyntheticDataset()
+    benchmark(synthetic_dataset, n_epochs=1, use_cuda=False)
 
 
 def test_synthetic_2():
