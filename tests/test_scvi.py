@@ -63,6 +63,7 @@ def test_synthetic_1():
     infer_synthetic_svaec.show_t_sne('unlabelled', n_samples=50, color_by='labels')
     infer_synthetic_svaec.show_t_sne('labelled', n_samples=50, color_by='batches and labels')
 
+
 def test_synthetic_2():
     synthetic_dataset = SyntheticDataset()
     vaec = VAEC(synthetic_dataset.nb_genes, synthetic_dataset.n_batches, synthetic_dataset.n_labels)
