@@ -1,4 +1,3 @@
-import torch
 from scvi.dataset import CortexDataset
 from scvi.inference import VariationalInference
 from scvi.models import VAE
