@@ -9,10 +9,32 @@ from scvi.models.vae import VAE
 
 
 class SVAEC(VAE, SemiSupervisedModel):
-    '''
-    "Stacked" variational autoencoder for classification - SVAEC
-    (from the stacked generative model M1 + M2)
-    '''
+    r"""A semi-supervised Variational auto-encoder model - inspired from M1 + M2 model,
+    as described in (https://arxiv.org/pdf/1406.5298.pdf). S stand for "Stacked" variational autoencoder
+    and C for classification - SVAEC
+
+    Args:
+        :n_input: Number of input genes.
+        :n_batch: Default: ``0``.
+        :n_labels: Default: ``0``.
+        :n_hidden: Number of hidden. Default: ``128``.
+        :n_latent: Default: ``1``.
+        :n_layers: Number of layers. Default: ``1``.
+        :dropout_rate: Default: ``0.1``.
+        :dispersion: Default: ``"gene"``.
+        :log_variational: Default: ``True``.
+        :reconstruction_loss: Default: ``"zinb"``.
+        :y_prior: Default: None, but will be initialized to uniform probability over the cell types if not specified
+
+    Examples:
+        >>> gene_dataset = CortexDataset()
+        >>> svaec = SVAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+        ... n_labels=gene_dataset.n_labels)
+
+        >>> gene_dataset = SyntheticDataset(n_labels=3)
+        >>> svaec = SVAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+        ... n_labels=3, y_prior=torch.tensor([[0.1,0.5,0.4]]))
+    """
 
     def __init__(self, n_input, n_batch, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1,
                  y_prior=None, logreg_classifier=False, dispersion="gene", log_variational=True,

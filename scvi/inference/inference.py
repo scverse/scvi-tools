@@ -9,8 +9,23 @@ from scvi.utils import to_cuda, enable_grad
 
 
 class Inference:
-    """
-    Inference class cares about the general training of a PyTorch model with its statistics
+    r"""The abstract Inference class for training a PyTorch model and monitoring its statistics. It should be
+    inherited at least with a .loss() function to be optimized in the training loop.
+
+    Args:
+        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``, ...
+        :gene_dataset: A gene_dataset instance like ``CortexDataset()``
+        :use_cuda: Default: ``True``.
+        :metrics_to_monitor: A list of the metrics to monitor. If not specified, will use the
+        ``default_metrics_to_monitor`` as specified in each . Default: ``None``.
+        :benchmark: if True, prevents statistics computation in the training. Default: ``False``.
+        :verbose: If statistics should be displayed along training. Default: ``None``.
+        :frequency: The frequency at which to keep track of statistics. Default: ``None``.
+        :early_stopping_metric: The statistics on which to perform early stopping. Default: ``None``.
+        :save_best_state_metric:  The statistics on which we keep the network weights achieving the best store, and
+        restore them at the end of training. Default: ``None``.
+        :on: The data_loader name reference for the ``early_stopping_metric`` and ``save_best_state_metric``, that
+        should be specified if any of them is. Default: ``None``.
     """
     default_metrics_to_monitor = []
 
