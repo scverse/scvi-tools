@@ -77,9 +77,8 @@ def base_benchmark(gene_dataset):
     return infer
 
 
-def test_particular_benchmark():
-    synthetic_dataset = SyntheticDataset()
-    benchmark(synthetic_dataset, n_epochs=1, use_cuda=False)
+def test_all_benchmarks():
+    all_benchmarks(n_epochs=1, unit_test=True)
 
 
 def test_synthetic_2():
@@ -199,8 +198,9 @@ def test_smfish():
     base_benchmark(smfish_dataset)
 
 
-def test_all_benchmarks():
-    all_benchmarks(n_epochs=1, unit_test=True)
+def test_particular_benchmark():
+    synthetic_dataset = SyntheticDataset()
+    benchmark(synthetic_dataset, n_epochs=1, use_cuda=False)
 
 
 @pytest.mark.xfail
