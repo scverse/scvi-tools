@@ -5,8 +5,9 @@
 """Tests for `scvi` package."""
 
 import numpy as np
+import pytest
 
-from scvi.benchmark import all_benchmarks
+from scvi.benchmark import all_benchmarks, benchmark
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
@@ -200,3 +201,19 @@ def test_mouseob():
 def test_smfish():
     smfish_dataset = SmfishDataset(save_path='tests/data/')
     base_benchmark(smfish_dataset)
+
+
+def test_particular_benchmark():
+    synthetic_dataset = SyntheticDataset()
+    benchmark(synthetic_dataset, n_epochs=1, use_cuda=False)
+
+
+@pytest.mark.xfail
+def test_nb_not_zinb():
+    synthetic_dataset = SyntheticDataset()
+    svaec = SVAEC(synthetic_dataset.nb_genes,
+                  synthetic_dataset.n_batches,
+                  synthetic_dataset.n_labels,
+                  reconstruction_loss="nb")
+    infer_synthetic_svaec = JointSemiSupervisedVariationalInference(svaec, synthetic_dataset, use_cuda=use_cuda)
+    infer_synthetic_svaec.fit(n_epochs=1)
