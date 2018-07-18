@@ -57,8 +57,10 @@ def log_nb_positive(x, mu, theta, eps=1e-8):
     theta: inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
     eps: numerical stability constant
     """
+    if theta.ndimension() == 1:
+        theta = theta.view(1, theta.size(0))  # In this case, we reshape theta for broadcasting
+
     res = theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps) + x * torch.log(
         mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(x + theta) - torch.lgamma(
-        theta.view(1, theta.size(0))) - torch.lgamma(
-        x + 1)
-    return torch.sum(res)
+        theta) - torch.lgamma(x + 1)
+    return torch.sum(res, dim=-1)
