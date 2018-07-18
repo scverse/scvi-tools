@@ -1,5 +1,5 @@
 import torch
-from torch.distributions import Normal, Multinomial, kl_divergence as kl
+from torch.distributions import Normal, Categorical, kl_divergence as kl
 
 from scvi.models.classifier import Classifier, LinearLogRegClassifier
 from scvi.models.modules import Decoder, Encoder
@@ -56,7 +56,7 @@ class SVAEC(VAE):
                                      n_hidden=n_hidden, dropout_rate=dropout_rate)
 
         self.y_prior = torch.nn.Parameter(
-            y_prior if y_prior is not None else (1 / self.n_labels) * torch.ones(self.n_labels), requires_grad=False
+            y_prior if y_prior is not None else (1 / n_labels) * torch.ones(1, n_labels), requires_grad=False
         )
 
     def classify(self, x):
@@ -105,6 +105,7 @@ class SVAEC(VAE):
         reconst_loss += (loss_z1_weight + ((loss_z1_unweight).view(self.n_labels, -1).t() * probs).sum(dim=1))
 
         kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(dim=1)
-        kl_divergence += kl(Multinomial(probs=probs), Multinomial(probs=self.y_prior))
+        kl_divergence += kl(Categorical(probs=probs),
+                            Categorical(probs=self.y_prior.repeat(probs.size(0), 1)))
 
         return reconst_loss, kl_divergence

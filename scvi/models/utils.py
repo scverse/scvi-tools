@@ -1,5 +1,4 @@
 import torch
-from torch.distributions import register_kl, Multinomial
 
 
 def iterate(obj, func):
@@ -42,8 +41,3 @@ def enumerate_discrete(x, y_dim):
 
     batch_size = x.size(0)
     return torch.cat([batch(batch_size, i) for i in range(y_dim)])
-
-
-@register_kl(Multinomial, Multinomial)
-def kl_multinomial_multinomial(p, q):
-    return torch.sum(torch.mul(p.probs, torch.log(p.probs + 1e-8) - torch.log(q.probs + 1e-8)), dim=-1)
