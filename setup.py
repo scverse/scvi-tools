@@ -20,7 +20,7 @@ requirements = [
     "loompy>=2.0",
     "tqdm >= 4",
     "anndata >= 0.6",
-    "xlrd >= 0.9",
+    "xlrd >= 1.0",
 ]
 
 setup_requirements = ['pytest-runner', ]
