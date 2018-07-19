@@ -6,6 +6,8 @@ from tqdm import trange
 
 from scvi.metrics.early_stopping import EarlyStopping
 
+torch.set_grad_enabled(False)
+
 
 class Inference:
     r"""The abstract Inference class for training a PyTorch model and monitoring its statistics. It should be
