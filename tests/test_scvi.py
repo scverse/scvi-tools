@@ -62,6 +62,7 @@ def test_synthetic_1():
     infer_synthetic_svaec.show_t_sne('labelled', n_samples=50)
     infer_synthetic_svaec.show_t_sne('unlabelled', n_samples=50, color_by='labels')
     infer_synthetic_svaec.show_t_sne('labelled', n_samples=50, color_by='batches and labels')
+    infer_synthetic_svaec.clustering_scores('labelled')
 
 
 def test_synthetic_2():
@@ -145,7 +146,8 @@ def test_csv():
 
 def test_cbmc():
     cbmc_dataset = CbmcDataset(save_path='tests/data/citeSeq/')
-    base_benchmark(cbmc_dataset)
+    infer = base_benchmark(cbmc_dataset)
+    infer.nn_overlap_score(k=5)
 
 
 def test_pbmc():
