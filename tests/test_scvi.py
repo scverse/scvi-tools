@@ -5,7 +5,6 @@
 """Tests for `scvi` package."""
 
 import numpy as np
-import pytest
 
 from scvi.benchmark import all_benchmarks, benchmark
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
@@ -208,7 +207,6 @@ def test_particular_benchmark():
     benchmark(synthetic_dataset, n_epochs=1, use_cuda=False)
 
 
-@pytest.mark.xfail
 def test_nb_not_zinb():
     synthetic_dataset = SyntheticDataset()
     svaec = SVAEC(synthetic_dataset.nb_genes,

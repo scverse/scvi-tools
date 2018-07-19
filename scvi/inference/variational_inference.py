@@ -38,10 +38,10 @@ class VariationalInference(Inference):
     """
     default_metrics_to_monitor = ['ll']
 
-    def __init__(self, model, gene_dataset, train_size=0.8, **kwargs):
-        super(VariationalInference, self).__init__(model, gene_dataset, **kwargs)
+    def __init__(self, model, gene_dataset, train_size=0.8, use_cuda=True, **kwargs):
+        super(VariationalInference, self).__init__(model, gene_dataset, use_cuda=use_cuda, **kwargs)
         self.kl = None
-        self.data_loaders = TrainTestDataLoaders(self.gene_dataset, train_size=train_size, pin_memory=self.use_cuda)
+        self.data_loaders = TrainTestDataLoaders(self.gene_dataset, train_size=train_size, use_cuda=use_cuda)
 
     def loss(self, tensors):
         sample_batch, local_l_mean, local_l_var, batch_index, _ = tensors
@@ -53,7 +53,7 @@ class VariationalInference(Inference):
         self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / self.n_epochs)
 
     def ll(self, name, verbose=False):
-        ll = compute_log_likelihood(self.model, self.data_loaders[name], use_cuda=self.use_cuda)
+        ll = compute_log_likelihood(self.model, self.data_loaders[name])
         if verbose:
             print("LL for %s is : %.4f" % (name, ll))
         return ll
@@ -61,7 +61,7 @@ class VariationalInference(Inference):
     ll.mode = 'min'
 
     def imputation_errors(self, name, **kwargs):
-        return imputation(self.model, self.data_loaders[name], use_cuda=self.use_cuda, **kwargs)
+        return imputation(self.model, self.data_loaders[name], **kwargs)
 
     def imputation(self, name, verbose=False, *args, **kwargs):
         imputation_score = torch.median(self.imputation_errors(name, *args, **kwargs)).item()
@@ -72,7 +72,7 @@ class VariationalInference(Inference):
     imputation.mode = 'min'
 
     def differential_expression_stats(self, name, *args, **kwargs):
-        return de_stats(self.model, self.data_loaders[name], *args, use_cuda=self.use_cuda, **kwargs)
+        return de_stats(self.model, self.data_loaders[name], *args, **kwargs)
 
     def differential_expression(self, name, *args, verbose=False, **kwargs):
         px_scale, all_labels = self.differential_expression_stats(name, *args, **kwargs)
@@ -89,7 +89,7 @@ class VariationalInference(Inference):
 
     def entropy_batch_mixing(self, name, verbose=False, **kwargs):
         if self.gene_dataset.n_batches == 2:
-            latent, batch_indices, labels = get_latent(self.model, self.data_loaders[name], use_cuda=self.use_cuda)
+            latent, batch_indices, labels = get_latent(self.model, self.data_loaders[name])
             be_score = entropy_batch_mixing(latent, batch_indices, **kwargs)
             if verbose:
                 print("Entropy batch mixing :", be_score)
@@ -98,7 +98,7 @@ class VariationalInference(Inference):
     entropy_batch_mixing.mode = 'max'
 
     def show_t_sne(self, name, n_samples=1000, color_by='', save_name=''):
-        latent, batch_indices, labels = get_latent(self.model, self.data_loaders[name], use_cuda=self.use_cuda)
+        latent, batch_indices, labels = get_latent(self.model, self.data_loaders[name])
         idx_t_sne = np.random.permutation(len(latent))[:n_samples] if n_samples else np.arange(len(latent))
         if latent.shape[1] != 2:
             latent = TSNE().fit_transform(latent[idx_t_sne])
@@ -150,7 +150,7 @@ class SemiSupervisedVariationalInference(VariationalInference):
     default_metrics_to_monitor = VariationalInference.default_metrics_to_monitor + ['accuracy']
 
     def accuracy(self, name, verbose=False):
-        acc = compute_accuracy(self.model, self.data_loaders[name], use_cuda=self.use_cuda)
+        acc = compute_accuracy(self.model, self.data_loaders[name])
         if verbose:
             print("Acc for %s is : %.4f" % (name, acc))
         return acc

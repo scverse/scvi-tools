@@ -1,9 +1,7 @@
 import copy
 import torch
-from scvi.utils import enable_grad
 
 
-@enable_grad()
 def adapt_encoder(infer, n_path=10, n_epochs=50, frequency=5):
     vae = infer.model
     parameters = list(vae.z_encoder.parameters()) + list(vae.l_encoder.parameters())
