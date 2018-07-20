@@ -17,8 +17,8 @@ Welcome to scVI's documentation!
    :caption: Package Reference
 
    dataset
+   inference
    models
-   train
 
 Indices and tables
 ==================
