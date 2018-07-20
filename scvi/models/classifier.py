@@ -20,8 +20,8 @@ class Classifier(nn.Module):
 
 
 class LinearLogRegClassifier(Linear):
-    def update_parameters(self, vae, data_loader_classification, use_cuda=True):
-        data_train, _, labels_train = get_latent_mean(vae, data_loader_classification, use_cuda=use_cuda)
+    def update_parameters(self, vae, data_loader_classification):
+        data_train, _, labels_train = get_latent_mean(vae, data_loader_classification)
         log_reg = LogisticRegression()
         log_reg.fit(data_train, labels_train)
 

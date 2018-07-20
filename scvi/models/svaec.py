@@ -1,18 +1,39 @@
 import torch
-from torch.distributions import Normal, Multinomial, kl_divergence as kl
+from torch.distributions import Normal, Categorical, kl_divergence as kl
 
-from scvi.models.base import SemiSupervisedModel
 from scvi.models.classifier import Classifier, LinearLogRegClassifier
 from scvi.models.modules import Decoder, Encoder
 from scvi.models.utils import broadcast_labels
 from scvi.models.vae import VAE
 
 
-class SVAEC(VAE, SemiSupervisedModel):
-    '''
-    "Stacked" variational autoencoder for classification - SVAEC
-    (from the stacked generative model M1 + M2)
-    '''
+class SVAEC(VAE):
+    r"""A semi-supervised Variational auto-encoder model - inspired from M1 + M2 model,
+    as described in (https://arxiv.org/pdf/1406.5298.pdf). S stand for "Stacked" variational autoencoder
+    and C for classification - SVAEC
+
+    Args:
+        :n_input: Number of input genes.
+        :n_batch: Default: ``0``.
+        :n_labels: Default: ``0``.
+        :n_hidden: Number of hidden. Default: ``128``.
+        :n_latent: Default: ``1``.
+        :n_layers: Number of layers. Default: ``1``.
+        :dropout_rate: Default: ``0.1``.
+        :dispersion: Default: ``"gene"``.
+        :log_variational: Default: ``True``.
+        :reconstruction_loss: Default: ``"zinb"``.
+        :y_prior: Default: None, but will be initialized to uniform probability over the cell types if not specified
+
+    Examples:
+        >>> gene_dataset = CortexDataset()
+        >>> svaec = SVAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+        ... n_labels=gene_dataset.n_labels)
+
+        >>> gene_dataset = SyntheticDataset(n_labels=3)
+        >>> svaec = SVAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+        ... n_labels=3, y_prior=torch.tensor([[0.1,0.5,0.4]]))
+    """
 
     def __init__(self, n_input, n_batch, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1,
                  y_prior=None, logreg_classifier=False, dispersion="gene", log_variational=True,
@@ -35,7 +56,7 @@ class SVAEC(VAE, SemiSupervisedModel):
                                      n_hidden=n_hidden, dropout_rate=dropout_rate)
 
         self.y_prior = torch.nn.Parameter(
-            y_prior if y_prior is not None else (1 / self.n_labels) * torch.ones(self.n_labels), requires_grad=False
+            y_prior if y_prior is not None else (1 / n_labels) * torch.ones(1, n_labels), requires_grad=False
         )
 
     def classify(self, x):
@@ -84,6 +105,7 @@ class SVAEC(VAE, SemiSupervisedModel):
         reconst_loss += (loss_z1_weight + ((loss_z1_unweight).view(self.n_labels, -1).t() * probs).sum(dim=1))
 
         kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(dim=1)
-        kl_divergence += kl(Multinomial(probs=probs), Multinomial(probs=self.y_prior))
+        kl_divergence += kl(Categorical(probs=probs),
+                            Categorical(probs=self.y_prior.repeat(probs.size(0), 1)))
 
         return reconst_loss, kl_divergence

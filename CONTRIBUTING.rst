@@ -126,3 +126,41 @@ $ git push
 $ git push --tags
 
 Travis will then deploy to PyPI if tests pass.
+
+Also, make sure you've tested your code using tox by running::
+
+$ tox
+
+Instructions on Uploading to pip
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+`scvi` is available on PyPI.
+
+You can build and upload a new version to PyPI by running::
+
+$ python3 setup.py sdist bdist_wheel
+$ twine upload dist/*
+
+
+Instructions on Uploading to conda
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+`scvi` is available on bioconda channel.
+
+Follow the below steps to upload a new version to bioconda channel.
+
+Create a fork of bioconda-recipes on GitHub. Then::
+
+$ git clone https://github.com/<USERNAME>/bioconda-recipes.git
+$ git remote add upstream https://github.com/bioconda/bioconda-recipes.git
+
+Update repo::
+
+$ git checkout master
+$ git pull origin master
+
+Write a recipe::
+
+$ git checkout -b my-recipe
+
+Push changes, wait for tests to pass, submit pull request::
+
+$ git push -u origin my-recipe

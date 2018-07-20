@@ -5,12 +5,28 @@ import torch
 from tqdm import trange
 
 from scvi.metrics.early_stopping import EarlyStopping
-from scvi.utils import to_cuda, enable_grad
+
+torch.set_grad_enabled(False)
 
 
 class Inference:
-    """
-    Inference class cares about the general training of a PyTorch model with its statistics
+    r"""The abstract Inference class for training a PyTorch model and monitoring its statistics. It should be
+    inherited at least with a .loss() function to be optimized in the training loop.
+
+    Args:
+        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``, ...
+        :gene_dataset: A gene_dataset instance like ``CortexDataset()``
+        :use_cuda: Default: ``True``.
+        :metrics_to_monitor: A list of the metrics to monitor. If not specified, will use the
+        ``default_metrics_to_monitor`` as specified in each . Default: ``None``.
+        :benchmark: if True, prevents statistics computation in the training. Default: ``False``.
+        :verbose: If statistics should be displayed along training. Default: ``None``.
+        :frequency: The frequency at which to keep track of statistics. Default: ``None``.
+        :early_stopping_metric: The statistics on which to perform early stopping. Default: ``None``.
+        :save_best_state_metric:  The statistics on which we keep the network weights achieving the best store, and
+        restore them at the end of training. Default: ``None``.
+        :on: The data_loader name reference for the ``early_stopping_metric`` and ``save_best_state_metric``, that
+        should be specified if any of them is. Default: ``None``.
     """
     default_metrics_to_monitor = []
 
@@ -44,37 +60,43 @@ class Inference:
         self.history = defaultdict(lambda: [])
 
     def compute_metrics(self):
-        if self.frequency and (self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.frequency == 0)):
-            if self.verbose:
-                print("\nEPOCH [%d/%d]: " % (self.epoch, self.n_epochs))
-            for name in self.data_loaders.to_monitor:
-                for metric in self.metrics_to_monitor:
-                    result = getattr(self, metric)(name=name, verbose=self.verbose)
-                    self.history[metric + '_' + name] += [result]
+        with torch.set_grad_enabled(False):
+            self.model.eval()
+            if self.frequency and (
+                        self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.frequency == 0)):
+                if self.verbose:
+                    print("\nEPOCH [%d/%d]: " % (self.epoch, self.n_epochs))
+                for name in self.data_loaders.to_monitor:
+                    for metric in self.metrics_to_monitor:
+                        result = getattr(self, metric)(name=name, verbose=self.verbose)
+                        self.history[metric + '_' + name] += [result]
+            self.model.train()
 
-    @enable_grad()
     def fit(self, n_epochs=20, lr=1e-3):
-        optimizer = self.optimizer if hasattr(self, 'optimizer') else \
-            torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=lr)
-        self.epoch = 0
-        self.n_epochs = n_epochs
-        self.compute_metrics()
-        with trange(n_epochs, desc="training", file=sys.stdout, disable=self.verbose) as pbar:
-            # We have to use tqdm this way so it works in Jupyter notebook.
-            # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
-            self.on_epoch_begin()
-            for epoch in pbar:
-                pbar.update(1)
-                for tensors_list in self.data_loaders:
-                    loss = self.loss(*[to_cuda(tensors, use_cuda=self.use_cuda) for tensors in tensors_list])
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-                if not self.on_epoch_end():
-                    break
-        if self.save_best_state_metric is not None:
-            self.model.load_state_dict(self.best_state_dict)
+        with torch.set_grad_enabled(True):
+            self.model.train()
+            optimizer = self.optimizer if hasattr(self, 'optimizer') else \
+                torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=lr)
+            self.epoch = 0
+            self.n_epochs = n_epochs
             self.compute_metrics()
+            with trange(n_epochs, desc="training", file=sys.stdout, disable=self.verbose) as pbar:
+                # We have to use tqdm this way so it works in Jupyter notebook.
+                # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
+                self.on_epoch_begin()
+                for epoch in pbar:
+                    pbar.update(1)
+                    for tensors_list in self.data_loaders:
+                        loss = self.loss(*tensors_list)
+                        optimizer.zero_grad()
+                        loss.backward()
+                        optimizer.step()
+                    if not self.on_epoch_end():
+                        break
+            if self.save_best_state_metric is not None:
+                self.model.load_state_dict(self.best_state_dict)
+                self.compute_metrics()
+            self.model.eval()
 
     def on_epoch_begin(self):
         pass
