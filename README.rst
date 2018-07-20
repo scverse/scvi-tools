@@ -36,11 +36,11 @@ Quick Start
 
 4. Refer to `this Jupyter notebook`__ to see how to import datasets into scVI.
 
-.. __: https://github.com/YosefLab/scVI/tree/master/examples/scVI-data-loading.ipynb
+.. __: https://github.com/YosefLab/scVI/tree/master/docs/examples/scVI-data-loading.ipynb
 
 5. Refer to `this Jupyter notebook`__ to see how to train the scVI model, impute missing data, detect differential expression, and more!
 
-.. __: https://github.com/YosefLab/scVI/tree/master/examples/scVI-dev.ipynb
+.. __: https://github.com/YosefLab/scVI/tree/master/docs/examples/scVI-dev.ipynb
 
 
 Benchmarks
@@ -50,7 +50,7 @@ To recreate the results appearing in the paper referenced below, run
 
 .. code-block::
 
-    python ./run_benchmarks.py --dataset=cortex 
+    python ./run_benchmarks.py --dataset=cortex
 
 Valid choices for ``--dataset`` include ``synthetic``, ``cortex``, ``brain_large``, ``retina``, ``cbmc``, ``hemato``, and ``pbmc``. You may also specify an arbitrary ``.loom``, ``.h5ad`` (AnnData), or ``.csv`` file.
 
