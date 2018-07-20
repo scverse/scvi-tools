@@ -212,6 +212,7 @@ class AlternateSemiSupervisedVariationalInference(SemiSupervisedVariationalInfer
         >>> infer = AlternateSemiSupervisedVariationalInference(gene_dataset, svaec, n_labelled_samples_per_class=10)
         >>> infer.fit(n_epochs=20, lr=1e-3)
     """
+
     def __init__(self, model, gene_dataset, n_labelled_samples_per_class=50, n_epochs_classifier=1,
                  lr_classification=0.1, **kwargs):
         super(AlternateSemiSupervisedVariationalInference, self).__init__(model, gene_dataset, **kwargs)
@@ -221,7 +222,7 @@ class AlternateSemiSupervisedVariationalInference(SemiSupervisedVariationalInfer
         self.data_loaders = AlternateSemiSupervisedDataLoaders(gene_dataset, n_labelled_samples_per_class)
 
         self.classifier_inference = ClassifierInference(
-            model.classifier, gene_dataset, metrics_to_monitor=[], benchmark=True,
+            model.classifier, gene_dataset, metrics_to_monitor=[], verbose=True, frequency=0,
             data_loaders=self.data_loaders.classifier_data_loaders(), sampling_model=self.model
         )
 
@@ -247,6 +248,7 @@ class JointSemiSupervisedVariationalInference(SemiSupervisedVariationalInference
         >>> infer = JointSemiSupervisedVariationalInference(gene_dataset, svaec, n_labelled_samples_per_class=10)
         >>> infer.fit(n_epochs=20, lr=1e-3)
     """
+
     def __init__(self, model, gene_dataset, n_labelled_samples_per_class=50, classification_ratio=100, **kwargs):
         super(JointSemiSupervisedVariationalInference, self).__init__(model, gene_dataset, **kwargs)
         self.data_loaders = JointSemiSupervisedDataLoaders(gene_dataset, n_labelled_samples_per_class)
