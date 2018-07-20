@@ -7,3 +7,13 @@ VAE model
 ----------------------------------
 .. autoclass:: VAE
   :members:
+
+VAEC model
+----------------------------------
+.. autoclass:: VAEC
+  :members:
+
+SVAEC model
+----------------------------------
+.. autoclass:: SVAEC
+  :members:

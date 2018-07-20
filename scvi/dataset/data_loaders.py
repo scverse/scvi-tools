@@ -164,6 +164,7 @@ class AlternateSemiSupervisedDataLoaders(SemiSupervisedDataLoaders):
 
     def classifier_data_loaders(self):
         data_loaders = DataLoaders(gene_dataset=self.gene_dataset, use_cuda=self.use_cuda, **self.data_loaders_kwargs)
+        data_loaders.data_loaders_loop = ['train']
         data_loaders.data_loaders_dict.update({
             'train': self['labelled'],
             'test': self['unlabelled']
