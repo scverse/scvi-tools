@@ -11,7 +11,7 @@ class ClassifierInference(Inference):
      space of another model (VAE, VAEC, SVAEC).
 
     Args:
-        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``, ...
+        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``
         :gene_dataset: A gene_dataset instance like ``CortexDataset()``
         :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
          to use Default: ``0.8``.
