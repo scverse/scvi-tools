@@ -18,7 +18,7 @@ class ClassifierInference(Inference):
         :**kwargs: Other keywords arguments from the general Inference class.
 
     infer_cls = ClassifierInference(cls, cortex_dataset)
-    infer_cls.fit(n_epochs=1)
+    infer_cls.train(n_epochs=1)
     infer_cls.accuracy('train')
     Examples:
         >>> gene_dataset = CortexDataset()
@@ -27,12 +27,12 @@ class ClassifierInference(Inference):
 
         >>> cls = Classifier(vae.n_latent, n_labels=cortex_dataset.n_labels)
         >>> infer = ClassifierInference(gene_dataset, sampling_model=vae, train_size=0.5)
-        >>> infer.fit(n_epochs=20, lr=1e-3)
+        >>> infer.train(n_epochs=20, lr=1e-3)
         >>> infer.accuracy('test')
 
         >>> cls = Classifier(gene_dataset.nb_genes, n_labels=cortex_dataset.n_labels)
         >>> infer = ClassifierInference(gene_dataset, train_size=0.5)
-        >>> infer.fit(n_epochs=20, lr=1e-3)
+        >>> infer.train(n_epochs=20, lr=1e-3)
         >>> infer.accuracy('test')
     """
     default_metrics_to_monitor = ['accuracy']
@@ -43,12 +43,12 @@ class ClassifierInference(Inference):
         if 'data_loaders' not in kwargs:
             self.data_loaders = TrainTestDataLoaders(self.gene_dataset, train_size=0.1)
 
-    def fit(self, *args, **kargs):
+    def train(self, *args, **kargs):
         if hasattr(self.model, "update_parameters"):
             with torch.no_grad():
                 self.model.update_parameters(self.sampling_model, self.data_loaders['train'])
         else:
-            super(ClassifierInference, self).fit(*args, **kargs)
+            super(ClassifierInference, self).train(*args, **kargs)
 
     def loss(self, tensors_labelled):
         x, _, _, _, labels_train = tensors_labelled
