@@ -72,30 +72,40 @@ class Inference:
                         self.history[metric + '_' + name] += [result]
             self.model.train()
 
-    def fit(self, n_epochs=20, lr=1e-3):
+    def train(self, n_epochs=20, lr=1e-3, params=None):
         with torch.set_grad_enabled(True):
             self.model.train()
-            optimizer = self.optimizer if hasattr(self, 'optimizer') else \
-                torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=lr)
+
+            if params is None:
+                params = filter(lambda p: p.requires_grad, self.model.parameters())
+
+            optimizer = torch.optim.Adam(params, lr=lr, weight_decay=1e-6)
+
             self.epoch = 0
             self.n_epochs = n_epochs
             self.compute_metrics()
+
             with trange(n_epochs, desc="training", file=sys.stdout, disable=self.verbose) as pbar:
                 # We have to use tqdm this way so it works in Jupyter notebook.
                 # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
                 self.on_epoch_begin()
+
                 for epoch in pbar:
                     pbar.update(1)
+
                     for tensors_list in self.data_loaders:
                         loss = self.loss(*tensors_list)
                         optimizer.zero_grad()
                         loss.backward()
                         optimizer.step()
+
                     if not self.on_epoch_end():
                         break
+
             if self.save_best_state_metric is not None:
                 self.model.load_state_dict(self.best_state_dict)
                 self.compute_metrics()
+
             self.model.eval()
 
     def on_epoch_begin(self):
