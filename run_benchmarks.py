@@ -17,7 +17,7 @@ def load_datasets(dataset_name, save_path='data/', url=None):
     elif dataset_name == 'cortex':
         gene_dataset = CortexDataset()
     elif dataset_name == 'brain_large':
-        gene_dataset = BrainLargeDataset(subsample_size=128, save_path=save_path)
+        gene_dataset = BrainLargeDataset(save_path=save_path)
     elif dataset_name == 'retina':
         gene_dataset = RetinaDataset(save_path=save_path)
     elif dataset_name == 'cbmc':
