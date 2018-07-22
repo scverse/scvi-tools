@@ -63,6 +63,8 @@ def test_synthetic_1():
     infer_synthetic_svaec.show_t_sne('unlabelled', n_samples=50, color_by='labels')
     infer_synthetic_svaec.show_t_sne('labelled', n_samples=50, color_by='batches and labels')
     infer_synthetic_svaec.clustering_scores('labelled')
+    infer_synthetic_svaec.clustering_scores('labelled', prediction_algorithm='gmm')
+    infer_synthetic_svaec.unsupervised_accuracy('unlabelled')
 
 
 def test_synthetic_2():
