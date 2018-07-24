@@ -6,18 +6,12 @@ Welcome to scVI's documentation!
    :caption: Contents:
 
    readme
-   installation
-   contributing
-   authors
-   history
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Usage:
-
    examples/scVI-data-loading.ipynb
    examples/scVI-dev.ipynb
    examples/scVI-semi-supervised.ipynb
+   contributing
+   authors
+   history
 
 .. toctree::
    :maxdepth: 1
