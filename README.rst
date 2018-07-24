@@ -19,7 +19,7 @@ Single-cell Variational Inference
 
 
 Quick Start
---------
+-----------
 
 1. Install Python 3.6 or later. We typically use the Miniconda_ Python distribution.
 
@@ -44,7 +44,7 @@ Quick Start
 
 
 Benchmarks
---------
+----------
 
 To recreate the results appearing in the paper referenced below, run
 
@@ -55,7 +55,7 @@ To recreate the results appearing in the paper referenced below, run
 Valid choices for ``--dataset`` include ``synthetic``, ``cortex``, ``brain_large``, ``retina``, ``cbmc``, ``hemato``, and ``pbmc``. You may also specify an arbitrary ``.loom``, ``.h5ad`` (AnnData), or ``.csv`` file.
 
 References
---------
+----------
 
 Romain Lopez, Jeffrey Regier, Michael B Cole, Michael Jordan, Nir Yosef.
 **"Bayesian Inference for a Generative Model of Transcriptome Profiles from Single-cell RNA Sequencing."**
