@@ -1,4 +1,5 @@
 import sys
+import time
 from collections import defaultdict
 
 import torch
@@ -37,6 +38,7 @@ class Inference:
         self.data_loaders = data_loaders
         self.benchmark = benchmark
         self.epoch = 0
+        self.training_time = 0
 
         if metrics_to_monitor is not None:
             self.metrics_to_monitor = metrics_to_monitor
@@ -60,10 +62,11 @@ class Inference:
         self.history = defaultdict(lambda: [])
 
     def compute_metrics(self):
+        begin = time.time()
         with torch.set_grad_enabled(False):
             self.model.eval()
             if self.frequency and (
-                        self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.frequency == 0)):
+                            self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.frequency == 0)):
                 if self.verbose:
                     print("\nEPOCH [%d/%d]: " % (self.epoch, self.n_epochs))
                 for name in self.data_loaders.to_monitor:
@@ -71,8 +74,10 @@ class Inference:
                         result = getattr(self, metric)(name=name, verbose=self.verbose)
                         self.history[metric + '_' + name] += [result]
             self.model.train()
+            self.compute_metrics_time += time.time() - begin
 
     def train(self, n_epochs=20, lr=1e-3, params=None):
+        begin = time.time()
         with torch.set_grad_enabled(True):
             self.model.train()
 
@@ -80,8 +85,8 @@ class Inference:
                 params = filter(lambda p: p.requires_grad, self.model.parameters())
 
             optimizer = torch.optim.Adam(params, lr=lr, weight_decay=1e-6)
-
             self.epoch = 0
+            self.compute_metrics_time = 0
             self.n_epochs = n_epochs
             self.compute_metrics()
 
@@ -107,6 +112,9 @@ class Inference:
                 self.compute_metrics()
 
             self.model.eval()
+            self.training_time += (time.time() - begin) - self.compute_metrics_time
+            if self.verbose and self.frequency:
+                print("\nTraining time:  %i s. / %i epochs" % (int(self.training_time), self.n_epochs))
 
     def on_epoch_begin(self):
         pass

@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from sklearn.cluster import KMeans
+from sklearn.mixture import GaussianMixture as GMM
 from sklearn.manifold import TSNE
 from sklearn.metrics import adjusted_rand_score as ARI
 from sklearn.metrics import normalized_mutual_info_score as NMI
@@ -12,11 +13,13 @@ from scvi.dataset import CortexDataset
 from scvi.dataset.data_loaders import DataLoaders
 from scvi.dataset.data_loaders import TrainTestDataLoaders, AlternateSemiSupervisedDataLoaders, \
     JointSemiSupervisedDataLoaders
-from scvi.metrics.classification import compute_accuracy, compute_accuracy_svc, compute_accuracy_rf
+from scvi.metrics.classification import compute_accuracy, compute_accuracy_svc, compute_accuracy_rf, \
+    unsupervised_classification_accuracy
 from scvi.metrics.clustering import get_latent, entropy_batch_mixing, nn_overlap
 from scvi.metrics.differential_expression import de_stats, de_cortex
 from scvi.metrics.imputation import imputation
 from scvi.metrics.log_likelihood import compute_log_likelihood
+from scvi.metrics.classification import unsupervised_clustering_accuracy
 from . import Inference, ClassifierInference
 
 plt.switch_backend('agg')
@@ -75,17 +78,24 @@ class VariationalInference(Inference):
 
     imputation.mode = 'min'
 
-    def clustering_scores(self, name, verbose=True):
+    def clustering_scores(self, name, verbose=True, prediction_algorithm='knn'):
         if self.gene_dataset.n_labels > 1:
             latent, _, labels = get_latent(self.model, self.data_loaders[name])
-            labels_pred = KMeans(self.gene_dataset.n_labels, n_init=200).fit_predict(latent)  # n_jobs>1 ?
+            if prediction_algorithm == 'knn':
+                labels_pred = KMeans(self.gene_dataset.n_labels, n_init=200).fit_predict(latent)  # n_jobs>1 ?
+            elif prediction_algorithm == 'gmm':
+                gmm = GMM(self.gene_dataset.n_labels)
+                gmm.fit(latent)
+                labels_pred = gmm.predict(latent)
+
             asw_score = silhouette_score(latent, labels)
             nmi_score = NMI(labels, labels_pred)
             ari_score = ARI(labels, labels_pred)
+            uca_score = unsupervised_clustering_accuracy(labels, labels_pred)[0]
             if verbose:
-                print("Clustering Scores for %s:\nSilhouette: %.4f\nNMI: %.4f\nARI: %.4f" %
-                      (name, asw_score, nmi_score, ari_score))
-            return asw_score, nmi_score, ari_score
+                print("Clustering Scores for %s:\nSilhouette: %.4f\nNMI: %.4f\nARI: %.4f\nUCA: %.4f" %
+                      (name, asw_score, nmi_score, ari_score, uca_score))
+            return asw_score, nmi_score, ari_score, uca_score
 
     def nn_overlap_score(self, name='sequential', verbose=True, **kwargs):
         if hasattr(self.gene_dataset, 'adt_expression_clr'):
@@ -183,6 +193,14 @@ class SemiSupervisedVariationalInference(VariationalInference):
         return acc
 
     accuracy.mode = 'max'
+
+    def unsupervised_accuracy(self, name, verbose=False):
+        uca = unsupervised_classification_accuracy(self.model, self.data_loaders[name])[0]
+        if verbose:
+            print("UCA for %s is : %.4f" % (name, uca))
+        return uca
+
+    unsupervised_accuracy.mode = 'max'
 
     def svc_rf(self, **kwargs):
         if 'train' in self.data_loaders:
