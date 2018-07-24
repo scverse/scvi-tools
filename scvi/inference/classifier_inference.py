@@ -11,14 +11,14 @@ class ClassifierInference(Inference):
         space of another model (VAE, VAEC, SVAEC).
 
     Args:
-        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``.
-        :gene_dataset: A gene_dataset instance like ``CortexDataset()``.
+        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``
+        :gene_dataset: A gene_dataset instance like ``CortexDataset()``
         :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
             to use Default: ``0.8``.
         :\**kwargs: Other keywords arguments from the general Inference class.
 
     infer_cls = ClassifierInference(cls, cortex_dataset)
-    infer_cls.fit(n_epochs=1)
+    infer_cls.train(n_epochs=1)
     infer_cls.accuracy('train')
 
     Examples:
@@ -28,12 +28,12 @@ class ClassifierInference(Inference):
 
         >>> cls = Classifier(vae.n_latent, n_labels=cortex_dataset.n_labels)
         >>> infer = ClassifierInference(gene_dataset, sampling_model=vae, train_size=0.5)
-        >>> infer.fit(n_epochs=20, lr=1e-3)
+        >>> infer.train(n_epochs=20, lr=1e-3)
         >>> infer.accuracy('test')
 
         >>> cls = Classifier(gene_dataset.nb_genes, n_labels=cortex_dataset.n_labels)
         >>> infer = ClassifierInference(gene_dataset, train_size=0.5)
-        >>> infer.fit(n_epochs=20, lr=1e-3)
+        >>> infer.train(n_epochs=20, lr=1e-3)
         >>> infer.accuracy('test')
 
     """
@@ -45,12 +45,12 @@ class ClassifierInference(Inference):
         if 'data_loaders' not in kwargs:
             self.data_loaders = TrainTestDataLoaders(self.gene_dataset, train_size=0.1)
 
-    def fit(self, *args, **kargs):
+    def train(self, *args, **kargs):
         if hasattr(self.model, "update_parameters"):
             with torch.no_grad():
                 self.model.update_parameters(self.sampling_model, self.data_loaders['train'])
         else:
-            super(ClassifierInference, self).fit(*args, **kargs)
+            super(ClassifierInference, self).train(*args, **kargs)
 
     def loss(self, tensors_labelled):
         x, _, _, _, labels_train = tensors_labelled

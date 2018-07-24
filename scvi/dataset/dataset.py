@@ -82,7 +82,8 @@ class GeneExpressionDataset(Dataset):
             std_scaler.fit(self.X.astype(np.float64))
             subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
         else:
-            print("Downsampling from %i to %i genes" % (n_genes, len(subset_genes)))
+            new_n_genes = len(subset_genes) if subset_genes.dtype is not np.dtype('bool') else subset_genes.sum()
+            print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))
         self.X = self.X[:, subset_genes]
         self.update_genes(subset_genes)
 

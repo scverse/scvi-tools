@@ -17,7 +17,7 @@ def load_datasets(dataset_name, save_path='data/', url=None):
     elif dataset_name == 'cortex':
         gene_dataset = CortexDataset()
     elif dataset_name == 'brain_large':
-        gene_dataset = BrainLargeDataset(subsample_size=128, save_path=save_path)
+        gene_dataset = BrainLargeDataset(save_path=save_path)
     elif dataset_name == 'retina':
         gene_dataset = RetinaDataset(save_path=save_path)
     elif dataset_name == 'cbmc':
@@ -95,4 +95,4 @@ if __name__ == '__main__':
         model = available_models[args.model](dataset.nb_genes, dataset.n_batches*args.nobatches, dataset.n_labels)
         inference_cls = VariationalInference if args.model == 'VAE' else JointSemiSupervisedVariationalInference
         infer = inference_cls(model, dataset, use_cuda=use_cuda)
-        infer.fit(n_epochs=n_epochs)
+        infer.train(n_epochs=n_epochs)

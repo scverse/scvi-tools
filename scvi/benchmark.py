@@ -7,7 +7,7 @@ def cortex_benchmark(n_epochs=250, use_cuda=True, unit_test=False):
     cortex_dataset = CortexDataset()
     vae = VAE(cortex_dataset.nb_genes)
     infer_cortex_vae = VariationalInference(vae, cortex_dataset, use_cuda=use_cuda)
-    infer_cortex_vae.fit(n_epochs=n_epochs)
+    infer_cortex_vae.train(n_epochs=n_epochs)
 
     infer_cortex_vae.ll('test')  # assert ~ 1200
     infer_cortex_vae.differential_expression('test')
@@ -20,7 +20,7 @@ def cortex_benchmark(n_epochs=250, use_cuda=True, unit_test=False):
 def benchmark(dataset, n_epochs=250, use_cuda=True):
     vae = VAE(dataset.nb_genes, n_batch=dataset.n_batches)
     infer = VariationalInference(vae, dataset, use_cuda=use_cuda)
-    infer.fit(n_epochs=n_epochs)
+    infer.train(n_epochs=n_epochs)
     infer.ll('test')
     infer.imputation('test', rate=0.1)  # assert ~ 2.1
     return infer
