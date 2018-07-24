@@ -8,18 +8,19 @@ from . import Inference
 
 class ClassifierInference(Inference):
     r"""The ClassifierInference class for training a classifier either on the raw data or on top of the latent
-     space of another model (VAE, VAEC, SVAEC).
+        space of another model (VAE, VAEC, SVAEC).
 
     Args:
-        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``
-        :gene_dataset: A gene_dataset instance like ``CortexDataset()``
+        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``.
+        :gene_dataset: A gene_dataset instance like ``CortexDataset()``.
         :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
-         to use Default: ``0.8``.
-        :**kwargs: Other keywords arguments from the general Inference class.
+            to use Default: ``0.8``.
+        :\**kwargs: Other keywords arguments from the general Inference class.
 
     infer_cls = ClassifierInference(cls, cortex_dataset)
     infer_cls.fit(n_epochs=1)
     infer_cls.accuracy('train')
+
     Examples:
         >>> gene_dataset = CortexDataset()
         >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
@@ -34,6 +35,7 @@ class ClassifierInference(Inference):
         >>> infer = ClassifierInference(gene_dataset, train_size=0.5)
         >>> infer.fit(n_epochs=20, lr=1e-3)
         >>> infer.accuracy('test')
+
     """
     default_metrics_to_monitor = ['accuracy']
 

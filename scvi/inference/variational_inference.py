@@ -30,7 +30,7 @@ class VariationalInference(Inference):
         :gene_dataset: A gene_dataset instance like ``CortexDataset()``
         :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
          to use Default: ``0.8``.
-        :**kwargs: Other keywords arguments from the general Inference class.
+        :\**kwargs: Other keywords arguments from the general Inference class.
 
     Examples:
         >>> gene_dataset = CortexDataset()
