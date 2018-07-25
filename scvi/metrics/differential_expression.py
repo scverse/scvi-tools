@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import pandas as pd
 
 
 def de_stats(vae, data_loader, M_sampling=100):
@@ -91,11 +92,12 @@ def de_raw(data_loader, M_sampling=100):
     px_scale, all_labels = data_loader.dataset.X, data_loader.dataset.labels
 
 
-def de_scvi(vae, data_loader, M_sampling=100):
+def de_scvi(vae, data_loader, select=10, M_sampling=100, output_file=False):
     r"""
     :param vae: a VAE model object
     :param data_loader: a ``data_loader`` object
     :param M_sampling: number of samples
+    :param output_file: whether to store the result as an output file
     :return: a table of top 10 most expressed gene for each cell. Entry[i][j] represents the cell j's gene_expression
     level for gene i. Gene i is the most expressed gene for cell i.
     """
@@ -109,13 +111,22 @@ def de_scvi(vae, data_loader, M_sampling=100):
     for cell_idx in range(n_cells):
         res = differential_expression(px_scale, all_labels, cell_idx)
         results.append(res)
-        top10_indices = np.argsort(res)[::-1][:10]
-        top10_genes = gene_names[top10_indices]
-        genes += list(top10_genes)
+        top_indices = np.argsort(res)[::-1][:select]
+        top_genes = gene_names[top_indices]
+        genes += list(top_genes)
 
     results = [[res[np.where(gene_names == gene_name)[0]][0] for gene_name in genes] for res in results]
     genes = np.array(genes)
-    results = np.array(results).T # change to genes * clusters
+    results = np.array(results).T  # change to genes * clusters
+    if output_file: # store as an excel spreadsheet
+        writer = pd.ExcelWriter('data/differential_expression.xlsx', engine='xlsxwriter')
+        clusters = data_loader.dataset.cell_types
+        for cluster_idx in range(len(clusters)):
+            df = pd.DataFrame(data=results[select * cluster_idx: select * (cluster_idx + 1), cluster_idx],
+                              index=genes[select * cluster_idx: select * (cluster_idx + 1)],
+                              columns=['differential_expression'])
+            df.to_excel(writer, sheet_name=clusters[cluster_idx])
+        writer.close()
     return genes, results
 
 
