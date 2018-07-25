@@ -38,7 +38,7 @@ class SVAEC(VAE):
 
     def __init__(self, n_input, n_batch, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1,
                  y_prior=None, logreg_classifier=False, dispersion="gene", log_variational=True,
-                 reconstruction_loss="zinb", labels_groups=None):
+                 reconstruction_loss="zinb", labels_groups=None, use_labels_groups=False):
         super(SVAEC, self).__init__(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
                                     dropout_rate=dropout_rate, n_batch=n_batch, dispersion=dispersion,
                                     log_variational=log_variational, reconstruction_loss=reconstruction_loss)
@@ -59,8 +59,10 @@ class SVAEC(VAE):
         self.y_prior = torch.nn.Parameter(
             y_prior if y_prior is not None else (1 / n_labels) * torch.ones(1, n_labels), requires_grad=False
         )
-        if labels_groups is not None:
-            self.labels_groups = np.array(labels_groups)
+        self.use_labels_groups = use_labels_groups
+        self.labels_groups = np.array(labels_groups) if labels_groups else None
+        if self.use_labels_groups:
+            assert labels_groups is not None, "Specify label groups"
             unique_groups = np.unique(self.labels_groups)
             self.n_groups = len(unique_groups)
             assert (unique_groups == np.arange(self.n_groups)).all()
@@ -71,7 +73,7 @@ class SVAEC(VAE):
 
     def classify(self, x):
         z = self.sample_from_posterior_z(x)
-        if hasattr(self, 'labels_groups'):
+        if self.use_labels_groups:
             w_g = self.classifier_groups(z)
             unw_y = self.classifier(z)
             w_y = torch.zeros_like(unw_y)
