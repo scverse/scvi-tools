@@ -78,20 +78,6 @@ def de_cortex(px_scale, all_labels, gene_names, M_permutation=100000, permutatio
     return result[1][1]  # if we had to give a metric to optimize
 
 
-def de_raw(data_loader, M_sampling=100):
-    r"""
-    :param data_loader: a ``data_loader`` object
-    :param M_sampling: number of samples
-    :param M_permutation: M_permutation: 10000 - default value in Romain's code
-    :param permutation:
-    :return: a table of top 10 most expressed gene for each cell. Entry[i][j] represents the cell j's gene_expression
-    level for gene i. Gene i is the most expressed gene for cell i.
-    """
-    gene_names = data_loader.dataset.gene_names
-
-    px_scale, all_labels = data_loader.dataset.X, data_loader.dataset.labels
-
-
 def de_scvi(vae, data_loader, select=10, M_sampling=100, output_file=False):
     r"""
     :param vae: a VAE model object
@@ -118,7 +104,7 @@ def de_scvi(vae, data_loader, select=10, M_sampling=100, output_file=False):
     results = [[res[np.where(gene_names == gene_name)[0]][0] for gene_name in genes] for res in results]
     genes = np.array(genes)
     results = np.array(results).T  # change to genes * clusters
-    if output_file: # store as an excel spreadsheet
+    if output_file:  # store as an excel spreadsheet
         writer = pd.ExcelWriter('data/differential_expression.xlsx', engine='xlsxwriter')
         clusters = data_loader.dataset.cell_types
         for cluster_idx in range(len(clusters)):
@@ -130,7 +116,8 @@ def de_scvi(vae, data_loader, select=10, M_sampling=100, output_file=False):
     return genes, results
 
 
-def differential_expression(px_scale, all_labels, cell_idx, other_cell_idx=None, M_permutation=100000, permutation=False):
+def differential_expression(px_scale, all_labels, cell_idx, other_cell_idx=None,
+                            M_permutation=100000, permutation=False):
     r"""
     :param px_scale:
     :param all_labels:
