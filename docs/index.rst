@@ -17,10 +17,10 @@ Welcome to scVI's documentation!
    :maxdepth: 1
    :caption: Package Reference
 
-   scvi.dataset
-   scvi.inference
-   scvi.metrics
-   scvi.models
+   dataset
+   inference
+   metrics
+   models
 
 Indices and tables
 ==================
