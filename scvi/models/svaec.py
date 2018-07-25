@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch.distributions import Normal, Categorical, kl_divergence as kl
 
@@ -37,7 +38,7 @@ class SVAEC(VAE):
 
     def __init__(self, n_input, n_batch, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1,
                  y_prior=None, logreg_classifier=False, dispersion="gene", log_variational=True,
-                 reconstruction_loss="zinb"):
+                 reconstruction_loss="zinb", labels_groups=None):
         super(SVAEC, self).__init__(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
                                     dropout_rate=dropout_rate, n_batch=n_batch, dispersion=dispersion,
                                     log_variational=log_variational, reconstruction_loss=reconstruction_loss)
@@ -58,10 +59,29 @@ class SVAEC(VAE):
         self.y_prior = torch.nn.Parameter(
             y_prior if y_prior is not None else (1 / n_labels) * torch.ones(1, n_labels), requires_grad=False
         )
+        if labels_groups is not None:
+            self.labels_groups = np.array(labels_groups)
+            unique_groups = np.unique(self.labels_groups)
+            self.n_groups = len(unique_groups)
+            assert (unique_groups == np.arange(self.n_groups)).all()
+            self.classifier_groups = Classifier(n_latent, n_hidden, self.n_groups, n_layers, dropout_rate)
+            self.groups_index = torch.nn.ParameterList([torch.nn.Parameter(
+                torch.tensor((self.labels_groups == i).astype(np.uint8), dtype=torch.uint8), requires_grad=False
+            ) for i in range(self.n_groups)])
 
     def classify(self, x):
         z = self.sample_from_posterior_z(x)
-        return self.classifier(z)
+        if hasattr(self, 'labels_groups'):
+            w_g = self.classifier_groups(z)
+            unw_y = self.classifier(z)
+            w_y = torch.zeros_like(unw_y)
+            for i, group_index in enumerate(self.groups_index):
+                unw_y_g = unw_y[:, group_index]
+                w_y[:, group_index] = unw_y_g / unw_y_g.sum(dim=-1, keepdim=True)
+                w_y[:, group_index] *= w_g[:, [i]]
+        else:
+            w_y = self.classifier(z)
+        return w_y
 
     def get_latents(self, x, y=None):
         zs = super(SVAEC, self).get_latents(x)
