@@ -12,10 +12,8 @@ def iterate(obj, func):
 def broadcast_labels(y, *o, n_broadcast=-1):
     '''
     Utility for the semi-supervised setting
-    If y is defined: (labelled batch)
-        - one-hot encode the labels (no broadcasting needed)
-    If y is undefined: (unlabelled batch)
-        - generate all possible labels (and broadcast other arguments if not None)
+    If y is defined(labelled batch) then one-hot encode the labels (no broadcasting needed)
+    If y is undefined (unlabelled batch) then generate all possible labels (and broadcast other arguments if not None)
     '''
     if not len(o):
         raise ValueError("Broadcast must have at least one reference argument")
