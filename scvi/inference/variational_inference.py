@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from sklearn.cluster import KMeans
+from sklearn.mixture import GaussianMixture as GMM
 from sklearn.manifold import TSNE
 from sklearn.metrics import adjusted_rand_score as ARI
 from sklearn.metrics import normalized_mutual_info_score as NMI
