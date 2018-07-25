@@ -135,6 +135,8 @@ Instructions on Uploading to pip
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 `scvi` is available on PyPI.
 
+(Contact us to get permission to upload to PyPI. )
+
 You can build and upload a new version to PyPI by running::
 
 $ python3 setup.py sdist bdist_wheel
