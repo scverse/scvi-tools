@@ -19,7 +19,6 @@ Welcome to scVI's documentation!
 
    dataset
    inference
-   metrics
    models
 
 Indices and tables
