@@ -82,14 +82,12 @@ class VariationalInference(Inference):
         mean_imputation_score = np.mean(imputation_cells)
 
         if verbose:
-            print("Imputation Scores [corruption;%s, rate:%.2f] on  %s after %i:"
+            print("Imputation Scores [corruption:%s - rate:%.2f] on  %s after %i:"
                   "\nMedian of Median: %.4f\nMean of Median for each cell: %.4f" %
                   (corruption, rate, name, n_epochs, median_imputation_score, mean_imputation_score))
 
         plot_imputation(np.concatenate(original_list), np.concatenate(imputed_list), title=title)
-        return median_imputation_score
-
-    imputation.mode = 'min'
+        return original_list, imputed_list
 
     def clustering_scores(self, name, verbose=True, prediction_algorithm='knn'):
         if self.gene_dataset.n_labels > 1:
