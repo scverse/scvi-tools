@@ -45,10 +45,10 @@ class VariationalInference(Inference):
     """
     default_metrics_to_monitor = ['ll']
 
-    def __init__(self, model, gene_dataset, train_size=0.8, use_cuda=True, **kwargs):
-        super(VariationalInference, self).__init__(model, gene_dataset, use_cuda=use_cuda, **kwargs)
+    def __init__(self, model, gene_dataset, train_size=0.8, **kwargs):
+        super(VariationalInference, self).__init__(model, gene_dataset, **kwargs)
         self.kl = None
-        self.data_loaders = TrainTestDataLoaders(self.gene_dataset, train_size=train_size, use_cuda=use_cuda)
+        self.data_loaders = TrainTestDataLoaders(self.gene_dataset, train_size=train_size, use_cuda=self.use_cuda)
 
     def loss(self, tensors):
         sample_batch, local_l_mean, local_l_var, batch_index, _ = tensors
@@ -250,7 +250,8 @@ class AlternateSemiSupervisedVariationalInference(SemiSupervisedVariationalInfer
 
         self.n_epochs_classifier = n_epochs_classifier
         self.lr_classification = lr_classification
-        self.data_loaders = AlternateSemiSupervisedDataLoaders(gene_dataset, n_labelled_samples_per_class)
+        self.data_loaders = AlternateSemiSupervisedDataLoaders(gene_dataset, n_labelled_samples_per_class,
+                                                               use_cuda=self.use_cuda)
 
         self.classifier_inference = ClassifierInference(
             model.classifier, gene_dataset, metrics_to_monitor=[], verbose=True, frequency=0,
@@ -282,7 +283,8 @@ class JointSemiSupervisedVariationalInference(SemiSupervisedVariationalInference
 
     def __init__(self, model, gene_dataset, n_labelled_samples_per_class=50, classification_ratio=100, **kwargs):
         super(JointSemiSupervisedVariationalInference, self).__init__(model, gene_dataset, **kwargs)
-        self.data_loaders = JointSemiSupervisedDataLoaders(gene_dataset, n_labelled_samples_per_class)
+        self.data_loaders = JointSemiSupervisedDataLoaders(gene_dataset, n_labelled_samples_per_class,
+                                                           use_cuda=self.use_cuda)
         self.classification_ratio = classification_ratio
 
     def loss(self, tensors_all, tensors_labelled):
