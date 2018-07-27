@@ -28,7 +28,8 @@ def test_cortex():
     infer_cortex_vae.ll('train')
     infer_cortex_vae.differential_expression_stats('train')
     infer_cortex_vae.differential_expression('test')
-    infer_cortex_vae.imputation_errors('test', rate=0.5)
+    infer_cortex_vae.imputation('train', corruption='uniform')
+    infer_cortex_vae.imputation('test', n_samples=2, corruption='binomial')
 
     svaec = SVAEC(cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels)
     infer_cortex_svaec = JointSemiSupervisedVariationalInference(svaec, cortex_dataset,

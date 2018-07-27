@@ -32,9 +32,15 @@ class FCLayers(nn.Module):
                 one_hot_cat_list += [one_hot_cat]
         for layers in self.fc_layers:
             for layer in layers:
-                if isinstance(layer, nn.Linear):
-                    x = torch.cat((x, *one_hot_cat_list), 1)
-                x = layer(x)
+                if isinstance(layer, nn.BatchNorm1d) and x.dim() == 3:
+                    x = torch.cat([(layer(slice_x)).unsqueeze(0) for slice_x in x], dim=0)
+                else:
+                    if isinstance(layer, nn.Linear):
+                        if x.dim() == 3:
+                            one_hot_cat_list = [o.unsqueeze(0).expand((x.size(0), o.size(0), o.size(1)))
+                                                for o in one_hot_cat_list]
+                        x = torch.cat((x, *one_hot_cat_list), dim=-1)
+                    x = layer(x)
         return x
 
 

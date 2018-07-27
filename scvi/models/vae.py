@@ -80,15 +80,21 @@ class VAE(nn.Module):
             library = ql_m
         return library
 
-    def get_sample_scale(self, x, batch_index=None, y=None):
-        z = self.sample_from_posterior_z(x, y)  # y only used in VAEC
-        px = self.decoder.px_decoder(z, batch_index, y)  # y only used in VAEC
+    def get_sample_scale(self, x, batch_index=None, y=None, n_samples=1):
+        qz_m, qz_v, z = self.z_encoder(torch.log(1 + x), y)
+        qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
+        qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
+        z = Normal(qz_m, qz_v).sample()
+        px = self.decoder.px_decoder(z, batch_index, y)  # y only used in VAEC - won't work for batch index not None
         px_scale = self.decoder.px_scale_decoder(px)
         return px_scale
 
-    def get_sample_rate(self, x, batch_index=None, y=None):
-        library = self.sample_from_posterior_l(x)
-        px_scale = self.get_sample_scale(x, batch_index=batch_index, y=y)
+    def get_sample_rate(self, x, batch_index=None, y=None, n_samples=1):
+        ql_m, ql_v, library = self.l_encoder(torch.log(1 + x), y)
+        ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
+        ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
+        library = Normal(ql_m, ql_v).sample()
+        px_scale = self.get_sample_scale(x, batch_index=batch_index, y=y, n_samples=n_samples)
         return px_scale * torch.exp(library)
 
     def _reconstruction_loss(self, x, px_rate, px_r, px_dropout, batch_index, y):

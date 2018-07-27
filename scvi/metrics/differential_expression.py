@@ -18,7 +18,7 @@ def de_stats(vae, data_loader, M_sampling=100):
         sample_batch = sample_batch.repeat(1, M_sampling).view(-1, sample_batch.size(1))
         batch_index = batch_index.repeat(1, M_sampling).view(-1, 1)
         labels = labels.repeat(1, M_sampling).view(-1, 1)
-        px_scales += [vae.get_sample_scale(sample_batch, batch_index=batch_index, y=labels).cpu()]
+        px_scales += [(vae.get_sample_scale(sample_batch, batch_index=batch_index, y=labels).squeeze()).cpu()]
         all_labels += [labels.cpu()]
 
     px_scale = torch.cat(px_scales)
