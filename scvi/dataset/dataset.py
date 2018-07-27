@@ -153,13 +153,13 @@ class GeneExpressionDataset(Dataset):
                 f.write(data)
 
     @staticmethod
-    def get_attributes_from_matrix(X, batch_index=0, labels=None):
+    def get_attributes_from_matrix(X, batch_indices=0, labels=None):
         log_counts = np.log(X.sum(axis=1))
         local_mean = (np.mean(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
         local_var = (np.var(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
-        batch_index = batch_index * np.ones((X.shape[0], 1))
-        labels = labels.reshape(-1, 1) if labels is not None else np.zeros_like(batch_index)
-        return X, local_mean, local_var, batch_index, labels
+        batch_indices = batch_indices * np.ones((X.shape[0], 1))
+        labels = labels.reshape(-1, 1) if labels is not None else np.zeros_like(batch_indices)
+        return X, local_mean, local_var, batch_indices, labels
 
     @staticmethod
     def get_attributes_from_list(Xs, list_labels=None):
@@ -174,7 +174,7 @@ class GeneExpressionDataset(Dataset):
         for i, X in enumerate(Xs):
             label = list_labels[i] if list_labels is not None else list_labels
             X, local_mean, local_var, batch_index, label = (
-                GeneExpressionDataset.get_attributes_from_matrix(X, batch_index=i, labels=label)
+                GeneExpressionDataset.get_attributes_from_matrix(X, batch_indices=i, labels=label)
             )
             new_Xs += [X]
             local_means += [local_mean]

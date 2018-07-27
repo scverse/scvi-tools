@@ -6,7 +6,7 @@ def adapt_encoder(infer, n_path=10, n_epochs=50, frequency=5):
     params = list(vae.z_encoder.parameters()) + list(vae.l_encoder.parameters())
     z_encoder_state = copy.deepcopy(vae.z_encoder.state_dict())
     l_encoder_state = copy.deepcopy(vae.l_encoder.state_dict())
-    infer.data_loaders.data_loaders_loop = ['test']
+    infer.data_loaders.loop = ['test']
     infer.data_loaders.to_monitor = ['test']
     infer.frequency = frequency
 
