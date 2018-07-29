@@ -33,7 +33,7 @@ class SVAEC(VAE):
 
         >>> gene_dataset = SyntheticDataset(n_labels=3)
         >>> svaec = SVAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-        ... n_labels=3, y_prior=torch.tensor([[0.1,0.5,0.4]]))
+        ... n_labels=3, y_prior=torch.tensor([[0.1,0.5,0.4]]), labels_groups=[0,0,1])
     """
 
     def __init__(self, n_input, n_batch, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1,
@@ -60,7 +60,7 @@ class SVAEC(VAE):
             y_prior if y_prior is not None else (1 / n_labels) * torch.ones(1, n_labels), requires_grad=False
         )
         self.use_labels_groups = use_labels_groups
-        self.labels_groups = np.array(labels_groups) if labels_groups else None
+        self.labels_groups = np.array(labels_groups) if labels_groups is not None else None
         if self.use_labels_groups:
             assert labels_groups is not None, "Specify label groups"
             unique_groups = np.unique(self.labels_groups)
@@ -79,7 +79,7 @@ class SVAEC(VAE):
             w_y = torch.zeros_like(unw_y)
             for i, group_index in enumerate(self.groups_index):
                 unw_y_g = unw_y[:, group_index]
-                w_y[:, group_index] = unw_y_g / unw_y_g.sum(dim=-1, keepdim=True)
+                w_y[:, group_index] = unw_y_g / (unw_y_g.sum(dim=-1, keepdim=True) + 1e-8)
                 w_y[:, group_index] *= w_g[:, [i]]
         else:
             w_y = self.classifier(z)

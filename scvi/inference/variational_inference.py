@@ -197,14 +197,14 @@ class SemiSupervisedVariationalInference(VariationalInference):
     def hierarchical_accuracy(self, name, verbose=False):
 
         all_y, all_y_pred = compute_predictions(self.model, self.data_loaders[name])
-        acc = np.mean(all_y == all_y_pred)  # other metrics ? (cross entropy, ect...)
+        acc = np.mean(all_y == all_y_pred)
 
         all_y_groups = np.array([self.model.labels_groups[y] for y in all_y])
         all_y_pred_groups = np.array([self.model.labels_groups[y] for y in all_y_pred])
-        h_acc = np.mean(all_y_groups == all_y_pred_groups)  # other metrics ? (cross entropy, ect...)
+        h_acc = np.mean(all_y_groups == all_y_pred_groups)
 
         if verbose:
-            print("Acc for %s is : %.4f\nH-Acc for %s is : %.4f\n" % (name, acc, name, h_acc))
+            print("Acc for %s is : %.4f\nHierarchical Acc for %s is : %.4f\n" % (name, acc, name, h_acc))
         return acc
 
     accuracy.mode = 'max'
