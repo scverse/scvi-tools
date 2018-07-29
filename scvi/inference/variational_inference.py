@@ -14,12 +14,12 @@ from scvi.dataset.data_loaders import DataLoaders
 from scvi.dataset.data_loaders import TrainTestDataLoaders, AlternateSemiSupervisedDataLoaders, \
     JointSemiSupervisedDataLoaders
 from scvi.metrics.classification import compute_accuracy, compute_accuracy_svc, compute_accuracy_rf, \
-    unsupervised_classification_accuracy
+    unsupervised_classification_accuracy, compute_predictions
+from scvi.metrics.classification import unsupervised_clustering_accuracy
 from scvi.metrics.clustering import get_latent, entropy_batch_mixing, nn_overlap
 from scvi.metrics.differential_expression import de_stats, de_cortex
 from scvi.metrics.imputation import imputation, plot_imputation
 from scvi.metrics.log_likelihood import compute_log_likelihood
-from scvi.metrics.classification import unsupervised_clustering_accuracy
 from . import Inference, ClassifierInference
 
 plt.switch_backend('agg')
@@ -201,6 +201,21 @@ class SemiSupervisedVariationalInference(VariationalInference):
         acc = compute_accuracy(self.model, self.data_loaders[name])
         if verbose:
             print("Acc for %s is : %.4f" % (name, acc))
+        return acc
+
+    accuracy.mode = 'max'
+
+    def hierarchical_accuracy(self, name, verbose=False):
+
+        all_y, all_y_pred = compute_predictions(self.model, self.data_loaders[name])
+        acc = np.mean(all_y == all_y_pred)
+
+        all_y_groups = np.array([self.model.labels_groups[y] for y in all_y])
+        all_y_pred_groups = np.array([self.model.labels_groups[y] for y in all_y_pred])
+        h_acc = np.mean(all_y_groups == all_y_pred_groups)
+
+        if verbose:
+            print("Acc for %s is : %.4f\nHierarchical Acc for %s is : %.4f\n" % (name, acc, name, h_acc))
         return acc
 
     accuracy.mode = 'max'

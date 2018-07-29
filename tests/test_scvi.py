@@ -221,6 +221,7 @@ def test_nb_not_zinb():
     svaec = SVAEC(synthetic_dataset.nb_genes,
                   synthetic_dataset.n_batches,
                   synthetic_dataset.n_labels,
+                  labels_groups=[0, 0, 1],
                   reconstruction_loss="nb")
     infer_synthetic_svaec = JointSemiSupervisedVariationalInference(svaec, synthetic_dataset, use_cuda=use_cuda)
     infer_synthetic_svaec.train(n_epochs=1)
