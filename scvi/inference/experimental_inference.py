@@ -48,14 +48,15 @@ def mmd_loss(self, tensors, *next_tensors):
         sample_batch, _, _, batch_index, label = tensors
         qm_z, _, _ = self.model.z_encoder(torch.log(1 + sample_batch), label)  # label only used in VAEC
         loss = mmd_objective(qm_z, batch_index, self.gene_dataset.n_batches)
+    else:
+        loss = 0
     return type(self).loss(self, tensors, *next_tensors) + loss
 
 
 def mmd_wrapper(infer, warm_up=100, scale=50):
     infer.warm_up = warm_up
     infer.scale = scale
-    infer.loss = types.MethodType(adversarial_loss, infer)
-    infer.train = types.MethodType(adversarial_train, infer)
+    infer.loss = types.MethodType(mmd_loss, infer)
     return infer
 
 
@@ -63,20 +64,20 @@ def adversarial_loss(self, tensors, *next_tensors):
     if self.epoch > self.warm_up:
         sample_batch, _, _, batch_index, label = tensors
         qm_z, _, _ = self.model.z_encoder(torch.log(1 + sample_batch), label)  # label only used in VAEC
-        cls_loss = (self.scale * F.cross_entropy(self.GAN1(qm_z), batch_index.view(-1)))
-        self.optimizer_GAN.zero_grad()
+        cls_loss = (self.scale * F.cross_entropy(self.adversarial_cls(qm_z), batch_index.view(-1)))
+        self.optimizer_cls.zero_grad()
         cls_loss.backward(retain_graph=True)
-        self.optimizer_GAN.step()
+        self.optimizer_cls.step()
     else:
         cls_loss = 0
     return type(self).loss(self, tensors, *next_tensors) - cls_loss
 
 
 def adversarial_train(self, n_epochs=20, lr=1e-3, weight_decay=1e-4):
-    self.GAN1 = Classifier(self.model.n_latent, n_labels=self.model.n_batch, n_layers=3)
+    self.adversarial_cls = Classifier(self.model.n_latent, n_labels=self.model.n_batch, n_layers=3)
     if self.use_cuda:
-        self.GAN1.cuda()
-    self.optimizer_GAN = torch.optim.Adam(filter(lambda p: p.requires_grad, self.GAN1.parameters()), lr=lr,
+        self.adversarial_cls.cuda()
+    self.optimizer_cls = torch.optim.Adam(filter(lambda p: p.requires_grad, self.adversarial_cls.parameters()), lr=lr,
                                           weight_decay=weight_decay)
     type(self).train(self, n_epochs=n_epochs, lr=lr)
 
