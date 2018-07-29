@@ -12,7 +12,7 @@ from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainS
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
     GeneExpressionDataset, PurifiedPBMCDataset
 from scvi.inference import JointSemiSupervisedVariationalInference, AlternateSemiSupervisedVariationalInference, \
-    ClassifierInference, VariationalInference
+    ClassifierInference, VariationalInference, adversarial_wrapper, mmd_wrapper
 from scvi.metrics.adapt_encoder import adapt_encoder
 from scvi.models import VAE, SVAEC, VAEC
 from scvi.models.classifier import Classifier
@@ -74,6 +74,8 @@ def test_synthetic_2():
     infer_synthetic_vaec = JointSemiSupervisedVariationalInference(vaec, synthetic_dataset, use_cuda=use_cuda,
                                                                    early_stopping_metric='ll', frequency=1,
                                                                    save_best_state_metric='accuracy', on='labelled')
+    infer_synthetic_vaec = adversarial_wrapper(infer_synthetic_vaec, warm_up=5)
+    infer_synthetic_vaec = mmd_wrapper(infer_synthetic_vaec, warm_up=15)
     infer_synthetic_vaec.train(n_epochs=20)
     infer_synthetic_vaec.svc_rf(unit_test=True)
 
