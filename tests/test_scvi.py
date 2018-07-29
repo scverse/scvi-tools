@@ -10,7 +10,7 @@ from scvi.benchmark import all_benchmarks, benchmark
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
-    GeneExpressionDataset
+    GeneExpressionDataset, PurifiedPBMCDataset
 from scvi.inference import JointSemiSupervisedVariationalInference, AlternateSemiSupervisedVariationalInference, \
     ClassifierInference, VariationalInference
 from scvi.metrics.adapt_encoder import adapt_encoder
@@ -155,7 +155,11 @@ def test_cbmc():
 
 def test_pbmc():
     pbmc_dataset = PbmcDataset(save_path='tests/data/')
+    purified_pbmc_dataset = PurifiedPBMCDataset(save_path='tests/data/')  # all cells
+    purified_t_cells = PurifiedPBMCDataset(save_path='tests/data/', filter_cell_types=range(6))  # only t-cells
     base_benchmark(pbmc_dataset)
+    assert len(purified_t_cells.cell_types) == 6
+    assert len(purified_pbmc_dataset.cell_types) == 10
 
 
 def test_filter_and_concat_datasets():
