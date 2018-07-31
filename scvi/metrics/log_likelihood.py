@@ -7,6 +7,10 @@ import numpy as np
 
 
 def compute_log_likelihood(vae, data_loader):
+    """ Computes log p(x/z), which is the reconstruction error .
+        Differs from the marginal log likelihood, but still gives good
+        insights on the modeling of the data, and is fast to compute
+    """
     # Iterate once over the data_loader and computes the total log_likelihood
     log_lkl = 0
     for i_batch, tensors in enumerate(data_loader):
@@ -20,7 +24,14 @@ def compute_log_likelihood(vae, data_loader):
     return log_lkl / n_samples
 
 
-def compute_tighter_log_likelihood(vae, data_loader, n_samples_mc=100):
+def compute_marginal_log_likelihood(vae, data_loader, n_samples_mc=100):
+    """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
+        Despite its bias, the estimator still converges to the real value
+        of log p(x) when n_samples_mc (for Monte Carlo) goes to infinity
+        (a fairly high value like 100 should be enough)
+        Due to the Monte Carlo sampling, this method is not as computationally efficient
+        as computing only the reconstruction loss
+    """
     # Uses MC sampling to compute a tighter lower bound
     log_lkl = 0
     for i_batch, tensors in enumerate(data_loader):

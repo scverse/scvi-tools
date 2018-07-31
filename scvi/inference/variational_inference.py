@@ -19,7 +19,7 @@ from scvi.metrics.classification import unsupervised_clustering_accuracy
 from scvi.metrics.clustering import get_latent, entropy_batch_mixing, nn_overlap
 from scvi.metrics.differential_expression import de_stats, de_cortex
 from scvi.metrics.imputation import imputation, plot_imputation
-from scvi.metrics.log_likelihood import compute_log_likelihood, compute_tighter_log_likelihood
+from scvi.metrics.log_likelihood import compute_log_likelihood, compute_marginal_log_likelihood
 from . import Inference, ClassifierInference
 
 plt.switch_backend('agg')
@@ -67,8 +67,8 @@ class VariationalInference(Inference):
 
     ll.mode = 'min'
 
-    def tighter_ll(self, name, verbose=False, n_mc_samples=1000):
-        ll = compute_tighter_log_likelihood(self.model, self.data_loaders[name], n_mc_samples)
+    def marginal_ll(self, name, verbose=False, n_mc_samples=1000):
+        ll = compute_marginal_log_likelihood(self.model, self.data_loaders[name], n_mc_samples)
         if verbose:
             print("True LL for %s is : %.4f" % (name, ll))
         return ll
