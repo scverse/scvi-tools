@@ -36,13 +36,24 @@ def compute_marginal_log_likelihood(vae, data_loader, n_samples_mc=100):
     log_lkl = 0
     for i_batch, tensors in enumerate(data_loader):
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
-        batch_log_lkl = compute_tighter_log_likelihood_sample(vae, sample_batch, local_l_mean,
-                                                              local_l_var, batch_index,
-                                                              labels, n_samples_mc=n_samples_mc)
+        x = torch.log(1 + sample_batch)
+        to_sum = torch.zeros(sample_batch.size()[0], n_samples_mc)
+        for i in range(n_samples_mc):
+            qz_m, qz_v, z = vae.z_encoder(x, labels)
+            reconst_loss, kl_divergence = vae(sample_batch, local_l_mean,
+                                              local_l_var,
+                                              batch_index=batch_index,
+                                              y=labels)
+            p_z = Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v)).log_prob(z).sum(dim=-1)
+            p_x_z = - reconst_loss
+            q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
+            to_sum[:, i] = p_z + p_x_z - q_z_x
+        batch_log_lkl = logsumexp(to_sum, dim=-1) - np.log(n_samples_mc)
         log_lkl += torch.sum(batch_log_lkl).item()
     n_samples = (len(data_loader.dataset)
                  if not (hasattr(data_loader, 'sampler') and hasattr(data_loader.sampler, 'indices')) else
                  len(data_loader.sampler.indices))
+    # The minus sign is there because we actually look at the negative log likelihood
     return - log_lkl / n_samples
 
 
@@ -68,25 +79,6 @@ def logsumexp(inputs, dim=None, keepdim=False):
     if not keepdim:
         outputs = outputs.squeeze(dim)
     return outputs
-
-
-def compute_tighter_log_likelihood_sample(vae, sample_batch, local_l_mean, local_l_var, batch_index,
-                                          labels, n_samples_mc=100):
-    # Uses MC sampling to compute a tighter lower bound
-    x = torch.log(1 + sample_batch)
-    to_sum = torch.zeros(sample_batch.size()[0], n_samples_mc)
-    for i in range(n_samples_mc):
-        qz_m, qz_v, z = vae.z_encoder(x, labels)
-        reconst_loss, kl_divergence = vae(sample_batch, local_l_mean,
-                                          local_l_var,
-                                          batch_index=batch_index,
-                                          y=labels)
-        p_z = Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v)).log_prob(z).sum(dim=-1)
-        p_x_z = - reconst_loss
-        q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
-        to_sum[:, i] = p_z + p_x_z - q_z_x
-
-    return logsumexp(to_sum, dim=-1) - np.log(n_samples_mc)
 
 
 def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
