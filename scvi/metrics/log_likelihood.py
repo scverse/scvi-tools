@@ -52,7 +52,7 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     return torch.sum(res, dim=-1)
 
 
-def log_nb_positive(x, mu, theta, eps=1e-8):
+def log_nb_positive(x, mu, theta, eps=1e-8, n_gene_cut=33, ponderation=1):
     """
     Note: All inputs should be torch Tensors
     log likelihood (scalar) of a minibatch according to a nb model.
@@ -68,4 +68,5 @@ def log_nb_positive(x, mu, theta, eps=1e-8):
     res = theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps) + x * torch.log(
         mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(x + theta) - torch.lgamma(
         theta) - torch.lgamma(x + 1)
-    return torch.sum(res, dim=-1)
+    # Gives the ability to do a warmup on the unobserved smFISH genes when merging the two technologies
+    return torch.sum(res[:, :n_gene_cut], dim=-1) + ponderation * torch.sum(res[:, n_gene_cut:], dim=-1)

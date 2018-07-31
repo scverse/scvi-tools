@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, Poisson, kl_divergence as kl
 
-from smFISHxscRNA.metrics.log_likelihood import log_zinb_positive, log_nb_positive
+from scvi.metrics.log_likelihood import log_zinb_positive, log_nb_positive
 from scvi.models.modules import Encoder, DecoderSCVI
 from scvi.models.classifier import Classifier
 from scvi.models.utils import one_hot
