@@ -12,7 +12,7 @@ from torch.nn import functional as F
 from scvi.dataset import CortexDataset
 from scvi.dataset.data_loaders import DataLoaders
 from scvi.dataset.data_loaders import TrainTestDataLoaders, AlternateSemiSupervisedDataLoaders, \
-    JointSemiSupervisedDataLoaders
+    JointSemiSupervisedDataLoaders, TrainTestDataLoadersFish
 from scvi.metrics.classification import compute_accuracy, compute_accuracy_svc, compute_accuracy_rf, \
     unsupervised_classification_accuracy, compute_predictions
 from scvi.metrics.classification import unsupervised_clustering_accuracy
@@ -60,7 +60,7 @@ class VariationalInference(Inference):
         self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / self.n_epochs)
 
     def ll(self, name, verbose=False):
-        ll = compute_log_likelihood(self.model, self.data_loaders[name])
+        ll = compute_log_likelihood(self.model, self.data_loaders[name], name)
         if verbose:
             print("LL for %s is : %.4f" % (name, ll))
         return ll
@@ -306,3 +306,60 @@ class JointSemiSupervisedVariationalInference(SemiSupervisedVariationalInference
         classification_loss = F.cross_entropy(self.model.classify(sample_batch), y.view(-1))
         loss += classification_loss * self.classification_ratio
         return loss
+
+
+class VariationalInferenceFish(Inference):
+    r"""The VariationalInference class for the unsupervised training of an autoencoder.
+
+    Args:
+        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``
+        :gene_dataset: A gene_dataset instance like ``CortexDataset()``
+        :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
+         to use Default: ``0.8``.
+        :**kwargs: Other keywords arguments from the general Inference class.
+
+    Examples:
+        >>> gene_dataset_seq = CortexDataset()
+        >>> gene_dataset_fish = SmfishDataset()
+        >>> vae = VAE(gene_dataset_seq.nb_genes, gene_dataset_fish.nb_genes,
+        ... n_labels=gene_dataset.n_labels, use_cuda=True)
+
+        >>> infer = VariationalInference(gene_dataset_seq, gene_dataset_fish, vae, train_size=0.5)
+        >>> infer.train(n_epochs=20, lr=1e-3)
+    """
+    default_metrics_to_monitor = ['ll']
+
+    def __init__(self, model, gene_dataset_seq, gene_dataset_fish, train_size=0.8, use_cuda=True, cl_ratio=0,
+                 n_epochs_even=1, n_epochs_kl=2000, n_epochs_cl=1,  **kwargs):
+        super(VariationalInferenceFish, self).__init__(model, gene_dataset_seq, gene_dataset_fish, use_cuda=use_cuda, **kwargs)
+        self.kl = None
+        self.cl_ratio = cl_ratio
+        self.n_epochs_cl = n_epochs_cl
+        self.n_epochs_even = n_epochs_even
+        self.n_epochs_kl = n_epochs_kl
+        self.ponderation = 0
+        self.kl_weight = 0
+        self.classification_ponderation = 0
+        self.data_loaders = TrainTestDataLoadersFish(self.gene_dataset_seq, self.gene_dataset_fish,
+                                                     train_size=train_size, use_cuda=use_cuda)
+
+    def loss(self, tensors_seq, tensors_fish):
+        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors_seq
+        reconst_loss, kl_divergence = self.model(sample_batch, local_l_mean, local_l_var, batch_index, mode="scRNA",
+                                                 ponderation=self.ponderation)
+        # If we want to add a classification loss
+        if self.cl_ratio != 0:
+            reconst_loss += self.cl_ratio * F.cross_entropy(self.model.classify(sample_batch, mode="scRNA"), labels.view(-1))
+        loss = torch.mean(reconst_loss + self.kl_weight * kl_divergence)
+        sample_batch_fish, local_l_mean, local_l_var, batch_index_fish, _, _, _ = tensors_fish
+        reconst_loss_fish, kl_divergence_fish = self.model(sample_batch_fish, local_l_mean, local_l_var,
+                                                           batch_index_fish, mode="smFISH")
+        loss_fish = torch.mean(reconst_loss_fish + self.kl_weight * kl_divergence_fish)
+        loss = loss * sample_batch.size(0) + loss_fish * sample_batch_fish.size(0)
+        loss /= (sample_batch.size(0) + sample_batch_fish.size(0))
+        return loss + loss_fish
+
+    def on_epoch_begin(self):
+        self.ponderation = min(1, self.epoch / self.n_epochs_even)
+        self.kl_weight = self.kl if self.kl is not None else min(1,  self.epoch / self.n_epochs_kl)
+        self.classification_ponderation = min(1, self.epoch / self.n_epochs_cl)

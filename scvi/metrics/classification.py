@@ -6,6 +6,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 from sklearn.utils.linear_assignment_ import linear_assignment
+from sklearn import neighbors
 
 Accuracy = namedtuple('Accuracy', ['unweighted', 'weighted', 'worst', 'accuracy_classes'])
 
@@ -75,7 +76,8 @@ def unsupervised_clustering_accuracy(y, y_pred):
     return sum([reward_matrix[i, j] for i, j in ind]) * 1.0 / y_pred.size, ind
 
 
-def compute_accuracy_svc(data_train, labels_train, data_test, labels_test, unit_test=False, verbose=0, max_iter=-1):
+def compute_accuracy_svc(data_train, labels_train, data_test, labels_test, unit_test=False, verbose=0,
+                         max_iter=-1, return_labels="False"):
     param_grid = [
         {'C': [1, 10, 100, 1000], 'kernel': ['linear']},
         {'C': [1, 10, 100, 1000], 'gamma': [0.001, 0.0001], 'kernel': ['rbf']}]
@@ -89,12 +91,16 @@ def compute_accuracy_svc(data_train, labels_train, data_test, labels_test, unit_
     # Predicting the labels
     y_pred_test = clf.predict(data_test)
     y_pred_train = clf.predict(data_train)
+    if not return_labels:
+        return (compute_accuracy_tuple(labels_train, y_pred_train),
+                compute_accuracy_tuple(labels_test, y_pred_test))
+    elif return_labels:
+        return (compute_accuracy_tuple(labels_train, y_pred_train),
+                compute_accuracy_tuple(labels_test, y_pred_test), y_pred_test)
 
-    return (compute_accuracy_tuple(labels_train, y_pred_train),
-            compute_accuracy_tuple(labels_test, y_pred_test))
 
-
-def compute_accuracy_rf(data_train, labels_train, data_test, labels_test, unit_test=False, verbose=0):
+def compute_accuracy_rf(data_train, labels_train, data_test, labels_test, unit_test=False,
+                        verbose=0, return_labels="False"):
     param_grid = {'max_depth': np.arange(3, 10), 'n_estimators': [10, 50, 100, 200]}
     if unit_test:
         param_grid = [{'max_depth': [3], 'n_estimators': [10]}]
@@ -108,5 +114,25 @@ def compute_accuracy_rf(data_train, labels_train, data_test, labels_test, unit_t
     y_pred_test = clf.predict(data_test)
     y_pred_train = clf.predict(data_train)
 
-    return (compute_accuracy_tuple(y_pred_train, labels_train),
-            compute_accuracy_tuple(y_pred_test, labels_test))
+    if not return_labels:
+        return (compute_accuracy_tuple(labels_train, y_pred_train),
+                compute_accuracy_tuple(labels_test, y_pred_test))
+    elif return_labels:
+        return (compute_accuracy_tuple(labels_train, y_pred_train),
+                compute_accuracy_tuple(labels_test, y_pred_test), y_pred_test)
+
+
+def compute_accuracy_nn(data_train, labels_train, data_test, labels_test, k=5, return_labels="False"):
+    clf = neighbors.KNeighborsClassifier(k, weights='distance')
+    clf.fit(data_train, labels_train)
+
+    # Predicting the labels
+    y_pred_test = clf.predict(data_test)
+    y_pred_train = clf.predict(data_train)
+
+    if not return_labels:
+        return (compute_accuracy_tuple(labels_train, y_pred_train),
+                compute_accuracy_tuple(labels_test, y_pred_test))
+    elif return_labels:
+        return (compute_accuracy_tuple(labels_train, y_pred_train),
+                compute_accuracy_tuple(labels_test, y_pred_test), y_pred_test)

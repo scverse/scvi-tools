@@ -4,13 +4,18 @@ import torch
 import torch.nn.functional as F
 
 
-def compute_log_likelihood(vae, data_loader):
+def compute_log_likelihood(vae, data_loader, name):
     # Iterate once over the data_loader and computes the total log_likelihood
     log_lkl = 0
     for i_batch, tensors in enumerate(data_loader):
-        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
-        reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
-                                          y=labels)
+        if name == "train_fish" or "test_fish":
+            sample_batch, local_l_mean, local_l_var, batch_index, labels, _, _ = tensors
+            reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
+                                              y=labels, mode="smFISH")
+        else:
+            sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
+            reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
+                                              y=labels)
         log_lkl += torch.sum(reconst_loss).item()
     n_samples = (len(data_loader.dataset)
                  if not (hasattr(data_loader, 'sampler') and hasattr(data_loader.sampler, 'indices')) else
