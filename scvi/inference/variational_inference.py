@@ -14,12 +14,12 @@ from scvi.dataset.data_loaders import DataLoaders
 from scvi.dataset.data_loaders import TrainTestDataLoaders, AlternateSemiSupervisedDataLoaders, \
     JointSemiSupervisedDataLoaders
 from scvi.metrics.classification import compute_accuracy, compute_accuracy_svc, compute_accuracy_rf, \
-    unsupervised_classification_accuracy
+    unsupervised_classification_accuracy, compute_predictions
+from scvi.metrics.classification import unsupervised_clustering_accuracy
 from scvi.metrics.clustering import get_latent, entropy_batch_mixing, nn_overlap
 from scvi.metrics.differential_expression import de_stats, de_cortex
-from scvi.metrics.imputation import imputation
+from scvi.metrics.imputation import imputation, plot_imputation
 from scvi.metrics.log_likelihood import compute_log_likelihood
-from scvi.metrics.classification import unsupervised_clustering_accuracy
 from . import Inference, ClassifierInference
 
 plt.switch_backend('agg')
@@ -67,16 +67,27 @@ class VariationalInference(Inference):
 
     ll.mode = 'min'
 
-    def imputation_errors(self, name, **kwargs):
-        return imputation(self.model, self.data_loaders[name], **kwargs)
+    def imputation(self, name, verbose=False, rate=0.1, n_samples=1, n_epochs=1, corruption="uniform",
+                   title="Imputation"):
+        original_list, imputed_list = imputation(self, name, rate=rate, n_epochs=n_epochs, n_samples=n_samples,
+                                                 corruption=corruption)
+        # Median of medians for all distances
+        median_imputation_score = np.median(np.abs(np.concatenate(original_list) - np.concatenate(imputed_list)))
 
-    def imputation(self, name, verbose=False, *args, **kwargs):
-        imputation_score = torch.median(self.imputation_errors(name, *args, **kwargs)).item()
+        # Mean of medians for each cell
+        imputation_cells = []
+        for original, imputed in zip(original_list, imputed_list):
+            has_imputation = len(original) and len(imputed)
+            imputation_cells += [np.median(np.abs(original - imputed)) if has_imputation else 0]
+        mean_imputation_score = np.mean(imputation_cells)
+
         if verbose:
-            print("Median Imputation Score for %s is : %.4f" % (name, imputation_score))
-        return imputation_score
+            print("Imputation Scores [corruption:%s - rate:%.2f] on  %s after %i:"
+                  "\nMedian of Median: %.4f\nMean of Median for each cell: %.4f" %
+                  (corruption, rate, name, n_epochs, median_imputation_score, mean_imputation_score))
 
-    imputation.mode = 'min'
+        plot_imputation(np.concatenate(original_list), np.concatenate(imputed_list), title=title)
+        return original_list, imputed_list
 
     def clustering_scores(self, name, verbose=True, prediction_algorithm='knn'):
         if self.gene_dataset.n_labels > 1:
@@ -190,6 +201,21 @@ class SemiSupervisedVariationalInference(VariationalInference):
         acc = compute_accuracy(self.model, self.data_loaders[name])
         if verbose:
             print("Acc for %s is : %.4f" % (name, acc))
+        return acc
+
+    accuracy.mode = 'max'
+
+    def hierarchical_accuracy(self, name, verbose=False):
+
+        all_y, all_y_pred = compute_predictions(self.model, self.data_loaders[name])
+        acc = np.mean(all_y == all_y_pred)
+
+        all_y_groups = np.array([self.model.labels_groups[y] for y in all_y])
+        all_y_pred_groups = np.array([self.model.labels_groups[y] for y in all_y_pred])
+        h_acc = np.mean(all_y_groups == all_y_pred_groups)
+
+        if verbose:
+            print("Acc for %s is : %.4f\nHierarchical Acc for %s is : %.4f\n" % (name, acc, name, h_acc))
         return acc
 
     accuracy.mode = 'max'
