@@ -22,6 +22,7 @@ def benchmark(dataset, n_epochs=250, use_cuda=True):
     infer = VariationalInference(vae, dataset, use_cuda=use_cuda)
     infer.train(n_epochs=n_epochs)
     infer.ll('test')
+    infer.tighter_ll('test')
     infer.imputation('test', rate=0.1)  # assert ~ 2.1
     return infer
 

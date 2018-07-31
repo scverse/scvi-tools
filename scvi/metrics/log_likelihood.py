@@ -32,7 +32,7 @@ def compute_tighter_log_likelihood(vae, data_loader, n_samples_mc=100):
     n_samples = (len(data_loader.dataset)
                  if not (hasattr(data_loader, 'sampler') and hasattr(data_loader.sampler, 'indices')) else
                  len(data_loader.sampler.indices))
-    return log_lkl / n_samples
+    return - log_lkl / n_samples
 
 
 def logsumexp(inputs, dim=None, keepdim=False):
@@ -70,12 +70,12 @@ def compute_tighter_log_likelihood_sample(vae, sample_batch, local_l_mean, local
                                           local_l_var,
                                           batch_index=batch_index,
                                           y=labels)
-        p_z = Normal(torch.zeros_like(z), torch.ones_like(z)).log_prob(z).sum(dim=-1)
-        p_x_z = reconst_loss
-        q_z_x = Normal(qz_m, qz_v).log_prob(z).sum(dim=-1)
-        to_sum[:, i] = p_z + p_x_z - q_z_x - np.log(n_samples_mc)
+        p_z = Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v)).log_prob(z).sum(dim=-1)
+        p_x_z = - reconst_loss
+        q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
+        to_sum[:, i] = p_z + p_x_z - q_z_x
 
-    return logsumexp(to_sum, dim=-1)
+    return logsumexp(to_sum, dim=-1) - np.log(n_samples_mc)
 
 
 def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
