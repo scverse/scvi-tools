@@ -20,7 +20,7 @@ class VAEF(nn.Module):
 
     Args:
         :n_input: Number of input genes for scRNA-seq data.
-        :n_input_fish: Number of input genes for smFISH data
+        :n_input_fish: Number of input genes for smFISH_utils data
         :n_batch: Default: ``0``.
         :n_labels: Default: ``0``.
         :n_hidden: Number of hidden. Default: ``128``.
@@ -42,7 +42,8 @@ class VAEF(nn.Module):
 
     def __init__(self, n_input, indexes_fish_train=None, n_batch=0, n_labels=0, n_hidden=128, n_latent=10,
                  n_layers=1, n_layers_decoder=1, dropout_rate=0.3, weight=True,
-                 dispersion="gene", log_variational=True, reconstruction_loss="zinb", reconstruction_loss_fish="poisson", model_library=False):
+                 dispersion="gene", log_variational=True, reconstruction_loss="zinb",
+                 reconstruction_loss_fish="poisson", model_library=False):
         super(VAEF, self).__init__()
 
         self.n_input = n_input
@@ -94,7 +95,7 @@ class VAEF(nn.Module):
         # First layer isn't shared
         if mode == "scRNA":
             z, _, _ = self.z_encoder(x)
-        elif mode == "smFISH":
+        elif mode == "smFISH_utils":
             z, _, _ = self.z_encoder_fish(x[:, self.indexes_to_keep])
         # The last layers of the encoder are shared
         qz_m, qz_v, z = self.z_final_encoder(z)
@@ -106,7 +107,7 @@ class VAEF(nn.Module):
         x = torch.log(1 + x)
         if mode == "scRNA":
             ql_m, ql_v, library = self.l_encoder(x)
-        elif mode == "smFISH":
+        elif mode == "smFISH_utils":
             ql_m, ql_v, library = self.l_encoder_fish(x)
         return library
 
@@ -134,8 +135,8 @@ class VAEF(nn.Module):
         batch_index = torch.ones_like(library)
 
         if self.model_library:
-            library = self.sample_from_posterior_l(x, mode="smFISH")
-        px_scale = self.get_sample_scale(x, mode="smFISH", batch_index=batch_index, y=y)
+            library = self.sample_from_posterior_l(x, mode="smFISH_utils")
+        px_scale = self.get_sample_scale(x, mode="smFISH_utils", batch_index=batch_index, y=y)
         px_scale = px_scale[:, self.indexes_to_keep] / torch.sum(px_scale[:, self.indexes_to_keep],
                                                                  dim=1).view(-1, 1)
         return px_scale * torch.exp(library)
@@ -159,7 +160,7 @@ class VAEF(nn.Module):
             elif self.reconstruction_loss == 'nb':
                 reconst_loss = -log_nb_positive(x, px_rate, torch.exp(px_r), n_gene_cut=33, ponderation=ponderation)
 
-        elif mode == "smFISH":
+        elif mode == "smFISH_utils":
             if self.reconstruction_loss_fish == 'poisson':
                 reconst_loss = -torch.sum(Poisson(px_rate).log_prob(x), dim=1)
             elif self.reconstruction_loss_fish == 'gaussian':
@@ -176,29 +177,31 @@ class VAEF(nn.Module):
             qz_m, qz_v, z = self.z_encoder(x_)
             library = torch.log(torch.sum(x, dim=1)).view(-1, 1)
             batch_index = torch.zeros_like(library)
-        if mode == "smFISH":
+        if mode == "smFISH_utils":
             qz_m, qz_v, z = self.z_encoder_fish(x_[:, self.indexes_to_keep])
             library = torch.log(torch.sum(x[:, self.indexes_to_keep], dim=1)).view(-1, 1)
             batch_index = torch.ones_like(library)
         if self.model_library:
             if mode == "scRNA":
                 ql_m, ql_v, library = self.l_encoder(x_)
-            elif mode == "smFISH":
+            elif mode == "smFISH_utils":
                 ql_m, ql_v, library = self.l_encoder_fish(x_[:, self.indexes_to_keep])
 
         qz_m, qz_v, z = self.z_final_encoder(z)
         px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index)
 
         # rescaling the expected frequencies
-        if mode == "smFISH":
+        if mode == "smFISH_utils":
             if self.model_library:
                 px_rate = px_scale[:, self.indexes_to_keep] * torch.exp(library)
-                reconst_loss = self._reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r, px_dropout, batch_index, y, mode)
+                reconst_loss = self._reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r, px_dropout,
+                                                         batch_index, y, mode)
             else:
                 px_scale = px_scale[:, self.indexes_to_keep] / torch.sum(
                     px_scale[:, self.indexes_to_keep], dim=1).view(-1, 1)
                 px_rate = px_scale * torch.exp(library)
-                reconst_loss = self._reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r, px_dropout, batch_index, y, mode)
+                reconst_loss = self._reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r, px_dropout,
+                                                         batch_index, y, mode)
 
         else:
             reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout, batch_index, y, mode, ponderation)
@@ -209,7 +212,8 @@ class VAEF(nn.Module):
 
         kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(dim=1)
         if self.model_library:
-            kl_divergence_l = kl(Normal(ql_m, torch.sqrt(ql_v)), Normal(local_l_mean, torch.sqrt(local_l_var))).sum(dim=1)
+            kl_divergence_l = kl(Normal(ql_m, torch.sqrt(ql_v)), Normal(local_l_mean,
+                                                                        torch.sqrt(local_l_var))).sum(dim=1)
             kl_divergence = kl_divergence_z + kl_divergence_l
         else:
             kl_divergence = kl_divergence_z

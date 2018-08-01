@@ -18,7 +18,7 @@ class SmfishDataset(GeneExpressionDataset):
             x_coord=x_coord, y_coord=y_coord)
 
     def preprocess(self):
-        print("Preprocessing smFISH dataset")
+        print("Preprocessing smFISH_utils dataset")
         ds = loompy.connect(self.save_path + self.download_name)
         select = ds[:, :].sum(axis=0) > 0  # Take out cells that doesn't express any gene
 
@@ -33,5 +33,5 @@ class SmfishDataset(GeneExpressionDataset):
         data = ds[:, select].T  # change matrix to cells by genes
         ds.close()
 
-        print("Finished preprocessing smFISH dataset")
+        print("Finished preprocessing smFISH_utils dataset")
         return data, labels, cell_types, x_coord, y_coord

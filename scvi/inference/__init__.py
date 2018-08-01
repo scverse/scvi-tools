@@ -3,7 +3,8 @@ from .classifier_inference import ClassifierInference
 from .variational_inference import (
     VariationalInference,
     AlternateSemiSupervisedVariationalInference,
-    JointSemiSupervisedVariationalInference
+    JointSemiSupervisedVariationalInference,
+    VariationalInferenceFish
 )
 from .experimental_inference import adversarial_wrapper, mmd_wrapper
 
@@ -12,5 +13,6 @@ __all__ = ['Inference',
            'VariationalInference',
            'AlternateSemiSupervisedVariationalInference',
            'JointSemiSupervisedVariationalInference',
+           'VariationalInferenceFish',
            'adversarial_wrapper',
            'mmd_wrapper']

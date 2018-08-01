@@ -1,6 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from tqdm import trange
+import time
+import sys
+
 from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture as GMM
 from sklearn.manifold import TSNE
@@ -308,7 +312,7 @@ class JointSemiSupervisedVariationalInference(SemiSupervisedVariationalInference
         return loss
 
 
-class VariationalInferenceFish(Inference):
+class VariationalInferenceFish(VariationalInference):
     r"""The VariationalInference class for the unsupervised training of an autoencoder.
 
     Args:
@@ -331,7 +335,7 @@ class VariationalInferenceFish(Inference):
 
     def __init__(self, model, gene_dataset_seq, gene_dataset_fish, train_size=0.8, use_cuda=True, cl_ratio=0,
                  n_epochs_even=1, n_epochs_kl=2000, n_epochs_cl=1,  **kwargs):
-        super(VariationalInferenceFish, self).__init__(model, gene_dataset_seq, gene_dataset_fish, use_cuda=use_cuda, **kwargs)
+        super(VariationalInferenceFish, self).__init__(model, gene_dataset_seq, use_cuda=use_cuda, **kwargs)
         self.kl = None
         self.cl_ratio = cl_ratio
         self.n_epochs_cl = n_epochs_cl
@@ -340,7 +344,7 @@ class VariationalInferenceFish(Inference):
         self.ponderation = 0
         self.kl_weight = 0
         self.classification_ponderation = 0
-        self.data_loaders = TrainTestDataLoadersFish(self.gene_dataset_seq, self.gene_dataset_fish,
+        self.data_loaders = TrainTestDataLoadersFish(gene_dataset_seq, gene_dataset_fish,
                                                      train_size=train_size, use_cuda=use_cuda)
 
     def loss(self, tensors_seq, tensors_fish):
@@ -349,15 +353,58 @@ class VariationalInferenceFish(Inference):
                                                  ponderation=self.ponderation)
         # If we want to add a classification loss
         if self.cl_ratio != 0:
-            reconst_loss += self.cl_ratio * F.cross_entropy(self.model.classify(sample_batch, mode="scRNA"), labels.view(-1))
+            reconst_loss += self.cl_ratio * F.cross_entropy(self.model.classify(sample_batch, mode="scRNA"),
+                                                            labels.view(-1))
         loss = torch.mean(reconst_loss + self.kl_weight * kl_divergence)
         sample_batch_fish, local_l_mean, local_l_var, batch_index_fish, _, _, _ = tensors_fish
         reconst_loss_fish, kl_divergence_fish = self.model(sample_batch_fish, local_l_mean, local_l_var,
-                                                           batch_index_fish, mode="smFISH")
+                                                           batch_index_fish, mode="smFISH_utils")
         loss_fish = torch.mean(reconst_loss_fish + self.kl_weight * kl_divergence_fish)
         loss = loss * sample_batch.size(0) + loss_fish * sample_batch_fish.size(0)
         loss /= (sample_batch.size(0) + sample_batch_fish.size(0))
         return loss + loss_fish
+
+    def train(self, n_epochs=20, lr=1e-3, params=None):
+        begin = time.time()
+        with torch.set_grad_enabled(True):
+            self.model.train()
+
+            if params is None:
+                params = filter(lambda p: p.requires_grad, self.model.parameters())
+
+            optimizer = torch.optim.Adam(params, lr=lr, eps=0.01, weight_decay=self.weight_decay)
+
+            self.epoch = 0
+            self.n_epochs = n_epochs
+            self.compute_metrics_time = 0
+            self.compute_metrics()
+
+            with trange(n_epochs, desc="training", file=sys.stdout, disable=self.verbose) as pbar:
+                # We have to use tqdm this way so it works in Jupyter notebook.
+                # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
+                self.on_epoch_begin()
+
+                for epoch in pbar:
+                    self.on_epoch_begin()
+                    pbar.update(1)
+
+                    for tensors_list in self.data_loaders:
+                        loss = self.loss(*tensors_list)
+                        optimizer.zero_grad()
+                        loss.backward()
+                        optimizer.step()
+
+                    if not self.on_epoch_end():
+                        break
+
+            if self.save_best_state_metric is not None:
+                self.model.load_state_dict(self.best_state_dict)
+                self.compute_metrics()
+
+            self.model.eval()
+            self.training_time += (time.time() - begin) - self.compute_metrics_time
+            if self.verbose and self.frequency:
+                print("\nTraining time:  %i s. / %i epochs" % (int(self.training_time), self.n_epochs))
 
     def on_epoch_begin(self):
         self.ponderation = min(1, self.epoch / self.n_epochs_even)
