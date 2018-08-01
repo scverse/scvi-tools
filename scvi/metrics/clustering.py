@@ -78,7 +78,7 @@ def entropy_batch_mixing(latent_space, batches, max_number=500):
 
 
 def get_data(vae, data_loader, mode):
-    """ Specific to smFISH_utils/scRNA-seq datasets.
+    """ Specific to smFISH/scRNA-seq datasets.
         Yields positional information, and other useful informations
         such as expected frequencies, real values...
         Easier to use a new method for this as vae_fish has some particularities
@@ -96,7 +96,7 @@ def get_data(vae, data_loader, mode):
         if mode == "scRNA":
             sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
             batch_index = torch.zeros_like(batch_index)
-        if mode == "smFISH_utils":
+        if mode == "smFISH":
             sample_batch, local_l_mean, local_l_var, batch_index, label, x_coord, y_coord = tensors
             batch_index = torch.ones_like(batch_index)
             x_coords += [x_coord]
@@ -109,7 +109,7 @@ def get_data(vae, data_loader, mode):
     if mode == "scRNA":
         return np.array(torch.cat(latent)), np.array(torch.cat(batch_indices)), np.array(torch.cat(labels)).ravel(), \
                np.array(torch.cat(expected_frequencies)), np.array(torch.cat(values))
-    if mode == "smFISH_utils":
+    if mode == "smFISH":
         return np.array(torch.cat(latent)), np.array(torch.cat(batch_indices)), np.array(torch.cat(labels)).ravel(), \
                np.array(torch.cat(expected_frequencies)), np.array(torch.cat(values)),\
                np.array(torch.cat(x_coords)), np.array(torch.cat(y_coords))

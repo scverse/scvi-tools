@@ -11,7 +11,7 @@ def compute_log_likelihood(vae, data_loader, name):
         if name == "train_fish" or name == "test_fish":
             sample_batch, local_l_mean, local_l_var, batch_index, labels, _, _ = tensors
             reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
-                                              y=labels, mode="smFISH_utils")
+                                              y=labels, mode="smFISH")
         else:
             sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
             reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
@@ -68,5 +68,5 @@ def log_nb_positive(x, mu, theta, eps=1e-8, n_gene_cut=33, ponderation=1):
     res = theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps) + x * torch.log(
         mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(x + theta) - torch.lgamma(
         theta) - torch.lgamma(x + 1)
-    # Gives the ability to do a warmup on the unobserved smFISH_utils genes when merging the two technologies
+    # Gives the ability to do a warmup on the unobserved smFISH genes when merging the two technologies
     return torch.sum(res[:, :n_gene_cut], dim=-1) + ponderation * torch.sum(res[:, n_gene_cut:], dim=-1)

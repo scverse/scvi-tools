@@ -358,7 +358,7 @@ class VariationalInferenceFish(VariationalInference):
         loss = torch.mean(reconst_loss + self.kl_weight * kl_divergence)
         sample_batch_fish, local_l_mean, local_l_var, batch_index_fish, _, _, _ = tensors_fish
         reconst_loss_fish, kl_divergence_fish = self.model(sample_batch_fish, local_l_mean, local_l_var,
-                                                           batch_index_fish, mode="smFISH_utils")
+                                                           batch_index_fish, mode="smFISH")
         loss_fish = torch.mean(reconst_loss_fish + self.kl_weight * kl_divergence_fish)
         loss = loss * sample_batch.size(0) + loss_fish * sample_batch_fish.size(0)
         loss /= (sample_batch.size(0) + sample_batch_fish.size(0))

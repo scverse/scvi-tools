@@ -11,8 +11,8 @@ from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainS
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
     GeneExpressionDataset, PurifiedPBMCDataset
-from smFISH_utils.dataset import CortexDatasetCustom, SmfishDatasetCustom
-from smFISH_utils.metrics.visualisation import show_spatial_expression, show_gene_exp, \
+from smFISH.dataset import CortexDatasetCustom, SmfishDatasetCustom
+from smFISH.metrics.visualisation import show_spatial_expression, show_gene_exp, \
     show_mixing, show_cell_types, compare_cell_types
 from scvi.inference import JointSemiSupervisedVariationalInference, AlternateSemiSupervisedVariationalInference, \
     ClassifierInference, VariationalInference, adversarial_wrapper, mmd_wrapper, VariationalInferenceFish
