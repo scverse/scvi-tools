@@ -77,42 +77,30 @@ def entropy_batch_mixing(latent_space, batches, max_number=500):
     return score / 50
 
 
-def get_data(vae, data_loader, mode):
-    """ Specific to smFISH/scRNA-seq datasets.
-        Yields positional information, and other useful informations
-        such as expected frequencies, real values...
-        Easier to use a new method for this as vae_fish has some particularities
-        that would require to modify a lot the other functions if we didn't create this one
+def get_dataset_information(vae, data_loader, to_return_=["latent", "batch_indices",
+    "labels", "values", "expected_frequencies", "x_coord", "y_coord"], mode="scRNA"):
+    """ Gives access to information about the data points in the data_loader,
+        as well as on outputs of the model for those data points (latent embedding,
+        expected_frequencies...)
     """
+    to_get = {"latent": [], "batch_indices": [],
+              "labels": [], "values": [], "expected_frequencies": [], "x_coord": [], "y_coord": []}
     vae.eval()
-    latent = []
-    batch_indices = []
-    labels = []
-    expected_frequencies = []
-    values = []
-    x_coords = []
-    y_coords = []
     for tensors in data_loader:
         if mode == "scRNA":
             sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
-            batch_index = torch.zeros_like(batch_index)
         if mode == "smFISH":
             sample_batch, local_l_mean, local_l_var, batch_index, label, x_coord, y_coord = tensors
-            batch_index = torch.ones_like(batch_index)
-            x_coords += [x_coord]
-            y_coords += [y_coord]
-        latent += [vae.sample_from_posterior_z(sample_batch, y=label, mode=mode)]
-        batch_indices += [batch_index]
-        labels += [label]
-        expected_frequencies += [vae.get_sample_scale(sample_batch, mode=mode, batch_index=batch_index)]
-        values += [sample_batch]
-    if mode == "scRNA":
-        return np.array(torch.cat(latent)), np.array(torch.cat(batch_indices)), np.array(torch.cat(labels)).ravel(), \
-               np.array(torch.cat(expected_frequencies)), np.array(torch.cat(values))
-    if mode == "smFISH":
-        return np.array(torch.cat(latent)), np.array(torch.cat(batch_indices)), np.array(torch.cat(labels)).ravel(), \
-               np.array(torch.cat(expected_frequencies)), np.array(torch.cat(values)),\
-               np.array(torch.cat(x_coords)), np.array(torch.cat(y_coords))
+            to_get["x_coord"] += [x_coord]
+            to_get["y_coord"] += [y_coord]
+        to_get["latent"] += [vae.sample_from_posterior_z(sample_batch, y=label, mode=mode)]
+        to_get["batches_indices"] += [batch_index]
+        to_get["labels"] += [label]
+        to_get["expected_frequencies"] += [vae.get_sample_scale(sample_batch, mode=mode, batch_index=batch_index)]
+        to_get["values"] += [sample_batch]
+    for key in to_get.keys():
+        to_get[key] = np.array(torch.cat(to_get[key]))
+    return {k: v for k, v in to_get.items() if k in to_return}
 
 
 def get_common_t_sne(latent_seq, latent_fish, n_samples=1000):
