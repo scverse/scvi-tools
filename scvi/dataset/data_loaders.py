@@ -23,7 +23,6 @@ class DataLoaderWrapper(DataLoader):
         super(DataLoaderWrapper, self).__init__(dataset, **kwargs)
 
     def to_cuda(self, tensors):
-        tensors = (tensors[0].type(torch.float32),) + tuple(tensors[1:])
         return [t.cuda(async=self.use_cuda) if self.use_cuda else t for t in tensors]
 
     def sequential(self, batch_size=128):
