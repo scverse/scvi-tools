@@ -6,16 +6,17 @@
 
 import numpy as np
 
-from scvi.benchmark import all_benchmarks, benchmark
+from scvi.benchmark import all_benchmarks, benchmark, benchamrk_fish_scrna
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
     GeneExpressionDataset, PurifiedPBMCDataset
 from scvi.inference import JointSemiSupervisedVariationalInference, AlternateSemiSupervisedVariationalInference, \
-    ClassifierInference, VariationalInference, adversarial_wrapper, mmd_wrapper, VariationalInferenceFish
+    ClassifierInference, VariationalInference, adversarial_wrapper, mmd_wrapper
 from scvi.metrics.adapt_encoder import adapt_encoder
-from scvi.models import VAE, SVAEC, VAEC, VAEF
+from scvi.models import VAE, SVAEC, VAEC
 from scvi.models.classifier import Classifier
+
 
 use_cuda = True
 
@@ -82,17 +83,9 @@ def test_synthetic_2():
 
 def test_fish_rna():
     gene_dataset_fish = SmfishDataset()
-    gene_names = gene_dataset_fish.gene_names
-    indexes_to_keep = np.arange(len(gene_names))
     gene_dataset_seq = CortexDataset(genes_fish=gene_dataset_fish.gene_names,
                                      genes_to_keep=[], additional_genes=50)
-    vae = VAEF(gene_dataset_seq.nb_genes, indexes_to_keep, n_layers_decoder=2, n_latent=6,
-               n_layers=2, n_hidden=256, reconstruction_loss='nb', dropout_rate=0.3, n_labels=7, n_batch=0,
-               model_library=False)
-    infer = VariationalInferenceFish(vae, gene_dataset_seq, gene_dataset_fish, train_size=0.9, verbose=True,
-                                     frequency=5, weight_decay=0.35, n_epochs_even=100, n_epochs_kl=1000,
-                                     cl_ratio=0, n_epochs_cl=100)
-    infer.train(n_epochs=1, lr=0.0008)
+    benchamrk_fish_scrna(gene_dataset_seq, gene_dataset_fish)
 
 
 def base_benchmark(gene_dataset):

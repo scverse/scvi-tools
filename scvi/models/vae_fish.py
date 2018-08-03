@@ -44,16 +44,16 @@ class VAEF(VAE):
                  n_layers=1, n_layers_decoder=1, dropout_rate=0.3,
                  dispersion="gene", log_variational=True, reconstruction_loss="zinb",
                  reconstruction_loss_fish="poisson", model_library=False):
-        super(VAEF, self).__init__(n_input, dispersion=dispersion, n_latent=n_latent, log_variational=log_variational,
+        super(VAEF, self).__init__(n_input, dispersion=dispersion, n_latent=n_hidden, n_hidden=n_hidden,
+                                   log_variational=log_variational, dropout_rate=dropout_rate, n_layers=1,
                                    reconstruction_loss=reconstruction_loss, n_batch=n_batch, n_labels=n_labels)
         self.n_input = n_input
         self.n_input_fish = len(indexes_fish_train)
         self.indexes_to_keep = indexes_fish_train
         self.reconstruction_loss_fish = reconstruction_loss_fish
         self.model_library = model_library
+        self.n_latent = n_latent
         # First layer of the encoder isn't shared
-        self.z_encoder = Encoder(n_input, n_hidden, n_hidden=n_hidden, n_layers=1,
-                                 dropout_rate=dropout_rate)
         self.z_encoder_fish = Encoder(self.n_input_fish, n_hidden, n_hidden=n_hidden, n_layers=1,
                                       dropout_rate=dropout_rate)
         # The last layers of the encoder are shared
