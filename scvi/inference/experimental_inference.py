@@ -76,15 +76,11 @@ def adversarial_loss(self, tensors, *next_tensors):
 def adversarial_loss_fish(self, tensors_seq, tensors_fish):
     if self.epoch > self.warm_up:
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors_seq
-        batch_index = torch.zeros_like(batch_index)
-        z, _, _ = self.model.z_encoder(torch.log(1+sample_batch))
-        qm_z, _, _ = self.model.z_final_encoder(z)
-        cls_loss = (self.scale * F.cross_entropy(self.adversarial_cls(qm_z), batch_index.view(-1)))
+        z = self.model.sample_from_posterior_z(sample_batch, mode="scRNA")
+        cls_loss = (self.scale * F.cross_entropy(self.adversarial_cls(z), torch.zeros_like(batch_index).view(-1)))
         sample_batch_fish, local_l_mean, local_l_var, batch_index_fish, _, _, _ = tensors_fish
-        z, _, _ = self.model.z_encoder_fish(torch.log(1 + sample_batch[:, self.model.indexes_to_keep]))
-        qm_z, _, _ = self.model.z_final_encoder(z)
-        batch_index = torch.ones_like(batch_index)
-        cls_loss += (self.scale * F.cross_entropy(self.adversarial_cls(qm_z), batch_index.view(-1)))
+        z = self.model.sample_from_posterior_z(sample_batch, mode="smFISH")
+        cls_loss += (self.scale * F.cross_entropy(self.adversarial_cls(z), torch.ones_like(batch_index).view(-1)))
         self.optimizer_cls.zero_grad()
         cls_loss.backward(retain_graph=True)
         self.optimizer_cls.step()

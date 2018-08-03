@@ -77,7 +77,7 @@ def unsupervised_clustering_accuracy(y, y_pred):
 
 
 def compute_accuracy_svc(data_train, labels_train, data_test, labels_test, unit_test=False, verbose=0,
-                         max_iter=-1, return_labels="False"):
+                         max_iter=-1, return_labels="False", ):
     param_grid = [
         {'C': [1, 10, 100, 1000], 'kernel': ['linear']},
         {'C': [1, 10, 100, 1000], 'gamma': [0.001, 0.0001], 'kernel': ['rbf']}]
@@ -86,17 +86,7 @@ def compute_accuracy_svc(data_train, labels_train, data_test, labels_test, unit_
     svc = SVC(max_iter=max_iter)
 
     clf = GridSearchCV(svc, param_grid, verbose=verbose)
-    clf.fit(data_train, labels_train)
-
-    # Predicting the labels
-    y_pred_test = clf.predict(data_test)
-    y_pred_train = clf.predict(data_train)
-    if not return_labels:
-        return (compute_accuracy_tuple(labels_train, y_pred_train),
-                compute_accuracy_tuple(labels_test, y_pred_test))
-    elif return_labels:
-        return (compute_accuracy_tuple(labels_train, y_pred_train),
-                compute_accuracy_tuple(labels_test, y_pred_test), y_pred_test)
+    return compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels_test, return_labels)
 
 
 def compute_accuracy_rf(data_train, labels_train, data_test, labels_test, unit_test=False,
@@ -108,24 +98,16 @@ def compute_accuracy_rf(data_train, labels_train, data_test, labels_test, unit_t
     rf = RandomForestClassifier(max_depth=2, random_state=0)
 
     clf = GridSearchCV(rf, param_grid, verbose=verbose)
-    clf.fit(data_train, labels_train)
-
-    # Predicting the labels
-    y_pred_test = clf.predict(data_test)
-    y_pred_train = clf.predict(data_train)
-
-    if not return_labels:
-        return (compute_accuracy_tuple(labels_train, y_pred_train),
-                compute_accuracy_tuple(labels_test, y_pred_test))
-    elif return_labels:
-        return (compute_accuracy_tuple(labels_train, y_pred_train),
-                compute_accuracy_tuple(labels_test, y_pred_test), y_pred_test)
+    return compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels_test, return_labels)
 
 
 def compute_accuracy_nn(data_train, labels_train, data_test, labels_test, k=5, return_labels="False"):
     clf = neighbors.KNeighborsClassifier(k, weights='distance')
-    clf.fit(data_train, labels_train)
+    return compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels_test, return_labels)
 
+
+def compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels_test, return_labels=False):
+    clf.fit(data_train, labels_train)
     # Predicting the labels
     y_pred_test = clf.predict(data_test)
     y_pred_train = clf.predict(data_train)

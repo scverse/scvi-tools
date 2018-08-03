@@ -4,25 +4,6 @@ import torch
 import torch.nn.functional as F
 
 
-def compute_log_likelihood(vae, data_loader, name):
-    # Iterate once over the data_loader and computes the total log_likelihood
-    log_lkl = 0
-    for i_batch, tensors in enumerate(data_loader):
-        if name == "train_fish" or name == "test_fish":
-            sample_batch, local_l_mean, local_l_var, batch_index, labels, _, _ = tensors
-            reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
-                                              y=labels, mode="smFISH")
-        else:
-            sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
-            reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
-                                              y=labels)
-        log_lkl += torch.sum(reconst_loss).item()
-    n_samples = (len(data_loader.dataset)
-                 if not (hasattr(data_loader, 'sampler') and hasattr(data_loader.sampler, 'indices')) else
-                 len(data_loader.sampler.indices))
-    return log_lkl / n_samples
-
-
 def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     """
     Note: All inputs are torch Tensors
@@ -52,7 +33,7 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     return torch.sum(res, dim=-1)
 
 
-def log_nb_positive(x, mu, theta, eps=1e-8, n_gene_cut=33, ponderation=1):
+def log_nb_positive(x, mu, theta, eps=1e-8):
     """
     Note: All inputs should be torch Tensors
     log likelihood (scalar) of a minibatch according to a nb model.
@@ -69,4 +50,4 @@ def log_nb_positive(x, mu, theta, eps=1e-8, n_gene_cut=33, ponderation=1):
         mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(x + theta) - torch.lgamma(
         theta) - torch.lgamma(x + 1)
     # Gives the ability to do a warmup on the unobserved smFISH genes when merging the two technologies
-    return torch.sum(res[:, :n_gene_cut], dim=-1) + ponderation * torch.sum(res[:, n_gene_cut:], dim=-1)
+    return torch.sum(res, dim=-1)

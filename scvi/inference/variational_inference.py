@@ -1,9 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from tqdm import trange
-import time
-import sys
 
 from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture as GMM
@@ -23,7 +20,6 @@ from scvi.metrics.classification import unsupervised_clustering_accuracy
 from scvi.metrics.clustering import get_latent, entropy_batch_mixing, nn_overlap
 from scvi.metrics.differential_expression import de_stats, de_cortex
 from scvi.metrics.imputation import imputation, plot_imputation
-from scvi.metrics.log_likelihood import compute_log_likelihood
 from . import Inference, ClassifierInference
 
 plt.switch_backend('agg')
@@ -64,7 +60,17 @@ class VariationalInference(Inference):
         self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / self.n_epochs)
 
     def ll(self, name, verbose=False):
-        ll = compute_log_likelihood(self.model, self.data_loaders[name], name)
+        log_lkl = 0
+        for i_batch, tensors in enumerate(self.data_loaders[name]):
+            sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
+            reconst_loss, kl_divergence = self.model(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
+                                                     y=labels)
+            log_lkl += torch.sum(reconst_loss).item()
+        n_samples = (len(self.data_loaders[name].dataset)
+                     if not (hasattr(self.data_loaders[name], 'sampler') and hasattr(self.data_loaders[name].sampler,
+                                                                                     'indices')) else
+                     len(self.data_loaders[name].sampler.indices))
+        ll = log_lkl / n_samples
         if verbose:
             print("LL for %s is : %.4f" % (name, ll))
         return ll
@@ -149,20 +155,26 @@ class VariationalInference(Inference):
 
     entropy_batch_mixing.mode = 'max'
 
-    def show_t_sne(self, name, n_samples=1000, color_by='', save_name=''):
-        latent, batch_indices, labels = get_latent(self.model, self.data_loaders[name])
-        idx_t_sne = np.random.permutation(len(latent))[:n_samples] if n_samples else np.arange(len(latent))
-        if latent.shape[1] != 2:
-            latent = TSNE().fit_transform(latent[idx_t_sne])
+    def show_t_sne(self, name, n_samples=1000, color_by='', save_name='', latent=None, batch_indices=None,
+                   labels=None, n_batch=None):
+        # If no latent representation is given
+        if latent is None:
+            latent, batch_indices, labels = get_latent(self.model, self.data_loaders[name])
+            latent, idx_t_sne = self.apply_t_sne(latent, n_samples)
+            batch_indices = batch_indices[idx_t_sne].ravel()
+            labels = labels[idx_t_sne].ravel()
         if not color_by:
             plt.figure(figsize=(10, 10))
             plt.scatter(latent[:, 0], latent[:, 1])
+        if color_by == 'scalar':
+            plt.figure(figsize=(10, 10))
+            plt.scatter(latent[:, 0], latent[:, 1], c=labels.ravel())
         else:
-            batch_indices = batch_indices[idx_t_sne].ravel()
-            labels = labels[idx_t_sne].ravel()
+            if n_batch is None:
+                n_batch = self.gene_dataset.n_batches
             if color_by == 'batches' or color_by == 'labels':
                 indices = batch_indices if color_by == 'batches' else labels
-                n = self.gene_dataset.n_batches if color_by == 'batches' else self.gene_dataset.n_labels
+                n = n_batch if color_by == 'batches' else self.gene_dataset.n_labels
                 if hasattr(self.gene_dataset, 'cell_types') and color_by == 'labels':
                     plt_labels = self.gene_dataset.cell_types
                 else:
@@ -173,7 +185,7 @@ class VariationalInference(Inference):
                 plt.legend()
             elif color_by == 'batches and labels':
                 fig, axes = plt.subplots(1, 2, figsize=(14, 7))
-                for i in range(self.gene_dataset.n_batches):
+                for i in range(n_batch):
                     axes[0].scatter(latent[batch_indices == i, 0], latent[batch_indices == i, 1], label=str(i))
                 axes[0].set_title("batch coloring")
                 axes[0].axis("off")
@@ -193,6 +205,13 @@ class VariationalInference(Inference):
         plt.tight_layout()
         if save_name:
             plt.savefig(save_name)
+
+    @staticmethod
+    def apply_t_sne(latent, n_samples=1000):
+        idx_t_sne = np.random.permutation(len(latent))[:n_samples] if n_samples else np.arange(len(latent))
+        if latent.shape[1] != 2:
+            latent = TSNE().fit_transform(latent[idx_t_sne])
+        return latent, idx_t_sne
 
 
 class SemiSupervisedVariationalInference(VariationalInference):
@@ -341,7 +360,7 @@ class VariationalInferenceFish(VariationalInference):
         self.n_epochs_cl = n_epochs_cl
         self.n_epochs_even = n_epochs_even
         self.n_epochs_kl = n_epochs_kl
-        self.ponderation = 0
+        self.weighting = 0
         self.kl_weight = 0
         self.classification_ponderation = 0
         self.data_loaders = TrainTestDataLoadersFish(gene_dataset_seq, gene_dataset_fish,
@@ -350,7 +369,7 @@ class VariationalInferenceFish(VariationalInference):
     def loss(self, tensors_seq, tensors_fish):
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors_seq
         reconst_loss, kl_divergence = self.model(sample_batch, local_l_mean, local_l_var, batch_index, mode="scRNA",
-                                                 ponderation=self.ponderation)
+                                                 weighting=self.weighting)
         # If we want to add a classification loss
         if self.cl_ratio != 0:
             reconst_loss += self.cl_ratio * F.cross_entropy(self.model.classify(sample_batch, mode="scRNA"),
@@ -364,49 +383,37 @@ class VariationalInferenceFish(VariationalInference):
         loss /= (sample_batch.size(0) + sample_batch_fish.size(0))
         return loss + loss_fish
 
-    def train(self, n_epochs=20, lr=1e-3, params=None):
-        begin = time.time()
-        with torch.set_grad_enabled(True):
-            self.model.train()
-
-            if params is None:
-                params = filter(lambda p: p.requires_grad, self.model.parameters())
-
-            optimizer = torch.optim.Adam(params, lr=lr, eps=0.01, weight_decay=self.weight_decay)
-
-            self.epoch = 0
-            self.n_epochs = n_epochs
-            self.compute_metrics_time = 0
-            self.compute_metrics()
-
-            with trange(n_epochs, desc="training", file=sys.stdout, disable=self.verbose) as pbar:
-                # We have to use tqdm this way so it works in Jupyter notebook.
-                # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
-                self.on_epoch_begin()
-
-                for epoch in pbar:
-                    self.on_epoch_begin()
-                    pbar.update(1)
-
-                    for tensors_list in self.data_loaders:
-                        loss = self.loss(*tensors_list)
-                        optimizer.zero_grad()
-                        loss.backward()
-                        optimizer.step()
-
-                    if not self.on_epoch_end():
-                        break
-
-            if self.save_best_state_metric is not None:
-                self.model.load_state_dict(self.best_state_dict)
-                self.compute_metrics()
-
-            self.model.eval()
-            self.training_time += (time.time() - begin) - self.compute_metrics_time
-            if self.verbose and self.frequency:
-                print("\nTraining time:  %i s. / %i epochs" % (int(self.training_time), self.n_epochs))
-
     def on_epoch_begin(self):
-        self.ponderation = min(1, self.epoch / self.n_epochs_even)
+        self.weighting = min(1, self.epoch / self.n_epochs_even)
         self.kl_weight = self.kl if self.kl is not None else min(1,  self.epoch / self.n_epochs_kl)
         self.classification_ponderation = min(1, self.epoch / self.n_epochs_cl)
+
+    def ll(self, name, verbose=False):
+        data_loader = self.data_loaders[name]
+        log_lkl = 0
+        for i_batch, tensors in enumerate(data_loader):
+            if name == "train_fish" or name == "test_fish":
+                sample_batch, local_l_mean, local_l_var, batch_index, labels, _, _ = tensors
+                reconst_loss, kl_divergence = self.model(sample_batch, local_l_mean, local_l_var,
+                                                         batch_index=batch_index,
+                                                         y=labels, mode="smFISH")
+            else:
+                sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
+                reconst_loss, kl_divergence = self.model(sample_batch, local_l_mean, local_l_var,
+                                                         batch_index=batch_index, y=labels)
+            log_lkl += torch.sum(reconst_loss).item()
+        n_samples = (len(data_loader.dataset)
+                     if not (hasattr(data_loader, 'sampler') and hasattr(data_loader.sampler, 'indices')) else
+                     len(data_loader.sampler.indices))
+        ll = log_lkl / n_samples
+        if verbose:
+            print("LL for %s is : %.4f" % (name, ll))
+        return ll
+
+    def show_spatial_expression(self, x_coord, y_coord, labels, color_by='scalar', title='spatial_expression.svg'):
+        x_coord = x_coord.reshape(-1, 1)
+        y_coord = y_coord.reshape(-1, 1)
+        latent = np.concatenate((x_coord, y_coord), axis=1)
+        self.show_t_sne(name=None, n_samples=1000, color_by=color_by, save_name=title,
+                        latent=latent, batch_indices=None,
+                        labels=labels)

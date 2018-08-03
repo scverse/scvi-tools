@@ -2,7 +2,6 @@
 """Main module."""
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, Poisson, kl_divergence as kl
 
@@ -10,12 +9,13 @@ from scvi.metrics.log_likelihood import log_zinb_positive, log_nb_positive
 from scvi.models.modules import Encoder, DecoderSCVI
 from scvi.models.classifier import Classifier
 from scvi.models.utils import one_hot
+from scvi.models import VAE
 
 torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class VAEF(nn.Module):
+class VAEF(VAE):
     r"""Variational auto-encoder model.
 
     Args:
@@ -41,34 +41,16 @@ class VAEF(nn.Module):
     """
 
     def __init__(self, n_input, indexes_fish_train=None, n_batch=0, n_labels=0, n_hidden=128, n_latent=10,
-                 n_layers=1, n_layers_decoder=1, dropout_rate=0.3, weight=True,
+                 n_layers=1, n_layers_decoder=1, dropout_rate=0.3,
                  dispersion="gene", log_variational=True, reconstruction_loss="zinb",
                  reconstruction_loss_fish="poisson", model_library=False):
-        super(VAEF, self).__init__()
-
+        super(VAEF, self).__init__(n_input, dispersion=dispersion, n_latent=n_latent, log_variational=log_variational,
+                                   reconstruction_loss=reconstruction_loss, n_batch=n_batch, n_labels=n_labels)
         self.n_input = n_input
         self.n_input_fish = len(indexes_fish_train)
         self.indexes_to_keep = indexes_fish_train
-        self.dispersion = dispersion
-        self.n_latent = n_latent
-        self.log_variational = log_variational
-        self.reconstruction_loss = reconstruction_loss
         self.reconstruction_loss_fish = reconstruction_loss_fish
         self.model_library = model_library
-        # Automatically desactivate if useless
-        self.n_batch = n_batch
-        self.n_labels = n_labels
-        self.n_latent_layers = 1
-        self.weight = weight
-        if self.dispersion == "gene":
-            self.px_r = torch.nn.Parameter(torch.randn(n_input, ))
-        elif self.dispersion == "gene-batch":
-            self.px_r = torch.nn.Parameter(torch.randn(n_input, n_batch))
-        elif self.dispersion == "gene-label":
-            self.px_r = torch.nn.Parameter(torch.randn(n_input, n_labels))
-        else:  # gene-cell
-            pass
-
         # First layer of the encoder isn't shared
         self.z_encoder = Encoder(n_input, n_hidden, n_hidden=n_hidden, n_layers=1,
                                  dropout_rate=dropout_rate)
@@ -145,7 +127,7 @@ class VAEF(nn.Module):
         z = self.sample_from_posterior_z(x, mode)
         return self.classifier(z)
 
-    def _reconstruction_loss(self, x, px_rate, px_r, px_dropout, batch_index, y, mode="scRNA", ponderation=1):
+    def _reconstruction_loss(self, x, px_rate, px_r, px_dropout, batch_index, y, mode="scRNA", weighting=1):
         if self.dispersion == "gene-label":
             px_r = F.linear(one_hot(y, self.n_labels), self.px_r)  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
@@ -158,17 +140,16 @@ class VAEF(nn.Module):
             if self.reconstruction_loss == 'zinb':
                 reconst_loss = -log_zinb_positive(x, px_rate, torch.exp(px_r), px_dropout)
             elif self.reconstruction_loss == 'nb':
-                reconst_loss = -log_nb_positive(x, px_rate, torch.exp(px_r), n_gene_cut=33, ponderation=ponderation)
+                reconst_loss = - log_nb_positive(x, px_rate, torch.exp(px_r))
 
-        elif mode == "smFISH":
+        else:
             if self.reconstruction_loss_fish == 'poisson':
                 reconst_loss = -torch.sum(Poisson(px_rate).log_prob(x), dim=1)
             elif self.reconstruction_loss_fish == 'gaussian':
                 reconst_loss = -torch.sum(Normal(px_rate, 10).log_prob(x), dim=1)
         return reconst_loss
 
-    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None, mode="scRNA", ponderation=1):
-        # Parameters for z latent distribution
+    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None, mode="scRNA", weighting=1):
         x_ = x
         if self.log_variational:
             x_ = torch.log(1 + x_)
@@ -204,7 +185,7 @@ class VAEF(nn.Module):
                                                          batch_index, y, mode)
 
         else:
-            reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout, batch_index, y, mode, ponderation)
+            reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout, batch_index, y, mode, weighting)
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)

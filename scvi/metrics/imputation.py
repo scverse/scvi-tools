@@ -119,15 +119,6 @@ def plot_imputation(original, imputed, title="Imputation"):
     plt.savefig(title + '.png')
 
 
-def get_index(gene_names, gene):
-    idx = 0
-    for gene_cortex in range(len(gene_names)):
-        if gene_names[gene_cortex].lower() == gene.lower():
-            idx = gene_cortex
-            print("Found idx " + str(idx) + " for gene " + gene + "!")
-    return idx
-
-
 def proximity_imputation(real_latent1, normed_gene_exp_1, real_latent2, k=4):
     knn = neighbors.KNeighborsRegressor(k, weights='distance')
     y = knn.fit(real_latent1, normed_gene_exp_1).predict(real_latent2)

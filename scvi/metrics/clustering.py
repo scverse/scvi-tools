@@ -2,7 +2,6 @@ import numpy as np
 import scipy
 import torch
 from sklearn.neighbors import NearestNeighbors
-from sklearn.manifold import TSNE
 
 
 def get_latent_mean(vae, data_loader):
@@ -75,40 +74,3 @@ def entropy_batch_mixing(latent_space, batches, max_number=500):
             batches[kmatrix[indices].nonzero()[1][kmatrix[indices].nonzero()[0] == i]]
         ) for i in range(100)])
     return score / 50
-
-
-def get_dataset_information(vae, data_loader, to_return_=["latent", "batch_indices",
-    "labels", "values", "expected_frequencies", "x_coord", "y_coord"], mode="scRNA"):
-    """ Gives access to information about the data points in the data_loader,
-        as well as on outputs of the model for those data points (latent embedding,
-        expected_frequencies...)
-    """
-    to_get = {"latent": [], "batch_indices": [],
-              "labels": [], "values": [], "expected_frequencies": [], "x_coord": [], "y_coord": []}
-    vae.eval()
-    for tensors in data_loader:
-        if mode == "scRNA":
-            sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
-        if mode == "smFISH":
-            sample_batch, local_l_mean, local_l_var, batch_index, label, x_coord, y_coord = tensors
-            to_get["x_coord"] += [x_coord]
-            to_get["y_coord"] += [y_coord]
-        to_get["latent"] += [vae.sample_from_posterior_z(sample_batch, y=label, mode=mode)]
-        to_get["batches_indices"] += [batch_index]
-        to_get["labels"] += [label]
-        to_get["expected_frequencies"] += [vae.get_sample_scale(sample_batch, mode=mode, batch_index=batch_index)]
-        to_get["values"] += [sample_batch]
-    for key in to_get.keys():
-        to_get[key] = np.array(torch.cat(to_get[key]))
-    return {k: v for k, v in to_get.items() if k in to_return}
-
-
-def get_common_t_sne(latent_seq, latent_fish, n_samples=1000):
-    idx_t_sne_a = np.random.permutation(len(latent_seq))[:n_samples]
-    idx_t_sne_b = np.random.permutation(len(latent_fish))[:n_samples]
-    full_latent = np.concatenate((latent_seq[idx_t_sne_a, :], latent_fish[idx_t_sne_b, :]))
-    if full_latent.shape[1] != 2:
-        latent = TSNE().fit_transform(full_latent)
-    if latent.shape[0] != len(idx_t_sne_a) + len(idx_t_sne_b):
-        print("Be careful! There might be a mistake in the downsampling of the data points")
-    return latent[:len(idx_t_sne_a), :], latent[len(idx_t_sne_a):, :], idx_t_sne_a, idx_t_sne_b

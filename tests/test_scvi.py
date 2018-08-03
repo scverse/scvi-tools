@@ -11,15 +11,11 @@ from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainS
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
     GeneExpressionDataset, PurifiedPBMCDataset
-from smFISH.dataset import CortexDatasetCustom, SmfishDatasetCustom
-from smFISH.metrics.visualisation import show_spatial_expression, show_gene_exp, \
-    show_mixing, show_cell_types, compare_cell_types
 from scvi.inference import JointSemiSupervisedVariationalInference, AlternateSemiSupervisedVariationalInference, \
     ClassifierInference, VariationalInference, adversarial_wrapper, mmd_wrapper, VariationalInferenceFish
 from scvi.metrics.adapt_encoder import adapt_encoder
 from scvi.models import VAE, SVAEC, VAEC, VAEF
 from scvi.models.classifier import Classifier
-from scvi.metrics.clustering import get_data, get_common_t_sne
 
 use_cuda = True
 
@@ -85,11 +81,11 @@ def test_synthetic_2():
 
 
 def test_fish_rna():
-    gene_dataset_fish = SmfishDatasetCustom()
+    gene_dataset_fish = SmfishDataset()
     gene_names = gene_dataset_fish.gene_names
     indexes_to_keep = np.arange(len(gene_names))
-    gene_dataset_seq = CortexDatasetCustom(genes_fish=gene_dataset_fish.gene_names,
-                                           genes_to_keep=[], additional_genes=50)
+    gene_dataset_seq = CortexDataset(genes_fish=gene_dataset_fish.gene_names,
+                                     genes_to_keep=[], additional_genes=50)
     vae = VAEF(gene_dataset_seq.nb_genes, indexes_to_keep, n_layers_decoder=2, n_latent=6,
                n_layers=2, n_hidden=256, reconstruction_loss='nb', dropout_rate=0.3, n_labels=7, n_batch=0,
                model_library=False)
@@ -97,20 +93,6 @@ def test_fish_rna():
                                      frequency=5, weight_decay=0.35, n_epochs_even=100, n_epochs_kl=1000,
                                      cl_ratio=0, n_epochs_cl=100)
     infer.train(n_epochs=1, lr=0.0008)
-    data_loader_fish = infer.data_loaders['train_fish']
-    data_loader_seq = infer.data_loaders['train_seq']
-    latent_seq, _, labels_seq, expected_frequencies_seq, values_seq = get_data(vae, data_loader_seq, mode="scRNA")
-    latent_fish, _, labels_fish, expected_frequencies_fish, values_fish, \
-        x_coords, y_coords = get_data(vae, data_loader_fish, mode="smFISH")
-    t_sne_seq, t_sne_fish, idx_t_sne_seq, idx_t_sne_fish = get_common_t_sne(latent_seq, latent_fish, n_samples=10)
-    show_cell_types(t_sne_seq, labels_seq[idx_t_sne_seq], t_sne_fish, labels_fish[idx_t_sne_fish])
-    show_mixing(t_sne_seq, t_sne_fish)
-    show_gene_exp(t_sne_seq, expected_frequencies_seq[idx_t_sne_seq, 0], labels=labels_seq[idx_t_sne_seq],
-                  title="", gene_name="")
-    compare_cell_types(t_sne_fish, labels_fish[idx_t_sne_fish], labels_fish[idx_t_sne_fish])
-    show_spatial_expression(x_coords, y_coords,
-                            expected_frequencies_fish[:, 0], labels=labels_fish,
-                            title="", gene_name="gad2")
 
 
 def base_benchmark(gene_dataset):
@@ -239,11 +221,6 @@ def test_breast_cancer():
 def test_mouseob():
     mouseob_dataset = MouseOBDataset(save_path='tests/data/')
     base_benchmark(mouseob_dataset)
-
-
-def test_smfish():
-    smfish_dataset = SmfishDataset(save_path='tests/data/')
-    base_benchmark(smfish_dataset)
 
 
 def test_particular_benchmark():

@@ -32,15 +32,13 @@ class GeneExpressionDataset(Dataset):
         self.batch_indices, self.n_batches = arrange_categories(batch_indices)
         self.labels, self.n_labels = arrange_categories(labels)
         self.x_coord, self.y_coord = x_coord, y_coord
-        if x_coord is not None:
-            self.got_spatial = True
-        else:
-            self.got_spatial = False
 
         if gene_names is not None:
             assert self.nb_genes == len(gene_names)
             self.gene_names = np.array(gene_names, dtype=np.str)
         if cell_types is not None:
+            print(self.n_labels)
+            print(cell_types)
             assert self.n_labels == len(cell_types)
             self.cell_types = np.array(cell_types, dtype=np.str)
 
@@ -57,12 +55,12 @@ class GeneExpressionDataset(Dataset):
     def collate_fn(self, batch):
         indexes = np.array(batch)
         X = torch.FloatTensor(self.X[indexes]) if self.dense else torch.FloatTensor(self.X[indexes].toarray())
-        if not self.got_spatial:
+        if self.x_coord is None or self.y_coord is None:
             return X, torch.FloatTensor(self.local_means[indexes]), \
                    torch.FloatTensor(self.local_vars[indexes]), \
                    torch.LongTensor(self.batch_indices[indexes]), \
                    torch.LongTensor(self.labels[indexes])
-        if self.got_spatial:
+        else:
             return X, torch.FloatTensor(self.local_means[indexes]), \
                    torch.FloatTensor(self.local_vars[indexes]), \
                    torch.LongTensor(self.batch_indices[indexes]), \
@@ -266,6 +264,24 @@ class GeneExpressionDataset(Dataset):
         gene_names = list(getattr(gene_dataset, on))
         subset_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.int64)
         return gene_dataset.X[:, subset_genes], subset_genes
+
+    @staticmethod
+    def reorganize(x, genes, ordered_genes):
+        """
+        In case the order of the genes needs to be changed:
+        puts the gene present in ordered_genes first, conserving
+        the same order.
+        """
+        # X must be a numpy matrix
+        new_order_first = []
+        for ordered_gene in range(len(ordered_genes)):
+            for gene in range(len(genes)):
+                if ordered_genes[ordered_gene].lower() == genes[gene].lower():
+                    new_order_first.append(gene)
+        new_order_second = [x for x in range(len(genes)) if x not in new_order_first]
+        new_order = new_order_first + new_order_second
+
+        return x[:, new_order], genes[new_order]
 
 
 def arrange_categories(original_categories, mapping_from=None, mapping_to=None):
