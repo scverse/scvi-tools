@@ -69,5 +69,5 @@ def benchamrk_fish_scrna(gene_dataset_seq, gene_dataset_fish):
     pca_labels_seq = gene_dataset_seq.labels
     pca_labels_fish = gene_dataset_fish.labels
     _ = proximity_imputation(pca_latent_seq, pca_values_seq[:, 0], pca_latent_fish, k=5)
-    _, _, _ = compute_accuracy_nn(pca_latent_seq, pca_labels_seq.ravel(), pca_latent_fish,
-                                  pca_labels_fish.ravel())
+    _, _, = compute_accuracy_nn(pca_latent_seq, pca_labels_seq.ravel(), pca_latent_fish,
+                                pca_labels_fish.ravel())
