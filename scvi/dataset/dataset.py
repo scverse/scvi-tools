@@ -265,24 +265,6 @@ class GeneExpressionDataset(Dataset):
         subset_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.int64)
         return gene_dataset.X[:, subset_genes], subset_genes
 
-    @staticmethod
-    def reorganize(x, genes, ordered_genes):
-        """
-        In case the order of the genes needs to be changed:
-        puts the gene present in ordered_genes first, conserving
-        the same order.
-        """
-        # X must be a numpy matrix
-        new_order_first = []
-        for ordered_gene in range(len(ordered_genes)):
-            for gene in range(len(genes)):
-                if ordered_genes[ordered_gene].lower() == genes[gene].lower():
-                    new_order_first.append(gene)
-        new_order_second = [x for x in range(len(genes)) if x not in new_order_first]
-        new_order = new_order_first + new_order_second
-
-        return x[:, new_order], genes[new_order]
-
 
 def arrange_categories(original_categories, mapping_from=None, mapping_to=None):
     unique_categories = np.unique(original_categories)

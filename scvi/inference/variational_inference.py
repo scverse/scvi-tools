@@ -257,8 +257,8 @@ class SemiSupervisedVariationalInference(VariationalInference):
         else:
             raw_data = DataLoaders.raw_data(self.data_loaders['labelled'], self.data_loaders['unlabelled'])
         (data_train, labels_train), (data_test, labels_test) = raw_data
-        svc_scores = compute_accuracy_svc(data_train, labels_train, data_test, labels_test, **kwargs)
-        rf_scores = compute_accuracy_rf(data_train, labels_train, data_test, labels_test, **kwargs)
+        svc_scores, _ = compute_accuracy_svc(data_train, labels_train, data_test, labels_test, **kwargs)
+        rf_scores, _ = compute_accuracy_rf(data_train, labels_train, data_test, labels_test, **kwargs)
         return svc_scores, rf_scores
 
 

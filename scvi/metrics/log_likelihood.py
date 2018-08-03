@@ -49,5 +49,4 @@ def log_nb_positive(x, mu, theta, eps=1e-8):
     res = theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps) + x * torch.log(
         mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(x + theta) - torch.lgamma(
         theta) - torch.lgamma(x + 1)
-    # Gives the ability to do a warmup on the unobserved smFISH genes when merging the two technologies
     return torch.sum(res, dim=-1)

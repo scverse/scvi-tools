@@ -90,10 +90,28 @@ class CortexDataset(GeneExpressionDataset):
         # Then we reorganize the genes so that the genes from the smFISH dataset
         # appear first
         if len(self.genes_fish) > 0:
-            expression_data, gene_names = self.reorganize(expression_data, gene_names, self.genes_fish)
+            expression_data, gene_names = self.reorder_genes(expression_data, gene_names, self.genes_fish)
             umi = np.sum(expression_data[:, :len(self.genes_fish)], axis=1)
             expression_data = expression_data[umi > 10, :]
             labels = labels[umi > 10]
 
         print("Finished preprocessing Cortex data")
         return expression_data, labels, gene_names
+
+    @staticmethod
+    def reorder_genes(x, genes, first_genes):
+        """
+        In case the order of the genes needs to be changed:
+        puts the gene present in ordered_genes first, conserving
+        the same order.
+        """
+        # X must be a numpy matrix
+        new_order_first = []
+        for ordered_gene in range(len(first_genes)):
+            for gene in range(len(genes)):
+                if first_genes[ordered_gene].lower() == genes[gene].lower():
+                    new_order_first.append(gene)
+        new_order_second = [x for x in range(len(genes)) if x not in new_order_first]
+        new_order = new_order_first + new_order_second
+
+        return x[:, new_order], genes[new_order]
