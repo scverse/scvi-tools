@@ -20,6 +20,7 @@ from scvi.metrics.classification import unsupervised_clustering_accuracy
 from scvi.metrics.clustering import get_latent, entropy_batch_mixing, nn_overlap
 from scvi.metrics.differential_expression import de_stats, de_cortex
 from scvi.metrics.imputation import imputation, plot_imputation
+from scvi.metrics.log_likelihood import compute_log_likelihood, compute_marginal_log_likelihood
 from . import Inference, ClassifierInference
 
 plt.switch_backend('agg')
@@ -60,22 +61,18 @@ class VariationalInference(Inference):
         self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / self.n_epochs)
 
     def ll(self, name, verbose=False):
-        log_lkl = 0
-        for i_batch, tensors in enumerate(self.data_loaders[name]):
-            sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
-            reconst_loss, kl_divergence = self.model(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
-                                                     y=labels)
-            log_lkl += torch.sum(reconst_loss).item()
-        n_samples = (len(self.data_loaders[name].dataset)
-                     if not (hasattr(self.data_loaders[name], 'sampler') and hasattr(self.data_loaders[name].sampler,
-                                                                                     'indices')) else
-                     len(self.data_loaders[name].sampler.indices))
-        ll = log_lkl / n_samples
+        ll = compute_log_likelihood(self.model, self.data_loaders[name])
         if verbose:
             print("LL for %s is : %.4f" % (name, ll))
         return ll
 
     ll.mode = 'min'
+
+    def marginal_ll(self, name, verbose=False, n_mc_samples=1000):
+        ll = compute_marginal_log_likelihood(self.model, self.data_loaders[name], n_mc_samples)
+        if verbose:
+            print("True LL for %s is : %.4f" % (name, ll))
+        return ll
 
     def imputation(self, name, verbose=False, rate=0.1, n_samples=1, n_epochs=1, corruption="uniform",
                    title="Imputation"):
