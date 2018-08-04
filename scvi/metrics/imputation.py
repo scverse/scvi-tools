@@ -22,7 +22,7 @@ def imputation(infer, name, rate=0.1, n_samples=1, n_epochs=1, corruption="unifo
         i, j = (k.ravel() for k in np.indices(corrupted_data.shape))
         ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
         i, j = i[ix], j[ix]
-        corrupted_data[i, j] = np.random.binomial(n=corrupted_data[i, j], p=0.2)
+        corrupted_data[i, j] = np.random.binomial(n=corrupted_data[i, j].astype(np.int64), p=0.2)
 
     infer.gene_dataset = gene_dataset = GeneExpressionDataset(
         *GeneExpressionDataset.get_attributes_from_matrix(
