@@ -49,6 +49,9 @@ clean-test: ## remove test and coverage artifacts
 	rm -f .coverage
 	rm -fr htmlcov/
 
+clean-git: ## remove any changes that are not committed
+	git clean -dfx
+
 lint: ## check style with flake8
 	flake8 scvi tests *.py
 
@@ -86,3 +89,6 @@ dist: clean ## builds source and wheel package
 
 install: clean ## install the package to the active Python's site-packages
 	python setup.py install
+
+notebooks:
+	jupyter nbconvert --to notebook --execute docs/examples/scVI-dev.ipynb --output scVI-dev.ipynb --ExecutePreprocessor.timeout=1800
