@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from scipy.stats import kde
+from sklearn import neighbors
 
 from scvi.dataset import GeneExpressionDataset
 from scvi.dataset.data_loaders import DataLoaderWrapper
@@ -116,3 +117,9 @@ def plot_imputation(original, imputed, title="Imputation"):
     plt.plot(linspace, linspace, color='black', linestyle=":")
     plt.show()
     plt.savefig(title + '.png')
+
+
+def proximity_imputation(real_latent1, normed_gene_exp_1, real_latent2, k=4):
+    knn = neighbors.KNeighborsRegressor(k, weights='distance')
+    y = knn.fit(real_latent1, normed_gene_exp_1).predict(real_latent2)
+    return y

@@ -6,7 +6,7 @@
 
 import numpy as np
 
-from scvi.benchmark import all_benchmarks, benchmark
+from scvi.benchmark import all_benchmarks, benchmark, benchamrk_fish_scrna
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
@@ -16,6 +16,7 @@ from scvi.inference import JointSemiSupervisedVariationalInference, AlternateSem
 from scvi.metrics.adapt_encoder import adapt_encoder
 from scvi.models import VAE, SVAEC, VAEC
 from scvi.models.classifier import Classifier
+
 
 use_cuda = True
 
@@ -78,6 +79,13 @@ def test_synthetic_2():
     infer_synthetic_vaec = mmd_wrapper(infer_synthetic_vaec, warm_up=15)
     infer_synthetic_vaec.train(n_epochs=20)
     infer_synthetic_vaec.svc_rf(unit_test=True)
+
+
+def test_fish_rna():
+    gene_dataset_fish = SmfishDataset()
+    gene_dataset_seq = CortexDataset(genes_fish=gene_dataset_fish.gene_names,
+                                     genes_to_keep=[], additional_genes=50)
+    benchamrk_fish_scrna(gene_dataset_seq, gene_dataset_fish)
 
 
 def base_benchmark(gene_dataset):
@@ -206,11 +214,6 @@ def test_breast_cancer():
 def test_mouseob():
     mouseob_dataset = MouseOBDataset(save_path='tests/data/')
     base_benchmark(mouseob_dataset)
-
-
-def test_smfish():
-    smfish_dataset = SmfishDataset(save_path='tests/data/')
-    base_benchmark(smfish_dataset)
 
 
 def test_particular_benchmark():

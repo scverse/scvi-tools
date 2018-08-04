@@ -189,3 +189,20 @@ class AlternateSemiSupervisedDataLoaders(SemiSupervisedDataLoaders):
         })
         data_loaders.to_monitor = ['train']
         return data_loaders
+
+
+class TrainTestDataLoadersFish(DataLoaders):
+    to_monitor = ['train_seq', 'test_seq', 'train_fish', 'test_fish']
+    loop = ['train_seq', 'train_fish']
+
+    def __init__(self, gene_dataset_seq, gene_dataset_fish, train_size=0.9, test_size=None, seed=0,
+                 **data_loaders_kwargs):
+        """
+        :param train_size: float, int, or None (default is 0.1)
+        :param test_size: float, int, or None (default is None)
+        """
+        seq = TrainTestDataLoaders(gene_dataset_seq, train_size, test_size, seed, **data_loaders_kwargs)
+        fish = TrainTestDataLoaders(gene_dataset_fish, train_size, test_size, seed, **data_loaders_kwargs)
+        self.dict = {}
+        self.dict.update({'train_seq': seq['train'], 'test_seq': seq['test'],
+                         'train_fish': fish['train'], 'test_fish': fish['test']})
