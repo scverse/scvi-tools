@@ -36,11 +36,11 @@ Quick Start
 
 4. Refer to `this Jupyter notebook`__ to see how to import datasets into scVI.
 
-.. __: https://github.com/YosefLab/scVI/tree/master/docs/examples/scVI-data-loading.ipynb
+.. __: https://github.com/YosefLab/scVI/tree/master/docs/notebooks/data_loading.ipynb
 
 5. Refer to `this Jupyter notebook`__ to see how to train the scVI model, impute missing data, detect differential expression, and more!
 
-.. __: https://github.com/YosefLab/scVI/tree/master/docs/examples/scVI-dev.ipynb
+.. __: https://github.com/YosefLab/scVI/tree/master/docs/notebooks/basic_tutorial.ipynb
 
 
 Benchmarks
@@ -48,7 +48,7 @@ Benchmarks
 
 To recreate the results appearing in the paper referenced below, run
 
-.. code-block::
+.. code-block:: python
 
     python ./run_benchmarks.py --dataset=cortex
 

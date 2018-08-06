@@ -91,4 +91,4 @@ install: clean ## install the package to the active Python's site-packages
 	python setup.py install
 
 notebooks:
-	jupyter nbconvert --to notebook --execute docs/examples/scVI-dev.ipynb --output scVI-dev.ipynb --ExecutePreprocessor.timeout=1800
+	make -C docs/notebooks

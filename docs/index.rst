@@ -6,9 +6,9 @@ Welcome to scVI's documentation!
    :caption: Contents:
 
    readme
-   examples/scVI-data-loading.ipynb
-   examples/scVI-dev.ipynb
-   examples/scVI-semi-supervised.ipynb
+   notebooks/data_loading.ipynb
+   notebooks/basic_tutorial.ipynb
+   notebooks/annotation.ipynb
    contributing
    authors
    history
@@ -21,6 +21,8 @@ Welcome to scVI's documentation!
    scvi.inference
    scvi.metrics
    scvi.models
+
+   modules
 
 Indices and tables
 ==================
