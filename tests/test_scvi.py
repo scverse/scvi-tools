@@ -200,6 +200,10 @@ def test_filter_and_concat_datasets():
     synthetic_dataset_1.subsample_cells(50)
     assert len(synthetic_dataset_1) == 50
 
+    synthetic_dataset_3 = SyntheticDataset(n_labels=6)
+    synthetic_dataset_3.cell_types = np.arange(6).astype(np.str)
+    synthetic_dataset_3.map_cell_types({"2": "9", ("4", "3"): "8"})
+
 
 def test_seqfish():
     seqfish_dataset = SeqfishDataset(save_path='tests/data/')
