@@ -42,7 +42,7 @@ class CiteSeqDataset(GeneExpressionDataset):
         )
 
     def preprocess(self):
-        print("Preprocessing citeSeq data")
+        print("Preprocessing data")
         self.expression = expression = pd.read_csv(self.save_path + self.download_name_rna, index_col=0,
                                                    compression='gzip').T
         self.adt = adt = pd.read_csv(self.save_path + self.download_name_adt, index_col=0, compression='gzip')
@@ -65,4 +65,22 @@ class CiteSeqDataset(GeneExpressionDataset):
             np.array([name.split('_')[-1] if '_' in name else name for name in gene_symbols], dtype=np.str)
         )
 
+        print("Finish preprocessing data")
         return expression_data
+
+
+class CbmcDataset(CiteSeqDataset):
+    r""" Loads cbmc dataset.
+
+    This dataset that includes 8,617 cord blood mononuclear cells profiled using 10x along with for each cell 13
+    well-characterized mononuclear antibodies. We kept the top 600 genes by variance.
+
+    Args:
+        :save_path: Save path of raw data file. Default: ``'data/'``.
+
+    Examples:
+        >>> gene_dataset = CbmcDataset()
+
+    """
+    def __init__(self, save_path='data/citeSeq/'):
+        super(CbmcDataset, self).__init__(name="cbmc", save_path=save_path)

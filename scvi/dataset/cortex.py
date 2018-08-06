@@ -6,19 +6,51 @@ from .dataset import GeneExpressionDataset
 
 
 class CortexDataset(GeneExpressionDataset):
-    url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt"
+    r""" Loads cortex dataset.
 
-    def __init__(self):
+    The `Mouse Cortex Cells dataset`_ contains 3005 mouse cortex cells and gold-standard labels for
+    seven distinct cell types. Each cell type corresponds to a cluster to recover. We retain top 558 genes
+    ordered by variance.
+
+    Args:
+        :save_path: Save path of raw data file. Default: ``'data/'``.
+
+    Examples:
+        >>> gene_dataset = CortexDataset()
+
+    .. _Mouse Cortex Cells dataset:
+        https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt
+
+    """
+
+    def __init__(self, save_path='data/', genes_to_keep=[], genes_fish=[], additional_genes=558):
         # Generating samples according to a ZINB process
-        self.save_path = 'data/'
+        self.save_path = save_path
         self.download_name = 'expression.bin'
+        self.url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/" \
+                   "expression_mRNA_17-Aug-2014.txt"
+        # If we want to harmonize the dataset with the OsmFISH dataset, we need to keep
+        # OsmFISH genes and order the genes from Cortex accordingly
+        self.genes_fish = genes_fish
+        # If there are specific genes we'd like to keep
+        self.genes_to_keep = genes_to_keep
+        # Number of genes we want to keep
+        self.additional_genes = additional_genes
         expression_data, labels, gene_names = self.download_and_preprocess()
+
+        cell_types = ["astrocytes_ependymal",
+                      "endothelial-mural",
+                      "interneurons",
+                      "microglia",
+                      "oligodendrocytes",
+                      "pyramidalCA1",
+                      "pyramidal-SS"]
 
         super(CortexDataset, self).__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
                 expression_data,
                 labels=labels),
-            gene_names=gene_names)
+            gene_names=np.char.upper(gene_names), cell_types=cell_types)
 
     def preprocess(self):
         print("Preprocessing Cortex data")
@@ -39,8 +71,47 @@ class CortexDataset(GeneExpressionDataset):
         expression_data = np.array(rows, dtype=np.int).T[1:]
         gene_names = np.array(gene_names, dtype=np.str)
 
-        selected = np.std(expression_data, axis=0).argsort()[-558:][::-1]
+        additional_genes = []
+        for gene_cortex in range(len(gene_names)):
+            for gene_fish in self.genes_fish:
+                if gene_names[gene_cortex].lower() == gene_fish.lower():
+                    additional_genes.append(gene_cortex)
+        for gene_cortex in range(len(gene_names)):
+            for gene_fish in self.genes_to_keep:
+                if gene_names[gene_cortex].lower() == gene_fish.lower():
+                    additional_genes.append(gene_cortex)
+
+        selected = np.std(expression_data, axis=0).argsort()[-self.additional_genes:][::-1]
+        selected = np.unique(np.concatenate((selected, np.array(additional_genes))))
+        selected = np.array([int(select) for select in selected])
         expression_data = expression_data[:, selected]
         gene_names = gene_names[selected]
 
+        # Then we reorganize the genes so that the genes from the smFISH dataset
+        # appear first
+        if len(self.genes_fish) > 0:
+            expression_data, gene_names = self.reorder_genes(expression_data, gene_names, self.genes_fish)
+            umi = np.sum(expression_data[:, :len(self.genes_fish)], axis=1)
+            expression_data = expression_data[umi > 10, :]
+            labels = labels[umi > 10]
+
+        print("Finished preprocessing Cortex data")
         return expression_data, labels, gene_names
+
+    @staticmethod
+    def reorder_genes(x, genes, first_genes):
+        """
+        In case the order of the genes needs to be changed:
+        puts the gene present in ordered_genes first, conserving
+        the same order.
+        """
+        # X must be a numpy matrix
+        new_order_first = []
+        for ordered_gene in range(len(first_genes)):
+            for gene in range(len(genes)):
+                if first_genes[ordered_gene].lower() == genes[gene].lower():
+                    new_order_first.append(gene)
+        new_order_second = [x for x in range(len(genes)) if x not in new_order_first]
+        new_order = new_order_first + new_order_second
+
+        return x[:, new_order], genes[new_order]

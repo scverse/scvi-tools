@@ -110,3 +110,6 @@ ENV/
 # Floobits
 .floo
 .flooignore
+
+
+data

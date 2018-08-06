@@ -1,29 +1,41 @@
 import numpy as np
+import scipy
 import torch
+from sklearn.neighbors import NearestNeighbors
 
-from scvi.utils import to_cuda, no_grad, eval_modules
 
-
-@eval_modules()
 def get_latent_mean(vae, data_loader):
     return get_latent(vae, data_loader)
 
 
-@no_grad()
-@eval_modules()
 def get_latent(vae, data_loader):
     latent = []
     batch_indices = []
     labels = []
     for tensors in data_loader:
-        if vae.use_cuda:
-            tensors = to_cuda(tensors)
         sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
-        sample_batch = sample_batch.type(torch.float32)
         latent += [vae.sample_from_posterior_z(sample_batch, y=label)]
         batch_indices += [batch_index]
         labels += [label]
     return np.array(torch.cat(latent)), np.array(torch.cat(batch_indices)), np.array(torch.cat(labels)).ravel()
+
+
+def nn_overlap(X1, X2, k=100):
+    nne = NearestNeighbors(n_neighbors=k + 1, n_jobs=8)
+    assert len(X1) == len(X2)
+    n_samples = len(X1)
+    nne.fit(X1)
+    kmatrix_1 = nne.kneighbors_graph(X1) - scipy.sparse.identity(n_samples)
+    nne.fit(X2)
+    kmatrix_2 = nne.kneighbors_graph(X2) - scipy.sparse.identity(n_samples)
+
+    # 1 - spearman correlation from knn graphs
+    spearman_correlation = scipy.stats.spearmanr(kmatrix_1.A.flatten(), kmatrix_2.A.flatten())[0]
+    # 2 - fold enrichment
+    set_1 = set(np.where(kmatrix_1.A.flatten() == 1)[0])
+    set_2 = set(np.where(kmatrix_2.A.flatten() == 1)[0])
+    fold_enrichment = len(set_1.intersection(set_2)) * n_samples ** 2 / (float(len(set_1)) * len(set_2))
+    return spearman_correlation, fold_enrichment
 
 
 # CLUSTERING METRICS

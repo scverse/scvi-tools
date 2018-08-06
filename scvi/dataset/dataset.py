@@ -3,11 +3,11 @@
 """Handling datasets.
 For the moment, is initialized with a torch Tensor of size (n_cells, nb_genes)"""
 import os
+import urllib.request
 
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
-import urllib.request
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
 
@@ -18,23 +18,29 @@ class GeneExpressionDataset(Dataset):
     - local library size normalization (mean, var) per batch
     """
 
-    def __init__(self, X, local_means, local_vars, batch_indices, labels, gene_names=None):
+    def __init__(self, X, local_means, local_vars, batch_indices, labels,
+                 gene_names=None, cell_types=None, x_coord=None, y_coord=None):
         # Args:
         # Xs: a list of numpy tensors with .shape[1] identical (total_size*nb_genes)
         # or a list of scipy CSR sparse matrix,
         # or transposed CSC sparse matrix (the argument sparse must then be set to true)
         self.X = X
-        self.total_size, self.nb_genes = self.X.shape
+        self.nb_genes = self.X.shape[1]
+        self.dense = type(self.X) is np.ndarray
+        if self.dense:
+            self.X = np.ascontiguousarray(self.X, dtype=np.float32)
         self.local_means = local_means
         self.local_vars = local_vars
-        self.labels = labels
-        self.batch_indices = batch_indices
-        self.n_batches = len(np.unique(batch_indices))
-        self.dense = type(self.X) is np.ndarray
-        self.n_labels = len(np.unique(labels))
+        self.batch_indices, self.n_batches = arrange_categories(batch_indices)
+        self.labels, self.n_labels = arrange_categories(labels)
+        self.x_coord, self.y_coord = x_coord, y_coord
 
         if gene_names is not None:
-            self.gene_names = np.char.upper(gene_names)  # Take an upper case convention for gene names
+            assert self.nb_genes == len(gene_names)
+            self.gene_names = np.array(gene_names, dtype=np.str)
+        if cell_types is not None:
+            assert self.n_labels == len(cell_types)
+            self.cell_types = np.array(cell_types, dtype=np.str)
 
     def __len__(self):
         return self.X.shape[0]
@@ -48,15 +54,40 @@ class GeneExpressionDataset(Dataset):
 
     def collate_fn(self, batch):
         indexes = np.array(batch)
-        X = torch.FloatTensor(self.X[indexes]) if self.dense else torch.FloatTensor(self.X[indexes].toarray())
-        return X, torch.FloatTensor(self.local_means[indexes]), \
-            torch.FloatTensor(self.local_vars[indexes]), \
-            torch.LongTensor(self.batch_indices[indexes]), \
-            torch.LongTensor(self.labels[indexes])
+        if self.dense:
+            X = torch.from_numpy(self.X[indexes])
+        else:
+            X = torch.FloatTensor(self.X[indexes].toarray())
+        if self.x_coord is None or self.y_coord is None:
+            return X, torch.FloatTensor(self.local_means[indexes]), \
+                   torch.FloatTensor(self.local_vars[indexes]), \
+                   torch.LongTensor(self.batch_indices[indexes]), \
+                   torch.LongTensor(self.labels[indexes])
+        else:
+            return X, torch.FloatTensor(self.local_means[indexes]), \
+                   torch.FloatTensor(self.local_vars[indexes]), \
+                   torch.LongTensor(self.batch_indices[indexes]), \
+                   torch.LongTensor(self.labels[indexes]), \
+                   torch.FloatTensor(self.x_coord[indexes]), \
+                   torch.FloatTensor(self.y_coord[indexes])
+
+    def update_genes(self, subset_genes):
+        if hasattr(self, 'gene_names'):
+            self.gene_names = self.gene_names[subset_genes]
+        if hasattr(self, 'gene_symbols'):
+            self.gene_symbols = self.gene_symbols[subset_genes]
+        self.nb_genes = self.X.shape[1]
+
+    def update_cells(self, subset_cells):
+        new_n_cells = len(subset_cells) if subset_cells.dtype is not np.dtype('bool') else subset_cells.sum()
+        print("Downsampling from %i to %i cells" % (len(self), new_n_cells))
+        for attr_name in ['X', 'local_means', 'local_vars', 'labels', 'batch_indices']:
+            setattr(self, attr_name, getattr(self, attr_name)[subset_cells])
 
     def subsample_genes(self, new_n_genes=None, subset_genes=None):
         n_cells, n_genes = self.X.shape
-        if subset_genes is None and (new_n_genes is None or new_n_genes >= n_genes):
+        if subset_genes is None and \
+                (new_n_genes is False or new_n_genes >= n_genes):
             return None  # Do nothing if subsample more genes than total number of genes
         if subset_genes is None:
             print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))
@@ -64,24 +95,43 @@ class GeneExpressionDataset(Dataset):
             std_scaler.fit(self.X.astype(np.float64))
             subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
         else:
-            print("Downsampling from %i to %i genes" % (n_genes, len(subset_genes)))
+            new_n_genes = len(subset_genes) if subset_genes.dtype is not np.dtype('bool') else subset_genes.sum()
+            print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))
         self.X = self.X[:, subset_genes]
-        self.nb_genes = self.X.shape[1]
-        if hasattr(self, 'gene_names'):
-            self.gene_names = self.gene_names[subset_genes]
+        self.update_genes(subset_genes)
 
-    def subsample_cells(self, p_cells=1.):
+    def filter_genes(self, gene_names_ref, on='gene_names'):
+        """
+        Same as _filter_genes but overwrites on current dataset instead of returning data,
+        and updates genes names and symbols
+        """
+        self.X, subset_genes = GeneExpressionDataset._filter_genes(self, gene_names_ref, on=on)
+        self.update_genes(subset_genes)
+
+    def subsample_cells(self, size=1.):
         n_cells, n_genes = self.X.shape
-        new_n_cells = int(p_cells * n_genes) if type(p_cells) is not int else p_cells
-        print("Downsampling from %i to %i cells" % (n_cells, new_n_cells))
-        indices = np.argsort(self.X.sum(axis=1))[::-1][:new_n_cells]
+        new_n_cells = int(size * n_genes) if type(size) is not int else size
+        indices = np.argsort(np.array(self.X.sum(axis=1)).ravel())[::-1][:new_n_cells]
+        self.update_cells(indices)
 
-        def _subsample(a, indices):
-            return a[indices]
-
-        self.X, self.local_means, self.local_vars, self.batch_indices, self.labels = (
-            _subsample(a, indices) for a in (self.X, self.local_means, self.local_vars,
-                                             self.batch_indices, self.labels))
+    def filter_cell_types(self, cell_types):
+        """
+        :param cell_types: numpy array of type np.int (indices) or np.str (cell-types names)
+        :return:
+        """
+        if type(cell_types[0]) is not int:
+            current_cell_types = list(self.cell_types)
+            cell_types_idx = np.array([current_cell_types.index(cell_type) for cell_type in cell_types])
+        else:
+            cell_types_idx = np.array(cell_types, dtype=np.int64)
+        if hasattr(self, 'cell_types'):
+            self.cell_types = self.cell_types[cell_types_idx]
+            print("Only keeping cell types: \n" + '\n'.join(list(self.cell_types)))
+        idx_to_keep = []
+        for idx in cell_types_idx:
+            idx_to_keep += [np.where(self.labels == idx)[0]]
+        self.update_cells(np.concatenate(idx_to_keep))
+        self.labels, self.n_labels = arrange_categories(self.labels, mapping_from=cell_types_idx)
 
     def download(self):
         if hasattr(self, 'urls') and hasattr(self, 'download_names'):
@@ -116,13 +166,13 @@ class GeneExpressionDataset(Dataset):
                 f.write(data)
 
     @staticmethod
-    def get_attributes_from_matrix(X, batch_index=0, labels=None):
+    def get_attributes_from_matrix(X, batch_indices=0, labels=None):
         log_counts = np.log(X.sum(axis=1))
         local_mean = (np.mean(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
         local_var = (np.var(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
-        batch_index = batch_index * np.ones((X.shape[0], 1))
-        labels = labels.reshape(-1, 1) if labels is not None else np.zeros_like(batch_index)
-        return X, local_mean, local_var, batch_index, labels
+        batch_indices = batch_indices * np.ones((X.shape[0], 1)) if type(batch_indices) is int else batch_indices
+        labels = labels.reshape(-1, 1) if labels is not None else np.zeros_like(batch_indices)
+        return X, local_mean, local_var, batch_indices, labels
 
     @staticmethod
     def get_attributes_from_list(Xs, list_labels=None):
@@ -137,7 +187,7 @@ class GeneExpressionDataset(Dataset):
         for i, X in enumerate(Xs):
             label = list_labels[i] if list_labels is not None else list_labels
             X, local_mean, local_var, batch_index, label = (
-                GeneExpressionDataset.get_attributes_from_matrix(X, batch_index=i, labels=label)
+                GeneExpressionDataset.get_attributes_from_matrix(X, batch_indices=i, labels=label)
             )
             new_Xs += [X]
             local_means += [local_mean]
@@ -150,3 +200,86 @@ class GeneExpressionDataset(Dataset):
         labels = np.concatenate(labels)
         X = np.concatenate(new_Xs) if type(new_Xs[0]) is np.ndarray else sp_sparse.vstack(new_Xs)
         return X, local_means, local_vars, batch_indices, labels
+
+    @staticmethod
+    def concat_datasets(*gene_datasets, on='gene_names', shared_labels=True, shared_batches=False):
+        """
+        Combines multiple unlabelled gene_datasets based on the intersection of gene names intersection.
+        Datasets should all have gene_dataset.n_labels=0.
+        Batch indices are generated in the same order as datasets are given.
+        :param gene_datasets: a sequence of gene_datasets object
+        :return: a GeneExpressionDataset instance of the concatenated datasets
+        """
+        assert all([hasattr(gene_dataset, on) for gene_dataset in gene_datasets])
+
+        gene_names_ref = set.intersection(*[set(getattr(gene_dataset, on)) for gene_dataset in gene_datasets])
+        # keep gene order of the first dataset
+        gene_names_ref = [gene_name for gene_name in getattr(gene_datasets[0], on) if gene_name in gene_names_ref]
+        print("Keeping %d genes" % len(gene_names_ref))
+
+        Xs = [GeneExpressionDataset._filter_genes(dataset, gene_names_ref, on=on)[0] for dataset in gene_datasets]
+        if gene_datasets[0].dense:
+            X = np.concatenate([X if type(X) is np.ndarray else X.A for X in Xs])
+        else:
+            X = sp_sparse.vstack([X if type(X) is not np.ndarray else sp_sparse.csr_matrix(X) for X in Xs])
+
+        batch_indices = np.zeros((X.shape[0], 1))
+        n_batch_offset = 0
+        current_index = 0
+        for gene_dataset in gene_datasets:
+            next_index = current_index + len(gene_dataset)
+            batch_indices[current_index:next_index] = gene_dataset.batch_indices + n_batch_offset
+            n_batch_offset += (gene_dataset.n_batches if not shared_batches else 0)
+            current_index = next_index
+
+        cell_types = None
+        if shared_labels:
+            if all([hasattr(gene_dataset, "cell_types") for gene_dataset in gene_datasets]):
+                cell_types = list(
+                    set([cell_type for gene_dataset in gene_datasets for cell_type in gene_dataset.cell_types])
+                )
+                labels = []
+                for gene_dataset in gene_datasets:
+                    mapping = [cell_types.index(cell_type) for cell_type in gene_dataset.cell_types]
+                    labels += [arrange_categories(gene_dataset.labels, mapping_to=mapping)[0]]
+                labels = np.concatenate(labels)
+            else:
+                labels = np.concatenate([gene_dataset.labels for gene_dataset in gene_datasets])
+        else:
+            labels = np.zeros((X.shape[0], 1))
+            n_labels_offset = 0
+            current_index = 0
+            for gene_dataset in gene_datasets:
+                next_index = current_index + len(gene_dataset)
+                labels[current_index:next_index] = gene_dataset.labels + n_labels_offset
+                n_labels_offset += gene_dataset.n_labels
+                current_index = next_index
+
+        _, local_mean, local_var, _, _ = GeneExpressionDataset.get_attributes_from_matrix(X)
+        return GeneExpressionDataset(X, local_mean, local_var, batch_indices, labels,
+                                     gene_names=gene_names_ref, cell_types=cell_types)
+
+    @staticmethod
+    def _filter_genes(gene_dataset, gene_names_ref, on='gene_names'):
+        """
+        :return: gene_dataset.X filtered by the corresponding genes ( / columns / features), idx_genes
+        """
+        gene_names = list(getattr(gene_dataset, on))
+        subset_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.int64)
+        return gene_dataset.X[:, subset_genes], subset_genes
+
+
+def arrange_categories(original_categories, mapping_from=None, mapping_to=None):
+    unique_categories = np.unique(original_categories)
+    n_categories = len(unique_categories)
+    if mapping_to is None:
+        mapping_to = range(n_categories)
+    if mapping_from is None:
+        mapping_from = unique_categories
+    assert n_categories <= len(mapping_from)  # one cell_type can have no instance in dataset
+    assert len(mapping_to) == len(mapping_from)
+
+    new_categories = np.copy(original_categories)
+    for idx_from, idx_to in zip(mapping_from, mapping_to):
+        new_categories[original_categories == idx_from] = idx_to
+    return new_categories, n_categories

@@ -12,47 +12,50 @@ scVI
         :target: https://scvi.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
 
-
 Single-cell Variational Inference
-
 
 * Free software: MIT license
 * Documentation: https://scvi.readthedocs.io.
 
 
-Installation
---------
+Quick Start
+-----------
 
-1. Install Python 3.6 or later. We typically use the Miniconda Python distribution: https://conda.io/miniconda.html
+1. Install Python 3.6 or later. We typically use the Miniconda_ Python distribution.
 
-2. Install PyTorch: http://pytorch.org
+.. _Miniconda: https://conda.io/miniconda.html
 
-3. Install scvi through either conda or pip, or by cloning this repository and manually installing all the requirements listed in setup.py_.
+2. Install PyTorch_. If you have an Nvidia GPU, be sure to install a version of PyTorch that supports it -- scVI runs much faster with a discrete GPU.
+
+.. _PyTorch: http://pytorch.org
+
+3. Install ``scvi`` through conda (``conda install scvi -c bioconda``) or through pip (``pip install scvi``). Alternatively, you may clone this repository and manually install the dependencies listed in setup.py_.
 
 .. _setup.py: https://github.com/YosefLab/scVI/tree/master/setup.py
 
-    Through conda: ``conda install scvi -c bioconda``
 
-    Through pip: ``pip install scvi``
+4. Refer to `this Jupyter notebook`__ to see how to import datasets into scVI.
 
-    By cloning this repository: ``git clone https://github.com/YosefLab/scVI.git``
+.. __: https://github.com/YosefLab/scVI/tree/master/docs/notebooks/data_loading.ipynb
 
-4. Refer to the examples_ subdirectory for Jupyter notebooks that illustrate usage. 
+5. Refer to `this Jupyter notebook`__ to see how to train the scVI model, impute missing data, detect differential expression, and more!
 
-.. _examples: https://github.com/YosefLab/scVI/tree/master/examples
+.. __: https://github.com/YosefLab/scVI/tree/master/docs/notebooks/basic_tutorial.ipynb
 
 
 Benchmarks
---------
+----------
 
 To recreate the results appearing in the paper referenced below, run
 
-.. code-block::
+.. code-block:: python
 
-    python ./run_benchmarks.py --dataset=cortex 
+    python ./run_benchmarks.py --dataset=cortex
+
+Valid choices for ``--dataset`` include ``synthetic``, ``cortex``, ``brain_large``, ``retina``, ``cbmc``, ``hemato``, and ``pbmc``. You may also specify an arbitrary ``.loom``, ``.h5ad`` (AnnData), or ``.csv`` file.
 
 References
---------
+----------
 
 Romain Lopez, Jeffrey Regier, Michael B Cole, Michael Jordan, Nir Yosef.
 **"Bayesian Inference for a Generative Model of Transcriptome Profiles from Single-cell RNA Sequencing."**
