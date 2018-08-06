@@ -7,13 +7,31 @@ from torch.distributions import Normal
 from scvi.models.utils import one_hot
 
 
-class FCLayers(nn.Module):
+class Module(nn.Module):
+    def train_wo_batch_norm(self, mode=True, batch_norm=False):
+        self.training = mode
+        for module in self.children():
+            if isinstance(module, nn.BatchNorm1d):
+                module.train(mode=batch_norm)
+            elif hasattr(module, 'train_wo_batch_norm'):
+                module.train_wo_batch_norm(mode=mode, batch_norm=batch_norm)
+            else:
+                module.train(mode=mode)
+        return self
+
+
+class Sequential(nn.Sequential, Module):
+    pass
+
+
+# let's code one batch norm per batch
+class FCLayers(Module):
     def __init__(self, n_in, n_out, n_cat_list=[], n_layers=1, n_hidden=128, dropout_rate=0.1):
         super(FCLayers, self).__init__()
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
         self.n_cat_list = [n_cat if n_cat > 1 else 0 for n_cat in n_cat_list]  # n_cat = 1 will be ignored
-        self.fc_layers = nn.Sequential(collections.OrderedDict(
-            [('Layer {}'.format(i), nn.Sequential(
+        self.fc_layers = Sequential(collections.OrderedDict(
+            [('Layer {}'.format(i), Sequential(
                 nn.Linear(n_in + sum(self.n_cat_list), n_out),
                 nn.BatchNorm1d(n_out, eps=1e-3, momentum=0.99),
                 nn.ReLU(),
@@ -45,7 +63,7 @@ class FCLayers(nn.Module):
 
 
 # Encoder
-class Encoder(nn.Module):
+class Encoder(Module):
     def __init__(self, n_input, n_output, n_cat_list=[], n_layers=1, n_hidden=128, dropout_rate=0.1):
         super(Encoder, self).__init__()
         self.encoder = FCLayers(n_in=n_input, n_out=n_hidden, n_cat_list=n_cat_list, n_layers=n_layers,
@@ -66,14 +84,14 @@ class Encoder(nn.Module):
 
 
 # Decoder
-class DecoderSCVI(nn.Module):
+class DecoderSCVI(Module):
     def __init__(self, n_input, n_output, n_cat_list=[], n_layers=1, n_hidden=128, dropout_rate=0.1):
         super(DecoderSCVI, self).__init__()
         self.px_decoder = FCLayers(n_in=n_input, n_out=n_hidden, n_cat_list=n_cat_list, n_layers=n_layers,
                                    n_hidden=n_hidden, dropout_rate=dropout_rate)
 
         # mean gamma
-        self.px_scale_decoder = nn.Sequential(nn.Linear(n_hidden, n_output), nn.Softmax(dim=-1))
+        self.px_scale_decoder = Sequential(nn.Linear(n_hidden, n_output), nn.Softmax(dim=-1))
 
         # dispersion: here we only deal with gene-cell dispersion case
         self.px_r_decoder = nn.Linear(n_hidden, n_output)
@@ -93,7 +111,7 @@ class DecoderSCVI(nn.Module):
 
 
 # Decoder
-class Decoder(nn.Module):
+class Decoder(Module):
     def __init__(self, n_input, n_output, n_cat_list=[], n_layers=1, n_hidden=128, dropout_rate=0.1):
         super(Decoder, self).__init__()
         self.decoder = FCLayers(n_in=n_input, n_out=n_hidden, n_cat_list=n_cat_list, n_layers=n_layers,
