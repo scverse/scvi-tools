@@ -7,6 +7,7 @@
 import numpy as np
 
 from scvi.benchmark import all_benchmarks, benchmark, benchamrk_fish_scrna
+from scvi.benchmark import benchmark_scanvi
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
@@ -17,7 +18,6 @@ from scvi.metrics.adapt_encoder import adapt_encoder
 from scvi.models import VAE, SCANVI, VAEC
 from scvi.models.classifier import Classifier
 
-from scvi.benchmark import benchmark_scanvi
 use_cuda = True
 
 
@@ -234,6 +234,7 @@ def test_nb_not_zinb():
                    reconstruction_loss="nb")
     infer_synthetic_svaec = JointSemiSupervisedVariationalInference(svaec, synthetic_dataset, use_cuda=use_cuda)
     infer_synthetic_svaec.train(n_epochs=1)
+
 
 def test_benchmark_scanvi():
     s1 = SyntheticDataset()

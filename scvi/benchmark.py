@@ -136,7 +136,7 @@ def benchmark_scanvi(source_datasets, target_dataset, params=dict(), max_acc=Tru
     # ~ equivalent to a warm-up for the classification
     vae = VAE(dataset.nb_genes, dataset.n_batches, dataset.n_labels,
               n_layers=params['n_layers'], n_hidden=params['n_hidden'], dropout_rate=0.1)
-    infer = VariationalInference(vae, dataset, weight_decay=params['weight_decay'], verbose=True, frequency=50)
+    infer = VariationalInference(vae, dataset, weight_decay=params['weight_decay'])
 
     infer.data_loaders = data_loaders
     infer.data_loaders.loop = ['all']
@@ -162,7 +162,6 @@ def benchmark_scanvi(source_datasets, target_dataset, params=dict(), max_acc=Tru
     data_loaders.loop = ['all', 'labelled']
     infer_scanvi.classifier_inference.data_loaders['labelled'] = data_loaders['labelled']
     infer_scanvi.classifier_inference.data_loaders.loop = ['labelled']
-
 
     infer_scanvi.train(params['n_epoch_train_scanvi'], lr=params['lr_train_scanvi'])
 
