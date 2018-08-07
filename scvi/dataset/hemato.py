@@ -32,13 +32,13 @@ class HematoDataset(GeneExpressionDataset):
         self.gene_names_filename = "bBM.filtered_gene_list.paper.txt"
         self.spring_and_pba_filename = "bBM.spring_and_pba.csv"
 
-        expression_data, gene_names, labels, x_coord, y_coord = self.download_and_preprocess()
+        expression_data, gene_names, labels, self.y_spring, self.y_spring = self.download_and_preprocess()
 
         super(HematoDataset, self).__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
                 expression_data,
                 labels=labels),
-            gene_names=gene_names, x_coord=x_coord, y_coord=y_coord)
+            gene_names=gene_names)
 
     def preprocess(self):
         print("Preprocessing Hemato data")
@@ -59,8 +59,8 @@ class HematoDataset(GeneExpressionDataset):
 
         data = raw_counts.merge(spring_and_pba, how="inner")
         expression_data = data[gene_names]
-        x_coord = data["x_spring"].values
-        y_coord = data["y_spring"].values
+        x_spring = data["x_spring"].values
+        y_spring = data["y_spring"].values
 
         meta = data[["Potential", "Pr_Er", "Pr_Gr", "Pr_Ly", "Pr_DC", "Pr_Mk", "Pr_Mo", "Pr_Ba"]]
 
@@ -73,4 +73,4 @@ class HematoDataset(GeneExpressionDataset):
         expression_data = expression_data.values
 
         print("Finished preprocessing Hemato data")
-        return expression_data, gene_names, labels, x_coord, y_coord
+        return expression_data, gene_names, labels, x_spring, y_spring
