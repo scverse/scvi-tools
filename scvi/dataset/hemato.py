@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from zipfile import ZipFile
 from .dataset import GeneExpressionDataset
 from pathlib import Path
@@ -31,31 +32,45 @@ class HematoDataset(GeneExpressionDataset):
         self.gene_names_filename = "bBM.filtered_gene_list.paper.txt"
         self.spring_and_pba_filename = "bBM.spring_and_pba.csv"
 
-        expression_data, gene_names = self.download_and_preprocess()
+        expression_data, gene_names, labels, self.y_spring, self.y_spring = self.download_and_preprocess()
 
         super(HematoDataset, self).__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
-                expression_data), gene_names=gene_names)
+                expression_data,
+                labels=labels),
+            gene_names=gene_names)
 
     def preprocess(self):
         print("Preprocessing Hemato data")
 
         with ZipFile(self.save_path + 'data.zip', 'r') as zip:
             zip.extractall(path=Path(self.save_path).parent)
-
         raw_counts = pd.read_csv(self.save_path + self.download_names[0], compression='gzip')
+
+        # remove this library to avoid dealing with batch effects
         raw_counts.drop(raw_counts.index[raw_counts["library_id"] == "basal_bm1"], inplace=True)
 
         spring_and_pba = pd.read_csv(self.save_path + self.spring_and_pba_filename)
-        with open(self.save_path + self.gene_names_filename) as f:
-            gene_filter_list = f.read()
-
-        gene_names = gene_filter_list.splitlines()
+        # with open(self.save_path + self.gene_names_filename) as f:
+        #     gene_filter_list = f.read()
+        #
+        # gene_names = gene_filter_list.splitlines()
+        gene_names = np.loadtxt(self.save_path + self.gene_names_filename, dtype=np.str)
 
         data = raw_counts.merge(spring_and_pba, how="inner")
         expression_data = data[gene_names]
+        x_spring = data["x_spring"].values
+        y_spring = data["y_spring"].values
 
+        meta = data[["Potential", "Pr_Er", "Pr_Gr", "Pr_Ly", "Pr_DC", "Pr_Mk", "Pr_Mo", "Pr_Ba"]]
+
+        def logit(p):
+            p = np.copy(p.values)
+            p[p == 0] = np.min(p[p > 0])
+            p[p == 1] = np.max(p[p < 1])
+            return np.log(p / (1 - p))
+        labels = logit(meta.iloc[:, 2]) - logit(meta.iloc[:, 1])
         expression_data = expression_data.values
 
         print("Finished preprocessing Hemato data")
-        return expression_data, gene_names
+        return expression_data, gene_names, labels, x_spring, y_spring
