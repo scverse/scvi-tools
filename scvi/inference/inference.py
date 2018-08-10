@@ -32,10 +32,12 @@ class Inference:
     default_metrics_to_monitor = []
 
     def __init__(self, model, gene_dataset, use_cuda=True, metrics_to_monitor=None, data_loaders=None, benchmark=False,
-                 verbose=False, frequency=None, early_stopping_metric=None, save_best_state_metric=None, on=None):
+                 verbose=False, frequency=None, early_stopping_metric=None,
+                 save_best_state_metric=None, on=None, weight_decay=1e-6):
         self.model = model
         self.gene_dataset = gene_dataset
         self.data_loaders = data_loaders
+        self.weight_decay = weight_decay
         self.benchmark = benchmark
         self.epoch = 0
         self.training_time = 0
@@ -84,7 +86,7 @@ class Inference:
             if params is None:
                 params = filter(lambda p: p.requires_grad, self.model.parameters())
 
-            optimizer = torch.optim.Adam(params, lr=lr, weight_decay=1e-6)
+            optimizer = torch.optim.Adam(params, lr=lr, weight_decay=self.weight_decay)
             self.epoch = 0
             self.compute_metrics_time = 0
             self.n_epochs = n_epochs

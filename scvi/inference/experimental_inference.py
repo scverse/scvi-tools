@@ -73,6 +73,22 @@ def adversarial_loss(self, tensors, *next_tensors):
     return type(self).loss(self, tensors, *next_tensors) - cls_loss
 
 
+def adversarial_loss_fish(self, tensors_seq, tensors_fish):
+    if self.epoch > self.warm_up:
+        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors_seq
+        z = self.model.sample_from_posterior_z(sample_batch, mode="scRNA")
+        cls_loss = (self.scale * F.cross_entropy(self.adversarial_cls(z), torch.zeros_like(batch_index).view(-1)))
+        sample_batch_fish, local_l_mean, local_l_var, batch_index_fish, _, _, _ = tensors_fish
+        z = self.model.sample_from_posterior_z(sample_batch, mode="smFISH")
+        cls_loss += (self.scale * F.cross_entropy(self.adversarial_cls(z), torch.ones_like(batch_index).view(-1)))
+        self.optimizer_cls.zero_grad()
+        cls_loss.backward(retain_graph=True)
+        self.optimizer_cls.step()
+    else:
+        cls_loss = 0
+    return type(self).loss(self, tensors_seq, tensors_fish) - cls_loss
+
+
 def adversarial_train(self, n_epochs=20, lr=1e-3, weight_decay=1e-4):
     self.adversarial_cls = Classifier(self.model.n_latent, n_labels=self.model.n_batch, n_layers=3)
     if self.use_cuda:
@@ -82,9 +98,12 @@ def adversarial_train(self, n_epochs=20, lr=1e-3, weight_decay=1e-4):
     type(self).train(self, n_epochs=n_epochs, lr=lr)
 
 
-def adversarial_wrapper(infer, warm_up=100, scale=50):
+def adversarial_wrapper(infer, warm_up=100, scale=50, mode="regular"):
     infer.warm_up = warm_up
     infer.scale = scale
-    infer.loss = types.MethodType(adversarial_loss, infer)
+    if mode == "regular":
+        infer.loss = types.MethodType(adversarial_loss, infer)
+    else:
+        infer.loss = types.MethodType(adversarial_loss_fish, infer)
     infer.train = types.MethodType(adversarial_train, infer)
     return infer
