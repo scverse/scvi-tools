@@ -83,6 +83,8 @@ class DataLoaders:
             else:
                 sampler = SequentialSampler(self.gene_dataset)
         else:
+            if hasattr(indices, 'dtype') and indices.dtype is np.dtype('bool'):
+                indices = np.where(indices)[0].ravel()
             sampler = SubsetRandomSampler(indices)
         return DataLoaderWrapper(self.gene_dataset, use_cuda=self.use_cuda, sampler=sampler,
                                  **self.kwargs)
@@ -136,6 +138,7 @@ class TrainTestDataLoaders(DataLoaders):
 
 class SemiSupervisedDataLoaders(DataLoaders):
     to_monitor = ['labelled', 'unlabelled']
+    loop = ['all', 'labelled']
 
     def __init__(self, gene_dataset, n_labelled_samples_per_class=50, seed=0, use_cuda=True, **kwargs):
         """

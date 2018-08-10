@@ -13,10 +13,9 @@ Accuracy = namedtuple('Accuracy', ['unweighted', 'weighted', 'worst', 'accuracy_
 
 def compute_accuracy_tuple(y, y_pred):
     y = y.ravel()
-    n_labels = len(np.unique(y))
     classes_probabilities = []
     accuracy_classes = []
-    for cl in range(n_labels):
+    for cl in np.unique(y):
         idx = y == cl
         classes_probabilities += [np.mean(idx)]
         accuracy_classes += [np.mean((y[idx] == y_pred[idx])) if classes_probabilities[-1] else 0]
@@ -38,13 +37,13 @@ def compute_predictions(vae, data_loader, classifier=None):
         sample_batch, _, _, _, labels = tensors
         all_y += [labels.view(-1)]
 
-        if hasattr(vae, 'classify'):
-            y_pred = vae.classify(sample_batch).argmax(dim=-1)
-        elif classifier is not None:
+        if classifier is not None:
             # Then we use the specified classifier
             if vae is not None:
-                sample_batch, _, _ = vae.z_encoder(sample_batch)
+                sample_batch, _, _ = vae.z_encoder(torch.log(1+sample_batch))
             y_pred = classifier(sample_batch).argmax(dim=-1)
+        elif hasattr(vae, 'classify'):
+            y_pred = vae.classify(sample_batch).argmax(dim=-1)
         all_y_pred += [y_pred]
 
     all_y_pred = np.array(torch.cat(all_y_pred))

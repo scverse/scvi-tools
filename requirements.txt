@@ -16,3 +16,4 @@ loompy==2.0.9
 tqdm==4.23.4
 anndata==0.6.4
 xlrd==1.1.0
+seaborn==0.8.1

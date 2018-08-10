@@ -43,6 +43,8 @@ class LoomDataset(GeneExpressionDataset):
 
         if 'Gene' in ds.ra:
             gene_names = ds.ra['Gene']
+        if 'gene_symbols' in ds.ra:
+            self.gene_symbols = self.gene_names = ds.ra["gene_symbols"]
 
         if 'BatchID' in ds.ca:
             batch_indices = ds.ca['BatchID']

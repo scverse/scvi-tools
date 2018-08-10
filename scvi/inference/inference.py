@@ -62,35 +62,38 @@ class Inference:
         self.verbose = verbose
 
         self.history = defaultdict(lambda: [])
+        self.optimizer = None
 
-    def compute_metrics(self):
+    def compute_metrics(self, batch_norm=False):
         begin = time.time()
         with torch.set_grad_enabled(False):
-            self.model.eval()
             if self.frequency and (
                             self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.frequency == 0)):
+                self.model.eval()
                 if self.verbose:
                     print("\nEPOCH [%d/%d]: " % (self.epoch, self.n_epochs))
                 for name in self.data_loaders.to_monitor:
                     for metric in self.metrics_to_monitor:
                         result = getattr(self, metric)(name=name, verbose=self.verbose)
                         self.history[metric + '_' + name] += [result]
-            self.model.train()
+                self.model.train_wo_batch_norm(mode=True, batch_norm=batch_norm)
             self.compute_metrics_time += time.time() - begin
 
-    def train(self, n_epochs=20, lr=1e-3, params=None):
+    def train(self, n_epochs=20, lr=1e-3, params=None, batch_norm=True):
         begin = time.time()
         with torch.set_grad_enabled(True):
-            self.model.train()
-
+            self.model.train_wo_batch_norm(mode=True, batch_norm=batch_norm)
             if params is None:
                 params = filter(lambda p: p.requires_grad, self.model.parameters())
 
-            optimizer = torch.optim.Adam(params, lr=lr, weight_decay=self.weight_decay)
+            self.optimizer = self.optimizer if self.optimizer is not None else torch.optim.Adam(
+                params, lr=lr, weight_decay=self.weight_decay
+            )
+
             self.epoch = 0
             self.compute_metrics_time = 0
             self.n_epochs = n_epochs
-            self.compute_metrics()
+            self.compute_metrics(batch_norm=batch_norm)
 
             with trange(n_epochs, desc="training", file=sys.stdout, disable=self.verbose) as pbar:
                 # We have to use tqdm this way so it works in Jupyter notebook.
@@ -102,16 +105,16 @@ class Inference:
 
                     for tensors_list in self.data_loaders:
                         loss = self.loss(*tensors_list)
-                        optimizer.zero_grad()
+                        self.optimizer.zero_grad()
                         loss.backward()
-                        optimizer.step()
+                        self.optimizer.step()
 
-                    if not self.on_epoch_end():
+                    if not self.on_epoch_end(batch_norm=batch_norm):
                         break
 
             if self.save_best_state_metric is not None:
                 self.model.load_state_dict(self.best_state_dict)
-                self.compute_metrics()
+                self.compute_metrics(batch_norm=batch_norm)
 
             self.model.eval()
             self.training_time += (time.time() - begin) - self.compute_metrics_time
@@ -121,9 +124,9 @@ class Inference:
     def on_epoch_begin(self):
         pass
 
-    def on_epoch_end(self):
+    def on_epoch_end(self, batch_norm=True):
         self.epoch += 1
-        self.compute_metrics()
+        self.compute_metrics(batch_norm=batch_norm)
         if self.save_best_state_metric is not None and self.on is not None:
             if self.early_stopping.update_state(self.history[self.save_best_state_metric + '_' + self.on][-1]):
                 self.best_state_dict = self.model.state_dict()

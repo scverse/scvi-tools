@@ -1,26 +1,21 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-
-from sklearn.cluster import KMeans
-from sklearn.mixture import GaussianMixture as GMM
 from sklearn.manifold import TSNE
-from sklearn.metrics import adjusted_rand_score as ARI
-from sklearn.metrics import normalized_mutual_info_score as NMI
-from sklearn.metrics import silhouette_score
+from sklearn.neighbors import KNeighborsClassifier
 from torch.nn import functional as F
 
 from scvi.dataset import CortexDataset
 from scvi.dataset.data_loaders import DataLoaders
-from scvi.dataset.data_loaders import TrainTestDataLoaders, AlternateSemiSupervisedDataLoaders, \
-    JointSemiSupervisedDataLoaders, TrainTestDataLoadersFish
-from scvi.metrics.classification import compute_accuracy, compute_accuracy_svc, compute_accuracy_rf, \
-    unsupervised_classification_accuracy, compute_predictions
-from scvi.metrics.classification import unsupervised_clustering_accuracy
-from scvi.metrics.clustering import get_latent, entropy_batch_mixing, nn_overlap
+from scvi.dataset.data_loaders import TrainTestDataLoaders, SemiSupervisedDataLoaders, TrainTestDataLoadersFish
+from scvi.metrics.classification import unsupervised_classification_accuracy, compute_accuracy_tuple, \
+    compute_predictions, compute_accuracy, compute_accuracy_svc, compute_accuracy_rf
+from scvi.metrics.clustering import get_latent, entropy_batch_mixing, nn_overlap, select_indices_evenly, \
+    clustering_scores
 from scvi.metrics.differential_expression import de_stats, de_cortex
 from scvi.metrics.imputation import imputation, plot_imputation
 from scvi.metrics.log_likelihood import compute_log_likelihood, compute_marginal_log_likelihood
+from scvi.metrics.visualization import color_dictionary, colors_20
 from . import Inference, ClassifierInference
 
 plt.switch_backend('agg')
@@ -46,9 +41,9 @@ class VariationalInference(Inference):
     """
     default_metrics_to_monitor = ['ll']
 
-    def __init__(self, model, gene_dataset, train_size=0.8, **kwargs):
+    def __init__(self, model, gene_dataset, train_size=0.8, kl=None, **kwargs):
         super(VariationalInference, self).__init__(model, gene_dataset, **kwargs)
-        self.kl = None
+        self.kl = kl
         self.data_loaders = TrainTestDataLoaders(self.gene_dataset, train_size=train_size, use_cuda=self.use_cuda)
 
     def loss(self, tensors):
@@ -58,7 +53,7 @@ class VariationalInference(Inference):
         return loss
 
     def on_epoch_begin(self):
-        self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / self.n_epochs)
+        self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / self.n_epochs) if self.n_epochs else 0
 
     def ll(self, name, verbose=False):
         ll = compute_log_likelihood(self.model, self.data_loaders[name])
@@ -96,26 +91,18 @@ class VariationalInference(Inference):
         plot_imputation(np.concatenate(original_list), np.concatenate(imputed_list), title=title)
         return original_list, imputed_list
 
-    def clustering_scores(self, name, verbose=True, prediction_algorithm='knn'):
+    def clustering_scores(self, name, verbose=False, prediction_algorithm='knn'):
         if self.gene_dataset.n_labels > 1:
             latent, _, labels = get_latent(self.model, self.data_loaders[name])
-            if prediction_algorithm == 'knn':
-                labels_pred = KMeans(self.gene_dataset.n_labels, n_init=200).fit_predict(latent)  # n_jobs>1 ?
-            elif prediction_algorithm == 'gmm':
-                gmm = GMM(self.gene_dataset.n_labels)
-                gmm.fit(latent)
-                labels_pred = gmm.predict(latent)
 
-            asw_score = silhouette_score(latent, labels)
-            nmi_score = NMI(labels, labels_pred)
-            ari_score = ARI(labels, labels_pred)
-            uca_score = unsupervised_clustering_accuracy(labels, labels_pred)[0]
+            scores = clustering_scores(latent, labels, prediction_algorithm=prediction_algorithm,
+                                       n_labels=self.model.n_labels)
             if verbose:
-                print("Clustering Scores for %s:\nSilhouette: %.4f\nNMI: %.4f\nARI: %.4f\nUCA: %.4f" %
-                      (name, asw_score, nmi_score, ari_score, uca_score))
-            return asw_score, nmi_score, ari_score, uca_score
+                print("Clustering Scores for %s with %s:\nSilhouette: %.4f\nNMI: %.4f\nARI: %.4f\nUCA: %.4f" %
+                      (name, prediction_algorithm, scores['asw'], scores['nmi'], scores['ari'], scores['uca']))
+            return scores
 
-    def nn_overlap_score(self, name='sequential', verbose=True, **kwargs):
+    def nn_overlap_score(self, name='sequential', verbose=False, **kwargs):
         if hasattr(self.gene_dataset, 'adt_expression_clr'):
             assert name == 'sequential'  # only works for the sequential data_loader (mapping indices)
             latent, _, _ = get_latent(self.model, self.data_loaders[name])
@@ -143,21 +130,26 @@ class VariationalInference(Inference):
     differential_expression.mode = 'max'
 
     def entropy_batch_mixing(self, name, verbose=False, **kwargs):
-        if self.gene_dataset.n_batches == 2:
-            latent, batch_indices, labels = get_latent(self.model, self.data_loaders[name])
-            be_score = entropy_batch_mixing(latent, batch_indices, **kwargs)
-            if verbose:
-                print("Entropy batch mixing :", be_score)
-            return be_score
+        if self.gene_dataset.n_batches >= 2:
+            if len(self.data_loaders.to_monitor) > 0 and \
+                    name == self.data_loaders.to_monitor[0] or name == 'sequential':
+                # only once
+                name = 'sequential'
+                latent, batch_indices, labels = get_latent(self.model, self.data_loaders[name])
+                be_score = entropy_batch_mixing(latent, batch_indices, **kwargs)
+                if verbose:
+                    print("Entropy batch mixing %s is : %.4f" % (name, be_score))
+                return be_score
 
     entropy_batch_mixing.mode = 'max'
 
-    def show_t_sne(self, name, n_samples=1000, color_by='', save_name='', latent=None, batch_indices=None,
-                   labels=None, n_batch=None):
+    def show_t_sne(self, name, n_samples=1000, color_by='batches and labels', save_name='', latent=None,
+                   batch_indices=None,
+                   labels=None, n_batch=None, uniform=False):
         # If no latent representation is given
         if latent is None:
             latent, batch_indices, labels = get_latent(self.model, self.data_loaders[name])
-            latent, idx_t_sne = self.apply_t_sne(latent, n_samples)
+            latent, idx_t_sne = self.apply_t_sne(latent, n_samples, uniform=uniform, batch_indices=batch_indices)
             batch_indices = batch_indices[idx_t_sne].ravel()
             labels = labels[idx_t_sne].ravel()
         if not color_by:
@@ -175,7 +167,7 @@ class VariationalInference(Inference):
                 if hasattr(self.gene_dataset, 'cell_types') and color_by == 'labels':
                     plt_labels = self.gene_dataset.cell_types
                 else:
-                    plt_labels = [str(i) for i in range(len(np.unique(indices)))]
+                    plt_labels = [str(i) for i in range(n)]
                 plt.figure(figsize=(10, 10))
                 for i, label in zip(range(n), plt_labels):
                     plt.scatter(latent[indices == i, 0], latent[indices == i, 1], label=label)
@@ -194,21 +186,45 @@ class VariationalInference(Inference):
                 else:
                     plt_labels = [str(i) for i in range(len(np.unique(indices)))]
                 for i, cell_type in zip(range(self.gene_dataset.n_labels), plt_labels):
-                    axes[1].scatter(latent[indices == i, 0], latent[indices == i, 1], label=cell_type)
+                    if cell_type in color_dictionary:
+                        c = color_dictionary[cell_type]
+                    else:
+                        c = colors_20[i]
+                    axes[1].scatter(latent[indices == i, 0], latent[indices == i, 1], label=cell_type, c=c)
                 axes[1].set_title("label coloring")
                 axes[1].axis("off")
                 axes[1].legend()
         plt.axis("off")
         plt.tight_layout()
+        plt.show()
         if save_name:
             plt.savefig(save_name)
 
     @staticmethod
-    def apply_t_sne(latent, n_samples=1000):
-        idx_t_sne = np.random.permutation(len(latent))[:n_samples] if n_samples else np.arange(len(latent))
+    def apply_t_sne(latent, n_samples=1000, uniform=False, batch_indices=None):
+        if uniform:
+            idx_t_sne = np.random.permutation(len(latent))[:n_samples] if n_samples else np.arange(len(latent))
+        else:
+            idx_t_sne = select_indices_evenly(n_samples, batch_indices)
         if latent.shape[1] != 2:
             latent = TSNE().fit_transform(latent[idx_t_sne])
         return latent, idx_t_sne
+
+    def nn_latentspace(self, name, verbose=False, **kwargs):
+        if len(self.data_loaders.to_monitor) > 0 and \
+                name == self.data_loaders.to_monitor[0] or name == 'sequential':
+            data_train, _, labels_train = self.get_latent('labelled')
+            data_test, _, labels_test = self.get_latent('unlabelled')
+            nn = KNeighborsClassifier()
+            nn.fit(data_train, labels_train)
+            score = nn.score(data_test, labels_test)
+            if verbose:
+                print("NN classifier score:", score)
+                print("NN classifier tuple:", compute_accuracy_tuple(labels_test, nn.predict(data_test)))
+            return score
+
+    def get_latent(self, name):
+        return get_latent(self.model, self.data_loaders[name])
 
 
 class SemiSupervisedVariationalInference(VariationalInference):
@@ -216,6 +232,40 @@ class SemiSupervisedVariationalInference(VariationalInference):
     This parent class is inherited to specify the different training schemes for semi-supervised learning
     """
     default_metrics_to_monitor = VariationalInference.default_metrics_to_monitor + ['accuracy']
+
+    def __init__(self, model, gene_dataset, n_labelled_samples_per_class=50, n_epochs_classifier=0,
+                 lr_classification=0.1, classification_ratio=100, labels_groups=None, **kwargs):
+        super(SemiSupervisedVariationalInference, self).__init__(model, gene_dataset, **kwargs)
+        self.labels_groups = labels_groups
+        self.n_epochs_classifier = n_epochs_classifier
+        self.lr_classification = lr_classification
+        self.classification_ratio = classification_ratio
+        self.data_loaders = SemiSupervisedDataLoaders(gene_dataset, n_labelled_samples_per_class,
+                                                      use_cuda=self.use_cuda)
+
+        self.classifier_inference = ClassifierInference(
+            model.classifier, gene_dataset, metrics_to_monitor=[], verbose=True, frequency=0,
+            sampling_model=self.model
+        )
+        self.classifier_inference.data_loaders['train'] = self.data_loaders['labelled']
+
+    def loss(self, tensors_all, tensors_labelled):
+        loss = super(SemiSupervisedVariationalInference, self).loss(tensors_all)
+        self.model.eval()  # We just want to avoid batch norm but remove dropout as well -> to be improved
+        sample_batch, _, _, _, y = tensors_labelled
+        classification_loss = F.cross_entropy(self.model.classify(sample_batch), y.view(-1))
+        loss += classification_loss * self.classification_ratio
+        self.model.train_wo_batch_norm(batch_norm=True)
+        return loss
+
+    def on_epoch_begin(self):
+        super(SemiSupervisedVariationalInference, self).on_epoch_begin()
+
+    def on_epoch_end(self, batch_norm=True):
+        self.model.eval()
+        self.classifier_inference.train(self.n_epochs_classifier, lr=self.lr_classification, batch_norm=False)
+        self.model.train_wo_batch_norm(batch_norm=True)
+        return super(SemiSupervisedVariationalInference, self).on_epoch_end(batch_norm=True)
 
     def accuracy(self, name, verbose=False):
         acc = compute_accuracy(self.model, self.data_loaders[name])
@@ -277,23 +327,12 @@ class AlternateSemiSupervisedVariationalInference(SemiSupervisedVariationalInfer
         >>> infer.train(n_epochs=20, lr=1e-3)
     """
 
-    def __init__(self, model, gene_dataset, n_labelled_samples_per_class=50, n_epochs_classifier=1,
-                 lr_classification=0.1, **kwargs):
-        super(AlternateSemiSupervisedVariationalInference, self).__init__(model, gene_dataset, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super(AlternateSemiSupervisedVariationalInference, self).__init__(*args, **kwargs)
+        self.data_loaders.loop = ['all']
 
-        self.n_epochs_classifier = n_epochs_classifier
-        self.lr_classification = lr_classification
-        self.data_loaders = AlternateSemiSupervisedDataLoaders(gene_dataset, n_labelled_samples_per_class,
-                                                               use_cuda=self.use_cuda)
-
-        self.classifier_inference = ClassifierInference(
-            model.classifier, gene_dataset, metrics_to_monitor=[], verbose=True, frequency=0,
-            data_loaders=self.data_loaders.classifier_data_loaders(), sampling_model=self.model
-        )
-
-    def on_epoch_end(self):
-        self.classifier_inference.train(self.n_epochs_classifier, lr=self.lr_classification)
-        return super(AlternateSemiSupervisedVariationalInference, self).on_epoch_end()
+    def loss(self, tensors_all):
+        return VariationalInference.loss(self, tensors_all)
 
 
 class JointSemiSupervisedVariationalInference(SemiSupervisedVariationalInference):
@@ -314,18 +353,9 @@ class JointSemiSupervisedVariationalInference(SemiSupervisedVariationalInference
         >>> infer.train(n_epochs=20, lr=1e-3)
     """
 
-    def __init__(self, model, gene_dataset, n_labelled_samples_per_class=50, classification_ratio=100, **kwargs):
-        super(JointSemiSupervisedVariationalInference, self).__init__(model, gene_dataset, **kwargs)
-        self.data_loaders = JointSemiSupervisedDataLoaders(gene_dataset, n_labelled_samples_per_class,
-                                                           use_cuda=self.use_cuda)
-        self.classification_ratio = classification_ratio
-
-    def loss(self, tensors_all, tensors_labelled):
-        loss = super(JointSemiSupervisedVariationalInference, self).loss(tensors_all)
-        sample_batch, _, _, _, y = tensors_labelled
-        classification_loss = F.cross_entropy(self.model.classify(sample_batch), y.view(-1))
-        loss += classification_loss * self.classification_ratio
-        return loss
+    def __init__(self, *args, **kwargs):
+        kwargs['n_epochs_classifier'] = 0
+        super(JointSemiSupervisedVariationalInference, self).__init__(*args, **kwargs)
 
 
 class VariationalInferenceFish(VariationalInference):
@@ -350,7 +380,7 @@ class VariationalInferenceFish(VariationalInference):
     default_metrics_to_monitor = ['ll']
 
     def __init__(self, model, gene_dataset_seq, gene_dataset_fish, train_size=0.8, use_cuda=True, cl_ratio=0,
-                 n_epochs_even=1, n_epochs_kl=2000, n_epochs_cl=1,  **kwargs):
+                 n_epochs_even=1, n_epochs_kl=2000, n_epochs_cl=1, **kwargs):
         super(VariationalInferenceFish, self).__init__(model, gene_dataset_seq, use_cuda=use_cuda, **kwargs)
         self.kl = None
         self.cl_ratio = cl_ratio
@@ -382,7 +412,7 @@ class VariationalInferenceFish(VariationalInference):
 
     def on_epoch_begin(self):
         self.weighting = min(1, self.epoch / self.n_epochs_even)
-        self.kl_weight = self.kl if self.kl is not None else min(1,  self.epoch / self.n_epochs_kl)
+        self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / self.n_epochs_kl)
         self.classification_ponderation = min(1, self.epoch / self.n_epochs_cl)
 
     def ll(self, name, verbose=False):
