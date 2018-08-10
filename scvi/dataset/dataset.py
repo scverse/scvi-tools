@@ -27,6 +27,8 @@ class GeneExpressionDataset(Dataset):
         self.X = X
         self.nb_genes = self.X.shape[1]
         self.dense = type(self.X) is np.ndarray
+        if self.dense:
+            self.X = np.ascontiguousarray(self.X, dtype=np.float32)
         self.local_means = local_means
         self.local_vars = local_vars
         self.batch_indices, self.n_batches = arrange_categories(batch_indices)
@@ -52,11 +54,22 @@ class GeneExpressionDataset(Dataset):
 
     def collate_fn(self, batch):
         indexes = np.array(batch)
-        X = torch.FloatTensor(self.X[indexes]) if self.dense else torch.FloatTensor(self.X[indexes].toarray())
-        return X, torch.FloatTensor(self.local_means[indexes]), \
-            torch.FloatTensor(self.local_vars[indexes]), \
-            torch.LongTensor(self.batch_indices[indexes]), \
-            torch.LongTensor(self.labels[indexes])
+        if self.dense:
+            X = torch.from_numpy(self.X[indexes])
+        else:
+            X = torch.FloatTensor(self.X[indexes].toarray())
+        if self.x_coord is None or self.y_coord is None:
+            return X, torch.FloatTensor(self.local_means[indexes]), \
+                   torch.FloatTensor(self.local_vars[indexes]), \
+                   torch.LongTensor(self.batch_indices[indexes]), \
+                   torch.LongTensor(self.labels[indexes])
+        else:
+            return X, torch.FloatTensor(self.local_means[indexes]), \
+                   torch.FloatTensor(self.local_vars[indexes]), \
+                   torch.LongTensor(self.batch_indices[indexes]), \
+                   torch.LongTensor(self.labels[indexes]), \
+                   torch.FloatTensor(self.x_coord[indexes]), \
+                   torch.FloatTensor(self.y_coord[indexes])
 
     def update_genes(self, subset_genes):
         if hasattr(self, 'gene_names'):
@@ -74,7 +87,7 @@ class GeneExpressionDataset(Dataset):
     def subsample_genes(self, new_n_genes=None, subset_genes=None):
         n_cells, n_genes = self.X.shape
         if subset_genes is None and \
-                (not hasattr(self, 'gene_names') or new_n_genes is False or new_n_genes >= n_genes):
+                (new_n_genes is False or new_n_genes >= n_genes):
             return None  # Do nothing if subsample more genes than total number of genes
         if subset_genes is None:
             print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))

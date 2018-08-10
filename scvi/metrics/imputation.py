@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from scipy.stats import kde
+from sklearn import neighbors
 
 from scvi.dataset import GeneExpressionDataset
 from scvi.dataset.data_loaders import DataLoaderWrapper
@@ -21,7 +22,7 @@ def imputation(infer, name, rate=0.1, n_samples=1, n_epochs=1, corruption="unifo
         i, j = (k.ravel() for k in np.indices(corrupted_data.shape))
         ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
         i, j = i[ix], j[ix]
-        corrupted_data[i, j] = np.random.binomial(n=corrupted_data[i, j], p=0.2)
+        corrupted_data[i, j] = np.random.binomial(n=corrupted_data[i, j].astype(np.int64), p=0.2)
 
     infer.gene_dataset = gene_dataset = GeneExpressionDataset(
         *GeneExpressionDataset.get_attributes_from_matrix(
@@ -116,3 +117,9 @@ def plot_imputation(original, imputed, title="Imputation"):
     plt.plot(linspace, linspace, color='black', linestyle=":")
     plt.show()
     plt.savefig(title + '.png')
+
+
+def proximity_imputation(real_latent1, normed_gene_exp_1, real_latent2, k=4):
+    knn = neighbors.KNeighborsRegressor(k, weights='distance')
+    y = knn.fit(real_latent1, normed_gene_exp_1).predict(real_latent2)
+    return y
