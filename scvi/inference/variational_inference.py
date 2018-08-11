@@ -17,7 +17,7 @@ from scvi.dataset.data_loaders import TrainTestDataLoaders, AlternateSemiSupervi
 from scvi.metrics.classification import compute_accuracy, compute_accuracy_svc, compute_accuracy_rf, \
     unsupervised_classification_accuracy, compute_predictions
 from scvi.metrics.classification import unsupervised_clustering_accuracy
-from scvi.metrics.clustering import get_latent, entropy_batch_mixing, nn_overlap
+from scvi.metrics.clustering import get_latent, entropy_batch_mixing, nn_overlap, knn_purity
 from scvi.metrics.differential_expression import de_stats, de_cortex
 from scvi.metrics.imputation import imputation, plot_imputation
 from scvi.metrics.log_likelihood import compute_log_likelihood, compute_marginal_log_likelihood
@@ -151,6 +151,15 @@ class VariationalInference(Inference):
             return be_score
 
     entropy_batch_mixing.mode = 'max'
+
+    def knn_purity(self, name, verbose=False):
+        latent, _, labels = get_latent(self.model, self.data_loaders[name])
+        score = knn_purity(latent, labels)
+        if verbose:
+            print("KNN purity score :", score)
+        return score
+
+    knn_purity.mode = 'max'
 
     def show_t_sne(self, name, n_samples=1000, color_by='', save_name='', latent=None, batch_indices=None,
                    labels=None, n_batch=None):

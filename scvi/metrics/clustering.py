@@ -60,3 +60,15 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
 
 def entropy_from_indices(indices):
     return entropy(np.array(itemfreq(indices)[:, 1].astype(np.int32)))
+
+
+def knn_purity(latent, label, n_neighbors=30):
+    nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(latent)
+    indices = nbrs.kneighbors(latent, return_distance=False)[:, 1:]
+    neighbors_labels = np.vectorize(lambda i: label[i])(indices)
+
+    # pre cell purity scores
+    scores = ((neighbors_labels - label.reshape(-1, 1)) == 0).mean(axis=1)
+    res = [np.mean(scores[label == i]) for i in np.unique(label)]  # per cell-type purity
+
+    return np.mean(res)

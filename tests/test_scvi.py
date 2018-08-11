@@ -61,6 +61,7 @@ def test_synthetic_1():
     infer_synthetic_svaec = JointSemiSupervisedVariationalInference(svaec, synthetic_dataset, use_cuda=use_cuda)
     infer_synthetic_svaec.train(n_epochs=1)
     infer_synthetic_svaec.entropy_batch_mixing('labelled')
+    infer_synthetic_svaec.knn_purity('sequential', verbose=True)
     infer_synthetic_svaec.show_t_sne('labelled', n_samples=50)
     infer_synthetic_svaec.show_t_sne('unlabelled', n_samples=50, color_by='labels')
     infer_synthetic_svaec.show_t_sne('labelled', n_samples=50, color_by='batches and labels')
