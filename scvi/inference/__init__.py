@@ -11,6 +11,8 @@ from .classifier_inference import (
 from .experimental_inference import adversarial_wrapper, mmd_wrapper
 
 __all__ = ['Inference',
+           'AlternateSemiSupervisedVariationalInference',
+           'JointSemiSupervisedVariationalInference',
            'ClassifierInference',
            'VariationalInference',
            'VariationalInferenceFish',

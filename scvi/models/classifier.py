@@ -1,8 +1,4 @@
-import torch
-import torch.nn.functional as F
-from sklearn.linear_model import LogisticRegression
 from torch import nn as nn
-from torch.nn import Linear
 
 from scvi.models.modules import FCLayers
 

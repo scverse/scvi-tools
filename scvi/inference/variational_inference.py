@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 import torch
+from scipy.stats import itemfreq, entropy
 from scipy.stats import kde
 from sklearn import neighbors
 from sklearn.cluster import KMeans
@@ -24,8 +25,6 @@ from scvi.models.log_likelihood import compute_log_likelihood, compute_marginal_
 from . import Inference
 
 plt.switch_backend('agg')
-
-from scipy.stats import itemfreq, entropy
 
 
 def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_samples_per_pool=100):
@@ -62,6 +61,7 @@ def knn_purity(latent, label, n_neighbors=30):
 
     return np.mean(res)
 
+
 def nn_overlap(X1, X2, k=100):
     nne = NearestNeighbors(n_neighbors=k + 1, n_jobs=8)
     assert len(X1) == len(X2)
@@ -78,6 +78,7 @@ def nn_overlap(X1, X2, k=100):
     set_2 = set(np.where(kmatrix_2.A.flatten() == 1)[0])
     fold_enrichment = len(set_1.intersection(set_2)) * n_samples ** 2 / (float(len(set_1)) * len(set_2))
     return spearman_correlation, fold_enrichment
+
 
 def de_cortex(px_scale, all_labels, gene_names, M_permutation=100000, permutation=False):
     """
@@ -370,7 +371,7 @@ class VariationalInference(Inference):
     entropy_batch_mixing.mode = 'max'
 
     def knn_purity(self, name, verbose=False):
-        latent, _, labels = get_latent(self.model, self.data_loaders[name])
+        latent, _, labels = self.get_latent(name)
         score = knn_purity(latent, labels)
         if verbose:
             print("KNN purity score :", score)
