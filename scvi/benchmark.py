@@ -3,8 +3,8 @@ from scvi.inference import VariationalInference, VariationalInferenceFish, adver
 from scvi.models import VAE, VAEF
 import numpy as np
 from sklearn.decomposition import PCA
-from scvi.metrics.imputation import proximity_imputation
-from scvi.metrics.classification import compute_accuracy_nn
+from scvi.inference.variational_inference import proximity_imputation
+from scvi.inference.classifier_inference import compute_accuracy_nn
 
 
 def cortex_benchmark(n_epochs=250, use_cuda=True, unit_test=False):

@@ -13,7 +13,6 @@ from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainS
     GeneExpressionDataset, PurifiedPBMCDataset
 from scvi.inference import JointSemiSupervisedVariationalInference, AlternateSemiSupervisedVariationalInference, \
     ClassifierInference, VariationalInference, adversarial_wrapper, mmd_wrapper
-from scvi.metrics.adapt_encoder import adapt_encoder
 from scvi.models import VAE, SVAEC, VAEC
 from scvi.models.classifier import Classifier
 
@@ -40,8 +39,7 @@ def test_cortex():
     infer_cortex_svaec.accuracy('labelled')
     infer_cortex_svaec.ll('all')
 
-    svaec = SVAEC(cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels,
-                  logreg_classifier=True)
+    svaec = SVAEC(cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels)
     infer_cortex_svaec = AlternateSemiSupervisedVariationalInference(svaec, cortex_dataset,
                                                                      n_labelled_samples_per_class=50,
                                                                      use_cuda=use_cuda)
@@ -102,7 +100,7 @@ def test_all_benchmarks():
 
 def test_synthetic_3():
     infer = base_benchmark(SyntheticDataset())
-    adapt_encoder(infer, n_path=1, n_epochs=1, frequency=1)
+    infer.adapt_encoder(n_path=1, n_epochs=1, frequency=1)
 
 
 def test_brain_large():

@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch.distributions import Normal, Categorical, kl_divergence as kl
 
-from scvi.models.classifier import Classifier, LinearLogRegClassifier
+from scvi.models.classifier import Classifier
 from scvi.models.modules import Decoder, Encoder
 from scvi.models.utils import broadcast_labels
 from scvi.models.vae import VAE
@@ -36,7 +36,6 @@ class SVAEC(VAE):
         * ``'zinb'`` - Zero-inflated negative binomial distribution
 
     :param y_prior: If None, initialized to uniform probability over cell types
-    :param logreg_classifier: Use LinearLogRegClassifier
     :param labels_groups: Label group designations
     :param use_labels_groups: Whether to use the label groups
 
@@ -54,8 +53,7 @@ class SVAEC(VAE):
                  n_hidden: int = 128, n_latent: int = 10, n_layers: int = 1,
                  dropout_rate: float = 0.1, dispersion: str = "gene",
                  log_variational: bool = True, reconstruction_loss: str = "zinb",
-                 y_prior=None, logreg_classifier: bool = False,
-                 labels_groups: Sequence[int] = None, use_labels_groups: bool = False):
+                 y_prior=None, labels_groups: Sequence[int] = None, use_labels_groups: bool = False):
         super(SVAEC, self).__init__(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
                                     dropout_rate=dropout_rate, n_batch=n_batch, dispersion=dispersion,
                                     log_variational=log_variational, reconstruction_loss=reconstruction_loss)
@@ -63,10 +61,8 @@ class SVAEC(VAE):
         self.n_labels = n_labels
         self.n_latent_layers = 2
         # Classifier takes n_latent as input
-        if logreg_classifier:
-            self.classifier = LinearLogRegClassifier(n_latent, self.n_labels)
-        else:
-            self.classifier = Classifier(n_latent, n_hidden, self.n_labels, n_layers, dropout_rate)
+
+        self.classifier = Classifier(n_latent, n_hidden, self.n_labels, n_layers, dropout_rate)
 
         self.encoder_z2_z1 = Encoder(n_latent, n_latent, n_cat_list=[self.n_labels], n_layers=n_layers,
                                      n_hidden=n_hidden, dropout_rate=dropout_rate)
@@ -141,7 +137,7 @@ class SVAEC(VAE):
             return reconst_loss + loss_z1_weight + loss_z1_unweight, kl_divergence_z2 + kl_divergence_l
 
         probs = self.classifier(z1)
-        reconst_loss += (loss_z1_weight + (loss_z1_unweight.view(self.n_labels, -1).t() * probs).sum(dim=1))
+        reconst_loss += (loss_z1_weight + ((loss_z1_unweight).view(self.n_labels, -1).t() * probs).sum(dim=1))
 
         kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(dim=1)
         kl_divergence += kl(Categorical(probs=probs),
