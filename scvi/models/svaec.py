@@ -129,5 +129,6 @@ class SVAEC(VAE):
         kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(dim=1)
         kl_divergence += kl(Categorical(probs=probs),
                             Categorical(probs=self.y_prior.repeat(probs.size(0), 1)))
+        kl_divergence += kl_divergence_l
 
         return reconst_loss, kl_divergence
