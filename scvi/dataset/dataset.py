@@ -288,8 +288,9 @@ class GeneExpressionDataset(Dataset):
                 n_labels_offset += gene_dataset.n_labels
                 current_index = next_index
 
-        _, local_mean, local_var, _, _ = GeneExpressionDataset.get_attributes_from_matrix(X)
-        return GeneExpressionDataset(X, local_mean, local_var, batch_indices, labels,
+        local_means = np.concatenate([gene_dataset.local_means for gene_dataset in gene_datasets])
+        local_vars = np.concatenate([gene_dataset.local_vars for gene_dataset in gene_datasets])
+        return GeneExpressionDataset(X, local_means, local_vars, batch_indices, labels,
                                      gene_names=gene_names_ref, cell_types=cell_types)
 
     @staticmethod
