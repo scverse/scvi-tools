@@ -61,6 +61,7 @@ def test_synthetic_1():
     infer_synthetic_svaec = JointSemiSupervisedVariationalInference(svaec, synthetic_dataset, use_cuda=use_cuda)
     infer_synthetic_svaec.train(n_epochs=1)
     infer_synthetic_svaec.entropy_batch_mixing('labelled')
+    infer_synthetic_svaec.knn_purity('sequential', verbose=True)
     infer_synthetic_svaec.show_t_sne('labelled', n_samples=50)
     infer_synthetic_svaec.show_t_sne('unlabelled', n_samples=50, color_by='labels')
     infer_synthetic_svaec.show_t_sne('labelled', n_samples=50, color_by='batches and labels')
@@ -199,6 +200,10 @@ def test_filter_and_concat_datasets():
 
     synthetic_dataset_1.subsample_cells(50)
     assert len(synthetic_dataset_1) == 50
+
+    synthetic_dataset_3 = SyntheticDataset(n_labels=6)
+    synthetic_dataset_3.cell_types = np.arange(6).astype(np.str)
+    synthetic_dataset_3.map_cell_types({"2": "9", ("4", "3"): "8"})
 
 
 def test_seqfish():

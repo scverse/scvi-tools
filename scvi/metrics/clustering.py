@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 import torch
+from scipy.stats import itemfreq, entropy
 from sklearn.neighbors import NearestNeighbors
 
 
@@ -38,39 +39,36 @@ def nn_overlap(X1, X2, k=100):
     return spearman_correlation, fold_enrichment
 
 
-# CLUSTERING METRICS
-def entropy_batch_mixing(latent_space, batches, max_number=500):
-    # latent space: numpy matrix of size (number_of_cells, latent_space_dimension)
-    # with the encoding of the different inputs in the latent space
-    # batches: numpy vector with the batch indices of the cells
-    n_samples = len(latent_space)
-    keep_idx = np.random.choice(np.arange(n_samples), size=min(len(latent_space), max_number), replace=False)
-    latent_space, batches = latent_space[keep_idx], batches[keep_idx]
+def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_samples_per_pool=100):
+    batches = batches.ravel()
+    nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(latent_space)
+    indices = nbrs.kneighbors(latent_space, return_distance=False)[:, 1:]
+    batch_indices = np.vectorize(lambda i: batches[i])(indices)
+    entropies = np.apply_along_axis(entropy_from_indices, axis=1, arr=batch_indices)
 
-    def entropy(hist_data):
-        n_batches = len(np.unique(hist_data))
-        if n_batches > 2:
-            raise ValueError("Should be only two clusters for this metric")
-        frequency = np.mean(hist_data == 1)
-        if frequency == 0 or frequency == 1:
-            return 0
-        return -frequency * np.log(frequency) - (1 - frequency) * np.log(1 - frequency)
+    # average n_pools entropy results where each result is an average of n_samples_per_pool random samples.
+    if n_pools == 1:
+        score = np.mean(entropies)
+    else:
+        score = np.mean([
+            np.mean(entropies[np.random.choice(len(entropies), size=n_samples_per_pool)])
+            for _ in range(n_pools)
+        ])
 
-    n_samples = latent_space.shape[0]
-    distance = np.zeros((n_samples, n_samples))
-    neighbors_graph = np.zeros((n_samples, n_samples))
-    for i in range(n_samples):
-        for j in range(i, n_samples):
-            distance[i, j] = distance[j, i] = sum((latent_space[i] - latent_space[j]) ** 2)
+    return score
 
-    for i, d in enumerate(distance):
-        neighbors_graph[i, d.argsort()[:51]] = 1
-    kmatrix = neighbors_graph - np.identity(latent_space.shape[0])
 
-    score = 0
-    for t in range(50):
-        indices = np.random.choice(np.arange(latent_space.shape[0]), size=100)
-        score += np.mean([entropy(
-            batches[kmatrix[indices].nonzero()[1][kmatrix[indices].nonzero()[0] == i]]
-        ) for i in range(100)])
-    return score / 50
+def entropy_from_indices(indices):
+    return entropy(np.array(itemfreq(indices)[:, 1].astype(np.int32)))
+
+
+def knn_purity(latent, label, n_neighbors=30):
+    nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(latent)
+    indices = nbrs.kneighbors(latent, return_distance=False)[:, 1:]
+    neighbors_labels = np.vectorize(lambda i: label[i])(indices)
+
+    # pre cell purity scores
+    scores = ((neighbors_labels - label.reshape(-1, 1)) == 0).mean(axis=1)
+    res = [np.mean(scores[label == i]) for i in np.unique(label)]  # per cell-type purity
+
+    return np.mean(res)
