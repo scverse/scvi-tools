@@ -19,7 +19,7 @@ Single-cell Variational Inference
 
 
 Quick Start
---------
+-----------
 
 1. Install Python 3.6 or later. We typically use the Miniconda_ Python distribution.
 
@@ -36,26 +36,26 @@ Quick Start
 
 4. Refer to `this Jupyter notebook`__ to see how to import datasets into scVI.
 
-.. __: https://github.com/YosefLab/scVI/tree/master/examples/scVI-data-loading.ipynb
+.. __: https://github.com/YosefLab/scVI/tree/master/docs/notebooks/data_loading.ipynb
 
 5. Refer to `this Jupyter notebook`__ to see how to train the scVI model, impute missing data, detect differential expression, and more!
 
-.. __: https://github.com/YosefLab/scVI/tree/master/examples/scVI-dev.ipynb
+.. __: https://github.com/YosefLab/scVI/tree/master/docs/notebooks/basic_tutorial.ipynb
 
 
 Benchmarks
---------
+----------
 
 To recreate the results appearing in the paper referenced below, run
 
-.. code-block::
+.. code-block:: python
 
-    python ./run_benchmarks.py --dataset=cortex 
+    python ./run_benchmarks.py --dataset=cortex
 
 Valid choices for ``--dataset`` include ``synthetic``, ``cortex``, ``brain_large``, ``retina``, ``cbmc``, ``hemato``, and ``pbmc``. You may also specify an arbitrary ``.loom``, ``.h5ad`` (AnnData), or ``.csv`` file.
 
 References
---------
+----------
 
 Romain Lopez, Jeffrey Regier, Michael B Cole, Michael Jordan, Nir Yosef.
 **"Bayesian Inference for a Generative Model of Transcriptome Profiles from Single-cell RNA Sequencing."**

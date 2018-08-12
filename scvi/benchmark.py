@@ -1,177 +1,74 @@
-import matplotlib.pyplot as plt
+from scvi.dataset import CortexDataset
+from scvi.inference import VariationalInference, VariationalInferenceFish, adversarial_wrapper
+from scvi.models import VAE, VAEF
 import numpy as np
-import torch
-from torch.utils.data import DataLoader
-from torch.utils.data.sampler import SubsetRandomSampler
-
-from scvi.dataset import CortexDataset, BrainLargeDataset
-from scvi.dataset.utils import get_data_loaders, get_raw_data
-from scvi.metrics.adapt_encoder import adapt_encoder
-from scvi.metrics.classification import compute_accuracy_rf, compute_accuracy_svc
-from scvi.metrics.clustering import entropy_batch_mixing, get_latent
-from scvi.metrics.differential_expression import de_stats, de_cortex
-from scvi.metrics.imputation import imputation
-from scvi.metrics.visualization import show_t_sne
-from scvi.models import VAE, SVAEC
-from scvi.models.classifier import Classifier
-from scvi.train import train, train_classifier, train_semi_supervised_jointly, train_semi_supervised_alternately
+from sklearn.decomposition import PCA
+from scvi.metrics.imputation import proximity_imputation
+from scvi.metrics.classification import compute_accuracy_nn
 
 
-def benchmark_hyperparameters(gene_dataset):
-    """
-    Possibly specify hyper parameters according to Table2 in "Bayesian Inference for a Generative Model of
-    transcriptome Profiles from Single-cell RNA Sequencing"
-    :param gene_dataset:
-    :return:
-    """
-    hyperparameters = dict()
-    if isinstance(gene_dataset, BrainLargeDataset):
-        if gene_dataset.nb_genes > 10000 and gene_dataset.nb_genes < 15000:
-            hyperparameters["n_layers"] = 2
-        elif gene_dataset.nb_genes > 15000:
-            hyperparameters["n_layers"] = 3
-            hyperparameters["n_hidden"] = 256
+def cortex_benchmark(n_epochs=250, use_cuda=True, unit_test=False):
+    cortex_dataset = CortexDataset()
+    vae = VAE(cortex_dataset.nb_genes)
+    infer_cortex_vae = VariationalInference(vae, cortex_dataset, use_cuda=use_cuda)
+    infer_cortex_vae.train(n_epochs=n_epochs)
 
-    return hyperparameters
+    infer_cortex_vae.ll('test')  # assert ~ 1200
+    infer_cortex_vae.differential_expression('test')
+    infer_cortex_vae.imputation('test', rate=0.1)  # assert ~ 2.3
+    n_samples = 1000 if not unit_test else 10
+    infer_cortex_vae.show_t_sne('test', n_samples=n_samples)
+    return infer_cortex_vae
 
 
-def run_benchmarks(gene_dataset, model=VAE, n_epochs=1000, lr=1e-3, use_batches=False, use_cuda=True,
-                   show_batch_mixing=True, benchmark=False, tt_split=0.9):
-    # options:
-    # - gene_dataset: a GeneExpressionDataset object
-    # call each of the 4 benchmarks:
-    # - log-likelihood
-    # - imputation
-    # - batch mixing
-    # - cluster scores
-    example_indices = np.random.permutation(len(gene_dataset))
-    tt_split = int(tt_split * len(gene_dataset))  # 90%/10% train/test split
-
-    data_loader_train = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
-                                   sampler=SubsetRandomSampler(example_indices[:tt_split]),
-                                   collate_fn=gene_dataset.collate_fn)
-    data_loader_test = DataLoader(gene_dataset, batch_size=128, pin_memory=use_cuda,
-                                  sampler=SubsetRandomSampler(example_indices[tt_split:]),
-                                  collate_fn=gene_dataset.collate_fn)
-
-    hyperparameters = benchmark_hyperparameters(gene_dataset)
-    vae = model(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * use_batches, n_labels=gene_dataset.n_labels,
-                use_cuda=use_cuda, **hyperparameters)
-    stats = train(vae, data_loader_train, data_loader_test, n_epochs=n_epochs, lr=lr, benchmark=benchmark)
-
-    if isinstance(vae, VAE):
-        best_ll = adapt_encoder(vae, data_loader_test, n_path=1, n_epochs=1, record_freq=1)
-        print("Best ll was :", best_ll)
-
-    # - log-likelihood
-    print("Log-likelihood Train:", stats.history["LL_train"][stats.best_index])
-    print("Log-likelihood Test:", stats.history["LL_test"][stats.best_index])
-
-    # - imputation
-    imputation_test = imputation(vae, data_loader_test)
-    print("Imputation score on test (MAE) is:", torch.median(imputation_test).item())
-
-    # - batch mixing
-    if gene_dataset.n_batches == 2:
-        latent, batch_indices, labels = get_latent(vae, data_loader_train)
-        print("Entropy batch mixing :", entropy_batch_mixing(latent, batch_indices))
-        if show_batch_mixing:
-            show_t_sne(latent, np.array([batch[0] for batch in batch_indices]))
-
-    # - differential expression
-    if type(gene_dataset) == CortexDataset:
-        px_scale, all_labels = de_stats(vae, data_loader_train, M_sampling=1)
-        de_cortex(px_scale, all_labels, gene_dataset.gene_names, M_permutation=1)
+def benchmark(dataset, n_epochs=250, use_cuda=True):
+    vae = VAE(dataset.nb_genes, n_batch=dataset.n_batches)
+    infer = VariationalInference(vae, dataset, use_cuda=use_cuda)
+    infer.train(n_epochs=n_epochs)
+    infer.ll('test')
+    infer.marginal_ll('test')
+    infer.imputation('test', rate=0.1)  # assert ~ 2.1
+    return infer
 
 
-# Pipeline to compare different semi supervised models
-def run_benchmarks_classification(gene_dataset, n_latent=10, n_epochs=10, n_epochs_classifier=10, lr=1e-2,
-                                  use_batches=False, use_cuda=True, tt_split=0.9):
-    fig, axes = plt.subplots(1, 2, sharey=True, figsize=(12, 5))
-    alpha = 100  # in Kingma, 0.1 * len(gene_dataset), but pb when : len(gene_dataset) >> 1
+def harmonization_benchmarks(n_epochs=1, use_cuda=True):
+    # retina_benchmark(n_epochs=n_epochs)
+    pass
 
-    data_loader_all, data_loader_labelled, data_loader_unlabelled = get_data_loaders(gene_dataset, 10,
-                                                                                     batch_size=128,
-                                                                                     pin_memory=use_cuda)
-    # Now we try out the different models and compare the classification accuracy
 
-    (data_train, labels_train), (data_test, labels_test) = get_raw_data(data_loader_labelled, data_loader_unlabelled)
-    accuracy_train_svc, accuracy_test_svc = compute_accuracy_svc(data_train, labels_train, data_test, labels_test,
-                                                                 unit_test=True)
-    accuracy_train_rf, accuracy_test_rf = compute_accuracy_rf(data_train, labels_train, data_test, labels_test,
-                                                              unit_test=True)
+def annotation_benchmarks(n_epochs=1, use_cuda=True):
+    # some cortex annotation benchmark
+    pass
 
-    # ========== The M1 model ===========
-    print("Trying M1 model")
-    vae = VAE(gene_dataset.nb_genes, n_latent=n_latent,
-              n_batch=gene_dataset.n_batches * use_batches, use_cuda=use_cuda,
-              n_labels=gene_dataset.n_labels)
-    train_semi_supervised_jointly(vae, data_loader_all, data_loader_labelled, data_loader_unlabelled,
-                                  n_epochs=n_epochs, lr=lr)
 
-    # Then we train a classifier on the latent space
-    cls = Classifier(n_input=n_latent, n_labels=gene_dataset.n_labels, n_layers=3, use_cuda=use_cuda)
-    for param in vae.z_encoder.parameters():
-        param.requires_grad = False
-    cls_stats = train_classifier(vae, cls, data_loader_labelled, data_loader_unlabelled, n_epochs=n_epochs_classifier,
-                                 lr=lr)
+def all_benchmarks(n_epochs=250, use_cuda=True, unit_test=False):
+    cortex_benchmark(n_epochs=n_epochs, use_cuda=use_cuda, unit_test=unit_test)
 
-    axes[0].plot(cls_stats.history["Accuracy_train"], label='classifier')
-    axes[1].plot(cls_stats.history["Accuracy_test"])
+    harmonization_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)
+    annotation_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda)
 
-    # ========== The M1+M2 model, first encoder frozen ===========
-    print("Trying out standard M1+M2 model")
-    prior = torch.FloatTensor([(gene_dataset.labels == i).mean() for i in range(gene_dataset.n_labels)])
 
-    svaec = SVAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * use_batches, n_labels=gene_dataset.n_labels,
-                  y_prior=prior, n_latent=n_latent, use_cuda=use_cuda)
-
-    # Use a pretrained z encoder, freeze its weights
-    svaec.z_encoder.load_state_dict(vae.z_encoder.state_dict())
-    for param in svaec.z_encoder.parameters():
-        param.requires_grad = False
-    stats = train_semi_supervised_jointly(svaec, data_loader_all, data_loader_labelled, data_loader_unlabelled,
-                                          n_epochs=n_epochs, lr=lr, classification_ratio=alpha)
-
-    # We don't train the first z encoder in this procedure
-    axes[0].plot(stats.history["Accuracy_train"], label='M1+M2 (frozen)')
-    axes[1].plot(stats.history["Accuracy_test"])
-
-    # ========== The M1+M2 model trained jointly ===========
-    print("Trying out M1+M2 optimized jointly")
-    svaec = SVAEC(gene_dataset.nb_genes, n_labels=gene_dataset.n_labels, y_prior=prior, n_latent=n_latent,
-                  use_cuda=use_cuda, logreg_classifier=False)
-
-    stats = train_semi_supervised_jointly(svaec, data_loader_all, data_loader_labelled, data_loader_unlabelled,
-                                          n_epochs=n_epochs, lr=lr, classification_ratio=100, record_freq=10)
-
-    svaec = SVAEC(gene_dataset.nb_genes, n_labels=gene_dataset.n_labels, y_prior=prior, n_latent=n_latent,
-                  use_cuda=use_cuda, logreg_classifier=True)
-
-    stats = train_semi_supervised_alternately(svaec, data_loader_all, data_loader_labelled, data_loader_unlabelled,
-                                              n_epochs=n_epochs, lr=lr, record_freq=10, lr_classification=0.05)
-
-    axes[0].plot(stats.history["Accuracy_train"], label='M1+M2 (train all)')
-    axes[1].plot(stats.history["Accuracy_test"])
-
-    # ========== Classifier trained on the latent space of M1+M2 ===========
-    print("Trying to classify on M1+M2's z1 latent space")
-    cls = Classifier(n_input=n_latent, n_labels=gene_dataset.n_labels, n_layers=3, use_cuda=use_cuda)
-
-    stats = train_classifier(svaec, cls, data_loader_labelled, data_loader_unlabelled, n_epochs=n_epochs_classifier,
-                             lr=lr)
-
-    axes[0].plot(stats.history["Accuracy_train"], label='M1+M2+classifier')
-    axes[1].plot(stats.history["Accuracy_test"])
-
-    # Now plot the results
-    axes[0].set_ylim(0, 1)
-    axes[0].set_ylabel('accuracy')
-    axes[0].set_xlabel('n_epochs')
-    axes[0].set_title('acc. train')
-    axes[0].legend()
-    axes[1].set_xlabel('n_epochs')
-    axes[1].set_title('acc. test')
-
-    plt.tight_layout()
-    plt.savefig("result_classification.png")
+def benchamrk_fish_scrna(gene_dataset_seq, gene_dataset_fish):
+    gene_names = gene_dataset_fish.gene_names
+    indexes_to_keep = np.arange(len(gene_names))
+    vae = VAEF(gene_dataset_seq.nb_genes, indexes_to_keep, n_layers_decoder=2, n_latent=6,
+               n_layers=2, n_hidden=256, reconstruction_loss='nb', dropout_rate=0.3, n_labels=7, n_batch=2,
+               model_library=False)
+    infer = VariationalInferenceFish(vae, gene_dataset_seq, gene_dataset_fish, train_size=0.9, verbose=True,
+                                     frequency=5, weight_decay=0.35, n_epochs_even=100, n_epochs_kl=1000,
+                                     cl_ratio=0, n_epochs_cl=100)
+    infer = adversarial_wrapper(infer, scale=50, mode="smFISH")
+    infer.train(n_epochs=1, lr=0.0008)
+    concatenated_matrix = np.concatenate(
+        (gene_dataset_fish.X[:, vae.indexes_to_keep], gene_dataset_seq.X[:, vae.indexes_to_keep]))
+    concatenated_matrix = np.log(1 + concatenated_matrix)
+    pca = PCA(n_components=9)
+    latent_pca = pca.fit_transform(concatenated_matrix)
+    pca_latent_fish = latent_pca[:gene_dataset_fish.X.shape[0], :]
+    pca_latent_seq = latent_pca[gene_dataset_fish.X.shape[0]:, :]
+    pca_values_seq = gene_dataset_seq.X
+    pca_labels_seq = gene_dataset_seq.labels
+    pca_labels_fish = gene_dataset_fish.labels
+    _ = proximity_imputation(pca_latent_seq, pca_values_seq[:, 0], pca_latent_fish, k=5)
+    _, _, = compute_accuracy_nn(pca_latent_seq, pca_labels_seq.ravel(), pca_latent_fish,
+                                pca_labels_fish.ravel())

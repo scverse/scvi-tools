@@ -6,12 +6,23 @@ Welcome to scVI's documentation!
    :caption: Contents:
 
    readme
-   installation
-   usage
-   modules
+   notebooks/data_loading.ipynb
+   notebooks/basic_tutorial.ipynb
+   notebooks/annotation.ipynb
    contributing
    authors
    history
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Package Reference
+
+   scvi.dataset
+   scvi.inference
+   scvi.metrics
+   scvi.models
+
+   modules
 
 Indices and tables
 ==================
