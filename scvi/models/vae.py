@@ -22,9 +22,15 @@ class VAE(nn.Module):
     :param n_labels: Number of labels
     :param n_hidden: Number of nodes per hidden layer
     :param n_latent: Dimensionality of the latent space
-    :param n_layers: Number of hidden layers
-    :param dropout_rate: Dropout rate for ZINB
-    :param dispersion: One of ``("gene", "gene-cell", "gene-label", "gene-batch")``
+    :param n_layers: Number of hidden layers used for encoder and decoder NNs
+    :param dropout_rate: Dropout rate for neural networks
+    :param dispersion: One of ``("gene", "gene-batch", "gene-label", "gene-cell")``
+
+        * gene - dispersion parameter of NB is constant per gene across cells
+        * gene-batch- dispersion can differ betwee different batches
+        * gene-label - dispersion can differ betwee different labels
+        * gene-cell - dispersion can differ for every gene in every cell
+
     :param log_variational: Log variational distribution
     :param reconstruction_loss:  One of ``("zinb", "nb")``
 
@@ -44,10 +50,10 @@ class VAE(nn.Module):
         self.n_latent = n_latent
         self.log_variational = log_variational
         self.reconstruction_loss = reconstruction_loss
-        # Automatically desactivate if useless
+        # Automatically deactivate if useless
         self.n_batch = n_batch
         self.n_labels = n_labels
-        self.n_latent_layers = 1
+        self.n_latent_layers = 1 # not sure what this is for, no usages?
 
         if self.dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input, ))
@@ -58,9 +64,13 @@ class VAE(nn.Module):
         else:  # gene-cell
             pass
 
+        # z encoder goes from the n_input-dimensional data to an n_latent-d
+        # latent space representation
         self.z_encoder = Encoder(n_input, n_latent, n_layers=n_layers, n_hidden=n_hidden,
                                  dropout_rate=dropout_rate)
+        # l encoder goes from n_input-dimensional data to 1-d library size
         self.l_encoder = Encoder(n_input, 1, n_layers=1, n_hidden=n_hidden, dropout_rate=dropout_rate)
+        # decoder goes from n_latent-dimensional space to n_input-d data
         self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch], n_layers=n_layers, n_hidden=n_hidden,
                                    dropout_rate=dropout_rate)
 
