@@ -18,15 +18,19 @@ class VAEC(VAE):
     :param n_latent: Dimensionality of the latent space
     :param n_layers: Number of hidden layers used for encoder and decoder NNs
     :param dropout_rate: Dropout rate for neural networks
-    :param dispersion: One of ``("gene", "gene-batch", "gene-label", "gene-cell")``
+    :param dispersion: One of the following
 
-        * gene - dispersion parameter of NB is constant per gene across cells
-        * gene-batch- dispersion can differ betwee different batches
-        * gene-label - dispersion can differ betwee different labels
-        * gene-cell - dispersion can differ for every gene in every cell
+        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
+        * ``'gene-batch'`` - dispersion can differ between different batches
+        * ``'gene-label'`` - dispersion can differ between different labels
+        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
 
     :param log_variational: Log variational distribution
-    :param reconstruction_loss:  One of ``("zinb", "nb")``
+    :param reconstruction_loss:  One of
+
+        * ''`nb'`` - Negative binomial distribution
+        * ``'zinb'`` - Zero-inflated negative binomial distribution
+
     :param y_prior: If None, initialized to uniform probability over cell types
 
     Examples:

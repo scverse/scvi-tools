@@ -42,10 +42,10 @@ class FCLayers(nn.Module):
     def forward(self, x:torch.Tensor, *cat_list: int):
         r"""Forward computation on ``x``.
 
-        :param x: tensor of values with shape (n_in,)
+        :param x: tensor of values with shape ``(n_in,)``
         :param cat_list: list of category membership(s) for this sample
-        :return: tensor of shape (n_out,)
-        :rtype: torch.Tensor
+        :return: tensor of shape ``(n_out,)``
+        :rtype: :py:class:`torch.Tensor`
         """
         one_hot_cat_list = []  # for generality in this list many indices useless.
         assert len(self.n_cat_list) <= len(cat_list), "nb. categorical args provided doesn't match init. params."
@@ -101,14 +101,15 @@ class Encoder(nn.Module):
     def forward(self, x:torch.Tensor, *cat_list: int):
         r"""The forward computation for a single sample.
 
-         #. Encodes the data in the latent space using the encoder network
-         #. Generates a mean and variance (clamped to [-5, 5]) from encoding
-         #. Samples a new value from an iid multivariate normal of given mean, var
+         #. Encodes the data into latent space using the encoder network
+         #. Generates a mean \\( q_m \\) and variance \\( q_v \\) (clamped to \\( [-5, 5] \\))
+         #. Samples a new value from an iid multivariate normal \\( \\sim N(q_m, \\mathbf{I}q_v) \\)
 
         :param x: tensor with shape (n_input,)
         :param cat_list: list of category membership(s) for this sample
-        :return: torch.Tensor of shape (n_out,)
-        :rtype: torch.Tensor
+        :return: tensors of shape ``(n_latent,)`` for mean and var, and sample
+        :rtype: 3-tuple of :py:class:`torch.Tensor`
+        :return
         """
 
         # Parameters for latent distribution
@@ -158,9 +159,16 @@ class DecoderSCVI(nn.Module):
          #. Decodes the data from the latent space using the decoder network
          #. Returns parameters for the ZINB distribution of expression
 
-        :param dispersion: dispersion metric sharing (gene, gene-cell, gene-batch, gene-label)
-        :param z: tensor with shape (n_input,)
+        :param dispersion: One of the following
+
+            * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
+            * ``'gene-batch'`` - dispersion can differ between different batches
+            * ``'gene-label'`` - dispersion can differ between different labels
+            * ``'gene-cell'`` - dispersion can differ for every gene in every cell
+
+        :param z: tensor with shape ``(n_input,)``
         :param library: library size
+        :param cat_list: list of category membership(s) for this sample
         :return: parameters for the ZINB distribution of expression
         """
 
@@ -207,9 +215,10 @@ class Decoder(nn.Module):
          #. Decodes the data from the latent space using the decoder network
          #. Returns mean and variance for a multivariate Gaussian
 
-        :param x: tensor with shape (n_input,)
+        :param x: tensor with shape ``(n_input,)``
         :param cat_list: list of category membership(s) for this sample
-        :return: parameters for the ZINB distribution of expression
+        :return:
+        :rtype: 2-tuple of :py:class:`torch.Tensor`
         """
 
         # Parameters for latent distribution
