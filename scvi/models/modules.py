@@ -217,7 +217,7 @@ class Decoder(nn.Module):
 
         :param x: tensor with shape ``(n_input,)``
         :param cat_list: list of category membership(s) for this sample
-        :return:
+        :return: Mean and variance vectors of shape ``(n_output,)``
         :rtype: 2-tuple of :py:class:`torch.Tensor`
         """
 

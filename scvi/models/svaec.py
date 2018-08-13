@@ -85,7 +85,7 @@ class SVAEC(VAE):
             assert (unique_groups == np.arange(self.n_groups)).all()
             self.classifier_groups = Classifier(n_latent, n_hidden, self.n_groups, n_layers, dropout_rate)
             self.groups_index = torch.nn.ParameterList([torch.nn.Parameter(
-                torch.Tensor((self.labels_groups == i).astype(np.uint8), dtype=torch.uint8), requires_grad=False
+                torch.tensor((self.labels_groups == i).astype(np.uint8), dtype=torch.uint8), requires_grad=False
             ) for i in range(self.n_groups)])
 
     def classify(self, x):
