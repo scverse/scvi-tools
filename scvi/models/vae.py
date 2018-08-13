@@ -17,17 +17,16 @@ torch.backends.cudnn.benchmark = True
 class VAE(nn.Module):
     r"""Variational auto-encoder model.
 
-    Args:
-        :n_input: Number of input genes.
-        :n_batch: Default: ``0``.
-        :n_labels: Default: ``0``.
-        :n_hidden: Number of hidden. Default: ``128``.
-        :n_latent: Default: ``1``.
-        :n_layers: Number of layers. Default: ``1``.
-        :dropout_rate: Default: ``0.1``.
-        :dispersion: Default: ``"gene"``.
-        :log_variational: Default: ``True``.
-        :reconstruction_loss: Default: ``"zinb"``.
+    :param n_input: Number of input genes
+    :param n_batch: Number of batches
+    :param n_labels: Number of labels
+    :param n_hidden: Number of nodes per hidden layer
+    :param n_latent: Dimensionality of the latent space
+    :param n_layers: Number of hidden layers
+    :param dropout_rate: Dropout rate for ZINB
+    :param dispersion: One of ``("gene", "gene-cell", "gene-label", "gene-batch")``
+    :param log_variational: Log variational distribution
+    :param reconstruction_loss:  One of ``("zinb", "nb")``
 
     Examples:
         >>> gene_dataset = CortexDataset()
@@ -36,8 +35,10 @@ class VAE(nn.Module):
 
     """
 
-    def __init__(self, n_input, n_batch=0, n_labels=0, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1,
-                 dispersion="gene", log_variational=True, reconstruction_loss="zinb"):
+    def __init__(self, n_input: int, n_batch: int = 0, n_labels: int = 0,
+                 n_hidden: int = 128, n_latent: int = 10, n_layers: int = 1,
+                 dropout_rate: float = 0.1, dispersion: str = "gene",
+                 log_variational: bool = True, reconstruction_loss: str = "zinb"):
         super(VAE, self).__init__()
         self.dispersion = dispersion
         self.n_latent = n_latent
