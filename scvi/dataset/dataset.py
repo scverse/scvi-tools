@@ -114,16 +114,20 @@ class GeneExpressionDataset(Dataset):
         indices = np.argsort(np.array(self.X.sum(axis=1)).ravel())[::-1][:new_n_cells]
         self.update_cells(indices)
 
-    def filter_cell_types(self, cell_types):
-        """
-        :param cell_types: numpy array of type np.int (indices) or np.str (cell-types names)
-        :return:
-        """
+    def _cell_type_idx(self, cell_types):
         if type(cell_types[0]) is not int:
             current_cell_types = list(self.cell_types)
             cell_types_idx = np.array([current_cell_types.index(cell_type) for cell_type in cell_types])
         else:
             cell_types_idx = np.array(cell_types, dtype=np.int64)
+        return cell_types_idx
+
+    def filter_cell_types(self, cell_types):
+        """
+        :param cell_types: numpy array of type np.int (indices) or np.str (cell-types names)
+        :return:
+        """
+        cell_types_idx = self._cell_type_idx(cell_types)
         if hasattr(self, 'cell_types'):
             self.cell_types = self.cell_types[cell_types_idx]
             print("Only keeping cell types: \n" + '\n'.join(list(self.cell_types)))
@@ -132,6 +136,34 @@ class GeneExpressionDataset(Dataset):
             idx_to_keep += [np.where(self.labels == idx)[0]]
         self.update_cells(np.concatenate(idx_to_keep))
         self.labels, self.n_labels = arrange_categories(self.labels, mapping_from=cell_types_idx)
+
+    def merge_cell_types(self, cell_types, new_cell_type_name):
+        """
+        Merge some cell types into a new one, a change the labels accordingly.
+        :param merge_cell_types: numpy array of type np.int (indices) or np.str (cell-types names)
+        :return:
+        """
+        cell_types_idx = self._cell_type_idx(cell_types)
+        for idx_from in zip(cell_types_idx):
+            self.labels[self.labels == idx_from] = len(self.labels)  # Put at the end the new merged cell-type
+        self.labels, self.n_labels = arrange_categories(self.labels)
+        if hasattr(self, 'cell_types') and type(cell_types[0]) is not int:
+            new_cell_types = list(self.cell_types)
+            for cell_type in cell_types:
+                new_cell_types.remove(cell_type)
+            new_cell_types.append(new_cell_type_name)
+            self.cell_types = np.array(new_cell_types)
+
+    def map_cell_types(self, cell_types_dict):
+        """
+        A map for the cell types to keep, and optionally merge together under a new name (value in the dict)
+        :param cell_types_dict: a dictionary with tuples (str or int) as input and value (str or int) as output
+        """
+        keys = [(key,) if type(key) is not tuple else key for key in cell_types_dict.keys()]
+        cell_types = [cell_type for cell_types in keys for cell_type in cell_types]
+        self.filter_cell_types(cell_types)
+        for cell_types, new_cell_type_name in cell_types_dict.items():
+            self.merge_cell_types(cell_types, new_cell_type_name)
 
     def download(self):
         if hasattr(self, 'urls') and hasattr(self, 'download_names'):
