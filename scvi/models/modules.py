@@ -73,7 +73,7 @@ class FCLayers(nn.Module):
 # Encoder
 class Encoder(nn.Module):
     r"""Encodes data of ``n_input`` dimensions into a latent space of ``n_output``
-     dimensions using a fully-connected neural network of ``n_hidden`` layers.
+    dimensions using a fully-connected neural network of ``n_hidden`` layers.
 
     :param n_input: The dimensionality of the input
     :param n_output: The dimensionality of the output
@@ -99,9 +99,10 @@ class Encoder(nn.Module):
 
     def forward(self, x, *cat_list):
         r"""The forward computation for a single sample.
-        #. Encodes the data in the latent space using the encoder network
-        #. Generates a mean and variance (clamped to [-5, 5]) from encoding
-        #. Samples a new value from an iid multivariate normal of given mean, var
+
+         #. Encodes the data in the latent space using the encoder network
+         #. Generates a mean and variance (clamped to [-5, 5]) from encoding
+         #. Samples a new value from an iid multivariate normal of given mean, var
 
         :param x: torch.Tensor with shape (n_input,)
         :param cat_list: list of category membership(s) for this sample
@@ -119,7 +120,7 @@ class Encoder(nn.Module):
 # Decoder
 class DecoderSCVI(nn.Module):
     r"""Decodes data from latent space of ``n_input`` dimensions ``n_output``
-     dimensions using a fully-connected neural network of ``n_hidden`` layers.
+    dimensions using a fully-connected neural network of ``n_hidden`` layers.
 
     :param n_input: The dimensionality of the input
     :param n_output: The dimensionality of the output
@@ -150,8 +151,9 @@ class DecoderSCVI(nn.Module):
 
     def forward(self, dispersion, z, library, *cat_list):
         r"""The forward computation for a single sample.
-        #. Decodes the data from the latent space using the decoder networks
-        #. Returns parameters for the ZINB distribution of expression
+
+         #. Decodes the data from the latent space using the decoder networks
+         #. Returns parameters for the ZINB distribution of expression
 
         :param dispersion: dispersion metric sharing (gene, gene-cell, gene-batch, gene-label)
         :param z: torch.Tensor with shape (n_input,)
@@ -172,7 +174,7 @@ class DecoderSCVI(nn.Module):
 # Decoder
 class Decoder(nn.Module):
     r"""Decodes data from latent space of ``n_input`` dimensions to ``n_output``
-     dimensions using a fully-connected neural network of ``n_hidden`` layers.
+    dimensions using a fully-connected neural network of ``n_hidden`` layers.
 
     :param n_input: The dimensionality of the input
     :param n_output: The dimensionality of the output
@@ -197,8 +199,9 @@ class Decoder(nn.Module):
 
     def forward(self, x, *cat_list):
         r"""The forward computation for a single sample.
-        #. Decodes the data from the latent space using the decoder networks
-        #. Returns parameters for the ZINB distribution of expression
+
+         #. Decodes the data from the latent space using the decoder networks
+         #. Returns parameters for the ZINB distribution of expression
 
         :param x: torch.Tensor with shape (n_input,)
         :param cat_list: list of category membership(s) for this sample
