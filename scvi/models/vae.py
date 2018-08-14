@@ -34,7 +34,7 @@ class VAE(nn.Module):
     :param log_variational: Log variational distribution
     :param reconstruction_loss:  One of
 
-        * ''`nb'`` - Negative binomial distribution
+        * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
 
     Examples:

@@ -28,7 +28,7 @@ class VAEC(VAE):
     :param log_variational: Log variational distribution
     :param reconstruction_loss:  One of
 
-        * ''`nb'`` - Negative binomial distribution
+        * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
 
     :param y_prior: If None, initialized to uniform probability over cell types
