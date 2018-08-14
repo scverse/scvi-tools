@@ -103,13 +103,12 @@ class Encoder(nn.Module):
 
          #. Encodes the data into latent space using the encoder network
          #. Generates a mean \\( q_m \\) and variance \\( q_v \\) (clamped to \\( [-5, 5] \\))
-         #. Samples a new value from an iid multivariate normal \\( \\sim N(q_m, \\mathbf{I}q_v) \\)
+         #. Samples a new value from an i.i.d. multivariate normal \\( \\sim N(q_m, \\mathbf{I}q_v) \\)
 
         :param x: tensor with shape (n_input,)
         :param cat_list: list of category membership(s) for this sample
         :return: tensors of shape ``(n_latent,)`` for mean and var, and sample
         :rtype: 3-tuple of :py:class:`torch.Tensor`
-        :return
         """
 
         # Parameters for latent distribution
@@ -158,6 +157,7 @@ class DecoderSCVI(nn.Module):
 
          #. Decodes the data from the latent space using the decoder network
          #. Returns parameters for the ZINB distribution of expression
+         #. If ``dispersion != 'gene-cell'`` then value for that param will be ``None``
 
         :param dispersion: One of the following
 
@@ -170,6 +170,7 @@ class DecoderSCVI(nn.Module):
         :param library: library size
         :param cat_list: list of category membership(s) for this sample
         :return: parameters for the ZINB distribution of expression
+        :rtype: 4-tuple of :py:class:`torch.Tensor`
         """
 
         # The decoder returns values for the parameters of the ZINB distribution
@@ -213,11 +214,11 @@ class Decoder(nn.Module):
         r"""The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network
-         #. Returns mean and variance for a multivariate Gaussian
+         #. Returns tensors for the mean and variance of a multivariate distribution
 
         :param x: tensor with shape ``(n_input,)``
         :param cat_list: list of category membership(s) for this sample
-        :return: Mean and variance vectors of shape ``(n_output,)``
+        :return: Mean and variance tensors of shape ``(n_output,)``
         :rtype: 2-tuple of :py:class:`torch.Tensor`
         """
 
