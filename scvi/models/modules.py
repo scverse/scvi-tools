@@ -22,8 +22,8 @@ class FCLayers(nn.Module):
     :param dropout_rate: Dropout rate to apply to each of the hidden layers
     """
 
-    def __init__(self, n_in: int, n_out: int, n_cat_list: Iterable[int]=None,
-                 n_layers: int=1, n_hidden: int=128, dropout_rate: float=0.1):
+    def __init__(self, n_in: int, n_out: int, n_cat_list: Iterable[int] = None,
+                 n_layers: int = 1, n_hidden: int = 128, dropout_rate: float = 0.1):
         super(FCLayers, self).__init__()
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
         if n_cat_list is not None:
@@ -39,7 +39,7 @@ class FCLayers(nn.Module):
                 nn.ReLU(),
                 nn.Dropout(p=dropout_rate))) for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))]))
 
-    def forward(self, x:torch.Tensor, *cat_list: int):
+    def forward(self, x: torch.Tensor, *cat_list: int):
         r"""Forward computation on ``x``.
 
         :param x: tensor of values with shape ``(n_in,)``
@@ -98,7 +98,7 @@ class Encoder(nn.Module):
     def reparameterize(self, mu, var):
         return Normal(mu, var.sqrt()).rsample()
 
-    def forward(self, x:torch.Tensor, *cat_list: int):
+    def forward(self, x: torch.Tensor, *cat_list: int):
         r"""The forward computation for a single sample.
 
          #. Encodes the data into latent space using the encoder network
