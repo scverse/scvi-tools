@@ -26,6 +26,10 @@ class GeneExpressionDataset(Dataset):
         # or transposed CSC sparse matrix (the argument sparse must then be set to true)
         self.X = X
         self.nb_genes = self.X.shape[1]
+
+        if sp_sparse.issparse(X) and (X.shape[0] * X.shape[1]) < 2e9:
+            self.X = X.toarray()
+
         self.dense = type(self.X) is np.ndarray
         if self.dense:
             self.X = np.ascontiguousarray(self.X, dtype=np.float32)
@@ -199,6 +203,8 @@ class GeneExpressionDataset(Dataset):
 
     @staticmethod
     def get_attributes_from_matrix(X, batch_indices=0, labels=None):
+        print(X.shape)
+        print(X.sum(axis=1).shape)
         log_counts = np.log(X.sum(axis=1))
         local_mean = (np.mean(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
         local_var = (np.var(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
