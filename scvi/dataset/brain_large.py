@@ -1,11 +1,7 @@
-import collections
-
 import numpy as np
 from scipy.sparse import csc_matrix, csr_matrix, vstack
 import h5py
 from sklearn.preprocessing import StandardScaler
-import time
-from tqdm import trange
 
 from .dataset import GeneExpressionDataset
 
@@ -13,26 +9,6 @@ batch_idx_10x = [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 
                  0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0,
                  0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0,
                  0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-
-
-def subsample_barcodes(gbm, barcode_indices):
-    barcodes = gbm.barcodes[barcode_indices]
-    return GeneBCMatrix(gbm.gene_ids, gbm.gene_names, barcodes,
-                        gbm.matrix[:, barcode_indices])
-
-
-def subsample_genes(gbm, genes_indices):
-    gene_ids = gbm.gene_ids[genes_indices]
-    gene_names = gbm.gene_names[genes_indices]
-    return GeneBCMatrix(gene_ids, gene_names, gbm.barcodes,
-                        gbm.matrix[genes_indices, :])
-
-
-def get_expression(gbm, gene_name):
-    gene_indices = np.where(gbm.gene_names == gene_name)[0]
-    if len(gene_indices) == 0:
-        raise Exception("%s was not found in list of gene names." % gene_name)
-    return gbm.matrix[gene_indices[0], :].toarray().squeeze()
 
 
 class BrainLargeDataset(GeneExpressionDataset):
@@ -55,7 +31,7 @@ class BrainLargeDataset(GeneExpressionDataset):
     """
 
     def __init__(self, subsample_size=None, save_path='data/', nb_genes_kept=720):
-        self.subsample_size = 50000#subsample_size
+        self.subsample_size = subsample_size
         self.save_path = save_path
         self.nb_genes_kept = nb_genes_kept
         self.url = "http://cf.10xgenomics.com/samples/cell-exp/1.3.0/1M_neurons/" \
@@ -80,7 +56,7 @@ class BrainLargeDataset(GeneExpressionDataset):
                 self.subsample_size = n_cells
             indptr = dset['indptr'][...]
 
-            ns_cells = 10000
+            ns_cells = min(10000, n_cells)
             ns_indptr = indptr[:(ns_cells + 1)]
             ns_nnz = ns_indptr[-1]
             ns_data = dset["data"][:ns_nnz].astype(np.float32)
@@ -110,8 +86,12 @@ class BrainLargeDataset(GeneExpressionDataset):
                 print("loaded {} / {} cells".format(i * nb_cells + nb2_cells, self.subsample_size))
 
         matrix = vstack(nb_matrices)
+        good_cells = matrix.sum(axis=1) > 0
+        good_cells = np.squeeze(np.asarray(good_cells))
+        print("excluding {} cells with zero genes expressed".format(len(good_cells) - good_cells.sum()))
+        matrix = matrix[good_cells, :]
 
         print("%d cells subsampled" % matrix.shape[0])
         print("%d genes subsampled" % matrix.shape[1])
 
-        return [matrix,]
+        return [matrix, ]
