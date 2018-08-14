@@ -44,10 +44,28 @@ def de_cortex(px_scale, all_labels, gene_names, M_permutation=100000, permutatio
     print("\nDifferential Expression A/B for cell types\nA: %s\nB: %s\n" %
           tuple((cell_types[couple_celltypes[i]] for i in [0, 1])))
 
+    res = differential_expression(px_scale, all_labels, couple_celltypes, M_permutation, permutation)
+
+    genes_of_interest = np.char.upper(["Thy1", "Mbp"])
+    result = [(gene_name, res[np.where(gene_names == gene_name)[0]][0]) for gene_name in genes_of_interest]
+    print('\n'.join([gene_name + " : " + str(r) for (gene_name, r) in result]))
+    return result[1][1]  # if we had to give a metric to optimize
+
+
+def differential_expression(px_scale, all_labels, couple_celltypes, M_permutation=100000, permutation=False):
+    r"""
+    :param px_scale:
+    :param all_labels:
+    :param couple_celltypes:
+    :param other_cell_idx:
+    :param M_permutation: 10000 - default value in Romain's code
+    :param permutation:
+    :return:
+    """
     # Here instead of A, B = 200, 400: we do on whole dataset then select cells
     sample_rate_a = (px_scale[all_labels.view(-1) == couple_celltypes[0]].view(-1, px_scale.size(1))
                      .cpu().detach().numpy())
-    sample_rate_b = (px_scale[all_labels.view(-1) == couple_celltypes[1]].view(-1, px_scale.size(1))
+    sample_rate_b = (px_scale[all_labels.view(-1) != couple_celltypes[1]].view(-1, px_scale.size(1))
                      .cpu().detach().numpy())
 
     # agregate dataset
@@ -70,8 +88,4 @@ def de_cortex(px_scale, all_labels, gene_names, M_permutation=100000, permutatio
 
     res = np.mean(first_set >= second_set, 0)
     res = np.log(res + 1e-8) - np.log(1 - res + 1e-8)
-
-    genes_of_interest = np.char.upper(["Thy1", "Mbp"])
-    result = [(gene_name, res[np.where(gene_names == gene_name)[0]][0]) for gene_name in genes_of_interest]
-    print('\n'.join([gene_name + " : " + str(r) for (gene_name, r) in result]))
-    return result[1][1]  # if we had to give a metric to optimize
+    return res
