@@ -26,6 +26,7 @@ class GeneExpressionDataset(Dataset):
         # or transposed CSC sparse matrix (the argument sparse must then be set to true)
         self.X = X
         self.nb_genes = self.X.shape[1]
+
         self.dense = type(self.X) is np.ndarray
         if self.dense:
             self.X = np.ascontiguousarray(self.X, dtype=np.float32)
