@@ -22,8 +22,6 @@ Welcome to scVI's documentation!
    scvi.metrics
    scvi.models
 
-   modules
-
 Indices and tables
 ==================
 * :ref:`genindex`
