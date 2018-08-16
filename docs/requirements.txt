@@ -1,2 +1,3 @@
 sphinx
 nbsphinx
+sphinx-autodoc-typehints
