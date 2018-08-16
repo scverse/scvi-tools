@@ -1,3 +1,5 @@
+from typing import Sequence
+
 import numpy as np
 import torch
 from torch.distributions import Normal, Categorical, kl_divergence as kl
@@ -13,18 +15,30 @@ class SVAEC(VAE):
     as described in (https://arxiv.org/pdf/1406.5298.pdf). S stand for "Stacked" variational autoencoder
     and C for classification - SVAEC
 
-    Args:
-        :n_input: Number of input genes.
-        :n_batch: Default: ``0``.
-        :n_labels: Default: ``0``.
-        :n_hidden: Number of hidden. Default: ``128``.
-        :n_latent: Default: ``1``.
-        :n_layers: Number of layers. Default: ``1``.
-        :dropout_rate: Default: ``0.1``.
-        :dispersion: Default: ``"gene"``.
-        :log_variational: Default: ``True``.
-        :reconstruction_loss: Default: ``"zinb"``.
-        :y_prior: Default: None, but will be initialized to uniform probability over the cell types if not specified
+    :param n_input: Number of input genes
+    :param n_batch: Number of batches
+    :param n_labels: Number of labels
+    :param n_hidden: Number of nodes per hidden layer
+    :param n_latent: Dimensionality of the latent space
+    :param n_layers: Number of hidden layers used for encoder and decoder NNs
+    :param dropout_rate: Dropout rate for neural networks
+    :param dispersion: One of the following
+
+        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
+        * ``'gene-batch'`` - dispersion can differ between different batches
+        * ``'gene-label'`` - dispersion can differ between different labels
+        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
+
+    :param log_variational: Log variational distribution
+    :param reconstruction_loss:  One of
+
+        * ``'nb'`` - Negative binomial distribution
+        * ``'zinb'`` - Zero-inflated negative binomial distribution
+
+    :param y_prior: If None, initialized to uniform probability over cell types
+    :param logreg_classifier: Use LinearLogRegClassifier
+    :param labels_groups: Label group designations
+    :param use_labels_groups: Whether to use the label groups
 
     Examples:
         >>> gene_dataset = CortexDataset()
@@ -36,9 +50,12 @@ class SVAEC(VAE):
         ... n_labels=3, y_prior=torch.tensor([[0.1,0.5,0.4]]), labels_groups=[0,0,1])
     """
 
-    def __init__(self, n_input, n_batch, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1,
-                 y_prior=None, logreg_classifier=False, dispersion="gene", log_variational=True,
-                 reconstruction_loss="zinb", labels_groups=None, use_labels_groups=False):
+    def __init__(self, n_input: int, n_batch: int = 0, n_labels: int = 0,
+                 n_hidden: int = 128, n_latent: int = 10, n_layers: int = 1,
+                 dropout_rate: float = 0.1, dispersion: str = "gene",
+                 log_variational: bool = True, reconstruction_loss: str = "zinb",
+                 y_prior=None, logreg_classifier: bool = False,
+                 labels_groups: Sequence[int] = None, use_labels_groups: bool = False):
         super(SVAEC, self).__init__(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
                                     dropout_rate=dropout_rate, n_batch=n_batch, dispersion=dispersion,
                                     log_variational=log_variational, reconstruction_loss=reconstruction_loss)
@@ -124,7 +141,7 @@ class SVAEC(VAE):
             return reconst_loss + loss_z1_weight + loss_z1_unweight, kl_divergence_z2 + kl_divergence_l
 
         probs = self.classifier(z1)
-        reconst_loss += (loss_z1_weight + ((loss_z1_unweight).view(self.n_labels, -1).t() * probs).sum(dim=1))
+        reconst_loss += (loss_z1_weight + (loss_z1_unweight.view(self.n_labels, -1).t() * probs).sum(dim=1))
 
         kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(dim=1)
         kl_divergence += kl(Categorical(probs=probs),
