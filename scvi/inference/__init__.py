@@ -1,20 +1,30 @@
-from .inference import Inference
-from .variational_inference import (
-    VariationalInference,
-    VariationalInferenceFish
+from .trainer import Trainer
+from .trainers import (
+    UnsupervisedTrainer,
+    TrainerFish,
+    ImputationTrainer,
+    AdapterTrainer
 )
+from .posterior import Posterior
 from .classifier_inference import (
-    AlternateSemiSupervisedVariationalInference,
-    JointSemiSupervisedVariationalInference,
-    ClassifierInference
+    JointSemiSupervisedTrainer,
+    SemiSupervisedTrainer,
+    AlternateSemiSupervisedTrainer,
+    ClassifierTrainer
 )
 from .experimental_inference import adversarial_wrapper, mmd_wrapper
 
-__all__ = ['Inference',
-           'AlternateSemiSupervisedVariationalInference',
-           'JointSemiSupervisedVariationalInference',
-           'ClassifierInference',
-           'VariationalInference',
-           'VariationalInferenceFish',
+
+__all__ = ['UnsupervisedTrainer',
+           'Trainer',
+           'Posterior',
+           'TrainerFish',
+           'ImputationTrainer',
+           'AdapterTrainer',
            'adversarial_wrapper',
-           'mmd_wrapper']
+           'mmd_wrapper',
+           'JointSemiSupervisedTrainer',
+           'SemiSupervisedTrainer',
+           'AlternateSemiSupervisedTrainer',
+           'ClassifierTrainer'
+           ]

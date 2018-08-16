@@ -1,12 +1,12 @@
 """File for computing log likelihood of the data"""
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.distributions import Normal
-import numpy as np
 
 
-def compute_log_likelihood(vae, data_loader):
+def compute_log_likelihood(vae, data_loader, **kwargs):
     """ Computes log p(x/z), which is the reconstruction error .
         Differs from the marginal log likelihood, but still gives good
         insights on the modeling of the data, and is fast to compute
@@ -14,9 +14,9 @@ def compute_log_likelihood(vae, data_loader):
     # Iterate once over the data_loader and computes the total log_likelihood
     log_lkl = 0
     for i_batch, tensors in enumerate(data_loader):
-        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
+        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[:5]  # general fish case
         reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
-                                          y=labels)
+                                          y=labels, **kwargs)
         log_lkl += torch.sum(reconst_loss).item()
     n_samples = (len(data_loader.dataset)
                  if not (hasattr(data_loader, 'sampler') and hasattr(data_loader.sampler, 'indices')) else

@@ -1,33 +1,35 @@
-from scvi.dataset import CortexDataset
-from scvi.inference import VariationalInference, VariationalInferenceFish, adversarial_wrapper
-from scvi.models import VAE, VAEF
 import numpy as np
 from sklearn.decomposition import PCA
-from scvi.inference.variational_inference import proximity_imputation
+
+from scvi.dataset import CortexDataset
+from scvi.inference import UnsupervisedTrainer, TrainerFish, adversarial_wrapper, ImputationTrainer
 from scvi.inference.classifier_inference import compute_accuracy_nn
+from scvi.inference.posterior import proximity_imputation
+from scvi.models import VAE, VAEF
 
 
 def cortex_benchmark(n_epochs=250, use_cuda=True, unit_test=False):
     cortex_dataset = CortexDataset()
     vae = VAE(cortex_dataset.nb_genes)
-    infer_cortex_vae = VariationalInference(vae, cortex_dataset, use_cuda=use_cuda)
+    infer_cortex_vae = UnsupervisedTrainer(vae, cortex_dataset, use_cuda=use_cuda)
     infer_cortex_vae.train(n_epochs=n_epochs)
 
-    infer_cortex_vae.ll('test')  # assert ~ 1200
-    infer_cortex_vae.differential_expression('test')
-    infer_cortex_vae.imputation('test', rate=0.1)  # assert ~ 2.3
+    infer_cortex_vae.test_set.ll()  # assert ~ 1200
+    infer_cortex_vae.test_set.differential_expression()
+    imputation_trainer = ImputationTrainer(infer_cortex_vae, cortex_dataset, rate=0.1)
+    imputation_trainer.train(n_epochs)
     n_samples = 1000 if not unit_test else 10
-    infer_cortex_vae.show_t_sne('test', n_samples=n_samples)
+    infer_cortex_vae.sequential.show_t_sne(n_samples=n_samples)
     return infer_cortex_vae
 
 
 def benchmark(dataset, n_epochs=250, use_cuda=True):
     vae = VAE(dataset.nb_genes, n_batch=dataset.n_batches)
-    infer = VariationalInference(vae, dataset, use_cuda=use_cuda)
+    infer = UnsupervisedTrainer(vae, dataset, use_cuda=use_cuda)
     infer.train(n_epochs=n_epochs)
-    infer.ll('test')
-    infer.marginal_ll('test')
-    infer.imputation('test', rate=0.1)  # assert ~ 2.1
+    infer.test_set.ll(verbose=True)
+    infer.test_set.marginal_ll(verbose=True)
+    # infer.imputation('test', rate=0.1)  # assert ~ 2.1
     return infer
 
 
@@ -54,9 +56,9 @@ def benchamrk_fish_scrna(gene_dataset_seq, gene_dataset_fish):
     vae = VAEF(gene_dataset_seq.nb_genes, indexes_to_keep, n_layers_decoder=2, n_latent=6,
                n_layers=2, n_hidden=256, reconstruction_loss='nb', dropout_rate=0.3, n_labels=7, n_batch=2,
                model_library=False)
-    infer = VariationalInferenceFish(vae, gene_dataset_seq, gene_dataset_fish, train_size=0.9, verbose=True,
-                                     frequency=5, weight_decay=0.35, n_epochs_even=100, n_epochs_kl=1000,
-                                     cl_ratio=0, n_epochs_cl=100)
+    infer = TrainerFish(vae, gene_dataset_seq, gene_dataset_fish, train_size=0.9, verbose=True,
+                        frequency=5, weight_decay=0.35, n_epochs_even=100, n_epochs_kl=1000,
+                        cl_ratio=0, n_epochs_cl=100)
     infer = adversarial_wrapper(infer, scale=50, mode="smFISH")
     infer.train(n_epochs=1, lr=0.0008)
     concatenated_matrix = np.concatenate(

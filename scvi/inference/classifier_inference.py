@@ -8,14 +8,49 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 from torch.nn import functional as F
 
-from scvi.dataset import DataLoaders
-from scvi.dataset.data_loaders import TrainTestDataLoaders, AlternateSemiSupervisedDataLoaders, \
-    JointSemiSupervisedDataLoaders
-from scvi.inference import VariationalInference
-from scvi.inference.variational_inference import unsupervised_clustering_accuracy
-from . import Inference
+from scvi.inference import Trainer, Posterior
+from scvi.inference.posterior import unsupervised_clustering_accuracy
+from scvi.inference.trainers import UnsupervisedTrainer
 
 Accuracy = namedtuple('Accuracy', ['unweighted', 'weighted', 'worst', 'accuracy_classes'])
+
+
+class SemiSupervisedPosterior(Posterior):
+    def __init__(self, *args, **kwargs):
+        super(SemiSupervisedPosterior, self).__init__(*args, **kwargs)
+        self.to_monitor = ["ll", "accuracy"]
+
+    def accuracy(self, verbose=False):
+        model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
+        acc = compute_accuracy(model, self.data_loader, classifier=cls)
+        if verbose:
+            print("Acc for %s is : %.4f" % (self.name, acc))
+        return acc
+
+    accuracy.mode = 'max'
+
+    def hierarchical_accuracy(self, name, verbose=False):
+
+        all_y, all_y_pred = compute_predictions(self.model, self.data_loaders[name])
+        acc = np.mean(all_y == all_y_pred)
+
+        all_y_groups = np.array([self.model.labels_groups[y] for y in all_y])
+        all_y_pred_groups = np.array([self.model.labels_groups[y] for y in all_y_pred])
+        h_acc = np.mean(all_y_groups == all_y_pred_groups)
+
+        if verbose:
+            print("Acc for %s is : %.4f\nHierarchical Acc for %s is : %.4f\n" % (name, acc, name, h_acc))
+        return acc
+
+    accuracy.mode = 'max'
+
+    def unsupervised_accuracy(self, verbose=False):
+        uca = unsupervised_classification_accuracy(self.model, self.data_loader)[0]
+        if verbose:
+            print("UCA for %s is : %.4f" % (self.name, uca))
+        return uca
+
+    unsupervised_accuracy.mode = 'max'
 
 
 def compute_accuracy_tuple(y, y_pred):
@@ -37,7 +72,7 @@ def compute_accuracy_tuple(y, y_pred):
     return accuracy_named_tuple
 
 
-def compute_predictions(vae, data_loader, classifier=None):
+def compute_predictions(model, data_loader, classifier=None):
     all_y_pred = []
     all_y = []
 
@@ -45,13 +80,15 @@ def compute_predictions(vae, data_loader, classifier=None):
         sample_batch, _, _, _, labels = tensors
         all_y += [labels.view(-1)]
 
-        if hasattr(vae, 'classify'):
-            y_pred = vae.classify(sample_batch).argmax(dim=-1)
+        if hasattr(model, 'classify'):
+            y_pred = model.classify(sample_batch).argmax(dim=-1)
         elif classifier is not None:
             # Then we use the specified classifier
-            if vae is not None:
-                sample_batch, _, _ = vae.z_encoder(sample_batch)
+            if model is not None:
+                sample_batch, _, _ = model.z_encoder(sample_batch)
             y_pred = classifier(sample_batch).argmax(dim=-1)
+        else:  # The model is the raw classifier
+            y_pred = model(sample_batch).argmax(dim=-1)
         all_y_pred += [y_pred]
 
     all_y_pred = np.array(torch.cat(all_y_pred))
@@ -109,7 +146,7 @@ def compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels
             compute_accuracy_tuple(labels_test, y_pred_test)), y_pred_test
 
 
-class ClassifierInference(Inference):
+class ClassifierTrainer(Trainer):
     r"""The ClassifierInference class for training a classifier either on the raw data or on top of the latent
         space of another model (VAE, VAEC, SVAEC).
 
@@ -144,144 +181,108 @@ class ClassifierInference(Inference):
 
     def __init__(self, *args, sampling_model=None, use_cuda=True, **kwargs):
         self.sampling_model = sampling_model
-        super(ClassifierInference, self).__init__(*args, use_cuda=use_cuda, **kwargs)
-        if 'data_loaders' not in kwargs:
-            self.data_loaders = TrainTestDataLoaders(self.gene_dataset, train_size=0.1)
-
-    def train(self, *args, **kargs):
-        if hasattr(self.model, "update_parameters"):
-            with torch.no_grad():
-                self.model.update_parameters(self.sampling_model, self.data_loaders['train'])
-        else:
-            super(ClassifierInference, self).train(*args, **kargs)
+        super(ClassifierTrainer, self).__init__(*args, use_cuda=use_cuda, **kwargs)
+        self.train_set, self.test_set = self.train_test(self.model, self.gene_dataset, cls=SemiSupervisedPosterior)
+        self.posteriors_dict = {"train_set": self.train_set, "test_set": self.test_set}
+        self.posteriors_loop = ["train_set"]
+        if sampling_model is not None:
+            self.train_set.sampling_model = sampling_model
+            self.test_set.sampling_model = sampling_model
 
     def loss(self, tensors_labelled):
         x, _, _, _, labels_train = tensors_labelled
         x = self.sampling_model.sample_from_posterior_z(x) if self.sampling_model is not None else x
         return F.cross_entropy(self.model(x), labels_train.view(-1))
 
-    def accuracy(self, name, verbose=False):
-        model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
-        acc = compute_accuracy(model, self.data_loaders[name], classifier=cls)
-        if verbose:
-            print("Acc for %s is : %.4f" % (name, acc))
-        return acc
 
-    accuracy.mode = 'max'
-
-
-class SemiSupervisedVariationalInference(VariationalInference):
-    r"""The abstract SemiSupervisedVariationalInference class for the semi-supervised training of an autoencoder.
-    This parent class is inherited to specify the different training schemes for semi-supervised learning
+class SemiSupervisedTrainer(UnsupervisedTrainer):
+    r"""The SemiSupervisedTrainer class for the semi-supervised training of an autoencoder.
+    This parent class can be inherited to specify the different training schemes for semi-supervised learning
     """
-    default_metrics_to_monitor = VariationalInference.default_metrics_to_monitor + ['accuracy']
+    default_metrics_to_monitor = Trainer.default_metrics_to_monitor + ['accuracy']
 
-    def accuracy(self, name, verbose=False):
-        acc = compute_accuracy(self.model, self.data_loaders[name])
-        if verbose:
-            print("Acc for %s is : %.4f" % (name, acc))
-        return acc
+    def __init__(self, model, gene_dataset, n_labelled_samples_per_class=50, n_epochs_classifier=1,
+                 lr_classification=0.1, classification_ratio=1, seed=0, **kwargs):
+        """
+        :param n_labelled_samples_per_class: number of labelled samples per class
+        """
+        super(SemiSupervisedTrainer, self).__init__(model, gene_dataset, **kwargs)
+        self.model = model
+        self.gene_dataset = gene_dataset
 
-    accuracy.mode = 'max'
+        self.n_epochs_classifier = n_epochs_classifier
+        self.lr_classification = lr_classification
+        self.classification_ratio = classification_ratio
+        n_labelled_samples_per_class_array = [n_labelled_samples_per_class] * self.gene_dataset.n_labels
+        labels = np.array(self.gene_dataset.labels).ravel()
+        np.random.seed(seed=seed)
+        permutation_idx = np.random.permutation(len(labels))
+        labels = labels[permutation_idx]
+        indices = []
+        current_nbrs = np.zeros(len(n_labelled_samples_per_class_array))
+        for idx, (label) in enumerate(labels):
+            label = int(label)
+            if current_nbrs[label] < n_labelled_samples_per_class_array[label]:
+                indices.insert(0, idx)
+                current_nbrs[label] += 1
+            else:
+                indices.append(idx)
+        indices = np.array(indices)
+        total_labelled = sum(n_labelled_samples_per_class_array)
+        indices_labelled = permutation_idx[indices[:total_labelled]]
+        indices_unlabelled = permutation_idx[indices[total_labelled:]]
 
-    def hierarchical_accuracy(self, name, verbose=False):
+        self.full_dataset = self.create_posterior(shuffle=True, cls=SemiSupervisedPosterior,
+                                                  name='full_dataset')
+        self.labelled_set = self.create_posterior(indices=indices_labelled, cls=SemiSupervisedPosterior,
+                                                  name='labelled_set')
+        self.unlabelled_set = self.create_posterior(indices=indices_unlabelled, cls=SemiSupervisedPosterior,
+                                                    name='unlabelled_set')
 
-        all_y, all_y_pred = compute_predictions(self.model, self.data_loaders[name])
-        acc = np.mean(all_y == all_y_pred)
+        self.classifier_trainer = ClassifierTrainer(
+            model.classifier, gene_dataset, metrics_to_monitor=[], verbose=True, frequency=0,
+            sampling_model=self.model
+        )
+        self.classifier_trainer.posteriors_dict['train_set'] = self.labelled_set
+        self.classifier_trainer.posteriors_loop = ['train_set']
 
-        all_y_groups = np.array([self.model.labels_groups[y] for y in all_y])
-        all_y_pred_groups = np.array([self.model.labels_groups[y] for y in all_y_pred])
-        h_acc = np.mean(all_y_groups == all_y_pred_groups)
+        self.posteriors_dict = {'labelled_set': self.labelled_set,
+                                'unlabelled_set': self.unlabelled_set,
+                                'full_dataset': self.full_dataset}
 
-        if verbose:
-            print("Acc for %s is : %.4f\nHierarchical Acc for %s is : %.4f\n" % (name, acc, name, h_acc))
-        return acc
+        self.posteriors_loop = ['full_dataset', 'labelled_set']
+        for posterior in [self.labelled_set, self.unlabelled_set]:
+            posterior.to_monitor = ['ll', 'accuracy']
 
-    accuracy.mode = 'max'
+    def loss(self, tensors_all, tensors_labelled):
+        loss = super(SemiSupervisedTrainer, self).loss(tensors_all)
+        sample_batch, _, _, _, y = tensors_labelled
+        classification_loss = F.cross_entropy(self.model.classify(sample_batch), y.view(-1))
+        loss += classification_loss * self.classification_ratio
+        return loss
 
-    def unsupervised_accuracy(self, name, verbose=False):
-        uca = unsupervised_classification_accuracy(self.model, self.data_loaders[name])[0]
-        if verbose:
-            print("UCA for %s is : %.4f" % (name, uca))
-        return uca
-
-    unsupervised_accuracy.mode = 'max'
+    def on_epoch_end(self):
+        self.classifier_trainer.train(self.n_epochs_classifier, lr=self.lr_classification)
+        return super(SemiSupervisedTrainer, self).on_epoch_end()
 
     def svc_rf(self, **kwargs):
-        if 'train' in self.data_loaders:
-            raw_data = DataLoaders.raw_data(self.data_loaders['train'], self.data_loaders['test'])
-        else:
-            raw_data = DataLoaders.raw_data(self.data_loaders['labelled'], self.data_loaders['unlabelled'])
+        raw_data = Posterior.raw_data(self.labelled_set, self.unlabelled_set)
         (data_train, labels_train), (data_test, labels_test) = raw_data
         svc_scores, _ = compute_accuracy_svc(data_train, labels_train, data_test, labels_test, **kwargs)
         rf_scores, _ = compute_accuracy_rf(data_train, labels_train, data_test, labels_test, **kwargs)
         return svc_scores, rf_scores
 
 
-class AlternateSemiSupervisedVariationalInference(SemiSupervisedVariationalInference):
-    r"""The AlternateSemiSupervisedVariationalInference class for the semi-supervised training of an autoencoder.
-
-    Args:
-        :model: A model instance from class ``VAEC``, ``SVAEC``, ...
-        :gene_dataset: A gene_dataset instance with pre-annotations like ``CortexDataset()``
-        :n_labelled_samples_per_class: The number of labelled training samples per class. Default: ``50``.
-        :**kwargs: Other keywords arguments from the general Inference class.
-
-    Examples:
-        >>> gene_dataset = CortexDataset()
-        >>> svaec = SVAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-        ... n_labels=gene_dataset.n_labels)
-
-        >>> infer = AlternateSemiSupervisedVariationalInference(gene_dataset, svaec, n_labelled_samples_per_class=10)
-        >>> infer.train(n_epochs=20, lr=1e-3)
-    """
-
-    def __init__(self, model, gene_dataset, n_labelled_samples_per_class=50, n_epochs_classifier=1,
-                 lr_classification=0.1, **kwargs):
-        super(AlternateSemiSupervisedVariationalInference, self).__init__(model, gene_dataset, **kwargs)
-
-        self.n_epochs_classifier = n_epochs_classifier
-        self.lr_classification = lr_classification
-        self.data_loaders = AlternateSemiSupervisedDataLoaders(gene_dataset, n_labelled_samples_per_class,
-                                                               use_cuda=self.use_cuda)
-
-        self.classifier_inference = ClassifierInference(
-            model.classifier, gene_dataset, metrics_to_monitor=[], verbose=True, frequency=0,
-            data_loaders=self.data_loaders.classifier_data_loaders(), sampling_model=self.model
-        )
-
-    def on_epoch_end(self):
-        self.classifier_inference.train(self.n_epochs_classifier, lr=self.lr_classification)
-        return super(AlternateSemiSupervisedVariationalInference, self).on_epoch_end()
+class JointSemiSupervisedTrainer(SemiSupervisedTrainer):
+    def __init__(self, model, gene_dataset, **kwargs):
+        kwargs.update({'n_epochs_classifier': 0})
+        super(JointSemiSupervisedTrainer, self).__init__(model, gene_dataset, **kwargs)
 
 
-class JointSemiSupervisedVariationalInference(SemiSupervisedVariationalInference):
-    r"""The JointSemiSupervisedVariationalInference class for the semi-supervised training of an autoencoder.
+class AlternateSemiSupervisedTrainer(SemiSupervisedTrainer):
+    def __init__(self, *args, **kwargs):
+        super(AlternateSemiSupervisedTrainer, self).__init__(*args, **kwargs)
+        self.posteriors_loop = ['full_dataset']
 
-    Args:
-        :model: A model instance from class ``VAEC``, ``SVAEC``, ...
-        :gene_dataset: A gene_dataset instance with pre-annotations like ``CortexDataset()``
-        :n_labelled_samples_per_class: The number of labelled training samples per class. Default: ``50``.
-        :**kwargs: Other keywords arguments from the general Inference class.
-
-    Examples:
-        >>> gene_dataset = CortexDataset()
-        >>> svaec = SVAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-        ... n_labels=gene_dataset.n_labels)
-
-        >>> infer = JointSemiSupervisedVariationalInference(gene_dataset, svaec, n_labelled_samples_per_class=10)
-        >>> infer.train(n_epochs=20, lr=1e-3)
-    """
-
-    def __init__(self, model, gene_dataset, n_labelled_samples_per_class=50, classification_ratio=100, **kwargs):
-        super(JointSemiSupervisedVariationalInference, self).__init__(model, gene_dataset, **kwargs)
-        self.data_loaders = JointSemiSupervisedDataLoaders(gene_dataset, n_labelled_samples_per_class,
-                                                           use_cuda=self.use_cuda)
-        self.classification_ratio = classification_ratio
-
-    def loss(self, tensors_all, tensors_labelled):
-        loss = super(JointSemiSupervisedVariationalInference, self).loss(tensors_all)
-        sample_batch, _, _, _, y = tensors_labelled
-        classification_loss = F.cross_entropy(self.model.classify(sample_batch), y.view(-1))
-        loss += classification_loss * self.classification_ratio
-        return loss
+    def loss(self, all_tensor):
+        return UnsupervisedTrainer.loss(self, all_tensor)

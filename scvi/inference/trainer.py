@@ -1,14 +1,22 @@
+import copy
 import sys
 import time
 from collections import defaultdict
+from itertools import cycle
+
 import numpy as np
 import torch
+from sklearn.model_selection._split import _validate_shuffle_split
+from torch.utils.data import DataLoader
+from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler, RandomSampler
 from tqdm import trange
+
+from scvi.inference.posterior import Posterior
 
 torch.set_grad_enabled(False)
 
 
-class Inference:
+class Trainer:
     r"""The abstract Inference class for training a PyTorch model and monitoring its statistics. It should be
     inherited at least with a .loss() function to be optimized in the training loop.
 
@@ -29,12 +37,20 @@ class Inference:
     """
     default_metrics_to_monitor = []
 
-    def __init__(self, model, gene_dataset, use_cuda=True, metrics_to_monitor=None, data_loaders=None, benchmark=False,
+    def __init__(self, model, gene_dataset, use_cuda=True, metrics_to_monitor=None, benchmark=False,
                  verbose=False, frequency=None, early_stopping_metric=None,
-                 save_best_state_metric=None, on=None, weight_decay=1e-6):
+                 save_best_state_metric=None, on=None, early_stopping_kwargs={'patience': 15, 'threshold': 3},
+                 weight_decay=1e-6, data_loaders_kwargs=dict()):
+
         self.model = model
         self.gene_dataset = gene_dataset
-        self.data_loaders = data_loaders
+
+        self.data_loaders_kwargs = {
+            "batch_size": 128,
+            "pin_memory": use_cuda
+        }
+        self.data_loaders_kwargs.update(data_loaders_kwargs)
+
         self.weight_decay = weight_decay
         self.benchmark = benchmark
         self.epoch = 0
@@ -48,9 +64,11 @@ class Inference:
         self.early_stopping_metric = early_stopping_metric
         self.save_best_state_metric = save_best_state_metric
         self.on = on
-        mode = getattr(self, early_stopping_metric).mode if early_stopping_metric is not None else None
-        mode_save_state = getattr(self, save_best_state_metric).mode if save_best_state_metric is not None else None
-        self.early_stopping = EarlyStopping(benchmark=benchmark, mode=mode, mode_save_state=mode_save_state)
+        mode = getattr(Posterior, early_stopping_metric).mode if early_stopping_metric is not None else None
+        mode_save_state = getattr(Posterior,
+                                  save_best_state_metric).mode if save_best_state_metric is not None else None
+        self.early_stopping = EarlyStopping(benchmark=benchmark, mode=mode, mode_save_state=mode_save_state,
+                                            **early_stopping_kwargs)
 
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
@@ -60,6 +78,12 @@ class Inference:
         self.verbose = verbose
 
         self.history = defaultdict(lambda: [])
+        self.posteriors_dict = dict()
+        self.posteriors_loop = []
+
+    def data_loaders_loop(self):  # returns an zipped iterable corresponding to loss signature
+        data_loaders_loop = [self.posteriors_dict[name].data_loader for name in self.posteriors_loop]
+        return zip(data_loaders_loop[0], *[cycle(data_loader) for data_loader in data_loaders_loop[1:]])
 
     def compute_metrics(self):
         begin = time.time()
@@ -69,10 +93,12 @@ class Inference:
                             self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.frequency == 0)):
                 if self.verbose:
                     print("\nEPOCH [%d/%d]: " % (self.epoch, self.n_epochs))
-                for name in self.data_loaders.to_monitor:
-                    for metric in self.metrics_to_monitor:
-                        result = getattr(self, metric)(name=name, verbose=self.verbose)
-                        self.history[metric + '_' + name] += [result]
+
+                for name, posterior in self.posteriors_dict.items():
+                    if hasattr(posterior, 'to_monitor'):
+                        for metric in posterior.to_monitor:
+                            result = getattr(posterior, metric)(verbose=self.verbose)
+                            self.history[metric + '_' + name] += [result]
             self.model.train()
             self.compute_metrics_time += time.time() - begin
 
@@ -97,8 +123,7 @@ class Inference:
 
                 for epoch in pbar:
                     pbar.update(1)
-
-                    for tensors_list in self.data_loaders:
+                    for tensors_list in self.data_loaders_loop():
                         loss = self.loss(*tensors_list)
                         optimizer.zero_grad()
                         loss.backward()
@@ -133,6 +158,73 @@ class Inference:
                 self.history[self.early_stopping_metric + '_' + self.on][-1]
             )
         return continue_training
+
+    def train_test(self, model=None, gene_dataset=None, train_size=0.1, test_size=None, seed=0, suffix='',
+                   cls=Posterior):
+        """
+        :param train_size: float, int, or None (default is 0.1)
+        :param test_size: float, int, or None (default is None)
+        """
+        model = self.model if model is None and hasattr(self, "model") else model
+        gene_dataset = self.gene_dataset if gene_dataset is None and hasattr(self, "model") else gene_dataset
+        n = len(gene_dataset)
+        n_train, n_test = _validate_shuffle_split(n, test_size, train_size)
+        np.random.seed(seed=seed)
+        permutation = np.random.permutation(n)
+        indices_test = permutation[:n_test]
+        indices_train = permutation[n_test:(n_test + n_train)]
+
+        return (
+            self.create_posterior(model, gene_dataset, indices=indices_train, name='train' + suffix, cls=cls),
+            self.create_posterior(model, gene_dataset, indices=indices_test, name='test' + suffix, cls=cls)
+        )
+
+    def create_posterior(self, model=None, gene_dataset=None, shuffle=False, indices=None, name='', cls=Posterior):
+        model = self.model if model is None and hasattr(self, "model") else model
+        gene_dataset = self.gene_dataset if gene_dataset is None and hasattr(self, "model") else gene_dataset
+        self.data_loaders_kwargs.update({'collate_fn': gene_dataset.collate_fn})
+        if indices is not None and shuffle:
+            raise ValueError('indices is mutually exclusive with shuffle')
+        if indices is None:
+            if shuffle:
+                sampler = RandomSampler(gene_dataset)
+            else:
+                sampler = SequentialSampler(gene_dataset)
+        else:
+            sampler = SubsetRandomSampler(indices)
+        return cls(model, gene_dataset,
+                   ToCudaDataLoader(gene_dataset, use_cuda=self.use_cuda, sampler=sampler, **self.data_loaders_kwargs),
+                   name=name)
+
+
+class SequentialSubsetSampler(SubsetRandomSampler):
+    def __init__(self, indices):
+        self.indices = np.sort(indices)
+
+    def __iter__(self):
+        return iter(self.indices)
+
+
+class ToCudaDataLoader(DataLoader):
+    def __init__(self, dataset, use_cuda=True, **kwargs):
+        self.kwargs = kwargs
+        self.use_cuda = use_cuda and torch.cuda.is_available()
+        super(ToCudaDataLoader, self).__init__(dataset, **kwargs)
+
+    def to_cuda(self, tensors):
+        return [t.cuda(async=self.use_cuda) if self.use_cuda else t for t in tensors]
+
+    def sequential(self, batch_size=128):
+        kwargs = copy.copy(self.kwargs)
+        kwargs['batch_size'] = batch_size
+        if hasattr(self, 'sampler') and hasattr(self.sampler, 'indices'):
+            kwargs['sampler'] = SequentialSubsetSampler(indices=self.sampler.indices)
+        else:
+            kwargs['sampler'] = SequentialSampler(self.dataset)
+        return ToCudaDataLoader(self.dataset, use_cuda=self.use_cuda, **kwargs)
+
+    def __iter__(self):
+        return map(self.to_cuda, super(ToCudaDataLoader, self).__iter__())
 
 
 class EarlyStopping:
