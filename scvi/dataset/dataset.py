@@ -4,6 +4,7 @@
 For the moment, is initialized with a torch Tensor of size (n_cells, nb_genes)"""
 import os
 import urllib.request
+from collections import defaultdict
 
 import numpy as np
 import scipy.sparse as sp_sparse
@@ -61,10 +62,45 @@ class GeneExpressionDataset(Dataset):
 
     def collate_fn(self, batch):
         indexes = np.array(batch)
+        X = self.X[indexes]
+        return self.collate_fn_end(X, indexes)
+
+    def collate_fn_corrupted(self, batch):
+        indexes = np.array(batch)
+        i, j, corrupted = [], [], []
+        for k, i_idx in enumerate(indexes):
+            j += [self.corrupted[i_idx]['j']]
+            corrupted += [self.corrupted[i_idx]['corrupted']]
+            i += [np.ones_like(j[-1]) * k]
+        i, j, corrupted = np.concatenate(i), np.concatenate(j), np.concatenate(corrupted)
+        X = self.X[indexes]
+        X[i, j] = corrupted
+        return X
+
+    def corrupt(self, rate=0.1, corruption="uniform"):
+        self.corrupted = defaultdict(lambda: {'j': [], 'corrupted': []})
+        if corruption == "uniform":  # multiply the entry n with a Ber(0.9) random variable.
+            i, j = np.nonzero(self.X)
+            ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
+            i, j = i[ix], j[ix]
+            corrupted = self.X[i, j] * np.random.binomial(n=np.ones(len(ix), dtype=np.int64), p=0.9)
+        elif corruption == "binomial":  # multiply the entry n with a Bin(n, 0.9) random variable.
+            i, j = (k.ravel() for k in np.indices(self.shape))
+            ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
+            i, j = i[ix], j[ix]
+            corrupted = np.random.binomial(n=(self.X[i, j]).astype(np.int64), p=0.2)
+        for idx_i, idx_j, corrupted in zip(i, j, corrupted):
+            self.corrupted[idx_i]['j'] += [idx_j]
+            self.corrupted[idx_i]['corrupted'] += [corrupted]
+        for k, v in self.corrupted.items():
+            v['j'] = np.array(v['j'])
+            v['corrupted'] = np.array(v['corrupted'])
+
+    def collate_fn_end(self, X, indexes):
         if self.dense:
-            X = torch.from_numpy(self.X[indexes])
+            X = torch.from_numpy(X)
         else:
-            X = torch.FloatTensor(self.X[indexes].toarray())
+            X = torch.FloatTensor(X.toarray())
         if self.x_coord is None or self.y_coord is None:
             return X, torch.FloatTensor(self.local_means[indexes]), \
                    torch.FloatTensor(self.local_vars[indexes]), \
