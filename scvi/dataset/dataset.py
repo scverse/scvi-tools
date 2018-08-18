@@ -24,12 +24,9 @@ class GeneExpressionDataset(Dataset):
         # Xs: a list of numpy tensors with .shape[1] identical (total_size*nb_genes)
         # or a list of scipy CSR sparse matrix,
         # or transposed CSC sparse matrix (the argument sparse must then be set to true)
-        self.X = X
+        self.dense = type(X) is np.ndarray
+        self._X = np.ascontiguousarray(X, dtype=np.float32) if self.dense else X
         self.nb_genes = self.X.shape[1]
-
-        self.dense = type(self.X) is np.ndarray
-        if self.dense:
-            self.X = np.ascontiguousarray(self.X, dtype=np.float32)
         self.local_means = local_means
         self.local_vars = local_vars
         self.batch_indices, self.n_batches = arrange_categories(batch_indices)
@@ -42,6 +39,15 @@ class GeneExpressionDataset(Dataset):
         if cell_types is not None:
             assert self.n_labels == len(cell_types)
             self.cell_types = np.array(cell_types, dtype=np.str)
+
+    @property
+    def X(self):
+        return self._X
+
+    @X.setter
+    def X(self, X):
+        self._X = X
+        self.library_size_batch()
 
     def __len__(self):
         return self.X.shape[0]
@@ -82,13 +88,14 @@ class GeneExpressionDataset(Dataset):
     def update_cells(self, subset_cells):
         new_n_cells = len(subset_cells) if subset_cells.dtype is not np.dtype('bool') else subset_cells.sum()
         print("Downsampling from %i to %i cells" % (len(self), new_n_cells))
-        for attr_name in ['X', 'local_means', 'local_vars', 'labels', 'batch_indices']:
+        for attr_name in ['_X', 'local_means', 'local_vars', 'labels', 'batch_indices']:
             setattr(self, attr_name, getattr(self, attr_name)[subset_cells])
+        self.library_size_batch()
 
     def subsample_genes(self, new_n_genes=None, subset_genes=None):
         n_cells, n_genes = self.X.shape
         if subset_genes is None and \
-                (new_n_genes is False or new_n_genes >= n_genes):
+            (new_n_genes is False or new_n_genes >= n_genes):
             return None  # Do nothing if subsample more genes than total number of genes
         if subset_genes is None:
             print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))
@@ -198,17 +205,27 @@ class GeneExpressionDataset(Dataset):
             for data in readIter(r):
                 f.write(data)
 
+    def library_size_batch(self):
+        for i_batch in range(self.n_batches):
+            idx_batch = (self.batch_indices == i_batch).ravel()
+            self.local_means[idx_batch], self.local_vars[idx_batch] = self.library_size(self.X[idx_batch])
+
     @staticmethod
-    def get_attributes_from_matrix(X, batch_indices=0, labels=None):
+    def library_size(X):
         log_counts = np.log(X.sum(axis=1))
         local_mean = (np.mean(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
         local_var = (np.var(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
+        return local_mean, local_var
+
+    @staticmethod
+    def get_attributes_from_matrix(X, batch_indices=0, labels=None):
+        local_mean, local_var = GeneExpressionDataset.library_size(X)
         batch_indices = batch_indices * np.ones((X.shape[0], 1)) if type(batch_indices) is int else batch_indices
         labels = labels.reshape(-1, 1) if labels is not None else np.zeros_like(batch_indices)
         return X, local_mean, local_var, batch_indices, labels
 
     @staticmethod
-    def get_attributes_from_list(Xs, list_labels=None):
+    def get_attributes_from_list(Xs, list_batches=None, list_labels=None):
         nb_genes = Xs[0].shape[1]
         assert all(X.shape[1] == nb_genes for X in Xs), "All tensors must have same size"
 
@@ -218,20 +235,18 @@ class GeneExpressionDataset(Dataset):
         batch_indices = []
         labels = []
         for i, X in enumerate(Xs):
-            label = list_labels[i] if list_labels is not None else list_labels
-            X, local_mean, local_var, batch_index, label = (
-                GeneExpressionDataset.get_attributes_from_matrix(X, batch_indices=i, labels=label)
-            )
             new_Xs += [X]
+            local_mean, local_var = GeneExpressionDataset.library_size(X)
             local_means += [local_mean]
             local_vars += [local_var]
-            batch_indices += [batch_index]
-            labels += [label]
+            batch_indices += [list_batches[i] if list_batches is not None else i * np.ones((X.shape[0], 1))]
+            labels += [list_labels[i] if list_labels is not None else np.zeros((X.shape[0], 1))]
+
+        X = np.concatenate(new_Xs) if type(new_Xs[0]) is np.ndarray else sp_sparse.vstack(new_Xs)
+        batch_indices = np.concatenate(batch_indices)
         local_means = np.concatenate(local_means)
         local_vars = np.concatenate(local_vars)
-        batch_indices = np.concatenate(batch_indices)
         labels = np.concatenate(labels)
-        X = np.concatenate(new_Xs) if type(new_Xs[0]) is np.ndarray else sp_sparse.vstack(new_Xs)
         return X, local_means, local_vars, batch_indices, labels
 
     @staticmethod
