@@ -6,25 +6,23 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 
 
-def compute_log_likelihood(vae, data_loader, **kwargs):
+def compute_log_likelihood(vae, posterior, **kwargs):
     """ Computes log p(x/z), which is the reconstruction error .
         Differs from the marginal log likelihood, but still gives good
         insights on the modeling of the data, and is fast to compute
     """
-    # Iterate once over the data_loader and computes the total log_likelihood
+    # Iterate once over the posterior and computes the total log_likelihood
     log_lkl = 0
-    for i_batch, tensors in enumerate(data_loader):
+    for i_batch, tensors in enumerate(posterior):
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[:5]  # general fish case
         reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
                                           y=labels, **kwargs)
         log_lkl += torch.sum(reconst_loss).item()
-    n_samples = (len(data_loader.dataset)
-                 if not (hasattr(data_loader, 'sampler') and hasattr(data_loader.sampler, 'indices')) else
-                 len(data_loader.sampler.indices))
+    n_samples = len(posterior.indices)
     return log_lkl / n_samples
 
 
-def compute_marginal_log_likelihood(vae, data_loader, n_samples_mc=100):
+def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
     """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
         Despite its bias, the estimator still converges to the real value
         of log p(x) when n_samples_mc (for Monte Carlo) goes to infinity
@@ -34,7 +32,7 @@ def compute_marginal_log_likelihood(vae, data_loader, n_samples_mc=100):
     """
     # Uses MC sampling to compute a tighter lower bound
     log_lkl = 0
-    for i_batch, tensors in enumerate(data_loader):
+    for i_batch, tensors in enumerate(posterior):
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
         x = torch.log(1 + sample_batch)
         to_sum = torch.zeros(sample_batch.size()[0], n_samples_mc)
@@ -50,9 +48,7 @@ def compute_marginal_log_likelihood(vae, data_loader, n_samples_mc=100):
             to_sum[:, i] = p_z + p_x_z - q_z_x
         batch_log_lkl = logsumexp(to_sum, dim=-1) - np.log(n_samples_mc)
         log_lkl += torch.sum(batch_log_lkl).item()
-    n_samples = (len(data_loader.dataset)
-                 if not (hasattr(data_loader, 'sampler') and hasattr(data_loader.sampler, 'indices')) else
-                 len(data_loader.sampler.indices))
+    n_samples = len(posterior.indices)
     # The minus sign is there because we actually look at the negative log likelihood
     return - log_lkl / n_samples
 

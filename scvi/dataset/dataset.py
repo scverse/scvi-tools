@@ -3,12 +3,12 @@
 """Handling datasets.
 For the moment, is initialized with a torch Tensor of size (n_cells, nb_genes)"""
 import os
-import urllib.request
 from collections import defaultdict
 
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
+import urllib.request
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
 
@@ -75,7 +75,7 @@ class GeneExpressionDataset(Dataset):
         i, j, corrupted = np.concatenate(i), np.concatenate(j), np.concatenate(corrupted)
         X = self.X[indexes]
         X[i, j] = corrupted
-        return X
+        return self.collate_fn_end(X, indexes)
 
     def corrupt(self, rate=0.1, corruption="uniform"):
         self.corrupted = defaultdict(lambda: {'j': [], 'corrupted': []})
@@ -83,9 +83,9 @@ class GeneExpressionDataset(Dataset):
             i, j = np.nonzero(self.X)
             ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
             i, j = i[ix], j[ix]
-            corrupted = self.X[i, j] * np.random.binomial(n=np.ones(len(ix), dtype=np.int64), p=0.9)
+            corrupted = self.X[i, j] * np.random.binomial(n=np.ones(len(ix), dtype=np.int64), p=0.9)  # maybe rate
         elif corruption == "binomial":  # multiply the entry n with a Bin(n, 0.9) random variable.
-            i, j = (k.ravel() for k in np.indices(self.shape))
+            i, j = (k.ravel() for k in np.indices(self.X.shape))
             ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
             i, j = i[ix], j[ix]
             corrupted = np.random.binomial(n=(self.X[i, j]).astype(np.int64), p=0.2)
@@ -130,8 +130,7 @@ class GeneExpressionDataset(Dataset):
 
     def subsample_genes(self, new_n_genes=None, subset_genes=None):
         n_cells, n_genes = self.X.shape
-        if subset_genes is None and \
-            (new_n_genes is False or new_n_genes >= n_genes):
+        if subset_genes is None and (new_n_genes is False or new_n_genes >= n_genes):
             return None  # Do nothing if subsample more genes than total number of genes
         if subset_genes is None:
             print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))

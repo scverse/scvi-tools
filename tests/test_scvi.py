@@ -12,7 +12,8 @@ from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainS
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
     GeneExpressionDataset, PurifiedPBMCDataset
 from scvi.inference import JointSemiSupervisedTrainer, AlternateSemiSupervisedTrainer, ClassifierTrainer, \
-    UnsupervisedTrainer, adversarial_wrapper, mmd_wrapper, ImputationTrainer, AdapterTrainer
+    UnsupervisedTrainer, adversarial_wrapper, AdapterTrainer
+from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SVAEC, VAEC
 from scvi.models.classifier import Classifier
 
@@ -22,17 +23,18 @@ use_cuda = True
 def test_cortex():
     cortex_dataset = CortexDataset()
     vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_batches)
-    infer_cortex_vae = UnsupervisedTrainer(vae, cortex_dataset, train_size=0.1, use_cuda=use_cuda)
+    infer_cortex_vae = UnsupervisedTrainer(vae, cortex_dataset, train_size=0.9, use_cuda=use_cuda)
     infer_cortex_vae.train(n_epochs=1)
     infer_cortex_vae.train_set.ll()
-    infer_cortex_vae.train_set.de_stats()
+    infer_cortex_vae.train_set.differential_expression_stats()
     infer_cortex_vae.test_set.differential_expression()
 
-    imputation_trainer = ImputationTrainer(infer_cortex_vae, cortex_dataset, corruption='uniform')
-    imputation_trainer.imputation_task('train_set')
+    infer_cortex_vae.corrupt_posteriors(corruption='binomial')
+    infer_cortex_vae.corrupt_posteriors()
+    infer_cortex_vae.train(n_epochs=1)
+    infer_cortex_vae.uncorrupt_posteriors()
 
-    imputation_trainer = ImputationTrainer(infer_cortex_vae, cortex_dataset, corruption='binomial')
-    imputation_trainer.imputation_task('train_set', n_samples=2)
+    infer_cortex_vae.train_set.imputation_benchmark(n_samples=1)
 
     svaec = SVAEC(cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels)
     infer_cortex_svaec = JointSemiSupervisedTrainer(svaec, cortex_dataset,
@@ -48,7 +50,12 @@ def test_cortex():
                                                         use_cuda=use_cuda)
     infer_cortex_svaec.train(n_epochs=1, lr=1e-2)
     infer_cortex_svaec.unlabelled_set.accuracy()
-    infer_cortex_svaec.svc_rf(unit_test=True)
+    data_train, labels_train = infer_cortex_svaec.labelled_set.raw_data()
+    data_test, labels_test = infer_cortex_svaec.unlabelled_set.raw_data()
+    compute_accuracy_svc(data_train, labels_train, data_test, labels_test,
+                         param_grid=[{'C': [1], 'kernel': ['linear']}])
+    compute_accuracy_rf(data_train, labels_train, data_test, labels_test,
+                        param_grid=[{'max_depth': [3], 'n_estimators': [10]}])
 
     cls = Classifier(cortex_dataset.nb_genes, n_labels=cortex_dataset.n_labels)
     cls_trainer = ClassifierTrainer(cls, cortex_dataset)
@@ -74,13 +81,12 @@ def test_synthetic_1():
 def test_synthetic_2():
     synthetic_dataset = SyntheticDataset()
     vaec = VAEC(synthetic_dataset.nb_genes, synthetic_dataset.n_batches, synthetic_dataset.n_labels)
-    infer_synthetic_vaec = JointSemiSupervisedTrainer(vaec, synthetic_dataset, use_cuda=use_cuda,
-                                                      early_stopping_metric='ll', frequency=1,
-                                                      save_best_state_metric='ll', on='labelled_set')
-    infer_synthetic_vaec = adversarial_wrapper(infer_synthetic_vaec, warm_up=5)
-    infer_synthetic_vaec = mmd_wrapper(infer_synthetic_vaec, warm_up=15)
-    infer_synthetic_vaec.train(n_epochs=20)
-    infer_synthetic_vaec.svc_rf(unit_test=True)
+    infer_synthetic_vaec = JointSemiSupervisedTrainer(vaec, synthetic_dataset, use_cuda=use_cuda, frequency=1,
+                                                      early_stopping_kwargs={'early_stopping_metric': 'll',
+                                                                             'on': 'labelled_set',
+                                                                             'save_best_state_metric': 'll'})
+    infer_synthetic_vaec = adversarial_wrapper(infer_synthetic_vaec, warm_up=1)
+    infer_synthetic_vaec.train(n_epochs=2)
 
 
 def test_fish_rna():
@@ -164,7 +170,7 @@ def test_csv():
 def test_cbmc():
     cbmc_dataset = CbmcDataset(save_path='tests/data/citeSeq/')
     infer = base_benchmark(cbmc_dataset)
-    infer.sequential.nn_overlap_score(k=5)
+    infer.train_set.nn_overlap_score(k=5)
 
 
 def test_pbmc():
