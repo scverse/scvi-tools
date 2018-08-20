@@ -8,7 +8,7 @@ from scvi.benchmark import harmonization_benchmarks, \
 from scvi.dataset import BrainLargeDataset, CortexDataset, SyntheticDataset, CsvDataset, \
     RetinaDataset, BrainSmallDataset, HematoDataset, LoomDataset, AnnDataset, CbmcDataset, PbmcDataset
 from scvi.inference import VariationalInference, JointSemiSupervisedVariationalInference
-from scvi.models import VAE, VAEC, SVAEC
+from scvi.models import VAE, VAEC, SCANVI
 
 
 def load_datasets(dataset_name, save_path='data/', url=None):
@@ -60,7 +60,7 @@ def benchmark_hyperparameters(gene_dataset):
 available_models = {
     'VAE': VAE,
     'VAEC': VAEC,
-    'SVAEC': SVAEC
+    'SVAEC': SCANVI
 }
 
 if __name__ == '__main__':
