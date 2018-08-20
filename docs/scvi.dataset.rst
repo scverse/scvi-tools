@@ -44,14 +44,6 @@ scvi.dataset.csv module
     :undoc-members:
     :show-inheritance:
 
-scvi.dataset.data\_loaders module
----------------------------------
-
-.. automodule:: scvi.dataset.data_loaders
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 scvi.dataset.dataset module
 ---------------------------
 
