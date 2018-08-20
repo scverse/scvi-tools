@@ -16,11 +16,11 @@ torch.set_grad_enabled(False)
 
 
 class Trainer:
-    r"""The abstract Inference class for training a PyTorch model and monitoring its statistics. It should be
+    r"""The abstract Trainer class for training a PyTorch model and monitoring its statistics. It should be
     inherited at least with a .loss() function to be optimized in the training loop.
 
     Args:
-        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``
+        :model: A model instance from class ``VAE``, ``VAEC``, ``SCANVI``
         :gene_dataset: A gene_dataset instance like ``CortexDataset()``
         :use_cuda: Default: ``True``.
         :metrics_to_monitor: A list of the metrics to monitor. If not specified, will use the

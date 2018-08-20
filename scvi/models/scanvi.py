@@ -10,10 +10,10 @@ from scvi.models.utils import broadcast_labels
 from scvi.models.vae import VAE
 
 
-class SVAEC(VAE):
+class SCANVI(VAE):
     r"""A semi-supervised Variational auto-encoder model - inspired from M1 + M2 model,
-    as described in (https://arxiv.org/pdf/1406.5298.pdf). S stand for "Stacked" variational autoencoder
-    and C for classification - SVAEC
+    as described in (https://arxiv.org/pdf/1406.5298.pdf). SCANVI stands for single-cell annotation using
+    variational inference.
 
     :param n_input: Number of input genes
     :param n_batch: Number of batches
@@ -41,11 +41,11 @@ class SVAEC(VAE):
 
     Examples:
         >>> gene_dataset = CortexDataset()
-        >>> svaec = SVAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+        >>> scanvi = SCANVI(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
         ... n_labels=gene_dataset.n_labels)
 
         >>> gene_dataset = SyntheticDataset(n_labels=3)
-        >>> svaec = SVAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+        >>> scanvi = SCANVI(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
         ... n_labels=3, y_prior=torch.tensor([[0.1,0.5,0.4]]), labels_groups=[0,0,1])
     """
 
@@ -54,9 +54,9 @@ class SVAEC(VAE):
                  dropout_rate: float = 0.1, dispersion: str = "gene",
                  log_variational: bool = True, reconstruction_loss: str = "zinb",
                  y_prior=None, labels_groups: Sequence[int] = None, use_labels_groups: bool = False):
-        super(SVAEC, self).__init__(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
-                                    dropout_rate=dropout_rate, n_batch=n_batch, dispersion=dispersion,
-                                    log_variational=log_variational, reconstruction_loss=reconstruction_loss)
+        super(SCANVI, self).__init__(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
+                                     dropout_rate=dropout_rate, n_batch=n_batch, dispersion=dispersion,
+                                     log_variational=log_variational, reconstruction_loss=reconstruction_loss)
 
         self.n_labels = n_labels
         self.n_latent_layers = 2
@@ -99,7 +99,7 @@ class SVAEC(VAE):
         return w_y
 
     def get_latents(self, x, y=None):
-        zs = super(SVAEC, self).get_latents(x)
+        zs = super(SCANVI, self).get_latents(x)
         qz2_m, qz2_v, z2 = self.encoder_z2_z1(zs[0], y)
         if not self.training:
             z2 = qz2_m

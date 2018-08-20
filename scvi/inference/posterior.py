@@ -28,6 +28,42 @@ class SequentialSubsetSampler(SubsetRandomSampler):
 
 
 class Posterior:
+    r"""The functional data unit. A `Posterior` instance is instanciated with a model and a gene_dataset, and
+    as well as additional arguments that for Pytorch's `DataLoader`. A subset of indices can be specified, for
+    purpose such as splitting the data into train/test or labelled/unlabelled (for semi-supervised learning).
+    Each trainer instance of the `Trainer` class can therefore have multiple `Posterior` instances to train a model.
+    A `Posterior` instance also comes with many methods or utilities for its corresponding data.
+
+
+    :param model: Number of input genes
+    :param gene_dataset: Number of batches
+    :param shuffle: Number of labels
+    :param indices: Number of nodes per hidden layer
+    :param use_cuda: Dimensionality of the latent space
+    :param data_loader_kwargs: Number of hidden layers used for encoder and decoder NNs
+
+    Examples:
+
+    Let's instanciate a `trainer`, with a gene_dataset and a model
+
+        >>> gene_dataset = CortexDataset()
+        >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+        ... n_labels=gene_dataset.n_labels, use_cuda=True)
+        >>> trainer = UnsupervisedTrainer(vae, gene_dataset)
+        >>> trainer.train(n_epochs=50)
+
+    A `UnsupervisedTrainer` instance has two `Posterior` attributes: `train_set` and `test_set`
+    For this subset of the original gene_dataset instance, we can examine the differential expression,
+    log_likelihood, entropy batch mixing, ... or display the TSNE of the data in the latent space through the
+    scVI model
+
+        >>> trainer.train_set.differential_expression_stats()
+        >>> trainer.train_set.ll()
+        >>> trainer.train_set.entropy_batch_mixing()
+        >>> trainer.train_set.show_t_sne(n_samples=1000, color_by='labels')
+
+    """
+
     def __init__(self, model, gene_dataset, shuffle=False, indices=None, use_cuda=True, data_loader_kwargs=dict()):
         '''
 
@@ -282,8 +318,7 @@ class Posterior:
         x_coord = x_coord.reshape(-1, 1)
         y_coord = y_coord.reshape(-1, 1)
         latent = np.concatenate((x_coord, y_coord), axis=1)
-        self.show_t_sne(name=None, n_samples=1000, color_by=color_by, save_name=title,
-                        latent=latent, batch_indices=None,
+        self.show_t_sne(n_samples=1000, color_by=color_by, save_name=title, latent=latent, batch_indices=None,
                         labels=labels)
 
     def show_t_sne(self, n_samples=1000, color_by='', save_name='', latent=None, batch_indices=None,

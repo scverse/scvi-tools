@@ -44,12 +44,12 @@ def adversarial_train(self, n_epochs=20, lr=1e-3, weight_decay=1e-4):
     type(self).train(self, n_epochs=n_epochs, lr=lr)
 
 
-def adversarial_wrapper(infer, warm_up=100, scale=50, mode="regular"):
-    infer.warm_up = warm_up
-    infer.scale = scale
+def adversarial_wrapper(trainer, warm_up=100, scale=50, mode="regular"):
+    trainer.warm_up = warm_up
+    trainer.scale = scale
     if mode == "regular":
-        infer.loss = types.MethodType(adversarial_loss, infer)
+        trainer.loss = types.MethodType(adversarial_loss, trainer)
     else:
-        infer.loss = types.MethodType(adversarial_loss_fish, infer)
-    infer.train = types.MethodType(adversarial_train, infer)
-    return infer
+        trainer.loss = types.MethodType(adversarial_loss_fish, trainer)
+    trainer.train = types.MethodType(adversarial_train, trainer)
+    return trainer

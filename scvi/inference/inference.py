@@ -13,11 +13,11 @@ class UnsupervisedTrainer(Trainer):
     r"""The VariationalInference class for the unsupervised training of an autoencoder.
 
     Args:
-        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``
+        :model: A model instance from class ``VAE``, ``VAEC``, ``SCANVI``
         :gene_dataset: A gene_dataset instance like ``CortexDataset()``
         :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
          to use Default: ``0.8``.
-        :\**kwargs: Other keywords arguments from the general Inference class.
+        :\*\*kwargs: Other keywords arguments from the general Trainer class.
 
     Examples:
         >>> gene_dataset = CortexDataset()
@@ -78,20 +78,20 @@ class TrainerFish(Trainer):
     r"""The VariationalInference class for the unsupervised training of an autoencoder.
 
     Args:
-        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``
+        :model: A model instance from class ``VAEF``
         :gene_dataset: A gene_dataset instance like ``CortexDataset()``
         :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
          to use Default: ``0.8``.
-        :**kwargs: Other keywords arguments from the general Inference class.
+        :\*\*kwargs: Other keywords arguments from the general Trainer class.
 
     Examples:
         >>> gene_dataset_seq = CortexDataset()
         >>> gene_dataset_fish = SmfishDataset()
-        >>> vae = VAE(gene_dataset_seq.nb_genes, gene_dataset_fish.nb_genes,
+        >>> vaef = VAEF(gene_dataset_seq.nb_genes, gene_dataset_fish.nb_genes,
         ... n_labels=gene_dataset.n_labels, use_cuda=True)
 
-        >>> infer = VariationalInference(gene_dataset_seq, gene_dataset_fish, vae, train_size=0.5)
-        >>> infer.train(n_epochs=20, lr=1e-3)
+        >>> trainer = TrainerFish(gene_dataset_seq, gene_dataset_fish, vaef, train_size=0.5)
+        >>> trainer.train(n_epochs=20, lr=1e-3)
     """
     default_metrics_to_monitor = ['ll']
 

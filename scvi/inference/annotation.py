@@ -11,36 +11,26 @@ from scvi.inference.posterior import compute_accuracy_classifier
 
 class ClassifierTrainer(Trainer):
     r"""The ClassifierInference class for training a classifier either on the raw data or on top of the latent
-        space of another model (VAE, VAEC, SVAEC).
+        space of another model (VAE, VAEC, SCANVI).
 
     Args:
-        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``
+        :model: A model instance from class ``VAE``, ``VAEC``, ``SCANVI``
         :gene_dataset: A gene_dataset instance like ``CortexDataset()``
         :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
             to use Default: ``0.8``.
-        :\**kwargs: Other keywords arguments from the general Inference class.
+        :\**kwargs: Other keywords arguments from the general Trainer class.
 
-    infer_cls = ClassifierInference(cls, cortex_dataset)
-    infer_cls.train(n_epochs=1)
-    infer_cls.accuracy('train')
 
     Examples:
         >>> gene_dataset = CortexDataset()
         >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
         ... n_labels=gene_dataset.n_labels)
 
-        >>> cls = Classifier(vae.n_latent, n_labels=cortex_dataset.n_labels)
-        >>> infer = ClassifierInference(gene_dataset, sampling_model=vae, train_size=0.5)
-        >>> infer.train(n_epochs=20, lr=1e-3)
-        >>> infer.accuracy('test')
-
-        >>> cls = Classifier(gene_dataset.nb_genes, n_labels=cortex_dataset.n_labels)
-        >>> infer = ClassifierInference(gene_dataset, train_size=0.5)
-        >>> infer.train(n_epochs=20, lr=1e-3)
-        >>> infer.accuracy('test')
-
+        >>> classifier = Classifier(vae.n_latent, n_labels=cortex_dataset.n_labels)
+        >>> trainer = ClassifierTrainer(classifier, gene_dataset, sampling_model=vae, train_size=0.5)
+        >>> trainer.train(n_epochs=20, lr=1e-3)
+        >>> trainer.test_set.accuracy()
     """
-    default_metrics_to_monitor = ['accuracy']
 
     def __init__(self, *args, sampling_model=None, use_cuda=True, **kwargs):
         self.sampling_model = sampling_model
@@ -64,7 +54,6 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
     r"""The SemiSupervisedTrainer class for the semi-supervised training of an autoencoder.
     This parent class can be inherited to specify the different training schemes for semi-supervised learning
     """
-    default_metrics_to_monitor = Trainer.default_metrics_to_monitor + ['accuracy']
 
     def __init__(self, model, gene_dataset, n_labelled_samples_per_class=50, n_epochs_classifier=1,
                  lr_classification=0.1, classification_ratio=1, seed=0, **kwargs):

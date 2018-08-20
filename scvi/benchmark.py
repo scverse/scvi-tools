@@ -10,31 +10,30 @@ from scvi.models import VAE, VAEF
 def cortex_benchmark(n_epochs=250, use_cuda=True):
     cortex_dataset = CortexDataset()
     vae = VAE(cortex_dataset.nb_genes)
-    infer_cortex_vae = UnsupervisedTrainer(vae, cortex_dataset, use_cuda=use_cuda)
-    infer_cortex_vae.train(n_epochs=n_epochs)
+    trainer_cortex_vae = UnsupervisedTrainer(vae, cortex_dataset, use_cuda=use_cuda)
+    trainer_cortex_vae.train(n_epochs=n_epochs)
 
-    infer_cortex_vae.test_set.ll()  # assert ~ 1200
-    infer_cortex_vae.test_set.differential_expression()
+    trainer_cortex_vae.test_set.ll()  # assert ~ 1200
+    trainer_cortex_vae.test_set.differential_expression()
     vae = VAE(cortex_dataset.nb_genes)
-    infer_cortex_vae = UnsupervisedTrainer(vae, cortex_dataset, use_cuda=use_cuda)
-    infer_cortex_vae.corrupt_posteriors()
-    infer_cortex_vae.train(n_epochs=n_epochs)
-    infer_cortex_vae.uncorrupt_posteriors()
-    infer_cortex_vae.train_set.imputation_benchmark(verbose=(n_epochs > 1))
+    trainer_cortex_vae = UnsupervisedTrainer(vae, cortex_dataset, use_cuda=use_cuda)
+    trainer_cortex_vae.corrupt_posteriors()
+    trainer_cortex_vae.train(n_epochs=n_epochs)
+    trainer_cortex_vae.uncorrupt_posteriors()
+    trainer_cortex_vae.train_set.imputation_benchmark(verbose=(n_epochs > 1))
 
     n_samples = 10 if n_epochs == 1 else None  # n_epochs == 1 is unit tests
-    infer_cortex_vae.train_set.show_t_sne(n_samples=n_samples)
-    return infer_cortex_vae
+    trainer_cortex_vae.train_set.show_t_sne(n_samples=n_samples)
+    return trainer_cortex_vae
 
 
 def benchmark(dataset, n_epochs=250, use_cuda=True):
     vae = VAE(dataset.nb_genes, n_batch=dataset.n_batches)
-    infer = UnsupervisedTrainer(vae, dataset, use_cuda=use_cuda)
-    infer.train(n_epochs=n_epochs)
-    infer.test_set.ll(verbose=True)
-    infer.test_set.marginal_ll(verbose=True)
-    # infer.imputation('test', rate=0.1)  # assert ~ 2.1
-    return infer
+    trainer = UnsupervisedTrainer(vae, dataset, use_cuda=use_cuda)
+    trainer.train(n_epochs=n_epochs)
+    trainer.test_set.ll(verbose=True)
+    trainer.test_set.marginal_ll(verbose=True)
+    return trainer
 
 
 def harmonization_benchmarks(n_epochs=1, use_cuda=True):
@@ -60,11 +59,11 @@ def benchamrk_fish_scrna(gene_dataset_seq, gene_dataset_fish):
     vae = VAEF(gene_dataset_seq.nb_genes, indexes_to_keep, n_layers_decoder=2, n_latent=6,
                n_layers=2, n_hidden=256, reconstruction_loss='nb', dropout_rate=0.3, n_labels=7, n_batch=2,
                model_library=False)
-    infer = TrainerFish(vae, gene_dataset_seq, gene_dataset_fish, train_size=0.9, verbose=True,
-                        frequency=5, weight_decay=0.35, n_epochs_even=100, n_epochs_kl=1000,
-                        cl_ratio=0, n_epochs_cl=100)
-    infer = adversarial_wrapper(infer, scale=50, mode="smFISH")
-    infer.train(n_epochs=1, lr=0.0008)
+    trainer = TrainerFish(vae, gene_dataset_seq, gene_dataset_fish, train_size=0.9, verbose=True,
+                          frequency=5, weight_decay=0.35, n_epochs_even=100, n_epochs_kl=1000,
+                          cl_ratio=0, n_epochs_cl=100)
+    trainer = adversarial_wrapper(trainer, scale=50, mode="smFISH")
+    trainer.train(n_epochs=1, lr=0.0008)
     concatenated_matrix = np.concatenate(
         (gene_dataset_fish.X[:, vae.indexes_to_keep], gene_dataset_seq.X[:, vae.indexes_to_keep]))
     concatenated_matrix = np.log(1 + concatenated_matrix)
