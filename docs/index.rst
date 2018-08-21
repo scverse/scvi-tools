@@ -19,10 +19,7 @@ Welcome to scVI's documentation!
 
    scvi.dataset
    scvi.inference
-   scvi.metrics
    scvi.models
-
-   modules
 
 Indices and tables
 ==================

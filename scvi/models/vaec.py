@@ -11,18 +11,27 @@ class VAEC(VAE):
     r"""A semi-supervised Variational auto-encoder model - inspired from M2 model,
     as described in (https://arxiv.org/pdf/1406.5298.pdf)
 
-    Args:
-        :n_input: Number of input genes.
-        :n_batch: Default: ``0``.
-        :n_labels: Default: ``0``.
-        :n_hidden: Number of hidden. Default: ``128``.
-        :n_latent: Default: ``1``.
-        :n_layers: Number of layers. Default: ``1``.
-        :dropout_rate: Default: ``0.1``.
-        :dispersion: Default: ``"gene"``.
-        :log_variational: Default: ``True``.
-        :reconstruction_loss: Default: ``"zinb"``.
-        :y_prior: Default: None, but will be initialized to uniform probability over the cell types if not specified
+    :param n_input: Number of input genes
+    :param n_batch: Number of batches
+    :param n_labels: Number of labels
+    :param n_hidden: Number of nodes per hidden layer
+    :param n_latent: Dimensionality of the latent space
+    :param n_layers: Number of hidden layers used for encoder and decoder NNs
+    :param dropout_rate: Dropout rate for neural networks
+    :param dispersion: One of the following
+
+        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
+        * ``'gene-batch'`` - dispersion can differ between different batches
+        * ``'gene-label'`` - dispersion can differ between different labels
+        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
+
+    :param log_variational: Log variational distribution
+    :param reconstruction_loss:  One of
+
+        * ``'nb'`` - Negative binomial distribution
+        * ``'zinb'`` - Zero-inflated negative binomial distribution
+
+    :param y_prior: If None, initialized to uniform probability over cell types
 
     Examples:
         >>> gene_dataset = CortexDataset()

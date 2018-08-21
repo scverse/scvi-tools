@@ -1,8 +1,10 @@
+type ?= pdf
+
 nbs = $(wildcard *.ipynb)
-pdfs = $(nbs:%.ipynb=%.pdf)
+types = $(nbs:%.ipynb=%.$(type))
 
-all: $(pdfs)
+all: $(types)
 
-%.pdf: %.ipynb
+%.$(type): %.ipynb
 	jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=1800 $<;
-	jupyter nbconvert --to pdf $<;
+	jupyter nbconvert --to $(type) $<;

@@ -11,12 +11,11 @@ from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainS
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
     GeneExpressionDataset, PurifiedPBMCDataset
-from scvi.inference import JointSemiSupervisedVariationalInference, AlternateSemiSupervisedVariationalInference, \
-    ClassifierInference, VariationalInference, adversarial_wrapper, mmd_wrapper
-from scvi.metrics.adapt_encoder import adapt_encoder
-from scvi.models import VAE, SVAEC, VAEC
+from scvi.inference import JointSemiSupervisedTrainer, AlternateSemiSupervisedTrainer, ClassifierTrainer, \
+    UnsupervisedTrainer, adversarial_wrapper, AdapterTrainer
+from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
+from scvi.models import VAE, SCANVI, VAEC
 from scvi.models.classifier import Classifier
-
 
 use_cuda = True
 
@@ -24,62 +23,72 @@ use_cuda = True
 def test_cortex():
     cortex_dataset = CortexDataset()
     vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_batches)
-    infer_cortex_vae = VariationalInference(vae, cortex_dataset, train_size=0.1, use_cuda=use_cuda)
-    infer_cortex_vae.train(n_epochs=1)
-    infer_cortex_vae.ll('train')
-    infer_cortex_vae.differential_expression_stats('train')
-    infer_cortex_vae.differential_expression('test')
-    infer_cortex_vae.imputation('train', corruption='uniform')
-    infer_cortex_vae.imputation('test', n_samples=2, corruption='binomial')
+    trainer_cortex_vae = UnsupervisedTrainer(vae, cortex_dataset, train_size=0.9, use_cuda=use_cuda)
+    trainer_cortex_vae.train(n_epochs=1)
+    trainer_cortex_vae.train_set.ll()
+    trainer_cortex_vae.train_set.differential_expression_stats()
 
-    svaec = SVAEC(cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels)
-    infer_cortex_svaec = JointSemiSupervisedVariationalInference(svaec, cortex_dataset,
-                                                                 n_labelled_samples_per_class=50,
-                                                                 use_cuda=use_cuda)
-    infer_cortex_svaec.train(n_epochs=1)
-    infer_cortex_svaec.accuracy('labelled')
-    infer_cortex_svaec.ll('all')
+    trainer_cortex_vae.corrupt_posteriors(corruption='binomial')
+    trainer_cortex_vae.corrupt_posteriors()
+    trainer_cortex_vae.train(n_epochs=1)
+    trainer_cortex_vae.uncorrupt_posteriors()
 
-    svaec = SVAEC(cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels,
-                  logreg_classifier=True)
-    infer_cortex_svaec = AlternateSemiSupervisedVariationalInference(svaec, cortex_dataset,
-                                                                     n_labelled_samples_per_class=50,
-                                                                     use_cuda=use_cuda)
-    infer_cortex_svaec.train(n_epochs=1, lr=1e-2)
-    infer_cortex_svaec.accuracy('unlabelled')
-    infer_cortex_svaec.svc_rf(unit_test=True)
+    trainer_cortex_vae.train_set.imputation_benchmark(n_samples=1)
+
+    svaec = SCANVI(cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels)
+    trainer_cortex_svaec = JointSemiSupervisedTrainer(svaec, cortex_dataset,
+                                                      n_labelled_samples_per_class=50,
+                                                      use_cuda=use_cuda)
+    trainer_cortex_svaec.train(n_epochs=1)
+    trainer_cortex_svaec.labelled_set.accuracy()
+    trainer_cortex_svaec.full_dataset.ll()
+
+    svaec = SCANVI(cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels)
+    trainer_cortex_svaec = AlternateSemiSupervisedTrainer(svaec, cortex_dataset,
+                                                          n_labelled_samples_per_class=50,
+                                                          use_cuda=use_cuda)
+    trainer_cortex_svaec.train(n_epochs=1, lr=1e-2)
+    trainer_cortex_svaec.unlabelled_set.accuracy()
+    data_train, labels_train = trainer_cortex_svaec.labelled_set.raw_data()
+    data_test, labels_test = trainer_cortex_svaec.unlabelled_set.raw_data()
+    compute_accuracy_svc(data_train, labels_train, data_test, labels_test,
+                         param_grid=[{'C': [1], 'kernel': ['linear']}])
+    compute_accuracy_rf(data_train, labels_train, data_test, labels_test,
+                        param_grid=[{'max_depth': [3], 'n_estimators': [10]}])
 
     cls = Classifier(cortex_dataset.nb_genes, n_labels=cortex_dataset.n_labels)
-    infer_cls = ClassifierInference(cls, cortex_dataset)
-    infer_cls.train(n_epochs=1)
-    infer_cls.accuracy('train')
+    cls_trainer = ClassifierTrainer(cls, cortex_dataset)
+    cls_trainer.train(n_epochs=1)
+    cls_trainer.train_set.accuracy()
 
 
 def test_synthetic_1():
     synthetic_dataset = SyntheticDataset()
-    svaec = SVAEC(synthetic_dataset.nb_genes, synthetic_dataset.n_batches, synthetic_dataset.n_labels)
-    infer_synthetic_svaec = JointSemiSupervisedVariationalInference(svaec, synthetic_dataset, use_cuda=use_cuda)
-    infer_synthetic_svaec.train(n_epochs=1)
-    infer_synthetic_svaec.entropy_batch_mixing('labelled')
-    infer_synthetic_svaec.knn_purity('sequential', verbose=True)
-    infer_synthetic_svaec.show_t_sne('labelled', n_samples=50)
-    infer_synthetic_svaec.show_t_sne('unlabelled', n_samples=50, color_by='labels')
-    infer_synthetic_svaec.show_t_sne('labelled', n_samples=50, color_by='batches and labels')
-    infer_synthetic_svaec.clustering_scores('labelled')
-    infer_synthetic_svaec.clustering_scores('labelled', prediction_algorithm='gmm')
-    infer_synthetic_svaec.unsupervised_accuracy('unlabelled')
+    synthetic_dataset.cell_types = np.array(['A', 'B', 'C'])
+    svaec = SCANVI(synthetic_dataset.nb_genes, synthetic_dataset.n_batches, synthetic_dataset.n_labels)
+    trainer_synthetic_svaec = JointSemiSupervisedTrainer(svaec, synthetic_dataset, use_cuda=use_cuda)
+    trainer_synthetic_svaec.train(n_epochs=1)
+    trainer_synthetic_svaec.labelled_set.entropy_batch_mixing()
+    trainer_synthetic_svaec.full_dataset.knn_purity(verbose=True)
+    trainer_synthetic_svaec.labelled_set.show_t_sne(n_samples=50)
+    trainer_synthetic_svaec.unlabelled_set.show_t_sne(n_samples=50, color_by='labels')
+    trainer_synthetic_svaec.labelled_set.show_t_sne(n_samples=50, color_by='batches and labels')
+    trainer_synthetic_svaec.labelled_set.clustering_scores()
+    trainer_synthetic_svaec.labelled_set.clustering_scores(prediction_algorithm='gmm')
+    trainer_synthetic_svaec.unlabelled_set.unsupervised_accuracy()
+    trainer_synthetic_svaec.unlabelled_set.differential_expression_score('B', 'C', genes=['2', '4'])
+    trainer_synthetic_svaec.unlabelled_set.differential_expression_table()
 
 
 def test_synthetic_2():
     synthetic_dataset = SyntheticDataset()
     vaec = VAEC(synthetic_dataset.nb_genes, synthetic_dataset.n_batches, synthetic_dataset.n_labels)
-    infer_synthetic_vaec = JointSemiSupervisedVariationalInference(vaec, synthetic_dataset, use_cuda=use_cuda,
-                                                                   early_stopping_metric='ll', frequency=1,
-                                                                   save_best_state_metric='accuracy', on='labelled')
-    infer_synthetic_vaec = adversarial_wrapper(infer_synthetic_vaec, warm_up=5)
-    infer_synthetic_vaec = mmd_wrapper(infer_synthetic_vaec, warm_up=15)
-    infer_synthetic_vaec.train(n_epochs=20)
-    infer_synthetic_vaec.svc_rf(unit_test=True)
+    trainer_synthetic_vaec = JointSemiSupervisedTrainer(vaec, synthetic_dataset, use_cuda=use_cuda, frequency=1,
+                                                        early_stopping_kwargs={'early_stopping_metric': 'll',
+                                                                               'on': 'labelled_set',
+                                                                               'save_best_state_metric': 'll'})
+    trainer_synthetic_vaec = adversarial_wrapper(trainer_synthetic_vaec, warm_up=1)
+    trainer_synthetic_vaec.train(n_epochs=2)
 
 
 def test_fish_rna():
@@ -91,18 +100,20 @@ def test_fish_rna():
 
 def base_benchmark(gene_dataset):
     vae = VAE(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels)
-    infer = VariationalInference(vae, gene_dataset, train_size=0.5, use_cuda=use_cuda)
-    infer.train(n_epochs=1)
-    return infer
+    trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=0.5, use_cuda=use_cuda)
+    trainer.train(n_epochs=1)
+    return trainer
 
 
 def test_all_benchmarks():
-    all_benchmarks(n_epochs=1, unit_test=True)
+    all_benchmarks(n_epochs=1)
 
 
 def test_synthetic_3():
-    infer = base_benchmark(SyntheticDataset())
-    adapt_encoder(infer, n_path=1, n_epochs=1, frequency=1)
+    gene_dataset = SyntheticDataset()
+    trainer = base_benchmark(gene_dataset)
+    adapter_trainer = AdapterTrainer(trainer.model, gene_dataset, trainer.train_set, frequency=1)
+    adapter_trainer.train(n_path=1, n_epochs=1)
 
 
 def test_brain_large():
@@ -160,8 +171,8 @@ def test_csv():
 
 def test_cbmc():
     cbmc_dataset = CbmcDataset(save_path='tests/data/citeSeq/')
-    infer = base_benchmark(cbmc_dataset)
-    infer.nn_overlap_score(k=5)
+    trainer = base_benchmark(cbmc_dataset)
+    trainer.train_set.nn_overlap_score(k=5)
 
 
 def test_pbmc():
@@ -228,10 +239,10 @@ def test_particular_benchmark():
 
 def test_nb_not_zinb():
     synthetic_dataset = SyntheticDataset()
-    svaec = SVAEC(synthetic_dataset.nb_genes,
-                  synthetic_dataset.n_batches,
-                  synthetic_dataset.n_labels,
-                  labels_groups=[0, 0, 1],
-                  reconstruction_loss="nb")
-    infer_synthetic_svaec = JointSemiSupervisedVariationalInference(svaec, synthetic_dataset, use_cuda=use_cuda)
-    infer_synthetic_svaec.train(n_epochs=1)
+    svaec = SCANVI(synthetic_dataset.nb_genes,
+                   synthetic_dataset.n_batches,
+                   synthetic_dataset.n_labels,
+                   labels_groups=[0, 0, 1],
+                   reconstruction_loss="nb")
+    trainer_synthetic_svaec = JointSemiSupervisedTrainer(svaec, synthetic_dataset, use_cuda=use_cuda)
+    trainer_synthetic_svaec.train(n_epochs=1)

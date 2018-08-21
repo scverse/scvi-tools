@@ -1,5 +1,7 @@
 import collections
 
+from typing import Iterable
+
 import torch
 from torch import nn as nn
 from torch.distributions import Normal
@@ -8,10 +10,28 @@ from scvi.models.utils import one_hot
 
 
 class FCLayers(nn.Module):
-    def __init__(self, n_in, n_out, n_cat_list=[], n_layers=1, n_hidden=128, dropout_rate=0.1):
+    r"""A helper class to build fully-connected layers for a neural network.
+
+    :param n_in: The dimensionality of the input
+    :param n_out: The dimensionality of the output
+    :param n_cat_list: A list containing, for each category of interest,
+                 the number of categories. Each category will be
+                 included using a one-hot encoding.
+    :param n_layers: The number of fully-connected hidden layers
+    :param n_hidden: The number of nodes per hidden layer
+    :param dropout_rate: Dropout rate to apply to each of the hidden layers
+    """
+
+    def __init__(self, n_in: int, n_out: int, n_cat_list: Iterable[int] = None,
+                 n_layers: int = 1, n_hidden: int = 128, dropout_rate: float = 0.1):
         super(FCLayers, self).__init__()
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
-        self.n_cat_list = [n_cat if n_cat > 1 else 0 for n_cat in n_cat_list]  # n_cat = 1 will be ignored
+        if n_cat_list is not None:
+            # n_cat = 1 will be ignored
+            self.n_cat_list = [n_cat if n_cat > 1 else 0 for n_cat in n_cat_list]
+        else:
+            self.n_cat_list = []
+
         self.fc_layers = nn.Sequential(collections.OrderedDict(
             [('Layer {}'.format(i), nn.Sequential(
                 nn.Linear(n_in + sum(self.n_cat_list), n_out),
@@ -19,7 +39,14 @@ class FCLayers(nn.Module):
                 nn.ReLU(),
                 nn.Dropout(p=dropout_rate))) for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))]))
 
-    def forward(self, x, *cat_list):
+    def forward(self, x: torch.Tensor, *cat_list: int):
+        r"""Forward computation on ``x``.
+
+        :param x: tensor of values with shape ``(n_in,)``
+        :param cat_list: list of category membership(s) for this sample
+        :return: tensor of shape ``(n_out,)``
+        :rtype: :py:class:`torch.Tensor`
+        """
         one_hot_cat_list = []  # for generality in this list many indices useless.
         assert len(self.n_cat_list) <= len(cat_list), "nb. categorical args provided doesn't match init. params."
         for n_cat, cat in zip(self.n_cat_list, cat_list):
@@ -46,7 +73,22 @@ class FCLayers(nn.Module):
 
 # Encoder
 class Encoder(nn.Module):
-    def __init__(self, n_input, n_output, n_cat_list=[], n_layers=1, n_hidden=128, dropout_rate=0.1):
+    r"""Encodes data of ``n_input`` dimensions into a latent space of ``n_output``
+    dimensions using a fully-connected neural network of ``n_hidden`` layers.
+
+    :param n_input: The dimensionality of the input (data space)
+    :param n_output: The dimensionality of the output (latent space)
+    :param n_cat_list: A list containing the number of categories
+                       for each category of interest. Each category will be
+                       included using a one-hot encoding
+    :param n_layers: The number of fully-connected hidden layers
+    :param n_hidden: The number of nodes per hidden layer
+    :dropout_rate: Dropout rate to apply to each of the hidden layers
+    """
+
+    def __init__(self, n_input: int, n_output: int,
+                 n_cat_list: Iterable[int] = None, n_layers: int = 1,
+                 n_hidden: int = 128, dropout_rate: float = 0.1):
         super(Encoder, self).__init__()
         self.encoder = FCLayers(n_in=n_input, n_out=n_hidden, n_cat_list=n_cat_list, n_layers=n_layers,
                                 n_hidden=n_hidden, dropout_rate=dropout_rate)
@@ -56,7 +98,19 @@ class Encoder(nn.Module):
     def reparameterize(self, mu, var):
         return Normal(mu, var.sqrt()).rsample()
 
-    def forward(self, x, *cat_list):
+    def forward(self, x: torch.Tensor, *cat_list: int):
+        r"""The forward computation for a single sample.
+
+         #. Encodes the data into latent space using the encoder network
+         #. Generates a mean \\( q_m \\) and variance \\( q_v \\) (clamped to \\( [-5, 5] \\))
+         #. Samples a new value from an i.i.d. multivariate normal \\( \\sim N(q_m, \\mathbf{I}q_v) \\)
+
+        :param x: tensor with shape (n_input,)
+        :param cat_list: list of category membership(s) for this sample
+        :return: tensors of shape ``(n_latent,)`` for mean and var, and sample
+        :rtype: 3-tuple of :py:class:`torch.Tensor`
+        """
+
         # Parameters for latent distribution
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
@@ -67,9 +121,25 @@ class Encoder(nn.Module):
 
 # Decoder
 class DecoderSCVI(nn.Module):
-    def __init__(self, n_input, n_output, n_cat_list=[], n_layers=1, n_hidden=128, dropout_rate=0.1):
+    r"""Decodes data from latent space of ``n_input`` dimensions ``n_output``
+    dimensions using a fully-connected neural network of ``n_hidden`` layers.
+
+    :param n_input: The dimensionality of the input (latent space)
+    :param n_output: The dimensionality of the output (data space)
+    :param n_cat_list: A list containing the number of categories
+                       for each category of interest. Each category will be
+                       included using a one-hot encoding
+    :param n_layers: The number of fully-connected hidden layers
+    :param n_hidden: The number of nodes per hidden layer
+    :param dropout_rate: Dropout rate to apply to each of the hidden layers
+    """
+
+    def __init__(self, n_input: int, n_output: int,
+                 n_cat_list: Iterable[int] = None, n_layers: int = 1,
+                 n_hidden: int = 128, dropout_rate: float = 0.1):
         super(DecoderSCVI, self).__init__()
-        self.px_decoder = FCLayers(n_in=n_input, n_out=n_hidden, n_cat_list=n_cat_list, n_layers=n_layers,
+        self.px_decoder = FCLayers(n_in=n_input, n_out=n_hidden,
+                                   n_cat_list=n_cat_list, n_layers=n_layers,
                                    n_hidden=n_hidden, dropout_rate=dropout_rate)
 
         # mean gamma
@@ -81,7 +151,28 @@ class DecoderSCVI(nn.Module):
         # dropout
         self.px_dropout_decoder = nn.Linear(n_hidden, n_output)
 
-    def forward(self, dispersion, z, library, *cat_list):
+    def forward(self, dispersion: str, z: torch.Tensor, library: torch.Tensor,
+                *cat_list: int):
+        r"""The forward computation for a single sample.
+
+         #. Decodes the data from the latent space using the decoder network
+         #. Returns parameters for the ZINB distribution of expression
+         #. If ``dispersion != 'gene-cell'`` then value for that param will be ``None``
+
+        :param dispersion: One of the following
+
+            * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
+            * ``'gene-batch'`` - dispersion can differ between different batches
+            * ``'gene-label'`` - dispersion can differ between different labels
+            * ``'gene-cell'`` - dispersion can differ for every gene in every cell
+
+        :param z: tensor with shape ``(n_input,)``
+        :param library: library size
+        :param cat_list: list of category membership(s) for this sample
+        :return: parameters for the ZINB distribution of expression
+        :rtype: 4-tuple of :py:class:`torch.Tensor`
+        """
+
         # The decoder returns values for the parameters of the ZINB distribution
         px = self.px_decoder(z, *cat_list)
         px_scale = self.px_scale_decoder(px)
@@ -94,15 +185,43 @@ class DecoderSCVI(nn.Module):
 
 # Decoder
 class Decoder(nn.Module):
-    def __init__(self, n_input, n_output, n_cat_list=[], n_layers=1, n_hidden=128, dropout_rate=0.1):
+    r"""Decodes data from latent space of ``n_input`` dimensions to ``n_output``
+    dimensions using a fully-connected neural network of ``n_hidden`` layers.
+    Output is the mean and variance of a multivariate Gaussian
+
+    :param n_input: The dimensionality of the input (latent space)
+    :param n_output: The dimensionality of the output (data space)
+    :param n_cat_list: A list containing the number of categories
+                       for each category of interest. Each category will be
+                       included using a one-hot encoding
+    :param n_layers: The number of fully-connected hidden layers
+    :param n_hidden: The number of nodes per hidden layer
+    :param dropout_rate: Dropout rate to apply to each of the hidden layers
+    """
+
+    def __init__(self, n_input: int, n_output: int,
+                 n_cat_list: Iterable[int] = None, n_layers: int = 1,
+                 n_hidden: int = 128, dropout_rate: float = 0.1):
         super(Decoder, self).__init__()
-        self.decoder = FCLayers(n_in=n_input, n_out=n_hidden, n_cat_list=n_cat_list, n_layers=n_layers,
+        self.decoder = FCLayers(n_in=n_input, n_out=n_hidden,
+                                n_cat_list=n_cat_list, n_layers=n_layers,
                                 n_hidden=n_hidden, dropout_rate=dropout_rate)
 
         self.mean_decoder = nn.Linear(n_hidden, n_output)
         self.var_decoder = nn.Linear(n_hidden, n_output)
 
-    def forward(self, x, *cat_list):
+    def forward(self, x: torch.Tensor, *cat_list: int):
+        r"""The forward computation for a single sample.
+
+         #. Decodes the data from the latent space using the decoder network
+         #. Returns tensors for the mean and variance of a multivariate distribution
+
+        :param x: tensor with shape ``(n_input,)``
+        :param cat_list: list of category membership(s) for this sample
+        :return: Mean and variance tensors of shape ``(n_output,)``
+        :rtype: 2-tuple of :py:class:`torch.Tensor`
+        """
+
         # Parameters for latent distribution
         p = self.decoder(x, *cat_list)
         p_m = self.mean_decoder(p)

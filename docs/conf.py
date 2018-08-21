@@ -32,7 +32,11 @@ import scvi
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode', 'nbsphinx']
+extensions = ['sphinx.ext.autodoc',
+              'sphinx.ext.viewcode',
+              'nbsphinx',
+              'sphinx_autodoc_typehints',
+              'sphinx.ext.mathjax']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -103,6 +107,15 @@ html_static_path = ['_static']
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'scvidoc'
 
+mathjax_config = {
+    'extensions': ['tex2jax.js'],
+    'jax': ['input/TeX', 'output/HTML-CSS'],
+    'tex2jax': {
+      'inlineMath': [ ['$', '$'], ["\\(", "\\)"] ],
+      'displayMath': [ ['$$', '$$'], ["\\[", "\\]"] ],
+      'processEscapes': True
+    }
+}
 
 # -- Options for LaTeX output ------------------------------------------
 

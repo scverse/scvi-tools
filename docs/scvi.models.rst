@@ -12,6 +12,14 @@ scvi.models.classifier module
     :undoc-members:
     :show-inheritance:
 
+scvi.models.log\_likelihood module
+----------------------------------
+
+.. automodule:: scvi.models.log_likelihood
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 scvi.models.modules module
 --------------------------
 
@@ -20,10 +28,10 @@ scvi.models.modules module
     :undoc-members:
     :show-inheritance:
 
-scvi.models.svaec module
-------------------------
+scvi.models.scanvi module
+-------------------------
 
-.. automodule:: scvi.models.svaec
+.. automodule:: scvi.models.scanvi
     :members:
     :undoc-members:
     :show-inheritance:
@@ -40,6 +48,14 @@ scvi.models.vae module
 ----------------------
 
 .. automodule:: scvi.models.vae
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+scvi.models.vae\_fish module
+----------------------------
+
+.. automodule:: scvi.models.vae_fish
     :members:
     :undoc-members:
     :show-inheritance:

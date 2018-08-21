@@ -1,137 +1,139 @@
-import sys
-import time
-from collections import defaultdict
+import copy
 
+import matplotlib.pyplot as plt
 import torch
-from tqdm import trange
+from torch.nn import functional as F
 
-from scvi.metrics.early_stopping import EarlyStopping
+from scvi.inference import Trainer
 
-torch.set_grad_enabled(False)
+plt.switch_backend('agg')
 
 
-class Inference:
-    r"""The abstract Inference class for training a PyTorch model and monitoring its statistics. It should be
-    inherited at least with a .loss() function to be optimized in the training loop.
+class UnsupervisedTrainer(Trainer):
+    r"""The VariationalInference class for the unsupervised training of an autoencoder.
 
     Args:
-        :model: A model instance from class ``VAE``, ``VAEC``, ``SVAEC``
+        :model: A model instance from class ``VAE``, ``VAEC``, ``SCANVI``
         :gene_dataset: A gene_dataset instance like ``CortexDataset()``
-        :use_cuda: Default: ``True``.
-        :metrics_to_monitor: A list of the metrics to monitor. If not specified, will use the
-            ``default_metrics_to_monitor`` as specified in each . Default: ``None``.
-        :benchmark: if True, prevents statistics computation in the training. Default: ``False``.
-        :verbose: If statistics should be displayed along training. Default: ``None``.
-        :frequency: The frequency at which to keep track of statistics. Default: ``None``.
-        :early_stopping_metric: The statistics on which to perform early stopping. Default: ``None``.
-        :save_best_state_metric:  The statistics on which we keep the network weights achieving the best store, and
-            restore them at the end of training. Default: ``None``.
-        :on: The data_loader name reference for the ``early_stopping_metric`` and ``save_best_state_metric``, that
-            should be specified if any of them is. Default: ``None``.
+        :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
+         to use Default: ``0.8``.
+        :\*\*kwargs: Other keywords arguments from the general Trainer class.
+
+    Examples:
+        >>> gene_dataset = CortexDataset()
+        >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+        ... n_labels=gene_dataset.n_labels)
+
+        >>> infer = VariationalInference(gene_dataset, vae, train_size=0.5)
+        >>> infer.train(n_epochs=20, lr=1e-3)
     """
-    default_metrics_to_monitor = []
+    default_metrics_to_monitor = ['ll']
 
-    def __init__(self, model, gene_dataset, use_cuda=True, metrics_to_monitor=None, data_loaders=None, benchmark=False,
-                 verbose=False, frequency=None, early_stopping_metric=None,
-                 save_best_state_metric=None, on=None, weight_decay=1e-6):
-        self.model = model
-        self.gene_dataset = gene_dataset
-        self.data_loaders = data_loaders
-        self.weight_decay = weight_decay
-        self.benchmark = benchmark
-        self.epoch = 0
-        self.training_time = 0
+    def __init__(self, model, gene_dataset, train_size=0.8, kl=None, **kwargs):
+        super(UnsupervisedTrainer, self).__init__(model, gene_dataset, **kwargs)
+        self.kl = kl
+        if type(self) is UnsupervisedTrainer:
+            self.train_set, self.test_set = self.train_test(model, gene_dataset, train_size)
+            self.train_set.to_monitor = ['ll']
+            self.test_set.to_monitor = ['ll']
 
-        if metrics_to_monitor is not None:
-            self.metrics_to_monitor = metrics_to_monitor
-        else:
-            self.metrics_to_monitor = self.default_metrics_to_monitor
+    @property
+    def posteriors_loop(self):
+        return ['train_set']
 
-        self.early_stopping_metric = early_stopping_metric
-        self.save_best_state_metric = save_best_state_metric
-        self.on = on
-        mode = getattr(self, early_stopping_metric).mode if early_stopping_metric is not None else None
-        mode_save_state = getattr(self, save_best_state_metric).mode if save_best_state_metric is not None else None
-        self.early_stopping = EarlyStopping(benchmark=benchmark, mode=mode, mode_save_state=mode_save_state)
-
-        self.use_cuda = use_cuda and torch.cuda.is_available()
-        if self.use_cuda:
-            self.model.cuda()
-
-        self.frequency = frequency if not benchmark else None
-        self.verbose = verbose
-
-        self.history = defaultdict(lambda: [])
-
-    def compute_metrics(self):
-        begin = time.time()
-        with torch.set_grad_enabled(False):
-            self.model.eval()
-            if self.frequency and (
-                            self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.frequency == 0)):
-                if self.verbose:
-                    print("\nEPOCH [%d/%d]: " % (self.epoch, self.n_epochs))
-                for name in self.data_loaders.to_monitor:
-                    for metric in self.metrics_to_monitor:
-                        result = getattr(self, metric)(name=name, verbose=self.verbose)
-                        self.history[metric + '_' + name] += [result]
-            self.model.train()
-            self.compute_metrics_time += time.time() - begin
-
-    def train(self, n_epochs=20, lr=1e-3, params=None):
-        begin = time.time()
-        with torch.set_grad_enabled(True):
-            self.model.train()
-
-            if params is None:
-                params = filter(lambda p: p.requires_grad, self.model.parameters())
-
-            optimizer = torch.optim.Adam(params, lr=lr, weight_decay=self.weight_decay)
-            self.epoch = 0
-            self.compute_metrics_time = 0
-            self.n_epochs = n_epochs
-            self.compute_metrics()
-
-            with trange(n_epochs, desc="training", file=sys.stdout, disable=self.verbose) as pbar:
-                # We have to use tqdm this way so it works in Jupyter notebook.
-                # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
-                self.on_epoch_begin()
-
-                for epoch in pbar:
-                    pbar.update(1)
-
-                    for tensors_list in self.data_loaders:
-                        loss = self.loss(*tensors_list)
-                        optimizer.zero_grad()
-                        loss.backward()
-                        optimizer.step()
-
-                    if not self.on_epoch_end():
-                        break
-
-            if self.save_best_state_metric is not None:
-                self.model.load_state_dict(self.best_state_dict)
-                self.compute_metrics()
-
-            self.model.eval()
-            self.training_time += (time.time() - begin) - self.compute_metrics_time
-            if self.verbose and self.frequency:
-                print("\nTraining time:  %i s. / %i epochs" % (int(self.training_time), self.n_epochs))
+    def loss(self, tensors):
+        sample_batch, local_l_mean, local_l_var, batch_index, _ = tensors
+        reconst_loss, kl_divergence = self.model(sample_batch, local_l_mean, local_l_var, batch_index)
+        loss = torch.mean(reconst_loss + self.kl_weight * kl_divergence)
+        return loss
 
     def on_epoch_begin(self):
-        pass
+        self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / self.n_epochs)
 
-    def on_epoch_end(self):
-        self.epoch += 1
-        self.compute_metrics()
-        if self.save_best_state_metric is not None and self.on is not None:
-            if self.early_stopping.update_state(self.history[self.save_best_state_metric + '_' + self.on][-1]):
-                self.best_state_dict = self.model.state_dict()
-                self.best_epoch = self.epoch
 
-        continue_training = True
-        if self.early_stopping_metric is not None and self.on is not None:
-            continue_training = self.early_stopping.update(
-                self.history[self.early_stopping_metric + '_' + self.on][-1]
-            )
-        return continue_training
+class AdapterTrainer(UnsupervisedTrainer):
+    def __init__(self, model, gene_dataset, posterior_test, frequency=5):
+        super(AdapterTrainer, self).__init__(model, gene_dataset, frequency=frequency)
+        self.test_set = posterior_test
+        self.test_set.to_monitor = ['ll']
+        self.params = list(self.model.z_encoder.parameters()) + list(self.model.l_encoder.parameters())
+        self.z_encoder_state = copy.deepcopy(model.z_encoder.state_dict())
+        self.l_encoder_state = copy.deepcopy(model.l_encoder.state_dict())
+
+    @property
+    def posteriors_loop(self):
+        return ['test_set']
+
+    def train(self, n_path=10, n_epochs=50, **kwargs):
+        for i in range(n_path):
+            # Re-initialize to create new path
+            self.model.z_encoder.load_state_dict(self.z_encoder_state)
+            self.model.l_encoder.load_state_dict(self.l_encoder_state)
+            super(AdapterTrainer, self).train(n_epochs, params=self.params, **kwargs)
+
+        return min(self.history["ll_test_set"])
+
+
+class TrainerFish(Trainer):
+    r"""The VariationalInference class for the unsupervised training of an autoencoder.
+
+    Args:
+        :model: A model instance from class ``VAEF``
+        :gene_dataset: A gene_dataset instance like ``CortexDataset()``
+        :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
+         to use Default: ``0.8``.
+        :\*\*kwargs: Other keywords arguments from the general Trainer class.
+
+    Examples:
+        >>> gene_dataset_seq = CortexDataset()
+        >>> gene_dataset_fish = SmfishDataset()
+        >>> vaef = VAEF(gene_dataset_seq.nb_genes, gene_dataset_fish.nb_genes,
+        ... n_labels=gene_dataset.n_labels, use_cuda=True)
+
+        >>> trainer = TrainerFish(gene_dataset_seq, gene_dataset_fish, vaef, train_size=0.5)
+        >>> trainer.train(n_epochs=20, lr=1e-3)
+    """
+    default_metrics_to_monitor = ['ll']
+
+    def __init__(self, model, gene_dataset_seq, gene_dataset_fish, train_size=0.8, test_size=None,
+                 use_cuda=True, cl_ratio=0, n_epochs_even=1, n_epochs_kl=2000, n_epochs_cl=1, seed=0, **kwargs):
+        super(TrainerFish, self).__init__(model, gene_dataset_seq, use_cuda=use_cuda, **kwargs)
+        self.kl = None
+        self.cl_ratio = cl_ratio
+        self.n_epochs_cl = n_epochs_cl
+        self.n_epochs_even = n_epochs_even
+        self.n_epochs_kl = n_epochs_kl
+        self.weighting = 0
+        self.kl_weight = 0
+        self.classification_ponderation = 0
+
+        self.train_seq, self.test_seq = self.train_test(self.model, gene_dataset_seq, train_size, test_size, seed)
+        self.train_fish, self.test_fish = self.train_test(self.model, gene_dataset_fish, train_size, test_size, seed)
+        self.test_seq.to_monitor = ['ll']
+        self.test_fish.to_monitor = ['ll_fish']
+
+    @property
+    def posteriors_loop(self):
+        return ['train_seq', 'train_fish']
+
+    def loss(self, tensors_seq, tensors_fish):
+        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors_seq
+        reconst_loss, kl_divergence = self.model(sample_batch, local_l_mean, local_l_var, batch_index, mode="scRNA",
+                                                 weighting=self.weighting)
+        # If we want to add a classification loss
+        if self.cl_ratio != 0:
+            reconst_loss += self.cl_ratio * F.cross_entropy(self.model.classify(sample_batch, mode="scRNA"),
+                                                            labels.view(-1))
+        loss = torch.mean(reconst_loss + self.kl_weight * kl_divergence)
+        sample_batch_fish, local_l_mean, local_l_var, batch_index_fish, _, _, _ = tensors_fish
+        reconst_loss_fish, kl_divergence_fish = self.model(sample_batch_fish, local_l_mean, local_l_var,
+                                                           batch_index_fish, mode="smFISH")
+        loss_fish = torch.mean(reconst_loss_fish + self.kl_weight * kl_divergence_fish)
+        loss = loss * sample_batch.size(0) + loss_fish * sample_batch_fish.size(0)
+        loss /= (sample_batch.size(0) + sample_batch_fish.size(0))
+        return loss + loss_fish
+
+    def on_epoch_begin(self):
+        self.weighting = min(1, self.epoch / self.n_epochs_even)
+        self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / self.n_epochs_kl)
+        self.classification_ponderation = min(1, self.epoch / self.n_epochs_cl)
