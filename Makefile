@@ -91,4 +91,4 @@ install: clean ## install the package to the active Python's site-packages
 	python setup.py install
 
 notebooks:
-	make -C docs/notebooks
+	make type=$(type) -C docs/notebooks $(notebook)

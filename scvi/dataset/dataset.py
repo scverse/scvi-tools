@@ -159,11 +159,17 @@ class GeneExpressionDataset(Dataset):
 
     def _cell_type_idx(self, cell_types):
         if type(cell_types[0]) is not int:
-            current_cell_types = list(self.cell_types)
-            cell_types_idx = np.array([current_cell_types.index(cell_type) for cell_type in cell_types])
+            cell_types_idx = [np.where(cell_type == self.cell_types)[0][0] for cell_type in cell_types]
         else:
-            cell_types_idx = np.array(cell_types, dtype=np.int64)
-        return cell_types_idx
+            cell_types_idx = cell_types
+        return np.array(cell_types_idx, dtype=np.int64)
+
+    def _gene_idx(self, genes):
+        if type(genes[0]) is not int:
+            genes_idx = [np.where(gene == self.gene_names)[0][0] for gene in genes]
+        else:
+            genes_idx = genes
+        return np.array(genes_idx, dtype=np.int64)
 
     def filter_cell_types(self, cell_types):
         """

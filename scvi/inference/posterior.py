@@ -2,6 +2,7 @@ import copy
 from collections import namedtuple
 
 import numpy as np
+import pandas as pd
 import scipy
 import torch
 from matplotlib import pyplot as plt
@@ -18,7 +19,6 @@ from sklearn.utils.linear_assignment_ import linear_assignment
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler, RandomSampler
 
-from scvi.dataset import CortexDataset
 from scvi.models.log_likelihood import compute_log_likelihood, compute_marginal_log_likelihood
 
 
@@ -82,9 +82,13 @@ class Posterior:
             else:
                 sampler = SequentialSampler(gene_dataset)
         else:
+            if hasattr(indices, 'dtype') and indices.dtype is np.dtype('bool'):
+                indices = np.where(indices)[0].ravel()
             sampler = SubsetRandomSampler(indices)
         self.data_loader_kwargs = copy.copy(data_loader_kwargs)
-        self.data_loader_kwargs.update({'collate_fn': gene_dataset.collate_fn, 'sampler': sampler})
+        if hasattr(gene_dataset, 'collate_fn'):
+            self.data_loader_kwargs.update({'collate_fn': gene_dataset.collate_fn})
+        self.data_loader_kwargs.update({'sampler': sampler})
         self.data_loader = DataLoader(gene_dataset, **self.data_loader_kwargs)
 
     @property
@@ -151,19 +155,6 @@ class Posterior:
 
     entropy_batch_mixing.mode = 'max'
 
-    def differential_expression(self, *args, verbose=False, **kwargs):
-        px_scale, all_labels = self.differential_expression_stats(*args, **kwargs)
-
-        if type(self.gene_dataset) == CortexDataset:
-            if 'use_cuda' in kwargs:
-                kwargs.pop('use_cuda')
-            de_score = de_cortex(px_scale, all_labels, self.gene_dataset.gene_names, **kwargs)
-            if verbose:
-                print("DE score for cortex: %.4f" % de_score)
-            return de_score
-
-    differential_expression.mode = 'max'
-
     def differential_expression_stats(self, M_sampling=100):
         """
         Output average over statistics in a symmetric way (a against b)
@@ -184,10 +175,49 @@ class Posterior:
                 (self.model.get_sample_scale(sample_batch, batch_index=batch_index, y=labels).squeeze()).cpu()]
             all_labels += [labels.cpu()]
 
-        px_scale = torch.cat(px_scales)
-        all_labels = torch.cat(all_labels)
+        px_scale = np.array(torch.cat(px_scales))
+        all_labels = np.array(torch.cat(all_labels)).ravel()
 
         return px_scale, all_labels
+
+    def differential_expression_score(self, cell_type, other_cell_type=None, genes=None, M_sampling=100,
+                                      M_permutation=10000, permutation=False):
+        px_scale, all_labels = self.differential_expression_stats(M_sampling=M_sampling)
+        cell_idx, other_cell_idx = self.gene_dataset._cell_type_idx([cell_type, other_cell_type])
+        if genes is not None:
+            px_scale = px_scale[:, self.gene_dataset._gene_idx(genes)]
+        bayes_factors_list = get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=other_cell_idx,
+                                               M_permutation=M_permutation, permutation=permutation)
+        return bayes_factors_list
+
+    def differential_expression_table(self, output_file=False, select=10, M_sampling=100, M_permutation=10000,
+                                      permutation=False):
+        px_scale, all_labels = self.differential_expression_stats(M_sampling=M_sampling)
+        expression = []
+        genes = []
+        gene_names = self.gene_dataset.gene_names
+        n_cells = self.gene_dataset.n_labels
+        for cell_idx in range(n_cells):
+            bayes_factors_list = get_bayes_factors(px_scale, all_labels, cell_idx, M_permutation=M_permutation,
+                                                   permutation=permutation)
+            expression.append(bayes_factors_list)
+            top_indices = np.argsort(bayes_factors_list)[::-1][:select]
+            top_genes = gene_names[top_indices]
+            genes += list(top_genes)
+
+        expression = [[res[np.where(gene_names == gene_name)[0]][0] for gene_name in genes] for res in expression]
+        genes = np.array(genes)
+        expression = np.array(expression).T  # change to genes * clusters
+        if output_file:  # store as an excel spreadsheet
+            writer = pd.ExcelWriter('data/differential_expression.xlsx', engine='xlsxwriter')
+            clusters = self.gene_dataset.cell_types
+            for cluster_idx in range(len(clusters)):
+                df = pd.DataFrame(data=expression[select * cluster_idx: select * (cluster_idx + 1), cluster_idx],
+                                  index=genes[select * cluster_idx: select * (cluster_idx + 1)],
+                                  columns=['differential_expression'])
+                df.to_excel(writer, sheet_name=clusters[cluster_idx])
+            writer.close()
+        return genes, expression
 
     def imputation(self, n_samples=1):
         imputed_list = []
@@ -267,6 +297,11 @@ class Posterior:
             return asw_score, nmi_score, ari_score, uca_score
 
     def nn_overlap_score(self, verbose=True, **kwargs):
+        '''
+        Quantify how much the similarity between cells in the mRNA latent space resembles their similarity at the
+        protein level. Compute the overlap fold enrichment between the protein and mRNA-based cell 100-nearest neighbor
+        graph and the Spearman correlation of the adjacency matrices.
+        '''
         if hasattr(self.gene_dataset, 'adt_expression_clr'):
             latent, _, _ = self.sequential().get_latent()
             protein_data = self.gene_dataset.adt_expression_clr[self.indices]
@@ -414,28 +449,24 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
     return score
 
 
-def de_cortex(px_scale, all_labels, gene_names, M_permutation=100000, permutation=False):
-    """
-    Output average over statistics in a symmetric way (a against b)
-    forget the sets if permutation is True
-    :param M_permutation: 10000 - default value in Romain's code
-    :param permutation:
-    :return: A 1-d vector of statistics of size n_genes
-    """
-    # Compute sample rate for the whole dataset ?
-    cell_types = np.array(['astrocytes_ependymal', 'endothelial-mural', 'interneurons', 'microglia',
-                           'oligodendrocytes', 'pyramidal CA1', 'pyramidal SS'], dtype=np.str)
-    # oligodendrocytes (#4) VS pyramidal CA1 (#5)
-    couple_celltypes = (4, 5)  # the couple types on which to study DE
-
-    print("\nDifferential Expression A/B for cell types\nA: %s\nB: %s\n" %
-          tuple((cell_types[couple_celltypes[i]] for i in [0, 1])))
-
-    # Here instead of A, B = 200, 400: we do on whole dataset then select cells
-    sample_rate_a = (px_scale[all_labels.view(-1) == couple_celltypes[0]].view(-1, px_scale.size(1))
-                     .cpu().detach().numpy())
-    sample_rate_b = (px_scale[all_labels.view(-1) == couple_celltypes[1]].view(-1, px_scale.size(1))
-                     .cpu().detach().numpy())
+def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes_idx=None,
+                      M_permutation=10000, permutation=False):
+    '''
+    Returns a list of bayes factor for all genes
+    :param px_scale: The gene frequency array for all cells (might contain multiple samples per cells)
+    :param all_labels: The labels array for the corresponding cell types
+    :param cell_idx: The first cell type population to consider. Either a string or an idx
+    :param other_cell_idx: (optional) The second cell type population to consider. Either a string or an idx
+    :param M_permutation: The number of permuted samples.
+    :param permutation: Whether or not to permute.
+    :return:
+    '''
+    idx = (all_labels == cell_idx)
+    idx_other = (all_labels == other_cell_idx) if other_cell_idx is not None else (all_labels != other_cell_idx)
+    if genes_idx is not None:
+        px_scale = px_scale[:, genes_idx]
+    sample_rate_a = px_scale[idx].reshape(-1, px_scale.shape[1])
+    sample_rate_b = px_scale[idx_other].reshape(-1, px_scale.shape[1])
 
     # agregate dataset
     samples = np.vstack((sample_rate_a, sample_rate_b))
@@ -457,11 +488,7 @@ def de_cortex(px_scale, all_labels, gene_names, M_permutation=100000, permutatio
 
     res = np.mean(first_set >= second_set, 0)
     res = np.log(res + 1e-8) - np.log(1 - res + 1e-8)
-
-    genes_of_interest = np.char.upper(["Thy1", "Mbp"])
-    result = [(gene_name, res[np.where(gene_names == gene_name)[0]][0]) for gene_name in genes_of_interest]
-    print('\n'.join([gene_name + " : " + str(r) for (gene_name, r) in result]))
-    return result[1][1]  # if we had to give a metric to optimize
+    return res
 
 
 def plot_imputation(original, imputed, title="Imputation"):
@@ -513,6 +540,10 @@ def plot_imputation(original, imputed, title="Imputation"):
 
 
 def nn_overlap(X1, X2, k=100):
+    '''
+    Compute the overlap between the k-nearest neighbor graph of X1 and X2 using Spearman correlation of the
+    adjacency matrices.
+    '''
     nne = NearestNeighbors(n_neighbors=k + 1, n_jobs=8)
     assert len(X1) == len(X2)
     n_samples = len(X1)
@@ -535,10 +566,13 @@ def unsupervised_clustering_accuracy(y, y_pred):
     Unsupervised Clustering Accuracy
     """
     assert len(y_pred) == len(y)
-    n_clusters = len(np.unique(y))
+    u = np.unique(np.concatenate((y, y_pred)))
+    n_clusters = len(u)
+    mapping = dict(zip(u, range(n_clusters)))
     reward_matrix = np.zeros((n_clusters, n_clusters), dtype=np.int64)
     for y_pred_, y_ in zip(y_pred, y):
-        reward_matrix[y_pred_, y_] += 1
+        if y_ in mapping:
+            reward_matrix[mapping[y_pred_], mapping[y_]] += 1
     cost_matrix = reward_matrix.max() - reward_matrix
     ind = linear_assignment(cost_matrix)
     return sum([reward_matrix[i, j] for i, j in ind]) * 1.0 / y_pred.size, ind
