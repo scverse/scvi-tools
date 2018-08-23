@@ -7,7 +7,7 @@ from scvi.benchmark import harmonization_benchmarks, \
     annotation_benchmarks, all_benchmarks
 from scvi.dataset import BrainLargeDataset, CortexDataset, SyntheticDataset, CsvDataset, \
     RetinaDataset, BrainSmallDataset, HematoDataset, LoomDataset, AnnDataset, CbmcDataset, PbmcDataset
-from scvi.inference import VariationalInference, JointSemiSupervisedVariationalInference
+from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
 from scvi.models import VAE, VAEC, SCANVI
 
 
@@ -93,6 +93,6 @@ if __name__ == '__main__':
     else:
         dataset = load_datasets(args.dataset, url=args.url)
         model = available_models[args.model](dataset.nb_genes, dataset.n_batches*args.nobatches, dataset.n_labels)
-        inference_cls = VariationalInference if args.model == 'VAE' else JointSemiSupervisedVariationalInference
-        infer = inference_cls(model, dataset, use_cuda=use_cuda)
-        infer.train(n_epochs=n_epochs)
+        trainer_cls = UnsupervisedTrainer if args.model == 'VAE' else SemiSupervisedTrainer
+        trainer = trainer_cls(model, dataset, use_cuda=use_cuda)
+        trainer.train(n_epochs=n_epochs)

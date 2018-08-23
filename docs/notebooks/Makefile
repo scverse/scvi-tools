@@ -1,4 +1,4 @@
-type ?= pdf
+type ?= html
 
 nbs = $(wildcard *.ipynb)
 types = $(nbs:%.ipynb=%.$(type))
