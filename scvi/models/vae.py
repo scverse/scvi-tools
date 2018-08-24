@@ -78,9 +78,24 @@ class VAE(nn.Module):
                                    dropout_rate=dropout_rate)
 
     def get_latents(self, x, y=None):
+        r""" returns the result of ``sample_from_posterior_z`` inside a list
+
+        :param x: tensor of values with shape ``(batch_size, n_input)``
+        :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
+        :return: one element list of tensor
+        :rtype: list of :py:class:`torch.Tensor`
+        """
         return [self.sample_from_posterior_z(x, y)]
 
     def sample_from_posterior_z(self, x, y=None):
+        r""" samples the tensor of latent values from the posterior
+        #doesn't really sample, returns the means of the posterior distribution
+
+        :param x: tensor of values with shape ``(batch_size, n_input)``
+        :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
+        :return: tensor of shape ``(batch_size, n_latent)``
+        :rtype: :py:class:`torch.Tensor`
+        """
         x = torch.log(1 + x)
         qz_m, qz_v, z = self.z_encoder(x, y)  # y only used in VAEC
         if not self.training:
@@ -88,6 +103,14 @@ class VAE(nn.Module):
         return z
 
     def sample_from_posterior_l(self, x):
+        r""" samples the tensor of library sizes from the posterior
+        #doesn't really sample, returns the tensor of the means of the posterior distribution
+
+        :param x: tensor of values with shape ``(batch_size, n_input)``
+        :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
+        :return: tensor of shape ``(batch_size, 1)``
+        :rtype: :py:class:`torch.Tensor`
+        """
         x = torch.log(1 + x)
         ql_m, ql_v, library = self.l_encoder(x)
         if not self.training:
@@ -95,6 +118,15 @@ class VAE(nn.Module):
         return library
 
     def get_sample_scale(self, x, batch_index=None, y=None, n_samples=1):
+        r"""Returns the tensor of predicted frequencies of expression
+
+        :param x: tensor of values with shape ``(batch_size, n_input)``
+        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
+        :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
+        :param n_samples: number of samples
+        :return: tensor of predicted frequencies of expression with shape ``(batch_size, n_input)``
+        :rtype: :py:class:`torch.Tensor`
+        """
         qz_m, qz_v, z = self.z_encoder(torch.log(1 + x), y)
         qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
         qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
@@ -104,6 +136,15 @@ class VAE(nn.Module):
         return px_scale
 
     def get_sample_rate(self, x, batch_index=None, y=None, n_samples=1):
+        r"""Returns the tensor of means of the negative binomial distribution
+
+        :param x: tensor of values with shape ``(batch_size, n_input)``
+        :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
+        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
+        :param n_samples: number of samples
+        :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
+        :rtype: :py:class:`torch.Tensor`
+        """
         ql_m, ql_v, library = self.l_encoder(torch.log(1 + x), y)
         ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
         ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
@@ -127,6 +168,16 @@ class VAE(nn.Module):
         return reconst_loss
 
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
+        r""" Returns the reconstruction loss and the Kullback divergences
+
+        :param x: tensor of values with shape (batch_size, n_input)
+        :param local_l_mean: tensor of means of the prior distribution of latent variable l with shape (batch_size, 1)
+        :param local_l_var: tensor of variancess of the prior distribution of latent variable l with shape (batch_size, 1)
+        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
+        :param y: tensor of cell-types labels with shape (batch_size, n_labels)
+        :return: the reconstruction loss and the Kullback divergences
+        :rtype: 2-tuple of :py:class:`torch.FloatTensor`
+        """
         # Parameters for z latent distribution
         x_ = x
         if self.log_variational:
