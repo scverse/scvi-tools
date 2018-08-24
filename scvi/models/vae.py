@@ -171,8 +171,10 @@ class VAE(nn.Module):
         r""" Returns the reconstruction loss and the Kullback divergences
 
         :param x: tensor of values with shape (batch_size, n_input)
-        :param local_l_mean: tensor of means of the prior distribution of latent variable l with shape (batch_size, 1)
-        :param local_l_var: tensor of variancess of the prior distribution of latent variable l with shape (batch_size, 1)
+        :param local_l_mean: tensor of means of the prior distribution of latent variable l
+         with shape (batch_size, 1)
+        :param local_l_var: tensor of variancess of the prior distribution of latent variable l
+         with shape (batch_size, 1)
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :param y: tensor of cell-types labels with shape (batch_size, n_labels)
         :return: the reconstruction loss and the Kullback divergences

@@ -218,8 +218,10 @@ class VAEF(VAE):
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         or ``(batch_size, n_input_fish)`` depending on the mode
-        :param local_l_mean: tensor of means of the prior distribution of latent variable l with shape (batch_size, 1)
-        :param local_l_var: tensor of variances of the prior distribution of latent variable l with shape (batch_size, 1)
+        :param local_l_mean: tensor of means of the prior distribution of latent variable l
+        with shape (batch_size, 1)
+        :param local_l_var: tensor of variances of the prior distribution of latent variable l
+        with shape (batch_size, 1)
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :param y: tensor of cell-types labels with shape (batch_size, n_labels)
         :param mode: string that indicates the type of data we analyse
