@@ -70,9 +70,27 @@ class VAEF(VAE):
         self.classifier = Classifier(n_latent, n_labels=n_labels, n_hidden=128, n_layers=3)
 
     def get_latents(self, x, y=None):
+        r""" returns the result of ``sample_from_posterior_z`` inside a list
+
+        :param x: tensor of values with shape ``(batch_size, n_input)``
+        or ``(batch_size, n_input_fish)`` depending on the mode
+        :param y: tensor of cell-types labels with shape ``(batch_size,)``
+        :return: one element list of tensor
+        :rtype: list of :py:class:`torch.Tensor`
+        """
         return [self.sample_from_posterior_z(x, y)]
 
     def sample_from_posterior_z(self, x, y=None, mode="scRNA"):
+        r""" samples the tensor of latent values from the posterior
+        #doesn't really sample, returns the means of the posterior distribution
+
+        :param x: tensor of values with shape ``(batch_size, n_input)``
+        or ``(batch_size, n_input_fish)`` depending on the mode
+        :param y: tensor of cell-types labels with shape ``(batch_size,)``
+        :param mode: string that indicates the type of data we analyse
+        :return: tensor of means with shape ``(batch_size, n_latent)``
+        :rtype: :py:class:`torch.Tensor`
+        """
         x = torch.log(1 + x)
         # First layer isn't shared
         if mode == "scRNA":
@@ -86,6 +104,16 @@ class VAEF(VAE):
         return z
 
     def sample_from_posterior_l(self, x, mode="scRNA"):
+        r""" samples the tensor of library sizes from the posterior
+        #doesn't really sample, returns the tensor of the means of the posterior distribution
+
+        :param x: tensor of values with shape ``(batch_size, n_input)``
+        or ``(batch_size, n_input_fish)`` depending on the mode
+        :param y: tensor of cell-types labels with shape ``(batch_size,)``
+        :param mode: string that indicates the type of data we analyse
+        :return: tensor of shape ``(batch_size, n_latent)``
+        :rtype: :py:class:`torch.Tensor`
+        """
         x = torch.log(1 + x)
         if mode == "scRNA":
             ql_m, ql_v, library = self.l_encoder(x)
@@ -94,12 +122,32 @@ class VAEF(VAE):
         return library
 
     def get_sample_scale(self, x, mode="scRNA", batch_index=None, y=None):
+        r"""Returns the tensor of predicted frequencies of expression
+
+        :param x: tensor of values with shape ``(batch_size, n_input)``
+        or ``(batch_size, n_input_fish)`` depending on the mode
+        :param mode: string that indicates the type of data we analyse
+        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
+        :param y: tensor of cell-types labels with shape ``(batch_size,)``
+        :return: tensor of predicted frequencies of expression with shape ``(batch_size, n_input)``
+        or ``(batch_size, n_input_fish)`` depending on the mode
+        :rtype: :py:class:`torch.Tensor`
+        """
         z = self.sample_from_posterior_z(x, y, mode)  # y only used in VAEC
         px = self.decoder.px_decoder(z, batch_index, y)  # y only used in VAEC
         px_scale = self.decoder.px_scale_decoder(px)
         return px_scale
 
     def get_sample_rate(self, x, y=None, mode="scRNA"):
+        r"""Returns the tensor of means of the negative binomial distribution
+
+        :param x: tensor of values with shape ``(batch_size, n_input)``
+        or ``(batch_size, n_input_fish)`` depending on the mode
+        :param y: tensor of cell-types labels with shape ``(batch_size,)``
+        :param mode: string that indicates the type of data we analyse
+        :return: tensor of means of the negative binomial distribution
+        :rtype: :py:class:`torch.Tensor`
+        """
         if mode == "scRNA":
             library = torch.log(torch.sum(x, dim=1)).view(-1, 1)
             batch_index = torch.zeros_like(library)
@@ -113,6 +161,14 @@ class VAEF(VAE):
         return px_scale * torch.exp(library)
 
     def get_sample_rate_fish(self, x, y=None):
+        r"""Returns the tensor of means of the negative binomial distribution
+
+        :param x: tensor of values with shape ``(batch_size, n_input)``
+        or ``(batch_size, n_input_fish)`` depending on the mode
+        :param y: tensor of cell-types labels with shape ``(batch_size,)``
+        :return: tensor of means of the negative binomial distribution
+        :rtype: :py:class:`torch.Tensor`
+        """
         library = torch.log(torch.sum(x[:, self.indexes_to_keep], dim=1)).view(-1, 1)
         batch_index = torch.ones_like(library)
 
@@ -124,6 +180,14 @@ class VAEF(VAE):
         return px_scale * torch.exp(library)
 
     def classify(self, x, mode="scRNA"):
+        r"""Classifies the cells based on their latent representation
+        #for each cell, it gives the probability distribution over the different labels
+
+        :param x: tensor of values with shape (batch_size, n_input or n_input_fish depending on the mode)
+        :param mode: string that indicates the type of data we analyse
+        :return: tensor with shape``(batch_size,)`` of probabilities of corresponding to the different labels
+        :rtype: :py:class:`torch.Tensor`
+        """
         z = self.sample_from_posterior_z(x, mode)
         return self.classifier(z)
 
@@ -150,6 +214,18 @@ class VAEF(VAE):
         return reconst_loss
 
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None, mode="scRNA", weighting=1):
+        r""" Returns the reconstruction loss and the Kullback divergences
+
+        :param x: tensor of values with shape (batch_size, n_input or n_input_fish depending on the mode)
+        :param local_l_mean: tensor of means of the prior distribution of latent variable l
+        :param local_l_var: tensor of variancess of the prior distribution of latent variable l
+        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
+        :param y: tensor of cell-types labels with shape (batch_size,)
+        :param mode: string that indicates the type of data we analyse
+        :param weighting: used in none of these methods
+        :return: `the reconstruction loss and the Kullback divergences
+        :rtype: 2-tuple of :py:class:`torch.FloatTensor`
+        """
         x_ = x
         if self.log_variational:
             x_ = torch.log(1 + x_)
