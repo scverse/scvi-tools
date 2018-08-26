@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.distributions import Normal
+from torch import logsumexp
 
 
 def compute_log_likelihood(vae, posterior, **kwargs):
@@ -51,30 +52,6 @@ def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
     n_samples = len(posterior.indices)
     # The minus sign is there because we actually look at the negative log likelihood
     return - log_lkl / n_samples
-
-
-def logsumexp(inputs, dim=None, keepdim=False):
-    """Numerically stable logsumexp.
-
-    Args:
-        inputs: A Variable with any shape.
-        dim: An integer.
-        keepdim: A boolean.
-
-    Returns:
-        Equivalent of log(sum(exp(inputs), dim=dim, keepdim=keepdim)).
-    """
-    # For a 1-D array x (any array along a single dimension),
-    # log sum exp(x) = s + log sum exp(x - s)
-    # with s = max(x) being a common choice.
-    if dim is None:
-        inputs = inputs.view(-1)
-        dim = 0
-    s, _ = torch.max(inputs, dim=dim, keepdim=True)
-    outputs = s + (inputs - s).exp().sum(dim=dim, keepdim=True).log()
-    if not keepdim:
-        outputs = outputs.squeeze(dim)
-    return outputs
 
 
 def log_zinb_positive(x, mu, theta, pi, eps=1e-8):

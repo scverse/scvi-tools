@@ -11,7 +11,7 @@ with open('HISTORY.rst') as history_file:
 
 requirements = [
     "numpy>=1.0",
-    "torch>=0.4",
+    "torch>=0.4.1",
     "matplotlib>=2.0",
     "scikit-learn>=0.18",
     "scipy>=1.0",
