@@ -544,7 +544,7 @@ def nn_overlap(X1, X2, k=100):
     Compute the overlap between the k-nearest neighbor graph of X1 and X2 using Spearman correlation of the
     adjacency matrices.
     '''
-    nne = NearestNeighbors(n_neighbors=k + 1, n_jobs=8)
+    nne = NearestNeighbors(n_neighbors=k + 1)# "n_jobs=8
     assert len(X1) == len(X2)
     n_samples = len(X1)
     nne.fit(X1)
