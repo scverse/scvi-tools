@@ -120,7 +120,7 @@ class GeneExpressionDataset(Dataset):
         if hasattr(self, 'gene_symbols'):
             self.gene_symbols = self.gene_symbols[subset_genes]
         self.nb_genes = self.X.shape[1]
-        self.update_cells(np.array(self.X.sum(axis=1)>0).ravel())
+        self.update_cells(np.array(self.X.sum(axis=1) > 0).ravel())
 
     def update_cells(self, subset_cells):
         new_n_cells = len(subset_cells) if subset_cells.dtype is not np.dtype('bool') else subset_cells.sum()
@@ -264,7 +264,8 @@ class GeneExpressionDataset(Dataset):
         to_keep = np.array((X.sum(axis=1) > 0)).ravel()
         X = X[to_keep]
         local_mean, local_var = GeneExpressionDataset.library_size(X)
-        batch_indices = batch_indices * np.ones((X.shape[0], 1)) if type(batch_indices) is int else batch_indices[to_keep]
+        batch_indices = batch_indices * np.ones((X.shape[0], 1)) if type(batch_indices) is int \
+            else batch_indices[to_keep]
         labels = labels[to_keep].reshape(-1, 1) if labels is not None else np.zeros_like(batch_indices)
         return X, local_mean, local_var, batch_indices, labels
 
