@@ -29,11 +29,11 @@ class UnsupervisedTrainer(Trainer):
     """
     default_metrics_to_monitor = ['ll']
 
-    def __init__(self, model, gene_dataset, train_size=0.8, kl=None, **kwargs):
+    def __init__(self, model, gene_dataset, train_size=0.8, test_size=None, kl=None, **kwargs):
         super(UnsupervisedTrainer, self).__init__(model, gene_dataset, **kwargs)
         self.kl = kl
         if type(self) is UnsupervisedTrainer:
-            self.train_set, self.test_set = self.train_test(model, gene_dataset, train_size)
+            self.train_set, self.test_set = self.train_test(model, gene_dataset, train_size, test_size)
             self.train_set.to_monitor = ['ll']
             self.test_set.to_monitor = ['ll']
 
@@ -48,7 +48,7 @@ class UnsupervisedTrainer(Trainer):
         return loss
 
     def on_epoch_begin(self):
-        self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / self.n_epochs)
+        self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / 400)#self.n_epochs)
 
 
 class AdapterTrainer(UnsupervisedTrainer):

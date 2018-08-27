@@ -65,6 +65,7 @@ class Trainer:
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
             self.model.cuda()
+            #self.model.double()
 
         self.frequency = frequency if not benchmark else None
         self.verbose = verbose
@@ -91,7 +92,7 @@ class Trainer:
             self.model.train()
             self.compute_metrics_time += time.time() - begin
 
-    def train(self, n_epochs=20, lr=1e-3, params=None):
+    def train(self, n_epochs=20, lr=1e-3, eps=0.01, params=None):
         begin = time.time()
         with torch.set_grad_enabled(True):
             self.model.train()
@@ -99,7 +100,7 @@ class Trainer:
             if params is None:
                 params = filter(lambda p: p.requires_grad, self.model.parameters())
 
-            optimizer = torch.optim.Adam(params, lr=lr, weight_decay=self.weight_decay)
+            optimizer = torch.optim.Adam(params, lr=lr, eps=eps) #weight_decay=self.weight_decay,
             self.compute_metrics_time = 0
             self.n_epochs = n_epochs
             self.compute_metrics()
@@ -162,7 +163,8 @@ class Trainer:
         self._posteriors[name] = value
 
     def corrupt_posteriors(self, rate=0.1, corruption="uniform"):
-        self.gene_dataset.corrupt(rate=rate, corruption=corruption)
+        if not hasattr(self.gene_dataset, 'corrupted'):
+            self.gene_dataset.corrupt(rate=rate, corruption=corruption)
         for name, posterior in self._posteriors.items():
             self.register_posterior(name, posterior.corrupted())
 

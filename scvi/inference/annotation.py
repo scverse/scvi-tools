@@ -7,7 +7,7 @@ from torch.nn import functional as F
 from scvi.inference import Trainer
 from scvi.inference.inference import UnsupervisedTrainer
 from scvi.inference.posterior import compute_accuracy_classifier
-
+import torch
 
 class ClassifierTrainer(Trainer):
     r"""The ClassifierInference class for training a classifier either on the raw data or on top of the latent
@@ -36,17 +36,34 @@ class ClassifierTrainer(Trainer):
         self.sampling_model = sampling_model
         super(ClassifierTrainer, self).__init__(*args, use_cuda=use_cuda, **kwargs)
         self.train_set, self.test_set = self.train_test(self.model, self.gene_dataset)
-        if sampling_model is not None:
-            self.train_set.sampling_model = sampling_model
-            self.test_set.sampling_model = sampling_model
 
     @property
     def posteriors_loop(self):
         return ['train_set']
 
+    @property
+    def train_set(self):
+        return self._train_set
+
+    @train_set.setter
+    def train_set(self, train_set):
+        if self.sampling_model is not None:
+            train_set.sampling_model = self.sampling_model
+        self._train_set = train_set
+
+    @property
+    def test_set(self):
+        return self._test_set
+
+    @test_set.setter
+    def test_set(self, test_set):
+        if self.sampling_model is not None:
+            test_set.sampling_model = self.sampling_model
+        self._test_set = test_set
+
     def loss(self, tensors_labelled):
         x, _, _, _, labels_train = tensors_labelled
-        x = self.sampling_model.sample_from_posterior_z(x) if self.sampling_model is not None else x
+        x = self.sampling_model.z_encoder(torch.log(1+x))[0] if self.sampling_model is not None else x
         return F.cross_entropy(self.model(x), labels_train.view(-1))
 
 

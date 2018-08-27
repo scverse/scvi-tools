@@ -16,8 +16,10 @@ from sklearn.metrics import silhouette_score
 from sklearn.mixture import GaussianMixture as GMM
 from sklearn.neighbors import NearestNeighbors, KNeighborsRegressor
 from sklearn.utils.linear_assignment_ import linear_assignment
+from torch.distributions import Gamma, Poisson, Normal
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler, RandomSampler
+from torch.distributions import Normal, kl_divergence as kl
 
 from scvi.models.log_likelihood import compute_log_likelihood, compute_marginal_log_likelihood
 
@@ -102,6 +104,9 @@ class Posterior:
         return map(self.to_cuda, iter(self.data_loader))
 
     def to_cuda(self, tensors):
+        #x, l_m, l_v, b, l = tensors
+        #x, l_m, l_v = x.type(torch.double),l_m.type(torch.double), l_v.type(torch.double)
+        #return x, l_m, l_v, b, l#
         return [t.cuda(async=self.use_cuda) if self.use_cuda else t for t in tensors]
 
     def update(self, data_loader_kwargs):
@@ -166,19 +171,22 @@ class Posterior:
         """
         px_scales = []
         all_labels = []
-        for tensors in self:
+        batch_size = max(self.data_loader_kwargs['batch_size'] // M_sampling, 2)  # Reduce batch_size on GPU
+        for tensors in self.update({"batch_size": batch_size}):
             sample_batch, _, _, batch_index, labels = tensors
-            sample_batch = sample_batch.repeat(1, M_sampling).view(-1, sample_batch.size(1))
-            batch_index = batch_index.repeat(1, M_sampling).view(-1, 1)
-            labels = labels.repeat(1, M_sampling).view(-1, 1)
             px_scales += [
-                (self.model.get_sample_scale(sample_batch, batch_index=batch_index, y=labels).squeeze()).cpu()]
-            all_labels += [labels.cpu()]
+                np.array((self.model.get_sample_scale(
+                    sample_batch, batch_index=batch_index, y=labels, n_samples=M_sampling)
+                         ).cpu())]
 
-        px_scale = np.array(torch.cat(px_scales))
-        all_labels = np.array(torch.cat(all_labels)).ravel()
+            # Align the sampling
+            px_scales[-1] = (px_scales[-1].transpose((1, 0, 2))).reshape(-1, px_scales[-1].shape[-1])
+            all_labels += [np.array((labels.repeat(1, M_sampling).view(-1, 1)).cpu())]
 
-        return px_scale, all_labels
+        px_scales = np.concatenate(px_scales)
+        all_labels = np.concatenate(all_labels).ravel()  # this will be used as boolean
+
+        return px_scales, all_labels
 
     def differential_expression_score(self, cell_type, other_cell_type=None, genes=None, M_sampling=100,
                                       M_permutation=10000, permutation=False):
@@ -228,11 +236,107 @@ class Posterior:
         imputed_list = np.concatenate(imputed_list, axis=1)
         return imputed_list.squeeze()
 
-    def imputation_benchmark(self, n_samples=8, verbose=False):
+    def generate(self, n_samples=100, genes=None): # with n_samples>1 return original list/ otherwose sequential
+        '''
+        Return original_values as y and generated as x (for posterior density visualization)
+        :param n_samples:
+        :param genes:
+        :return:
+        '''
+        original_list = []
+        posterior_list = []
+        batch_size = 128#max(self.data_loader_kwargs['batch_size'] // n_samples, 2)  # Reduce batch_size on GPU
+        for tensors in self.update({"batch_size": batch_size}):
+            sample_batch, _, _, batch_index, labels = tensors
+            px_dispersion, px_rate = self.model.inference(sample_batch, batch_index=batch_index, y=labels,
+                                                          n_samples=n_samples)[:2]
+
+            p = px_rate / (px_rate + px_dispersion)
+            r = px_dispersion
+            #
+            l_train = np.random.gamma(r, p / (1 - p))
+            X = np.random.poisson(l_train)
+            #'''
+            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
+            # rate = (1 - p) / p  # = 1/scale # used in pytorch
+            # l_train = Gamma(r, rate).sample()  # assert Gamma(r, rate).mean = px_rate
+            # posterior = Poisson(l_train).sample()
+            #'''
+            original_list += [np.array(sample_batch.cpu())]
+            posterior_list += [X]#[np.array(posterior.cpu())]##
+
+            if genes is not None:
+                posterior_list[-1] = posterior_list[-1][:, :, self.gene_dataset._gene_idx(genes)]
+                original_list[-1] = original_list[-1][:, self.gene_dataset._gene_idx(genes)]
+
+            posterior_list[-1] = np.transpose(posterior_list[-1], (1,2,0))
+
+        return np.concatenate(posterior_list, axis=0), np.concatenate(original_list, axis=0)
+
+    def generate_parameters(self):
+        dropout_list = []
+        mean_list = []
+        dispersion_list=[]
+        for tensors in self.sequential(1000):
+            sample_batch, _, _, batch_index, labels = tensors
+            px_dispersion, px_rate, px_dropout = self.model.inference(sample_batch, batch_index=batch_index, y=labels,
+                                                          n_samples=1)[:3]
+
+
+
+            dispersion_list+=[np.repeat(np.array(px_dispersion.cpu())[np.newaxis,:], px_rate.size(0), axis=0)]
+            mean_list += [np.array(px_rate.cpu())]
+            dropout_list += [np.array(px_dropout.cpu())]
+
+        return np.concatenate(dropout_list), np.concatenate(mean_list),np.concatenate(dispersion_list)
+
+    def get_stats(self, verbose=True):
+        kl_divergence_l_list=[]
+        kl_divergence_z_list = []
+        reconst_losses = []
+        qz_v_list = []
+        for tensors in self:
+            x,local_l_mean, local_l_var,batch_index,y = tensors
+            px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library = self.model.inference(x, batch_index, y)
+            qz_v_list+=[qz_v]
+            reconst_losses += [np.array(self.model._reconstruction_loss(x, px_rate, px_r, px_dropout).cpu())]
+            #print(reconst_losses[-1].shape)
+            # KL Divergence
+            mean = torch.zeros_like(qz_m)
+            scale = torch.ones_like(qz_v)
+
+            kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(dim=1)
+            kl_divergence_l = kl(Normal(ql_m, torch.sqrt(ql_v)), Normal(local_l_mean, torch.sqrt(local_l_var))).sum(
+                dim=1)
+            kl_divergence_z_list += [np.array(kl_divergence_z.cpu())]
+            kl_divergence_l_list += [np.array(kl_divergence_l.cpu())]
+
+        #print(len())
+        reconst_losses = np.concatenate(reconst_losses)
+        kl_divergence_z_list = np.concatenate(kl_divergence_z_list)
+        kl_divergence_l_list = np.concatenate(kl_divergence_l_list)
+        qz_v_list = np.concatenate(qz_v_list)
+
+        print({'recons': np.mean(reconst_losses), 'mean_kl_z': np.mean(kl_divergence_z_list),'max_kl_z': np.max(kl_divergence_z_list),
+         'mean_kl_l': np.mean(kl_divergence_l_list), 'mean_qz_v': np.mean(qz_v_list),'min_qz_v': np.min(qz_v_list)})
+        return None
+
+
+    def get_sample_scale(self):
+        px_scales=[]
+        for tensors in self:
+            sample_batch, _, _, batch_index, labels = tensors
+            px_scales += [
+                np.array((self.model.get_sample_scale(
+                    sample_batch, batch_index=batch_index, y=labels, n_samples=1)
+                         ).cpu())]
+        return np.concatenate(px_scales)
+
+    def imputation_list(self, n_samples=1):
         original_list = []
         imputed_list = []
-        batch_size = self.data_loader_kwargs['batch_size'] // n_samples
-        for tensors, corrupted_tensors in zip(self.sequential(batch_size=batch_size),
+        batch_size = 10000  # self.data_loader_kwargs['batch_size'] // n_samples
+        for tensors, corrupted_tensors in zip(self.uncorrupted().sequential(batch_size=batch_size),
                                               self.corrupted().sequential(batch_size=batch_size)):
             batch = tensors[0]
             actual_batch_size = batch.size(0)
@@ -245,15 +349,23 @@ class Posterior:
 
             batch = batch.unsqueeze(0).expand((n_samples, batch.size(0), batch.size(1)))
             original = np.array(batch[:, i, j].view(-1).cpu())
-            imputed = np.array(px_rate[:, i, j].view(-1).cpu())
+            imputed = np.array(px_rate[i, j].view(-1).cpu())
 
             cells_index = np.tile(np.array(i.cpu()), n_samples)
 
             original_list += [original[cells_index == i] for i in range(actual_batch_size)]
             imputed_list += [imputed[cells_index == i] for i in range(actual_batch_size)]
+        return original_list, imputed_list
 
+    def imputation_score(self, verbose=False, original_list=None, imputed_list=None, n_samples=1):
+        if original_list is None or imputed_list is None:
+            original_list, imputed_list = self.imputation_list(n_samples=n_samples)
+        return np.median(np.abs(np.concatenate(original_list) - np.concatenate(imputed_list)))
+
+    def imputation_benchmark(self, n_samples=8, verbose=False):
+        original_list, imputed_list = self.imputation_list(n_samples=n_samples)
         # Median of medians for all distances
-        median_score = np.median(np.abs(np.concatenate(original_list) - np.concatenate(imputed_list)))
+        median_score = self.imputation_score(original_list=original_list, imputed_list=imputed_list)
 
         # Mean of medians for each cell
         imputation_cells = []
