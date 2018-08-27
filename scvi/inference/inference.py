@@ -117,12 +117,6 @@ class TrainerFish(Trainer):
         return ['train_seq', 'train_fish']
 
     def loss(self, tensors_seq, tensors_fish):
-        '''
-        Some comment
-        :param tensors_seq:
-        :param tensors_fish:
-        :return:
-        '''
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors_seq
         reconst_loss, kl_divergence = self.model(sample_batch, local_l_mean, local_l_var, batch_index, mode="scRNA",
                                                  weighting=self.weighting)
