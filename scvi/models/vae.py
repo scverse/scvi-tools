@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence as kl
-
+from scvi.models.utils import Module
 from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
 from scvi.models.modules import Encoder, DecoderSCVI
 from scvi.models.utils import one_hot
@@ -14,7 +14,7 @@ torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class VAE(nn.Module):
+class VAE(Module):
     r"""Variational auto-encoder model.
 
     :param n_input: Number of input genes
@@ -83,62 +83,67 @@ class VAE(nn.Module):
     def sample_from_posterior_z(self, x, y=None):
         x = torch.log(1 + x)
         qz_m, qz_v, z = self.z_encoder(x, y)  # y only used in VAEC
-        if not self.training:
-            z = qz_m
         return z
 
     def sample_from_posterior_l(self, x):
         x = torch.log(1 + x)
         ql_m, ql_v, library = self.l_encoder(x)
-        if not self.training:
-            library = ql_m
         return library
 
     def get_sample_scale(self, x, batch_index=None, y=None, n_samples=1):
         qz_m, qz_v, z = self.z_encoder(torch.log(1 + x), y)
-        qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
-        qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
-        z = Normal(qz_m, qz_v).sample()
+        #qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
+        #qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
+        #z = Normal(qz_m, qz_v.sqrt()).sample()
         px = self.decoder.px_decoder(z, batch_index, y)  # y only used in VAEC - won't work for batch index not None
         px_scale = self.decoder.px_scale_decoder(px)
         return px_scale
 
     def get_sample_rate(self, x, batch_index=None, y=None, n_samples=1):
-        ql_m, ql_v, library = self.l_encoder(torch.log(1 + x), y)
-        ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
-        ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
-        library = Normal(ql_m, ql_v).sample()
-        px_scale = self.get_sample_scale(x, batch_index=batch_index, y=y, n_samples=n_samples)
-        return px_scale * torch.exp(library)
+        return self.inference(x, batch_index=batch_index, y=y, n_samples=1)[1]
 
-    def _reconstruction_loss(self, x, px_rate, px_r, px_dropout, batch_index, y):
+    def _reconstruction_loss(self, x, px_rate, px_r, px_dropout):
+        # Reconstruction Loss
+        if self.reconstruction_loss == 'zinb':
+            reconst_loss = -log_zinb_positive(x, px_rate, px_r, px_dropout)
+        elif self.reconstruction_loss == 'nb':
+            reconst_loss = -log_nb_positive(x, px_rate, px_r)
+        return reconst_loss
+
+    def inference(self, x, batch_index=None, y=None, n_samples=1):
+        x_ = x
+        if self.log_variational:
+            x_ = torch.log(1 + x_)
+
+        # Sampling
+        qz_m, qz_v, z = self.z_encoder(x_, y)
+        ql_m, ql_v, library = self.l_encoder(x_)
+
+        if n_samples>1:
+            qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
+            qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
+            z = Normal(qz_m, qz_v.sqrt()).sample()
+
+            ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
+            ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
+            library = Normal(ql_m, ql_v.sqrt()).sample()
+
+        px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index)
         if self.dispersion == "gene-label":
             px_r = F.linear(one_hot(y, self.n_labels), self.px_r)  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
             px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
         elif self.dispersion == "gene":
             px_r = self.px_r
+        px_r = torch.exp(px_r)
 
-        # Reconstruction Loss
-        if self.reconstruction_loss == 'zinb':
-            reconst_loss = -log_zinb_positive(x, px_rate, torch.exp(px_r), px_dropout)
-        elif self.reconstruction_loss == 'nb':
-            reconst_loss = -log_nb_positive(x, px_rate, torch.exp(px_r))
-        return reconst_loss
+        return px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library
 
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
         # Parameters for z latent distribution
-        x_ = x
-        if self.log_variational:
-            x_ = torch.log(1 + x_)
 
-        # Sampling
-        qz_m, qz_v, z = self.z_encoder(x_)
-        ql_m, ql_v, library = self.l_encoder(x_)
-
-        px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index)
-
-        reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout, batch_index, y)
+        px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library = self.inference(x, batch_index, y)
+        reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout)
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)
@@ -146,6 +151,6 @@ class VAE(nn.Module):
 
         kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(dim=1)
         kl_divergence_l = kl(Normal(ql_m, torch.sqrt(ql_v)), Normal(local_l_mean, torch.sqrt(local_l_var))).sum(dim=1)
-        kl_divergence = kl_divergence_z + kl_divergence_l
+        kl_divergence = kl_divergence_z
 
-        return reconst_loss, kl_divergence
+        return reconst_loss + kl_divergence_l, kl_divergence
