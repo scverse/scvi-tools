@@ -30,7 +30,8 @@ class BrainLargeDataset(GeneExpressionDataset):
 
     """
 
-    def __init__(self, subsample_size=None, save_path='data/', nb_genes_kept=720):
+    def __init__(self, subsample_size=None, save_path='data/', nb_genes_kept=720, max_cells=100000):
+        self.max_cells = max_cells
         self.subsample_size = subsample_size
         self.save_path = save_path
         self.nb_genes_kept = nb_genes_kept
@@ -84,6 +85,8 @@ class BrainLargeDataset(GeneExpressionDataset):
                 del nb_sparse
                 nb_matrices.append(nb_filtered)
                 print("loaded {} / {} cells".format(i * nb_cells + nb2_cells, self.subsample_size))
+                if i * nb_cells + nb2_cells >=self.max_cells:
+                    break
 
         matrix = vstack(nb_matrices)
         good_cells = matrix.sum(axis=1) > 0

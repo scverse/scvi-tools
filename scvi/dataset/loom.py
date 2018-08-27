@@ -20,6 +20,7 @@ class LoomDataset(GeneExpressionDataset):
         >>> local_loom_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom", save_path='data/')
 
     """
+
     def __init__(self, filename, save_path='data/', url=None):
         self.download_name = filename
         self.save_path = save_path
@@ -80,3 +81,5 @@ class RetinaDataset(LoomDataset):
         super(RetinaDataset, self).__init__(filename='retina.loom',
                                             save_path=save_path,
                                             url='https://github.com/YosefLab/scVI-data/raw/master/retina.loom')
+        self.cell_types = ["RBC", "MG", "BC5A", "BC7", "BC6", "BC5C", "BC1A", "BC3B", "BC1B", "BC2", "BC5D", "BC3A",
+                           "BC5B", "BC4", "BC8_9"]

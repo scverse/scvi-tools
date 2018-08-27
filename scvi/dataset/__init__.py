@@ -1,7 +1,7 @@
 from .brain_large import BrainLargeDataset
 from .cortex import CortexDataset
 from .dataset import GeneExpressionDataset
-from .synthetic import SyntheticDataset
+from .synthetic import SyntheticDataset, SyntheticRandomDataset
 from .cite_seq import CiteSeqDataset, CbmcDataset
 from .pbmc import PbmcDataset, PurifiedPBMCDataset
 from .hemato import HematoDataset
@@ -13,6 +13,7 @@ from .seqfish import SeqfishDataset
 from .smfish import SmfishDataset
 
 __all__ = ['SyntheticDataset',
+           'SyntheticRandomDataset',
            'CortexDataset',
            'BrainLargeDataset',
            'RetinaDataset',

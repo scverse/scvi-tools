@@ -1,8 +1,10 @@
-import pandas as pd
-import numpy as np
 from zipfile import ZipFile
-from .dataset import GeneExpressionDataset
+
+import numpy as np
+import pandas as pd
 from pathlib import Path
+
+from .dataset import GeneExpressionDataset
 
 
 class HematoDataset(GeneExpressionDataset):
@@ -19,6 +21,7 @@ class HematoDataset(GeneExpressionDataset):
         >>> gene_dataset = HematoDataset()
 
     """
+
     def __init__(self, save_path='data/HEMATO/'):
         self.save_path = save_path
 
@@ -36,9 +39,12 @@ class HematoDataset(GeneExpressionDataset):
 
         super(HematoDataset, self).__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
-                expression_data,
-                labels=labels),
-            gene_names=gene_names)
+                expression_data, labels=labels), gene_names=gene_names,
+
+        )
+
+        self.cell_types_levels = ['Erythroid', 'Granulocytic Neutrophil', 'Lymphocytic', 'Dendritic', 'Megakaryocytic',
+                                  'Monocytic', 'Basophilic']
 
     def preprocess(self):
         print("Preprocessing Hemato data")
@@ -62,14 +68,15 @@ class HematoDataset(GeneExpressionDataset):
         x_spring = data["x_spring"].values
         y_spring = data["y_spring"].values
 
-        meta = data[["Potential", "Pr_Er", "Pr_Gr", "Pr_Ly", "Pr_DC", "Pr_Mk", "Pr_Mo", "Pr_Ba"]]
+        self.meta = data[["Potential", "Pr_Er", "Pr_Gr", "Pr_Ly", "Pr_DC", "Pr_Mk", "Pr_Mo", "Pr_Ba"]]
 
         def logit(p):
             p = np.copy(p.values)
             p[p == 0] = np.min(p[p > 0])
             p[p == 1] = np.max(p[p < 1])
             return np.log(p / (1 - p))
-        labels = logit(meta.iloc[:, 2]) - logit(meta.iloc[:, 1])
+
+        labels = logit(self.meta.iloc[:, 2]) - logit(self.meta.iloc[:, 1])
         expression_data = expression_data.values
 
         print("Finished preprocessing Hemato data")
