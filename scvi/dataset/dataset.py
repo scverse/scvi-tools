@@ -83,12 +83,12 @@ class GeneExpressionDataset(Dataset):
             i, j = np.nonzero(self.X)
             ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
             i, j = i[ix], j[ix]
-            corrupted = self.X[i, j] * np.random.binomial(n=np.ones(len(ix), dtype=np.int64), p=0.9)  # maybe rate
+            corrupted = self.X[i, j] * np.random.binomial(n=np.ones(len(ix), dtype=np.int32), p=0.9)  # maybe rate
         elif corruption == "binomial":  # multiply the entry n with a Bin(n, 0.9) random variable.
             i, j = (k.ravel() for k in np.indices(self.X.shape))
             ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
             i, j = i[ix], j[ix]
-            corrupted = np.random.binomial(n=(self.X[i, j]).astype(np.int64), p=0.2)
+            corrupted = np.random.binomial(n=(self.X[i, j]).astype(np.int32), p=0.2)
         for idx_i, idx_j, corrupted in zip(i, j, corrupted):
             self.corrupted[idx_i]['j'] += [idx_j]
             self.corrupted[idx_i]['corrupted'] += [corrupted]
@@ -120,11 +120,12 @@ class GeneExpressionDataset(Dataset):
         if hasattr(self, 'gene_symbols'):
             self.gene_symbols = self.gene_symbols[subset_genes]
         self.nb_genes = self.X.shape[1]
+        self.update_cells(np.array(self.X.sum(axis=1) > 0).ravel())
 
     def update_cells(self, subset_cells):
         new_n_cells = len(subset_cells) if subset_cells.dtype is not np.dtype('bool') else subset_cells.sum()
         print("Downsampling from %i to %i cells" % (len(self), new_n_cells))
-        for attr_name in ['_X', 'local_means', 'local_vars', 'labels', 'batch_indices']:
+        for attr_name in ['_X', 'labels', 'batch_indices', 'local_means', 'local_vars']:
             setattr(self, attr_name, getattr(self, attr_name)[subset_cells])
         self.library_size_batch()
 
@@ -140,7 +141,7 @@ class GeneExpressionDataset(Dataset):
         else:
             new_n_genes = len(subset_genes) if subset_genes.dtype is not np.dtype('bool') else subset_genes.sum()
             print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))
-        self.X = self.X[:, subset_genes]
+        self._X = self.X[:, subset_genes]
         self.update_genes(subset_genes)
 
     def filter_genes(self, gene_names_ref, on='gene_names'):
@@ -260,9 +261,12 @@ class GeneExpressionDataset(Dataset):
 
     @staticmethod
     def get_attributes_from_matrix(X, batch_indices=0, labels=None):
+        to_keep = np.array((X.sum(axis=1) > 0)).ravel()
+        X = X[to_keep]
         local_mean, local_var = GeneExpressionDataset.library_size(X)
-        batch_indices = batch_indices * np.ones((X.shape[0], 1)) if type(batch_indices) is int else batch_indices
-        labels = labels.reshape(-1, 1) if labels is not None else np.zeros_like(batch_indices)
+        batch_indices = batch_indices * np.ones((X.shape[0], 1)) if type(batch_indices) is int \
+            else batch_indices[to_keep]
+        labels = labels[to_keep].reshape(-1, 1) if labels is not None else np.zeros_like(batch_indices)
         return X, local_mean, local_var, batch_indices, labels
 
     @staticmethod
