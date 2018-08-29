@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
@@ -7,7 +8,7 @@ from torch.nn import functional as F
 from scvi.inference import Trainer
 from scvi.inference.inference import UnsupervisedTrainer
 from scvi.inference.posterior import compute_accuracy_classifier
-import torch
+
 
 class ClassifierTrainer(Trainer):
     r"""The ClassifierInference class for training a classifier either on the raw data or on top of the latent
@@ -63,7 +64,7 @@ class ClassifierTrainer(Trainer):
 
     def loss(self, tensors_labelled):
         x, _, _, _, labels_train = tensors_labelled
-        x = self.sampling_model.z_encoder(torch.log(1+x))[0] if self.sampling_model is not None else x
+        x = self.sampling_model.z_encoder(torch.log(1 + x))[0] if self.sampling_model is not None else x
         return F.cross_entropy(self.model(x), labels_train.view(-1))
 
 

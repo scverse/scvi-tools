@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 
 from . import GeneExpressionDataset
@@ -15,7 +17,7 @@ class SyntheticDataset(GeneExpressionDataset):
             gene_names=np.arange(nb_genes).astype(np.str)
         )
 
-import pickle
+
 class SyntheticRandomDataset(GeneExpressionDataset):  # The exact random parameters taken by romain with simlr labels
     def __init__(self, mu=4.0, theta=2.0, dropout=0.7, save_path='data/'):
         np.random.seed(0)  # simlr attributes computed with this seed.
@@ -34,11 +36,9 @@ class SyntheticRandomDataset(GeneExpressionDataset):  # The exact random paramet
         self.download_name = 'random_metadata.pickle'
         self.download()
 
-        self.simlr_metadata = pickle.load(open(self.save_path+'random_metadata.pickle','rb'))
+        self.simlr_metadata = pickle.load(open(self.save_path + 'random_metadata.pickle', 'rb'))
         labels_simlr = self.simlr_metadata['clusters']
 
         super(SyntheticRandomDataset, self).__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(X_train, labels=labels_simlr)
         )
-
-

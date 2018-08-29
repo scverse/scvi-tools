@@ -48,7 +48,7 @@ class UnsupervisedTrainer(Trainer):
         return loss
 
     def on_epoch_begin(self):
-        self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / 400)#self.n_epochs)
+        self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / 400)  # self.n_epochs)
 
 
 class AdapterTrainer(UnsupervisedTrainer):

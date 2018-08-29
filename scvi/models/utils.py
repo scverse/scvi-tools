@@ -1,23 +1,4 @@
 import torch
-from torch import nn as nn
-
-
-
-# @register_kl(Normal, Normal)
-# def _kl_normal_normal(p, q):
-#     var_ratio = (p.scale / q.scale).pow(2)
-#     t1 = ((p.loc - q.loc) / q.scale).pow(2)
-#     return 0.5 * (var_ratio + t1 - 1 - var_ratio.log())
-
-class Module(nn.Module):
-    pass
-#     def activate(self, mode=True):
-#         for module in self.children():
-#             module.activate(mode)
-#         return self
-#
-#     def desactivate(self):
-#         return self.activate(False)
 
 
 def iterate(obj, func):

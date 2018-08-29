@@ -65,7 +65,7 @@ class Trainer:
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
             self.model.cuda()
-            #self.model.double()
+            # self.model.double()
 
         self.frequency = frequency if not benchmark else None
         self.verbose = verbose
@@ -100,7 +100,7 @@ class Trainer:
             if params is None:
                 params = filter(lambda p: p.requires_grad, self.model.parameters())
 
-            optimizer = torch.optim.Adam(params, lr=lr, eps=eps) #weight_decay=self.weight_decay,
+            optimizer = torch.optim.Adam(params, lr=lr, eps=eps)  # weight_decay=self.weight_decay,
             self.compute_metrics_time = 0
             self.n_epochs = n_epochs
             self.compute_metrics()

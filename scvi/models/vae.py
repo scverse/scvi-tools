@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence as kl
-from scvi.models.utils import Module
+
 from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
 from scvi.models.modules import Encoder, DecoderSCVI
 from scvi.models.utils import one_hot
@@ -14,7 +14,7 @@ torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class VAE(Module):
+class VAE(nn.Module):
     r"""Variational auto-encoder model.
 
     :param n_input: Number of input genes
@@ -74,27 +74,30 @@ class VAE(Module):
         # l encoder goes from n_input-dimensional data to 1-d library size
         self.l_encoder = Encoder(n_input, 1, n_layers=1, n_hidden=n_hidden, dropout_rate=dropout_rate)
         # decoder goes from n_latent-dimensional space to n_input-d data
-        self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch], n_layers=n_layers, n_hidden=n_hidden,
-                                   dropout_rate=dropout_rate)
+        self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch], n_layers=n_layers, n_hidden=n_hidden)
 
     def get_latents(self, x, y=None):
         return [self.sample_from_posterior_z(x, y)]
 
     def sample_from_posterior_z(self, x, y=None):
-        x = torch.log(1 + x)
+        if self.log_variational:
+            x = torch.log(1 + x)
         qz_m, qz_v, z = self.z_encoder(x, y)  # y only used in VAEC
         return z
 
     def sample_from_posterior_l(self, x):
-        x = torch.log(1 + x)
+        if self.log_variational:
+            x = torch.log(1 + x)
         ql_m, ql_v, library = self.l_encoder(x)
         return library
 
     def get_sample_scale(self, x, batch_index=None, y=None, n_samples=1):
-        qz_m, qz_v, z = self.z_encoder(torch.log(1 + x), y)
-        #qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
-        #qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
-        #z = Normal(qz_m, qz_v.sqrt()).sample()
+        if self.log_variational:
+            x = torch.log(1 + x)
+        qz_m, qz_v, _ = self.z_encoder(x, y)
+        qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
+        qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
+        z = Normal(qz_m, qz_v.sqrt()).sample()
         px = self.decoder.px_decoder(z, batch_index, y)  # y only used in VAEC - won't work for batch index not None
         px_scale = self.decoder.px_scale_decoder(px)
         return px_scale
@@ -119,7 +122,7 @@ class VAE(Module):
         qz_m, qz_v, z = self.z_encoder(x_, y)
         ql_m, ql_v, library = self.l_encoder(x_)
 
-        if n_samples>1:
+        if n_samples > 1:
             qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
             qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
             z = Normal(qz_m, qz_v.sqrt()).sample()

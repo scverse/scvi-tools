@@ -2,17 +2,18 @@
 
 """Handling datasets.
 For the moment, is initialized with a torch Tensor of size (n_cells, nb_genes)"""
+import copy
 import os
+import pickle
+import urllib.request
 from collections import defaultdict
 
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
-import urllib.request
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
-import pickle
-import copy
+
 
 class GeneExpressionDataset(Dataset):
     """Gene Expression dataset. It deals with:
@@ -68,42 +69,24 @@ class GeneExpressionDataset(Dataset):
 
     def collate_fn_corrupted(self, batch):
         indexes = np.array(batch)
-        # i, j, corrupted = [], [], []
-        # for k, i_idx in enumerate(indexes):
-        #     j += [self.corrupted[i_idx]['j']]
-        #     corrupted += [self.corrupted[i_idx]['corrupted']]
-        #     i += [np.ones_like(j[-1]) * k]
-        # i, j, corrupted = np.concatenate(i).astype(np.int32), \
-        #                   np.concatenate(j).astype(np.int32), \
-        #                   np.concatenate(corrupted).astype(np.int32)
-        # X = self.X[indexes]
-        # if len(i):
-        #     X[i, j] = corrupted
         X = self.corrupted_X[indexes]
         return self.collate_fn_end(X, indexes)
 
     def corrupt(self, rate=0.1, corruption="uniform"):
+        '''On the fly corruption is slow'''
         self.corrupted_X = copy.deepcopy(self.X)
         self.corrupted = defaultdict(lambda: {'j': [], 'corrupted': []})
         if corruption == "uniform":  # multiply the entry n with a Ber(0.9) random variable.
             i, j = np.nonzero(self.X)
             ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
             i, j = i[ix], j[ix]
-            corrupted = self.X[i, j] * 0#np.random.binomial(n=np.ones(len(ix), dtype=np.int64), p=0.9)  # maybe rate
+            corrupted = self.X[i, j] * 0  # np.random.binomial(n=np.ones(len(ix), dtype=np.int64), p=0.9)  # maybe rate
         elif corruption == "binomial":  # multiply the entry n with a Bin(n, 0.9) random variable.
             i, j = (k.ravel() for k in np.indices(self.X.shape))
             ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
             i, j = i[ix], j[ix]
             corrupted = np.random.binomial(n=(self.X[i, j]).astype(np.int64), p=0.2)
-        self.corrupted_X[i,j] = corrupted
-
-        # for idx_i, idx_j, corrupted in zip(i, j, corrupted):
-        #     self.corrupted[idx_i]['j'] += [idx_j]
-        #     self.corrupted[idx_i]['corrupted'] += [corrupted]
-        # for k, v in self.corrupted.items():
-        #     v['j'] = np.array(v['j'])
-        #     v['corrupted'] = np.array(v['corrupted'])
-
+        self.corrupted_X[i, j] = corrupted
 
     def collate_fn_end(self, X, indexes):
         if self.dense:
@@ -354,8 +337,8 @@ class GeneExpressionDataset(Dataset):
         local_means = np.concatenate([gene_dataset.local_means for gene_dataset in gene_datasets])
         local_vars = np.concatenate([gene_dataset.local_vars for gene_dataset in gene_datasets])
         result = GeneExpressionDataset(X, local_means, local_vars, batch_indices, labels,
-                                     gene_names=gene_names_ref, cell_types=cell_types)
-        result.barcodes = [gene_dataset.barcodes if hasattr(gene_dataset,'barcodes') else None
+                                       gene_names=gene_names_ref, cell_types=cell_types)
+        result.barcodes = [gene_dataset.barcodes if hasattr(gene_dataset, 'barcodes') else None
                            for gene_dataset in gene_datasets]
         return result
 
@@ -367,8 +350,6 @@ class GeneExpressionDataset(Dataset):
         gene_names = list(getattr(gene_dataset, on))
         subset_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.int64)
         return gene_dataset.X[:, subset_genes], subset_genes
-
-
 
     def export_pickle(self, filename):
         pickle_dictionary = {"batch_indices": self.batch_indices, "labels": self.labels}
@@ -392,8 +373,6 @@ class GeneExpressionDataset(Dataset):
             cell_types=pickle_dictionary["cell_types"],
             gene_names=pickle_dictionary["gene_names"]
         )
-
-
 
 
 def arrange_categories(original_categories, mapping_from=None, mapping_to=None):

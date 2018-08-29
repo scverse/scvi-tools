@@ -52,7 +52,7 @@ class VAEC(VAE):
         self.z_encoder = Encoder(n_input, n_latent, n_cat_list=[n_labels], n_hidden=n_hidden, n_layers=n_layers,
                                  dropout_rate=dropout_rate)
         self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch, n_labels], n_layers=n_layers,
-                                   n_hidden=n_hidden, dropout_rate=dropout_rate)
+                                   n_hidden=n_hidden)
 
         self.y_prior = torch.nn.Parameter(
             y_prior if y_prior is not None else (1 / n_labels) * torch.ones(1, n_labels), requires_grad=False

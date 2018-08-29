@@ -67,7 +67,7 @@ class SCANVI(VAE):
         self.encoder_z2_z1 = Encoder(n_latent, n_latent, n_cat_list=[self.n_labels], n_layers=n_layers,
                                      n_hidden=n_hidden, dropout_rate=dropout_rate)
         self.decoder_z1_z2 = Decoder(n_latent, n_latent, n_cat_list=[self.n_labels], n_layers=n_layers,
-                                     n_hidden=n_hidden, dropout_rate=dropout_rate)
+                                     n_hidden=n_hidden)
 
         self.y_prior = torch.nn.Parameter(
             y_prior if y_prior is not None else (1 / n_labels) * torch.ones(1, n_labels), requires_grad=False
@@ -108,9 +108,7 @@ class SCANVI(VAE):
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
         is_labelled = False if y is None else True
 
-        x_ = torch.log(1 + x)
-        qz1_m, qz1_v, z1 = self.z_encoder(x_)
-        ql_m, ql_v, library = self.l_encoder(x_)
+        px_r, px_rate, px_dropout, qz1_m, qz1_v, z1, ql_m, ql_v, library = self.inference(x, batch_index, y)
 
         # Enumerate choices of label
         ys, z1s = (
@@ -122,7 +120,7 @@ class SCANVI(VAE):
         pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
         px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, z1, library, batch_index)
 
-        reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout, batch_index, y)
+        reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout)
 
         # KL Divergence
         mean = torch.zeros_like(qz2_m)

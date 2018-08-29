@@ -35,24 +35,22 @@ class PbmcDataset(GeneExpressionDataset):
         self.de_metadata = pd.read_csv(self.save_path + 'gene_info_pbmc.csv', sep=',')
 
         pbmc_metadata = pickle.load(open(self.save_path + 'pbmc_metadata.pickle', 'rb'))
-        pbmc = GeneExpressionDataset.load_pickle('data/pbmc.pickle')
 
-        # pbmc = GeneExpressionDataset.concat_datasets(
-        #     Dataset10X("pbmc8k", save_path=save_path),
-        #     Dataset10X("pbmc4k", save_path=save_path)
-        # )
-        #self.barcodes = pd.concat(pbmc.barcodes).values.ravel().astype(str)
+        pbmc = GeneExpressionDataset.concat_datasets(
+            Dataset10X("pbmc8k", save_path=save_path),
+            Dataset10X("pbmc4k", save_path=save_path)
+        )
+        self.barcodes = pd.concat(pbmc.barcodes).values.ravel().astype(str)
         super(PbmcDataset, self).__init__(pbmc.X, pbmc.local_means, pbmc.local_vars,
                                           pbmc.batch_indices, pbmc.labels, pbmc.gene_names)
 
-
-        #dict_barcodes = dict(zip(self.barcodes, np.arange(len(self.barcodes))))
+        dict_barcodes = dict(zip(self.barcodes, np.arange(len(self.barcodes))))
         subset_cells = []
         barcodes_metadata = pbmc_metadata['barcodes'].index.values.ravel().astype(np.str)
-        # for barcode in barcodes_metadata:
-        #     if barcode in dict_barcodes:  # barcodes with end -11 filtered on 10X website (49 cells)
-        #         subset_cells += [dict_barcodes[barcode]]
-        # self.update_cells(subset_cells=np.array(subset_cells))
+        for barcode in barcodes_metadata:
+            if barcode in dict_barcodes:  # barcodes with end -11 filtered on 10X website (49 cells)
+                subset_cells += [dict_barcodes[barcode]]
+        self.update_cells(subset_cells=np.array(subset_cells))
         idx_metadata = np.array([not barcode.endswith('11') for barcode in barcodes_metadata], dtype=np.bool)
         self.design = pbmc_metadata['design'][idx_metadata]
         self.raw_qc = pbmc_metadata['raw_qc'][idx_metadata]
@@ -60,8 +58,6 @@ class PbmcDataset(GeneExpressionDataset):
         self.normalized_qc = pbmc_metadata['normalized_qc'][idx_metadata]
         self.labels = pbmc_metadata['clusters'][idx_metadata].reshape(-1, 1)
         self.cell_types = pbmc_metadata['list_clusters']
-
-        # self.filter_genes(self.de_metadata['ENSG'].values)
 
 
 class PurifiedPBMCDataset(GeneExpressionDataset):
