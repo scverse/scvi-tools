@@ -37,7 +37,7 @@ class FCLayers(nn.Module):
                 nn.Linear(n_in + sum(self.n_cat_list), n_out),
                 nn.BatchNorm1d(n_out, momentum=.01, eps=0.001),
                 nn.ReLU(),
-                nn.Dropout(p=dropout_rate) if dropout_rate == 0 else None))
+                nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None))
              for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))]))
 
     def forward(self, x: torch.Tensor, *cat_list: int):

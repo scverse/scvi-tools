@@ -112,4 +112,4 @@ ENV/
 .flooignore
 
 
-data
+/data

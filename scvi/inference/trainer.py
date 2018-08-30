@@ -162,8 +162,8 @@ class Trainer:
         name = name.strip('_')
         self._posteriors[name] = value
 
-    def corrupt_posteriors(self, rate=0.1, corruption="uniform"):
-        if not hasattr(self.gene_dataset, 'corrupted'):
+    def corrupt_posteriors(self, rate=0.1, corruption="uniform", update_corruption=True):
+        if not hasattr(self.gene_dataset, 'corrupted') and update_corruption:
             self.gene_dataset.corrupt(rate=rate, corruption=corruption)
         for name, posterior in self._posteriors.items():
             self.register_posterior(name, posterior.corrupted())

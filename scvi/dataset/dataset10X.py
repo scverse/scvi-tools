@@ -4,9 +4,8 @@
 # For dataset name (eg. 'pbmc8k', 'pbmc4k', ect...) their are two available specifications,
 # either filtered or raw data
 import os
-import tarfile
 import pickle
-
+import tarfile
 
 import numpy as np
 import pandas as pd
@@ -131,6 +130,9 @@ class BrainSmallDataset(Dataset10X):
 
         metadata = pickle.load(open(self.save_path+'brain_small_metadata.pickle', 'rb'))
         labels = metadata['clusters'].loc[dataset.barcodes.values.ravel()] - 1
-        self.raw_qc = metadata['raw_qc'].loc[dataset.barcodes.values.ravel()].values
+
+        self.raw_qc = metadata['raw_qc'].loc[dataset.barcodes.values.ravel()]
+        self.qc_names = self.raw_qc.columns
+        self.qc = self.raw_qc.values
         super(Dataset10X, self).__init__(dataset.X, dataset.local_means, dataset.local_vars,
                                          batch_indices=dataset.batch_indices, labels=labels)

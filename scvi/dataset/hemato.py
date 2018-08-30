@@ -1,8 +1,9 @@
+import os
+from pathlib import Path
 from zipfile import ZipFile
 
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
 from .dataset import GeneExpressionDataset
 
@@ -49,8 +50,9 @@ class HematoDataset(GeneExpressionDataset):
     def preprocess(self):
         print("Preprocessing Hemato data")
 
-        with ZipFile(self.save_path + 'data.zip', 'r') as zip:
-            zip.extractall(path=Path(self.save_path).parent)
+        if not os.path.exists(self.save_path + self.download_names[0]):
+            with ZipFile(self.save_path + 'data.zip', 'r') as zip:
+                zip.extractall(path=Path(self.save_path).parent)
         raw_counts = pd.read_csv(self.save_path + self.download_names[0], compression='gzip')
 
         # remove this library to avoid dealing with batch effects

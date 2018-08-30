@@ -36,15 +36,7 @@ class CortexDataset(GeneExpressionDataset):
         self.genes_to_keep = genes_to_keep
         # Number of genes we want to keep
         self.additional_genes = additional_genes
-        expression_data, labels, gene_names = self.download_and_preprocess()
-
-        cell_types = ["astrocytes_ependymal",
-                      "endothelial-mural",
-                      "interneurons",
-                      "microglia",
-                      "oligodendrocytes",
-                      "pyramidalCA1",
-                      "pyramidal-SS"]
+        expression_data, labels, gene_names, cell_types = self.download_and_preprocess()
 
         super(CortexDataset, self).__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
@@ -60,13 +52,15 @@ class CortexDataset(GeneExpressionDataset):
             data_reader = csv.reader(csvfile, delimiter='\t')
             clusters = None
             for i, row in enumerate(data_reader):
+                if i == 1:
+                    precise_clusters = np.array(row, dtype=str)[2:]
                 if i == 8:  # 7 + 1 in pandas
                     clusters = np.array(row, dtype=str)[2:]
                 if i >= 11:  # 10 + 1 in pandas
                     rows.append(row[1:])
                     gene_names.append(row[0])
-
         cell_types, labels = np.unique(clusters, return_inverse=True)
+        _, self.precise_labels = np.unique(precise_clusters, return_inverse=True)
 
         expression_data = np.array(rows, dtype=np.int).T[1:]
         gene_names = np.array(gene_names, dtype=np.str)
@@ -96,7 +90,7 @@ class CortexDataset(GeneExpressionDataset):
             labels = labels[umi > 10]
 
         print("Finished preprocessing Cortex data")
-        return expression_data, labels, gene_names
+        return expression_data, labels, gene_names, cell_types
 
     @staticmethod
     def reorder_genes(x, genes, first_genes):

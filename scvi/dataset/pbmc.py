@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import pandas as pd
 
-from .dataset import GeneExpressionDataset
+from .dataset import GeneExpressionDataset, arrange_categories
 from .dataset10X import Dataset10X
 
 
@@ -54,10 +54,22 @@ class PbmcDataset(GeneExpressionDataset):
         idx_metadata = np.array([not barcode.endswith('11') for barcode in barcodes_metadata], dtype=np.bool)
         self.design = pbmc_metadata['design'][idx_metadata]
         self.raw_qc = pbmc_metadata['raw_qc'][idx_metadata]
+        self.qc_names = self.raw_qc.columns
+        self.qc = self.raw_qc.values
+
         self.qc_pc = pbmc_metadata['qc_pc'][idx_metadata]
         self.normalized_qc = pbmc_metadata['normalized_qc'][idx_metadata]
-        self.labels = pbmc_metadata['clusters'][idx_metadata].reshape(-1, 1)
-        self.cell_types = pbmc_metadata['list_clusters']
+
+        labels = pbmc_metadata['clusters'][idx_metadata].reshape(-1, 1)[:len(self)]
+        self.labels, self.n_labels = arrange_categories(labels)
+        self.cell_types = pbmc_metadata['list_clusters'][:self.n_labels]
+
+        genes_to_keep = list(self.de_metadata['ENSG'].values)  # only keep the genes for which we have de data
+        difference = list(set(genes_to_keep).difference(set(pbmc.gene_names)))  # Non empty only for unit tests
+        for gene in difference:
+            genes_to_keep.remove(gene)
+        self.filter_genes(genes_to_keep)
+        self.de_metadata = self.de_metadata.head(len(genes_to_keep))  # this would only affect the unit tests
 
 
 class PurifiedPBMCDataset(GeneExpressionDataset):

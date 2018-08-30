@@ -288,6 +288,15 @@ class Posterior:
 
         return np.concatenate(dropout_list), np.concatenate(mean_list), np.concatenate(dispersion_list)
 
+    def get_stats(self, verbose=True):
+        libraries = []
+        for tensors in self.sequential(batch_size=128):
+            x, local_l_mean, local_l_var, batch_index, y = tensors
+            px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library = self.model.inference(x, batch_index, y)
+            libraries += [np.array(library.cpu())]
+        libraries = np.concatenate(libraries)
+        return libraries.ravel()
+
     def get_sample_scale(self):
         px_scales = []
         for tensors in self:
@@ -510,6 +519,7 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
     latent_space, batches = latent_space[keep_idx], batches[keep_idx]
 
     batches = batches.ravel()
+    n_neighbors = min(n_neighbors, n_samples - 1)
     nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(latent_space)
     indices = nbrs.kneighbors(latent_space, return_distance=False)[:, 1:]
     batch_indices = np.vectorize(lambda i: batches[i])(indices)
@@ -622,9 +632,10 @@ def nn_overlap(X1, X2, k=100):
     Compute the overlap between the k-nearest neighbor graph of X1 and X2 using Spearman correlation of the
     adjacency matrices.
     '''
-    nne = NearestNeighbors(n_neighbors=k + 1, n_jobs=8)
     assert len(X1) == len(X2)
     n_samples = len(X1)
+    k = min(k, n_samples - 1)
+    nne = NearestNeighbors(n_neighbors=k + 1, n_jobs=8)
     nne.fit(X1)
     kmatrix_1 = nne.kneighbors_graph(X1) - scipy.sparse.identity(n_samples)
     nne.fit(X2)
