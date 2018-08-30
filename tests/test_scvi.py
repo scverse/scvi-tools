@@ -21,7 +21,7 @@ use_cuda = True
 
 
 def test_cortex():
-    cortex_dataset = CortexDataset()
+    cortex_dataset = CortexDataset(save_path='tests/data/')
     vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_batches)
     trainer_cortex_vae = UnsupervisedTrainer(vae, cortex_dataset, train_size=0.9, use_cuda=use_cuda)
     trainer_cortex_vae.train(n_epochs=1)
@@ -92,8 +92,9 @@ def test_synthetic_2():
 
 
 def test_fish_rna():
-    gene_dataset_fish = SmfishDataset()
-    gene_dataset_seq = CortexDataset(genes_fish=gene_dataset_fish.gene_names,
+    gene_dataset_fish = SmfishDataset('tests/data/')
+    gene_dataset_seq = CortexDataset(save_path='tests/data/',
+                                     genes_fish=gene_dataset_fish.gene_names,
                                      genes_to_keep=[], additional_genes=50)
     benchamrk_fish_scrna(gene_dataset_seq, gene_dataset_fish)
 
@@ -185,15 +186,15 @@ def test_pbmc():
 
 
 def test_filter_and_concat_datasets():
-    cortex_dataset_1 = CortexDataset()
-    cortex_dataset_1.subsample_genes(subset_genes=np.arange(0, 300))
+    cortex_dataset_1 = CortexDataset(save_path='tests/data/')
+    cortex_dataset_1.subsample_genes(subset_genes=np.arange(0, 10))
     cortex_dataset_1.filter_cell_types(["microglia", "oligodendrocytes"])
-    cortex_dataset_2 = CortexDataset()
-    cortex_dataset_2.subsample_genes(subset_genes=np.arange(100, 400))
+    cortex_dataset_2 = CortexDataset(save_path='tests/data/')
+    cortex_dataset_2.subsample_genes(subset_genes=np.arange(10, 20))
     cortex_dataset_2.filter_cell_types(["endothelial-mural", "interneurons", "microglia", "oligodendrocytes"])
     cortex_dataset_2.filter_cell_types([2, 0])
     cortex_dataset_merged = GeneExpressionDataset.concat_datasets(cortex_dataset_1, cortex_dataset_2)
-    assert cortex_dataset_merged.nb_genes == 200
+    assert cortex_dataset_merged.nb_genes == 20
 
     synthetic_dataset_1 = SyntheticDataset(n_batches=2, n_labels=5)
     synthetic_dataset_2 = SyntheticDataset(n_batches=3, n_labels=3)
