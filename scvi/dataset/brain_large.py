@@ -1,6 +1,6 @@
+import h5py
 import numpy as np
 from scipy.sparse import csc_matrix, csr_matrix, vstack
-import h5py
 from sklearn.preprocessing import StandardScaler
 
 from .dataset import GeneExpressionDataset
@@ -30,7 +30,8 @@ class BrainLargeDataset(GeneExpressionDataset):
 
     """
 
-    def __init__(self, subsample_size=None, save_path='data/', nb_genes_kept=720):
+    def __init__(self, subsample_size=None, save_path='data/', nb_genes_kept=720, max_cells=None):
+        self.max_cells = max_cells
         self.subsample_size = subsample_size
         self.save_path = save_path
         self.nb_genes_kept = nb_genes_kept
@@ -56,7 +57,7 @@ class BrainLargeDataset(GeneExpressionDataset):
                 self.subsample_size = n_cells
             indptr = dset['indptr'][...]
 
-            ns_cells = min(10000, n_cells)
+            ns_cells = min(10000, n_cells)  # TODO : remove
             ns_indptr = indptr[:(ns_cells + 1)]
             ns_nnz = ns_indptr[-1]
             ns_data = dset["data"][:ns_nnz].astype(np.float32)
@@ -85,6 +86,8 @@ class BrainLargeDataset(GeneExpressionDataset):
                 del nb_sparse
                 nb_matrices.append(nb_filtered)
                 print("loaded {} / {} cells".format(i * nb_cells + nb2_cells, self.subsample_size))
+                if self.max_cells and i * nb_cells + nb2_cells >= self.max_cells:
+                    break
 
         matrix = vstack(nb_matrices)
         good_cells = matrix.sum(axis=1) > 0

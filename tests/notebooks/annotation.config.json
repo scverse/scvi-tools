@@ -1,0 +1,5 @@
+{
+    "save_path": "tests/data/",
+    "n_epochs": 1,
+    "n_labelled_samples_per_class": 3
+}

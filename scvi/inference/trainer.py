@@ -65,6 +65,7 @@ class Trainer:
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
             self.model.cuda()
+            # self.model.double()
 
         self.frequency = frequency if not benchmark else None
         self.verbose = verbose
@@ -75,8 +76,8 @@ class Trainer:
         begin = time.time()
         with torch.set_grad_enabled(False):
             self.model.eval()
-            if self.frequency and (
-                            self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.frequency == 0)):
+            if self.frequency \
+                    and (self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.frequency == 0)):
                 if self.verbose:
                     print("\nEPOCH [%d/%d]: " % (self.epoch, self.n_epochs))
 
@@ -91,7 +92,7 @@ class Trainer:
             self.model.train()
             self.compute_metrics_time += time.time() - begin
 
-    def train(self, n_epochs=20, lr=1e-3, params=None):
+    def train(self, n_epochs=20, lr=1e-3, eps=0.01, params=None):
         begin = time.time()
         with torch.set_grad_enabled(True):
             self.model.train()
@@ -99,7 +100,7 @@ class Trainer:
             if params is None:
                 params = filter(lambda p: p.requires_grad, self.model.parameters())
 
-            optimizer = torch.optim.Adam(params, lr=lr, weight_decay=self.weight_decay)
+            optimizer = torch.optim.Adam(params, lr=lr, eps=eps)  # weight_decay=self.weight_decay,
             self.compute_metrics_time = 0
             self.n_epochs = n_epochs
             self.compute_metrics()
@@ -161,8 +162,9 @@ class Trainer:
         name = name.strip('_')
         self._posteriors[name] = value
 
-    def corrupt_posteriors(self, rate=0.1, corruption="uniform"):
-        self.gene_dataset.corrupt(rate=rate, corruption=corruption)
+    def corrupt_posteriors(self, rate=0.1, corruption="uniform", update_corruption=True):
+        if not hasattr(self.gene_dataset, 'corrupted') and update_corruption:
+            self.gene_dataset.corrupt(rate=rate, corruption=corruption)
         for name, posterior in self._posteriors.items():
             self.register_posterior(name, posterior.corrupted())
 
@@ -189,7 +191,7 @@ class Trainer:
         else:
             object.__setattr__(self, name, value)
 
-    def train_test(self, model=None, gene_dataset=None, train_size=0.1, test_size=None, seed=0):
+    def train_test(self, model=None, gene_dataset=None, train_size=0.1, test_size=None, seed=0, type_class=Posterior):
         """
         :param train_size: float, int, or None (default is 0.1)
         :param test_size: float, int, or None (default is None)
@@ -204,15 +206,15 @@ class Trainer:
         indices_train = permutation[n_test:(n_test + n_train)]
 
         return (
-            self.create_posterior(model, gene_dataset, indices=indices_train),
-            self.create_posterior(model, gene_dataset, indices=indices_test)
+            self.create_posterior(model, gene_dataset, indices=indices_train, type_class=type_class),
+            self.create_posterior(model, gene_dataset, indices=indices_test, type_class=type_class)
         )
 
-    def create_posterior(self, model=None, gene_dataset=None, shuffle=False, indices=None):
+    def create_posterior(self, model=None, gene_dataset=None, shuffle=False, indices=None, type_class=Posterior):
         model = self.model if model is None and hasattr(self, "model") else model
         gene_dataset = self.gene_dataset if gene_dataset is None and hasattr(self, "model") else gene_dataset
-        return Posterior(model, gene_dataset, shuffle=shuffle, indices=indices, use_cuda=self.use_cuda,
-                         data_loader_kwargs=self.data_loader_kwargs)
+        return type_class(model, gene_dataset, shuffle=shuffle, indices=indices, use_cuda=self.use_cuda,
+                          data_loader_kwargs=self.data_loader_kwargs)
 
 
 class SequentialSubsetSampler(SubsetRandomSampler):

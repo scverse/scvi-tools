@@ -2,13 +2,14 @@
 
 """Handling datasets.
 For the moment, is initialized with a torch Tensor of size (n_cells, nb_genes)"""
+import copy
 import os
+import urllib.request
 from collections import defaultdict
 
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
-import urllib.request
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
 
@@ -66,18 +67,22 @@ class GeneExpressionDataset(Dataset):
         return self.collate_fn_end(X, indexes)
 
     def collate_fn_corrupted(self, batch):
+        '''On the fly corruption is slow, but might be optimized in pytorch. Numpy code left here.'''
         indexes = np.array(batch)
-        i, j, corrupted = [], [], []
-        for k, i_idx in enumerate(indexes):
-            j += [self.corrupted[i_idx]['j']]
-            corrupted += [self.corrupted[i_idx]['corrupted']]
-            i += [np.ones_like(j[-1]) * k]
-        i, j, corrupted = np.concatenate(i), np.concatenate(j), np.concatenate(corrupted)
-        X = self.X[indexes]
-        X[i, j] = corrupted
+        # i, j, corrupted = [], [], []
+        # for k, i_idx in enumerate(indexes):
+        #     j += [self.corrupted[i_idx]['j']]
+        #     corrupted += [self.corrupted[i_idx]['corrupted']]
+        #     i += [np.ones_like(j[-1]) * k]
+        # i, j, corrupted = np.concatenate(i), np.concatenate(j), np.concatenate(corrupted)
+        # X = self.X[indexes]
+        # X[i, j] = corrupted
+        X = self.corrupted_X[indexes]
         return self.collate_fn_end(X, indexes)
 
     def corrupt(self, rate=0.1, corruption="uniform"):
+        '''On the fly corruption is slow, but might be optimized in pytorch. Numpy code left here.'''
+        self.corrupted_X = copy.deepcopy(self.X)
         self.corrupted = defaultdict(lambda: {'j': [], 'corrupted': []})
         if corruption == "uniform":  # multiply the entry n with a Ber(0.9) random variable.
             i, j = np.nonzero(self.X)
@@ -89,12 +94,13 @@ class GeneExpressionDataset(Dataset):
             ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
             i, j = i[ix], j[ix]
             corrupted = np.random.binomial(n=(self.X[i, j]).astype(np.int32), p=0.2)
-        for idx_i, idx_j, corrupted in zip(i, j, corrupted):
-            self.corrupted[idx_i]['j'] += [idx_j]
-            self.corrupted[idx_i]['corrupted'] += [corrupted]
-        for k, v in self.corrupted.items():
-            v['j'] = np.array(v['j'])
-            v['corrupted'] = np.array(v['corrupted'])
+        self.corrupted_X[i, j] = corrupted
+        # for idx_i, idx_j, corrupted in zip(i, j, corrupted):
+        #     self.corrupted[idx_i]['j'] += [idx_j]
+        #     self.corrupted[idx_i]['corrupted'] += [corrupted]
+        # for k, v in self.corrupted.items():
+        #     v['j'] = np.array(v['j'])
+        #     v['corrupted'] = np.array(v['corrupted'])
 
     def collate_fn_end(self, X, indexes):
         if self.dense:
@@ -115,6 +121,8 @@ class GeneExpressionDataset(Dataset):
                    torch.FloatTensor(self.y_coord[indexes])
 
     def update_genes(self, subset_genes):
+        new_n_genes = len(subset_genes) if subset_genes.dtype is not np.dtype('bool') else subset_genes.sum()
+        print("Downsampling from %i to %i genes" % (self.nb_genes, new_n_genes))
         if hasattr(self, 'gene_names'):
             self.gene_names = self.gene_names[subset_genes]
         if hasattr(self, 'gene_symbols'):
@@ -134,13 +142,9 @@ class GeneExpressionDataset(Dataset):
         if subset_genes is None and (new_n_genes is False or new_n_genes >= n_genes):
             return None  # Do nothing if subsample more genes than total number of genes
         if subset_genes is None:
-            print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))
             std_scaler = StandardScaler(with_mean=False)
             std_scaler.fit(self.X.astype(np.float64))
             subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
-        else:
-            new_n_genes = len(subset_genes) if subset_genes.dtype is not np.dtype('bool') else subset_genes.sum()
-            print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))
         self._X = self.X[:, subset_genes]
         self.update_genes(subset_genes)
 
@@ -350,8 +354,11 @@ class GeneExpressionDataset(Dataset):
 
         local_means = np.concatenate([gene_dataset.local_means for gene_dataset in gene_datasets])
         local_vars = np.concatenate([gene_dataset.local_vars for gene_dataset in gene_datasets])
-        return GeneExpressionDataset(X, local_means, local_vars, batch_indices, labels,
-                                     gene_names=gene_names_ref, cell_types=cell_types)
+        result = GeneExpressionDataset(X, local_means, local_vars, batch_indices, labels,
+                                       gene_names=gene_names_ref, cell_types=cell_types)
+        result.barcodes = [gene_dataset.barcodes if hasattr(gene_dataset, 'barcodes') else None
+                           for gene_dataset in gene_datasets]
+        return result
 
     @staticmethod
     def _filter_genes(gene_dataset, gene_names_ref, on='gene_names'):

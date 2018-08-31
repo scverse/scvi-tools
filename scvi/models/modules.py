@@ -1,5 +1,4 @@
 import collections
-
 from typing import Iterable
 
 import torch
@@ -26,6 +25,7 @@ class FCLayers(nn.Module):
                  n_layers: int = 1, n_hidden: int = 128, dropout_rate: float = 0.1):
         super(FCLayers, self).__init__()
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
+
         if n_cat_list is not None:
             # n_cat = 1 will be ignored
             self.n_cat_list = [n_cat if n_cat > 1 else 0 for n_cat in n_cat_list]
@@ -35,9 +35,10 @@ class FCLayers(nn.Module):
         self.fc_layers = nn.Sequential(collections.OrderedDict(
             [('Layer {}'.format(i), nn.Sequential(
                 nn.Linear(n_in + sum(self.n_cat_list), n_out),
-                nn.BatchNorm1d(n_out, eps=1e-3, momentum=0.99),
+                nn.BatchNorm1d(n_out, momentum=.01, eps=0.001),
                 nn.ReLU(),
-                nn.Dropout(p=dropout_rate))) for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))]))
+                nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None))
+             for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))]))
 
     def forward(self, x: torch.Tensor, *cat_list: int):
         r"""Forward computation on ``x``.
@@ -59,15 +60,19 @@ class FCLayers(nn.Module):
                 one_hot_cat_list += [one_hot_cat]
         for layers in self.fc_layers:
             for layer in layers:
-                if isinstance(layer, nn.BatchNorm1d) and x.dim() == 3:
-                    x = torch.cat([(layer(slice_x)).unsqueeze(0) for slice_x in x], dim=0)
-                else:
-                    if isinstance(layer, nn.Linear):
+                if layer is not None:
+                    if isinstance(layer, nn.BatchNorm1d):
                         if x.dim() == 3:
-                            one_hot_cat_list = [o.unsqueeze(0).expand((x.size(0), o.size(0), o.size(1)))
-                                                for o in one_hot_cat_list]
-                        x = torch.cat((x, *one_hot_cat_list), dim=-1)
-                    x = layer(x)
+                            x = torch.cat([(layer(slice_x)).unsqueeze(0) for slice_x in x], dim=0)
+                        else:
+                            x = layer(x)
+                    else:
+                        if isinstance(layer, nn.Linear):
+                            if x.dim() == 3:
+                                one_hot_cat_list = [o.unsqueeze(0).expand((x.size(0), o.size(0), o.size(1)))
+                                                    for o in one_hot_cat_list]
+                            x = torch.cat((x, *one_hot_cat_list), dim=-1)
+                        x = layer(x)
         return x
 
 
@@ -90,6 +95,7 @@ class Encoder(nn.Module):
                  n_cat_list: Iterable[int] = None, n_layers: int = 1,
                  n_hidden: int = 128, dropout_rate: float = 0.1):
         super(Encoder, self).__init__()
+
         self.encoder = FCLayers(n_in=n_input, n_out=n_hidden, n_cat_list=n_cat_list, n_layers=n_layers,
                                 n_hidden=n_hidden, dropout_rate=dropout_rate)
         self.mean_encoder = nn.Linear(n_hidden, n_output)
@@ -114,7 +120,7 @@ class Encoder(nn.Module):
         # Parameters for latent distribution
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
-        q_v = torch.exp(torch.clamp(self.var_encoder(q), -5, 5))  # (computational stability safeguard)
+        q_v = torch.exp(self.var_encoder(q))  # (computational stability safeguard)torch.clamp(, -5, 5)
         latent = self.reparameterize(q_m, q_v)
         return q_m, q_v, latent
 
@@ -136,11 +142,11 @@ class DecoderSCVI(nn.Module):
 
     def __init__(self, n_input: int, n_output: int,
                  n_cat_list: Iterable[int] = None, n_layers: int = 1,
-                 n_hidden: int = 128, dropout_rate: float = 0.1):
+                 n_hidden: int = 128):
         super(DecoderSCVI, self).__init__()
         self.px_decoder = FCLayers(n_in=n_input, n_out=n_hidden,
                                    n_cat_list=n_cat_list, n_layers=n_layers,
-                                   n_hidden=n_hidden, dropout_rate=dropout_rate)
+                                   n_hidden=n_hidden, dropout_rate=0)
 
         # mean gamma
         self.px_scale_decoder = nn.Sequential(nn.Linear(n_hidden, n_output), nn.Softmax(dim=-1))
@@ -178,7 +184,7 @@ class DecoderSCVI(nn.Module):
         px_scale = self.px_scale_decoder(px)
         px_dropout = self.px_dropout_decoder(px)
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
-        px_rate = torch.exp(torch.clamp(library, max=12)) * px_scale
+        px_rate = torch.exp(library) * px_scale  # torch.clamp( , max=12)
         px_r = self.px_r_decoder(px) if dispersion == "gene-cell" else None
         return px_scale, px_r, px_rate, px_dropout
 
@@ -199,13 +205,12 @@ class Decoder(nn.Module):
     :param dropout_rate: Dropout rate to apply to each of the hidden layers
     """
 
-    def __init__(self, n_input: int, n_output: int,
-                 n_cat_list: Iterable[int] = None, n_layers: int = 1,
-                 n_hidden: int = 128, dropout_rate: float = 0.1):
+    def __init__(self, n_input: int, n_output: int, n_cat_list: Iterable[int] = None, n_layers: int = 1,
+                 n_hidden: int = 128):
         super(Decoder, self).__init__()
         self.decoder = FCLayers(n_in=n_input, n_out=n_hidden,
                                 n_cat_list=n_cat_list, n_layers=n_layers,
-                                n_hidden=n_hidden, dropout_rate=dropout_rate)
+                                n_hidden=n_hidden, dropout_rate=0)
 
         self.mean_decoder = nn.Linear(n_hidden, n_output)
         self.var_decoder = nn.Linear(n_hidden, n_output)

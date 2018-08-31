@@ -1,12 +1,17 @@
+from collections import namedtuple
+
 import numpy as np
+import torch
+from sklearn import neighbors
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 from torch.nn import functional as F
 
+from scvi.inference import Posterior
 from scvi.inference import Trainer
 from scvi.inference.inference import UnsupervisedTrainer
-from scvi.inference.posterior import compute_accuracy_classifier
+from scvi.inference.posterior import unsupervised_clustering_accuracy
 
 
 class ClassifierTrainer(Trainer):
@@ -35,7 +40,7 @@ class ClassifierTrainer(Trainer):
     def __init__(self, *args, sampling_model=None, use_cuda=True, **kwargs):
         self.sampling_model = sampling_model
         super(ClassifierTrainer, self).__init__(*args, use_cuda=use_cuda, **kwargs)
-        self.train_set, self.test_set = self.train_test(self.model, self.gene_dataset)
+        self.train_set, self.test_set = self.train_test(self.model, self.gene_dataset, type_class=AnnotationPosterior)
         if sampling_model is not None:
             self.train_set.sampling_model = sampling_model
             self.test_set.sampling_model = sampling_model
@@ -44,9 +49,29 @@ class ClassifierTrainer(Trainer):
     def posteriors_loop(self):
         return ['train_set']
 
+    @property
+    def train_set(self):
+        return self._train_set
+
+    @train_set.setter
+    def train_set(self, train_set):
+        if self.sampling_model is not None:
+            train_set.sampling_model = self.sampling_model
+        self._train_set = train_set
+
+    @property
+    def test_set(self):
+        return self._test_set
+
+    @test_set.setter
+    def test_set(self, test_set):
+        if self.sampling_model is not None:
+            test_set.sampling_model = self.sampling_model
+        self._test_set = test_set
+
     def loss(self, tensors_labelled):
         x, _, _, _, labels_train = tensors_labelled
-        x = self.sampling_model.sample_from_posterior_z(x) if self.sampling_model is not None else x
+        x = self.sampling_model.z_encoder(torch.log(1 + x))[0] if self.sampling_model is not None else x
         return F.cross_entropy(self.model(x), labels_train.view(-1))
 
 
@@ -91,9 +116,9 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
             sampling_model=self.model
         )
 
-        self.full_dataset = self.create_posterior(shuffle=True)
-        self.labelled_set = self.create_posterior(indices=indices_labelled)
-        self.unlabelled_set = self.create_posterior(indices=indices_unlabelled)
+        self.full_dataset = self.create_posterior(shuffle=True, type_class=AnnotationPosterior)
+        self.labelled_set = self.create_posterior(indices=indices_labelled, type_class=AnnotationPosterior)
+        self.unlabelled_set = self.create_posterior(indices=indices_unlabelled, type_class=AnnotationPosterior)
 
         self.classifier_trainer.train_set = self.labelled_set
 
@@ -141,6 +166,107 @@ class AlternateSemiSupervisedTrainer(SemiSupervisedTrainer):
     @property
     def posteriors_loop(self):
         return ['full_dataset']
+
+
+class AnnotationPosterior(Posterior):
+    def accuracy(self, verbose=False):
+        model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
+        acc = compute_accuracy(model, self, classifier=cls)
+        if verbose:
+            print("Acc: %.4f" % (acc))
+        return acc
+
+    accuracy.mode = 'max'
+
+    def hierarchical_accuracy(self, name, verbose=False):
+
+        all_y, all_y_pred = compute_predictions(self.model, self)
+        acc = np.mean(all_y == all_y_pred)
+
+        all_y_groups = np.array([self.model.labels_groups[y] for y in all_y])
+        all_y_pred_groups = np.array([self.model.labels_groups[y] for y in all_y_pred])
+        h_acc = np.mean(all_y_groups == all_y_pred_groups)
+
+        if verbose:
+            print("Acc for %s is : %.4f\nHierarchical Acc for %s is : %.4f\n" % (name, acc, name, h_acc))
+        return acc
+
+    accuracy.mode = 'max'
+
+    def unsupervised_classification_accuracy(self, classifier=None, verbose=False):
+        all_y, all_y_pred = compute_predictions(self.model, self, classifier=classifier)
+        uca = unsupervised_clustering_accuracy(all_y, all_y_pred)[0]
+        if verbose:
+            print("UCA : %.4f" % (uca))
+        return uca
+
+    unsupervised_classification_accuracy.mode = 'max'
+
+
+def compute_predictions(model, data_loader, classifier=None):
+    all_y_pred = []
+    all_y = []
+
+    for i_batch, tensors in enumerate(data_loader):
+        sample_batch, _, _, _, labels = tensors
+        all_y += [labels.view(-1)]
+
+        if hasattr(model, 'classify'):
+            y_pred = model.classify(sample_batch).argmax(dim=-1)
+        elif classifier is not None:
+            # Then we use the specified classifier
+            if model is not None:
+                sample_batch, _, _ = model.z_encoder(sample_batch)
+            y_pred = classifier(sample_batch).argmax(dim=-1)
+        else:  # The model is the raw classifier
+            y_pred = model(sample_batch).argmax(dim=-1)
+        all_y_pred += [y_pred]
+
+    all_y_pred = np.array(torch.cat(all_y_pred))
+    all_y = np.array(torch.cat(all_y))
+    return all_y, all_y_pred
+
+
+def compute_accuracy(vae, data_loader, classifier=None):
+    all_y, all_y_pred = compute_predictions(vae, data_loader, classifier=classifier)
+    return np.mean(all_y == all_y_pred)
+
+
+Accuracy = namedtuple('Accuracy', ['unweighted', 'weighted', 'worst', 'accuracy_classes'])
+
+
+def compute_accuracy_tuple(y, y_pred):
+    y = y.ravel()
+    n_labels = len(np.unique(y))
+    classes_probabilities = []
+    accuracy_classes = []
+    for cl in range(n_labels):
+        idx = y == cl
+        classes_probabilities += [np.mean(idx)]
+        accuracy_classes += [np.mean((y[idx] == y_pred[idx])) if classes_probabilities[-1] else 0]
+        # This is also referred to as the "recall": p = n_true_positive / (n_false_negative + n_true_positive)
+        # ( We could also compute the "precision": p = n_true_positive / (n_false_positive + n_true_positive) )
+        accuracy_named_tuple = Accuracy(
+            unweighted=np.dot(accuracy_classes, classes_probabilities),
+            weighted=np.mean(accuracy_classes),
+            worst=np.min(accuracy_classes),
+            accuracy_classes=accuracy_classes)
+    return accuracy_named_tuple
+
+
+def compute_accuracy_nn(data_train, labels_train, data_test, labels_test, k=5):
+    clf = neighbors.KNeighborsClassifier(k, weights='distance')
+    return compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels_test)
+
+
+def compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels_test):
+    clf.fit(data_train, labels_train)
+    # Predicting the labels
+    y_pred_test = clf.predict(data_test)
+    y_pred_train = clf.predict(data_train)
+
+    return (compute_accuracy_tuple(labels_train, y_pred_train),
+            compute_accuracy_tuple(labels_test, y_pred_test)), y_pred_test
 
 
 def compute_accuracy_svc(data_train, labels_train, data_test, labels_test, param_grid=None, verbose=0, max_iter=-1):

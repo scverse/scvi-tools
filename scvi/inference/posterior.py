@@ -1,5 +1,4 @@
 import copy
-from collections import namedtuple
 
 import numpy as np
 import pandas as pd
@@ -7,7 +6,6 @@ import scipy
 import torch
 from matplotlib import pyplot as plt
 from scipy.stats import kde, entropy, itemfreq
-from sklearn import neighbors
 from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
 from sklearn.metrics import adjusted_rand_score as ARI
@@ -102,7 +100,7 @@ class Posterior:
         return map(self.to_cuda, iter(self.data_loader))
 
     def to_cuda(self, tensors):
-        return [t.cuda() if self.use_cuda else t for t in tensors]
+        return [t.cuda(async=self.use_cuda) if self.use_cuda else t for t in tensors]
 
     def update(self, data_loader_kwargs):
         posterior = copy.copy(self)
@@ -134,13 +132,18 @@ class Posterior:
             print("True LL : %.4f" % ll)
         return ll
 
-    def get_latent(self):
+    def get_latent(self, sample=False):
         latent = []
         batch_indices = []
         labels = []
         for tensors in self:
             sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
-            latent += [self.model.sample_from_posterior_z(sample_batch, y=label)]
+            if not sample:
+                if self.model.log_variational:
+                    sample_batch = torch.log(1 + sample_batch)
+                latent += [self.model.z_encoder(sample_batch)[0]]
+            else:
+                latent += [self.model.sample_from_posterior_z(sample_batch)]
             batch_indices += [batch_index]
             labels += [label]
         return np.array(torch.cat(latent)), np.array(torch.cat(batch_indices)), np.array(torch.cat(labels)).ravel()
@@ -166,19 +169,23 @@ class Posterior:
         """
         px_scales = []
         all_labels = []
-        for tensors in self:
+        batch_size = max(self.data_loader_kwargs['batch_size'] // M_sampling, 2)  # Reduce batch_size on GPU
+        for tensors in self.update({"batch_size": batch_size}):
             sample_batch, _, _, batch_index, labels = tensors
-            sample_batch = sample_batch.repeat(1, M_sampling).view(-1, sample_batch.size(1))
-            batch_index = batch_index.repeat(1, M_sampling).view(-1, 1)
-            labels = labels.repeat(1, M_sampling).view(-1, 1)
             px_scales += [
-                (self.model.get_sample_scale(sample_batch, batch_index=batch_index, y=labels).squeeze()).cpu()]
-            all_labels += [labels.cpu()]
+                np.array((self.model.get_sample_scale(
+                    sample_batch, batch_index=batch_index, y=labels, n_samples=M_sampling)
+                         ).cpu())]
 
-        px_scale = np.array(torch.cat(px_scales))
-        all_labels = np.array(torch.cat(all_labels)).ravel()
+            # Align the sampling
+            if M_sampling > 1:
+                px_scales[-1] = (px_scales[-1].transpose((1, 0, 2))).reshape(-1, px_scales[-1].shape[-1])
+            all_labels += [np.array((labels.repeat(1, M_sampling).view(-1, 1)).cpu())]
 
-        return px_scale, all_labels
+        px_scales = np.concatenate(px_scales)
+        all_labels = np.concatenate(all_labels).ravel()  # this will be used as boolean
+
+        return px_scales, all_labels
 
     def differential_expression_score(self, cell_type, other_cell_type=None, genes=None, M_sampling=100,
                                       M_permutation=10000, permutation=False):
@@ -228,11 +235,83 @@ class Posterior:
         imputed_list = np.concatenate(imputed_list, axis=1)
         return imputed_list.squeeze()
 
-    def imputation_benchmark(self, n_samples=8, verbose=False):
+    def generate(self, n_samples=100, genes=None):  # with n_samples>1 return original list/ otherwose sequential
+        '''
+        Return original_values as y and generated as x (for posterior density visualization)
+        :param n_samples:
+        :param genes:
+        :return:
+        '''
+        original_list = []
+        posterior_list = []
+        batch_size = 128  # max(self.data_loader_kwargs['batch_size'] // n_samples, 2)  # Reduce batch_size on GPU
+        for tensors in self.update({"batch_size": batch_size}):
+            sample_batch, _, _, batch_index, labels = tensors
+            px_dispersion, px_rate = self.model.inference(sample_batch, batch_index=batch_index, y=labels,
+                                                          n_samples=n_samples)[1:3]
+
+            p = px_rate / (px_rate + px_dispersion)
+            r = px_dispersion
+            #
+            l_train = np.random.gamma(r, p / (1 - p))
+            X = np.random.poisson(l_train)
+            # '''
+            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
+            # rate = (1 - p) / p  # = 1/scale # used in pytorch
+            # l_train = Gamma(r, rate).sample()  # assert Gamma(r, rate).mean = px_rate
+            # posterior = Poisson(l_train).sample()
+            # '''
+            original_list += [np.array(sample_batch.cpu())]
+            posterior_list += [X]  # [np.array(posterior.cpu())]##
+
+            if genes is not None:
+                posterior_list[-1] = posterior_list[-1][:, :, self.gene_dataset._gene_idx(genes)]
+                original_list[-1] = original_list[-1][:, self.gene_dataset._gene_idx(genes)]
+
+            posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
+
+        return np.concatenate(posterior_list, axis=0), np.concatenate(original_list, axis=0)
+
+    def generate_parameters(self):
+        dropout_list = []
+        mean_list = []
+        dispersion_list = []
+        for tensors in self.sequential(1000):
+            sample_batch, _, _, batch_index, labels = tensors
+            px_dispersion, px_rate, px_dropout = self.model.inference(sample_batch, batch_index=batch_index, y=labels,
+                                                                      n_samples=1)[1:4]
+
+            dispersion_list += [np.repeat(np.array(px_dispersion.cpu())[np.newaxis, :], px_rate.size(0), axis=0)]
+            mean_list += [np.array(px_rate.cpu())]
+            dropout_list += [np.array(px_dropout.cpu())]
+
+        return np.concatenate(dropout_list), np.concatenate(mean_list), np.concatenate(dispersion_list)
+
+    def get_stats(self, verbose=True):
+        libraries = []
+        for tensors in self.sequential(batch_size=128):
+            x, local_l_mean, local_l_var, batch_index, y = tensors
+            px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library = \
+                self.model.inference(x, batch_index, y)
+            libraries += [np.array(library.cpu())]
+        libraries = np.concatenate(libraries)
+        return libraries.ravel()
+
+    def get_sample_scale(self):
+        px_scales = []
+        for tensors in self:
+            sample_batch, _, _, batch_index, labels = tensors
+            px_scales += [
+                np.array((self.model.get_sample_scale(
+                    sample_batch, batch_index=batch_index, y=labels, n_samples=1)
+                         ).cpu())]
+        return np.concatenate(px_scales)
+
+    def imputation_list(self, n_samples=1):
         original_list = []
         imputed_list = []
-        batch_size = self.data_loader_kwargs['batch_size'] // n_samples
-        for tensors, corrupted_tensors in zip(self.sequential(batch_size=batch_size),
+        batch_size = 10000  # self.data_loader_kwargs['batch_size'] // n_samples
+        for tensors, corrupted_tensors in zip(self.uncorrupted().sequential(batch_size=batch_size),
                                               self.corrupted().sequential(batch_size=batch_size)):
             batch = tensors[0]
             actual_batch_size = batch.size(0)
@@ -245,15 +324,23 @@ class Posterior:
 
             batch = batch.unsqueeze(0).expand((n_samples, batch.size(0), batch.size(1)))
             original = np.array(batch[:, i, j].view(-1).cpu())
-            imputed = np.array(px_rate[:, i, j].view(-1).cpu())
+            imputed = np.array(px_rate[..., i, j].view(-1).cpu())
 
             cells_index = np.tile(np.array(i.cpu()), n_samples)
 
             original_list += [original[cells_index == i] for i in range(actual_batch_size)]
             imputed_list += [imputed[cells_index == i] for i in range(actual_batch_size)]
+        return original_list, imputed_list
 
+    def imputation_score(self, verbose=False, original_list=None, imputed_list=None, n_samples=1):
+        if original_list is None or imputed_list is None:
+            original_list, imputed_list = self.imputation_list(n_samples=n_samples)
+        return np.median(np.abs(np.concatenate(original_list) - np.concatenate(imputed_list)))
+
+    def imputation_benchmark(self, n_samples=8, verbose=False):
+        original_list, imputed_list = self.imputation_list(n_samples=n_samples)
         # Median of medians for all distances
-        median_score = np.median(np.abs(np.concatenate(original_list) - np.concatenate(imputed_list)))
+        median_score = self.imputation_score(original_list=original_list, imputed_list=imputed_list)
 
         # Mean of medians for each cell
         imputation_cells = []
@@ -311,56 +398,11 @@ class Posterior:
                       (spearman_correlation, fold_enrichment))
             return spearman_correlation, fold_enrichment
 
-    def accuracy(self, verbose=False):
-        model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
-        acc = compute_accuracy(model, self, classifier=cls)
-        if verbose:
-            print("Acc: %.4f" % (acc))
-        return acc
-
-    accuracy.mode = 'max'
-
-    def hierarchical_accuracy(self, name, verbose=False):
-
-        all_y, all_y_pred = compute_predictions(self.model, self)
-        acc = np.mean(all_y == all_y_pred)
-
-        all_y_groups = np.array([self.model.labels_groups[y] for y in all_y])
-        all_y_pred_groups = np.array([self.model.labels_groups[y] for y in all_y_pred])
-        h_acc = np.mean(all_y_groups == all_y_pred_groups)
-
-        if verbose:
-            print("Acc for %s is : %.4f\nHierarchical Acc for %s is : %.4f\n" % (name, acc, name, h_acc))
-        return acc
-
-    accuracy.mode = 'max'
-
-    def unsupervised_accuracy(self, verbose=False):
-        uca = unsupervised_classification_accuracy(self.model, self)[0]
-        if verbose:
-            print("UCA : %.4f" % (uca))
-        return uca
-
-    unsupervised_accuracy.mode = 'max'
-
-    def ll_fish(self, verbose=False):
-        ll = compute_log_likelihood(self.model, self, mode="smFISH")
-        if verbose:
-            print("LL Fish: %.4f" % ll)
-        return ll
-
-    def show_spatial_expression(self, x_coord, y_coord, labels, color_by='scalar', title='spatial_expression.svg'):
-        x_coord = x_coord.reshape(-1, 1)
-        y_coord = y_coord.reshape(-1, 1)
-        latent = np.concatenate((x_coord, y_coord), axis=1)
-        self.show_t_sne(n_samples=1000, color_by=color_by, save_name=title, latent=latent, batch_indices=None,
-                        labels=labels)
-
     def show_t_sne(self, n_samples=1000, color_by='', save_name='', latent=None, batch_indices=None,
                    labels=None, n_batch=None):
         # If no latent representation is given
         if latent is None:
-            latent, batch_indices, labels = self.get_latent()
+            latent, batch_indices, labels = self.get_latent(sample=True)
             latent, idx_t_sne = self.apply_t_sne(latent, n_samples)
             batch_indices = batch_indices[idx_t_sne].ravel()
             labels = labels[idx_t_sne].ravel()
@@ -432,6 +474,7 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
     latent_space, batches = latent_space[keep_idx], batches[keep_idx]
 
     batches = batches.ravel()
+    n_neighbors = min(n_neighbors, n_samples - 1)
     nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(latent_space)
     indices = nbrs.kneighbors(latent_space, return_distance=False)[:, 1:]
     batch_indices = np.vectorize(lambda i: batches[i])(indices)
@@ -544,9 +587,10 @@ def nn_overlap(X1, X2, k=100):
     Compute the overlap between the k-nearest neighbor graph of X1 and X2 using Spearman correlation of the
     adjacency matrices.
     '''
-    nne = NearestNeighbors(n_neighbors=k + 1)  # "n_jobs=8
     assert len(X1) == len(X2)
     n_samples = len(X1)
+    k = min(k, n_samples - 1)
+    nne = NearestNeighbors(n_neighbors=k + 1)  # "n_jobs=8
     nne.fit(X1)
     kmatrix_1 = nne.kneighbors_graph(X1) - scipy.sparse.identity(n_samples)
     nne.fit(X2)
@@ -588,77 +632,6 @@ def knn_purity(latent, label, n_neighbors=30):
     res = [np.mean(scores[label == i]) for i in np.unique(label)]  # per cell-type purity
 
     return np.mean(res)
-
-
-Accuracy = namedtuple('Accuracy', ['unweighted', 'weighted', 'worst', 'accuracy_classes'])
-
-
-def compute_accuracy_tuple(y, y_pred):
-    y = y.ravel()
-    n_labels = len(np.unique(y))
-    classes_probabilities = []
-    accuracy_classes = []
-    for cl in range(n_labels):
-        idx = y == cl
-        classes_probabilities += [np.mean(idx)]
-        accuracy_classes += [np.mean((y[idx] == y_pred[idx])) if classes_probabilities[-1] else 0]
-        # This is also referred to as the "recall": p = n_true_positive / (n_false_negative + n_true_positive)
-        # ( We could also compute the "precision": p = n_true_positive / (n_false_positive + n_true_positive) )
-        accuracy_named_tuple = Accuracy(
-            unweighted=np.dot(accuracy_classes, classes_probabilities),
-            weighted=np.mean(accuracy_classes),
-            worst=np.min(accuracy_classes),
-            accuracy_classes=accuracy_classes)
-    return accuracy_named_tuple
-
-
-def compute_predictions(model, data_loader, classifier=None):
-    all_y_pred = []
-    all_y = []
-
-    for i_batch, tensors in enumerate(data_loader):
-        sample_batch, _, _, _, labels = tensors
-        all_y += [labels.view(-1)]
-
-        if hasattr(model, 'classify'):
-            y_pred = model.classify(sample_batch).argmax(dim=-1)
-        elif classifier is not None:
-            # Then we use the specified classifier
-            if model is not None:
-                sample_batch, _, _ = model.z_encoder(sample_batch)
-            y_pred = classifier(sample_batch).argmax(dim=-1)
-        else:  # The model is the raw classifier
-            y_pred = model(sample_batch).argmax(dim=-1)
-        all_y_pred += [y_pred]
-
-    all_y_pred = np.array(torch.cat(all_y_pred))
-    all_y = np.array(torch.cat(all_y))
-    return all_y, all_y_pred
-
-
-def compute_accuracy(vae, data_loader, classifier=None):
-    all_y, all_y_pred = compute_predictions(vae, data_loader, classifier=classifier)
-    return np.mean(all_y == all_y_pred)
-
-
-def unsupervised_classification_accuracy(vae, data_loader, classifier=None):
-    all_y, all_y_pred = compute_predictions(vae, data_loader, classifier=classifier)
-    return unsupervised_clustering_accuracy(all_y, all_y_pred)
-
-
-def compute_accuracy_nn(data_train, labels_train, data_test, labels_test, k=5):
-    clf = neighbors.KNeighborsClassifier(k, weights='distance')
-    return compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels_test)
-
-
-def compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels_test):
-    clf.fit(data_train, labels_train)
-    # Predicting the labels
-    y_pred_test = clf.predict(data_test)
-    y_pred_train = clf.predict(data_train)
-
-    return (compute_accuracy_tuple(labels_train, y_pred_train),
-            compute_accuracy_tuple(labels_test, y_pred_test)), y_pred_test
 
 
 def proximity_imputation(real_latent1, normed_gene_exp_1, real_latent2, k=4):
