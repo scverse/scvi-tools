@@ -90,7 +90,7 @@ class SCANVI(VAE):
         if self.log_variational:
             x = torch.log(1 + x)
         qz_m, _, z = self.z_encoder(x)
-        z = qz_m  #  We classify using the inferred mean parameter of z_1 in the latent space
+        z = qz_m  # We classify using the inferred mean parameter of z_1 in the latent space
         if self.use_labels_groups:
             w_g = self.classifier_groups(z)
             unw_y = self.classifier(z)
