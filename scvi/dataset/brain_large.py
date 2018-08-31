@@ -65,6 +65,7 @@ class BrainLargeDataset(GeneExpressionDataset):
             ns_sparse = csc_matrix((ns_data, ns_indices, ns_indptr), shape=(n_genes, ns_cells))
             ns_dense = ns_sparse.toarray()
 
+            # Use standard scaler to order select genes by variance
             std_scaler = StandardScaler(with_mean=False)
             std_scaler.fit(ns_dense)
             subset_genes = np.argsort(std_scaler.var_)[::-1][:self.nb_genes_kept]
