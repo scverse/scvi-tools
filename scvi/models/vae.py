@@ -95,7 +95,6 @@ class VAE(nn.Module):
         :return: tensor of shape ``(batch_size, n_latent)``
         :rtype: :py:class:`torch.Tensor`
         """
-        x = torch.log(1 + x)
         if self.log_variational:
             x = torch.log(1 + x)
         qz_m, qz_v, z = self.z_encoder(x, y)  # y only used in VAEC
@@ -110,7 +109,6 @@ class VAE(nn.Module):
         :return: tensor of shape ``(batch_size, 1)``
         :rtype: :py:class:`torch.Tensor`
         """
-        x = torch.log(1 + x)
         if self.log_variational:
             x = torch.log(1 + x)
         ql_m, ql_v, library = self.l_encoder(x)

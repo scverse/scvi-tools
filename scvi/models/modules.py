@@ -22,7 +22,7 @@ class FCLayers(nn.Module):
     """
 
     def __init__(self, n_in: int, n_out: int, n_cat_list: Iterable[int] = None,
-                 n_layers: int = 1, n_hidden: int = 128, dropout_rate: float = 0.1):
+                 n_layers: int = 1, n_hidden: int = 128, dropout_rate: float = 0.1, use_batch_norm=True):
         super(FCLayers, self).__init__()
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
 
@@ -35,7 +35,7 @@ class FCLayers(nn.Module):
         self.fc_layers = nn.Sequential(collections.OrderedDict(
             [('Layer {}'.format(i), nn.Sequential(
                 nn.Linear(n_in + sum(self.n_cat_list), n_out),
-                nn.BatchNorm1d(n_out, momentum=.01, eps=0.001),
+                nn.BatchNorm1d(n_out, momentum=.01, eps=0.001) if use_batch_norm else None,
                 nn.ReLU(),
                 nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None))
              for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))]))

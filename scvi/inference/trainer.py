@@ -52,7 +52,7 @@ class Trainer:
 
         self.weight_decay = weight_decay
         self.benchmark = benchmark
-        self.epoch = 0
+        self.epoch = -1  # epoch = self.epoch + 1 in compute metrics
         self.training_time = 0
 
         if metrics_to_monitor is not None:
@@ -65,7 +65,6 @@ class Trainer:
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
             self.model.cuda()
-            # self.model.double()
 
         self.frequency = frequency if not benchmark else None
         self.verbose = verbose
@@ -74,12 +73,12 @@ class Trainer:
 
     def compute_metrics(self):
         begin = time.time()
-        with torch.set_grad_enabled(False):
-            self.model.eval()
-            if self.frequency \
-                    and (self.epoch == 0 or self.epoch == self.n_epochs or (self.epoch % self.frequency == 0)):
+        epoch = self.epoch + 1
+        if self.frequency and (epoch == 0 or epoch == self.n_epochs or (epoch % self.frequency == 0)):
+            with torch.set_grad_enabled(False):
+                self.model.eval()
                 if self.verbose:
-                    print("\nEPOCH [%d/%d]: " % (self.epoch, self.n_epochs))
+                    print("\nEPOCH [%d/%d]: " % (epoch, self.n_epochs))
 
                 for name, posterior in self._posteriors.items():
                     print_name = ' '.join([s.capitalize() for s in name.split('_')[-2:]])
@@ -89,8 +88,8 @@ class Trainer:
                                 print(print_name, end=' : ')
                             result = getattr(posterior, metric)(verbose=self.verbose)
                             self.history[metric + '_' + name] += [result]
-            self.model.train()
-            self.compute_metrics_time += time.time() - begin
+                self.model.train()
+        self.compute_metrics_time += time.time() - begin
 
     def train(self, n_epochs=20, lr=1e-3, eps=0.01, params=None):
         begin = time.time()
@@ -100,7 +99,11 @@ class Trainer:
             if params is None:
                 params = filter(lambda p: p.requires_grad, self.model.parameters())
 
-            optimizer = torch.optim.Adam(params, lr=lr, eps=eps)  # weight_decay=self.weight_decay,
+            # if hasattr(self, 'optimizer'):
+            #     optimizer = self.optimizer
+            # else:
+            optimizer = self.optimizer = torch.optim.Adam(params, lr=lr, eps=eps)  # weight_decay=self.weight_decay,
+
             self.compute_metrics_time = 0
             self.n_epochs = n_epochs
             self.compute_metrics()
@@ -120,7 +123,7 @@ class Trainer:
                     if not self.on_epoch_end():
                         break
 
-            if self.save_best_state_metric is not None:
+            if self.early_stopping.save_best_state_metric is not None:
                 self.model.load_state_dict(self.best_state_dict)
                 self.compute_metrics()
 
@@ -137,13 +140,13 @@ class Trainer:
         on = self.early_stopping.on
         early_stopping_metric = self.early_stopping.early_stopping_metric
         save_best_state_metric = self.early_stopping.save_best_state_metric
-        if self.save_best_state_metric is not None and on is not None:
+        if save_best_state_metric is not None and on is not None:
             if self.early_stopping.update_state(self.history[save_best_state_metric + '_' + on][-1]):
                 self.best_state_dict = self.model.state_dict()
                 self.best_epoch = self.epoch
 
         continue_training = True
-        if self.early_stopping_metric is not None and on is not None:
+        if early_stopping_metric is not None and on is not None:
             continue_training = self.early_stopping.update(
                 self.history[early_stopping_metric + '_' + on][-1]
             )
@@ -177,6 +180,7 @@ class Trainer:
             _posteriors = self.__dict__['_posteriors']
             if name.strip('_') in _posteriors:
                 return _posteriors[name.strip('_')]
+        return object.__getattribute__(self, name)
 
     def __delattr__(self, name):
         if name.strip('_') in self._posteriors:
@@ -226,7 +230,7 @@ class SequentialSubsetSampler(SubsetRandomSampler):
 
 
 class EarlyStopping:
-    def __init__(self, early_stopping_metric='ll', save_best_state_metric=None, on='test_set',
+    def __init__(self, early_stopping_metric=None, save_best_state_metric=None, on='test_set',
                  patience=15, threshold=3, benchmark=False):
         self.benchmark = benchmark
         self.patience = patience
