@@ -5,7 +5,6 @@ import torch
 import torch.nn.functional as F
 from torch import logsumexp
 from torch.distributions import Normal
-from torch import logsumexp
 
 
 def compute_log_likelihood(vae, posterior, **kwargs):
