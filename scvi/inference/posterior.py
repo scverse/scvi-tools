@@ -1,5 +1,4 @@
 import copy
-from collections import namedtuple
 
 import numpy as np
 import pandas as pd
@@ -7,7 +6,6 @@ import scipy
 import torch
 from matplotlib import pyplot as plt
 from scipy.stats import kde, entropy, itemfreq
-from sklearn import neighbors
 from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
 from sklearn.metrics import adjusted_rand_score as ARI
@@ -400,51 +398,6 @@ class Posterior:
                       (spearman_correlation, fold_enrichment))
             return spearman_correlation, fold_enrichment
 
-    def accuracy(self, verbose=False):
-        model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
-        acc = compute_accuracy(model, self, classifier=cls)
-        if verbose:
-            print("Acc: %.4f" % (acc))
-        return acc
-
-    accuracy.mode = 'max'
-
-    def hierarchical_accuracy(self, name, verbose=False):
-
-        all_y, all_y_pred = compute_predictions(self.model, self)
-        acc = np.mean(all_y == all_y_pred)
-
-        all_y_groups = np.array([self.model.labels_groups[y] for y in all_y])
-        all_y_pred_groups = np.array([self.model.labels_groups[y] for y in all_y_pred])
-        h_acc = np.mean(all_y_groups == all_y_pred_groups)
-
-        if verbose:
-            print("Acc for %s is : %.4f\nHierarchical Acc for %s is : %.4f\n" % (name, acc, name, h_acc))
-        return acc
-
-    accuracy.mode = 'max'
-
-    def unsupervised_accuracy(self, verbose=False):
-        uca = unsupervised_classification_accuracy(self.model, self)[0]
-        if verbose:
-            print("UCA : %.4f" % (uca))
-        return uca
-
-    unsupervised_accuracy.mode = 'max'
-
-    def ll_fish(self, verbose=False):
-        ll = compute_log_likelihood(self.model, self, mode="smFISH")
-        if verbose:
-            print("LL Fish: %.4f" % ll)
-        return ll
-
-    def show_spatial_expression(self, x_coord, y_coord, labels, color_by='scalar', title='spatial_expression.svg'):
-        x_coord = x_coord.reshape(-1, 1)
-        y_coord = y_coord.reshape(-1, 1)
-        latent = np.concatenate((x_coord, y_coord), axis=1)
-        self.show_t_sne(n_samples=1000, color_by=color_by, save_name=title, latent=latent, batch_indices=None,
-                        labels=labels)
-
     def show_t_sne(self, n_samples=1000, color_by='', save_name='', latent=None, batch_indices=None,
                    labels=None, n_batch=None):
         # If no latent representation is given
@@ -637,7 +590,7 @@ def nn_overlap(X1, X2, k=100):
     assert len(X1) == len(X2)
     n_samples = len(X1)
     k = min(k, n_samples - 1)
-    nne = NearestNeighbors(n_neighbors=k + 1, n_jobs=8)
+    nne = NearestNeighbors(n_neighbors=k + 1)  # "n_jobs=8
     nne.fit(X1)
     kmatrix_1 = nne.kneighbors_graph(X1) - scipy.sparse.identity(n_samples)
     nne.fit(X2)
@@ -679,77 +632,6 @@ def knn_purity(latent, label, n_neighbors=30):
     res = [np.mean(scores[label == i]) for i in np.unique(label)]  # per cell-type purity
 
     return np.mean(res)
-
-
-Accuracy = namedtuple('Accuracy', ['unweighted', 'weighted', 'worst', 'accuracy_classes'])
-
-
-def compute_accuracy_tuple(y, y_pred):
-    y = y.ravel()
-    n_labels = len(np.unique(y))
-    classes_probabilities = []
-    accuracy_classes = []
-    for cl in range(n_labels):
-        idx = y == cl
-        classes_probabilities += [np.mean(idx)]
-        accuracy_classes += [np.mean((y[idx] == y_pred[idx])) if classes_probabilities[-1] else 0]
-        # This is also referred to as the "recall": p = n_true_positive / (n_false_negative + n_true_positive)
-        # ( We could also compute the "precision": p = n_true_positive / (n_false_positive + n_true_positive) )
-        accuracy_named_tuple = Accuracy(
-            unweighted=np.dot(accuracy_classes, classes_probabilities),
-            weighted=np.mean(accuracy_classes),
-            worst=np.min(accuracy_classes),
-            accuracy_classes=accuracy_classes)
-    return accuracy_named_tuple
-
-
-def compute_predictions(model, data_loader, classifier=None):
-    all_y_pred = []
-    all_y = []
-
-    for i_batch, tensors in enumerate(data_loader):
-        sample_batch, _, _, _, labels = tensors
-        all_y += [labels.view(-1)]
-
-        if hasattr(model, 'classify'):
-            y_pred = model.classify(sample_batch).argmax(dim=-1)
-        elif classifier is not None:
-            # Then we use the specified classifier
-            if model is not None:
-                sample_batch, _, _ = model.z_encoder(sample_batch)
-            y_pred = classifier(sample_batch).argmax(dim=-1)
-        else:  # The model is the raw classifier
-            y_pred = model(sample_batch).argmax(dim=-1)
-        all_y_pred += [y_pred]
-
-    all_y_pred = np.array(torch.cat(all_y_pred))
-    all_y = np.array(torch.cat(all_y))
-    return all_y, all_y_pred
-
-
-def compute_accuracy(vae, data_loader, classifier=None):
-    all_y, all_y_pred = compute_predictions(vae, data_loader, classifier=classifier)
-    return np.mean(all_y == all_y_pred)
-
-
-def unsupervised_classification_accuracy(vae, data_loader, classifier=None):
-    all_y, all_y_pred = compute_predictions(vae, data_loader, classifier=classifier)
-    return unsupervised_clustering_accuracy(all_y, all_y_pred)
-
-
-def compute_accuracy_nn(data_train, labels_train, data_test, labels_test, k=5):
-    clf = neighbors.KNeighborsClassifier(k, weights='distance')
-    return compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels_test)
-
-
-def compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels_test):
-    clf.fit(data_train, labels_train)
-    # Predicting the labels
-    y_pred_test = clf.predict(data_test)
-    y_pred_train = clf.predict(data_train)
-
-    return (compute_accuracy_tuple(labels_train, y_pred_train),
-            compute_accuracy_tuple(labels_test, y_pred_test)), y_pred_test
 
 
 def proximity_imputation(real_latent1, normed_gene_exp_1, real_latent2, k=4):

@@ -43,17 +43,6 @@ Quick Start
 .. __: https://github.com/YosefLab/scVI/tree/master/docs/notebooks/basic_tutorial.ipynb
 
 
-Benchmarks
-----------
-
-To recreate the results appearing in the paper referenced below, run
-
-.. code-block:: python
-
-    python ./run_benchmarks.py --dataset=cortex
-
-Valid choices for ``--dataset`` include ``synthetic``, ``cortex``, ``brain_large``, ``retina``, ``cbmc``, ``hemato``, and ``pbmc``. You may also specify an arbitrary ``.loom``, ``.h5ad`` (AnnData), or ``.csv`` file.
-
 References
 ----------
 

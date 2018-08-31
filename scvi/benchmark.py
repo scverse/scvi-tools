@@ -2,8 +2,9 @@ import numpy as np
 from sklearn.decomposition import PCA
 
 from scvi.dataset import CortexDataset
-from scvi.inference import UnsupervisedTrainer, TrainerFish, adversarial_wrapper
-from scvi.inference.posterior import proximity_imputation, compute_accuracy_nn
+from scvi.inference import UnsupervisedTrainer, TrainerFish
+from scvi.inference.annotation import compute_accuracy_nn
+from scvi.inference.posterior import proximity_imputation
 from scvi.models import VAE, VAEF
 
 
@@ -63,7 +64,6 @@ def benchmark_fish_scrna(gene_dataset_seq, gene_dataset_fish):
     trainer = TrainerFish(vae, gene_dataset_seq, gene_dataset_fish, train_size=0.9, verbose=True,
                           frequency=5, weight_decay=0.35, n_epochs_even=100, n_epochs_kl=1000,
                           cl_ratio=0, n_epochs_cl=100)
-    trainer = adversarial_wrapper(trainer, scale=50, mode="smFISH")
     trainer.train(n_epochs=1, lr=0.0008)
     concatenated_matrix = np.concatenate(
         (gene_dataset_fish.X[:, vae.indexes_to_keep], gene_dataset_seq.X[:, vae.indexes_to_keep]))

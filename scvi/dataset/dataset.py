@@ -4,7 +4,6 @@
 For the moment, is initialized with a torch Tensor of size (n_cells, nb_genes)"""
 import copy
 import os
-import pickle
 import urllib.request
 from collections import defaultdict
 
@@ -68,25 +67,40 @@ class GeneExpressionDataset(Dataset):
         return self.collate_fn_end(X, indexes)
 
     def collate_fn_corrupted(self, batch):
+        '''On the fly corruption is slow, but might be optimized in pytorch. Numpy code left here.'''
         indexes = np.array(batch)
+        # i, j, corrupted = [], [], []
+        # for k, i_idx in enumerate(indexes):
+        #     j += [self.corrupted[i_idx]['j']]
+        #     corrupted += [self.corrupted[i_idx]['corrupted']]
+        #     i += [np.ones_like(j[-1]) * k]
+        # i, j, corrupted = np.concatenate(i), np.concatenate(j), np.concatenate(corrupted)
+        # X = self.X[indexes]
+        # X[i, j] = corrupted
         X = self.corrupted_X[indexes]
         return self.collate_fn_end(X, indexes)
 
     def corrupt(self, rate=0.1, corruption="uniform"):
-        '''On the fly corruption is slow'''
+        '''On the fly corruption is slow, but might be optimized in pytorch. Numpy code left here.'''
         self.corrupted_X = copy.deepcopy(self.X)
         self.corrupted = defaultdict(lambda: {'j': [], 'corrupted': []})
         if corruption == "uniform":  # multiply the entry n with a Ber(0.9) random variable.
             i, j = np.nonzero(self.X)
             ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
             i, j = i[ix], j[ix]
-            corrupted = self.X[i, j] * 0  # np.random.binomial(n=np.ones(len(ix), dtype=np.int64), p=0.9)  # maybe rate
+            corrupted = self.X[i, j] * np.random.binomial(n=np.ones(len(ix), dtype=np.int32), p=0.9)  # maybe rate
         elif corruption == "binomial":  # multiply the entry n with a Bin(n, 0.9) random variable.
             i, j = (k.ravel() for k in np.indices(self.X.shape))
             ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
             i, j = i[ix], j[ix]
-            corrupted = np.random.binomial(n=(self.X[i, j]).astype(np.int64), p=0.2)
+            corrupted = np.random.binomial(n=(self.X[i, j]).astype(np.int32), p=0.2)
         self.corrupted_X[i, j] = corrupted
+        # for idx_i, idx_j, corrupted in zip(i, j, corrupted):
+        #     self.corrupted[idx_i]['j'] += [idx_j]
+        #     self.corrupted[idx_i]['corrupted'] += [corrupted]
+        # for k, v in self.corrupted.items():
+        #     v['j'] = np.array(v['j'])
+        #     v['corrupted'] = np.array(v['corrupted'])
 
     def collate_fn_end(self, X, indexes):
         if self.dense:
@@ -114,11 +128,12 @@ class GeneExpressionDataset(Dataset):
         if hasattr(self, 'gene_symbols'):
             self.gene_symbols = self.gene_symbols[subset_genes]
         self.nb_genes = self.X.shape[1]
+        self.update_cells(np.array(self.X.sum(axis=1) > 0).ravel())
 
     def update_cells(self, subset_cells):
         new_n_cells = len(subset_cells) if subset_cells.dtype is not np.dtype('bool') else subset_cells.sum()
         print("Downsampling from %i to %i cells" % (len(self), new_n_cells))
-        for attr_name in ['_X', 'local_means', 'local_vars', 'labels', 'batch_indices']:
+        for attr_name in ['_X', 'labels', 'batch_indices', 'local_means', 'local_vars']:
             setattr(self, attr_name, getattr(self, attr_name)[subset_cells])
         self.library_size_batch()
 
@@ -130,7 +145,7 @@ class GeneExpressionDataset(Dataset):
             std_scaler = StandardScaler(with_mean=False)
             std_scaler.fit(self.X.astype(np.float64))
             subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
-        self.X = self.X[:, subset_genes]
+        self._X = self.X[:, subset_genes]
         self.update_genes(subset_genes)
 
     def filter_genes(self, gene_names_ref, on='gene_names'):
@@ -250,9 +265,12 @@ class GeneExpressionDataset(Dataset):
 
     @staticmethod
     def get_attributes_from_matrix(X, batch_indices=0, labels=None):
+        to_keep = np.array((X.sum(axis=1) > 0)).ravel()
+        X = X[to_keep]
         local_mean, local_var = GeneExpressionDataset.library_size(X)
-        batch_indices = batch_indices * np.ones((X.shape[0], 1)) if type(batch_indices) is int else batch_indices
-        labels = labels.reshape(-1, 1) if labels is not None else np.zeros_like(batch_indices)
+        batch_indices = batch_indices * np.ones((X.shape[0], 1)) if type(batch_indices) is int \
+            else batch_indices[to_keep]
+        labels = labels[to_keep].reshape(-1, 1) if labels is not None else np.zeros_like(batch_indices)
         return X, local_mean, local_var, batch_indices, labels
 
     @staticmethod
@@ -350,29 +368,6 @@ class GeneExpressionDataset(Dataset):
         gene_names = list(getattr(gene_dataset, on))
         subset_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.int64)
         return gene_dataset.X[:, subset_genes], subset_genes
-
-    def export_pickle(self, filename):
-        pickle_dictionary = {"batch_indices": self.batch_indices, "labels": self.labels}
-        if hasattr(self, "gene_names"):
-            pickle_dictionary["gene_names"] = self.gene_names
-        if hasattr(self, "cell_types"):
-            pickle_dictionary["cell_types"] = self.cell_types
-        pickle_dictionary["X"] = self.X
-        pickle.dump(pickle_dictionary, open(filename, 'wb'))
-
-    @staticmethod
-    def load_pickle(filename):
-        pickle_dictionary = defaultdict(lambda: None)
-        pickle_dictionary.update(pickle.load(open(filename, 'rb')))
-        return GeneExpressionDataset(
-            *GeneExpressionDataset.get_attributes_from_matrix(
-                pickle_dictionary["X"],
-                batch_indices=pickle_dictionary["batch_indices"],
-                labels=pickle_dictionary["labels"]
-            ),
-            cell_types=pickle_dictionary["cell_types"],
-            gene_names=pickle_dictionary["gene_names"]
-        )
 
 
 def arrange_categories(original_categories, mapping_from=None, mapping_to=None):

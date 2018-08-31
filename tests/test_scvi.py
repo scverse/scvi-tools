@@ -12,7 +12,7 @@ from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainS
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
     GeneExpressionDataset, PurifiedPBMCDataset
 from scvi.inference import JointSemiSupervisedTrainer, AlternateSemiSupervisedTrainer, ClassifierTrainer, \
-    UnsupervisedTrainer, adversarial_wrapper, AdapterTrainer
+    UnsupervisedTrainer, AdapterTrainer
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC
 from scvi.models.classifier import Classifier
@@ -75,7 +75,7 @@ def test_synthetic_1():
     trainer_synthetic_svaec.labelled_set.show_t_sne(n_samples=5, color_by='batches and labels')
     trainer_synthetic_svaec.labelled_set.clustering_scores()
     trainer_synthetic_svaec.labelled_set.clustering_scores(prediction_algorithm='gmm')
-    trainer_synthetic_svaec.unlabelled_set.unsupervised_accuracy()
+    trainer_synthetic_svaec.unlabelled_set.unsupervised_classification_accuracy()
     trainer_synthetic_svaec.unlabelled_set.differential_expression_score('B', 'C', genes=['2', '4'], M_sampling=2,
                                                                          M_permutation=10)
     trainer_synthetic_svaec.unlabelled_set.differential_expression_table(M_sampling=2, M_permutation=10)
@@ -88,7 +88,6 @@ def test_synthetic_2():
                                                         early_stopping_kwargs={'early_stopping_metric': 'll',
                                                                                'on': 'labelled_set',
                                                                                'save_best_state_metric': 'll'})
-    trainer_synthetic_vaec = adversarial_wrapper(trainer_synthetic_vaec, warm_up=1)
     trainer_synthetic_vaec.train(n_epochs=2)
 
 
