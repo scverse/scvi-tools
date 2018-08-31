@@ -78,15 +78,9 @@ class VAEC(VAE):
             )
         )
 
-        if self.log_variational:
-            xs_ = torch.log(1 + xs)
-
         # Sampling
-        qz_m, qz_v, zs = self.z_encoder(xs_, ys)
-
-        px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, zs, library_s, batch_index_s, ys)
-
-        reconst_loss = self._reconstruction_loss(xs, px_rate, px_r, px_dropout, batch_index_s, ys)
+        px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, _, _, _ = self.inference(xs, batch_index_s, ys)
+        reconst_loss = self._reconstruction_loss(xs, px_rate, px_r, px_dropout)
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)

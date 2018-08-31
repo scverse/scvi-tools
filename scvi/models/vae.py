@@ -92,18 +92,10 @@ class VAE(nn.Module):
         return library
 
     def get_sample_scale(self, x, batch_index=None, y=None, n_samples=1):
-        if self.log_variational:
-            x = torch.log(1 + x)
-        qz_m, qz_v, _ = self.z_encoder(x, y)
-        qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
-        qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
-        z = Normal(qz_m, qz_v.sqrt()).sample()
-        px = self.decoder.px_decoder(z, batch_index, y)  # y only used in VAEC - won't work for batch index not None
-        px_scale = self.decoder.px_scale_decoder(px)
-        return px_scale
+        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[0]
 
     def get_sample_rate(self, x, batch_index=None, y=None, n_samples=1):
-        return self.inference(x, batch_index=batch_index, y=y, n_samples=1)[1]
+        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[2]
 
     def _reconstruction_loss(self, x, px_rate, px_r, px_dropout):
         # Reconstruction Loss
@@ -126,12 +118,11 @@ class VAE(nn.Module):
             qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
             qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
             z = Normal(qz_m, qz_v.sqrt()).sample()
-
             ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
             ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
             library = Normal(ql_m, ql_v.sqrt()).sample()
 
-        px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index)
+        px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index, y)
         if self.dispersion == "gene-label":
             px_r = F.linear(one_hot(y, self.n_labels), self.px_r)  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
@@ -140,12 +131,12 @@ class VAE(nn.Module):
             px_r = self.px_r
         px_r = torch.exp(px_r)
 
-        return px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library
+        return px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library
 
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
         # Parameters for z latent distribution
 
-        px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library = self.inference(x, batch_index, y)
+        px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library = self.inference(x, batch_index, y)
         reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout)
 
         # KL Divergence

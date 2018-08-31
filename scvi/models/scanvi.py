@@ -108,7 +108,7 @@ class SCANVI(VAE):
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
         is_labelled = False if y is None else True
 
-        px_r, px_rate, px_dropout, qz1_m, qz1_v, z1, ql_m, ql_v, library = self.inference(x, batch_index, y)
+        px_scale, px_r, px_rate, px_dropout, qz1_m, qz1_v, z1, ql_m, ql_v, library = self.inference(x, batch_index, y)
 
         # Enumerate choices of label
         ys, z1s = (

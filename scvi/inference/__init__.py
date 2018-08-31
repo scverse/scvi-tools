@@ -13,10 +13,10 @@ from .inference import (
 from .posterior import Posterior
 from .trainer import Trainer
 
-__all__ = ['UnsupervisedTrainer',
-           'Trainer',
+__all__ = ['Trainer',
            'Posterior',
            'TrainerFish',
+           'UnsupervisedTrainer',
            'AdapterTrainer',
            'adversarial_wrapper',
            'JointSemiSupervisedTrainer',

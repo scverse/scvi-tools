@@ -180,7 +180,8 @@ class Posterior:
                          ).cpu())]
 
             # Align the sampling
-            px_scales[-1] = (px_scales[-1].transpose((1, 0, 2))).reshape(-1, px_scales[-1].shape[-1])
+            if M_sampling > 1:
+                px_scales[-1] = (px_scales[-1].transpose((1, 0, 2))).reshape(-1, px_scales[-1].shape[-1])
             all_labels += [np.array((labels.repeat(1, M_sampling).view(-1, 1)).cpu())]
 
         px_scales = np.concatenate(px_scales)
@@ -249,7 +250,7 @@ class Posterior:
         for tensors in self.update({"batch_size": batch_size}):
             sample_batch, _, _, batch_index, labels = tensors
             px_dispersion, px_rate = self.model.inference(sample_batch, batch_index=batch_index, y=labels,
-                                                          n_samples=n_samples)[:2]
+                                                          n_samples=n_samples)[1:3]
 
             p = px_rate / (px_rate + px_dispersion)
             r = px_dispersion
@@ -280,7 +281,7 @@ class Posterior:
         for tensors in self.sequential(1000):
             sample_batch, _, _, batch_index, labels = tensors
             px_dispersion, px_rate, px_dropout = self.model.inference(sample_batch, batch_index=batch_index, y=labels,
-                                                                      n_samples=1)[:3]
+                                                                      n_samples=1)[1:4]
 
             dispersion_list += [np.repeat(np.array(px_dispersion.cpu())[np.newaxis, :], px_rate.size(0), axis=0)]
             mean_list += [np.array(px_rate.cpu())]
@@ -292,7 +293,8 @@ class Posterior:
         libraries = []
         for tensors in self.sequential(batch_size=128):
             x, local_l_mean, local_l_var, batch_index, y = tensors
-            px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library = self.model.inference(x, batch_index, y)
+            px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library = \
+                self.model.inference(x, batch_index, y)
             libraries += [np.array(library.cpu())]
         libraries = np.concatenate(libraries)
         return libraries.ravel()
@@ -324,7 +326,7 @@ class Posterior:
 
             batch = batch.unsqueeze(0).expand((n_samples, batch.size(0), batch.size(1)))
             original = np.array(batch[:, i, j].view(-1).cpu())
-            imputed = np.array(px_rate[i, j].view(-1).cpu())
+            imputed = np.array(px_rate[..., i, j].view(-1).cpu())
 
             cells_index = np.tile(np.array(i.cpu()), n_samples)
 
