@@ -38,7 +38,7 @@ class CiteSeqDataset(GeneExpressionDataset):
         expression_data = self.download_and_preprocess()
 
         super(CiteSeqDataset, self).__init__(
-            *GeneExpressionDataset.get_attributes_from_matrix(expression_data)
+            *self.get_attributes_from_matrix(expression_data)
         )
 
     def preprocess(self):
@@ -82,5 +82,47 @@ class CbmcDataset(CiteSeqDataset):
         >>> gene_dataset = CbmcDataset()
 
     """
-    def __init__(self, save_path='data/citeSeq/'):
+    def __init__(self, save_path='data/citeSeq/', additional_genes=600):
+        self.additional_genes = additional_genes
         super(CbmcDataset, self).__init__(name="cbmc", save_path=save_path)
+
+        # This maintains the library statistics for just umi counts
+        self._X = np.ascontiguousarray(np.concatenate([self._X, self.adt_expression], axis=1), dtype=np.float32)
+        self.indexes_adt = np.arange(self._X.shape[1])[-len(self.protein_markers):]
+
+    def preprocess(self):
+        print("Preprocessing cbmc data")
+        # UMIs
+        self.expression = expression = pd.read_csv(self.save_path + self.download_name_rna, index_col=0,
+                                                   compression='gzip').T
+        gene_symbols = np.array(expression.columns, dtype=str)
+
+        human_filter = np.array([name.startswith('HUMAN') for name in gene_symbols], dtype=np.bool)
+        print("Selecting only HUMAN genes (%d / %d)" % (human_filter.sum(), len(human_filter)))
+        expression_data = expression.values[:, human_filter]
+
+        # Keep top 600 genes by variance as in scVI paper
+        print('Keeping top {} genes by variance'.format(self.additional_genes))
+        gene_vars = np.var(expression_data, axis=0)
+        gene_inds = np.argsort(gene_vars)[-self.additional_genes:]
+        expression_data = expression_data[:, gene_inds]
+
+        # Necessary so we know which cells in adt counts to keep (could be improved)
+        to_keep = np.array((expression_data.sum(axis=1) > 0)).ravel()
+        expression_data = expression_data[to_keep]
+
+        gene_symbols = gene_symbols[human_filter]
+        self.gene_symbols = np.char.upper(
+            np.array([name.split('_')[-1] if '_' in name else name for name in gene_symbols], dtype=np.str)
+        )
+        # ADTs
+        self.adt = adt = pd.read_csv(self.save_path + self.download_name_adt, index_col=0, compression='gzip')
+        # Remove CCR5, CCR7, and CD10 due to poor enrichments
+        # as done in https://satijalab.org/seurat/multimodal_vignette.html
+        self.adt = self.adt.drop(['CCR5', 'CCR7', 'CD10'], axis=0)
+        self.adt = self.adt.loc[:, to_keep]
+        self.adt_expression = adt.T.values
+        self.protein_markers = np.array(adt.index).astype(np.str)
+
+        print("Finish preprocessing data")
+        return expression_data
