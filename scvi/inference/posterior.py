@@ -232,7 +232,7 @@ class Posterior:
             sample_batch, _, _, batch_index, labels = tensors
             px_rate = self.model.get_sample_rate(sample_batch, batch_index=batch_index, y=labels, n_samples=n_samples)
             imputed_list += [np.array(px_rate.cpu())]
-        imputed_list = np.concatenate(imputed_list, axis=1)
+        imputed_list = np.concatenate(imputed_list)
         return imputed_list.squeeze()
 
     def generate(self, n_samples=100, genes=None):  # with n_samples>1 return original list/ otherwose sequential
