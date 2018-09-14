@@ -464,7 +464,7 @@ class Posterior:
 
 
 def entropy_from_indices(indices):
-    return entropy(np.array(itemfreq(indices)[:, 1].astype(np.int32)))
+    return entropy(np.array(np.unique(indices, return_counts=True)[1].astype(np.int32)))
 
 
 def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_samples_per_pool=100, max_number=500):
