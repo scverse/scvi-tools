@@ -197,7 +197,7 @@ class VAECITE(nn.Module):
         if self.reconstruction_loss_adt == 'poisson':
             reconst_loss_adt = -torch.sum(Poisson(px_rate_adt).log_prob(adt), dim=1)
 
-        return reconst_loss_umi + reconst_loss_adt
+        return reconst_loss_umi, reconst_loss_adt
 
     def inference(self, x, batch_index=None, y=None, n_samples=1):
         x_ = x
@@ -261,7 +261,7 @@ class VAECITE(nn.Module):
         # Parameters for z latent distribution
 
         px_scale, px_r, px_rate, px_dropout, px_scale_adt, px_rate_adt, qz_m, qz_v, z, ql_m_umi, ql_v_umi, ql_m_adt, ql_v_adt = self.inference(x, batch_index, y)
-        reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout, px_rate_adt)
+        reconst_loss_umi, reconst_loss_adt = self._reconstruction_loss(x, px_rate, px_r, px_dropout, px_rate_adt)
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)
@@ -274,9 +274,8 @@ class VAECITE(nn.Module):
             local_l_mean_adt = self.adt_mean_lib[batch_index]
             local_l_var_adt = self.adt_var_lib[batch_index]
             kl_divergence_l_adt = kl(Normal(ql_m_adt, torch.sqrt(ql_v_adt)), Normal(local_l_mean_adt, torch.sqrt(local_l_var_adt))).sum(dim=1)
-            kl_divergence_l = kl_divergence_l_umi + kl_divergence_l_adt
         else:
-            kl_divergence_l = kl_divergence_l_umi
+            kl_divergence_l_adt = 0
         kl_divergence = kl_divergence_z
 
-        return reconst_loss + kl_divergence_l, kl_divergence
+        return reconst_loss_umi + kl_divergence_l_umi, reconst_loss_adt + kl_divergence_l_adt, kl_divergence
