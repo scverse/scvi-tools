@@ -5,7 +5,7 @@ import pandas as pd
 import scipy
 import torch
 from matplotlib import pyplot as plt
-from scipy.stats import kde, entropy, itemfreq
+from scipy.stats import kde, entropy
 from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
 from sklearn.metrics import adjusted_rand_score as ARI
