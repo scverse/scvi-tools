@@ -50,7 +50,7 @@ class HematoDataset(GeneExpressionDataset):
     def preprocess(self):
         print("Preprocessing Hemato data")
 
-        if not os.path.exists(self.save_path + self.download_names[0]):
+        if len(os.listdir(self.save_path)) == 2:  # nothing extracted yet
             with ZipFile(self.save_path + 'data.zip', 'r') as zip:
                 zip.extractall(path=Path(self.save_path).parent)
         raw_counts = pd.read_csv(self.save_path + self.download_names[0], compression='gzip')
