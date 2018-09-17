@@ -64,14 +64,11 @@ class VAECITE(nn.Module):
         self.adt_mean_lib = torch.from_numpy(adt_mean_lib)
         self.adt_var_lib = torch.from_numpy(adt_var_lib)
 
-        if self.dispersion == "gene":
-            self.px_r = torch.nn.Parameter(torch.randn(n_input_genes, ))
-        elif self.dispersion == "gene-batch":
-            self.px_r = torch.nn.Parameter(torch.randn(n_input_genes, n_batch))
-        elif self.dispersion == "gene-label":
-            self.px_r = torch.nn.Parameter(torch.randn(n_input_genes, n_labels))
-        else:  # gene-cell
-            pass
+
+        self.px_r_umi = torch.nn.Parameter(torch.randn(n_input_genes, ))
+        # self.px_r_adt = torch.nn.Parameter(torch.randn(self.n_input_proteins, ))
+
+
 
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         # latent space representation
@@ -147,7 +144,7 @@ class VAECITE(nn.Module):
         :return: tensor of predicted frequencies of expression with shape ``(batch_size, n_input)``
         :rtype: :py:class:`torch.Tensor`
         """
-        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[0]
+        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[0]['umi']
 
     def get_sample_scale_adt(self, x, batch_index=None, y=None, n_samples=1):
         r"""Returns the tensor of predicted frequencies of expression
@@ -159,7 +156,7 @@ class VAECITE(nn.Module):
         :return: tensor of predicted frequencies of expression with shape ``(batch_size, n_input)``
         :rtype: :py:class:`torch.Tensor`
         """
-        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[4]
+        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[0]['adt']
 
     def get_sample_rate_umi(self, x, batch_index=None, y=None, n_samples=1):
         r"""Returns the tensor of means of the negative binomial distribution
@@ -171,7 +168,7 @@ class VAECITE(nn.Module):
         :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
         :rtype: :py:class:`torch.Tensor`
         """
-        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[2]
+        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[2]['umi']
 
     def get_sample_rate_adt(self, x, batch_index=None, y=None, n_samples=1):
         r"""Returns the tensor of means of the negative binomial distribution
@@ -183,19 +180,23 @@ class VAECITE(nn.Module):
         :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
         :rtype: :py:class:`torch.Tensor`
         """
-        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[5]
+        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[2]['umi']
 
-    def _reconstruction_loss(self, x, px_rate, px_r, px_dropout, px_rate_adt):
+    def _reconstruction_loss(self, x, px_rate, px_r, px_dropout):
         # Reconstruction Loss
         umi = x[:, :self.n_input_genes]
         adt = x[:, self.n_input_genes:]
         if self.reconstruction_loss_umi == 'zinb':
-            reconst_loss_umi = -log_zinb_positive(umi, px_rate, px_r, px_dropout)
+            reconst_loss_umi = -log_zinb_positive(umi, px_rate['umi'], px_r['umi'], px_dropout['umi'])
         else:
             reconst_loss_umi = -log_nb_positive(umi, px_rate, px_r)
 
         if self.reconstruction_loss_adt == 'poisson':
-            reconst_loss_adt = -torch.sum(Poisson(px_rate_adt).log_prob(adt), dim=1)
+            reconst_loss_adt = -torch.sum(Poisson(px_rate['adt']).log_prob(adt), dim=1)
+        if self.reconstruction_loss_adt == 'nb':
+            reconst_loss_adt = -log_nb_positive(adt, px_rate['adt'], px_r['adt'])
+        if self.reconstruction_loss_adt == 'zinb':
+            reconst_loss_adt = -log_zinb_positive(adt, px_rate['adt'], px_r['adt'], px_dropout['adt'])
 
         return reconst_loss_umi, reconst_loss_adt
 
@@ -208,9 +209,11 @@ class VAECITE(nn.Module):
         adt_ = x_[:, self.n_input_genes:]
         # Sampling - Encoder gets concatenated genes + proteins
         qz_m, qz_v, z = self.z_encoder(x_, y)
-        ql_m_umi, ql_v_umi, library_umi = self.l_umi_encoder(umi_)
+        ql_m = {}
+        ql_v = {}
+        ql_m['umi'], ql_v['umi'], library_umi = self.l_umi_encoder(umi_)
         if self.model_library:
-            ql_m_adt, ql_v_adt, library_adt = self.l_adt_encoder(adt_)
+            ql_m['adt'], ql_v['adt'], library_adt = self.l_adt_encoder(adt_)
 
         # TODO WHAT IS THIS CODE
         # if n_samples > 1:
@@ -231,19 +234,18 @@ class VAECITE(nn.Module):
         #             (n_samples, ql_v_adt.size(0), ql_v_adt.size(1)))
         #         library_adt = Normal(ql_m_adt, ql_v_adt.sqrt()).sample()
 
-        px_scale, px_r, px_rate, px_dropout = self.umi_decoder(self.dispersion, z, library_umi, batch_index, y)
-        if self.dispersion == "gene-label":
-            # px_r gets transposed - last dimension is nb genes
-            px_r = F.linear(one_hot(y, self.n_labels), self.px_r)
-        elif self.dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
-        elif self.dispersion == "gene":
-            px_r = self.px_r
-        px_r = torch.exp(px_r)
+        px_scale = {}
+        px_r = {}
+        px_rate = {}
+        px_dropout = {}
+        px_scale['umi'], px_r['umi'], px_rate['umi'], px_dropout['umi'] = self.umi_decoder(self.dispersion, z, library_umi, batch_index, y)
+        px_r['umi'] = torch.exp(self.px_r_umi)
 
-        px_scale_adt, _, px_rate_adt, _ = self.adt_decoder(self.dispersion, z, library_adt, batch_index, y)
+        px_scale['adt'], px_r['adt'], px_rate['adt'], px_dropout['adt'] = self.adt_decoder('gene-cell', z, library_adt, batch_index, y)
+        px_r['adt'] = torch.exp(px_r['adt'])
+        # px_r['adt'] = torch.exp(self.px_r_adt)
 
-        return px_scale, px_r, px_rate, px_dropout, px_scale_adt, px_rate_adt, qz_m, qz_v, z, ql_m_umi, ql_v_umi, ql_m_adt, ql_v_adt
+        return px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v
 
     def forward(self, x, local_l_mean_umi, local_l_var_umi, batch_index=None, y=None):
         r""" Returns the reconstruction loss and the Kullback divergences
@@ -260,8 +262,8 @@ class VAECITE(nn.Module):
         """
         # Parameters for z latent distribution
 
-        px_scale, px_r, px_rate, px_dropout, px_scale_adt, px_rate_adt, qz_m, qz_v, z, ql_m_umi, ql_v_umi, ql_m_adt, ql_v_adt = self.inference(x, batch_index, y)
-        reconst_loss_umi, reconst_loss_adt = self._reconstruction_loss(x, px_rate, px_r, px_dropout, px_rate_adt)
+        px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v = self.inference(x, batch_index, y)
+        reconst_loss_umi, reconst_loss_adt = self._reconstruction_loss(x, px_rate, px_r, px_dropout)
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)
@@ -269,11 +271,11 @@ class VAECITE(nn.Module):
 
         kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)),
                              Normal(mean, scale)).sum(dim=1)
-        kl_divergence_l_umi = kl(Normal(ql_m_umi, torch.sqrt(ql_v_umi)), Normal(local_l_mean_umi, torch.sqrt(local_l_var_umi))).sum(dim=1)
+        kl_divergence_l_umi = kl(Normal(ql_m['umi'], torch.sqrt(ql_v['umi'])), Normal(local_l_mean_umi, torch.sqrt(local_l_var_umi))).sum(dim=1)
         if self.model_library:
             local_l_mean_adt = self.adt_mean_lib[batch_index]
             local_l_var_adt = self.adt_var_lib[batch_index]
-            kl_divergence_l_adt = kl(Normal(ql_m_adt, torch.sqrt(ql_v_adt)), Normal(local_l_mean_adt, torch.sqrt(local_l_var_adt))).sum(dim=1)
+            kl_divergence_l_adt = kl(Normal(ql_m['adt'], torch.sqrt(ql_v['adt'])), Normal(local_l_mean_adt, torch.sqrt(local_l_var_adt))).sum(dim=1)
         else:
             kl_divergence_l_adt = 0
         kl_divergence = kl_divergence_z
