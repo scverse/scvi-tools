@@ -61,8 +61,8 @@ class VAECITE(nn.Module):
         self.n_input_proteins = len(protein_indexes)
         self.reconstruction_loss_adt = reconstruction_loss_adt
         self.model_library = model_library
-        self.adt_mean_lib = torch.from_numpy(adt_mean_lib)
-        self.adt_var_lib = torch.from_numpy(adt_var_lib)
+        self.adt_mean_lib = adt_mean_lib
+        self.adt_var_lib = adt_var_lib
 
 
         self.px_r_umi = torch.nn.Parameter(torch.randn(n_input_genes, ))
@@ -76,11 +76,11 @@ class VAECITE(nn.Module):
                                  dropout_rate=dropout_rate)
         self.l_umi_encoder = Encoder(n_input_genes, 1, n_hidden=n_hidden, n_layers=n_layers,
                                      dropout_rate=dropout_rate)
-        self.l_adt_encoder = Encoder(self.n_input_proteins, 1, n_hidden=n_hidden, n_layers=n_layers,
+        self.l_adt_encoder = Encoder(self.n_input_proteins, 1, n_hidden=6, n_layers=n_layers,
                                      dropout_rate=dropout_rate)
         self.umi_decoder = DecoderSCVI(n_latent, n_input_genes, n_layers=n_layers, n_hidden=n_hidden,
                                        n_cat_list=[n_batch])
-        self.adt_decoder = DecoderSCVI(n_latent, self.n_input_proteins, n_layers=n_layers, n_hidden=n_hidden, n_cat_list=[n_batch])
+        self.adt_decoder = DecoderSCVI(n_latent, self.n_input_proteins, n_layers=n_layers, n_hidden=6, n_cat_list=[n_batch])
 
     def get_latents(self, x, y=None):
         r""" returns the result of ``sample_from_posterior_z`` inside a list
@@ -180,7 +180,7 @@ class VAECITE(nn.Module):
         :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
         :rtype: :py:class:`torch.Tensor`
         """
-        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[2]['umi']
+        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[2]['adt']
 
     def _reconstruction_loss(self, x, px_rate, px_r, px_dropout):
         # Reconstruction Loss
@@ -273,8 +273,8 @@ class VAECITE(nn.Module):
                              Normal(mean, scale)).sum(dim=1)
         kl_divergence_l_umi = kl(Normal(ql_m['umi'], torch.sqrt(ql_v['umi'])), Normal(local_l_mean_umi, torch.sqrt(local_l_var_umi))).sum(dim=1)
         if self.model_library:
-            local_l_mean_adt = self.adt_mean_lib[batch_index]
-            local_l_var_adt = self.adt_var_lib[batch_index]
+            local_l_mean_adt = self.adt_mean_lib * torch.ones_like(ql_m['adt'])
+            local_l_var_adt = self.adt_var_lib * torch.ones_like(ql_v['adt'])
             kl_divergence_l_adt = kl(Normal(ql_m['adt'], torch.sqrt(ql_v['adt'])), Normal(local_l_mean_adt, torch.sqrt(local_l_var_adt))).sum(dim=1)
         else:
             kl_divergence_l_adt = 0
