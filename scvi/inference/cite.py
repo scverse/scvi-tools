@@ -13,21 +13,21 @@ class CitePosterior(Posterior):
 
     def ll_umi(self, verbose=False):
         self.mode = 'umi'
-        ll = self.compute_log_likelihood(self.model, self)
+        ll = self.compute_log_likelihood(self.model)
         if verbose:
             print("LL UMI: %.4f" % ll)
         return ll
 
     def ll_adt(self, verbose=False):
         self.mode = 'adt'
-        ll = self.compute_log_likelihood(self.model, self)
+        ll = self.compute_log_likelihood(self.model)
         if verbose:
             print("LL ADT: %.4f" % ll)
         return ll
 
     def ll(self, verbose=False):
         self.mode = 'total'
-        ll = self.compute_log_likelihood(self.model, self)
+        ll = self.compute_log_likelihood(self.model)
         if verbose:
             print("LL UMI: %.4f" % ll)
         return ll
