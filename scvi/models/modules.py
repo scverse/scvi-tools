@@ -22,7 +22,8 @@ class FCLayers(nn.Module):
     """
 
     def __init__(self, n_in: int, n_out: int, n_cat_list: Iterable[int] = None,
-                 n_layers: int = 1, n_hidden: int = 128, dropout_rate: float = 0.1, use_batch_norm=True):
+                 n_layers: int = 1, n_hidden: int = 128, dropout_rate: float = 0.1, use_batch_norm: bool = True,
+                 dropout_first_layer: bool = True):
         super(FCLayers, self).__init__()
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
 
@@ -32,13 +33,16 @@ class FCLayers(nn.Module):
         else:
             self.n_cat_list = []
 
-        self.fc_layers = nn.Sequential(collections.OrderedDict(
-            [('Layer {}'.format(i), nn.Sequential(
-                nn.Linear(n_in + sum(self.n_cat_list), n_out),
-                nn.BatchNorm1d(n_out, momentum=.01, eps=0.001) if use_batch_norm else None,
-                nn.ReLU(),
-                nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None))
-             for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))]))
+        list_layers = []
+        for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:])):
+            local_layer = [("linear_" + str(i), nn.Linear(n_in + sum(self.n_cat_list), n_out))]
+            if use_batch_norm:
+                local_layer.append(("batch_norm_" + str(i), nn.BatchNorm1d(n_out, momentum=.01, eps=0.001)))
+            local_layer.append(("non_linearity_" + str(i), nn.ReLU()))
+            if i > 0 or dropout_first_layer:
+                local_layer.append(("dropout_" + str(i), nn.Dropout(p=dropout_rate)))
+            list_layers.append(('Layer {}'.format(i), nn.Sequential(collections.OrderedDict(local_layer))))
+        self.fc_layers = nn.Sequential(collections.OrderedDict(list_layers))
 
     def forward(self, x: torch.Tensor, *cat_list: int):
         r"""Forward computation on ``x``.
@@ -142,11 +146,12 @@ class DecoderSCVI(nn.Module):
 
     def __init__(self, n_input: int, n_output: int,
                  n_cat_list: Iterable[int] = None, n_layers: int = 1,
-                 n_hidden: int = 128):
+                 n_hidden: int = 128, dropout_rate: float = 0.1, dropout_first_layer: bool = True):
         super(DecoderSCVI, self).__init__()
         self.px_decoder = FCLayers(n_in=n_input, n_out=n_hidden,
                                    n_cat_list=n_cat_list, n_layers=n_layers,
-                                   n_hidden=n_hidden, dropout_rate=0.1)
+                                   n_hidden=n_hidden, dropout_rate=dropout_rate,
+                                   dropout_first_layer=dropout_first_layer)
 
         # mean gamma
         self.px_scale_decoder = nn.Sequential(nn.Linear(n_hidden, n_output), nn.Softmax(dim=-1))
@@ -210,7 +215,7 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.decoder = FCLayers(n_in=n_input, n_out=n_hidden,
                                 n_cat_list=n_cat_list, n_layers=n_layers,
-                                n_hidden=n_hidden, dropout_rate=0.1)
+                                n_hidden=n_hidden, dropout_rate=0)
 
         self.mean_decoder = nn.Linear(n_hidden, n_output)
         self.var_decoder = nn.Linear(n_hidden, n_output)
