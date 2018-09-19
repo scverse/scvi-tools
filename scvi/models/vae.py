@@ -74,7 +74,8 @@ class VAE(nn.Module):
         # l encoder goes from n_input-dimensional data to 1-d library size
         self.l_encoder = Encoder(n_input, 1, n_layers=1, n_hidden=n_hidden, dropout_rate=dropout_rate)
         # decoder goes from n_latent-dimensional space to n_input-d data
-        self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch], n_layers=n_layers, n_hidden=n_hidden)
+        self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch], n_layers=n_layers, n_hidden=n_hidden,
+                                   dropout_rate=dropout_rate, dropout_first_layer=False)
 
     def get_latents(self, x, y=None):
         r""" returns the result of ``sample_from_posterior_z`` inside a list
