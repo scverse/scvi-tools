@@ -32,12 +32,25 @@ class FCLayers(nn.Module):
         else:
             self.n_cat_list = []
 
-        self.fc_layers = nn.Sequential(collections.OrderedDict(
-            [('Layer {}'.format(i), nn.Sequential(
-                nn.Linear(n_in + sum(self.n_cat_list), n_out),
-                nn.BatchNorm1d(n_out, eps=1e-3, momentum=0.99),
-                nn.ReLU(),
-                nn.Dropout(p=dropout_rate))) for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))]))
+        list_layers = []
+        for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:])):
+            if i == 0:
+                # No dropout on the first layer
+                list_layers.append(('Layer {}'.format(i), nn.Sequential(
+                    nn.Linear(n_in + sum(self.n_cat_list), n_out),
+                    nn.BatchNorm1d(n_out, eps=1e-3, momentum=0.99),
+                    nn.ReLU()
+                )))
+
+            else:
+                list_layers.append(('Layer {}'.format(i), nn.Sequential(
+                    nn.Linear(n_in + sum(self.n_cat_list), n_out),
+                    nn.BatchNorm1d(n_out, eps=1e-3, momentum=0.99),
+                    nn.ReLU(),
+                    nn.Dropout(p=dropout_rate)
+                )))
+
+        self.fc_layers = nn.Sequential(collections.OrderedDict(list_layers))
 
     def forward(self, x: torch.Tensor, *cat_list: int):
         r"""Forward computation on ``x``.
