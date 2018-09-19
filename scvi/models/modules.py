@@ -146,7 +146,7 @@ class DecoderSCVI(nn.Module):
         super(DecoderSCVI, self).__init__()
         self.px_decoder = FCLayers(n_in=n_input, n_out=n_hidden,
                                    n_cat_list=n_cat_list, n_layers=n_layers,
-                                   n_hidden=n_hidden, dropout_rate=0)
+                                   n_hidden=n_hidden, dropout_rate=0.1)
 
         # mean gamma
         self.px_scale_decoder = nn.Sequential(nn.Linear(n_hidden, n_output), nn.Softmax(dim=-1))
@@ -210,7 +210,7 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.decoder = FCLayers(n_in=n_input, n_out=n_hidden,
                                 n_cat_list=n_cat_list, n_layers=n_layers,
-                                n_hidden=n_hidden, dropout_rate=0)
+                                n_hidden=n_hidden, dropout_rate=0.1)
 
         self.mean_decoder = nn.Linear(n_hidden, n_output)
         self.var_decoder = nn.Linear(n_hidden, n_output)

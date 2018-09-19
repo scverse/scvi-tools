@@ -13,6 +13,11 @@ import torch
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
 
+def rank(x):
+    uniq = np.unique(x)
+    lookup = dict(zip(uniq, np.arange(len(uniq))))
+    x = np.asarray([lookup[i] for i in x])
+    return (x)
 
 class GeneExpressionDataset(Dataset):
     """Gene Expression dataset. It deals with:
@@ -138,14 +143,39 @@ class GeneExpressionDataset(Dataset):
         self.library_size_batch()
 
     def subsample_genes(self, new_n_genes=None, subset_genes=None):
+        nonzero = (np.asarray(np.mean(self.X,axis=0)).ravel()>0)
+        self.X = self.X[:, nonzero]
+        self.update_genes(nonzero)
         n_cells, n_genes = self.X.shape
-        if subset_genes is None and (new_n_genes is False or new_n_genes >= n_genes):
+        n_batches = self.n_batches
+        if subset_genes is not None:
+            new_n_genes = len(subset_genes) if subset_genes.dtype is not np.dtype('bool') else subset_genes.sum()
+            print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))
+        if subset_genes is None and \
+                (new_n_genes is False or new_n_genes >= n_genes):
             return None  # Do nothing if subsample more genes than total number of genes
-        if subset_genes is None:
-            std_scaler = StandardScaler(with_mean=False)
-            std_scaler.fit(self.X.astype(np.float64))
-            subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
-        self._X = self.X[:, subset_genes]
+        elif subset_genes is None:
+            if n_batches==1:
+                print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))
+                std_scaler = StandardScaler(with_mean=False)
+                std_scaler.fit(self.X.astype(np.float64))
+                self.X = self.X[:, std_scaler.mean_>0]
+                self.update_genes(std_scaler.mean_>0)
+                std_scaler.fit(self.X.astype(np.float64))
+                subset_genes = np.argsort(std_scaler.var_ / std_scaler.mean_) [::-1][:new_n_genes]
+            else:
+                subsets = []
+                self.X = self.X.tocsr()
+                for i in np.arange(n_batches):
+                    std_scaler = StandardScaler(with_mean=False)
+                    std_scaler.fit(self.X.astype(np.float64)[self.batch_indices.ravel()==i,:])
+                    subset_genes = np.argsort(std_scaler.var_ / std_scaler.mean_)[::-1][:new_n_genes]
+                    subsets.append(set(subset_genes))
+                subset_genes = set.union(*subsets)
+                subset_genes = np.asarray(list(subset_genes))
+                new_n_genes = len(subset_genes)
+                print("Downsampling from %i to %i genes" % (n_genes, new_n_genes))
+        self.X = self.X[:, subset_genes]
         self.update_genes(subset_genes)
 
     def filter_genes(self, gene_names_ref, on='gene_names'):
@@ -161,6 +191,8 @@ class GeneExpressionDataset(Dataset):
         new_n_cells = int(size * n_genes) if type(size) is not int else size
         indices = np.argsort(np.array(self.X.sum(axis=1)).ravel())[::-1][:new_n_cells]
         self.update_cells(indices)
+        self.cell_types = self.cell_types[np.unique(self.labels)]
+        self.labels = rank(self.labels.ravel()).reshape(len(self.labels))
 
     def _cell_type_idx(self, cell_types):
         if type(cell_types[0]) is not int:

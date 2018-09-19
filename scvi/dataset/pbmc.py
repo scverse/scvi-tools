@@ -93,10 +93,12 @@ class PurifiedPBMCDataset(GeneExpressionDataset):
         for cell_type in cell_types:
             dataset = Dataset10X(cell_type, save_path=save_path)
             dataset.cell_types = np.array([cell_type])
+            dataset.subsample_genes(dataset.nb_genes)
             datasets += [dataset]
 
         pbmc = GeneExpressionDataset.concat_datasets(*datasets, shared_batches=True)
-        pbmc.subsample_genes(subset_genes=(np.array(pbmc.X.sum(axis=0)) > 0).ravel())
+        print('concatenation worked')
+        pbmc.subsample_genes(pbmc.nb_genes)
         super(PurifiedPBMCDataset, self).__init__(pbmc.X, pbmc.local_means, pbmc.local_vars,
                                                   pbmc.batch_indices, pbmc.labels,
                                                   gene_names=pbmc.gene_names, cell_types=pbmc.cell_types)

@@ -114,6 +114,8 @@ class VAE(nn.Module):
         ql_m, ql_v, library = self.l_encoder(x)
         return library
 
+
+
     def get_sample_scale(self, x, batch_index=None, y=None, n_samples=1):
         r"""Returns the tensor of predicted frequencies of expression
 
@@ -145,6 +147,15 @@ class VAE(nn.Module):
         elif self.reconstruction_loss == 'nb':
             reconst_loss = -log_nb_positive(x, px_rate, px_r)
         return reconst_loss
+
+    def scale_from_z(self,sample_batch,fixed_batch):
+        if self.log_variational:
+            sample_batch = torch.log(1 + sample_batch)
+        qz_m, qz_v, z = self.z_encoder(sample_batch)
+        batch_index = torch.cuda.IntTensor(sample_batch.shape[0], 1).fill_(fixed_batch)
+        library = torch.cuda.FloatTensor(sample_batch.shape[0], 1).fill_(4)
+        px_scale, _, _, _ = self.decoder('gene', z, library, batch_index)
+        return px_scale
 
     def inference(self, x, batch_index=None, y=None, n_samples=1):
         x_ = x

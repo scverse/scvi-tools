@@ -19,6 +19,8 @@ from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler, Ran
 
 from scvi.models.log_likelihood import compute_log_likelihood, compute_marginal_log_likelihood
 
+import torch.nn.functional as F
+from scvi.models.utils import one_hot
 
 class SequentialSubsetSampler(SubsetRandomSampler):
     def __iter__(self):
@@ -147,6 +149,29 @@ class Posterior:
             batch_indices += [batch_index]
             labels += [label]
         return np.array(torch.cat(latent)), np.array(torch.cat(batch_indices)), np.array(torch.cat(labels)).ravel()
+
+
+    def impute_from_z(self, fixed_batch_indices,fixed_l, sample=False):
+        for tensors in self:
+            sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
+            if not sample:
+                if self.model.log_variational:
+                    sample_batch = torch.log(1 + sample_batch)
+                z = [self.model.z_encoder(sample_batch)[0]]
+            else:
+                z = [self.model.sample_from_posterior_z(sample_batch)]
+            px_scale, px_r, px_rate, px_dropout = self.model.decoder(self.model.dispersion, z, fixed_l, fixed_batch_indices)
+            if self.model.dispersion == "gene-label":
+                px_r = F.linear(one_hot(y, self.model.n_labels),
+                                self.px_r)  # px_r gets transposed - last dimension is nb genes
+            elif self.dispersion == "gene-batch":
+                px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+            elif self.dispersion == "gene":
+                px_r = self.px_r
+            px_r = torch.exp(px_r)
+
+        return px_r
+
 
     def entropy_batch_mixing(self, verbose=False, **kwargs):
         if self.gene_dataset.n_batches == 2:
@@ -296,6 +321,13 @@ class Posterior:
             libraries += [np.array(library.cpu())]
         libraries = np.concatenate(libraries)
         return libraries.ravel()
+
+    def get_harmonized_scale(self,fixed_batch):
+        px_scales = []
+        for tensors in self:
+            sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
+            px_scales += [self.model.scale_from_z(sample_batch,fixed_batch).cpu()]
+        return np.concatenate(px_scales)
 
     def get_sample_scale(self):
         px_scales = []
