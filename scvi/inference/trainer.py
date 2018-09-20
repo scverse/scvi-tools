@@ -222,11 +222,10 @@ class Trainer:
         return type_class(model, gene_dataset, shuffle=shuffle, indices=indices, use_cuda=self.use_cuda,
                           data_loader_kwargs=self.data_loader_kwargs)
 
-
     def get_dataset_information(self, save_imputed=False, file_name_imputation='imputed_values',
                                 save_shape_genes_by_cells=False, save_latent=False, file_name_latent='latent_space'):
         self.model.eval()
-        to_get = {"latent": [], "imputed_values": [], "batch_indices":[], "labels": []}
+        to_get = {"latent": [], "imputed_values": [], "batch_indices": [], "labels": []}
         for tensors in self.all_dataset:
             sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
             to_get["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, give_mean=True)]
@@ -234,7 +233,7 @@ class Trainer:
             to_get["labels"] += [label]
             to_get["batch_indices"] += [batch_index]
         for key in to_get.keys():
-             if len(to_get[key]) > 0:
+            if len(to_get[key]) > 0:
                 to_get[key] = np.array(torch.cat(to_get[key]))
         if save_imputed:
             myfile = open(file_name_imputation, 'w')
@@ -250,7 +249,6 @@ class Trainer:
                 writer = csv.writer(myfile)
                 writer.writerows(to_get["latent"])
         return to_get
-
 
 
 class SequentialSubsetSampler(SubsetRandomSampler):

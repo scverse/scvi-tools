@@ -117,7 +117,6 @@ class VAE(nn.Module):
         ql_m, ql_v, library = self.l_encoder(x)
         return library
 
-
     def get_sample_scale(self, x, batch_index=None, y=None, n_samples=1):
         r"""Returns the tensor of predicted frequencies of expression
 
