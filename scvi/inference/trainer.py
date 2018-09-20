@@ -6,6 +6,7 @@ from itertools import cycle
 
 import numpy as np
 import torch
+import csv
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
 from tqdm import trange
@@ -65,6 +66,7 @@ class Trainer:
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
             self.model.cuda()
+        self.all_dataset = self.create_posterior(self)
 
         self.frequency = frequency if not benchmark else None
         self.verbose = verbose
@@ -219,6 +221,36 @@ class Trainer:
         gene_dataset = self.gene_dataset if gene_dataset is None and hasattr(self, "model") else gene_dataset
         return type_class(model, gene_dataset, shuffle=shuffle, indices=indices, use_cuda=self.use_cuda,
                           data_loader_kwargs=self.data_loader_kwargs)
+
+
+    def get_dataset_information(self, save_imputed=False, file_name_imputation='imputed_values',
+                                save_shape_genes_by_cells=False, save_latent=False, file_name_latent='latent_space'):
+        self.model.eval()
+        to_get = {"latent": [], "imputed_values": [], "batch_indices":[], "labels": []}
+        for tensors in self.all_dataset:
+            sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
+            to_get["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, give_mean=True)]
+            to_get["imputed_values"] += [self.model.get_sample_rate(sample_batch, batch_index=batch_index)]
+            to_get["labels"] += [label]
+            to_get["batch_indices"] += [batch_index]
+        for key in to_get.keys():
+             if len(to_get[key]) > 0:
+                to_get[key] = np.array(torch.cat(to_get[key]))
+        if save_imputed:
+            myfile = open(file_name_imputation, 'w')
+            with myfile:
+                writer = csv.writer(myfile)
+                if save_shape_genes_by_cells:
+                    writer.writerows(np.transpose(to_get["imputed_values"]))
+                else:
+                    writer.writerows(to_get["imputed_values"])
+        if save_latent:
+            myfile = open(file_name_latent, 'w')
+            with myfile:
+                writer = csv.writer(myfile)
+                writer.writerows(to_get["latent"])
+        return to_get
+
 
 
 class SequentialSubsetSampler(SubsetRandomSampler):
