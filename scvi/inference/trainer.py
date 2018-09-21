@@ -222,12 +222,13 @@ class Trainer:
                           data_loader_kwargs=self.data_loader_kwargs)
 
     def get_all_latent_and_imputed_values(self, save_imputed=False, file_name_imputation='imputed_values',
-                                save_shape_genes_by_cells=False, save_latent=False, file_name_latent='latent_space'):
+                                          save_shape_genes_by_cells=False, save_latent=False,
+                                          file_name_latent='latent_space'):
         r"""
         :param save_imputed: True if the user wants to save the imputed values in a .csv file
         :param file_name_imputation: in the situation described above, this is the name of the file saved
-        :param save_shape_genes_by_cells: if save-imputed is true this boolean determines if you want the imputed values
-        to be saved as a genes by cells matrix or a cells by genes matrix
+        :param save_shape_genes_by_cells: if save-imputed is true this boolean determines if you want the
+        imputed values to be saved as a genes by cells matrix or a cells by genes matrix
         :param save_latent: True if the user wants to save the latent space in a .csv file
         :param file_name_latent: in the situation described above, this is the name of the file saved
         :return: a dictionnary of arrays which contain the latent space, the imputed values, the batch_indices and the
