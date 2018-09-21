@@ -72,8 +72,8 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     if theta.ndimension() == 1:
         theta = theta.view(1, theta.size(0))  # In this case, we reshape theta for broadcasting
 
-    case_zero = (F.softplus((- pi + theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps)))
-                 - F.softplus(-pi))
+    case_zero = (F.softplus((- pi + theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps))) -
+                 F.softplus(-pi))
 
     case_non_zero = - pi - F.softplus(-pi) + theta * torch.log(theta + eps) - theta * torch.log(
         theta + mu + eps) + x * torch.log(mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(
