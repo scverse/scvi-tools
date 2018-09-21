@@ -32,7 +32,6 @@ def run_notebook(prefix):
 
 
 def test_notebooks():
-    os.chdir('../')
     for prefix in ['annotation', 'scRNA_and_smFISH', 'data_loading', 'basic_tutorial', 'scVI-reproducibility']:
         print(prefix)
         run_notebook(prefix)
