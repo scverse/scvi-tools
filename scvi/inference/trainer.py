@@ -66,7 +66,6 @@ class Trainer:
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
             self.model.cuda()
-        self.all_dataset = self.create_posterior(self)
 
         self.frequency = frequency if not benchmark else None
         self.verbose = verbose
@@ -222,33 +221,44 @@ class Trainer:
         return type_class(model, gene_dataset, shuffle=shuffle, indices=indices, use_cuda=self.use_cuda,
                           data_loader_kwargs=self.data_loader_kwargs)
 
-    def get_dataset_information(self, save_imputed=False, file_name_imputation='imputed_values',
+    def get_all_latent_and_imputed_values(self, save_imputed=False, file_name_imputation='imputed_values',
                                 save_shape_genes_by_cells=False, save_latent=False, file_name_latent='latent_space'):
+        r"""
+        :param save_imputed: True if the user wants to save the imputed values in a .csv file
+        :param file_name_imputation: in the situation described above, this is the name of the file saved
+        :param save_shape_genes_by_cells: if save-imputed is true this boolean determines if you want the imputed values
+        to be saved as a genes by cells matrix or a cells by genes matrix
+        :param save_latent: True if the user wants to save the latent space in a .csv file
+        :param file_name_latent: in the situation described above, this is the name of the file saved
+        :return: a dictionnary of arrays which contain the latent space, the imputed values, the batch_indices and the
+        labels for the whole dataset with the cells ordered the same way as in the original dataset expression matrix
+        """
+        all_dataset = self.create_posterior()
         self.model.eval()
-        to_get = {"latent": [], "imputed_values": [], "batch_indices": [], "labels": []}
-        for tensors in self.all_dataset:
+        ret = {"latent": [], "imputed_values": [], "batch_indices": [], "labels": []}
+        for tensors in all_dataset:
             sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
-            to_get["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, give_mean=True)]
-            to_get["imputed_values"] += [self.model.get_sample_rate(sample_batch, batch_index=batch_index)]
-            to_get["labels"] += [label]
-            to_get["batch_indices"] += [batch_index]
-        for key in to_get.keys():
-            if len(to_get[key]) > 0:
-                to_get[key] = np.array(torch.cat(to_get[key]))
+            ret["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, give_mean=True)]
+            ret["imputed_values"] += [self.model.get_sample_rate(sample_batch, batch_index=batch_index)]
+            ret["labels"] += [label]
+            ret["batch_indices"] += [batch_index]
+        for key in ret.keys():
+            if len(ret[key]) > 0:
+                ret[key] = np.array(torch.cat(ret[key]))
         if save_imputed:
             myfile = open(file_name_imputation, 'w')
             with myfile:
                 writer = csv.writer(myfile)
                 if save_shape_genes_by_cells:
-                    writer.writerows(np.transpose(to_get["imputed_values"]))
+                    writer.writerows(np.transpose(ret["imputed_values"]))
                 else:
-                    writer.writerows(to_get["imputed_values"])
+                    writer.writerows(ret["imputed_values"])
         if save_latent:
             myfile = open(file_name_latent, 'w')
             with myfile:
                 writer = csv.writer(myfile)
-                writer.writerows(to_get["latent"])
-        return to_get
+                writer.writerows(ret["latent"])
+        return ret
 
 
 class SequentialSubsetSampler(SubsetRandomSampler):
