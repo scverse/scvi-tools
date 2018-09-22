@@ -65,8 +65,17 @@ class VAECITE(nn.Module):
         self.adt_var_lib = adt_var_lib
 
 
-        self.px_r_umi = torch.nn.Parameter(torch.randn(n_input_genes, ))
-        # self.px_r_adt = torch.nn.Parameter(torch.randn(self.n_input_proteins, ))
+        if self.dispersion == "gene":
+            self.px_r_umi = torch.nn.Parameter(torch.randn(n_input_genes, ))
+            self.px_r_adt = torch.nn.Parameter(torch.randn(self.n_input_proteins, ))
+        elif self.dispersion == "gene-batch":
+            self.px_r_umi = torch.nn.Parameter(torch.randn(n_input_genes, n_batch))
+            self.px_r_adt = torch.nn.Parameter(torch.randn(self.n_input_proteins, n_batch))
+        elif self.dispersion == "gene-label":
+            self.px_r_umi = torch.nn.Parameter(torch.randn(n_input_genes, n_labels))
+            self.px_r_adt = torch.nn.Parameter(torch.randn(self.n_input_proteins, n_labels))
+        else:  # gene-cell
+            pass
 
 
 
@@ -239,11 +248,22 @@ class VAECITE(nn.Module):
         px_rate = {}
         px_dropout = {}
         px_scale['umi'], px_r['umi'], px_rate['umi'], px_dropout['umi'] = self.umi_decoder(self.dispersion, z, library_umi, batch_index, y)
-        px_r['umi'] = torch.exp(self.px_r_umi)
+        if self.dispersion == "gene-label":
+            px_r_umi = F.linear(one_hot(y, self.n_labels), self.px_r_umi)  # px_r gets transposed - last dimension is nb genes
+        elif self.dispersion == "gene-batch":
+            px_r_umi = F.linear(one_hot(batch_index, self.n_batch), self.px_r_umi)
+        elif self.dispersion == "gene":
+            px_r_umi = self.px_r_umi
+        px_r['umi'] = torch.exp(px_r_umi)
 
-        px_scale['adt'], px_r['adt'], px_rate['adt'], px_dropout['adt'] = self.adt_decoder('gene-cell', z, library_adt, batch_index, y)
-        px_r['adt'] = torch.exp(px_r['adt'])
-        # px_r['adt'] = torch.exp(self.px_r_adt)
+        px_scale['adt'], px_r['adt'], px_rate['adt'], px_dropout['adt'] = self.adt_decoder(self.dispersion, z, library_adt, batch_index, y)
+        if self.dispersion == "gene-label":
+            px_r_adt = F.linear(one_hot(y, self.n_labels), self.px_r_adt)  # px_r gets transposed - last dimension is nb genes
+        elif self.dispersion == "gene-batch":
+            px_r_adt = F.linear(one_hot(batch_index, self.n_batch), self.px_r_adt)
+        elif self.dispersion == "gene":
+            px_r_adt = self.px_r_adt
+        px_r['adt'] = torch.exp(px_r_adt)
 
         return px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v
 
