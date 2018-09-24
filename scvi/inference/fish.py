@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
+import csv
 
 from scvi.inference import Posterior
 from scvi.inference import Trainer
@@ -63,6 +64,7 @@ class TrainerFish(Trainer):
         self.train_seq, self.test_seq = self.train_test(self.model, gene_dataset_seq, train_size, test_size, seed)
         self.train_fish, self.test_fish = self.train_test(self.model, gene_dataset_fish,
                                                           train_size, test_size, seed, FishPosterior)
+        self.all_fish_dataset = self.create_posterior(gene_dataset=gene_dataset_fish)
         self.test_seq.to_monitor = ['ll']
         self.test_fish.to_monitor = ['ll']
 
@@ -111,3 +113,48 @@ class TrainerFish(Trainer):
         self.weighting = min(1, self.epoch / self.n_epochs_even)
         self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / self.n_epochs_kl)
         self.classification_ponderation = min(1, self.epoch / self.n_epochs_cl)
+
+    def get_all_latent_and_imputed_values(self, save_imputed=False, file_name_imputation='imputed_values',
+                                          save_shape_genes_by_cells=False, save_latent=False,
+                                          file_name_latent='latent_space'):
+        r"""
+        :param save_imputed: True if the user wants to save the imputed values in a .csv file
+        :param file_name_imputation: in the situation described above, this is the name of the file saved
+        :param save_shape_genes_by_cells: if save-imputed is true this boolean determines if you want the
+        imputed values to be saved as a genes by cells matrix or a cells by genes matrix
+        :param save_latent: True if the user wants to save the latent space in a .csv file
+        :param file_name_latent: in the situation described above, this is the name of the file saved
+        :return: a dictionnary of arrays which contain the latent space, the imputed values, the batch_indices and the
+        labels for the whole dataset with the cells ordered the same way as in the original dataset expression matrix
+        """
+        self.model.eval()
+        ret = {"latent": [], "imputed_values": [], "batch_indices": [], "labels": [], "fish_observed_values": []}
+        for tensors in self.all_fish_dataset:
+            sample_batch, local_l_mean, local_l_var, batch_index, label, _, _ = tensors
+            ret["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, mode="smFISH")]
+            ret["imputed_values"] += [self.model.get_sample_scale(sample_batch, mode="smFISH",
+                                                                  batch_index=batch_index)]
+            ret["labels"] += [label]
+            ret["batch_indices"] += [batch_index]
+            ret["fish_observed_values"] += [sample_batch]
+        for key in ret.keys():
+            if len(ret[key]) > 0:
+                ret[key] = np.array(torch.cat(ret[key]))
+        for i in range(self.model):
+            ret["imputed_values"][:, i] = ret["imputed_values"][:, i] /\
+                                          np.sum(ret["imputed_values"][:, self.model.indexes_to_keep], axis=1).ravel()
+            ret["imputed_values"][:, i] *= np.sum(ret["fish_observed_values"][:, self.model.indexes_to_keep], axis=1)
+        if save_imputed:
+            myfile = open(file_name_imputation, 'w')
+            with myfile:
+                writer = csv.writer(myfile)
+                if save_shape_genes_by_cells:
+                    writer.writerows(np.transpose(ret["imputed_values"]))
+                else:
+                    writer.writerows(ret["imputed_values"])
+        if save_latent:
+            myfile = open(file_name_latent, 'w')
+            with myfile:
+                writer = csv.writer(myfile)
+                writer.writerows(ret["latent"])
+        return ret
