@@ -1,6 +1,8 @@
 import os
 import shutil
-
+import nbformat
+from nbconvert.preprocessors import ExecutePreprocessor
+from nbconvert.preprocessors import CellExecutionError
 path = 'docs/notebooks/'
 test_path = 'tests/notebooks/'
 
@@ -18,20 +20,25 @@ def run_notebook(prefix):
 
     # Overwritting
     shutil.copy(test_path + config_filename, path + config_filename)
-    os.chdir('./docs/notebooks')
+    #os.chdir('./docs/notebooks')
+    #os.system('~/miniconda3/envs/env3.7/bin/jupyter nbconvert --execute {:s} --to notebook --ExecutePreprocessor.kernel_name=python'.format(
+    #    nb_filename)
+    #)
     try:
-        os.system('jupyter nbconvert --execute {:s} --to html --ExecutePreprocessor.kernel_name=python'.format(
-            nb_filename)
-        )
-    except BaseException:
-        pass
-    os.chdir('../..')
+        with open(path + nb_filename) as f:
+            nb = nbformat.read(f,as_version=4)
+        ep = ExecutePreprocessor(timeout=600, kernel_name='python3')
+        ep.preprocess(nb,{'metadata' : {'path' : './docs/notebooks/'}})
+    except CellExecutionError:
+        raise
+    finally:
+        if existing_config_to_restore:
+            shutil.move(path + config_filename_tmp, path + config_filename)
 
-    if existing_config_to_restore:
-        shutil.move(path + config_filename_tmp, path + config_filename)
 
 
 def test_notebooks():
     for prefix in ['annotation', 'scRNA_and_smFISH', 'data_loading', 'basic_tutorial', 'scVI-reproducibility']:
+        assert(os.getcwd() == '/home/jules/PycharmProjects/scVI')
         print(prefix)
         run_notebook(prefix)
