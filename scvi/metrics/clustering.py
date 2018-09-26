@@ -3,6 +3,7 @@ import scipy
 import torch
 from scipy.stats import itemfreq, entropy
 from sklearn.cluster import KMeans
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import adjusted_rand_score as ARI
 from sklearn.metrics import normalized_mutual_info_score as NMI
 from sklearn.metrics import silhouette_score
@@ -28,12 +29,15 @@ def unsupervised_clustering_accuracy(y, y_pred):
     return sum([reward_matrix[i, j] for i, j in ind]) * 1.0 / y_pred.size, ind
 
 
-def clustering_scores(latent, labels, prediction_algorithm='knn', n_labels=None):
+def clustering_scores(latent, labels,sample_w_labels, prediction_algorithm='knn', n_labels=None):
     if n_labels is not None:
         n_labels = len(np.unique(labels))
-
-    if prediction_algorithm == 'knn':
+    if prediction_algorithm == 'KMeans':
         labels_pred = KMeans(n_labels, n_init=200).fit_predict(latent)  # n_jobs>1 ?
+    elif prediction_algorithm =='knn':
+        neigh = KNeighborsClassifier(n_neighbors=10)
+        neigh = neigh.fit(latent, labels)
+        labels_pred = neigh.predict(latent)
     elif prediction_algorithm == 'gmm':
         gmm = GMM(n_labels, covariance_type='diag', n_init=200)
         gmm.fit(latent)

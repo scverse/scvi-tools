@@ -37,7 +37,7 @@ class COMBAT():
         # X = ro.r.matrix(X, nrow=nb_genes, ncol=n_samples)
         # ro.r.assign('X', X)
         self.csr2r(dataset.X.T)
-        corrected = ro.r('ComBat(as.matrix(X),batch)')
+        corrected = ro.r('ComBat(log(as.matrix(X)+1),batch)')
         return corrected
 
     def combat_pca(self, dataset):

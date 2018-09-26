@@ -35,7 +35,7 @@ class SEURAT():
 
 
     def get_cca(self):
-        ro.r('combined <- hvg_CCA(seurat1,seurat2,discard=F)')
+        ro.r('combined <- hvg_CCA(list(seurat1,seurat2))')
         latent = ro.r('combined[[1]]')
         labels = ro.r('combined[[3]]')
         batch_indices = ro.r('combined[[2]]')

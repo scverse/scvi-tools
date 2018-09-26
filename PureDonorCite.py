@@ -1,26 +1,23 @@
 use_cuda = True
-from scvi.harmonization.utils_chenling import get_matrix_from_dir
-from scvi.harmonization.benchmark import assign_label
 from scvi.dataset.dataset import GeneExpressionDataset
 from scvi.dataset.pbmc import Dataset10X
 from scvi.dataset.cite_seq import CiteSeqDataset
 
-from scvi.harmonization.utils_chenling import eval_latent, run_model
 from scvi.inference.posterior import *
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.manifold import TSNE
-use_cuda = True
 from scvi.metrics.clustering import select_indices_evenly, clustering_scores, entropy_batch_mixing
 from scipy import sparse
 from scvi.models.vae import VAE
 from scvi.models.scanvi import SCANVI
 from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
 
-cite = CiteSeqDataset('pbmc')
-cite.subsample_genes(cite.nb_genes)
-cite.gene_names = cite.gene_symbols
-cite.cell_types = ['unlabelled']
+#
+# cite = CiteSeqDataset('pbmc')
+# cite.subsample_genes(cite.nb_genes)
+# cite.gene_names = cite.gene_symbols
+# cite.cell_types = ['unlabelled']
 
 donner = Dataset10X('fresh_68k_pbmc_donor_a')
 donner.cell_types = np.asarray(['unlabelled'])
@@ -39,24 +36,36 @@ for cell_type in cell_types:
 
 pure = GeneExpressionDataset.concat_datasets(*datasets, shared_batches=True)
 
+datasets=[]
 
 plotname = 'PureDonorCite.vae'
+
 gene_dataset = GeneExpressionDataset.concat_datasets(cite, donner, pure)
 gene_dataset.X = sparse.csr_matrix(gene_dataset.X)
 gene_dataset.subsample_genes(5000)
 gene_dataset.X = gene_dataset.X.todense()
+
+# from scipy.io import mmwrite
+# filename = 'PureDonorCite'
+# mmwrite('../Seurat_data/' + filename + '.X.mtx', gene_dataset.X.astype('int'))
+# genenames = gene_dataset.gene_names.astype('str')
+# labels = gene_dataset.labels.ravel().astype('int')
+# cell_types = gene_dataset.cell_types.astype('str')
+# batchid = gene_dataset.batch_indices.ravel().astype('int')
+# np.savetxt('../Seurat_data/'+ filename + '.celltypes.txt', cell_types, fmt='%s')
+# np.save('../Seurat_data/' + '../Seurat_data/'+ filename + '.labels.npy', labels)
+# np.save('../Seurat_data/' + filename + '.genenames.npy', genenames)
+# np.save('../Seurat_data/' + filename + '.batch.npy', batchid)
 
 
 vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches, n_labels=gene_dataset.n_labels,
           n_hidden=128, n_latent=10, n_layers=2, dispersion='gene')
 trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
 trainer.train(n_epochs=250)
-batch_entropy = trainer.train_set.entropy_batch_mixing()
-keys = gene_dataset.cell_types
-vae_full = trainer.create_posterior(trainer.model, gene_dataset, indices=np.arange(len(gene_dataset)))
-vae_latent, batch_indices, labels = vae_full.sequential().get_latent()
-batch_indices = batch_indices.ravel()
-labels = labels.ravel()
+
+
+# batch_entropy = trainer.train_set.entropy_batch_mixing()
+# keys = gene_dataset.cell_types
 
 
 scanvi = SCANVI(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_layers=2)
@@ -70,35 +79,54 @@ trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(
 )
 trainer_scanvi.train(n_epochs=50)
 scanvi_posterior = trainer_scanvi.create_posterior(trainer_scanvi.model,gene_dataset)
-pred = scanvi_posterior.sequential().compute_predictions()
-np.mean(pred[0][batch_indices==2] == pred[1][batch_indices==2])
-
-keys = gene_dataset.cell_types
-latent, batch_indices, labels = trainer_scanvi.unlabelled_set.get_latent()
+_, batch_indices, _ = scanvi_posterior.sequential().get_latent()
 batch_indices = batch_indices.ravel()
 
+keys = gene_dataset.cell_types
+latent, batch_indices, labels = trainer_scanvi.labelled_set.get_latent()
+pred = trainer_scanvi.labelled_set.compute_predictions()
+np.mean(pred[0] == pred[1])
+sample = np.random.choice(np.arange(len(labels)),10000,replace=F)
+res = clustering_scores(np.asarray(latent[sample]), labels[sample], 'knn', len(np.unique(labels[sample])))
+# uca = 0.7
+latent, batch_indices, labels = scanvi_posterior.sequential().get_latent()
+batch_indices = batch_indices.ravel()
+
+# def knn_pred(index):
+#     (values, counts) = np.unique(labels[index], return_counts=True)
+#     ind = np.argmax(counts)
+#     return values[ind]
+#
+# from sklearn.neighbors import NearestNeighbors
+# nbrs = NearestNeighbors(n_neighbors=3 + 1).fit(latent[batch_indices==2,:])
+# indices = nbrs.kneighbors(latent, return_distance=False)[:, 1:]
+# pred = np.apply_along_axis(knn_pred,1,indices)
 
 scale1 = full.sequential().get_harmonized_scale(0)
 scale2 = full.sequential().get_harmonized_scale(1)
 from scvi.inference.posterior import get_bayes_factors
 bayes1 = get_bayes_factors(scale1,pred[1],0,5)
 bayes2 = get_bayes_factors(scale2,pred[1],0,5)
-np.savetxt('../genenames.txt',gene_dataset.gene_names,fmt='%s',delimiter=',')
-np.savetxt('../keys.txt',keys,fmt='%s',delimiter=',')
+# np.savetxt('../genenames.txt',gene_dataset.gene_names,fmt='%s',delimiter=',')
+# np.savetxt('../keys.txt',keys,fmt='%s',delimiter=',')
 
-np.save('../three2.latent.npy',latent)
-np.save('../three2.batch_indices.npy',batch_indices)
-np.save('../three2.labels.npy',labels)
-np.savetxt('../three2.keys.txt',keys,fmt='%s',delimiter=',')
+# np.save('../three2.latent.npy',latent)
+# np.save('../three2.batch_indices.npy',batch_indices)
+# np.save('../three2.labels.npy',labels)
+# np.savetxt('../three2.keys.txt',keys,fmt='%s',delimiter=',')
 
-latent = np.load('../three/three2.latent.npy')
-batch_indices = np.load('../three/three2.batch_indices.npy')
-labels = np.load('../three/three2.labels.npy')
-keys = np.genfromtxt('../three/three2.keys.txt',dtype=str)
+# latent = np.load('../three/three2.latent.npy')
+# batch_indices = np.load('../three/three2.batch_indices.npy')
+# labels = np.load('../three/three2.labels.npy')
+# keys = np.genfromtxt('../three/three2.keys.txt',dtype=str)
 
 # 27.52s/it
+vae_full = trainer.create_posterior(trainer.model, gene_dataset, indices=np.arange(len(gene_dataset)))
+latent, batch_indices, labels = vae_full.sequential().get_latent()
+batch_indices = batch_indices.ravel()
+labels = labels.ravel()
+
 sample = select_indices_evenly(2000, batch_indices)
-res = clustering_scores(np.asarray(latent)[sample, :], labels[sample], 'knn', len(np.unique(labels[sample])))
 colors = sns.color_palette('tab20')
 latent_s = latent[sample, :]
 label_s = labels[sample]

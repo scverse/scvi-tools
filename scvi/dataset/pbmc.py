@@ -36,10 +36,13 @@ class PbmcDataset(GeneExpressionDataset):
 
         pbmc_metadata = pickle.load(open(self.save_path + 'pbmc_metadata.pickle', 'rb'))
 
-        pbmc = GeneExpressionDataset.concat_datasets(
-            Dataset10X("pbmc8k", save_path=save_path),
-            Dataset10X("pbmc4k", save_path=save_path)
-        )
+        pbmc8k = Dataset10X("pbmc8k", save_path=save_path)
+        pbmc8k.subsample_genes(pbmc8k.nb_genes)
+        pbmc8k.gene_names = pbmc8k.gene_symbols
+        pbmc4k = Dataset10X("pbmc4k", save_path=save_path)
+        pbmc4k.gene_names = pbmc4k.gene_symbols
+        pbmc4k.subsample_genes(pbmc4k.nb_genes)
+        pbmc = GeneExpressionDataset.concat_datasets(pbmc8k, pbmc4k)
         self.barcodes = pd.concat(pbmc.barcodes).values.ravel().astype(str)
         super(PbmcDataset, self).__init__(pbmc.X, pbmc.local_means, pbmc.local_vars,
                                           pbmc.batch_indices, pbmc.labels, pbmc.gene_names)
@@ -51,6 +54,7 @@ class PbmcDataset(GeneExpressionDataset):
             if barcode in dict_barcodes:  # barcodes with end -11 filtered on 10X website (49 cells)
                 subset_cells += [dict_barcodes[barcode]]
         self.update_cells(subset_cells=np.array(subset_cells))
+        self.subsample_genes(self.nb_genes)
         idx_metadata = np.array([not barcode.endswith('11') for barcode in barcodes_metadata], dtype=np.bool)
         self.design = pbmc_metadata['design'][idx_metadata]
         self.raw_qc = pbmc_metadata['raw_qc'][idx_metadata]
@@ -64,7 +68,7 @@ class PbmcDataset(GeneExpressionDataset):
         self.labels, self.n_labels = arrange_categories(labels)
         self.cell_types = pbmc_metadata['list_clusters'][:self.n_labels]
 
-        genes_to_keep = list(self.de_metadata['ENSG'].values)  # only keep the genes for which we have de data
+        genes_to_keep = list(self.de_metadata['GS'].values)  # only keep the genes for which we have de data
         difference = list(set(genes_to_keep).difference(set(pbmc.gene_names)))  # Non empty only for unit tests
         for gene in difference:
             genes_to_keep.remove(gene)

@@ -29,9 +29,18 @@ nonUMI = GeneExpressionDataset(
 
 gene_dataset = GeneExpressionDataset.concat_datasets(UMI, nonUMI)
 
-latent, batch_indices, labels,keys = run_model(model_type, gene_dataset, UMI, nonUMI,filename=plotname, ngenes=5000)
+genes = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.genes.txt')
+genes = genes.astype('int')
+gene_dataset.X = gene_dataset.X[:,genes]
+gene_dataset.update_genes(genes)
 
-if model_type.startswith('scanvi'):
-    eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type)
-else:
-    eval_latent(batch_indices, labels, latent, keys, plotname+'.'+model_type)
+cells = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.cells.txt')
+print(cells.shape)
+print(gene_dataset.X.shape)
+
+latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, UMI, nonUMI, filename=plotname, ngenes=5000)
+eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type, plotting=True)
+
+for i in [1,2,3]:
+    latent, batch_indices, labels,keys = run_model(model_type, gene_dataset, UMI, nonUMI,filename=plotname, ngenes=5000)
+    eval_latent(batch_indices, labels, latent, keys, plotname+'.'+model_type,plotting=False)

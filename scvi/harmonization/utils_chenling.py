@@ -5,6 +5,7 @@ import scipy.sparse as sparse
 
 from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
 from scvi.inference.posterior import *
+from scvi.harmonization.benchmark import knn_purity_avg
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.manifold import TSNE
@@ -14,18 +15,25 @@ from scvi.metrics.clustering import select_indices_evenly, clustering_scores, en
 
 from scvi.models.scanvi import SCANVI
 from scvi.models.vae import VAE
+from sklearn.neighbors import NearestNeighbors
+
+def SCANVI_pretrain(gene_dataset, nlayers=2):
+    vae = VAE(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_latent=10, n_layers=nlayers)
+    trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
+    trainer.train(n_epochs=250)
+    scanvi = SCANVI(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_layers=nlayers)
+    scanvi.load_state_dict(vae.state_dict(), strict=False)
+    trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=1,
+                                           n_epochs_classifier=1, lr_classification=5 * 1e-3)
 
 
-def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp', nlayers=2, ngenes=5000):
-    if model_type!='readSeurat':
-        gene_dataset.subsample_genes(5000)
+def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp', nlayers=2):
     if model_type == 'vae':
-        gene_dataset.subsample_genes(ngenes)
         vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches, n_labels=gene_dataset.n_labels,
                   n_hidden=128, n_latent=10, n_layers=nlayers, dispersion='gene')
         trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
         trainer.train(n_epochs=250)
-        if gene_dataset.X.shape[0]<10000:
+        if gene_dataset.X.shape[0]<20000:
             trainer.train(n_epochs=250)
         batch_entropy = trainer.train_set.entropy_batch_mixing()
         print("Entropy batch mixing :", batch_entropy)
@@ -33,34 +41,35 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp', nla
                                                save_name='../' + filename + '.' + model_type + '.batch.png')
         keys = gene_dataset.cell_types
         full = trainer.create_posterior(vae, gene_dataset, indices=np.arange(len(gene_dataset)))
+        full.ll(verbose=True)
+        full.marginal_ll(verbose=True)
         latent, batch_indices, labels = full.sequential().get_latent()
         batch_indices = batch_indices.ravel()
         labels = labels.ravel()
     elif model_type == 'scanvi1':
-        gene_dataset.subsample_genes(ngenes)
         vae = VAE(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_latent=10, n_layers=2)
         trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
         trainer.train(n_epochs=250)
-
         scanvi = SCANVI(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_layers=2)
         scanvi.load_state_dict(vae.state_dict(), strict=False)
         trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=1,
                                                n_epochs_classifier=1, lr_classification=5 * 1e-3)
-
         trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=(gene_dataset.batch_indices == 0))
         trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(
             indices=(gene_dataset.batch_indices == 1)
         )
         trainer_scanvi.train(n_epochs=50)
         print('svaec acc =',  trainer_scanvi.unlabelled_set.accuracy())
-        batch_entropy = trainer_scanvi.full_dataset.entropy_batch_mixing()
+        full = trainer_scanvi.create_posterior(scanvi, gene_dataset, indices=np.arange(len(gene_dataset)))
+        full.ll(verbose=True)
+        full.marginal_ll(verbose=True)
+        batch_entropy = full.entropy_batch_mixing()
         print("Entropy batch mixing :", batch_entropy)
-        # trainer_scanvi.full_dataset.show_t_sne(color_by='batches', save_name='../'+filename+'.'+model_type+'.batch.png')
+        trainer_scanvi.full_dataset.show_t_sne(color_by='batches', save_name='../'+filename+'.'+model_type+'.batch.png')
         keys = gene_dataset.cell_types
         latent, batch_indices, labels = trainer_scanvi.unlabelled_set.get_latent()
         batch_indices = batch_indices.ravel()
     elif model_type == 'scanvi2':
-        gene_dataset.subsample_genes(ngenes)
         vae = VAE(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_latent=10, n_layers=2)
         trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
         trainer.train(n_epochs=250)
@@ -69,21 +78,22 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp', nla
         scanvi.load_state_dict(vae.state_dict(), strict=False)
         trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=1,
                                                n_epochs_classifier=1, lr_classification=5 * 1e-3)
-
         trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=(gene_dataset.batch_indices == 1))
         trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(
             indices=(gene_dataset.batch_indices == 0)
         )
         trainer_scanvi.train(n_epochs=50)
         print('svaec acc =',  trainer_scanvi.unlabelled_set.accuracy())
-        batch_entropy = trainer_scanvi.full_dataset.entropy_batch_mixing()
+        full = trainer_scanvi.create_posterior(scanvi, gene_dataset, indices=np.arange(len(gene_dataset)))
+        full.ll(verbose=True)
+        full.marginal_ll(verbose=True)
+        batch_entropy = full.entropy_batch_mixing()
         print("Entropy batch mixing :", batch_entropy)
-        # trainer_scanvi.full_dataset.show_t_sne(color_by='batches', save_name='../'+filename+'.'+model_type+'.batch.png')
+        trainer_scanvi.full_dataset.show_t_sne(color_by='batches', save_name='../'+filename+'.'+model_type+'.batch.png')
         keys = gene_dataset.cell_types
         latent, batch_indices, labels = trainer_scanvi.unlabelled_set.get_latent()
         batch_indices = batch_indices.ravel()
     elif model_type == 'scanvi':
-        gene_dataset.subsample_genes(ngenes)
         vae = VAE(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_latent=10, n_layers=2)
         trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
         trainer.train(n_epochs=250)
@@ -95,10 +105,37 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp', nla
         print('svaec acc =',  trainer_scanvi.unlabelled_set.accuracy())
         batch_entropy = trainer_scanvi.full_dataset.entropy_batch_mixing()
         print("Entropy batch mixing :", batch_entropy)
-        # trainer_scanvi.full_dataset.show_t_sne(color_by='batches', save_name='../'+filename+'.'+model_type+'.batch.png')
+        trainer_scanvi.full_dataset.show_t_sne(color_by='batches', save_name='../'+filename+'.'+model_type+'.batch.png')
+        trainer_scanvi.full_dataset.ll(verbose=True)
+        trainer_scanvi.full_dataset.marginal_ll(verbose=True)
         keys = gene_dataset.cell_types
         latent, batch_indices, labels = trainer_scanvi.unlabelled_set.get_latent()
         batch_indices = batch_indices.ravel()
+    elif model_type =='scanvi0':
+        vae = VAE(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_latent=10, n_layers=2)
+        trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
+        trainer.train(n_epochs=250)
+        scanvi = SCANVI(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_layers=2)
+        scanvi.load_state_dict(vae.state_dict(), strict=False)
+        trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=1,
+                                               n_labelled_samples_per_class=0,n_epochs_classifier=1,
+                                               lr_classification=5 * 1e-3)
+        trainer_scanvi.train(n_epochs=50)
+        print('svaec acc =', trainer_scanvi.unlabelled_set.accuracy())
+        batch_entropy = trainer_scanvi.full_dataset.entropy_batch_mixing()
+        print("Entropy batch mixing :", batch_entropy)
+        keys = gene_dataset.cell_types
+        latent, batch_indices, labels = trainer_scanvi.unlabelled_set.get_latent()
+        batch_indices = batch_indices.ravel()
+    elif model_type=='MNN':
+        from scvi.harmonization.clustering.MNN import MNN
+        from sklearn.decomposition import PCA
+        mnn = MNN()
+        out = mnn.fit_transform(gene_dataset.X.todense(), gene_dataset.batch_indices.ravel(), [0, 1])
+        latent = PCA(n_components=10).fit_transform(out)
+        batch_indices = gene_dataset.batch_indices.ravel()
+        labels = gene_dataset.labels.ravel()
+        keys = gene_dataset.cell_types
     elif model_type == 'Combat':
         from scvi.harmonization.clustering.combat import COMBAT
         combat = COMBAT()
@@ -116,8 +153,6 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp', nla
         latent, batch_indices, labels, keys = seurat.get_cca()
     elif model_type == 'SeuratPC':
         from scvi.harmonization.clustering.seurat import SEURAT
-        dataset1.subsample_genes(ngenes)
-        dataset2.subsample_genes(ngenes)
         seurat = SEURAT()
         seurat.create_seurat(dataset1, 1)
         seurat.create_seurat(dataset2, 2)
@@ -125,20 +160,20 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp', nla
         labels, keys, _, _ = seurat.get_cca()
         keys=0
     # elif model_type =='scmap':
-        # from scvi.harmonization.classification.scmap import SCMAP
-        # print("Starting scmap")
-        # scmap = SCMAP()
-        # count1 = np.asarray(gene_dataset.X[gene_dataset.batch_indices.ravel() == 0, :].todense())
-        # label1 = gene_dataset.labels[gene_dataset.batch_indices.ravel() == 0].ravel().astype('int')
-        # count2 = np.asarray(gene_dataset.X[gene_dataset.batch_indices.ravel() == 1, :].todense())
-        # label2 = gene_dataset.labels[gene_dataset.batch_indices.ravel() == 1].ravel().astype('int')
-        # for n_features in [100, 300, 500, 1000, 2000]:
-        #     scmap.set_parameters(n_features=n_features)
-        #     scmap.fit_scmap_cluster(count1, label1.astype(np.int))
-        #     print("Score Dataset1->Dataset2:%.4f  [n_features = %d]\n" % (scmap.score(count2, label2), n_features))
-        #     scmap.fit_scmap_cluster(count2, label2.astype(np.int))
-        #     print("Score Dataset2->Dataset1:%.4f  [n_features = %d]\n" % (scmap.score(count1, label1), n_features))
-        # sys.exit()
+    #     from scvi.harmonization.classification.scmap import SCMAP
+    #     print("Starting scmap")
+    #     scmap = SCMAP()
+    #     count1 = np.asarray(gene_dataset.X[gene_dataset.batch_indices.ravel() == 0, :].todense())
+    #     label1 = gene_dataset.labels[gene_dataset.batch_indices.ravel() == 0].ravel().astype('int')
+    #     count2 = np.asarray(gene_dataset.X[gene_dataset.batch_indices.ravel() == 1, :].todense())
+    #     label2 = gene_dataset.labels[gene_dataset.batch_indices.ravel() == 1].ravel().astype('int')
+    #     for n_features in [100, 300, 500, 1000, 2000]:
+    #         scmap.set_parameters(n_features=n_features)
+    #         scmap.fit_scmap_cluster(count1, label1.astype(np.int))
+    #         print("Score Dataset1->Dataset2:%.4f  [n_features = %d]\n" % (scmap.score(count2, label2), n_features))
+    #         scmap.fit_scmap_cluster(count2, label2.astype(np.int))
+    #         print("Score Dataset2->Dataset1:%.4f  [n_features = %d]\n" % (scmap.score(count1, label1), n_features))
+    #     sys.exit()
     elif model_type =='writedata':
         from scipy.io import mmwrite
         count = gene_dataset.X
@@ -155,41 +190,44 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp', nla
         sys.exit()
     elif model_type =='readSeurat':
         latent = np.genfromtxt('../Seurat_data/' + filename + '.CCA.txt')
-        labels = np.genfromtxt('../Seurat_data/' + filename + '.CCA.label.txt').astype('int')
-        keys = np.genfromtxt('../Seurat_data/' + filename + '.celltypes.txt', dtype='str', delimiter=',').ravel().astype('str')
-        batch_indices = np.genfromtxt('../Seurat_data/' + filename + '.CCA.batch.txt')
+        labels = gene_dataset.labels.ravel()
+        keys = gene_dataset.cell_types
+        batch_indices = gene_dataset.batch_indices.ravel()
     return latent, batch_indices, labels, keys
 
 
-def eval_latent(batch_indices, labels, latent, keys, plotname=None):
+def eval_latent(batch_indices, labels, latent, keys, plotname=None,plotting=False):
     res = clustering_scores(np.asarray(latent), labels, 'knn', len(np.unique(labels)))
-    sample = select_indices_evenly(2000, labels)
-    # res = clustering_scores(np.asarray(latent)[sample, :], labels[sample], 'knn', len(np.unique(labels[sample])))
     for x in res:
-        print(x, res[x])
-    if plotname is not None:
-        colors = sns.color_palette('tab20')
-        latent_s = latent[sample, :]
-        label_s = labels[sample]
-        batch_s = batch_indices[sample]
-        if latent_s.shape[1] != 2:
-            latent_s = TSNE().fit_transform(latent_s)
-        fig, ax = plt.subplots(figsize=(13, 10))
-        key_order = np.argsort(keys)
-        for i,k in enumerate(key_order):
-            ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i%20], label=keys[k],
-                       edgecolors='none')
-            ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
-        fig.tight_layout()
-        plt.savefig('../'+plotname+'.labels.png')
-        plt.figure(figsize=(10, 10))
-        plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
-        plt.axis("off")
-        plt.tight_layout()
-        plt.savefig('../' + plotname + '.batchid.png')
-        sample = select_indices_evenly(2000, batch_indices)
-        batch_entropy = entropy_batch_mixing(latent[sample, :], batch_indices[sample])
-        print("Entropy batch mixing :", batch_entropy)
+        print('KNN',x, res[x])
+    res = clustering_scores(np.asarray(latent), labels, 'KMeans', len(np.unique(labels)))
+    for x in res:
+        print('KMenas' ,x, res[x])
+    sample = select_indices_evenly(2000, batch_indices)
+    batch_entropy = entropy_batch_mixing(latent[sample, :], batch_indices[sample])
+    print("Entropy batch mixing :", batch_entropy)
+    if plotting==True:
+        sample = select_indices_evenly(2000, labels)
+        if plotname is not None:
+            colors = sns.color_palette('tab20')
+            latent_s = latent[sample, :]
+            label_s = labels[sample]
+            batch_s = batch_indices[sample]
+            if latent_s.shape[1] != 2:
+                latent_s = TSNE().fit_transform(latent_s)
+            fig, ax = plt.subplots(figsize=(13, 10))
+            key_order = np.argsort(keys)
+            for i,k in enumerate(key_order):
+                ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i%20], label=keys[k],
+                           edgecolors='none')
+                ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
+            fig.tight_layout()
+            plt.savefig('../'+plotname+'.labels.png')
+            plt.figure(figsize=(10, 10))
+            plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
+            plt.axis("off")
+            plt.tight_layout()
+            plt.savefig('../' + plotname + '.batchid.png')
 
 
 

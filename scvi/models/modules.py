@@ -23,7 +23,7 @@ class FCLayers(nn.Module):
 
     def __init__(self, n_in: int, n_out: int, n_cat_list: Iterable[int] = None,
                  n_layers: int = 1, n_hidden: int = 128, dropout_rate: float = 0.1, use_batch_norm: bool = True,
-                 dropout_first_layer: bool = True):
+                 dropout_first_layer: bool = False):
         super(FCLayers, self).__init__()
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
 

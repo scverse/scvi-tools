@@ -178,6 +178,7 @@ class GeneExpressionDataset(Dataset):
         self.X = self.X[:, subset_genes]
         self.update_genes(subset_genes)
 
+
     def filter_genes(self, gene_names_ref, on='gene_names'):
         """
         Same as _filter_genes but overwrites on current dataset instead of returning data,

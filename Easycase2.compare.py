@@ -8,22 +8,24 @@ model_type = str(sys.argv[1])
 plotname = 'Macosko_Regev'
 print(model_type)
 
-if model_type!='readSeurat':
-    dataset1 = MacoskoDataset()
-    dataset2 = RegevDataset()
-    dataset1.subsample_genes(dataset1.nb_genes)
-    dataset2.subsample_genes(dataset2.nb_genes)
-    gene_dataset = GeneExpressionDataset.concat_datasets(dataset1, dataset2)
-    gene_dataset.subsample_genes(5000)
+dataset1 = MacoskoDataset()
+dataset2 = RegevDataset()
+dataset1.subsample_genes(dataset1.nb_genes)
+dataset2.subsample_genes(dataset2.nb_genes)
+gene_dataset = GeneExpressionDataset.concat_datasets(dataset1, dataset2)
 
-    if model_type=='writedata':
-        latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, dataset1, dataset2, plotname)
-    else:
-        latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, dataset1, dataset2)
-elif model_type=='readSeurat':
-    latent, batch_indices, labels, keys = run_model(model_type, 0, 0, 0, plotname)
+genes = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.genes.txt')
+genes = genes.astype('int')
+gene_dataset.X = gene_dataset.X[:,genes]
+gene_dataset.update_genes(genes)
 
-if model_type.startswith('scanvi'):
-    eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type)
-else:
-    eval_latent(batch_indices, labels, latent, keys, plotname+'.'+model_type)
+cells = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.cells.txt')
+print(cells.shape)
+print(gene_dataset.X.shape)
+
+latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, dataset1, dataset2, plotname)
+eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type,plotting=True)
+
+for i in [1,2,3]:
+    latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, dataset1, dataset2, plotname)
+    eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type, plotting=False)

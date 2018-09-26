@@ -17,8 +17,22 @@ dataset2 = ZengSS2()
 dataset1.subsample_genes(dataset1.nb_genes)
 dataset2.subsample_genes(dataset2.nb_genes)
 gene_dataset = GeneExpressionDataset.concat_datasets(dataset1, dataset2)
-latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, dataset1, dataset2, filename=plotname, ngenes=5000)
-eval_latent(batch_indices, labels, latent, keys, plotname+'.'+model_type)
+
+genes = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.genes.txt')
+genes = genes.astype('int')
+gene_dataset.X = gene_dataset.X[:,genes]
+gene_dataset.update_genes(genes)
+
+cells = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.cells.txt')
+print(cells.shape)
+print(gene_dataset.X.shape)
+
+latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, dataset1, dataset2, filename=plotname)
+eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type, plotting=True)
+
+for i in [1,2,3]:
+    latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, dataset1, dataset2, filename=plotname)
+    eval_latent(batch_indices, labels, latent, keys, plotname+'.'+model_type,plotting=False)
 
 
 # Seurat

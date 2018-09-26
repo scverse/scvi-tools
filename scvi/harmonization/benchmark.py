@@ -69,14 +69,6 @@ def knn_purity(latent, label, batch_indices, pop1, pop2, keys, n_sample=1000,acc
     batch_indices = batch_indices[sample]
     if str(type(latent)) == "<class 'scipy.sparse.csr.csr_matrix'>":
         latent = latent.todense()
-    distance = np.zeros((n_sample, n_sample))
-    neighbors_graph = np.zeros((n_sample, n_sample))
-    for i in range(n_sample):
-        for j in range(i, n_sample):
-            distance[i, j] = distance[j, i] = np.sum(np.asarray(latent[i] - latent[j]) ** 2)
-    for i, d in enumerate(distance):
-        neighbors_graph[i, d.argsort()[:30]] = 1
-    kmatrix = neighbors_graph - np.identity(latent.shape[0])
     score = []
     for i in range(n_sample):
         if batch_indices[i] == pop1:
