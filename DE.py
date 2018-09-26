@@ -62,3 +62,11 @@ from scvi.inference.posterior import get_bayes_factors
 bayes1 = get_bayes_factors(scale1,full.gene_dataset.labels.ravel(),0,4)
 bayes2 = get_bayes_factors(scale2,full.gene_dataset.labels.ravel(),0,4)
 gene_dataset.gene_names
+
+# ALL GENE SET REFERENCES COME FROM GSE22886
+# [CD4_TCELL_VS_BCELL_NAIVE_UP, CD4_TCELL_VS_BCELL_NAIVE_DN
+# CD8_TCELL_VS_BCELL_NAIVE_UP, CD8_TCELL_VS_BCELL_NAIVE_DN
+# CD8_VS_CD4_NAIVE_TCELL_UP, CD8_VS_CD4_NAIVE_TCELL_DN
+# NAIVE_CD8_TCELL_VS_NKCELL_UP, NAIVE_CD8_TCELL_VS_NKCELL_DN]
+
+

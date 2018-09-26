@@ -1,4 +1,4 @@
-"cd4_t_helper", "regulatory_t", "naive_t", "memory_t", "cytotoxic_t", "naive_cytotoxic","b_cells", "cd34", "cd56_nk", "cd14_monocytes"
+#"cd4_t_helper", "regulatory_t", "naive_t", "memory_t", "cytotoxic_t", "naive_cytotoxic","b_cells", "cd34", "cd56_nk", "cd14_monocytes"
 
 #cd4_t_helper - naive_cytotoxic
 grep -G ".*CD8.*UP\thttp.*" c7.all.v6.2.symbols.gmt|grep ".*CD4.*UP\thttp.*"| grep -v ".*DC.*UP\thttp.*"| grep -v ".*KO.*UP\thttp.*" |  grep -v ".*PATIENT.*UP\thttp.*"|  grep -v ".*COSTIM.*UP\thttp.*"| grep -v ".*INT.*UP\thttp.*" > CD4CD8.UP.gmt
