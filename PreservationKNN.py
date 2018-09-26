@@ -1,4 +1,3 @@
-from sklearn.neighbors import NearestNeighbors
 from scvi.harmonization.utils_chenling import run_model, eval_latent
 import matplotlib.pyplot as plt
 from scvi.dataset.dataset import GeneExpressionDataset
@@ -9,31 +8,6 @@ dataset2 = TabulaMuris('droplet')
 
 gene_dataset = GeneExpressionDataset.concat_datasets(dataset1, dataset2)
 
-
-
-def JaccardIndex(x1,x2):
-    intersection = np.sum(x1*x2)
-    union = np.sum((x1+x2)>0)
-    return intersection/union
-
-
-def KNNJaccardIndex(latent1, latent2,latent,batchid,nn):
-    knn = NearestNeighbors(n_neighbors=nn, algorithm='auto')
-    nbrs1 = knn.fit(latent1)
-    nbrs1 = nbrs1.kneighbors_graph(latent1).toarray()
-    np.fill_diagonal(nbrs1,0)
-    nbrs2 = knn.fit(latent2)
-    nbrs2 = nbrs2.kneighbors_graph(latent2).toarray()
-    np.fill_diagonal(nbrs2,0)
-    nbrs_1 = knn.fit(latent[batchid==0,:])
-    nbrs_1 = nbrs_1.kneighbors_graph(latent[batchid==0,:]).toarray()
-    np.fill_diagonal(nbrs_1,0)
-    nbrs_2 = knn.fit(latent[batchid==1,:])
-    nbrs_2 = nbrs_2.kneighbors_graph(latent[batchid==1,:]).toarray()
-    np.fill_diagonal(nbrs_2,0)
-    JI1 = [JaccardIndex(x1, x2) for x1, x2 in zip(nbrs1, nbrs_1)]
-    JI2 = [JaccardIndex(x1, x2) for x1, x2 in zip(nbrs2, nbrs_2)]
-    return [(np.mean(JI1)+np.mean(JI2))/2]
 
 
 # dataset1.X = dataset1.X.tocsr()

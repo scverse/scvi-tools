@@ -1,7 +1,6 @@
 use_cuda = True
 from scvi.dataset.dataset10X import Dataset10X
 from scvi.dataset.pbmc import PbmcDataset
-from scvi.harmonization.benchmark import assign_label
 import numpy as np
 from scvi.dataset.dataset import GeneExpressionDataset
 from scvi.harmonization.utils_chenling import eval_latent, run_model

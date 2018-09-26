@@ -5,7 +5,6 @@ import scipy.sparse as sparse
 
 from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
 from scvi.inference.posterior import *
-from scvi.harmonization.benchmark import knn_purity_avg
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.manifold import TSNE
@@ -17,6 +16,39 @@ from scvi.models.scanvi import SCANVI
 from scvi.models.vae import VAE
 from sklearn.neighbors import NearestNeighbors
 
+from scvi.dataset import GeneExpressionDataset
+from copy import deepcopy
+
+def assign_label(cellid, geneid, labels_map, count, cell_type, seurat):
+    labels = seurat[1:, 4]
+    labels = np.int64(np.asarray(labels))
+    labels_new = deepcopy(labels)
+    for i, j in enumerate(labels_map):
+        labels_new[labels == i] = j
+    temp = dict(zip(cellid, count))
+    new_count = []
+    for x in seurat[1:, 5]:
+        new_count.append(temp[x])
+    new_count = sparse.vstack(new_count)
+    dataset = GeneExpressionDataset(*GeneExpressionDataset.get_attributes_from_matrix(new_count, labels=labels_new),
+                                    gene_names=geneid, cell_types=cell_type)
+    return dataset
+
+
+def trainVAE(gene_dataset,nlayers=2):
+    vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches, n_labels=gene_dataset.n_labels,
+              n_hidden=128, n_latent=10, n_layers=nlayers, dispersion='gene')
+    trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
+    trainer.train(n_epochs=250)
+    if gene_dataset.X.shape[0] < 20000:
+        trainer.train(n_epochs=250)
+    batch_entropy = trainer.train_set.entropy_batch_mixing()
+    print("Entropy batch mixing :", batch_entropy)
+    trainer.train_set.show_t_sne(color_by='batches',
+                                 save_name='../' + filename + '.' + model_type + '.batch.png')
+    full = trainer.create_posterior(vae, gene_dataset, indices=np.arange(len(gene_dataset)))
+    return full
+
 def SCANVI_pretrain(gene_dataset, nlayers=2):
     vae = VAE(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_latent=10, n_layers=nlayers)
     trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
@@ -25,39 +57,24 @@ def SCANVI_pretrain(gene_dataset, nlayers=2):
     scanvi.load_state_dict(vae.state_dict(), strict=False)
     trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=1,
                                            n_epochs_classifier=1, lr_classification=5 * 1e-3)
+    return trainer_scanvi
 
 
 def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp', nlayers=2):
     if model_type == 'vae':
-        vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches, n_labels=gene_dataset.n_labels,
-                  n_hidden=128, n_latent=10, n_layers=nlayers, dispersion='gene')
-        trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
-        trainer.train(n_epochs=250)
-        if gene_dataset.X.shape[0]<20000:
-            trainer.train(n_epochs=250)
-        batch_entropy = trainer.train_set.entropy_batch_mixing()
+        full = trainVAE(gene_dataset)
+        batch_entropy = full.entropy_batch_mixing()
         print("Entropy batch mixing :", batch_entropy)
-        trainer.train_set.show_t_sne(color_by='batches',
-                                               save_name='../' + filename + '.' + model_type + '.batch.png')
-        keys = gene_dataset.cell_types
-        full = trainer.create_posterior(vae, gene_dataset, indices=np.arange(len(gene_dataset)))
+        full.show_t_sne(color_by='batches',save_name='../' + filename + '.' + model_type + '.batch.png')
         full.ll(verbose=True)
         full.marginal_ll(verbose=True)
         latent, batch_indices, labels = full.sequential().get_latent()
         batch_indices = batch_indices.ravel()
         labels = labels.ravel()
     elif model_type == 'scanvi1':
-        vae = VAE(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_latent=10, n_layers=2)
-        trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
-        trainer.train(n_epochs=250)
-        scanvi = SCANVI(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_layers=2)
-        scanvi.load_state_dict(vae.state_dict(), strict=False)
-        trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=1,
-                                               n_epochs_classifier=1, lr_classification=5 * 1e-3)
+        trainer_scanvi = SCANVI_pretrain(gene_dataset)
         trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=(gene_dataset.batch_indices == 0))
-        trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(
-            indices=(gene_dataset.batch_indices == 1)
-        )
+        trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(indices=(gene_dataset.batch_indices == 1))
         trainer_scanvi.train(n_epochs=50)
         print('svaec acc =',  trainer_scanvi.unlabelled_set.accuracy())
         full = trainer_scanvi.create_posterior(scanvi, gene_dataset, indices=np.arange(len(gene_dataset)))
@@ -230,31 +247,29 @@ def eval_latent(batch_indices, labels, latent, keys, plotname=None,plotting=Fals
             plt.savefig('../' + plotname + '.batchid.png')
 
 
+def JaccardIndex(x1,x2):
+    intersection = np.sum(x1*x2)
+    union = np.sum((x1+x2)>0)
+    return intersection/union
 
 
-def combine(list_matrices, list_genes, minthres=0):
-    """
-    :param list_matrices: a list of matrices with genes are rows
-    :param list_genenames: a list of np.array of genenames
-    :return: matrices where each row is one of those genes and set of shared expressed genes
-    """
-    list_matrices = [x.todense() for x in list_matrices]
-    list_genes = [np.asarray(x) for x in list_genes]
-    list_genes = [[str(y) for y in x ]for x in list_genes]
-    allgenes = np.unique(np.concatenate(list_genes))
-    for x in list_genes:
-        allgenes = set(allgenes).intersection(x)
-    allgenes=list(allgenes)
-    combined = []
-    for i in range(len(list_matrices)):
-        data = dict(zip(list_genes[i], list_matrices[i]))
-        temp = [data[x] for x in allgenes]
-        temp = np.asarray(temp)
-        temp = np.squeeze(temp)
-        combined.append(temp)
-
-    return allgenes,combined
-
+def KNNJaccardIndex(latent1, latent2,latent,batchid,nn):
+    knn = NearestNeighbors(n_neighbors=nn, algorithm='auto')
+    nbrs1 = knn.fit(latent1)
+    nbrs1 = nbrs1.kneighbors_graph(latent1).toarray()
+    np.fill_diagonal(nbrs1,0)
+    nbrs2 = knn.fit(latent2)
+    nbrs2 = nbrs2.kneighbors_graph(latent2).toarray()
+    np.fill_diagonal(nbrs2,0)
+    nbrs_1 = knn.fit(latent[batchid==0,:])
+    nbrs_1 = nbrs_1.kneighbors_graph(latent[batchid==0,:]).toarray()
+    np.fill_diagonal(nbrs_1,0)
+    nbrs_2 = knn.fit(latent[batchid==1,:])
+    nbrs_2 = nbrs_2.kneighbors_graph(latent[batchid==1,:]).toarray()
+    np.fill_diagonal(nbrs_2,0)
+    JI1 = [JaccardIndex(x1, x2) for x1, x2 in zip(nbrs1, nbrs_1)]
+    JI2 = [JaccardIndex(x1, x2) for x1, x2 in zip(nbrs2, nbrs_2)]
+    return [(np.mean(JI1)+np.mean(JI2))/2]
 
 
 def get_matrix_from_dir(dirname):
