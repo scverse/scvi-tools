@@ -66,39 +66,30 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp', nla
         batch_entropy = full.entropy_batch_mixing()
         print("Entropy batch mixing :", batch_entropy)
         full.show_t_sne(color_by='batches',save_name='../' + filename + '.' + model_type + '.batch.png')
-        full.ll(verbose=True)
-        full.marginal_ll(verbose=True)
+        ll = full.ll(verbose=True)
         latent, batch_indices, labels = full.sequential().get_latent()
         batch_indices = batch_indices.ravel()
         labels = labels.ravel()
+        batch_entropy = full.entropy_batch_mixing()
+        stats = [ll, batch_entropy]
     elif model_type == 'scanvi1':
         trainer_scanvi = SCANVI_pretrain(gene_dataset)
         trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=(gene_dataset.batch_indices == 0))
         trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(indices=(gene_dataset.batch_indices == 1))
         trainer_scanvi.train(n_epochs=50)
-        print('svaec acc =',  trainer_scanvi.unlabelled_set.accuracy())
-        full = trainer_scanvi.create_posterior(scanvi, gene_dataset, indices=np.arange(len(gene_dataset)))
-        full.ll(verbose=True)
-        full.marginal_ll(verbose=True)
+        acc = trainer_scanvi.unlabelled_set.accuracy()
+        full = trainer_scanvi.create_posterior(trainer_scanvi.model, gene_dataset, indices=np.arange(len(gene_dataset)))
+        ll = full.ll(verbose=True)
         batch_entropy = full.entropy_batch_mixing()
-        print("Entropy batch mixing :", batch_entropy)
+        stats = [ll, batch_entropy, acc]
         trainer_scanvi.full_dataset.show_t_sne(color_by='batches', save_name='../'+filename+'.'+model_type+'.batch.png')
         keys = gene_dataset.cell_types
         latent, batch_indices, labels = trainer_scanvi.unlabelled_set.get_latent()
         batch_indices = batch_indices.ravel()
     elif model_type == 'scanvi2':
-        vae = VAE(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_latent=10, n_layers=2)
-        trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
-        trainer.train(n_epochs=250)
-
-        scanvi = SCANVI(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_layers=2)
-        scanvi.load_state_dict(vae.state_dict(), strict=False)
-        trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=1,
-                                               n_epochs_classifier=1, lr_classification=5 * 1e-3)
+        trainer_scanvi = SCANVI_pretrain(gene_dataset)
         trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=(gene_dataset.batch_indices == 1))
-        trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(
-            indices=(gene_dataset.batch_indices == 0)
-        )
+        trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(indices=(gene_dataset.batch_indices == 0))
         trainer_scanvi.train(n_epochs=50)
         print('svaec acc =',  trainer_scanvi.unlabelled_set.accuracy())
         full = trainer_scanvi.create_posterior(scanvi, gene_dataset, indices=np.arange(len(gene_dataset)))
