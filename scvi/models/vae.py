@@ -45,7 +45,7 @@ class VAE(nn.Module):
     """
 
     def __init__(self, n_input: int, n_batch: int = 0, n_labels: int = 0,
-                 n_hidden: int = 128, n_latent: int = 10, n_layers: int = 1, n_layers_decoder:int = None,
+                 n_hidden: int = 128, n_latent: int = 10, n_layers: int = 1, n_layers_decoder: int = None,
                  dropout_rate: float = 0.1, dispersion: str = "gene",
                  log_variational: bool = True, reconstruction_loss: str = "zinb"):
         super(VAE, self).__init__()
@@ -80,7 +80,7 @@ class VAE(nn.Module):
         # l encoder goes from n_input-dimensional data to 1-d library size
         self.l_encoder = Encoder(n_input, 1, n_layers=1, n_hidden=n_hidden, dropout_rate=dropout_rate)
         # decoder goes from n_latent-dimensional space to n_input-d data
-        self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch], n_layers=n_layers_decoder,
+        self.decoder = DecoderSCVI(n_latent, n_input, n_cat_list=[n_batch], n_layers=self.n_layers_decoder,
                                    n_hidden=n_hidden, dropout_rate=dropout_rate, dropout_first_layer=False)
 
     def get_latents(self, x, y=None):
