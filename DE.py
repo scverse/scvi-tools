@@ -23,6 +23,7 @@ def auc_score_threshold(gene_set, bayes_factor, gene_symbols):
 
 # We need to modify this import to get all the genes
 pbmc = PbmcDataset(filter_out_de_genes=False, use_symbols=False)
+pbmc.batch_indices = np.repeat(0,len(pbmc)).reshape(len(pbmc), 1)
 pbmc68k = Dataset10X('fresh_68k_pbmc_donor_a')
 
 pbmc68k.cell_types = ['unlabelled']
@@ -44,7 +45,7 @@ all_gene_symbols = pbmc68k.gene_symbols[
 # NAIVE_CD8_TCELL_VS_NKCELL_UP, NAIVE_CD8_TCELL_VS_NKCELL_DN]
 
 # For that, let is import the genesets and intersect with the largest gene set from scRNA-seq
-path_geneset = "../Additional_Scripts/genesets.txt"
+path_geneset = "Additional_Scripts/genesets.txt"
 geneset_matrix = np.loadtxt(path_geneset, dtype=np.str)[:, 2:]
 CD4_TCELL_VS_BCELL_NAIVE, CD8_TCELL_VS_BCELL_NAIVE, CD8_VS_CD4_NAIVE_TCELL, NAIVE_CD8_TCELL_VS_NKCELL \
     = [set(geneset_matrix[i:i + 2, :].flatten()) & set(all_gene_symbols) for i in [0, 2, 4, 6]]
@@ -99,8 +100,6 @@ for t, comparison in enumerate(comparisons):
     gene_set = gene_sets[t]
     cell_indices = np.where(np.logical_or(pred == cell_type_label[0], pred == cell_type_label[1]))[0]
     de_posterior = trainer.create_posterior(vae, all_dataset, indices=cell_indices)
-    # TODO: clarify how many batches are used in the experiment.
-    # TODO: 0 and 1 might be from the same Michael PBMC dataset
     scale_pbmc = de_posterior.sequential().get_harmonized_scale(0)
     scale_68k = de_posterior.sequential().get_harmonized_scale(1)
     # For Chenling: I looked again at the number of cells,

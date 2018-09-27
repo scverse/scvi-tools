@@ -50,8 +50,9 @@ def VAEstats(full):
     ll = full.ll(verbose=True)
     latent, batch_indices, labels = full.sequential().get_latent()
     batch_indices = batch_indices.ravel()
+    batch_entropy = entropy_batch_mixing(latent, batch_indices)
     labels = labels.ravel()
-    stats = [ll,0,0,0,np.arange(0,len(labels))]
+    stats = [ll,batch_entropy,-1,-1,np.arange(0,len(labels))]
     return latent, batch_indices, labels, stats
 
 def SCANVIstats(trainer_scanvi,gene_dataset):
@@ -59,7 +60,7 @@ def SCANVIstats(trainer_scanvi,gene_dataset):
     full = trainer_scanvi.create_posterior(trainer_scanvi.model, gene_dataset, indices=np.arange(len(gene_dataset)))
     ll = full.ll(verbose=True)
     batch_entropy = full.entropy_batch_mixing()
-    latent, batch_indices, labels = trainer_scanvi.unlabelled_set.get_latent()
+    latent, batch_indices, labels = full.sequential().get_latent()
     batch_indices = batch_indices.ravel()
     labelled_idx = trainer_scanvi.labelled_set.indices
     unlabelled_idx = trainer_scanvi.unlabelled_set.indices
@@ -164,9 +165,13 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',plot
         n_features = count1.shape[1]
         scmap.set_parameters(n_features=n_features)
         scmap.fit_scmap_cluster(count1, label1.astype(np.int))
-        print("Score Dataset1->Dataset2:%.4f  [n_features = %d]\n" % (scmap.score(count2, label2), n_features))
+        acc1 = scmap.score(count2, label2)
+        acc2 = scmap.score(count1, label1)
+        print("Score Dataset1->Dataset2:%.4f  [n_features = %d]\n" % (acc1, n_features))
         scmap.fit_scmap_cluster(count2, label2.astype(np.int))
-        print("Score Dataset2->Dataset1:%.4f  [n_features = %d]\n" % (scmap.score(count1, label1), n_features))
+        print("Score Dataset2->Dataset1:%.4f  [n_features = %d]\n" % (acc2, n_features))
+        latent = []
+        stats = [-1,acc1,acc2,-1,-1]
 
     elif model_type =='writedata':
         from scipy.io import mmwrite
@@ -297,17 +302,22 @@ def TryFindCells(dict, cellid, count):
 
 
 def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
-    f = open(plotname + models + '.res.txt', "w+")
+    f = open(plotname +'.' + models + '.res.txt', "w+")
     if models =='others':
         latent1 = np.genfromtxt('../Seurat_data/' + plotname + '.1.CCA.txt')
         latent2 = np.genfromtxt('../Seurat_data/' + plotname + '.2.CCA.txt')
-        for model_type in ['readSeurat','Combat','MNN']:
+        for model_type in ['readSeurat','Combat','MNN','scmap']:
             print(model_type)
             latent, batch_indices, labels, keys,stats = run_model(model_type, gene_dataset, dataset1, dataset2, filename=plotname)
-            res_knn, res_kmeans, res_jaccard = eval_latent(batch_indices, labels, latent,latent1,latent2,
-                                                           keys, plotname + '.' + model_type, plotting=True)
-            res = [res_knn[x] for x in res_knn] + [res_kmeans[x] for x in res_kmeans] + [res_jaccard]
-            f.write(model_type + " %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f" % tuple(res))
+            if model_type!='scmap':
+                res_knn, res_kmeans, res_jaccard = eval_latent(batch_indices, labels, latent,latent1,latent2,
+                                                               keys, plotname + '.' + model_type, plotting=True)
+                batch_entropy = entropy_batch_mixing(latent, batch_indices)
+                res = [res_knn[x] for x in res_knn] + [res_kmeans[x] for x in res_kmeans] + [res_jaccard,-1,batch_entropy,-1 ]
+            else:
+                res = [-1,-1,-1,-1,-1,-1,-1,-1,stats[1],stats[2],-1,-1]
+            # asw,nmi,ari,uca,asw,nmi,ari,uca,jaccard,ll,BE,acc
+            f.write(model_type + " %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f" % tuple(res))
     elif models=='scvi':
         dataset1 = deepcopy(gene_dataset)
         dataset1.update_cells(gene_dataset.batch_indices.ravel() == 0)
@@ -317,16 +327,25 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
         dataset2.update_cells(gene_dataset.batch_indices.ravel()  == 1)
         dataset2.subsample_genes(dataset2.nb_genes)
         latent2, _, _, _, _ = run_model('vae', dataset2, 0, 0, filename=plotname)
-        for model_type in ['vae','scanvi','scanvi1','scanvi2','scanvi0']:
+        for model_type in ['vae', 'scanvi', 'scanvi1', 'scanvi2', 'scanvi0']:
             print(model_type)
-            latent, batch_indices, labels, keys,stats = run_model(model_type, gene_dataset, dataset1, dataset2, filename=plotname)
-            eval_latent(batch_indices, labels, latent, latent1, latent2, keys, plotname + '.' + model_type, plotting=True)
+            latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,
+                                                                   filename=plotname)
+            res_knn, res_kmeans, res_jaccard = eval_latent(batch_indices, labels, latent, latent1,
+                                                           latent2, keys, plotname + '.' + model_type,
+                                                           plotting=True)
+            res = [res_knn[x] for x in res_knn] + [res_kmeans[x] for x in res_kmeans] + [res_jaccard]
+            # asw,nmi,ari,uca,asw,nmi,ari,uca,jaccard,ll,BE,acc
+            f.write(model_type + str(i) + " %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f" % tuple(res))
             for i in [1, 2, 3]:
-                latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,filename=plotname)
+                latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,
+                                                                       filename=plotname)
                 res_knn, res_kmeans, res_jaccard = eval_latent(batch_indices, labels, latent, latent1, latent2,
-                                                               keys, plotname + '.' + model_type, plotting=True)
-                res = [res_knn[x] for x in res_knn] + [res_kmeans[x] for x in res_kmeans] + [res_jaccard]
-                f.write(model_type+str(i) + " %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f" % tuple(res))
+                                                               keys, plotname + '.' + model_type, plotting=False)
+                # asw,nmi,ari,uca,asw,nmi,ari,uca,jaccard,ll,BE,acc
+                res = [res_knn[x] for x in res_knn] + [res_kmeans[x] for x in res_kmeans] + [res_jaccard, stats[0],
+                                                                                             stats[1], stats[2]]
+                f.write(model_type + str(i) + " %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f" % tuple(res))
     elif models=='writedata':
         _, _, _, _,_ = run_model('writedata', gene_dataset, dataset1, dataset2, filename=plotname)
     f.close()
