@@ -1,9 +1,14 @@
-from scvi.harmonization.utils_chenling import get_matrix_from_dir,assign_label,KNNJaccardIndex
+from scvi.harmonization.utils_chenling import get_matrix_from_dir, assign_label
 import numpy as np
 from scvi.dataset.dataset import GeneExpressionDataset
 from scvi.harmonization.utils_chenling import eval_latent, run_model
 from copy import deepcopy
-import sys
+from scvi.inference import UnsupervisedTrainer
+from scvi.inference.posterior import *
+from scvi.metrics.clustering import select_indices_evenly, clustering_scores, entropy_batch_mixing
+from scvi.models.vae import VAE
+from sklearn.neighbors import NearestNeighbors
+from scvi.dataset import GeneExpressionDataset
 use_cuda = True
 
 count, geneid, cellid = get_matrix_from_dir('pbmc8k')
@@ -35,27 +40,23 @@ dataset1.subsample_genes(dataset1.nb_genes)
 dataset2.subsample_genes(dataset2.nb_genes)
 gene_dataset = GeneExpressionDataset.concat_datasets(dataset1, dataset2)
 
-genes = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.genes.txt')
+genes = np.genfromtxt('../Seurat_data/Easy1.CCA.genes.txt')
 genes = genes.astype('int')
-gene_dataset.X = gene_dataset.X[:,genes]
+gene_dataset.X = gene_dataset.X[:, genes]
 gene_dataset.update_genes(genes)
 
+# TODO: run scVI
+vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches, n_labels=gene_dataset.n_labels,
+          n_hidden=128, n_latent=10, n_layers=1, n_layers_decoder=1, dispersion='gene')
+trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
+trainer.train(n_epochs=120)
+batch_entropy = trainer.train_set.entropy_batch_mixing()
+full = trainer.create_posterior(vae, gene_dataset, indices=np.arange(len(gene_dataset)))
+ll = full.ll(verbose=True)
+latent, batch_indices, labels = full.sequential().get_latent()
+batch_indices = batch_indices.ravel()
+labels = labels.ravel()
 
-# cells = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.cells.txt')
-latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, dataset1, dataset2,filename=plotname)
-eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type, plotting=True)
-
-dataset1 = deepcopy(gene_dataset)
-dataset1.update_cells(batch_indices==0)
-latent1, _, _, _ = run_model(model_type, dataset1, 0, 0,filename=plotname)
-
-dataset2 = deepcopy(gene_dataset)
-dataset2.update_cells(batch_indices==1)
-latent2, _, _, _ = run_model(model_type, dataset2, 0, 0,filename=plotname)
-
-KNeighbors  = np.concatenate([np.arange(10,100,10),np.arange(100,500,50)])
-res_vae = [KNNJaccardIndex(latent1,latent2,latent,batch_indices,i)[0] for i in KNeighbors]
-
-for i in [1,2,3]:
-    latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, dataset1, dataset2,filename=plotname)
-    eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type,plotting=False)
+res = clustering_scores(np.asarray(latent), labels, 'knn', len(np.unique(labels)))
+res["batch_entropy"] = batch_entropy
+res["ll"] = ll
