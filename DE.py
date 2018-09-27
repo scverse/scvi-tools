@@ -1,4 +1,3 @@
-use_cuda = True
 from scvi.dataset.dataset10X import Dataset10X
 from scvi.dataset.pbmc import PbmcDataset
 import numpy as np
@@ -8,6 +7,19 @@ import sys
 from scvi.models.vae import VAE
 from scvi.models.scanvi import SCANVI
 from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
+from sklearn.metrics import roc_auc_score
+from scvi.inference.posterior import get_bayes_factors
+
+use_cuda = True
+
+
+def auc_score_threshold(gene_set, bayes_factor, gene_symbols):
+    # put ones on the genes from the gene_set
+    true_labels = np.array([g in gene_set for g in gene_symbols])
+    estimated_score = np.abs(bayes_factor)
+    indices = np.isfinite(estimated_score)
+    return roc_auc_score(true_labels[indices], estimated_score[indices])
+
 
 # We need to modify this import to get all the genes
 pbmc = PbmcDataset(filter_out_de_genes=False, use_symbols=False)
@@ -69,39 +81,47 @@ scanvi_posterior = trainer_scanvi.create_posterior(trainer_scanvi.model, all_dat
 # Extract the predicted labels from SCANVI
 pred = scanvi_posterior.compute_predictions()[1]
 
-# comparison = ['CD4 T cells', 'CD8 T cells']
-comparison = ['CD8 T cells', 'B cells']
-# Now for each comparison, let us create a posterior object and compute a Bayes factor
-cell_type_label = [np.where(all_dataset.cell_types == comparison[i])[0][0] for i in [0, 1]]
-cell_indices = np.where(np.logical_or(pred == cell_type_label[0], pred == cell_type_label[1]))[0]
-de_posterior = trainer.create_posterior(vae, all_dataset, indices=cell_indices)
+comparisons = [
+    ['CD4 T cells', 'B cells'],
+    ['CD8 T cells', 'B cells'],
+    ['CD8 T cells', 'CD4 T cells'],
+    ['CD8 T cells', 'NK cells']
+               ]
 
-# TODO: clarify how many batches are used in the experiment.
-# TODO: 0 and 1 might be from the same Michael PBMC dataset
-scale_pbmc = de_posterior.sequential().get_harmonized_scale(0)
-scale_68k = de_posterior.sequential().get_harmonized_scale(1)
+gene_sets = [CD4_TCELL_VS_BCELL_NAIVE,
+             CD8_TCELL_VS_BCELL_NAIVE,
+             CD8_VS_CD4_NAIVE_TCELL,
+             NAIVE_CD8_TCELL_VS_NKCELL]
 
-# For Chenling: I looked again at the number of cells,
-# if we use all of them, we are OK using just one sample from the posterior
+for t, comparison in enumerate(comparisons):
+    # Now for each comparison, let us create a posterior object and compute a Bayes factor
+    cell_type_label = [np.where(all_dataset.cell_types == comparison[i])[0][0] for i in [0, 1]]
+    gene_set = gene_sets[t]
+    cell_indices = np.where(np.logical_or(pred == cell_type_label[0], pred == cell_type_label[1]))[0]
+    de_posterior = trainer.create_posterior(vae, all_dataset, indices=cell_indices)
+    # TODO: clarify how many batches are used in the experiment.
+    # TODO: 0 and 1 might be from the same Michael PBMC dataset
+    scale_pbmc = de_posterior.sequential().get_harmonized_scale(0)
+    scale_68k = de_posterior.sequential().get_harmonized_scale(1)
+    # For Chenling: I looked again at the number of cells,
+    # if we use all of them, we are OK using just one sample from the posterior
+    # first grab the original bayes factor by ignoring the unlabeled cells
+    bayes_pbmc = get_bayes_factors(scale_pbmc,
+                                   all_dataset.labels.ravel()[cell_indices],
+                                   cell_type_label[0],
+                                   cell_type_label[1])
+    # second get them for all the predicted labels cross-datasets
+    probs_all_imputed_pbmc = get_bayes_factors(scale_pbmc,
+                                               pred[cell_indices],
+                                               cell_type_label[0],
+                                               cell_type_label[1], logit=False)
+    probs_all_imputed_68k = get_bayes_factors(scale_68k,
+                                              pred[cell_indices],
+                                              cell_type_label[0],
+                                              cell_type_label[1], logit=False)
+    p_s = pbmc.labels.shape[0] / all_dataset.labels.shape[0]
+    bayes_all_imputed = p_s * probs_all_imputed_pbmc + (1 - p_s) * probs_all_imputed_68k
+    bayes_all_imputed = np.log(bayes_all_imputed + 1e-8) - np.log(1 - bayes_all_imputed + 1e-8)
+    print(auc_score_threshold(gene_set, bayes_pbmc, all_gene_symbols))
+    print(auc_score_threshold(gene_set, bayes_all_imputed, all_gene_symbols))
 
-from scvi.inference.posterior import get_bayes_factors
-
-# first grab the original bayes factor by ignoring the unlabeled cells
-bayes_pbmc = get_bayes_factors(scale_pbmc,
-                               all_dataset.labels.ravel()[cell_indices],
-                               cell_type_label[0],
-                               cell_type_label[1])
-
-# second get them for all the predicted labels cross-datasets
-bayes_all_imputed_pbmc = get_bayes_factors(scale_pbmc,
-                                           pred[cell_indices],
-                                           cell_type_label[0],
-                                           cell_type_label[1])
-bayes_all_imputed_68k = get_bayes_factors(scale_68k,
-                                          pred[cell_indices],
-                                          cell_type_label[0],
-                                          cell_type_label[1])
-
-# TODO: We need to average the Bayes Factor in the exponential natural parametrization
-
-# TODO: We need to compute the AUC scores
