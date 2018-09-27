@@ -149,7 +149,7 @@ class VAE(nn.Module):
             reconst_loss = -log_nb_positive(x, px_rate, px_r)
         return reconst_loss
 
-    def scale_from_z(self,sample_batch,fixed_batch):
+    def scale_from_z(self, sample_batch, fixed_batch):
         if self.log_variational:
             sample_batch = torch.log(1 + sample_batch)
         qz_m, qz_v, z = self.z_encoder(sample_batch)
