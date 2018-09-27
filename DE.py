@@ -1,4 +1,3 @@
-use_cuda = True
 from scvi.dataset.dataset10X import Dataset10X
 from scvi.dataset.pbmc import PbmcDataset
 import numpy as np
@@ -8,57 +7,121 @@ import sys
 from scvi.models.vae import VAE
 from scvi.models.scanvi import SCANVI
 from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
+from sklearn.metrics import roc_auc_score
+from scvi.inference.posterior import get_bayes_factors
 
-model_type = str(sys.argv[1])
-# option = str(sys.argv[2])
-# plotname = 'Easy1'+option
-plotname = 'Easy1'
-print(model_type)
+use_cuda = True
 
-pbmc = PbmcDataset()
+
+def auc_score_threshold(gene_set, bayes_factor, gene_symbols):
+    # put ones on the genes from the gene_set
+    true_labels = np.array([g in gene_set for g in gene_symbols])
+    estimated_score = np.abs(bayes_factor)
+    indices = np.isfinite(estimated_score)
+    return roc_auc_score(true_labels[indices], estimated_score[indices])
+
+
+# We need to modify this import to get all the genes
+pbmc = PbmcDataset(filter_out_de_genes=False, use_symbols=False)
 pbmc68k = Dataset10X('fresh_68k_pbmc_donor_a')
 
 pbmc68k.cell_types = ['unlabelled']
-pbmc68k.labels = np.repeat(0,len(pbmc68k)).reshape(len(pbmc68k),1)
-gene_dataset = GeneExpressionDataset.concat_datasets(pbmc,pbmc68k)
-gene_dataset.subsample_genes(5000)
-print(gene_dataset.cell_types)
+pbmc68k.labels = np.repeat(0, len(pbmc68k)).reshape(len(pbmc68k), 1)
 
-vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches, n_labels=gene_dataset.n_labels,
+all_dataset = GeneExpressionDataset.concat_datasets(pbmc, pbmc68k)
+all_dataset.subsample_genes(5000)
+# Now resolve the Gene symbols to properly work with the DE
+all_gene_symbols = pbmc68k.gene_symbols[
+    np.array(
+        [np.where(pbmc68k.gene_names == x)[0][0] for x in list(all_dataset.gene_names)]
+    )]
+
+# Need to filter the genes for the DE before subsampling
+# ALL GENE SET REFERENCES COME FROM GSE22886
+# [CD4_TCELL_VS_BCELL_NAIVE_UP, CD4_TCELL_VS_BCELL_NAIVE_DN
+# CD8_TCELL_VS_BCELL_NAIVE_UP, CD8_TCELL_VS_BCELL_NAIVE_DN
+# CD8_VS_CD4_NAIVE_TCELL_UP, CD8_VS_CD4_NAIVE_TCELL_DN
+# NAIVE_CD8_TCELL_VS_NKCELL_UP, NAIVE_CD8_TCELL_VS_NKCELL_DN]
+
+# For that, let is import the genesets and intersect with the largest gene set from scRNA-seq
+path_geneset = "../Additional_Scripts/genesets.txt"
+geneset_matrix = np.loadtxt(path_geneset, dtype=np.str)[:, 2:]
+CD4_TCELL_VS_BCELL_NAIVE, CD8_TCELL_VS_BCELL_NAIVE, CD8_VS_CD4_NAIVE_TCELL, NAIVE_CD8_TCELL_VS_NKCELL \
+    = [set(geneset_matrix[i:i + 2, :].flatten()) & set(all_gene_symbols) for i in [0, 2, 4, 6]]
+
+# these are the length of the positive gene sets for the DE
+print((len(CD4_TCELL_VS_BCELL_NAIVE), len(CD8_TCELL_VS_BCELL_NAIVE),
+       len(CD8_VS_CD4_NAIVE_TCELL), len(NAIVE_CD8_TCELL_VS_NKCELL)))
+
+print(all_dataset.cell_types)
+
+# Start building the models
+
+vae = VAE(all_dataset.nb_genes, n_batch=all_dataset.n_batches, n_labels=all_dataset.n_labels,
           n_hidden=128, n_latent=10, n_layers=2, dispersion='gene')
-trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
+trainer = UnsupervisedTrainer(vae, all_dataset, train_size=1.0)
 trainer.train(n_epochs=250)
 
-scanvi = SCANVI(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_layers=2)
+scanvi = SCANVI(all_dataset.nb_genes, all_dataset.n_batches, all_dataset.n_labels, n_layers=2)
 scanvi.load_state_dict(vae.state_dict(), strict=False)
-trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=1,
+trainer_scanvi = SemiSupervisedTrainer(scanvi, all_dataset, classification_ratio=1,
                                        n_epochs_classifier=1, lr_classification=5 * 1e-3)
-
-trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=(gene_dataset.batch_indices != 2))
+trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=(all_dataset.batch_indices != 2))
 trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(
-    indices=(gene_dataset.batch_indices == 2)
+    indices=(all_dataset.batch_indices == 2)
 )
 trainer_scanvi.train(n_epochs=50)
 
-keys = gene_dataset.cell_types
+keys = all_dataset.cell_types
 latent, batch_indices, labels = trainer_scanvi.labelled_set.get_latent()
 pred = trainer_scanvi.labelled_set.compute_predictions()
 np.mean(pred[0] == pred[1])
 
-scanvi_posterior = trainer_scanvi.create_posterior(trainer_scanvi.model,gene_dataset)
-pred = scanvi_posterior.compute_predictions()
+scanvi_posterior = trainer_scanvi.create_posterior(trainer_scanvi.model, all_dataset)
+# Extract the predicted labels from SCANVI
+pred = scanvi_posterior.compute_predictions()[1]
 
-full = trainer.create_posterior(vae, gene_dataset, indices=np.arange(len(gene_dataset)))
-scale1 = full.sequential().get_harmonized_scale(0)
-scale2 = full.sequential().get_harmonized_scale(1)
-np.save('../DE/de.scale1.npy',scale1)
-np.save('../DE/de.scale2.npy',scale2)
-np.save('../DE/labels.npy',full.gene_dataset.labels.ravel())
-# full.gene_dataset.cell_types
-# ['NK cells', 'B cells', 'CD4 T cells', 'unlabelled', 'Other',
-#        'CD8 T cells', 'Megakaryocytes', 'Dendritic Cells',
-#        'CD14+ Monocytes', 'FCGR3A+ Monocytes']
-from scvi.inference.posterior import get_bayes_factors
-bayes1 = get_bayes_factors(scale1,full.gene_dataset.labels.ravel(),0,4)
-bayes2 = get_bayes_factors(scale2,full.gene_dataset.labels.ravel(),0,4)
-gene_dataset.gene_names
+comparisons = [
+    ['CD4 T cells', 'B cells'],
+    ['CD8 T cells', 'B cells'],
+    ['CD8 T cells', 'CD4 T cells'],
+    ['CD8 T cells', 'NK cells']
+               ]
+
+gene_sets = [CD4_TCELL_VS_BCELL_NAIVE,
+             CD8_TCELL_VS_BCELL_NAIVE,
+             CD8_VS_CD4_NAIVE_TCELL,
+             NAIVE_CD8_TCELL_VS_NKCELL]
+
+for t, comparison in enumerate(comparisons):
+    # Now for each comparison, let us create a posterior object and compute a Bayes factor
+    cell_type_label = [np.where(all_dataset.cell_types == comparison[i])[0][0] for i in [0, 1]]
+    gene_set = gene_sets[t]
+    cell_indices = np.where(np.logical_or(pred == cell_type_label[0], pred == cell_type_label[1]))[0]
+    de_posterior = trainer.create_posterior(vae, all_dataset, indices=cell_indices)
+    # TODO: clarify how many batches are used in the experiment.
+    # TODO: 0 and 1 might be from the same Michael PBMC dataset
+    scale_pbmc = de_posterior.sequential().get_harmonized_scale(0)
+    scale_68k = de_posterior.sequential().get_harmonized_scale(1)
+    # For Chenling: I looked again at the number of cells,
+    # if we use all of them, we are OK using just one sample from the posterior
+    # first grab the original bayes factor by ignoring the unlabeled cells
+    bayes_pbmc = get_bayes_factors(scale_pbmc,
+                                   all_dataset.labels.ravel()[cell_indices],
+                                   cell_type_label[0],
+                                   cell_type_label[1])
+    # second get them for all the predicted labels cross-datasets
+    probs_all_imputed_pbmc = get_bayes_factors(scale_pbmc,
+                                               pred[cell_indices],
+                                               cell_type_label[0],
+                                               cell_type_label[1], logit=False)
+    probs_all_imputed_68k = get_bayes_factors(scale_68k,
+                                              pred[cell_indices],
+                                              cell_type_label[0],
+                                              cell_type_label[1], logit=False)
+    p_s = pbmc.labels.shape[0] / all_dataset.labels.shape[0]
+    bayes_all_imputed = p_s * probs_all_imputed_pbmc + (1 - p_s) * probs_all_imputed_68k
+    bayes_all_imputed = np.log(bayes_all_imputed + 1e-8) - np.log(1 - bayes_all_imputed + 1e-8)
+    print(auc_score_threshold(gene_set, bayes_pbmc, all_gene_symbols))
+    print(auc_score_threshold(gene_set, bayes_all_imputed, all_gene_symbols))
+

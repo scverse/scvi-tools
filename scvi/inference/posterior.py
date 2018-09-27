@@ -322,11 +322,11 @@ class Posterior:
         libraries = np.concatenate(libraries)
         return libraries.ravel()
 
-    def get_harmonized_scale(self,fixed_batch):
+    def get_harmonized_scale(self, fixed_batch):
         px_scales = []
         for tensors in self:
             sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
-            px_scales += [self.model.scale_from_z(sample_batch,fixed_batch).cpu()]
+            px_scales += [self.model.scale_from_z(sample_batch, fixed_batch).cpu()]
         return np.concatenate(px_scales)
 
     def get_sample_scale(self):
@@ -525,14 +525,14 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
 
 
 def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes_idx=None,
-                      M_permutation=10000, permutation=False):
+                      m_permutation=10000, permutation=False, logit=True):
     '''
     Returns a list of bayes factor for all genes
     :param px_scale: The gene frequency array for all cells (might contain multiple samples per cells)
     :param all_labels: The labels array for the corresponding cell types
     :param cell_idx: The first cell type population to consider. Either a string or an idx
     :param other_cell_idx: (optional) The second cell type population to consider. Either a string or an idx
-    :param M_permutation: The number of permuted samples.
+    :param m_permutation: The number of permuted samples.
     :param permutation: Whether or not to permute.
     :return:
     '''
@@ -551,18 +551,19 @@ def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes
     list_2 = list(sample_rate_a.shape[0] + np.arange(sample_rate_b.shape[0]))
     if not permutation:
         # case1: no permutation, sample from A and then from B
-        u, v = np.random.choice(list_1, size=M_permutation), np.random.choice(list_2, size=M_permutation)
+        u, v = np.random.choice(list_1, size=m_permutation), np.random.choice(list_2, size=m_permutation)
     else:
         # case2: permutation, sample from A+B twice
-        u, v = (np.random.choice(list_1 + list_2, size=M_permutation),
-                np.random.choice(list_1 + list_2, size=M_permutation))
+        u, v = (np.random.choice(list_1 + list_2, size=m_permutation),
+                np.random.choice(list_1 + list_2, size=m_permutation))
 
     # then constitutes the pairs
     first_set = samples[u]
     second_set = samples[v]
 
     res = np.mean(first_set >= second_set, 0)
-    res = np.log(res + 1e-8) - np.log(1 - res + 1e-8)
+    if logit:
+        res = np.log(res + 1e-8) - np.log(1 - res + 1e-8)
     return res
 
 
