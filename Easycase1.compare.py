@@ -1,14 +1,12 @@
 use_cuda = True
-from scvi.harmonization.utils_chenling import get_matrix_from_dir,assign_label,KNNJaccardIndex
+from scvi.harmonization.utils_chenling import get_matrix_from_dir,assign_label
 import numpy as np
 from scvi.dataset.dataset import GeneExpressionDataset
-from scvi.harmonization.utils_chenling import eval_latent, run_model
-from copy import deepcopy
+from scvi.harmonization.utils_chenling import CompareModels
 import sys
-model_type = str(sys.argv[1])
 
+models = str(sys.argv[1])
 plotname = 'Easy1'
-print(model_type)
 
 count, geneid, cellid = get_matrix_from_dir('pbmc8k')
 geneid = geneid[:, 1]
@@ -44,22 +42,31 @@ genes = genes.astype('int')
 gene_dataset.X = gene_dataset.X[:,genes]
 gene_dataset.update_genes(genes)
 
+CompareModels(gene_dataset, dataset1, dataset2, plotname, models)
 
-# cells = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.cells.txt')
-latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, dataset1, dataset2,filename=plotname)
-eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type, plotting=True)
+
+from copy import deepcopy
+from scvi.harmonization.utils_chenling import run_model
+from scvi.harmonization.utils_chenling import eval_latent
 
 dataset1 = deepcopy(gene_dataset)
-dataset1.update_cells(batch_indices==0)
-latent1, _, _, _ = run_model(model_type, dataset1, 0, 0,filename=plotname)
-
+dataset1.update_cells(gene_dataset.batch_indices.ravel() == 0)
+dataset1.subsample_genes(dataset1.nb_genes)
+latent1, _, _, _, _ = run_model('vae', dataset1, 0, 0, filename=plotname)
 dataset2 = deepcopy(gene_dataset)
-dataset2.update_cells(batch_indices==1)
-latent2, _, _, _ = run_model(model_type, dataset2, 0, 0,filename=plotname)
-
-KNeighbors  = np.concatenate([np.arange(10,100,10),np.arange(100,500,50)])
-res_vae = [KNNJaccardIndex(latent1,latent2,latent,batch_indices,i)[0] for i in KNeighbors]
-
-for i in [1,2,3]:
-    latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, dataset1, dataset2,filename=plotname)
-    eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type,plotting=False)
+dataset2.update_cells(gene_dataset.batch_indices.ravel()  == 1)
+dataset2.subsample_genes(dataset2.nb_genes)
+latent2, _, _, _, _ = run_model('vae', dataset2, 0, 0, filename=plotname)
+for model_type in ['vae','scanvi','scanvi1','scanvi2','scanvi0']:
+print(model_type)
+latent, batch_indices, labels, keys,stats = run_model(model_type, gene_dataset, dataset1, dataset2, filename=plotname)
+unlabelled = stats[4]
+latent1_id = unlabelled[unlabelled<latent1.shape[0]]
+latent2_id = unlabelled[unlabelled>=latent1.shape[0]]-latent1.shape[0]
+res_knn, res_kmeans, res_jaccard = eval_latent(batch_indices, labels, latent, latent1[latent1_id,:], latent2[latent2_id,:], keys, plotname + '.' + model_type, plotting=True)
+for i in [1, 2, 3]:
+    latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,filename=plotname)
+    res_knn, res_kmeans, res_jaccard = eval_latent(batch_indices, labels, latent, latent1, latent2,
+                                                   keys, plotname + '.' + model_type, plotting=True)
+    res = [res_knn[x] for x in res_knn] + [res_kmeans[x] for x in res_kmeans] + [res_jaccard]
+    f.write(model_type+str(i) + " %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f" % tuple(res))

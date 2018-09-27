@@ -1,10 +1,10 @@
-from scvi.harmonization.utils_chenling import run_model, eval_latent
 use_cuda = True
 from scvi.dataset.BICCN import *
 from scvi.dataset.dataset import GeneExpressionDataset
+from scvi.harmonization.utils_chenling import CompareModels
 
 import sys
-model_type = str(sys.argv[1])
+models = str(sys.argv[1])
 plotname = 'Macosko_Regev'
 print(model_type)
 
@@ -23,9 +23,4 @@ cells = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.cells.txt')
 print(cells.shape)
 print(gene_dataset.X.shape)
 
-latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, dataset1, dataset2, plotname)
-eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type,plotting=True)
-
-for i in [1,2,3]:
-    latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, dataset1, dataset2, plotname)
-    eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type, plotting=False)
+CompareModels(gene_dataset, dataset1, dataset2, plotname, models)

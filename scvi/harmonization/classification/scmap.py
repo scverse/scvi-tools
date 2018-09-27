@@ -6,7 +6,6 @@ import rpy2.robjects as ro
 import rpy2.robjects.numpy2ri
 from rpy2.rinterface import RRuntimeWarning
 
-from scvi.dataset import GeneExpressionDataset, SemiSupervisedDataLoaders
 from scvi.metrics.classification import compute_accuracy_tuple
 
 Accuracy = namedtuple('Accuracy',
@@ -42,31 +41,6 @@ class SCMAP():
         self.n_features = n_features
         self.threshold = threshold
 
-    def create_dataset(self, path):
-        print("Reading rds")
-        ro.r("sce<-readRDS('%s')" % path)
-        print("Extracting log counts")
-        log_counts = ro.r("logcounts(sce)")
-        print("Transforming log count to counts")
-        counts = (np.exp(log_counts * np.log(2)) - 1).T.astype(np.int)
-        gene_symbols = ro.r("rowData(sce)$feature_symbol")
-        labels = ro.r("colData(sce)$cell_type1")
-        labels_levels = ro.r("levels(colData(sce)$cell_type1)")
-        if labels_levels is not rpy2.rinterface.NULL:
-            labels = np.array([labels_levels[int(l) - 1] for l in labels])
-
-        cell_types = list(np.unique(labels))
-        labels = np.array([cell_types.index(l) for l in labels])
-
-        valid_idx = (counts.sum(axis=1) > 10).ravel()  # Filter bad quality cells
-        counts = counts[valid_idx]
-        labels = labels[valid_idx]
-        gene_expression_dataset = GeneExpressionDataset(
-            *GeneExpressionDataset.get_attributes_from_matrix(counts, labels=labels), cell_types=cell_types
-        )
-        gene_expression_dataset.gene_symbols = gene_symbols
-        return gene_expression_dataset
-
     def create_sce_object(self, matrix, gene_names, labels, name):
         n_samples, nb_genes = matrix.shape
         r_matrix = ro.r.matrix(matrix.T, nrow=nb_genes, ncol=n_samples)
@@ -86,7 +60,6 @@ class SCMAP():
             ro.r("%s <- SingleCellExperiment(assays=list(counts=as.matrix(counts)))" % name)
         ro.r("rowData(%s)$feature_symbol<-rownames(%s)" % (name, name))  # For any new custom dataset.
         ro.r("logcounts(%s) <- log2(counts(%s) + 1)" % (name, name))
-        assert np.sum(self.get_labels(name) != labels) == 0, "Labels not matching"  # Sanity check R/python
         print("SCE object : %s created" % name)
 
     def select_features(self, reference, n_features=500):
@@ -156,69 +129,6 @@ class SCMAP():
         self.combined_labels_pred = convert_labels_levels(ro.r("result$combined_labs"), self.levels_reference)
         return self.labels_pred
 
-    def scmap_cluster_table(self, d1, d2, d12, n_labelled_samples_per_class=10, threshold=0, n_features=500):
-        r"""
-        Given two different gene expression dataset
-        """
-        data_loaders_1 = SemiSupervisedDataLoaders(d1, n_labelled_samples_per_class=n_labelled_samples_per_class)
-        (X_train_1, labels_train_1), = data_loaders_1.raw_data(data_loaders_1['labelled'])
-        (X_test_1, labels_test_1), = data_loaders_1.raw_data(data_loaders_1['sequential'])
-        self.create_sce_object(X_train_1, d1.gene_names, labels_train_1, 'd1_train')
-        self.create_sce_object(X_test_1, d1.gene_names, labels_test_1, 'd1_test')
-
-        data_loaders_2 = SemiSupervisedDataLoaders(d2,
-                                                   n_labelled_samples_per_class=n_labelled_samples_per_class)
-        (X_train_2, labels_train_2), = data_loaders_2.raw_data(data_loaders_2['labelled'])
-        (X_test_2, labels_test_2), = data_loaders_2.raw_data(data_loaders_2['sequential'])
-        self.create_sce_object(X_train_2, d2.gene_names, labels_train_2, 'd2_train')
-        self.create_sce_object(X_test_2, d2.gene_names, labels_test_2, 'd2_test')
-
-        data_loaders_12 = SemiSupervisedDataLoaders(d12,
-                                                    n_labelled_samples_per_class=n_labelled_samples_per_class)
-        (X_train_12, labels_train_12), = data_loaders_12.raw_data(data_loaders_12['labelled'])
-        (X_test_12, labels_test_12), = data_loaders_12.raw_data(data_loaders_12['sequential'])
-        self.create_sce_object(X_train_12, d2.gene_names, labels_train_12, 'd12_train')
-        self.create_sce_object(X_test_12, d2.gene_names, labels_test_12, 'd12_test')
-        accuracy_results = np.zeros((3, 3))
-
-        for i, reference in enumerate(['d1', 'd2', 'd12']):
-            for j, target in enumerate(['d1', 'd2', 'd12']):
-                labels_pred = self.scmap_cluster(
-                    reference + '_train', target + '_test', threshold=threshold, n_features=n_features
-                )
-                labels = self.get_labels(target + '_test')
-                accuracy_results[i, j] = np.mean(labels_pred == labels)
-                print("Accuracy results :", accuracy_results[i, j])
-        print(accuracy_results)
-        return accuracy_results
-
-    def scmap_cluster_self(self, d, n_labelled_samples_per_class=10, threshold=0, n_features=500):
-        r'''
-        Self-classification on an scmap cluster
-        :param d:
-        :return:
-        '''
-        data_loaders = SemiSupervisedDataLoaders(d, n_labelled_samples_per_class=n_labelled_samples_per_class)
-        (X_train, labels_train), = data_loaders.raw_data(data_loaders['labelled'])
-        (X_test, labels_test), = data_loaders.raw_data(data_loaders['sequential'])
-        self.create_sce_object(X_train, d.gene_names, labels_train, 'd_train')
-        self.create_sce_object(X_test, d.gene_names, labels_test, 'd_test')
-        labels_pred = self.scmap_cluster(
-            'd_train', 'd_test', threshold=threshold, n_features=n_features
-        )
-
-        accuracy = np.mean(labels_pred == labels_test)
-        print("Accuracy result :", accuracy)
-        return accuracy
-
-    def get_levels(self, name):  # TODO : THIS IS VERY FALSE
-        return ro.r('levels(colData(%s)$cell_type1)' % name)
-
-    def get_labels(self, name):  # TODO : THIS IS VERY FALSE
-        levels = self.get_levels(name)
-        r_indices = ro.r("colData(%s)$cell_type1" % name)
-        return convert_labels_levels(r_indices, levels)
-
     def accuracy_tuple(self, y, y_pred, y_train=None):
         if y_train:
             unique_train = np.unique(y_train)
@@ -232,9 +142,4 @@ class SCMAP():
             accuracy_over_known_classes=a1,
             accuracy_over_known_classes_and_assigned=a2
         )
-
-    @staticmethod
-    def load_rds_file(name, filename):
-        ro.r("%s <- readRDS('%s')" % (name, filename))
-
 
