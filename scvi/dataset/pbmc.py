@@ -25,7 +25,7 @@ class PbmcDataset(GeneExpressionDataset):
 
     """
 
-    def __init__(self, save_path='data/'):
+    def __init__(self, save_path='data/', filter_out_de_genes=True, use_symbols=True):
         self.save_path = save_path
         self.urls = ['https://github.com/YosefLab/scVI-data/raw/master/gene_info.csv',
                      'https://github.com/YosefLab/scVI-data/raw/master/pbmc_metadata.pickle']
@@ -38,9 +38,11 @@ class PbmcDataset(GeneExpressionDataset):
 
         pbmc8k = Dataset10X("pbmc8k", save_path=save_path)
         pbmc8k.subsample_genes(pbmc8k.nb_genes)
-        pbmc8k.gene_names = pbmc8k.gene_symbols
+        if use_symbols:
+            pbmc8k.gene_names = pbmc8k.gene_symbols
         pbmc4k = Dataset10X("pbmc4k", save_path=save_path)
-        pbmc4k.gene_names = pbmc4k.gene_symbols
+        if use_symbols:
+            pbmc4k.gene_names = pbmc4k.gene_symbols
         pbmc4k.subsample_genes(pbmc4k.nb_genes)
         pbmc = GeneExpressionDataset.concat_datasets(pbmc8k, pbmc4k)
         self.barcodes = pd.concat(pbmc.barcodes).values.ravel().astype(str)
@@ -68,12 +70,13 @@ class PbmcDataset(GeneExpressionDataset):
         self.labels, self.n_labels = arrange_categories(labels)
         self.cell_types = pbmc_metadata['list_clusters'][:self.n_labels]
 
-        genes_to_keep = list(self.de_metadata['GS'].values)  # only keep the genes for which we have de data
-        difference = list(set(genes_to_keep).difference(set(pbmc.gene_names)))  # Non empty only for unit tests
-        for gene in difference:
-            genes_to_keep.remove(gene)
-        self.filter_genes(genes_to_keep)
-        self.de_metadata = self.de_metadata.head(len(genes_to_keep))  # this would only affect the unit tests
+        if filter_out_de_genes:
+            genes_to_keep = list(self.de_metadata['GS'].values)  # only keep the genes for which we have de data
+            difference = list(set(genes_to_keep).difference(set(pbmc.gene_names)))  # Non empty only for unit tests
+            for gene in difference:
+                genes_to_keep.remove(gene)
+            self.filter_genes(genes_to_keep)
+            self.de_metadata = self.de_metadata.head(len(genes_to_keep))  # this would only affect the unit tests
 
 
 class PurifiedPBMCDataset(GeneExpressionDataset):

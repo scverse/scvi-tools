@@ -9,18 +9,39 @@ from scvi.models.vae import VAE
 from scvi.models.scanvi import SCANVI
 from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
 
-model_type = str(sys.argv[1])
-# option = str(sys.argv[2])
-# plotname = 'Easy1'+option
-plotname = 'Easy1'
-print(model_type)
+# model_type = str(sys.argv[1])
+# # option = str(sys.argv[2])
+# # plotname = 'Easy1'+option
+# plotname = 'Easy1'
+# print(model_type)
 
-pbmc = PbmcDataset()
+# We need to modify this import to get all the genes
+#pbmc = Dataset10X("pbmc8k")
+pbmc = PbmcDataset(filter_out_de_genes=False, use_symbols=False)
 pbmc68k = Dataset10X('fresh_68k_pbmc_donor_a')
 
 pbmc68k.cell_types = ['unlabelled']
-pbmc68k.labels = np.repeat(0,len(pbmc68k)).reshape(len(pbmc68k),1)
+pbmc68k.labels = np.repeat(0, len(pbmc68k)).reshape(len(pbmc68k), 1)
+
+# When you call the line below, the answer is "0 genes kept", which looks pretty bad
 gene_dataset = GeneExpressionDataset.concat_datasets(pbmc,pbmc68k)
+
+# Need to filter the genes for the DE before subsampling
+
+# ALL GENE SET REFERENCES COME FROM GSE22886
+# [CD4_TCELL_VS_BCELL_NAIVE_UP, CD4_TCELL_VS_BCELL_NAIVE_DN
+# CD8_TCELL_VS_BCELL_NAIVE_UP, CD8_TCELL_VS_BCELL_NAIVE_DN
+# CD8_VS_CD4_NAIVE_TCELL_UP, CD8_VS_CD4_NAIVE_TCELL_DN
+# NAIVE_CD8_TCELL_VS_NKCELL_UP, NAIVE_CD8_TCELL_VS_NKCELL_DN]
+
+# For that, let is import the genesets
+path_geneset = "../Additional_Scripts/genesets.txt"
+geneset_matrix = np.loadtxt(path_geneset, dtype=np.str)[:, 2:]
+CD4_TCELL_VS_BCELL_NAIVE = list(set(geneset_matrix[0:2, :].flatten()))
+CD8_TCELL_VS_BCELL_NAIVE = list(set(geneset_matrix[2:4, :].flatten()))
+CD8_VS_CD4_NAIVE_TCELL = list(set(geneset_matrix[4:6, :].flatten()))
+NAIVE_CD8_TCELL_VS_NKCELL = list(set(geneset_matrix[6:, :].flatten()))
+
 gene_dataset.subsample_genes(5000)
 print(gene_dataset.cell_types)
 
@@ -63,10 +84,5 @@ bayes1 = get_bayes_factors(scale1,full.gene_dataset.labels.ravel(),0,4)
 bayes2 = get_bayes_factors(scale2,full.gene_dataset.labels.ravel(),0,4)
 gene_dataset.gene_names
 
-# ALL GENE SET REFERENCES COME FROM GSE22886
-# [CD4_TCELL_VS_BCELL_NAIVE_UP, CD4_TCELL_VS_BCELL_NAIVE_DN
-# CD8_TCELL_VS_BCELL_NAIVE_UP, CD8_TCELL_VS_BCELL_NAIVE_DN
-# CD8_VS_CD4_NAIVE_TCELL_UP, CD8_VS_CD4_NAIVE_TCELL_DN
-# NAIVE_CD8_TCELL_VS_NKCELL_UP, NAIVE_CD8_TCELL_VS_NKCELL_DN]
 
 
