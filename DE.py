@@ -24,9 +24,14 @@ pbmc68k.cell_types = ['unlabelled']
 pbmc68k.labels = np.repeat(0, len(pbmc68k)).reshape(len(pbmc68k), 1)
 
 # When you call the line below, the answer is "0 genes kept", which looks pretty bad
-gene_dataset = GeneExpressionDataset.concat_datasets(pbmc,pbmc68k)
+gene_dataset = GeneExpressionDataset.concat_datasets(pbmc, pbmc68k)
+# Now resolve the Gene symbols to properly work
+gene_symbols = np.array([np.where(pbmc68k.gene_names == x)[0][0] for x in list(gene_dataset.gene_names)])
+
 
 # Need to filter the genes for the DE before subsampling
+
+
 
 # ALL GENE SET REFERENCES COME FROM GSE22886
 # [CD4_TCELL_VS_BCELL_NAIVE_UP, CD4_TCELL_VS_BCELL_NAIVE_DN
