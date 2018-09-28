@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.manifold import TSNE
 use_cuda = True
-from scvi.metrics.clustering import select_indices_evenly, clustering_scores, entropy_batch_mixing
-
+from scvi.metrics.clustering import select_indices_evenly, clustering_scores
+from scvi.inference.posterior import entropy_batch_mixing
 from scvi.models.scanvi import SCANVI
 from scvi.models.vae import VAE
 from sklearn.neighbors import NearestNeighbors
@@ -317,7 +317,7 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
             else:
                 res = [-1,-1,-1,-1,-1,-1,-1,-1,stats[1],stats[2],-1,-1]
             # asw,nmi,ari,uca,asw,nmi,ari,uca,jaccard,ll,BE,acc
-            f.write(model_type + " %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f" % tuple(res))
+            f.write(model_type + " %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f\n" % tuple(res))
     elif models=='scvi':
         dataset1 = deepcopy(gene_dataset)
         dataset1.update_cells(gene_dataset.batch_indices.ravel() == 0)
@@ -336,16 +336,16 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
                                                            plotting=True)
             res = [res_knn[x] for x in res_knn] + [res_kmeans[x] for x in res_kmeans] + [res_jaccard]
             # asw,nmi,ari,uca,asw,nmi,ari,uca,jaccard,ll,BE,acc
-            f.write(model_type + str(i) + " %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f" % tuple(res))
+            f.write(model_type + " %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f" % tuple(res))
             for i in [1, 2, 3]:
                 latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,
                                                                        filename=plotname)
-                res_knn, res_kmeans, res_jaccard = eval_latent(batch_indices, labels, latent, latent1, latent2,
+                res_knn, res_kmweans, res_jaccard = eval_latent(batch_indices, labels, latent, latent1, latent2,
                                                                keys, plotname + '.' + model_type, plotting=False)
                 # asw,nmi,ari,uca,asw,nmi,ari,uca,jaccard,ll,BE,acc
                 res = [res_knn[x] for x in res_knn] + [res_kmeans[x] for x in res_kmeans] + [res_jaccard, stats[0],
                                                                                              stats[1], stats[2]]
-                f.write(model_type + str(i) + " %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f" % tuple(res))
+                f.write(model_type + str(i) + " %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f\n" % tuple(res))
     elif models=='writedata':
         _, _, _, _,_ = run_model('writedata', gene_dataset, dataset1, dataset2, filename=plotname)
     f.close()

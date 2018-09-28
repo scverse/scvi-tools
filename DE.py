@@ -67,9 +67,9 @@ scanvi = SCANVI(all_dataset.nb_genes, all_dataset.n_batches, all_dataset.n_label
 scanvi.load_state_dict(vae.state_dict(), strict=False)
 trainer_scanvi = SemiSupervisedTrainer(scanvi, all_dataset, classification_ratio=1,
                                        n_epochs_classifier=1, lr_classification=5 * 1e-3)
-trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=(all_dataset.batch_indices != 2))
+trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=(all_dataset.batch_indices ==0))
 trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(
-    indices=(all_dataset.batch_indices == 2)
+    indices=(all_dataset.batch_indices == 1)
 )
 trainer_scanvi.train(n_epochs=50)
 
@@ -77,9 +77,11 @@ keys = all_dataset.cell_types
 latent, batch_indices, labels = trainer_scanvi.labelled_set.get_latent()
 pred = trainer_scanvi.labelled_set.compute_predictions()
 np.mean(pred[0] == pred[1])
+# 0.6
 
 scanvi_posterior = trainer_scanvi.create_posterior(trainer_scanvi.model, all_dataset)
 # Extract the predicted labels from SCANVI
+
 pred = scanvi_posterior.compute_predictions()[1]
 
 comparisons = [

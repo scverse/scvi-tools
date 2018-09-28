@@ -29,12 +29,12 @@ def unsupervised_clustering_accuracy(y, y_pred):
     return sum([reward_matrix[i, j] for i, j in ind]) * 1.0 / y_pred.size, ind
 
 
-def clustering_scores(latent, labels,sample_w_labels, prediction_algorithm='knn', n_labels=None):
+def clustering_scores(latent, labels, prediction_algorithm='knn', n_labels=None):
     if n_labels is not None:
         n_labels = len(np.unique(labels))
     if prediction_algorithm == 'KMeans':
         labels_pred = KMeans(n_labels, n_init=200).fit_predict(latent)  # n_jobs>1 ?
-    elif prediction_algorithm =='knn':
+    elif prediction_algorithm == 'knn':
         neigh = KNeighborsClassifier(n_neighbors=10)
         neigh = neigh.fit(latent, labels)
         labels_pred = neigh.predict(latent)
@@ -42,7 +42,8 @@ def clustering_scores(latent, labels,sample_w_labels, prediction_algorithm='knn'
         gmm = GMM(n_labels, covariance_type='diag', n_init=200)
         gmm.fit(latent)
         labels_pred = gmm.predict(latent)
-
+    else:
+        print('algorithm not included: choose from KMeans, knn, or gmm')
     return {
         'asw': silhouette_score(latent, labels),
         'nmi': NMI(labels, labels_pred),
