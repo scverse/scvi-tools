@@ -207,7 +207,7 @@ class VAECITE(nn.Module):
         if self.reconstruction_loss_umi == 'zinb':
             reconst_loss_umi = -log_zinb_positive(umi, px_rate['umi'], px_r['umi'], px_dropout['umi'])
         else:
-            reconst_loss_umi = -log_nb_positive(umi, px_rate, px_r)
+            reconst_loss_umi = -log_nb_positive(umi, px_rate['umi'], px_r['umi'])
 
         if self.reconstruction_loss_adt == 'poisson':
             reconst_loss_adt = -torch.sum(Poisson(px_rate['adt']).log_prob(adt), dim=1)
