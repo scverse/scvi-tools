@@ -117,7 +117,7 @@ class VAEF(VAE):
         if mode == "scRNA":
             ql_m, ql_v, library = self.l_encoder(x)
         elif mode == "smFISH":
-            ql_m, ql_v, library = self.l_encoder_fish(x)
+            ql_m, ql_v, library = self.l_encoder_fish(x[:, self.indexes_to_keep])
         return library
 
     def get_sample_scale(self, x, mode="scRNA", batch_index=None, y=None):
@@ -157,7 +157,7 @@ class VAEF(VAE):
 
         if self.model_library:
             library = self.sample_from_posterior_l(x, mode=mode)
-        px_scale = self.get_sample_scale(x, batch_index=batch_index, y=y)
+        px_scale = self.get_sample_scale(x, mode=mode, batch_index=batch_index, y=y)
         return px_scale * torch.exp(library)
 
     def get_sample_rate_fish(self, x, y=None):
@@ -256,6 +256,7 @@ class VAEF(VAE):
                 px_rate = px_scale[:, self.indexes_to_keep] * torch.exp(library)
                 reconst_loss = self._reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r, px_dropout,
                                                          batch_index, y, mode)
+
             else:
                 px_scale = px_scale[:, self.indexes_to_keep] / torch.sum(
                     px_scale[:, self.indexes_to_keep], dim=1).view(-1, 1)
