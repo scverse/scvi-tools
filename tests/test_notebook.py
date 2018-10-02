@@ -20,21 +20,16 @@ def run_notebook(prefix):
 
     # Overwritting
     shutil.copy(test_path + config_filename, path + config_filename)
-    #os.chdir('./docs/notebooks')
-    #os.system('~/miniconda3/envs/env3.7/bin/jupyter nbconvert --execute {:s} --to notebook --ExecutePreprocessor.kernel_name=python'.format(
-    #    nb_filename)
-    #)
     try:
         with open(path + nb_filename) as f:
-            nb = nbformat.read(f,as_version=4)
+            nb = nbformat.read(f, as_version=4)
         ep = ExecutePreprocessor(timeout=600, kernel_name='python3')
-        ep.preprocess(nb,{'metadata' : {'path' : './docs/notebooks/'}})
+        ep.preprocess(nb, {'metadata': {'path': './docs/notebooks/'}})
     except CellExecutionError:
         raise
     finally:
         if existing_config_to_restore:
             shutil.move(path + config_filename_tmp, path + config_filename)
-
 
 
 def test_notebooks():
