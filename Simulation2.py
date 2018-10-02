@@ -1,4 +1,4 @@
-from scvi.harmonization.utils_chenling import eval_latent, run_model
+from scvi.harmonization.utils_chenling import CompareModels
 
 use_cuda = True
 import numpy as np
@@ -8,9 +8,8 @@ from scvi.dataset.dataset import GeneExpressionDataset
 
 
 import sys
-model_type = str(sys.argv[1])
+models = str(sys.argv[1])
 plotname = 'Sim2'
-print(model_type)
 
 countUMI = np.load('../sim_data/count.UMI.npy')
 countnonUMI = np.load('../sim_data/count.nonUMI.npy')
@@ -27,20 +26,9 @@ nonUMI = GeneExpressionDataset(
                 csr_matrix(countnonUMI.T), labels=labelnonUMI),
             gene_names=['gene'+str(i) for i in range(2000)], cell_types=['type'+str(i+1) for i in range(5)])
 
+UMI.subsample_genes(UMI.nb_genes)
+nonUMI.subsample_genes(nonUMI.nb_genes)
+
 gene_dataset = GeneExpressionDataset.concat_datasets(UMI, nonUMI)
 
-genes = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.genes.txt')
-genes = genes.astype('int')
-gene_dataset.X = gene_dataset.X[:,genes]
-gene_dataset.update_genes(genes)
-
-cells = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.cells.txt')
-print(cells.shape)
-print(gene_dataset.X.shape)
-
-latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, UMI, nonUMI, filename=plotname, ngenes=5000)
-eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type, plotting=True)
-
-for i in [1,2,3]:
-    latent, batch_indices, labels,keys = run_model(model_type, gene_dataset, UMI, nonUMI,filename=plotname, ngenes=5000)
-    eval_latent(batch_indices, labels, latent, keys, plotname+'.'+model_type,plotting=False)
+CompareModels(gene_dataset, UMI, nonUMI, plotname, models)

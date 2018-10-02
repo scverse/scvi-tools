@@ -6,7 +6,7 @@ from scvi.harmonization.utils_chenling import CompareModels
 import sys
 models = str(sys.argv[1])
 plotname = 'Macosko_Regev'
-print(model_type)
+print(models)
 
 dataset1 = MacoskoDataset()
 dataset2 = RegevDataset()

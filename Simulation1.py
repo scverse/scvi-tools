@@ -1,45 +1,32 @@
-from scvi.harmonization.utils_chenling import eval_latent, run_model
+from scvi.harmonization.utils_chenling import CompareModels
 use_cuda = True
 import numpy as np
 from scipy.sparse import csr_matrix
 from scvi.dataset.dataset import GeneExpressionDataset
 
 import sys
-model_type = str(sys.argv[1])
+models = str(sys.argv[1])
 plotname = 'Sim1'
 
-countUMI = np.load('../sim_data/count1.npy')
-countnonUMI = np.load('../sim_data/count2.npy')
-labelUMI = np.load('../sim_data/label1.npy')
-labelnonUMI = np.load('../sim_data/label2.npy')
+count1 = np.load('../sim_data/count1.npy')
+count2 = np.load('../sim_data/count2.npy')
+label1 = np.load('../sim_data/label1.npy')
+label2 = np.load('../sim_data/label2.npy')
 
-print(model_type)
-
-UMI = GeneExpressionDataset(
+dataset1 = GeneExpressionDataset(
             *GeneExpressionDataset.get_attributes_from_matrix(
-                csr_matrix(countUMI), labels=labelUMI),
+                csr_matrix(count1), labels=label1),
             gene_names=['gene'+str(i) for i in range(2000)], cell_types=['type'+str(i+1) for i in range(5)])
 
-nonUMI = GeneExpressionDataset(
+dataset2 = GeneExpressionDataset(
             *GeneExpressionDataset.get_attributes_from_matrix(
-                csr_matrix(countnonUMI), labels=labelnonUMI),
+                csr_matrix(count2), labels=label2),
             gene_names=['gene'+str(i) for i in range(2000)], cell_types=['type'+str(i+1) for i in range(5)])
 
-gene_dataset = GeneExpressionDataset.concat_datasets(UMI,nonUMI)
+gene_dataset = GeneExpressionDataset.concat_datasets(dataset1,dataset2)
+res_knn, res_knn_partial, res_kmeans, res_kmeans_partial, res_jaccard, res_jaccard_score = \
+    eval_latent(batch_indices, labels, latent, latent1,latent2,keys,
+                stats[3],stats[4],
+                plotname=plotname + '.' + model_type,plotting=False)
 
-genes = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.genes.txt')
-genes = genes.astype('int')
-gene_dataset.X = gene_dataset.X[:,genes]
-gene_dataset.update_genes(genes)
-
-cells = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.cells.txt')
-print(cells.shape)
-print(gene_dataset.X.shape)
-
-latent, batch_indices, labels,keys = run_model(model_type, gene_dataset, UMI, nonUMI, filename=plotname, ngenes=5000)
-eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type,plotting=True)
-
-for i in [1,2,3]:
-    latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, dataset1, dataset2, ngenes=500,filename=plotname)
-    eval_latent(batch_indices, labels, latent, keys, plotname + '.' + model_type,plotting=False)
-
+CompareModels(gene_dataset, dataset1, dataset2, plotname, models)

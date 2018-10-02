@@ -2,8 +2,7 @@ from scvi.dataset.dataset10X import Dataset10X
 from scvi.dataset.pbmc import PbmcDataset
 import numpy as np
 from scvi.dataset.dataset import GeneExpressionDataset
-from scvi.harmonization.utils_chenling import eval_latent, run_model
-import sys
+
 from scvi.models.vae import VAE
 from scvi.models.scanvi import SCANVI
 from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
@@ -61,22 +60,30 @@ print(all_dataset.cell_types)
 vae = VAE(all_dataset.nb_genes, n_batch=all_dataset.n_batches, n_labels=all_dataset.n_labels,
           n_hidden=128, n_latent=10, n_layers=2, dispersion='gene')
 trainer = UnsupervisedTrainer(vae, all_dataset, train_size=1.0)
-trainer.train(n_epochs=250)
+trainer.train(n_epochs=50)
+trainer.train_set.entropy_batch_mixing()
 
 scanvi = SCANVI(all_dataset.nb_genes, all_dataset.n_batches, all_dataset.n_labels, n_layers=2)
 scanvi.load_state_dict(vae.state_dict(), strict=False)
 trainer_scanvi = SemiSupervisedTrainer(scanvi, all_dataset, classification_ratio=1,
                                        n_epochs_classifier=1, lr_classification=5 * 1e-3)
-trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=(all_dataset.batch_indices ==0))
+trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=(all_dataset.batch_indices.ravel() ==0))
 trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(
-    indices=(all_dataset.batch_indices == 1)
+    indices=(all_dataset.batch_indices.ravel() == 1)
 )
 trainer_scanvi.train(n_epochs=50)
+full = trainer_scanvi.create_posterior(vae, all_dataset, indices=np.arange(len(all_dataset)))
+latent, batch_indices, labels = full.sequential().get_latent()
+
+import torch
+torch.save(trainer.model,'DE.vae.model.pkl')
+torch.save(trainer_scanvi.model,'DE.scanvi.model.pkl')
 
 keys = all_dataset.cell_types
 latent, batch_indices, labels = trainer_scanvi.labelled_set.get_latent()
 pred = trainer_scanvi.labelled_set.compute_predictions()
 np.mean(pred[0] == pred[1])
+trainer_scanvi.full_dataset.entropy_batch_mixing()
 # 0.6
 
 scanvi_posterior = trainer_scanvi.create_posterior(trainer_scanvi.model, all_dataset)
@@ -96,33 +103,26 @@ gene_sets = [CD4_TCELL_VS_BCELL_NAIVE,
              CD8_VS_CD4_NAIVE_TCELL,
              NAIVE_CD8_TCELL_VS_NKCELL]
 
-for t, comparison in enumerate(comparisons):
-    # Now for each comparison, let us create a posterior object and compute a Bayes factor
-    cell_type_label = [np.where(all_dataset.cell_types == comparison[i])[0][0] for i in [0, 1]]
-    gene_set = gene_sets[t]
-    cell_indices = np.where(np.logical_or(pred == cell_type_label[0], pred == cell_type_label[1]))[0]
-    de_posterior = trainer.create_posterior(vae, all_dataset, indices=cell_indices)
-    scale_pbmc = de_posterior.sequential().get_harmonized_scale(0)
-    scale_68k = de_posterior.sequential().get_harmonized_scale(1)
-    # For Chenling: I looked again at the number of cells,
-    # if we use all of them, we are OK using just one sample from the posterior
-    # first grab the original bayes factor by ignoring the unlabeled cells
-    bayes_pbmc = get_bayes_factors(scale_pbmc,
-                                   all_dataset.labels.ravel()[cell_indices],
-                                   cell_type_label[0],
-                                   cell_type_label[1])
-    # second get them for all the predicted labels cross-datasets
-    probs_all_imputed_pbmc = get_bayes_factors(scale_pbmc,
-                                               pred[cell_indices],
-                                               cell_type_label[0],
-                                               cell_type_label[1], logit=False)
-    probs_all_imputed_68k = get_bayes_factors(scale_68k,
-                                              pred[cell_indices],
-                                              cell_type_label[0],
-                                              cell_type_label[1], logit=False)
-    p_s = pbmc.labels.shape[0] / all_dataset.labels.shape[0]
-    bayes_all_imputed = p_s * probs_all_imputed_pbmc + (1 - p_s) * probs_all_imputed_68k
-    bayes_all_imputed = np.log(bayes_all_imputed + 1e-8) - np.log(1 - bayes_all_imputed + 1e-8)
-    print(auc_score_threshold(gene_set, bayes_pbmc, all_gene_symbols))
-    print(auc_score_threshold(gene_set, bayes_all_imputed, all_gene_symbols))
+# for t, comparison in enumerate(comparisons):
+# Now for each comparison, let us create a posterior object and compute a Bayes factor
+cell_type_label = [np.where(all_dataset.cell_types == comparison[i])[0][0] for i in [0, 1]]
+gene_set = gene_sets[t]
+cell_indices = np.where(np.logical_or(pred == cell_type_label[0], pred == cell_type_label[1]))[0]
+de_posterior = trainer.create_posterior(vae, all_dataset, indices=cell_indices)
+scale_pbmc = de_posterior.sequential().get_harmonized_scale(0)
+scale_68k = de_posterior.sequential().get_harmonized_scale(1)
+# For Chenling: I looked again at the number of cells,
+# if we use all of them, we are OK using just one sample from the posterior
+# first grab the original bayes factor by ignoring the unlabeled cells
+bayes_pbmc = get_bayes_factors(scale_pbmc,
+                               all_dataset.labels.ravel()[cell_indices],
+                               cell_type_label[0],
+                               cell_type_label[1],logit=False)
+# second get them for all the predicted labels cross-datasets
+
+probs_all_imputed_pbmc = get_bayes_factors(scale_68k,
+                                           pred[cell_indices],
+                                           cell_type_label[0],
+                                           cell_type_label[1], logit=False)
+
 

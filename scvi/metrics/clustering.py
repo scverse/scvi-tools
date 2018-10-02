@@ -7,49 +7,86 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import adjusted_rand_score as ARI
 from sklearn.metrics import normalized_mutual_info_score as NMI
 from sklearn.metrics import silhouette_score
-from sklearn.mixture import GaussianMixture as GMM
 from sklearn.neighbors import NearestNeighbors
 from sklearn.utils.linear_assignment_ import linear_assignment
 
 
-def unsupervised_clustering_accuracy(y, y_pred):
+def unsupervised_clustering_accuracy(y, y_pred, weighted=False):
     """
     Unsupervised Clustering Accuracy
     """
     assert len(y_pred) == len(y)
-    u = np.unique(np.concatenate((y, y_pred)))
+    u = np.unique(y)
     n_clusters = len(u)
     mapping = dict(zip(u, range(n_clusters)))
     reward_matrix = np.zeros((n_clusters, n_clusters), dtype=np.int64)
     for y_pred_, y_ in zip(y_pred, y):
-        if y_ in mapping:
-            reward_matrix[mapping[y_pred_], mapping[y_]] += 1
+        if y_pred_ in u:
+            reward_matrix[y_pred_, mapping[y_]] += 1
     cost_matrix = reward_matrix.max() - reward_matrix
     ind = linear_assignment(cost_matrix)
-    return sum([reward_matrix[i, j] for i, j in ind]) * 1.0 / y_pred.size, ind
+    if weighted is True:
+        # columns correspond to true lables and rows correspond to predicted labels
+        _, y_norm = np.unique(y, return_counts=True)
+        return np.mean([reward_matrix[i, j] / y_norm[j] for i, j in ind])
+    else:
+        return sum([reward_matrix[i, j] for i, j in ind]) * 1.0 / y_pred.size, ind
 
+def clustering_accuracy(y, y_pred, weighted=False):
+    """
+    Clustering Accuracy
+    """
+    assert len(y_pred) == len(y)
+    u = np.unique(y)
+    n_clusters = len(u)
+    mapping = dict(zip(u, range(n_clusters)))
+    reward_matrix = np.zeros((n_clusters, n_clusters), dtype=np.int64)
+    for y_pred_, y_ in zip(y_pred, y):
+        if y_pred_ in u:
+            reward_matrix[mapping[y_pred_], mapping[y_]] += 1
+    if weighted is True:
+        # columns correspond to true lables and rows correspond to predicted labels
+        _, y_norm = np.unique(y, return_counts=True)
+        return np.mean([reward_matrix[i, i] / y_norm[i] for i in range(n_clusters)])
+    else:
+        return sum([reward_matrix[i, i] for i in range(n_clusters)]) * 1.0 / y_pred.size
 
-def clustering_scores(latent, labels, prediction_algorithm='knn', n_labels=None):
-    if n_labels is not None:
-        n_labels = len(np.unique(labels))
+def clustering_scores(latent, labels, prediction_algorithm, partial=False, labelled_idx=None, unlabelled_idx=None):
+    if partial == False:
+        labelled_idx = -1
+    if labelled_idx is not -1 and unlabelled_idx is not -1:
+        latent_labelled = latent[labelled_idx, :]
+        latent_unlabelled = latent[unlabelled_idx, :]
+        labels_labelled = labels[labelled_idx]
+        labels_unlabelled = labels[unlabelled_idx]
+    else:
+        latent_labelled = latent
+        latent_unlabelled = latent
+        labels_labelled = labels
+        labels_unlabelled = labels
     if prediction_algorithm == 'KMeans':
-        labels_pred = KMeans(n_labels, n_init=200).fit_predict(latent)  # n_jobs>1 ?
+        n_labels = len(np.unique(labels_unlabelled))
+        labels_pred = KMeans(n_labels, n_init=200).fit_predict(latent_unlabelled)
+        return {
+            'asw': silhouette_score(latent, labels),
+            'nmi': NMI(labels_unlabelled, labels_pred),
+            'ari': ARI(labels_unlabelled, labels_pred),
+            'uca': unsupervised_clustering_accuracy(labels_unlabelled, labels_pred)[0],
+            'weighted uca': unsupervised_clustering_accuracy(labels_unlabelled, labels_pred, True)
+        }
     elif prediction_algorithm == 'knn':
         neigh = KNeighborsClassifier(n_neighbors=10)
-        neigh = neigh.fit(latent, labels)
-        labels_pred = neigh.predict(latent)
-    elif prediction_algorithm == 'gmm':
-        gmm = GMM(n_labels, covariance_type='diag', n_init=200)
-        gmm.fit(latent)
-        labels_pred = gmm.predict(latent)
+        neigh = neigh.fit(latent_labelled, labels_labelled)
+        labels_pred = neigh.predict(latent_unlabelled)
+        return {
+            'asw': silhouette_score(latent, labels),
+            'nmi': NMI(labels_unlabelled, labels_pred),
+            'ari': ARI(labels_unlabelled, labels_pred),
+            'ca': clustering_accuracy(labels_unlabelled, labels_pred),
+            'weighted ca': clustering_accuracy(labels_unlabelled, labels_pred, True)
+        }
     else:
-        print('algorithm not included: choose from KMeans, knn, or gmm')
-    return {
-        'asw': silhouette_score(latent, labels),
-        'nmi': NMI(labels, labels_pred),
-        'ari': ARI(labels, labels_pred),
-        'uca': unsupervised_clustering_accuracy(labels, labels_pred)[0]
-    }
+        print('algorithm not included: choose from KMeans, knn')
 
 
 def get_latent_mean(vae, data_loader):
@@ -130,8 +167,8 @@ def nn_overlap(X1, X2, k=100):
     set_1 = set(np.where(kmatrix_1.A.flatten() == 1)[0])
     set_2 = set(np.where(kmatrix_2.A.flatten() == 1)[0])
     fold_enrichment = len(set_1.intersection(set_2)) * n_samples ** 2 / (float(len(set_1)) * len(set_2))
-    jaccard_index = len(set_1.intersection(set_2))/len(set_1.union(set_2))
-    return spearman_correlation, fold_enrichment,jaccard_index
+    jaccard_index = len(set_1.intersection(set_2)) / len(set_1.union(set_2))
+    return spearman_correlation, fold_enrichment, jaccard_index
 
 
 def entropy_from_indices(indices):

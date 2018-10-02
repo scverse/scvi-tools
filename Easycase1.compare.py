@@ -8,6 +8,7 @@ import sys
 models = str(sys.argv[1])
 plotname = 'Easy1'
 
+
 count, geneid, cellid = get_matrix_from_dir('pbmc8k')
 geneid = geneid[:, 1]
 count = count.T.tocsr()
@@ -33,6 +34,7 @@ rmCellTypes = {'na', 'dendritic'}
 newCellType = [k for i, k in enumerate(dataset2.cell_types) if k not in rmCellTypes]
 dataset2.filter_cell_types(newCellType)
 
+
 dataset1.subsample_genes(dataset1.nb_genes)
 dataset2.subsample_genes(dataset2.nb_genes)
 gene_dataset = GeneExpressionDataset.concat_datasets(dataset1, dataset2)
@@ -43,3 +45,4 @@ gene_dataset.X = gene_dataset.X[:,genes]
 gene_dataset.update_genes(genes)
 
 CompareModels(gene_dataset, dataset1, dataset2, plotname, models)
+
