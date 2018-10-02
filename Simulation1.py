@@ -24,9 +24,5 @@ dataset2 = GeneExpressionDataset(
             gene_names=['gene'+str(i) for i in range(2000)], cell_types=['type'+str(i+1) for i in range(5)])
 
 gene_dataset = GeneExpressionDataset.concat_datasets(dataset1,dataset2)
-res_knn, res_knn_partial, res_kmeans, res_kmeans_partial, res_jaccard, res_jaccard_score = \
-    eval_latent(batch_indices, labels, latent, latent1,latent2,keys,
-                stats[3],stats[4],
-                plotname=plotname + '.' + model_type,plotting=False)
 
 CompareModels(gene_dataset, dataset1, dataset2, plotname, models)
