@@ -19,5 +19,5 @@ xlrd==1.1.0
 nbconvert==5.4.0
 nbformat==4.4.0
 jupyter_client==5.2
-jupyter==4.1.0
+jupyter==4.1.1
 
