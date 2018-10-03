@@ -19,6 +19,6 @@ xlrd==1.1.0
 nbconvert==5.4.0
 nbformat==4.4.0
 jupyter_client==5.2
-nb_conda==2.2.1
+nb_conda>=2.0.0
 nb_conda_kernels==2.2.0
 nb_anacondacloud==1.4.0
