@@ -34,6 +34,5 @@ def run_notebook(prefix):
 
 def test_notebooks():
     for prefix in ['annotation', 'scRNA_and_smFISH', 'data_loading', 'basic_tutorial', 'scVI-reproducibility']:
-        assert(os.getcwd() == '/home/jules/PycharmProjects/scVI')
         print(prefix)
         run_notebook(prefix)
