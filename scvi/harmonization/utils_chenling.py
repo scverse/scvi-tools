@@ -19,6 +19,7 @@ from scvi.dataset import GeneExpressionDataset
 from copy import deepcopy
 import os
 import torch
+import time
 
 
 
@@ -27,39 +28,25 @@ def JaccardIndex(x1,x2):
     union = np.sum((x1+x2)>0)
     return intersection/union
 
-def KNNJaccardIndex(nbrs1, nbrs2,latent,batchid):
-    KNeighbors = np.concatenate([np.arange(10, 100, 10), np.arange(100, 500, 50)])
-    K_int = np.concatenate([np.repeat(10, 10), np.repeat(50, 7)])
-    res=[]
-    for i,x in enumerate(KNeighbors):
-        temp1 = np.load(nbrs1[i])
-        temp2 = np.load(nbrs2[i])
-        knn = NearestNeighbors(n_neighbors=x, algorithm='auto')
-        nbrs_1 = knn.fit(latent[batchid==0,:])
-        nbrs_1 = nbrs_1.kneighbors_graph(latent[batchid==0,:]).toarray()
-        np.fill_diagonal(nbrs_1,0)
-        nbrs_2 = knn.fit(latent[batchid==1,:])
-        nbrs_2 = nbrs_2.kneighbors_graph(latent[batchid==1,:]).toarray()
-        np.fill_diagonal(nbrs_2,0)
-        JI1 = [JaccardIndex(x1, x2) for x1, x2 in zip(temp1, nbrs_1)]
-        JI2 = [JaccardIndex(x1, x2) for x1, x2 in zip(temp2, nbrs_2)]
-        res.append((np.mean(JI1)+np.mean(JI2))/2)
-    score = np.sum(K_int*np.asarray(res))
-    return res, score
 
-def indKNN(latent1,latent2,plotname,modelname):
-    KNeighbors = np.concatenate([np.arange(10, 100, 10), np.arange(100, 500, 50)])
-    if os.path.isfile('../' + plotname + '/indKNN.1.10.npy') is False:
-        for nn in KNeighbors:
-            knn = NearestNeighbors(n_neighbors=nn, algorithm='auto')
-            nbrs = knn.fit(latent1)
-            nbrs = nbrs.kneighbors_graph(latent1).toarray()
-            np.fill_diagonal(nbrs, 0)
-            np.save('../'+plotname+'/'+modelname+'.indKNN.1.'+str(nn)+'.npy',nbrs)
-            nbrs = knn.fit(latent2)
-            nbrs = nbrs.kneighbors_graph(latent2).toarray()
-            np.fill_diagonal(nbrs, 0)
-            np.save('../'+plotname+'/'+modelname+'.indKNN.2.'+str(nn)+'.npy',nbrs)
+def KNNJaccardIndex(latent1, latent2,latent,batchid,nn):
+    knn = NearestNeighbors(n_neighbors=nn, algorithm='auto')
+    nbrs1 = knn.fit(latent1)
+    nbrs1 = nbrs1.kneighbors_graph(latent1).toarray()
+    np.fill_diagonal(nbrs1,0)
+    nbrs2 = knn.fit(latent2)
+    nbrs2 = nbrs2.kneighbors_graph(latent2).toarray()
+    np.fill_diagonal(nbrs2,0)
+    nbrs_1 = knn.fit(latent[batchid==0,:])
+    nbrs_1 = nbrs_1.kneighbors_graph(latent[batchid==0,:]).toarray()
+    np.fill_diagonal(nbrs_1,0)
+    nbrs_2 = knn.fit(latent[batchid==1,:])
+    nbrs_2 = nbrs_2.kneighbors_graph(latent[batchid==1,:]).toarray()
+    np.fill_diagonal(nbrs_2,0)
+    JI1 = [JaccardIndex(x1, x2) for x1, x2 in zip(nbrs1, nbrs_1)]
+    JI2 = [JaccardIndex(x1, x2) for x1, x2 in zip(nbrs2, nbrs_2)]
+    return [(np.mean(JI1)+np.mean(JI2))/2]
+
 
 def assign_label(cellid, geneid, labels_map, count, cell_type, seurat):
     labels = seurat[1:, 4]
@@ -84,9 +71,13 @@ def trainVAE(gene_dataset, filename, rep, nlayers=2):
     if os.path.isfile('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl'):
         trainer.model = torch.load('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl')
     else:
-        trainer.train(n_epochs=250)
-        if gene_dataset.X.shape[0] < 20000:
+        if gene_dataset.X.shape[0]>40000:
+            trainer.train(n_epochs=100)
+        elif gene_dataset.X.shape[0] < 20000:
+            trainer.train(n_epochs=500)
+        else:
             trainer.train(n_epochs=250)
+
         torch.save(trainer.model,'../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl')
     batch_entropy = trainer.train_set.entropy_batch_mixing()
     print("Entropy batch mixing :", batch_entropy)
@@ -135,7 +126,12 @@ def trainSCANVI(gene_dataset,model_type,filename,rep, nlayers=2):
     if os.path.isfile('../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl'):
         trainer_scanvi.model = torch.load('../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl')
     else:
-        trainer_scanvi.train(n_epochs=50)
+        if gene_dataset.X.shape[0]>40000:
+            trainer_scanvi.train(n_epochs=10)
+        elif gene_dataset.X.shape[0] < 20000:
+            trainer_scanvi.train(n_epochs=50)
+        else:
+            trainer_scanvi.train(n_epochs=25)
         torch.save(trainer_scanvi.model,'../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl')
     return trainer_scanvi
 
@@ -144,6 +140,7 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
     keys = gene_dataset.cell_types
     batch_indices = gene_dataset.batch_indices.ravel().astype('int')
     labels = gene_dataset.labels.ravel().astype('int')
+    stats = []
 
     if model_type == 'vae':
         full = trainVAE(gene_dataset, filename, rep)
@@ -183,7 +180,15 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
             out = mnn.fit_transform(gene_dataset.X.todense(), gene_dataset.batch_indices.ravel(), [0, 1])
             latent = PCA(n_components=10).fit_transform(out)
             np.save('../' + filename + '/' + 'MNN' + '.npy',latent)
-        stats=[]
+
+    elif model_type=='PCA':
+        if os.path.isfile('../' + filename + '/' + 'PCA'  + '.npy'):
+            latent = np.load('../' + filename + '/' + 'PCA'  + '.npy')
+        else:
+            from sklearn.decomposition import PCA
+            X = np.log(1 + gene_dataset.X)
+            latent = PCA(n_components=10).fit_transform(X)
+            np.save('../' + filename + '/' + 'PCA' + '.npy', latent)
 
     elif model_type == 'Combat':
         if os.path.isfile('../' + filename + '/' + 'Combat'  + '.npy'):
@@ -194,11 +199,9 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
             latent = combat.combat_pca(gene_dataset)
             latent = latent.T
             np.save('../' + filename + '/' + 'Combat' + '.npy',latent)
-        stats = []
 
     elif model_type == 'readSeurat':
         latent = np.genfromtxt('../Seurat_data/' + filename + '.CCA.txt')
-        stats=[]
 
     elif model_type == 'Seurat':
         from scvi.harmonization.clustering.seurat import SEURAT
@@ -206,7 +209,6 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
         seurat.create_seurat(dataset1, 1)
         seurat.create_seurat(dataset2, 2)
         latent, batch_indices, labels, keys = seurat.get_cca()
-        stats=[]
 
     elif model_type == 'SeuratPC':
         from scvi.harmonization.clustering.seurat import SEURAT
@@ -215,7 +217,6 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
         seurat.create_seurat(dataset2, 2)
         latent, batch_indices = seurat.get_pcs()
         labels, keys, _, _ = seurat.get_cca()
-        stats=[]
 
     elif model_type =='scmap':
         from scvi.harmonization.classification.scmap import SCMAP
@@ -285,7 +286,7 @@ def eval_latent(batch_indices, labels, latent, keys, labelled_idx=None,unlabelle
             plt.tight_layout()
             plt.savefig('../' + plotname + '.batchid.png')
     if partial_only==False:
-        return res_knn, res_knn_partial, res_kmeans, res_kmeans_partial
+        return res_knn,res_knn_partial, res_kmeans, res_kmeans_partial
     else:
         return 0, res_knn_partial, 0, res_kmeans_partial
 
@@ -338,6 +339,8 @@ def TryFindCells(dict, cellid, count):
 
 
 def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
+    KNeighbors = np.concatenate([np.arange(10, 100, 10), np.arange(100, 500, 50)])
+    K_int = np.concatenate([np.repeat(10, 10), np.repeat(50, 7)])
     f = open('../' + plotname +'/' + models + '.res.txt', "w+")
     f.write("model_type " + \
             "knn_asw knn_nmi knn_ari knn_uca knn_wuca " + \
@@ -361,12 +364,12 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
     if models =='others':
         latent1 = np.genfromtxt('../Seurat_data/' + plotname + '.1.CCA.txt')
         latent2 = np.genfromtxt('../Seurat_data/' + plotname + '.2.CCA.txt')
-        nbrs1,nbrs2 = indKNN(latent1,latent2)
-        for model_type in ['readSeurat','Combat','MNN','scmap']:
+        for model_type in ['readSeurat','Combat','MNN','scmap','PCA']:
             print(model_type)
             latent, batch_indices, labels, keys,stats = run_model(model_type, gene_dataset, dataset1, dataset2, filename=plotname)
             if model_type!='scmap':
-                res_jaccard, res_jaccard_score = KNNJaccardIndex(nbrs1, nbrs2,latent,batch_indices)
+                res_jaccard = [KNNJaccardIndex(latent1, latent2, latent, batch_indices, k)[0] for k in KNeighbors]
+                res_jaccard_score = np.sum(res_jaccard * K_int)
                 res_knn, res_knn_partial, res_kmeans, res_kmeans_partial = \
                     eval_latent(batch_indices, labels, latent, keys,
                                 labelled_idx, unlabelled_idx,
@@ -420,18 +423,17 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
             latent2, _, _, _, _ = run_model('vae', dataset2, 0, 0, filename=plotname)
             np.save('../' + plotname + '/' + models + '.latent2.npy', latent2)
 
-        nbrs1,nbrs2 = indKNN(latent1,latent2)
-
         for model_type in ['vae', 'scanvi', 'scanvi1', 'scanvi2', 'scanvi0']:
             print(model_type)
             latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,
-                                                                   filename=plotname, rep='0')
+                                                                   filename=plotname, rep='1')
 
-            res_jaccard, res_jaccard_score = KNNJaccardIndex(nbrs1, nbrs2, latent, batch_indices)
+            res_jaccard = [KNNJaccardIndex(latent1, latent2, latent, batch_indices, k)[0] for k in KNeighbors]
+            res_jaccard_score = np.sum(res_jaccard * K_int)
             res_knn, res_knn_partial, res_kmeans, res_kmeans_partial = \
                 eval_latent(batch_indices=batch_indices,labels=labels,latent=latent,keys=keys,
                             labelled_idx=labelled_idx,unlabelled_idx=unlabelled_idx,
-                            plotname=plotname+'.'+model_type,plotting=True,partial_only=False)
+                            plotname=plotname+'.'+model_type,plotting=True, partial_only=False)
 
             _, res_knn_partial1, _, res_kmeans_partial1 = \
                 eval_latent(batch_indices= batch_indices, labels=labels, latent=latent, keys=keys,
@@ -454,37 +456,37 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
                   res_jaccard + \
                   [res_jaccard_score, stats[0], stats[1], stats[2]]
             f.write(model_type + (" %.4f" * 61 + "\n") % tuple(res))
-            for i in [1, 2, 3]:
-                latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,
-                                                                       filename=plotname, rep=str(i))
-                res_jaccard, res_jaccard_score = KNNJaccardIndex(nbrs1, nbrs2, latent, batch_indices)
-
-                res_knn, res_knn_partial, res_kmeans, res_kmeans_partial = \
-                    eval_latent(batch_indices=batch_indices, labels=labels, latent=latent, keys=keys,
-                                labelled_idx=labelled_idx, unlabelled_idx=unlabelled_idx,
-                                plotname=plotname + '.' + model_type, plotting=False,partial_only=False)
-
-                _, res_knn_partial1, _, res_kmeans_partial1 = \
-                    eval_latent(batch_indices=batch_indices, labels=labels, latent=latent, keys=keys,
-                                labelled_idx=(batch_indices == 0), unlabelled_idx=(batch_indices == 1),
-                                plotname=plotname + '.' + model_type, plotting=False)
-
-                _, res_knn_partial2, _, res_kmeans_partial2 = \
-                    eval_latent(batch_indices=batch_indices, labels=labels, latent=latent, keys=keys,
-                                labelled_idx=(batch_indices == 1), unlabelled_idx=(batch_indices == 0),
-                                plotname=plotname + '.' + model_type, plotting=False)
-
-                res = [res_knn[x] for x in res_knn] + \
-                      [res_knn_partial[x] for x in res_knn_partial] + \
-                      [res_knn_partial1[x] for x in res_knn_partial1] + \
-                      [res_knn_partial2[x] for x in res_knn_partial2] + \
-                      [res_kmeans[x] for x in res_kmeans] + \
-                      [res_kmeans_partial[x] for x in res_kmeans_partial] + \
-                      [res_kmeans_partial1[x] for x in res_kmeans_partial1] + \
-                      [res_kmeans_partial2[x] for x in res_kmeans_partial2] + \
-                      res_jaccard + \
-                      [res_jaccard_score,stats[0], stats[1], stats[2]]
-                f.write(model_type + (" %.4f" * 61 + "\n") % tuple(res))
+            # for i in [1, 2, 3]:
+            #     latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,
+            #                                                            filename=plotname, rep=str(i))
+            #     res_jaccard, res_jaccard_score = KNNJaccardIndex(latent1, latent2, latent, batch_indices)
+            #
+            #     res_knn, res_knn_partial, res_kmeans, res_kmeans_partial = \
+            #         eval_latent(batch_indices=batch_indices, labels=labels, latent=latent, keys=keys,
+            #                     labelled_idx=labelled_idx, unlabelled_idx=unlabelled_idx,
+            #                     plotname=plotname + '.' + model_type, plotting=False,partial_only=False)
+            #
+            #     _, res_knn_partial1, _, res_kmeans_partial1 = \
+            #         eval_latent(batch_indices=batch_indices, labels=labels, latent=latent, keys=keys,
+            #                     labelled_idx=(batch_indices == 0), unlabelled_idx=(batch_indices == 1),
+            #                     plotname=plotname + '.' + model_type, plotting=False)
+            #
+            #     _, res_knn_partial2, _, res_kmeans_partial2 = \
+            #         eval_latent(batch_indices=batch_indices, labels=labels, latent=latent, keys=keys,
+            #                     labelled_idx=(batch_indices == 1), unlabelled_idx=(batch_indices == 0),
+            #                     plotname=plotname + '.' + model_type, plotting=False)
+            #
+            #     res = [res_knn[x] for x in res_knn] + \
+            #           [res_knn_partial[x] for x in res_knn_partial] + \
+            #           [res_knn_partial1[x] for x in res_knn_partial1] + \
+            #           [res_knn_partial2[x] for x in res_knn_partial2] + \
+            #           [res_kmeans[x] for x in res_kmeans] + \
+            #           [res_kmeans_partial[x] for x in res_kmeans_partial] + \
+            #           [res_kmeans_partial1[x] for x in res_kmeans_partial1] + \
+            #           [res_kmeans_partial2[x] for x in res_kmeans_partial2] + \
+            #           res_jaccard + \
+            #           [res_jaccard_score,stats[0], stats[1], stats[2]]
+            #     f.write(model_type + (" %.4f" * 61 + "\n") % tuple(res))
 
     elif models=='writedata':
         _, _, _, _,_ = run_model('writedata', gene_dataset, dataset1, dataset2, filename=plotname)

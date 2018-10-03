@@ -30,28 +30,37 @@ res = np.append(res, scmap2,axis=0)
 model_types = np.append(model_types,'scmap2')
 
 sorted_res=[]
-model_order = ['vae', 'scanvi', 'scanvi1', 'scanvi2',
-       'scmap1', 'scmap2', 'readSeurat', 'Combat', 'MNN']
+# model_order = ['vae','scanvi0', 'scanvi', 'scanvi1', 'scanvi2',
+#        'scmap1', 'scmap2', 'readSeurat', 'Combat', 'MNN']
+model_order = ['vae','scanvi0', 'scanvi', 'scanvi1', 'scanvi2','readSeurat', 'Combat', 'MNN']
 for x in model_order:
     sorted_res.append(res[model_types==x,:])
 
 sorted_res = np.asarray(sorted_res)
-sorted_res = sorted_res.reshape(9,41)
+sorted_res = sorted_res.squeeze()
 
-
-tabs = ['p_knn_asw','uca','BE','jaccard_score','classifier_acc']
-filtered_res = [sorted_res[:, [y in x for x in stat_names]] for y in tabs]
+tabs = ['knn_asw','knn_uca','knn_wuca','kmeans_uca','kmeans_wuca','BE','jaccard_score']
+# tabs = ['knn_asw','knn_uca','p_knn_uca','p1_knn_uca','p2_knn_uca','BE','jaccard_score','classifier_acc']
+# tabs = ['kmeans_asw','kmeans_uca','p_kmeans_uca','p1_kmeans_uca','p2_kmeans_uca','BE','jaccard_score','classifier_acc']
+# for x in tabs:
+#     print(x)
+#     print(np.sum(stat_names==x))
+filtered_res = [sorted_res[:, stat_names==x] for x in tabs]
 filtered_res = np.concatenate(filtered_res,axis=1)
 
 filtered_names = np.concatenate(np.asarray( [stat_names[[y in x for x in stat_names]] for y in tabs]))
 filtered_names[0]='asw'
 rm_values = (filtered_res==-1)
-filtered_res = np.apply_along_axis(impute,0,filtered_res)
+
 
 def impute(x):
-    avg = np.mean(x[x!=-1])
-    x[x==-1]=avg
+    avg = np.mean(x[x != -1])
+    x[x == -1] = avg
     return x
+
+
+filtered_res = np.apply_along_axis(impute,0,filtered_res)
+
 
 
 def Heatmap(value_matrix, cololor_matrix, rownames,colnames,title,filename):
@@ -80,4 +89,4 @@ scaler = MinMaxScaler()
 scaled_res = scaler.fit_transform(filtered_res)
 scaled_res[rm_values]=np.nan
 filtered_res[rm_values]=np.nan
-Heatmap(filtered_res,scaled_res,filtered_names,model_order,dataname,'../'+ dataname + '/heatmap.png')
+Heatmap(filtered_res,scaled_res,tabs,model_order,dataname,'../'+ dataname + '/heatmap.png')
