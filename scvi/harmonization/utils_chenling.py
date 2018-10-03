@@ -204,11 +204,15 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
         latent = np.genfromtxt('../Seurat_data/' + filename + '.CCA.txt')
 
     elif model_type == 'Seurat':
-        from scvi.harmonization.clustering.seurat import SEURAT
-        seurat = SEURAT()
-        seurat.create_seurat(dataset1, 1)
-        seurat.create_seurat(dataset2, 2)
-        latent, batch_indices, labels, keys = seurat.get_cca()
+        if os.path.isfile('../' + filename + '/' + 'Seurat'  + '.npy'):
+            latent = np.load('../' + filename + '/' + 'Seurat'  + '.npy')
+        else:
+            from scvi.harmonization.clustering.seurat import SEURAT
+            seurat = SEURAT()
+            seurat.create_seurat(dataset1, 1)
+            seurat.create_seurat(dataset2, 2)
+            latent, batch_indices, labels, keys = seurat.get_cca()
+            np.save('../' + filename + '/' + 'Seurat' + '.npy',latent)
 
     elif model_type == 'SeuratPC':
         from scvi.harmonization.clustering.seurat import SEURAT
@@ -405,28 +409,20 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
             f.write(model_type + (" %.4f"*61+"\n") % tuple(res))
 
     elif models=='scvi':
-        if os.path.isfile('../'+plotname+'/'+models+'.latent1.npy'):
-            latent1 = np.load('../'+plotname+'/'+models+'.latent1.npy')
-        else:
-            dataset1 = deepcopy(gene_dataset)
-            dataset1.update_cells(gene_dataset.batch_indices.ravel() == 0)
-            dataset1.subsample_genes(dataset1.nb_genes)
-            latent1, _, _, _, _ = run_model('vae', dataset1, 0, 0, filename=plotname)
-            np.save('../'+plotname+'/'+models+'.latent1.npy',latent1)
+        dataset1 = deepcopy(gene_dataset)
+        dataset1.update_cells(gene_dataset.batch_indices.ravel() == 0)
+        dataset1.subsample_genes(dataset1.nb_genes)
+        latent1, _, _, _, _ = run_model('vae', dataset1, 0, 0, filename=plotname,rep='vae1')
 
-        if os.path.isfile('../'+plotname+'/'+models+'.latent2.npy'):
-            latent2 = np.load('../' + plotname + '/' + models + '.latent2.npy')
-        else:
-            dataset2 = deepcopy(gene_dataset)
-            dataset2.update_cells(gene_dataset.batch_indices.ravel()  == 1)
-            dataset2.subsample_genes(dataset2.nb_genes)
-            latent2, _, _, _, _ = run_model('vae', dataset2, 0, 0, filename=plotname)
-            np.save('../' + plotname + '/' + models + '.latent2.npy', latent2)
+        dataset2 = deepcopy(gene_dataset)
+        dataset2.update_cells(gene_dataset.batch_indices.ravel()  == 1)
+        dataset2.subsample_genes(dataset2.nb_genes)
+        latent2, _, _, _, _ = run_model('vae', dataset2, 0, 0, filename=plotname,rep='vae2')
 
         for model_type in ['vae', 'scanvi', 'scanvi1', 'scanvi2', 'scanvi0']:
             print(model_type)
             latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,
-                                                                   filename=plotname, rep='1')
+                                                                   filename=plotname, rep='0')
 
             res_jaccard = [KNNJaccardIndex(latent1, latent2, latent, batch_indices, k)[0] for k in KNeighbors]
             res_jaccard_score = np.sum(res_jaccard * K_int)

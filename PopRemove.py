@@ -3,6 +3,8 @@ from scvi.harmonization.utils_chenling import get_matrix_from_dir
 from scvi.dataset.pbmc import PbmcDataset
 from scvi.harmonization.utils_chenling import assign_label
 import numpy as np
+from scipy.stats import kde, entropy
+
 from scvi.dataset.dataset import GeneExpressionDataset
 from scvi.harmonization.utils_chenling import eval_latent, run_model
 from copy import deepcopy
@@ -11,6 +13,7 @@ import sys
 model_type = str(sys.argv[1])
 print(model_type)
 plotname = 'PopRemove'
+from sklearn.neighbors import NearestNeighbors
 
 dataset1 = PbmcDataset()
 dataset1.update_cells(dataset1.batch_indices.ravel()==0)
@@ -27,11 +30,59 @@ set(dataset2.cell_types).intersection(set(dataset2.cell_types))
 
 dataset1.subsample_genes(dataset1.nb_genes)
 dataset2.subsample_genes(dataset2.nb_genes)
+from scipy.stats import  entropy
+
+
+from sklearn.neighbors import NearestNeighbors
+
+def entropy_from_indices(indices):
+    return entropy(np.array(np.unique(indices, return_counts=True)[1].astype(np.int32)))
+
+
+def entropy_batch_mixing_subsampled(latent_space, batches, labels, removed_type, sampled_batch=0, n_neighbors=50, n_pools=50, n_samples_per_pool=100):
+    # max number is an important parameter
+    # latent_space = latent
+    # batches = batch_indices
+    # removed_type = rm_idx
+    removed_pop = latent[labels == removed_type,:]
+    kept_pop = latent[batches!=sampled_batch,:][labels[batches!=sampled_batch] != removed_type,:]
+    nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(latent)
+    res = []
+    for X in [removed_pop,kept_pop]:
+        indices = nbrs.kneighbors(X, return_distance=False)[:, 1:]
+        batch_indices = np.vectorize(lambda i: batches[i])(indices)
+        entropies = np.apply_along_axis(entropy_from_indices, axis=1, arr=batch_indices)
+        # average n_pools entropy results where each result is an average of n_samples_per_pool random samples.
+        if n_pools == 1:
+            score = np.mean(entropies)
+        else:
+            score = np.mean([
+                np.mean(entropies[np.random.choice(len(entropies), size=n_samples_per_pool)])
+                for _ in range(n_pools)
+            ])
+        res.append(score)
+    return res[0], res[1]
+
+from scvi.metrics.clustering import clustering_scores
+
+f = open('../'+plotname+'/res.txt', "w+")
+f.write('model_type\tcell_type\tBE_removed\tBE_kept\tasw\tnmi\tari\tca\twca\n')
 
 for rmCellTypes in dataset2.cell_types:
     pbmc = deepcopy(dataset1)
     newCellType = [k for i, k in enumerate(dataset1.cell_types) if k not in [rmCellTypes]]
     pbmc.filter_cell_types(newCellType)
     gene_dataset = GeneExpressionDataset.concat_datasets(pbmc, dataset2)
-    latent, batch_indices, labels, keys = run_model(model_type, gene_dataset, pbmc, dataset2, ngenes=500,filename=plotname+rmCellTypes.replace(' ',''))
-    eval_latent(batch_indices, labels, latent, keys, plotname+rmCellTypes.replace(' ','') + '.' + model_type)
+    gene_dataset.subsample_genes(600)
+    for model_type in ['vae','Seurat']:
+        latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, pbmc, dataset2,filename=plotname,rep=rmCellTypes.replace(' ',''))
+        rm_idx = np.arange(len(gene_dataset.cell_types))[gene_dataset.cell_types==rmCellTypes][0]
+        BE1, BE2 = entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type=rm_idx)
+        res_knn = clustering_scores(np.asarray(latent), labels, 'knn')
+        res =  [BE1,BE2] + [res_knn[x] for x in res_knn]
+        f.write(model_type + '\t' + rmCellTypes + ("\t%.4f"*7+"\n") % tuple(res))
+
+
+
+
+f.close()
