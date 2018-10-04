@@ -21,12 +21,13 @@ def auc_score_threshold(gene_set, bayes_factor, gene_symbols):
 
 
 # We need to modify this import to get all the genes
-pbmc = PbmcDataset(filter_out_de_genes=False, use_symbols=False)
+pbmc = PbmcDataset()
 pbmc.batch_indices = np.repeat(0,len(pbmc)).reshape(len(pbmc), 1)
-pbmc68k = Dataset10X('fresh_68k_pbmc_donor_a')
 
+pbmc68k = Dataset10X('fresh_68k_pbmc_donor_a')
 pbmc68k.cell_types = ['unlabelled']
 pbmc68k.labels = np.repeat(0, len(pbmc68k)).reshape(len(pbmc68k), 1)
+pbmc68k.gene_names = pbmc68k.gene_symbols
 
 all_dataset = GeneExpressionDataset.concat_datasets(pbmc, pbmc68k)
 all_dataset.subsample_genes(5000)
@@ -60,7 +61,7 @@ print(all_dataset.cell_types)
 vae = VAE(all_dataset.nb_genes, n_batch=all_dataset.n_batches, n_labels=all_dataset.n_labels,
           n_hidden=128, n_latent=10, n_layers=2, dispersion='gene')
 trainer = UnsupervisedTrainer(vae, all_dataset, train_size=1.0)
-trainer.train(n_epochs=50)
+trainer.train(n_epochs=100)
 trainer.train_set.entropy_batch_mixing()
 
 scanvi = SCANVI(all_dataset.nb_genes, all_dataset.n_batches, all_dataset.n_labels, n_layers=2)

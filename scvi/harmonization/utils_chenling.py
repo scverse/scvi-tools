@@ -211,7 +211,7 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
             seurat = SEURAT()
             seurat.create_seurat(dataset1, 1)
             seurat.create_seurat(dataset2, 2)
-            latent, batch_indices, labels, keys = seurat.get_cca()
+            latent, batch_indices, labels, keys = seurat.get_cca(filter_genes=True)
             np.save('../' + filename + '/' + 'Seurat' + '.npy',latent)
 
     elif model_type == 'SeuratPC':

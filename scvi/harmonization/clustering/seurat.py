@@ -34,8 +34,11 @@ class SEURAT():
         return pc1,pc2
 
 
-    def get_cca(self):
-        ro.r('combined <- hvg_CCA(list(seurat1,seurat2))')
+    def get_cca(self, filter_genes = False):
+        if filter_genes==True:
+            ro.r('combined <- hvg_CCA(list(seurat1,seurat2), filter_genes = TRUE)')
+        else:
+            ro.r('combined <- hvg_CCA(list(seurat1,seurat2))')
         latent = ro.r('combined[[1]]')
         labels = ro.r('combined[[3]]')
         batch_indices = ro.r('combined[[2]]')

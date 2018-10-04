@@ -73,8 +73,9 @@ for rmCellTypes in dataset2.cell_types:
     newCellType = [k for i, k in enumerate(dataset1.cell_types) if k not in [rmCellTypes]]
     pbmc.filter_cell_types(newCellType)
     gene_dataset = GeneExpressionDataset.concat_datasets(pbmc, dataset2)
-    gene_dataset.subsample_genes(600)
     for model_type in ['vae','Seurat']:
+        if model_type=='vae':
+            gene_dataset.subsample_genes(600)
         latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, pbmc, dataset2,filename=plotname,rep=rmCellTypes.replace(' ',''))
         rm_idx = np.arange(len(gene_dataset.cell_types))[gene_dataset.cell_types==rmCellTypes][0]
         BE1, BE2 = entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type=rm_idx)
