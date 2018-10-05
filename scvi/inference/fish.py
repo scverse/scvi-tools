@@ -135,7 +135,7 @@ class TrainerFish(Trainer):
             ret["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, mode="smFISH")]
             ret["expected_frequencies"] += [self.model.get_sample_scale(sample_batch, mode="smFISH",
                                                                         batch_index=batch_index)]
-            ret["imputed_values"] += [self.model.get_sample_rate(sample_batch, mode="smFISH")]
+            ret["imputed_values"] += [self.model.get_sample_rate_fish(sample_batch)]
             ret["labels"] += [label]
             ret["batch_indices"] += [batch_index]
             ret["fish_observed_values"] += [sample_batch]
