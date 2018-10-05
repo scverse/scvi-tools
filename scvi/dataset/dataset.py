@@ -128,7 +128,16 @@ class GeneExpressionDataset(Dataset):
         if hasattr(self, 'gene_symbols'):
             self.gene_symbols = self.gene_symbols[subset_genes]
         self.nb_genes = self.X.shape[1]
-        self.update_cells(np.array(self.X.sum(axis=1) > 0).ravel())
+        to_keep = np.array(self.X.sum(axis=1) > 0).ravel()
+        self.update_cells(to_keep)
+        if self.X.shape != self.X[to_keep].shape:
+            removed_idx = []
+            for i in range(len(to_keep)):
+                if not to_keep[i]:
+                    removed_idx.append(i)
+            print("Cells with zero expression in all genes considered were removed, the indices of the removed cells "
+                  "in the expression matrix were:")
+            print(removed_idx)
 
     def update_cells(self, subset_cells):
         new_n_cells = len(subset_cells) if subset_cells.dtype is not np.dtype('bool') else subset_cells.sum()
@@ -266,6 +275,14 @@ class GeneExpressionDataset(Dataset):
     @staticmethod
     def get_attributes_from_matrix(X, batch_indices=0, labels=None):
         to_keep = np.array((X.sum(axis=1) > 0)).ravel()
+        if X.shape != X[to_keep].shape:
+            removed_idx = []
+            for i in range(len(to_keep)):
+                if not to_keep[i]:
+                    removed_idx.append(i)
+            print("Cells with zero expression in all genes considered were removed, the indices of the removed cells "
+                  "in the expression matrix were:")
+            print(removed_idx)
         X = X[to_keep]
         local_mean, local_var = GeneExpressionDataset.library_size(X)
         batch_indices = batch_indices * np.ones((X.shape[0], 1)) if type(batch_indices) is int \
