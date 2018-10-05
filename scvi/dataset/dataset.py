@@ -308,8 +308,8 @@ class GeneExpressionDataset(Dataset):
                     if not to_keep[i]:
                         removed_idx.append(i)
                 print(
-                    "Cells with zero expression in all genes considered were removed, the indices of the removed cells "
-                    "in the ", i, "th expression matrix were:")
+                    "Cells with zero expression in all genes considered were removed, the indices of the removed "
+                    "cells in the ", i, "th expression matrix were:")
                 print(removed_idx)
             X = X[to_keep]
             new_Xs += [X]
