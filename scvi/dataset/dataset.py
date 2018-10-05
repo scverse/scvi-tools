@@ -302,17 +302,22 @@ class GeneExpressionDataset(Dataset):
         labels = []
         for i, X in enumerate(Xs):
             new_Xs += [X]
-            local_mean, local_var = GeneExpressionDataset.library_size(X)
-            local_means += [local_mean]
-            local_vars += [local_var]
             batch_indices += [list_batches[i] if list_batches is not None else i * np.ones((X.shape[0], 1))]
             labels += [list_labels[i] if list_labels is not None else np.zeros((X.shape[0], 1))]
-
         X = np.concatenate(new_Xs) if type(new_Xs[0]) is np.ndarray else sp_sparse.vstack(new_Xs)
-        batch_indices = np.concatenate(batch_indices)
-        local_means = np.concatenate(local_means)
-        local_vars = np.concatenate(local_vars)
-        labels = np.concatenate(labels)
+        to_keep = np.array((X.sum(axis=1) > 0)).ravel()
+        if X.shape != X[to_keep].shape:
+            removed_idx = []
+            for i in range(len(to_keep)):
+                if not to_keep[i]:
+                    removed_idx.append(i)
+            print("Cells with zero expression in all genes considered were removed, the indices of the removed cells "
+                  "in the concatenated expression matrix were:")
+            print(removed_idx)
+        X = X[to_keep]
+        local_means, local_vars = GeneExpressionDataset.library_size(X)
+        batch_indices = np.concatenate(batch_indices)[to_keep]
+        labels = np.concatenate(labels)[to_keep]
         return X, local_means, local_vars, batch_indices, labels
 
     @staticmethod
