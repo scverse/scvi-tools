@@ -6,6 +6,7 @@ from nbformat import read
 from IPython.core.interactiveshell import InteractiveShell
 import os
 import shutil
+import matplotlib.pyplot as plt
 
 
 def find_notebook(fullname, path=None):
@@ -67,6 +68,7 @@ class NotebookLoader(object):
                         code = self.shell.input_transformer_manager.transform_cell(cell.source)
                         # run the code in themodule
                         exec(code, mod.__dict__)
+                        plt.close('all')
                     i += 1
         finally:
             self.shell.user_ns = save_user_ns
@@ -100,107 +102,113 @@ path = 'docs/notebooks/'
 test_path = 'tests/notebooks/'
 
 
-prefix = 'annotation'
-# if exists, save and overwrite
-config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-config_filename_tmp = prefix + '.config.tmp.json'
+def test_notebooks():
+    prefix = 'annotation'
+    # if exists, save and overwrite
+    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
+    config_filename_tmp = prefix + '.config.tmp.json'
 
-# Save content in memory in tmp file
-existing_config_to_restore = os.path.exists(path + config_filename)
-if existing_config_to_restore:
-    shutil.copy(path + config_filename, path + config_filename_tmp)
-
-# Overwritting
-shutil.copy(test_path + config_filename, path + config_filename)
-try:
-    import docs.notebooks.annotation
-    docs.notebooks.annotation.allow_notebook_for_test()
-except BaseException:
-    raise
-finally:
+    # Save content in memory in tmp file
+    existing_config_to_restore = os.path.exists(path + config_filename)
     if existing_config_to_restore:
-        shutil.move(path + config_filename_tmp, path + config_filename)
+        shutil.copy(path + config_filename, path + config_filename_tmp)
 
-prefix = 'scRNA_and_smFISH'
-# if exists, save and overwrite
-config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-config_filename_tmp = prefix + '.config.tmp.json'
+    # Overwritting
+    shutil.copy(test_path + config_filename, path + config_filename)
+    try:
+        import docs.notebooks.annotation
+        docs.notebooks.annotation.allow_notebook_for_test()
+        plt.close('all')
+    except BaseException:
+        raise
+    finally:
+        if existing_config_to_restore:
+            shutil.move(path + config_filename_tmp, path + config_filename)
 
-# Save content in memory in tmp file
-existing_config_to_restore = os.path.exists(path + config_filename)
-if existing_config_to_restore:
-    shutil.copy(path + config_filename, path + config_filename_tmp)
+    prefix = 'scRNA_and_smFISH'
+    # if exists, save and overwrite
+    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
+    config_filename_tmp = prefix + '.config.tmp.json'
 
-# Overwritting
-shutil.copy(test_path + config_filename, path + config_filename)
-try:
-    import docs.notebooks.scRNA_and_smFISH
-    docs.notebooks.scRNA_and_smFISH.allow_notebook_for_test()
-except BaseException:
-    raise
-finally:
+    # Save content in memory in tmp file
+    existing_config_to_restore = os.path.exists(path + config_filename)
     if existing_config_to_restore:
-        shutil.move(path + config_filename_tmp, path + config_filename)
+        shutil.copy(path + config_filename, path + config_filename_tmp)
 
-prefix = 'data_loading'
-# if exists, save and overwrite
-config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-config_filename_tmp = prefix + '.config.tmp.json'
+    # Overwritting
+    shutil.copy(test_path + config_filename, path + config_filename)
+    try:
+        import docs.notebooks.scRNA_and_smFISH
+        docs.notebooks.scRNA_and_smFISH.allow_notebook_for_test()
+        plt.close('all')
+    except BaseException:
+        raise
+    finally:
+        if existing_config_to_restore:
+            shutil.move(path + config_filename_tmp, path + config_filename)
 
-# Save content in memory in tmp file
-existing_config_to_restore = os.path.exists(path + config_filename)
-if existing_config_to_restore:
-    shutil.copy(path + config_filename, path + config_filename_tmp)
+    prefix = 'data_loading'
+    # if exists, save and overwrite
+    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
+    config_filename_tmp = prefix + '.config.tmp.json'
 
-# Overwritting
-shutil.copy(test_path + config_filename, path + config_filename)
-try:
-    import docs.notebooks.data_loading
-    docs.notebooks.data_loading.allow_notebook_for_test()
-except BaseException:
-    raise
-finally:
+    # Save content in memory in tmp file
+    existing_config_to_restore = os.path.exists(path + config_filename)
     if existing_config_to_restore:
-        shutil.move(path + config_filename_tmp, path + config_filename)
+        shutil.copy(path + config_filename, path + config_filename_tmp)
 
-prefix = 'basic_tutorial'
-# if exists, save and overwrite
-config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-config_filename_tmp = prefix + '.config.tmp.json'
+    # Overwritting
+    shutil.copy(test_path + config_filename, path + config_filename)
+    try:
+        import docs.notebooks.data_loading
+        docs.notebooks.data_loading.allow_notebook_for_test()
+        plt.close('all')
+    except BaseException:
+        raise
+    finally:
+        if existing_config_to_restore:
+            shutil.move(path + config_filename_tmp, path + config_filename)
 
-# Save content in memory in tmp file
-existing_config_to_restore = os.path.exists(path + config_filename)
-if existing_config_to_restore:
-    shutil.copy(path + config_filename, path + config_filename_tmp)
+    prefix = 'basic_tutorial'
+    # if exists, save and overwrite
+    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
+    config_filename_tmp = prefix + '.config.tmp.json'
 
-# Overwritting
-shutil.copy(test_path + config_filename, path + config_filename)
-try:
-    import docs.notebooks.basic_tutorial
-    docs.notebooks.basic_tutorial.allow_notebook_for_test()
-except BaseException:
-    raise
-finally:
+    # Save content in memory in tmp file
+    existing_config_to_restore = os.path.exists(path + config_filename)
     if existing_config_to_restore:
-        shutil.move(path + config_filename_tmp, path + config_filename)
+        shutil.copy(path + config_filename, path + config_filename_tmp)
 
-prefix = 'scVI_reproducibility'
-# if exists, save and overwrite
-config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-config_filename_tmp = prefix + '.config.tmp.json'
+    # Overwritting
+    shutil.copy(test_path + config_filename, path + config_filename)
+    try:
+        import docs.notebooks.basic_tutorial
+        docs.notebooks.basic_tutorial.allow_notebook_for_test()
+        plt.close('all')
+    except BaseException:
+        raise
+    finally:
+        if existing_config_to_restore:
+            shutil.move(path + config_filename_tmp, path + config_filename)
 
-# Save content in memory in tmp file
-existing_config_to_restore = os.path.exists(path + config_filename)
-if existing_config_to_restore:
-    shutil.copy(path + config_filename, path + config_filename_tmp)
+    prefix = 'scVI_reproducibility'
+    # if exists, save and overwrite
+    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
+    config_filename_tmp = prefix + '.config.tmp.json'
 
-# Overwritting
-shutil.copy(test_path + config_filename, path + config_filename)
-try:
-    import docs.notebooks.scVI_reproducibility
-    docs.notebooks.scVI_reproducibility.allow_notebook_for_test()
-except BaseException:
-    raise
-finally:
+    # Save content in memory in tmp file
+    existing_config_to_restore = os.path.exists(path + config_filename)
     if existing_config_to_restore:
-        shutil.move(path + config_filename_tmp, path + config_filename)
+        shutil.copy(path + config_filename, path + config_filename_tmp)
+
+    # Overwritting
+    shutil.copy(test_path + config_filename, path + config_filename)
+    try:
+        import docs.notebooks.scVI_reproducibility
+        docs.notebooks.scVI_reproducibility.allow_notebook_for_test()
+        plt.close('all')
+    except BaseException:
+        raise
+    finally:
+        if existing_config_to_restore:
+            shutil.move(path + config_filename_tmp, path + config_filename)
