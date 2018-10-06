@@ -86,18 +86,21 @@ class VAE(nn.Module):
         """
         return [self.sample_from_posterior_z(x, y)]
 
-    def sample_from_posterior_z(self, x, y=None):
+    def sample_from_posterior_z(self, x, y=None, give_mean=False):
         r""" samples the tensor of latent values from the posterior
         #doesn't really sample, returns the means of the posterior distribution
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
+        :param give_mean: is True when we want the mean of the posterior  distribution rather than sampling
         :return: tensor of shape ``(batch_size, n_latent)``
         :rtype: :py:class:`torch.Tensor`
         """
         if self.log_variational:
             x = torch.log(1 + x)
         qz_m, qz_v, z = self.z_encoder(x, y)  # y only used in VAEC
+        if give_mean:
+            z = qz_m
         return z
 
     def sample_from_posterior_l(self, x):
