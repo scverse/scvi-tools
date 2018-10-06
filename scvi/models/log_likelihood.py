@@ -74,6 +74,7 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
 
     case_zero = (F.softplus((- pi + theta * torch.log(theta + eps) - theta * torch.log(theta + mu + eps))) -
                  F.softplus(-pi))
+
     case_non_zero = - pi - F.softplus(-pi) + theta * torch.log(theta + eps) - theta * torch.log(
         theta + mu + eps) + x * torch.log(mu + eps) - x * torch.log(theta + mu + eps) + torch.lgamma(
         x + theta) - torch.lgamma(theta) - torch.lgamma(x + 1)
