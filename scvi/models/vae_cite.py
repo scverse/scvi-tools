@@ -216,7 +216,7 @@ class VAECITE(nn.Module):
         if self.reconstruction_loss_adt == 'zinb':
             reconst_loss_adt = -log_zinb_positive(adt, px_rate['adt'], px_r['adt'], px_dropout['adt'])
         if self.reconstruction_loss_adt == 'log_normal':
-            reconst_loss_adt = -torch.sum(LogNormal(px_rate['adt'], px_scale['adt']).log_prob(adt), dim=1)
+            reconst_loss_adt = -torch.sum(LogNormal(px_rate['adt'], px_r['adt']).log_prob(adt), dim=1)
 
         return reconst_loss_umi, reconst_loss_adt
 
@@ -279,7 +279,12 @@ class VAECITE(nn.Module):
         else:
             mean, var = self.adt_decoder(z, batch_index, y)
             px_rate['adt'] = mean + library_adt
-            px_scale['adt'] = var
+            px_scale['adt'] = mean
+            if self.adt_dispersion == "protein":
+                px_r['adt'] = self.px_r_adt
+                px_r['adt'] = torch.exp(px_r['adt'])
+            else:
+                px_r['adt'] = var
 
         return px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v
 
