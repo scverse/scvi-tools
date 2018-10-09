@@ -21,3 +21,9 @@ python Easycase2.compare.py others &> ../Macosko_Regev/others.log
 python Tech2.py scvi &> ../Zeng/scvi.log
 python Tech2.py others &> ../Zeng/others.log
 
+python Simulation1.py scvi &> ../Sim1/scvi.log
+python Simulation2.py scvi &> ../Sim2/scvi.log
+python Simulation3.py scvi &> ../Sim3/scvi.log
+python Easycase1.compare.py scvi &> ../Easy1/scvi.log
+
+

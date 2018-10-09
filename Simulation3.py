@@ -25,4 +25,5 @@ dataset2 = GeneExpressionDataset(
     gene_names=['gene' + str(i) for i in range(2000)], cell_types=['type' + str(i + 1) for i in range(5)])
 
 gene_dataset = GeneExpressionDataset.concat_datasets(dataset1, dataset2)
+gene_dataset.subsample_genes(1000)
 CompareModels(gene_dataset, dataset1, dataset2, plotname, models)

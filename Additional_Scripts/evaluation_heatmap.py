@@ -30,17 +30,17 @@ res = np.append(res, scmap2,axis=0)
 model_types = np.append(model_types,'scmap2')
 
 sorted_res=[]
-# model_order = ['vae','scanvi0', 'scanvi', 'scanvi1', 'scanvi2',
-#        'scmap1', 'scmap2', 'readSeurat', 'Combat', 'MNN']
-model_order = ['vae','scanvi0', 'scanvi', 'scanvi1', 'scanvi2','readSeurat', 'Combat', 'MNN']
+model_order = ['vae','scanvi0', 'scanvi', 'scanvi1', 'scanvi2',
+       'scmap1', 'scmap2', 'readSeurat', 'Combat', 'MNN']
+# model_order = ['vae','scanvi0', 'scanvi', 'scanvi1', 'scanvi2','readSeurat', 'Combat', 'MNN']
 for x in model_order:
     sorted_res.append(res[model_types==x,:])
 
 sorted_res = np.asarray(sorted_res)
 sorted_res = sorted_res.squeeze()
 
-tabs = ['knn_asw','knn_uca','knn_wuca','kmeans_uca','kmeans_wuca','BE','jaccard_score']
-# tabs = ['knn_asw','knn_uca','p_knn_uca','p1_knn_uca','p2_knn_uca','BE','jaccard_score','classifier_acc']
+# tabs = ['knn_asw','knn_uca','knn_wuca','kmeans_uca','kmeans_wuca','BE','jaccard_score']
+tabs = ['knn_asw','knn_uca','p_knn_uca','p1_knn_uca','p2_knn_uca','BE','jaccard_score','classifier_acc']
 # tabs = ['kmeans_asw','kmeans_uca','p_kmeans_uca','p1_kmeans_uca','p2_kmeans_uca','BE','jaccard_score','classifier_acc']
 # for x in tabs:
 #     print(x)

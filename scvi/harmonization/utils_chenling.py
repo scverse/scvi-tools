@@ -204,15 +204,17 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
         latent = np.genfromtxt('../Seurat_data/' + filename + '.CCA.txt')
 
     elif model_type == 'Seurat':
-        if os.path.isfile('../' + filename + '/' + 'Seurat'  + '.npy'):
-            latent = np.load('../' + filename + '/' + 'Seurat'  + '.npy')
+        if os.path.isfile('../' + filename + '/' + 'Seurat'+'.'+ rep +'.npy'):
+            latent = np.load('../' + filename + '/' + 'Seurat'+'.'+ rep +'.npy')
         else:
             from scvi.harmonization.clustering.seurat import SEURAT
-            seurat = SEURAT()
+            seurat = SEURAT('../' + filename + '/' + rep )
             seurat.create_seurat(dataset1, 1)
             seurat.create_seurat(dataset2, 2)
-            latent, batch_indices, labels, keys = seurat.get_cca(filter_genes=True)
-            np.save('../' + filename + '/' + 'Seurat' + '.npy',latent)
+            latent, batch_indices, genes, cells = seurat.get_cca(filter_genes=True)
+            np.save('../' + filename + '/' + 'Seurat'+'.'+ rep +'.npy',latent)
+            np.save('../' + filename + '/' + 'Seurat' + '.' + rep + '.genes.npy', genes)
+            np.save('../' + filename + '/' + 'Seurat' + '.' + rep + '.cells.npy', genes)
 
     elif model_type == 'SeuratPC':
         from scvi.harmonization.clustering.seurat import SEURAT

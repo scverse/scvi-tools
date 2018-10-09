@@ -22,7 +22,7 @@ def auc_score_threshold(gene_set, bayes_factor, gene_symbols):
 
 # We need to modify this import to get all the genes
 pbmc = PbmcDataset()
-pbmc.batch_indices = np.repeat(0,len(pbmc)).reshape(len(pbmc), 1)
+pbmc.update_cells(pbmc.batch_indices.ravel()==0)
 
 pbmc68k = Dataset10X('fresh_68k_pbmc_donor_a')
 pbmc68k.cell_types = ['unlabelled']
@@ -60,9 +60,18 @@ print(all_dataset.cell_types)
 
 vae = VAE(all_dataset.nb_genes, n_batch=all_dataset.n_batches, n_labels=all_dataset.n_labels,
           n_hidden=128, n_latent=10, n_layers=2, dispersion='gene')
+
 trainer = UnsupervisedTrainer(vae, all_dataset, train_size=1.0)
 trainer.train(n_epochs=100)
 trainer.train_set.entropy_batch_mixing()
+full = trainer.create_posterior(trainer.model, all_dataset, indices=np.arange(len(all_dataset)))
+latent, batch_indices, labels = full.sequential().get_latent()
+keys = all_dataset.cell_types
+from scvi.metrics.clustering import select_indices_evenly, clustering_scores
+clustering_scores(np.asarray(latent), labels, 'knn')
+batch_indices = batch_indices.ravel()
+from scvi.inference.posterior import entropy_batch_mixing
+batch_entropy = entropy_batch_mixing(latent, batch_indices)
 
 scanvi = SCANVI(all_dataset.nb_genes, all_dataset.n_batches, all_dataset.n_labels, n_layers=2)
 scanvi.load_state_dict(vae.state_dict(), strict=False)
@@ -99,6 +108,12 @@ comparisons = [
     ['CD8 T cells', 'NK cells']
                ]
 
+comparisons = [['CD4+ T Helper2','CD19+ B'],
+    ['CD8+ Cytotoxic T','CD19+ B'],
+    ['CD8+ Cytotoxic T','CD4+ T Helper2'],
+    ['CD8+ Cytotoxic T','CD56+ NK'],]
+
+
 gene_sets = [CD4_TCELL_VS_BCELL_NAIVE,
              CD8_TCELL_VS_BCELL_NAIVE,
              CD8_VS_CD4_NAIVE_TCELL,
@@ -106,7 +121,7 @@ gene_sets = [CD4_TCELL_VS_BCELL_NAIVE,
 
 # for t, comparison in enumerate(comparisons):
 # Now for each comparison, let us create a posterior object and compute a Bayes factor
-cell_type_label = [np.where(all_dataset.cell_types == comparison[i])[0][0] for i in [0, 1]]
+cell_type_label = [[np.where(all_dataset.cell_types == x[i])[0].astype('int')[0] for i in [0, 1]] for x in comparisons]
 gene_set = gene_sets[t]
 cell_indices = np.where(np.logical_or(pred == cell_type_label[0], pred == cell_type_label[1]))[0]
 de_posterior = trainer.create_posterior(vae, all_dataset, indices=cell_indices)

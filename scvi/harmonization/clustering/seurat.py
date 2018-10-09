@@ -5,7 +5,8 @@ from rpy2.rinterface import RRuntimeWarning
 import rpy2.robjects.numpy2ri as numpy2ri
 from scipy.io import mmwrite
 class SEURAT():
-    def __init__(self):
+    def __init__(self,dataname):
+        self.dataname = dataname
         warnings.filterwarnings("ignore", category=RRuntimeWarning)
         numpy2ri.activate()
         r_source = ro.r['source']
@@ -34,13 +35,13 @@ class SEURAT():
         return pc1,pc2
 
 
-    def get_cca(self, filter_genes = False):
+    def get_cca(self, filter_genes = True):
         if filter_genes==True:
-            ro.r('combined <- hvg_CCA(list(seurat1,seurat2), filter_genes = TRUE)')
+            ro.r('combined <- hvg_CCA(list(seurat1,seurat2), filter_genes = TRUE,dataname='+self.dataname+')')
         else:
-            ro.r('combined <- hvg_CCA(list(seurat1,seurat2))')
+            ro.r('combined <- hvg_CCA(list(seurat1,seurat2),dataname=\''+self.dataname+'\')')
         latent = ro.r('combined[[1]]')
-        labels = ro.r('combined[[3]]')
-        batch_indices = ro.r('combined[[2]]')
-        cell_types,labels = np.unique(labels,return_inverse=True)
-        return latent,batch_indices,labels,cell_types
+        genes = ro.r('combined[[2]]')
+        batch_indices = ro.r('combined[[3]]')
+        cells = ro.r('combined[[4]]')
+        return latent,batch_indices,genes,cells

@@ -30,5 +30,5 @@ UMI.subsample_genes(UMI.nb_genes)
 nonUMI.subsample_genes(nonUMI.nb_genes)
 
 gene_dataset = GeneExpressionDataset.concat_datasets(UMI, nonUMI)
-
+gene_dataset.subsample_genes(1000)
 CompareModels(gene_dataset, UMI, nonUMI, plotname, models)

@@ -39,11 +39,12 @@ dataset1.subsample_genes(dataset1.nb_genes)
 dataset2.subsample_genes(dataset2.nb_genes)
 gene_dataset = GeneExpressionDataset.concat_datasets(dataset1, dataset2)
 
-genes = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.genes.txt')
-genes = genes.astype('int')
-gene_dataset.X = gene_dataset.X[:,genes]
-gene_dataset.update_genes(genes)
+# genes = np.genfromtxt('../Seurat_data/'+plotname+'.CCA.genes.txt')
+# genes = genes.astype('int')
+# gene_dataset.X = gene_dataset.X[:,genes]
+# gene_dataset.update_genes(genes)
 
+gene_dataset.subsample_genes(1000)
 CompareModels(gene_dataset, dataset1, dataset2, plotname, models)
 
 

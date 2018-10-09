@@ -1,13 +1,13 @@
 library("Seurat")
 
-hvg_CCA <- function(data,ndim=10,plotting=F,getlabels=T,filter_genes = FALSE){
+hvg_CCA <- function(data,ndim=10,plotting=F,filter_genes = FALSE,dataname){
     if (filter_genes ==TRUE){
-        v_genes = union(data[[1]]@var.genes, data[[2]]@var.genes)
-        combined <- RunCCA(object = data[[1]], object2 = data[[2]], genes.use = v_genes,num.cc = ndim)
+        genes.use = union(data[[1]]@var.genes, data[[2]]@var.genes)
     }
     else{
-    	combined <- RunCCA(object = data[[1]], object2 = data[[2]], genes.use = rownames(data[[1]]@data),num.cc = ndim)
+        genes.use = rownames(data[[1]]@data)
     }
+    combined <- RunCCA(object = data[[1]], object2 = data[[2]], genes.use = genes.use,num.cc = ndim)
 	combined <- CalcVarExpRatio(object = combined, reduction.type = "pca", grouping.var = "batch",
     dims.use = 1:ndim)
 	combined <- AlignSubspace(object = combined, reduction.type = "cca", grouping.var = "batch",
@@ -16,13 +16,10 @@ hvg_CCA <- function(data,ndim=10,plotting=F,getlabels=T,filter_genes = FALSE){
         reduction.type = "cca.aligned",
         slot = "cell.embeddings"
     )
-    batch <- attributes(combined)$meta.data$batch
-    if(getlabels==T){
-	    labels <- attributes(combined)$meta.data$label
-		return(list(latent,batch,labels))
-    }else{
-    	return(list(latent,batch))
-    }
+    cells = do.call(c,lapply(data,function(X){colnames(X@data)}))
+    batch <-sapply(strsplit(cells,'_'),function(X){X[1]})
+    cells = sapply(strsplit(cells,'_'),function(X){X[2]})
+    return(list(latent,genes.use,batch,cells))
 }
 
 SeuratPreproc <- function(X,label,batchname,zero_cells,genenames=NA){

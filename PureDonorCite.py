@@ -14,10 +14,10 @@ from scvi.models.scanvi import SCANVI
 from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
 
 #
-# cite = CiteSeqDataset('pbmc')
-# cite.subsample_genes(cite.nb_genes)
-# cite.gene_names = cite.gene_symbols
-# cite.cell_types = ['unlabelled']
+cite = CiteSeqDataset('pbmc')
+cite.subsample_genes(cite.nb_genes)
+cite.gene_names = cite.gene_symbols
+cite.cell_types = ['unlabelled']
 
 donner = Dataset10X('fresh_68k_pbmc_donor_a')
 donner.cell_types = np.asarray(['unlabelled'])
@@ -61,8 +61,16 @@ gene_dataset.X = gene_dataset.X.todense()
 vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches, n_labels=gene_dataset.n_labels,
           n_hidden=128, n_latent=10, n_layers=2, dispersion='gene')
 trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
-trainer.train(n_epochs=250)
+trainer.train(n_epochs=50)
 
+full = trainer.create_posterior(trainer.model, gene_dataset, indices=np.arange(len(gene_dataset)))
+latent, batch_indices, labels = full.sequential().get_latent()
+batch_indices = batch_indices.ravel()
+from scvi.inference.posterior import entropy_batch_mixing
+batch_entropy = entropy_batch_mixing(latent[batch_indices!=0,:], batch_indices[batch_indices!=0])
+batch_entropy
+
+gene_dataset.local_means[batch_indices==0]
 
 # batch_entropy = trainer.train_set.entropy_batch_mixing()
 # keys = gene_dataset.cell_types

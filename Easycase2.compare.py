@@ -23,5 +23,5 @@ gene_dataset = GeneExpressionDataset.concat_datasets(dataset1, dataset2)
 # print(cells.shape)
 # print(gene_dataset.X.shape)
 
-gene_dataset.subsample_genes(2000)
+gene_dataset.subsample_genes(800)
 CompareModels(gene_dataset, dataset1, dataset2, plotname, models)
