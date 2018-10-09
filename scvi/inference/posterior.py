@@ -319,22 +319,29 @@ class Posterior:
             px_rate = self.model.get_sample_rate(dropout_batch, batch_index=batch_index, y=labels, n_samples=n_samples)
 
             indices_dropout = torch.nonzero(batch - dropout_batch)
-            i = indices_dropout[:, 0]
-            j = indices_dropout[:, 1]
+            if indices_dropout.size() != torch.Size([0]):
+                i = indices_dropout[:, 0]
+                j = indices_dropout[:, 1]
 
-            batch = batch.unsqueeze(0).expand((n_samples, batch.size(0), batch.size(1)))
-            original = np.array(batch[:, i, j].view(-1).cpu())
-            imputed = np.array(px_rate[..., i, j].view(-1).cpu())
+                batch = batch.unsqueeze(0).expand((n_samples, batch.size(0), batch.size(1)))
+                original = np.array(batch[:, i, j].view(-1).cpu())
+                imputed = np.array(px_rate[..., i, j].view(-1).cpu())
 
-            cells_index = np.tile(np.array(i.cpu()), n_samples)
+                cells_index = np.tile(np.array(i.cpu()), n_samples)
 
-            original_list += [original[cells_index == i] for i in range(actual_batch_size)]
-            imputed_list += [imputed[cells_index == i] for i in range(actual_batch_size)]
+                original_list += [original[cells_index == i] for i in range(actual_batch_size)]
+                imputed_list += [imputed[cells_index == i] for i in range(actual_batch_size)]
+            else:
+                original_list = np.array([])
+                imputed_list = np.array([])
         return original_list, imputed_list
 
     def imputation_score(self, verbose=False, original_list=None, imputed_list=None, n_samples=1):
         if original_list is None or imputed_list is None:
             original_list, imputed_list = self.imputation_list(n_samples=n_samples)
+            if len(original_list) == 0:
+                print("No difference between corrupted dataset and uncorrupted dataset")
+                return 0
         return np.median(np.abs(np.concatenate(original_list) - np.concatenate(imputed_list)))
 
     def imputation_benchmark(self, n_samples=8, verbose=False):
