@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
+import csv
 
 from scvi.inference import Posterior
 from scvi.inference import Trainer
@@ -63,6 +64,7 @@ class TrainerFish(Trainer):
         self.train_seq, self.test_seq = self.train_test(self.model, gene_dataset_seq, train_size, test_size, seed)
         self.train_fish, self.test_fish = self.train_test(self.model, gene_dataset_fish,
                                                           train_size, test_size, seed, FishPosterior)
+        self.all_fish_dataset = self.create_posterior(gene_dataset=gene_dataset_fish, type_class=FishPosterior)
         self.test_seq.to_monitor = ['ll']
         self.test_fish.to_monitor = ['ll']
 
@@ -117,3 +119,49 @@ class TrainerFish(Trainer):
         self.weighting = min(1, self.epoch / self.n_epochs_even)
         self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / self.n_epochs_kl)
         self.classification_ponderation = min(1, self.epoch / self.n_epochs_cl)
+
+    def get_all_latent_and_expected_frequencies(self, save_imputed=False, file_name_imputation='imputed_values',
+                                                save_shape_genes_by_cells=False, save_latent=False,
+                                                file_name_latent='latent_space'):
+        r"""
+        :param save_imputed: True if the user wants to save the expected frequencies in a .csv file
+        :param file_name_imputation: in the situation described above, this is the name of the file saved
+        :param save_shape_genes_by_cells: if save-imputed is true this boolean determines if you want the
+        expected frequencies to be saved as a genes by cells matrix or a cells by genes matrix
+        :param save_latent: True if the user wants to save the latent space in a .csv file
+        :param file_name_latent: in the situation described above, this is the name of the file saved
+        :return: a dictionnary of arrays which contains all the provided and inferred information for the whole dataset
+        with the cells ordered the same way as in the original dataset expression matrix
+        """
+        self.model.eval()
+        ret = {"latent": [], "expected_frequencies": [], "imputed_values": [], "batch_indices": [], "labels": [],
+               "fish_observed_values": [], 'x_coord': [], 'y_coord': []}
+        for tensors in self.all_fish_dataset:
+            sample_batch, local_l_mean, local_l_var, batch_index, label, x_coord, y_coord = tensors
+            ret["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, mode="smFISH")]
+            ret["expected_frequencies"] += [self.model.get_sample_scale(sample_batch, mode="smFISH",
+                                                                        batch_index=batch_index)]
+            ret["imputed_values"] += [self.model.get_sample_rate_fish(sample_batch)]
+            ret["labels"] += [label]
+            ret["batch_indices"] += [batch_index]
+            ret["fish_observed_values"] += [sample_batch]
+            ret["x_coord"] += [x_coord]
+            ret["y_coord"] += [y_coord]
+
+        for key in ret.keys():
+            if len(ret[key]) > 0:
+                ret[key] = np.array(torch.cat(ret[key]))
+        if save_imputed:
+            myfile = open(file_name_imputation, 'w')
+            with myfile:
+                writer = csv.writer(myfile)
+                if save_shape_genes_by_cells:
+                    writer.writerows(np.transpose(ret["expected_frequencies"]))
+                else:
+                    writer.writerows(ret["expected_frequencies"])
+        if save_latent:
+            myfile = open(file_name_latent, 'w')
+            with myfile:
+                writer = csv.writer(myfile)
+                writer.writerows(ret["latent"])
+        return ret
