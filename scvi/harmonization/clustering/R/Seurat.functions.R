@@ -1,8 +1,16 @@
 library("Seurat")
 
-hvg_CCA <- function(data,ndim=10,plotting=F,filter_genes = FALSE,dataname){
+hvg_CCA <- function(data,ndim=10,plotting=F,filter_genes = FALSE,ngenes=1000){
     if (filter_genes ==TRUE){
-        genes.use = union(data[[1]]@var.genes, data[[2]]@var.genes)
+        genes.use <- c()
+		for (i in 1:length(data)) {
+		  genes.use <- c(genes.use, head(rownames(data[[i]]@hvg.info), ngenes))
+		}
+		if(length(data)==2){n_shared=0}else{n_shared=2}
+		genes.use <- names(which(table(genes.use) > n_shared))
+		for (i in 1:length(data)) {
+		  genes.use <- genes.use[genes.use %in% rownames(data[[i]]@scale.data)]
+		}
     }
     else{
         genes.use = rownames(data[[1]]@data)
@@ -37,3 +45,4 @@ SeuratPreproc <- function(X,label,batchname,zero_cells,genenames=NA){
 	X@meta.data[,"labels"] <- label
 	return(X)
 }
+

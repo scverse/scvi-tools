@@ -69,7 +69,8 @@ from scvi.metrics.clustering import clustering_scores
 f = open('../'+plotname+'/res.txt', "w+")
 f.write('model_type\tcell_type\tBE_removed\tBE_kept\tasw\tnmi\tari\tca\twca\n')
 
-for rmCellTypes in dataset2.cell_types:
+# for rmCellTypes in dataset2.cell_types:
+for rmCellTypes in ['FCGR3A+ Monocytes', 'NK cells','B cells']:
     pbmc = deepcopy(dataset1)
     newCellType = [k for i, k in enumerate(dataset1.cell_types) if k not in [rmCellTypes]]
     pbmc.filter_cell_types(newCellType)
@@ -115,6 +116,7 @@ for rmCellTypes in dataset2.cell_types:
     genes = np.load('../PopRemove/' + 'Seurat' + '.' + rmCellTypes.replace(' ', '') + '.genes.npy')
     genes = np.asarray([x[5:] for x in genes])
     genes = genes.astype('int')
+    genes = genes - 1
     gene_dataset.X = gene_dataset.X[:,genes]
     gene_dataset.update_genes(genes)
     latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, pbmc, pbmc2, filename='PopRemove',

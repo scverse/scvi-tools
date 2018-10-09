@@ -37,9 +37,9 @@ class SEURAT():
 
     def get_cca(self, filter_genes = True):
         if filter_genes==True:
-            ro.r('combined <- hvg_CCA(list(seurat1,seurat2), filter_genes = TRUE,dataname='+self.dataname+')')
+            ro.r('combined <- hvg_CCA(list(seurat1,seurat2), filter_genes = TRUE)')
         else:
-            ro.r('combined <- hvg_CCA(list(seurat1,seurat2),dataname=\''+self.dataname+'\')')
+            ro.r('combined <- hvg_CCA(list(seurat1,seurat2))')
         latent = ro.r('combined[[1]]')
         genes = ro.r('combined[[2]]')
         batch_indices = ro.r('combined[[3]]')
