@@ -2,7 +2,9 @@ from .posterior import Posterior
 from .trainer import Trainer
 from .inference import (
     UnsupervisedTrainer,
-    AdapterTrainer
+    AdapterTrainer,
+    AdversarialTrainerVAE
+
 )
 from .annotation import (
     JointSemiSupervisedTrainer,
@@ -20,5 +22,6 @@ __all__ = ['Trainer',
            'JointSemiSupervisedTrainer',
            'SemiSupervisedTrainer',
            'AlternateSemiSupervisedTrainer',
-           'ClassifierTrainer'
+           'ClassifierTrainer',
+           'AdversarialTrainerVAE'
            ]
