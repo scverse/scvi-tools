@@ -52,7 +52,7 @@ dataset2.subsample_genes(dataset2.nb_genes)
 gene_dataset = GeneExpressionDataset.concat_datasets(dataset1, dataset2)
 genes = np.genfromtxt('../Seurat_data/Tech1.CCA.genes.txt')
 genes = genes.astype('int')
-gene_dataset.X = gene_dataset.X[:,genes]
+gene_dataset.X = gene_dataset.X[:, genes]
 gene_dataset.update_genes(genes)
 cells = np.genfromtxt('../Seurat_data/Tech1.CCA.cells.txt')
 print(cells.shape)
