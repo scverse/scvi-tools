@@ -136,9 +136,9 @@ pred = np.concatenate([labels_labelled,pred])
 #                ]
 
 comparisons = [['CD4+ T Helper2','CD19+ B'],
-    ['CD8+ Cytotoxic T','CD19+ B'],
-    ['CD8+ Cytotoxic T','CD4+ T Helper2'],
-    ['CD8+ Cytotoxic T','CD56+ NK']]
+    ['CD8+ Cytotoxic T', 'CD19+ B'],
+    ['CD8+ Cytotoxic T', 'CD4+ T Helper2'],
+    ['CD8+ Cytotoxic T', 'CD56+ NK']]
 
 
 gene_sets = [CD4_TCELL_VS_BCELL_NAIVE,
@@ -148,7 +148,7 @@ gene_sets = [CD4_TCELL_VS_BCELL_NAIVE,
 
 cell_type_label = [[np.where(all_dataset.cell_types == x[i])[0].astype('int')[0] for i in [0, 1]] for x in comparisons]
 for t, comparison in enumerate(comparisons):
-# Now for each comparison, let us create a posterior object and compute a Bayes factor
+    # Now for each comparison, let us create a posterior object and compute a Bayes factor
     gene_set = gene_sets[0]
     cell_indices = np.where(np.logical_or(
         pred == cell_type_label[t][0],
@@ -158,11 +158,13 @@ for t, comparison in enumerate(comparisons):
     scale_68k = de_posterior.sequential().get_harmonized_scale(1)
     # For Chenling: I looked again at the number of cells,
     # if we use all of them, we are OK using just one sample from the posterior
+
     # first grab the original bayes factor by ignoring the unlabeled cells
     bayes_pbmc = get_bayes_factors(scale_pbmc,
                                    all_dataset.labels.ravel()[cell_indices],
                                    cell_type_label[t][0],
-                                   cell_type_label[t][1],logit=False)
+                                   cell_type_label[t][1])
+
     # second get them for all the predicted labels cross-datasets
     probs_all_imputed_pbmc = get_bayes_factors(scale_68k,
                                                pred[cell_indices],
@@ -175,6 +177,11 @@ for t, comparison in enumerate(comparisons):
     p_s = pbmc.labels.shape[0] / all_dataset.labels.shape[0]
     bayes_all_imputed = p_s * probs_all_imputed_pbmc + (1 - p_s) * probs_all_imputed_68k
     bayes_all_imputed = np.log(bayes_all_imputed + 1e-8) - np.log(1 - bayes_all_imputed + 1e-8)
+
+    # COMMENT FOR CHENLING: the bayes variables (bayes_pbmc and bayes_all_imputed) should now span all values
+    # (not only positive or negative).
+    # Can you check that with np.min and np.max ?
+
     print(auc_score_threshold(gene_set, bayes_pbmc, all_gene_symbols))
     print(auc_score_threshold(gene_set, bayes_all_imputed, all_gene_symbols))
 
