@@ -107,6 +107,24 @@ class SCMAP():
         self.combined_labels_pred = convert_labels_str(ro.r("result$combined_labs"))
         return self.labels_pred
 
+
+    def predict_scmap_cell(self, data_test, labels_test):
+        if hasattr(data_test, 'A'):
+            data_train = data_test.A
+        self.projection = 'test'
+        self.create_sce_object(data_test, np.arange(data_test.shape[1]).astype(np.str),
+                               labels_test, self.projection)
+        ro.r("sce <- indexCell(%s)" % self.reference)
+        ro.r("result<-scmapCell(%s, list(metadata(%s)$scmap_cell_index))"
+             % (self.projection, self.reference))
+
+        self.probs = ro.r("result$scmap_cluster_siml")
+
+        self.labels_pred = convert_labels_str(ro.r("result$scmap_cluster_labs"))  # 'unassigned' are included
+        self.combined_labels_pred = convert_labels_str(ro.r("result$combined_labs"))
+        return self.labels_pred
+
+
     def score(self, data_test, labels_test):
         labels_pred = self.predict_scmap_cluster(data_test, labels_test)
         self.test_tuple = compute_accuracy_tuple(labels_test, labels_pred)

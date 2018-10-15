@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.manifold import TSNE
 use_cuda = True
-from scvi.metrics.clustering import select_indices_evenly, clustering_scores
+from scvi.metrics.clustering import select_indices_evenly, clustering_scores,clustering_accuracy
 from scvi.inference.posterior import entropy_batch_mixing
 from scvi.models.scanvi import SCANVI
 from scvi.models.vae import VAE
@@ -20,8 +20,17 @@ from copy import deepcopy
 import os
 import torch
 import time
+import pandas as pd
+from scvi.dataset.dataset import SubsetGenes
 
-
+def scmap_eval(labels_unlabelled,labels_pred):
+    res = {
+                'nmi': NMI(labels_unlabelled, labels_pred),
+                'ari': ARI(labels_unlabelled, labels_pred),
+                'uca': clustering_accuracy(labels_unlabelled, labels_pred),
+                'weighted uca': clustering_accuracy(labels_unlabelled, labels_pred, True)
+            }
+    return res
 
 def JaccardIndex(x1,x2):
     intersection = np.sum(x1*x2)
@@ -111,7 +120,7 @@ def trainSCANVI(gene_dataset,model_type,filename,rep, nlayers=2):
     vae_posterior = trainVAE(gene_dataset,filename,rep)
     scanvi = SCANVI(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_layers=nlayers)
     scanvi.load_state_dict(vae_posterior.model.state_dict(), strict=False)
-    trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=1,
+    trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=50,
                                            n_epochs_classifier=1, lr_classification=5 * 1e-3)
     if model_type=='scanvi1':
         trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=(gene_dataset.batch_indices == 0))
@@ -186,7 +195,7 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
             latent = np.load('../' + filename + '/' + 'PCA'  + '.npy')
         else:
             from sklearn.decomposition import PCA
-            X = np.log(1 + gene_dataset.X)
+            X = np.log(1 + gene_dataset.X.todense())
             latent = PCA(n_components=10).fit_transform(X)
             np.save('../' + filename + '/' + 'PCA' + '.npy', latent)
 
@@ -211,10 +220,10 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
             seurat = SEURAT('../' + filename + '/' + rep )
             seurat.create_seurat(dataset1, 1)
             seurat.create_seurat(dataset2, 2)
-            latent, batch_indices, genes, cells = seurat.get_cca(filter_genes=True)
+            latent, _, genes, cells = seurat.get_cca(filter_genes=True)
             np.save('../' + filename + '/' + 'Seurat'+'.'+ rep +'.npy',latent)
             np.save('../' + filename + '/' + 'Seurat' + '.' + rep + '.genes.npy', genes)
-            np.save('../' + filename + '/' + 'Seurat' + '.' + rep + '.cells.npy', genes)
+            np.save('../' + filename + '/' + 'Seurat' + '.' + rep + '.cells.npy', cells)
 
     elif model_type == 'SeuratPC':
         from scvi.harmonization.clustering.seurat import SEURAT
@@ -227,21 +236,22 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
     elif model_type =='scmap':
         from scvi.harmonization.classification.scmap import SCMAP
         print("Starting scmap")
-        scmap = SCMAP()
         count1 = np.asarray(gene_dataset.X[gene_dataset.batch_indices.ravel() == 0, :].todense())
         label1 = gene_dataset.labels[gene_dataset.batch_indices.ravel() == 0].ravel().astype('int')
         count2 = np.asarray(gene_dataset.X[gene_dataset.batch_indices.ravel() == 1, :].todense())
         label2 = gene_dataset.labels[gene_dataset.batch_indices.ravel() == 1].ravel().astype('int')
-        n_features = count1.shape[1]
+        n_features = 500
+        scmap = SCMAP()
         scmap.set_parameters(n_features=n_features)
         scmap.fit_scmap_cluster(count1, label1.astype(np.int))
-        acc1 = scmap.score(count2, label2)
-        acc2 = scmap.score(count1, label1)
-        print("Score Dataset1->Dataset2:%.4f  [n_features = %d]\n" % (acc1, n_features))
+        pred1 = scmap.predict_scmap_cluster(count2, label2.astype(np.int))
+        scmap = SCMAP()
+        scmap.set_parameters(n_features=n_features)
         scmap.fit_scmap_cluster(count2, label2.astype(np.int))
-        print("Score Dataset2->Dataset1:%.4f  [n_features = %d]\n" % (acc2, n_features))
-        latent = []
-        stats = [-1,acc1,acc2,-1,-1]
+        pred2 = scmap.predict_scmap_cluster(count1, label1.astype(np.int))
+        latent = scmap_eval(label2, pred1)
+        stats = scmap_eval(label1, pred2)
+
 
     elif model_type =='writedata':
         from scipy.io import mmwrite
@@ -256,6 +266,8 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
         np.save('../Seurat_data/' + '../Seurat_data/'+ filename + '.labels.npy', labels)
         np.save('../Seurat_data/' + filename + '.genenames.npy', genenames)
         np.save('../Seurat_data/' + filename + '.batch.npy', batchid)
+        latent = 0
+        stats = 0
 
     return latent, batch_indices, labels, keys, stats
 
@@ -344,7 +356,7 @@ def TryFindCells(dict, cellid, count):
     return(new_count, np.asarray(res))
 
 
-def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
+def CompareModels(gene_dataset, dataset1, dataset2, plotname, models,ngenes=1000):
     KNeighbors = np.concatenate([np.arange(10, 100, 10), np.arange(100, 500, 50)])
     K_int = np.concatenate([np.repeat(10, 10), np.repeat(50, 7)])
     f = open('../' + plotname +'/' + models + '.res.txt', "w+")
@@ -370,10 +382,31 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
     if models =='others':
         latent1 = np.genfromtxt('../Seurat_data/' + plotname + '.1.CCA.txt')
         latent2 = np.genfromtxt('../Seurat_data/' + plotname + '.2.CCA.txt')
-        for model_type in ['readSeurat','Combat','MNN','scmap','PCA']:
+        # for model_type in ['scmap','readSeurat','Combat','MNN','PCA']:
+        # for model_type in ['scmap']:
+        for model_type in ['Combat','MNN','PCA']:
+            # only scmap doesn't need the gene filtering step
+            # so we will run scmap first and before running readSeurat subsample the genes
             print(model_type)
-            latent, batch_indices, labels, keys,stats = run_model(model_type, gene_dataset, dataset1, dataset2, filename=plotname)
-            if model_type!='scmap':
+            if model_type == 'scmap':
+                gene_dataset.subsample_genes(10000)
+                latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,
+                                                                       filename=plotname)
+                res1 = [latent[x] for x in latent]
+                res2 = [stats[x] for x in stats]
+                res= [-1]* (10) +\
+                [-1]+res1 + \
+                [-1]+res2 + \
+                [-1] * (20) + \
+                [-1]*17 + \
+                [-1]*4
+            else:
+                if model_type=='readSeurat':
+                    dataset1, dataset2, gene_dataset = SubsetGenes(dataset1, dataset2, gene_dataset, plotname)
+
+                latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,
+                                                                           filename=plotname)
+
                 res_jaccard = [KNNJaccardIndex(latent1, latent2, latent, batch_indices, k)[0] for k in KNeighbors]
                 res_jaccard_score = np.sum(res_jaccard * K_int)
                 res_knn, res_knn_partial, res_kmeans, res_kmeans_partial = \
@@ -404,21 +437,11 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
                       res_jaccard + \
                       [res_jaccard_score, -1, batch_entropy, -1]
 
-            else:
-                res= [-1]* (40) +\
-                [-1]*17 + \
-                [-1, -1, stats[1], stats[2]]
             f.write(model_type + (" %.4f"*61+"\n") % tuple(res))
 
     elif models=='scvi':
-        dataset1 = deepcopy(gene_dataset)
-        dataset1.update_cells(gene_dataset.batch_indices.ravel() == 0)
-        dataset1.subsample_genes(dataset1.nb_genes)
+        dataset1, dataset2, gene_dataset = SubsetGenes(dataset1, dataset2, gene_dataset, plotname)
         latent1, _, _, _, _ = run_model('vae', dataset1, 0, 0, filename=plotname,rep='vae1')
-
-        dataset2 = deepcopy(gene_dataset)
-        dataset2.update_cells(gene_dataset.batch_indices.ravel()  == 1)
-        dataset2.subsample_genes(dataset2.nb_genes)
         latent2, _, _, _, _ = run_model('vae', dataset2, 0, 0, filename=plotname,rep='vae2')
 
         for model_type in ['vae', 'scanvi', 'scanvi1', 'scanvi2', 'scanvi0']:

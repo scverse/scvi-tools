@@ -417,3 +417,33 @@ def arrange_categories(original_categories, mapping_from=None, mapping_to=None):
     for idx_from, idx_to in zip(mapping_from, mapping_to):
         new_categories[original_categories == idx_from] = idx_to
     return new_categories, n_categories
+
+
+
+
+# todo the following two functions are only used for consistency in gene use when using both Seurat and scVI
+def subsetByGenenames(dataset, subsetnames):
+    genenames = dataset.gene_names
+    filter = np.asarray([x in subsetnames for x in genenames])
+    dataset.X = dataset.X[:, filter]
+    dataset.update_genes(np.arange(len(filter))[filter])
+    return dataset
+
+
+
+def SubsetGenes(dataset1,dataset2,gene_dataset,plotname,ngenes=1000):
+    import pandas as pd
+    genes1 = pd.read_table('../Seurat_data/' + plotname + '.1.hvg_info.csv', delimiter=',')
+    geneid1 = np.asarray([x.replace('gene_', '') for x in genes1[genes1.keys()[0]]]).astype('int')
+    genenames1 = genes1['genename']
+    genes2 = pd.read_table('../Seurat_data/' + plotname + '.2.hvg_info.csv', delimiter=',')
+    geneid2 = np.asarray([x.replace('gene_', '') for x in genes2[genes2.keys()[0]]]).astype('int')
+    genenames2 = genes2['genename']
+    assert np.sum(np.asarray(genenames1) == gene_dataset.gene_names) == len(gene_dataset.gene_names)
+    assert np.sum(np.asarray(genenames2) == gene_dataset.gene_names) == len(gene_dataset.gene_names)
+    geneid = np.union1d(geneid1[:ngenes], geneid2[:ngenes]) - 1
+    genes = gene_dataset.gene_names[geneid]
+    temp = subsetByGenenames(dataset1,genes)
+    dataset2 = subsetByGenenames(dataset2,genes)
+    gene_dataset = subsetByGenenames(gene_dataset,genes)
+    return dataset1,dataset2,gene_dataset

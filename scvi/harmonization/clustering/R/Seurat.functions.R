@@ -25,7 +25,7 @@ hvg_CCA <- function(data,ndim=10,plotting=F,filter_genes = FALSE,ngenes=1000){
         slot = "cell.embeddings"
     )
     cells = do.call(c,lapply(data,function(X){colnames(X@data)}))
-    batch <-sapply(strsplit(cells,'_'),function(X){X[1]})
+    batch <- sapply(strsplit(cells,'_'),function(X){X[1]})
     cells = sapply(strsplit(cells,'_'),function(X){X[2]})
     return(list(latent,genes.use,batch,cells))
 }

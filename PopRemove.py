@@ -10,14 +10,14 @@ from sklearn.manifold import TSNE
 from scvi.metrics.clustering import select_indices_evenly
 
 from scvi.dataset.dataset import GeneExpressionDataset
-from scvi.harmonization.utils_chenling import eval_latent, run_model
+from scvi.harmonization.utils_chenling import run_model
 from copy import deepcopy
-
 
 plotname = 'PopRemove'
 
-dataset1 = PbmcDataset()
+dataset1 = PbmcDataset(filter_out_de_genes=False)
 dataset1.update_cells(dataset1.batch_indices.ravel()==0)
+dataset1.subsample_genes(dataset1.nb_genes)
 
 count, geneid, cellid = get_matrix_from_dir('cite')
 count = count.T.tocsr()
@@ -29,18 +29,24 @@ cell_type = ['CD4 T cells', 'NK cells', 'CD14+ Monocytes', 'B cells','CD8 T cell
 dataset2 = assign_label(cellid, geneid, labels_map, count, cell_type, seurat)
 set(dataset2.cell_types).intersection(set(dataset2.cell_types))
 
+# prop2 = dict( zip(dataset2.cell_types[np.unique(dataset2.labels,return_counts=True)[0]],
+#                   np.unique(dataset2.labels,return_counts=True)[1]/len(dataset2)))
+#
+# prop = np.unique(dataset1.labels,return_counts=True)[1]/len(dataset1)
+# for i,name in enumerate(dataset1.cell_types[7:]):
+#     print("%s & %.3f & %.3f\\\\ \n" % (name,prop[i],prop2[name]))
+
+
 dataset1.subsample_genes(dataset1.nb_genes)
 dataset2.subsample_genes(dataset2.nb_genes)
-from scipy.stats import  entropy
-
-
+from scipy.stats import entropy
 from sklearn.neighbors import NearestNeighbors
 
 def entropy_from_indices(indices):
     return entropy(np.array(np.unique(indices, return_counts=True)[1].astype(np.int32)))
 
 
-def entropy_batch_mixing_subsampled(latent_space, batches, labels, removed_type, sampled_batch=0, n_neighbors=50, n_pools=50, n_samples_per_pool=100):
+def entropy_batch_mixing_subsampled(latent, batches, labels, removed_type, sampled_batch=0, n_neighbors=10, n_pools=50, n_samples_per_pool=100):
     # max number is an important parameter
     # latent_space = latent
     # batches = batch_indices
@@ -53,7 +59,6 @@ def entropy_batch_mixing_subsampled(latent_space, batches, labels, removed_type,
         indices = nbrs.kneighbors(X, return_distance=False)[:, 1:]
         batch_indices = np.vectorize(lambda i: batches[i])(indices)
         entropies = np.apply_along_axis(entropy_from_indices, axis=1, arr=batch_indices)
-        # average n_pools entropy results where each result is an average of n_samples_per_pool random samples.
         if n_pools == 1:
             score = np.mean(entropies)
         else:
@@ -69,8 +74,11 @@ from scvi.metrics.clustering import clustering_scores
 f = open('../'+plotname+'/res.txt', "w+")
 f.write('model_type\tcell_type\tBE_removed\tBE_kept\tasw\tnmi\tari\tca\twca\n')
 
-# for rmCellTypes in dataset2.cell_types:
-for rmCellTypes in ['FCGR3A+ Monocytes', 'NK cells','B cells']:
+from scvi.dataset.dataset import SubsetGenes
+
+# scp chenlingantelope@s128.millennium.berkeley.edu:/data/yosef2/users/chenling/harmonization/Seurat_data/PopRemove*
+
+for rmCellTypes in dataset2.cell_types:
     pbmc = deepcopy(dataset1)
     newCellType = [k for i, k in enumerate(dataset1.cell_types) if k not in [rmCellTypes]]
     pbmc.filter_cell_types(newCellType)
@@ -81,15 +89,18 @@ for rmCellTypes in ['FCGR3A+ Monocytes', 'NK cells','B cells']:
     pbmc2 = deepcopy(gene_dataset)
     pbmc2.update_cells(gene_dataset.batch_indices.ravel() == 1)
     pbmc2.subsample_genes(dataset2.nb_genes)
+    # latent, batch_indices, labels, keys, stats = run_model(
+    #     'writedata', gene_dataset, pbmc, pbmc2,filename='PopRemove'+rmCellTypes.replace(' ',''))
+    latent, batch_indices, labels, keys, stats = run_model(
+        'readSeurat', gene_dataset, pbmc, pbmc2,filename='PopRemove'+rmCellTypes.replace(' ',''))
 
-    model_type='Seurat'
-    latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, pbmc, pbmc2,filename='PopRemove',rep=rmCellTypes.replace(' ',''))
-    rm_idx = np.arange(len(gene_dataset.cell_types))[gene_dataset.cell_types==rmCellTypes][0]
+    rm_idx = np.arange(len(gene_dataset.cell_types))[gene_dataset.cell_types == rmCellTypes][0]
     BE1, BE2 = entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type=rm_idx)
+
     res_knn = clustering_scores(np.asarray(latent), labels, 'knn')
-    res =  [BE1,BE2] + [res_knn[x] for x in res_knn]
-    f.write(model_type + '\t' + rmCellTypes + ("\t%.4f"*7+"\n") % tuple(res))
-    plotname='PopRemove/'+model_type+'.'+rmCellTypes.replace(' ','')
+    res = [BE1, BE2] + [res_knn[x] for x in res_knn]
+    f.write('Seurat' + '\t' + rmCellTypes + ("\t%.4f" * 7 + "\n") % tuple(res))
+    plotname = 'PopRemove/' + 'Seurat' + '.' + rmCellTypes.replace(' ', '')
     colors = sns.color_palette('tab20')
     sample = select_indices_evenly(2000, labels)
     latent_s = latent[sample, :]
@@ -97,12 +108,14 @@ for rmCellTypes in ['FCGR3A+ Monocytes', 'NK cells','B cells']:
     batch_s = batch_indices[sample]
     if latent_s.shape[1] != 2:
         latent_s = TSNE().fit_transform(latent_s)
+
     fig, ax = plt.subplots(figsize=(13, 10))
     key_order = np.argsort(keys)
     for i, k in enumerate(key_order):
         ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i % 20], label=keys[k],
                    edgecolors='none')
         ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
+
     fig.tight_layout()
     plt.savefig('../' + plotname + '.labels.png')
     plt.figure(figsize=(10, 10))
@@ -111,22 +124,15 @@ for rmCellTypes in ['FCGR3A+ Monocytes', 'NK cells','B cells']:
     plt.tight_layout()
     plt.savefig('../' + plotname + '.batchid.png')
 
-
-    model_type='vae'
-    genes = np.load('../PopRemove/' + 'Seurat' + '.' + rmCellTypes.replace(' ', '') + '.genes.npy')
-    genes = np.asarray([x[5:] for x in genes])
-    genes = genes.astype('int')
-    genes = genes - 1
-    gene_dataset.X = gene_dataset.X[:,genes]
-    gene_dataset.update_genes(genes)
-    latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, pbmc, pbmc2, filename='PopRemove',
-                                                           rep=rmCellTypes.replace(' ', ''))
-    rm_idx = np.arange(len(gene_dataset.cell_types))[gene_dataset.cell_types == rmCellTypes][0]
+    pbmc, pbmc2, gene_dataset = SubsetGenes(pbmc, pbmc2, gene_dataset, 'PopRemove'+rmCellTypes.replace(' ',''))
+    latent, batch_indices, labels, keys, stats = run_model(
+        'vae', gene_dataset, pbmc, pbmc2,filename='PopRemove', rep = rmCellTypes.replace(' ',''))
     BE1, BE2 = entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type=rm_idx)
+
     res_knn = clustering_scores(np.asarray(latent), labels, 'knn')
     res = [BE1, BE2] + [res_knn[x] for x in res_knn]
-    f.write(model_type + '\t' + rmCellTypes + ("\t%.4f" * 7 + "\n") % tuple(res))
-    plotname = 'PopRemove/' + model_type + '.' + rmCellTypes.replace(' ', '')
+    f.write('vae' + '\t' + rmCellTypes + ("\t%.4f" * 7 + "\n") % tuple(res))
+    plotname = 'PopRemove/' + 'vae' + '.' + rmCellTypes.replace(' ', '')
     colors = sns.color_palette('tab20')
     sample = select_indices_evenly(2000, labels)
     latent_s = latent[sample, :]
@@ -134,12 +140,14 @@ for rmCellTypes in ['FCGR3A+ Monocytes', 'NK cells','B cells']:
     batch_s = batch_indices[sample]
     if latent_s.shape[1] != 2:
         latent_s = TSNE().fit_transform(latent_s)
+
     fig, ax = plt.subplots(figsize=(13, 10))
     key_order = np.argsort(keys)
     for i, k in enumerate(key_order):
         ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i % 20], label=keys[k],
                    edgecolors='none')
         ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
+
     fig.tight_layout()
     plt.savefig('../' + plotname + '.labels.png')
     plt.figure(figsize=(10, 10))

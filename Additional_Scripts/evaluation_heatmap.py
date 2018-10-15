@@ -1,8 +1,13 @@
 import pandas as pd
 import numpy as np
 import sys
+import matplotlib
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
+
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import scale,MinMaxScaler
+
 
 dataname = str(sys.argv[1])
 
@@ -12,7 +17,7 @@ others = pd.read_table('../' + dataname + '/others.res.txt',delim_whitespace=Tru
 stats = pd.concat([scvi,others])
 model_types = stats['model_type']
 stat_names = np.asarray(list(scvi.columns)[1:])
-model_types[model_types=='scmap'] = 'scmap1'
+model_types = np.asarray(model_types)
 
 res=[]
 for x in np.unique(model_types):
@@ -22,17 +27,19 @@ for x in np.unique(model_types):
 model_types = np.unique(model_types)
 res = np.asarray(res)
 
-scmap2 = res[model_types=='scmap1',(len(stat_names)-1)]
-res[model_types=='scmap1',len(stat_names)-1] = res[model_types=='scmap1',len(stat_names)-2]
-res[model_types=='scmap1',len(stat_names)-2] = -1
-scmap2 = np.append(np.repeat(-1,len(stat_names)-1),scmap2).reshape(1,len(stat_names))
-res = np.append(res, scmap2,axis=0)
-model_types = np.append(model_types,'scmap2')
+# scmap2 = res[model_types=='scmap1',[16,17,18,19]]
+# res[model_types=='scmap1',[16,17,18,19]] = -1
+# temp = np.repeat(-1.0,len(res[0,:]))
+# temp[[11,12,13,14]] = scmap2
+# res = np.append(res, temp.reshape(1,len(temp)),axis=0)
+# model_types = np.append(model_types,'scmap2')
 
 sorted_res=[]
-model_order = ['vae','scanvi0', 'scanvi', 'scanvi1', 'scanvi2',
-       'scmap1', 'scmap2', 'readSeurat', 'Combat', 'MNN']
+# model_order = ['vae','scanvi0', 'scanvi', 'scanvi1', 'scanvi2',
+#        'scmap1', 'scmap2', 'readSeurat', 'Combat', 'MNN']
 # model_order = ['vae','scanvi0', 'scanvi', 'scanvi1', 'scanvi2','readSeurat', 'Combat', 'MNN']
+model_order = ['vae', 'scanvi', 'scanvi1', 'scanvi2',
+       'scmap', 'readSeurat', 'Combat', 'MNN']
 for x in model_order:
     sorted_res.append(res[model_types==x,:])
 
@@ -82,11 +89,12 @@ def Heatmap(value_matrix, cololor_matrix, rownames,colnames,title,filename):
                            ha="center", va="center", color="w")
     ax.set_title(title)
     fig.tight_layout()
-    plt.savefig(filename)
+    plt.savefig(filename, transparent=True)
+
 
 filtered_res = np.asarray(filtered_res).astype('float')
 scaler = MinMaxScaler()
 scaled_res = scaler.fit_transform(filtered_res)
 scaled_res[rm_values]=np.nan
 filtered_res[rm_values]=np.nan
-Heatmap(filtered_res,scaled_res,tabs,model_order,dataname,'../'+ dataname + '/heatmap.png')
+Heatmap(filtered_res,scaled_res,tabs,model_order,dataname,'../'+ dataname + '/'+dataname + '.heatmap.pdf')

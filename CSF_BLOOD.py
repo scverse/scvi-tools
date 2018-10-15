@@ -27,13 +27,21 @@ class MSDataset(GeneExpressionDataset):
         cell_type = ['unlabelled']
         return count,labels,cell_type,geneid
 
+patient_id = ['MS19270', 'MS49131'  ,  'PTC32190',  'PTC41540',  'PTC85037']
+dataset = []
+for id in patient_id:
+    data = MSDataset(id,'PBMCs')
+    data.subsample_genes(data.nb_genes)
+    dataset.append(data)
+    data = MSDataset(id, 'CSF')
+    data.subsample_genes(data.nb_genes)
+    dataset.append(data)
 
-dataset1 = MSDataset('MS19270','PBMCs')
-dataset1.subsample_genes(dataset1.nb_genes)
-dataset2 = MSDataset('MS19270','CSF')
-dataset2.subsample_genes(dataset2.nb_genes)
-
-gene_dataset = GeneExpressionDataset.concat_datasets(dataset1, dataset2)
+gene_dataset = GeneExpressionDataset.concat_datasets(dataset[0],dataset[1],
+                                                     dataset[2],dataset[3],
+                                                     dataset[4],dataset[5],
+                                                     dataset[6],dataset[7],
+                                                     dataset[8],dataset[9])
 #
 # gene_dataset.X = sparse.csr_matrix(gene_dataset.X)
 #
@@ -42,7 +50,20 @@ gene_dataset.subsample_genes(5000)
 vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches, n_labels=gene_dataset.n_labels,
           n_hidden=128, n_latent=10, n_layers=2, dispersion='gene')
 trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
-trainer.train(n_epochs=10)
+trainer.train(n_epochs=100)
+
+# if os.path.isfile('../' + filename + '/' + 'vae' + '.rep' + str(rep) + '.pkl'):
+#     trainer.model = torch.load('../' + filename + '/' + 'vae' + '.rep' + str(rep) + '.pkl')
+# else:
+#     if gene_dataset.X.shape[0] > 40000:
+#         trainer.train(n_epochs=100)
+#     elif gene_dataset.X.shape[0] < 20000:
+#         trainer.train(n_epochs=500)
+#     else:
+#         trainer.train(n_epochs=250)
+#
+import torch
+torch.save(trainer.model, '../' + 'Gerd' + '/' + 'vae.pkl')
 
 M_sampling=1
 px_scales = []
