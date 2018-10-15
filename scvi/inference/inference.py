@@ -2,6 +2,9 @@ import copy
 
 import matplotlib.pyplot as plt
 import torch
+from scvi.models.classifier import Classifier
+import torch.nn.functional as F
+
 
 from . import Trainer
 
@@ -71,3 +74,58 @@ class AdapterTrainer(UnsupervisedTrainer):
             super(AdapterTrainer, self).train(n_epochs, params=self.params, **kwargs)
 
         return min(self.history["ll_test_set"])
+
+
+class AdversarialTrainerVAE(Trainer):
+    r"""The modified UnsupervisedTrainer class for the unsupervised training of an autoencoder.
+    """
+    default_metrics_to_monitor = ['ll']
+
+    def __init__(self, model, gene_dataset, train_size=0.8, test_size=None,
+                 n_epochs_even=1, n_epochs_cl=1, warm_up=10,
+                 scale=50, **kwargs):
+        super(AdversarialTrainerVAE, self).__init__(model, gene_dataset, **kwargs)
+        print("I am the adversarial Trainer")
+        self.kl = None
+        self.n_epochs_cl = n_epochs_cl
+        self.n_epochs_even = n_epochs_even
+        self.weighting = 0
+        self.kl_weight = 0
+        self.classification_ponderation = 0
+        self.warm_up = warm_up
+        self.scale = scale
+
+        self.train_set, self.test_set = self.train_test(model, gene_dataset, train_size, test_size)
+        self.train_set.to_monitor = ['ll']
+        self.test_set.to_monitor = ['ll']
+
+
+    @property
+    def posteriors_loop(self):
+        return ['train_set']
+
+    def train(self, n_epochs=20, lr=1e-3, weight_decay=1e-6, params=None):
+        self.adversarial_cls = Classifier(self.model.n_latent, n_labels=self.model.n_batch, n_layers=3)
+        if self.use_cuda:
+            self.adversarial_cls.cuda()
+        self.optimizer_cls = torch.optim.Adam(filter(lambda p: p.requires_grad, self.adversarial_cls.parameters()),
+                                              lr=lr, weight_decay=weight_decay)
+        super(AdversarialTrainerVAE, self).train(n_epochs=n_epochs, lr=lr, params=None)
+
+    def loss(self, tensors):
+        sample_batch, local_l_mean, local_l_var, batch_index, _ = tensors
+        reconst_loss, kl_divergence = self.model(sample_batch, local_l_mean, local_l_var, batch_index)
+        loss = torch.mean(reconst_loss + self.kl_weight * kl_divergence)
+        if self.epoch > self.warm_up:
+            z = self.model.sample_from_posterior_z(sample_batch)
+            cls_loss = (self.scale * F.cross_entropy(self.adversarial_cls(z), torch.zeros_like(batch_index).view(-1)))
+            self.optimizer_cls.zero_grad()
+            cls_loss.backward(retain_graph=True)
+            self.optimizer_cls.step()
+        else:
+            cls_loss = 0
+        return loss - cls_loss
+
+    def on_epoch_begin(self):
+        self.kl_weight = self.kl if self.kl is not None else min(1, self.epoch / 400)
+
