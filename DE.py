@@ -166,7 +166,7 @@ for t, comparison in enumerate(comparisons):
                                    cell_type_label[t][1])
 
     # second get them for all the predicted labels cross-datasets
-    probs_all_imputed_pbmc = get_bayes_factors(scale_68k,
+    probs_all_imputed_pbmc = get_bayes_factors(scale_pbmc,
                                                pred[cell_indices],
                                                cell_type_label[t][0],
                                                cell_type_label[t][1], logit=False)
