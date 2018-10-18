@@ -246,6 +246,7 @@ class Trainer:
         for key in ret.keys():
             if len(ret[key]) > 0:
                 ret[key] = np.array(torch.cat(ret[key]))
+        ret["all_dataset"] = all_dataset
         if save_imputed:
             myfile = open(file_name_imputation, 'w')
             with myfile:

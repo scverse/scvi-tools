@@ -25,7 +25,7 @@ class VAEF(VAE):
         :n_labels: Default: ``0``.
         :n_hidden: Number of hidden. Default: ``128``.
         :n_latent: Default: ``1``.
-        :n_layers: Number of layers. Default: ``1``.
+        :n_layers_shared: Number of layers shared by both datasets in the encoder. Default: ``1``.
         :dropout_rate: Default: ``0.1``.
         :dispersion: Default: ``"gene"``.
         :log_variational: Default: ``True``.
@@ -41,7 +41,7 @@ class VAEF(VAE):
     """
 
     def __init__(self, n_input, indexes_fish_train=None, n_batch=0, n_labels=0, n_hidden=128, n_latent=10,
-                 n_layers=1, n_layers_decoder=1, dropout_rate=0.3,
+                 n_layers_decoder=1, n_layers_shared=1, dropout_rate=0.3,
                  dispersion="gene", log_variational=True, reconstruction_loss="zinb",
                  reconstruction_loss_fish="poisson", model_library=False):
         super(VAEF, self).__init__(n_input, dispersion=dispersion, n_latent=n_hidden, n_hidden=n_hidden,
@@ -57,7 +57,7 @@ class VAEF(VAE):
         self.z_encoder_fish = Encoder(self.n_input_fish, n_hidden, n_hidden=n_hidden, n_layers=1,
                                       dropout_rate=dropout_rate)
         # The last layers of the encoder are shared
-        self.z_final_encoder = Encoder(n_hidden, n_latent, n_hidden=n_hidden, n_layers=n_layers,
+        self.z_final_encoder = Encoder(n_hidden, n_latent, n_hidden=n_hidden, n_layers=n_layers_shared,
                                        dropout_rate=dropout_rate)
         self.l_encoder_fish = Encoder(self.n_input_fish, 1, n_hidden=n_hidden, n_layers=1,
                                       dropout_rate=dropout_rate)
