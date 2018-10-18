@@ -21,6 +21,7 @@ requirements = [
     "tqdm >= 4",
     "anndata >= 0.6",
     "xlrd >= 1.0",
+    "jupyter >= 1.0",
 ]
 
 setup_requirements = ['pytest-runner', ]
@@ -55,6 +56,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/YosefLab/scVI',
-    version='0.2.1',
+    version='0.2.2',
     zip_safe=False,
 )
