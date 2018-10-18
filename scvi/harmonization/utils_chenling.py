@@ -80,12 +80,10 @@ def trainVAE(gene_dataset, filename, rep, nlayers=2):
     if os.path.isfile('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl'):
         trainer.model = torch.load('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl')
     else:
-        if gene_dataset.X.shape[0]>40000:
-            trainer.train(n_epochs=100)
+        if gene_dataset.X.shape[0]>20000:
+            trainer.train(n_epochs=250)
         elif gene_dataset.X.shape[0] < 20000:
             trainer.train(n_epochs=500)
-        else:
-            trainer.train(n_epochs=250)
 
         torch.save(trainer.model,'../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl')
     batch_entropy = trainer.train_set.entropy_batch_mixing()
@@ -135,12 +133,13 @@ def trainSCANVI(gene_dataset,model_type,filename,rep, nlayers=2):
     if os.path.isfile('../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl'):
         trainer_scanvi.model = torch.load('../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl')
     else:
-        if gene_dataset.X.shape[0]>40000:
-            trainer_scanvi.train(n_epochs=10)
-        elif gene_dataset.X.shape[0] < 20000:
-            trainer_scanvi.train(n_epochs=50)
-        else:
-            trainer_scanvi.train(n_epochs=25)
+        # if gene_dataset.X.shape[0]>40000:
+        #     trainer_scanvi.train(n_epochs=10)
+        # elif gene_dataset.X.shape[0] < 20000:
+        #     trainer_scanvi.train(n_epochs=50)
+        # else:
+        #     trainer_scanvi.train(n_epochs=25)
+        trainer_scanvi.train(n_epochs=50)
         torch.save(trainer_scanvi.model,'../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl')
     return trainer_scanvi
 
@@ -245,13 +244,16 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
         scmap.set_parameters(n_features=n_features)
         scmap.fit_scmap_cluster(count1, label1.astype(np.int))
         pred1 = scmap.predict_scmap_cluster(count2, label2.astype(np.int))
+        pred1cell = scmap.predict_scmap_cell(count2, label2.astype(np.int))
         scmap = SCMAP()
         scmap.set_parameters(n_features=n_features)
         scmap.fit_scmap_cluster(count2, label2.astype(np.int))
         pred2 = scmap.predict_scmap_cluster(count1, label1.astype(np.int))
+        pred2cell = scmap.predict_scmap_cell(count2, label2.astype(np.int))
         latent = scmap_eval(label2, pred1)
-        stats = scmap_eval(label1, pred2)
-
+        batch_indices = scmap_eval(label1, pred2)
+        labels = scmap_eval(label2, pred2cell)
+        keys = scmap_eval(label1, pred1cell)
 
     elif model_type =='writedata':
         from scipy.io import mmwrite
@@ -382,9 +384,9 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models,ngenes=1000
     if models =='others':
         latent1 = np.genfromtxt('../Seurat_data/' + plotname + '.1.CCA.txt')
         latent2 = np.genfromtxt('../Seurat_data/' + plotname + '.2.CCA.txt')
-        # for model_type in ['scmap','readSeurat','Combat','MNN','PCA']:
+        for model_type in ['scmap','readSeurat','Combat','MNN','PCA']:
         # for model_type in ['scmap']:
-        for model_type in ['Combat','MNN','PCA']:
+        # for model_type in ['Combat','MNN','PCA']:
             # only scmap doesn't need the gene filtering step
             # so we will run scmap first and before running readSeurat subsample the genes
             print(model_type)
@@ -393,8 +395,11 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models,ngenes=1000
                 latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,
                                                                        filename=plotname)
                 res1 = [latent[x] for x in latent]
-                res2 = [stats[x] for x in stats]
-                res= [-1]* (10) +\
+                res2 = [batch_indices[x] for x in batch_indices]
+                res3 = [labels[x] for x in labels]
+                res4 = [keys[x] for x in keys]
+                res= [-1]+res3 +\
+                [-1]+res4 + \
                 [-1]+res1 + \
                 [-1]+res2 + \
                 [-1] * (20) + \

@@ -1,12 +1,12 @@
 use_cuda = True
-
 from scvi.dataset.BICCN import *
 from scvi.dataset.dataset import GeneExpressionDataset
 from scvi.harmonization.utils_chenling import CompareModels
-import sys
 
+import sys
 models = str(sys.argv[1])
 plotname = 'Zeng'
+
 
 dataset1 = Zeng10X()
 dataset2 = ZengSS2()

@@ -1,11 +1,9 @@
 from scvi.dataset.dataset10X import Dataset10X
 from scvi.dataset.pbmc import PbmcDataset
-import numpy as np
-from scvi.dataset.dataset import GeneExpressionDataset
+import torch
 
 from scvi.models.vae import VAE
-from scvi.models.scanvi import SCANVI
-from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
+from scvi.inference import UnsupervisedTrainer
 from sklearn.metrics import roc_auc_score
 from scvi.inference.posterior import get_bayes_factors
 import numpy as np
@@ -30,20 +28,6 @@ def auc_score_threshold(gene_set, bayes_factor, gene_symbols):
 pbmc = PbmcDataset()
 pbmc.update_cells(pbmc.batch_indices.ravel()==0)
 
-from scvi.harmonization.utils_chenling import get_matrix_from_dir,assign_label
-count, geneid, cellid = get_matrix_from_dir('cite')
-count = count.T.tocsr()
-seurat = np.genfromtxt('../cite/cite.seurat.labels', dtype='str', delimiter=',')
-cellid = np.asarray([x.split('-')[0] for x in cellid])
-labels_map = [0, 0, 1, 2, 3, 4, 5, 6]
-labels = seurat[1:, 4]
-cell_type = ["CD4+ T Helper2", "CD56+ NK", "CD14+ Monocyte", "CD19+ B", "CD8+ Cytotoxic T", "FCGR3A Monocyte", "na"]
-dataset2 = assign_label(cellid, geneid, labels_map, count, cell_type, seurat)
-rmCellTypes = {'na', 'dendritic'}
-newCellType = [k for i, k in enumerate(dataset2.cell_types) if k not in rmCellTypes]
-dataset2.filter_cell_types(newCellType)
-pbmc = dataset2
-
 pbmc68k = Dataset10X('fresh_68k_pbmc_donor_a')
 pbmc68k.cell_types = ['unlabelled']
 pbmc68k.labels = np.repeat(0, len(pbmc68k)).reshape(len(pbmc68k), 1)
@@ -60,12 +44,13 @@ all_gene_symbols = pbmc68k.gene_symbols[
 # For that, let is import the genesets and intersect with the largest gene set from scRNA-seq
 path_geneset = "Additional_Scripts/genesets.txt"
 geneset_matrix = np.loadtxt(path_geneset, dtype=np.str)[:, 2:]
-CD4_TCELL_VS_BCELL_NAIVE, CD8_TCELL_VS_BCELL_NAIVE, CD8_VS_CD4_NAIVE_TCELL, NAIVE_CD8_TCELL_VS_NKCELL \
-    = [set(geneset_matrix[i:i + 2, :].flatten()) & set(all_gene_symbols) for i in [0, 2, 4, 6]]
+CD4_TCELL_VS_BCELL_NAIVE, CD8_TCELL_VS_BCELL_NAIVE, CD8_VS_CD4_NAIVE_TCELL, NAIVE_CD8_TCELL_VS_NKCELL, CD8_VS_CD4, B_VS_MDC \
+    = [set(geneset_matrix[i:i + 2, :].flatten()) & set(all_gene_symbols) for i in [0, 2, 4, 6, 8, 10]]
 
 # these are the length of the positive gene sets for the DE
 print((len(CD4_TCELL_VS_BCELL_NAIVE), len(CD8_TCELL_VS_BCELL_NAIVE),
-       len(CD8_VS_CD4_NAIVE_TCELL), len(NAIVE_CD8_TCELL_VS_NKCELL)))
+       len(CD8_VS_CD4_NAIVE_TCELL), len(NAIVE_CD8_TCELL_VS_NKCELL)),
+      len(CD8_VS_CD4),len(B_VS_MDC))
 
 print(all_dataset.cell_types)
 
@@ -75,14 +60,17 @@ vae = VAE(all_dataset.nb_genes, n_batch=all_dataset.n_batches, n_labels=all_data
           n_hidden=128, n_latent=10, n_layers=2, dispersion='gene')
 
 trainer = UnsupervisedTrainer(vae, all_dataset, train_size=1.0)
-trainer.train(n_epochs=100)
-trainer.train_set.entropy_batch_mixing()
+# trainer.train(n_epochs=200)
+# torch.save(trainer.model,'../DE/vae.model.pkl')
+trainer.model = torch.load('../DE/vae.model.pkl')
 full = trainer.create_posterior(trainer.model, all_dataset, indices=np.arange(len(all_dataset)))
 latent, batch_indices, labels = full.sequential().get_latent()
 keys = all_dataset.cell_types
 from scvi.inference.posterior import entropy_batch_mixing
 sample = select_indices_evenly(2000, batch_indices)
 batch_entropy = entropy_batch_mixing(latent[sample, :], batch_indices[sample])
+print(batch_entropy)
+
 
 latent_labelled = latent[batch_indices.ravel()==0, :]
 latent_unlabelled = latent[batch_indices.ravel()==1, :]
@@ -128,23 +116,28 @@ pred = np.concatenate([labels_labelled,pred])
 
 # pred = scanvi_posterior.compute_predictions()[1]
 
-# comparisons = [
-#     ['CD4 T cells', 'B cells'],
-#     ['CD8 T cells', 'B cells'],
-#     ['CD8 T cells', 'CD4 T cells'],
-#     ['CD8 T cells', 'NK cells']
-#                ]
 
-comparisons = [['CD4+ T Helper2','CD19+ B'],
-    ['CD8+ Cytotoxic T', 'CD19+ B'],
-    ['CD8+ Cytotoxic T', 'CD4+ T Helper2'],
-    ['CD8+ Cytotoxic T', 'CD56+ NK']]
+comparisons = [
+    ['CD4 T cells', 'B cells'],
+    ['CD8 T cells', 'B cells'],
+    ['CD8 T cells', 'CD4 T cells'],
+    ['CD8 T cells', 'NK cells'],
+    ['CD8 T cells', 'CD4 T cells'],
+    ['B cells', 'Dendritic Cells']
+               ]
 
+# comparisons = [['CD4+ T Helper2','CD19+ B'],
+#     ['CD8+ Cytotoxic T', 'CD19+ B'],
+#     ['CD8+ Cytotoxic T', 'CD4+ T Helper2'],
+#     ['CD8+ Cytotoxic T', 'CD56+ NK']]
+#
 
 gene_sets = [CD4_TCELL_VS_BCELL_NAIVE,
              CD8_TCELL_VS_BCELL_NAIVE,
              CD8_VS_CD4_NAIVE_TCELL,
-             NAIVE_CD8_TCELL_VS_NKCELL]
+             NAIVE_CD8_TCELL_VS_NKCELL,
+             CD8_VS_CD4,
+             B_VS_MDC]
 
 cell_type_label = [[np.where(all_dataset.cell_types == x[i])[0].astype('int')[0] for i in [0, 1]] for x in comparisons]
 for t, comparison in enumerate(comparisons):
@@ -158,13 +151,11 @@ for t, comparison in enumerate(comparisons):
     scale_68k = de_posterior.sequential().get_harmonized_scale(1)
     # For Chenling: I looked again at the number of cells,
     # if we use all of them, we are OK using just one sample from the posterior
-
     # first grab the original bayes factor by ignoring the unlabeled cells
     bayes_pbmc = get_bayes_factors(scale_pbmc,
                                    all_dataset.labels.ravel()[cell_indices],
                                    cell_type_label[t][0],
                                    cell_type_label[t][1])
-
     # second get them for all the predicted labels cross-datasets
     probs_all_imputed_pbmc = get_bayes_factors(scale_pbmc,
                                                pred[cell_indices],
@@ -177,11 +168,9 @@ for t, comparison in enumerate(comparisons):
     p_s = pbmc.labels.shape[0] / all_dataset.labels.shape[0]
     bayes_all_imputed = p_s * probs_all_imputed_pbmc + (1 - p_s) * probs_all_imputed_68k
     bayes_all_imputed = np.log(bayes_all_imputed + 1e-8) - np.log(1 - bayes_all_imputed + 1e-8)
-
     # COMMENT FOR CHENLING: the bayes variables (bayes_pbmc and bayes_all_imputed) should now span all values
     # (not only positive or negative).
     # Can you check that with np.min and np.max ?
-
     print(auc_score_threshold(gene_set, bayes_pbmc, all_gene_symbols))
-    print(auc_score_threshold(gene_set, bayes_all_imputed, all_gene_symbols))
+    # print(auc_score_threshold(gene_set, bayes_all_imputed, all_gene_symbols))
 

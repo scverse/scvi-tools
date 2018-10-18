@@ -29,12 +29,14 @@ cell_type = ['CD4 T cells', 'NK cells', 'CD14+ Monocytes', 'B cells','CD8 T cell
 dataset2 = assign_label(cellid, geneid, labels_map, count, cell_type, seurat)
 set(dataset2.cell_types).intersection(set(dataset2.cell_types))
 
+
+#
 # prop2 = dict( zip(dataset2.cell_types[np.unique(dataset2.labels,return_counts=True)[0]],
 #                   np.unique(dataset2.labels,return_counts=True)[1]/len(dataset2)))
 #
-# prop = np.unique(dataset1.labels,return_counts=True)[1]/len(dataset1)
-# for i,name in enumerate(dataset1.cell_types[7:]):
-#     print("%s & %.3f & %.3f\\\\ \n" % (name,prop[i],prop2[name]))
+# prop =dict(zip(dataset1.cell_types, np.unique(dataset1.labels,return_counts=True)[1]/len(dataset1)))
+# for i,name in enumerate(list(set(dataset2.cell_types).intersection(set(dataset2.cell_types)))):
+#     print("%s & %.3f & %.3f\\\\ \n" % (name,prop[name],prop2[name]))
 
 
 dataset1.subsample_genes(dataset1.nb_genes)
@@ -46,28 +48,20 @@ def entropy_from_indices(indices):
     return entropy(np.array(np.unique(indices, return_counts=True)[1].astype(np.int32)))
 
 
-def entropy_batch_mixing_subsampled(latent, batches, labels, removed_type, sampled_batch=0, n_neighbors=10, n_pools=50, n_samples_per_pool=100):
-    # max number is an important parameter
-    # latent_space = latent
-    # batches = batch_indices
-    # removed_type = rm_idx
-    removed_pop = latent[labels == removed_type,:]
-    kept_pop = latent[batches!=sampled_batch,:][labels[batches!=sampled_batch] != removed_type,:]
+def entropy_batch_mixing_subsampled(latent, batches, labels, removed_type, sampled_batch=0, n_neighbors=50, n_pools=50, n_samples_per_pool=100):
+    X = latent[labels == removed_type,:]
     nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(latent)
-    res = []
-    for X in [removed_pop,kept_pop]:
-        indices = nbrs.kneighbors(X, return_distance=False)[:, 1:]
-        batch_indices = np.vectorize(lambda i: batches[i])(indices)
-        entropies = np.apply_along_axis(entropy_from_indices, axis=1, arr=batch_indices)
-        if n_pools == 1:
-            score = np.mean(entropies)
-        else:
-            score = np.mean([
-                np.mean(entropies[np.random.choice(len(entropies), size=n_samples_per_pool)])
-                for _ in range(n_pools)
-            ])
-        res.append(score)
-    return res[0], res[1]
+    indices = nbrs.kneighbors(X, return_distance=False)[:, 1:]
+    batch_indices = np.vectorize(lambda i: batches[i])(indices)
+    entropies = np.apply_along_axis(entropy_from_indices, axis=1, arr=batch_indices)
+    if n_pools == 1:
+        res = np.mean(entropies)
+    else:
+        res = np.mean([
+            np.mean(entropies[np.random.choice(len(entropies), size=n_samples_per_pool)])
+            for _ in range(n_pools)
+        ])
+    return res
 
 from scvi.metrics.clustering import clustering_scores
 
@@ -78,7 +72,7 @@ from scvi.dataset.dataset import SubsetGenes
 
 # scp chenlingantelope@s128.millennium.berkeley.edu:/data/yosef2/users/chenling/harmonization/Seurat_data/PopRemove*
 
-for rmCellTypes in dataset2.cell_types:
+for rmCellTypes in dataset2.cell_types[:6]:
     pbmc = deepcopy(dataset1)
     newCellType = [k for i, k in enumerate(dataset1.cell_types) if k not in [rmCellTypes]]
     pbmc.filter_cell_types(newCellType)
@@ -94,66 +88,91 @@ for rmCellTypes in dataset2.cell_types:
     latent, batch_indices, labels, keys, stats = run_model(
         'readSeurat', gene_dataset, pbmc, pbmc2,filename='PopRemove'+rmCellTypes.replace(' ',''))
 
-    rm_idx = np.arange(len(gene_dataset.cell_types))[gene_dataset.cell_types == rmCellTypes][0]
-    BE1, BE2 = entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type=rm_idx)
+    otheridx = np.arange(len(keys))[keys == 'Other'][0]
+    latent = latent[labels!=otheridx,:]
+    batch_indices = batch_indices[labels!=otheridx]
+    labels = labels[labels!=otheridx]
+    map = dict(zip(np.unique(labels),np.argsort(np.unique(labels))))
+    labels = np.asarray([map[x] for x in labels])
+    keys = keys[keys!='Other']
 
+    rm_idx = np.arange(len(keys))[keys == rmCellTypes][0]
+    other_idx = np.arange(len(keys))[keys != rmCellTypes]
+    cell_type = [keys[rm_idx]] + list(keys[other_idx])
+    BE1 = entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type=rm_idx)
+    BE2 = [ entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type= i ) for i in other_idx]
     res_knn = clustering_scores(np.asarray(latent), labels, 'knn')
-    res = [BE1, BE2] + [res_knn[x] for x in res_knn]
-    f.write('Seurat' + '\t' + rmCellTypes + ("\t%.4f" * 7 + "\n") % tuple(res))
-    plotname = 'PopRemove/' + 'Seurat' + '.' + rmCellTypes.replace(' ', '')
-    colors = sns.color_palette('tab20')
-    sample = select_indices_evenly(2000, labels)
-    latent_s = latent[sample, :]
-    label_s = labels[sample]
-    batch_s = batch_indices[sample]
-    if latent_s.shape[1] != 2:
-        latent_s = TSNE().fit_transform(latent_s)
+    res = [BE1] + BE2 + [res_knn[x] for x in res_knn]
+    f.write('Seurat' + '\t' + rmCellTypes + ("\t%.4f" * 13 + "\t%s"*8 + "\n") % tuple(res+cell_type))
 
-    fig, ax = plt.subplots(figsize=(13, 10))
-    key_order = np.argsort(keys)
-    for i, k in enumerate(key_order):
-        ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i % 20], label=keys[k],
-                   edgecolors='none')
-        ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
-
-    fig.tight_layout()
-    plt.savefig('../' + plotname + '.labels.png')
-    plt.figure(figsize=(10, 10))
-    plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
-    plt.axis("off")
-    plt.tight_layout()
-    plt.savefig('../' + plotname + '.batchid.png')
+    # plotname = 'PopRemove/' + 'Seurat' + '.' + rmCellTypes.replace(' ', '')
+    # colors = sns.color_palette('tab20')
+    # sample = select_indices_evenly(2000, labels)
+    # latent_s = latent[sample, :]
+    # label_s = labels[sample]
+    # batch_s = batch_indices[sample]
+    # if latent_s.shape[1] != 2:
+    #     latent_s = TSNE().fit_transform(latent_s)
+    #
+    # fig, ax = plt.subplots(figsize=(13, 10))
+    # key_order = np.argsort(keys)
+    # for i, k in enumerate(key_order):
+    #     ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i % 20], label=keys[k],
+    #                edgecolors='none')
+    #     ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
+    #
+    # fig.tight_layout()
+    # plt.savefig('../' + plotname + '.labels.png')
+    # plt.figure(figsize=(10, 10))
+    # plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
+    # plt.axis("off")
+    # plt.tight_layout()
+    # plt.savefig('../' + plotname + '.batchid.png')
 
     pbmc, pbmc2, gene_dataset = SubsetGenes(pbmc, pbmc2, gene_dataset, 'PopRemove'+rmCellTypes.replace(' ',''))
     latent, batch_indices, labels, keys, stats = run_model(
         'vae', gene_dataset, pbmc, pbmc2,filename='PopRemove', rep = rmCellTypes.replace(' ',''))
-    BE1, BE2 = entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type=rm_idx)
 
+    otheridx = np.arange(len(keys))[keys == 'Other'][0]
+    latent = latent[labels!=otheridx,:]
+    batch_indices = batch_indices[labels!=otheridx]
+    labels = labels[labels!=otheridx]
+    map = dict(zip(np.unique(labels),np.argsort(np.unique(labels))))
+    labels = np.asarray([map[x] for x in labels])
+    keys = keys[keys!='Other']
+
+    rm_idx = np.arange(len(keys))[keys == rmCellTypes][0]
+    other_idx = np.arange(len(keys))[keys != rmCellTypes]
+    cell_type = [keys[rm_idx]] + list(keys[other_idx])
+    BE1 = entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type=rm_idx)
+    BE2 = [ entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type= i ) for i in other_idx]
     res_knn = clustering_scores(np.asarray(latent), labels, 'knn')
-    res = [BE1, BE2] + [res_knn[x] for x in res_knn]
-    f.write('vae' + '\t' + rmCellTypes + ("\t%.4f" * 7 + "\n") % tuple(res))
-    plotname = 'PopRemove/' + 'vae' + '.' + rmCellTypes.replace(' ', '')
-    colors = sns.color_palette('tab20')
-    sample = select_indices_evenly(2000, labels)
-    latent_s = latent[sample, :]
-    label_s = labels[sample]
-    batch_s = batch_indices[sample]
-    if latent_s.shape[1] != 2:
-        latent_s = TSNE().fit_transform(latent_s)
+    res = [BE1] + BE2 + [res_knn[x] for x in res_knn]
+    f.write('vae' + '\t' + rmCellTypes + ("\t%.4f" * 13 + "\t%s"*8 + "\n") % tuple(res+cell_type))
 
-    fig, ax = plt.subplots(figsize=(13, 10))
-    key_order = np.argsort(keys)
-    for i, k in enumerate(key_order):
-        ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i % 20], label=keys[k],
-                   edgecolors='none')
-        ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
 
-    fig.tight_layout()
-    plt.savefig('../' + plotname + '.labels.png')
-    plt.figure(figsize=(10, 10))
-    plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
-    plt.axis("off")
-    plt.tight_layout()
-    plt.savefig('../' + plotname + '.batchid.png')
+    # plotname = 'PopRemove/' + 'vae' + '.' + rmCellTypes.replace(' ', '')
+    # colors = sns.color_palette('tab20')
+    # sample = select_indices_evenly(2000, labels)
+    # latent_s = latent[sample, :]
+    # label_s = labels[sample]
+    # batch_s = batch_indices[sample]
+    # if latent_s.shape[1] != 2:
+    #     latent_s = TSNE().fit_transform(latent_s)
+    #
+    # fig, ax = plt.subplots(figsize=(13, 10))
+    # key_order = np.argsort(keys)
+    # for i, k in enumerate(key_order):
+    #     ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i % 20], label=keys[k],
+    #                edgecolors='none')
+    #     ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
+    #
+    # fig.tight_layout()
+    # plt.savefig('../' + plotname + '.labels.png')
+    # plt.figure(figsize=(10, 10))
+    # plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
+    # plt.axis("off")
+    # plt.tight_layout()
+    # plt.savefig('../' + plotname + '.batchid.png')
 
 f.close()
