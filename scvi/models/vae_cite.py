@@ -152,7 +152,7 @@ class VAECITE(nn.Module):
         ql_m, ql_v, library = self.l_adt_encoder(x)
         return library
 
-    def get_sample_scale_umi(self, x, batch_index=None, y=None, n_samples=1):
+    def get_sample_scale(self, x, batch_index=None, y=None, n_samples=1, mode='umi'):
         r"""Returns the tensor of predicted frequencies of expression
 
         :param x: tensor of values with shape ``(batch_size, n_input_genes)``
@@ -162,21 +162,9 @@ class VAECITE(nn.Module):
         :return: tensor of predicted frequencies of expression with shape ``(batch_size, n_input)``
         :rtype: :py:class:`torch.Tensor`
         """
-        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[0]['umi']
+        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[0][mode]
 
-    def get_sample_scale_adt(self, x, batch_index=None, y=None, n_samples=1):
-        r"""Returns the tensor of predicted frequencies of expression
-
-        :param x: tensor of values with shape ``(batch_size, n_input_proteins)``
-        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
-        :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
-        :param n_samples: number of samples
-        :return: tensor of predicted frequencies of expression with shape ``(batch_size, n_input)``
-        :rtype: :py:class:`torch.Tensor`
-        """
-        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[0]['adt']
-
-    def get_sample_rate_umi(self, x, batch_index=None, y=None, n_samples=1):
+    def get_sample_rate(self, x, batch_index=None, y=None, n_samples=1, mode='umi'):
         r"""Returns the tensor of means of the negative binomial distribution
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
@@ -186,10 +174,10 @@ class VAECITE(nn.Module):
         :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
         :rtype: :py:class:`torch.Tensor`
         """
-        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[2]['umi']
+        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[2][mode]
 
-    def get_sample_rate_adt(self, x, batch_index=None, y=None, n_samples=1):
-        r"""Returns the tensor of means of the negative binomial distribution
+    def get_sample_dispersion(self, x, batch_index=None, y=None, n_samples=1, mode='adt'):
+        r"""Returns the tensor of dispersions/variances depending on the model
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
@@ -198,7 +186,7 @@ class VAECITE(nn.Module):
         :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
         :rtype: :py:class:`torch.Tensor`
         """
-        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[2]['adt']
+        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[1][mode]
 
     def _reconstruction_loss(self, x, px_rate, px_r, px_dropout, px_scale):
         # Reconstruction Loss
