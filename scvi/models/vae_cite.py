@@ -224,23 +224,23 @@ class VAECITE(nn.Module):
             ql_m['adt'], ql_v['adt'], library_adt = self.l_adt_encoder(adt_)
 
         # TODO WHAT IS THIS CODE
-        # if n_samples > 1:
-        #     qz_m = qz_m.unsqueeze(0).expand(
-        #         (n_samples, qz_m.size(0), qz_m.size(1)))
-        #     qz_v = qz_v.unsqueeze(0).expand(
-        #         (n_samples, qz_v.size(0), qz_v.size(1)))
-        #     z = Normal(qz_m, qz_v.sqrt()).sample()
-        #     ql_m_umi = ql_m_umi.unsqueeze(0).expand(
-        #         (n_samples, ql_m_umi.size(0), ql_m_umi.size(1)))
-        #     ql_v_umi = ql_v_umi.unsqueeze(0).expand(
-        #         (n_samples, ql_v_umi.size(0), ql_v_umi.size(1)))
-        #     library_umi = Normal(ql_m_umi, ql_v_umi.sqrt()).sample()
-        #     if self.model_library:
-        #         ql_m_adt = ql_m_adt.unsqueeze(0).expand(
-        #             (n_samples, ql_m_adt.size(0), ql_m_adt.size(1)))
-        #         ql_v_adt = ql_v_adt.unsqueeze(0).expand(
-        #             (n_samples, ql_v_adt.size(0), ql_v_adt.size(1)))
-        #         library_adt = Normal(ql_m_adt, ql_v_adt.sqrt()).sample()
+        if n_samples > 1:
+            qz_m = qz_m.unsqueeze(0).expand(
+                (n_samples, qz_m.size(0), qz_m.size(1)))
+            qz_v = qz_v.unsqueeze(0).expand(
+                (n_samples, qz_v.size(0), qz_v.size(1)))
+            z = Normal(qz_m, qz_v.sqrt()).sample()
+            ql_m['umi'] = ql_m['umi'].unsqueeze(0).expand(
+                (n_samples, ql_m['umi'].size(0), ql_m['umi'].size(1)))
+            ql_v['umi'] = ql_v['umi'].unsqueeze(0).expand(
+                (n_samples, ql_v['umi'].size(0), ql_v['umi'].size(1)))
+            library_umi = Normal(ql_m['umi'], ql_v['umi'].sqrt()).sample()
+            if self.model_library:
+                ql_m['adt'] = ql_m['adt'].unsqueeze(0).expand(
+                    (n_samples, ql_m['adt'].size(0), ql_m['adt'].size(1)))
+                ql_v['adt'] = ql_v['adt'].unsqueeze(0).expand(
+                    (n_samples, ql_v['adt'].size(0), ql_v['adt'].size(1)))
+                library_adt = Normal(ql_m['adt'], ql_v['adt'].sqrt()).sample()
 
         px_scale = {}
         px_r = {}
