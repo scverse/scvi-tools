@@ -106,30 +106,6 @@ for rmCellTypes in dataset2.cell_types[:6]:
     res = [BE1] + BE2 + [res_knn[x] for x in res_knn]
     f.write('Seurat' + '\t' + rmCellTypes + ("\t%.4f" * 13 + "\t%s"*8 + "\n") % tuple(res+cell_type))
 
-    # plotname = 'PopRemove/' + 'Seurat' + '.' + rmCellTypes.replace(' ', '')
-    # colors = sns.color_palette('tab20')
-    # sample = select_indices_evenly(2000, labels)
-    # latent_s = latent[sample, :]
-    # label_s = labels[sample]
-    # batch_s = batch_indices[sample]
-    # if latent_s.shape[1] != 2:
-    #     latent_s = TSNE().fit_transform(latent_s)
-    #
-    # fig, ax = plt.subplots(figsize=(13, 10))
-    # key_order = np.argsort(keys)
-    # for i, k in enumerate(key_order):
-    #     ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i % 20], label=keys[k],
-    #                edgecolors='none')
-    #     ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
-    #
-    # fig.tight_layout()
-    # plt.savefig('../' + plotname + '.labels.png')
-    # plt.figure(figsize=(10, 10))
-    # plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
-    # plt.axis("off")
-    # plt.tight_layout()
-    # plt.savefig('../' + plotname + '.batchid.png')
-
     pbmc, pbmc2, gene_dataset = SubsetGenes(pbmc, pbmc2, gene_dataset, 'PopRemove'+rmCellTypes.replace(' ',''))
     latent, batch_indices, labels, keys, stats = run_model(
         'vae', gene_dataset, pbmc, pbmc2,filename='PopRemove', rep = rmCellTypes.replace(' ',''))
@@ -151,29 +127,5 @@ for rmCellTypes in dataset2.cell_types[:6]:
     res = [BE1] + BE2 + [res_knn[x] for x in res_knn]
     f.write('vae' + '\t' + rmCellTypes + ("\t%.4f" * 13 + "\t%s"*8 + "\n") % tuple(res+cell_type))
 
-
-    # plotname = 'PopRemove/' + 'vae' + '.' + rmCellTypes.replace(' ', '')
-    # colors = sns.color_palette('tab20')
-    # sample = select_indices_evenly(2000, labels)
-    # latent_s = latent[sample, :]
-    # label_s = labels[sample]
-    # batch_s = batch_indices[sample]
-    # if latent_s.shape[1] != 2:
-    #     latent_s = TSNE().fit_transform(latent_s)
-    #
-    # fig, ax = plt.subplots(figsize=(13, 10))
-    # key_order = np.argsort(keys)
-    # for i, k in enumerate(key_order):
-    #     ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i % 20], label=keys[k],
-    #                edgecolors='none')
-    #     ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
-    #
-    # fig.tight_layout()
-    # plt.savefig('../' + plotname + '.labels.png')
-    # plt.figure(figsize=(10, 10))
-    # plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
-    # plt.axis("off")
-    # plt.tight_layout()
-    # plt.savefig('../' + plotname + '.batchid.png')
 
 f.close()

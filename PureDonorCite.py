@@ -12,7 +12,7 @@ from scipy import sparse
 from scvi.models.vae import VAE
 from scvi.models.scanvi import SCANVI
 from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
-
+plotname = 'three'
 #
 cite = CiteSeqDataset('pbmc')
 cite.subsample_genes(cite.nb_genes)
@@ -57,6 +57,9 @@ gene_dataset.X = gene_dataset.X.todense()
 # np.save('../Seurat_data/' + filename + '.genenames.npy', genenames)
 # np.save('../Seurat_data/' + filename + '.batch.npy', batchid)
 
+from scvi.harmonization.utils_chenling import run_model
+latent, batch_indices, labels, keys, stats = run_model('vae', gene_dataset, 0, 0,
+                                                       filename=plotname, rep='0')
 
 vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches, n_labels=gene_dataset.n_labels,
           n_hidden=128, n_latent=10, n_layers=2, dispersion='gene')

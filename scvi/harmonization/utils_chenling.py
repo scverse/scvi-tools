@@ -38,7 +38,17 @@ def JaccardIndex(x1,x2):
     return intersection/union
 
 
-def KNNJaccardIndex(latent1, latent2,latent,batchid,nn):
+
+def KNNJaccardIndex(latent1, latent2,latent,batchid,nn,subsample=False,max_number=30000):
+    if subsample == True:
+        n_samples = len(latent)
+        keep_idx = np.random.choice(np.arange(n_samples), size=min(len(latent), max_number), replace=False)
+        batch0size = np.sum(batchid == 0)
+        keep_idx1 = keep_idx[keep_idx < batch0size]
+        keep_idx2 = keep_idx[keep_idx >= batch0size] - batch0size
+        latent1 = latent1[keep_idx1]
+        latent2 = latent2[keep_idx2]
+        latent, batchid = latent[keep_idx], batchid[keep_idx]
     knn = NearestNeighbors(n_neighbors=nn, algorithm='auto')
     nbrs1 = knn.fit(latent1)
     nbrs1 = nbrs1.kneighbors_graph(latent1).toarray()
@@ -358,7 +368,7 @@ def TryFindCells(dict, cellid, count):
     return(new_count, np.asarray(res))
 
 
-def CompareModels(gene_dataset, dataset1, dataset2, plotname, models,ngenes=1000):
+def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
     KNeighbors = np.concatenate([np.arange(10, 100, 10), np.arange(100, 500, 50)])
     K_int = np.concatenate([np.repeat(10, 10), np.repeat(50, 7)])
     f = open('../' + plotname +'/' + models + '.res.txt', "w+")

@@ -47,8 +47,8 @@ sorted_res = np.asarray(sorted_res)
 sorted_res = sorted_res.squeeze()
 
 # tabs = ['knn_asw','knn_uca','knn_wuca','kmeans_uca','kmeans_wuca','BE','jaccard_score']
-tabs = ['knn_asw','knn_uca','p_knn_uca','p1_knn_uca','p2_knn_uca','BE','jaccard_score','classifier_acc']
-# tabs = ['kmeans_asw','kmeans_uca','p_kmeans_uca','p1_kmeans_uca','p2_kmeans_uca','BE','jaccard_score','classifier_acc']
+# tabs = ['knn_asw','knn_uca','p_knn_uca','p1_knn_uca','p2_knn_uca','BE','jaccard_score','classifier_acc']
+tabs = ['kmeans_asw','kmeans_uca','p_kmeans_uca','p1_kmeans_uca','p2_kmeans_uca','BE','jaccard_score','classifier_acc']
 # for x in tabs:
 #     print(x)
 #     print(np.sum(stat_names==x))
