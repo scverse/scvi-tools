@@ -57,7 +57,6 @@ class LoomDataset(GeneExpressionDataset):
             labels = np.array(ds.ca['Clusters'])
             labels = np.reshape(labels, (labels.shape[0], 1))[select]
 
-
         if 'CellTypes' in ds.attrs:
             cell_types = np.array(ds.attrs['CellTypes'])
 

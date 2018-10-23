@@ -85,7 +85,7 @@ class TrainerFish(Trainer):
         reconst_loss, kl_divergence = self.model(sample_batch, local_l_mean, local_l_var, batch_index, mode="scRNA",
                                                  weighting=self.weighting)
         # If we want to add a classification loss
-        #if self.cl_ratio != 0:
+        # if self.cl_ratio != 0:
         #   reconst_loss += self.cl_ratio * F.cross_entropy(self.model.classify(sample_batch, mode="scRNA"),
         #                                                    labels.view(-1))
         loss = torch.mean(reconst_loss + self.kl_weight * kl_divergence)

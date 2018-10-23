@@ -6,7 +6,6 @@ import torch.nn.functional as F
 from torch.distributions import Normal, Poisson, kl_divergence as kl
 
 from scvi.models import VAE
-from scvi.models.classifier import Classifier
 from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
 from scvi.models.modules import Encoder, DecoderSCVI
 from scvi.models.utils import one_hot
@@ -67,7 +66,7 @@ class VAEF(VAE):
         self.decoder = DecoderSCVI(n_latent, n_input, n_layers=n_layers_decoder, n_hidden=n_hidden,
                                    n_cat_list=[n_batch])
 
-        #self.classifier = Classifier(n_latent, n_labels=n_labels, n_hidden=128, n_layers=3)
+        # self.classifier = Classifier(n_latent, n_labels=n_labels, n_hidden=128, n_layers=3)
 
     def get_latents(self, x, y=None):
         r""" returns the result of ``sample_from_posterior_z`` inside a list
