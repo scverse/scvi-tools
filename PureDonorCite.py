@@ -1,7 +1,7 @@
 use_cuda = True
 from scvi.dataset.dataset import GeneExpressionDataset
 from scvi.dataset.pbmc import Dataset10X
-from scvi.dataset.cite_seq import CiteSeqDataset
+from scvi.harmonization.utils_chenling import get_matrix_from_dir,assign_label
 
 from scvi.inference.posterior import *
 import matplotlib.pyplot as plt
@@ -14,10 +14,26 @@ from scvi.models.scanvi import SCANVI
 from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
 plotname = 'three'
 #
-cite = CiteSeqDataset('pbmc')
-cite.subsample_genes(cite.nb_genes)
-cite.gene_names = cite.gene_symbols
-cite.cell_types = ['unlabelled']
+
+plotname = 'PureDonorCite.vae'
+
+count, geneid, cellid = get_matrix_from_dir('cite')
+count = count.T.tocsr()
+seurat = np.genfromtxt('../cite/cite.seurat.labels', dtype='str', delimiter=',')
+cellid = np.asarray([x.split('-')[0] for x in cellid])
+labels_map = [0, 0, 1, 2, 3, 4, 5, 6]
+labels = seurat[1:, 4]
+cell_type = ["CD4+ T Helper2", "CD56+ NK", "CD14+ Monocyte", "CD19+ B", "CD8+ Cytotoxic T", "FCGR3A Monocyte", "na"]
+cite = assign_label(cellid, geneid, labels_map, count, cell_type, seurat)
+rmCellTypes = {'na', 'dendritic'}
+newCellType = [k for i, k in enumerate(cite.cell_types) if k not in rmCellTypes]
+cite.filter_cell_types(newCellType)
+
+
+adt_expression_clr = np.genfromtxt('../cite/ADT_cut_clr.txt').T
+adt_expression_clr[adt_expression_clr<0]=0
+from sklearn.preprocessing import scale
+adt_expression_clr = scale(adt_expression_clr,with_mean=False)
 
 donner = Dataset10X('fresh_68k_pbmc_donor_a')
 donner.cell_types = np.asarray(['unlabelled'])
@@ -25,11 +41,14 @@ donner.subsample_genes(donner.nb_genes)
 donner.gene_names = donner.gene_symbols
 
 cell_types = np.array(["cd4_t_helper", "regulatory_t", "naive_t", "memory_t", "cytotoxic_t", "naive_cytotoxic",
-                       "b_cells", "cd4_t_helper", "cd34", "cd56_nk", "cd14_monocytes"])
+                       "b_cells", "cd34", "cd56_nk", "cd14_monocytes"])
+cell_type_name = np.array(["CD4 T cells", "CD4 T cells Regulatory", "CD4 T cells Naive", "CD4 Memory T cells", "CD8 T cells", "CD8 T cells Naive",
+                       "B cells", "CD34 cells", "NK cells", "CD14+ Monocytes"])
+
 datasets = []
-for cell_type in cell_types:
+for i,cell_type in enumerate(cell_types):
     dataset = Dataset10X(cell_type, save_path='data/')
-    dataset.cell_types = np.array([cell_type])
+    dataset.cell_types = np.array([cell_type_name[i]])
     dataset.subsample_genes(dataset.nb_genes)
     dataset.gene_names = dataset.gene_symbols
     datasets += [dataset]
@@ -38,7 +57,8 @@ pure = GeneExpressionDataset.concat_datasets(*datasets, shared_batches=True)
 
 datasets=[]
 
-plotname = 'PureDonorCite.vae'
+
+markers = ["CD3","CD4","CD8","CD2","CD45RA","CD57","CD16","CD14","CD11c","CD19"]
 
 gene_dataset = GeneExpressionDataset.concat_datasets(cite, donner, pure)
 gene_dataset.X = sparse.csr_matrix(gene_dataset.X)
@@ -200,12 +220,6 @@ np.argmax(enrichment[0])
 np.apply_along_axis(np.argmax,1,enrichment)
 
 
-adt_expression_clr = np.genfromtxt('../three/PBMC.ADT_cut_clr.txt').T
-adt_expression_clr[adt_expression_clr<0]=0
-from sklearn.preprocessing import scale
-adt_expression_clr = scale(adt_expression_clr,with_mean=False)
-
-markers = ["CD3","CD4","CD8","CD2","CD45RA","CD57","CD16","CD14","CD11c","CD19"]
 
 
 protein=[]

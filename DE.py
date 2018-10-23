@@ -2,6 +2,7 @@ from scvi.dataset.dataset10X import Dataset10X
 from scvi.dataset.pbmc import PbmcDataset
 import numpy as np
 from scvi.dataset.dataset import GeneExpressionDataset
+import pandas as pd
 
 from scvi.models.vae import VAE
 from scvi.models.scanvi import SCANVI
@@ -15,8 +16,8 @@ from scvi.metrics.clustering import select_indices_evenly
 import torch
 
 models = str(sys.argv[1])
-plotname = 'Easy1'
 use_cuda = True
+# pbmc.vae.model.pkl  vae.model.allgenes.pkl  vae.model.rmdeT.pkl
 
 
 def auc_score_threshold(gene_set, bayes_factor, gene_symbols):
@@ -29,20 +30,35 @@ def auc_score_threshold(gene_set, bayes_factor, gene_symbols):
 
 pbmc = PbmcDataset()
 de_data  = pbmc.de_metadata
-
 pbmc.update_cells(pbmc.batch_indices.ravel()==0)
+# pbmc.labels = pbmc.labels.reshape(len(pbmc),1)
 
-pbmc68k = Dataset10X('fresh_68k_pbmc_donor_a')
-pbmc68k.cell_types = ['unlabelled']
-pbmc68k.labels = np.repeat(0, len(pbmc68k)).reshape(len(pbmc68k), 1)
-pbmc68k.gene_names = pbmc68k.gene_symbols
+donor = Dataset10X('fresh_68k_pbmc_donor_a')
+donor.gene_names = donor.gene_symbols
+import os
+if not os.path.isfile('data/10X/fresh_68k_pbmc_donor_a/68k_pbmc_barcodes_annotation.tsv'):
+    import urllib.request
+    annotation_url = 'https://raw.githubusercontent.com/10XGenomics/single-cell-3prime-paper/master/pbmc68k_analysis/68k_pbmc_barcodes_annotation.tsv'
+    urllib.request.urlretrieve(annotation_url, 'data/10X/fresh_68k_pbmc_donor_a/68k_pbmc_barcodes_annotation.tsv')
 
-all_dataset = GeneExpressionDataset.concat_datasets(pbmc, pbmc68k)
+annotation = pd.read_csv('data/10X/fresh_68k_pbmc_donor_a/68k_pbmc_barcodes_annotation.tsv',sep='\t')
+cellid1 = donor.barcodes
+temp = cellid1.join(annotation)
+assert all(temp[0]==temp['barcodes'])
+
+donor.cell_types,donor.labels = np.unique(temp['celltype'],return_inverse=True)
+donor.labels = donor.labels.reshape(len(donor.labels),1)
+donor.cell_types = np.array([ 'CD14+ Monocytes','B cells','CD34 cells', 'CD4 T cells','CD4 T cells Regulatory',
+                             'CD4 T cells Naive','CD4 Memory T cells','NK cells',
+                            'CD8 T cells',  'CD8 T cells Naive', 'Dendritic'])
+
+
+all_dataset = GeneExpressionDataset.concat_datasets(pbmc, donor)
 all_dataset.subsample_genes(5000)
 # Now resolve the Gene symbols to properly work with the DE
-all_gene_symbols = pbmc68k.gene_symbols[
+all_gene_symbols = donor.gene_symbols[
     np.array(
-        [np.where(pbmc68k.gene_names == x)[0][0] for x in list(all_dataset.gene_names)]
+        [np.where(donor.gene_names == x)[0][0] for x in list(all_dataset.gene_names)]
     )]
 
 
@@ -116,9 +132,9 @@ print(de_data.columns.values)
 CD = de_data['CD_adj.P.Val']
 BDC = de_data['BDC_adj.P.Val']
 BDC2 = de_data['BDC2_adj.P.Val']
-CD = np.asarray(de_data['GS'][CD<0.025])
-BDC = np.asarray(de_data['GS'][BDC<0.025])
-BDC2 = np.asarray(de_data['GS'][BDC2<0.025])
+CD = np.asarray(de_data['GS'][CD<0.05])
+BDC = np.asarray(de_data['GS'][BDC<0.05])
+BDC2 = np.asarray(de_data['GS'][BDC2<0.05])
 
 gene_sets = [set(CD) & set(all_gene_symbols),
              set(BDC)& set(all_gene_symbols),
@@ -202,6 +218,7 @@ np.mean(pred==labels_labelled)
 
 pred = neigh.predict(latent_unlabelled)
 pred = np.concatenate([labels_labelled,pred])
+
 # from scvi.metrics.clustering import clustering_scores
 # clustering_scores(np.asarray(latent), labels, 'knn')
 # batch_indices = batch_indices.ravel()
@@ -234,9 +251,11 @@ pred = np.concatenate([labels_labelled,pred])
 #
 # scanvi_posterior = trainer_scanvi.create_posterior(trainer_scanvi.model, all_dataset)
 # # Extract the predicted labels from SCANVI
-
+#
 # pred = scanvi_posterior.compute_predictions()[1]
-
+# batch_indices = all_dataset.batch_indices.ravel()
+# np.mean(pred[batch_indices==0]==labels_labelled)
+# # 0.84 instead of 0.96 with nn
 
 
 cell_type_label = [[np.where(all_dataset.cell_types == x[i])[0].astype('int')[0] for i in [0, 1]] for x in comparisons]

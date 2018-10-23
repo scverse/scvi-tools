@@ -27,12 +27,10 @@ dataset2 = GeneExpressionDataset(
             gene_names=['gene'+str(i) for i in range(2000)], cell_types=['type'+str(i+1) for i in range(5)])
 
 dataset1.subsample_genes(dataset1.nb_genes)
-dataset1.subsample_cells(size=10000)
 dataset2.subsample_genes(dataset2.nb_genes)
-dataset2.subsample_cells(10000)
 
 gene_dataset = GeneExpressionDataset.concat_datasets(dataset1, dataset2)
-gene_dataset.batch_indices = gene_dataset.batch_indices.astype('int')
+gene_dataset.subsample_genes(gene_dataset.nb_genes)
 # CompareModels(gene_dataset, dataset1, dataset2, plotname, 'writedata')
 
 CompareModels(gene_dataset, dataset1, dataset2, plotname, models)

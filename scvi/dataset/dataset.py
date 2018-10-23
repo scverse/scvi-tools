@@ -141,6 +141,11 @@ class GeneExpressionDataset(Dataset):
         for attr_name in ['_X', 'labels', 'batch_indices', 'local_means', 'local_vars']:
             setattr(self, attr_name, getattr(self, attr_name)[subset_cells])
         self.library_size_batch()
+        if hasattr(self,'cell_types'):
+            self.cell_types = self.cell_types[np.unique(self.labels)]
+            self.labels = rank(self.labels.ravel()).reshape(len(self.labels),1)
+        self.n_batches = len(np.unique(self.batch_indices.ravel()))
+
 
     def subsample_genes(self, new_n_genes=None, subset_genes=None):
         nonzero = (np.asarray(np.mean(self.X,axis=0)).ravel()>0)
@@ -192,8 +197,6 @@ class GeneExpressionDataset(Dataset):
         new_n_cells = int(size * n_genes) if type(size) is not int else size
         indices = np.argsort(np.array(self.X.sum(axis=1)).ravel())[::-1][:new_n_cells]
         self.update_cells(indices)
-        self.cell_types = self.cell_types[np.unique(self.labels)]
-        self.labels = rank(self.labels.ravel()).reshape(len(self.labels))
 
     def _cell_type_idx(self, cell_types):
         if type(cell_types[0]) is not int:
@@ -412,7 +415,6 @@ def arrange_categories(original_categories, mapping_from=None, mapping_to=None):
         mapping_from = unique_categories
     assert n_categories <= len(mapping_from)  # one cell_type can have no instance in dataset
     assert len(mapping_to) == len(mapping_from)
-
     new_categories = np.copy(original_categories)
     for idx_from, idx_to in zip(mapping_from, mapping_to):
         new_categories[original_categories == idx_from] = idx_to
@@ -443,7 +445,7 @@ def SubsetGenes(dataset1,dataset2,gene_dataset,plotname,ngenes=1000):
     assert np.sum(np.asarray(genenames2) == gene_dataset.gene_names) == len(gene_dataset.gene_names)
     geneid = np.union1d(geneid1[:ngenes], geneid2[:ngenes]) - 1
     genes = gene_dataset.gene_names[geneid]
-    temp = subsetByGenenames(dataset1,genes)
+    dataset1 = subsetByGenenames(dataset1,genes)
     dataset2 = subsetByGenenames(dataset2,genes)
     gene_dataset = subsetByGenenames(gene_dataset,genes)
     return dataset1,dataset2,gene_dataset

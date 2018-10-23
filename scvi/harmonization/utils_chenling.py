@@ -254,16 +254,18 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
         scmap.set_parameters(n_features=n_features)
         scmap.fit_scmap_cluster(count1, label1.astype(np.int))
         pred1 = scmap.predict_scmap_cluster(count2, label2.astype(np.int))
-        pred1cell = scmap.predict_scmap_cell(count2, label2.astype(np.int))
+        # pred1cell = scmap.predict_scmap_cell(count2, label2.astype(np.int))
         scmap = SCMAP()
         scmap.set_parameters(n_features=n_features)
         scmap.fit_scmap_cluster(count2, label2.astype(np.int))
         pred2 = scmap.predict_scmap_cluster(count1, label1.astype(np.int))
-        pred2cell = scmap.predict_scmap_cell(count2, label2.astype(np.int))
+        # pred2cell = scmap.predict_scmap_cell(count2, label2.astype(np.int))
         latent = scmap_eval(label2, pred1)
         batch_indices = scmap_eval(label1, pred2)
-        labels = scmap_eval(label2, pred2cell)
-        keys = scmap_eval(label1, pred1cell)
+        labels = np.repeat(-1,len(latent))
+        keys = np.repeat(-1,len(batch_indices))
+        # labels = scmap_eval(label2, pred2cell)
+        # keys = scmap_eval(label1, pred1cell)
 
     elif model_type =='writedata':
         from scipy.io import mmwrite
