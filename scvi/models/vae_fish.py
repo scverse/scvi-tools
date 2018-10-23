@@ -67,7 +67,7 @@ class VAEF(VAE):
         self.decoder = DecoderSCVI(n_latent, n_input, n_layers=n_layers_decoder, n_hidden=n_hidden,
                                    n_cat_list=[n_batch])
 
-        self.classifier = Classifier(n_latent, n_labels=n_labels, n_hidden=128, n_layers=3)
+        #self.classifier = Classifier(n_latent, n_labels=n_labels, n_hidden=128, n_layers=3)
 
     def get_latents(self, x, y=None):
         r""" returns the result of ``sample_from_posterior_z`` inside a list
