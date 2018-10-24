@@ -28,19 +28,22 @@ class LoomDataset(GeneExpressionDataset):
 
         self.has_gene, self.has_batch, self.has_cluster = False, False, False
 
-        data, batch_indices, labels, gene_names, cell_types = self.download_and_preprocess()
+        data, batch_indices, labels, gene_names, cell_types, x_coord, y_coord = self.download_and_preprocess()
 
         X, local_means, local_vars, batch_indices_, labels = \
             GeneExpressionDataset.get_attributes_from_matrix(data, labels=labels)
         batch_indices = batch_indices if batch_indices is not None else batch_indices_
         super(LoomDataset, self).__init__(X, local_means, local_vars, batch_indices, labels,
-                                          gene_names=gene_names, cell_types=cell_types)
+                                          gene_names=gene_names, cell_types=cell_types, x_coord=x_coord,
+                                          y_coord=y_coord)
 
     def preprocess(self):
         print("Preprocessing dataset")
         gene_names, labels, batch_indices, cell_types = None, None, None, None
         ds = loompy.connect(self.save_path + self.download_name)
         select = ds[:, :].sum(axis=0) > 0  # Take out cells that doesn't express any gene
+        x_coord = None
+        y_coord = None
 
         if 'Gene' in ds.ra:
             gene_names = ds.ra['Gene']
@@ -57,6 +60,11 @@ class LoomDataset(GeneExpressionDataset):
             labels = np.array(ds.ca['Clusters'])
             labels = np.reshape(labels, (labels.shape[0], 1))[select]
 
+        if 'Spatial_coordinates' in ds.ca:
+            positions = np.array(ds.ca['Spatial_coordinates'])
+            x_coord = positions[select, 0]
+            y_coord = positions[select, 1]
+
         if 'CellTypes' in ds.attrs:
             cell_types = np.array(ds.attrs['CellTypes'])
 
@@ -64,7 +72,7 @@ class LoomDataset(GeneExpressionDataset):
         ds.close()
 
         print("Finished preprocessing dataset")
-        return data, batch_indices, labels, gene_names, cell_types
+        return data, batch_indices, labels, gene_names, cell_types, x_coord, y_coord
 
 
 class RetinaDataset(LoomDataset):

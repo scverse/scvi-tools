@@ -59,7 +59,7 @@ def benchmark_fish_scrna(gene_dataset_seq, gene_dataset_fish):
     gene_names = gene_dataset_fish.gene_names
     indexes_to_keep = np.arange(len(gene_names))
     vae = VAEF(gene_dataset_seq.nb_genes, indexes_to_keep, n_layers_decoder=2, n_latent=6,
-               n_layers=2, n_hidden=256, reconstruction_loss='nb', dropout_rate=0.3, n_labels=7, n_batch=2,
+               n_layers_shared=2, n_hidden=256, reconstruction_loss='nb', dropout_rate=0.3, n_labels=7, n_batch=2,
                model_library=False)
     trainer = TrainerFish(vae, gene_dataset_seq, gene_dataset_fish, train_size=0.9, verbose=True,
                           frequency=5, weight_decay=0.35, n_epochs_even=100, n_epochs_kl=1000,
