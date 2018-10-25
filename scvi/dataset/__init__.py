@@ -11,6 +11,8 @@ from .anndata import AnnDataset
 from .csv import CsvDataset, BreastCancerDataset, MouseOBDataset
 from .seqfish import SeqfishDataset
 from .smfish import SmfishDataset
+from.starmap import StarmapDataset
+from.dropseq import DropseqDataset
 
 __all__ = ['SyntheticDataset',
            'SyntheticRandomDataset',
@@ -31,4 +33,6 @@ __all__ = ['SyntheticDataset',
            'SmfishDataset',
            'BreastCancerDataset',
            'MouseOBDataset',
-           'PurifiedPBMCDataset']
+           'PurifiedPBMCDataset',
+           'StarmapDataset',
+           'DropseqDataset']
