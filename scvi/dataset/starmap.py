@@ -12,16 +12,13 @@ class StarmapDataset(GeneExpressionDataset):
     the Starmap experiment. We work with a 70000*6000 gene expression matrix.
     """
 
-    def __init__(self, save_path='data/', genes_starmap=[], without_positions=False):
-        # If we want to harmonize the dataset with the StarMAP dataset, we need to keep
-        # StarMAP genes and order the genes from Dropseq accordingly
-        self.genes_starmap = genes_starmap
+    def __init__(self, save_path='data/', without_positions=False):
 
         self.save_path = save_path
         self.url = ['https://github.com/YosefLab/scVI-data/raw/master/starmap.loom']
-        self.download_name = 'dropseq.loom'
+        self.download_name = 'starmap.loom'
 
-        data, batch_indices, labels, gene_names, cell_types, x_coord, y_coord = self.download_and_preprocess()
+        data, batch_indices, labels, gene_names, cell_types, x_coord, y_coord = self.preprocess()
         if without_positions:
             x_coord = None
             y_coord = None
@@ -35,32 +32,36 @@ class StarmapDataset(GeneExpressionDataset):
     def preprocess(self):
         print("Preprocessing dataset")
         gene_names, labels, batch_indices, cell_types = None, None, 0, None
-        ds = loompy.connect(self.save_path + self.download_name)
-        select = ds[:, :].sum(axis=0) > 0  # Take out cells that doesn't express any gene
-        x_coord = None
-        y_coord = None
+        try:
+            ds = loompy.connect(self.save_path + self.download_name)
+            select = ds[:, :].sum(axis=0) > 0  # Take out cells that doesn't express any gene
+            x_coord = None
+            y_coord = None
 
-        if 'Gene' in ds.ra:
-            gene_names = ds.ra['Gene']
+            if 'Gene' in ds.ra:
+                gene_names = ds.ra['Gene']
 
-        if 'BatchID' in ds.ca:
-            batch_indices = ds.ca['BatchID']
-            batch_indices = np.reshape(batch_indices, (batch_indices.shape[0], 1))[select]
+            if 'BatchID' in ds.ca:
+                batch_indices = ds.ca['BatchID']
+                batch_indices = np.reshape(batch_indices, (batch_indices.shape[0], 1))[select]
 
-        if 'Clusters' in ds.ca:
-            labels = np.array(ds.ca['Clusters'])
-            labels = np.reshape(labels, (labels.shape[0], 1))[select]
+            if 'Clusters' in ds.ca:
+                labels = np.array(ds.ca['Clusters'])
+                labels = np.reshape(labels, (labels.shape[0], 1))[select]
 
-        if 'Spatial_coordinates' in ds.ca:
-            positions = np.array(ds.ca['Spatial_coordinates'])
-            x_coord = positions[select, 0]
-            y_coord = positions[select, 1]
+            if 'Spatial_coordinates' in ds.ca:
+                positions = np.array(ds.ca['Spatial_coordinates'])
+                x_coord = positions[select, 0]
+                y_coord = positions[select, 1]
 
-        if 'CellTypes' in ds.attrs:
-            cell_types = np.array(ds.attrs['CellTypes'])
+            if 'CellTypes' in ds.attrs:
+                cell_types = np.array(ds.attrs['CellTypes'])
 
-        data = ds[:, select].T  # change matrix to cells by genes
-        ds.close()
+            data = ds[:, select].T  # change matrix to cells by genes
+            ds.close()
+        except OSError:
+            print("Error: the file " + self.download_name + " should be in the " + self.save_path + " directory.")
+            raise
 
         print("Finished preprocessing dataset")
         return data, batch_indices, labels, gene_names, cell_types, x_coord, y_coord
