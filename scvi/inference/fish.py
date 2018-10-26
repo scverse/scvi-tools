@@ -122,7 +122,7 @@ class TrainerFish(Trainer):
 
     def get_all_latent_and_expected_frequencies(self, save_imputed=False, file_name_imputation='imputed_values',
                                                 save_shape_genes_by_cells=False, save_latent=False,
-                                                file_name_latent='latent_space'):
+                                                file_name_latent='latent_space', mode='smFISH'):
         r"""
         :param save_imputed: True if the user wants to save the expected frequencies in a .csv file
         :param file_name_imputation: in the situation described above, this is the name of the file saved
@@ -130,27 +130,34 @@ class TrainerFish(Trainer):
         expected frequencies to be saved as a genes by cells matrix or a cells by genes matrix
         :param save_latent: True if the user wants to save the latent space in a .csv file
         :param file_name_latent: in the situation described above, this is the name of the file saved
+        :param mode: indicates on which dataset you want to retrieve information
         :return: a dictionnary of arrays which contains all the provided and inferred information for the whole dataset
         with the cells ordered the same way as in the original dataset expression matrix
         """
         self.model.eval()
-        ret = {"latent": [], "expected_frequencies": [], "imputed_values": [], "batch_indices": [], "labels": [],
-               "fish_observed_values": [], 'x_coord': [], 'y_coord': []}
-        for tensors in self.all_fish_dataset:
-            sample_batch, local_l_mean, local_l_var, batch_index, label, x_coord, y_coord = tensors
-            ret["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, mode="smFISH")]
-            ret["expected_frequencies"] += [self.model.get_sample_scale(sample_batch, mode="smFISH",
-                                                                        batch_index=batch_index)]
-            ret["imputed_values"] += [self.model.get_sample_rate_fish(sample_batch)]
-            ret["labels"] += [label]
-            ret["batch_indices"] += [batch_index]
-            ret["fish_observed_values"] += [sample_batch]
-            ret["x_coord"] += [x_coord]
-            ret["y_coord"] += [y_coord]
+        ret = {"latent": [], "expected_frequencies": [], "imputed_values": []}
+        if mode == 'smFISH':
+            for tensors in self.all_fish_dataset:
+                sample_batch, local_l_mean, local_l_var, batch_index, label, x_coord, y_coord = tensors
+                ret["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, mode="smFISH")]
+                ret["expected_frequencies"] += [self.model.get_sample_scale(sample_batch, mode="smFISH",
+                                                                            batch_index=batch_index)]
+                ret["imputed_values"] += [self.model.get_sample_rate_fish(sample_batch)]
+            for key in ret.keys():
+                if len(ret[key]) > 0:
+                    ret[key] = np.array(torch.cat(ret[key]))
+            ret['all_dataset'] = self.all_fish_dataset
+        if mode == 'scRNA':
+            for tensors in self.create_posterior(self.model, self.gene_dataset_seq):
+                sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
+                ret["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, mode="smFISH")]
+                ret["expected_frequencies"] += [self.model.get_sample_scale(sample_batch, mode="smFISH",
+                                                                            batch_index=batch_index)]
+            for key in ret.keys():
+                if len(ret[key]) > 0:
+                    ret[key] = np.array(torch.cat(ret[key]))
+            ret['all_dataset'] = self.create_posterior(self.model, self.gene_dataset_seq)
 
-        for key in ret.keys():
-            if len(ret[key]) > 0:
-                ret[key] = np.array(torch.cat(ret[key]))
         if save_imputed:
             myfile = open(file_name_imputation, 'w')
             with myfile:

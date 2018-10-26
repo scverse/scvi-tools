@@ -130,10 +130,8 @@ class GeneExpressionDataset(Dataset):
         self.nb_genes = self.X.shape[1]
         to_keep = np.array(self.X.sum(axis=1) > 0).ravel()
         if self.X.shape != self.X[to_keep].shape:
-            removed_idx = []
-            for i in range(len(to_keep)):
-                if not to_keep[i]:
-                    removed_idx.append(i)
+            all_cells = np.arange(self.X.shape[0])
+            removed_idx = np.delete(all_cells, all_cells[to_keep])
             print("Cells with zero expression in all genes considered were removed, the indices of the removed cells "
                   "in the expression matrix were:")
             print(removed_idx)
@@ -276,10 +274,8 @@ class GeneExpressionDataset(Dataset):
     def get_attributes_from_matrix(X, batch_indices=0, labels=None, subclusters=None):
         to_keep = np.array((X.sum(axis=1) > 0)).ravel()
         if X.shape != X[to_keep].shape:
-            removed_idx = []
-            for i in range(len(to_keep)):
-                if not to_keep[i]:
-                    removed_idx.append(i)
+            all_cells = np.arange(X.shape[0])
+            removed_idx = np.delete(all_cells, all_cells[to_keep])
             print("Cells with zero expression in all genes considered were removed, the indices of the removed cells "
                   "in the expression matrix were:")
             print(removed_idx)
