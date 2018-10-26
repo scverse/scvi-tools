@@ -65,6 +65,7 @@ class TrainerFish(Trainer):
         self.train_fish, self.test_fish = self.train_test(self.model, gene_dataset_fish,
                                                           train_size, test_size, seed, FishPosterior)
         self.all_fish_dataset = self.create_posterior(gene_dataset=gene_dataset_fish, type_class=FishPosterior)
+        self.all_seq_dataset = self.create_posterior(gene_dataset=gene_dataset_seq)
         self.test_seq.to_monitor = ['ll']
         self.test_fish.to_monitor = ['ll']
 
@@ -148,7 +149,7 @@ class TrainerFish(Trainer):
                     ret[key] = np.array(torch.cat(ret[key]))
             ret['all_dataset'] = self.all_fish_dataset
         if mode == 'scRNA':
-            for tensors in self.create_posterior(self.model, self.gene_dataset_seq):
+            for tensors in self.all_seq_dataset:
                 sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
                 ret["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, mode="smFISH")]
                 ret["expected_frequencies"] += [self.model.get_sample_scale(sample_batch, mode="smFISH",
@@ -156,7 +157,7 @@ class TrainerFish(Trainer):
             for key in ret.keys():
                 if len(ret[key]) > 0:
                     ret[key] = np.array(torch.cat(ret[key]))
-            ret['all_dataset'] = self.create_posterior(self.model, self.gene_dataset_seq)
+            ret['all_dataset'] = self.all_seq_dataset
 
         if save_imputed:
             myfile = open(file_name_imputation, 'w')
