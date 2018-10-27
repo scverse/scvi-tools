@@ -47,5 +47,6 @@ References
 ----------
 
 Romain Lopez, Jeffrey Regier, Michael B Cole, Michael Jordan, Nir Yosef.
-**"Bayesian Inference for a Generative Model of Transcriptome Profiles from Single-cell RNA Sequencing."**
-In submission. Preprint available at https://www.biorxiv.org/content/early/2018/03/30/292037
+**"Deep generative modeling for single-cell transcriptomics"**
+Nature Methods, in press (accepted Oct 26, 2018). 
+Preprint available at https://www.biorxiv.org/content/early/2018/03/30/292037
