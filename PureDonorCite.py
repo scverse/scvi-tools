@@ -1,7 +1,7 @@
 use_cuda = True
 from scvi.dataset.dataset import GeneExpressionDataset
 from scvi.dataset.pbmc import Dataset10X
-from scvi.harmonization.utils_chenling import get_matrix_from_dir,assign_label
+from scvi.harmonization.utils_chenling import get_matrix_from_dir,assign_label,SubsetGenes
 
 from scvi.inference.posterior import *
 import matplotlib.pyplot as plt
@@ -12,11 +12,11 @@ from scipy import sparse
 from scvi.models.vae import VAE
 from scvi.models.scanvi import SCANVI
 from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
-plotname = 'three'
-#
+plotname = 'CiteDonorPure'
 
-plotname = 'PureDonorCite.vae'
-
+######################
+# Loading CiteSeq data
+######################
 count, geneid, cellid = get_matrix_from_dir('cite')
 count = count.T.tocsr()
 seurat = np.genfromtxt('../cite/cite.seurat.labels', dtype='str', delimiter=',')
@@ -30,15 +30,27 @@ newCellType = [k for i, k in enumerate(cite.cell_types) if k not in rmCellTypes]
 cite.filter_cell_types(newCellType)
 
 
-adt_expression_clr = np.genfromtxt('../cite/ADT_cut_clr.txt').T
+adt_expression_clr = pd.read_csv('../cite/ADT_cut_clr.csv')
+markers = ["CD3","CD4","CD8","CD2","CD45RA","CD57","CD16","CD14","CD11c","CD19"]
+dat = [adt_expression_clr.loc[adt_expression_clr['cellid'] == x] for x in seurat[1:,5]]
+protein = pd.concat(dat)
+adt_expression_clr = np.asarray([np.asarray(protein[marker]) for marker in markers])
 adt_expression_clr[adt_expression_clr<0]=0
 from sklearn.preprocessing import scale
 adt_expression_clr = scale(adt_expression_clr,with_mean=False)
 
-donner = Dataset10X('fresh_68k_pbmc_donor_a')
-donner.cell_types = np.asarray(['unlabelled'])
-donner.subsample_genes(donner.nb_genes)
-donner.gene_names = donner.gene_symbols
+######################
+# Loading Donor data
+######################
+donor = Dataset10X('fresh_68k_pbmc_donor_a')
+donor.cell_types = np.asarray(['unlabelled'])
+donor.subsample_genes(donor.nb_genes)
+donor.gene_names = donor.gene_symbols
+
+
+######################
+# Loading Pure Dataset
+######################
 
 cell_types = np.array(["cd4_t_helper", "regulatory_t", "naive_t", "memory_t", "cytotoxic_t", "naive_cytotoxic",
                        "b_cells", "cd34", "cd56_nk", "cd14_monocytes"])
@@ -54,74 +66,70 @@ for i,cell_type in enumerate(cell_types):
     datasets += [dataset]
 
 pure = GeneExpressionDataset.concat_datasets(*datasets, shared_batches=True)
+pure.filter_cell_types(["CD4 T cells Regulatory", "CD4 T cells Naive", "CD4 Memory T cells",  "CD8 T cells Naive",
+                       "B cells", "CD34 cells", "NK cells", "CD14+ Monocytes"])
 
 datasets=[]
 
 
-markers = ["CD3","CD4","CD8","CD2","CD45RA","CD57","CD16","CD14","CD11c","CD19"]
+######################
+# Merging Datasets and running models
+######################
 
-gene_dataset = GeneExpressionDataset.concat_datasets(cite, donner, pure)
-gene_dataset.X = sparse.csr_matrix(gene_dataset.X)
-gene_dataset.subsample_genes(5000)
-gene_dataset.X = gene_dataset.X.todense()
-
-# from scipy.io import mmwrite
-# filename = 'PureDonorCite'
-# mmwrite('../Seurat_data/' + filename + '.X.mtx', gene_dataset.X.astype('int'))
-# genenames = gene_dataset.gene_names.astype('str')
-# labels = gene_dataset.labels.ravel().astype('int')
-# cell_types = gene_dataset.cell_types.astype('str')
-# batchid = gene_dataset.batch_indices.ravel().astype('int')
-# np.savetxt('../Seurat_data/'+ filename + '.celltypes.txt', cell_types, fmt='%s')
-# np.save('../Seurat_data/' + '../Seurat_data/'+ filename + '.labels.npy', labels)
-# np.save('../Seurat_data/' + filename + '.genenames.npy', genenames)
-# np.save('../Seurat_data/' + filename + '.batch.npy', batchid)
+gene_dataset = GeneExpressionDataset.concat_datasets(cite, donor, pure)
+cite,donor,pure,gene_dataset = SubsetGenes(cite,donor,pure,gene_dataset,'CiteDonorPure')
 
 from scvi.harmonization.utils_chenling import run_model
 latent, batch_indices, labels, keys, stats = run_model('vae', gene_dataset, 0, 0,
                                                        filename=plotname, rep='0')
 
-vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches, n_labels=gene_dataset.n_labels,
-          n_hidden=128, n_latent=10, n_layers=2, dispersion='gene')
-trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
-trainer.train(n_epochs=50)
+latent_scanvi, _, _, _, _ = run_model('scanvi1', gene_dataset, 0, 0,
+                                                       filename=plotname, rep='0')
 
-full = trainer.create_posterior(trainer.model, gene_dataset, indices=np.arange(len(gene_dataset)))
-latent, batch_indices, labels = full.sequential().get_latent()
-batch_indices = batch_indices.ravel()
-from scvi.inference.posterior import entropy_batch_mixing
-batch_entropy = entropy_batch_mixing(latent[batch_indices!=0,:], batch_indices[batch_indices!=0])
-batch_entropy
+latent_scanvi, _, _, _, _ = run_model('readSeurat', gene_dataset, 0, 0,
+                                                       filename=plotname, rep='0')
 
-gene_dataset.local_means[batch_indices==0]
+# vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches, n_labels=gene_dataset.n_labels,
+#           n_hidden=128, n_latent=10, n_layers=2, dispersion='gene')
+# trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
+# trainer.train(n_epochs=50)
+#
+# full = trainer.create_posterior(trainer.model, gene_dataset, indices=np.arange(len(gene_dataset)))
+# latent, batch_indices, labels = full.sequential().get_latent()
+# batch_indices = batch_indices.ravel()
+# from scvi.inference.posterior import entropy_batch_mixing
+# batch_entropy = entropy_batch_mixing(latent[batch_indices!=0,:], batch_indices[batch_indices!=0])
+# batch_entropy
+#
+# gene_dataset.local_means[batch_indices==0]
+#
+# # batch_entropy = trainer.train_set.entropy_batch_mixing()
+# # keys = gene_dataset.cell_types
+#
+#
+# scanvi = SCANVI(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_layers=2)
+# scanvi.load_state_dict(vae.state_dict(), strict=False)
+# trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=1,
+#                                        n_epochs_classifier=1, lr_classification=5 * 1e-3)
+#
+# trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=(gene_dataset.batch_indices == 2))
+# trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(
+#     indices=(gene_dataset.batch_indices != 2)
+# )
+# trainer_scanvi.train(n_epochs=50)
+# scanvi_posterior = trainer_scanvi.create_posterior(trainer_scanvi.model,gene_dataset)
+# _, batch_indices, _ = scanvi_posterior.sequential().get_latent()
+# batch_indices = batch_indices.ravel()
 
-# batch_entropy = trainer.train_set.entropy_batch_mixing()
 # keys = gene_dataset.cell_types
-
-
-scanvi = SCANVI(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_layers=2)
-scanvi.load_state_dict(vae.state_dict(), strict=False)
-trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=1,
-                                       n_epochs_classifier=1, lr_classification=5 * 1e-3)
-
-trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=(gene_dataset.batch_indices == 2))
-trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(
-    indices=(gene_dataset.batch_indices != 2)
-)
-trainer_scanvi.train(n_epochs=50)
-scanvi_posterior = trainer_scanvi.create_posterior(trainer_scanvi.model,gene_dataset)
-_, batch_indices, _ = scanvi_posterior.sequential().get_latent()
-batch_indices = batch_indices.ravel()
-
-keys = gene_dataset.cell_types
-latent, batch_indices, labels = trainer_scanvi.labelled_set.get_latent()
-pred = trainer_scanvi.labelled_set.compute_predictions()
-np.mean(pred[0] == pred[1])
-sample = np.random.choice(np.arange(len(labels)),10000,replace=F)
-res = clustering_scores(np.asarray(latent[sample]), labels[sample], 'knn', len(np.unique(labels[sample])))
-# uca = 0.7
-latent, batch_indices, labels = scanvi_posterior.sequential().get_latent()
-batch_indices = batch_indices.ravel()
+# latent, batch_indices, labels = trainer_scanvi.labelled_set.get_latent()
+# pred = trainer_scanvi.labelled_set.compute_predictions()
+# np.mean(pred[0] == pred[1])
+# sample = np.random.choice(np.arange(len(labels)),10000,replace=F)
+# res = clustering_scores(np.asarray(latent[sample]), labels[sample], 'knn', len(np.unique(labels[sample])))
+# # uca = 0.7
+# latent, batch_indices, labels = scanvi_posterior.sequential().get_latent()
+# batch_indices = batch_indices.ravel()
 
 # def knn_pred(index):
 #     (values, counts) = np.unique(labels[index], return_counts=True)
@@ -133,11 +141,11 @@ batch_indices = batch_indices.ravel()
 # indices = nbrs.kneighbors(latent, return_distance=False)[:, 1:]
 # pred = np.apply_along_axis(knn_pred,1,indices)
 
-scale1 = full.sequential().get_harmonized_scale(0)
-scale2 = full.sequential().get_harmonized_scale(1)
-from scvi.inference.posterior import get_bayes_factors
-bayes1 = get_bayes_factors(scale1,pred[1],0,5)
-bayes2 = get_bayes_factors(scale2,pred[1],0,5)
+# scale1 = full.sequential().get_harmonized_scale(0)
+# scale2 = full.sequential().get_harmonized_scale(1)
+# from scvi.inference.posterior import get_bayes_factors
+# bayes1 = get_bayes_factors(scale1,pred[1],0,5)
+# bayes2 = get_bayes_factors(scale2,pred[1],0,5)
 # np.savetxt('../genenames.txt',gene_dataset.gene_names,fmt='%s',delimiter=',')
 # np.savetxt('../keys.txt',keys,fmt='%s',delimiter=',')
 

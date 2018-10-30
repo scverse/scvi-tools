@@ -90,12 +90,9 @@ def trainVAE(gene_dataset, filename, rep, nlayers=2):
     if os.path.isfile('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl'):
         trainer.model = torch.load('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl')
     else:
-        if gene_dataset.X.shape[0]>20000:
-            trainer.train(n_epochs=250)
-        elif gene_dataset.X.shape[0] < 20000:
-            trainer.train(n_epochs=500)
-
+        trainer.train(n_epochs=250)
         torch.save(trainer.model,'../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl')
+
     batch_entropy = trainer.train_set.entropy_batch_mixing()
     print("Entropy batch mixing :", batch_entropy)
     full = trainer.create_posterior(trainer.model, gene_dataset, indices=np.arange(len(gene_dataset)))
@@ -397,10 +394,6 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
         latent1 = np.genfromtxt('../Seurat_data/' + plotname + '.1.CCA.txt')
         latent2 = np.genfromtxt('../Seurat_data/' + plotname + '.2.CCA.txt')
         for model_type in ['scmap','readSeurat','Combat','MNN','PCA']:
-        # for model_type in ['scmap']:
-        # for model_type in ['Combat','MNN','PCA']:
-            # only scmap doesn't need the gene filtering step
-            # so we will run scmap first and before running readSeurat subsample the genes
             print(model_type)
             if model_type == 'scmap':
                 gene_dataset.subsample_genes(10000)
@@ -457,7 +450,8 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
             f.write(model_type + (" %.4f"*61+"\n") % tuple(res))
 
     elif models=='scvi':
-        dataset1, dataset2, gene_dataset = SubsetGenes(dataset1, dataset2, gene_dataset, plotname)
+        if plotname != 'Sim1' and plotname != 'Sim2' and plotname != 'Sim3':
+            dataset1, dataset2, gene_dataset = SubsetGenes(dataset1, dataset2, gene_dataset, plotname)
         latent1, _, _, _, _ = run_model('vae', dataset1, 0, 0, filename=plotname,rep='vae1')
         latent2, _, _, _, _ = run_model('vae', dataset2, 0, 0, filename=plotname,rep='vae2')
 
@@ -531,3 +525,31 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
     f.close()
 
 
+def subsetByGenenames(dataset, subsetnames):
+    genenames = dataset.gene_names
+    filter = np.asarray([x in subsetnames for x in genenames])
+    dataset.X = dataset.X[:, filter]
+    dataset.update_genes(np.arange(len(filter))[filter])
+    return dataset
+
+def SubsetGenes(dataset1,dataset2,dataset3,gene_dataset,plotname,ngenes=1000):
+    import pandas as pd
+    genes1 = pd.read_table('../Seurat_data/' + plotname + '.1.hvg_info.csv', delimiter=',')
+    geneid1 = np.asarray([x.replace('gene_', '') for x in genes1[genes1.keys()[0]]]).astype('int')
+    genenames1 = genes1['genename']
+    genes2 = pd.read_table('../Seurat_data/' + plotname + '.2.hvg_info.csv', delimiter=',')
+    geneid2 = np.asarray([x.replace('gene_', '') for x in genes2[genes2.keys()[0]]]).astype('int')
+    genenames2 = genes2['genename']
+    genes3 = pd.read_table('../Seurat_data/' + plotname + '.3.hvg_info.csv', delimiter=',')
+    geneid3 = np.asarray([x.replace('gene_', '') for x in genes3[genes3.keys()[0]]]).astype('int')
+    genenames3 = genes3['genename']
+    assert np.sum(np.asarray(genenames1) == gene_dataset.gene_names) == len(gene_dataset.gene_names)
+    assert np.sum(np.asarray(genenames2) == gene_dataset.gene_names) == len(gene_dataset.gene_names)
+    assert np.sum(np.asarray(genenames3) == gene_dataset.gene_names) == len(gene_dataset.gene_names)
+    geneid = np.union1d(np.union1d(geneid1[:ngenes], geneid2[:ngenes]),geneid3[:ngenes]) - 1
+    genes = gene_dataset.gene_names[geneid]
+    dataset1 = subsetByGenenames(dataset1,genes)
+    dataset2 = subsetByGenenames(dataset2,genes)
+    dataset3 = subsetByGenenames(dataset2,genes)
+    gene_dataset = subsetByGenenames(gene_dataset,genes)
+    return dataset1,dataset2,dataset3,gene_dataset

@@ -144,6 +144,7 @@ class GeneExpressionDataset(Dataset):
         if hasattr(self,'cell_types'):
             self.cell_types = self.cell_types[np.unique(self.labels)]
             self.labels = rank(self.labels.ravel()).reshape(len(self.labels),1)
+            self.n_labels = len(self.cell_types)
         self.n_batches = len(np.unique(self.batch_indices.ravel()))
 
 
@@ -218,14 +219,14 @@ class GeneExpressionDataset(Dataset):
         :return:
         """
         cell_types_idx = self._cell_type_idx(cell_types)
-        if hasattr(self, 'cell_types'):
-            self.cell_types = self.cell_types[cell_types_idx]
-            print("Only keeping cell types: \n" + '\n'.join(list(self.cell_types)))
+        # if hasattr(self, 'cell_types'):
+            # self.cell_types = self.cell_types[cell_types_idx]
+            # print("Only keeping cell types: \n" + '\n'.join(list(self.cell_types)))
         idx_to_keep = []
         for idx in cell_types_idx:
             idx_to_keep += [np.where(self.labels == idx)[0]]
         self.update_cells(np.concatenate(idx_to_keep))
-        self.labels, self.n_labels = arrange_categories(self.labels, mapping_from=cell_types_idx)
+        # self.labels, self.n_labels = arrange_categories(self.labels, mapping_from=cell_types_idx)
 
     def merge_cell_types(self, cell_types, new_cell_type_name):
         """
@@ -449,3 +450,4 @@ def SubsetGenes(dataset1,dataset2,gene_dataset,plotname,ngenes=1000):
     dataset2 = subsetByGenenames(dataset2,genes)
     gene_dataset = subsetByGenenames(gene_dataset,genes)
     return dataset1,dataset2,gene_dataset
+

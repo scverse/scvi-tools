@@ -10,8 +10,8 @@ plotname = 'Sim1'
 
 count1 = np.load('../sim_data/count1.npy')
 count2 = np.load('../sim_data/count2.npy')
-label1 = np.load('../sim_data/label1.npy')
-label2 = np.load('../sim_data/label2.npy')
+label1 = np.load('../sim_data/label1.npy').astype('int')
+label2 = np.load('../sim_data/label2.npy').astype('int')
 
 dataset1 = GeneExpressionDataset(
             *GeneExpressionDataset.get_attributes_from_matrix(
@@ -31,3 +31,4 @@ gene_dataset = GeneExpressionDataset.concat_datasets(dataset1,dataset2)
 # CompareModels(gene_dataset, dataset1, dataset2, plotname, 'writedata')
 
 CompareModels(gene_dataset, dataset1, dataset2, plotname, models)
+

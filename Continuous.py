@@ -30,13 +30,16 @@ dataset1, dataset2, gene_dataset = SubsetGenes(dataset1, dataset2, gene_dataset,
 vae1, _, _, _, _ = run_model('vae', dataset1, 0, 0, filename=plotname, rep='vae1')
 vae2, _, _, _, _ = run_model('vae', dataset2, 0, 0, filename=plotname, rep='vae2')
 vae,  _, _, _, _ = run_model('vae', gene_dataset, dataset1, dataset2,filename=plotname, rep='0')
+scanvi1,  _, _, _, _ = run_model('scanvi1', gene_dataset, dataset1, dataset2,filename=plotname, rep='0')
+scanvi2,  _, _, _, _ = run_model('scanvi2', gene_dataset, dataset1, dataset2,filename=plotname, rep='0')
 
 KNeighbors = np.concatenate([np.arange(10, 100, 10), np.arange(100, 500, 50)])
 seurat_seurat = [KNNJaccardIndex(seurat1, seurat2, seurat, batch_indices, k)[0] for k in KNeighbors]
 vae_seurat = [KNNJaccardIndex(vae1, vae2, seurat, batch_indices, k)[0] for k in KNeighbors]
 vae_vae = [KNNJaccardIndex(vae1, vae2, vae, batch_indices, k)[0] for k in KNeighbors]
 seurat_vae = [KNNJaccardIndex(seurat1, seurat2, vae, batch_indices, k)[0] for k in KNeighbors]
-
+vae_scanvi1 = [KNNJaccardIndex(vae1, vae2, scanvi1, batch_indices, k)[0] for k in KNeighbors]
+vae_scanvi2 = [KNNJaccardIndex(vae1, vae2, scanvi2, batch_indices, k)[0] for k in KNeighbors]
 
 import matplotlib
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -45,8 +48,10 @@ import matplotlib.pyplot as plt
 plt.figure(figsize=(10, 10))
 plt.plot(KNeighbors, seurat_seurat,'r',label='Seurat_Seurat')
 plt.plot(KNeighbors, vae_vae,'b',label='VAE_VAE')
-plt.plot(KNeighbors, vae_seurat,'g',label='VAE_Seurat')
-plt.plot(KNeighbors, seurat_vae,'y',label='Seurat_VAE')
+plt.plot(KNeighbors, vae_scanvi1,'g',label='VAE_SCANVI1')
+plt.plot(KNeighbors, vae_scanvi2,'y',label='VAE_SCANVI2')
+# plt.plot(KNeighbors, vae_seurat,'g',label='VAE_Seurat')
+# plt.plot(KNeighbors, seurat_vae,'y',label='Seurat_VAE')
 legend = plt.legend(loc='lower right', shadow=False)
 plt.savefig('../%s/%s.KNN.pdf' % (plotname,plotname))
 
@@ -79,7 +84,7 @@ def logit(p):
     return np.log(p / (1-p))
 
 probs = np.exp(dataset2.time_traj)
-fac, _ = pd.qcut(logit(),10,retbins=True)
+fac, _ = pd.qcut(probs,20,retbins=True)
 intervals,bin = np.unique(np.asarray(fac),return_inverse=True)
 midint = [(x.left+x.right)/2 for x in intervals]
 
@@ -94,9 +99,22 @@ for i in np.unique(bin):
     BE_seurat.append(entropy_batch_mixing_subsampled(seurat,batch_indices,sample))
 
 
+BE_scanvi1=[]
+for i in np.unique(bin):
+    sample = np.arange(len(batch_indices))[batch_indices==1][bin==i]
+    BE_scanvi1.append(entropy_batch_mixing_subsampled(scanvi1,batch_indices,sample))
+
+
+BE_scanvi2=[]
+for i in np.unique(bin):
+    sample = np.arange(len(batch_indices))[batch_indices==1][bin==i]
+    BE_scanvi2.append(entropy_batch_mixing_subsampled(scanvi2,batch_indices,sample))
+
 import matplotlib.pyplot as plt
 plt.figure(figsize=(10, 10))
 plt.plot(np.arange(20), BE_vae,'r',label='BE VAE')
 plt.plot(np.arange(20), BE_seurat,'b',label='BE Seurat')
+plt.plot(np.arange(20), BE_scanvi1,'g',label='BE SCANVI1')
+plt.plot(np.arange(20), BE_scanvi2,'y',label='BE SCANVI2')
 legend = plt.legend(loc='lower right', shadow=False)
 plt.savefig('../%s/%s.BE_potential.pdf' % (plotname,plotname))

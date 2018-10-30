@@ -13,8 +13,8 @@ plotname = 'Sim2'
 
 countUMI = np.load('../sim_data/count.UMI.npy')
 countnonUMI = np.load('../sim_data/count.nonUMI.npy')
-labelUMI = np.load('../sim_data/label.UMI.npy')
-labelnonUMI = np.load('../sim_data/label.nonUMI.npy')
+labelUMI = np.load('../sim_data/label.UMI.npy').astype('int')
+labelnonUMI = np.load('../sim_data/label.nonUMI.npy').astype('int')
 
 dataset1 = GeneExpressionDataset(
             *GeneExpressionDataset.get_attributes_from_matrix(

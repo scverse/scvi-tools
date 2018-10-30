@@ -27,37 +27,37 @@ for x in np.unique(model_types):
 model_types = np.unique(model_types)
 res = np.asarray(res)
 
-# scmap2 = res[model_types=='scmap1',[16,17,18,19]]
-# res[model_types=='scmap1',[16,17,18,19]] = -1
-# temp = np.repeat(-1.0,len(res[0,:]))
-# temp[[11,12,13,14]] = scmap2
-# res = np.append(res, temp.reshape(1,len(temp)),axis=0)
-# model_types = np.append(model_types,'scmap2')
 
 sorted_res=[]
 # model_order = ['vae','scanvi0', 'scanvi', 'scanvi1', 'scanvi2',
 #        'scmap1', 'scmap2', 'readSeurat', 'Combat', 'MNN']
 # model_order = ['vae','scanvi0', 'scanvi', 'scanvi1', 'scanvi2','readSeurat', 'Combat', 'MNN']
-model_order = ['vae', 'scanvi', 'scanvi1', 'scanvi2',
-       'scmap', 'readSeurat', 'Combat', 'MNN']
+# model_order = ['vae', 'scanvi', 'scanvi1', 'scanvi2','scmap', 'readSeurat', 'Combat', 'MNN']
+
+model_order = ['vae', 'scanvi', 'scanvi1', 'scanvi2','readSeurat', 'Combat', 'MNN']
 for x in model_order:
     sorted_res.append(res[model_types==x,:])
 
 sorted_res = np.asarray(sorted_res)
 sorted_res = sorted_res.squeeze()
 
+scmap = res[model_types=='scmap',:][0]
 # tabs = ['knn_asw','knn_uca','knn_wuca','kmeans_uca','kmeans_wuca','BE','jaccard_score']
 # tabs = ['knn_asw','knn_uca','p_knn_uca','p1_knn_uca','p2_knn_uca','BE','jaccard_score','classifier_acc']
-tabs = ['kmeans_asw','kmeans_uca','p_kmeans_uca','p1_kmeans_uca','p2_kmeans_uca','BE','jaccard_score','classifier_acc']
-# for x in tabs:
-#     print(x)
-#     print(np.sum(stat_names==x))
+# tabs = ['kmeans_asw','kmeans_uca','p_kmeans_uca','p1_kmeans_uca','p2_kmeans_uca','BE','jaccard_score','classifier_acc']
+tabs = ['knn_asw','knn_uca','p_knn_uca','p1_knn_uca','p2_knn_uca','BE','jaccard_score','classifier_acc']
+
 filtered_res = [sorted_res[:, stat_names==x] for x in tabs]
 filtered_res = np.concatenate(filtered_res,axis=1)
+
+filtered_res = np.concatenate([filtered_res,np.repeat(-1,len(tabs)).reshape(1,len(tabs))])
+filtered_res[len(model_order)][3] = scmap[13]
+filtered_res[len(model_order)][4] = scmap[18]
 
 filtered_names = np.concatenate(np.asarray( [stat_names[[y in x for x in stat_names]] for y in tabs]))
 filtered_names[0]='asw'
 rm_values = (filtered_res==-1)
+
 
 
 def impute(x):
@@ -97,4 +97,4 @@ scaler = MinMaxScaler()
 scaled_res = scaler.fit_transform(filtered_res)
 scaled_res[rm_values]=np.nan
 filtered_res[rm_values]=np.nan
-Heatmap(filtered_res,scaled_res,tabs,model_order,dataname,'../'+ dataname + '/'+dataname + '.heatmap.pdf')
+Heatmap(filtered_res,scaled_res,tabs,model_order+['scmap'],dataname,'../'+ dataname + '/'+dataname + '.heatmap.pdf')
