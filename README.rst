@@ -36,11 +36,11 @@ Quick Start
 
 4. Refer to `this Jupyter notebook`__ to see how to import datasets into scVI.
 
-.. __: https://github.com/YosefLab/scVI/tree/master/docs/notebooks/data_loading.ipynb
+.. __: https://github.com/YosefLab/scVI/tree/master/tests/notebooks/data_loading.ipynb
 
 5. Refer to `this Jupyter notebook`__ to see how to train the scVI model, impute missing data, detect differential expression, and more!
 
-.. __: https://github.com/YosefLab/scVI/tree/master/docs/notebooks/basic_tutorial.ipynb
+.. __: https://github.com/YosefLab/scVI/tree/master/tests/notebooks/basic_tutorial.ipynb
 
 
 References
