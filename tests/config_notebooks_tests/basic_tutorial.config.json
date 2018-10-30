@@ -1,0 +1,10 @@
+{
+    "save_path": "tests/data/",
+    "n_epochs": 1,
+    "n_samples_tsne": 10,
+    "n_samples_posterior_density": 2,
+    "train_size": 1.0,
+    "M_permutation": 10,
+    "M_sampling": 1,
+    "rate": 1.0
+}

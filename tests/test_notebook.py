@@ -98,8 +98,8 @@ class NotebookFinder(object):
 
 sys.meta_path.append(NotebookFinder())
 
-path = 'docs/notebooks/'
-test_path = 'tests/notebooks/'
+path = 'tests/notebooks/'
+test_path = 'tests/config_notebooks_tests/'
 
 
 def test_notebooks():
@@ -116,8 +116,8 @@ def test_notebooks():
     # Overwritting
     shutil.copy(test_path + config_filename, path + config_filename)
     try:
-        import docs.notebooks.annotation
-        docs.notebooks.annotation.allow_notebook_for_test()
+        import notebooks.annotation
+        notebooks.annotation.allow_notebook_for_test()
         plt.close('all')
     except BaseException:
         raise
@@ -138,8 +138,8 @@ def test_notebooks():
     # Overwritting
     shutil.copy(test_path + config_filename, path + config_filename)
     try:
-        import docs.notebooks.scRNA_and_smFISH
-        docs.notebooks.scRNA_and_smFISH.allow_notebook_for_test()
+        import notebooks.scRNA_and_smFISH
+        notebooks.scRNA_and_smFISH.allow_notebook_for_test()
         plt.close('all')
     except BaseException:
         raise
@@ -160,8 +160,8 @@ def test_notebooks():
     # Overwritting
     shutil.copy(test_path + config_filename, path + config_filename)
     try:
-        import docs.notebooks.data_loading
-        docs.notebooks.data_loading.allow_notebook_for_test()
+        import notebooks.data_loading
+        notebooks.data_loading.allow_notebook_for_test()
         plt.close('all')
     except BaseException:
         raise
@@ -182,8 +182,8 @@ def test_notebooks():
     # Overwritting
     shutil.copy(test_path + config_filename, path + config_filename)
     try:
-        import docs.notebooks.basic_tutorial
-        docs.notebooks.basic_tutorial.allow_notebook_for_test()
+        import notebooks.basic_tutorial
+        notebooks.basic_tutorial.allow_notebook_for_test()
         plt.close('all')
     except BaseException:
         raise
@@ -204,8 +204,8 @@ def test_notebooks():
     # Overwritting
     shutil.copy(test_path + config_filename, path + config_filename)
     try:
-        import docs.notebooks.scVI_reproducibility
-        docs.notebooks.scVI_reproducibility.allow_notebook_for_test()
+        import notebooks.scVI_reproducibility
+        notebooks.scVI_reproducibility.allow_notebook_for_test()
         plt.close('all')
     except BaseException:
         raise
