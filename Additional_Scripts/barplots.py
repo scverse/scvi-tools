@@ -6,10 +6,10 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import scale,MinMaxScaler
 
 
 dataname = str(sys.argv[1])
+# criteria = str(sys.argv[2])
 
 scvi = pd.read_table('../' + dataname + '/scvi.res.txt',delim_whitespace=True)
 others = pd.read_table('../' + dataname + '/others.res.txt',delim_whitespace=True)
@@ -27,38 +27,45 @@ model_types = np.unique(model_types)
 res = np.asarray(res)
 
 sorted_res=[]
-model_order = ['vae', 'scanvi','readSeurat', 'MNN','Combat','PCA']
-model_names = ['scVI','SCAN-VI','CCA','MNN','Combat','PCA']
+# model_order = ['vae', 'scanvi','readSeurat', 'MNN','Combat','PCA']
+# model_names = ['scVI','SCAN-VI','CCA','MNN','Combat','PCA']
+
+
+model_order = ['vae', 'scanvi','readSeurat']
+model_names = ['scVI','SCAN-VI','CCA','SCMAP']
+scmap = res[model_types=='scmap',:][0]
+
+sorted_res = []
 for x in model_order:
     sorted_res.append(res[model_types==x,:])
 
 sorted_res = np.asarray(sorted_res)
 sorted_res = sorted_res.squeeze()
 
-filtered_res = [np.asarray(sorted_res[:, i]) for i,x in enumerate(stat_names) if 'res_jaccard' in x]
-filtered_res = np.asarray(filtered_res)
+scmap1 = scmap[13]
+scmap2 =  scmap[18]
 
-import matplotlib
-KNeighbors = np.concatenate([np.arange(10, 100, 10), np.arange(100, 500, 50)])
-matplotlib.rcParams['pdf.fonttype'] = 42
-matplotlib.rcParams['ps.fonttype'] = 42
-import matplotlib.pyplot as plt
 
+criteria = 'p1_knn_uca'
+filtered_res = np.asarray(sorted_res[:, stat_names==criteria]).ravel()
+filtered_res = np.append(filtered_res,scmap1)
+#
+# filtered_res = np.asarray(sorted_res[:, stat_names==criteria]).ravel()
+#
 plt.figure(figsize=(5, 5))
-colors = ('r','g','b','y','m','c')
+# colors = ('r','g','b','y','m','c')
+plt.bar(np.arange(len(model_names)), filtered_res, color=['black', 'red', 'green', 'blue', 'cyan'][:len(filtered_res)])
+plt.xticks(np.arange(len(model_names)), model_names)
+plt.savefig("../%s/%s_%s_barplot2.pdf" % (dataname,dataname,criteria))
 
-for i,x in enumerate(model_names):
-    plt.plot(KNeighbors, filtered_res[:,i],colors[i],label=x)
-
-legend = plt.legend(loc='lower right', shadow=False)
-plt.savefig("../%s/%s_compare_KNN.pdf" % (dataname,dataname))
-
+criteria = 'p2_knn_uca'
+filtered_res = np.asarray(sorted_res[:, stat_names==criteria]).ravel()
+filtered_res = np.append(filtered_res,scmap2)
+#
+# filtered_res = np.asarray(sorted_res[:, stat_names==criteria]).ravel()
+#
 plt.figure(figsize=(5, 5))
-colors = ('r','g','b','y','m','c')
-for i in [0,2]:
-    x = model_names[i]
-    plt.plot(KNeighbors, filtered_res[:,i],colors[i],label=x)
-
-legend = plt.legend(loc='lower right', shadow=False)
-plt.savefig("../%s/%s_compare2_KNN.pdf" % (dataname,dataname))
-
+# colors = ('r','g','b','y','m','c')
+plt.bar(np.arange(len(model_names)), filtered_res, color=['black', 'red', 'green', 'blue', 'cyan'][:len(filtered_res)])
+plt.xticks(np.arange(len(model_names)), model_names)
+plt.savefig("../%s/%s_%s_barplot2.pdf" % (dataname,dataname,criteria))

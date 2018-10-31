@@ -295,16 +295,20 @@ def eval_latent(batch_indices, labels, latent, keys, labelled_idx=None,unlabelle
     if plotting==True and (os.path.isfile('../'+plotname+'.labels.png') is False):
         sample = select_indices_evenly(2000, labels)
         if plotname is not None:
-            colors = sns.color_palette('tab20')
+            colors = sns.color_palette('dark') +\
+                  sns.color_palette('bright') + \
+                  sns.color_palette('muted') + \
+                  sns.color_palette('pastel') + \
+                  sns.color_palette('colorblind')
             latent_s = latent[sample, :]
             label_s = labels[sample]
             batch_s = batch_indices[sample]
             if latent_s.shape[1] != 2:
                 latent_s = TSNE().fit_transform(latent_s)
-            fig, ax = plt.subplots(figsize=(13, 10))
+            fig, ax = plt.subplots(figsize=(20, 18))
             key_order = np.argsort(keys)
             for i,k in enumerate(key_order):
-                ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i%20], label=keys[k],
+                ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i%30], label=keys[k],
                            edgecolors='none')
                 ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
             fig.tight_layout()
@@ -396,7 +400,7 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
         for model_type in ['scmap','readSeurat','Combat','MNN','PCA']:
             print(model_type)
             if model_type == 'scmap':
-                gene_dataset.subsample_genes(10000)
+                # gene_dataset.subsample_genes(10000)
                 latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,
                                                                        filename=plotname)
                 res1 = [latent[x] for x in latent]
@@ -532,7 +536,8 @@ def subsetByGenenames(dataset, subsetnames):
     dataset.update_genes(np.arange(len(filter))[filter])
     return dataset
 
-def SubsetGenes(dataset1,dataset2,dataset3,gene_dataset,plotname,ngenes=1000):
+# def SubsetGenes(dataset1,dataset2,dataset3,gene_dataset,plotname,ngenes=1000):
+def SubsetGenes(dataset1, dataset2, gene_dataset, plotname, ngenes=1000):
     import pandas as pd
     genes1 = pd.read_table('../Seurat_data/' + plotname + '.1.hvg_info.csv', delimiter=',')
     geneid1 = np.asarray([x.replace('gene_', '') for x in genes1[genes1.keys()[0]]]).astype('int')
@@ -540,16 +545,18 @@ def SubsetGenes(dataset1,dataset2,dataset3,gene_dataset,plotname,ngenes=1000):
     genes2 = pd.read_table('../Seurat_data/' + plotname + '.2.hvg_info.csv', delimiter=',')
     geneid2 = np.asarray([x.replace('gene_', '') for x in genes2[genes2.keys()[0]]]).astype('int')
     genenames2 = genes2['genename']
-    genes3 = pd.read_table('../Seurat_data/' + plotname + '.3.hvg_info.csv', delimiter=',')
-    geneid3 = np.asarray([x.replace('gene_', '') for x in genes3[genes3.keys()[0]]]).astype('int')
-    genenames3 = genes3['genename']
+    # genes3 = pd.read_table('../Seurat_data/' + plotname + '.3.hvg_info.csv', delimiter=',')
+    # geneid3 = np.asarray([x.replace('gene_', '') for x in genes3[genes3.keys()[0]]]).astype('int')
+    # genenames3 = genes3['genename']
     assert np.sum(np.asarray(genenames1) == gene_dataset.gene_names) == len(gene_dataset.gene_names)
     assert np.sum(np.asarray(genenames2) == gene_dataset.gene_names) == len(gene_dataset.gene_names)
-    assert np.sum(np.asarray(genenames3) == gene_dataset.gene_names) == len(gene_dataset.gene_names)
-    geneid = np.union1d(np.union1d(geneid1[:ngenes], geneid2[:ngenes]),geneid3[:ngenes]) - 1
+    # assert np.sum(np.asarray(genenames3) == gene_dataset.gene_names) == len(gene_dataset.gene_names)
+    # geneid = np.union1d(np.union1d(geneid1[:ngenes], geneid2[:ngenes]),geneid3[:ngenes]) - 1
+    geneid = np.union1d(geneid1[:ngenes], geneid2[:ngenes]) - 1
     genes = gene_dataset.gene_names[geneid]
     dataset1 = subsetByGenenames(dataset1,genes)
     dataset2 = subsetByGenenames(dataset2,genes)
-    dataset3 = subsetByGenenames(dataset2,genes)
+    # dataset3 = subsetByGenenames(dataset2,genes)
     gene_dataset = subsetByGenenames(gene_dataset,genes)
-    return dataset1,dataset2,dataset3,gene_dataset
+    return dataset1,dataset2,gene_dataset
+    # return dataset1,dataset2,dataset3,gene_dataset
