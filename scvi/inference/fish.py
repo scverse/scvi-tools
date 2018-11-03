@@ -151,9 +151,10 @@ class TrainerFish(Trainer):
         if mode == 'scRNA':
             for tensors in self.all_seq_dataset:
                 sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
-                ret["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, mode="smFISH")]
-                ret["expected_frequencies"] += [self.model.get_sample_scale(sample_batch, mode="smFISH",
+                ret["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, mode="scRNA")]
+                ret["expected_frequencies"] += [self.model.get_sample_scale(sample_batch, mode="scRNA",
                                                                             batch_index=batch_index)]
+                ret["imputed_values"] += [self.model.get_sample_rate(sample_batch, y=label)]
             for key in ret.keys():
                 if len(ret[key]) > 0:
                     ret[key] = np.array(torch.cat(ret[key]))
