@@ -82,8 +82,9 @@ class CbmcDataset(CiteSeqDataset):
         >>> gene_dataset = CbmcDataset()
 
     """
-    def __init__(self, save_path='data/citeSeq/', additional_genes=600, mode='total'):
+    def __init__(self, save_path='data/citeSeq/', additional_genes=600, mode='total', CD45RA=False):
         self.additional_genes = additional_genes
+        self.CD45RA = CD45RA
         super(CbmcDataset, self).__init__(name="cbmc", save_path=save_path)
 
         # This maintains the library statistics for just umi counts
@@ -117,11 +118,15 @@ class CbmcDataset(CiteSeqDataset):
         self.gene_symbols = np.char.upper(
             np.array([name.split('_')[-1] if '_' in name else name for name in gene_symbols], dtype=np.str)
         )
+        self.kept_gene_symbols = self.gene_symbols[gene_inds]
         # ADTs
         self.adt = pd.read_csv(self.save_path + self.download_name_adt, index_col=0, compression='gzip')
         # Remove CCR5, CCR7, and CD10 due to poor enrichments
         # as done in https://satijalab.org/seurat/multimodal_vignette.html
         self.adt = self.adt.drop(['CCR5', 'CCR7', 'CD10'], axis=0)
+        if self.CD45RA is False:
+            print('Dropping CD45RA')
+            self.adt = self.adt.drop(['CD45RA'], axis=0)
         self.adt = self.adt.loc[:, to_keep]
         self.adt_expression = self.adt.T.values
         self.protein_markers = np.array(self.adt.index).astype(np.str)
