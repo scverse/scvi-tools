@@ -210,6 +210,8 @@ class VAEF(VAE):
                 reconst_loss = -torch.sum(Poisson(px_rate).log_prob(x), dim=1)
             elif self.reconstruction_loss_fish == 'gaussian':
                 reconst_loss = -torch.sum(Normal(px_rate, 10).log_prob(x), dim=1)
+            elif self.reconstruction_loss_fish == 'nb':
+                reconst_loss = - log_nb_positive(x, px_rate, torch.exp(px_r))
         return reconst_loss
 
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None, mode="scRNA", weighting=1):
