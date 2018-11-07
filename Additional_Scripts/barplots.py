@@ -31,8 +31,11 @@ sorted_res=[]
 # model_names = ['scVI','SCAN-VI','CCA','MNN','Combat','PCA']
 
 
-model_order = ['vae', 'scanvi','readSeurat']
-model_names = ['scVI','SCAN-VI','CCA','SCMAP']
+# model_order = ['vae', 'scanvi','readSeurat']
+# model_names = ['scVI','SCAN-VI','CCA','SCMAP']
+
+model_order = ['vae']
+model_names = ['scVI','SCMAP']
 scmap = res[model_types=='scmap',:][0]
 
 sorted_res = []
@@ -41,6 +44,8 @@ for x in model_order:
 
 sorted_res = np.asarray(sorted_res)
 sorted_res = sorted_res.squeeze()
+if(len(model_order)==1):
+    sorted_res = sorted_res.reshape(1,len(sorted_res))
 
 scmap1 = scmap[13]
 scmap2 =  scmap[18]
@@ -56,7 +61,7 @@ plt.figure(figsize=(5, 5))
 # colors = ('r','g','b','y','m','c')
 plt.bar(np.arange(len(model_names)), filtered_res, color=['black', 'red', 'green', 'blue', 'cyan'][:len(filtered_res)])
 plt.xticks(np.arange(len(model_names)), model_names)
-plt.savefig("../%s/%s_%s_barplot2.pdf" % (dataname,dataname,criteria))
+plt.savefig("../%s/%s_%s_barplot_scmapvae.pdf" % (dataname,dataname,criteria))
 
 criteria = 'p2_knn_uca'
 filtered_res = np.asarray(sorted_res[:, stat_names==criteria]).ravel()
@@ -68,4 +73,5 @@ plt.figure(figsize=(5, 5))
 # colors = ('r','g','b','y','m','c')
 plt.bar(np.arange(len(model_names)), filtered_res, color=['black', 'red', 'green', 'blue', 'cyan'][:len(filtered_res)])
 plt.xticks(np.arange(len(model_names)), model_names)
-plt.savefig("../%s/%s_%s_barplot2.pdf" % (dataname,dataname,criteria))
+plt.savefig("../%s/%s_%s_barplot_scmapvae.pdf" % (dataname,dataname,criteria))
+

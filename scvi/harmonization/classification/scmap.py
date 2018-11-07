@@ -5,6 +5,7 @@ import numpy as np
 import rpy2.robjects as ro
 import rpy2.robjects.numpy2ri
 from rpy2.rinterface import RRuntimeWarning
+import gc
 
 from scvi.metrics.classification import compute_accuracy_tuple
 
@@ -33,6 +34,13 @@ class SCMAP():
         ro.r["library"]("scmap")
         ro.r["library"]("SingleCellExperiment")
         ro.r["library"]("matrixStats")
+        ro.r["library"]("Matrix")
+        ro.r["library"]("RcppCNPy")
+        ro.r["library"]("reticulate")
+
+        ro.r('rm(list=ls())')
+        ro.r('gc()')
+        gc.collect()
 
         self.n_features=100
         self.threshold =0
@@ -41,23 +49,36 @@ class SCMAP():
         self.n_features = n_features
         self.threshold = threshold
 
-    def create_sce_object(self, matrix, gene_names, labels, name):
-        n_samples, nb_genes = matrix.shape
-        r_matrix = ro.r.matrix(matrix.T, nrow=nb_genes, ncol=n_samples)
-        ro.r.assign("counts", r_matrix)
-        ro.r.assign("gene_names", ro.StrVector(gene_names))
-        ro.r("counts<-as.data.frame(counts, row.names=gene_names)")
+    def create_sce_object(self, gene_dataset, filename, batch, name, read_labels):
+        batch_id = gene_dataset.batch_indices.ravel()
+        n_samples = np.sum(batch_id == batch)
+        gene_names = gene_dataset.gene_names
 
+        if read_labels == True:
+            labels = gene_dataset.labels.ravel().astype(np.int)
+            labels = labels[batch_id == batch]
+        else:
+            labels = None
+
+        gene_names, uniq = np.unique(gene_names, return_index=True)
+        ro.r('counts <- readMM("../Seurat_data/%s.X.mtx")' % filename)
+        ro.r.assign("batch_id", ro.IntVector(batch_id))
+        ro.r.assign("gene_names", ro.StrVector(gene_names))
+        ro.r.assign("uniq", ro.IntVector(uniq+1))
+        ro.r('counts <- t(counts)[,batch_id == %s]' % str(batch))
+        ro.r('counts <- counts[uniq,]')
+        ro.r("counts<-as.data.frame(as.matrix(counts), row.names=gene_names)")
         ro.r.assign("barcodes_cells", ro.StrVector(["cell_" + str(i) for i in range(n_samples)]))
         ro.r("colnames(counts)<-barcodes_cells")
 
-        if labels is not None:
-            ro.r.assign("labels", ro.StrVector(labels))
+        if read_labels is True:
+            ro.r.assign("labels", ro.IntVector(labels))
             ro.r("barcodes_cells<-as.data.frame(labels, row.names=barcodes_cells, col.names=c('cell_type1'))")
             ro.r("colnames(barcodes_cells)<-c('cell_type1')")
             ro.r("%s <- SingleCellExperiment(assays=list(counts=as.matrix(counts)), colData=barcodes_cells)" % name)
         else:
             ro.r("%s <- SingleCellExperiment(assays=list(counts=as.matrix(counts)))" % name)
+
         ro.r("rowData(%s)$feature_symbol<-rownames(%s)" % (name, name))  # For any new custom dataset.
         ro.r("logcounts(%s) <- log2(counts(%s) + 1)" % (name, name))
         print("SCE object : %s created" % name)
@@ -77,53 +98,37 @@ class SCMAP():
         self.probs = ro.r("result$scmap_cluster_siml")
 
         self.labels_pred = convert_labels_str(ro.r("result$scmap_cluster_labs"))  # 'unassigned' are included
-        self.combined_labels_pred = convert_labels_str(ro.r("result$combined_labs"))
 
         return self.labels_pred
 
-    def fit_scmap_cluster(self, data_train, labels_train):
-        if hasattr(data_train, 'A'):
-            data_train = data_train.A
+    def fit_scmap_cluster(self, gene_dataset, filename, batch):
         self.reference = 'train'
-        self.create_sce_object(data_train, np.arange(data_train.shape[1]).astype(np.str),
-                               labels_train.astype(np.int), self.reference)
-
+        self.create_sce_object(gene_dataset, filename, batch, self.reference, True)
         self.select_features(self.reference, n_features=self.n_features)
-
         ro.r("%s<-indexCluster(%s)" % (self.reference, self.reference))
 
-    def predict_scmap_cluster(self, data_test, labels_test):
-        if hasattr(data_test, 'A'):
-            data_train = data_test.A
+
+    def predict_scmap_cluster(self, gene_dataset, filename, batch):
         self.projection = 'test'
-        self.create_sce_object(data_test, np.arange(data_test.shape[1]).astype(np.str),
-                               labels_test, self.projection)
+        self.create_sce_object(gene_dataset, filename, batch, self.projection, False)
         ro.r("result<-scmapCluster(%s, list(metadata(%s)$scmap_cluster_index), threshold=%.1f)"
              % (self.projection, self.reference, self.threshold))
-
         self.probs = ro.r("result$scmap_cluster_siml")
-
-        self.labels_pred = convert_labels_str(ro.r("result$scmap_cluster_labs"))  # 'unassigned' are included
-        self.combined_labels_pred = convert_labels_str(ro.r("result$combined_labs"))
+        self.labels_pred = ro.r("result$scmap_cluster_labs")  # 'unassigned' are included
+        self.labels_pred = convert_labels_str(self.labels_pred)
         return self.labels_pred
 
 
-    def predict_scmap_cell(self, data_test, labels_test):
-        if hasattr(data_test, 'A'):
-            data_train = data_test.A
+    def predict_scmap_cell(self, gene_dataset, filename, batch):
         self.projection = 'test'
-        self.create_sce_object(data_test, np.arange(data_test.shape[1]).astype(np.str),
-                               labels_test, self.projection)
+        self.create_sce_object(gene_dataset, filename, batch, self.projection, False)
         ro.r("sce <- indexCell(%s)" % self.reference)
         ro.r("result<-scmapCell(%s, list(metadata(%s)$scmap_cell_index))"
              % (self.projection, self.reference))
-
         self.probs = ro.r("result$scmap_cluster_siml")
-
-        self.labels_pred = convert_labels_str(ro.r("result$scmap_cluster_labs"))  # 'unassigned' are included
-        self.combined_labels_pred = convert_labels_str(ro.r("result$combined_labs"))
+        self.labels_pred = ro.r("result$scmap_cluster_labs")  # 'unassigned' are included
+        self.labels_pred = convert_labels_str(self.labels_pred)
         return self.labels_pred
-
 
     def score(self, data_test, labels_test):
         labels_pred = self.predict_scmap_cluster(data_test, labels_test)

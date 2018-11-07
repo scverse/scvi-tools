@@ -67,23 +67,28 @@ def clustering_scores(latent, labels, prediction_algorithm, partial=False, label
     if prediction_algorithm == 'KMeans':
         n_labels = len(np.unique(labels_unlabelled))
         labels_pred = KMeans(n_labels, n_init=200).fit_predict(latent_unlabelled)
+        acc = [np.mean(labels_pred[labels_unlabelled == i] == i) for i in np.unique(labels)]
         return {
             'asw': silhouette_score(latent, labels),
             'nmi': NMI(labels_unlabelled, labels_pred),
             'ari': ARI(labels_unlabelled, labels_pred),
             'uca': unsupervised_clustering_accuracy(labels_unlabelled, labels_pred)[0],
-            'weighted uca': unsupervised_clustering_accuracy(labels_unlabelled, labels_pred, True)
+            'weighted uca': unsupervised_clustering_accuracy(labels_unlabelled, labels_pred, True),
+            'clusteracc': acc
         }
+
     elif prediction_algorithm == 'knn':
         neigh = KNeighborsClassifier(n_neighbors=10)
         neigh = neigh.fit(latent_labelled, labels_labelled)
         labels_pred = neigh.predict(latent_unlabelled)
+        acc = [np.mean(labels_pred[labels_unlabelled == i] == i) for i in np.unique(labels)]
         return {
             'asw': silhouette_score(latent, labels),
             'nmi': NMI(labels_unlabelled, labels_pred),
             'ari': ARI(labels_unlabelled, labels_pred),
             'ca': clustering_accuracy(labels_unlabelled, labels_pred),
-            'weighted ca': clustering_accuracy(labels_unlabelled, labels_pred, True)
+            'weighted ca': clustering_accuracy(labels_unlabelled, labels_pred, True),
+            'clusteracc': acc
         }
     else:
         print('algorithm not included: choose from KMeans, knn')

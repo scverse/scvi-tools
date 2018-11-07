@@ -259,7 +259,7 @@ for t, comparison in enumerate(comparisons):
     scale_pbmc = joint_de_posterior.sequential().get_harmonized_scale(0)
     scale_68k = joint_de_posterior.sequential().get_harmonized_scale(1)
     questionable_de_posterior = trainer.create_posterior(trainer.model, batch2,indices=cell_idx_68k)
-    questionable_scale_68k = questionable_de_posterior.sequential().get_harmonized_scale(0)
+    questionable_scale_68k = questionable_de_posterior.sequential().get_harmonized_scale(1)
     res_pbmc=[]
     res_all = []
     res_questionable = []

@@ -5,9 +5,6 @@ import scipy.sparse as sparse
 
 from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
 from scvi.inference.posterior import *
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.manifold import TSNE
 use_cuda = True
 from scvi.metrics.clustering import select_indices_evenly, clustering_scores,clustering_accuracy
 from scvi.inference.posterior import entropy_batch_mixing
@@ -19,17 +16,26 @@ from scvi.dataset import GeneExpressionDataset
 from copy import deepcopy
 import os
 import torch
-import time
-import pandas as pd
 from scvi.dataset.dataset import SubsetGenes
 
-def scmap_eval(labels_unlabelled,labels_pred):
+
+import seaborn as sns
+from umap import UMAP
+import matplotlib
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
+import matplotlib.pyplot as plt
+
+
+def scmap_eval(labels_unlabelled,labels_pred,labels):
     res = {
                 'nmi': NMI(labels_unlabelled, labels_pred),
                 'ari': ARI(labels_unlabelled, labels_pred),
-                'uca': clustering_accuracy(labels_unlabelled, labels_pred),
-                'weighted uca': clustering_accuracy(labels_unlabelled, labels_pred, True)
-            }
+                'ca': clustering_accuracy(labels_unlabelled, labels_pred),
+                'weighted ca': clustering_accuracy(labels_unlabelled, labels_pred, True),
+                'clusteracc':[np.mean(labels_pred[labels_unlabelled == i] == i) for i in np.unique(labels)]
+
+    }
     return res
 
 def JaccardIndex(x1,x2):
@@ -83,16 +89,15 @@ def assign_label(cellid, geneid, labels_map, count, cell_type, seurat):
     return dataset
 
 
-def trainVAE(gene_dataset, filename, rep, nlayers=2):
+def trainVAE(gene_dataset, filename, rep, nlayers=2,n_hidden=128):
     vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches, n_labels=gene_dataset.n_labels,
-          n_hidden=128, n_latent=10, n_layers=nlayers, dispersion='gene')
+          n_hidden=n_hidden, n_latent=10, n_layers=nlayers, dispersion='gene')
     trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
     if os.path.isfile('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl'):
         trainer.model = torch.load('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl')
     else:
         trainer.train(n_epochs=250)
         torch.save(trainer.model,'../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl')
-
     batch_entropy = trainer.train_set.entropy_batch_mixing()
     print("Entropy batch mixing :", batch_entropy)
     full = trainer.create_posterior(trainer.model, gene_dataset, indices=np.arange(len(gene_dataset)))
@@ -102,7 +107,8 @@ def VAEstats(full):
     ll = full.ll(verbose=True)
     latent, batch_indices, labels = full.sequential().get_latent()
     batch_indices = batch_indices.ravel()
-    batch_entropy = entropy_batch_mixing(latent, batch_indices)
+    sample = select_indices_evenly(2000, batch_indices)
+    batch_entropy = entropy_batch_mixing(latent[sample, :], batch_indices[sample])
     labels = labels.ravel()
     stats = [ll,batch_entropy,-1,-1,np.arange(0,len(labels))]
     return latent, batch_indices, labels, stats
@@ -236,33 +242,32 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
         seurat = SEURAT()
         seurat.create_seurat(dataset1, 1)
         seurat.create_seurat(dataset2, 2)
-        latent, batch_indices = seurat.get_pcs()
-        labels, keys, _, _ = seurat.get_cca()
+        # latent, batch_indices = seurat.get_pcs()
+        latent, batch_indices, genes, cells = seurat.get_cca()
 
     elif model_type =='scmap':
+        # if os.path.isfile('../' + filename + '/' + 'scmap.1.'+ rep +'.npy'):
+        #     pred1 = np.load('../' + filename + '/' + 'scmap.1.'+ rep +'.npy')
+        #     pred2 = np.load('../' + filename + '/' + 'scmap.2.'+ rep +'.npy')
+        # else:
         from scvi.harmonization.classification.scmap import SCMAP
         print("Starting scmap")
-        count1 = np.asarray(gene_dataset.X[gene_dataset.batch_indices.ravel() == 0, :].todense())
-        label1 = gene_dataset.labels[gene_dataset.batch_indices.ravel() == 0].ravel().astype('int')
-        count2 = np.asarray(gene_dataset.X[gene_dataset.batch_indices.ravel() == 1, :].todense())
-        label2 = gene_dataset.labels[gene_dataset.batch_indices.ravel() == 1].ravel().astype('int')
         n_features = 500
         scmap = SCMAP()
         scmap.set_parameters(n_features=n_features)
-        scmap.fit_scmap_cluster(count1, label1.astype(np.int))
-        pred1 = scmap.predict_scmap_cluster(count2, label2.astype(np.int))
+        scmap.fit_scmap_cluster(gene_dataset, filename, batch=0)
+        pred1 = scmap.predict_scmap_cluster(gene_dataset, filename, batch=1)
         # pred1cell = scmap.predict_scmap_cell(count2, label2.astype(np.int))
         scmap = SCMAP()
         scmap.set_parameters(n_features=n_features)
-        scmap.fit_scmap_cluster(count2, label2.astype(np.int))
-        pred2 = scmap.predict_scmap_cluster(count1, label1.astype(np.int))
+        scmap.fit_scmap_cluster(gene_dataset, filename, batch=1)
+        pred2 = scmap.predict_scmap_cluster(gene_dataset, filename, batch=0)
         # pred2cell = scmap.predict_scmap_cell(count2, label2.astype(np.int))
-        latent = scmap_eval(label2, pred1)
-        batch_indices = scmap_eval(label1, pred2)
-        labels = np.repeat(-1,len(latent))
-        keys = np.repeat(-1,len(batch_indices))
-        # labels = scmap_eval(label2, pred2cell)
-        # keys = scmap_eval(label1, pred1cell)
+        # np.save('../' + filename + '/' + 'scmap.1.' + rep + '.npy', pred1)
+        # np.save('../' + filename + '/' + 'scmap.2.' + rep + '.npy', pred2)
+
+        latent = pred1
+        stats = pred2
 
     elif model_type =='writedata':
         from scipy.io import mmwrite
@@ -292,32 +297,34 @@ def eval_latent(batch_indices, labels, latent, keys, labelled_idx=None,unlabelle
     sample = select_indices_evenly(2000, batch_indices)
     batch_entropy = entropy_batch_mixing(latent[sample, :], batch_indices[sample])
     print("Entropy batch mixing :", batch_entropy)
-    if plotting==True and (os.path.isfile('../'+plotname+'.labels.png') is False):
+    if plotting==True and (os.path.isfile('../'+plotname+'.labels.pdf') is False):
         sample = select_indices_evenly(2000, labels)
         if plotname is not None:
-            colors = sns.color_palette('dark') +\
-                  sns.color_palette('bright') + \
+            colors = sns.color_palette('bright') +\
                   sns.color_palette('muted') + \
+                  sns.color_palette('dark') + \
                   sns.color_palette('pastel') + \
                   sns.color_palette('colorblind')
             latent_s = latent[sample, :]
             label_s = labels[sample]
             batch_s = batch_indices[sample]
             if latent_s.shape[1] != 2:
-                latent_s = TSNE().fit_transform(latent_s)
-            fig, ax = plt.subplots(figsize=(20, 18))
+                latent_s = UMAP().fit_transform(latent_s)
+            fig, ax = plt.subplots(figsize=(18, 18))
             key_order = np.argsort(keys)
             for i,k in enumerate(key_order):
                 ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i%30], label=keys[k],
                            edgecolors='none')
-                ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
+                # ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
+            fig.patch.set_visible(False)
+            ax.axis('off')
             fig.tight_layout()
-            plt.savefig('../'+plotname+'.labels.png')
-            plt.figure(figsize=(10, 10))
+            plt.savefig('../'+plotname+'.labels.pdf')
+            plt.figure(figsize=(18, 18))
             plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
             plt.axis("off")
             plt.tight_layout()
-            plt.savefig('../' + plotname + '.batchid.png')
+            plt.savefig('../' + plotname + '.batchid.pdf')
     if partial_only==False:
         return res_knn,res_knn_partial, res_kmeans, res_kmeans_partial
     else:
@@ -387,6 +394,8 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
             " ".join(['res_jaccard'+ x for x in np.concatenate([np.repeat(10, 10), np.repeat(50,7)]).astype('str')])+" " + \
             'jaccard_score likelihood BE classifier_acc\n'
             )
+    g = open('../' + plotname +'/' + models + '.percluster.res.txt', "w+")
+    g.write("model_type\tannotation\t" + "\t".join(gene_dataset.cell_types)+"\n")
 
     scanvi = SCANVI(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels)
     trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=1,
@@ -397,23 +406,29 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
     if models =='others':
         latent1 = np.genfromtxt('../Seurat_data/' + plotname + '.1.CCA.txt')
         latent2 = np.genfromtxt('../Seurat_data/' + plotname + '.2.CCA.txt')
+        # for model_type in ['scmap']:
         for model_type in ['scmap','readSeurat','Combat','MNN','PCA']:
+        # for model_type in [ 'readSeurat', 'Combat', 'MNN', 'PCA']:
             print(model_type)
             if model_type == 'scmap':
-                # gene_dataset.subsample_genes(10000)
-                latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,
+                latent, batch_indices, labels, keys, stats = run_model('scmap', gene_dataset, dataset1, dataset2,
                                                                        filename=plotname)
-                res1 = [latent[x] for x in latent]
-                res2 = [batch_indices[x] for x in batch_indices]
-                res3 = [labels[x] for x in labels]
-                res4 = [keys[x] for x in keys]
-                res= [-1]+res3 +\
-                [-1]+res4 + \
-                [-1]+res1 + \
-                [-1]+res2 + \
-                [-1] * (20) + \
-                [-1]*17 + \
-                [-1]*4
+                pred1 = latent
+                pred2 = stats
+                res1 = scmap_eval(pred1, labels[batch_indices == 1], labels)
+                res2 = scmap_eval(pred2, labels[batch_indices == 0], labels)
+                g.write("%s\t" % (model_type) + "p1\t"+
+                        ("%.4f\t" * len(gene_dataset.cell_types) % tuple(res1['clusteracc']) +
+                         "\n"))
+                g.write("%s\t" % (model_type) + "p2\t" +
+                        ("%.4f\t" * len(gene_dataset.cell_types) % tuple(res2['clusteracc']) +
+                         "\n"))
+                res = [-1]*10 + \
+                      [-1]+[res1[x] for x in ['nmi', 'ari', 'ca', 'weighted ca']] + \
+                      [-1] + [res2[x] for x in ['nmi', 'ari', 'ca', 'weighted ca']] + \
+                      [-1]*41
+
+                f.write(model_type + (" %.4f" * 61 + "\n") % tuple(res))
             else:
                 if model_type=='readSeurat':
                     dataset1, dataset2, gene_dataset = SubsetGenes(dataset1, dataset2, gene_dataset, plotname)
@@ -438,20 +453,33 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
                                 batch_indices == 1, batch_indices == 0,
                                 plotname=plotname + '.' + model_type, plotting=False)
 
-                batch_entropy = entropy_batch_mixing(latent, batch_indices)
+                sample = select_indices_evenly(2000, batch_indices)
+                batch_entropy = entropy_batch_mixing(latent[sample, :], batch_indices[sample])
 
-                res = [res_knn[x] for x in res_knn] + \
-                      [res_knn_partial[x] for x in res_knn_partial] + \
-                      [res_knn_partial1[x] for x in res_knn_partial1] + \
-                      [res_knn_partial2[x] for x in res_knn_partial2] + \
-                      [res_kmeans[x] for x in res_kmeans] + \
-                      [res_kmeans_partial[x] for x in res_kmeans_partial] + \
-                      [res_kmeans_partial1[x] for x in res_kmeans_partial1] + \
-                      [res_kmeans_partial2[x] for x in res_kmeans_partial2] + \
+                res = [res_knn[x] for x in ['asw', 'nmi', 'ari', 'ca', 'weighted ca']] + \
+                      [res_knn_partial[x] for x in ['asw', 'nmi', 'ari', 'ca', 'weighted ca']] + \
+                      [res_knn_partial1[x] for x in ['asw', 'nmi', 'ari', 'ca', 'weighted ca']] + \
+                      [res_knn_partial2[x] for x in ['asw', 'nmi', 'ari', 'ca', 'weighted ca']] + \
+                      [res_kmeans[x] for x in ['asw', 'nmi', 'ari', 'uca', 'weighted uca']] + \
+                      [res_kmeans_partial[x] for x in ['asw', 'nmi', 'ari', 'uca', 'weighted uca']] + \
+                      [res_kmeans_partial1[x] for x in ['asw', 'nmi', 'ari', 'uca', 'weighted uca']] + \
+                      [res_kmeans_partial2[x] for x in ['asw', 'nmi', 'ari', 'uca', 'weighted uca']] + \
                       res_jaccard + \
                       [res_jaccard_score, -1, batch_entropy, -1]
 
-            f.write(model_type + (" %.4f"*61+"\n") % tuple(res))
+                f.write(model_type + (" %.4f"*61+"\n") % tuple(res))
+                g.write("%s\t" % (model_type) +'all\t'+
+                        ("%.4f\t" * len(gene_dataset.cell_types) % tuple(res_knn['clusteracc']) +
+                         "\n"))
+                g.write("%s\t" % (model_type) +'p\t'+
+                        ("%.4f\t" * len(gene_dataset.cell_types) % tuple(res_knn_partial['clusteracc']) +
+                         "\n"))
+                g.write("%s\t" % (model_type) +'p1\t'+
+                        ("%.4f\t" * len(gene_dataset.cell_types) % tuple(res_knn_partial1['clusteracc']) +
+                         "\n"))
+                g.write("%s\t" % (model_type) +'p2\t'+
+                        ("%.4f\t" * len(gene_dataset.cell_types) % tuple(res_knn_partial2['clusteracc']) +
+                         "\n"))
 
     elif models=='scvi':
         if plotname != 'Sim1' and plotname != 'Sim2' and plotname != 'Sim3':
@@ -481,17 +509,30 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
                             labelled_idx=(batch_indices==1), unlabelled_idx=(batch_indices==0),
                             plotname=plotname + '.' + model_type, plotting=False)
 
-            res = [res_knn[x] for x in res_knn] + \
-                  [res_knn_partial[x] for x in res_knn_partial] + \
-                  [res_knn_partial1[x] for x in res_knn_partial1] + \
-                  [res_knn_partial2[x] for x in res_knn_partial2] + \
-                  [res_kmeans[x] for x in res_kmeans] + \
-                  [res_kmeans_partial[x] for x in res_kmeans_partial] + \
-                  [res_kmeans_partial1[x] for x in res_kmeans_partial1] + \
-                  [res_kmeans_partial2[x] for x in res_kmeans_partial2] + \
+            res = [res_knn[x] for x in ['asw', 'nmi', 'ari', 'ca', 'weighted ca']] + \
+                  [res_knn_partial[x] for x in ['asw', 'nmi', 'ari', 'ca', 'weighted ca']] + \
+                  [res_knn_partial1[x] for x in ['asw', 'nmi', 'ari', 'ca', 'weighted ca']] + \
+                  [res_knn_partial2[x] for x in ['asw', 'nmi', 'ari', 'ca', 'weighted ca']] + \
+                  [res_kmeans[x] for x in ['asw', 'nmi', 'ari', 'uca', 'weighted uca']] + \
+                  [res_kmeans_partial[x] for x in ['asw', 'nmi', 'ari', 'uca', 'weighted uca']] + \
+                  [res_kmeans_partial1[x] for x in ['asw', 'nmi', 'ari', 'uca', 'weighted uca']] + \
+                  [res_kmeans_partial2[x] for x in ['asw', 'nmi', 'ari', 'uca', 'weighted uca']] + \
                   res_jaccard + \
                   [res_jaccard_score, stats[0], stats[1], stats[2]]
+
             f.write(model_type + (" %.4f" * 61 + "\n") % tuple(res))
+            g.write("%s\t" % (model_type) + 'all\t' +
+                    ("%.4f\t" * len(gene_dataset.cell_types) % tuple(res_knn['clusteracc']) +
+                     "\n"))
+            g.write("%s\t" % (model_type) + 'p\t' +
+                    ("%.4f\t" * len(gene_dataset.cell_types) % tuple(res_knn_partial['clusteracc']) +
+                     "\n"))
+            g.write("%s\t" % (model_type) + 'p1\t' +
+                    ("%.4f\t" * len(gene_dataset.cell_types) % tuple(res_knn_partial1['clusteracc']) +
+                     "\n"))
+            g.write("%s\t" % (model_type) + 'p2\t' +
+                    ("%.4f\t" * len(gene_dataset.cell_types) % tuple(res_knn_partial2['clusteracc']) +
+                     "\n"))
             # for i in [1, 2, 3]:
             #     latent, batch_indices, labels, keys, stats = run_model(model_type, gene_dataset, dataset1, dataset2,
             #                                                            filename=plotname, rep=str(i))
@@ -527,6 +568,7 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
     elif models=='writedata':
         _, _, _, _,_ = run_model('writedata', gene_dataset, dataset1, dataset2, filename=plotname)
     f.close()
+    g.close()
 
 
 def subsetByGenenames(dataset, subsetnames):

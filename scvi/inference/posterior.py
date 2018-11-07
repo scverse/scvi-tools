@@ -16,6 +16,7 @@ from sklearn.neighbors import NearestNeighbors, KNeighborsRegressor
 from sklearn.utils.linear_assignment_ import linear_assignment
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler, RandomSampler
+from scvi.metrics.clustering import select_indices_evenly
 
 from scvi.models.log_likelihood import compute_log_likelihood, compute_marginal_log_likelihood
 
@@ -176,7 +177,8 @@ class Posterior:
     def entropy_batch_mixing(self, verbose=False, **kwargs):
         if self.gene_dataset.n_batches == 2:
             latent, batch_indices, labels = self.get_latent()
-            be_score = entropy_batch_mixing(latent, batch_indices, **kwargs)
+            sample = select_indices_evenly(2000, batch_indices)
+            be_score = entropy_batch_mixing(latent[sample, :], batch_indices[sample], **kwargs)
             if verbose:
                 print("Entropy batch mixing :", be_score)
             return be_score

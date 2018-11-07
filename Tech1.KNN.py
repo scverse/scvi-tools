@@ -2,6 +2,7 @@ use_cuda = True
 from scvi.dataset.dataset import GeneExpressionDataset
 from scvi.harmonization.utils_chenling import run_model
 from scvi.harmonization.utils_chenling import KNNJaccardIndex
+from scvi.dataset.dataset import SubsetGenes
 
 import sys
 import numpy as np
