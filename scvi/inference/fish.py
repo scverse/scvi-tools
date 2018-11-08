@@ -70,7 +70,7 @@ class TrainerFish(Trainer):
         self.test_fish.to_monitor = ['ll']
 
     def train(self, n_epochs=20, lr=1e-3, weight_decay=1e-6, params=None):
-        self.adversarial_cls = Classifier(self.model.n_latent, n_labels=self.model.n_batch, n_layers=3)
+        self.adversarial_cls = Classifier(self.model.n_latent, n_labels=2, n_layers=3)
         if self.use_cuda:
             self.adversarial_cls.cuda()
         self.optimizer_cls = torch.optim.Adam(filter(lambda p: p.requires_grad, self.adversarial_cls.parameters()),
