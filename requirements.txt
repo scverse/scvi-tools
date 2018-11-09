@@ -19,5 +19,5 @@ xlrd==1.1.0
 nbconvert==5.4.0
 nbformat==4.4.0
 jupyter==1.0.0
-
+ipython==6.5.0
 

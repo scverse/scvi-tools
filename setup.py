@@ -21,6 +21,10 @@ requirements = [
     "tqdm >= 4",
     "anndata >= 0.6",
     "xlrd >= 1.0",
+    "jupyter>=1.0.0",
+    "nbconvert>=5.4.0",
+    "nbformat>=4.4.0",
+    "ipython>=6.5.0"
 ]
 
 setup_requirements = ['pytest-runner', ]
