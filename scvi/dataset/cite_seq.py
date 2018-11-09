@@ -77,6 +77,7 @@ class CbmcDataset(CiteSeqDataset):
 
     Args:
         :save_path: Save path of raw data file. Default: ``'data/'``.
+        :additional_genes: Number of high var genes to keep. 'None' uses all genes
 
     Examples:
         >>> gene_dataset = CbmcDataset()
@@ -103,7 +104,7 @@ class CbmcDataset(CiteSeqDataset):
         print("Selecting only HUMAN genes (%d / %d)" % (human_filter.sum(), len(human_filter)))
         expression_data = expression.values[:, human_filter]
 
-        # Keep top 600 genes by variance as in scVI paper
+        # Keep top 'additional_genes' genes by variance as in scVI paper
         if self.additional_genes is not None:
             print('Keeping top {} genes by variance'.format(self.additional_genes))
             gene_vars = np.var(expression_data, axis=0)
