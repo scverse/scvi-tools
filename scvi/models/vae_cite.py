@@ -61,7 +61,7 @@ class VAECITE(nn.Module):
     """
 
     def __init__(self, n_input_genes, protein_indexes, n_batch=0, n_labels=0, n_hidden_umi=128, n_hidden_adt=10,
-                 n_latent=10, n_layers=1, dropout_rate=0.1, umi_dispersion="gene", adt_dispersion='protein-cell',
+                 n_latent=10, n_layers=1, dropout_rate=0.1, umi_dispersion="gene", adt_dispersion='protein',
                  log_variational=True, reconstruction_loss_umi="zinb", reconstruction_loss_adt="poisson",
                  adt_mean_lib=None, adt_var_lib=None):
         super(VAECITE, self).__init__()
@@ -317,8 +317,6 @@ class VAECITE(nn.Module):
         local_l_mean_adt = self.adt_mean_lib * torch.ones_like(ql_m['adt'])
         local_l_var_adt = self.adt_var_lib * torch.ones_like(ql_v['adt'])
         kl_divergence_l_adt = kl(Normal(ql_m['adt'], torch.sqrt(ql_v['adt'])), Normal(local_l_mean_adt, torch.sqrt(local_l_var_adt))).sum(dim=1)
-        else:
-            kl_divergence_l_adt = 0
         kl_divergence = kl_divergence_z
 
         return reconst_loss_umi + kl_divergence_l_umi, reconst_loss_adt + kl_divergence_l_adt, kl_divergence
