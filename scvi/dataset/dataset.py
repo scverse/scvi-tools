@@ -411,4 +411,4 @@ def arrange_categories(original_categories, mapping_from=None, mapping_to=None):
     new_categories = np.copy(original_categories)
     for idx_from, idx_to in zip(mapping_from, mapping_to):
         new_categories[original_categories == idx_from] = idx_to
-    return new_categories, n_categories
+    return new_categories.astype(int), n_categories
