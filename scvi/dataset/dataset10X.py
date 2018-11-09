@@ -53,6 +53,9 @@ class Dataset10X(GeneExpressionDataset):
         :new_n_genes: Number of subsampled genes. Default: ``3000``.
         :subset_genes: List of genes for subsampling. Default: ``None``.
         :dense: Whether to load as dense or sparse. Default: ``False``.
+        :remote: Whether the 10X dataset is to be downloaded from the website or whether it is a local dataset, if
+        remote is False then save_path + filename must be the path to the directory that contains matrix.mtx and
+        genes.tsv files
 
     Examples:
         >>> tenX_dataset = Dataset10X("neuron_9k")
@@ -75,7 +78,7 @@ class Dataset10X(GeneExpressionDataset):
             self.download_name = self.save_name + '.tar.gz'
         else:
             try:
-                assert os.path.isdir(save_path + filename)
+                assert os.path.isdir(self.save_path + filename)
             except AssertionError:
                 print("The file %s was not found in the location you gave" % filename)
                 raise

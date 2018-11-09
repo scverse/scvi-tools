@@ -40,7 +40,7 @@ class VAE(nn.Module):
     Examples:
         >>> gene_dataset = CortexDataset()
         >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-        ... n_labels=gene_dataset.n_labels, use_cuda=True )
+        ... n_labels=gene_dataset.n_labels)
 
     """
 
