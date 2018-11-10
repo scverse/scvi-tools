@@ -34,13 +34,16 @@ Quick Start
 .. _setup.py: https://github.com/YosefLab/scVI/tree/master/setup.py
 
 
-4. Refer to `this Jupyter notebook`__ to see how to import datasets into scVI.
+4. Follow along with our Jupyter notebooks to quickly get familiar with scVI!
+
+   a. `data loading`__
+   b. `basic usage`__ 
+   c. `reproducing results from the paper`__ 
 
 .. __: https://github.com/YosefLab/scVI/tree/master/tests/notebooks/data_loading.ipynb
-
-5. Refer to `this Jupyter notebook`__ to see how to train the scVI model, impute missing data, detect differential expression, and more!
-
 .. __: https://github.com/YosefLab/scVI/tree/master/tests/notebooks/basic_tutorial.ipynb
+.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/scVI_reproducibility.ipynb
+
 
 
 References
