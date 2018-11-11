@@ -17,7 +17,7 @@ requirements = [
     "scipy>=1.1",
     "h5py>=2.8",
     "pandas>=0.2",
-    "loompy==2.0.9",
+    "loompy>=2.0.16",
     "tqdm >= 4",
     "anndata >= 0.6",
     "xlrd >= 1.0",
