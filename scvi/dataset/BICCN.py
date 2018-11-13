@@ -303,8 +303,9 @@ class ZengSS2(GeneExpressionDataset):
             gene_names=np.char.upper(gene_names), cell_types=cell_type)
         self.labels_groups = label_groups
     def preprocess(self):
-        groups = ['Lamp5', 'VIP', 'SST_CHODL','SST', 'PVALB', 'IT', 'NP', 'L6B', 'Astro', 'OPC', 'OLIGO', 'ENDO',
-                  'Micro']
+        # groups = ['Lamp5', 'VIP', 'SST_CHODL','SST', 'PVALB', 'IT', 'NP', 'L6B', 'Astro', 'OPC', 'OLIGO', 'ENDO',
+        #           'Micro']
+        groups = ['Lamp5', 'VIP', 'SST_CHODL', 'SST', 'PVALB', 'IT', 'NP', 'L6B', 'Astro', 'VLMC', 'ENDO', 'SMC']
         groups = [x.upper() for x in groups]
         groups = np.asarray(groups)
         if os.path.isfile(self.save_path + 'ZengSS2.svmlight'):
@@ -314,13 +315,17 @@ class ZengSS2(GeneExpressionDataset):
             gene_names = np.load(self.save_path + 'ZengSS2.gene_names.npy')
             return(count, gene_names, labels, cell_type, label_groups, groups)
         else:
-            mat = np.genfromtxt(self.save_path + 'SmartSeq_nuclei_AIBS/exon.counts.csv', dtype='str', delimiter=',')
+            # mat = np.genfromtxt(self.save_path + 'SmartSeq_nuclei_AIBS/exon.counts.csv', dtype='str', delimiter=',')
+            mat = np.genfromtxt(self.save_path + 'SmartSeq_cells_AIBS/exon.counts.csv', dtype='str', delimiter=',')
             cellid = np.asarray([x.split('"')[1] for x in mat[0, 1:]])
             geneid = np.asarray([x.split('"')[1] for x in mat[1:, 0]])
             count = mat[1:, 1:].astype('int')
             count = csr_matrix(count.T)
-            label = np.genfromtxt(self.save_path + 'SmartSeq_nuclei_AIBS/cluster.membership.csv', dtype='str', delimiter=',')
-            label_map = np.genfromtxt(self.save_path + 'SmartSeq_nuclei_AIBS/cluster.annotation.csv', dtype='str',
+            # label = np.genfromtxt(self.save_path + 'SmartSeq_nuclei_AIBS/cluster.membership.csv', dtype='str', delimiter=',')
+            # label_map = np.genfromtxt(self.save_path + 'SmartSeq_nuclei_AIBS/cluster.annotation.csv', dtype='str',
+            #                           delimiter=',')
+            label = np.genfromtxt(self.save_path + 'SmartSeq_cells_AIBS/cluster.membership.csv', dtype='str', delimiter=',')
+            label_map = np.genfromtxt(self.save_path + 'SmartSeq_cells_AIBS/cluster.annotation.csv', dtype='str',
                                       delimiter=',')
             label_cluster = np.asarray([x.split('"')[1] for x in label[1:, 1]])
             label_barcode = np.asarray([x.split('"')[1] for x in label[1:, 0]])
@@ -336,9 +341,9 @@ class ZengSS2(GeneExpressionDataset):
             cell_type = np.asarray([x.split('"')[1] for x in label_map[1:, 1]])
             cell_type = [x.upper() for x in cell_type]
             np.save(self.save_path + 'ZengSS2.celltypes.npy', cell_type)
-            label_groups = [0] * 5 + [1] * 7 + [2] * 1 + [3] * 6 + [4] * 5 + [5] * 9 + [6] * 2 + [7] * 5 + [8] + [9] + [
-                10] + [11] + [12] + [5] * 3 + [7]
+            # label_groups = [0] * 5 + [1] * 7 + [2] * 1 + [3] * 6 + [4] * 5 + [5] * 9 + [6] * 2 + [7] * 5 + [8] + [9] + [
+            #     10] + [11] + [12] + [5] * 3 + [7]
+            label_groups = [0] * 4 + [1] * 8 + [2] + [3] * 4 + [4] * 3 + [5] * 16 + [6] * 2 + [7] * 13 + [8, 9, 10, 11] + [5]*2
             np.save(self.save_path + 'ZengSS2.labels_groups.npy', label_groups)
             return(new_count, geneid, matched_label, cell_type, label_groups, groups)
-
 
