@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from scvi.metrics.clustering import select_indices_evenly
-from sklearn.manifold import TSNE
+from umap import UMAP
 
 
 import sys
@@ -64,7 +64,7 @@ def entropy_from_indices(indices):
     return entropy(np.array(np.unique(indices, return_counts=True)[1].astype(np.int32)))
 
 
-def entropy_batch_mixing_subsampled(latent, batches, labels, removed_type, sampled_batch=0, n_neighbors=50, n_pools=50, n_samples_per_pool=100):
+def entropy_batch_mixing_subsampled(latent, batches, labels, removed_type, n_neighbors=50, n_pools=50, n_samples_per_pool=100):
     X = latent[labels == removed_type,:]
     nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(latent)
     indices = nbrs.kneighbors(X, return_distance=False)[:, 1:]
@@ -81,8 +81,9 @@ def entropy_batch_mixing_subsampled(latent, batches, labels, removed_type, sampl
 
 from scvi.metrics.clustering import clustering_scores
 
-f = open('../PopRemove/'+plotname+'acc.res.txt', "w+")
-f.write('model_type\tcell_type\tBE_removed\tBE_kept\tasw\tnmi\tari\tca\twca\n')
+f = open('../PopRemove/'+plotname+'.acc.res.txt', "w+")
+g = open('../PopRemove/'+plotname+'.res.txt', "w+")
+# f.write('model_type\tcell_type\tBE_removed\tBE_kept\tasw\tnmi\tari\tca\twca\n')
 
 from scvi.dataset.dataset import SubsetGenes
 
@@ -101,8 +102,8 @@ for rmCellTypes in dataset2.cell_types[:6]:
     pbmc2.update_cells(gene_dataset.batch_indices.ravel() == 1)
     pbmc2.subsample_genes(dataset2.nb_genes)
 
-        # latent, batch_indices, labels, keys, stats = run_model(
-        #     'writedata', gene_dataset, pbmc, pbmc2,filename=plotname+rmCellTypes.replace(' ',''))
+    # latent, batch_indices, labels, keys, stats = run_model(
+    #     'writedata', gene_dataset, pbmc, pbmc2,filename=plotname+rmCellTypes.replace(' ',''))
     latent, batch_indices, labels, keys, stats = run_model(
         'readSeurat', gene_dataset, pbmc, pbmc2,filename=plotname+rmCellTypes.replace(' ',''))
     from sklearn.neighbors import KNeighborsClassifier
@@ -114,48 +115,47 @@ for rmCellTypes in dataset2.cell_types[:6]:
     f.write('Seurat' + '\t' + rmCellTypes + ("\t%.4f" * 9 + "\t%s" * 9 + "\n") % tuple(acc + list(cell_type)))
 
 
-    # otheridx = np.arange(len(keys))[keys == 'Other'][0]
-    # latent = latent[labels != otheridx,:]
-    # batch_indices = batch_indices[labels != otheridx]
-    # labels = labels[labels != otheridx]
-    # map = dict(zip(np.unique(labels),np.argsort(np.unique(labels))))
-    # labels = np.asarray([map[x] for x in labels])
-    # keys = keys[keys!='Other']
+    otheridx = np.arange(len(keys))[keys == 'Other'][0]
+    latent = latent[labels != otheridx,:]
+    batch_indices = batch_indices[labels != otheridx]
+    labels = labels[labels != otheridx]
+    map = dict(zip(np.unique(labels),np.argsort(np.unique(labels))))
+    labels = np.asarray([map[x] for x in labels])
+    keys = keys[keys!='Other']
+
+    rm_idx = np.arange(len(keys))[keys == rmCellTypes][0]
+    other_idx = np.arange(len(keys))[keys != rmCellTypes]
+    cell_type = [keys[rm_idx]] + list(keys[other_idx])
+    BE1 = entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type=rm_idx)
+    BE2 = [ entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type= i ) for i in other_idx]
+    res_knn = clustering_scores(np.asarray(latent), labels, 'knn')
+    res = [BE1] + BE2 + [res_knn[x] for x in  list(res_knn.keys())[:5]]
+    g.write('Seurat' + '\t' + rmCellTypes + ("\t%.4f" * 13 + "\t%s"*8 + "\n") % tuple(res+cell_type))
+
+
+    colors = sns.color_palette('tab20')
+    sample = select_indices_evenly(2000, labels)
+    latent_s = latent[sample, :]
+    label_s = labels[sample]
+    batch_s = batch_indices[sample]
+    if latent_s.shape[1] != 2:
+        latent_s = UMAP(spread=2).fit_transform(latent_s)
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+    key_order = np.argsort(keys)
+    for i, k in enumerate(key_order):
+        ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i % 20], label=keys[k],
+                   edgecolors='none')
+        # ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
+    ax.axis("off")
+    fig.tight_layout()
+    plt.savefig('../%s.%s.%s.labels.pdf' % (plotname,'Seurat',rmCellTypes))
+    plt.figure(figsize=(10, 10))
+    plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
+    plt.axis("off")
+    plt.tight_layout()
+    plt.savefig('../%s.%s.%s.batches.pdf' % (plotname,'Seurat',rmCellTypes))
     #
-    # rm_idx = np.arange(len(keys))[keys == rmCellTypes][0]
-    # other_idx = np.arange(len(keys))[keys != rmCellTypes]
-    # cell_type = [keys[rm_idx]] + list(keys[other_idx])
-    # BE1 = entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type=rm_idx)
-    # BE2 = [ entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type= i ) for i in other_idx]
-    # res_knn = clustering_scores(np.asarray(latent), labels, 'knn')
-    # res = [BE1] + BE2 + [res_knn[x] for x in res_knn]
-    # f.write('Seurat' + '\t' + rmCellTypes + ("\t%.4f" * 13 + "\t%s"*8 + "\n") % tuple(res+cell_type))
-
-
-#     # plotname = 'PopRemove/' + 'Seurat' + '.' + rmCellTypes.replace(' ', '')
-#     # colors = sns.color_palette('tab20')
-#     # sample = select_indices_evenly(2000, labels)
-#     # latent_s = latent[sample, :]
-#     # label_s = labels[sample]
-#     # batch_s = batch_indices[sample]
-#     # if latent_s.shape[1] != 2:
-#     #     latent_s = TSNE().fit_transform(latent_s)
-#     #
-#     # fig, ax = plt.subplots(figsize=(13, 10))
-#     # key_order = np.argsort(keys)
-#     # for i, k in enumerate(key_order):
-#     #     ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i % 20], label=keys[k],
-#     #                edgecolors='none')
-#     #     ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
-#     #
-#     # fig.tight_layout()
-#     # plt.savefig('../' + plotname + '.labels.png')
-#     # plt.figure(figsize=(10, 10))
-#     # plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
-#     # plt.axis("off")
-#     # plt.tight_layout()
-#     # plt.savefig('../' + plotname + '.batchid.png')
-#
     pbmc, pbmc2, gene_dataset = SubsetGenes(pbmc, pbmc2, gene_dataset, plotname+rmCellTypes.replace(' ',''))
     latent, batch_indices, labels, keys, stats = run_model(
         'vae', gene_dataset, pbmc, pbmc2,filename=plotname, rep = rmCellTypes.replace(' ',''))
@@ -168,46 +168,45 @@ for rmCellTypes in dataset2.cell_types[:6]:
 
 
 
-    # otheridx = np.arange(len(keys))[keys == 'Other'][0]
-    # latent = latent[labels!=otheridx,:]
-    # batch_indices = batch_indices[labels!=otheridx]
-    # labels = labels[labels!=otheridx]
-    # map = dict(zip(np.unique(labels),np.argsort(np.unique(labels))))
-    # labels = np.asarray([map[x] for x in labels])
-    # keys = keys[keys!='Other']
-    #
-    # rm_idx = np.arange(len(keys))[keys == rmCellTypes][0]
-    # other_idx = np.arange(len(keys))[keys != rmCellTypes]
-    # cell_type = [keys[rm_idx]] + list(keys[other_idx])
-    # BE1 = entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type=rm_idx)
-    # BE2 = [ entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type= i ) for i in other_idx]
-    # res_knn = clustering_scores(np.asarray(latent), labels, 'knn')
-    # res = [BE1] + BE2 + [res_knn[x] for x in res_knn]
-    # f.write('vae' + '\t' + rmCellTypes + ("\t%.4f" * 13 + "\t%s"*8 + "\n") % tuple(res+cell_type))
-#
-#
-#     # plotname = 'PopRemove/' + 'vae' + '.' + rmCellTypes.replace(' ', '')
-#     # colors = sns.color_palette('tab20')
-#     # sample = select_indices_evenly(2000, labels)
-#     # latent_s = latent[sample, :]
-#     # label_s = labels[sample]
-#     # batch_s = batch_indices[sample]
-#     # if latent_s.shape[1] != 2:
-#     #     latent_s = TSNE().fit_transform(latent_s)
-#     #
-#     # fig, ax = plt.subplots(figsize=(13, 10))
-#     # key_order = np.argsort(keys)
-#     # for i, k in enumerate(key_order):
-#     #     ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i % 20], label=keys[k],
-#     #                edgecolors='none')
-#     #     ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
-#     #
-#     # fig.tight_layout()
-#     # plt.savefig('../' + plotname + '.labels.png')
-#     # plt.figure(figsize=(10, 10))
-#     # plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
-#     # plt.axis("off")
-#     # plt.tight_layout()
-#     # plt.savefig('../' + plotname + '.batchid.png')
-#
+    otheridx = np.arange(len(keys))[keys == 'Other'][0]
+    latent = latent[labels!=otheridx,:]
+    batch_indices = batch_indices[labels!=otheridx]
+    labels = labels[labels!=otheridx]
+    map = dict(zip(np.unique(labels),np.argsort(np.unique(labels))))
+    labels = np.asarray([map[x] for x in labels])
+    keys = keys[keys!='Other']
+
+    rm_idx = np.arange(len(keys))[keys == rmCellTypes][0]
+    other_idx = np.arange(len(keys))[keys != rmCellTypes]
+    cell_type = [keys[rm_idx]] + list(keys[other_idx])
+    BE1 = entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type=rm_idx)
+    BE2 = [ entropy_batch_mixing_subsampled(latent, batch_indices, labels, removed_type= i ) for i in other_idx]
+    res_knn = clustering_scores(np.asarray(latent), labels, 'knn')
+    res = [BE1] + BE2 + [res_knn[x] for x in list(res_knn.keys())[:5]]
+    g.write('vae' + '\t' + rmCellTypes + ("\t%.4f" * 13 + "\t%s"*8 + "\n") % tuple(res+cell_type))
+
+
+    colors = sns.color_palette('tab20')
+    sample = select_indices_evenly(2000, labels)
+    latent_s = latent[sample, :]
+    label_s = labels[sample]
+    batch_s = batch_indices[sample]
+    if latent_s.shape[1] != 2:
+        latent_s = UMAP(spread=2).fit_transform(latent_s)
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+    key_order = np.argsort(keys)
+    for i, k in enumerate(key_order):
+        ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i % 20], label=keys[k],
+                   edgecolors='none')
+        # ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
+    ax.axis("off")
+    fig.tight_layout()
+    plt.savefig('../%s.%s.%s.labels.pdf' % (plotname,'vae',rmCellTypes))
+    plt.figure(figsize=(10, 10))
+    plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
+    plt.axis("off")
+    plt.tight_layout()
+    plt.savefig('../%s.%s.%s.batch.pdf'% (plotname,'vae',rmCellTypes))
+
 f.close()

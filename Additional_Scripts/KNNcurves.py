@@ -29,8 +29,8 @@ res = np.asarray(res)
 sorted_res=[]
 # model_order = ['vae', 'scanvi','readSeurat', 'MNN','Combat','PCA']
 # model_names = ['scVI','SCAN-VI','CCA','MNN','Combat','PCA']
-model_order = ['vae', 'scanvi', 'readSeurat', 'Combat']
-model_names = ['scVI','SCAN-VI','CCA','Combat']
+model_order = ['vae',  'readSeurat', 'MNN']
+model_names = ['scVI','CCA','MNN']
 for x in model_order:
     sorted_res.append(res[model_types==x,:])
 
@@ -54,13 +54,13 @@ for i,x in enumerate(model_names):
 
 legend = plt.legend(loc='lower right', shadow=False)
 plt.savefig("../%s/%s_compare4_KNN.pdf" % (dataname,dataname))
-
-plt.figure(figsize=(5, 5))
-colors = ('r','g','b','y','m','c')
-for i in [0,2,3]:
-    x = model_names[i]
-    plt.plot(KNeighbors, filtered_res[:,i],colors[i],label=x)
-
-legend = plt.legend(loc='lower right', shadow=False)
-plt.savefig("../%s/%s_compare3_KNN.pdf" % (dataname,dataname))
-
+#
+# plt.figure(figsize=(5, 5))
+# colors = ('r','g','b','y','m','c')
+# for i in [0,2,3]:
+#     x = model_names[i]
+#     plt.plot(KNeighbors, filtered_res[:,i],colors[i],label=x)
+#
+# legend = plt.legend(loc='lower right', shadow=False)
+# plt.savefig("../%s/%s_compare3_KNN.pdf" % (dataname,dataname))
+#

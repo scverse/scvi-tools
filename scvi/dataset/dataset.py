@@ -141,8 +141,8 @@ class GeneExpressionDataset(Dataset):
         for attr_name in ['_X', 'labels', 'batch_indices', 'local_means', 'local_vars']:
             setattr(self, attr_name, getattr(self, attr_name)[subset_cells])
         self.library_size_batch()
-        if hasattr(self,'cell_types'):
-            self.cell_types = self.cell_types[np.unique(self.labels)]
+        if hasattr(self,'cell_types') and len(self.cell_types)>1:
+            self.cell_types = self.cell_types[np.unique(self.labels.ravel())]
             self.labels = rank(self.labels.ravel()).reshape(len(self.labels),1)
             self.n_labels = len(self.cell_types)
         self.n_batches = len(np.unique(self.batch_indices.ravel()))

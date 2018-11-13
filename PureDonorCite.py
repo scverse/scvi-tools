@@ -66,8 +66,6 @@ for i,cell_type in enumerate(cell_types):
     datasets += [dataset]
 
 pure = GeneExpressionDataset.concat_datasets(*datasets, shared_batches=True)
-pure.filter_cell_types(["CD4 T cells Regulatory", "CD4 T cells Naive", "CD4 Memory T cells",  "CD8 T cells Naive",
-                       "B cells", "CD34 cells", "NK cells", "CD14+ Monocytes"])
 
 datasets=[]
 

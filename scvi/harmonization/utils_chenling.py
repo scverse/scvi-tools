@@ -98,8 +98,6 @@ def trainVAE(gene_dataset, filename, rep, nlayers=2,n_hidden=128):
     else:
         trainer.train(n_epochs=250)
         torch.save(trainer.model,'../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl')
-    batch_entropy = trainer.train_set.entropy_batch_mixing()
-    print("Entropy batch mixing :", batch_entropy)
     full = trainer.create_posterior(trainer.model, gene_dataset, indices=np.arange(len(gene_dataset)))
     return full
 
@@ -107,8 +105,11 @@ def VAEstats(full):
     ll = full.ll(verbose=True)
     latent, batch_indices, labels = full.sequential().get_latent()
     batch_indices = batch_indices.ravel()
-    sample = select_indices_evenly(2000, batch_indices)
-    batch_entropy = entropy_batch_mixing(latent[sample, :], batch_indices[sample])
+    if len(np.unique(batch_indices))==2:
+        sample = select_indices_evenly(np.min(np.unique(batch_indices,return_counts=True)[1]), batch_indices)
+        batch_entropy = entropy_batch_mixing(latent[sample, :], batch_indices[sample])
+    else:
+        batch_entropy = -1
     labels = labels.ravel()
     stats = [ll,batch_entropy,-1,-1,np.arange(0,len(labels))]
     return latent, batch_indices, labels, stats
@@ -116,9 +117,13 @@ def VAEstats(full):
 def SCANVIstats(trainer_scanvi,gene_dataset):
     full = trainer_scanvi.create_posterior(trainer_scanvi.model, gene_dataset, indices=np.arange(len(gene_dataset)))
     ll = full.ll(verbose=True)
-    batch_entropy = full.entropy_batch_mixing()
     latent, batch_indices, labels = full.sequential().get_latent()
     batch_indices = batch_indices.ravel()
+    if len(np.unique(batch_indices))==2:
+        sample = select_indices_evenly(np.min(np.unique(batch_indices,return_counts=True)[1]), batch_indices)
+        batch_entropy = entropy_batch_mixing(latent[sample, :], batch_indices[sample])
+    else:
+        batch_entropy = -1
     labelled_idx = trainer_scanvi.labelled_set.indices
     unlabelled_idx = trainer_scanvi.unlabelled_set.indices
     trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(trainer_scanvi.model, gene_dataset,
@@ -294,9 +299,9 @@ def eval_latent(batch_indices, labels, latent, keys, labelled_idx=None,unlabelle
     if partial_only==False:
         res_knn = clustering_scores(np.asarray(latent), labels, 'knn')
         res_kmeans = clustering_scores(np.asarray(latent), labels, 'KMeans')
-    sample = select_indices_evenly(2000, batch_indices)
-    batch_entropy = entropy_batch_mixing(latent[sample, :], batch_indices[sample])
-    print("Entropy batch mixing :", batch_entropy)
+    # sample = select_indices_evenly(2000, batch_indices)
+    # batch_entropy = entropy_batch_mixing(latent[sample, :], batch_indices[sample])
+    # print("Entropy batch mixing :", batch_entropy)
     if plotting==True and (os.path.isfile('../'+plotname+'.labels.pdf') is False):
         sample = select_indices_evenly(2000, labels)
         if plotname is not None:
@@ -309,7 +314,7 @@ def eval_latent(batch_indices, labels, latent, keys, labelled_idx=None,unlabelle
             label_s = labels[sample]
             batch_s = batch_indices[sample]
             if latent_s.shape[1] != 2:
-                latent_s = UMAP().fit_transform(latent_s)
+                latent_s = UMAP(spread=2).fit_transform(latent_s)
             fig, ax = plt.subplots(figsize=(18, 18))
             key_order = np.argsort(keys)
             for i,k in enumerate(key_order):
@@ -453,7 +458,7 @@ def CompareModels(gene_dataset, dataset1, dataset2, plotname, models):
                                 batch_indices == 1, batch_indices == 0,
                                 plotname=plotname + '.' + model_type, plotting=False)
 
-                sample = select_indices_evenly(2000, batch_indices)
+                sample = select_indices_evenly(np.min(np.unique(batch_indices,return_counts=True)[1]), batch_indices)
                 batch_entropy = entropy_batch_mixing(latent[sample, :], batch_indices[sample])
 
                 res = [res_knn[x] for x in ['asw', 'nmi', 'ari', 'ca', 'weighted ca']] + \

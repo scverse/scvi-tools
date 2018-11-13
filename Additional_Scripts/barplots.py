@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 
 dataname = str(sys.argv[1])
-# criteria = str(sys.argv[2])
+criteria = str(sys.argv[2])
 
 scvi = pd.read_table('../' + dataname + '/scvi.res.txt',delim_whitespace=True)
 others = pd.read_table('../' + dataname + '/others.res.txt',delim_whitespace=True)
@@ -27,15 +27,15 @@ model_types = np.unique(model_types)
 res = np.asarray(res)
 
 sorted_res=[]
-# model_order = ['vae', 'scanvi','readSeurat', 'MNN','Combat','PCA']
-# model_names = ['scVI','SCAN-VI','CCA','MNN','Combat','PCA']
+model_order = ['vae', 'scanvi','scanvi1','scanvi2','readSeurat', 'MNN','Combat','PCA']
+model_names = ['scVI','SCAN-VI','SCAN-VI1','SCAN-VI2','CCA','MNN','Combat','PCA']
 
 
-# model_order = ['vae', 'scanvi','readSeurat']
-# model_names = ['scVI','SCAN-VI','CCA','SCMAP']
+# model_order = ['vae', 'readSeurat','MNN']
+# model_names = ['scVI','CCA','MNN']
 
-model_order = ['vae']
-model_names = ['scVI','SCMAP']
+# model_order = ['vae']
+# model_names = ['scVI','SCMAP']
 scmap = res[model_types=='scmap',:][0]
 
 sorted_res = []
@@ -51,27 +51,25 @@ scmap1 = scmap[13]
 scmap2 =  scmap[18]
 
 
-criteria = 'p1_knn_uca'
+# criteria = 'BE'
 filtered_res = np.asarray(sorted_res[:, stat_names==criteria]).ravel()
-filtered_res = np.append(filtered_res,scmap1)
+# filtered_res = np.append(filtered_res,scmap1)
 #
 # filtered_res = np.asarray(sorted_res[:, stat_names==criteria]).ravel()
 #
-plt.figure(figsize=(5, 5))
-# colors = ('r','g','b','y','m','c')
-plt.bar(np.arange(len(model_names)), filtered_res, color=['black', 'red', 'green', 'blue', 'cyan'][:len(filtered_res)])
+plt.figure(figsize=(5, 3))
+colors = ['red','green','blue','yellow','magenta','cyan']
+plt.bar(np.arange(len(model_names)), filtered_res, color=colors[:len(filtered_res)])
 plt.xticks(np.arange(len(model_names)), model_names)
-plt.savefig("../%s/%s_%s_barplot_scmapvae.pdf" % (dataname,dataname,criteria))
-
-criteria = 'p2_knn_uca'
-filtered_res = np.asarray(sorted_res[:, stat_names==criteria]).ravel()
-filtered_res = np.append(filtered_res,scmap2)
+plt.savefig("../%s/%s_%s_barplot.pdf" % (dataname,dataname,criteria))
+#
+# filtered_res = np.asarray(sorted_res[:, stat_names==criteria]).ravel()
+# filtered_res = np.append(filtered_res,scmap2)
 #
 # filtered_res = np.asarray(sorted_res[:, stat_names==criteria]).ravel()
 #
-plt.figure(figsize=(5, 5))
-# colors = ('r','g','b','y','m','c')
-plt.bar(np.arange(len(model_names)), filtered_res, color=['black', 'red', 'green', 'blue', 'cyan'][:len(filtered_res)])
-plt.xticks(np.arange(len(model_names)), model_names)
-plt.savefig("../%s/%s_%s_barplot_scmapvae.pdf" % (dataname,dataname,criteria))
-
+# plt.figure(figsize=(5, 5))
+# plt.bar(np.arange(len(model_names)), filtered_res, color=colors[:len(filtered_res)])
+# plt.xticks(np.arange(len(model_names)), model_names)
+# plt.savefig("../%s/%s_%s_barplot_scmapvae.pdf" % (dataname,dataname,criteria))
+#

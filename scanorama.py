@@ -31,57 +31,63 @@ all_dataset.batch_indices = all_dataset.batch_indices.astype('int')
 
 from scvi.harmonization.utils_chenling import trainVAE,VAEstats
 # full = trainVAE(all_dataset, 'scanorama', 1, nlayers=3,n_hidden=256)
-# full = trainVAE(all_dataset, 'scanorama', 0) #  nlayers=2,n_hidden=128
-full = trainVAE(all_dataset, 'scanorama', 2, nlayers=3,n_hidden=128)
+full = trainVAE(all_dataset, 'scanorama', 0) #  nlayers=2,n_hidden=128
+# full = trainVAE(all_dataset, 'scanorama', 2, nlayers=3,n_hidden=128)
 
 # for 250 iterations, takes 45:14 to train VAE
 latent, batch_indices, labels, stats = VAEstats(full)
-# 1:05:58 for the more complex model
-    # , clustering_scores,clustering_accuracy
-plotname='scanorama'
-sample = select_indices_evenly(2000, batch_indices)
-colors = sns.color_palette('bright') + \
-         sns.color_palette('muted') + \
-         sns.color_palette('pastel') + \
-         sns.color_palette('dark') + \
-         sns.color_palette('colorblind')
+from scvi.metrics.clustering import clustering_scores
+res_knn = clustering_scores(np.asarray(latent), labels, 'knn')
+res_kmeans = clustering_scores(np.asarray(latent), labels, 'KMeans')
 
-
-from umap import UMAP
-
-latent_s = latent[sample, :]
-label_s = labels[sample]
-batch_s = batch_indices[sample]
-if latent_s.shape[1] != 2:
-    latent_s = UMAP().fit_transform(latent_s)
-
-keys = all_dataset.cell_types
-fig, ax = plt.subplots(figsize=(20, 18))
-key_order = np.argsort(keys)
-for i, k in enumerate(key_order):
-    ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i % 30], label=keys[k],
-               edgecolors='none')
-    ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
-
-fig.tight_layout()
-plt.savefig('../' + plotname + '.3l_128.umap.equalBatchsize.labels.pdf')
-
-
-keys = dirs
-fig, ax = plt.subplots(figsize=(20, 14))
-key_order = np.argsort(keys)
-
-colors = sns.light_palette("navy",4, reverse=True) + \
-sns.light_palette("gray",1, reverse=True) + \
-sns.light_palette("orange",4, reverse=True) + \
-sns.light_palette("purple",2,reverse=True) + \
-sns.light_palette("green",5,reverse=True) + \
-sns.light_palette("red",10,reverse=True)
-
-for k in key_order:
-    ax.scatter(latent_s[batch_s == k, 0], latent_s[batch_s == k, 1], c=colors[k], label=keys[k],
-               edgecolors='none')
-    ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
-
-fig.tight_layout()
-plt.savefig('../' + plotname + '.3l_128.umap.equalBatchsize.batches.pdf')
+# # 1:05:58 for the more complex model
+#     # , clustering_scores,clustering_accuracy
+# plotname='scanorama'
+# sample = select_indices_evenly(2000, batch_indices)
+# colors = sns.color_palette('bright') + \
+#          sns.color_palette('muted') + \
+#          sns.color_palette('pastel') + \
+#          sns.color_palette('dark') + \
+#          sns.color_palette('colorblind')
+#
+#
+# from umap import UMAP
+#
+# latent_s = latent[sample, :]
+# label_s = labels[sample]
+# batch_s = batch_indices[sample]
+# if latent_s.shape[1] != 2:
+#     latent_s = UMAP().fit_transform(latent_s)
+#
+# keys = all_dataset.cell_types
+# fig, ax = plt.subplots(figsize=(20, 18))
+# key_order = np.argsort(keys)
+# for i, k in enumerate(key_order):
+#     ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i % 30], label=keys[k],
+#                edgecolors='none')
+#     # ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
+# fig.patch.set_visible(False)
+# ax.axis('off')
+# fig.tight_layout()
+# plt.savefig('../' + plotname + '.2l_128.umap.labels.pdf')
+#
+#
+# keys = dirs
+# fig, ax = plt.subplots(figsize=(20, 14))
+# key_order = np.argsort(keys)
+#
+# colors = sns.light_palette("navy",4, reverse=True) + \
+# sns.light_palette("gray",1, reverse=True) + \
+# sns.light_palette("orange",4, reverse=True) + \
+# sns.light_palette("purple",2,reverse=True) + \
+# sns.light_palette("green",5,reverse=True) + \
+# sns.light_palette("red",10,reverse=True)
+#
+# for k in key_order:
+#     ax.scatter(latent_s[batch_s == k, 0], latent_s[batch_s == k, 1], c=colors[k], label=keys[k],
+#                edgecolors='none')
+#     # ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
+# fig.patch.set_visible(False)
+# ax.axis('off')
+# fig.tight_layout()
+# plt.savefig('../' + plotname + '.2l_128.umap.batches.pdf')

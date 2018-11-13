@@ -28,6 +28,15 @@ seurat, batch_indices, labels, keys, stats = run_model('readSeurat', gene_datase
 dataset1, dataset2, gene_dataset = SubsetGenes(dataset1, dataset2, gene_dataset, plotname)
 vae,  _, _, _, _ = run_model('vae', gene_dataset, dataset1, dataset2,filename=plotname, rep='0')
 
+latent = vae
+sample = select_indices_evenly(3000, batch_indices)
+latent_s = latent[sample, :]
+label_s = labels[sample]
+batch_s = batch_indices[sample]
+if latent_s.shape[1] != 2:
+    latent_s = UMAP(n_neighbors=10, min_dist=0.001).fit_transform(latent_s)
+
+
 sorted_key = [
     'hematopoietic precursor cell','Slamf1-positive multipotent progenitor cell','Slamf1-negative multipotent progenitor cell',
     'common lymphoid progenitor',
@@ -45,24 +54,16 @@ key_order = [list(keys).index(x) for x in sorted_key]
 
 
 colors = sns.cubehelix_palette(3, start=0,rot=0,light=0.65,dark=0.3,hue=1) + \
-sns.cubehelix_palette(1,start=2.7,rot=0,light=0.65, dark=0.3,hue=1) + \
+sns.cubehelix_palette(1,start=2.8,rot=0,light=0.65, dark=0.3,hue=1) + \
 sns.cubehelix_palette(3, start=0.3,rot=0, light=0.65, dark=0.3,hue=1) + \
-sns.cubehelix_palette(4, start=2.4,rot=0, light=0.65, dark=0.3,hue=1) + \
+sns.cubehelix_palette(4, start=2.5,rot=0, light=0.65, dark=0.3,hue=1) + \
 sns.cubehelix_palette(7,start=0.6,rot=0, light=0.65, dark=0.3,hue=1) + \
-sns.cubehelix_palette(3,start=2.1,rot=0, light=0.65, dark=0.3,hue=1) + \
+sns.cubehelix_palette(3,start=2.0,rot=0, light=0.65, dark=0.3,hue=1) + \
 sns.cubehelix_palette(2,start=0.9,rot=0, light=0.65, dark=0.3,hue=1) + \
 sns.cubehelix_palette(3,start=1.8,rot=0, light=0.65, dark=0.3,hue=1) + \
 sns.cubehelix_palette(1,start=1.2,rot=0, light=0.65, dark=0.3,hue=1) + \
 sns.cubehelix_palette(1,start=1.5,rot=0, light=0.65, dark=0.3,hue=1) + \
-sns.cubehelix_palette(1,start=3,rot=0, light=0.65, dark=0.3,hue=1)
-
-latent = vae
-sample = select_indices_evenly(3000, batch_indices)
-latent_s = latent[sample, :]
-label_s = labels[sample]
-batch_s = batch_indices[sample]
-if latent_s.shape[1] != 2:
-    latent_s = UMAP().fit_transform(latent_s)
+sns.light_palette('gray',1,reverse=True)
 
 fig, ax = plt.subplots(figsize=(18, 18))
 for i, k in enumerate(key_order):
@@ -73,7 +74,18 @@ for i, k in enumerate(key_order):
 fig.patch.set_visible(False)
 ax.axis('off')
 fig.tight_layout()
+plt.savefig('../' + plotname + '.vae.pretty.labels.txt.pdf')
+
+fig, ax = plt.subplots(figsize=(18, 18))
+for i, k in enumerate(key_order):
+    ax.scatter(latent_s[label_s == k, 0], latent_s[label_s == k, 1], c=colors[i], label=keys[k],
+               edgecolors='none')
+
+fig.patch.set_visible(False)
+ax.axis('off')
+fig.tight_layout()
 plt.savefig('../' + plotname + '.vae.pretty.labels.pdf')
+
 
 plt.figure(figsize=(18, 18))
 plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
@@ -82,7 +94,6 @@ plt.tight_layout()
 plt.savefig('../' + plotname + '.vae.pretty.batchid.pdf')
 
 
-latent = seurat
 sample = select_indices_evenly(2000, labels)
 if plotname is not None:
     latent_s = latent[sample, :]
