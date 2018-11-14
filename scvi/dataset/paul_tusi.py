@@ -24,10 +24,10 @@ class Paul(GeneExpressionDataset):
                                          'Ery3', #4
                                          'Ery2', #5
                                          'Ery1', #6
-                                         'PreEry', #7
+                                         'Ery0', #7
                                          'MegaK', #8
-                                         'PreNeu', #9
-                                         'PreMono', #10
+                                         'Neu0', #9
+                                         'Mono0', #10
                                          'DC', #11
                                          'Baso1', #12
                                          'Baso2', #13

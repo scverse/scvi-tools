@@ -40,6 +40,13 @@ from scvi.metrics.clustering import clustering_scores
 res_knn = clustering_scores(np.asarray(latent), labels, 'knn')
 res_kmeans = clustering_scores(np.asarray(latent), labels, 'KMeans')
 
+celltype_names = ['293t', 'CD19+ B cells', 'Hsc CMP', 'Hsc GMP', 'PBMC CD14+ monocyte', 'Hsc MEP', 'PBMC CD56+ NK', 'PBMC T cells', 'PBMC CD4 T cells', 'PBMC CD8 T cells','Hsc Unknown', 'Pancreas Acinar', 'Pancreas Alpha', 'Pancreas Beta', 'Pancreas Beta(ER stress)', 'Pancreas Delta', 'Pancreas Ductal','Pancreas Endothelial', 'Pancreas Gamma', 'Jurkat', 'Macrophage', 'Neuron', 'Pancreas Unknown','Pancreas  Stellate']
+plt.figure(figsize=(5, 4))
+order = np.argsort(res_knn['clusteracc'])
+plt.bar(np.arange(len(all_dataset.cell_types)), np.asarray(res_knn['clusteracc'])[order])
+plt.xticks(np.arange(len(all_dataset.cell_types)), np.asarray(celltype_names)[order],rotation='vertical')
+plt.tight_layout()
+plt.savefig("/data/scanorama/acc_barplot.pdf")
 # # 1:05:58 for the more complex model
 #     # , clustering_scores,clustering_accuracy
 # plotname='scanorama'

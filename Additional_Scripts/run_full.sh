@@ -22,18 +22,18 @@
 #python Simulation3.py others &> ../Sim3/others.log
 
 
-python Tech2.py scvi
-python Tech2.py others
-
-python PopRemove.py
-python NoOverlap.py
-
-python Easycase1.compare.py scvi
-python Easycase1.compare.py others
-
-python Tech1.py scvi
-python Tech1.py others
-
 python Easycase2.compare.py scvi
 python Easycase2.compare.py others
+
+python Tech2.py scvi
+python Tech2.py others
+#
+#python PopRemove.py
+#python NoOverlap.py
+#
+#python Easycase1.compare.py scvi
+#python Easycase1.compare.py others
+#
+#python Tech1.py scvi
+#python Tech1.py others
 
