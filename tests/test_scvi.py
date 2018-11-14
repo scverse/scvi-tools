@@ -20,6 +20,7 @@ import pickle
 
 use_cuda = True
 
+
 def test_cortex(save_path):
     with open('test_path', 'wb') as file:
         pickle.dump(save_path, file)
