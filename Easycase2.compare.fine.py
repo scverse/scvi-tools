@@ -13,31 +13,39 @@ dataset2 = RegevDataset(coarse=False)
 # dataset2.subsample_genes(20000)
 dataset1.subsample_genes(dataset1.nb_genes)
 dataset2.subsample_genes(dataset2.nb_genes)
+from scvi.harmonization.utils_chenling import SubsetGenes
 gene_dataset = GeneExpressionDataset.concat_datasets(dataset1, dataset2)
-CompareModels(gene_dataset,dataset1,dataset1,plotname,'others')
+dataset1, dataset2, gene_dataset = SubsetGenes(dataset1, dataset2, gene_dataset, 'Macosko_Regev')
 
-
-
-dict1 = dict(zip(dataset1.cell_types, dataset1.groups[dataset1.labels_groups]))
-dict2 = dict(zip(dataset2.cell_types, dataset2.groups[dataset2.labels_groups]))
-dict_merged = {**dict1, **dict2}
+groups = ['Pvalb', 'L2/3', 'Sst', 'L5 PT', 'L5 IT Tcap', 'L5 IT Aldh1a7', 'L5 IT Foxp2', 'L5 NP',
+                      'L6 IT', 'L6 CT', 'L6 NP', 'L6b', 'Lamp5', 'Vip', 'Astro', 'OPC', 'VLMC', 'Oligo', 'Sncg', 'Endo',
+                      'SMC', 'MICRO']
+groups = np.asarray([x.upper() for x in groups])
+cell_type_bygroup = np.concatenate([[x for x in gene_dataset.cell_types if x.startswith(y)] for y in groups])
+new_labels_dict = dict(zip(cell_type_bygroup, np.arange(len(cell_type_bygroup))))
+labels = np.asarray([gene_dataset.cell_types[x] for x in gene_dataset.labels.ravel()])
+new_labels = np.asarray([new_labels_dict[x] for x in labels])
+labels_groups = [[i for i, x in enumerate(groups) if y.startswith(x)][0] for y in cell_type_bygroup]
+dict_merged = dict(zip(cell_type_bygroup, groups[labels_groups]))
 cell_groups = [dict_merged[x] for x in gene_dataset.cell_types]
-gene_dataset.groups, gene_dataset.groups_labels = np.unique(cell_groups,return_inverse=True)
-for i in np.unique(gene_dataset.groups_labels):
-    print(gene_dataset.cell_types[gene_dataset.groups_labels==i])
+gene_dataset.groups, gene_dataset.labels_groups = np.unique(cell_groups,return_inverse=True)
+for i in np.unique(labels_groups):
+    print(cell_type_bygroup[labels_groups==i])
 
-freq = np.unique(gene_dataset.labels,return_counts=True)[1]
-for i in np.unique(gene_dataset.groups_labels):
-    print(freq[gene_dataset.groups_labels==i])
+freq = np.unique(new_labels,return_counts=True)[1]
+for i in np.unique(labels_groups):
+    print(freq[labels_groups==i])
 
+gene_dataset.labels = new_labels
+gene_dataset.cell_types = cell_type_bygroup
 
 from scvi.harmonization.utils_chenling import trainVAE, SCANVI,SemiSupervisedTrainer
-vae_posterior = trainVAE(gene_dataset,filename='Zeng',rep='1')
+vae_posterior = trainVAE(gene_dataset,filename='Macosko_Regev',rep='0')
 ##########################################################################
 # hierarchical
 ##########################################################################
 scanvi = SCANVI(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels, n_layers=2,
-                labels_groups=gene_dataset.groups_labels,use_labels_groups=True)
+                labels_groups=gene_dataset.labels_groups,use_labels_groups=True)
 scanvi.load_state_dict(vae_posterior.model.state_dict(), strict=False)
 trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=50,
                                        n_epochs_classifier=1, lr_classification=5 * 1e-3)
@@ -45,11 +53,14 @@ trainer_scanvi.train(n_epochs=50)
 import torch
 torch.save(trainer_scanvi.model, '../Macosko_Regev/scanvi.hier.pkl')
 full = trainer_scanvi.create_posterior(trainer_scanvi.model, gene_dataset, indices=np.arange(len(gene_dataset)))
-acc = full.hierarchical_accuracy(verbose=True)
-print(acc)
+all_y, all_y_pred = full.compute_predictions()
+acc = np.mean(all_y == all_y_pred)
+all_y_groups = np.array([gene_dataset.labels_groups[y] for y in all_y])
+all_y_pred_groups = np.array([gene_dataset.labels_groups[y] for y in all_y_pred])
+h_acc = np.mean(all_y_groups == all_y_pred_groups)
 
-# acc: 0.40706513409961687
-# h_acc: 0.569088122605364
+# acc: 0.5097011494252873
+# h_acc: 0.5340383141762453
 ##########################################################################
 # not hierarchical
 ##########################################################################
@@ -63,11 +74,11 @@ import torch
 torch.save(trainer_scanvi.model, '../Macosko_Regev/scanvi.fine.pkl')
 all_y, all_y_pred = full.compute_predictions()
 acc = np.mean(all_y == all_y_pred)
-all_y_groups = np.array([gene_dataset.groups_labels[y] for y in all_y])
-all_y_pred_groups = np.array([gene_dataset.groups_labels[y] for y in all_y_pred])
+all_y_groups = np.array([gene_dataset.labels_groups[y] for y in all_y])
+all_y_pred_groups = np.array([gene_dataset.labels_groups[y] for y in all_y_pred])
 h_acc = np.mean(all_y_groups == all_y_pred_groups)
-# acc: 0.5251340996168582
-# hacc: 0.6727816091954023
+# acc: 0.4495785440613027
+# hacc: 0.4787432950191571
 ##########################################################################
 # coarse
 ##########################################################################
@@ -86,8 +97,7 @@ torch.save(trainer_scanvi.model, '../Macosko_Regev/scanvi.coarse.pkl')
 full = trainer_scanvi.create_posterior(trainer_scanvi.model, gene_dataset, indices=np.arange(len(gene_dataset)))
 all_y, all_y_pred = full.compute_predictions()
 acc = np.mean(all_y == all_y_pred)
-# acc 0.3812107279693487
-
+# acc: 0.5303601532567049
 
 #
 # if model_type=='scanvi1':
