@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
 
-from .dataset import GeneExpressionDataset
+from .dataset import GeneExpressionDataset, arrange_categories
 
+# See below for CBMC dataset
 available_datasets = {
-    "cbmc": "CBMC_8K_13AB_10X",
     "pbmc": "PBMC_vs_flow_10X",
     "cd8": "CD8_merged"
 }
@@ -69,7 +69,7 @@ class CiteSeqDataset(GeneExpressionDataset):
         return expression_data
 
 
-class CbmcDataset(CiteSeqDataset):
+class CbmcDataset(GeneExpressionDataset):
     r""" Loads cbmc dataset.
 
     This dataset that includes 8,617 cord blood mononuclear cells profiled using 10x along with for each cell 13
@@ -84,14 +84,54 @@ class CbmcDataset(CiteSeqDataset):
 
     """
     def __init__(self, save_path='data/citeSeq/', additional_genes=600, mode='total', CD45RA=False):
+        name ='cbmc'
         self.additional_genes = additional_genes
         self.CD45RA = CD45RA
-        super(CbmcDataset, self).__init__(name="cbmc", save_path=save_path)
+        self.save_path = save_path + name + '/'
 
-        # This maintains the library statistics for just umi counts
+        s = 'CBMC_8K_13AB_10X'
+        url_rna, url_adt, url_adt_clr, url_clusters = (
+            "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/GSE100866_%s-RNA_umi.csv.gz" % s,
+            "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/GSE100866_%s-ADT_umi.csv.gz" % s,
+            "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/"
+            "GSE100866_%s-ADT_clr-transformed.csv.gz" % s,
+            "https://github.com/adamgayoso/scVI/raw/cite-vi-develop/tests/data/citeSeq/cbmc/clusters.csv.gz"
+        )
+        self.urls = [url_rna, url_adt, url_adt_clr, url_clusters]
+        # Their centered log ratio transformation for ADT counts is different from the standard clr transformation :
+        # they explain they add pseudocounts (for 0 values), but do not explicit the actual transformation,
+        # which doesn't seem to be simply be adding count 1 to all entries, or only 0 entries
+
+        self.download_name_rna = '%s_rna.csv.gz' % name
+        self.download_name_adt = '%s_adt.csv.gz' % name
+        self.download_name_adt_centered = '%s_adt_centered.csv.gz' % name
+        self.download_name_clusters = '%s_clusters.csv.gz' % name
+        self.download_names = (
+            self.download_name_rna,
+            self.download_name_adt,
+            self.download_name_adt_centered,
+            self.download_name_clusters
+        )
+
+        expression_data = self.download_and_preprocess()
+
+        super(CbmcDataset, self).__init__(
+            *self.get_attributes_from_matrix(expression_data)
+        )
+        # This maintains the library statistics for only umi counts
         if mode == 'total':
             self._X = np.ascontiguousarray(np.concatenate([self._X, self.adt_expression], axis=1), dtype=np.float32)
             self.indexes_adt = np.arange(self._X.shape[1])[-len(self.protein_markers):]
+
+        # Clusters (metadata)
+        # csv of umi barcodes and cell type name
+        clus = pd.read_csv(self.save_path + self.download_name_clusters, header=None, compression='gzip').values[:, 1]
+        clus_dict = {}
+        for i, c in enumerate(np.unique(clus)):
+            clus_dict[c] = i
+        clus_nums = np.array([clus_dict[c] for c in clus])
+        self.labels, self.n_labels = arrange_categories(clus_nums)
+        self.cell_types = clus
 
     def preprocess(self):
         print("Preprocessing cbmc data")
@@ -120,8 +160,9 @@ class CbmcDataset(CiteSeqDataset):
             np.array([name.split('_')[-1] if '_' in name else name for name in gene_symbols], dtype=np.str)
         )
         self.kept_gene_symbols = self.gene_symbols[gene_inds]
+
         # ADTs
-        self.adt = pd.read_csv(self.save_path + self.download_name_adt, index_col=0, compression='gzip')
+        self.adt = pd.read_csv(self.save_path + self.download_name_adt, index_col=0)
         # Remove CCR5, CCR7, and CD10 due to poor enrichments
         # as done in https://satijalab.org/seurat/multimodal_vignette.html
         self.adt = self.adt.drop(['CCR5', 'CCR7', 'CD10'], axis=0)
