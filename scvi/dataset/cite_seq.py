@@ -89,7 +89,7 @@ class CbmcDataset(GeneExpressionDataset):
 
     """
 
-    def __init__(self, save_path='data/citeSeq/', additional_genes=None, mode='total', CD45RA=True):
+    def __init__(self, save_path='data/citeSeq/', additional_genes=None, mode='umi', CD45RA=True):
         name = 'cbmc'
         self.additional_genes = additional_genes
         self.CD45RA = CD45RA
