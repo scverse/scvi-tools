@@ -212,3 +212,25 @@ def test_notebooks():
     finally:
         if existing_config_to_restore:
             shutil.move(path + config_filename_tmp, path + config_filename)
+
+    prefix = 'CITE_seq_scVI'
+    # if exists, save and overwrite
+    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
+    config_filename_tmp = prefix + '.config.tmp.json'
+
+    # Save content in memory in tmp file
+    existing_config_to_restore = os.path.exists(path + config_filename)
+    if existing_config_to_restore:
+        shutil.copy(path + config_filename, path + config_filename_tmp)
+
+    # Overwritting
+    shutil.copy(test_path + config_filename, path + config_filename)
+    try:
+        import notebooks.CITE_seq_scVI
+        notebooks.CITE_seq_scVI.allow_notebook_for_test()
+        plt.close('all')
+    except BaseException:
+        raise
+    finally:
+        if existing_config_to_restore:
+            shutil.move(path + config_filename_tmp, path + config_filename)
