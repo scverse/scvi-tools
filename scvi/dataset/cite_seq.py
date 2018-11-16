@@ -83,7 +83,7 @@ class CbmcDataset(GeneExpressionDataset):
         >>> gene_dataset = CbmcDataset()
 
     """
-    def __init__(self, save_path='data/citeSeq/', additional_genes=600, mode='total', CD45RA=False):
+    def __init__(self, save_path='data/citeSeq/', additional_genes=None, mode='total', CD45RA=True):
         name ='cbmc'
         self.additional_genes = additional_genes
         self.CD45RA = CD45RA
@@ -95,7 +95,7 @@ class CbmcDataset(GeneExpressionDataset):
             "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/GSE100866_%s-ADT_umi.csv.gz" % s,
             "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/"
             "GSE100866_%s-ADT_clr-transformed.csv.gz" % s,
-            "https://github.com/adamgayoso/scVI/raw/cite-vi-develop/tests/data/citeSeq/cbmc/clusters.csv.gz"
+            "https://github.com/YosefLab/scVI-data/raw/master/clusters.csv.gz"
         )
         self.urls = [url_rna, url_adt, url_adt_clr, url_clusters]
         # Their centered log ratio transformation for ADT counts is different from the standard clr transformation :
@@ -127,11 +127,13 @@ class CbmcDataset(GeneExpressionDataset):
         # csv of umi barcodes and cell type name
         clus = pd.read_csv(self.save_path + self.download_name_clusters, header=None, compression='gzip').values[:, 1]
         clus_dict = {}
+        cell_types = []
         for i, c in enumerate(np.unique(clus)):
             clus_dict[c] = i
+            cell_types.append(c)
         clus_nums = np.array([clus_dict[c] for c in clus])
         self.labels, self.n_labels = arrange_categories(clus_nums)
-        self.cell_types = clus
+        self.cell_types = np.array(cell_types)
 
     def preprocess(self):
         print("Preprocessing cbmc data")
@@ -159,13 +161,18 @@ class CbmcDataset(GeneExpressionDataset):
         self.gene_symbols = np.char.upper(
             np.array([name.split('_')[-1] if '_' in name else name for name in gene_symbols], dtype=np.str)
         )
-        self.kept_gene_symbols = self.gene_symbols[gene_inds]
+        if self.additional_genes is not None:
+            self.kept_gene_symbols = self.gene_symbols[gene_inds]
 
         # ADTs
         self.adt = pd.read_csv(self.save_path + self.download_name_adt, index_col=0)
         # Remove CCR5, CCR7, and CD10 due to poor enrichments
         # as done in https://satijalab.org/seurat/multimodal_vignette.html
-        self.adt = self.adt.drop(['CCR5', 'CCR7', 'CD10'], axis=0)
+        try:
+            print('Dropping poorly enriched proteins')
+            self.adt = self.adt.drop(['CCR5', 'CCR7', 'CD10'], axis=0)
+        except:
+            print('Poorly enriched proteins already filtered')
         if self.CD45RA is False:
             print('Dropping CD45RA')
             self.adt = self.adt.drop(['CD45RA'], axis=0)
