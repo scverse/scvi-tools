@@ -179,6 +179,12 @@ class CbmcDataset(GeneExpressionDataset):
         # ADTs
         self.adt = pd.read_csv(
             self.save_path + self.download_name_adt, index_col=0)
+
+        # Poorly enriched proteins not dropped from adt_expression_clr
+        # This is necessary for the scVI_reproducibility
+        self.adt_centered = adt_centered = pd.read_csv(self.save_path + self.download_name_adt_centered, index_col=0,
+                                                       compression='gzip')
+        self.adt_expression_clr = adt_centered.T.values
         # Remove CCR5, CCR7, and CD10 due to poor enrichments
         # as done in https://satijalab.org/seurat/multimodal_vignette.html
         try:
@@ -192,6 +198,7 @@ class CbmcDataset(GeneExpressionDataset):
         self.adt = self.adt.loc[:, to_keep]
         self.adt_expression = self.adt.T.values
         self.protein_markers = np.array(self.adt.index).astype(np.str)
+
 
         print("Finish preprocessing data")
         return expression_data
