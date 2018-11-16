@@ -199,6 +199,5 @@ class CbmcDataset(GeneExpressionDataset):
         self.adt_expression = self.adt.T.values
         self.protein_markers = np.array(self.adt.index).astype(np.str)
 
-
         print("Finish preprocessing data")
         return expression_data
