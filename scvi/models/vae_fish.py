@@ -42,7 +42,7 @@ class VAEF(VAE):
     def __init__(self, n_input, indexes_fish_train=None, n_batch=0, n_labels=0, n_hidden=128, n_latent=10,
                  n_layers_decoder=1, n_layers_shared=1, dropout_rate=0.3,
                  dispersion="gene", log_variational=True, reconstruction_loss="zinb",
-                 reconstruction_loss_fish="poisson", model_library=False):
+                 reconstruction_loss_fish="poisson", model_library_seq=True, model_library_fish=False):
         super(VAEF, self).__init__(n_input, dispersion=dispersion, n_latent=n_hidden, n_hidden=n_hidden,
                                    log_variational=log_variational, dropout_rate=dropout_rate, n_layers=1,
                                    reconstruction_loss=reconstruction_loss, n_batch=n_batch, n_labels=n_labels)
@@ -50,7 +50,8 @@ class VAEF(VAE):
         self.n_input_fish = len(indexes_fish_train)
         self.indexes_to_keep = indexes_fish_train
         self.reconstruction_loss_fish = reconstruction_loss_fish
-        self.model_library = model_library
+        self.model_library_seq = model_library_seq
+        self.model_library_fish = model_library_fish
         self.n_latent = n_latent
         # First layer of the encoder isn't shared
         self.z_encoder_fish = Encoder(self.n_input_fish, n_hidden, n_hidden=n_hidden, n_layers=1,
@@ -136,42 +137,42 @@ class VAEF(VAE):
         px_scale = self.decoder.px_scale_decoder(px)
         return px_scale
 
-    def get_sample_rate(self, x, y=None, mode="scRNA"):
+    def get_sample_rate(self, x, y=None, batch_index=None):
         r"""Returns the tensor of means of the negative binomial distribution
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         or ``(batch_size, n_input_fish)`` depending on the mode
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
-        :param mode: string that indicates the type of data we analyse
+        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
         or ``(batch_size, n_input_fish)`` depending on the mode
         :rtype: :py:class:`torch.Tensor`
         """
-        if mode == "scRNA":
-            library = torch.log(torch.sum(x, dim=1)).view(-1, 1)
-            batch_index = torch.zeros_like(library)
-        else:
-            library = torch.log(torch.sum(x[:, self.indexes_to_keep], dim=1)).view(-1, 1)
-            batch_index = torch.ones_like(library)
 
-        if self.model_library:
-            library = self.sample_from_posterior_l(x, mode=mode)
-        px_scale = self.get_sample_scale(x, mode=mode, batch_index=batch_index, y=y)
+        library = torch.log(torch.sum(x, dim=1)).view(-1, 1)
+        if self.model_library_seq:
+            library = self.sample_from_posterior_l(x, mode="scRNA")
+        if batch_index is None:
+            batch_index = torch.zeros_like(library)
+
+        px_scale = self.get_sample_scale(x, mode="scRNA", batch_index=batch_index, y=y)
         return px_scale * torch.exp(library)
 
-    def get_sample_rate_fish(self, x, y=None):
+    def get_sample_rate_fish(self, x, y=None, batch_index=None):
         r"""Returns the tensor of means of the negative binomial distribution
 
         :param x: tensor of values with shape ``(batch_size, n_input_fish)``
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
+        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input_fish)``
         :rtype: :py:class:`torch.Tensor`
         """
         library = torch.log(torch.sum(x[:, self.indexes_to_keep], dim=1)).view(-1, 1)
-        batch_index = torch.ones_like(library)
 
-        if self.model_library:
+        if self.model_library_fish:
             library = self.sample_from_posterior_l(x, mode="smFISH")
+        if batch_index is None:
+            batch_index = torch.ones_like(library)
         px_scale = self.get_sample_scale(x, mode="smFISH", batch_index=batch_index, y=y)
         px_scale = px_scale[:, self.indexes_to_keep] / torch.sum(px_scale[:, self.indexes_to_keep],
                                                                  dim=1).view(-1, 1)
@@ -211,7 +212,7 @@ class VAEF(VAE):
             elif self.reconstruction_loss_fish == 'gaussian':
                 reconst_loss = -torch.sum(Normal(px_rate, 10).log_prob(x), dim=1)
             elif self.reconstruction_loss_fish == 'nb':
-                reconst_loss = - log_nb_positive(x, px_rate, torch.exp(px_r))
+                reconst_loss = - log_nb_positive(x, px_rate, torch.exp(px_r[:, self.indexes_to_keep]))
         return reconst_loss
 
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None, mode="scRNA", weighting=1):
@@ -237,33 +238,36 @@ class VAEF(VAE):
         if mode == "scRNA":
             qz_m, qz_v, z = self.z_encoder(x_)
             library = torch.log(torch.sum(x, dim=1)).view(-1, 1)
-            batch_index = torch.zeros_like(library)
+            if batch_index is None:
+                batch_index = torch.zeros_like(library)
+            if self.model_library_seq:
+                ql_m, ql_v, library = self.l_encoder(x_)
+
         if mode == "smFISH":
             qz_m, qz_v, z = self.z_encoder_fish(x_[:, self.indexes_to_keep])
             library = torch.log(torch.sum(x[:, self.indexes_to_keep], dim=1)).view(-1, 1)
-            batch_index = torch.ones_like(library)
-        if self.model_library:
-            if mode == "scRNA":
-                ql_m, ql_v, library = self.l_encoder(x_)
-            elif mode == "smFISH":
-                ql_m, ql_v, library = self.l_encoder_fish(x_[:, self.indexes_to_keep])
+            if batch_index is None:
+                batch_index = torch.ones_like(library)
+            if self.model_library_fish:
+                ql_m, ql_v, library = self.l_encoder_fish(x_)
+
 
         qz_m, qz_v, z = self.z_final_encoder(z)
         px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index)
 
         # rescaling the expected frequencies
         if mode == "smFISH":
-            if self.model_library:
+            if self.model_library_fish:
                 px_rate = px_scale[:, self.indexes_to_keep] * torch.exp(library)
-                reconst_loss = self._reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r, px_dropout,
-                                                         batch_index, y, mode)
+                reconst_loss = self._reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r,
+                                                         px_dropout[:, self.indexes_to_keep], batch_index, y, mode)
 
             else:
                 px_scale = px_scale[:, self.indexes_to_keep] / torch.sum(
                     px_scale[:, self.indexes_to_keep], dim=1).view(-1, 1)
                 px_rate = px_scale * torch.exp(library)
-                reconst_loss = self._reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r, px_dropout,
-                                                         batch_index, y, mode)
+                reconst_loss = self._reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r,
+                                                         px_dropout[:, self.indexes_to_keep], batch_index, y, mode)
 
         else:
             reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout, batch_index, y, mode, weighting)
@@ -273,7 +277,7 @@ class VAEF(VAE):
         scale = torch.ones_like(qz_v)
 
         kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(dim=1)
-        if self.model_library:
+        if (mode=="scRNA" and self.model_library_seq) or (mode=="smFISH" and self.model_library_fish):
             kl_divergence_l = kl(Normal(ql_m, torch.sqrt(ql_v)), Normal(local_l_mean,
                                                                         torch.sqrt(local_l_var))).sum(dim=1)
             kl_divergence = kl_divergence_z + kl_divergence_l

@@ -4,12 +4,9 @@ import loompy
 
 
 class StarmapDataset(GeneExpressionDataset):
-    r""" Loads the dropseq dataset
+    r""" Loads the starmap dataset
 
-    This is only 70 000 annotated cells located in the cortex of adult mouses among the 700 000 cells studied by
-    Saunders et al using the Drop-seq method. From the 29000 genes sequenced in the study, we only kept those whose
-    variance in the expression matrix were above a certain threshold and we also kept all the genes who were studied in
-    the Starmap experiment. We work with a 70000*6000 gene expression matrix.
+
     """
 
     def __init__(self, save_path='data/', without_positions=False):

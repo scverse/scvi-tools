@@ -2,9 +2,9 @@ from collections import namedtuple
 
 import numpy as np
 import torch
-from sklearn import neighbors
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
+from sklearn import neighbors
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from torch.nn import functional as F
