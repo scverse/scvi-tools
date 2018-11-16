@@ -101,7 +101,7 @@ class CbmcDataset(GeneExpressionDataset):
             "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/GSE100866_%s-ADT_umi.csv.gz" % s,
             "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/"
             "GSE100866_%s-ADT_clr-transformed.csv.gz" % s,
-            "https://github.com/YosefLab/scVI-data/raw/master/clusters.csv.gz"
+            "https://github.com/YosefLab/scVI-data/raw/master/cbmc_clusters.csv.gz"
         )
         self.urls = [url_rna, url_adt, url_adt_clr, url_clusters]
         # Their centered log ratio transformation for ADT counts is different from the standard clr transformation :
