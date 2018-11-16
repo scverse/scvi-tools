@@ -45,24 +45,29 @@ class CiteSeqDataset(GeneExpressionDataset):
         print("Preprocessing data")
         self.expression = expression = pd.read_csv(self.save_path + self.download_name_rna, index_col=0,
                                                    compression='gzip').T
-        self.adt = adt = pd.read_csv(self.save_path + self.download_name_adt, index_col=0, compression='gzip')
+        self.adt = adt = pd.read_csv(
+            self.save_path + self.download_name_adt, index_col=0, compression='gzip')
         self.adt_expression = adt.T.values
         self.protein_markers = np.array(adt.index).astype(np.str)
 
         self.adt_centered = adt_centered = pd.read_csv(self.save_path + self.download_name_adt_centered, index_col=0,
                                                        compression='gzip')
         self.adt_expression_clr = adt_centered.T.values
-        assert (self.protein_markers == np.array(adt_centered.index).astype(np.str)).all()
+        assert (self.protein_markers == np.array(
+            adt_centered.index).astype(np.str)).all()
 
         gene_symbols = np.array(expression.columns, dtype=str)
 
-        human_filter = np.array([name.startswith('HUMAN') for name in gene_symbols], dtype=np.bool)
-        print("Selecting only HUMAN genes (%d / %d)" % (human_filter.sum(), len(human_filter)))
+        human_filter = np.array([name.startswith('HUMAN')
+                                 for name in gene_symbols], dtype=np.bool)
+        print("Selecting only HUMAN genes (%d / %d)" %
+              (human_filter.sum(), len(human_filter)))
         expression_data = expression.values[:, human_filter]
         gene_symbols = gene_symbols[human_filter]
 
         self.gene_symbols = np.char.upper(
-            np.array([name.split('_')[-1] if '_' in name else name for name in gene_symbols], dtype=np.str)
+            np.array([name.split(
+                '_')[-1] if '_' in name else name for name in gene_symbols], dtype=np.str)
         )
 
         print("Finish preprocessing data")
@@ -83,8 +88,9 @@ class CbmcDataset(GeneExpressionDataset):
         >>> gene_dataset = CbmcDataset()
 
     """
+
     def __init__(self, save_path='data/citeSeq/', additional_genes=None, mode='total', CD45RA=True):
-        name ='cbmc'
+        name = 'cbmc'
         self.additional_genes = additional_genes
         self.CD45RA = CD45RA
         self.save_path = save_path + name + '/'
@@ -120,12 +126,15 @@ class CbmcDataset(GeneExpressionDataset):
         )
         # This maintains the library statistics for only umi counts
         if mode == 'total':
-            self._X = np.ascontiguousarray(np.concatenate([self._X, self.adt_expression], axis=1), dtype=np.float32)
-            self.indexes_adt = np.arange(self._X.shape[1])[-len(self.protein_markers):]
+            self._X = np.ascontiguousarray(np.concatenate(
+                [self._X, self.adt_expression], axis=1), dtype=np.float32)
+            self.indexes_adt = np.arange(
+                self._X.shape[1])[-len(self.protein_markers):]
 
         # Clusters (metadata)
         # csv of umi barcodes and cell type name
-        clus = pd.read_csv(self.save_path + self.download_name_clusters, header=None, compression='gzip').values[:, 1]
+        clus = pd.read_csv(self.save_path + self.download_name_clusters,
+                           header=None, compression='gzip').values[:, 1]
         clus_dict = {}
         cell_types = []
         for i, c in enumerate(np.unique(clus)):
@@ -142,8 +151,10 @@ class CbmcDataset(GeneExpressionDataset):
                                                    compression='gzip').T
         gene_symbols = np.array(expression.columns, dtype=str)
 
-        human_filter = np.array([name.startswith('HUMAN') for name in gene_symbols], dtype=np.bool)
-        print("Selecting only HUMAN genes (%d / %d)" % (human_filter.sum(), len(human_filter)))
+        human_filter = np.array([name.startswith('HUMAN')
+                                 for name in gene_symbols], dtype=np.bool)
+        print("Selecting only HUMAN genes (%d / %d)" %
+              (human_filter.sum(), len(human_filter)))
         expression_data = expression.values[:, human_filter]
 
         # Keep top 'additional_genes' genes by variance as in scVI paper
@@ -159,19 +170,21 @@ class CbmcDataset(GeneExpressionDataset):
 
         gene_symbols = gene_symbols[human_filter]
         self.gene_symbols = np.char.upper(
-            np.array([name.split('_')[-1] if '_' in name else name for name in gene_symbols], dtype=np.str)
+            np.array([name.split(
+                '_')[-1] if '_' in name else name for name in gene_symbols], dtype=np.str)
         )
         if self.additional_genes is not None:
             self.kept_gene_symbols = self.gene_symbols[gene_inds]
 
         # ADTs
-        self.adt = pd.read_csv(self.save_path + self.download_name_adt, index_col=0)
+        self.adt = pd.read_csv(
+            self.save_path + self.download_name_adt, index_col=0)
         # Remove CCR5, CCR7, and CD10 due to poor enrichments
         # as done in https://satijalab.org/seurat/multimodal_vignette.html
         try:
             print('Dropping poorly enriched proteins')
             self.adt = self.adt.drop(['CCR5', 'CCR7', 'CD10'], axis=0)
-        except:
+        except KeyError:
             print('Poorly enriched proteins already filtered')
         if self.CD45RA is False:
             print('Dropping CD45RA')
