@@ -189,6 +189,29 @@ class DecoderSCVI(nn.Module):
         return px_scale, px_r, px_rate, px_dropout
 
 
+class FactorDecoderSCVI(nn.Module):
+    def __init__(self, n_input: int, n_output: int,
+                 n_cat_list: Iterable[int] = None, n_layers: int = 1,
+                 n_hidden: int = 128):
+        super(FactorDecoderSCVI, self).__init__()
+
+        # mean gamma
+        self.px_scale_decoder = nn.Sequential(nn.Linear(n_input, n_output), nn.Softmax(dim=-1))
+
+        # dropout
+        self.px_dropout_decoder = nn.Linear(n_input, n_output)
+
+    def forward(self, dispersion: str, z: torch.Tensor, library: torch.Tensor,
+                *cat_list: int):
+        # The decoder returns values for the parameters of the ZINB distribution
+        px_scale = self.px_scale_decoder(z)
+        px_dropout = self.px_dropout_decoder(z)
+        px_rate = torch.exp(library) * px_scale
+        px_r = None
+
+        return px_scale, px_r, px_rate, px_dropout
+
+
 # Decoder
 class Decoder(nn.Module):
     r"""Decodes data from latent space of ``n_input`` dimensions to ``n_output``
