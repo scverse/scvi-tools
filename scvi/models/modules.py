@@ -196,7 +196,13 @@ class FactorDecoderSCVI(nn.Module):
         super(FactorDecoderSCVI, self).__init__()
 
         # mean gamma
-        self.px_scale_decoder = nn.Sequential(nn.Linear(n_input, n_output), nn.Softmax(dim=-1))
+        self.n_batches = n_cat_list[0]  # Just try a simple case for now
+        if self.n_batches > 1:
+            self.batch_regressor = nn.Linear(self.n_batches - 1, n_output, bias=False)
+        else:
+            self.batch_regressor = None
+
+        self.factor_regressor = nn.Linear(n_input, n_output)
 
         # dropout
         self.px_dropout_decoder = nn.Linear(n_input, n_output)
@@ -204,7 +210,15 @@ class FactorDecoderSCVI(nn.Module):
     def forward(self, dispersion: str, z: torch.Tensor, library: torch.Tensor,
                 *cat_list: int):
         # The decoder returns values for the parameters of the ZINB distribution
-        px_scale = self.px_scale_decoder(z)
+        p1_ = self.factor_regressor(z)
+        if self.n_batches > 1:
+            one_hot_cat = one_hot(cat_list[0], self.n_batches)[:, :-1]
+            p2_ = self.batch_regressor(one_hot_cat)
+            raw_px_scale = p1_ + p2_
+        else:
+            raw_px_scale = p1_
+
+        px_scale = torch.softmax(raw_px_scale, dim=-1)
         px_dropout = self.px_dropout_decoder(z)
         px_rate = torch.exp(library) * px_scale
         px_r = None
