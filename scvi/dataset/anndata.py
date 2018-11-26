@@ -4,7 +4,7 @@ import numpy as np
 
 
 class AnnDataset(GeneExpressionDataset):
-    r"""Loads a `.h5ad` file .
+    r"""Loads a `.h5ad` file.
 
     ``AnnDataset`` class supports loading `Anndata`_ object.
 

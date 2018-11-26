@@ -10,21 +10,17 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 requirements = [
-    "numpy>=1.0, <1.15",
+    "numpy>=1.0",
     "torch>=0.4.1",
     "matplotlib>=2.0",
-    "scikit-learn>=0.18, <0.20.0",
-    "scipy>=1.1",
+    "scikit-learn>=0.18",
+    "scipy>=1.0",
     "h5py>=2.8",
     "pandas>=0.2",
     "loompy>=2.0",
     "tqdm >= 4",
     "anndata >= 0.6",
     "xlrd >= 1.0",
-    "jupyter>=1.0.0",
-    "nbconvert>=5.4.0",
-    "nbformat>=4.4.0",
-    "ipython>=7",
 ]
 
 setup_requirements = ['pytest-runner', ]
@@ -59,6 +55,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/YosefLab/scVI',
-    version='0.2.2',
+    version='0.2.1',
     zip_safe=False,
 )

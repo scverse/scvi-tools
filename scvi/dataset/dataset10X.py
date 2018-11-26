@@ -53,9 +53,6 @@ class Dataset10X(GeneExpressionDataset):
         :new_n_genes: Number of subsampled genes. Default: ``3000``.
         :subset_genes: List of genes for subsampling. Default: ``None``.
         :dense: Whether to load as dense or sparse. Default: ``False``.
-        :remote: Whether the 10X dataset is to be downloaded from the website or whether it is a local dataset, if
-        remote is False then save_path + filename must be the path to the directory that contains matrix.mtx and
-        genes.tsv files
 
     Examples:
         >>> tenX_dataset = Dataset10X("neuron_9k")
@@ -65,45 +62,31 @@ class Dataset10X(GeneExpressionDataset):
 
     """
 
-    def __init__(self, filename, save_path='data/', type='filtered', dense=False, remote=True):
-
-        self.remote = remote
-        self.save_path = save_path
-        if self.remote:
-            group = to_groups[filename]
-            self.url = ("http://cf.10xgenomics.com/samples/cell-exp/%s/%s/%s_%s_gene_bc_matrices.tar.gz" %
-                        (group, filename, filename, type))
-            self.save_path = save_path + '10X/%s/' % filename
-            self.save_name = '%s_gene_bc_matrices' % type
-            self.download_name = self.save_name + '.tar.gz'
-        else:
-            try:
-                assert os.path.isdir(self.save_path + filename)
-            except AssertionError:
-                print("The file %s was not found in the location you gave" % filename)
-                raise
-            self.save_path = self.save_path + filename + '/'
-
+    def __init__(self, filename, save_path='data/', type='filtered', dense=False):
+        group = to_groups[filename]
+        self.url = ("http://cf.10xgenomics.com/samples/cell-exp/%s/%s/%s_%s_gene_bc_matrices.tar.gz" %
+                    (group, filename, filename, type))
+        self.save_path = save_path + '10X/%s/' % filename
+        self.save_name = '%s_gene_bc_matrices' % type
         self.dense = dense
 
+        self.download_name = self.save_name + '.tar.gz'
         expression_data, gene_names = self.download_and_preprocess()
         super(Dataset10X, self).__init__(*GeneExpressionDataset.get_attributes_from_matrix(
             expression_data), gene_names=gene_names)
 
     def preprocess(self):
         print("Preprocessing dataset")
-        path = self.save_path
-        if self.remote:
-            if len(os.listdir(self.save_path)) == 1:  # nothing extracted yet
-                print("Extracting tar file")
-                tar = tarfile.open(self.save_path + self.download_name, "r:gz")
-                tar.extractall(path=self.save_path)
-                tar.close()
+        if len(os.listdir(self.save_path)) == 1:  # nothing extracted yet
+            print("Extracting tar file")
+            tar = tarfile.open(self.save_path + self.download_name, "r:gz")
+            tar.extractall(path=self.save_path)
+            tar.close()
 
-            path = (self.save_path +
-                    [name for name in os.listdir(self.save_path) if os.path.isdir(self.save_path + name)][0] +
-                    '/')
-            path += os.listdir(path)[0] + '/'
+        path = (self.save_path +
+                [name for name in os.listdir(self.save_path) if os.path.isdir(self.save_path + name)][0] +
+                '/')
+        path += os.listdir(path)[0] + '/'
         genes_info = pd.read_csv(path + 'genes.tsv', sep='\t', header=None)
         gene_names = genes_info.values[:, 0].astype(np.str).ravel()
         if os.path.exists(path + 'barcodes.tsv'):

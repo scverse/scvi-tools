@@ -319,29 +319,22 @@ class Posterior:
             px_rate = self.model.get_sample_rate(dropout_batch, batch_index=batch_index, y=labels, n_samples=n_samples)
 
             indices_dropout = torch.nonzero(batch - dropout_batch)
-            if indices_dropout.size() != torch.Size([0]):
-                i = indices_dropout[:, 0]
-                j = indices_dropout[:, 1]
+            i = indices_dropout[:, 0]
+            j = indices_dropout[:, 1]
 
-                batch = batch.unsqueeze(0).expand((n_samples, batch.size(0), batch.size(1)))
-                original = np.array(batch[:, i, j].view(-1).cpu())
-                imputed = np.array(px_rate[..., i, j].view(-1).cpu())
+            batch = batch.unsqueeze(0).expand((n_samples, batch.size(0), batch.size(1)))
+            original = np.array(batch[:, i, j].view(-1).cpu())
+            imputed = np.array(px_rate[..., i, j].view(-1).cpu())
 
-                cells_index = np.tile(np.array(i.cpu()), n_samples)
+            cells_index = np.tile(np.array(i.cpu()), n_samples)
 
-                original_list += [original[cells_index == i] for i in range(actual_batch_size)]
-                imputed_list += [imputed[cells_index == i] for i in range(actual_batch_size)]
-            else:
-                original_list = np.array([])
-                imputed_list = np.array([])
+            original_list += [original[cells_index == i] for i in range(actual_batch_size)]
+            imputed_list += [imputed[cells_index == i] for i in range(actual_batch_size)]
         return original_list, imputed_list
 
     def imputation_score(self, verbose=False, original_list=None, imputed_list=None, n_samples=1):
         if original_list is None or imputed_list is None:
             original_list, imputed_list = self.imputation_list(n_samples=n_samples)
-            if len(original_list) == 0:
-                print("No difference between corrupted dataset and uncorrupted dataset")
-                return 0
         return np.median(np.abs(np.concatenate(original_list) - np.concatenate(imputed_list)))
 
     def imputation_benchmark(self, n_samples=8, verbose=False):
@@ -423,7 +416,7 @@ class Posterior:
             if n_batch is None:
                 n_batch = self.gene_dataset.n_batches
             if color_by == 'batches' or color_by == 'labels':
-                indices = batch_indices.ravel() if color_by == 'batches' else labels.ravel()
+                indices = batch_indices if color_by == 'batches' else labels
                 n = n_batch if color_by == 'batches' else self.gene_dataset.n_labels
                 if hasattr(self.gene_dataset, 'cell_types') and color_by == 'labels':
                     plt_labels = self.gene_dataset.cell_types
@@ -435,14 +428,13 @@ class Posterior:
                 plt.legend()
             elif color_by == 'batches and labels':
                 fig, axes = plt.subplots(1, 2, figsize=(14, 7))
-                batch_indices = batch_indices.ravel()
                 for i in range(n_batch):
                     axes[0].scatter(latent[batch_indices == i, 0], latent[batch_indices == i, 1], label=str(i))
                 axes[0].set_title("batch coloring")
                 axes[0].axis("off")
                 axes[0].legend()
 
-                indices = labels.ravel()
+                indices = labels
                 if hasattr(self.gene_dataset, 'cell_types'):
                     plt_labels = self.gene_dataset.cell_types
                 else:
