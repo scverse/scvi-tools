@@ -14,13 +14,13 @@ def test_remove_empty_cells():
     X = np.random.poisson(lam=1, size=(1111, 3))
 
     def existing_method(X):
-      to_keep = np.array((X.sum(axis=1) > 0)).ravel()
-      removed_idx = []
-      if X.shape != X[to_keep].shape:
-          for i in range(len(to_keep)):
-              if not to_keep[i]:
-                  removed_idx.append(i)
-      return X[to_keep], removed_idx
+        to_keep = np.array((X.sum(axis=1) > 0)).ravel()
+        removed_idx = []
+        if X.shape != X[to_keep].shape:
+            for i in range(len(to_keep)):
+                if not to_keep[i]:
+                    removed_idx.append(i)
+        return X[to_keep], removed_idx
 
     def new_method(X):
         ne_cells = X.sum(axis=1) > 0
@@ -32,16 +32,16 @@ def test_remove_empty_cells():
     # Run existing method
     Xexisting, removed_idx = existing_method(X)
     if len(removed_idx):
-      print("Cells with zero expression in all genes considered were removed, the indices of the removed cells "
-            "in the expression matrix were:")
-      print(removed_idx)
+        print("Cells with zero expression in all genes considered were removed, the indices of the removed cells "
+              "in the expression matrix were:")
+        print(removed_idx)
     #
     # Run new method
     Xnew, removed_idx = new_method(X)
     if len(removed_idx):
-      print("Cells with zero expression in all genes considered were removed, the indices of the removed cells "
-            "in the expression matrix were:")
-      print(removed_idx)
+        print("Cells with zero expression in all genes considered were removed, the indices of the removed cells "
+              "in the expression matrix were:")
+        print(removed_idx)
     #
     # Check the same
     assert Xexisting.shape == Xnew.shape
