@@ -29,23 +29,24 @@ Quick Start
 
 .. _PyTorch: http://pytorch.org
 
-3. Install ``scvi`` through conda (``conda install scvi -c bioconda``) or through pip (``pip install scvi``). Alternatively, you may clone this repository and manually install the dependencies listed in setup.py_.
+3. Install scVI through conda (``conda install scvi -c bioconda``) or through pip (``pip install scvi``). Alternatively, you may download or clone this repository and run ``python setup.py install``.
 
-.. _setup.py: https://github.com/YosefLab/scVI/tree/master/setup.py
+4. Follow along with our Jupyter notebooks to quickly get familiar with scVI!
 
+   a. `data loading`__
+   b. `basic usage`__ 
+   c. `reproducing results from the paper`__ 
 
-4. Refer to `this Jupyter notebook`__ to see how to import datasets into scVI.
+.. __: https://github.com/YosefLab/scVI/tree/master/tests/notebooks/data_loading.ipynb
+.. __: https://github.com/YosefLab/scVI/tree/master/tests/notebooks/basic_tutorial.ipynb
+.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/scVI_reproducibility.ipynb
 
-.. __: https://github.com/YosefLab/scVI/tree/master/docs/notebooks/data_loading.ipynb
-
-5. Refer to `this Jupyter notebook`__ to see how to train the scVI model, impute missing data, detect differential expression, and more!
-
-.. __: https://github.com/YosefLab/scVI/tree/master/docs/notebooks/basic_tutorial.ipynb
 
 
 References
 ----------
 
-Romain Lopez, Jeffrey Regier, Michael B Cole, Michael Jordan, Nir Yosef.
-**"Bayesian Inference for a Generative Model of Transcriptome Profiles from Single-cell RNA Sequencing."**
-In submission. Preprint available at https://www.biorxiv.org/content/early/2018/03/30/292037
+Romain Lopez, Jeffrey Regier, Michael Cole, Michael I. Jordan, Nir Yosef.
+**"Deep generative modeling for single-cell transcriptomics"**
+Nature Methods, in press (accepted Oct 26, 2018). 
+Preprint available at https://www.biorxiv.org/content/early/2018/03/30/292037

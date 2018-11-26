@@ -87,7 +87,10 @@ class TrainerFish(Trainer):
             reconst_loss += self.cl_ratio * F.cross_entropy(self.model.classify(sample_batch, mode="scRNA"),
                                                             labels.view(-1))
         loss = torch.mean(reconst_loss + self.kl_weight * kl_divergence)
-        sample_batch_fish, local_l_mean, local_l_var, batch_index_fish, _, _, _ = tensors_fish
+        if len(tensors_fish) == 7:  # depending on whether or not we have spatial coordinates
+            sample_batch_fish, local_l_mean, local_l_var, batch_index_fish, _, _, _ = tensors_fish
+        else:
+            sample_batch_fish, local_l_mean, local_l_var, batch_index_fish, _ = tensors_fish
         reconst_loss_fish, kl_divergence_fish = self.model(sample_batch_fish, local_l_mean, local_l_var,
                                                            batch_index_fish, mode="smFISH")
         loss_fish = torch.mean(reconst_loss_fish + self.kl_weight * kl_divergence_fish)
@@ -97,7 +100,10 @@ class TrainerFish(Trainer):
             sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors_seq
             z = self.model.sample_from_posterior_z(sample_batch, mode="scRNA")
             cls_loss = (self.scale * F.cross_entropy(self.adversarial_cls(z), torch.zeros_like(batch_index).view(-1)))
-            sample_batch_fish, local_l_mean, local_l_var, batch_index_fish, _, _, _ = tensors_fish
+            if len(tensors_fish) == 7:  # depending on whether or not we have spatial coordinates
+                sample_batch_fish, local_l_mean, local_l_var, batch_index_fish, _, _, _ = tensors_fish
+            else:
+                sample_batch_fish, local_l_mean, local_l_var, batch_index_fish, _ = tensors_fish
             z = self.model.sample_from_posterior_z(sample_batch, mode="smFISH")
             cls_loss += (self.scale * F.cross_entropy(self.adversarial_cls(z), torch.ones_like(batch_index).view(-1)))
             self.optimizer_cls.zero_grad()

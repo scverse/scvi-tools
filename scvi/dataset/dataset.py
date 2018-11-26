@@ -88,7 +88,7 @@ class GeneExpressionDataset(Dataset):
             i, j = np.nonzero(self.X)
             ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
             i, j = i[ix], j[ix]
-            corrupted = self.X[i, j] * np.random.binomial(n=np.ones(len(ix), dtype=np.int32), p=0.9)  # maybe rate
+            corrupted = np.multiply(self.X[i, j], np.random.binomial(n=np.ones(len(ix), dtype=np.int32), p=0.9))
         elif corruption == "binomial":  # multiply the entry n with a Bin(n, 0.9) random variable.
             i, j = (k.ravel() for k in np.indices(self.X.shape))
             ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
@@ -128,7 +128,16 @@ class GeneExpressionDataset(Dataset):
         if hasattr(self, 'gene_symbols'):
             self.gene_symbols = self.gene_symbols[subset_genes]
         self.nb_genes = self.X.shape[1]
-        self.update_cells(np.array(self.X.sum(axis=1) > 0).ravel())
+        to_keep = np.array(self.X.sum(axis=1) > 0).ravel()
+        if self.X.shape != self.X[to_keep].shape:
+            removed_idx = []
+            for i in range(len(to_keep)):
+                if not to_keep[i]:
+                    removed_idx.append(i)
+            print("Cells with zero expression in all genes considered were removed, the indices of the removed cells "
+                  "in the expression matrix were:")
+            print(removed_idx)
+        self.update_cells(to_keep)
 
     def update_cells(self, subset_cells):
         new_n_cells = len(subset_cells) if subset_cells.dtype is not np.dtype('bool') else subset_cells.sum()
@@ -265,8 +274,14 @@ class GeneExpressionDataset(Dataset):
 
     @staticmethod
     def get_attributes_from_matrix(X, batch_indices=0, labels=None):
-        to_keep = np.array((X.sum(axis=1) > 0)).ravel()
-        X = X[to_keep]
+        ne_cells = X.sum(axis=1) > 0
+        to_keep = np.where(ne_cells)
+        if not ne_cells.all():
+            X = X[to_keep]
+            removed_idx = np.where(~ne_cells)[0]
+            print("Cells with zero expression in all genes considered were removed, the indices of the removed cells "
+                  "in the expression matrix were:")
+            print(removed_idx)
         local_mean, local_var = GeneExpressionDataset.library_size(X)
         batch_indices = batch_indices * np.ones((X.shape[0], 1)) if type(batch_indices) is int \
             else batch_indices[to_keep]
@@ -284,12 +299,23 @@ class GeneExpressionDataset(Dataset):
         batch_indices = []
         labels = []
         for i, X in enumerate(Xs):
+            to_keep = np.array((X.sum(axis=1) > 0)).ravel()
+            if X.shape != X[to_keep].shape:
+                removed_idx = []
+                for i in range(len(to_keep)):
+                    if not to_keep[i]:
+                        removed_idx.append(i)
+                print(
+                    "Cells with zero expression in all genes considered were removed, the indices of the removed "
+                    "cells in the ", i, "th expression matrix were:")
+                print(removed_idx)
+            X = X[to_keep]
             new_Xs += [X]
             local_mean, local_var = GeneExpressionDataset.library_size(X)
             local_means += [local_mean]
             local_vars += [local_var]
-            batch_indices += [list_batches[i] if list_batches is not None else i * np.ones((X.shape[0], 1))]
-            labels += [list_labels[i] if list_labels is not None else np.zeros((X.shape[0], 1))]
+            batch_indices += [list_batches[i][to_keep] if list_batches is not None else i * np.ones((X.shape[0], 1))]
+            labels += [list_labels[i][to_keep] if list_labels is not None else np.zeros((X.shape[0], 1))]
 
         X = np.concatenate(new_Xs) if type(new_Xs[0]) is np.ndarray else sp_sparse.vstack(new_Xs)
         batch_indices = np.concatenate(batch_indices)
@@ -383,4 +409,4 @@ def arrange_categories(original_categories, mapping_from=None, mapping_to=None):
     new_categories = np.copy(original_categories)
     for idx_from, idx_to in zip(mapping_from, mapping_to):
         new_categories[original_categories == idx_from] = idx_to
-    return new_categories, n_categories
+    return new_categories.astype(int), n_categories
