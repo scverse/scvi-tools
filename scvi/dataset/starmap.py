@@ -9,11 +9,11 @@ class StarmapDataset(GeneExpressionDataset):
 
     """
 
-    def __init__(self, save_path='data/', without_positions=False):
+    def __init__(self, save_path='data/', file='starmap.loom', without_positions=False):
 
         self.save_path = save_path
         self.url = ['https://github.com/YosefLab/scVI-data/raw/master/starmap.loom']
-        self.download_name = 'starmap.loom'
+        self.download_name = file
 
         data, batch_indices, labels, gene_names, cell_types, x_coord, y_coord = self.preprocess()
         if without_positions:

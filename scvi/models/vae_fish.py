@@ -251,7 +251,6 @@ class VAEF(VAE):
             if self.model_library_fish:
                 ql_m, ql_v, library = self.l_encoder_fish(x_)
 
-
         qz_m, qz_v, z = self.z_final_encoder(z)
         px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index)
 
@@ -277,7 +276,7 @@ class VAEF(VAE):
         scale = torch.ones_like(qz_v)
 
         kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(dim=1)
-        if (mode=="scRNA" and self.model_library_seq) or (mode=="smFISH" and self.model_library_fish):
+        if (mode == "scRNA" and self.model_library_seq) or (mode == "smFISH" and self.model_library_fish):
             kl_divergence_l = kl(Normal(ql_m, torch.sqrt(ql_v)), Normal(local_l_mean,
                                                                         torch.sqrt(local_l_var))).sum(dim=1)
             kl_divergence = kl_divergence_z + kl_divergence_l
