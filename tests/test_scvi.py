@@ -17,6 +17,7 @@ from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC
 from scvi.models.classifier import Classifier
 import pickle
+import os.path
 
 use_cuda = True
 
@@ -36,7 +37,7 @@ def test_cortex(save_path):
     trainer_cortex_vae.train(n_epochs=1)
     trainer_cortex_vae.uncorrupt_posteriors()
 
-    trainer_cortex_vae.train_set.imputation_benchmark(n_samples=1, title_plot=save_path + 'imputation')
+    trainer_cortex_vae.train_set.imputation_benchmark(n_samples=1, title_plot=os.path.join(save_path, 'imputation'))
 
     svaec = SCANVI(cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels)
     trainer_cortex_svaec = JointSemiSupervisedTrainer(svaec, cortex_dataset,
@@ -133,7 +134,7 @@ def test_retina(save_path):
 
 
 def test_cite_seq(save_path):
-    pbmc_cite_seq_dataset = CiteSeqDataset(name='pbmc', save_path=save_path+'citeSeq/')
+    pbmc_cite_seq_dataset = CiteSeqDataset(name='pbmc', save_path=os.path.join(save_path, 'citeSeq/'))
     base_benchmark(pbmc_cite_seq_dataset)
 
 
@@ -143,7 +144,7 @@ def test_brain_small(save_path):
 
 
 def test_hemato(save_path):
-    hemato_dataset = HematoDataset(save_path=save_path+'HEMATO/')
+    hemato_dataset = HematoDataset(save_path=os.path.join(save_path, 'HEMATO/'))
     base_benchmark(hemato_dataset)
 
 
@@ -176,7 +177,7 @@ def test_csv(save_path):
 
 
 def test_cbmc(save_path):
-    cbmc_dataset = CbmcDataset(save_path=save_path+'citeSeq/')
+    cbmc_dataset = CbmcDataset(save_path=os.path.join(save_path, 'citeSeq/'))
     trainer = base_benchmark(cbmc_dataset)
     trainer.train_set.nn_overlap_score(k=5)
 
