@@ -170,6 +170,8 @@ class Posterior:
         px_scales = []
         all_labels = []
         batch_size = max(self.data_loader_kwargs['batch_size'] // M_sampling, 2)  # Reduce batch_size on GPU
+        if len(self.gene_dataset) % batch_size == 1:
+            batch_size += 1
         for tensors in self.update({"batch_size": batch_size}):
             sample_batch, _, _, batch_index, labels = tensors
             px_scales += [
