@@ -13,8 +13,6 @@ from tqdm import trange
 
 from scvi.inference.posterior import Posterior
 
-torch.set_grad_enabled(False)
-
 
 class Trainer:
     r"""The abstract Trainer class for training a PyTorch model and monitoring its statistics. It should be
@@ -72,6 +70,7 @@ class Trainer:
 
         self.history = defaultdict(lambda: [])
 
+    @torch.no_grad()
     def compute_metrics(self):
         begin = time.time()
         epoch = self.epoch + 1
@@ -94,44 +93,43 @@ class Trainer:
 
     def train(self, n_epochs=20, lr=1e-3, eps=0.01, params=None):
         begin = time.time()
-        with torch.set_grad_enabled(True):
-            self.model.train()
+        self.model.train()
 
-            if params is None:
-                params = filter(lambda p: p.requires_grad, self.model.parameters())
+        if params is None:
+            params = filter(lambda p: p.requires_grad, self.model.parameters())
 
-            # if hasattr(self, 'optimizer'):
-            #     optimizer = self.optimizer
-            # else:
-            optimizer = self.optimizer = torch.optim.Adam(params, lr=lr, eps=eps)  # weight_decay=self.weight_decay,
+        # if hasattr(self, 'optimizer'):
+        #     optimizer = self.optimizer
+        # else:
+        optimizer = self.optimizer = torch.optim.Adam(params, lr=lr, eps=eps)  # weight_decay=self.weight_decay,
 
-            self.compute_metrics_time = 0
-            self.n_epochs = n_epochs
+        self.compute_metrics_time = 0
+        self.n_epochs = n_epochs
+        self.compute_metrics()
+
+        with trange(n_epochs, desc="training", file=sys.stdout, disable=self.verbose) as pbar:
+            # We have to use tqdm this way so it works in Jupyter notebook.
+            # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
+            for self.epoch in pbar:
+                self.on_epoch_begin()
+                pbar.update(1)
+                for tensors_list in self.data_loaders_loop():
+                    loss = self.loss(*tensors_list)
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+
+                if not self.on_epoch_end():
+                    break
+
+        if self.early_stopping.save_best_state_metric is not None:
+            self.model.load_state_dict(self.best_state_dict)
             self.compute_metrics()
 
-            with trange(n_epochs, desc="training", file=sys.stdout, disable=self.verbose) as pbar:
-                # We have to use tqdm this way so it works in Jupyter notebook.
-                # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
-                for self.epoch in pbar:
-                    self.on_epoch_begin()
-                    pbar.update(1)
-                    for tensors_list in self.data_loaders_loop():
-                        loss = self.loss(*tensors_list)
-                        optimizer.zero_grad()
-                        loss.backward()
-                        optimizer.step()
-
-                    if not self.on_epoch_end():
-                        break
-
-            if self.early_stopping.save_best_state_metric is not None:
-                self.model.load_state_dict(self.best_state_dict)
-                self.compute_metrics()
-
-            self.model.eval()
-            self.training_time += (time.time() - begin) - self.compute_metrics_time
-            if self.verbose and self.frequency:
-                print("\nTraining time:  %i s. / %i epochs" % (int(self.training_time), self.n_epochs))
+        self.model.eval()
+        self.training_time += (time.time() - begin) - self.compute_metrics_time
+        if self.verbose and self.frequency:
+            print("\nTraining time:  %i s. / %i epochs" % (int(self.training_time), self.n_epochs))
 
     def on_epoch_begin(self):
         pass
@@ -221,6 +219,7 @@ class Trainer:
         return type_class(model, gene_dataset, shuffle=shuffle, indices=indices, use_cuda=self.use_cuda,
                           data_loader_kwargs=self.data_loader_kwargs)
 
+    @torch.no_grad()
     def get_all_latent_and_imputed_values(self, save_imputed=False, file_name_imputation='imputed_values',
                                           save_shape_genes_by_cells=False, save_latent=False,
                                           file_name_latent='latent_space'):
