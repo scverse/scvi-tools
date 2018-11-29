@@ -7,6 +7,7 @@ from IPython.core.interactiveshell import InteractiveShell
 import os
 import shutil
 import matplotlib.pyplot as plt
+import json
 
 
 def find_notebook(fullname, path=None):
@@ -102,11 +103,19 @@ path = 'tests/notebooks/'
 test_path = 'tests/config_notebooks_tests/'
 
 
-def test_notebooks():
+def test_notebooks(save_path):
     prefix = 'annotation'
     # if exists, save and overwrite
+
     config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
     config_filename_tmp = prefix + '.config.tmp.json'
+
+    with open(test_path+config_filename, 'r') as f:
+        config_test = json.load(f)
+        config_test['save_path'] = save_path
+
+    with open(test_path+config_filename, 'w') as f:
+        json.dump(config_test, f)
 
     # Save content in memory in tmp file
     existing_config_to_restore = os.path.exists(path + config_filename)
@@ -130,6 +139,13 @@ def test_notebooks():
     config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
     config_filename_tmp = prefix + '.config.tmp.json'
 
+    with open(test_path+config_filename, 'r') as f:
+        config_test = json.load(f)
+        config_test['save_path'] = save_path
+
+    with open(test_path+config_filename, 'w') as f:
+        json.dump(config_test, f)
+
     # Save content in memory in tmp file
     existing_config_to_restore = os.path.exists(path + config_filename)
     if existing_config_to_restore:
@@ -151,6 +167,13 @@ def test_notebooks():
     # if exists, save and overwrite
     config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
     config_filename_tmp = prefix + '.config.tmp.json'
+
+    with open(test_path+config_filename, 'r') as f:
+        config_test = json.load(f)
+        config_test['save_path'] = save_path
+
+    with open(test_path+config_filename, 'w') as f:
+        json.dump(config_test, f)
 
     # Save content in memory in tmp file
     existing_config_to_restore = os.path.exists(path + config_filename)
@@ -174,6 +197,13 @@ def test_notebooks():
     config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
     config_filename_tmp = prefix + '.config.tmp.json'
 
+    with open(test_path+config_filename, 'r') as f:
+        config_test = json.load(f)
+        config_test['save_path'] = save_path
+
+    with open(test_path+config_filename, 'w') as f:
+        json.dump(config_test, f)
+
     # Save content in memory in tmp file
     existing_config_to_restore = os.path.exists(path + config_filename)
     if existing_config_to_restore:
@@ -195,6 +225,13 @@ def test_notebooks():
     # if exists, save and overwrite
     config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
     config_filename_tmp = prefix + '.config.tmp.json'
+
+    with open(test_path+config_filename, 'r') as f:
+        config_test = json.load(f)
+        config_test['save_path'] = save_path
+
+    with open(test_path+config_filename, 'w') as f:
+        json.dump(config_test, f)
 
     # Save content in memory in tmp file
     existing_config_to_restore = os.path.exists(path + config_filename)

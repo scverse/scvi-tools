@@ -1,7 +1,1 @@
-{
-    "save_path": "tests/data/",
-    "n_epochs": 1,
-    "n_labelled_samples_per_class": 3,
-    "M_permutation": 10,
-    "M_sampling": 1
-}
+{"save_path": "/tmp/pytest-of-jules/pytest-0/temp_data/", "n_epochs": 1, "n_labelled_samples_per_class": 3, "M_permutation": 10, "M_sampling": 1}
