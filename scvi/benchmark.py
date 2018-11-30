@@ -22,7 +22,7 @@ def cortex_benchmark(n_epochs=250, use_cuda=True, save_path='data/'):
     trainer_cortex_vae.corrupt_posteriors()
     trainer_cortex_vae.train(n_epochs=n_epochs)
     trainer_cortex_vae.uncorrupt_posteriors()
-    trainer_cortex_vae.train_set.imputation_benchmark(verbose=(n_epochs > 1))
+    trainer_cortex_vae.train_set.imputation_benchmark(verbose=(n_epochs > 1), save_path=save_path)
 
     n_samples = 10 if n_epochs == 1 else None  # n_epochs == 1 is unit tests
     trainer_cortex_vae.train_set.show_t_sne(n_samples=n_samples)
