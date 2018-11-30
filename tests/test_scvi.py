@@ -16,7 +16,6 @@ from scvi.inference import JointSemiSupervisedTrainer, AlternateSemiSupervisedTr
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC
 from scvi.models.classifier import Classifier
-import pickle
 import os.path
 
 use_cuda = True
