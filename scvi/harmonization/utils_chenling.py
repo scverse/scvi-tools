@@ -94,10 +94,11 @@ def trainVAE(gene_dataset, filename, rep, nlayers=2,n_hidden=128):
           n_hidden=n_hidden, n_latent=10, n_layers=nlayers, dispersion='gene')
     trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
     if os.path.isfile('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl'):
-        trainer.model = torch.load('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl')
+        trainer.model.load_state_dict(torch.load('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl'))
+        trainer.model.eval()
     else:
         trainer.train(n_epochs=250)
-        torch.save(trainer.model,'../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl')
+        torch.save(trainer.model.state_dict(),'../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl')
     full = trainer.create_posterior(trainer.model, gene_dataset, indices=np.arange(len(gene_dataset)))
     return full
 
@@ -149,16 +150,11 @@ def trainSCANVI(gene_dataset,model_type,filename,rep, nlayers=2):
         trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(indices=(gene_dataset.batch_indices >= 0))
 
     if os.path.isfile('../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl'):
-        trainer_scanvi.model = torch.load('../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl')
+        trainer_scanvi.model.load_state_dict(torch.load('../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl'))
+        trainer_scanvi.model.eval()
     else:
-        # if gene_dataset.X.shape[0]>40000:
-        #     trainer_scanvi.train(n_epochs=10)
-        # elif gene_dataset.X.shape[0] < 20000:
-        #     trainer_scanvi.train(n_epochs=50)
-        # else:
-        #     trainer_scanvi.train(n_epochs=25)
-        trainer_scanvi.train(n_epochs=50)
-        torch.save(trainer_scanvi.model,'../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl')
+        trainer_scanvi.train(n_epochs=10)
+        torch.save(trainer_scanvi.model.state_dict(), '../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl')
     return trainer_scanvi
 
 
@@ -303,7 +299,8 @@ def eval_latent(batch_indices, labels, latent, keys, labelled_idx=None,unlabelle
     # batch_entropy = entropy_batch_mixing(latent[sample, :], batch_indices[sample])
     # print("Entropy batch mixing :", batch_entropy)
     if plotting==True and (os.path.isfile('../'+plotname+'.labels.pdf') is False):
-        sample = select_indices_evenly(2000, labels)
+        sample = select_indices_evenly(2000, batch_indices)
+        # sample = select_indices_evenly(2000, labels)
         if plotname is not None:
             colors = sns.color_palette('bright') +\
                   sns.color_palette('muted') + \
@@ -325,21 +322,24 @@ def eval_latent(batch_indices, labels, latent, keys, labelled_idx=None,unlabelle
             ax.axis('off')
             fig.tight_layout()
             plt.savefig('../'+plotname+'.labels.pdf')
-            plt.figure(figsize=(18, 18))
-            plt.scatter(latent_s[:, 0], latent_s[:, 1], c=batch_s, edgecolors='none')
-            plt.axis("off")
-            plt.tight_layout()
-            plt.savefig('../' + plotname + '.batchid.pdf')
+            batch = ['10x', 'SS2']
+            fig, ax = plt.subplots(figsize=(18, 18))
+            for i, x in enumerate(batch):
+                ax.scatter(latent_s[batch_s == i, 0], latent_s[batch_s == i, 1], c=colors[i], label=x,
+                           edgecolors='none')
+                # ax.legend(bbox_to_anchor=(1.1, 0.5), borderaxespad=0, fontsize='x-large')
+            ax.axis('off')
+            fig.savefig('../' + plotname + '.batchid.pdf')
     if partial_only==False:
         return res_knn,res_knn_partial, res_kmeans, res_kmeans_partial
     else:
         return 0, res_knn_partial, 0, res_kmeans_partial
 
 
-def get_matrix_from_dir(dirname):
-    geneid = loadtxt('../'+ dirname +'/genes.tsv',dtype='str',delimiter="\t")
-    cellid = loadtxt('../'+ dirname + '/barcodes.tsv',dtype='str',delimiter="\t")
-    count = mmread('../'+ dirname +'/matrix.mtx')
+def get_matrix_from_dir(dirname,storage='../'):
+    geneid = loadtxt(storage + dirname +'/genes.tsv',dtype='str',delimiter="\t")
+    cellid = loadtxt(storage + dirname + '/barcodes.tsv',dtype='str',delimiter="\t")
+    count = mmread(storage + dirname +'/matrix.mtx')
     return count, geneid, cellid
 
 

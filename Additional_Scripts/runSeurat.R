@@ -7,13 +7,11 @@ library('RcppCNPy')
 
 batchid = npyLoad(paste(dataname, '.batch.npy',sep=''), type="integer")
 labels = npyLoad(paste(dataname, '.labels.npy',sep=''), type="integer")
-genenames = read.table(paste(dataname, '.genenames.txt',sep=''))
 data=paste(dataname, '.X.mtx',sep='')
 X = readMM(data)
-# genenames = read.csv('easy2/Macosko_Regev.genenames.txt',header=F,as.is=T)[,1]
 data = lapply(unique(batchid),function(i){
 	X=t(X[batchid==i,])
-	# genenames = paste('gene',c(1:length(X[,1])),sep='_')
+	genenames = paste('gene',c(1:length(X[,1])),sep='_')
 	rownames(X) = genenames
 	colnames(X) = paste(i,c(1:length(X[1,])),sep='_')
 	return(X)
@@ -31,18 +29,15 @@ labels = lapply(unique(batchid),function(i){
 # Seurat
 ##############################################
 library("Seurat")
-ngenes=1000
-hvg_CCA <- function(data,ndim=10,plotting=F,getlabels=T,filter_genes=TRUE){
+
+hvg_CCA <- function(data,ndim=10,plotting=F,getlabels=T,filter_genes=TRUE,ngenes=1000){
 	if(filter_genes==TRUE){
 		genes.use <- c()
 		for (i in 1:length(data)) {
 		  genes.use <- c(genes.use, head(rownames(data[[i]]@hvg.info), ngenes))
 		}
-		if(length(data==2)){n_shared=0}else{n_shared=2}
+		if(length(data)==2){n_shared=0}else{n_shared=2}
 		genes.use <- names(which(table(genes.use) > n_shared))
-		for (i in 1:length(data)) {
-		  genes.use <- genes.use[genes.use %in% rownames(data[[i]]@scale.data)]
-		}
 	}else{
 		genes.use = rownames(data[[1]]@data)
 	}
@@ -54,7 +49,7 @@ hvg_CCA <- function(data,ndim=10,plotting=F,getlabels=T,filter_genes=TRUE){
 		return(PC)
 	})
 	if(length(data)==2){
-		combined <- RunCCA(object = data[[1]], object2 = data[[2]], genes.use=genes.use,num.cc = ndim)		
+		combined <- RunCCA(object = data[[1]], object2 = data[[2]], genes.use=genes.use,num.cc = ndim)
 	}else{
 		combined <- RunMultiCCA(data, genes.use = genes.use,num.cc = ndim)
 	}
@@ -97,23 +92,17 @@ seurat_data <- lapply(c(1:length(data)),function(i){
 	return(X)
 })
 
-# pc = lapply(c(1,2),function(i){
-# 	X = seurat_data[[i]]
-# 	X <- RunPCA(X, pc.genes = X@var.genes, do.print = FALSE)
-# 	PC <- GetDimReduction(object = X, reduction.type = "pca", slot = "cell.embeddings")[,c(1:10)]
-# 	write.table(PC,file=paste(dataname,'.',i,'.CCA.txt',sep=''),quote=F,col.names=F,row.names=F)
-# 	write.table(X@var.genes, file = paste(dataname,'.',i,'.genes.CCA.txt',sep=''),quote=F,col.names=F,row.names=F)
-# 	return(PC)
-# })
-
 genes = lapply(c(1,2), function(i){
 	X = seurat_data[[i]]
-	write.csv(X@hvg.info,quote=F,file=paste(dataname,'.',i,'.hvg_info.csv',sep=''))
+	geneinfo = X@hvg.info
+	genename = read.table(paste(dataname, '.genenames.txt',sep=''))[,1]
+	geneinfo = cbind(genename,geneinfo)
+	write.csv(geneinfo,quote=F,file=paste(dataname,'.',i,'.hvg_info.csv',sep=''))
 	return(X@hvg.info)
 })
 
 
-combined = hvg_CCA(seurat_data,filter_genes=FALSE)
+combined = hvg_CCA(data=seurat_data,filter_genes=T)
 end = proc.time()
 print(paste('runtime for CCA =',end-start))
 
@@ -126,8 +115,3 @@ write.table(combined[[1]],file=paste(dataname,'.CCA.txt',sep=''),quote=F,col.nam
 write.table(cells,file=paste(dataname,'.CCA.cells.txt',sep=''),quote=F,col.names=F,row.names=F)
 write.table(sapply(strsplit(combined[[4]],'_'),function(X){X[2]}),file=paste(dataname,'.CCA.genes.txt',sep=''),quote=F,col.names=F,row.names=F)
 
-
-# for f in Sim1 Sim2 Sim3 Easy1 Macosko_Regev Tech1 Zeng
-# for f in Sim1 Sim2 Sim3
-# do Rscript runSeurat.R $f 
-# done &> seurat.log

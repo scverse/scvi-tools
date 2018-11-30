@@ -2,42 +2,25 @@ use_cuda = True
 from scvi.harmonization.utils_chenling import get_matrix_from_dir
 import numpy as np
 from scvi.dataset.dataset import GeneExpressionDataset
-from scvi.harmonization.utils_chenling import eval_latent
 from scvi.models.vae import VAE
 from scvi.inference import UnsupervisedTrainer
-from copy import deepcopy
+
 
 
 class MSDataset(GeneExpressionDataset):
-    def __init__(self, patient='MS19270',celltype='PBMCs'):
-        self.patient = patient
-        self.celltype = celltype
-        count, labels, cell_type, gene_names = self.preprocess()
+    def __init__(self):
+        count, labels, cell_type, gene_names,cellid = self.preprocess()
         super(MSDataset, self).__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
-                count, labels=labels),
+                count.tocsr(), labels=labels),
             gene_names=np.char.upper(gene_names), cell_types=cell_type)
     def preprocess(self):
         print("Preprocessing data")
-        count, geneid, cellid = get_matrix_from_dir('Gerd/{0}/{1}/GRCh38'.format(self.patient,self.celltype))
-        geneid = geneid[:, 1]
-        count = count.T.tocsr()
+        count, geneid, cellid = get_matrix_from_dir('CSF',storage='/data/')
         print("Finish preprocessing data")
         labels = np.repeat(0,len(cellid))
         cell_type = ['unlabelled']
-        return count,labels,cell_type,geneid
-
-patient_id = ['MS19270', 'MS49131'  ,  'PTC32190',  'PTC41540',  'PTC85037']
-dataset = []
-for id in patient_id:
-    data = MSDataset(id,'PBMCs')
-    data.subsample_genes(data.nb_genes)
-    dataset.append(data)
-    data = MSDataset(id, 'CSF')
-    data.subsample_genes(data.nb_genes)
-    dataset.append(data)
-
-gene_dataset = GeneExpressionDataset.concat_datasets(dataset[0],dataset[1],
+        return count,labels,cell_type,geneid,cellid
                                                      dataset[2],dataset[3],
                                                      dataset[4],dataset[5],
                                                      dataset[6],dataset[7],

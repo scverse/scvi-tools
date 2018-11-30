@@ -5,6 +5,7 @@ import warnings
 from rpy2.rinterface import RRuntimeWarning
 import rpy2.robjects.numpy2ri as numpy2ri
 from scipy.io import mmwrite
+from scipy.sparse import csr_matrix
 from sklearn.decomposition import PCA
 
 class COMBAT():
@@ -23,7 +24,7 @@ class COMBAT():
     def csr2r(self, matrix):
         # because rpy2 don't have sparse encoding try printing it to mtx and reading it in R
         # the object is named X
-        mmwrite('temp.mtx',matrix)
+        mmwrite('temp.mtx',csr_matrix(matrix.astype('int')))
         ro.r('X <- readMM("temp.mtx")')
         # save_npz('temp.npz', matrix)
         # ro.r('sparse <- import("scipy.sparse")')

@@ -523,6 +523,7 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
     return score / float(n_pools)
 
 
+
 def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes_idx=None,
                       m_permutation=1000000, permutation=False, logit=True):
     '''
