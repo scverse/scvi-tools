@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import torch
+import os
 from matplotlib import pyplot as plt
 from scipy.stats import kde, entropy
 from sklearn.cluster import KMeans
@@ -344,7 +345,7 @@ class Posterior:
                 return 0
         return np.median(np.abs(np.concatenate(original_list) - np.concatenate(imputed_list)))
 
-    def imputation_benchmark(self, n_samples=8, verbose=False, title_plot='imputation'):
+    def imputation_benchmark(self, n_samples=8, verbose=False, title_plot='imputation', save_path=''):
         original_list, imputed_list = self.imputation_list(n_samples=n_samples)
         # Median of medians for all distances
         median_score = self.imputation_score(original_list=original_list, imputed_list=imputed_list)
@@ -359,7 +360,8 @@ class Posterior:
         if verbose:
             print("\nMedian of Median: %.4f\nMean of Median for each cell: %.4f" % (median_score, mean_score))
 
-        plot_imputation(np.concatenate(original_list), np.concatenate(imputed_list), title=title_plot)
+        plot_imputation(np.concatenate(original_list), np.concatenate(imputed_list), title=os.path.join(save_path,
+                                                                                                        title_plot))
         return original_list, imputed_list
 
     def knn_purity(self, verbose=False):
