@@ -8,6 +8,7 @@ import os
 import shutil
 import matplotlib.pyplot as plt
 import json
+import re
 
 
 def find_notebook(fullname, path=None):
@@ -67,6 +68,15 @@ class NotebookLoader(object):
                     if i != 0:  # the first code cell is cd ../.. which is not needed here and would generate errors
                         # transform the input to executable Python
                         code = self.shell.input_transformer_manager.transform_cell(cell.source)
+                        # replace parameters with test parameters to run faster
+                        code = re.sub("n_epochs_all = None", "n_epochs_all = 1", code)
+                        code = re.sub("n_labelled_samples_per_class = None", "n_labelled_samples_per_class = 3", code)
+                        code = re.sub("M_permutation_all = None", "M_permutation_all = 10", code)
+                        code = re.sub("M_sampling_all = None", "M_sampling_all = 1", code)
+                        code = re.sub("n_samples_tsne = None", "n_samples_tsne = 10", code)
+                        code = re.sub("n_samples_posterior_density = None", "n_samples_posterior_density = 2", code)
+                        code = re.sub("save_path = 'data/", "save_path = 'tests/data/", code)
+                        code = re.sub("train_size = None", "train_size = 0.5", code)
                         # run the code in themodule
                         exec(code, mod.__dict__)
                         plt.close('all')
@@ -100,152 +110,35 @@ class NotebookFinder(object):
 sys.meta_path.append(NotebookFinder())
 
 path = 'tests/notebooks/'
-test_path = 'tests/config_notebooks_tests/'
 
 
-def test_notebooks(save_path):
+def test_notebooks():
     prefix = 'annotation'
-    # if exists, save and overwrite
 
-    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-    config_filename_tmp = prefix + '.config.tmp.json'
-
-    with open(test_path+config_filename, 'r') as f:
-        config_test = json.load(f)
-        config_test['save_path'] = save_path
-
-    with open(test_path+config_filename, 'w') as f:
-        json.dump(config_test, f)
-
-    # Save content in memory in tmp file
-    existing_config_to_restore = os.path.exists(path + config_filename)
-    if existing_config_to_restore:
-        shutil.copy(path + config_filename, path + config_filename_tmp)
-
-    # Overwritting
-    shutil.copy(test_path + config_filename, path + config_filename)
-    try:
-        import notebooks.annotation
-        notebooks.annotation.allow_notebook_for_test()
-        plt.close('all')
-    except BaseException:
-        raise
-    finally:
-        if existing_config_to_restore:
-            shutil.move(path + config_filename_tmp, path + config_filename)
+    import notebooks.annotation
+    notebooks.annotation.allow_notebook_for_test()
+    plt.close('all')
 
     prefix = 'scRNA_and_smFISH'
-    # if exists, save and overwrite
-    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-    config_filename_tmp = prefix + '.config.tmp.json'
 
-    with open(test_path+config_filename, 'r') as f:
-        config_test = json.load(f)
-        config_test['save_path'] = save_path
-
-    with open(test_path+config_filename, 'w') as f:
-        json.dump(config_test, f)
-
-    # Save content in memory in tmp file
-    existing_config_to_restore = os.path.exists(path + config_filename)
-    if existing_config_to_restore:
-        shutil.copy(path + config_filename, path + config_filename_tmp)
-
-    # Overwritting
-    shutil.copy(test_path + config_filename, path + config_filename)
-    try:
-        import notebooks.scRNA_and_smFISH
-        notebooks.scRNA_and_smFISH.allow_notebook_for_test()
-        plt.close('all')
-    except BaseException:
-        raise
-    finally:
-        if existing_config_to_restore:
-            shutil.move(path + config_filename_tmp, path + config_filename)
+    import notebooks.scRNA_and_smFISH
+    notebooks.scRNA_and_smFISH.allow_notebook_for_test()
+    plt.close('all')
 
     prefix = 'data_loading'
-    # if exists, save and overwrite
-    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-    config_filename_tmp = prefix + '.config.tmp.json'
 
-    with open(test_path+config_filename, 'r') as f:
-        config_test = json.load(f)
-        config_test['save_path'] = save_path
-
-    with open(test_path+config_filename, 'w') as f:
-        json.dump(config_test, f)
-
-    # Save content in memory in tmp file
-    existing_config_to_restore = os.path.exists(path + config_filename)
-    if existing_config_to_restore:
-        shutil.copy(path + config_filename, path + config_filename_tmp)
-
-    # Overwritting
-    shutil.copy(test_path + config_filename, path + config_filename)
-    try:
-        import notebooks.data_loading
-        notebooks.data_loading.allow_notebook_for_test()
-        plt.close('all')
-    except BaseException:
-        raise
-    finally:
-        if existing_config_to_restore:
-            shutil.move(path + config_filename_tmp, path + config_filename)
+    import notebooks.data_loading
+    notebooks.data_loading.allow_notebook_for_test()
+    plt.close('all')
 
     prefix = 'basic_tutorial'
-    # if exists, save and overwrite
-    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-    config_filename_tmp = prefix + '.config.tmp.json'
 
-    with open(test_path+config_filename, 'r') as f:
-        config_test = json.load(f)
-        config_test['save_path'] = save_path
-
-    with open(test_path+config_filename, 'w') as f:
-        json.dump(config_test, f)
-
-    # Save content in memory in tmp file
-    existing_config_to_restore = os.path.exists(path + config_filename)
-    if existing_config_to_restore:
-        shutil.copy(path + config_filename, path + config_filename_tmp)
-
-    # Overwritting
-    shutil.copy(test_path + config_filename, path + config_filename)
-    try:
-        import notebooks.basic_tutorial
-        notebooks.basic_tutorial.allow_notebook_for_test()
-        plt.close('all')
-    except BaseException:
-        raise
-    finally:
-        if existing_config_to_restore:
-            shutil.move(path + config_filename_tmp, path + config_filename)
+    import notebooks.basic_tutorial
+    notebooks.basic_tutorial.allow_notebook_for_test()
+    plt.close('all')
 
     prefix = 'scVI_reproducibility'
-    # if exists, save and overwrite
-    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-    config_filename_tmp = prefix + '.config.tmp.json'
 
-    with open(test_path+config_filename, 'r') as f:
-        config_test = json.load(f)
-        config_test['save_path'] = save_path
-
-    with open(test_path+config_filename, 'w') as f:
-        json.dump(config_test, f)
-
-    # Save content in memory in tmp file
-    existing_config_to_restore = os.path.exists(path + config_filename)
-    if existing_config_to_restore:
-        shutil.copy(path + config_filename, path + config_filename_tmp)
-
-    # Overwritting
-    shutil.copy(test_path + config_filename, path + config_filename)
-    try:
-        import notebooks.scVI_reproducibility
-        notebooks.scVI_reproducibility.allow_notebook_for_test()
-        plt.close('all')
-    except BaseException:
-        raise
-    finally:
-        if existing_config_to_restore:
-            shutil.move(path + config_filename_tmp, path + config_filename)
+    import notebooks.scVI_reproducibility
+    notebooks.scVI_reproducibility.allow_notebook_for_test()
+    plt.close('all')
