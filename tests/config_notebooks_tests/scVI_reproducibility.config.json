@@ -1,1 +1,0 @@
-{"save_path": "/tmp/pytest-of-romain/pytest-0/temp_data/", "n_epochs": 1, "n_samples_tsne": 10, "n_samples_posterior_density": 2, "train_size": 0.5, "M_permutation": 10, "M_sampling": 10, "rate": 1.0}

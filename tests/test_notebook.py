@@ -110,8 +110,6 @@ class NotebookFinder(object):
 
 sys.meta_path.append(NotebookFinder())
 
-path = 'tests/notebooks/'
-
 
 def test_notebooks(save_path):
     pickle.dump(save_path, open('tests/data/path_test', 'wb'))
