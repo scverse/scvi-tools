@@ -496,29 +496,28 @@ def entropy_from_indices(indices):
     return entropy(np.array(np.unique(indices, return_counts=True)[1].astype(np.int32)))
 
 
-def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_samples_per_pool=100, max_number=500):
-    # max number is an important parameter
-    n_samples = len(latent_space)
-    keep_idx = np.random.choice(np.arange(n_samples), size=min(len(latent_space), max_number), replace=False)
-    latent_space, batches = latent_space[keep_idx], batches[keep_idx]
+def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_samples_per_pool=100):
+    def entropy(hist_data):
+        n_batches = len(np.unique(hist_data))
+        if n_batches > 2:
+            raise ValueError("Should be only two clusters for this metric")
+        frequency = np.mean(hist_data == 1)
+        if frequency == 0 or frequency == 1:
+            return 0
+        return -frequency * np.log(frequency) - (1 - frequency) * np.log(1 - frequency)
 
-    batches = batches.ravel()
-    n_neighbors = min(n_neighbors, n_samples - 1)
-    nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(latent_space)
-    indices = nbrs.kneighbors(latent_space, return_distance=False)[:, 1:]
-    batch_indices = np.vectorize(lambda i: batches[i])(indices)
-    entropies = np.apply_along_axis(entropy_from_indices, axis=1, arr=batch_indices)
+    n_neighbors = min(n_neighbors, len(latent_space) - 1)
+    nne = NearestNeighbors(n_neighbors=1 + n_neighbors, n_jobs=8)
+    nne.fit(latent_space)
+    kmatrix = nne.kneighbors_graph(latent_space) - scipy.sparse.identity(latent_space.shape[0])
 
-    # average n_pools entropy results where each result is an average of n_samples_per_pool random samples.
-    if n_pools == 1:
-        score = np.mean(entropies)
-    else:
-        score = np.mean([
-            np.mean(entropies[np.random.choice(len(entropies), size=n_samples_per_pool)])
-            for _ in range(n_pools)
-        ])
-
-    return score
+    score = 0
+    for t in range(n_pools):
+        indices = np.random.choice(np.arange(latent_space.shape[0]), size=n_samples_per_pool)
+        score += np.mean([entropy(batches[kmatrix[indices].nonzero()[1]
+                                                 [kmatrix[indices].nonzero()[0] == i]])
+                          for i in range(n_samples_per_pool)])
+    return score / float(n_pools)
 
 
 def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes_idx=None,
