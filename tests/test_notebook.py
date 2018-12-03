@@ -5,9 +5,8 @@ from IPython import get_ipython
 from nbformat import read
 from IPython.core.interactiveshell import InteractiveShell
 import os
-import shutil
 import matplotlib.pyplot as plt
-import json
+import pickle
 import re
 
 
@@ -61,6 +60,8 @@ class NotebookLoader(object):
         save_user_ns = self.shell.user_ns
         self.shell.user_ns = mod.__dict__
 
+        save_path = pickle.load(open('tests/data/path_test', 'rb'))
+
         try:
             i = 0
             for cell in nb.cells:
@@ -75,7 +76,7 @@ class NotebookLoader(object):
                         code = re.sub("M_sampling_all = None", "M_sampling_all = 1", code)
                         code = re.sub("n_samples_tsne = None", "n_samples_tsne = 10", code)
                         code = re.sub("n_samples_posterior_density = None", "n_samples_posterior_density = 2", code)
-                        code = re.sub("save_path = 'data/", "save_path = 'tests/data/", code)
+                        code = re.sub("save_path = 'data/'", "save_path = '"+save_path+"'", code)
                         code = re.sub("train_size = None", "train_size = 0.5", code)
                         # run the code in themodule
                         exec(code, mod.__dict__)
@@ -112,33 +113,32 @@ sys.meta_path.append(NotebookFinder())
 path = 'tests/notebooks/'
 
 
-def test_notebooks():
-    prefix = 'annotation'
+def test_notebooks(save_path):
+    pickle.dump(save_path, open('tests/data/path_test', 'wb'))
 
-    import notebooks.annotation
-    notebooks.annotation.allow_notebook_for_test()
-    plt.close('all')
+    try:
+        import notebooks.annotation
+        notebooks.annotation.allow_notebook_for_test()
+        plt.close('all')
 
-    prefix = 'scRNA_and_smFISH'
+        import notebooks.scRNA_and_smFISH
+        notebooks.scRNA_and_smFISH.allow_notebook_for_test()
+        plt.close('all')
 
-    import notebooks.scRNA_and_smFISH
-    notebooks.scRNA_and_smFISH.allow_notebook_for_test()
-    plt.close('all')
+        import notebooks.data_loading
+        notebooks.data_loading.allow_notebook_for_test()
+        plt.close('all')
 
-    prefix = 'data_loading'
+        import notebooks.basic_tutorial
+        notebooks.basic_tutorial.allow_notebook_for_test()
+        plt.close('all')
 
-    import notebooks.data_loading
-    notebooks.data_loading.allow_notebook_for_test()
-    plt.close('all')
+        import notebooks.scVI_reproducibility
+        notebooks.scVI_reproducibility.allow_notebook_for_test()
+        plt.close('all')
 
-    prefix = 'basic_tutorial'
+    except BaseException:
+        raise
 
-    import notebooks.basic_tutorial
-    notebooks.basic_tutorial.allow_notebook_for_test()
-    plt.close('all')
-
-    prefix = 'scVI_reproducibility'
-
-    import notebooks.scVI_reproducibility
-    notebooks.scVI_reproducibility.allow_notebook_for_test()
-    plt.close('all')
+    finally:
+        os.remove('tests/data/path_test')
