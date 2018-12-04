@@ -25,6 +25,13 @@ class AnnotationPosterior(Posterior):
 
     accuracy.mode = 'max'
 
+    def get_regenerate_scale(self, fixed_batch, fixed_cell_type):
+        px_scales = []
+        for tensors in self:
+            sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
+            px_scales += [self.model.regenerate_from_fixed_info(sample_batch, fixed_batch, fixed_cell_type).cpu()]
+        return np.concatenate(px_scales)
+
     def hierarchical_accuracy(self, verbose=False):
         all_y, all_y_pred = self.compute_predictions()
         acc = np.mean(all_y == all_y_pred)
