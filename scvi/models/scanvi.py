@@ -103,6 +103,22 @@ class SCANVI(VAE):
             w_y = self.classifier(z)
         return w_y
 
+    def regenerate_from_fixed_info(self, sample_batch, fixed_batch, fixed_cell_type):
+        batch_index = torch.cuda.IntTensor(sample_batch.shape[0], 1).fill_(fixed_batch)
+        library = torch.cuda.FloatTensor(sample_batch.shape[0], 1).fill_(4)
+        cell_type = torch.cuda.FloatTensor(sample_batch.shape[0], 1).fill_(fixed_cell_type)
+
+        # get z2
+        if self.log_variational:
+            sample_batch = torch.log(1 + sample_batch)
+        qz_m, qz_v, z = self.z_encoder(sample_batch)
+        qz2_m, qz2_v, z2 = self.encoder_z2_z1(z, cell_type)
+
+        # and then inject
+        pz1_m, pz1_v = self.decoder_z1_z2(z2, cell_type)
+        px_scale, _, _, _ = self.decoder('gene', pz1_m, library, batch_index)
+        return px_scale
+
     def get_latents(self, x, y=None):
         zs = super(SCANVI, self).get_latents(x)
         qz2_m, qz2_v, z2 = self.encoder_z2_z1(zs[0], y)
