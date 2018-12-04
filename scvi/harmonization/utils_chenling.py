@@ -94,7 +94,8 @@ def trainVAE(gene_dataset, filename, rep, nlayers=2,n_hidden=128):
           n_hidden=n_hidden, n_latent=10, n_layers=nlayers, dispersion='gene')
     trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
     if os.path.isfile('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl'):
-        trainer.model.load_state_dict(torch.load('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl'))
+        # trainer.model.load_state_dict(torch.load('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl'))
+        trainer.model=torch.load('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl')
         trainer.model.eval()
     else:
         trainer.train(n_epochs=250)
@@ -150,8 +151,9 @@ def trainSCANVI(gene_dataset,model_type,filename,rep, nlayers=2):
         trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(indices=(gene_dataset.batch_indices >= 0))
 
     if os.path.isfile('../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl'):
-        trainer_scanvi.model.load_state_dict(torch.load('../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl'))
-        trainer_scanvi.model.eval()
+        trainer_scanvi.model=torch.load('../' + filename + '/' + 'vae' + '.rep'+str(rep)+'.pkl')
+        # trainer_scanvi.model.load_state_dict(torch.load('../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl'))
+        # trainer_scanvi.model.eval()
     else:
         trainer_scanvi.train(n_epochs=10)
         torch.save(trainer_scanvi.model.state_dict(), '../' + filename + '/' + model_type + '.rep'+str(rep)+'.pkl')
@@ -199,7 +201,7 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
             from scvi.harmonization.clustering.MNN import MNN
             from sklearn.decomposition import PCA
             mnn = MNN()
-            out = mnn.fit_transform(gene_dataset.X.todense(), gene_dataset.batch_indices.ravel(), [0, 1])
+            out = mnn.fit_transform(gene_dataset.X, gene_dataset.batch_indices.ravel(), [0, 1])
             latent = PCA(n_components=10).fit_transform(out)
             np.save('../' + filename + '/' + 'MNN' + '.npy',latent)
 
@@ -208,7 +210,7 @@ def run_model(model_type, gene_dataset, dataset1, dataset2, filename='temp',rep=
             latent = np.load('../' + filename + '/' + 'PCA'  + '.npy')
         else:
             from sklearn.decomposition import PCA
-            X = np.log(1 + gene_dataset.X.todense())
+            X = np.log(1 + gene_dataset.X)
             latent = PCA(n_components=10).fit_transform(X)
             np.save('../' + filename + '/' + 'PCA' + '.npy', latent)
 

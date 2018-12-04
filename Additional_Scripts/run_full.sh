@@ -23,7 +23,7 @@
 
 
 #python Easycase1.compare.py scvi
-#python Easycase1.compare.py others
+python Easycase1.compare.py others
 #
 #python Tech1.py scvi
 #python Tech1.py others
@@ -35,9 +35,7 @@
 #python Easycase2.compare.py others
 #
 #python Tech3.py scvi >> Tech3.log
-#python Tech3.py others >> Tech3.log
+python Tech3.py others
 
 
-python Tech3.py scvi
-python Tech4.py scvi
-python Easycase1.compare.py scvi
+python Tech4.py others
