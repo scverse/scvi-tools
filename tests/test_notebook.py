@@ -70,12 +70,12 @@ class NotebookLoader(object):
                         # transform the input to executable Python
                         code = self.shell.input_transformer_manager.transform_cell(cell.source)
                         # replace parameters with test parameters to run faster
-                        code = re.sub("n_epochs_all = None", "n_epochs_all = 1", code)
-                        code = re.sub("n_cl = \d+", "n_cl = 3", code)
-                        code = re.sub("M_permutation = \d+", "M_permutation = 10", code)
-                        code = re.sub("M_sampling = \d+", "M_sampling = 1", code)
-                        code = re.sub("n_samples_tsne = \d+", "n_samples_tsne = 10", code)
-                        code = re.sub("n_samples_posterior_density = \d+", "n_samples_posterior_density = 2", code)
+                        code = re.sub(r'n_epochs_all = None', "n_epochs_all = 1", code)
+                        code = re.sub(r'n_cl = \d+', "n_cl = 3", code)
+                        code = re.sub(r'M_permutation = \d+', "M_permutation = 10", code)
+                        code = re.sub(r'M_sampling = \d+', "M_sampling = 1", code)
+                        code = re.sub(r'n_samples_tsne = \d+', "n_samples_tsne = 10", code)
+                        code = re.sub(r'n_samples_posterior_density = \d+', "n_samples_posterior_density = 2", code)
                         code = re.sub("save_path = 'data/'", "save_path = '"+save_path+"'", code)
                         # run the code in themodule
                         exec(code, mod.__dict__)
