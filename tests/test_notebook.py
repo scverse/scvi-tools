@@ -71,13 +71,12 @@ class NotebookLoader(object):
                         code = self.shell.input_transformer_manager.transform_cell(cell.source)
                         # replace parameters with test parameters to run faster
                         code = re.sub("n_epochs_all = None", "n_epochs_all = 1", code)
-                        code = re.sub("n_labelled_samples_per_class = None", "n_labelled_samples_per_class = 3", code)
-                        code = re.sub("M_permutation_all = None", "M_permutation_all = 10", code)
-                        code = re.sub("M_sampling_all = None", "M_sampling_all = 1", code)
-                        code = re.sub("n_samples_tsne = None", "n_samples_tsne = 10", code)
-                        code = re.sub("n_samples_posterior_density = None", "n_samples_posterior_density = 2", code)
+                        code = re.sub("n_cl = \d+", "n_cl = 3", code)
+                        code = re.sub("M_permutation = \d+", "M_permutation = 10", code)
+                        code = re.sub("M_sampling = \d+", "M_sampling = 1", code)
+                        code = re.sub("n_samples_tsne = \d+", "n_samples_tsne = 10", code)
+                        code = re.sub("n_samples_posterior_density = \d+", "n_samples_posterior_density = 2", code)
                         code = re.sub("save_path = 'data/'", "save_path = '"+save_path+"'", code)
-                        code = re.sub("train_size = None", "train_size = 0.5", code)
                         # run the code in themodule
                         exec(code, mod.__dict__)
                         plt.close('all')
