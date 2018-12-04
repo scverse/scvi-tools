@@ -5,7 +5,7 @@ import pandas as pd
 import scipy
 import torch
 from matplotlib import pyplot as plt
-from scipy.stats import kde, entropy
+from scipy.stats import kde
 from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
 from sklearn.metrics import adjusted_rand_score as ARI
@@ -488,8 +488,9 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
     score = 0
     for t in range(n_pools):
         indices = np.random.choice(np.arange(latent_space.shape[0]), size=n_samples_per_pool)
-        score += np.mean([entropy(batches[kmatrix[indices].nonzero()[1]\
-            [kmatrix[indices].nonzero()[0] == i]]) for i in range(n_samples_per_pool)])
+        score += np.mean([entropy(batches[kmatrix[indices].nonzero()[1]
+                                                                    [kmatrix[indices].nonzero()[0] == i]])
+                          for i in range(n_samples_per_pool)])
     return score / float(n_pools)
 
 
