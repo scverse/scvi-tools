@@ -6,8 +6,10 @@ from nbformat import read
 from IPython.core.interactiveshell import InteractiveShell
 import os
 import matplotlib.pyplot as plt
-import pickle
 import re
+
+
+base_path = os.getcwd()
 
 
 def find_notebook(fullname, path=None):
@@ -38,7 +40,7 @@ class NotebookLoader(object):
 
     def load_module(self, fullname):
         """import a notebook as a module"""
-        path = find_notebook(fullname, self.path)
+        path = find_notebook(fullname, [os.path.join(base_path, 'tests/notebooks')])
 
         print("importing Jupyter notebook from %s" % path)
 
@@ -60,8 +62,6 @@ class NotebookLoader(object):
         save_user_ns = self.shell.user_ns
         self.shell.user_ns = mod.__dict__
 
-        save_path = pickle.load(open('tests/data/path_test', 'rb'))
-
         try:
             i = 0
             for cell in nb.cells:
@@ -76,7 +76,7 @@ class NotebookLoader(object):
                         code = re.sub(r'M_sampling = \d+', "M_sampling = 1", code)
                         code = re.sub(r'n_samples_tsne = \d+', "n_samples_tsne = 10", code)
                         code = re.sub(r'n_samples_posterior_density = \d+', "n_samples_posterior_density = 2", code)
-                        code = re.sub("save_path = 'data/'", "save_path = '"+save_path+"'", code)
+                        code = re.sub("save_path = 'data/'", "save_path = '"+os.getcwd()+"'", code)
                         # run the code in themodule
                         exec(code, mod.__dict__)
                         plt.close('all')
@@ -111,9 +111,9 @@ sys.meta_path.append(NotebookFinder())
 
 
 def test_notebooks(save_path):
-    pickle.dump(save_path, open('tests/data/path_test', 'wb'))
 
     try:
+        os.chdir(save_path)
         import notebooks.annotation
         notebooks.annotation.allow_notebook_for_test()
         plt.close('all')
@@ -138,4 +138,4 @@ def test_notebooks(save_path):
         raise
 
     finally:
-        os.remove('tests/data/path_test')
+        os.chdir(path=base_path)

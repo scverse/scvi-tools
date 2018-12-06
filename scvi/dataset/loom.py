@@ -1,6 +1,6 @@
 import loompy
 import numpy as np
-
+import os
 from .dataset import GeneExpressionDataset
 
 
@@ -39,7 +39,7 @@ class LoomDataset(GeneExpressionDataset):
     def preprocess(self):
         print("Preprocessing dataset")
         gene_names, labels, batch_indices, cell_types = None, None, None, None
-        ds = loompy.connect(self.save_path + self.download_name)
+        ds = loompy.connect(os.path.join(self.save_path, self.download_name))
         select = ds[:, :].sum(axis=0) > 0  # Take out cells that doesn't express any gene
 
         if 'Gene' in ds.ra:

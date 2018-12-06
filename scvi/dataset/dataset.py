@@ -237,11 +237,11 @@ class GeneExpressionDataset(Dataset):
 
     @staticmethod
     def _download(url, save_path, download_name):
-        if os.path.exists(save_path + download_name):
-            print("File %s already downloaded" % (save_path + download_name))
+        if os.path.exists(os.path.join(save_path, download_name)):
+            print("File %s already downloaded" % (os.path.join(save_path, download_name)))
             return
         r = urllib.request.urlopen(url)
-        print("Downloading file at %s" % save_path + download_name)
+        print("Downloading file at %s" % os.path.join(save_path, download_name))
 
         def readIter(f, blocksize=1000):
             """Given a file 'f', returns an iterator that returns bytes of
@@ -256,7 +256,7 @@ class GeneExpressionDataset(Dataset):
         if not os.path.exists(save_path):
             os.makedirs(save_path)
 
-        with open(save_path + download_name, 'wb') as f:
+        with open(os.path.join(save_path, download_name), 'wb') as f:
             for data in readIter(r):
                 f.write(data)
 

@@ -1,5 +1,5 @@
 import csv
-
+import os
 import numpy as np
 
 from .dataset import GeneExpressionDataset
@@ -48,7 +48,7 @@ class CortexDataset(GeneExpressionDataset):
         print("Preprocessing Cortex data")
         rows = []
         gene_names = []
-        with open(self.save_path + self.download_name, 'r') as csvfile:
+        with open(os.path.join(self.save_path, self.download_name), 'r') as csvfile:
             data_reader = csv.reader(csvfile, delimiter='\t')
             clusters = None
             for i, row in enumerate(data_reader):

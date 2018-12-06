@@ -73,7 +73,7 @@ class Dataset10X(GeneExpressionDataset):
             group = to_groups[filename]
             self.url = ("http://cf.10xgenomics.com/samples/cell-exp/%s/%s/%s_%s_gene_bc_matrices.tar.gz" %
                         (group, filename, filename, type))
-            self.save_path = save_path + '10X/%s/' % filename
+            self.save_path = os.path.join(save_path, '10X/%s/' % filename)
             self.save_name = '%s_gene_bc_matrices' % type
             self.download_name = self.save_name + '.tar.gz'
         else:
@@ -82,7 +82,7 @@ class Dataset10X(GeneExpressionDataset):
             except AssertionError:
                 print("The file %s was not found in the location you gave" % filename)
                 raise
-            self.save_path = self.save_path + filename + '/'
+            self.save_path = os.path.join(self.save_path, filename)
 
         self.dense = dense
 
@@ -96,20 +96,21 @@ class Dataset10X(GeneExpressionDataset):
         if self.remote:
             if len(os.listdir(self.save_path)) == 1:  # nothing extracted yet
                 print("Extracting tar file")
-                tar = tarfile.open(self.save_path + self.download_name, "r:gz")
+                tar = tarfile.open(os.path.join(self.save_path, self.download_name), "r:gz")
                 tar.extractall(path=self.save_path)
                 tar.close()
 
             path = (self.save_path +
-                    [name for name in os.listdir(self.save_path) if os.path.isdir(self.save_path + name)][0] +
+                    [name for name in os.listdir(self.save_path) if os.path.isdir(os.path.join(self.save_path,
+                                                                                               name))][0] +
                     '/')
             path += os.listdir(path)[0] + '/'
-        genes_info = pd.read_csv(path + 'genes.tsv', sep='\t', header=None)
+        genes_info = pd.read_csv(os.path.join(path, 'genes.tsv'), sep='\t', header=None)
         gene_names = genes_info.values[:, 0].astype(np.str).ravel()
         if os.path.exists(path + 'barcodes.tsv'):
-            self.barcodes = pd.read_csv(path + 'barcodes.tsv', sep='\t', header=None)
+            self.barcodes = pd.read_csv(os.path.join(path, 'barcodes.tsv'), sep='\t', header=None)
         self.gene_symbols = genes_info.values[:, 1].astype(np.str).ravel()
-        expression_data = io.mmread(path + 'matrix.mtx').T
+        expression_data = io.mmread(os.path.join(path, 'matrix.mtx')).T
         if self.dense:
             expression_data = expression_data.A
         else:
@@ -145,7 +146,7 @@ class BrainSmallDataset(Dataset10X):
         self.download_names = ['brain_small_metadata.pickle']
         self.download()
 
-        metadata = pickle.load(open(self.save_path+'brain_small_metadata.pickle', 'rb'))
+        metadata = pickle.load(open(os.path.join(self.save_path, 'brain_small_metadata.pickle'), 'rb'))
         labels = metadata['clusters'].loc[dataset.barcodes.values.ravel()] - 1
 
         self.raw_qc = metadata['raw_qc'].loc[dataset.barcodes.values.ravel()]
