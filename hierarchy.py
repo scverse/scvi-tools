@@ -12,6 +12,5 @@ dataset1.update_cells(dataset1.batch_indices.ravel()==0)
 dataset2 = deepcopy(gene_dataset)
 dataset2.update_cells(dataset2.batch_indices.ravel()==1)
 
-from scipy.sparse import csr_matrix
-gene_dataset.X = csr_matrix(gene_dataset.X)
+
 CompareModels(gene_dataset, dataset1, dataset2, 'Zeisel', models)

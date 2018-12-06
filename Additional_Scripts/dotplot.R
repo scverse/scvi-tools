@@ -72,7 +72,12 @@ Dotplot <- function(others,scvi,scanvi,ann,methods,plotname){
 	ggsave(plotname,p)
     p = ggplot(df,aes(x,value,fill=variable)) +
 	scale_fill_manual(values=colors)+ geom_boxplot() +
-    ylab("Cell Type Classification Accuracy")+xlab('Method')
+    ylab("Cell Type Classification Accuracy")+xlab('Method') +
+    scale_y_continuous(limits = c(0, 1))+
+    # theme(
+    theme(legend.position="none",
+    axis.title.x=element_blank(),axis.title.y=element_blank(),text = element_text(size=30),
+    axis.text.x=element_blank(), axis.ticks.x=element_blank())
 	ggsave(paste('box_',plotname,sep=''),p)
 }
 
@@ -99,3 +104,6 @@ Dotplot(others,scvi,scanvi,'p',c('scVI','SCANVI','CCA'),'percluster_cca_vae_scan
 # --scale 0.9 \
 # --outfile acc_boxplot.combined.pdf
 
+# cd ../Tech4
+# Rscript ../scVI/Additional_Scripts/dotplot.R
+# cp box_percluster_* /Users/chenlingantelope/Dropbox/scVI_team/Harmonization\ and\ annotation/Figs/SupFig2_Annotation/Tech4

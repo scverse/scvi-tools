@@ -27,7 +27,7 @@ from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
 import torch
 import os
 
-plotname = 'PopRemove'
+plotname = 'NoOverlap'
 
 dataset1 = PbmcDataset(filter_out_de_genes=False)
 dataset1.update_cells(dataset1.batch_indices.ravel()==0)
@@ -116,47 +116,44 @@ def BEbyType(keys,latent,labels,batch_indices):
 
 f = open('../PopRemove/'+plotname+'.acc.res.txt', "w+")
 g = open('../PopRemove/'+plotname+'.res.txt', "w+")
-# f.write('model_type\tcell_type\tBE_removed\tBE_kept\tasw\tnmi\tari\tca\twca\n')
 
 
 # scp chenlingantelope@s128.millennium.berkeley.edu:/data/yosef2/users/chenling/harmonization/Seurat_data/PopRemove* .
 for rmCellTypes in dataset2.cell_types[:6]:
     pbmc = deepcopy(dataset1)
-    newCellType = [k for i, k in enumerate(dataset1.cell_types) if k not in [rmCellTypes,'Others']]
+    newCellType = [k for i, k in enumerate(dataset1.cell_types) if k not in [rmCellTypes]]
     pbmc.filter_cell_types(newCellType)
-    gene_dataset = GeneExpressionDataset.concat_datasets(pbmc, dataset2)
-    pbmc = deepcopy(gene_dataset)
-    pbmc.update_cells(pbmc.batch_indices.ravel() == 0)
+    pbmc2 = deepcopy(dataset2)
+    pbmc2.filter_cell_types([rmCellTypes])
     pbmc.subsample_genes(pbmc.nb_genes)
-    pbmc2 = deepcopy(gene_dataset)
-    pbmc2.update_cells(gene_dataset.batch_indices.ravel() == 1)
-    pbmc2.subsample_genes(dataset2.nb_genes)
-    _,_,_,_,_ = run_model('writedata', gene_dataset, pbmc, pbmc2,filename=plotname+rmCellTypes.replace(' ',''))
+    pbmc2.subsample_genes(pbmc2.nb_genes)
+    gene_dataset = GeneExpressionDataset.concat_datasets(pbmc, pbmc2)
+    # _,_,_,_,_ = run_model('writedata', gene_dataset, pbmc, pbmc2, filename=plotname+rmCellTypes.replace(' ',''))
 
     latent, batch_indices, labels, keys, stats = run_model(
-        'readSeurat', gene_dataset, pbmc, pbmc2, filename=plotname + rmCellTypes.replace(' ', ''))
-    acc, cell_type = KNNacc(latent, labels, keys)
+        'readSeurat', gene_dataset, pbmc, pbmc2,filename=plotname+rmCellTypes.replace(' ',''))
+    acc,cell_type = KNNacc(latent,labels,keys)
     f.write('Seurat' + '\t' + rmCellTypes + ("\t%.4f" * 8 + "\t%s" * 8 + "\n") % tuple(acc + list(cell_type)))
-    be, cell_type2 = BEbyType(keys, latent, labels, batch_indices)
+    be,cell_type2 = BEbyType(keys, latent,labels,batch_indices)
     g.write('Seurat' + '\t' + rmCellTypes + ("\t%.4f" * 8 + "\t%s" * 8 + "\n") % tuple(be + list(cell_type2)))
     plotUMAP(latent, plotname, 'Seurat', rmCellTypes)
 
-    pbmc, pbmc2, gene_dataset = SubsetGenes(pbmc, pbmc2, gene_dataset, plotname + rmCellTypes.replace(' ', ''))
+    pbmc, pbmc2, gene_dataset = SubsetGenes(pbmc, pbmc2, gene_dataset, plotname+rmCellTypes.replace(' ',''))
     vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches, n_labels=gene_dataset.n_labels,
               n_hidden=128, n_latent=10, n_layers=2, dispersion='gene')
     trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=1.0)
-    if os.path.isfile('../PopRemove/vae.%s.pkl' % rmCellTypes):
-        trainer.model.load_state_dict(torch.load('../PopRemove/vae.%s.pkl' % rmCellTypes))
+    if os.path.isfile('../PopRemove/vae.%s.pkl'%rmCellTypes):
+        trainer.model.load_state_dict(torch.load('../PopRemove/vae.%s.pkl'%rmCellTypes))
         trainer.model.eval()
     else:
         trainer.train(n_epochs=150)
-        torch.save(trainer.model.state_dict(), '../PopRemove/vae.%s.pkl' % rmCellTypes)
+        torch.save(trainer.model.state_dict(), '../PopRemove/vae.%s.pkl'%rmCellTypes)
     full = trainer.create_posterior(trainer.model, gene_dataset, indices=np.arange(len(gene_dataset)))
     latent, batch_indices, labels = full.sequential().get_latent()
     batch_indices = batch_indices.ravel()
-    acc, cell_type = KNNacc(latent, labels, keys)
+    acc,cell_type = KNNacc(latent,labels,keys)
     f.write('vae' + '\t' + rmCellTypes + ("\t%.4f" * 8 + "\t%s" * 8 + "\n") % tuple(acc + list(cell_type)))
-    be, cell_type2 = BEbyType(keys, latent, labels, batch_indices)
+    be,cell_type2 = BEbyType(keys, latent,labels,batch_indices)
     g.write('vae' + '\t' + rmCellTypes + ("\t%.4f" * 8 + "\t%s" * 8 + "\n") % tuple(be + list(cell_type2)))
     plotUMAP(latent, plotname, 'vae', rmCellTypes)
 
@@ -165,20 +162,20 @@ for rmCellTypes in dataset2.cell_types[:6]:
     trainer_scanvi = SemiSupervisedTrainer(scanvi, gene_dataset, classification_ratio=50,
                                            n_epochs_classifier=1, lr_classification=5 * 1e-3)
 
-    trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=gene_dataset.batch_indices.ravel() == 0)
-    trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(indices=gene_dataset.batch_indices.ravel() == 1)
-    if os.path.isfile('../PopRemove/scanvi.%s.pkl' % rmCellTypes):
-        trainer_scanvi.model.load_state_dict(torch.load('../PopRemove/scanvi.%s.pkl' % rmCellTypes))
+    trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(indices=gene_dataset.batch_indices.ravel()==0)
+    trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(indices=gene_dataset.batch_indices.ravel()==1)
+    if os.path.isfile('../PopRemove/scanvi.%s.pkl'%rmCellTypes):
+        trainer_scanvi.model.load_state_dict(torch.load('../PopRemove/scanvi.%s.pkl'%rmCellTypes))
         trainer_scanvi.model.eval()
     else:
         trainer_scanvi.train(n_epochs=10)
-        torch.save(trainer_scanvi.model.state_dict(), '../PopRemove/scanvi.%s.pkl' % rmCellTypes)
+        torch.save(trainer_scanvi.model.state_dict(), '../PopRemove/scanvi.%s.pkl'%rmCellTypes)
     scanvi_full = trainer_scanvi.create_posterior(trainer_scanvi.model, gene_dataset, indices=np.arange(len(gene_dataset)))
     latent, _, _ = scanvi_full.sequential().get_latent()
     batch_indices = batch_indices.ravel()
-    acc, cell_type = KNNacc(latent, labels, keys)
+    acc,cell_type = KNNacc(latent,labels,keys)
     f.write('scanvi' + '\t' + rmCellTypes + ("\t%.4f" * 8 + "\t%s" * 8 + "\n") % tuple(acc + list(cell_type)))
-    be, cell_type2 = BEbyType(keys, latent, labels, batch_indices)
+    be,cell_type2 = BEbyType(keys, latent,labels,batch_indices)
     g.write('scanvi' + '\t' + rmCellTypes + ("\t%.4f" * 8 + "\t%s" * 8 + "\n") % tuple(be + list(cell_type2)))
     plotUMAP(latent, plotname, 'scanvi', rmCellTypes)
 
