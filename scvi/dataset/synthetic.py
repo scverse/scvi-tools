@@ -1,5 +1,5 @@
 import pickle
-
+import os
 import numpy as np
 
 from . import GeneExpressionDataset
@@ -36,7 +36,7 @@ class SyntheticRandomDataset(GeneExpressionDataset):  # The exact random paramet
         self.download_name = 'random_metadata.pickle'
         self.download()
 
-        self.simlr_metadata = pickle.load(open(self.save_path + 'random_metadata.pickle', 'rb'))
+        self.simlr_metadata = pickle.load(open(os.path.join(self.save_path, 'random_metadata.pickle'), 'rb'))
         labels_simlr = self.simlr_metadata['clusters']
 
         super(SyntheticRandomDataset, self).__init__(

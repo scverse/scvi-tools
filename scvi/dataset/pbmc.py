@@ -1,5 +1,5 @@
 import pickle
-
+import os
 import numpy as np
 import pandas as pd
 
@@ -32,9 +32,9 @@ class PbmcDataset(GeneExpressionDataset):
 
         self.download_names = ['gene_info_pbmc.csv', 'pbmc_metadata.pickle']
         self.download()
-        self.de_metadata = pd.read_csv(self.save_path + 'gene_info_pbmc.csv', sep=',')
+        self.de_metadata = pd.read_csv(os.path.join(self.save_path, 'gene_info_pbmc.csv'), sep=',')
 
-        pbmc_metadata = pickle.load(open(self.save_path + 'pbmc_metadata.pickle', 'rb'))
+        pbmc_metadata = pickle.load(open(os.path.join(self.save_path, 'pbmc_metadata.pickle'), 'rb'))
 
         pbmc = GeneExpressionDataset.concat_datasets(
             Dataset10X("pbmc8k", save_path=save_path),

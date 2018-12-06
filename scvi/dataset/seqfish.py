@@ -1,5 +1,6 @@
 import pandas as pd
 from .dataset import GeneExpressionDataset
+import os
 
 
 class SeqfishDataset(GeneExpressionDataset):
@@ -16,7 +17,7 @@ class SeqfishDataset(GeneExpressionDataset):
     def preprocess(self):
         print("Preprocessing dataset")
 
-        xl = pd.ExcelFile(self.save_path + self.download_name)
+        xl = pd.ExcelFile(os.path.join(self.save_path, self.download_name))
         ds = xl.parse("Hippocampus Counts")  # They also used cell by genes
 
         print("Finished preprocessing dataset")
