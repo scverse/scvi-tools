@@ -55,7 +55,7 @@ def entropy_from_indices(indices):
     return entropy(np.array(np.unique(indices, return_counts=True)[1].astype(np.int32)))
 
 
-def entropy_batch_mixing_subsampled(latent, batches, labels, removed_type, n_neighbors=50, n_pools=50, n_samples_per_pool=100):
+def entropy_batch_mixing_subsampled(latent, batches, labels, removed_type, n_neighbors=30, n_pools=1, n_samples_per_pool=100):
     X = latent[labels == removed_type,:]
     nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(latent)
     indices = nbrs.kneighbors(X, return_distance=False)[:, 1:]
@@ -131,7 +131,7 @@ for rmCellTypes in dataset2.cell_types[:6]:
     pbmc2 = deepcopy(gene_dataset)
     pbmc2.update_cells(gene_dataset.batch_indices.ravel() == 1)
     pbmc2.subsample_genes(dataset2.nb_genes)
-    _,_,_,_,_ = run_model('writedata', gene_dataset, pbmc, pbmc2,filename=plotname+rmCellTypes.replace(' ',''))
+    # _,_,_,_,_ = run_model('writedata', gene_dataset, pbmc, pbmc2,filename=plotname+rmCellTypes.replace(' ',''))
 
     latent, batch_indices, labels, keys, stats = run_model(
         'readSeurat', gene_dataset, pbmc, pbmc2, filename=plotname + rmCellTypes.replace(' ', ''))
@@ -139,7 +139,7 @@ for rmCellTypes in dataset2.cell_types[:6]:
     f.write('Seurat' + '\t' + rmCellTypes + ("\t%.4f" * 8 + "\t%s" * 8 + "\n") % tuple(acc + list(cell_type)))
     be, cell_type2 = BEbyType(keys, latent, labels, batch_indices)
     g.write('Seurat' + '\t' + rmCellTypes + ("\t%.4f" * 8 + "\t%s" * 8 + "\n") % tuple(be + list(cell_type2)))
-    plotUMAP(latent, plotname, 'Seurat', rmCellTypes)
+    # plotUMAP(latent, plotname, 'Seurat', rmCellTypes)
 
     pbmc, pbmc2, gene_dataset = SubsetGenes(pbmc, pbmc2, gene_dataset, plotname + rmCellTypes.replace(' ', ''))
     vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches, n_labels=gene_dataset.n_labels,
@@ -158,7 +158,7 @@ for rmCellTypes in dataset2.cell_types[:6]:
     f.write('vae' + '\t' + rmCellTypes + ("\t%.4f" * 8 + "\t%s" * 8 + "\n") % tuple(acc + list(cell_type)))
     be, cell_type2 = BEbyType(keys, latent, labels, batch_indices)
     g.write('vae' + '\t' + rmCellTypes + ("\t%.4f" * 8 + "\t%s" * 8 + "\n") % tuple(be + list(cell_type2)))
-    plotUMAP(latent, plotname, 'vae', rmCellTypes)
+    # plotUMAP(latent, plotname, 'vae', rmCellTypes)
 
     scanvi = SCANVI(gene_dataset.nb_genes, gene_dataset.n_batches, (gene_dataset.n_labels), n_layers=2)
     scanvi.load_state_dict(trainer.model.state_dict(), strict=False)
@@ -171,7 +171,7 @@ for rmCellTypes in dataset2.cell_types[:6]:
         trainer_scanvi.model.load_state_dict(torch.load('../PopRemove/scanvi.%s.pkl' % rmCellTypes))
         trainer_scanvi.model.eval()
     else:
-        trainer_scanvi.train(n_epochs=10)
+        trainer_scanvi.train(n_epochs=3)
         torch.save(trainer_scanvi.model.state_dict(), '../PopRemove/scanvi.%s.pkl' % rmCellTypes)
     scanvi_full = trainer_scanvi.create_posterior(trainer_scanvi.model, gene_dataset, indices=np.arange(len(gene_dataset)))
     latent, _, _ = scanvi_full.sequential().get_latent()
@@ -180,7 +180,7 @@ for rmCellTypes in dataset2.cell_types[:6]:
     f.write('scanvi' + '\t' + rmCellTypes + ("\t%.4f" * 8 + "\t%s" * 8 + "\n") % tuple(acc + list(cell_type)))
     be, cell_type2 = BEbyType(keys, latent, labels, batch_indices)
     g.write('scanvi' + '\t' + rmCellTypes + ("\t%.4f" * 8 + "\t%s" * 8 + "\n") % tuple(be + list(cell_type2)))
-    plotUMAP(latent, plotname, 'scanvi', rmCellTypes)
+    # plotUMAP(latent, plotname, 'scanvi', rmCellTypes)
 
 f.close()
 g.close()

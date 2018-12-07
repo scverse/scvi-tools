@@ -43,7 +43,7 @@ labels_map = [0, 0, 1, 2, 3, 4, 5, 6]
 labels = seurat[1:, 4]
 cell_type = ['CD4 T cells', 'NK cells', 'CD14+ Monocytes', 'B cells','CD8 T cells', 'FCGR3A+ Monocytes', 'Other']
 dataset2 = assign_label(cellid, geneid, labels_map, count, cell_type, seurat)
-newCellType = [k for i, k in enumerate(dataset2.cell_types) if k not in ['Other']]
+newCellType = [k for i, k in enumerate(dataset2.cell_types) if k not in ['Others']]
 dataset2.filter_cell_types(newCellType)
 
 
@@ -114,8 +114,8 @@ def BEbyType(keys,latent,labels,batch_indices):
 
 
 
-f = open('../PopRemove/'+plotname+'.acc.res.txt', "w+")
-g = open('../PopRemove/'+plotname+'.res.txt', "w+")
+f = open('../'+plotname+'/'+plotname+'.acc.res.txt', "w")
+g = open('../'+plotname+'/'+plotname+'.res.txt', "w")
 
 
 # scp chenlingantelope@s128.millennium.berkeley.edu:/data/yosef2/users/chenling/harmonization/Seurat_data/PopRemove* .
