@@ -13,6 +13,8 @@ from .seqfish import SeqfishDataset
 from .smfish import SmfishDataset
 from.starmap import StarmapDataset
 from.dropseq import DropseqDataset
+from.smartseq4 import Smartseq4Dataset
+from.zeisel2018 import Zeisel2018Dataset
 
 __all__ = ['SyntheticDataset',
            'SyntheticRandomDataset',
@@ -35,4 +37,6 @@ __all__ = ['SyntheticDataset',
            'MouseOBDataset',
            'PurifiedPBMCDataset',
            'StarmapDataset',
-           'DropseqDataset']
+           'DropseqDataset',
+           'Smartseq4Dataset',
+           'Zeisel2018Dataset']

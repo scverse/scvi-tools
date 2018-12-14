@@ -58,7 +58,7 @@ class CortexDataset(GeneExpressionDataset):
                     clusters = np.array(row, dtype=str)[2:]
                 if i >= 11:  # 10 + 1 in pandas
                     rows.append(row[1:])
-                    gene_names.append(row[0])
+                    gene_names.append(row[0].lower())
         cell_types, labels = np.unique(clusters, return_inverse=True)
         _, self.precise_labels = np.unique(precise_clusters, return_inverse=True)
 

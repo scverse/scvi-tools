@@ -9,11 +9,12 @@ class StarmapDataset(GeneExpressionDataset):
 
     """
 
-    def __init__(self, save_path='data/', file='starmap.loom', without_positions=False):
+    def __init__(self, save_path='data/', file='starmap.loom', without_positions=False, scrna_seq_genes=None):
 
         self.save_path = save_path
         self.url = ['https://github.com/YosefLab/scVI-data/raw/master/starmap.loom']
         self.download_name = file
+        self.seq_genes = scrna_seq_genes
 
         data, batch_indices, labels, gene_names, cell_types, x_coord, y_coord = self.preprocess()
         if without_positions:
@@ -54,7 +55,12 @@ class StarmapDataset(GeneExpressionDataset):
             if 'CellTypes' in ds.attrs:
                 cell_types = np.array(ds.attrs['CellTypes'])
 
-            data = ds[:, select].T  # change matrix to cells by genes
+            indices = np.arange(len(gene_names))
+            if self.seq_genes is not None:
+                gene_names, indices, _ = np.intersect1d(gene_names, self.seq_genes, return_indices=True)
+
+            data = np.array(ds[:, select].T)  # change matrix to cells by genes
+            data = data[:, indices]
             ds.close()
         except OSError:
             print("Error: the file " + self.download_name + " should be in the " + self.save_path + " directory.")

@@ -163,6 +163,24 @@ class GeneExpressionDataset(Dataset):
         self.X, subset_genes = GeneExpressionDataset._filter_genes(self, gene_names_ref, on=on)
         self.update_genes(subset_genes)
 
+    def put_genes_first(self, first_genes):
+        # X must be a numpy matrix
+        new_order_first = []
+        for ordered_gene in range(len(first_genes)):
+            for gene in range(len(self.gene_names)):
+                if first_genes[ordered_gene].lower() == self.gene_names[gene].lower():
+                    new_order_first.append(gene)
+        if len(new_order_first) != len(first_genes):
+            print("Some genes you meant to put first were not found")
+            return None
+        new_order_second = [x for x in range(len(self.gene_names)) if x not in new_order_first]
+        new_order = new_order_first + new_order_second
+        self._X = self.X[:, new_order]
+        if hasattr(self, 'gene_names'):
+            self.gene_names = self.gene_names[new_order]
+        if hasattr(self, 'gene_symbols'):
+            self.gene_symbols = self.gene_symbols[new_order]
+
     def subsample_cells(self, size=1.):
         n_cells, n_genes = self.X.shape
         new_n_cells = int(size * n_genes) if type(size) is not int else size
