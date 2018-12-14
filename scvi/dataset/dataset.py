@@ -240,6 +240,9 @@ class GeneExpressionDataset(Dataset):
         if os.path.exists(os.path.join(save_path, download_name)):
             print("File %s already downloaded" % (os.path.join(save_path, download_name)))
             return
+        if url is None:
+            print("You are trying to load a local file named %s and located at %d but this file was not found"
+                  " at this location" % (download_name, save_path))
         r = urllib.request.urlopen(url)
         print("Downloading file at %s" % os.path.join(save_path, download_name))
 
