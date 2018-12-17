@@ -46,8 +46,8 @@ Quick Start
 References
 ----------
 
-`Romain Lopez, Jeffrey Regier, Michael Cole, Michael I. Jordan, Nir Yosef.
-**"Deep generative modeling for single-cell transcriptomics"**
-Nature Methods, 2018.`__
+Romain Lopez, Jeffrey Regier, Michael Cole, Michael I. Jordan, Nir Yosef.
+**"Deep generative modeling for single-cell transcriptomics."**
+Nature Methods, 2018.
 
-.. __: https://rdcu.be/bdHYQ
+Full text: https://rdcu.be/bdHYQ
