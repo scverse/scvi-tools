@@ -143,7 +143,7 @@ class Posterior:
             if not sample:
                 if self.model.log_variational:
                     sample_batch = torch.log(1 + sample_batch)
-                latent += [self.model.z_encoder(sample_batch)[0]]
+                latent += [self.model.z_encoder(sample_batch)[0].cpu()]
             else:
                 latent += [self.model.sample_from_posterior_z(sample_batch).cpu()]
             batch_indices += [batch_index.cpu()]
