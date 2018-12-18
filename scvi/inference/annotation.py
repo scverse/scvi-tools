@@ -237,7 +237,7 @@ def compute_predictions(model, data_loader, classifier=None):
 
     for i_batch, tensors in enumerate(data_loader):
         sample_batch, _, _, _, labels = tensors
-        all_y += [labels.view(-1)]
+        all_y += [labels.view(-1).cpu()]
 
         if hasattr(model, 'classify'):
             y_pred = model.classify(sample_batch).argmax(dim=-1)
@@ -250,7 +250,7 @@ def compute_predictions(model, data_loader, classifier=None):
             y_pred = classifier(sample_batch).argmax(dim=-1)
         else:  # The model is the raw classifier
             y_pred = model(sample_batch).argmax(dim=-1)
-        all_y_pred += [y_pred]
+        all_y_pred += [y_pred.cpu()]
 
     all_y_pred = np.array(torch.cat(all_y_pred))
     all_y = np.array(torch.cat(all_y))
