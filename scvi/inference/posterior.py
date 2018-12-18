@@ -143,11 +143,11 @@ class Posterior:
             if not sample:
                 if self.model.log_variational:
                     sample_batch = torch.log(1 + sample_batch)
-                latent += [self.model.z_encoder(sample_batch)[0]]
+                latent += [self.model.z_encoder(sample_batch)[0].cpu()]
             else:
-                latent += [self.model.sample_from_posterior_z(sample_batch)]
-            batch_indices += [batch_index]
-            labels += [label]
+                latent += [self.model.sample_from_posterior_z(sample_batch).cpu()]
+            batch_indices += [batch_index.cpu()]
+            labels += [label.cpu()]
         return np.array(torch.cat(latent)), np.array(torch.cat(batch_indices)), np.array(torch.cat(labels)).ravel()
 
     @torch.no_grad()
@@ -260,8 +260,8 @@ class Posterior:
             px_dispersion, px_rate = self.model.inference(sample_batch, batch_index=batch_index, y=labels,
                                                           n_samples=n_samples)[1:3]
 
-            p = px_rate / (px_rate + px_dispersion)
-            r = px_dispersion
+            p = (px_rate / (px_rate + px_dispersion)).cpu()
+            r = px_dispersion.cpu()
             #
             l_train = np.random.gamma(r, p / (1 - p))
             X = np.random.poisson(l_train)
