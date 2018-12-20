@@ -34,7 +34,8 @@ def test_cortex(save_path):
     trainer_cortex_vae.train(n_epochs=1)
     trainer_cortex_vae.uncorrupt_posteriors()
 
-    trainer_cortex_vae.train_set.imputation_benchmark(n_samples=1, title_plot='imputation', save_path=save_path)
+    trainer_cortex_vae.train_set.imputation_benchmark(n_samples=1, show_plot=False,
+                                                      title_plot='imputation', save_path=save_path)
 
     svaec = SCANVI(cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels)
     trainer_cortex_svaec = JointSemiSupervisedTrainer(svaec, cortex_dataset,
@@ -108,7 +109,7 @@ def base_benchmark(gene_dataset):
 
 
 def test_all_benchmarks(save_path):
-    all_benchmarks(n_epochs=1, save_path=save_path)
+    all_benchmarks(n_epochs=1, save_path=save_path, show_plot=False)
 
 
 def test_synthetic_3():

@@ -77,6 +77,7 @@ class NotebookLoader(object):
                         code = re.sub(r'n_samples_tsne = \d+', "n_samples_tsne = 10", code)
                         code = re.sub(r'n_samples_posterior_density = \d+', "n_samples_posterior_density = 2", code)
                         code = re.sub("save_path = 'data/'", "save_path = '"+os.getcwd()+"'", code)
+                        code = re.sub("show_plot = True", "show_plot = False", code)
                         # run the code in themodule
                         exec(code, mod.__dict__)
                         plt.close('all')
