@@ -60,7 +60,7 @@ class TrainerFish(Trainer):
         self.classification_ponderation = 0
         self.warm_up = warm_up
         self.scale = scale
-
+        gene_dataset_fish.batch_indices = gene_dataset_fish.batch_indices + gene_dataset_seq.n_batches
         self.train_seq, self.test_seq = self.train_test(self.model, gene_dataset_seq, train_size, test_size, seed)
         self.train_fish, self.test_fish = self.train_test(self.model, gene_dataset_fish,
                                                           train_size, test_size, seed, FishPosterior)
@@ -141,9 +141,8 @@ class TrainerFish(Trainer):
             for tensors in self.all_fish_dataset:
                 sample_batch, local_l_mean, local_l_var, batch_index, label, x_coord, y_coord = tensors
                 ret["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, mode="smFISH")]
-                ret["expected_frequencies"] += [self.model.get_sample_scale(sample_batch, mode="smFISH",
-                                                                            batch_index=batch_index)]
-                ret["imputed_values"] += [self.model.get_sample_rate_fish(sample_batch, batch_index=batch_index)]
+                ret["expected_frequencies"] += [self.model.get_sample_scale(sample_batch, batch_index, mode="smFISH")]
+                ret["imputed_values"] += [self.model.get_sample_rate_fish(sample_batch, batch_index)]
             for key in ret.keys():
                 if len(ret[key]) > 0:
                     ret[key] = np.array(torch.cat(ret[key]))
@@ -152,9 +151,8 @@ class TrainerFish(Trainer):
             for tensors in self.all_seq_dataset:
                 sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
                 ret["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, mode="scRNA")]
-                ret["expected_frequencies"] += [self.model.get_sample_scale(sample_batch, mode="scRNA",
-                                                                            batch_index=batch_index)]
-                ret["imputed_values"] += [self.model.get_sample_rate(sample_batch, batch_index=batch_index, y=label)]
+                ret["expected_frequencies"] += [self.model.get_sample_scale(sample_batch, batch_index, mode="scRNA")]
+                ret["imputed_values"] += [self.model.get_sample_rate(sample_batch, batch_index, y=label)]
             for key in ret.keys():
                 if len(ret[key]) > 0:
                     ret[key] = np.array(torch.cat(ret[key]))

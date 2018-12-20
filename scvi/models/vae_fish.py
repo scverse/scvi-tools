@@ -120,7 +120,7 @@ class VAEF(VAE):
             ql_m, ql_v, library = self.l_encoder_fish(x[:, self.indexes_to_keep])
         return library
 
-    def get_sample_scale(self, x, mode="scRNA", batch_index=None, y=None):
+    def get_sample_scale(self, x, batch_index, mode="scRNA", y=None):
         r"""Returns the tensor of predicted frequencies of expression
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
@@ -137,7 +137,7 @@ class VAEF(VAE):
         px_scale = self.decoder.px_scale_decoder(px)
         return px_scale
 
-    def get_sample_rate(self, x, y=None, batch_index=None):
+    def get_sample_rate(self, x, batch_index, y=None):
         r"""Returns the tensor of means of the negative binomial distribution
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
@@ -152,13 +152,11 @@ class VAEF(VAE):
         library = torch.log(torch.sum(x, dim=1)).view(-1, 1)
         if self.model_library_seq:
             library = self.sample_from_posterior_l(x, mode="scRNA")
-        if batch_index is None:
-            batch_index = torch.zeros_like(library)
 
         px_scale = self.get_sample_scale(x, mode="scRNA", batch_index=batch_index, y=y)
         return px_scale * torch.exp(library)
 
-    def get_sample_rate_fish(self, x, y=None, batch_index=None):
+    def get_sample_rate_fish(self, x, batch_index, y=None):
         r"""Returns the tensor of means of the negative binomial distribution
 
         :param x: tensor of values with shape ``(batch_size, n_input_fish)``
@@ -171,8 +169,6 @@ class VAEF(VAE):
 
         if self.model_library_fish:
             library = self.sample_from_posterior_l(x, mode="smFISH")
-        if batch_index is None:
-            batch_index = torch.ones_like(library)
         px_scale = self.get_sample_scale(x, mode="smFISH", batch_index=batch_index, y=y)
         px_scale = px_scale[:, self.indexes_to_keep] / torch.sum(px_scale[:, self.indexes_to_keep],
                                                                  dim=1).view(-1, 1)
@@ -238,16 +234,12 @@ class VAEF(VAE):
         if mode == "scRNA":
             qz_m, qz_v, z = self.z_encoder(x_)
             library = torch.log(torch.sum(x, dim=1)).view(-1, 1)
-            if batch_index is None:
-                batch_index = torch.zeros_like(library)
             if self.model_library_seq:
                 ql_m, ql_v, library = self.l_encoder(x_)
 
         if mode == "smFISH":
             qz_m, qz_v, z = self.z_encoder_fish(x_[:, self.indexes_to_keep])
             library = torch.log(torch.sum(x[:, self.indexes_to_keep], dim=1)).view(-1, 1)
-            if batch_index is None:
-                batch_index = torch.ones_like(library)
             if self.model_library_fish:
                 ql_m, ql_v, library = self.l_encoder_fish(x_)
 
