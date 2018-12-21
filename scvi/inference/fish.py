@@ -1,7 +1,10 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
+from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler, RandomSampler
 import csv
+import copy
 
 from scvi.inference import Posterior
 from scvi.inference import Trainer
@@ -60,7 +63,6 @@ class TrainerFish(Trainer):
         self.classification_ponderation = 0
         self.warm_up = warm_up
         self.scale = scale
-        gene_dataset_fish.batch_indices = gene_dataset_fish.batch_indices + gene_dataset_seq.n_batches
         self.train_seq, self.test_seq = self.train_test(self.model, gene_dataset_seq, train_size, test_size, seed)
         self.train_fish, self.test_fish = self.train_test(self.model, gene_dataset_fish,
                                                           train_size, test_size, seed, FishPosterior)
