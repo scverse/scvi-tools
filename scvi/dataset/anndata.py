@@ -48,9 +48,9 @@ class AnnDataset(GeneExpressionDataset):
         ad = anndata.read_h5ad(os.path.join(self.save_path, self.download_name))  # obs = cells, var = genes
         gene_names = np.array(ad.var.index.values, dtype=str)
         if isinstance(ad.X, np.ndarray):
-            data = ad.X.copy() # Dense
+            data = ad.X.copy()  # Dense
         else:
-            data = ad.X.toarray() #Sparse
+            data = ad.X.toarray()  #Sparse
         select = data.sum(axis=1) > 0  # Take out cells that doesn't express any gene
         data = data[select, :]
 
