@@ -1,10 +1,7 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
-from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler, RandomSampler
 import csv
-import copy
 
 from scvi.inference import Posterior
 from scvi.inference import Trainer
