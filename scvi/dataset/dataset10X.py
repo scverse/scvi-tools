@@ -78,7 +78,7 @@ class Dataset10X(GeneExpressionDataset):
             self.download_name = self.save_name + '.tar.gz'
         else:
             try:
-                assert os.path.isdir(self.save_path + filename)
+                assert os.path.isdir(os.path.join(self.save_path, filename))
             except AssertionError:
                 print("The file %s was not found in the location you gave" % filename)
                 raise
