@@ -50,7 +50,7 @@ class AnnDataset(GeneExpressionDataset):
         if isinstance(ad.X, np.ndarray):
             data = ad.X.copy()  # Dense
         else:
-            data = ad.X.toarray()  #Sparse
+            data = ad.X.toarray()  # Sparse
         select = data.sum(axis=1) > 0  # Take out cells that doesn't express any gene
         data = data[select, :]
 
