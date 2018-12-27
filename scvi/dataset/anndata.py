@@ -46,6 +46,7 @@ class AnnDataset(GeneExpressionDataset):
         print("Preprocessing dataset")
 
         ad = anndata.read_h5ad(os.path.join(self.save_path, self.download_name))  # obs = cells, var = genes
+        self.obs = ad.obs  # provide access to observation annotations from the underlying AnnData object.
         gene_names = np.array(ad.var.index.values, dtype=str)
         if isinstance(ad.X, np.ndarray):
             data = ad.X.copy()  # Dense
