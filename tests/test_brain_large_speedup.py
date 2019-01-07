@@ -1,20 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Test improved calculation of log_zinb_forward for better performance on brain_large."""
+"""Test improved calculation of log_zinb_positive and log_nb_positive for better performance on brain_large."""
 
-from scipy.sparse import random
+from scvi.dataset import SyntheticDataset
 import torch
 import torch.nn.functional as F
 
 batch_size = 128
-num_genes = 720
+nb_genes = 720
+n_batches = 1
 
-x = torch.from_numpy(random(batch_size, num_genes,
-                            density=.5).A).type(torch.float32)
-mu = torch.rand(batch_size, num_genes)
-theta = torch.rand(batch_size, num_genes)
-pi = torch.rand(batch_size, num_genes)
+
+synthetic_dataset = SyntheticDataset(batch_size=batch_size, nb_genes=nb_genes,
+                                     n_batches=n_batches)
+x = torch.from_numpy(synthetic_dataset.X)
+mu = torch.rand(batch_size, nb_genes)
+theta = torch.rand(batch_size, nb_genes)
+pi = torch.rand(batch_size, nb_genes)
 eps = 1e-3
 
 
@@ -54,8 +57,9 @@ def test_log_zinb_positive():
             torch.lgamma(x + theta) - \
             torch.lgamma(theta) - \
             torch.lgamma(x + 1)
+        mul_case_non_zero = torch.mul((x > eps).type(torch.float32), case_non_zero)
 
-        res = mul_case_zero + torch.mul((x > eps).type(torch.float32), case_non_zero)
+        res = mul_case_zero + mul_case_non_zero
 
         return torch.sum(res, dim=-1)
 
@@ -67,7 +71,7 @@ def test_log_zinb_positive():
     assert (diff < eps).all()
 
 
-def test_log_nb_forward():
+def test_log_nb_positive():
     """Test that the new method to compute log_nb_positive is the same as the existing."""
 
     def existing_method(x, mu, theta, eps=1e-8):
@@ -78,8 +82,10 @@ def test_log_nb_forward():
         return torch.sum(res, dim=-1)
 
     def new_method(x, mu, theta, eps=1e-8):
-        res = theta * (torch.log(theta + eps) - torch.log(theta + mu + eps)) + \
-            x * (torch.log(mu + eps) - torch.log(theta + mu + eps)) + \
+        log_theta_mu_eps = torch.log(theta + mu + eps)
+
+        res = theta * (torch.log(theta + eps) - log_theta_mu_eps) + \
+            x * (torch.log(mu + eps) - log_theta_mu_eps) + \
             torch.lgamma(x + theta) - \
             torch.lgamma(theta) - \
             torch.lgamma(x + 1)
