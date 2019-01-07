@@ -18,7 +18,7 @@ x = torch.from_numpy(synthetic_dataset.X)
 mu = torch.rand(batch_size, nb_genes)
 theta = torch.rand(batch_size, nb_genes)
 pi = torch.rand(batch_size, nb_genes)
-eps = 1e-3
+eps = 1e-2
 
 
 def test_log_zinb_positive():
