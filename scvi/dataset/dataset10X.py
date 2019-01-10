@@ -54,8 +54,8 @@ class Dataset10X(GeneExpressionDataset):
         :subset_genes: List of genes for subsampling. Default: ``None``.
         :dense: Whether to load as dense or sparse. Default: ``False``.
         :remote: Whether the 10X dataset is to be downloaded from the website or whether it is a local dataset, if
-        remote is False then save_path + filename must be the path to the directory that contains matrix.mtx and
-        genes.tsv files
+        remote is False then os.path.join(save_path, filename) must be the path to the directory that contains
+        matrix.mtx and genes.tsv files
 
     Examples:
         >>> tenX_dataset = Dataset10X("neuron_9k")
@@ -100,14 +100,13 @@ class Dataset10X(GeneExpressionDataset):
                 tar.extractall(path=self.save_path)
                 tar.close()
 
-            path = (self.save_path +
+            path = (os.path.join(self.save_path,
                     [name for name in os.listdir(self.save_path) if os.path.isdir(os.path.join(self.save_path,
-                                                                                               name))][0] +
-                    '/')
-            path += os.listdir(path)[0] + '/'
+                                                                                               name))][0]))
+            path = os.path.join(path, os.listdir(path)[0])
         genes_info = pd.read_csv(os.path.join(path, 'genes.tsv'), sep='\t', header=None)
         gene_names = genes_info.values[:, 0].astype(np.str).ravel()
-        if os.path.exists(path + 'barcodes.tsv'):
+        if os.path.exists(os.path.join(path, 'barcodes.tsv')):
             self.barcodes = pd.read_csv(os.path.join(path, 'barcodes.tsv'), sep='\t', header=None)
         self.gene_symbols = genes_info.values[:, 1].astype(np.str).ravel()
         expression_data = io.mmread(os.path.join(path, 'matrix.mtx')).T
