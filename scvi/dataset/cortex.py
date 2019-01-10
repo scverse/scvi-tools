@@ -75,7 +75,9 @@ class CortexDataset(GeneExpressionDataset):
                 if gene_names[gene_cortex].lower() == gene_fish.lower():
                     additional_genes.append(gene_cortex)
 
-        selected = np.std(expression_data, axis=0).argsort()[-self.additional_genes:][::-1]
+        selected = np.array([])
+        if self.additional_genes != 0:
+            selected = np.std(expression_data, axis=0).argsort()[-self.additional_genes:][::-1]
         selected = np.unique(np.concatenate((selected, np.array(additional_genes))))
         selected = np.array([int(select) for select in selected])
         expression_data = expression_data[:, selected]
