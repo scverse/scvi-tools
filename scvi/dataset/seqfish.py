@@ -12,7 +12,7 @@ class SeqfishDataset(GeneExpressionDataset):
 
         data = self.download_and_preprocess()
 
-        super(SeqfishDataset, self).__init__(*GeneExpressionDataset.get_attributes_from_matrix(data))
+        super().__init__(*GeneExpressionDataset.get_attributes_from_matrix(data))
 
     def preprocess(self):
         print("Preprocessing dataset")

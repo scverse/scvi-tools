@@ -37,7 +37,7 @@ class CiteSeqDataset(GeneExpressionDataset):
 
         expression_data = self.download_and_preprocess()
 
-        super(CiteSeqDataset, self).__init__(
+        super().__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(expression_data)
         )
 
@@ -85,4 +85,4 @@ class CbmcDataset(CiteSeqDataset):
 
     """
     def __init__(self, save_path='data/citeSeq/'):
-        super(CbmcDataset, self).__init__(name="cbmc", save_path=save_path)
+        super().__init__(name="cbmc", save_path=save_path)

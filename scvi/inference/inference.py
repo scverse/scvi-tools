@@ -29,7 +29,7 @@ class UnsupervisedTrainer(Trainer):
     default_metrics_to_monitor = ['ll']
 
     def __init__(self, model, gene_dataset, train_size=0.8, test_size=None, kl=None, **kwargs):
-        super(UnsupervisedTrainer, self).__init__(model, gene_dataset, **kwargs)
+        super().__init__(model, gene_dataset, **kwargs)
         self.kl = kl
         if type(self) is UnsupervisedTrainer:
             self.train_set, self.test_set = self.train_test(model, gene_dataset, train_size, test_size)
@@ -52,7 +52,7 @@ class UnsupervisedTrainer(Trainer):
 
 class AdapterTrainer(UnsupervisedTrainer):
     def __init__(self, model, gene_dataset, posterior_test, frequency=5):
-        super(AdapterTrainer, self).__init__(model, gene_dataset, frequency=frequency)
+        super().__init__(model, gene_dataset, frequency=frequency)
         self.test_set = posterior_test
         self.test_set.to_monitor = ['ll']
         self.params = list(self.model.z_encoder.parameters()) + list(self.model.l_encoder.parameters())
@@ -68,6 +68,6 @@ class AdapterTrainer(UnsupervisedTrainer):
             # Re-initialize to create new path
             self.model.z_encoder.load_state_dict(self.z_encoder_state)
             self.model.l_encoder.load_state_dict(self.l_encoder_state)
-            super(AdapterTrainer, self).train(n_epochs, params=self.params, **kwargs)
+            super().train(n_epochs, params=self.params, **kwargs)
 
         return min(self.history["ll_test_set"])

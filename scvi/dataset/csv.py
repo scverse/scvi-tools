@@ -41,7 +41,7 @@ class CsvDataset(GeneExpressionDataset):
 
         data, gene_names, labels, cell_types = self.download_and_preprocess()
 
-        super(CsvDataset, self).__init__(
+        super().__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
                 data, labels=labels), gene_names=gene_names, cell_types=cell_types)
 
@@ -71,7 +71,7 @@ class CsvDataset(GeneExpressionDataset):
 
 class BreastCancerDataset(CsvDataset):
     def __init__(self, save_path='data/'):
-        super(BreastCancerDataset, self).__init__("Layer2_BC_count_matrix-1.tsv", save_path=save_path,
+        super().__init__("Layer2_BC_count_matrix-1.tsv", save_path=save_path,
                                                   url="http://www.spatialtranscriptomicsresearch.org/wp-content/"
                                                       "uploads/2016/07/Layer2_BC_count_matrix-1.tsv",
                                                   sep='\t', gene_by_cell=False)
@@ -79,7 +79,7 @@ class BreastCancerDataset(CsvDataset):
 
 class MouseOBDataset(CsvDataset):
     def __init__(self, save_path='data/'):
-        super(MouseOBDataset, self).__init__("Rep11_MOB_count_matrix-1.tsv", save_path=save_path,
+        super().__init__("Rep11_MOB_count_matrix-1.tsv", save_path=save_path,
                                              url="http://www.spatialtranscriptomicsresearch.org/wp-content/uploads/"
                                                  "2016/07/Rep11_MOB_count_matrix-1.tsv",
                                              sep='\t', gene_by_cell=False)

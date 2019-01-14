@@ -55,7 +55,7 @@ class SCANVI(VAE):
                  log_variational: bool = True, reconstruction_loss: str = "zinb",
                  y_prior=None, labels_groups: Sequence[int] = None, use_labels_groups: bool = False,
                  classifier_parameters: dict = dict()):
-        super(SCANVI, self).__init__(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
+        super().__init__(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
                                      dropout_rate=dropout_rate, n_batch=n_batch, dispersion=dispersion,
                                      log_variational=log_variational, reconstruction_loss=reconstruction_loss)
 
@@ -104,7 +104,7 @@ class SCANVI(VAE):
         return w_y
 
     def get_latents(self, x, y=None):
-        zs = super(SCANVI, self).get_latents(x)
+        zs = super().get_latents(x)
         qz2_m, qz2_v, z2 = self.encoder_z2_z1(zs[0], y)
         if not self.training:
             z2 = qz2_m

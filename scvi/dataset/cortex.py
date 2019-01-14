@@ -38,7 +38,7 @@ class CortexDataset(GeneExpressionDataset):
         self.additional_genes = additional_genes
         expression_data, labels, gene_names, cell_types = self.download_and_preprocess()
 
-        super(CortexDataset, self).__init__(
+        super().__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
                 expression_data,
                 labels=labels),

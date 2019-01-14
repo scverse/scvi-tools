@@ -38,7 +38,7 @@ class HematoDataset(GeneExpressionDataset):
 
         expression_data, gene_names, labels, self.y_spring, self.y_spring = self.download_and_preprocess()
 
-        super(HematoDataset, self).__init__(
+        super().__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
                 expression_data, labels=labels), gene_names=gene_names,
 
