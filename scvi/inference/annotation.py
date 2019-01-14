@@ -100,25 +100,10 @@ class ClassifierTrainer(Trainer):
     def posteriors_loop(self):
         return ['train_set']
 
-    @property
-    def train_set(self):
-        return self._train_set
-
-    @train_set.setter
-    def train_set(self, train_set):
-        if self.sampling_model is not None:
-            train_set.sampling_model = self.sampling_model
-        self._train_set = train_set
-
-    @property
-    def test_set(self):
-        return self._test_set
-
-    @test_set.setter
-    def test_set(self, test_set):
-        if self.sampling_model is not None:
-            test_set.sampling_model = self.sampling_model
-        self._test_set = test_set
+    def __setattr__(self, key, value):
+        if key in ["train_set", "test_set"]:
+            value.sampling_model = self.sampling_model
+        super().__setattr__(key, value)
 
     def loss(self, tensors_labelled):
         x, _, _, _, labels_train = tensors_labelled
@@ -184,15 +169,11 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
     def posteriors_loop(self):
         return ['full_dataset', 'labelled_set']
 
-    @property
-    def labelled_set(self):
-        return self._labelled_set
+    def __setattr__(self, key, value):
+        if key == "labelled_set":
+            self.classifier_trainer.train_set = value
+        super().__setattr__(key, value)
 
-    @labelled_set.setter
-    def labelled_set(self, labelled_set):
-        print("updating classifier")
-        self._labelled_set = labelled_set
-        self.classifier_trainer.train_set = labelled_set
 
     def loss(self, tensors_all, tensors_labelled):
         loss = super(SemiSupervisedTrainer, self).loss(tensors_all)
