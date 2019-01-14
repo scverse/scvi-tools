@@ -174,7 +174,6 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
             self.classifier_trainer.train_set = value
         super().__setattr__(key, value)
 
-
     def loss(self, tensors_all, tensors_labelled):
         loss = super(SemiSupervisedTrainer, self).loss(tensors_all)
         sample_batch, _, _, _, y = tensors_labelled
