@@ -84,5 +84,6 @@ class CbmcDataset(CiteSeqDataset):
         >>> gene_dataset = CbmcDataset()
 
     """
+
     def __init__(self, save_path='data/citeSeq/'):
         super().__init__(name="cbmc", save_path=save_path)

@@ -56,8 +56,8 @@ class SCANVI(VAE):
                  y_prior=None, labels_groups: Sequence[int] = None, use_labels_groups: bool = False,
                  classifier_parameters: dict = dict()):
         super().__init__(n_input, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
-                                     dropout_rate=dropout_rate, n_batch=n_batch, dispersion=dispersion,
-                                     log_variational=log_variational, reconstruction_loss=reconstruction_loss)
+                         dropout_rate=dropout_rate, n_batch=n_batch, dispersion=dispersion,
+                         log_variational=log_variational, reconstruction_loss=reconstruction_loss)
 
         self.n_labels = n_labels
         self.n_latent_layers = 2

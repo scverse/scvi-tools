@@ -29,6 +29,7 @@ class CsvDataset(GeneExpressionDataset):
         ... save_path='data/', compression='gzip')
 
     """
+
     def __init__(self, filename, save_path='data/', url=None, new_n_genes=600, subset_genes=None,
                  compression=None, sep=',', gene_by_cell=True, labels_file=None):
         self.download_name = filename  # The given csv file is
@@ -72,14 +73,14 @@ class CsvDataset(GeneExpressionDataset):
 class BreastCancerDataset(CsvDataset):
     def __init__(self, save_path='data/'):
         super().__init__("Layer2_BC_count_matrix-1.tsv", save_path=save_path,
-                                                  url="http://www.spatialtranscriptomicsresearch.org/wp-content/"
-                                                      "uploads/2016/07/Layer2_BC_count_matrix-1.tsv",
-                                                  sep='\t', gene_by_cell=False)
+                         url="http://www.spatialtranscriptomicsresearch.org/wp-content/"
+                             "uploads/2016/07/Layer2_BC_count_matrix-1.tsv",
+                         sep='\t', gene_by_cell=False)
 
 
 class MouseOBDataset(CsvDataset):
     def __init__(self, save_path='data/'):
         super().__init__("Rep11_MOB_count_matrix-1.tsv", save_path=save_path,
-                                             url="http://www.spatialtranscriptomicsresearch.org/wp-content/uploads/"
-                                                 "2016/07/Rep11_MOB_count_matrix-1.tsv",
-                                             sep='\t', gene_by_cell=False)
+                         url="http://www.spatialtranscriptomicsresearch.org/wp-content/uploads/"
+                             "2016/07/Rep11_MOB_count_matrix-1.tsv",
+                         sep='\t', gene_by_cell=False)

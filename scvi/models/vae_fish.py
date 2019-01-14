@@ -45,8 +45,8 @@ class VAEF(VAE):
                  dispersion="gene", log_variational=True, reconstruction_loss="zinb",
                  reconstruction_loss_fish="poisson", model_library=False):
         super().__init__(n_input, dispersion=dispersion, n_latent=n_hidden, n_hidden=n_hidden,
-                                   log_variational=log_variational, dropout_rate=dropout_rate, n_layers=1,
-                                   reconstruction_loss=reconstruction_loss, n_batch=n_batch, n_labels=n_labels)
+                         log_variational=log_variational, dropout_rate=dropout_rate, n_layers=1,
+                         reconstruction_loss=reconstruction_loss, n_batch=n_batch, n_labels=n_labels)
         self.n_input = n_input
         self.n_input_fish = len(indexes_fish_train)
         self.indexes_to_keep = indexes_fish_train

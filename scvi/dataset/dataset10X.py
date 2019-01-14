@@ -152,4 +152,4 @@ class BrainSmallDataset(Dataset10X):
         self.qc_names = self.raw_qc.columns
         self.qc = self.raw_qc.values
         super().__init__(dataset.X, dataset.local_means, dataset.local_vars,
-                                         batch_indices=dataset.batch_indices, labels=labels)
+                         batch_indices=dataset.batch_indices, labels=labels)
