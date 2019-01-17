@@ -37,8 +37,8 @@ class AnnDataset(GeneExpressionDataset):
 
         data, gene_names = self.download_and_preprocess()
 
-        super(AnnDataset, self).__init__(*GeneExpressionDataset.get_attributes_from_matrix(data),
-                                         gene_names=gene_names)
+        super().__init__(*GeneExpressionDataset.get_attributes_from_matrix(data),
+                         gene_names=gene_names)
 
         self.subsample_genes(new_n_genes=new_n_genes, subset_genes=subset_genes)
 

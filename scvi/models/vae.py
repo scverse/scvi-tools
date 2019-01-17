@@ -48,7 +48,7 @@ class VAE(nn.Module):
                  n_hidden: int = 128, n_latent: int = 10, n_layers: int = 1,
                  dropout_rate: float = 0.1, dispersion: str = "gene",
                  log_variational: bool = True, reconstruction_loss: str = "zinb"):
-        super(VAE, self).__init__()
+        super().__init__()
         self.dispersion = dispersion
         self.n_latent = n_latent
         self.log_variational = log_variational

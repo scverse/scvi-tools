@@ -43,7 +43,7 @@ class BrainLargeDataset(GeneExpressionDataset):
         self.download_name = "genomics.h5"
 
         Xs = self.download_and_preprocess()
-        super(BrainLargeDataset, self).__init__(
+        super().__init__(
             *GeneExpressionDataset.get_attributes_from_list(Xs)
         )
 
