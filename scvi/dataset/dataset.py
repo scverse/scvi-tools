@@ -174,7 +174,7 @@ class GeneExpressionDataset(Dataset):
             print("Some genes you meant to put first were not found")
             return None
         new_order_second = [x for x in range(len(self.gene_names)) if x not in new_order_first]
-        new_order = new_order_first + new_order_second
+        new_order = np.array(new_order_first + new_order_second)
         self._X = self.X[:, new_order]
         if hasattr(self, 'gene_names'):
             self.gene_names = self.gene_names[new_order]
