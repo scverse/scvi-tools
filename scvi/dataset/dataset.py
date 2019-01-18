@@ -142,6 +142,10 @@ class GeneExpressionDataset(Dataset):
         print("Downsampling from %i to %i cells" % (len(self), new_n_cells))
         for attr_name in ['_X', 'labels', 'batch_indices', 'local_means', 'local_vars']:
             setattr(self, attr_name, getattr(self, attr_name)[subset_cells])
+        if self.x_coord is not None:
+            self.x_coord = self.x_coord[subset_cells]
+        if self.y_coord is not None:
+            self.y_coord = self.y_coord[subset_cells]
         self.library_size_batch()
 
     def subsample_genes(self, new_n_genes=None, subset_genes=None):
