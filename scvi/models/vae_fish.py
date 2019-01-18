@@ -170,8 +170,8 @@ class VAEF(VAE):
         if self.model_library_fish:
             library = self.sample_from_posterior_l(x, mode="smFISH")
         px_scale = self.get_sample_scale(x, mode="smFISH", batch_index=batch_index, y=y)
-        px_scale = px_scale[:, self.indexes_to_keep] / torch.sum(px_scale[:, self.indexes_to_keep],
-                                                                 dim=1).view(-1, 1)
+        px_scale /= torch.sum(px_scale[:, self.indexes_to_keep],
+                              dim=1).view(-1, 1)
         return px_scale * torch.exp(library)
 
     def classify(self, x, mode="scRNA"):
