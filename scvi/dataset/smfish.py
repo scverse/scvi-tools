@@ -14,7 +14,7 @@ class SmfishDataset(GeneExpressionDataset):
         super(SmfishDataset, self).__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
                 data,
-                labels=labels), gene_names=gene_names,
+                labels=labels), gene_names=gene_names, cell_types=cell_types,
             x_coord=x_coord, y_coord=y_coord)
 
     def preprocess(self):
@@ -62,9 +62,9 @@ class SmfishDataset(GeneExpressionDataset):
                     new_labels.append(5)
 
             select = np.array(to_keep)
-            labels, cell_types = np.array(new_labels), np.array(ds.ca['ClusterName'])
+            labels = np.array(new_labels)
             labels = np.reshape(labels, (labels.shape[0], 1))
-            cell_types = np.reshape(cell_types, (cell_types.shape[0], 1))[select]
+            cell_types = ['Astrocytes', 'Endothelial', 'Interneurons', 'Microglia', 'Oligodendrocytes', 'Pyramidal']
 
         x_coord, y_coord = np.array(ds.ca['X']), np.array(ds.ca['Y'])
         x_coord = np.reshape(x_coord, (x_coord.shape[0], 1))[select]

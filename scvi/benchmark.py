@@ -14,7 +14,7 @@ def cortex_benchmark(n_epochs=250, use_cuda=True, save_path='data/'):
     trainer_cortex_vae = UnsupervisedTrainer(vae, cortex_dataset, use_cuda=use_cuda)
     trainer_cortex_vae.train(n_epochs=n_epochs)
     trainer_cortex_vae.train_set.differential_expression_score('oligodendrocytes', 'pyramidal CA1',
-                                                               genes=["THY1", "MBP"])
+                                                               genes=["thy1", "mbp"])
 
     trainer_cortex_vae.test_set.ll()  # assert ~ 1200
     vae = VAE(cortex_dataset.nb_genes)

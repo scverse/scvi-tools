@@ -44,13 +44,18 @@ class Zeisel2018Dataset(GeneExpressionDataset):
             global_classes = np.array(ds.ca["Class"])[select]
 
             data = np.array(ds[:, select].T)  # change matrix to cells by genes
+            #  subsampling 7000 cells so that Liger can integrate this dataset with OsmFISH
             np.random.seed(0)
             cells = np.random.choice(np.arange(data.shape[0]), 7000, replace=False)
             np.random.seed()
             data = data[cells]
+            labels = labels[cells]
+            batch_indices = batch_indices[cells]
+            cell_types = np.unique(labels)
+
             fish_genes = np.load('data/Fish_genes.npy')
             fish_genes = np.array([gene_names.index(gene) for gene in fish_genes if gene in gene_names])
-            selected_genes = np.std(data, axis=0).argsort()[-7000:]
+            selected_genes = np.std(data, axis=0).argsort()[-3000:]
             selected_genes = np.unique(np.concatenate((selected_genes, fish_genes)))
             gene_names = np.array(gene_names)[selected_genes]
             data = data[:, selected_genes]

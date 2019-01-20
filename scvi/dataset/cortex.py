@@ -42,7 +42,7 @@ class CortexDataset(GeneExpressionDataset):
             *GeneExpressionDataset.get_attributes_from_matrix(
                 expression_data,
                 labels=labels),
-            gene_names=np.char.upper(gene_names), cell_types=cell_types)
+            gene_names=gene_names, cell_types=cell_types)
 
     def preprocess(self):
         print("Preprocessing Cortex data")
