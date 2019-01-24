@@ -78,6 +78,12 @@ class DropseqDataset(GeneExpressionDataset):
                 index_genes = np.concatenate((np.asarray(index_genes_starmap), index_genes), axis=None)
                 gene_names = gene_names[index_genes]
 
+            # reorder labels so that layers of the cortex appear in a right order when we plot cell types
+            order_labels = [5, 6, 3, 2, 4, 0, 1, 8, 7, 9, 10, 11, 12, 13]
+
+            labels = np.vectorize(lambda x: order_labels.index(x))(labels)
+            cell_types = cell_types[order_labels]
+
         except OSError:
             print("Error: the file " + self.download_name + " should be in the " + self.save_path + " directory.")
             raise

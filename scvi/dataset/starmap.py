@@ -51,6 +51,8 @@ class StarmapDataset(GeneExpressionDataset):
                 positions = np.array(ds.ca['Spatial_coordinates'])
                 x_coord = positions[select, 0]
                 y_coord = positions[select, 1]
+                x_coord = np.reshape(x_coord, (x_coord.shape[0], 1))
+                y_coord = np.reshape(y_coord, (y_coord.shape[0], 1))
 
             if 'CellTypes' in ds.attrs:
                 cell_types = np.array(ds.attrs['CellTypes'])

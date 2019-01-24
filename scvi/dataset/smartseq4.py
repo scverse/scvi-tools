@@ -49,10 +49,17 @@ class Smartseq4Dataset(GeneExpressionDataset):
             selected_genes = np.unique(np.concatenate((selected_genes, fish_genes)))
             gene_names = np.array(gene_names)[selected_genes]
             data = data[:, selected_genes]
+
+            # reorder labels so that layers of the cortex appear in a right order when we plot cell types
+            order_labels = [3, 4, 5, 6, 7, 8, 9, 13, 10, 22, 16, 20, 14, 21, 0, 2, 1, 11, 12, 15, 17, 18, 19]
+            new_labels = np.copy(labels)
+            for i in range(len(cell_types)):
+                new_labels[labels == cell_types[i]] = cell_types[order_labels[i]]
+            cell_types = cell_types[order_labels]
             ds.close()
         except OSError:
             print("Error: the file " + self.download_name + " should be in the " + self.save_path + " directory.")
             raise
 
         print("Finished preprocessing dataset")
-        return data, labels, gene_names, cell_types, complete_clusters, complete_classes, complete_labels
+        return data, new_labels, gene_names, cell_types, complete_clusters, complete_classes, complete_labels
