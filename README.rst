@@ -51,3 +51,9 @@ Romain Lopez, Jeffrey Regier, Michael Cole, Michael I. Jordan, Nir Yosef.
 Nature Methods, 2018. `[pdf]`__
 
 .. __: https://rdcu.be/bdHYQ
+
+Chenling Xu∗, Romain Lopez∗, Edouard Mehlman∗, Jeffrey Regier, Michael I. Jordan, Nir Yosef.
+**"Harmonization and Annotation of Single-cell Transcriptomics data with Deep Generative Models."**
+Submitted, 2019. `[pdf]`__
+
+.. __: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf
