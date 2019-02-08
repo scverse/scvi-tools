@@ -310,6 +310,15 @@ class Posterior:
         return libraries.ravel()
 
     @torch.no_grad()
+    def get_harmonized_scale(self, fixed_batch):
+        px_scales = []
+        for tensors in self:
+            sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
+            px_scales += [self.model.scale_from_z(sample_batch, fixed_batch).cpu()]
+        return np.concatenate(px_scales)
+
+
+    @torch.no_grad()
     def get_sample_scale(self):
         px_scales = []
         for tensors in self:
