@@ -158,7 +158,6 @@ class VAE(nn.Module):
         px_scale, _, _, _ = self.decoder('gene', z, library, batch_index)
         return px_scale
 
-
     def inference(self, x, batch_index=None, y=None, n_samples=1):
         x_ = x
         if self.log_variational:
