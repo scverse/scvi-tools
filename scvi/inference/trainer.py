@@ -222,7 +222,7 @@ class Trainer:
     @torch.no_grad()
     def get_all_latent_and_imputed_values(self, save_imputed=False, filename_imputation='imputed_values',
                                           save_shape_genes_by_cells=False, save_latent=False,
-                                          filename_latent='latent_space'):
+                                          filename_latent='latent_space', impute=True):
         r"""
         :param save_imputed: True if the user wants to save the imputed values in a .csv file
         :param file_name_imputation: in the situation described above, this is the name of the file saved
@@ -239,12 +239,13 @@ class Trainer:
         for tensors in all_dataset:
             sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
             ret["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, give_mean=True).cpu()]
-            ret["imputed_values"] += [self.model.get_sample_rate(sample_batch, batch_index=batch_index).cpu()]
-            ret["scaled_imputed_values"] += [self.model.get_sample_scale(sample_batch, batch_index=batch_index).cpu()]
+            if impute:
+                ret["imputed_values"] += [self.model.get_sample_rate(sample_batch, batch_index=batch_index).cpu()]
+                ret["scaled_imputed_values"] += [self.model.get_sample_scale(sample_batch, batch_index=batch_index).cpu()]
         for key in ret.keys():
             if len(ret[key]) > 0:
                 ret[key] = np.array(torch.cat(ret[key]))
-        if save_imputed:
+        if impute and save_imputed:
             myfile = open(filename_imputation, 'w')
             with myfile:
                 writer = csv.writer(myfile)
