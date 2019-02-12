@@ -1,7 +1,7 @@
 umap-learn==0.3.7
 seaborn==0.9.0
 louvain==0.6.1
-igraph-python==0.7.1
+igraph
 pip==18.1
 flake8==3.5.0
 coverage==4.5.1
