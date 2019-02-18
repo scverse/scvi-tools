@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence as kl
 
 from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
-from scvi.models.modules import Encoder, DecoderSCVI, FactorDecoderSCVI
+from scvi.models.modules import Encoder, DecoderSCVI, LinearDecoderSCVI
 from scvi.models.utils import one_hot
 
 torch.backends.cudnn.benchmark = True
@@ -254,6 +254,6 @@ class LDVAE(VAE):
         super().__init__(n_input, n_batch, n_labels, n_hidden, n_latent, n_layers,
                          dropout_rate, dispersion, log_variational, reconstruction_loss)
         
-        self.decoder = FactorDecoderSCVI(n_latent, n_input, n_cat_list=[n_batch],
+        self.decoder = LinearDecoderSCVI(n_latent, n_input, n_cat_list=[n_batch],
                                          n_layers=n_layers, n_hidden=n_hidden)
 

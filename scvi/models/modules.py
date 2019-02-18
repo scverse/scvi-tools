@@ -189,11 +189,11 @@ class DecoderSCVI(nn.Module):
         return px_scale, px_r, px_rate, px_dropout
 
 
-class FactorDecoderSCVI(nn.Module):
+class LinearDecoderSCVI(nn.Module):
     def __init__(self, n_input: int, n_output: int,
                  n_cat_list: Iterable[int] = None, n_layers: int = 1,
                  n_hidden: int = 128):
-        super(FactorDecoderSCVI, self).__init__()
+        super(LinearDecoderSCVI, self).__init__()
 
         # mean gamma
         self.n_batches = n_cat_list[0]  # Just try a simple case for now
