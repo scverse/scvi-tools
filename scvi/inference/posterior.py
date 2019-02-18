@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import torch
+import os
 from matplotlib import pyplot as plt
 from scipy.stats import kde, entropy
 from sklearn.cluster import KMeans
@@ -132,6 +133,7 @@ class Posterior:
             print("True LL : %.4f" % ll)
         return ll
 
+    @torch.no_grad()
     def get_latent(self, sample=False):
         latent = []
         batch_indices = []
@@ -141,13 +143,14 @@ class Posterior:
             if not sample:
                 if self.model.log_variational:
                     sample_batch = torch.log(1 + sample_batch)
-                latent += [self.model.z_encoder(sample_batch)[0]]
+                latent += [self.model.z_encoder(sample_batch)[0].cpu()]
             else:
-                latent += [self.model.sample_from_posterior_z(sample_batch)]
-            batch_indices += [batch_index]
-            labels += [label]
+                latent += [self.model.sample_from_posterior_z(sample_batch).cpu()]
+            batch_indices += [batch_index.cpu()]
+            labels += [label.cpu()]
         return np.array(torch.cat(latent)), np.array(torch.cat(batch_indices)), np.array(torch.cat(labels)).ravel()
 
+    @torch.no_grad()
     def entropy_batch_mixing(self, verbose=False, **kwargs):
         if self.gene_dataset.n_batches == 2:
             latent, batch_indices, labels = self.get_latent()
@@ -158,6 +161,7 @@ class Posterior:
 
     entropy_batch_mixing.mode = 'max'
 
+    @torch.no_grad()
     def differential_expression_stats(self, M_sampling=100):
         """
         Output average over statistics in a symmetric way (a against b)
@@ -170,6 +174,8 @@ class Posterior:
         px_scales = []
         all_labels = []
         batch_size = max(self.data_loader_kwargs['batch_size'] // M_sampling, 2)  # Reduce batch_size on GPU
+        if len(self.gene_dataset) % batch_size == 1:
+            batch_size += 1
         for tensors in self.update({"batch_size": batch_size}):
             sample_batch, _, _, batch_index, labels = tensors
             px_scales += [
@@ -187,6 +193,7 @@ class Posterior:
 
         return px_scales, all_labels
 
+    @torch.no_grad()
     def differential_expression_score(self, cell_type, other_cell_type=None, genes=None, M_sampling=100,
                                       M_permutation=10000, permutation=False):
         px_scale, all_labels = self.differential_expression_stats(M_sampling=M_sampling)
@@ -197,6 +204,7 @@ class Posterior:
                                                M_permutation=M_permutation, permutation=permutation)
         return bayes_factors_list
 
+    @torch.no_grad()
     def differential_expression_table(self, output_file=False, select=10, M_sampling=100, M_permutation=10000,
                                       permutation=False):
         px_scale, all_labels = self.differential_expression_stats(M_sampling=M_sampling)
@@ -226,6 +234,7 @@ class Posterior:
             writer.close()
         return genes, expression
 
+    @torch.no_grad()
     def imputation(self, n_samples=1):
         imputed_list = []
         for tensors in self:
@@ -235,6 +244,7 @@ class Posterior:
         imputed_list = np.concatenate(imputed_list)
         return imputed_list.squeeze()
 
+    @torch.no_grad()
     def generate(self, n_samples=100, genes=None):  # with n_samples>1 return original list/ otherwose sequential
         '''
         Return original_values as y and generated as x (for posterior density visualization)
@@ -250,8 +260,8 @@ class Posterior:
             px_dispersion, px_rate = self.model.inference(sample_batch, batch_index=batch_index, y=labels,
                                                           n_samples=n_samples)[1:3]
 
-            p = px_rate / (px_rate + px_dispersion)
-            r = px_dispersion
+            p = (px_rate / (px_rate + px_dispersion)).cpu()
+            r = px_dispersion.cpu()
             #
             l_train = np.random.gamma(r, p / (1 - p))
             X = np.random.poisson(l_train)
@@ -272,6 +282,7 @@ class Posterior:
 
         return np.concatenate(posterior_list, axis=0), np.concatenate(original_list, axis=0)
 
+    @torch.no_grad()
     def generate_parameters(self):
         dropout_list = []
         mean_list = []
@@ -287,6 +298,7 @@ class Posterior:
 
         return np.concatenate(dropout_list), np.concatenate(mean_list), np.concatenate(dispersion_list)
 
+    @torch.no_grad()
     def get_stats(self, verbose=True):
         libraries = []
         for tensors in self.sequential(batch_size=128):
@@ -297,6 +309,15 @@ class Posterior:
         libraries = np.concatenate(libraries)
         return libraries.ravel()
 
+    @torch.no_grad()
+    def get_harmonized_scale(self, fixed_batch):
+        px_scales = []
+        for tensors in self:
+            sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
+            px_scales += [self.model.scale_from_z(sample_batch, fixed_batch).cpu()]
+        return np.concatenate(px_scales)
+
+    @torch.no_grad()
     def get_sample_scale(self):
         px_scales = []
         for tensors in self:
@@ -307,6 +328,7 @@ class Posterior:
                          ).cpu())]
         return np.concatenate(px_scales)
 
+    @torch.no_grad()
     def imputation_list(self, n_samples=1):
         original_list = []
         imputed_list = []
@@ -336,6 +358,7 @@ class Posterior:
                 imputed_list = np.array([])
         return original_list, imputed_list
 
+    @torch.no_grad()
     def imputation_score(self, verbose=False, original_list=None, imputed_list=None, n_samples=1):
         if original_list is None or imputed_list is None:
             original_list, imputed_list = self.imputation_list(n_samples=n_samples)
@@ -344,7 +367,8 @@ class Posterior:
                 return 0
         return np.median(np.abs(np.concatenate(original_list) - np.concatenate(imputed_list)))
 
-    def imputation_benchmark(self, n_samples=8, verbose=False):
+    @torch.no_grad()
+    def imputation_benchmark(self, n_samples=8, verbose=False, show_plot=True, title_plot='imputation', save_path=''):
         original_list, imputed_list = self.imputation_list(n_samples=n_samples)
         # Median of medians for all distances
         median_score = self.imputation_score(original_list=original_list, imputed_list=imputed_list)
@@ -359,9 +383,11 @@ class Posterior:
         if verbose:
             print("\nMedian of Median: %.4f\nMean of Median for each cell: %.4f" % (median_score, mean_score))
 
-        plot_imputation(np.concatenate(original_list), np.concatenate(imputed_list))
+        plot_imputation(np.concatenate(original_list), np.concatenate(imputed_list), show_plot=show_plot,
+                        title=os.path.join(save_path, title_plot))
         return original_list, imputed_list
 
+    @torch.no_grad()
     def knn_purity(self, verbose=False):
         latent, _, labels = self.get_latent()
         score = knn_purity(latent, labels)
@@ -371,6 +397,7 @@ class Posterior:
 
     knn_purity.mode = 'max'
 
+    @torch.no_grad()
     def clustering_scores(self, verbose=True, prediction_algorithm='knn'):
         if self.gene_dataset.n_labels > 1:
             latent, _, labels = self.get_latent()
@@ -390,6 +417,7 @@ class Posterior:
                       (asw_score, nmi_score, ari_score, uca_score))
             return asw_score, nmi_score, ari_score, uca_score
 
+    @torch.no_grad()
     def nn_overlap_score(self, verbose=True, **kwargs):
         '''
         Quantify how much the similarity between cells in the mRNA latent space resembles their similarity at the
@@ -405,6 +433,7 @@ class Posterior:
                       (spearman_correlation, fold_enrichment))
             return spearman_correlation, fold_enrichment
 
+    @torch.no_grad()
     def show_t_sne(self, n_samples=1000, color_by='', save_name='', latent=None, batch_indices=None,
                    labels=None, n_batch=None):
         # If no latent representation is given
@@ -475,29 +504,28 @@ def entropy_from_indices(indices):
     return entropy(np.array(np.unique(indices, return_counts=True)[1].astype(np.int32)))
 
 
-def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_samples_per_pool=100, max_number=500):
-    # max number is an important parameter
-    n_samples = len(latent_space)
-    keep_idx = np.random.choice(np.arange(n_samples), size=min(len(latent_space), max_number), replace=False)
-    latent_space, batches = latent_space[keep_idx], batches[keep_idx]
+def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_samples_per_pool=100):
+    def entropy(hist_data):
+        n_batches = len(np.unique(hist_data))
+        if n_batches > 2:
+            raise ValueError("Should be only two clusters for this metric")
+        frequency = np.mean(hist_data == 1)
+        if frequency == 0 or frequency == 1:
+            return 0
+        return -frequency * np.log(frequency) - (1 - frequency) * np.log(1 - frequency)
 
-    batches = batches.ravel()
-    n_neighbors = min(n_neighbors, n_samples - 1)
-    nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(latent_space)
-    indices = nbrs.kneighbors(latent_space, return_distance=False)[:, 1:]
-    batch_indices = np.vectorize(lambda i: batches[i])(indices)
-    entropies = np.apply_along_axis(entropy_from_indices, axis=1, arr=batch_indices)
+    n_neighbors = min(n_neighbors, len(latent_space) - 1)
+    nne = NearestNeighbors(n_neighbors=1 + n_neighbors, n_jobs=8)
+    nne.fit(latent_space)
+    kmatrix = nne.kneighbors_graph(latent_space) - scipy.sparse.identity(latent_space.shape[0])
 
-    # average n_pools entropy results where each result is an average of n_samples_per_pool random samples.
-    if n_pools == 1:
-        score = np.mean(entropies)
-    else:
-        score = np.mean([
-            np.mean(entropies[np.random.choice(len(entropies), size=n_samples_per_pool)])
-            for _ in range(n_pools)
-        ])
-
-    return score
+    score = 0
+    for t in range(n_pools):
+        indices = np.random.choice(np.arange(latent_space.shape[0]), size=n_samples_per_pool)
+        score += np.mean([entropy(batches[kmatrix[indices].nonzero()[1]
+                                                 [kmatrix[indices].nonzero()[0] == i]])
+                          for i in range(n_samples_per_pool)])
+    return score / float(n_pools)
 
 
 def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes_idx=None,
@@ -542,7 +570,7 @@ def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes
     return res
 
 
-def plot_imputation(original, imputed, title="Imputation"):
+def plot_imputation(original, imputed, show_plot=True, title="Imputation"):
     y = imputed
     x = original
 
@@ -586,7 +614,8 @@ def plot_imputation(original, imputed, title="Imputation"):
     plt.plot(linspace, a * linspace, color='black')
 
     plt.plot(linspace, linspace, color='black', linestyle=":")
-    plt.show()
+    if show_plot:
+        plt.show()
     plt.savefig(title + '.png')
 
 

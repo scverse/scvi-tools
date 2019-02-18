@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-
+import os
 from .dataset import GeneExpressionDataset
 
 available_datasets = {
@@ -12,7 +12,7 @@ available_datasets = {
 
 class CiteSeqDataset(GeneExpressionDataset):
     def __init__(self, name='cbmc', save_path='data/citeSeq/'):
-        self.save_path = save_path + name + '/'
+        self.save_path = os.path.join(save_path, name)
 
         s = available_datasets[name]
         url_rna, url_adt, url_adt_clr = (
@@ -37,19 +37,21 @@ class CiteSeqDataset(GeneExpressionDataset):
 
         expression_data = self.download_and_preprocess()
 
-        super(CiteSeqDataset, self).__init__(
+        super().__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(expression_data)
         )
 
     def preprocess(self):
         print("Preprocessing data")
-        self.expression = expression = pd.read_csv(self.save_path + self.download_name_rna, index_col=0,
+        self.expression = expression = pd.read_csv(os.path.join(self.save_path, self.download_name_rna), index_col=0,
                                                    compression='gzip').T
-        self.adt = adt = pd.read_csv(self.save_path + self.download_name_adt, index_col=0, compression='gzip')
+        self.adt = adt = pd.read_csv(os.path.join(self.save_path, self.download_name_adt), index_col=0,
+                                     compression='gzip')
         self.adt_expression = adt.T.values
         self.protein_markers = np.array(adt.index).astype(np.str)
 
-        self.adt_centered = adt_centered = pd.read_csv(self.save_path + self.download_name_adt_centered, index_col=0,
+        self.adt_centered = adt_centered = pd.read_csv(os.path.join(self.save_path, self.download_name_adt_centered),
+                                                       index_col=0,
                                                        compression='gzip')
         self.adt_expression_clr = adt_centered.T.values
         assert (self.protein_markers == np.array(adt_centered.index).astype(np.str)).all()
@@ -82,5 +84,6 @@ class CbmcDataset(CiteSeqDataset):
         >>> gene_dataset = CbmcDataset()
 
     """
+
     def __init__(self, save_path='data/citeSeq/'):
-        super(CbmcDataset, self).__init__(name="cbmc", save_path=save_path)
+        super().__init__(name="cbmc", save_path=save_path)

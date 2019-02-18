@@ -16,12 +16,13 @@ from scvi.inference import JointSemiSupervisedTrainer, AlternateSemiSupervisedTr
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC
 from scvi.models.classifier import Classifier
+import os.path
 
 use_cuda = True
 
 
-def test_cortex():
-    cortex_dataset = CortexDataset(save_path='tests/data/')
+def test_cortex(save_path):
+    cortex_dataset = CortexDataset(save_path=save_path)
     vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_batches)
     trainer_cortex_vae = UnsupervisedTrainer(vae, cortex_dataset, train_size=0.5, use_cuda=use_cuda)
     trainer_cortex_vae.train(n_epochs=1)
@@ -33,7 +34,8 @@ def test_cortex():
     trainer_cortex_vae.train(n_epochs=1)
     trainer_cortex_vae.uncorrupt_posteriors()
 
-    trainer_cortex_vae.train_set.imputation_benchmark(n_samples=1)
+    trainer_cortex_vae.train_set.imputation_benchmark(n_samples=1, show_plot=False,
+                                                      title_plot='imputation', save_path=save_path)
 
     svaec = SCANVI(cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels)
     trainer_cortex_svaec = JointSemiSupervisedTrainer(svaec, cortex_dataset,
@@ -91,9 +93,9 @@ def test_synthetic_2():
     trainer_synthetic_vaec.train(n_epochs=2)
 
 
-def test_fish_rna():
-    gene_dataset_fish = SmfishDataset('tests/data/')
-    gene_dataset_seq = CortexDataset(save_path='tests/data/',
+def test_fish_rna(save_path):
+    gene_dataset_fish = SmfishDataset(save_path)
+    gene_dataset_seq = CortexDataset(save_path=save_path,
                                      genes_fish=gene_dataset_fish.gene_names,
                                      genes_to_keep=[], additional_genes=50)
     benchmark_fish_scrna(gene_dataset_seq, gene_dataset_fish)
@@ -106,8 +108,8 @@ def base_benchmark(gene_dataset):
     return trainer
 
 
-def test_all_benchmarks():
-    all_benchmarks(n_epochs=1, save_path='tests/data/')
+def test_all_benchmarks(save_path):
+    all_benchmarks(n_epochs=1, save_path=save_path, show_plot=False)
 
 
 def test_synthetic_3():
@@ -117,79 +119,79 @@ def test_synthetic_3():
     adapter_trainer.train(n_path=1, n_epochs=1)
 
 
-def test_brain_large():
-    brain_large_dataset = BrainLargeDataset(subsample_size=128, save_path='tests/data/')
+def test_brain_large(save_path):
+    brain_large_dataset = BrainLargeDataset(subsample_size=128, save_path=save_path)
     base_benchmark(brain_large_dataset)
 
 
-def test_retina():
-    retina_dataset = RetinaDataset(save_path='tests/data/')
+def test_retina(save_path):
+    retina_dataset = RetinaDataset(save_path=save_path)
     base_benchmark(retina_dataset)
 
 
-def test_cite_seq():
-    pbmc_cite_seq_dataset = CiteSeqDataset(name='pbmc', save_path='tests/data/citeSeq/')
+def test_cite_seq(save_path):
+    pbmc_cite_seq_dataset = CiteSeqDataset(name='pbmc', save_path=os.path.join(save_path, 'citeSeq/'))
     base_benchmark(pbmc_cite_seq_dataset)
 
 
-def test_brain_small():
-    brain_small_dataset = BrainSmallDataset(save_path='tests/data/')
+def test_brain_small(save_path):
+    brain_small_dataset = BrainSmallDataset(save_path=save_path)
     base_benchmark(brain_small_dataset)
 
 
-def test_hemato():
-    hemato_dataset = HematoDataset(save_path='tests/data/HEMATO/')
+def test_hemato(save_path):
+    hemato_dataset = HematoDataset(save_path=os.path.join(save_path, 'HEMATO/'))
     base_benchmark(hemato_dataset)
 
 
-def test_loom():
-    retina_dataset = LoomDataset("retina.loom", save_path='tests/data/')
+def test_loom(save_path):
+    retina_dataset = LoomDataset("retina.loom", save_path=save_path)
     base_benchmark(retina_dataset)
 
 
-def test_remote_loom():
+def test_remote_loom(save_path):
     fish_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom",
-                               save_path='tests/data/',
+                               save_path=save_path,
                                url='http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom')
     base_benchmark(fish_dataset)
 
 
-def test_cortex_loom():
+def test_cortex_loom(save_path):
     cortex_dataset = LoomDataset("Cortex.loom",
-                                 save_path='tests/data/')
+                                 save_path=save_path)
     base_benchmark(cortex_dataset)
 
 
-def test_anndata():
+def test_anndata(save_path):
     ann_dataset = AnnDataset("TM_droplet_mat.h5ad", save_path='tests/data/')
     base_benchmark(ann_dataset)
 
 
-def test_csv():
-    csv_dataset = CsvDataset("GSE100866_CBMC_8K_13AB_10X-RNA_umi.csv.gz", save_path='tests/data/', compression='gzip')
+def test_csv(save_path):
+    csv_dataset = CsvDataset("GSE100866_CBMC_8K_13AB_10X-RNA_umi.csv.gz", save_path=save_path, compression='gzip')
     base_benchmark(csv_dataset)
 
 
-def test_cbmc():
-    cbmc_dataset = CbmcDataset(save_path='tests/data/citeSeq/')
+def test_cbmc(save_path):
+    cbmc_dataset = CbmcDataset(save_path=os.path.join(save_path, 'citeSeq/'))
     trainer = base_benchmark(cbmc_dataset)
     trainer.train_set.nn_overlap_score(k=5)
 
 
-def test_pbmc():
-    pbmc_dataset = PbmcDataset(save_path='tests/data/')
-    purified_pbmc_dataset = PurifiedPBMCDataset(save_path='tests/data/')  # all cells
-    purified_t_cells = PurifiedPBMCDataset(save_path='tests/data/', filter_cell_types=range(6))  # only t-cells
+def test_pbmc(save_path):
+    pbmc_dataset = PbmcDataset(save_path=save_path)
+    purified_pbmc_dataset = PurifiedPBMCDataset(save_path=save_path)  # all cells
+    purified_t_cells = PurifiedPBMCDataset(save_path=save_path, filter_cell_types=range(6))  # only t-cells
     base_benchmark(pbmc_dataset)
     assert len(purified_t_cells.cell_types) == 6
     assert len(purified_pbmc_dataset.cell_types) == 10
 
 
-def test_filter_and_concat_datasets():
-    cortex_dataset_1 = CortexDataset(save_path='tests/data/')
+def test_filter_and_concat_datasets(save_path):
+    cortex_dataset_1 = CortexDataset(save_path=save_path)
     cortex_dataset_1.subsample_genes(subset_genes=np.arange(0, 3))
     cortex_dataset_1.filter_cell_types(["microglia", "oligodendrocytes"])
-    cortex_dataset_2 = CortexDataset(save_path='tests/data/')
+    cortex_dataset_2 = CortexDataset(save_path=save_path)
     cortex_dataset_2.subsample_genes(subset_genes=np.arange(1, 4))
     cortex_dataset_2.filter_cell_types(["endothelial-mural", "interneurons", "microglia", "oligodendrocytes"])
     cortex_dataset_2.filter_cell_types([2, 0])
@@ -218,18 +220,18 @@ def test_filter_and_concat_datasets():
     synthetic_dataset_3.map_cell_types({"2": "9", ("4", "3"): "8"})
 
 
-def test_seqfish():
-    seqfish_dataset = SeqfishDataset(save_path='tests/data/')
+def test_seqfish(save_path):
+    seqfish_dataset = SeqfishDataset(save_path=save_path)
     base_benchmark(seqfish_dataset)
 
 
-def test_breast_cancer():
-    breast_cancer_dataset = BreastCancerDataset(save_path='tests/data/')
+def test_breast_cancer(save_path):
+    breast_cancer_dataset = BreastCancerDataset(save_path=save_path)
     base_benchmark(breast_cancer_dataset)
 
 
-def test_mouseob():
-    mouseob_dataset = MouseOBDataset(save_path='tests/data/')
+def test_mouseob(save_path):
+    mouseob_dataset = MouseOBDataset(save_path=save_path)
     base_benchmark(mouseob_dataset)
 
 

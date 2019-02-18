@@ -1,5 +1,5 @@
 import pickle
-
+import os
 import numpy as np
 
 from . import GeneExpressionDataset
@@ -12,7 +12,7 @@ class SyntheticDataset(GeneExpressionDataset):
         mask = np.random.binomial(n=1, p=0.7, size=(n_batches, batch_size, nb_genes))
         newdata = (data * mask)  # We put the batch index first
         labels = np.random.randint(0, n_labels, size=(n_batches, batch_size, 1))
-        super(SyntheticDataset, self).__init__(
+        super().__init__(
             *GeneExpressionDataset.get_attributes_from_list(newdata, list_labels=labels),
             gene_names=np.arange(nb_genes).astype(np.str)
         )
@@ -36,9 +36,9 @@ class SyntheticRandomDataset(GeneExpressionDataset):  # The exact random paramet
         self.download_name = 'random_metadata.pickle'
         self.download()
 
-        self.simlr_metadata = pickle.load(open(self.save_path + 'random_metadata.pickle', 'rb'))
+        self.simlr_metadata = pickle.load(open(os.path.join(self.save_path, 'random_metadata.pickle'), 'rb'))
         labels_simlr = self.simlr_metadata['clusters']
 
-        super(SyntheticRandomDataset, self).__init__(
+        super().__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(X_train, labels=labels_simlr)
         )

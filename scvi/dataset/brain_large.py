@@ -2,6 +2,7 @@ import h5py
 import numpy as np
 from scipy.sparse import csc_matrix, csr_matrix, vstack
 from sklearn.preprocessing import StandardScaler
+import os
 
 from .dataset import GeneExpressionDataset
 
@@ -42,14 +43,14 @@ class BrainLargeDataset(GeneExpressionDataset):
         self.download_name = "genomics.h5"
 
         Xs = self.download_and_preprocess()
-        super(BrainLargeDataset, self).__init__(
+        super().__init__(
             *GeneExpressionDataset.get_attributes_from_list(Xs)
         )
 
     def preprocess(self):
         print("Preprocessing Brain Large data")
 
-        filtered_matrix_h5 = self.save_path + self.download_name
+        filtered_matrix_h5 = os.path.join(self.save_path, self.download_name)
         with h5py.File(filtered_matrix_h5) as f:
             dset = f["mm10"]
             n_genes, n_cells = f["mm10"]["shape"]

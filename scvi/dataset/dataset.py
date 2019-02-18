@@ -237,11 +237,14 @@ class GeneExpressionDataset(Dataset):
 
     @staticmethod
     def _download(url, save_path, download_name):
-        if os.path.exists(save_path + download_name):
-            print("File %s already downloaded" % (save_path + download_name))
+        if os.path.exists(os.path.join(save_path, download_name)):
+            print("File %s already downloaded" % (os.path.join(save_path, download_name)))
             return
+        if url is None:
+            print("You are trying to load a local file named %s and located at %s but this file was not found"
+                  " at the location %s" % (download_name, save_path, os.path.join(save_path, download_name)))
         r = urllib.request.urlopen(url)
-        print("Downloading file at %s" % save_path + download_name)
+        print("Downloading file at %s" % os.path.join(save_path, download_name))
 
         def readIter(f, blocksize=1000):
             """Given a file 'f', returns an iterator that returns bytes of
@@ -256,7 +259,7 @@ class GeneExpressionDataset(Dataset):
         if not os.path.exists(save_path):
             os.makedirs(save_path)
 
-        with open(save_path + download_name, 'wb') as f:
+        with open(os.path.join(save_path, download_name), 'wb') as f:
             for data in readIter(r):
                 f.write(data)
 
@@ -274,16 +277,14 @@ class GeneExpressionDataset(Dataset):
 
     @staticmethod
     def get_attributes_from_matrix(X, batch_indices=0, labels=None):
-        to_keep = np.array((X.sum(axis=1) > 0)).ravel()
-        if X.shape != X[to_keep].shape:
-            removed_idx = []
-            for i in range(len(to_keep)):
-                if not to_keep[i]:
-                    removed_idx.append(i)
+        ne_cells = X.sum(axis=1) > 0
+        to_keep = np.where(ne_cells)
+        if not ne_cells.all():
+            X = X[to_keep]
+            removed_idx = np.where(~ne_cells)[0]
             print("Cells with zero expression in all genes considered were removed, the indices of the removed cells "
                   "in the expression matrix were:")
             print(removed_idx)
-        X = X[to_keep]
         local_mean, local_var = GeneExpressionDataset.library_size(X)
         batch_indices = batch_indices * np.ones((X.shape[0], 1)) if type(batch_indices) is int \
             else batch_indices[to_keep]

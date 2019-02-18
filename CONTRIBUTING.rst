@@ -93,6 +93,16 @@ Ready to contribute? Here's how to set up `scvi` for local development.
 
 7. Submit a pull request through the GitHub website.
 
+Coding Standards
+-----------------------
+1. Don't duplicate code. Certainly no blocks longer than a couple of lines. It's almost always better to refactor than to duplicate blocks of code.
+2. Almost all code should at least be run by a unit tests. No pull request should decrease unit test coverage by much.
+3. Document each new method and each new class with a docstring.
+4. Don't commit commented-out code. Just delete it or store it somewhere outside of the repo. You probably aren't going to need it. At worse, it's stored in previous commits, from before it was commented out.
+5. A pull request (PR) will typically close at least one Github issue. For these pull requests, write the issue it closes in the description, e.g. ``closes #210``. The issue will be automatically closed when the PR is merged.
+6. Don't commit data to the repository, except perhaps a few small (< 50 KB) files of test data.
+
+
 Pull Request Guidelines
 -----------------------
 
@@ -160,6 +170,10 @@ $ git pull origin master
 Write a recipe::
 
 $ git checkout -b my-recipe
+
+Get the package's hash:
+
+$ pip hash scvi.zip
 
 Push changes, wait for tests to pass, submit pull request::
 

@@ -23,7 +23,7 @@ class FCLayers(nn.Module):
 
     def __init__(self, n_in: int, n_out: int, n_cat_list: Iterable[int] = None,
                  n_layers: int = 1, n_hidden: int = 128, dropout_rate: float = 0.1, use_batch_norm=True):
-        super(FCLayers, self).__init__()
+        super().__init__()
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
 
         if n_cat_list is not None:
@@ -94,7 +94,7 @@ class Encoder(nn.Module):
     def __init__(self, n_input: int, n_output: int,
                  n_cat_list: Iterable[int] = None, n_layers: int = 1,
                  n_hidden: int = 128, dropout_rate: float = 0.1):
-        super(Encoder, self).__init__()
+        super().__init__()
 
         self.encoder = FCLayers(n_in=n_input, n_out=n_hidden, n_cat_list=n_cat_list, n_layers=n_layers,
                                 n_hidden=n_hidden, dropout_rate=dropout_rate)
@@ -143,7 +143,7 @@ class DecoderSCVI(nn.Module):
     def __init__(self, n_input: int, n_output: int,
                  n_cat_list: Iterable[int] = None, n_layers: int = 1,
                  n_hidden: int = 128):
-        super(DecoderSCVI, self).__init__()
+        super().__init__()
         self.px_decoder = FCLayers(n_in=n_input, n_out=n_hidden,
                                    n_cat_list=n_cat_list, n_layers=n_layers,
                                    n_hidden=n_hidden, dropout_rate=0)
@@ -244,7 +244,7 @@ class Decoder(nn.Module):
 
     def __init__(self, n_input: int, n_output: int, n_cat_list: Iterable[int] = None, n_layers: int = 1,
                  n_hidden: int = 128):
-        super(Decoder, self).__init__()
+        super().__init__()
         self.decoder = FCLayers(n_in=n_input, n_out=n_hidden,
                                 n_cat_list=n_cat_list, n_layers=n_layers,
                                 n_hidden=n_hidden, dropout_rate=0)

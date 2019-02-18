@@ -1,6 +1,7 @@
 from .dataset import GeneExpressionDataset
 import pandas as pd
 import numpy as np
+import os
 
 
 class CsvDataset(GeneExpressionDataset):
@@ -16,6 +17,9 @@ class CsvDataset(GeneExpressionDataset):
             is path-like, then detect compression from the following extensions: ‘.gz’, ‘.bz2’, ‘.zip’, or ‘.xz’
             (otherwise no decompression). If using ‘zip’, the ZIP file must contain only one data file to be read in.
             Default: ``None``.
+        :batch_ids_file: Name of the `.csv` file with batch indices.
+            File contains two columns. The first holds gene names and second
+            holds batch indices - type int. The first row of the file is header.
 
     Examples:
         >>> # Loading a remote dataset
@@ -28,8 +32,10 @@ class CsvDataset(GeneExpressionDataset):
         ... save_path='data/', compression='gzip')
 
     """
+
     def __init__(self, filename, save_path='data/', url=None, new_n_genes=600, subset_genes=None,
-                 compression=None, sep=',', gene_by_cell=True, labels_file=None):
+                 compression=None, sep=',', gene_by_cell=True, labels_file=None,
+                 batch_ids_file=None):
         self.download_name = filename  # The given csv file is
         self.save_path = save_path
         self.url = url
@@ -37,12 +43,15 @@ class CsvDataset(GeneExpressionDataset):
         self.sep = sep
         self.gene_by_cell = gene_by_cell  # Whether the original dataset is genes by cells
         self.labels_file = labels_file
+        self.batch_ids_file = batch_ids_file
 
-        data, gene_names, labels, cell_types = self.download_and_preprocess()
+        data, gene_names, labels, cell_types, batch_ids = self.download_and_preprocess()
 
-        super(CsvDataset, self).__init__(
+        super().__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
-                data, labels=labels), gene_names=gene_names, cell_types=cell_types)
+                data, labels=labels,
+                batch_indices=batch_ids if batch_ids is not None else 0),
+            gene_names=gene_names, cell_types=cell_types)
 
         self.subsample_genes(new_n_genes, subset_genes)
 
@@ -50,35 +59,41 @@ class CsvDataset(GeneExpressionDataset):
         print("Preprocessing dataset")
 
         if self.gene_by_cell:
-            data = pd.read_csv(self.save_path + self.download_name,
+            data = pd.read_csv(os.path.join(self.save_path, self.download_name),
                                sep=self.sep, index_col=0, compression=self.compression).T
         else:
-            data = pd.read_csv(self.save_path + self.download_name,
+            data = pd.read_csv(os.path.join(self.save_path, self.download_name),
                                sep=self.sep, index_col=0, compression=self.compression)
 
         gene_names = np.array(data.columns, dtype=str)
-        labels, cell_types = None, None
+        labels, cell_types, batch_ids = None, None, None
         if self.labels_file is not None:
-            labels = pd.read_csv(self.save_path + self.labels_file, header=0, index_col=0)
+            labels = pd.read_csv(os.path.join(self.save_path, self.labels_file), header=0, index_col=0)
             labels = labels.values
             cell_types = np.unique(labels)
 
+        if self.batch_ids_file is not None:
+            batch_ids = pd.read_csv(
+                os.path.join(
+                    self.save_path, self.batch_ids_file), header=0, index_col=0)
+            batch_ids = batch_ids.values
+
         data = data.values
         print("Finished preprocessing dataset")
-        return data, gene_names, labels, cell_types
+        return data, gene_names, labels, cell_types, batch_ids
 
 
 class BreastCancerDataset(CsvDataset):
     def __init__(self, save_path='data/'):
-        super(BreastCancerDataset, self).__init__("Layer2_BC_count_matrix-1.tsv", save_path=save_path,
-                                                  url="http://www.spatialtranscriptomicsresearch.org/wp-content/"
-                                                      "uploads/2016/07/Layer2_BC_count_matrix-1.tsv",
-                                                  sep='\t', gene_by_cell=False)
+        super().__init__("Layer2_BC_count_matrix-1.tsv", save_path=save_path,
+                         url="http://www.spatialtranscriptomicsresearch.org/wp-content/"
+                             "uploads/2016/07/Layer2_BC_count_matrix-1.tsv",
+                         sep='\t', gene_by_cell=False)
 
 
 class MouseOBDataset(CsvDataset):
     def __init__(self, save_path='data/'):
-        super(MouseOBDataset, self).__init__("Rep11_MOB_count_matrix-1.tsv", save_path=save_path,
-                                             url="http://www.spatialtranscriptomicsresearch.org/wp-content/uploads/"
-                                                 "2016/07/Rep11_MOB_count_matrix-1.tsv",
-                                             sep='\t', gene_by_cell=False)
+        super().__init__("Rep11_MOB_count_matrix-1.tsv", save_path=save_path,
+                         url="http://www.spatialtranscriptomicsresearch.org/wp-content/uploads/"
+                             "2016/07/Rep11_MOB_count_matrix-1.tsv",
+                         sep='\t', gene_by_cell=False)

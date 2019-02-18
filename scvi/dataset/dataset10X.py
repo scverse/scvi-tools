@@ -54,8 +54,8 @@ class Dataset10X(GeneExpressionDataset):
         :subset_genes: List of genes for subsampling. Default: ``None``.
         :dense: Whether to load as dense or sparse. Default: ``False``.
         :remote: Whether the 10X dataset is to be downloaded from the website or whether it is a local dataset, if
-        remote is False then save_path + filename must be the path to the directory that contains matrix.mtx and
-        genes.tsv files
+        remote is False then os.path.join(save_path, filename) must be the path to the directory that contains
+        matrix.mtx and genes.tsv files
 
     Examples:
         >>> tenX_dataset = Dataset10X("neuron_9k")
@@ -73,21 +73,21 @@ class Dataset10X(GeneExpressionDataset):
             group = to_groups[filename]
             self.url = ("http://cf.10xgenomics.com/samples/cell-exp/%s/%s/%s_%s_gene_bc_matrices.tar.gz" %
                         (group, filename, filename, type))
-            self.save_path = save_path + '10X/%s/' % filename
+            self.save_path = os.path.join(save_path, '10X/%s/' % filename)
             self.save_name = '%s_gene_bc_matrices' % type
             self.download_name = self.save_name + '.tar.gz'
         else:
             try:
-                assert os.path.isdir(self.save_path + filename)
+                assert os.path.isdir(os.path.join(self.save_path, filename))
             except AssertionError:
                 print("The file %s was not found in the location you gave" % filename)
                 raise
-            self.save_path = self.save_path + filename + '/'
+            self.save_path = os.path.join(self.save_path, filename)
 
         self.dense = dense
 
         expression_data, gene_names = self.download_and_preprocess()
-        super(Dataset10X, self).__init__(*GeneExpressionDataset.get_attributes_from_matrix(
+        super().__init__(*GeneExpressionDataset.get_attributes_from_matrix(
             expression_data), gene_names=gene_names)
 
     def preprocess(self):
@@ -96,20 +96,20 @@ class Dataset10X(GeneExpressionDataset):
         if self.remote:
             if len(os.listdir(self.save_path)) == 1:  # nothing extracted yet
                 print("Extracting tar file")
-                tar = tarfile.open(self.save_path + self.download_name, "r:gz")
+                tar = tarfile.open(os.path.join(self.save_path, self.download_name), "r:gz")
                 tar.extractall(path=self.save_path)
                 tar.close()
 
-            path = (self.save_path +
-                    [name for name in os.listdir(self.save_path) if os.path.isdir(self.save_path + name)][0] +
-                    '/')
-            path += os.listdir(path)[0] + '/'
-        genes_info = pd.read_csv(path + 'genes.tsv', sep='\t', header=None)
+            path = (os.path.join(self.save_path,
+                    [name for name in os.listdir(self.save_path) if os.path.isdir(os.path.join(self.save_path,
+                                                                                               name))][0]))
+            path = os.path.join(path, os.listdir(path)[0])
+        genes_info = pd.read_csv(os.path.join(path, 'genes.tsv'), sep='\t', header=None)
         gene_names = genes_info.values[:, 0].astype(np.str).ravel()
-        if os.path.exists(path + 'barcodes.tsv'):
-            self.barcodes = pd.read_csv(path + 'barcodes.tsv', sep='\t', header=None)
+        if os.path.exists(os.path.join(path, 'barcodes.tsv')):
+            self.barcodes = pd.read_csv(os.path.join(path, 'barcodes.tsv'), sep='\t', header=None)
         self.gene_symbols = genes_info.values[:, 1].astype(np.str).ravel()
-        expression_data = io.mmread(path + 'matrix.mtx').T
+        expression_data = io.mmread(os.path.join(path, 'matrix.mtx')).T
         if self.dense:
             expression_data = expression_data.A
         else:
@@ -140,17 +140,16 @@ class BrainSmallDataset(Dataset10X):
 
     def __init__(self, save_path='data/'):
         dataset = Dataset10X(filename="neuron_9k", save_path=save_path)
-
-        self.save_path = save_path+'neuron_9k/'
+        self.save_path = save_path
         self.urls = ['https://github.com/YosefLab/scVI-data/raw/master/brain_small_metadata.pickle']
         self.download_names = ['brain_small_metadata.pickle']
         self.download()
 
-        metadata = pickle.load(open(self.save_path+'brain_small_metadata.pickle', 'rb'))
+        metadata = pickle.load(open(os.path.join(self.save_path, 'brain_small_metadata.pickle'), 'rb'))
         labels = metadata['clusters'].loc[dataset.barcodes.values.ravel()] - 1
 
         self.raw_qc = metadata['raw_qc'].loc[dataset.barcodes.values.ravel()]
         self.qc_names = self.raw_qc.columns
         self.qc = self.raw_qc.values
-        super(Dataset10X, self).__init__(dataset.X, dataset.local_means, dataset.local_vars,
-                                         batch_indices=dataset.batch_indices, labels=labels)
+        GeneExpressionDataset.__init__(self, dataset.X, dataset.local_means, dataset.local_vars,
+                                       batch_indices=dataset.batch_indices, labels=labels)

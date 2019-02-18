@@ -47,9 +47,8 @@ class VAE(nn.Module):
     def __init__(self, n_input: int, n_batch: int = 0, n_labels: int = 0,
                  n_hidden: int = 128, n_latent: int = 10, n_layers: int = 1,
                  dropout_rate: float = 0.1, dispersion: str = "gene",
-                 log_variational: bool = True, reconstruction_loss: str = "zinb",
-                 factor_model: bool = False):
-        super(VAE, self).__init__()
+                 log_variational: bool = True, reconstruction_loss: str = "zinb"):
+        super().__init__()
         self.dispersion = dispersion
         self.n_latent = n_latent
         self.log_variational = log_variational
@@ -153,6 +152,15 @@ class VAE(nn.Module):
             reconst_loss = -log_nb_positive(x, px_rate, px_r)
         return reconst_loss
 
+    def scale_from_z(self, sample_batch, fixed_batch):
+        if self.log_variational:
+            sample_batch = torch.log(1 + sample_batch)
+        qz_m, qz_v, z = self.z_encoder(sample_batch)
+        batch_index = torch.cuda.IntTensor(sample_batch.shape[0], 1).fill_(fixed_batch)
+        library = torch.cuda.FloatTensor(sample_batch.shape[0], 1).fill_(4)
+        px_scale, _, _, _ = self.decoder('gene', z, library, batch_index)
+        return px_scale
+
     def inference(self, x, batch_index=None, y=None, n_samples=1):
         x_ = x
         if self.log_variational:
@@ -197,7 +205,6 @@ class VAE(nn.Module):
         # Parameters for z latent distribution
 
         px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library = self.inference(x, batch_index, y)
-        reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout)
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)
@@ -206,5 +213,7 @@ class VAE(nn.Module):
         kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(dim=1)
         kl_divergence_l = kl(Normal(ql_m, torch.sqrt(ql_v)), Normal(local_l_mean, torch.sqrt(local_l_var))).sum(dim=1)
         kl_divergence = kl_divergence_z
+
+        reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout)
 
         return reconst_loss + kl_divergence_l, kl_divergence

@@ -45,9 +45,9 @@ class VAEC(VAE):
 
     def __init__(self, n_input, n_batch, n_labels, n_hidden=128, n_latent=10, n_layers=1, dropout_rate=0.1,
                  y_prior=None, dispersion="gene", log_variational=True, reconstruction_loss="zinb"):
-        super(VAEC, self).__init__(n_input, n_batch, n_labels, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
-                                   dropout_rate=dropout_rate, dispersion=dispersion, log_variational=log_variational,
-                                   reconstruction_loss=reconstruction_loss)
+        super().__init__(n_input, n_batch, n_labels, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers,
+                         dropout_rate=dropout_rate, dispersion=dispersion, log_variational=log_variational,
+                         reconstruction_loss=reconstruction_loss)
 
         self.z_encoder = Encoder(n_input, n_latent, n_cat_list=[n_labels], n_hidden=n_hidden, n_layers=n_layers,
                                  dropout_rate=dropout_rate)

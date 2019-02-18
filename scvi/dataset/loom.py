@@ -1,6 +1,6 @@
 import loompy
 import numpy as np
-
+import os
 from .dataset import GeneExpressionDataset
 
 
@@ -33,13 +33,13 @@ class LoomDataset(GeneExpressionDataset):
         X, local_means, local_vars, batch_indices_, labels = \
             GeneExpressionDataset.get_attributes_from_matrix(data, labels=labels)
         batch_indices = batch_indices if batch_indices is not None else batch_indices_
-        super(LoomDataset, self).__init__(X, local_means, local_vars, batch_indices, labels,
-                                          gene_names=gene_names, cell_types=cell_types)
+        super().__init__(X, local_means, local_vars, batch_indices, labels,
+                         gene_names=gene_names, cell_types=cell_types)
 
     def preprocess(self):
         print("Preprocessing dataset")
         gene_names, labels, batch_indices, cell_types = None, None, None, None
-        ds = loompy.connect(self.save_path + self.download_name)
+        ds = loompy.connect(os.path.join(self.save_path, self.download_name))
         select = ds[:, :].sum(axis=0) > 0  # Take out cells that doesn't express any gene
 
         if 'Gene' in ds.ra:
@@ -78,8 +78,8 @@ class RetinaDataset(LoomDataset):
 
     """
     def __init__(self, save_path='data/'):
-        super(RetinaDataset, self).__init__(filename='retina.loom',
-                                            save_path=save_path,
-                                            url='https://github.com/YosefLab/scVI-data/raw/master/retina.loom')
+        super().__init__(filename='retina.loom',
+                         save_path=save_path,
+                         url='https://github.com/YosefLab/scVI-data/raw/master/retina.loom')
         self.cell_types = ["RBC", "MG", "BC5A", "BC7", "BC6", "BC5C", "BC1A", "BC3B", "BC1B", "BC2", "BC5D", "BC3A",
                            "BC5B", "BC4", "BC8_9"]

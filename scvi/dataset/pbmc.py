@@ -1,5 +1,5 @@
 import pickle
-
+import os
 import numpy as np
 import pandas as pd
 
@@ -32,17 +32,17 @@ class PbmcDataset(GeneExpressionDataset):
 
         self.download_names = ['gene_info_pbmc.csv', 'pbmc_metadata.pickle']
         self.download()
-        self.de_metadata = pd.read_csv(self.save_path + 'gene_info_pbmc.csv', sep=',')
+        self.de_metadata = pd.read_csv(os.path.join(self.save_path, 'gene_info_pbmc.csv'), sep=',')
 
-        pbmc_metadata = pickle.load(open(self.save_path + 'pbmc_metadata.pickle', 'rb'))
+        pbmc_metadata = pickle.load(open(os.path.join(self.save_path, 'pbmc_metadata.pickle'), 'rb'))
 
         pbmc = GeneExpressionDataset.concat_datasets(
             Dataset10X("pbmc8k", save_path=save_path),
             Dataset10X("pbmc4k", save_path=save_path)
         )
         self.barcodes = pd.concat(pbmc.barcodes).values.ravel().astype(str)
-        super(PbmcDataset, self).__init__(pbmc.X, pbmc.local_means, pbmc.local_vars,
-                                          pbmc.batch_indices, pbmc.labels, pbmc.gene_names)
+        super().__init__(pbmc.X, pbmc.local_means, pbmc.local_vars,
+                         pbmc.batch_indices, pbmc.labels, pbmc.gene_names)
 
         dict_barcodes = dict(zip(self.barcodes, np.arange(len(self.barcodes))))
         subset_cells = []
@@ -97,6 +97,6 @@ class PurifiedPBMCDataset(GeneExpressionDataset):
 
         pbmc = GeneExpressionDataset.concat_datasets(*datasets, shared_batches=True)
         pbmc.subsample_genes(subset_genes=(np.array(pbmc.X.sum(axis=0)) > 0).ravel())
-        super(PurifiedPBMCDataset, self).__init__(pbmc.X, pbmc.local_means, pbmc.local_vars,
-                                                  pbmc.batch_indices, pbmc.labels,
-                                                  gene_names=pbmc.gene_names, cell_types=pbmc.cell_types)
+        super().__init__(pbmc.X, pbmc.local_means, pbmc.local_vars,
+                         pbmc.batch_indices, pbmc.labels,
+                         gene_names=pbmc.gene_names, cell_types=pbmc.cell_types)

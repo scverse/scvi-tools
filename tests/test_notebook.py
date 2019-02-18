@@ -5,8 +5,11 @@ from IPython import get_ipython
 from nbformat import read
 from IPython.core.interactiveshell import InteractiveShell
 import os
-import shutil
 import matplotlib.pyplot as plt
+import re
+
+
+base_path = os.getcwd()
 
 
 def find_notebook(fullname, path=None):
@@ -37,7 +40,7 @@ class NotebookLoader(object):
 
     def load_module(self, fullname):
         """import a notebook as a module"""
-        path = find_notebook(fullname, self.path)
+        path = find_notebook(fullname, [os.path.join(base_path, 'tests/notebooks')])
 
         print("importing Jupyter notebook from %s" % path)
 
@@ -66,6 +69,15 @@ class NotebookLoader(object):
                     if i != 0:  # the first code cell is cd ../.. which is not needed here and would generate errors
                         # transform the input to executable Python
                         code = self.shell.input_transformer_manager.transform_cell(cell.source)
+                        # replace parameters with test parameters to run faster
+                        code = re.sub(r'n_epochs_all = None', "n_epochs_all = 1", code)
+                        code = re.sub(r'n_cl = \d+', "n_cl = 3", code)
+                        code = re.sub(r'M_permutation = \d+', "M_permutation = 10", code)
+                        code = re.sub(r'M_sampling = \d+', "M_sampling = 1", code)
+                        code = re.sub(r'n_samples_tsne = \d+', "n_samples_tsne = 10", code)
+                        code = re.sub(r'n_samples_posterior_density = \d+', "n_samples_posterior_density = 2", code)
+                        code = re.sub("save_path = 'data/'", "save_path = '"+os.getcwd()+"'", code)
+                        code = re.sub("show_plot = True", "show_plot = False", code)
                         # run the code in themodule
                         exec(code, mod.__dict__)
                         plt.close('all')
@@ -98,117 +110,33 @@ class NotebookFinder(object):
 
 sys.meta_path.append(NotebookFinder())
 
-path = 'tests/notebooks/'
-test_path = 'tests/config_notebooks_tests/'
 
+def test_notebooks(save_path):
 
-def test_notebooks():
-    prefix = 'annotation'
-    # if exists, save and overwrite
-    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-    config_filename_tmp = prefix + '.config.tmp.json'
-
-    # Save content in memory in tmp file
-    existing_config_to_restore = os.path.exists(path + config_filename)
-    if existing_config_to_restore:
-        shutil.copy(path + config_filename, path + config_filename_tmp)
-
-    # Overwritting
-    shutil.copy(test_path + config_filename, path + config_filename)
     try:
+        os.chdir(save_path)
         import notebooks.annotation
         notebooks.annotation.allow_notebook_for_test()
         plt.close('all')
-    except BaseException:
-        raise
-    finally:
-        if existing_config_to_restore:
-            shutil.move(path + config_filename_tmp, path + config_filename)
 
-    prefix = 'scRNA_and_smFISH'
-    # if exists, save and overwrite
-    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-    config_filename_tmp = prefix + '.config.tmp.json'
-
-    # Save content in memory in tmp file
-    existing_config_to_restore = os.path.exists(path + config_filename)
-    if existing_config_to_restore:
-        shutil.copy(path + config_filename, path + config_filename_tmp)
-
-    # Overwritting
-    shutil.copy(test_path + config_filename, path + config_filename)
-    try:
         import notebooks.scRNA_and_smFISH
         notebooks.scRNA_and_smFISH.allow_notebook_for_test()
         plt.close('all')
-    except BaseException:
-        raise
-    finally:
-        if existing_config_to_restore:
-            shutil.move(path + config_filename_tmp, path + config_filename)
 
-    prefix = 'data_loading'
-    # if exists, save and overwrite
-    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-    config_filename_tmp = prefix + '.config.tmp.json'
-
-    # Save content in memory in tmp file
-    existing_config_to_restore = os.path.exists(path + config_filename)
-    if existing_config_to_restore:
-        shutil.copy(path + config_filename, path + config_filename_tmp)
-
-    # Overwritting
-    shutil.copy(test_path + config_filename, path + config_filename)
-    try:
         import notebooks.data_loading
         notebooks.data_loading.allow_notebook_for_test()
         plt.close('all')
-    except BaseException:
-        raise
-    finally:
-        if existing_config_to_restore:
-            shutil.move(path + config_filename_tmp, path + config_filename)
 
-    prefix = 'basic_tutorial'
-    # if exists, save and overwrite
-    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-    config_filename_tmp = prefix + '.config.tmp.json'
-
-    # Save content in memory in tmp file
-    existing_config_to_restore = os.path.exists(path + config_filename)
-    if existing_config_to_restore:
-        shutil.copy(path + config_filename, path + config_filename_tmp)
-
-    # Overwritting
-    shutil.copy(test_path + config_filename, path + config_filename)
-    try:
         import notebooks.basic_tutorial
         notebooks.basic_tutorial.allow_notebook_for_test()
         plt.close('all')
-    except BaseException:
-        raise
-    finally:
-        if existing_config_to_restore:
-            shutil.move(path + config_filename_tmp, path + config_filename)
 
-    prefix = 'scVI_reproducibility'
-    # if exists, save and overwrite
-    config_filename = prefix + '.config.json'  # By default, benchmark config, but overridden for tests
-    config_filename_tmp = prefix + '.config.tmp.json'
-
-    # Save content in memory in tmp file
-    existing_config_to_restore = os.path.exists(path + config_filename)
-    if existing_config_to_restore:
-        shutil.copy(path + config_filename, path + config_filename_tmp)
-
-    # Overwritting
-    shutil.copy(test_path + config_filename, path + config_filename)
-    try:
         import notebooks.scVI_reproducibility
         notebooks.scVI_reproducibility.allow_notebook_for_test()
         plt.close('all')
+
     except BaseException:
         raise
+
     finally:
-        if existing_config_to_restore:
-            shutil.move(path + config_filename_tmp, path + config_filename)
+        os.chdir(path=base_path)

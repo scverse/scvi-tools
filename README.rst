@@ -47,6 +47,13 @@ References
 ----------
 
 Romain Lopez, Jeffrey Regier, Michael Cole, Michael I. Jordan, Nir Yosef.
-**"Deep generative modeling for single-cell transcriptomics"**
-Nature Methods, in press (accepted Oct 26, 2018). 
-Preprint available at https://www.biorxiv.org/content/early/2018/03/30/292037
+**"Deep generative modeling for single-cell transcriptomics."**
+Nature Methods, 2018. `[pdf]`__
+
+.. __: https://rdcu.be/bdHYQ
+
+Chenling Xu∗, Romain Lopez∗, Edouard Mehlman∗, Jeffrey Regier, Michael I. Jordan, Nir Yosef.
+**"Harmonization and Annotation of Single-cell Transcriptomics data with Deep Generative Models."**
+Submitted, 2019. `[pdf]`__
+
+.. __: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf

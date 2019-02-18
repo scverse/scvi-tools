@@ -8,7 +8,7 @@ from scvi.inference.posterior import proximity_imputation
 from scvi.models import VAE, VAEF
 
 
-def cortex_benchmark(n_epochs=250, use_cuda=True, save_path='data/'):
+def cortex_benchmark(n_epochs=250, use_cuda=True, save_path='data/', show_plot=True):
     cortex_dataset = CortexDataset(save_path=save_path)
     vae = VAE(cortex_dataset.nb_genes)
     trainer_cortex_vae = UnsupervisedTrainer(vae, cortex_dataset, use_cuda=use_cuda)
@@ -22,7 +22,7 @@ def cortex_benchmark(n_epochs=250, use_cuda=True, save_path='data/'):
     trainer_cortex_vae.corrupt_posteriors()
     trainer_cortex_vae.train(n_epochs=n_epochs)
     trainer_cortex_vae.uncorrupt_posteriors()
-    trainer_cortex_vae.train_set.imputation_benchmark(verbose=(n_epochs > 1))
+    trainer_cortex_vae.train_set.imputation_benchmark(verbose=(n_epochs > 1), save_path=save_path, show_plot=show_plot)
 
     n_samples = 10 if n_epochs == 1 else None  # n_epochs == 1 is unit tests
     trainer_cortex_vae.train_set.show_t_sne(n_samples=n_samples)
@@ -48,8 +48,8 @@ def annotation_benchmarks(n_epochs=1, use_cuda=True, save_path='data/'):
     pass
 
 
-def all_benchmarks(n_epochs=250, use_cuda=True, save_path='data/'):
-    cortex_benchmark(n_epochs=n_epochs, use_cuda=use_cuda, save_path=save_path)
+def all_benchmarks(n_epochs=250, use_cuda=True, save_path='data/', show_plot=True):
+    cortex_benchmark(n_epochs=n_epochs, use_cuda=use_cuda, save_path=save_path, show_plot=show_plot)
 
     harmonization_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda, save_path=save_path)
     annotation_benchmarks(n_epochs=n_epochs, use_cuda=use_cuda, save_path=save_path)

@@ -38,7 +38,7 @@ class HematoDataset(GeneExpressionDataset):
 
         expression_data, gene_names, labels, self.y_spring, self.y_spring = self.download_and_preprocess()
 
-        super(HematoDataset, self).__init__(
+        super().__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
                 expression_data, labels=labels), gene_names=gene_names,
 
@@ -51,19 +51,19 @@ class HematoDataset(GeneExpressionDataset):
         print("Preprocessing Hemato data")
 
         if len(os.listdir(self.save_path)) == 2:  # nothing extracted yet
-            with ZipFile(self.save_path + 'data.zip', 'r') as zip:
+            with ZipFile(os.path.join(self.save_path, 'data.zip'), 'r') as zip:
                 zip.extractall(path=Path(self.save_path).parent)
-        raw_counts = pd.read_csv(self.save_path + self.download_names[0], compression='gzip')
+        raw_counts = pd.read_csv(os.path.join(self.save_path, self.download_names[0]), compression='gzip')
 
         # remove this library to avoid dealing with batch effects
         raw_counts.drop(raw_counts.index[raw_counts["library_id"] == "basal_bm1"], inplace=True)
 
-        spring_and_pba = pd.read_csv(self.save_path + self.spring_and_pba_filename)
+        spring_and_pba = pd.read_csv(os.path.join(self.save_path, self.spring_and_pba_filename))
         # with open(self.save_path + self.gene_names_filename) as f:
         #     gene_filter_list = f.read()
         #
         # gene_names = gene_filter_list.splitlines()
-        gene_names = np.loadtxt(self.save_path + self.gene_names_filename, dtype=np.str)
+        gene_names = np.loadtxt(os.path.join(self.save_path, self.gene_names_filename), dtype=np.str)
 
         data = raw_counts.merge(spring_and_pba, how="inner")
         expression_data = data[gene_names]
