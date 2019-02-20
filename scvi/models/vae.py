@@ -253,7 +253,11 @@ class LDVAE(VAE):
                  log_variational: bool = True, reconstruction_loss: str = "zinb"):
         super().__init__(n_input, n_batch, n_labels, n_hidden, n_latent, n_layers,
                          dropout_rate, dispersion, log_variational, reconstruction_loss)
-        
+
         self.decoder = LinearDecoderSCVI(n_latent, n_input, n_cat_list=[n_batch],
                                          n_layers=n_layers, n_hidden=n_hidden)
 
+    def get_loadings(self):
+        """ Extract per-gene weights (for each Z) in the linear decoder.
+        """
+        return self.decoder.factor_regressor.parameters()
