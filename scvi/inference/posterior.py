@@ -420,6 +420,7 @@ class Posterior:
             px_scales += [self.model.scale_from_z(sample_batch, fixed_batch).cpu()]
         return np.concatenate(px_scales)
 
+
     @torch.no_grad()
     def get_sample_scale(self):
         px_scales = []
