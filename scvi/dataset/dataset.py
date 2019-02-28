@@ -34,6 +34,7 @@ class GeneExpressionDataset(Dataset):
         self.batch_indices, self.n_batches = arrange_categories(batch_indices)
         self.labels, self.n_labels = arrange_categories(labels)
         self.x_coord, self.y_coord = x_coord, y_coord
+        self.norm_X = None
 
         if gene_names is not None:
             assert self.nb_genes == len(gene_names)
@@ -267,6 +268,18 @@ class GeneExpressionDataset(Dataset):
         for i_batch in range(self.n_batches):
             idx_batch = (self.batch_indices == i_batch).ravel()
             self.local_means[idx_batch], self.local_vars[idx_batch] = self.library_size(self.X[idx_batch])
+
+    def raw_counts_properties(self, idx1, idx2):
+        mean1 = (self.X[idx1, :]).mean(axis=0)
+        mean2 = (self.X[idx2, :]).mean(axis=0)
+        nonz1 = (self.X[idx1, :] != 0).mean(axis=0)
+        nonz2 = (self.X[idx2, :] != 0).mean(axis=0)
+        if self.norm_X is None:
+            scaling_factor = self.X.mean(axis=1)
+            self.norm_X = self.X / scaling_factor
+        norm_mean1 = self.norm_X[idx1, :].mean(axis=0)
+        norm_mean2 = self.norm_X[idx2, :].mean(axis=0)
+        return mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2
 
     @staticmethod
     def library_size(X):
