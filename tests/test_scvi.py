@@ -164,7 +164,7 @@ def test_cortex_loom(save_path):
 
 
 def test_anndata(save_path):
-    ann_dataset = AnnDataset("TM_droplet_mat.h5ad", save_path='tests/data/')
+    ann_dataset = AnnDataset("TM_droplet_mat.h5ad", save_path=save_path)
     base_benchmark(ann_dataset)
 
 
