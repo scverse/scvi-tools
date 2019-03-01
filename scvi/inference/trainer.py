@@ -6,7 +6,6 @@ from itertools import cycle
 
 import numpy as np
 import torch
-import csv
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
 from tqdm import trange

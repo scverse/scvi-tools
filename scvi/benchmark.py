@@ -16,7 +16,7 @@ def cortex_benchmark(n_epochs=250, use_cuda=True, save_path='data/', show_plot=T
     couple_celltypes = (4, 5)  # the couple types on which to study DE
     cell_idx1 = cortex_dataset.labels.ravel() == couple_celltypes[0]
     cell_idx2 = cortex_dataset.labels.ravel() == couple_celltypes[1]
-    trainer_cortex_vae.train_set.differential_expression_score(cell_idx1,cell_idx2,
+    trainer_cortex_vae.train_set.differential_expression_score(cell_idx1, cell_idx2,
                                                                genes=["THY1", "MBP"])
 
     trainer_cortex_vae.test_set.ll()  # assert ~ 1200
