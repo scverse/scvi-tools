@@ -25,6 +25,7 @@ requirements = [
     "nbconvert>=5.4.0",
     "nbformat>=4.4.0",
     "ipython>=7",
+    "umap-learn==0.3.7",
 ]
 
 setup_requirements = ['pytest-runner', ]
