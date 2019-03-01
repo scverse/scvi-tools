@@ -8,7 +8,7 @@ import os
 import matplotlib.pyplot as plt
 import re
 
-
+os.chdir("../")
 base_path = os.getcwd()
 
 
@@ -73,7 +73,7 @@ class NotebookLoader(object):
                         code = re.sub(r'n_epochs_all = None', "n_epochs_all = 1", code)
                         code = re.sub(r'n_cl = \d+', "n_cl = 3", code)
                         code = re.sub(r'M_permutation = \d+', "M_permutation = 10", code)
-                        code = re.sub(r'M_sampling = \d+', "M_sampling = 1", code)
+                        code = re.sub(r'n_samples = \d+', "n_samples = 1", code)
                         code = re.sub(r'n_samples_tsne = \d+', "n_samples_tsne = 10", code)
                         code = re.sub(r'n_samples_posterior_density = \d+', "n_samples_posterior_density = 2", code)
                         code = re.sub("save_path = 'data/'", "save_path = '"+os.getcwd()+"'", code)
@@ -115,28 +115,31 @@ def test_notebooks(save_path):
 
     try:
         os.chdir(save_path)
-        import notebooks.annotation
-        notebooks.annotation.allow_notebook_for_test()
-        plt.close('all')
-
-        import notebooks.scRNA_and_smFISH
-        notebooks.scRNA_and_smFISH.allow_notebook_for_test()
-        plt.close('all')
+        # import notebooks.annotation
+        # notebooks.annotation.allow_notebook_for_test()
+        # plt.close('all')
+        #
+        # import notebooks.scRNA_and_smFISH
+        # notebooks.scRNA_and_smFISH.allow_notebook_for_test()
+        # plt.close('all')
 
         import notebooks.data_loading
         notebooks.data_loading.allow_notebook_for_test()
         plt.close('all')
 
-        import notebooks.basic_tutorial
-        notebooks.basic_tutorial.allow_notebook_for_test()
-        plt.close('all')
-
-        import notebooks.scVI_reproducibility
-        notebooks.scVI_reproducibility.allow_notebook_for_test()
-        plt.close('all')
+        # import notebooks.basic_tutorial
+        # notebooks.basic_tutorial.allow_notebook_for_test()
+        # plt.close('all')
+        #
+        # import notebooks.scVI_reproducibility
+        # notebooks.scVI_reproducibility.allow_notebook_for_test()
+        # plt.close('all')
+        #
+        # import notebooks.HarmonizationNotebook
+        # notebooks.HarmonizationNotebook.allow_notebook_for_test()
+        # plt.close("all")
 
     except BaseException:
-        raise
-
+            raise
     finally:
-        os.chdir(path=base_path)
+            os.chdir(path=base_path)

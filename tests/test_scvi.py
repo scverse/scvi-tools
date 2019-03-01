@@ -20,7 +20,7 @@ import os.path
 
 use_cuda = True
 
-
+os.chdir("../")
 def test_cortex(save_path):
     cortex_dataset = CortexDataset(save_path=save_path)
     vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_batches)
@@ -78,9 +78,10 @@ def test_synthetic_1():
     trainer_synthetic_svaec.labelled_set.clustering_scores()
     trainer_synthetic_svaec.labelled_set.clustering_scores(prediction_algorithm='gmm')
     trainer_synthetic_svaec.unlabelled_set.unsupervised_classification_accuracy()
-    trainer_synthetic_svaec.unlabelled_set.differential_expression_score('B', 'C', genes=['2', '4'], M_sampling=2,
-                                                                         M_permutation=10)
-    trainer_synthetic_svaec.unlabelled_set.differential_expression_table(M_sampling=2, M_permutation=10)
+    trainer_synthetic_svaec.unlabelled_set.differential_expression_score(synthetic_dataset.labels.ravel()==1,
+                                                                         synthetic_dataset.labels.ravel()==2,
+                                                                         genes=['2', '4'], n_samples=2,M_permutation=10)
+    trainer_synthetic_svaec.unlabelled_set.one_vs_all_degenes(n_samples=2, M_permutation=10)
 
 
 def test_synthetic_2():

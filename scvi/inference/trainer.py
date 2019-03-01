@@ -219,46 +219,6 @@ class Trainer:
         return type_class(model, gene_dataset, shuffle=shuffle, indices=indices, use_cuda=self.use_cuda,
                           data_loader_kwargs=self.data_loader_kwargs)
 
-    @torch.no_grad()
-    def get_all_latent_and_imputed_values(self, save_imputed=False, filename_imputation='imputed_values',
-                                          save_shape_genes_by_cells=False, save_latent=False,
-                                          filename_latent='latent_space'):
-        r"""
-        :param save_imputed: True if the user wants to save the imputed values in a .csv file
-        :param file_name_imputation: in the situation described above, this is the name of the file saved
-        :param save_shape_genes_by_cells: if save-imputed is true this boolean determines if you want the
-        imputed values to be saved as a genes by cells matrix or a cells by genes matrix
-        :param save_latent: True if the user wants to save the latent space in a .csv file
-        :param file_name_latent: in the situation described above, this is the name of the file saved
-        :return: a dictionnary of arrays which contain the latent space, the imputed values, the batch_indices and the
-        labels for the whole dataset with the cells ordered the same way as in the original dataset expression matrix
-        """
-        all_dataset = self.create_posterior()
-        self.model.eval()
-        ret = {"latent": [], "imputed_values": [], "scaled_imputed_values": []}
-        for tensors in all_dataset:
-            sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
-            ret["latent"] += [self.model.sample_from_posterior_z(sample_batch, y=label, give_mean=True).cpu()]
-            ret["imputed_values"] += [self.model.get_sample_rate(sample_batch, batch_index=batch_index).cpu()]
-            ret["scaled_imputed_values"] += [self.model.get_sample_scale(sample_batch, batch_index=batch_index).cpu()]
-        for key in ret.keys():
-            if len(ret[key]) > 0:
-                ret[key] = np.array(torch.cat(ret[key]))
-        if save_imputed:
-            myfile = open(filename_imputation, 'w')
-            with myfile:
-                writer = csv.writer(myfile)
-                if save_shape_genes_by_cells:
-                    writer.writerows(np.transpose(ret["imputed_values"]))
-                else:
-                    writer.writerows(ret["imputed_values"])
-        if save_latent:
-            myfile = open(filename_latent, 'w')
-            with myfile:
-                writer = csv.writer(myfile)
-                writer.writerows(ret["latent"])
-        return ret
-
 
 class SequentialSubsetSampler(SubsetRandomSampler):
     def __init__(self, indices):

@@ -276,7 +276,7 @@ class GeneExpressionDataset(Dataset):
         nonz2 = (self.X[idx2, :] != 0).mean(axis=0)
         if self.norm_X is None:
             scaling_factor = self.X.mean(axis=1)
-            self.norm_X = self.X / scaling_factor
+            self.norm_X = self.X / scaling_factor.reshape(len(scaling_factor),1)
         norm_mean1 = self.norm_X[idx1, :].mean(axis=0)
         norm_mean2 = self.norm_X[idx2, :].mean(axis=0)
         return mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2
