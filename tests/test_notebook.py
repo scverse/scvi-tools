@@ -8,8 +8,8 @@ import os
 import matplotlib.pyplot as plt
 import re
 
-os.chdir("../")
-base_path = os.getcwd()
+# os.chdir("../")
+# base_path = os.getcwd()
 
 
 def find_notebook(fullname, path=None):
@@ -123,9 +123,9 @@ def test_notebooks(save_path):
         # notebooks.scRNA_and_smFISH.allow_notebook_for_test()
         # plt.close('all')
 
-        import notebooks.data_loading
-        notebooks.data_loading.allow_notebook_for_test()
-        plt.close('all')
+        # import notebooks.data_loading
+        # notebooks.data_loading.allow_notebook_for_test()
+        # plt.close('all')
 
         # import notebooks.basic_tutorial
         # notebooks.basic_tutorial.allow_notebook_for_test()
@@ -135,9 +135,9 @@ def test_notebooks(save_path):
         # notebooks.scVI_reproducibility.allow_notebook_for_test()
         # plt.close('all')
         #
-        # import notebooks.HarmonizationNotebook
-        # notebooks.HarmonizationNotebook.allow_notebook_for_test()
-        # plt.close("all")
+        import notebooks.HarmonizationNotebook
+        notebooks.HarmonizationNotebook.allow_notebook_for_test()
+        plt.close("all")
 
     except BaseException:
             raise

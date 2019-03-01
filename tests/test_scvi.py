@@ -20,7 +20,7 @@ import os.path
 
 use_cuda = True
 
-os.chdir("../")
+# os.chdir("../")
 def test_cortex(save_path):
     cortex_dataset = CortexDataset(save_path=save_path)
     vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_batches)
