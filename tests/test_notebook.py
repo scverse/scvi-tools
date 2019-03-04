@@ -8,7 +8,6 @@ import os
 import matplotlib.pyplot as plt
 import re
 
-# os.chdir("../")
 base_path = os.getcwd()
 
 
@@ -125,9 +124,10 @@ def test_notebooks_annotation(save_path):
             os.chdir(path=base_path)
 
 
-def test_notebook_smfish():
+def test_notebook_smfish(save_path):
 
     try:
+        os.chdir(save_path)
         import notebooks.scRNA_and_smFISH
         notebooks.scRNA_and_smFISH.allow_notebook_for_test()
         plt.close('all')
@@ -139,9 +139,10 @@ def test_notebook_smfish():
 
 
 
-def test_notebooks_dataloading():
+def test_notebooks_dataloading(save_path):
 
     try:
+        os.chdir(save_path)
         import notebooks.data_loading
         notebooks.data_loading.allow_notebook_for_test()
         plt.close('all')
@@ -152,9 +153,10 @@ def test_notebooks_dataloading():
             os.chdir(path=base_path)
 
 
-def test_notebooks_basictutorial():
+def test_notebooks_basictutorial(save_path):
 
     try:
+        os.chdir(save_path)
         import notebooks.basic_tutorial
         notebooks.basic_tutorial.allow_notebook_for_test()
         plt.close('all')
@@ -165,9 +167,10 @@ def test_notebooks_basictutorial():
             os.chdir(path=base_path)
 
 
-def test_notebooks_reproducibility():
+def test_notebooks_reproducibility(save_path):
 
     try:
+        os.chdir(save_path)
         import notebooks.scVI_reproducibility
         notebooks.scVI_reproducibility.allow_notebook_for_test()
         plt.close('all')
@@ -178,9 +181,10 @@ def test_notebooks_reproducibility():
             os.chdir(path=base_path)
 
 
-def test_notebooks_harmonization():
+def test_notebooks_harmonization(save_path):
 
     try:
+        os.chdir(save_path)
         import notebooks.HarmonizationNotebook
         notebooks.HarmonizationNotebook.allow_notebook_for_test()
         plt.close("all")
