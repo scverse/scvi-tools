@@ -100,6 +100,10 @@ class Encoder(nn.Module):
                                 n_hidden=n_hidden, dropout_rate=dropout_rate)
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)
+        
+        # add modules
+        self.add_module('mean_encoder', self.mean_encoder)
+        self.add_module('var_encoder', self.var_encoder)
 
     def reparameterize(self, mu, var):
         return Normal(mu, var.sqrt()).rsample()
@@ -158,9 +162,9 @@ class DecoderSCVI(nn.Module):
         self.px_dropout_decoder = nn.Linear(n_hidden, n_output)
         
         # add to modules
-        self.add_module(self.px_scale_decoder, 'px_scale_decoder')
-        self.add_module(self.px_r_decoder, 'px_r_decoder')
-        self.add_module(self.px_dropout_decoder, 'px_dropout_decoder')
+        self.add_module('px_scale_decoder', self.px_scale_decoder)
+        self.add_module('px_r_decoder', self.px_r_decoder)
+        self.add_module('px_dropout_decoder', self.px_dropout_decoder)
 
     def forward(self, dispersion: str, z: torch.Tensor, library: torch.Tensor,
                 *cat_list: int):
@@ -219,6 +223,10 @@ class Decoder(nn.Module):
 
         self.mean_decoder = nn.Linear(n_hidden, n_output)
         self.var_decoder = nn.Linear(n_hidden, n_output)
+        
+        # add modules
+        self.add_module('mean_decoder', self.mean_decoder)
+        self.add_module('var_decoder', self.var_decoder)
 
     def forward(self, x: torch.Tensor, *cat_list: int):
         r"""The forward computation for a single sample.
