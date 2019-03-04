@@ -156,6 +156,11 @@ class DecoderSCVI(nn.Module):
 
         # dropout
         self.px_dropout_decoder = nn.Linear(n_hidden, n_output)
+        
+        # add to modules
+        self.add_module(self.px_scale_decoder, 'px_scale_decoder')
+        self.add_module(self.px_r_decoder, 'px_r_decoder')
+        self.add_module(self.px_dropout_decoder, 'px_dropout_decoder')
 
     def forward(self, dispersion: str, z: torch.Tensor, library: torch.Tensor,
                 *cat_list: int):
