@@ -27,8 +27,8 @@ requirements = [
     "ipython>=7",
     "umap-learn>=0.3.7",
     "seaborn>=0.9.0",
-    "louvain>=0.6.1",
-    "igraph",
+    "leidenalg>=0.7.0",
+    "python-igraph>=0.7.1",
 ]
 
 setup_requirements = ['pytest-runner', ]
