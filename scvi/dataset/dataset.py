@@ -128,6 +128,9 @@ class GeneExpressionDataset(Dataset):
             self.gene_names = self.gene_names[subset_genes]
         if hasattr(self, 'gene_symbols'):
             self.gene_symbols = self.gene_symbols[subset_genes]
+        self._X = self.X[:, subset_genes]
+        if self.norm_X is not None:
+            self.norm_X = self.norm_X[:, subset_genes]
         self.nb_genes = self.X.shape[1]
         to_keep = np.array(self.X.sum(axis=1) > 0).ravel()
         if self.X.shape != self.X[to_keep].shape:
@@ -155,7 +158,6 @@ class GeneExpressionDataset(Dataset):
             std_scaler = StandardScaler(with_mean=False)
             std_scaler.fit(self.X.astype(np.float64))
             subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
-        self._X = self.X[:, subset_genes]
         self.update_genes(subset_genes)
 
     def filter_genes(self, gene_names_ref, on='gene_names'):
@@ -279,7 +281,8 @@ class GeneExpressionDataset(Dataset):
             self.norm_X = self.X / scaling_factor.reshape(len(scaling_factor), 1)
         norm_mean1 = self.norm_X[idx1, :].mean(axis=0)
         norm_mean2 = self.norm_X[idx2, :].mean(axis=0)
-        return mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2
+        return np.asarray(mean1).ravel(), np.asarray(mean2).ravel(), np.asarray(nonz1).ravel(), \
+               np.asarray(nonz2).ravel(), np.asarray(norm_mean1).ravel(), np.asarray(norm_mean2).ravel()
 
     @staticmethod
     def library_size(X):
