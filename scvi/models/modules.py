@@ -100,7 +100,7 @@ class Encoder(nn.Module):
                                 n_hidden=n_hidden, dropout_rate=dropout_rate)
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)
-        
+
         # add modules
         self.add_module('mean_encoder', self.mean_encoder)
         self.add_module('var_encoder', self.var_encoder)
@@ -160,7 +160,7 @@ class DecoderSCVI(nn.Module):
 
         # dropout
         self.px_dropout_decoder = nn.Linear(n_hidden, n_output)
-        
+
         # add to modules
         self.add_module('px_scale_decoder', self.px_scale_decoder)
         self.add_module('px_r_decoder', self.px_r_decoder)
@@ -223,7 +223,7 @@ class Decoder(nn.Module):
 
         self.mean_decoder = nn.Linear(n_hidden, n_output)
         self.var_decoder = nn.Linear(n_hidden, n_output)
-        
+
         # add modules
         self.add_module('mean_decoder', self.mean_decoder)
         self.add_module('var_decoder', self.var_decoder)
