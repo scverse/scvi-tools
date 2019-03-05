@@ -138,7 +138,6 @@ def test_notebook_smfish(save_path):
             os.chdir(path=base_path)
 
 
-
 def test_notebooks_dataloading(save_path):
 
     try:
