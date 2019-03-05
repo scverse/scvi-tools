@@ -282,7 +282,7 @@ class GeneExpressionDataset(Dataset):
         norm_mean1 = self.norm_X[idx1, :].mean(axis=0)
         norm_mean2 = self.norm_X[idx2, :].mean(axis=0)
         return np.asarray(mean1).ravel(), np.asarray(mean2).ravel(), np.asarray(nonz1).ravel(), \
-               np.asarray(nonz2).ravel(), np.asarray(norm_mean1).ravel(), np.asarray(norm_mean2).ravel()
+            np.asarray(nonz2).ravel(), np.asarray(norm_mean1).ravel(), np.asarray(norm_mean2).ravel()
 
     @staticmethod
     def library_size(X):
