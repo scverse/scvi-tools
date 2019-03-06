@@ -251,3 +251,13 @@ def test_nb_not_zinb():
                    reconstruction_loss="nb")
     trainer_synthetic_svaec = JointSemiSupervisedTrainer(svaec, synthetic_dataset, use_cuda=use_cuda)
     trainer_synthetic_svaec.train(n_epochs=1)
+
+
+def test_classifier_accuracy(save_path):
+    cortex_dataset = CortexDataset(save_path=save_path)
+    cls = Classifier(cortex_dataset.nb_genes, n_labels=cortex_dataset.n_labels)
+    cls_trainer = ClassifierTrainer(cls, cortex_dataset, metrics_to_monitor=['accuracy'], frequency=1,
+                                    early_stopping_kwargs={'early_stopping_metric': 'accuracy',
+                                                           'save_best_state_metric': 'accuracy'})
+    cls_trainer.train(n_epochs=2)
+    cls_trainer.train_set.accuracy()

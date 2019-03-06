@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import copy
 
 import numpy as np
@@ -89,6 +90,12 @@ class Posterior:
             self.data_loader_kwargs.update({'collate_fn': gene_dataset.collate_fn})
         self.data_loader_kwargs.update({'sampler': sampler})
         self.data_loader = DataLoader(gene_dataset, **self.data_loader_kwargs)
+
+    @abstractmethod
+    def accuracy(self, verbose=False):
+        pass
+
+    accuracy.mode = 'max'
 
     @property
     def indices(self):
