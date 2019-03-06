@@ -50,7 +50,6 @@ class Dataset10X(GeneExpressionDataset):
         :filename: Name of the dataset file.
         :save_path: Save path of the dataset. Default: ``'data/'``.
         :type: Either `filtered` data or `raw` data. Default: ``'filtered'``.
-        :new_n_genes: Number of subsampled genes. Default: ``3000``.
         :subset_genes: List of genes for subsampling. Default: ``None``.
         :dense: Whether to load as dense or sparse. Default: ``False``.
         :remote: Whether the 10X dataset is to be downloaded from the website or whether it is a local dataset, if
@@ -65,10 +64,11 @@ class Dataset10X(GeneExpressionDataset):
 
     """
 
-    def __init__(self, filename, save_path='data/', type='filtered', dense=False, remote=True):
+    def __init__(self, filename, save_path='data/', type='filtered', dense=False, remote=True, genecol=0):
 
         self.remote = remote
         self.save_path = save_path
+        self.genecol = genecol
         if self.remote:
             group = to_groups[filename]
             self.url = ("http://cf.10xgenomics.com/samples/cell-exp/%s/%s/%s_%s_gene_bc_matrices.tar.gz" %
@@ -105,10 +105,11 @@ class Dataset10X(GeneExpressionDataset):
                                                                                                name))][0]))
             path = os.path.join(path, os.listdir(path)[0])
         genes_info = pd.read_csv(os.path.join(path, 'genes.tsv'), sep='\t', header=None)
-        gene_names = genes_info.values[:, 0].astype(np.str).ravel()
+        gene_names = genes_info.values[:, self.genecol].astype(np.str).ravel()
         if os.path.exists(os.path.join(path, 'barcodes.tsv')):
             self.barcodes = pd.read_csv(os.path.join(path, 'barcodes.tsv'), sep='\t', header=None)
-        self.gene_symbols = genes_info.values[:, 1].astype(np.str).ravel()
+        # print(genes_info)
+        # self.gene_symbols = genes_info.values[:, self.genecol].astype(np.str).ravel()
         expression_data = io.mmread(os.path.join(path, 'matrix.mtx')).T
         if self.dense:
             expression_data = expression_data.A

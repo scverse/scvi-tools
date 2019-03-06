@@ -34,6 +34,7 @@ class GeneExpressionDataset(Dataset):
         self.batch_indices, self.n_batches = arrange_categories(batch_indices)
         self.labels, self.n_labels = arrange_categories(labels)
         self.x_coord, self.y_coord = x_coord, y_coord
+        self.norm_X = None
 
         if gene_names is not None:
             assert self.nb_genes == len(gene_names)
@@ -127,6 +128,9 @@ class GeneExpressionDataset(Dataset):
             self.gene_names = self.gene_names[subset_genes]
         if hasattr(self, 'gene_symbols'):
             self.gene_symbols = self.gene_symbols[subset_genes]
+        self._X = self.X[:, subset_genes]
+        if self.norm_X is not None:
+            self.norm_X = self.norm_X[:, subset_genes]
         self.nb_genes = self.X.shape[1]
         to_keep = np.array(self.X.sum(axis=1) > 0).ravel()
         if self.X.shape != self.X[to_keep].shape:
@@ -154,7 +158,6 @@ class GeneExpressionDataset(Dataset):
             std_scaler = StandardScaler(with_mean=False)
             std_scaler.fit(self.X.astype(np.float64))
             subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
-        self._X = self.X[:, subset_genes]
         self.update_genes(subset_genes)
 
     def filter_genes(self, gene_names_ref, on='gene_names'):
@@ -267,6 +270,19 @@ class GeneExpressionDataset(Dataset):
         for i_batch in range(self.n_batches):
             idx_batch = (self.batch_indices == i_batch).ravel()
             self.local_means[idx_batch], self.local_vars[idx_batch] = self.library_size(self.X[idx_batch])
+
+    def raw_counts_properties(self, idx1, idx2):
+        mean1 = (self.X[idx1, :]).mean(axis=0)
+        mean2 = (self.X[idx2, :]).mean(axis=0)
+        nonz1 = (self.X[idx1, :] != 0).mean(axis=0)
+        nonz2 = (self.X[idx2, :] != 0).mean(axis=0)
+        if self.norm_X is None:
+            scaling_factor = self.X.mean(axis=1)
+            self.norm_X = self.X / scaling_factor.reshape(len(scaling_factor), 1)
+        norm_mean1 = self.norm_X[idx1, :].mean(axis=0)
+        norm_mean2 = self.norm_X[idx2, :].mean(axis=0)
+        return np.asarray(mean1).ravel(), np.asarray(mean2).ravel(), np.asarray(nonz1).ravel(), \
+            np.asarray(nonz2).ravel(), np.asarray(norm_mean1).ravel(), np.asarray(norm_mean2).ravel()
 
     @staticmethod
     def library_size(X):
