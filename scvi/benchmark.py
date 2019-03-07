@@ -57,6 +57,9 @@ def ldvae_benchmark(dataset, n_epochs, use_cuda=True):
     trainer.train(n_epochs=n_epochs)
     trainer.test_set.ll(verbose=True)
     trainer.test_set.marginal_ll(verbose=True)
+
+    ldvae.get_loadings()
+
     return trainer
 
 
