@@ -264,5 +264,7 @@ def test_classifier_accuracy(save_path):
 
 
 def test_LDVAE(save_path):
-    synthetic_datset = SyntheticDataset()
-    ldvae_benchmark(synthetic_datset, n_epochs=1, use_cuda=False)
+    synthetic_datset_one_batch = SyntheticDataset(n_batches=1)
+    ldvae_benchmark(synthetic_datset_one_batch, n_epochs=1, use_cuda=False)
+    synthetic_datset_two_batches = SyntheticDataset(n_batches=2)
+    ldvae_benchmark(synthetic_datset_two_batches, n_epochs=1, use_cuda=False)

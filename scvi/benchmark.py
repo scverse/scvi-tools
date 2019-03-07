@@ -52,7 +52,7 @@ def annotation_benchmarks(n_epochs=1, use_cuda=True, save_path='data/'):
 
 
 def ldvae_benchmark(dataset, n_epochs, use_cuda=True):
-    ldvae = LDVAE(dataset.nb_genes)
+    ldvae = LDVAE(dataset.nb_genes, n_batch=dataset.n_batches)
     trainer = UnsupervisedTrainer(ldvae, dataset, use_cuda=use_cuda)
     trainer.train(n_epochs=n_epochs)
     trainer.test_set.ll(verbose=True)
