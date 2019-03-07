@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import copy
 
 import numpy as np
@@ -89,6 +90,12 @@ class Posterior:
             self.data_loader_kwargs.update({'collate_fn': gene_dataset.collate_fn})
         self.data_loader_kwargs.update({'sampler': sampler})
         self.data_loader = DataLoader(gene_dataset, **self.data_loader_kwargs)
+
+    @abstractmethod
+    def accuracy(self, verbose=False):
+        pass
+
+    accuracy.mode = 'max'
 
     @property
     def indices(self):
@@ -194,45 +201,149 @@ class Posterior:
         return px_scales, all_labels
 
     @torch.no_grad()
-    def differential_expression_score(self, cell_type, other_cell_type=None, genes=None, M_sampling=100,
-                                      M_permutation=10000, permutation=False):
-        px_scale, all_labels = self.differential_expression_stats(M_sampling=M_sampling)
-        cell_idx, other_cell_idx = self.gene_dataset._cell_type_idx([cell_type, other_cell_type])
-        if genes is not None:
-            px_scale = px_scale[:, self.gene_dataset._gene_idx(genes)]
-        bayes_factors_list = get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=other_cell_idx,
-                                               M_permutation=M_permutation, permutation=permutation)
-        return bayes_factors_list
+    def sample_scale_from_batch(self, n_samples, batchid=None, selection=None):
+        px_scales = []
+        if selection is None:
+            raise ValueError("selections should be a list of cell subsets indices")
+        else:
+            if selection.dtype is np.dtype('bool'):
+                selection = np.asarray(np.where(selection)[0].ravel())
+        for i in batchid:
+            idx = np.random.choice(np.arange(len(self.gene_dataset))[selection], n_samples)
+            sampler = SubsetRandomSampler(idx)
+            self.data_loader_kwargs.update({'sampler': sampler})
+            self.data_loader = DataLoader(self.gene_dataset, **self.data_loader_kwargs)
+            px_scales.append(self.get_harmonized_scale(i))
+        sampler = RandomSampler(self.gene_dataset)
+        self.data_loader_kwargs.update({'sampler': sampler})
+        self.data_loader = DataLoader(self.gene_dataset, **self.data_loader_kwargs)
+        px_scales = np.concatenate(px_scales)
+        return px_scales
 
     @torch.no_grad()
-    def differential_expression_table(self, output_file=False, select=10, M_sampling=100, M_permutation=10000,
-                                      permutation=False):
-        px_scale, all_labels = self.differential_expression_stats(M_sampling=M_sampling)
-        expression = []
-        genes = []
-        gene_names = self.gene_dataset.gene_names
-        n_cells = self.gene_dataset.n_labels
-        for cell_idx in range(n_cells):
-            bayes_factors_list = get_bayes_factors(px_scale, all_labels, cell_idx, M_permutation=M_permutation,
-                                                   permutation=permutation)
-            expression.append(bayes_factors_list)
-            top_indices = np.argsort(bayes_factors_list)[::-1][:select]
-            top_genes = gene_names[top_indices]
-            genes += list(top_genes)
+    def differential_expression_score(self, idx1, idx2, batchid1=None, batchid2=None,
+                                      genes=None, n_samples=None, M_permutation=None, all_stats=True,
+                                      sample_pairs=True):
+        if n_samples is None:
+            n_samples = 5000
+        if M_permutation is None:
+            M_permutation = 10000
+        if batchid1 is None:
+            batchid1 = np.arange(self.gene_dataset.n_batches)
+        if batchid2 is None:
+            batchid2 = np.arange(self.gene_dataset.n_batches)
+        px_scale1 = self.sample_scale_from_batch(selection=idx1, batchid=batchid1, n_samples=n_samples)
+        px_scale2 = self.sample_scale_from_batch(selection=idx2, batchid=batchid2, n_samples=n_samples)
+        px_scale_mean1 = px_scale1.mean(axis=0)
+        px_scale_mean2 = px_scale2.mean(axis=0)
+        px_scale = np.concatenate((px_scale1, px_scale2), axis=0)
+        all_labels = np.concatenate((np.repeat(0, len(px_scale1)), np.repeat(1, len(px_scale2))), axis=0)
+        if genes is not None:
+            px_scale = px_scale[:, self.gene_dataset._gene_idx(genes)]
+        bayes1 = get_bayes_factors(px_scale, all_labels, cell_idx=0, M_permutation=M_permutation,
+                                   permutation=False, sample_pairs=sample_pairs)
+        if all_stats is True:
+            bayes1_permuted = get_bayes_factors(px_scale, all_labels, cell_idx=0, M_permutation=M_permutation,
+                                                permutation=True, sample_pairs=sample_pairs)
+            bayes2 = get_bayes_factors(px_scale, all_labels, cell_idx=1, M_permutation=M_permutation,
+                                       permutation=False, sample_pairs=sample_pairs)
+            bayes2_permuted = get_bayes_factors(px_scale, all_labels, cell_idx=1, M_permutation=M_permutation,
+                                                permutation=True, sample_pairs=sample_pairs)
+            mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2 = \
+                self.gene_dataset.raw_counts_properties(idx1, idx2)
+            res = pd.DataFrame([bayes1, bayes1_permuted, bayes2, bayes2_permuted,
+                                mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2,
+                                px_scale_mean1, px_scale_mean2],
+                               index=['bayes1', 'bayes1_permuted', 'bayes2', 'bayes2_permuted',
+                                      'mean1', 'mean2', 'nonz1', 'nonz2', 'norm_mean1', 'norm_mean2',
+                                      'scale1', 'scale2'],
+                               columns=self.gene_dataset.gene_names).T
+            res = res.sort_values(by=['bayes1'], ascending=False)
+            return res
+        else:
+            return(bayes1)
 
-        expression = [[res[np.where(gene_names == gene_name)[0]][0] for gene_name in genes] for res in expression]
-        genes = np.array(genes)
-        expression = np.array(expression).T  # change to genes * clusters
+    @torch.no_grad()
+    def one_vs_all_degenes(self, subset=None, cell_labels=None, min_cells=10,
+                           n_samples=None, M_permutation=None, output_file=False,
+                           save_dir='./', filename='one2all'):
+        if cell_labels is not None:
+            if len(cell_labels) != len(self.gene_dataset):
+                raise ValueError(" the length of cell_labels have to be the same as the number of cells")
+        if (cell_labels is None) and not hasattr(self.gene_dataset, 'cell_types'):
+            raise ValueError("If gene_dataset is not annotated with labels and cell types,"
+                             " then must provide cell_labels")
+        # Input cell_labels take precedence over cell type label annotation in dataset
+        elif (cell_labels is not None):
+            cluster_id = np.unique(cell_labels[cell_labels >= 0])
+            # Can make cell_labels < 0 to filter out cells when computing DE
+        else:
+            cluster_id = self.gene_dataset.cell_types
+            cell_labels = self.gene_dataset.labels.ravel()
+        de_res = []
+        de_cluster = []
+        for i, x in enumerate(cluster_id):
+            if subset is None:
+                idx1 = (cell_labels == i)
+                idx2 = (cell_labels != i)
+            else:
+                idx1 = (cell_labels == i) * subset
+                idx2 = (cell_labels != i) * subset
+            if np.sum(idx1) > min_cells and np.sum(idx2) > min_cells:
+                de_cluster.append(x)
+                res = self.differential_expression_score(idx1=idx1, idx2=idx2, M_permutation=M_permutation,
+                                                         n_samples=n_samples, sample_pairs=False)
+                res['clusters'] = np.repeat(x, len(res.index))
+                de_res.append(res)
         if output_file:  # store as an excel spreadsheet
-            writer = pd.ExcelWriter('data/differential_expression.xlsx', engine='xlsxwriter')
-            clusters = self.gene_dataset.cell_types
-            for cluster_idx in range(len(clusters)):
-                df = pd.DataFrame(data=expression[select * cluster_idx: select * (cluster_idx + 1), cluster_idx],
-                                  index=genes[select * cluster_idx: select * (cluster_idx + 1)],
-                                  columns=['differential_expression'])
-                df.to_excel(writer, sheet_name=clusters[cluster_idx])
+            writer = pd.ExcelWriter(save_dir + 'differential_expression.%s.xlsx' % filename, engine='xlsxwriter')
+            for i, x in enumerate(de_cluster):
+                de_res[i].to_excel(writer, sheet_name=str(x))
             writer.close()
-        return genes, expression
+        return de_res, de_cluster
+
+    def within_cluster_degenes(self, cell_labels=None, min_cells=10, states=[], batch1=None, batch2=None, subset=None,
+                               n_samples=None, M_permutation=None, output_file=False,
+                               save_dir='./', filename='within_cluster'):
+        if len(self.gene_dataset) != len(states):
+            raise ValueError(" the length of states have to be the same as the number of cells")
+        if cell_labels is not None:
+            if len(cell_labels) != len(self.gene_dataset):
+                raise ValueError(" the length of cell_labels have to be the same as the number of cells")
+        if (cell_labels is None) and not hasattr(self.gene_dataset, 'cell_types'):
+            raise ValueError("If gene_dataset is not annotated with labels and cell types,"
+                             " then must provide cell_labels")
+        # Input cell_labels take precedence over cell type label annotation in dataset
+        elif (cell_labels is not None):
+            cluster_id = np.unique(cell_labels[cell_labels >= 0])
+            # Can make cell_labels < 0 to filter out cells when computing DE
+        else:
+            cluster_id = self.gene_dataset.cell_types
+            cell_labels = self.gene_dataset.labels.ravel()
+        de_res = []
+        de_cluster = []
+        states = np.asarray([1 if x else 0 for x in states])
+        nstates = np.asarray([0 if x else 1 for x in states])
+        for i, x in enumerate(cluster_id):
+            if subset is None:
+                idx1 = (cell_labels == i) * states
+                idx2 = (cell_labels == i) * nstates
+            else:
+                idx1 = (cell_labels == i) * subset * states
+                idx2 = (cell_labels == i) * subset * nstates
+            if np.sum(idx1) > min_cells and np.sum(idx2) > min_cells:
+                de_cluster.append(x)
+                res = self.differential_expression_score(idx1=idx1, idx2=idx2,
+                                                         batchid1=batch1, batchid2=batch2, M_permutation=M_permutation,
+                                                         n_samples=n_samples)
+                res['clusters'] = np.repeat(x, len(res.index))
+                de_res.append(res)
+        if output_file:  # store as an excel spreadsheet
+            writer = pd.ExcelWriter(save_dir + 'differential_expression.%s.xlsx' % filename, engine='xlsxwriter')
+            for i, x in enumerate(de_cluster):
+                de_res[i].to_excel(writer, sheet_name=str(x))
+            writer.close()
+        return de_res, de_cluster
 
     @torch.no_grad()
     def imputation(self, n_samples=1):
@@ -312,6 +423,7 @@ class Posterior:
     @torch.no_grad()
     def get_harmonized_scale(self, fixed_batch):
         px_scales = []
+        fixed_batch = float(fixed_batch)
         for tensors in self:
             sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
             px_scales += [self.model.scale_from_z(sample_batch, fixed_batch).cpu()]
@@ -529,7 +641,7 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
 
 
 def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes_idx=None,
-                      M_permutation=10000, permutation=False):
+                      M_permutation=10000, permutation=False, sample_pairs=True):
     '''
     Returns a list of bayes factor for all genes
     :param px_scale: The gene frequency array for all cells (might contain multiple samples per cells)
@@ -541,7 +653,7 @@ def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes
     :return:
     '''
     idx = (all_labels == cell_idx)
-    idx_other = (all_labels == other_cell_idx) if other_cell_idx is not None else (all_labels != other_cell_idx)
+    idx_other = (all_labels == other_cell_idx) if other_cell_idx is not None else (all_labels != cell_idx)
     if genes_idx is not None:
         px_scale = px_scale[:, genes_idx]
     sample_rate_a = px_scale[idx].reshape(-1, px_scale.shape[1])
@@ -550,21 +662,24 @@ def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes
     # agregate dataset
     samples = np.vstack((sample_rate_a, sample_rate_b))
 
-    # prepare the pairs for sampling
-    list_1 = list(np.arange(sample_rate_a.shape[0]))
-    list_2 = list(sample_rate_a.shape[0] + np.arange(sample_rate_b.shape[0]))
-    if not permutation:
-        # case1: no permutation, sample from A and then from B
-        u, v = np.random.choice(list_1, size=M_permutation), np.random.choice(list_2, size=M_permutation)
+    if sample_pairs is True:
+        # prepare the pairs for sampling
+        list_1 = list(np.arange(sample_rate_a.shape[0]))
+        list_2 = list(sample_rate_a.shape[0] + np.arange(sample_rate_b.shape[0]))
+        if not permutation:
+            # case1: no permutation, sample from A and then from B
+            u, v = np.random.choice(list_1, size=M_permutation), np.random.choice(list_2, size=M_permutation)
+        else:
+            # case2: permutation, sample from A+B twice
+            u, v = (np.random.choice(list_1 + list_2, size=M_permutation),
+                    np.random.choice(list_1 + list_2, size=M_permutation))
+
+        # then constitutes the pairs
+        first_set = samples[u]
+        second_set = samples[v]
     else:
-        # case2: permutation, sample from A+B twice
-        u, v = (np.random.choice(list_1 + list_2, size=M_permutation),
-                np.random.choice(list_1 + list_2, size=M_permutation))
-
-    # then constitutes the pairs
-    first_set = samples[u]
-    second_set = samples[v]
-
+        first_set = sample_rate_a
+        second_set = sample_rate_b
     res = np.mean(first_set >= second_set, 0)
     res = np.log(res + 1e-8) - np.log(1 - res + 1e-8)
     return res

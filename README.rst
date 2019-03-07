@@ -35,13 +35,15 @@ Quick Start
 
    a. `data loading`__
    b. `basic usage`__ 
-   c. `reproducing results from the paper`__ 
+   c. `reproducing results from the scVI paper`__ 
+   d. `harmonization`__ 
+   e. `annotation`__ 
 
 .. __: https://github.com/YosefLab/scVI/tree/master/tests/notebooks/data_loading.ipynb
 .. __: https://github.com/YosefLab/scVI/tree/master/tests/notebooks/basic_tutorial.ipynb
 .. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/scVI_reproducibility.ipynb
-
-
+.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/harmonization.ipynb
+.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/annotation.ipynb
 
 References
 ----------

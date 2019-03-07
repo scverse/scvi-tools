@@ -25,6 +25,10 @@ requirements = [
     "nbconvert>=5.4.0",
     "nbformat>=4.4.0",
     "ipython>=7",
+    "umap-learn>=0.3.7",
+    "seaborn>=0.9.0",
+    "leidenalg>=0.7.0",
+    "python-igraph>=0.7.1",
 ]
 
 setup_requirements = ['pytest-runner', ]
@@ -59,6 +63,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/YosefLab/scVI',
-    version='0.2.4',
+    version='0.3.0',
     zip_safe=False,
 )

@@ -78,9 +78,11 @@ def test_synthetic_1():
     trainer_synthetic_svaec.labelled_set.clustering_scores()
     trainer_synthetic_svaec.labelled_set.clustering_scores(prediction_algorithm='gmm')
     trainer_synthetic_svaec.unlabelled_set.unsupervised_classification_accuracy()
-    trainer_synthetic_svaec.unlabelled_set.differential_expression_score('B', 'C', genes=['2', '4'], M_sampling=2,
+    trainer_synthetic_svaec.unlabelled_set.differential_expression_score(synthetic_dataset.labels.ravel() == 1,
+                                                                         synthetic_dataset.labels.ravel() == 2,
+                                                                         genes=['2', '4'], n_samples=2,
                                                                          M_permutation=10)
-    trainer_synthetic_svaec.unlabelled_set.differential_expression_table(M_sampling=2, M_permutation=10)
+    trainer_synthetic_svaec.unlabelled_set.one_vs_all_degenes(n_samples=2, M_permutation=10)
 
 
 def test_synthetic_2():
@@ -163,7 +165,7 @@ def test_cortex_loom(save_path):
 
 
 def test_anndata(save_path):
-    ann_dataset = AnnDataset("TM_droplet_mat.h5ad", save_path='tests/data/')
+    ann_dataset = AnnDataset("TM_droplet_mat.h5ad", save_path=save_path)
     base_benchmark(ann_dataset)
 
 
@@ -249,3 +251,13 @@ def test_nb_not_zinb():
                    reconstruction_loss="nb")
     trainer_synthetic_svaec = JointSemiSupervisedTrainer(svaec, synthetic_dataset, use_cuda=use_cuda)
     trainer_synthetic_svaec.train(n_epochs=1)
+
+
+def test_classifier_accuracy(save_path):
+    cortex_dataset = CortexDataset(save_path=save_path)
+    cls = Classifier(cortex_dataset.nb_genes, n_labels=cortex_dataset.n_labels)
+    cls_trainer = ClassifierTrainer(cls, cortex_dataset, metrics_to_monitor=['accuracy'], frequency=1,
+                                    early_stopping_kwargs={'early_stopping_metric': 'accuracy',
+                                                           'save_best_state_metric': 'accuracy'})
+    cls_trainer.train(n_epochs=2)
+    cls_trainer.train_set.accuracy()
