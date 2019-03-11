@@ -41,12 +41,13 @@ class AnnotationPosterior(Posterior):
     accuracy.mode = 'max'
 
     @torch.no_grad()
-    def compute_predictions(self):
+    def compute_predictions(self, soft=False):
         '''
         :return: the true labels and the predicted labels
         :rtype: 2-tuple of :py:class:`numpy.int32`
         '''
-        return compute_predictions(self.model, self)
+        model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
+        return compute_predictions(model, self, classifier=cls, soft=soft)
 
     @torch.no_grad()
     def unsupervised_classification_accuracy(self, classifier=None, verbose=False):
@@ -213,7 +214,7 @@ class AlternateSemiSupervisedTrainer(SemiSupervisedTrainer):
 
 
 @torch.no_grad()
-def compute_predictions(model, data_loader, classifier=None):
+def compute_predictions(model, data_loader, classifier=None, soft=False):
     all_y_pred = []
     all_y = []
 
@@ -222,20 +223,25 @@ def compute_predictions(model, data_loader, classifier=None):
         all_y += [labels.view(-1).cpu()]
 
         if hasattr(model, 'classify'):
-            y_pred = model.classify(sample_batch).argmax(dim=-1)
+            y_pred = model.classify(sample_batch)
         elif classifier is not None:
             # Then we use the specified classifier
             if model is not None:
                 if model.log_variational:
                     sample_batch = torch.log(1 + sample_batch)
                 sample_batch, _, _ = model.z_encoder(sample_batch)
-            y_pred = classifier(sample_batch).argmax(dim=-1)
+            y_pred = classifier(sample_batch)
         else:  # The model is the raw classifier
-            y_pred = model(sample_batch).argmax(dim=-1)
+            y_pred = model(sample_batch)
+
+        if not soft:
+            y_pred = y_pred.argmax(dim=-1)
+
         all_y_pred += [y_pred.cpu()]
 
     all_y_pred = np.array(torch.cat(all_y_pred))
     all_y = np.array(torch.cat(all_y))
+
     return all_y, all_y_pred
 
 
