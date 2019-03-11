@@ -261,3 +261,16 @@ def test_classifier_accuracy(save_path):
                                                            'save_best_state_metric': 'accuracy'})
     cls_trainer.train(n_epochs=2)
     cls_trainer.train_set.accuracy()
+
+
+def test_sampling_zl(save_path):
+    cortex_dataset = CortexDataset(save_path=save_path)
+    cortex_vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_batches)
+    trainer_cortex_vae = UnsupervisedTrainer(cortex_vae, cortex_dataset, train_size=0.5, use_cuda=use_cuda)
+    trainer_cortex_vae.train(n_epochs=2)
+
+    cortex_cls = Classifier((cortex_vae.n_latent+1), n_labels=cortex_dataset.n_labels)
+    trainer_cortex_cls = ClassifierTrainer(cortex_cls, cortex_dataset,
+                                           sampling_model=cortex_vae, sampling_zl=True)
+    trainer_cortex_cls.train(n_epochs=2)
+    trainer_cortex_cls.test_set.accuracy()

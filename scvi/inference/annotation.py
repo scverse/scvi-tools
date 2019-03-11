@@ -16,9 +16,13 @@ from scvi.inference.posterior import unsupervised_clustering_accuracy
 
 
 class AnnotationPosterior(Posterior):
+    def __init__(self, *args, model_zl=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model_zl = model_zl
+
     def accuracy(self, verbose=False):
         model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
-        acc = compute_accuracy(model, self, classifier=cls)
+        acc = compute_accuracy(model, self, classifier=cls, model_zl=self.model_zl)
         if verbose:
             print("Acc: %.4f" % (acc))
         return acc
@@ -47,7 +51,7 @@ class AnnotationPosterior(Posterior):
         :rtype: 2-tuple of :py:class:`numpy.int32`
         '''
         model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
-        return compute_predictions(model, self, classifier=cls, soft=soft)
+        return compute_predictions(model, self, classifier=cls, soft=soft, model_zl=self.model_zl)
 
     @torch.no_grad()
     def unsupervised_classification_accuracy(self, classifier=None, verbose=False):
@@ -78,6 +82,8 @@ class ClassifierTrainer(Trainer):
         :gene_dataset: A gene_dataset instance like ``CortexDataset()``
         :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
             to use Default: ``0.8``.
+        :sampling_model: Model with z_encoder with which to first transform data.
+        :sampling_zl: Transform data with sampling_model z_encoder and l_encoder and concat.
         :\**kwargs: Other keywords arguments from the general Trainer class.
 
 
@@ -92,12 +98,17 @@ class ClassifierTrainer(Trainer):
         >>> trainer.test_set.accuracy()
     """
 
-    def __init__(self, *args, sampling_model=None, use_cuda=True, **kwargs):
+    def __init__(self, *args, train_size=0.8, sampling_model=None, sampling_zl=False, use_cuda=True, **kwargs):
         self.sampling_model = sampling_model
+        self.sampling_zl = sampling_zl
         super().__init__(*args, use_cuda=use_cuda, **kwargs)
-        self.train_set, self.test_set = self.train_test(self.model, self.gene_dataset, type_class=AnnotationPosterior)
+        self.train_set, self.test_set = self.train_test(self.model, self.gene_dataset,
+                                                        train_size=train_size,
+                                                        type_class=AnnotationPosterior)
         self.train_set.to_monitor = ['accuracy']
         self.test_set.to_monitor = ['accuracy']
+        self.train_set.model_zl = sampling_zl
+        self.test_set.model_zl = sampling_zl
 
     @property
     def posteriors_loop(self):
@@ -116,8 +127,23 @@ class ClassifierTrainer(Trainer):
             else:
                 if self.sampling_model.log_variational:
                     x = torch.log(1 + x)
-                x = self.sampling_model.z_encoder(x)[0]
+                if self.sampling_zl:
+                    x_z = self.sampling_model.z_encoder(x)[0]
+                    x_l = self.sampling_model.l_encoder(x)[0]
+                    x = torch.cat((x_z, x_l), dim=-1)
+                else:
+                    x = self.sampling_model.z_encoder(x)[0]
         return F.cross_entropy(self.model(x), labels_train.view(-1))
+
+    @torch.no_grad()
+    def compute_predictions(self, soft=False):
+        '''
+        :return: the true labels and the predicted labels
+        :rtype: 2-tuple of :py:class:`numpy.int32`
+        '''
+        model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
+        full_set = self.create_posterior(type_class=AnnotationPosterior)
+        return compute_predictions(model, full_set, classifier=cls, soft=soft, model_zl=self.sampling_zl)
 
 
 class SemiSupervisedTrainer(UnsupervisedTrainer):
@@ -214,7 +240,7 @@ class AlternateSemiSupervisedTrainer(SemiSupervisedTrainer):
 
 
 @torch.no_grad()
-def compute_predictions(model, data_loader, classifier=None, soft=False):
+def compute_predictions(model, data_loader, classifier=None, soft=False, model_zl=False):
     all_y_pred = []
     all_y = []
 
@@ -229,7 +255,12 @@ def compute_predictions(model, data_loader, classifier=None, soft=False):
             if model is not None:
                 if model.log_variational:
                     sample_batch = torch.log(1 + sample_batch)
-                sample_batch, _, _ = model.z_encoder(sample_batch)
+                if model_zl:
+                    sample_z = model.z_encoder(sample_batch)[0]
+                    sample_l = model.l_encoder(sample_batch)[0]
+                    sample_batch = torch.cat((sample_z, sample_l), dim=-1)
+                else:
+                    sample_batch, _, _ = model.z_encoder(sample_batch)
             y_pred = classifier(sample_batch)
         else:  # The model is the raw classifier
             y_pred = model(sample_batch)
@@ -246,8 +277,8 @@ def compute_predictions(model, data_loader, classifier=None, soft=False):
 
 
 @torch.no_grad()
-def compute_accuracy(vae, data_loader, classifier=None):
-    all_y, all_y_pred = compute_predictions(vae, data_loader, classifier=classifier)
+def compute_accuracy(vae, data_loader, classifier=None, model_zl=False):
+    all_y, all_y_pred = compute_predictions(vae, data_loader, classifier=classifier, model_zl=model_zl)
     return np.mean(all_y == all_y_pred)
 
 
