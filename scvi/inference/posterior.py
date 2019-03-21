@@ -35,12 +35,12 @@ class Posterior:
     A `Posterior` instance also comes with many methods or utilities for its corresponding data.
 
 
-    :param model: Number of input genes
-    :param gene_dataset: Number of batches
-    :param shuffle: Number of labels
-    :param indices: Number of nodes per hidden layer
-    :param use_cuda: Dimensionality of the latent space
-    :param data_loader_kwargs: Number of hidden layers used for encoder and decoder NNs
+    :param model: A model instance from class ``VAE``, ``VAEC``, ``SCANVI``
+    :param gene_dataset: A gene_dataset instance like ``CortexDataset()``
+    :param shuffle: Specifies if a `RandomSampler` or a `SequentialSampler` should be used
+    :param indices: Specifies how the data should be split with regards to train/test or labelled/unlabelled 
+    :param use_cuda: Default: ``True``
+    :param data_loader_kwarg: Keyword arguments to passed into the `DataLoader`
 
     Examples:
 
