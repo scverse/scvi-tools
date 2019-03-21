@@ -38,7 +38,7 @@ class Posterior:
     :param model: A model instance from class ``VAE``, ``VAEC``, ``SCANVI``
     :param gene_dataset: A gene_dataset instance like ``CortexDataset()``
     :param shuffle: Specifies if a `RandomSampler` or a `SequentialSampler` should be used
-    :param indices: Specifies how the data should be split with regards to train/test or labelled/unlabelled 
+    :param indices: Specifies how the data should be split with regards to train/test or labelled/unlabelled
     :param use_cuda: Default: ``True``
     :param data_loader_kwarg: Keyword arguments to passed into the `DataLoader`
 
