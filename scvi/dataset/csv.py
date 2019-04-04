@@ -18,7 +18,7 @@ class CsvDataset(GeneExpressionDataset):
             (otherwise no decompression). If using ‘zip’, the ZIP file must contain only one data file to be read in.
             Default: ``None``.
         :batch_ids_file: Name of the `.csv` file with batch indices.
-            File contains two columns. The first holds gene names and second
+            File contains two columns. The first holds cell names and second
             holds batch indices - type int. The first row of the file is header.
 
     Examples:
