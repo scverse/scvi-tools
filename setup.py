@@ -35,6 +35,8 @@ setup_requirements = ['pytest-runner', ]
 
 test_requirements = ['pytest', ]
 
+extras_requirements = {'test': ['scanpy', 'louvain', ]}
+
 author = 'Romain Lopez, Jeffrey Regier, Maxime Langevin, Edouard Mehlman, Yining Liu'
 
 setup(
@@ -62,6 +64,7 @@ setup(
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
+    extras_require=extras_requirements,
     url='https://github.com/YosefLab/scVI',
     version='0.3.0',
     zip_safe=False,

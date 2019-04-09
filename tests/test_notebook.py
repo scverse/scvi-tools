@@ -76,7 +76,9 @@ class NotebookLoader(object):
                         code = re.sub(r'n_samples_tsne = \d+', "n_samples_tsne = 10", code)
                         code = re.sub(r'n_samples_posterior_density = \d+', "n_samples_posterior_density = 2", code)
                         code = re.sub("save_path = 'data/'", "save_path = '"+os.getcwd()+"'", code)
+                        code = re.sub('save_path = "data/"', "save_path = '"+os.getcwd()+"'", code)
                         code = re.sub("show_plot = True", "show_plot = False", code)
+                        code = re.sub("test_mode = False", "test_mode = True", code)
                         # run the code in themodule
                         exec(code, mod.__dict__)
                         plt.close('all')
@@ -186,6 +188,21 @@ def test_notebooks_harmonization(save_path):
         os.chdir(save_path)
         import notebooks.harmonization
         notebooks.harmonization.allow_notebook_for_test()
+        plt.close("all")
+
+    except BaseException:
+            raise
+    finally:
+            os.chdir(path=base_path)
+
+
+def test_notebooks_scanpy_api(save_path):
+    try:
+        os.chdir(save_path)
+        import notebooks.scanpy_pbmc3k
+
+        print(save_path)
+        notebooks.scanpy_pbmc3k.allow_notebook_for_test()
         plt.close("all")
 
     except BaseException:

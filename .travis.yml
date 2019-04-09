@@ -13,6 +13,7 @@ notifications:
 
 install:
   - pip install --quiet -r requirements.txt
+  - pip install --quiet -r requirements.test.txt
 
 script:
   - flake8
