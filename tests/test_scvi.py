@@ -168,7 +168,7 @@ def test_cortex_loom(save_path):
 def test_anndata(save_path):
     ann_dataset = AnnDataset("TM_droplet_mat.h5ad", save_path=save_path)
     base_benchmark(ann_dataset)
-    AnnDataset(anndata.AnnData(np.random.randint(1, 10, (10, 10))))
+    AnnDataset(anndata.AnnData(np.random.randint(1,10,(10,10))))
 
 
 def test_csv(save_path):
@@ -271,7 +271,7 @@ def test_sampling_zl(save_path):
     trainer_cortex_vae = UnsupervisedTrainer(cortex_vae, cortex_dataset, train_size=0.5, use_cuda=use_cuda)
     trainer_cortex_vae.train(n_epochs=2)
 
-    cortex_cls = Classifier((cortex_vae.n_latent + 1), n_labels=cortex_dataset.n_labels)
+    cortex_cls = Classifier((cortex_vae.n_latent+1), n_labels=cortex_dataset.n_labels)
     trainer_cortex_cls = ClassifierTrainer(cortex_cls, cortex_dataset,
                                            sampling_model=cortex_vae, sampling_zl=True)
     trainer_cortex_cls.train(n_epochs=2)
