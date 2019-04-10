@@ -24,4 +24,5 @@ umap-learn==0.3.7
 seaborn==0.9.0
 leidenalg==0.7.0
 python-igraph==0.7.1.post6
-
+scanpy==1.4
+louvain==0.6.1

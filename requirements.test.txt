@@ -1,2 +1,0 @@
-scanpy==1.4
-louvain==0.6.1
