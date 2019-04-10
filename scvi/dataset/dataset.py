@@ -43,6 +43,9 @@ class GeneExpressionDataset(Dataset):
             assert self.n_labels == len(cell_types)
             self.cell_types = np.array(cell_types, dtype=np.str)
 
+    def preprocess(self):
+        raise NotImplementedError
+
     @property
     def X(self):
         return self._X
