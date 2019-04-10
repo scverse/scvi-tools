@@ -165,7 +165,7 @@ class GeneExpressionDataset(Dataset):
         Same as _filter_genes but overwrites on current dataset instead of returning data,
         and updates genes names and symbols
         """
-        self.X, subset_genes = GeneExpressionDataset._filter_genes(self, gene_names_ref, on=on)
+        _, subset_genes = GeneExpressionDataset._filter_genes(self, gene_names_ref, on=on)
         self.update_genes(subset_genes)
 
     def subsample_cells(self, size=1.):
