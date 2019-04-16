@@ -4,10 +4,10 @@ coverage==4.5.1
 Sphinx==1.7.1
 pytest==3.7.4
 pytest-runner==2.11.1
-numpy==1.14.0
+numpy==1.16.2
 torch==0.4.1
 matplotlib==2.2.2
-scikit-learn==0.19.1
+scikit-learn==0.20.3
 scipy==1.2.1
 h5py==2.9.0
 codecov==2.0.8
