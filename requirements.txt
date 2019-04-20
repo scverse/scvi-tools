@@ -26,3 +26,4 @@ leidenalg==0.7.0
 python-igraph==0.7.1.post6
 scanpy==1.4
 louvain==0.6.1
+hyperopt==0.1.2
