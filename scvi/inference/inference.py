@@ -82,7 +82,7 @@ class AdapterTrainer(UnsupervisedTrainer):
         return min(self.history["ll_test_set"])
 
 
-def auto_tuned_scvi_parameters(
+def auto_tuned_scvi_model(
     gene_dataset: GeneExpressionDataset,
     model_class: VAE = VAE,
     trainer_class: Trainer = UnsupervisedTrainer,
@@ -96,7 +96,7 @@ def auto_tuned_scvi_parameters(
 ) -> (Type[Trainer], Trials):
     """Perform automatic hyperparameter optimization of an scVI model
     and return best model and hyperopt Trials object.
-    Trial object contains hyperparameter space and loss history for each trial.
+    Trials object contains hyperparameter space and loss history for each trial.
     We provide a default hyperparameter search space (see source code),
     but we recommend the user to build a custom one for each application.
 
@@ -192,6 +192,7 @@ def auto_tuned_scvi_parameters(
         trials=trials,
     )
 
+    # return best model, trained
     best_space = trials.best_trial['result']['space']
     best_trainer = objective_hyperopt(best_space, is_best_training=True)
 

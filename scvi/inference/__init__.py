@@ -3,7 +3,7 @@ from .trainer import Trainer
 from .inference import (
     UnsupervisedTrainer,
     AdapterTrainer,
-    auto_tuned_scvi_parameters
+    auto_tuned_scvi_model
 )
 from .annotation import (
     JointSemiSupervisedTrainer,
@@ -22,5 +22,5 @@ __all__ = ['Trainer',
            'SemiSupervisedTrainer',
            'AlternateSemiSupervisedTrainer',
            'ClassifierTrainer',
-           'auto_tuned_scvi_parameters'
+           'auto_tuned_scvi_model'
            ]
