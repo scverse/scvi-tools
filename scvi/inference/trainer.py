@@ -69,6 +69,9 @@ class Trainer:
 
         self.history = defaultdict(lambda: [])
 
+        self.best_state_dict = self.model.state_dict()
+        self.best_epoch = self.epoch
+
     @torch.no_grad()
     def compute_metrics(self):
         begin = time.time()
