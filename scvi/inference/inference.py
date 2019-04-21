@@ -1,4 +1,6 @@
 import copy
+import subprocess
+
 from collections import defaultdict
 from functools import partial
 from typing import Any, Dict, Type, Union
@@ -92,6 +94,7 @@ def auto_tuned_scvi_model(
     use_batches: bool = False,
     max_evals: int = 10,
     parallel: bool = False,
+    exp_key: str = "exp1",
     verbose: bool = True,
 ) -> (Type[Trainer], Trials):
     """Perform automatic hyperparameter optimization of an scVI model
@@ -114,7 +117,12 @@ def auto_tuned_scvi_model(
     when performing hyperoptimization. Default: mutable, see source code.
     :param use_batches: If False, pass n_batch=0 to model else pass gene_dataset.n_batches
     :param max_evals: Maximum number of trainings.
-    :return:
+    :param parallel: If True, use MongoTrials object to run trainings in parallel.
+    :param exp_key: Name of the experiment in MongoDb.
+    If already exists in db, hyperopt will run a numebr of trainings equal to
+    the difference between current and previous max_evals.
+    :param verbose: if True, output parameters used for each training to stdout.
+    :return: Trainer object for the best model and Trials object containing logs for the different runs.c
 
     Examples:
         >>> gene_dataset = CortexDataset()
@@ -179,12 +187,16 @@ def auto_tuned_scvi_model(
         }
     )
 
-    # run hyperoptimization
+    # instantiate Trials object and setup db and workers if running parralel optimization
     trials = MongoTrials(
         'mongo://localhost:1234/scvi_db/jobs',
-        exp_key='exp1'
+        exp_key=exp_key
     ) if parallel else Trials()
+    # FIXME: what is the right path here?
+    if parallel:
+        subprocess.call("./auto_tune_scvi.sh")
 
+    # run hyperoptimization
     _ = fmin(
         objective_hyperopt,
         space=space,
