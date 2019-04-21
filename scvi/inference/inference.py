@@ -297,6 +297,7 @@ def _objective_function(
             early_stopping_kwargs = trainer_specific_kwargs['early_stopping_kwargs']
             if 'early_stopping_metric' in early_stopping_kwargs:
                 metric = early_stopping_kwargs['early_stopping_metric']
+                metric += '_' + trainer.early_stopping.on
         metric = metric if metric else 'll_test_set'
 
         return {
