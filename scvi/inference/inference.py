@@ -7,14 +7,13 @@ import sys
 from typing import Any, Dict, Type, Union
 
 from hyperopt import fmin, tpe, Trials, hp, STATUS_OK
-import matplotlib.pyplot as plt
+from hyperopt.mongoexp import MongoTrials
+
 import torch
 
 from . import Trainer
 from ..dataset import GeneExpressionDataset
 from ..models import VAE
-
-plt.switch_backend('agg')
 
 
 class UnsupervisedTrainer(Trainer):
@@ -92,6 +91,7 @@ def auto_tuned_scvi_model(
     space: dict = None,
     use_batches: bool = False,
     max_evals: int = 10,
+    parallel: bool = False,
     verbose: bool = True,
 ) -> (Type[Trainer], Trials):
     """Perform automatic hyperparameter optimization of an scVI model
@@ -99,6 +99,7 @@ def auto_tuned_scvi_model(
     Trials object contains hyperparameter space and loss history for each trial.
     We provide a default hyperparameter search space (see source code),
     but we recommend the user to build a custom one for each application.
+    Convention: fixed parameters (no default) have precedence over tunable parameters (default).
 
     :param gene_dataset: scVI gene dataset
     :param model_class: scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
@@ -183,8 +184,12 @@ def auto_tuned_scvi_model(
     )
 
     # run hyperoptimization
-    trials = Trials()
-    best = fmin(
+    trials = MongoTrials(
+        'mongo://localhost:1234/scvi_db/jobs',
+        exp_key='exp1'
+    ) if parallel else Trials()
+
+    _ = fmin(
         objective_hyperopt,
         space=space,
         algo=tpe.suggest,
@@ -213,6 +218,7 @@ def _objective_function(
 ) -> Union[Dict[str, Any], Type[VAE]]:
     """Objective function for automatic hyperparameter optimization.
     Train a scVI model and return the best value of the early-stopping metric (e.g, log-likelihood).
+    Convention: fixed parameters (no default) have precedence over tunable parameters (default).
 
     :param space: dict containing up to three sub-dicts with keys 'model_tunable_kwargs',
     'trainer_tunable_kwargs' or 'train_func_tunable_kwargs'.
@@ -245,11 +251,11 @@ def _objective_function(
         print(train_func_tunable_kwargs)
 
     # define model
-    model_specific_kwargs.update(model_tunable_kwargs)
+    model_tunable_kwargs.update(model_specific_kwargs)
     model = model_class(
         n_input=gene_dataset.nb_genes,
         n_batch=gene_dataset.n_batches * use_batches,
-        **model_specific_kwargs,
+        **model_tunable_kwargs,
     )
 
     # add hardcoded parameters
@@ -262,11 +268,11 @@ def _objective_function(
         trainer_specific_kwargs['frequency'] = 1
 
     # define trainer
-    trainer_specific_kwargs.update(trainer_tunable_kwargs)
+    trainer_tunable_kwargs.update(trainer_specific_kwargs)
     trainer = trainer_class(
         model,
         gene_dataset,
-        **trainer_specific_kwargs,
+        **trainer_tunable_kwargs,
     )
 
     # redirect scVI progress bar to null because of incompatibility with hyperopt
@@ -275,8 +281,8 @@ def _objective_function(
     sys.stdout = f
 
     # train model
-    train_func_specific_kwargs.update(train_func_tunable_kwargs)
-    trainer.train(**train_func_specific_kwargs)
+    train_func_tunable_kwargs.update(train_func_specific_kwargs)
+    trainer.train(**train_func_tunable_kwargs)
 
     # reinstate orignial stdout
     sys.stdout = orig_stdout
