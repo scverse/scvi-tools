@@ -9,11 +9,14 @@ from typing import Any, Dict, Type, Union
 from hyperopt import fmin, tpe, Trials, hp, STATUS_OK
 from hyperopt.mongoexp import MongoTrials
 
+import matplotlib.pyplot as plt
 import torch
 
 from . import Trainer
 from ..dataset import GeneExpressionDataset
 from ..models import VAE
+
+plt.switch_backend('agg')
 
 
 class UnsupervisedTrainer(Trainer):
@@ -297,7 +300,6 @@ def _objective_function(
             early_stopping_kwargs = trainer_specific_kwargs['early_stopping_kwargs']
             if 'early_stopping_metric' in early_stopping_kwargs:
                 metric = early_stopping_kwargs['early_stopping_metric']
-                metric += '_' + trainer.early_stopping.on
         metric = metric if metric else 'll_test_set'
 
         return {
