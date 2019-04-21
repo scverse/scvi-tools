@@ -1,5 +1,5 @@
-import copy
 from collections import defaultdict
+import copy
 from functools import partial
 from typing import Any, Dict, Type, Union
 
@@ -237,23 +237,6 @@ def _objective_function(
     trainer_tunable_kwargs = space['trainer_tunable_kwargs']
     train_func_tunable_kwargs = space['train_func_tunable_kwargs']
 
-    # add hardcoded parameters
-    # disable scVI progbar
-    trainer_specific_kwargs['show_progbar'] = False
-    if is_best_training:
-        trainer_specific_kwargs['train_size'] = 1.0
-        # no monitoring, will crash otherwise
-        trainer_specific_kwargs['frequency'] = None
-        trainer_specific_kwargs['early_stopping_kwargs'] = None
-    else:
-        # evaluate at each epoch
-        trainer_specific_kwargs['frequency'] = 1
-
-    # merge params with fixed param precedence
-    model_tunable_kwargs.update(model_specific_kwargs)
-    trainer_tunable_kwargs.update(trainer_specific_kwargs)
-    train_func_tunable_kwargs.update(train_func_specific_kwargs)
-
     if verbose and not is_best_training:
         print('Parameters being tested: ')
         print('model:')
@@ -264,13 +247,27 @@ def _objective_function(
         print(train_func_tunable_kwargs)
 
     # define model
+    model_tunable_kwargs.update(model_specific_kwargs)
     model = model_class(
         n_input=gene_dataset.nb_genes,
         n_batch=gene_dataset.n_batches * use_batches,
         **model_tunable_kwargs,
     )
 
+    # add hardcoded parameters
+    if is_best_training:
+        trainer_specific_kwargs['train_size'] = 1.0
+        # no monitoring, will crash otherwise
+        trainer_specific_kwargs['frequency'] = None
+    else:
+        # evaluate at each epoch
+        trainer_specific_kwargs['frequency'] = 1
+
+    # disable scVI progbar
+    trainer_specific_kwargs['show_progbar'] = False
+
     # define trainer
+    trainer_tunable_kwargs.update(trainer_specific_kwargs)
     trainer = trainer_class(
         model,
         gene_dataset,
@@ -278,6 +275,7 @@ def _objective_function(
     )
 
     # train model
+    train_func_tunable_kwargs.update(train_func_specific_kwargs)
     trainer.train(**train_func_tunable_kwargs)
 
     # if training the best model, return model else return criterion
