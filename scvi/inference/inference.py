@@ -1,9 +1,6 @@
 from collections import defaultdict
 import copy
 from functools import partial
-import logging
-import os
-import sys
 from typing import Any, Dict, Type, Union
 
 from hyperopt import fmin, tpe, Trials, hp, STATUS_OK
@@ -124,10 +121,6 @@ def auto_tuned_scvi_model(
         >>> best_trainer, trials = auto_tuned_scvi_parameters(gene_dataset)
         >>> posterior = best_trainer.create_posterior()
     """
-    logging.warning("Because of incompatibility between scVI and Hyperopt progress bar,"
-                    "during training, sys.stdout is redirected to os.devnull"
-                    "For example, you will not see the result of any 'print(..)' "
-                    " during the training process.")
 
     # default specific kwargs
     model_specific_kwargs = model_specific_kwargs if model_specific_kwargs else {}
@@ -270,6 +263,9 @@ def _objective_function(
         # evaluate at each epoch
         trainer_specific_kwargs['frequency'] = 1
 
+    # disable scVI progbar
+    trainer_specific_kwargs['show_progbar'] = False
+
     # define trainer
     trainer_tunable_kwargs.update(trainer_specific_kwargs)
     trainer = trainer_class(
@@ -278,17 +274,9 @@ def _objective_function(
         **trainer_tunable_kwargs,
     )
 
-    # redirect scVI progress bar to null because of incompatibility with hyperopt
-    f = open(os.devnull, 'w')
-    orig_stdout = sys.stdout
-    sys.stdout = f
-
     # train model
     train_func_tunable_kwargs.update(train_func_specific_kwargs)
     trainer.train(**train_func_tunable_kwargs)
-
-    # reinstate orignial stdout
-    sys.stdout = orig_stdout
 
     # if training the best model, return model else return criterion
     if is_best_training:
@@ -300,6 +288,7 @@ def _objective_function(
             early_stopping_kwargs = trainer_specific_kwargs['early_stopping_kwargs']
             if 'early_stopping_metric' in early_stopping_kwargs:
                 metric = early_stopping_kwargs['early_stopping_metric']
+                metric += '_' + trainer.early_stopping.on
         metric = metric if metric else 'll_test_set'
 
         return {
