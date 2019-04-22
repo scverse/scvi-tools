@@ -1,4 +1,5 @@
 import copy
+import os
 import subprocess
 
 from collections import defaultdict
@@ -165,7 +166,7 @@ def auto_tuned_scvi_model(
 
     if verbose:
         print('Fixed parameters: ')
-        print('model:')
+        print('model: ')
         print(model_specific_kwargs)
         print('trainer: ')
         print(trainer_specific_kwargs)
@@ -192,9 +193,29 @@ def auto_tuned_scvi_model(
         'mongo://localhost:1234/scvi_db/jobs',
         exp_key=exp_key
     ) if parallel else Trials()
-    # FIXME: what is the right path here?
     if parallel:
-        subprocess.call("./auto_tune_scvi.sh")
+        # run mongo daemon
+        subprocess.run("mongod --dbpath . --port 1234")
+
+        # run on hyperopt worker per gpu available
+        cuda_visible_devices = torch.cuda.device_count()
+        for gpu in cuda_visible_devices:
+            # FIXME: fix relative path to project root
+            sub_env = {
+                "PYTHONPATH": "../../",
+                "CUDA_VISIBLE_DEVICES": str(gpu),
+            }
+            subprocess.run("hyperopt-mongo-worker --mongo=localhost:1234/scvi_db --poll-interval=0.1", env=sub_env)
+        # run one hyperopt worker per cpu
+        for cpu in os.cpu_count():
+            sub_env = {
+                "PYTHONPATH": "../../",
+                "CUDA_VISIBLE_DEVICES": '',
+            }
+            subprocess.run(
+                "hyperopt-mongo-worker -p {cpu} --mongo=localhost:1234/scvi_db --poll-interval=0.1".format(cpu=cpu),
+                env=sub_env,
+            )
 
     # run hyperoptimization
     _ = fmin(
@@ -248,6 +269,10 @@ def _objective_function(
     model_tunable_kwargs = space['model_tunable_kwargs']
     trainer_tunable_kwargs = space['trainer_tunable_kwargs']
     train_func_tunable_kwargs = space['train_func_tunable_kwargs']
+
+    # add use_cuda default
+    if 'use_cuda' not in trainer_specific_kwargs:
+        trainer_specific_kwargs['use_cuda'] = bool(torch.cuda.device_count())
 
     # add hardcoded parameters
     # disable scVI progbar
