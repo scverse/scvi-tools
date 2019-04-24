@@ -137,7 +137,7 @@ def auto_tuned_scvi_model(
     if parallel:
         # filter logs for clarity
         hp_logger = logging.getLogger("hyperopt")
-        hp_logger.addFilter(logging.Filter('scvi'))
+        hp_logger.addFilter(logging.Filter("scvi"))
 
         # run mongo daemon
         mongo_path = os.path.join(".", "mongo")
@@ -267,7 +267,7 @@ def _objective_function(
     if "use_cuda" not in trainer_specific_kwargs:
         trainer_specific_kwargs["use_cuda"] = bool(torch.cuda.device_count())
     if "n_epochs" not in {**train_func_specific_kwargs, **train_func_tunable_kwargs}:
-        train_func_specific_kwargs['n_epochs'] = 1000
+        train_func_specific_kwargs["n_epochs"] = 1000
 
     # add hardcoded parameters
     # disable scVI progbar

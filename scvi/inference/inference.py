@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import torch
 
 from scvi.inference import Trainer
-from scvi.models import VAE
 
 plt.switch_backend('agg')
 
