@@ -91,6 +91,8 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
         self.n_batches = n_batches
         self.n_genes_total = n_genes_total
 
+        labels = np.ones((n_batches, batch_size, 1))
+
         # For each cell cluster, some genes have a high expression, the rest
         # has a low expression. The scope of high expression genes "moves"
         # with the cluster
@@ -106,9 +108,9 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
             exprs = np.random.poisson(lam_0 * weights, size=(n_batches, n_cells_cluster,
                                                              n_genes_total))
             expression_mat[:, cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster, :] = exprs
-        # Apply dropout depending on the mode
+            labels[:, cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster, :] = cluster
 
-        labels = np.random.randint(0, n_labels, size=(n_batches, batch_size, 1))
+        # Apply dropout depending on the mode
 
         new_data = self.mask(expression_mat)
 

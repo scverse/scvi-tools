@@ -95,6 +95,16 @@ def test_synthetic_2():
                                                                                'save_best_state_metric': 'll'})
     trainer_synthetic_vaec.train(n_epochs=2)
 
+def test_synthetic_corr_labels():
+
+    n_clusters = 5
+    dataset = SyntheticDatasetCorr()
+
+    labels = np.unique(dataset.labels)
+
+    assert(labels == np.arange(n_clusters)).all()
+
+
 
 def test_synthetic_corr_zeros():
     nb_data = SyntheticDatasetCorr()
