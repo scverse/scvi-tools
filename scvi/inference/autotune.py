@@ -99,6 +99,7 @@ def auto_tuned_scvi_model(
             "n_hidden": hp.choice("n_hidden", [64, 128, 256]),
             "n_layers": 1 + hp.randint("n_layers", 5),
             "dropout_rate": hp.uniform("dropout_rate", 0.1, 0.9),
+            "reconstruction_loss": hp.choice("reconstruction_loss", ["zinb", "nb"]),
         },
         "train_func_tunable_kwargs": {
             "lr": hp.choice("lr", [0.01, 0.001, 0.0001]),
@@ -208,6 +209,7 @@ def auto_tuned_scvi_model(
         algo=tpe.suggest,
         max_evals=max_evals,
         trials=trials,
+        show_progressbar=parallel,  # progbar useless in parallel mode
     )
 
     # kill all subprocesses
