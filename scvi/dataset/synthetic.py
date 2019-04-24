@@ -44,12 +44,11 @@ class SyntheticRandomDataset(GeneExpressionDataset):  # The exact random paramet
         )
 
 
-class SyntheticDatasetCorrelated(GeneExpressionDataset):
+class SyntheticDatasetCorr(GeneExpressionDataset):
     def __init__(self, n_cells_cluster=100, n_clusters=5,
                  n_genes_high=15, n_genes_total=50,
                  weight_high=0.1, weight_low=0.01,
-                 lam_0=100., p_dropout=0.2,
-                 n_batches=1, n_labels=1, mode='mixed', ratio_genes_zi=0.5):
+                 lam_0=100., n_batches=1, n_labels=1, mode='mixed'):
         """
 
         :param n_cells_cluster: Number of cells in each cluster
@@ -86,7 +85,11 @@ class SyntheticDatasetCorrelated(GeneExpressionDataset):
 
         # Generate data before dropout
         batch_size = n_cells_cluster * n_clusters
-        data = np.ones((n_batches, batch_size, n_genes_total))
+        expression_mat = np.ones((n_batches, batch_size, n_genes_total))
+
+        self.batch_size = batch_size
+        self.n_batches = n_batches
+        self.n_genes_total = n_genes_total
 
         # For each cell cluster, some genes have a high expression, the rest
         # has a low expression. The scope of high expression genes "moves"
@@ -102,53 +105,53 @@ class SyntheticDatasetCorrelated(GeneExpressionDataset):
 
             exprs = np.random.poisson(lam_0 * weights, size=(n_batches, n_cells_cluster,
                                                              n_genes_total))
-            data[:, cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster, :] = exprs
+            expression_mat[:, cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster, :] = exprs
         # Apply dropout depending on the mode
-        if mode == "zi":
-            mask = np.random.binomial(n=1, p=1 - p_dropout,
-                                      size=(n_batches, batch_size, n_genes_total))
-            newdata = (data * mask)  # We put the batch index first
-        elif mode == 'nb':
-            newdata = data
-        else:
-            assert ratio_genes_zi is not None
-            assert ratio_genes_zi <= 1.
-            n_genes_zi = int(n_genes_total * ratio_genes_zi)
 
-            submask = np.random.binomial(n=1, p=1 - p_dropout,
-                                         size=(n_batches, batch_size, n_genes_zi))
-            mask = np.ones_like(data)
-            random_permutation = np.random.permutation(np.arange(n_genes_total))
-            self.zi_genes_idx = random_permutation[:n_genes_zi]
-            mask[:, :, random_permutation[:n_genes_zi]] = submask
-
-            newdata = data * mask
         labels = np.random.randint(0, n_labels, size=(n_batches, batch_size, 1))
+
+        new_data = self.mask(expression_mat)
+
         super().__init__(
-            *GeneExpressionDataset.get_attributes_from_list(newdata, list_labels=labels),
+            *GeneExpressionDataset.get_attributes_from_list(new_data, list_labels=labels),
             gene_names=np.arange(n_genes_total).astype(np.str))
 
-
-class CorrNBDataset(SyntheticDatasetCorrelated):
-    def __init__(self):
-        super().__init__(mode='nb')
+    def mask(self, data):
+        return data
 
 
-class CorrZINBDataset(SyntheticDatasetCorrelated):
-    def __init__(self):
-        super().__init__(mode='zi')
+class ZISyntheticDatasetCorr(SyntheticDatasetCorr):
+    def __init__(self, dropout_coef=1.0, lam_dropout=1.0, **kwargs):
+        self.dropout_coef = dropout_coef
+        self.lam_dropout = lam_dropout
+        super(ZISyntheticDatasetCorr, self).__init__(**kwargs)
+
+    def mask(self, data):
+        p_dropout = self.dropout_coef * np.exp(-self.lam_dropout * (data**2))
+        # Probability of failure
+        mask = np.random.binomial(n=1, p=1 - p_dropout,
+                                  size=(self.n_batches, self.batch_size, self.n_genes_total))
+        return data * mask
 
 
-class CorrMixed25Dataset(SyntheticDatasetCorrelated):
-    def __init__(self):
-        super().__init__(mode='mixed', ratio_genes_zi=0.25)
+# class MixedSyntheticDatasetCorr(SyntheticDatasetCorr):
+#     def __init__(self, p_dropout=0.2, ratio_genes_zi=0.5, **kwargs):
+#         self.p_dropout = p_dropout
+#         self.ratio_genes_zi = ratio_genes_zi
+#         self.zi_genes_idx = None
+#         super(MixedSyntheticDatasetCorr, self).__init__(**kwargs)
+#
+#     def mask(self, data):
+#         assert self.ratio_genes_zi is not None
+#         assert 0.0 <= self.ratio_genes_zi <= 1.
+#         n_genes_zi = int(self.n_genes_total * self.ratio_genes_zi)
+#
+#         submask = np.random.binomial(n=1, p=1-self.p_dropout,
+#                                      size=(self.n_batches, self.batch_size, n_genes_zi))
+#         mask = np.ones_like(data)
+#         random_permutation = np.random.permutation(np.arange(self.n_genes_total))
+#         self.zi_genes_idx = random_permutation[:n_genes_zi]
+#         mask[:, :, random_permutation[:n_genes_zi]] = submask
+#
+#         return data * mask
 
-
-class CorrMixed50Dataset(SyntheticDatasetCorrelated):
-    def __init__(self):
-        super().__init__(mode='mixed', ratio_genes_zi=0.50)
-
-
-class CorrMixed75Dataset(SyntheticDatasetCorrelated):
-    def __init__(self):
-        super().__init__(mode='mixed', ratio_genes_zi=0.75)
