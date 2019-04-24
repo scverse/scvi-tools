@@ -3,7 +3,6 @@ from .trainer import Trainer
 from .inference import (
     UnsupervisedTrainer,
     AdapterTrainer,
-    auto_tuned_scvi_model
 )
 from .annotation import (
     JointSemiSupervisedTrainer,
@@ -12,6 +11,7 @@ from .annotation import (
     ClassifierTrainer
 )
 from .fish import TrainerFish
+from .autotune import auto_tuned_scvi_model
 
 __all__ = ['Trainer',
            'Posterior',
