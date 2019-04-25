@@ -5,6 +5,7 @@ import os
 
 from collections import defaultdict
 from functools import partial
+from logging.handlers import MemoryHandler
 from subprocess import Popen
 from typing import Any, Dict, Type, Union
 
@@ -20,6 +21,10 @@ from ..models import VAE
 
 
 RUNNING_PROCESSES = []
+
+# initialize scVI logger
+logging.basicConfig()
+logger = logging.getLogger(__name__)
 
 
 # Kill all subprocesses if parent dies
@@ -43,6 +48,7 @@ def auto_tuned_scvi_model(
     verbose: bool = True,
     save_path: str = ".",
     use_cpu: bool = False,
+    n_worker_per_gpu: int = 1,
 ) -> (Type[Trainer], Trials):
     """Perform automatic hyperparameter optimization of an scVI model
     and return best model and hyperopt Trials object.
@@ -107,11 +113,10 @@ def auto_tuned_scvi_model(
     }
 
     # logging
-    logger = logging.getLogger(__name__)
     if verbose:
-        logger.setLevel(logging.DEBUG)
+        logger.setLevel(logging.INFO)
 
-    logger.debug(
+    logger.info(
         "Fixed parameters: \n"
         "model: \n"
         + str(model_specific_kwargs) + "\n"
@@ -135,14 +140,15 @@ def auto_tuned_scvi_model(
         }
     )
     if parallel:
-        # filter logs for clarity
-        hp_logger = logging.getLogger("hyperopt")
+        # filter out logs for clarity
+        hp_logger = logging.getLogger("hyperopt.mongoexp")
         hp_logger.addFilter(logging.Filter("scvi"))
 
         # run mongo daemon
         mongo_path = os.path.join(os.path.abspath("."), "mongo")
         if not os.path.exists(mongo_path):
             os.makedirs(mongo_path)
+        mongo_logfile = open(os.path.join(mongo_path, "mongo_logfile"), "w")
         RUNNING_PROCESSES.append(
             Popen(
                 [
@@ -151,34 +157,36 @@ def auto_tuned_scvi_model(
                     "--dbpath={path}".format(path=mongo_path),
                     "--port=1234",
                 ],
+                stdout=mongo_logfile,
             )
         )
 
         # run one hyperopt worker per gpu available
         for gpu in range(torch.cuda.device_count()):
-            sub_env = {
-                "PYTHONPATH": ".",
-                "CUDA_VISIBLE_DEVICES": str(gpu),
-                "WORKER_NAME": "worker_gpu_{i}".format(i=gpu),
-            }
-            sub_env = {**os.environ, **sub_env}
-            RUNNING_PROCESSES.append(
-                Popen(
-                    [
-                        "hyperopt-mongo-worker",
-                        "--mongo=localhost:1234/scvi_db",
-                        "--poll-interval=0.1",
-                        "--max-consecutive-failures=1",
-                        "--reserve-timeout=10.0",
-                    ],
-                    env=sub_env,
+            for i in range(n_worker_per_gpu):
+                sub_env = {
+                    "PYTHONPATH": ".",
+                    "CUDA_VISIBLE_DEVICES": str(gpu),
+                    "WORKER_NAME": "worker_gpu_{i}".format(i=str(gpu) + ":" + str(i)),
+                }
+                sub_env = {**os.environ, **sub_env}
+                RUNNING_PROCESSES.append(
+                    Popen(
+                        [
+                            "hyperopt-mongo-worker",
+                            "--mongo=localhost:1234/scvi_db",
+                            "--poll-interval=0.1",
+                            "--max-consecutive-failures=1",
+                            "--reserve-timeout=10.0",
+                        ],
+                        env=sub_env,
+                    )
                 )
-            )
 
         # run one hyperopt worker per cpu (though not specifically assigned)
         # minus two to prevent overloading loss
-        # FIXME set cpu affinity and use available CPUs not all
-        for cpu in range(min(0, os.cpu_count() * use_cpu - 2)):
+        # FIXME set cpu affinity and use all existing CPUs minus one
+        for cpu in range(max(0, os.cpu_count() * use_cpu - 1)):
             sub_env = {
                 "PYTHONPATH": ".",
                 "CUDA_VISIBLE_DEVICES": "",
@@ -214,8 +222,9 @@ def auto_tuned_scvi_model(
         show_progressbar=not parallel,  # progbar useless in parallel mode
     )
 
-    # kill all subprocesses
+    # kill all subprocesses and close logfile
     map(lambda p: p.terminate(), RUNNING_PROCESSES)
+    mongo_logfile.close()
 
     # return best model, trained
     best_space = trials.best_trial["result"]["space"]
@@ -291,10 +300,11 @@ def _objective_function(
     train_func_tunable_kwargs.update(train_func_specific_kwargs)
 
     if not is_best_training:
-        logger = logging.getLogger(__name__)
-        logger.debug(
-            "Worker : {name}".format(name=os.environ["WORKER_NAME"])
-            + "Parameters being tested: \n"
+        # FIXME had to do info level because hyperopt basicConfig
+        # is info level in MongoWorker
+        logger.info(
+            "Worker : {name}".format(name=os.environ["WORKER_NAME"]) + "\n"
+            "Parameters being tested: \n"
             "model: \n"
             + str(model_tunable_kwargs) + "\n"
             + "trainer: \n"
