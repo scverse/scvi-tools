@@ -159,6 +159,7 @@ def auto_tuned_scvi_model(
             sub_env = {
                 "PYTHONPATH": ".",
                 "CUDA_VISIBLE_DEVICES": str(gpu),
+                "WORKER_NAME": "worker_gpu_{i}".format(i=gpu),
             }
             sub_env = {**os.environ, **sub_env}
             RUNNING_PROCESSES.append(
@@ -177,10 +178,11 @@ def auto_tuned_scvi_model(
         # run one hyperopt worker per cpu (though not specifically assigned)
         # minus two to prevent overloading loss
         # FIXME set cpu affinity and use available CPUs not all
-        for _ in range(min(0, os.cpu_count() * use_cpu - 2)):
+        for cpu in range(min(0, os.cpu_count() * use_cpu - 2)):
             sub_env = {
                 "PYTHONPATH": ".",
                 "CUDA_VISIBLE_DEVICES": "",
+                "WORKER_NAME": "worker_cpu_{i}".format(i=cpu),
             }
             sub_env = {**os.environ, **sub_env}
             RUNNING_PROCESSES.append(
@@ -291,13 +293,14 @@ def _objective_function(
     if not is_best_training:
         logger = logging.getLogger(__name__)
         logger.debug(
-            "Fixed parameters: \n"
+            "Worker : {name}".format(name=os.environ["WORKER_NAME"])
+            + "Parameters being tested: \n"
             "model: \n"
-            + str(model_specific_kwargs) + "\n"
+            + str(model_tunable_kwargs) + "\n"
             + "trainer: \n"
-            + str(trainer_specific_kwargs) + "\n"
+            + str(trainer_tunable_kwargs) + "\n"
             + "train method: \n"
-            + str(train_func_specific_kwargs) + "\n"
+            + str(train_func_tunable_kwargs) + "\n"
         )
 
     # define model
