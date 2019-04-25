@@ -121,9 +121,9 @@ def test_notebooks_annotation(save_path):
         plt.close('all')
 
     except BaseException:
-            raise
+        raise
     finally:
-            os.chdir(path=base_path)
+        os.chdir(path=base_path)
 
 
 def test_notebook_smfish(save_path):
@@ -135,9 +135,9 @@ def test_notebook_smfish(save_path):
         plt.close('all')
 
     except BaseException:
-            raise
+        raise
     finally:
-            os.chdir(path=base_path)
+        os.chdir(path=base_path)
 
 
 def test_notebooks_dataloading(save_path):
@@ -149,9 +149,9 @@ def test_notebooks_dataloading(save_path):
         plt.close('all')
 
     except BaseException:
-            raise
+        raise
     finally:
-            os.chdir(path=base_path)
+        os.chdir(path=base_path)
 
 
 def test_notebooks_basictutorial(save_path):
@@ -163,9 +163,9 @@ def test_notebooks_basictutorial(save_path):
         plt.close('all')
 
     except BaseException:
-            raise
+        raise
     finally:
-            os.chdir(path=base_path)
+        os.chdir(path=base_path)
 
 
 def test_notebooks_reproducibility(save_path):
@@ -177,9 +177,9 @@ def test_notebooks_reproducibility(save_path):
         plt.close('all')
 
     except BaseException:
-            raise
+        raise
     finally:
-            os.chdir(path=base_path)
+        os.chdir(path=base_path)
 
 
 def test_notebooks_harmonization(save_path):
@@ -191,9 +191,9 @@ def test_notebooks_harmonization(save_path):
         plt.close("all")
 
     except BaseException:
-            raise
+        raise
     finally:
-            os.chdir(path=base_path)
+        os.chdir(path=base_path)
 
 
 def test_notebooks_scanpy_api(save_path):
@@ -206,6 +206,6 @@ def test_notebooks_scanpy_api(save_path):
         plt.close("all")
 
     except BaseException:
-            raise
+        raise
     finally:
-            os.chdir(path=base_path)
+        os.chdir(path=base_path)
