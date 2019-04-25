@@ -40,18 +40,23 @@ def test_zeros_classif():
                 sample_batch, batch_index)
 
             is_technical_batch = torch.zeros((sample_batch.size(0), sample_batch.size(1), 100))
+            is_bio_or_tech_batch = torch.zeros_like(is_technical_batch)
             for n_mc_sim in range(100):
                 p = px_rate / (px_rate + px_dispersion)
                 r = px_dispersion
                 l_train = torch.distributions.Gamma(concentration=r, rate=(1 - p) / p).sample()
                 l_train = torch.clamp(l_train, max=1e18)
                 X = torch.distributions.Poisson(l_train).sample()
+                is_biological_batch = (X == 0.0).float()
                 p_zero = 1.0 / (1.0 + torch.exp(-px_dropout))
                 random_prob = torch.rand_like(p_zero)
                 X[random_prob <= p_zero] = 0
                 is_technical_batch[:, :, n_mc_sim] = (random_prob <= p_zero)
-                print(torch.mean(is_technical_batch, dim=(-1)))
-            is_technical_batch = torch.mean(is_technical_batch, dim=(-1)) >= 0.5
+                is_bio_or_tech_batch[:, :, n_mc_sim] = torch.max(is_technical_batch[:, :, n_mc_sim].cpu(),
+                                                                 is_biological_batch.cpu())
+
+            is_technical_batch = torch.sum(is_technical_batch, dim=(-1)) / torch.sum(is_bio_or_tech_batch, dim=(-1))
+            is_technical_batch = is_technical_batch > .5
             print(px_dropout.min(), px_dropout.max())
             is_technical_infer.append(is_technical_batch.cpu().numpy())
     is_technical_infer_all = np.concatenate(is_technical_infer)
