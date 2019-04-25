@@ -95,24 +95,19 @@ def test_synthetic_2():
                                                                                'save_best_state_metric': 'll'})
     trainer_synthetic_vaec.train(n_epochs=2)
 
+
 def test_synthetic_corr_labels():
-
-    n_clusters = 5
     dataset = SyntheticDatasetCorr()
-
+    n_clusters = dataset.n_clusters
     labels = np.unique(dataset.labels)
-
     assert(labels == np.arange(n_clusters)).all()
-
 
 
 def test_synthetic_corr_zeros():
     nb_data = SyntheticDatasetCorr()
     zi_data = ZISyntheticDatasetCorr()
-
     # Test hierarchy of zeros
     # nb is not zero inflated
-    # mixed_X is zero inflated for X% of genes
     # zi is zero inflated for all genes
     # We expect the number of zeros to organize accordingly (since all other parameters are fixed)
     zi_zeros_frac = (zi_data.X == 0).mean()
