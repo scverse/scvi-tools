@@ -85,7 +85,7 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
 
         # Generate data before dropout
         batch_size = n_cells_cluster * n_clusters
-        expression_mat = np.ones((n_batches, batch_size, n_genes_total))
+        self.exprs_param = np.ones((n_batches, batch_size, n_genes_total))
 
         self.batch_size = batch_size
         self.n_batches = n_batches
@@ -103,15 +103,14 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
             weights[ind_first_gene_cluster:ind_last_high_gene_cluster] = weight_high
             weights /= weights.sum()
 
-            exprs = np.random.poisson(lam_0 * weights, size=(n_batches, n_cells_cluster,
-                                                             n_genes_total))
-            expression_mat[:, cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster, :] = exprs
+            self.exprs_param[:, cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster, :] = lam_0 * weights
         # Apply dropout depending on the mode
+        expression_mat = np.random.poisson(self.exprs_param)
 
         labels = np.random.randint(0, n_labels, size=(n_batches, batch_size, 1))
-
+        print((expression_mat == 0).sum())
         new_data = self.mask(expression_mat)
-
+        print((new_data== 0).sum())
         super().__init__(
             *GeneExpressionDataset.get_attributes_from_list(new_data, list_labels=labels),
             gene_names=np.arange(n_genes_total).astype(np.str))
@@ -121,37 +120,17 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
 
 
 class ZISyntheticDatasetCorr(SyntheticDatasetCorr):
-    def __init__(self, dropout_coef=1.0, lam_dropout=1.0, **kwargs):
+    def __init__(self, dropout_coef=0.5, lam_dropout=1.0, **kwargs):
+        assert dropout_coef < 1
         self.dropout_coef = dropout_coef
         self.lam_dropout = lam_dropout
+        self.is_technical = None
         super(ZISyntheticDatasetCorr, self).__init__(**kwargs)
 
     def mask(self, data):
-        p_dropout = self.dropout_coef * np.exp(-self.lam_dropout * (data**2))
+        p_dropout = self.dropout_coef * np.exp(-self.lam_dropout * (self.exprs_param**2))
         # Probability of failure
         mask = np.random.binomial(n=1, p=1 - p_dropout,
                                   size=(self.n_batches, self.batch_size, self.n_genes_total))
-        return data * mask
-
-
-# class MixedSyntheticDatasetCorr(SyntheticDatasetCorr):
-#     def __init__(self, p_dropout=0.2, ratio_genes_zi=0.5, **kwargs):
-#         self.p_dropout = p_dropout
-#         self.ratio_genes_zi = ratio_genes_zi
-#         self.zi_genes_idx = None
-#         super(MixedSyntheticDatasetCorr, self).__init__(**kwargs)
-#
-#     def mask(self, data):
-#         assert self.ratio_genes_zi is not None
-#         assert 0.0 <= self.ratio_genes_zi <= 1.
-#         n_genes_zi = int(self.n_genes_total * self.ratio_genes_zi)
-#
-#         submask = np.random.binomial(n=1, p=1-self.p_dropout,
-#                                      size=(self.n_batches, self.batch_size, n_genes_zi))
-#         mask = np.ones_like(data)
-#         random_permutation = np.random.permutation(np.arange(self.n_genes_total))
-#         self.zi_genes_idx = random_permutation[:n_genes_zi]
-#         mask[:, :, random_permutation[:n_genes_zi]] = submask
-#
-#         return data * mask
-
+        self.is_technical = (mask == 0)
+        return data * mask.astype(np.float32)
