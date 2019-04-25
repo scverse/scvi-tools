@@ -175,8 +175,9 @@ def auto_tuned_scvi_model(
             )
 
         # run one hyperopt worker per cpu (though not specifically assigned)
+        # minus two to prevent overloading loss
         # FIXME set cpu affinity and use available CPUs not all
-        for cpu in range(os.cpu_count() * cpu):
+        for cpu in min(0, range(os.cpu_count() * cpu - 2):
             sub_env = {
                 "PYTHONPATH": ".",
                 "CUDA_VISIBLE_DEVICES": "",
