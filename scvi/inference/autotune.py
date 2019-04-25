@@ -141,7 +141,7 @@ def auto_tuned_scvi_model(
         hp_logger.addFilter(logging.Filter("scvi"))
 
         # run mongo daemon
-        mongo_path = os.path.join(".", "mongo")
+        mongo_path = os.path.join(os.path.abspath("."), "mongo")
         if not os.path.exists(mongo_path):
             os.makedirs(mongo_path)
         RUNNING_PROCESSES.append(
@@ -209,7 +209,7 @@ def auto_tuned_scvi_model(
         algo=tpe.suggest,
         max_evals=max_evals,
         trials=trials,
-        show_progressbar=parallel,  # progbar useless in parallel mode
+        show_progressbar=not parallel,  # progbar useless in parallel mode
     )
 
     # kill all subprocesses
