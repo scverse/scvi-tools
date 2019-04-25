@@ -81,7 +81,7 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
         # Generate data before dropout
         batch_size = n_cells_cluster * n_clusters
         self.exprs_param = np.ones((n_batches, batch_size, n_genes_total))
-
+        self.n_clusters = n_clusters
         self.batch_size = batch_size
         self.n_batches = n_batches
         self.n_genes_total = n_genes_total
