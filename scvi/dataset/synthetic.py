@@ -91,10 +91,16 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
         self.n_batches = n_batches
         self.n_genes_total = n_genes_total
 
+        labels = np.ones((n_batches, batch_size, 1))
+
         # For each cell cluster, some genes have a high expression, the rest
         # has a low expression. The scope of high expression genes "moves"
         # with the cluster
         for cluster in range(n_clusters):
+
+            labels[:, cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster, :] = cluster
+
+
             ind_first_gene_cluster = cluster * (n_genes_total // n_clusters)
             ind_last_high_gene_cluster = ind_first_gene_cluster + n_genes_high
 
@@ -104,11 +110,10 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
             weights /= weights.sum()
 
             self.exprs_param[:, cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster, :] = lam_0 * weights
+
         # Apply dropout depending on the mode
         expression_mat = np.random.poisson(self.exprs_param)
 
-        labels = np.random.randint(0, n_labels, size=(n_batches, batch_size, 1))
-        print((expression_mat == 0).sum())
         new_data = self.mask(expression_mat)
         print((new_data== 0).sum())
         super().__init__(
