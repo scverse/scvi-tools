@@ -42,7 +42,7 @@ def auto_tuned_scvi_model(
     exp_key: str = "exp1",
     verbose: bool = True,
     save_path: str = ".",
-    cpu: bool = False,
+    use_cpu: bool = False,
 ) -> (Type[Trainer], Trials):
     """Perform automatic hyperparameter optimization of an scVI model
     and return best model and hyperopt Trials object.
@@ -69,7 +69,7 @@ def auto_tuned_scvi_model(
     If already exists in db, hyperopt will run a numebr of trainings equal to
     the difference between current and previous max_evals.
     :param verbose: if True, output parameters used for each training to stdout.
-    :param cpu: if True, also launch cpu-only workers
+    :param use_cpu: if True, also launch cpu-only workers
     :return: Trainer object for the best model and Trials object containing logs for the different runs.
 
     Examples:
@@ -177,7 +177,7 @@ def auto_tuned_scvi_model(
         # run one hyperopt worker per cpu (though not specifically assigned)
         # minus two to prevent overloading loss
         # FIXME set cpu affinity and use available CPUs not all
-        for cpu in min(0, range(os.cpu_count() * cpu - 2):
+        for _ in range(min(0, os.cpu_count() * use_cpu - 2)):
             sub_env = {
                 "PYTHONPATH": ".",
                 "CUDA_VISIBLE_DEVICES": "",
