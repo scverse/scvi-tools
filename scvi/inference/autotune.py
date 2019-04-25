@@ -25,7 +25,7 @@ RUNNING_PROCESSES = []
 # Kill all subprocesses if parent dies
 @atexit.register
 def cleanup():
-    map(lambda p: p.kill(), RUNNING_PROCESSES)
+    map(lambda p: p.terminate(), RUNNING_PROCESSES)
 
 
 def auto_tuned_scvi_model(
@@ -132,7 +132,6 @@ def auto_tuned_scvi_model(
             "trainer_specific_kwargs": trainer_specific_kwargs,
             "train_func_specific_kwargs": train_func_specific_kwargs,
             "use_batches": use_batches,
-            "verbose": verbose,
         }
     )
     if parallel:
@@ -166,7 +165,7 @@ def auto_tuned_scvi_model(
                 Popen(
                     [
                         "hyperopt-mongo-worker",
-                        "--mongo=localhost:1234/scvi_db"
+                        "--mongo=localhost:1234/scvi_db",
                         "--poll-interval=0.1",
                         "--max-consecutive-failures=1",
                         "--reserve-timeout=10.0",
@@ -213,7 +212,7 @@ def auto_tuned_scvi_model(
     )
 
     # kill all subprocesses
-    map(lambda p: p.kill(), RUNNING_PROCESSES)
+    map(lambda p: p.terminate(), RUNNING_PROCESSES)
 
     # return best model, trained
     best_space = trials.best_trial["result"]["space"]
