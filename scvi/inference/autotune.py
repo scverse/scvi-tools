@@ -86,7 +86,9 @@ def auto_tuned_scvi_model(
     # default specific kwargs
     model_specific_kwargs = model_specific_kwargs if model_specific_kwargs else {}
     trainer_specific_kwargs = trainer_specific_kwargs if trainer_specific_kwargs else {}
-    train_func_specific_kwargs = train_func_specific_kwargs if train_func_specific_kwargs else {}
+    train_func_specific_kwargs = (
+        train_func_specific_kwargs if train_func_specific_kwargs else {}
+    )
 
     # default early stopping
     if "early_stopping_kwargs" not in trainer_specific_kwargs:
@@ -99,18 +101,20 @@ def auto_tuned_scvi_model(
         trainer_specific_kwargs["early_stopping_kwargs"] = early_stopping_kwargs
 
     # default search space
-    space = space if space else {
-        "model_tunable_kwargs": {
-            "n_latent": 5 + hp.randint("n_latent", 11),  # [5, 15]
-            "n_hidden": hp.choice("n_hidden", [64, 128, 256]),
-            "n_layers": 1 + hp.randint("n_layers", 5),
-            "dropout_rate": hp.uniform("dropout_rate", 0.1, 0.9),
-            "reconstruction_loss": hp.choice("reconstruction_loss", ["zinb", "nb"]),
-        },
-        "train_func_tunable_kwargs": {
-            "lr": hp.choice("lr", [0.01, 0.001, 0.0001]),
-        },
-    }
+    space = (
+        space
+        if space
+        else {
+            "model_tunable_kwargs": {
+                "n_latent": 5 + hp.randint("n_latent", 11),  # [5, 15]
+                "n_hidden": hp.choice("n_hidden", [64, 128, 256]),
+                "n_layers": 1 + hp.randint("n_layers", 5),
+                "dropout_rate": hp.uniform("dropout_rate", 0.1, 0.9),
+                "reconstruction_loss": hp.choice("reconstruction_loss", ["zinb", "nb"]),
+            },
+            "train_func_tunable_kwargs": {"lr": hp.choice("lr", [0.01, 0.001, 0.0001])},
+        }
+    )
 
     # logging
     if verbose:
@@ -119,11 +123,14 @@ def auto_tuned_scvi_model(
     logger.info(
         "Fixed parameters: \n"
         "model: \n"
-        + str(model_specific_kwargs) + "\n"
+        + str(model_specific_kwargs)
+        + "\n"
         + "trainer: \n"
-        + str(trainer_specific_kwargs) + "\n"
+        + str(trainer_specific_kwargs)
+        + "\n"
         + "train method: \n"
-        + str(train_func_specific_kwargs) + "\n"
+        + str(train_func_specific_kwargs)
+        + "\n"
     )
 
     # build a partial objective function restricted to the search space
@@ -137,7 +144,7 @@ def auto_tuned_scvi_model(
             "trainer_specific_kwargs": trainer_specific_kwargs,
             "train_func_specific_kwargs": train_func_specific_kwargs,
             "use_batches": use_batches,
-        }
+        },
     )
     if parallel:
         # filter out logs for clarity
@@ -207,10 +214,11 @@ def auto_tuned_scvi_model(
             )
 
     # instantiate Trials object
-    trials = MongoTrials(
-        "mongo://localhost:1234/scvi_db/jobs",
-        exp_key=exp_key
-    ) if parallel else Trials()
+    trials = (
+        MongoTrials("mongo://localhost:1234/scvi_db/jobs", exp_key=exp_key)
+        if parallel
+        else Trials()
+    )
 
     # run hyperoptimization
     _ = fmin(
@@ -232,7 +240,7 @@ def auto_tuned_scvi_model(
 
     torch.save(
         best_trainer.model.state_dict(),
-        os.path.join(save_path, "best_model_{key}".format(key=exp_key))
+        os.path.join(save_path, "best_model_{key}".format(key=exp_key)),
     )
     with open(os.path.join(save_path, "trials_{key}".format(key=exp_key)), "w") as f:
         f.write(json.dumps(trials))
@@ -306,11 +314,14 @@ def _objective_function(
             "Worker : {name}".format(name=os.environ["WORKER_NAME"]) + "\n"
             "Parameters being tested: \n"
             "model: \n"
-            + str(model_tunable_kwargs) + "\n"
+            + str(model_tunable_kwargs)
+            + "\n"
             + "trainer: \n"
-            + str(trainer_tunable_kwargs) + "\n"
+            + str(trainer_tunable_kwargs)
+            + "\n"
             + "train method: \n"
-            + str(train_func_tunable_kwargs) + "\n"
+            + str(train_func_tunable_kwargs)
+            + "\n"
         )
 
     # define model
@@ -321,11 +332,7 @@ def _objective_function(
     )
 
     # define trainer
-    trainer = trainer_class(
-        model,
-        gene_dataset,
-        **trainer_tunable_kwargs,
-    )
+    trainer = trainer_class(model, gene_dataset, **trainer_tunable_kwargs)
 
     # train model
     trainer.train(**train_func_tunable_kwargs)
