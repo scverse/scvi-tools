@@ -1,13 +1,13 @@
 import atexit
 import logging
 import os
+import pickle
 
 from collections import defaultdict
 from functools import partial
 from subprocess import Popen
 from typing import Any, Dict, Type, Union
 
-import bson
 from hyperopt import fmin, tpe, Trials, hp, STATUS_OK
 from hyperopt.mongoexp import MongoTrials
 
@@ -146,6 +146,10 @@ def auto_tuned_scvi_model(
         },
     )
     if parallel:
+        n_gpus = torch.cuda.device_count()
+        if not n_gpus and not use_cpu:
+            raise ValueError("No GPUs detected by PyTorch and use_cpu is set to False")
+
         # filter out logs for clarity
         hp_logger = logging.getLogger("hyperopt.mongoexp")
         hp_logger.addFilter(logging.Filter("scvi"))
@@ -168,7 +172,7 @@ def auto_tuned_scvi_model(
         )
 
         # run one hyperopt worker per gpu available
-        for gpu in range(torch.cuda.device_count()):
+        for gpu in range(n_gpus):
             for i in range(n_worker_per_gpu):
                 sub_env = {
                     "PYTHONPATH": ".",
@@ -241,8 +245,12 @@ def auto_tuned_scvi_model(
         best_trainer.model.state_dict(),
         os.path.join(save_path, "best_model_{key}".format(key=exp_key)),
     )
+
+    # remove object containing thread.lock (otherwise pickle.dump throws)
+    if hasattr(trials, "handle"):
+        del trials.handle
     with open(os.path.join(save_path, "trials_{key}".format(key=exp_key)), "w") as f:
-        f.write(bson.BSON.encode(trials))
+        pickle.dump(trials, f)
 
     return best_trainer, trials
 
