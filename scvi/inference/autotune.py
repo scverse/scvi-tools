@@ -1,5 +1,4 @@
 import atexit
-import json
 import logging
 import os
 
@@ -8,6 +7,7 @@ from functools import partial
 from subprocess import Popen
 from typing import Any, Dict, Type, Union
 
+import bson
 from hyperopt import fmin, tpe, Trials, hp, STATUS_OK
 from hyperopt.mongoexp import MongoTrials
 
@@ -242,7 +242,7 @@ def auto_tuned_scvi_model(
         os.path.join(save_path, "best_model_{key}".format(key=exp_key)),
     )
     with open(os.path.join(save_path, "trials_{key}".format(key=exp_key)), "w") as f:
-        f.write(json.dumps(trials))
+        f.write(bson.BSON.encode(trials))
 
     return best_trainer, trials
 
