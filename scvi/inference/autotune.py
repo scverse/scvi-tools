@@ -225,14 +225,16 @@ def auto_tuned_scvi_model(
         # run hyperoptimization, in a forked process
         # this allows to terminate if the workers crash
         fmin_kwargs = {
-            "objective_hyperopt": objective_hyperopt,
             "space": space,
             "algo": tpe.suggest,
             "max_evals": max_evals,
             "trials": trials,
             "show_progressbar": False,  # progbar useless in parallel mode
         }
-        fmin_process = Process(target=fmin, kwargs=fmin_kwargs)
+        fmin_process = Process(
+            target=fmin,
+            args=(objective_hyperopt, ),
+            kwargs=fmin_kwargs)
 
         fmin_process.start()
 
