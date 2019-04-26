@@ -2,9 +2,11 @@ import atexit
 import logging
 import os
 import pickle
+import time
 
 from collections import defaultdict
 from functools import partial
+from multiprocessing import Process
 from subprocess import Popen
 from typing import Any, Dict, Type, Union
 
@@ -33,6 +35,7 @@ def cleanup():
 
 
 def auto_tuned_scvi_model(
+    exp_key: str,
     gene_dataset: GeneExpressionDataset,
     model_class: VAE = VAE,
     trainer_class: Trainer = UnsupervisedTrainer,
@@ -41,9 +44,8 @@ def auto_tuned_scvi_model(
     train_func_specific_kwargs: dict = None,
     space: dict = None,
     use_batches: bool = False,
-    max_evals: int = 10,
+    max_evals: int = 100,
     parallel: bool = False,
-    exp_key: str = "exp1",
     verbose: bool = True,
     save_path: str = ".",
     use_cpu: bool = False,
@@ -56,6 +58,7 @@ def auto_tuned_scvi_model(
     but we recommend the user to build a custom one for each application.
     Convention: fixed parameters (no default) have precedence over tunable parameters (default).
 
+    :param exp_key: Name of the experiment in MongoDb.
     :param gene_dataset: scVI gene dataset
     :param model_class: scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
     :param trainer_class: Trainer class (e.g ``UnsupervisedTrainer``)
@@ -70,7 +73,6 @@ def auto_tuned_scvi_model(
     :param use_batches: If False, pass n_batch=0 to model else pass gene_dataset.n_batches
     :param max_evals: Maximum number of trainings.
     :param parallel: If True, use MongoTrials object to run trainings in parallel.
-    :param exp_key: Name of the experiment in MongoDb.
     If already exists in db, hyperopt will run a numebr of trainings equal to
     the difference between current and previous max_evals.
     :param verbose: if True, output parameters used for each training to stdout.
@@ -80,7 +82,6 @@ def auto_tuned_scvi_model(
     Examples:
         >>> gene_dataset = CortexDataset()
         >>> best_trainer, trials = auto_tuned_scvi_parameters(gene_dataset)
-        >>> posterior = best_trainer.create_posterior()
     """
     # default specific kwargs
     model_specific_kwargs = model_specific_kwargs if model_specific_kwargs else {}
@@ -145,7 +146,9 @@ def auto_tuned_scvi_model(
             "use_batches": use_batches,
         },
     )
+
     if parallel:
+        running_workers = []
         n_gpus = torch.cuda.device_count()
         if not n_gpus and not use_cpu:
             raise ValueError("No GPUs detected by PyTorch and use_cpu is set to False")
@@ -156,20 +159,19 @@ def auto_tuned_scvi_model(
 
         # run mongo daemon
         mongo_path = os.path.join(os.path.abspath("."), "mongo")
+        mongo_logfile = open(os.path.join(mongo_path, "mongo_logfile"), "w")
         if not os.path.exists(mongo_path):
             os.makedirs(mongo_path)
-        mongo_logfile = open(os.path.join(mongo_path, "mongo_logfile"), "w")
-        RUNNING_PROCESSES.append(
-            Popen(
-                [
-                    "mongod",
-                    "--quiet",
-                    "--dbpath={path}".format(path=mongo_path),
-                    "--port=1234",
-                ],
-                stdout=mongo_logfile,
-            )
+        mongod_process = Popen(
+            [
+                "mongod",
+                "--quiet",
+                "--dbpath={path}".format(path=mongo_path),
+                "--port=1234",
+            ],
+            stdout=mongo_logfile,
         )
+        RUNNING_PROCESSES.append(mongod_process)
 
         # run one hyperopt worker per gpu available
         for gpu in range(n_gpus):
@@ -180,7 +182,7 @@ def auto_tuned_scvi_model(
                     "WORKER_NAME": "worker_gpu_{i}".format(i=str(gpu) + ":" + str(i)),
                 }
                 sub_env = {**os.environ, **sub_env}
-                RUNNING_PROCESSES.append(
+                running_workers.append(
                     Popen(
                         [
                             "hyperopt-mongo-worker",
@@ -203,7 +205,7 @@ def auto_tuned_scvi_model(
                 "WORKER_NAME": "worker_cpu_{i}".format(i=cpu),
             }
             sub_env = {**os.environ, **sub_env}
-            RUNNING_PROCESSES.append(
+            running_workers.append(
                 Popen(
                     [
                         "hyperopt-mongo-worker",
@@ -215,34 +217,54 @@ def auto_tuned_scvi_model(
                     env=sub_env,
                 )
             )
+        RUNNING_PROCESSES.extend(running_workers)
 
-    # instantiate Trials object
-    trials = (
-        MongoTrials("mongo://localhost:1234/scvi_db/jobs", exp_key=exp_key)
-        if parallel
-        else Trials()
-    )
+        # instantiate Trials object
+        trials = MongoTrials("mongo://localhost:1234/scvi_db/jobs", exp_key=exp_key)
 
-    # run hyperoptimization
-    _ = fmin(
-        objective_hyperopt,
-        space=space,
-        algo=tpe.suggest,
-        max_evals=max_evals,
-        trials=trials,
-        show_progressbar=not parallel,  # progbar useless in parallel mode
-    )
+        # run hyperoptimization, in a forked process
+        # this allows to terminate if the workers crash
+        fmin_kwargs = {
+            "objective_hyperopt": objective_hyperopt,
+            "space": space,
+            "algo": tpe.suggest,
+            "max_evals": max_evals,
+            "trials": trials,
+            "show_progressbar": False,  # progbar useless in parallel mode
+        }
+        fmin_process = Process(target=fmin, kwargs=fmin_kwargs)
 
-    # kill all subprocesses and close logfile
-    map(lambda p: p.terminate(), RUNNING_PROCESSES)
-    mongo_logfile.close()
+        fmin_process.start()
+
+        while fmin_process.is_alive():
+            if all(list(map(lambda x: x.poll(), running_workers))) and parallel:
+                fmin_process.terminate()
+            time.sleep(10)
+
+        # kill all subprocesses and close logfile
+        map(lambda p: p.terminate(), RUNNING_PROCESSES)
+        mongo_logfile.close()
+
+    else:
+        trials = Trials()
+
+        # run hyperoptimization
+        _, trials = fmin(
+            objective_hyperopt,
+            space=space,
+            algo=tpe.suggest,
+            max_evals=max_evals,
+            trials=trials,
+        )
 
     # return best model, trained
     best_space = trials.best_trial["result"]["space"]
     best_trainer = objective_hyperopt(best_space, is_best_training=True)
 
     # pickle trainer and save model (overkill?)
-    with open(os.path.join(save_path, "best_trainer_{key}".format(key=exp_key)), "wb") as f:
+    with open(
+        os.path.join(save_path, "best_trainer_{key}".format(key=exp_key)), "wb"
+    ) as f:
         pickle.dump(best_trainer, f)
     torch.save(
         best_trainer.model.state_dict(),
@@ -321,7 +343,7 @@ def _objective_function(
         # FIXME had to do info level because hyperopt basicConfig
         # is info level in MongoWorker
         logger.info(
-            "Worker : {name}".format(name=os.environ["WORKER_NAME"]) + "\n"
+            "Worker : {name}".format(name=os.environ.get("WORKER_NAME", "0")) + "\n"
             "Parameters being tested: \n"
             "model: \n"
             + str(model_tunable_kwargs)
