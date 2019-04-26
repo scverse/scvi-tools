@@ -108,7 +108,7 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
             self.exprs_param[:, cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster,
             :] = lam_0 * weights
 
-        # Apply dropout depending on the mode
+        print('Poisson Params extremal values: ', self.exprs_param.min(), self.exprs_param.max())
         expression_mat = np.random.poisson(self.exprs_param)
 
         new_data = self.mask(expression_mat)
