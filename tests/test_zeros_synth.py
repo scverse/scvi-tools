@@ -3,7 +3,7 @@ import torch
 
 from scvi.models import VAE
 from scvi.inference import UnsupervisedTrainer
-from scvi.dataset.synthetic import ZISyntheticDatasetCorr, SyntheticDatasetCorr
+from scvi.dataset.synthetic import ZISyntheticDatasetCorr, SyntheticDatasetCorr, ZISyntheticDatasetCorrDistinct
 from sklearn.metrics import confusion_matrix
 
 from zifa_full import VAE as ZifaVae
@@ -23,7 +23,7 @@ def test_enough_zeros():
     :return:
     """
 
-    nb_data = ZISyntheticDatasetCorr(lam_0=180, n_cells_cluster=2000,
+    nb_data = ZISyntheticDatasetCorr(lam_0=180, n_cells_cluster=500,
                                      weight_high=6, weight_low=3.5, n_genes_high=35, n_genes_total=50)
     is_technical_mask = nb_data.is_technical.squeeze()
     nb_data_zeros = nb_data.X == 0
@@ -45,12 +45,14 @@ def test_zeros_classif():
     rest of the zeros
     :return: None
     """
-    torch.manual_seed(seed=10)
+    torch.manual_seed(seed=42)
     # Step 1: Generating dataset and figuring out ground truth values
-    synth_data = ZISyntheticDatasetCorr(lam_0=180, n_cells_cluster=2000,
-                                        weight_high=6,  # 1.9,
-                                        weight_low=3.5, n_genes_high=35,
-                                        n_genes_total=50, dropout_coef=.99, lam_dropout=0.8)
+    # synth_data = ZISyntheticDatasetCorrDistinct(lam_0=180, n_cells_cluster=2000,
+    #                                             weight_high=2, weight_low=1, n_genes_high=20,
+    #                                             n_genes_total=50)
+    synth_data = ZISyntheticDatasetCorrDistinct(lam_0=50, n_cells_cluster=100,
+                                                weight_high=4, weight_low=1, n_genes_high=35,
+                                                n_genes_total=50)
     # synth_data = SyntheticDatasetCorr(lam_0=50, weight_low=1e-2, weight_high=4e-2,
     #                                   n_genes_high=25, n_genes_total=50, n_clusters=3,)
     zeros_mask = (synth_data.X == 0).astype(bool)
@@ -59,22 +61,23 @@ def test_zeros_classif():
     print("Poisson Parameter threshold used for classif: ", poisson_param_thresh)
 
     is_technical_all = synth_data.is_technical[0, :]
-    is_technical_gt = is_technical_all[zeros_mask]  # 1d array ground-truth of zero type
+    is_technical_gt = is_technical_all[zeros_mask]  # 1d array
 
     # Step 2: Training scVI model
     # mdl = VAE(n_input=synth_data.nb_genes, n_batch=synth_data.n_batches,
     #           reconstruction_loss='zinb')
-    mdl = ZifaVae(n_genes=synth_data.nb_genes,
-                  n_batch=synth_data.n_batches, reconstruction_loss='zinb')
+    mdl = ZifaVae(n_genes=synth_data.nb_genes, n_batch=synth_data.n_batches,
+                  reconstruction_loss='zinb')
+
     trainer = UnsupervisedTrainer(model=mdl, gene_dataset=synth_data, use_cuda=True, train_size=0.8,
                                   frequency=1,
                                   # early_stopping_kwargs={
                                   #    'early_stopping_metric': 'll',
                                   #    'save_best_state_metric': 'll',
                                   #    'patience': 15,
-                                  #    'threshold': 3}
+                                  #    'threshold': 3,}
                                   )
-    trainer.train(n_epochs=150, lr=1e-3)
+    trainer.train(n_epochs=250, lr=1e-3)
     full = trainer.create_posterior(trainer.model, synth_data,
                                     indices=np.arange(len(synth_data)))
 
@@ -90,27 +93,50 @@ def test_zeros_classif():
             p_zero = 1.0 / (1.0 + torch.exp(-px_dropout))
             p_dropout_infered.append(p_zero.cpu().numpy())
 
-            l_train_batch = torch.zeros((sample_batch.size(0), sample_batch.size(1), 100))
+            technical_counts_batch = torch.zeros((sample_batch.size(0), sample_batch.size(1), 100))
+            zero_counts_batch = torch.zeros_like(technical_counts_batch)
+            l_train_batch = torch.zeros_like(technical_counts_batch)
+
             for n_mc_sim in range(100):
                 p = px_rate / (px_rate + px_dispersion)
                 r = px_dispersion
                 l_train = torch.distributions.Gamma(concentration=r, rate=(1 - p) / p).sample()
                 l_train = torch.clamp(l_train, max=1e18)
+                X = torch.distributions.Poisson(l_train).sample()
                 l_train_batch[:, :, n_mc_sim] = l_train
+                p_zero = 1.0 / (1.0 + torch.exp(-px_dropout))
+                random_prob = torch.rand_like(p_zero)
+                X[random_prob <= p_zero] = 0
 
-            l_train_batch = torch.mean(l_train_batch, dim=(-1,)).cpu().numpy()
-            # se_l_batch = torch.std(l_train_batch, dim=(-1,)).cpu().numpy() / torch.sqrt(l_train_batch.size(-1))
+                zero_counts_batch[:, :, n_mc_sim] = X == 0
+                technical_counts_batch[:, :, n_mc_sim] = (random_prob <= p_zero)
 
+            l_train_batch = torch.mean(l_train_batch, dim=(-1))
             poisson_params.append(l_train_batch)
-            is_technical_batch = l_train_batch >= poisson_param_thresh
-            is_technical_infer.append(is_technical_batch)
 
+            zero_counts_batch = torch.mean(zero_counts_batch, dim=(-1))
+            technical_counts_batch = torch.mean(technical_counts_batch, dim=(-1))
+            is_technical_batch = (technical_counts_batch / zero_counts_batch) >= 0.5
+            is_technical_infer.append(is_technical_batch.cpu().numpy())
     is_technical_infer_all = np.concatenate(is_technical_infer)
     is_technical_infer_zeros = is_technical_infer_all[zeros_mask]
     assert is_technical_infer_all.shape == zeros_mask.shape
     assert is_technical_infer_zeros.shape == is_technical_gt.shape
 
     # Final Step: Checking predictions
+    # Technical pos
+    fig, axes = plt.subplots(ncols=2, figsize=(10, 6))
+    vmin = min(is_technical_infer_all.min(), is_technical_all.min())
+    vmax = max(is_technical_infer_all.max(), is_technical_all.max())
+
+    sns.heatmap(is_technical_infer_all, vmin=vmin, vmax=vmax, ax=axes[1])
+    axes[1].set_title('Tech Zeros Predicted')
+    sns.heatmap(is_technical_all, vmin=vmin, vmax=vmax, ax=axes[0])
+    axes[0].set_title('Tech Zeros GT')
+    plt.savefig('tech_zeros.png')
+
+
+
     # Dropout checks
     p_dropout_infered_all = np.concatenate(p_dropout_infered)
     p_dropout_gt = synth_data.p_dropout.squeeze()
