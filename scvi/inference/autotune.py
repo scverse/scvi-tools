@@ -5,7 +5,6 @@ import os
 
 from collections import defaultdict
 from functools import partial
-from logging.handlers import MemoryHandler
 from subprocess import Popen
 from typing import Any, Dict, Type, Union
 
