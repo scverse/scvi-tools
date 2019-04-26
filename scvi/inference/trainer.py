@@ -69,7 +69,7 @@ class Trainer:
         self.frequency = frequency if not benchmark else None
         self.verbose = verbose
 
-        self.history = defaultdict(lambda: [])
+        self.history = defaultdict(list)
 
         self.best_state_dict = self.model.state_dict()
         self.best_epoch = self.epoch

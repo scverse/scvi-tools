@@ -242,7 +242,7 @@ def auto_tuned_scvi_model(
     best_trainer = objective_hyperopt(best_space, is_best_training=True)
 
     # pickle trainer and save model (overkill?)
-    with open(os.path.join(save_path, "best_trainer_{key}".format(key=exp_key), "wb")) as f:
+    with open(os.path.join(save_path, "best_trainer_{key}".format(key=exp_key)), "wb") as f:
         pickle.dump(best_trainer, f)
     torch.save(
         best_trainer.model.state_dict(),
