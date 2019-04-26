@@ -6,9 +6,9 @@ import time
 
 from collections import defaultdict
 from functools import partial
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 from subprocess import Popen
-from typing import Any, Dict, Type, Union
+from typing import Any, Callable, Dict, Type, Union
 
 from hyperopt import fmin, tpe, Trials, hp, STATUS_OK
 from hyperopt.mongoexp import MongoTrials
@@ -219,31 +219,33 @@ def auto_tuned_scvi_model(
             )
         RUNNING_PROCESSES.extend(running_workers)
 
-        # instantiate Trials object
-        trials = MongoTrials("mongo://localhost:1234/scvi_db/jobs", exp_key=exp_key)
-
         # run hyperoptimization, in a forked process
         # this allows to terminate if the workers crash
+        # since mongo is not thread-safe, trials must be instantiated in fork
+        queue = Queue()
         fmin_kwargs = {
+            "queue": queue,
+            "fn": objective_hyperopt,
+            "exp_key": exp_key,
             "space": space,
             "algo": tpe.suggest,
             "max_evals": max_evals,
-            "trials": trials,
             "show_progressbar": False,  # progbar useless in parallel mode
         }
-        fmin_process = Process(
-            target=fmin,
-            args=(objective_hyperopt, ),
-            kwargs=fmin_kwargs)
-
+        fmin_process = Process(target=_fmin_parallel, kwargs=fmin_kwargs)
         fmin_process.start()
 
+        # wait and kill if workers have died
         while fmin_process.is_alive():
             if all(list(map(lambda x: x.poll(), running_workers))) and parallel:
                 fmin_process.terminate()
             time.sleep(10)
 
-        # kill all subprocesses and close logfile
+        # get result, kill all subprocesses and close logfile
+        # fmin_process is done so no need to wait but queue might fail (see link below)
+        # https://docs.python.org/3.6/library/multiprocessing.html#multiprocessing.Queue
+        time.sleep(1)
+        trials = queue.get_nowait()
         map(lambda p: p.terminate(), RUNNING_PROCESSES)
         mongo_logfile.close()
 
@@ -251,8 +253,8 @@ def auto_tuned_scvi_model(
         trials = Trials()
 
         # run hyperoptimization
-        _, trials = fmin(
-            objective_hyperopt,
+        _ = fmin(
+            fn=objective_hyperopt,
             space=space,
             algo=tpe.suggest,
             max_evals=max_evals,
@@ -280,6 +282,33 @@ def auto_tuned_scvi_model(
         pickle.dump(trials, f)
 
     return best_trainer, trials
+
+
+def _fmin_parallel(
+    queue: Queue,
+    fn: Callable,
+    exp_key: str,
+    space: dict,
+    algo: Callable,
+    max_evals: int,
+    show_progressbar: bool,
+):
+    # instantiate Trials object
+    trials = MongoTrials("mongo://localhost:1234/scvi_db/jobs", exp_key=exp_key)
+
+    # run hyperoptimization
+    _ = fmin(
+        fn=fn,
+        space=space,
+        algo=algo,
+        max_evals=max_evals,
+        trials=trials,
+        show_progressbar=show_progressbar,
+    )
+    # queue uses pickle so remove attribute containing thread.lock
+    if hasattr(trials, "handle"):
+        del trials.handle
+    queue.put(trials)
 
 
 def _objective_function(
