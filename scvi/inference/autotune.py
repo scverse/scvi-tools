@@ -21,7 +21,9 @@ from ..dataset import GeneExpressionDataset
 from ..models import VAE
 
 
+# register running process to terminate at exit
 RUNNING_PROCESSES = []
+OPEN_FILES = []
 
 # initialize scVI logger
 logging.basicConfig()
@@ -30,11 +32,14 @@ logger = logging.getLogger(__name__)
 
 # Kill all subprocesses if parent dies
 @atexit.register
-def cleanup():
-    map(lambda p: p.terminate(), RUNNING_PROCESSES)
+def cleanup_processes_files():
+    for p in RUNNING_PROCESSES:
+        p.terminate()
+    for f in OPEN_FILES:
+        f.close()
 
 
-def auto_tuned_scvi_model(
+def auto_tune_scvi_model(
     exp_key: str,
     gene_dataset: GeneExpressionDataset,
     model_class: VAE = VAE,
@@ -148,106 +153,15 @@ def auto_tuned_scvi_model(
     )
 
     if parallel:
-        running_workers = []
-        n_gpus = torch.cuda.device_count()
-        if not n_gpus and not use_cpu:
-            raise ValueError("No GPUs detected by PyTorch and use_cpu is set to False")
-
-        # filter out logs for clarity
-        hp_logger = logging.getLogger("hyperopt.mongoexp")
-        hp_logger.addFilter(logging.Filter("scvi"))
-
-        # run mongo daemon
-        mongo_path = os.path.join(os.path.abspath("."), "mongo")
-        mongo_logfile = open(os.path.join(mongo_path, "mongo_logfile"), "w")
-        if not os.path.exists(mongo_path):
-            os.makedirs(mongo_path)
-        mongod_process = Popen(
-            [
-                "mongod",
-                "--quiet",
-                "--dbpath={path}".format(path=mongo_path),
-                "--port=1234",
-            ],
-            stdout=mongo_logfile,
+        trials = auto_tune_parallel(
+            objective_hyperopt=objective_hyperopt,
+            exp_key=exp_key,
+            space=space,
+            max_evals=max_evals,
+            save_path=save_path,
+            use_cpu=use_cpu,
+            n_worker_per_gpu=n_worker_per_gpu,
         )
-        RUNNING_PROCESSES.append(mongod_process)
-
-        # run one hyperopt worker per gpu available
-        for gpu in range(n_gpus):
-            for i in range(n_worker_per_gpu):
-                sub_env = {
-                    "PYTHONPATH": ".",
-                    "CUDA_VISIBLE_DEVICES": str(gpu),
-                    "WORKER_NAME": "worker_gpu_{i}".format(i=str(gpu) + ":" + str(i)),
-                }
-                sub_env = {**os.environ, **sub_env}
-                running_workers.append(
-                    Popen(
-                        [
-                            "hyperopt-mongo-worker",
-                            "--mongo=localhost:1234/scvi_db",
-                            "--poll-interval=0.1",
-                            "--max-consecutive-failures=1",
-                            "--reserve-timeout=10.0",
-                        ],
-                        env=sub_env,
-                    )
-                )
-
-        # run one hyperopt worker per cpu (though not specifically assigned)
-        # minus two to prevent overloading loss
-        # FIXME set cpu affinity and use all existing CPUs minus one
-        for cpu in range(max(0, os.cpu_count() * use_cpu - 1)):
-            sub_env = {
-                "PYTHONPATH": ".",
-                "CUDA_VISIBLE_DEVICES": "",
-                "WORKER_NAME": "worker_cpu_{i}".format(i=cpu),
-            }
-            sub_env = {**os.environ, **sub_env}
-            running_workers.append(
-                Popen(
-                    [
-                        "hyperopt-mongo-worker",
-                        "--mongo=localhost:1234/scvi_db",
-                        "--poll-interval=0.1",
-                        "--max-consecutive-failures=1",
-                        "--reserve-timeout=10.0",
-                    ],
-                    env=sub_env,
-                )
-            )
-        RUNNING_PROCESSES.extend(running_workers)
-
-        # run hyperoptimization, in a forked process
-        # this allows to terminate if the workers crash
-        # since mongo is not thread-safe, trials must be instantiated in fork
-        queue = Queue()
-        fmin_kwargs = {
-            "queue": queue,
-            "fn": objective_hyperopt,
-            "exp_key": exp_key,
-            "space": space,
-            "algo": tpe.suggest,
-            "max_evals": max_evals,
-            "show_progressbar": False,  # progbar useless in parallel mode
-        }
-        fmin_process = Process(target=_fmin_parallel, kwargs=fmin_kwargs)
-        fmin_process.start()
-
-        # wait and kill if workers have died
-        while fmin_process.is_alive():
-            if all(list(map(lambda x: x.poll(), running_workers))) and parallel:
-                fmin_process.terminate()
-            time.sleep(10)
-
-        # get result, kill all subprocesses and close logfile
-        # fmin_process is done so no need to wait but queue might fail (see link below)
-        # https://docs.python.org/3.6/library/multiprocessing.html#multiprocessing.Queue
-        time.sleep(1)
-        trials = queue.get_nowait()
-        map(lambda p: p.terminate(), RUNNING_PROCESSES)
-        mongo_logfile.close()
 
     else:
         trials = Trials()
@@ -282,6 +196,118 @@ def auto_tuned_scvi_model(
         pickle.dump(trials, f)
 
     return best_trainer, trials
+
+
+def auto_tune_parallel(
+    objective_hyperopt: Callable,
+    exp_key: str,
+    space: dict = None,
+    max_evals: int = 100,
+    save_path: str = ".",
+    use_cpu: bool = False,
+    n_worker_per_gpu: int = 1,
+) -> MongoTrials:
+    running_workers = []
+    n_gpus = torch.cuda.device_count()
+    if not n_gpus and not use_cpu:
+        raise ValueError("No GPUs detected by PyTorch and use_cpu is set to False")
+
+    # run mongo daemon
+    mongo_path = os.path.join(save_path, "mongo")
+    if not os.path.exists(mongo_path):
+        os.makedirs(mongo_path)
+    mongo_logfile = open(os.path.join(mongo_path, "mongo_logfile"), "w")
+    OPEN_FILES.append(mongo_logfile)
+    mongod_process = Popen(
+        ["mongod", "--quiet", "--dbpath={path}".format(path=mongo_path), "--port=1234"],
+        stdout=mongo_logfile,
+    )
+    RUNNING_PROCESSES.append(mongod_process)
+
+    # run one hyperopt worker per gpu available
+    print(str(time.time()) + "launching workers")
+    for gpu_id in range(n_gpus):
+        for sub_id in range(n_worker_per_gpu):
+            p = launch_hyperopt_worker(gpu=True, id=str(gpu_id), sub_id=str(sub_id))
+            running_workers.append(p)
+
+    # run one hyperopt worker per cpu (though not specifically assigned)
+    # minus two to prevent overloading loss
+    # FIXME set cpu affinity and use all AVAILABLE CPUs minus one
+    for cpu_id in range(max(0, os.cpu_count() * use_cpu - 1)):
+        p = launch_hyperopt_worker(gpu=False, id=str(cpu_id))
+        running_workers.append(p)
+    RUNNING_PROCESSES.extend(running_workers)
+
+    # run hyperoptimization, in a forked process
+    # this allows to terminate if the workers crash
+    # since mongo is not thread-safe, trials must be instantiated in fork
+    queue = Queue()
+    fmin_kwargs = {
+        "queue": queue,
+        "fn": objective_hyperopt,
+        "exp_key": exp_key,
+        "space": space,
+        "algo": tpe.suggest,
+        "max_evals": max_evals,
+        "show_progressbar": False,  # progbar useless in parallel mode
+    }
+    fmin_process = Process(target=_fmin_parallel, kwargs=fmin_kwargs)
+    fmin_process.start()
+    RUNNING_PROCESSES.append(fmin_process)
+
+    # wait and raise if all workers have died to prevent hanging
+    while fmin_process.is_alive():
+
+        def is_dead(p):
+            return p.poll() is not None
+
+        is_dead_statuses = list(map(is_dead, running_workers))
+        print(is_dead_statuses)
+        if all(is_dead_statuses):
+            raise RuntimeError(
+                "All workers have died, check stdout/stderr for tracebacks"
+            )
+        time.sleep(10)
+
+    # get result, terminate all subprocesses and close logfile
+    # fmin_process is done so no need to wait but queue might fail (see link below)
+    # https://docs.python.org/3.6/library/multiprocessing.html#multiprocessing.Queue
+    time.sleep(1)
+    trials = queue.get_nowait()
+    cleanup_processes_files()
+
+    return trials
+
+
+def launch_hyperopt_worker(
+    gpu: bool = True, id: str = None, sub_id: str = None
+) -> Popen:
+    device_type = "gpu" if gpu else "cpu"
+    sub_id = ":" + sub_id if sub_id else str()
+    worker_name = "worker_" + device_type + "_" + id + sub_id
+    # worker_log_file = open("log" + worker_name, "w")
+    cuda_visible_devices = id if gpu else str()
+    sub_env = {
+        # FIXME pythonpath unnecessary if scVI installed
+        "PYTHONPATH": ".",
+        "CUDA_VISIBLE_DEVICES": cuda_visible_devices,
+        "WORKER_NAME": worker_name,
+    }
+    sub_env = {**os.environ, **sub_env}
+    p = Popen(
+        [
+            "hyperopt-mongo-worker",
+            "--mongo=localhost:1234/scvi_db",
+            "--poll-interval=0.1",
+            "--max-consecutive-failures=1",
+            "--reserve-timeout=10.0",
+        ],
+        env=sub_env,
+        # stdout=worker_log_file,
+        # stderr=worker_log_file,
+    )
+    return p
 
 
 def _fmin_parallel(
