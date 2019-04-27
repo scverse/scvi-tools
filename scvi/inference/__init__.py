@@ -11,7 +11,7 @@ from .annotation import (
     ClassifierTrainer
 )
 from .fish import TrainerFish
-from .autotune import auto_tuned_scvi_model
+from .autotune import auto_tune_scvi_model
 
 __all__ = ['Trainer',
            'Posterior',
@@ -22,5 +22,5 @@ __all__ = ['Trainer',
            'SemiSupervisedTrainer',
            'AlternateSemiSupervisedTrainer',
            'ClassifierTrainer',
-           'auto_tuned_scvi_model'
+           'auto_tune_scvi_model'
            ]
