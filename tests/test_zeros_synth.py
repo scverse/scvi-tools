@@ -23,15 +23,20 @@ def test_enough_zeros():
     :return:
     """
 
-    nb_data = ZISyntheticDatasetCorr(lam_0=180, n_cells_cluster=500,
-                                     weight_high=6, weight_low=3.5, n_genes_high=35, n_genes_total=50)
+    # nb_data = ZISyntheticDatasetCorr(lam_0=180, n_cells_cluster=2000,
+    #                                  weight_high=6, weight_low=3.5, n_genes_high=35,
+    #                                  n_genes_total=50)
+    nb_data = ZISyntheticDatasetCorrDistinct(lam_0=180, n_cells_cluster=2000,
+                                                weight_high=6, weight_low=3.5, n_genes_high=35,
+                                                n_genes_total=50,
+                                                lam_dropout_low=0.0, lam_dropout_high=0.0)
     is_technical_mask = nb_data.is_technical.squeeze()
     nb_data_zeros = nb_data.X == 0
     tech_zeros = nb_data_zeros[is_technical_mask].sum()
     bio_zeros = nb_data_zeros[~is_technical_mask].sum()
     print("Prop of technical zeros :", tech_zeros)
     print("Prop of biological zeros :", bio_zeros)
-    assert .1 <= tech_zeros / float(bio_zeros) <= 1.
+    assert .2 <= tech_zeros / float(bio_zeros) <= 5.
     assert tech_zeros >= 1000
 
 
@@ -46,43 +51,43 @@ def test_zeros_classif():
     :return: None
     """
     torch.manual_seed(seed=42)
+    # synth_data = ZISyntheticDatasetCorr(n_cells_cluster=200, n_clusters=3,
+    #                                     n_genes_high=25, n_genes_total=50,
+    #                                     weight_high=4e-2, weight_low=1e-2,
+    #                                     lam_0=50., n_batches=1)
     # Step 1: Generating dataset and figuring out ground truth values
-    # synth_data = ZISyntheticDatasetCorrDistinct(lam_0=180, n_cells_cluster=2000,
-    #                                             weight_high=2, weight_low=1, n_genes_high=20,
-    #                                             n_genes_total=50)
-    synth_data = ZISyntheticDatasetCorrDistinct(lam_0=50, n_cells_cluster=100,
-                                                weight_high=4, weight_low=1, n_genes_high=35,
-                                                n_genes_total=50)
-    # synth_data = SyntheticDatasetCorr(lam_0=50, weight_low=1e-2, weight_high=4e-2,
-    #                                   n_genes_high=25, n_genes_total=50, n_clusters=3,)
+    synth_data = ZISyntheticDatasetCorrDistinct(lam_0=180, n_cells_cluster=2000,
+                                                weight_high=6, weight_low=3.5, n_genes_high=15,
+                                                n_genes_total=45)
+
+
+
     zeros_mask = (synth_data.X == 0).astype(bool)
     poisson_params_gt = synth_data.exprs_param.squeeze()
-    poisson_param_thresh = np.median(poisson_params_gt)
-    print("Poisson Parameter threshold used for classif: ", poisson_param_thresh)
 
     is_technical_all = synth_data.is_technical[0, :]
     is_technical_gt = is_technical_all[zeros_mask]  # 1d array
 
     # Step 2: Training scVI model
-    # mdl = VAE(n_input=synth_data.nb_genes, n_batch=synth_data.n_batches,
-    #           reconstruction_loss='zinb')
-    mdl = ZifaVae(n_genes=synth_data.nb_genes, n_batch=synth_data.n_batches,
-                  reconstruction_loss='zinb')
+    mdl = VAE(n_input=synth_data.nb_genes, n_batch=synth_data.n_batches,
+              reconstruction_loss='zinb', n_latent=1)
+    # mdl = ZifaVae(n_genes=synth_data.nb_genes, n_batch=synth_data.n_batches,
+    #               reconstruction_loss='zinb')
 
-    trainer = UnsupervisedTrainer(model=mdl, gene_dataset=synth_data, use_cuda=True, train_size=0.8,
-                                  frequency=1,
+    trainer = UnsupervisedTrainer(model=mdl, gene_dataset=synth_data, use_cuda=True, train_size=1.0,
+                                  # frequency=1,
                                   # early_stopping_kwargs={
                                   #    'early_stopping_metric': 'll',
                                   #    'save_best_state_metric': 'll',
                                   #    'patience': 15,
-                                  #    'threshold': 3,}
+                                  #    'threshold': 3}
                                   )
     trainer.train(n_epochs=250, lr=1e-3)
     full = trainer.create_posterior(trainer.model, synth_data,
                                     indices=np.arange(len(synth_data)))
 
     # Step 3: Inference
-    is_technical_infer = []
+    technical_scores_infer = []
     poisson_params = []
     p_dropout_infered = []
     with torch.no_grad():
@@ -116,26 +121,34 @@ def test_zeros_classif():
 
             zero_counts_batch = torch.mean(zero_counts_batch, dim=(-1))
             technical_counts_batch = torch.mean(technical_counts_batch, dim=(-1))
-            is_technical_batch = (technical_counts_batch / zero_counts_batch) >= 0.5
-            is_technical_infer.append(is_technical_batch.cpu().numpy())
-    is_technical_infer_all = np.concatenate(is_technical_infer)
-    is_technical_infer_zeros = is_technical_infer_all[zeros_mask]
-    assert is_technical_infer_all.shape == zeros_mask.shape
+            technical_score_batch = (technical_counts_batch / zero_counts_batch)
+            technical_scores_infer.append(technical_score_batch.cpu().numpy())
+
+    technical_scores_infer = np.concatenate(technical_scores_infer)
+    technical_scores_infer[np.isnan(technical_scores_infer)] = 0.0
+    technical_scores_zeros = technical_scores_infer[zeros_mask]
+    is_technical_infer_zeros = technical_scores_infer[zeros_mask] >= 0.5
+    assert technical_scores_infer.shape == zeros_mask.shape
     assert is_technical_infer_zeros.shape == is_technical_gt.shape
 
     # Final Step: Checking predictions
     # Technical pos
     fig, axes = plt.subplots(ncols=2, figsize=(10, 6))
-    vmin = min(is_technical_infer_all.min(), is_technical_all.min())
-    vmax = max(is_technical_infer_all.max(), is_technical_all.max())
+    vmin = min(technical_scores_infer.min(), is_technical_all.min())
+    vmax = max(technical_scores_infer.max(), is_technical_all.max())
 
-    sns.heatmap(is_technical_infer_all, vmin=vmin, vmax=vmax, ax=axes[1])
+    sns.heatmap(technical_scores_infer, vmin=vmin, vmax=vmax, ax=axes[1])
     axes[1].set_title('Tech Zeros Predicted')
     sns.heatmap(is_technical_all, vmin=vmin, vmax=vmax, ax=axes[0])
     axes[0].set_title('Tech Zeros GT')
     plt.savefig('tech_zeros.png')
+    plt.close()
 
-
+    sorted_indices = np.argsort(is_technical_gt)
+    plt.plot(technical_scores_zeros[sorted_indices], label='Inferred technical counts')
+    plt.plot(is_technical_gt[sorted_indices], label='Is Technical')
+    plt.legend()
+    plt.savefig('zeros_pos_dropout_corr.png')
 
     # Dropout checks
     p_dropout_infered_all = np.concatenate(p_dropout_infered)
@@ -153,10 +166,10 @@ def test_zeros_classif():
 
     # Poisson Params checks
     poisson_params = np.concatenate(poisson_params)
-    # vmin = min(poisson_params_gt.min(), poisson_params.min())
-    # vmax = max(poisson_params_gt.max(), poisson_params.max())
-    vmin = 0.0
-    vmax = 10.0
+    vmin = min(poisson_params_gt.min(), poisson_params.min())
+    vmax = max(poisson_params_gt.max(), poisson_params.max())
+    # vmin = 0.0
+    # vmax = 10.0
     sns.heatmap(poisson_params, vmin=vmin, vmax=vmax, ax=axes[1, 1])
     axes[1, 1].set_title('Poisson Distribution Parameter Predicted')
 
@@ -165,6 +178,7 @@ def test_zeros_classif():
     plt.savefig('params_comparison.png')
     plt.close()
 
+    print('Average Poisson L1 error: ', np.abs(poisson_params - poisson_params_gt).mean())
     sns.heatmap(np.abs(poisson_params - poisson_params_gt) / poisson_params_gt)
     plt.savefig('params_diff.png')
     plt.close()
