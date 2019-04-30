@@ -125,7 +125,7 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
 
 class SyntheticDatasetCorr2(GeneExpressionDataset):
     def __init__(self, n_cells_cluster=200, n_clusters=3,
-                 n_genes_high=25, n_genes_total=50,
+                 n_genes_high=25, n_overlap=0,
                  weight_high=4e-2, weight_low=1e-2,
                  lam_0=50., n_batches=1):
         """
@@ -148,6 +148,12 @@ class SyntheticDatasetCorr2(GeneExpressionDataset):
         """
         assert n_batches == 1
         np.random.seed(0)
+
+        if n_overlap == 0:
+            n_genes_total = n_clusters * n_genes_high
+        else:
+            n_genes_total = n_clusters * (n_genes_high - n_overlap) + n_overlap
+
         if n_genes_total % n_clusters > 0:
             print("Warning, clusters have inequal sizes")
 
@@ -175,7 +181,7 @@ class SyntheticDatasetCorr2(GeneExpressionDataset):
         for cluster in range(n_clusters):
             labels[:, cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster, :] = cluster
 
-            ind_first_gene_cluster = cluster * (n_genes_total // n_clusters)
+            ind_first_gene_cluster = cluster * (n_genes_high - n_overlap)
             ind_last_high_gene_cluster = ind_first_gene_cluster + n_genes_high
             self.is_highly_exp[:,
             cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster,
