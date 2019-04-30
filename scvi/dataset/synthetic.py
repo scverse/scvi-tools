@@ -117,7 +117,7 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
 
         print('Poisson Params extremal values: ', self.exprs_param.min(), self.exprs_param.max())
         expression_mat = np.random.poisson(self.exprs_param)
-        self.poisson_zero = (expression_mat == 0)
+        self.poisson_zero = np.exp(-self.exprs_param)
         new_data = self.mask(expression_mat)
         print((new_data == 0).sum())
         super().__init__(
@@ -137,6 +137,7 @@ class ZISyntheticDatasetCorr(SyntheticDatasetCorr):
         self.dropout_coef_low = dropout_coef_low
         self.lam_dropout_low = lam_dropout_low
         self.p_dropout = None
+        self.zi_zero = None
         super(ZISyntheticDatasetCorr, self).__init__(**kwargs)
 
     def mask(self, data):
@@ -148,18 +149,27 @@ class ZISyntheticDatasetCorr(SyntheticDatasetCorr):
         # Probability of failure
         mask = np.random.binomial(n=1, p=1 - self.p_dropout,
                                   size=(self.n_batches, self.batch_size, self.n_genes_total))
-        self.zi_zero = (mask == 0)
+        self.zi_zero = self.p_dropout
 
         # Probas of ZI = or != 0 and NB = or != 0 for highly and lowly expressed genes
-        self.probas_zero_bio_tech_high = [[np.mean((~self.poisson_zero & ~self.zi_zero)[self.is_highly_exp]), # ZI != 0, NB != 0
-                                           np.mean((~self.poisson_zero & self.zi_zero)[self.is_highly_exp])], # ZI = 0, NB != 0
-                                          [np.mean((self.poisson_zero & ~self.zi_zero)[self.is_highly_exp]), # ZI != 0, NB = 0
-                                           np.mean((self.poisson_zero & self.zi_zero)[self.is_highly_exp])]] # ZI = 0, NB = 0
-        self.probas_zero_bio_tech_high = np.array(self.probas_zero_bio_tech_high).reshape((2,2))
-        self.probas_zero_bio_tech_low = [[np.mean((~self.poisson_zero & ~self.zi_zero)[~self.is_highly_exp]), # ZI != 0, NB != 0
-                                          np.mean((~self.poisson_zero & self.zi_zero)[~self.is_highly_exp])], # ZI = 0, NB != 0
-                                         [np.mean((self.poisson_zero & ~self.zi_zero)[~self.is_highly_exp]), # ZI != 0, NB = 0
-                                          np.mean((self.poisson_zero & self.zi_zero)[~self.is_highly_exp])]] # ZI = 0, NB = 0
+        self.probas_zero_bio_tech_high = [
+            [np.mean(((1 - self.poisson_zero) * (1 - self.zi_zero))[self.is_highly_exp]),
+             # ZI != 0, NB != 0
+             np.mean(((1 - self.poisson_zero) * self.zi_zero)[self.is_highly_exp])],
+            # ZI = 0, NB != 0
+            [np.mean((self.poisson_zero * (1 - self.zi_zero))[self.is_highly_exp]),
+             # ZI != 0, NB = 0
+             np.mean((self.poisson_zero * self.zi_zero)[self.is_highly_exp])]]  # ZI = 0, NB = 0
+        self.probas_zero_bio_tech_high = np.array(self.probas_zero_bio_tech_high).reshape((2, 2))
+
+        self.probas_zero_bio_tech_low = [
+            [np.mean(((1 - self.poisson_zero) * (1 - self.zi_zero))[~self.is_highly_exp]),
+             # ZI != 0, NB != 0
+             np.mean(((1 - self.poisson_zero) * self.zi_zero)[~self.is_highly_exp])],
+            # ZI = 0, NB != 0
+            [np.mean((self.poisson_zero * (1 - self.zi_zero))[~self.is_highly_exp]),
+             # ZI != 0, NB = 0
+             np.mean((self.poisson_zero * self.zi_zero)[~self.is_highly_exp])]]  # ZI = 0, NB = 0
         self.probas_zero_bio_tech_low = np.array(self.probas_zero_bio_tech_low).reshape((2, 2))
         assert np.abs(self.probas_zero_bio_tech_high.sum() - 1) <= 1e-8
         assert np.abs(self.probas_zero_bio_tech_low.sum() - 1) <= 1e-8
