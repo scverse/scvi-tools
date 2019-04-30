@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import os
 
 from scvi.models import VAE
 from scvi.inference import UnsupervisedTrainer
@@ -46,6 +47,11 @@ def test_zeros_classif():
     rest of the zeros
     :return: None
     """
+    folder = '/tmp/scVI_zeros_test'
+    print('Saving graphs in : {}'.format(folder))
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
     torch.manual_seed(seed=42)
     synth_data = ZISyntheticDatasetCorr(n_clusters=8, n_genes_high=15, n_overlap=8,
                                         lam_0=320, n_cells_cluster=1000,
@@ -80,6 +86,7 @@ def test_zeros_classif():
     tech_zero_p = []
     with torch.no_grad():
         for tensors in full.sequential():
+            # TODO: Properly sample posterior
             sample_batch, _, _, batch_index, labels = tensors
             px_scale, px_dispersion, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library = mdl.inference(
                 sample_batch, batch_index)
@@ -137,7 +144,7 @@ def test_zeros_classif():
 
     sns.heatmap(poisson_params_gt,  vmin=vmin, vmax=vmax, ax=axes[1, 0])
     axes[1, 0].set_title('Poisson Distribution Parameter GT')
-    plt.savefig('params_comparison.png')
+    plt.savefig(os.path.join(folder, 'params_comparison.png'))
     plt.close()
 
     # TODO: Decrease test tolerances
@@ -150,37 +157,29 @@ def test_zeros_classif():
     assert l1_poisson <= 5e-2, \
         'High Error on Dropout parameter inference'
 
-
     # tSNE plot
+    print("Computing tSNE rep ...")
     x_rep = TSNE(n_components=2).fit_transform(latent_reps)
+    print("Done!")
     pos = np.random.permutation(len(x_rep))[:1000]
-    plt.scatter(x=x_rep[pos, 0], y=x_rep[pos, 1],
-                c=synth_data.labels[pos].squeeze(), cmap='tab20b')
-    plt.legend()
-    plt.title('Synthetic Dataset latent space')
-    plt.savefig('t_sne.png')
-    plt.close()
-
     labels = ['c_{}'.format(idx) for idx in synth_data.labels[pos].squeeze()]
     sns.scatterplot(x=x_rep[pos, 0], y=x_rep[pos, 1], hue=labels,
                     palette='Set2')
-    # plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-
-    plt.savefig('t_sne.png')
+    plt.title('Synthetic Dataset latent space')
+    plt.savefig(os.path.join(folder, 't_sne.png'))
     plt.close()
 
     # Tech/Bio Classif checks
-    # For high expressed genes
-    # High expressend
-    # Poisson nul and ZI non null
+    # --For high expressed genes
+    # ---Poisson nul and ZI non null
     print(bio_zero_tech_no[is_high].mean(), synth_data.probas_zero_bio_tech_high[1, 0])
-    # Poisson non nul and .
+    # ---Poisson non nul and .
     print(tech_zero_bio_no[is_high].mean(), synth_data.probas_zero_bio_tech_high[0, 1])
 
-    # Low expressed expressend
-    # Poisson nul and ZI non null
+    # --Low expressed expressend
+    # ---Poisson nul and ZI non null
     print(bio_zero_tech_no[~is_high].mean(), synth_data.probas_zero_bio_tech_low[1, 0])
-    # Poisson non nul and .
+    # ---Poisson non nul and .
     print(tech_zero_bio_no[~is_high].mean(), synth_data.probas_zero_bio_tech_low[0, 1])
 
     assert np.abs(bio_zero_tech_no[is_high].mean()-synth_data.probas_zero_bio_tech_high[1, 0]) <= 1e-2
