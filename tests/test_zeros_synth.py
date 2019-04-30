@@ -171,19 +171,6 @@ def test_zeros_classif():
 
     # Tech/Bio Classif checks
     # For high expressed genes
-    print(bio_zero_tech_no[is_high].mean())
-    print(tech_zero_bio_no[is_high].mean())
-
-    print(np.median(bio_zero_tech_no[is_high & zeros_mask]))
-    print(np.median(tech_zero_bio_no[is_high & zeros_mask]))
-
-    plt.hist(bio_zero_tech_no[is_high & zeros_mask], bins=20)
-    plt.savefig('a.png')
-    plt.close()
-    plt.hist(tech_zero_bio_no[is_high & zeros_mask], bins=20)
-    plt.savefig('b.png')
-    plt.close()
-
     # High expressend
     # Poisson nul and ZI non null
     print(bio_zero_tech_no[is_high].mean(), synth_data.probas_zero_bio_tech_high[1, 0])
