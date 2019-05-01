@@ -4,8 +4,9 @@ import shutil
 
 
 def pytest_addoption(parser):
-    parser.addoption("--model_fit", action="store_true",
-                     help="run the tests only in case of that command line (marked with marker @no_cmd)")
+    parser.addoption("--model_fit", action="store_true", default=False,
+                     dest='model_fit',
+                     help="Option to run full training model for test_model_fit")
 
 
 @pytest.fixture(scope="session")
@@ -17,6 +18,6 @@ def save_path(tmpdir_factory):
     shutil.rmtree(str(tmpdir_factory.getbasetemp()))
 
 
-def pytest_runtest_setup(item):
-    if 'model_fit' in item.keywords and not item.config.getoption("--model_fit"):
-        pytest.skip("need --model_fit option to run this test")
+@pytest.fixture(scope='session')
+def model_fit(request):
+    return request.config.getoption("--model_fit")

@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import os
 
-import pytest
 from scvi.models import VAE
 from scvi.inference import UnsupervisedTrainer
 from scvi.dataset.synthetic import ZISyntheticDatasetCorr
@@ -38,8 +37,7 @@ def test_enough_zeros():
     assert tech_zeros >= 1000
 
 
-@pytest.mark.model_fit
-def test_model_fit():
+def test_model_fit(model_fit: bool):
     """
     Test that controls that scVI inferred distributions make sense on a non-trivial synthetic
     dataset.
@@ -49,14 +47,19 @@ def test_model_fit():
     rest of the zeros
     :return: None
     """
+    print('model_fit set to : ', model_fit)
     folder = '/tmp/scVI_zeros_test'
     print('Saving graphs in : {}'.format(folder))
     if not os.path.exists(folder):
         os.makedirs(folder)
 
+    n_epochs = 150 if model_fit else 1
+    n_mc_sim_total = 100 if model_fit else 1
+    n_cells_cluster = 1000 if model_fit else 100
+
     torch.manual_seed(seed=42)
     synth_data = ZISyntheticDatasetCorr(n_clusters=8, n_genes_high=15, n_overlap=8,
-                                        lam_0=320, n_cells_cluster=1000,
+                                        lam_0=320, n_cells_cluster=n_cells_cluster,
                                         weight_high=1.714286, weight_low=1,
                                         dropout_coef_low=0.08, dropout_coef_high=0.05)
 
@@ -68,7 +71,7 @@ def test_model_fit():
               reconstruction_loss='zinb', n_latent=5)
 
     trainer = UnsupervisedTrainer(model=mdl, gene_dataset=synth_data, use_cuda=True, train_size=1.0)
-    trainer.train(n_epochs=150, lr=1e-3)
+    trainer.train(n_epochs=n_epochs, lr=1e-3)
     full = trainer.create_posterior(trainer.model, synth_data,
                                     indices=np.arange(len(synth_data)))
 
@@ -87,10 +90,10 @@ def test_model_fit():
             p_zero = 1.0 / (1.0 + torch.exp(-px_dropout))
             p_dropout_infered.append(p_zero.cpu().numpy())
 
-            l_train_batch = torch.zeros((sample_batch.size(0), sample_batch.size(1), 100),
+            l_train_batch = torch.zeros((sample_batch.size(0), sample_batch.size(1), n_mc_sim_total),
                                         device=sample_batch.device)
 
-            for n_mc_sim in range(100):
+            for n_mc_sim in range(n_mc_sim_total):
                 p = px_rate / (px_rate + px_dispersion)
                 r = px_dispersion
                 l_train = torch.distributions.Gamma(concentration=r, rate=(1 - p) / p).sample()
@@ -143,13 +146,14 @@ def test_model_fit():
 
     # TODO: Decrease test tolerances
     l1_poisson = np.abs(poisson_params - poisson_params_gt).mean()
-    print('Average Poisson L1 error: ', l1_poisson)
-    assert l1_poisson <= 0.75, \
-        'High Error on Poisson parameter inference'
-    l1_dropout = np.abs(p_dropout_infered_all - synth_data.p_dropout).mean()
-    print('Average Dropout L1 error: ', l1_dropout)
-    assert l1_dropout <= 5e-2, \
-        'High Error on Dropout parameter inference'
+    if model_fit:
+        print('Average Poisson L1 error: ', l1_poisson)
+        assert l1_poisson <= 0.75, \
+            'High Error on Poisson parameter inference'
+        l1_dropout = np.abs(p_dropout_infered_all - synth_data.p_dropout).mean()
+        print('Average Dropout L1 error: ', l1_dropout)
+        assert l1_dropout <= 5e-2, \
+            'High Error on Dropout parameter inference'
 
     # tSNE plot
     print("Computing tSNE rep ...")
@@ -181,7 +185,8 @@ def test_model_fit():
     diff3 = np.abs(bio_zero_tech_no[~is_high].mean() - synth_data.probas_zero_bio_tech_low[1, 0])
     diff4 = np.abs(tech_zero_bio_no[~is_high].mean() - synth_data.probas_zero_bio_tech_low[0, 1])
 
-    assert diff1 <= 2e-2
-    assert diff2 <= 2e-2
-    assert diff3 <= 2e-2
-    assert diff4 <= 2e-2
+    if model_fit:
+        assert diff1 <= 2e-2
+        assert diff2 <= 2e-2
+        assert diff3 <= 2e-2
+        assert diff4 <= 2e-2
