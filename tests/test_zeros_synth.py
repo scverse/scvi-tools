@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from torch.cuda import is_available
 import os
 
 import pytest
