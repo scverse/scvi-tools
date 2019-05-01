@@ -138,6 +138,7 @@ class ZISyntheticDatasetCorr(SyntheticDatasetCorr):
         self.lam_dropout_low = lam_dropout_low
         self.p_dropout = None
         self.zi_zero = None
+        self.is_technical = None
         super(ZISyntheticDatasetCorr, self).__init__(**kwargs)
 
     def mask(self, data):
@@ -149,6 +150,7 @@ class ZISyntheticDatasetCorr(SyntheticDatasetCorr):
         # Probability of failure
         mask = np.random.binomial(n=1, p=1 - self.p_dropout,
                                   size=(self.n_batches, self.batch_size, self.n_genes_total))
+        self.is_technical = mask == 0
         self.zi_zero = self.p_dropout
 
         # Probas of ZI = or != 0 and NB = or != 0 for highly and lowly expressed genes

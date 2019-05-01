@@ -1,7 +1,9 @@
 import numpy as np
 import torch
+from torch.cuda import is_available
 import os
 
+import pytest
 from scvi.models import VAE
 from scvi.inference import UnsupervisedTrainer
 from scvi.dataset.synthetic import ZISyntheticDatasetCorr
@@ -37,7 +39,9 @@ def test_enough_zeros():
     assert tech_zeros >= 1000
 
 
-def test_zeros_classif():
+@pytest.mark.model_fit
+@pytest.mark.skipif(not is_available(), reason='Test requires GPU')
+def test_model_fit():
     """
     Test that controls that scVI inferred distributions make sense on a non-trivial synthetic
     dataset.
@@ -58,7 +62,6 @@ def test_zeros_classif():
                                         weight_high=1.714286, weight_low=1,
                                         dropout_coef_low=0.08, dropout_coef_high=0.05)
 
-    zeros_mask = (synth_data.X == 0).astype(bool)
     is_high = synth_data.is_highly_exp.squeeze()
     poisson_params_gt = synth_data.exprs_param.squeeze()
 
@@ -66,14 +69,7 @@ def test_zeros_classif():
     mdl = VAE(n_input=synth_data.nb_genes, n_batch=synth_data.n_batches,
               reconstruction_loss='zinb', n_latent=5)
 
-    trainer = UnsupervisedTrainer(model=mdl, gene_dataset=synth_data, use_cuda=True, train_size=1.0,
-                                  # frequency=1,
-                                  # early_stopping_kwargs={
-                                  #    'early_stopping_metric': 'll',
-                                  #    'save_best_state_metric': 'll',
-                                  #    'patience': 15,
-                                  #    'threshold': 3}
-                                  )
+    trainer = UnsupervisedTrainer(model=mdl, gene_dataset=synth_data, use_cuda=True, train_size=1.0)
     trainer.train(n_epochs=150, lr=1e-3)
     full = trainer.create_posterior(trainer.model, synth_data,
                                     indices=np.arange(len(synth_data)))
@@ -154,7 +150,7 @@ def test_zeros_classif():
         'High Error on Poisson parameter inference'
     l1_dropout = np.abs(p_dropout_infered_all - synth_data.p_dropout).mean()
     print('Average Dropout L1 error: ', l1_dropout)
-    assert l1_poisson <= 5e-2, \
+    assert l1_dropout <= 5e-2, \
         'High Error on Dropout parameter inference'
 
     # tSNE plot
@@ -182,7 +178,12 @@ def test_zeros_classif():
     # ---Poisson non nul and .
     print(tech_zero_bio_no[~is_high].mean(), synth_data.probas_zero_bio_tech_low[0, 1])
 
-    assert np.abs(bio_zero_tech_no[is_high].mean()-synth_data.probas_zero_bio_tech_high[1, 0]) <= 1e-2
-    assert np.abs(tech_zero_bio_no[is_high].mean()-synth_data.probas_zero_bio_tech_high[0, 1]) <= 1e-2
-    assert np.abs(bio_zero_tech_no[~is_high].mean()-synth_data.probas_zero_bio_tech_low[1, 0]) <= 1e-2
-    assert np.abs(tech_zero_bio_no[~is_high].mean()-synth_data.probas_zero_bio_tech_low[0, 1]) <= 1e-2
+    diff1 = np.abs(bio_zero_tech_no[is_high].mean() - synth_data.probas_zero_bio_tech_high[1, 0])
+    diff2 = np.abs(tech_zero_bio_no[is_high].mean() - synth_data.probas_zero_bio_tech_high[0, 1])
+    diff3 = np.abs(bio_zero_tech_no[~is_high].mean() - synth_data.probas_zero_bio_tech_low[1, 0])
+    diff4 = np.abs(tech_zero_bio_no[~is_high].mean() - synth_data.probas_zero_bio_tech_low[0, 1])
+
+    assert diff1 <= 2e-2
+    assert diff2 <= 2e-2
+    assert diff3 <= 2e-2
+    assert diff4 <= 2e-2
