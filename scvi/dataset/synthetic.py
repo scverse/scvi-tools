@@ -18,8 +18,8 @@ class SyntheticDataset(GeneExpressionDataset):
         )
 
 
-class SyntheticRandomDataset(
-    GeneExpressionDataset):  # The exact random parameters taken by romain with simlr labels
+class SyntheticRandomDataset(GeneExpressionDataset):
+    # The exact random parameters taken by romain with simlr labels
     def __init__(self, mu=4.0, theta=2.0, dropout=0.7, save_path='data/'):
         np.random.seed(0)  # simlr attributes computed with this seed.
         p = mu / (mu + theta)
@@ -105,15 +105,16 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
             ind_first_gene_cluster = cluster * (n_genes_high - n_overlap)
             ind_last_high_gene_cluster = ind_first_gene_cluster + n_genes_high
             self.is_highly_exp[:,
-            cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster,
-            ind_first_gene_cluster:ind_last_high_gene_cluster] = True
+                               cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster,
+                               ind_first_gene_cluster:ind_last_high_gene_cluster] = True
             # Weights in a cluster to create highly-expressed and low-expressed genes
             weights = weight_low * np.ones((n_genes_total,))
             weights[ind_first_gene_cluster:ind_last_high_gene_cluster] = weight_high
             weights /= weights.sum()
 
-            self.exprs_param[:, cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster,
-            :] = lam_0 * weights
+            self.exprs_param[:,
+                             cluster*n_cells_cluster:(cluster+1)*n_cells_cluster,
+                             :] = lam_0 * weights
 
         print('Poisson Params extremal values: ', self.exprs_param.min(), self.exprs_param.max())
         expression_mat = np.random.poisson(self.exprs_param)
@@ -142,10 +143,14 @@ class ZISyntheticDatasetCorr(SyntheticDatasetCorr):
         super(ZISyntheticDatasetCorr, self).__init__(**kwargs)
 
     def mask(self, data):
-        self.p_dropout = self.dropout_coef_low * np.exp(-self.lam_dropout_low * (self.exprs_param ** 2))
+        self.p_dropout = self.dropout_coef_low * np.exp(
+            -self.lam_dropout_low * (self.exprs_param ** 2))
 
-        self.p_dropout[self.is_highly_exp] = (self.dropout_coef_high\
-                                            * np.exp(-self.lam_dropout_high * (self.exprs_param ** 2)))[self.is_highly_exp]
+        self.p_dropout[self.is_highly_exp] = (
+            self.dropout_coef_high
+            * np.exp(
+                -self.lam_dropout_high * (self.exprs_param ** 2)
+              ))[self.is_highly_exp]
 
         # Probability of failure
         mask = np.random.binomial(n=1, p=1 - self.p_dropout,

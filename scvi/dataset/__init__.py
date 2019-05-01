@@ -1,7 +1,7 @@
 from .brain_large import BrainLargeDataset
 from .cortex import CortexDataset
 from .dataset import GeneExpressionDataset
-from .synthetic import SyntheticDataset, SyntheticRandomDataset, SyntheticDatasetCorr, \
+from .synthetic import SyntheticDataset, SyntheticRandomDataset, \
     SyntheticDatasetCorr, ZISyntheticDatasetCorr
 from .cite_seq import CiteSeqDataset, CbmcDataset
 from .pbmc import PbmcDataset, PurifiedPBMCDataset
