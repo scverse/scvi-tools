@@ -40,7 +40,6 @@ def test_enough_zeros():
 
 
 @pytest.mark.model_fit
-@pytest.mark.skipif(not is_available(), reason='Test requires GPU')
 def test_model_fit():
     """
     Test that controls that scVI inferred distributions make sense on a non-trivial synthetic
