@@ -1,4 +1,5 @@
 import atexit
+import datetime
 import logging
 import os
 import pickle
@@ -8,7 +9,7 @@ from collections import defaultdict
 from functools import partial
 from multiprocessing import Process, Queue
 from subprocess import Popen
-from typing import Any, Callable, Dict, Type, Union
+from typing import Any, Callable, Dict, List, Type, Union
 
 from hyperopt import fmin, tpe, Trials, hp, STATUS_OK
 from hyperopt.mongoexp import MongoTrials
@@ -20,21 +21,31 @@ from .inference import UnsupervisedTrainer
 from ..dataset import GeneExpressionDataset
 from ..models import VAE
 
+# TODO: add database watcher and inform user about progress
 
-# register running process to terminate at exit
+# register running process and open files to terminate/close at exit
 RUNNING_PROCESSES = []
 OPEN_FILES = []
 
 # initialize scVI logger
-logging.basicConfig()
+# if handler already added (by user) don't add default handler
+# FIXME we force a unique handler..
 logger = logging.getLogger(__name__)
+if not len(logger.handlers):
+    ch = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
 
 
 # Kill all subprocesses if parent dies
 @atexit.register
-def cleanup_processes_files():
+def _cleanup_processes_files():
+    """cleanup function"""
+    logger.info("Cleaning up: terminating processes")
     for p in RUNNING_PROCESSES:
         p.terminate()
+    logger.info("Cleaning up: closing files")
     for f in OPEN_FILES:
         f.close()
 
@@ -51,10 +62,9 @@ def auto_tune_scvi_model(
     use_batches: bool = False,
     max_evals: int = 100,
     parallel: bool = False,
-    verbose: bool = True,
     save_path: str = ".",
     use_cpu: bool = False,
-    n_worker_per_gpu: int = 1,
+    n_workers_per_gpu: int = 1,
 ) -> (Type[Trainer], Trials):
     """Perform automatic hyperparameter optimization of an scVI model
     and return best model and hyperopt Trials object.
@@ -80,14 +90,16 @@ def auto_tune_scvi_model(
     :param parallel: If True, use MongoTrials object to run trainings in parallel.
     If already exists in db, hyperopt will run a numebr of trainings equal to
     the difference between current and previous max_evals.
-    :param verbose: if True, output parameters used for each training to stdout.
+    :param save_path
     :param use_cpu: if True, also launch cpu-only workers
+    :param n_workers_per_gpu: Number of workers ton launch per gpu found by torch
     :return: Trainer object for the best model and Trials object containing logs for the different runs.
 
     Examples:
         >>> gene_dataset = CortexDataset()
         >>> best_trainer, trials = auto_tuned_scvi_parameters(gene_dataset)
     """
+    logger.info("Starting experiment: {exp_key}".format(exp_key=exp_key))
     # default specific kwargs
     model_specific_kwargs = model_specific_kwargs if model_specific_kwargs else {}
     trainer_specific_kwargs = trainer_specific_kwargs if trainer_specific_kwargs else {}
@@ -114,16 +126,12 @@ def auto_tune_scvi_model(
                 "n_latent": 5 + hp.randint("n_latent", 11),  # [5, 15]
                 "n_hidden": hp.choice("n_hidden", [64, 128, 256]),
                 "n_layers": 1 + hp.randint("n_layers", 5),
-                "dropout_rate": hp.uniform("dropout_rate", 0.1, 0.9),
+                "dropout_rate": hp.choice("dropout_rate", [0.1, 0.3, 0.5, 0.7, 0.9]),
                 "reconstruction_loss": hp.choice("reconstruction_loss", ["zinb", "nb"]),
             },
-            "train_func_tunable_kwargs": {"lr": hp.choice("lr", [0.01, 0.001, 0.0001])},
+            "train_func_tunable_kwargs": {"lr": hp.choice("lr", [0.01, 0.005, 0.001, 0.0005, 0.0001])},
         }
     )
-
-    # logging
-    if verbose:
-        logger.setLevel(logging.INFO)
 
     logger.info(
         "Fixed parameters: \n"
@@ -153,14 +161,14 @@ def auto_tune_scvi_model(
     )
 
     if parallel:
-        trials = auto_tune_parallel(
+        trials = _auto_tune_parallel(
             objective_hyperopt=objective_hyperopt,
             exp_key=exp_key,
             space=space,
             max_evals=max_evals,
             save_path=save_path,
             use_cpu=use_cpu,
-            n_worker_per_gpu=n_worker_per_gpu,
+            n_workers_per_gpu=n_workers_per_gpu,
         )
 
     else:
@@ -198,49 +206,18 @@ def auto_tune_scvi_model(
     return best_trainer, trials
 
 
-def auto_tune_parallel(
+def _auto_tune_parallel(
     objective_hyperopt: Callable,
     exp_key: str,
     space: dict = None,
     max_evals: int = 100,
     save_path: str = ".",
     use_cpu: bool = False,
-    n_worker_per_gpu: int = 1,
+    n_workers_per_gpu: int = 1,
 ) -> MongoTrials:
-    running_workers = []
-    n_gpus = torch.cuda.device_count()
-    if not n_gpus and not use_cpu:
-        raise ValueError("No GPUs detected by PyTorch and use_cpu is set to False")
-
-    # run mongo daemon
-    mongo_path = os.path.join(save_path, "mongo")
-    if not os.path.exists(mongo_path):
-        os.makedirs(mongo_path)
-    mongo_logfile = open(os.path.join(mongo_path, "mongo_logfile"), "w")
-    OPEN_FILES.append(mongo_logfile)
-    mongod_process = Popen(
-        ["mongod", "--quiet", "--dbpath={path}".format(path=mongo_path), "--port=1234"],
-        stdout=mongo_logfile,
-    )
-    RUNNING_PROCESSES.append(mongod_process)
-
-    # run one hyperopt worker per gpu available
-    print(str(time.time()) + "launching workers")
-    for gpu_id in range(n_gpus):
-        for sub_id in range(n_worker_per_gpu):
-            p = launch_hyperopt_worker(gpu=True, id=str(gpu_id), sub_id=str(sub_id))
-            running_workers.append(p)
-
-    # run one hyperopt worker per cpu (though not specifically assigned)
-    # minus two to prevent overloading loss
-    # FIXME set cpu affinity and use all AVAILABLE CPUs minus one
-    for cpu_id in range(max(0, os.cpu_count() * use_cpu - 1)):
-        p = launch_hyperopt_worker(gpu=False, id=str(cpu_id))
-        running_workers.append(p)
-    RUNNING_PROCESSES.extend(running_workers)
-
+    # start by running fmin process so that workers don't timeout
     # run hyperoptimization, in a forked process
-    # this allows to terminate if the workers crash
+    # this allows to warn if the workers crash
     # since mongo is not thread-safe, trials must be instantiated in fork
     queue = Queue()
     fmin_kwargs = {
@@ -256,37 +233,77 @@ def auto_tune_parallel(
     fmin_process.start()
     RUNNING_PROCESSES.append(fmin_process)
 
-    # wait and raise if all workers have died to prevent hanging
-    while fmin_process.is_alive():
+    running_workers = []
+    n_gpus = torch.cuda.device_count()
+    if not n_gpus and not use_cpu:
+        raise ValueError("No GPUs detected by PyTorch and use_cpu is set to False")
 
-        def is_dead(p):
-            return p.poll() is not None
+    # run mongo
+    mongo_path = os.path.join(save_path, "mongo")
+    if not os.path.exists(mongo_path):
+        os.makedirs(mongo_path)
+    mongo_logfile = open(os.path.join(mongo_path, "mongo_logfile"), "w")
+    OPEN_FILES.append(mongo_logfile)
+    mongod_process = Popen(
+        ["mongod", "--quiet", "--dbpath={path}".format(path=mongo_path), "--port=1234"],
+        stdout=mongo_logfile,
+    )
+    RUNNING_PROCESSES.append(mongod_process)
 
-        is_dead_statuses = list(map(is_dead, running_workers))
-        print(is_dead_statuses)
-        if all(is_dead_statuses):
-            raise RuntimeError(
-                "All workers have died, check stdout/stderr for tracebacks"
+    # run n hyperopt worker per gpu available
+    logger.info(
+        "Launching {n_workers_per_gpu} worker.s for each of the {n_gpus} gpu.s found by torch"
+        "found".format(n_workers_per_gpu=n_workers_per_gpu, n_gpus=n_gpus)
+    )
+    for gpu_id in range(n_gpus):
+        for sub_id in range(n_workers_per_gpu):
+            p = _launch_hyperopt_worker(
+                exp_key=exp_key, gpu=True, id=str(gpu_id), sub_id=str(sub_id)
             )
-        time.sleep(10)
+            running_workers.append(p)
+
+    # run one hyperopt worker per cpu (though not specifically assigned)
+    # minus one to prevent overloading the cores
+    # FIXME set cpu affinity and use AVAILABLE CPUs not EXISTING
+    logger.info(
+        "Launching {n_cpu} cpu worker.s".format(
+            n_cpu=max(0, os.cpu_count() * use_cpu - 1)
+        )
+    )
+    for cpu_id in range(max(0, os.cpu_count() * use_cpu - 1)):
+        p = _launch_hyperopt_worker(exp_key=exp_key, gpu=False, id=str(cpu_id))
+        running_workers.append(p)
+    RUNNING_PROCESSES.extend(running_workers)
+
+    # wait and warn if all workers have died in case call to fmin hangs
+    check_on_workers_process = Process(
+        target=check_on_workers,
+        kwargs={"running_workers": running_workers},
+    )
+    check_on_workers_process.start()
+    RUNNING_PROCESSES.append(check_on_workers_process)
+
+    # wait for fmin then close worker checking process
+    fmin_process.join()
+    check_on_workers_process.terminate()
 
     # get result, terminate all subprocesses and close logfile
-    # fmin_process is done so no need to wait but queue might fail (see link below)
+    # fmin_process is done but queue might fail if no wait (see link to standard doc)
     # https://docs.python.org/3.6/library/multiprocessing.html#multiprocessing.Queue
     time.sleep(1)
     trials = queue.get_nowait()
-    cleanup_processes_files()
+    logger.info("Done with experiment {exp_key}, cleaning up".format(exp_key=exp_key))
+    _cleanup_processes_files()
 
     return trials
 
 
-def launch_hyperopt_worker(
-    gpu: bool = True, id: str = None, sub_id: str = None
+def _launch_hyperopt_worker(
+    exp_key:str, gpu: bool = True, id: str = None, sub_id: str = None
 ) -> Popen:
     device_type = "gpu" if gpu else "cpu"
     sub_id = ":" + sub_id if sub_id else str()
     worker_name = "worker_" + device_type + "_" + id + sub_id
-    # worker_log_file = open("log" + worker_name, "w")
     cuda_visible_devices = id if gpu else str()
     sub_env = {
         # FIXME pythonpath unnecessary if scVI installed
@@ -295,19 +312,30 @@ def launch_hyperopt_worker(
         "WORKER_NAME": worker_name,
     }
     sub_env = {**os.environ, **sub_env}
+    # FIXME hard-coded worker params, not universal?
     p = Popen(
         [
             "hyperopt-mongo-worker",
             "--mongo=localhost:1234/scvi_db",
+            "--exp-key={exp_key}".format(exp_key=exp_key),
             "--poll-interval=0.1",
             "--max-consecutive-failures=1",
-            "--reserve-timeout=10.0",
+            "--reserve-timeout=30.0",
         ],
         env=sub_env,
-        # stdout=worker_log_file,
-        # stderr=worker_log_file,
     )
     return p
+
+
+def check_on_workers(running_workers: List[Popen]):
+        for worker in running_workers:
+            worker.communicate()
+        logger.info(
+            "All workers have died, check stdout/stderr for error tracebacks."
+            "If ReserveTimeout was raised wait for fmin to finish. \n"
+            "If fmin doesn't finish, terminate the process and check that "
+            "the exp_key hasn't been used before or with a lesser max_evals."
+        )
 
 
 def _fmin_parallel(
@@ -319,6 +347,7 @@ def _fmin_parallel(
     max_evals: int,
     show_progressbar: bool,
 ):
+    logger.info("Minimization process launched.")
     # instantiate Trials object
     trials = MongoTrials("mongo://localhost:1234/scvi_db/jobs", exp_key=exp_key)
 
@@ -331,8 +360,9 @@ def _fmin_parallel(
         trials=trials,
         show_progressbar=show_progressbar,
     )
-    # queue uses pickle so remove attribute containing thread.lock
+    # queue.put uses pickle so remove attribute containing thread.lock
     if hasattr(trials, "handle"):
+        logger.info("Deleting Trial handle for pickling")
         del trials.handle
     queue.put(trials)
 
@@ -367,6 +397,7 @@ def _objective_function(
     :param is_best_training: True if training the model with the best hyperparameters
     :return: best value of the early stopping metric, and best model if is_best_training
     """
+    start_time = time.monotonic()
     # hyperopt params
     space = defaultdict(dict, space)
     model_tunable_kwargs = space["model_tunable_kwargs"]
@@ -425,7 +456,7 @@ def _objective_function(
 
     # train model
     trainer.train(**train_func_tunable_kwargs)
-
+    elapsed_time = time.monotonic() - start_time
     # if training the best model, return model else return criterion
     if is_best_training:
         return trainer
@@ -438,9 +469,18 @@ def _objective_function(
                 metric = early_stopping_kwargs["early_stopping_metric"]
                 metric += "_" + trainer.early_stopping.on
         metric = metric if metric else "ll_test_set"
+        metric_history = trainer.history[metric]
+        logger.info(
+            "[Worker : {name}] Training of {n_epochs} epochs finished in {time}".format(
+                name=os.environ.get("WORKER_NAME", "0"),
+                n_epochs=len(metric_history),
+                time=str(datetime.timedelta(seconds=elapsed_time)),
+            )
+        )
 
         return {
-            "loss": trainer.history[metric][-1],
+            "loss": metric_history[-1],
+            "elapsed_time": elapsed_time,
             "status": STATUS_OK,
             "history": trainer.history,
             "space": space,
