@@ -33,7 +33,9 @@ OPEN_FILES = []
 logger = logging.getLogger(__name__)
 if not len(logger.handlers):
     ch = logging.StreamHandler()
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
@@ -74,30 +76,31 @@ def auto_tune_scvi_model(
     Convention: fixed parameters (no default) have precedence over tunable parameters (default).
 
     :param exp_key: Name of the experiment in MongoDb.
-    :param gene_dataset: scVI gene dataset
+    :param gene_dataset: scVI gene dataset.
     :param model_class: scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
     :param trainer_class: Trainer class (e.g ``UnsupervisedTrainer``)
     :param model_specific_kwargs: dict of fixed parameters which will be passed to the model.
     :param trainer_specific_kwargs: dict of fixed parameters which will be passed to the trainer.
     :param train_func_specific_kwargs: dict of fixed parameters which will be passed to the train method.
     :param space: dict containing up to three sub-dicts with keys "model_tunable_kwargs",
-    "trainer_tunable_kwargs" or "train_func_tunable_kwargs".
-    Each of those dict contains hyperopt defined parameter spaces (e.g. ``hp.choice(..)``)
-    which will be passed to the corresponding object : model, trainer or train method
-    when performing hyperoptimization. Default: mutable, see source code.
+        "trainer_tunable_kwargs" or "train_func_tunable_kwargs".
+        Each of those dict contains hyperopt defined parameter spaces (e.g. ``hp.choice(..)``)
+        which will be passed to the corresponding object : model, trainer or train method
+        when performing hyperoptimization. Default: mutable, see source code.
     :param use_batches: If False, pass n_batch=0 to model else pass gene_dataset.n_batches
-    :param max_evals: Maximum number of trainings.
+    :param max_evals: Maximum number of evaluations of the objective
     :param parallel: If True, use MongoTrials object to run trainings in parallel.
-    If already exists in db, hyperopt will run a numebr of trainings equal to
-    the difference between current and previous max_evals.
-    :param save_path
-    :param use_cpu: if True, also launch cpu-only workers
-    :param n_workers_per_gpu: Number of workers ton launch per gpu found by torch
+        If already exists in db, hyperopt will run a numebr of trainings equal to
+        the difference between current and previous max_evals.
+    :param save_path: Path where to save best model, trainer, trials and mongo files.
+    :param use_cpu: if True, also launch cpu-only workers.
+    :param n_workers_per_gpu: Number of workers ton launch per gpu found by torch.
     :return: Trainer object for the best model and Trials object containing logs for the different runs.
 
     Examples:
+        >>> from scvi.dataset import CortexDataset
         >>> gene_dataset = CortexDataset()
-        >>> best_trainer, trials = auto_tuned_scvi_parameters(gene_dataset)
+        >>> best_trainer, trials = auto_tune_scvi_model(gene_dataset)
     """
     logger.info("Starting experiment: {exp_key}".format(exp_key=exp_key))
     # default specific kwargs
@@ -129,7 +132,9 @@ def auto_tune_scvi_model(
                 "dropout_rate": hp.choice("dropout_rate", [0.1, 0.3, 0.5, 0.7, 0.9]),
                 "reconstruction_loss": hp.choice("reconstruction_loss", ["zinb", "nb"]),
             },
-            "train_func_tunable_kwargs": {"lr": hp.choice("lr", [0.01, 0.005, 0.001, 0.0005, 0.0001])},
+            "train_func_tunable_kwargs": {
+                "lr": hp.choice("lr", [0.01, 0.005, 0.001, 0.0005, 0.0001])
+            },
         }
     )
 
@@ -215,6 +220,23 @@ def _auto_tune_parallel(
     use_cpu: bool = False,
     n_workers_per_gpu: int = 1,
 ) -> MongoTrials:
+
+    """Parallel version of the hyperoptimization procedure.
+    Called by auto_tune_scvi_model when parallel=True
+
+    :param objective_hyperopt: Callable, the objective function to minimize
+    :param exp_key: Name of the experiment in MongoDb.
+    :param space: dict containing up to three sub-dicts with keys "model_tunable_kwargs",
+        "trainer_tunable_kwargs" or "train_func_tunable_kwargs".
+        Each of those dict contains hyperopt defined parameter spaces (e.g. ``hp.choice(..)``)
+        which will be passed to the corresponding object : model, trainer or train method
+        when performing hyperoptimization. Default: mutable, see source code.
+    :param max_evals: Maximum number of evaluations of the objective.
+    :param save_path: Path where to save best model, trainer, trials and mongo files.
+    :param use_cpu: if True, also launch cpu-only workers.
+    :param n_workers_per_gpu: Number of workers ton launch per gpu found by torch.
+    :return: MongoTrials object containing the results of the procedure.
+    """
     # start by running fmin process so that workers don't timeout
     # run hyperoptimization, in a forked process
     # this allows to warn if the workers crash
@@ -258,7 +280,7 @@ def _auto_tune_parallel(
     for gpu_id in range(n_gpus):
         for sub_id in range(n_workers_per_gpu):
             p = _launch_hyperopt_worker(
-                exp_key=exp_key, gpu=True, id=str(gpu_id), sub_id=str(sub_id)
+                exp_key=exp_key, gpu=True, hw_id=str(gpu_id), sub_id=str(sub_id)
             )
             running_workers.append(p)
 
@@ -271,14 +293,13 @@ def _auto_tune_parallel(
         )
     )
     for cpu_id in range(max(0, os.cpu_count() * use_cpu - 1)):
-        p = _launch_hyperopt_worker(exp_key=exp_key, gpu=False, id=str(cpu_id))
+        p = _launch_hyperopt_worker(exp_key=exp_key, gpu=False, hw_id=str(cpu_id))
         running_workers.append(p)
     RUNNING_PROCESSES.extend(running_workers)
 
     # wait and warn if all workers have died in case call to fmin hangs
     check_on_workers_process = Process(
-        target=check_on_workers,
-        kwargs={"running_workers": running_workers},
+        target=check_on_workers, kwargs={"running_workers": running_workers}
     )
     check_on_workers_process.start()
     RUNNING_PROCESSES.append(check_on_workers_process)
@@ -299,12 +320,14 @@ def _auto_tune_parallel(
 
 
 def _launch_hyperopt_worker(
-    exp_key:str, gpu: bool = True, id: str = None, sub_id: str = None
+    exp_key: str, gpu: bool = True, hw_id: str = None, sub_id: str = None
 ) -> Popen:
+    """Launches a hyperopt-mongo-worker in a forked process (Popen)
+    """
     device_type = "gpu" if gpu else "cpu"
     sub_id = ":" + sub_id if sub_id else str()
-    worker_name = "worker_" + device_type + "_" + id + sub_id
-    cuda_visible_devices = id if gpu else str()
+    worker_name = "worker_" + device_type + "_" + hw_id + sub_id
+    cuda_visible_devices = hw_id if gpu else str()
     sub_env = {
         # FIXME pythonpath unnecessary if scVI installed
         "PYTHONPATH": ".",
@@ -328,14 +351,16 @@ def _launch_hyperopt_worker(
 
 
 def check_on_workers(running_workers: List[Popen]):
-        for worker in running_workers:
-            worker.communicate()
-        logger.info(
-            "All workers have died, check stdout/stderr for error tracebacks."
-            "If ReserveTimeout was raised wait for fmin to finish. \n"
-            "If fmin doesn't finish, terminate the process and check that "
-            "the exp_key hasn't been used before or with a lesser max_evals."
-        )
+    """Checks that worker in running_workers are stil running and logs a message if its not the case
+    """
+    for worker in running_workers:
+        worker.communicate()
+    logger.info(
+        "All workers have died, check stdout/stderr for error tracebacks."
+        "If ReserveTimeout was raised wait for fmin to finish. \n"
+        "If fmin doesn't finish, terminate the process and check that "
+        "the exp_key hasn't been used before or with a lesser max_evals."
+    )
 
 
 def _fmin_parallel(
@@ -347,6 +372,8 @@ def _fmin_parallel(
     max_evals: int,
     show_progressbar: bool,
 ):
+    """Launches a minimization procedure
+    """
     logger.info("Minimization process launched.")
     # instantiate Trials object
     trials = MongoTrials("mongo://localhost:1234/scvi_db/jobs", exp_key=exp_key)
@@ -377,7 +404,7 @@ def _objective_function(
     train_func_specific_kwargs: dict = None,
     use_batches: bool = False,
     is_best_training: bool = False,
-) -> Union[Dict[str, Any], Type[VAE]]:
+) -> Union[Dict[str, Any], Trainer]:
     """Objective function for automatic hyperparameter optimization.
     Train a scVI model and return the best value of the early-stopping metric (e.g, log-likelihood).
     Convention: fixed parameters (no default) have precedence over tunable parameters (default).
