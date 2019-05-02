@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence as kl
 
 from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
-from scvi.models.modules import Encoder, DecoderSCVI
+from scvi.models.modules import Encoder, DecoderSCVI, LinearDecoderSCVI
 from scvi.models.utils import one_hot
 
 torch.backends.cudnn.benchmark = True
@@ -214,3 +214,50 @@ class VAE(nn.Module):
         reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout)
 
         return reconst_loss + kl_divergence_l, kl_divergence
+
+
+class LDVAE(VAE):
+    r"""Linear-decoded Variational auto-encoder model.
+
+    This model uses a linear decoder, directly mapping the latent representation
+    to gene expression levels. It still uses a deep neural network to encode
+    the latent representation.
+
+    Compared to standard VAE, this model is less powerful, but can be used to
+    inspect which genes contribute to variation in the dataset.
+
+    :param n_input: Number of input genes
+    :param n_batch: Number of batches
+    :param n_labels: Number of labels
+    :param n_hidden: Number of nodes per hidden layer (for encoder)
+    :param n_latent: Dimensionality of the latent space
+    :param n_layers: Number of hidden layers used for encoder NNs
+    :param dropout_rate: Dropout rate for neural networks
+    :param dispersion: One of the following
+
+        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
+        * ``'gene-batch'`` - dispersion can differ between different batches
+        * ``'gene-label'`` - dispersion can differ between different labels
+        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
+
+    :param log_variational: Log variational distribution
+    :param reconstruction_loss:  One of
+
+        * ``'nb'`` - Negative binomial distribution
+        * ``'zinb'`` - Zero-inflated negative binomial distribution
+    """
+
+    def __init__(self, n_input: int, n_batch: int = 0, n_labels: int = 0,
+                 n_hidden: int = 128, n_latent: int = 10, n_layers: int = 1,
+                 dropout_rate: float = 0.1, dispersion: str = "gene",
+                 log_variational: bool = True, reconstruction_loss: str = "zinb"):
+        super().__init__(n_input, n_batch, n_labels, n_hidden, n_latent, n_layers,
+                         dropout_rate, dispersion, log_variational, reconstruction_loss)
+
+        self.decoder = LinearDecoderSCVI(n_latent, n_input, n_cat_list=[n_batch],
+                                         n_layers=n_layers, n_hidden=n_hidden)
+
+    def get_loadings(self):
+        """ Extract per-gene weights (for each Z) in the linear decoder.
+        """
+        return self.decoder.factor_regressor.parameters()

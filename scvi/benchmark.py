@@ -5,7 +5,7 @@ from scvi.dataset import CortexDataset
 from scvi.inference import UnsupervisedTrainer, TrainerFish
 from scvi.inference.annotation import compute_accuracy_nn
 from scvi.inference.posterior import proximity_imputation
-from scvi.models import VAE, VAEF
+from scvi.models import VAE, VAEF, LDVAE
 
 
 def cortex_benchmark(n_epochs=250, use_cuda=True, save_path='data/', show_plot=True):
@@ -49,6 +49,18 @@ def harmonization_benchmarks(n_epochs=1, use_cuda=True, save_path='data/'):
 def annotation_benchmarks(n_epochs=1, use_cuda=True, save_path='data/'):
     # some cortex annotation benchmark
     pass
+
+
+def ldvae_benchmark(dataset, n_epochs, use_cuda=True):
+    ldvae = LDVAE(dataset.nb_genes, n_batch=dataset.n_batches)
+    trainer = UnsupervisedTrainer(ldvae, dataset, use_cuda=use_cuda)
+    trainer.train(n_epochs=n_epochs)
+    trainer.test_set.ll(verbose=True)
+    trainer.test_set.marginal_ll(verbose=True)
+
+    ldvae.get_loadings()
+
+    return trainer
 
 
 def all_benchmarks(n_epochs=250, use_cuda=True, save_path='data/', show_plot=True):

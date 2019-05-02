@@ -6,7 +6,7 @@
 
 import numpy as np
 
-from scvi.benchmark import all_benchmarks, benchmark, benchmark_fish_scrna
+from scvi.benchmark import all_benchmarks, benchmark, benchmark_fish_scrna, ldvae_benchmark
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
@@ -285,6 +285,13 @@ def test_classifier_accuracy(save_path):
                                                            'save_best_state_metric': 'accuracy'})
     cls_trainer.train(n_epochs=2)
     cls_trainer.train_set.accuracy()
+
+
+def test_LDVAE(save_path):
+    synthetic_datset_one_batch = SyntheticDataset(n_batches=1)
+    ldvae_benchmark(synthetic_datset_one_batch, n_epochs=1, use_cuda=False)
+    synthetic_datset_two_batches = SyntheticDataset(n_batches=2)
+    ldvae_benchmark(synthetic_datset_two_batches, n_epochs=1, use_cuda=False)
 
 
 def test_sampling_zl(save_path):
