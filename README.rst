@@ -2,7 +2,7 @@
 scVI
 ====
 
-|PyPI| |bioconda| |Docs| |Build Status| |Code Cov|
+|PyPI| |bioconda| |Docs| |Build Status| |Coverage|
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/scVI.svg
    :target: https://pypi.org/project/scvi
@@ -11,7 +11,7 @@ scVI
 .. |Docs| image:: https://readthedocs.org/projects/scvi/badge/?version=latest
         :target: https://scvi.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
-.. |Build| image:: https://travis-ci.org/YosefLab/scVI.svg?branch=master
+.. |Build Status| image:: https://travis-ci.org/YosefLab/scVI.svg?branch=master
     :target: https://travis-ci.org/YosefLab/scVI
 .. |Coverage| image:: https://codecov.io/gh/YosefLab/scVI/branch/master/graph/badge.svg
   :target: https://codecov.io/gh/YosefLab/scVI
