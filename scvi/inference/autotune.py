@@ -1,18 +1,19 @@
-import atexit
 import datetime
 import logging
 import os
 import pickle
+import sys
 import time
 
 from collections import defaultdict
-from functools import partial
+from functools import partial, wraps
+from io import IOBase
 from multiprocessing import Process, Queue
 from subprocess import Popen
 from typing import Any, Callable, Dict, List, Type, Union
 
 from hyperopt import fmin, tpe, Trials, hp, STATUS_OK
-from hyperopt.mongoexp import MongoTrials
+from hyperopt.mongoexp import as_mongo_str, MongoJobs, MongoTrials, MongoWorker, ReserveTimeout, Shutdown, WaitQuit
 
 import torch
 
@@ -21,11 +22,11 @@ from .inference import UnsupervisedTrainer
 from ..dataset import GeneExpressionDataset
 from ..models import VAE
 
-# TODO: add database watcher and inform user about progress
+# TODO: add database watcher and inform user about progress, choose adequate logging levels
 
 # register running process and open files to terminate/close at exit
-RUNNING_PROCESSES = []
-OPEN_FILES = []
+RUNNING_PROCESSES: List[Union[Process, Popen]] = []
+OPEN_FILES: List[IOBase] = []
 
 # initialize scVI logger
 # if handler already added (by user) don't add default handler
@@ -40,18 +41,36 @@ if not len(logger.handlers):
     logger.addHandler(ch)
 
 
-# Kill all subprocesses if parent dies
-@atexit.register
+# cleanup helper functions
 def _cleanup_processes_files():
-    """cleanup function"""
+    """cleanup function, starts with latest processes/files"""
     logger.info("Cleaning up: terminating processes")
-    for p in RUNNING_PROCESSES:
-        p.terminate()
+    for p in RUNNING_PROCESSES[::-1]:
+        if isinstance(p, Popen):
+            if p.poll() is not None:
+                p.terminate()
+        if isinstance(p, Process):
+            if p.is_alive():
+                p.terminate()
     logger.info("Cleaning up: closing files")
-    for f in OPEN_FILES:
-        f.close()
+    for f in OPEN_FILES[::-1]:
+        if not f.closed:
+            f.close()
 
 
+def _cleanup_decorator(func):
+    @wraps(func)
+    def decorated(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception:
+            logger.info("Caught Exception, starting cleanup")
+            _cleanup_processes_files()
+            raise
+    return decorated
+
+
+@_cleanup_decorator
 def auto_tune_scvi_model(
     exp_key: str,
     gene_dataset: GeneExpressionDataset,
@@ -67,6 +86,11 @@ def auto_tune_scvi_model(
     save_path: str = ".",
     use_cpu: bool = False,
     n_workers_per_gpu: int = 1,
+    reserve_timeout: float = 30.0,
+    mongo_port: str = "1234",
+    mongo_host: str = "localhost",
+    db_name:str = "scvi_db",
+
 ) -> (Type[Trainer], Trials):
     """Perform automatic hyperparameter optimization of an scVI model
     and return best model and hyperopt Trials object.
@@ -166,6 +190,7 @@ def auto_tune_scvi_model(
     )
 
     if parallel:
+        logger.info("Starting parallel hyperoptimization")
         trials = _auto_tune_parallel(
             objective_hyperopt=objective_hyperopt,
             exp_key=exp_key,
@@ -174,9 +199,14 @@ def auto_tune_scvi_model(
             save_path=save_path,
             use_cpu=use_cpu,
             n_workers_per_gpu=n_workers_per_gpu,
+            reserve_timeout=reserve_timeout,
+            mongo_port=mongo_port,
+            mongo_host=mongo_host,
+            db_name=db_name,
         )
 
     else:
+        logger.info("Starting sequential hyperoptimization")
         trials = Trials()
 
         # run hyperoptimization
@@ -189,10 +219,12 @@ def auto_tune_scvi_model(
         )
 
     # return best model, trained
+    logger.info("Training best model with full training set")
     best_space = trials.best_trial["result"]["space"]
     best_trainer = objective_hyperopt(best_space, is_best_training=True)
 
     # pickle trainer and save model (overkill?)
+    logger.info("Pickling best model, trainer as well as Trials object")
     with open(
         os.path.join(save_path, "best_trainer_{key}".format(key=exp_key)), "wb"
     ) as f:
@@ -219,6 +251,10 @@ def _auto_tune_parallel(
     save_path: str = ".",
     use_cpu: bool = False,
     n_workers_per_gpu: int = 1,
+    reserve_timeout: float = 30.0,
+    mongo_port: str = "1234",
+    mongo_host: str = "localhost",
+    db_name: str = "scvi_db",
 ) -> MongoTrials:
 
     """Parallel version of the hyperoptimization procedure.
@@ -237,10 +273,25 @@ def _auto_tune_parallel(
     :param n_workers_per_gpu: Number of workers ton launch per gpu found by torch.
     :return: MongoTrials object containing the results of the procedure.
     """
+    # run mongo
+    logger.info("Starting MongoDb process")
+    mongo_path = os.path.join(save_path, "mongo")
+    if not os.path.exists(mongo_path):
+        os.makedirs(mongo_path)
+    mongo_logfile = open(os.path.join(mongo_path, "mongo_logfile"), "w")
+    OPEN_FILES.append(mongo_logfile)
+    mongod_process = Popen(
+        ["mongod", "--quiet", "--dbpath={path}".format(path=mongo_path), "--port={port}".format(port=mongo_port)],
+        stdout=mongo_logfile,
+    )
+    mongo_port_address = os.path.join(mongo_host + ":" + mongo_port, db_name)
+    RUNNING_PROCESSES.append(mongod_process)
+
     # start by running fmin process so that workers don't timeout
     # run hyperoptimization, in a forked process
     # this allows to warn if the workers crash
     # since mongo is not thread-safe, trials must be instantiated in fork
+    logger.info("Starting minimization procedure")
     queue = Queue()
     fmin_kwargs = {
         "queue": queue,
@@ -250,133 +301,60 @@ def _auto_tune_parallel(
         "algo": tpe.suggest,
         "max_evals": max_evals,
         "show_progressbar": False,  # progbar useless in parallel mode
+        "mongo_port_address": mongo_port_address,
     }
     fmin_process = Process(target=_fmin_parallel, kwargs=fmin_kwargs)
     fmin_process.start()
     RUNNING_PROCESSES.append(fmin_process)
 
-    running_workers = []
-    n_gpus = torch.cuda.device_count()
-    if not n_gpus and not use_cpu:
-        raise ValueError("No GPUs detected by PyTorch and use_cpu is set to False")
-
-    # run mongo
-    mongo_path = os.path.join(save_path, "mongo")
-    if not os.path.exists(mongo_path):
-        os.makedirs(mongo_path)
-    mongo_logfile = open(os.path.join(mongo_path, "mongo_logfile"), "w")
-    OPEN_FILES.append(mongo_logfile)
-    mongod_process = Popen(
-        ["mongod", "--quiet", "--dbpath={path}".format(path=mongo_path), "--port=1234"],
-        stdout=mongo_logfile,
+    # start worker launcher
+    logger.info("Starting worker launcher")
+    launcher_kwargs = {
+        "exp_key": exp_key,
+        "use_cpu": use_cpu,
+        "n_workers_per_gpu": n_workers_per_gpu,
+        "reserve_timeout": reserve_timeout,
+        "workdir": mongo_path,
+        "mongo_port_address": mongo_port_address,
+    }
+    workers_process = Process(
+        target=launch_workers,
+        kwargs=launcher_kwargs,
     )
-    RUNNING_PROCESSES.append(mongod_process)
+    workers_process.start()
+    RUNNING_PROCESSES.append(workers_process)
 
-    # run n hyperopt worker per gpu available
-    logger.info(
-        "Launching {n_workers_per_gpu} worker.s for each of the {n_gpus} gpu.s found by torch"
-        "found".format(n_workers_per_gpu=n_workers_per_gpu, n_gpus=n_gpus)
-    )
-    for gpu_id in range(n_gpus):
-        for sub_id in range(n_workers_per_gpu):
-            p = _launch_hyperopt_worker(
-                exp_key=exp_key, gpu=True, hw_id=str(gpu_id), sub_id=str(sub_id)
-            )
-            running_workers.append(p)
-
-    # run one hyperopt worker per cpu (though not specifically assigned)
-    # minus one to prevent overloading the cores
-    # FIXME set cpu affinity and use AVAILABLE CPUs not EXISTING
-    logger.info(
-        "Launching {n_cpu} cpu worker.s".format(
-            n_cpu=max(0, os.cpu_count() * use_cpu - 1)
-        )
-    )
-    for cpu_id in range(max(0, os.cpu_count() * use_cpu - 1)):
-        p = _launch_hyperopt_worker(exp_key=exp_key, gpu=False, hw_id=str(cpu_id))
-        running_workers.append(p)
-    RUNNING_PROCESSES.extend(running_workers)
-
-    # wait and warn if all workers have died in case call to fmin hangs
-    check_on_workers_process = Process(
-        target=check_on_workers, kwargs={"running_workers": running_workers}
-    )
-    check_on_workers_process.start()
-    RUNNING_PROCESSES.append(check_on_workers_process)
-
-    # wait for fmin then close worker checking process
+    # wait for fmin then close worker process
+    trials = queue.get(block=True)
     fmin_process.join()
-    check_on_workers_process.terminate()
+    logger.info("Finished minimization procedure for experiment {exp_key}".format(exp_key=exp_key))
+    RUNNING_PROCESSES.remove(fmin_process)
+    logger.info("Terminating worker launcher")
+    workers_process.terminate()
+    logger.info("worker launcher terminated")
+    RUNNING_PROCESSES.remove(workers_process)
 
-    # get result, terminate all subprocesses and close logfile
-    # fmin_process is done but queue might fail if no wait (see link to standard doc)
-    # https://docs.python.org/3.6/library/multiprocessing.html#multiprocessing.Queue
-    time.sleep(1)
-    trials = queue.get_nowait()
-    logger.info("Done with experiment {exp_key}, cleaning up".format(exp_key=exp_key))
+    # get result, terminate all forked processed and close files
     _cleanup_processes_files()
 
     return trials
 
 
-def _launch_hyperopt_worker(
-    exp_key: str, gpu: bool = True, hw_id: str = None, sub_id: str = None
-) -> Popen:
-    """Launches a hyperopt-mongo-worker in a forked process (Popen)
-    """
-    device_type = "gpu" if gpu else "cpu"
-    sub_id = ":" + sub_id if sub_id else str()
-    worker_name = "worker_" + device_type + "_" + hw_id + sub_id
-    cuda_visible_devices = hw_id if gpu else str()
-    sub_env = {
-        # FIXME pythonpath unnecessary if scVI installed
-        "PYTHONPATH": ".",
-        "CUDA_VISIBLE_DEVICES": cuda_visible_devices,
-        "WORKER_NAME": worker_name,
-    }
-    sub_env = {**os.environ, **sub_env}
-    # FIXME hard-coded worker params, not universal?
-    p = Popen(
-        [
-            "hyperopt-mongo-worker",
-            "--mongo=localhost:1234/scvi_db",
-            "--exp-key={exp_key}".format(exp_key=exp_key),
-            "--poll-interval=0.1",
-            "--max-consecutive-failures=1",
-            "--reserve-timeout=30.0",
-        ],
-        env=sub_env,
-    )
-    return p
-
-
-def check_on_workers(running_workers: List[Popen]):
-    """Checks that worker in running_workers are stil running and logs a message if its not the case
-    """
-    for worker in running_workers:
-        worker.communicate()
-    logger.info(
-        "All workers have died, check stdout/stderr for error tracebacks."
-        "If ReserveTimeout was raised wait for fmin to finish. \n"
-        "If fmin doesn't finish, terminate the process and check that "
-        "the exp_key hasn't been used before or with a lesser max_evals."
-    )
-
-
+@_cleanup_decorator
 def _fmin_parallel(
     queue: Queue,
     fn: Callable,
     exp_key: str,
     space: dict,
-    algo: Callable,
-    max_evals: int,
-    show_progressbar: bool,
+    algo: Callable = tpe.suggest,
+    max_evals: int = 100,
+    show_progressbar: bool = False,
+    mongo_port_address: str = "localhost:1234/scvi_db",
 ):
     """Launches a minimization procedure
     """
-    logger.info("Minimization process launched.")
     # instantiate Trials object
-    trials = MongoTrials("mongo://localhost:1234/scvi_db/jobs", exp_key=exp_key)
+    trials = MongoTrials(as_mongo_str(os.path.join(mongo_port_address, "jobs")), exp_key=exp_key)
 
     # run hyperoptimization
     _ = fmin(
@@ -391,7 +369,137 @@ def _fmin_parallel(
     if hasattr(trials, "handle"):
         logger.info("Deleting Trial handle for pickling")
         del trials.handle
+    logger.info("Putting Trials in Queue")
     queue.put(trials)
+
+
+@_cleanup_decorator
+def launch_workers(
+    exp_key: str,
+    use_cpu: bool = False,
+    n_workers_per_gpu: int = 1,
+    reserve_timeout: float = 30.0,
+    workdir: str = ".",
+    mongo_port_address: str = "localhost:1234/scvi_db",
+):
+    n_gpus = torch.cuda.device_count()
+    if not n_gpus and not use_cpu:
+        raise ValueError("No GPUs detected by PyTorch and use_cpu is set to False")
+
+    running_workers = []
+    # run n hyperopt worker per gpu available
+    logger.info(
+        "Starting {n_workers_per_gpu} worker.s for each of the {n_gpus} gpu.s found by torch"
+        "found".format(n_workers_per_gpu=n_workers_per_gpu, n_gpus=n_gpus)
+    )
+    for gpu_id in range(n_gpus):
+        for sub_id in range(n_workers_per_gpu):
+            worker_kwargs = {
+                "exp_key": exp_key,
+                "workdir": workdir,
+                "gpu": True,
+                "hw_id": str(gpu_id),
+                "sub_id": str(sub_id),
+                "reserve_timeout": reserve_timeout,
+                "mongo_port_address": mongo_port_address,
+            }
+            p = Process(
+                target=_hyperopt_worker,
+                kwargs=worker_kwargs,
+            )
+            # FIXME won't terminate if parent is killed (SIGKILL)
+            p.start()
+            running_workers.append(p)
+
+    # run one hyperopt worker per cpu (though not specifically assigned)
+    # minus one to prevent overloading the cores
+    # FIXME set cpu affinity and use AVAILABLE CPUs not EXISTING
+    logger.info(
+        "Starting {n_cpu} cpu worker.s".format(
+            n_cpu=max(0, os.cpu_count() * use_cpu - 1)
+        )
+    )
+    for cpu_id in range(max(0, os.cpu_count() * use_cpu - 1)):
+        worker_kwargs = {
+            "exp_key": exp_key,
+            "workdir": workdir,
+            "gpu": False,
+            "hw_id": str(cpu_id),
+            "reserve_timeout": reserve_timeout,
+            "mongo_port_address": mongo_port_address,
+        }
+        p = Process(
+            target=_hyperopt_worker,
+            kwargs=worker_kwargs,
+        )
+        # FIXME won't terminate if parent is killed (SIGKILL)
+        p.start()
+        running_workers.append(p)
+    RUNNING_PROCESSES.extend(running_workers)
+
+    # wait and warn if all workers have died in case call to fmin hangs
+    workers_watchdog(running_workers=running_workers)
+
+
+def _hyperopt_worker(
+    exp_key: str,
+    workdir: str = ".",
+    gpu: bool = True,
+    hw_id: str = None,
+    sub_id: str = None,
+    poll_interval: float = 1.0,
+    reserve_timeout: float = 30.0,
+    mongo_port_address: str = "localhost:1234/scvi_db",
+):
+    """Launches a hyperopt MongoWorker which runs jobs until ReserveTimeout is raised.
+    """
+    # worker naming convention
+    device_type = "gpu" if gpu else "cpu"
+    sub_id = ":" + sub_id if sub_id else str()
+    os.environ["WORKER_NAME"] = "worker_" + device_type + "_" + hw_id + sub_id
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = hw_id if gpu else str()
+    # FIXME is this stil necessary?
+    sys.path.append(".")
+
+    mjobs = MongoJobs.new_from_connection_str(
+        os.path.join(as_mongo_str(mongo_port_address), 'jobs')
+    )
+    mworker = MongoWorker(mjobs,
+                          float(poll_interval),
+                          workdir=workdir,
+                          exp_key=exp_key)
+
+    while True:
+        # FIXME we don't protect ourselves from memory leaks, bad cleanup, etc.
+        # The tradeoff is that a large dataset must be reloaded once for
+        # each subprocess.
+        try:
+            mworker.run_one(reserve_timeout=float(reserve_timeout))
+        except ReserveTimeout:
+            logger.info(
+                "Caught ReserveTimeout. "
+                "Exiting after failing to reserve job for {time} seconds".format(time=reserve_timeout)
+            )
+            break
+
+
+def workers_watchdog(running_workers: List[Process]):
+    """Checks that worker in running_workers are stil running, if not inform user.
+    """
+    while True:
+        one_alive = False
+        for worker in running_workers:
+            one_alive = one_alive or worker.is_alive()
+        # if all workers are dead, inform user
+        if not one_alive:
+            logger.info(
+                "All workers have died, check stdout/stderr for error tracebacks."
+                "If ReserveTimeout was raised wait for fmin to finish. \n"
+                "If fmin doesn't finish, terminate the process and check that "
+                "the exp_key hasn't been used before or is used with a higher max_evals."
+            )
+        time.sleep(5)
 
 
 def _objective_function(
@@ -455,11 +563,9 @@ def _objective_function(
     train_func_tunable_kwargs.update(train_func_specific_kwargs)
 
     if not is_best_training:
-        # FIXME had to do info level because hyperopt basicConfig
-        # is info level in MongoWorker
         logger.info(
-            "Worker : {name}".format(name=os.environ.get("WORKER_NAME", "0")) + "\n"
-            "Parameters being tested: \n"
+            "[{name}]".format(name=os.environ.get("WORKER_NAME", "0"))
+            + "Parameters being tested: \n"
             "model: \n"
             + str(model_tunable_kwargs)
             + "\n"
@@ -472,6 +578,7 @@ def _objective_function(
         )
 
     # define model
+    logger.info("Instantiating model")
     model = model_class(
         n_input=gene_dataset.nb_genes,
         n_batch=gene_dataset.n_batches * use_batches,
@@ -479,10 +586,13 @@ def _objective_function(
     )
 
     # define trainer
+    logger.info("Instantiating trainer")
     trainer = trainer_class(model, gene_dataset, **trainer_tunable_kwargs)
 
     # train model
+    logger.info("Starting training")
     trainer.train(**train_func_tunable_kwargs)
+    logger.info("Finished training")
     elapsed_time = time.monotonic() - start_time
     # if training the best model, return model else return criterion
     if is_best_training:
@@ -497,9 +607,10 @@ def _objective_function(
                 metric += "_" + trainer.early_stopping.on
         metric = metric if metric else "ll_test_set"
         metric_history = trainer.history[metric]
+        worker_name = os.environ.get("WORKER_NAME", "0")
         logger.info(
-            "[Worker : {name}] Training of {n_epochs} epochs finished in {time}".format(
-                name=os.environ.get("WORKER_NAME", "0"),
+            "[{name}] Training of {n_epochs} epochs finished in {time}".format(
+                name=worker_name,
                 n_epochs=len(metric_history),
                 time=str(datetime.timedelta(seconds=elapsed_time)),
             )
@@ -511,4 +622,5 @@ def _objective_function(
             "status": STATUS_OK,
             "history": trainer.history,
             "space": space,
+            "worker_name": worker_name,
         }
