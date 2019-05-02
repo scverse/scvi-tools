@@ -10,12 +10,13 @@ from scvi.benchmark import all_benchmarks, benchmark, benchmark_fish_scrna, ldva
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
-    GeneExpressionDataset, PurifiedPBMCDataset
+    GeneExpressionDataset, PurifiedPBMCDataset, SyntheticDatasetCorr, ZISyntheticDatasetCorr
 from scvi.inference import JointSemiSupervisedTrainer, AlternateSemiSupervisedTrainer, ClassifierTrainer, \
     UnsupervisedTrainer, AdapterTrainer
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC
 from scvi.models.classifier import Classifier
+import anndata
 import os.path
 
 use_cuda = True
@@ -95,6 +96,28 @@ def test_synthetic_2():
     trainer_synthetic_vaec.train(n_epochs=2)
 
 
+def test_synthetic_corr_labels():
+    dataset = SyntheticDatasetCorr()
+    n_clusters = dataset.n_clusters
+    labels = np.unique(dataset.labels)
+    assert(labels == np.arange(n_clusters)).all()
+
+
+def test_synthetic_corr_zeros():
+    nb_data = SyntheticDatasetCorr()
+    zi_data = ZISyntheticDatasetCorr()
+    # Test hierarchy of zeros
+    # nb is not zero inflated
+    # zi is zero inflated for all genes
+    # We expect the number of zeros to organize accordingly (since all other parameters are fixed)
+    zi_zeros_frac = (zi_data.X == 0).mean()
+    nb_zeros_frac = (nb_data.X == 0).mean()
+
+    assert nb_zeros_frac < zi_zeros_frac
+    # We want to enforce that the zero inflated model has at least 20% of zeros
+    assert zi_zeros_frac >= 0.2
+
+
 def test_fish_rna(save_path):
     gene_dataset_fish = SmfishDataset(save_path)
     gene_dataset_seq = CortexDataset(save_path=save_path,
@@ -167,6 +190,7 @@ def test_cortex_loom(save_path):
 def test_anndata(save_path):
     ann_dataset = AnnDataset("TM_droplet_mat.h5ad", save_path=save_path)
     base_benchmark(ann_dataset)
+    AnnDataset(anndata.AnnData(np.random.randint(1, 10, (10, 10))))
 
 
 def test_csv(save_path):
@@ -268,3 +292,16 @@ def test_LDVAE(save_path):
     ldvae_benchmark(synthetic_datset_one_batch, n_epochs=1, use_cuda=False)
     synthetic_datset_two_batches = SyntheticDataset(n_batches=2)
     ldvae_benchmark(synthetic_datset_two_batches, n_epochs=1, use_cuda=False)
+
+
+def test_sampling_zl(save_path):
+    cortex_dataset = CortexDataset(save_path=save_path)
+    cortex_vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_batches)
+    trainer_cortex_vae = UnsupervisedTrainer(cortex_vae, cortex_dataset, train_size=0.5, use_cuda=use_cuda)
+    trainer_cortex_vae.train(n_epochs=2)
+
+    cortex_cls = Classifier((cortex_vae.n_latent+1), n_labels=cortex_dataset.n_labels)
+    trainer_cortex_cls = ClassifierTrainer(cortex_cls, cortex_dataset,
+                                           sampling_model=cortex_vae, sampling_zl=True)
+    trainer_cortex_cls.train(n_epochs=2)
+    trainer_cortex_cls.test_set.accuracy()
