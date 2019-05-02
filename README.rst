@@ -2,15 +2,20 @@
 scVI
 ====
 
-.. image:: https://travis-ci.org/YosefLab/scVI.svg?branch=master
-    :target: https://travis-ci.org/YosefLab/scVI
+|PyPI| |bioconda| |Docs| |Build Status| |Code Cov|
 
-.. image:: https://codecov.io/gh/YosefLab/scVI/branch/master/graph/badge.svg
-  :target: https://codecov.io/gh/YosefLab/scVI
-
-.. image:: https://readthedocs.org/projects/scvi/badge/?version=latest
+.. |PyPI| image:: https://img.shields.io/pypi/v/scVI.svg
+   :target: https://pypi.org/project/scvi
+.. |bioconda| image:: https://img.shields.io/badge/bioconda-🐍-blue.svg
+   :target: http://bioconda.github.io/recipes/scVI/README.html
+.. |Docs| image:: https://readthedocs.org/projects/scvi/badge/?version=latest
         :target: https://scvi.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
+.. |Build Status| image:: https://travis-ci.org/YosefLab/scVI.svg?branch=master
+    :target: https://travis-ci.org/YosefLab/scVI
+.. |Coverage| image:: https://codecov.io/gh/YosefLab/scVI/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/YosefLab/scVI
+
 
 Single-cell Variational Inference
 
