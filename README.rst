@@ -38,19 +38,30 @@ Quick Start
 
 4. Follow along with our Jupyter notebooks to quickly get familiar with scVI!
 
-   a. `data loading`__
-   b. `basic usage`__ 
-   c. `reproducing results from the scVI paper`__ 
-   d. `harmonization`__ 
-   e. `annotation`__ 
-   f. `interaction with scanpy`__ 
+   a. Getting started:
+   
+   * `data loading`__
+   * `basic usage`__ 
+   
+   b. Analyzing several datasets:
+   
+   * `harmonization`__ 
+   * `annotation`__ 
+   
+   c. Advanced topics:
+   
+   * `interaction with scanpy`__ 
+   * `linear decoder for gene interpretation`__
+   * `reproducing results from the scVI paper`__ 
+
 
 .. __: https://github.com/YosefLab/scVI/tree/master/tests/notebooks/data_loading.ipynb
 .. __: https://github.com/YosefLab/scVI/tree/master/tests/notebooks/basic_tutorial.ipynb
-.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/scVI_reproducibility.ipynb
 .. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/harmonization.ipynb
 .. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/annotation.ipynb
 .. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/scanpy_pbmc3k.ipynb
+.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/Linearly_decoded_VAE_for_gene_interpretation.ipynb
+.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/scVI_reproducibility.ipynb
 
 References
 ----------
