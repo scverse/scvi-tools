@@ -710,14 +710,15 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
     return score / float(n_pools)
 
 
-def _get_pairs_sets(data, all_labels, cell_idx, other_cell_idx=None, genes_idx=None,
+def _get_pairs_sets(px_scale, all_labels, cell_idx, other_cell_idx=None, genes_idx=None,
                     M_permutation=10000, permutation=False, sample_pairs=True):
     idx = (all_labels == cell_idx)
-    idx_other = (all_labels == other_cell_idx) if other_cell_idx is not None else (all_labels != cell_idx)
+    idx_other = (all_labels == other_cell_idx) if other_cell_idx is not None else (
+            all_labels != cell_idx)
     if genes_idx is not None:
-        data = data[:, genes_idx]
-    sample_rate_a = data[idx].squeeze()
-    sample_rate_b = data[idx_other].squeeze()
+        px_scale = px_scale[:, genes_idx]
+    sample_rate_a = px_scale[idx].reshape(-1, px_scale.shape[1])
+    sample_rate_b = px_scale[idx_other].reshape(-1, px_scale.shape[1])
 
     # agregate dataset
     samples = np.vstack((sample_rate_a, sample_rate_b))
@@ -728,7 +729,8 @@ def _get_pairs_sets(data, all_labels, cell_idx, other_cell_idx=None, genes_idx=N
         list_2 = list(sample_rate_a.shape[0] + np.arange(sample_rate_b.shape[0]))
         if not permutation:
             # case1: no permutation, sample from A and then from B
-            u, v = np.random.choice(list_1, size=M_permutation), np.random.choice(list_2, size=M_permutation)
+            u, v = np.random.choice(list_1, size=M_permutation), np.random.choice(list_2,
+                                                                                  size=M_permutation)
         else:
             # case2: permutation, sample from A+B twice
             u, v = (np.random.choice(list_1 + list_2, size=M_permutation),
