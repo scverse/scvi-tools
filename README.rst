@@ -39,20 +39,16 @@ Quick Start
 4. Follow along with our Jupyter notebooks to quickly get familiar with scVI!
 
    a. Getting started:
-   
-   * `data loading`__
-   * `basic usage`__ 
-   
+       * `data loading`__
+       * `basic usage`__    
    b. Analyzing several datasets:
-   
-   * `harmonization`__ 
-   * `annotation`__ 
-   
+       * `harmonization`__ 
+       * `annotation`__ 
    c. Advanced topics:
+       * `interaction with scanpy`__ 
+       * `linear decoder for gene interpretation`__
+       * `reproducing results from the scVI paper`__ 
    
-   * `interaction with scanpy`__ 
-   * `linear decoder for gene interpretation`__
-   * `reproducing results from the scVI paper`__ 
 
 
 .. __: https://github.com/YosefLab/scVI/tree/master/tests/notebooks/data_loading.ipynb
