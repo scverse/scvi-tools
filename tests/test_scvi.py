@@ -315,7 +315,7 @@ def test_gamma_de():
     cell_idx1 = cortex_dataset.labels.ravel() == 0
     cell_idx2 = cortex_dataset.labels.ravel() == 1
 
-    _ = full.differential_expression_score(cell_idx1, cell_idx2, n_samples=n_samples,
-                                           M_permutation=M_permutation)
-    _ = full.differential_expression_gamma(cell_idx1, cell_idx2, n_samples=n_samples,
-                                           M_permutation=M_permutation)
+    full.differential_expression_score(cell_idx1, cell_idx2, n_samples=n_samples,
+                                       M_permutation=M_permutation)
+    full.differential_expression_gamma(cell_idx1, cell_idx2, n_samples=n_samples,
+                                       M_permutation=M_permutation)
