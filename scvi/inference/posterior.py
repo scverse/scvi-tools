@@ -18,6 +18,7 @@ from sklearn.neighbors import NearestNeighbors, KNeighborsRegressor
 from sklearn.utils.linear_assignment_ import linear_assignment
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler, RandomSampler
+from scipy.special import betainc
 
 from scvi.models.log_likelihood import compute_log_likelihood, compute_marginal_log_likelihood
 
@@ -220,6 +221,76 @@ class Posterior:
         return px_scales
 
     @torch.no_grad()
+    def sample_gamma_params_from_batch(self, n_samples, batchid=None, selection=None):
+        shapes, scales = [], []
+        if selection is None:
+            raise ValueError("selections should be a list of cell subsets indices")
+        else:
+            if selection.dtype is np.dtype('bool'):
+                selection = np.asarray(np.where(selection)[0].ravel())
+        old_loader = self.data_loader
+        for i in batchid:
+            idx = np.random.choice(np.arange(len(self.gene_dataset))[selection], n_samples)
+            sampler = SubsetRandomSampler(idx)
+            self.data_loader_kwargs.update({'sampler': sampler})
+            self.data_loader = DataLoader(self.gene_dataset, **self.data_loader_kwargs)
+
+            # fixed_batch = float(i)
+            for tensors in self:
+                sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
+                px_dispersion, px_rate = self.model.inference(sample_batch, batch_index, label)[1:3]
+                p = (px_rate / (px_rate + px_dispersion))
+                shapes_batch = px_rate
+                scales_batch = p / (1.0-p)
+                shapes.append(shapes_batch.cpu().numpy())
+                scales.append(scales_batch.cpu().numpy())
+        self.data_loader = old_loader
+        shapes = np.concatenate(shapes)
+        scales = np.concatenate(scales)
+        return shapes, scales
+
+    @torch.no_grad()
+    def differential_expression_gamma(self, idx1, idx2, batchid1=None, batchid2=None,
+                                      genes=None, n_samples=None, M_permutation=None, all_stats=True,
+                                      sample_pairs=True):
+        if n_samples is None:
+            n_samples = 5000
+        if M_permutation is None:
+            M_permutation = 10000
+        if batchid1 is None:
+            batchid1 = np.arange(self.gene_dataset.n_batches)
+        if batchid2 is None:
+            batchid2 = np.arange(self.gene_dataset.n_batches)
+
+        shapes1, scales1 = self.sample_gamma_params_from_batch(selection=idx1, batchid=batchid1,
+                                                               n_samples=n_samples)
+        shapes2, scales2 = self.sample_gamma_params_from_batch(selection=idx2, batchid=batchid2,
+                                                               n_samples=n_samples)
+        all_labels = np.concatenate((np.repeat(0, len(shapes1)), np.repeat(1, len(shapes2))),
+                                    axis=0)
+
+        if genes is not None:
+            shapes1 = shapes1[:, self.gene_dataset._gene_idx(genes)]
+            scales1 = scales1[:, self.gene_dataset._gene_idx(genes)]
+            shapes2 = shapes2[:, self.gene_dataset._gene_idx(genes)]
+            scales2 = scales2[:, self.gene_dataset._gene_idx(genes)]
+
+        # data = np.concatenate([
+        #     np.concatenate((shapes1, scales1), axis=1),
+        #     np.concatenate((shapes2, scales2), axis=1)], axis=0)
+        shapes = np.concatenate((shapes1, shapes2), axis=0)
+        scales = np.concatenate((scales1, scales2), axis=0)
+
+        assert shapes.shape == scales.shape
+        data = (shapes, scales)
+
+        bayes1 = get_bayes_factors(data, all_labels, mode='gamma',
+                                   cell_idx=0, M_permutation=M_permutation,
+                                   permutation=False, sample_pairs=sample_pairs)
+
+        return bayes1
+
+    @torch.no_grad()
     def differential_expression_score(self, idx1, idx2, batchid1=None, batchid2=None,
                                       genes=None, n_samples=None, M_permutation=None, all_stats=True,
                                       sample_pairs=True):
@@ -260,7 +331,7 @@ class Posterior:
             res = res.sort_values(by=['bayes1'], ascending=False)
             return res
         else:
-            return(bayes1)
+            return (bayes1)
 
     @torch.no_grad()
     def one_vs_all_degenes(self, subset=None, cell_labels=None, min_cells=10,
@@ -639,24 +710,14 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
     return score / float(n_pools)
 
 
-def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes_idx=None,
-                      M_permutation=10000, permutation=False, sample_pairs=True):
-    '''
-    Returns a list of bayes factor for all genes
-    :param px_scale: The gene frequency array for all cells (might contain multiple samples per cells)
-    :param all_labels: The labels array for the corresponding cell types
-    :param cell_idx: The first cell type population to consider. Either a string or an idx
-    :param other_cell_idx: (optional) The second cell type population to consider. Either a string or an idx
-    :param M_permutation: The number of permuted samples.
-    :param permutation: Whether or not to permute.
-    :return:
-    '''
+def _get_pairs_sets(data, all_labels, cell_idx, other_cell_idx=None, genes_idx=None,
+                    M_permutation=10000, permutation=False, sample_pairs=True):
     idx = (all_labels == cell_idx)
     idx_other = (all_labels == other_cell_idx) if other_cell_idx is not None else (all_labels != cell_idx)
     if genes_idx is not None:
-        px_scale = px_scale[:, genes_idx]
-    sample_rate_a = px_scale[idx].reshape(-1, px_scale.shape[1])
-    sample_rate_b = px_scale[idx_other].reshape(-1, px_scale.shape[1])
+        data = data[:, genes_idx]
+    sample_rate_a = data[idx].squeeze()
+    sample_rate_b = data[idx_other].squeeze()
 
     # agregate dataset
     samples = np.vstack((sample_rate_a, sample_rate_b))
@@ -679,7 +740,93 @@ def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes
     else:
         first_set = sample_rate_a
         second_set = sample_rate_b
-    res = np.mean(first_set >= second_set, 0)
+    return first_set, second_set
+
+
+def _get_pairs_tuple(my_tuple, all_labels, cell_idx, other_cell_idx=None, genes_idx=None,
+                     M_permutation=10000, permutation=False, sample_pairs=True):
+    idx = (all_labels == cell_idx)
+    idx_other = (all_labels == other_cell_idx) if other_cell_idx is not None else (all_labels != cell_idx)
+
+    shapes, scales = my_tuple
+
+    if genes_idx is not None:
+        shapes = shapes[:, genes_idx]
+        scales = scales[:, genes_idx]
+
+    sample_shape_a = shapes[idx].squeeze()
+    sample_scales_a = scales[idx_other].squeeze()
+    sample_shape_b = shapes[idx].squeeze()
+    sample_scales_b = scales[idx_other].squeeze()
+
+    assert sample_shape_a.shape == sample_scales_a.shape
+    assert sample_shape_b.shape == sample_scales_b.shape
+
+    # agregate dataset
+    samples_shape = np.vstack((sample_shape_a, sample_shape_b))
+    samples_scales = np.vstack((sample_scales_a, sample_scales_b))
+
+    if sample_pairs is True:
+        # prepare the pairs for sampling
+        list_1 = list(np.arange(sample_shape_a.shape[0]))
+        list_2 = list(sample_shape_a.shape[0] + np.arange(sample_shape_b.shape[0]))
+        if not permutation:
+            # case1: no permutation, sample from A and then from B
+            u, v = np.random.choice(list_1, size=M_permutation), np.random.choice(list_2, size=M_permutation)
+        else:
+            # case2: permutation, sample from A+B twice
+            u, v = (np.random.choice(list_1 + list_2, size=M_permutation),
+                    np.random.choice(list_1 + list_2, size=M_permutation))
+
+        # then constitutes the pairs
+        first_set = (samples_shape[u], samples_scales[u])
+        second_set = (samples_shape[v], samples_scales[v])
+    else:
+        raise NotImplementedError
+    return first_set, second_set
+
+
+def get_bayes_factors(data, all_labels, cell_idx, other_cell_idx=None, genes_idx=None, mode='rho',
+                      M_permutation=10000, permutation=False, sample_pairs=True):
+    '''
+    Returns a list of bayes factor for all genes
+    :param px_scale: The gene frequency array for all cells (might contain multiple samples per cells)
+    :param all_labels: The labels array for the corresponding cell types
+    :param cell_idx: The first cell type population to consider. Either a string or an idx
+    :param other_cell_idx: (optional) The second cell type population to consider. Either a string or an idx
+    :param M_permutation: The number of permuted samples.
+    :param permutation: Whether or not to permute.
+    :return:
+    '''
+    if mode == 'rho':
+        first_set, second_set = _get_pairs_sets(data, all_labels, cell_idx, other_cell_idx,
+                                                genes_idx, M_permutation, permutation, sample_pairs)
+        res = np.mean(first_set >= second_set, 0)
+    elif mode == 'gamma':
+        res = []
+        first_set, second_set = _get_pairs_tuple(data, all_labels, cell_idx, other_cell_idx,
+                                                 genes_idx, M_permutation, permutation, sample_pairs)
+
+        def p_wa_higher_wb(k1, k2, theta1, theta2):
+            """
+
+            :param k1: Shape of wa
+            :param k2: Shape of wb
+            :param theta1: Scale of wb
+            :param theta2: Scale of wa
+            :return:
+            """
+            a = k2
+            b = k1
+            x = theta1 / (theta1 + theta2)
+            return betainc(a, b, x)
+
+        shapes_a, scales_a = first_set
+        shapes_b, scales_b = second_set
+        for shape_a, scale_a, shape_b, scale_b in zip(shapes_a, scales_a, shapes_b, scales_b):
+            res.append(p_wa_higher_wb(shape_a, shape_b, scale_a, scale_b))
+        res = np.mean(res, axis=0)
+        assert len(res) == shapes_a.shape[1]
     res = np.log(res + 1e-8) - np.log(1 - res + 1e-8)
     return res
 

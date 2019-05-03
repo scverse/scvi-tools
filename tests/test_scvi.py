@@ -298,3 +298,25 @@ def test_sampling_zl(save_path):
                                            sampling_model=cortex_vae, sampling_zl=True)
     trainer_cortex_cls.train(n_epochs=2)
     trainer_cortex_cls.test_set.accuracy()
+
+
+def test_gamma_de():
+    cortex_dataset = CortexDataset()
+    cortex_vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_batches)
+    trainer_cortex_vae = UnsupervisedTrainer(cortex_vae, cortex_dataset, train_size=0.5,
+                                             use_cuda=use_cuda)
+    trainer_cortex_vae.train(n_epochs=2)
+
+    full = trainer_cortex_vae.create_posterior(trainer_cortex_vae.model,
+                                               cortex_dataset, indices=np.arange(len(cortex_dataset)))
+
+    n_samples = 10
+    M_permutation = 100
+    cell_idx1 = cortex_dataset.labels.ravel() == 0
+    cell_idx2 = cortex_dataset.labels.ravel() == 1
+
+    de_res = full.differential_expression_score(cell_idx1, cell_idx2, n_samples=n_samples,
+                                                M_permutation=M_permutation)
+    de_res = full.differential_expression_gamma(cell_idx1, cell_idx2, n_samples=n_samples,
+                                                M_permutation=M_permutation)
+
