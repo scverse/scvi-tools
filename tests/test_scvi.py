@@ -10,7 +10,8 @@ from scvi.benchmark import all_benchmarks, benchmark, benchmark_fish_scrna, ldva
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
-    GeneExpressionDataset, PurifiedPBMCDataset, SyntheticDatasetCorr, ZISyntheticDatasetCorr
+    GeneExpressionDataset, PurifiedPBMCDataset, SyntheticDatasetCorr, ZISyntheticDatasetCorr, \
+    Dataset10X
 from scvi.inference import JointSemiSupervisedTrainer, AlternateSemiSupervisedTrainer, ClassifierTrainer, \
     UnsupervisedTrainer, AdapterTrainer
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
@@ -305,3 +306,12 @@ def test_sampling_zl(save_path):
                                            sampling_model=cortex_vae, sampling_zl=True)
     trainer_cortex_cls.train(n_epochs=2)
     trainer_cortex_cls.test_set.accuracy()
+
+
+def test_old_10x():
+    Dataset10X('naive_t')
+
+
+def test_new_10x():
+    data = Dataset10X('pbmc_1k_v2')
+    data.x
