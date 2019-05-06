@@ -35,7 +35,8 @@ available_datasets = {"1.1.0":
                        "pbmc4k",
                        "t_3k",
                        "t_4k",
-                       "neuron_9k"],
+                       "neuron_9k"
+                       ],
                       '3.0.0':
                       ['pbmc_1k_protein_v3',
                        'pbmc_10k_protein_v3',
@@ -52,7 +53,8 @@ available_datasets = {"1.1.0":
                        'neuron_10k_v3',
                        'heart_1k_v2',
                        'heart_1k_v3',
-                       'heart_10k_v3']}
+                       'heart_10k_v3'
+                       ]}
 
 to_groups = dict([(dataset_name, group)
                   for group, list_datasets in available_datasets.items()
@@ -60,7 +62,8 @@ to_groups = dict([(dataset_name, group)
 group_to_url_skeleton = {
     '1.1.0': "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_gene_bc_matrices.tar.gz",
     '2.1.0': "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_gene_bc_matrices.tar.gz",
-    '3.0.0': "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_feature_bc_matrix.tar.gz"}
+    '3.0.0': "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_feature_bc_matrix.tar.gz"
+}
 available_specification = ['filtered', 'raw']
 
 
@@ -153,7 +156,7 @@ class Dataset10X(GeneExpressionDataset):
         """
 
         for root, subdirs, files in os.walk(dir_path):
-            contains_mat = [filename=='matrix.mtx' or filename=='matrix.mtx.gz'
+            contains_mat = [filename == 'matrix.mtx' or filename == 'matrix.mtx.gz'
                             for filename in files]
             contains_mat = np.array(contains_mat).any()
             if contains_mat:
