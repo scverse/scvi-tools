@@ -36,7 +36,7 @@ class AnnDataset(GeneExpressionDataset):
     ):
         """
 
-        """       
+        """
 
         if type(filename_or_anndata) == str:
             self.download_name = filename_or_anndata
@@ -55,7 +55,7 @@ class AnnDataset(GeneExpressionDataset):
             )
 
         X, local_means, local_vars, batch_indices_, labels = \
-        GeneExpressionDataset.get_attributes_from_matrix(data, labels=labels)
+            GeneExpressionDataset.get_attributes_from_matrix(data, labels=labels)
         batch_indices = batch_indices if batch_indices is not None else batch_indices_
 
         super().__init__(X, local_means, local_vars, batch_indices, labels,
@@ -94,7 +94,7 @@ class AnnDataset(GeneExpressionDataset):
 
         if 'cell_types' in self.obs.columns:
             cell_types = self.obs['cell_types']
-            cell_types = cell_types.drop_duplicates().values.astype('str') 
+            cell_types = cell_types.drop_duplicates().values.astype('str')
 
         if 'labels' in self.obs.columns:
             labels = self.obs['labels']
