@@ -36,9 +36,8 @@ class AnnDataset(GeneExpressionDataset):
     ):
         """
 
-
         """       
-        
+
         if type(filename_or_anndata) == str:
             self.download_name = filename_or_anndata
             self.save_path = save_path
@@ -58,8 +57,7 @@ class AnnDataset(GeneExpressionDataset):
         X, local_means, local_vars, batch_indices_, labels = \
         GeneExpressionDataset.get_attributes_from_matrix(data, labels=labels)
         batch_indices = batch_indices if batch_indices is not None else batch_indices_
-            
-            
+
         super().__init__(X, local_means, local_vars, batch_indices, labels,
                          gene_names=gene_names, cell_types=cell_types)
 
@@ -73,34 +71,34 @@ class AnnDataset(GeneExpressionDataset):
         data, gene_names, batch_indices, cell_types, labels = self.extract_data_from_anndata(ad)
 
         print("Finished preprocessing dataset")
-        return data, gene_names, batch_indices, cell_types, labels  
+        return data, gene_names, batch_indices, cell_types, labels
 
     def extract_data_from_anndata(self, ad: anndata.AnnData):
         data, gene_names, batch_indices, cell_types, labels = None, None, None, None, None
         self.obs = (
             ad.obs
         )  # provide access to observation annotations from the underlying AnnData object.
-    
+
         if isinstance(ad.X, np.ndarray):
             data = ad.X.copy()  # Dense
         else:
             data = ad.X.toarray()  # Sparse
-            
+
         select = data.sum(axis=1) > 0  # Take out cells that doesn't express any gene
         data = data[select, :]
-        
+
         gene_names = np.array(ad.var.index.values, dtype=str)
-    
+
         if 'batch_indices' in self.obs.columns:
             batch_indices = self.obs['batch_indices'].values
-    
+
         if 'cell_types' in self.obs.columns:
             cell_types = self.obs['cell_types']
             cell_types = cell_types.drop_duplicates().values.astype('str') 
-            
+
         if 'labels' in self.obs.columns:
             labels = self.obs['labels']
         elif 'cell_types' in self.obs.columns:
             labels = self.obs['cell_types'].rank(method='dense').values.astype('int')
-        
+
         return data, gene_names, batch_indices, cell_types, labels
