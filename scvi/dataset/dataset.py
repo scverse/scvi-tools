@@ -307,7 +307,7 @@ class GeneExpressionDataset(Dataset):
     @staticmethod
     def get_attributes_from_matrix(X, batch_indices=0, labels=None):
         ne_cells = X.sum(axis=1) > 0
-        to_keep = np.where(ne_cells)
+        to_keep = np.where(ne_cells)[0]
         if not ne_cells.all():
             X = X[to_keep]
             removed_idx = np.where(~ne_cells)[0]
