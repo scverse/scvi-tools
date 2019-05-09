@@ -1,5 +1,7 @@
+import operator
 import os
 
+from functools import reduce
 from typing import List, Union
 
 import anndata
@@ -87,7 +89,7 @@ class AnnDataset(GeneExpressionDataset):
             data = ad.X.values
         if isinstance(ad.X, csr_matrix):
             # keep sparsity above 1 Gb in dense form
-            if ad.X.toarray().nbytes < 1e9:
+            if reduce(operator.mul, ad.X.shape) * ad.X.dtype.itemsize < 1e9:
                 data = ad.X.toarray()
             else:
                 data = ad.X.copy()
