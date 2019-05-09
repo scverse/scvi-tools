@@ -160,10 +160,11 @@ def auto_tune_scvi_model(
     trainer_specific_kwargs: dict = None,
     train_func_specific_kwargs: dict = None,
     space: dict = None,
-    use_batches: bool = False,
     max_evals: int = 100,
-    parallel: bool = False,
+    pickle_result: bool = True,
     save_path: str = ".",
+    use_batches: bool = False,
+    parallel: bool = False,
     n_cpu_workers: int = None,
     gpu_ids: List[int] = None,
     n_workers_per_gpu: int = 1,
@@ -196,12 +197,13 @@ def auto_tune_scvi_model(
         Each of those dict contains hyperopt defined parameter spaces (e.g. ``hp.choice(..)``)
         which will be passed to the corresponding object : model, trainer or train method
         when performing hyperoptimization. Default: mutable, see source code.
+    :param max_evals: Maximum number of evaluations of the objective.
+    :param pickle_result: If True, pickle ``Trials`` and  ``Trainer`` objects using ``save_path``.
+    :param save_path: Path where to save best model, trainer, trials and mongo files.
     :param use_batches: If False, pass n_batch=0 to model else pass gene_dataset.n_batches
-    :param max_evals: Maximum number of evaluations of the objective
     :param parallel: If True, use MongoTrials object to run trainings in parallel.
         If already exists in db, hyperopt will run a numebr of trainings equal to
         the difference between current and previous max_evals.
-    :param save_path: Path where to save best model, trainer, trials and mongo files.
     :param n_cpu_workers: Number of cpu workers to launch.
     :param gpu_ids: Ids of the GPUs to use. If None defaults to all GPUs found by torch.
         Note that considered gpu ids are int from 0 to torch.cuda.device_count().
@@ -331,23 +333,24 @@ def auto_tune_scvi_model(
     best_space = trials.best_trial["result"]["space"]
     best_trainer = objective_hyperopt(best_space, is_best_training=True)
 
-    logger.debug("Pickling best model, trainer as well as Trials object")
-    # pickle trainer and save model (overkill?)
-    with open(
-        os.path.join(save_path, "best_trainer_{key}".format(key=exp_key)), "wb"
-    ) as f:
-        pickle.dump(best_trainer, f)
-    torch.save(
-        best_trainer.model.state_dict(),
-        os.path.join(save_path, "best_model_{key}".format(key=exp_key)),
-    )
-    # remove object containing thread.lock (otherwise pickle.dump throws)
-    if hasattr(trials, "handle"):
-        del trials.handle
-    with open(os.path.join(save_path, "trials_{key}".format(key=exp_key)), "wb") as f:
-        pickle.dump(trials, f)
+    if pickle_result:
+        logger.debug("Pickling best model, trainer as well as Trials object")
+        # pickle trainer and save model (overkill?)
+        with open(
+            os.path.join(save_path, "best_trainer_{key}".format(key=exp_key)), "wb"
+        ) as f:
+            pickle.dump(best_trainer, f)
+        torch.save(
+            best_trainer.model.state_dict(),
+            os.path.join(save_path, "best_model_{key}".format(key=exp_key)),
+        )
+        # remove object containing thread.lock (otherwise pickle.dump throws)
+        if hasattr(trials, "handle"):
+            del trials.handle
+        with open(os.path.join(save_path, "trials_{key}".format(key=exp_key)), "wb") as f:
+            pickle.dump(trials, f)
 
-    # terminate all processes, threads, close files and remove added logging handlers/formatters
+    # remove added logging handlers/formatters
     _cleanup_logger()
 
     return best_trainer, trials
