@@ -988,7 +988,7 @@ def _objective_function(
         )
 
         # add actual number of epochs to when training best model
-        space["trainer_tunable_kwargs"]["n_epochs"] = trainer.early_stopping.epoch
+        space["train_func_tunable_kwargs"]["n_epochs"] = trainer.early_stopping.epoch
 
         return {
             "loss": metric_history[-1],
