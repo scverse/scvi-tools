@@ -34,7 +34,7 @@ class AnnDataset(GeneExpressionDataset):
 
     def __init__(
         self,
-        filename_or_anndata: Union[str(), anndata.AnnData],
+        filename_or_anndata: Union[str, anndata.AnnData],
         save_path: str = "data/",
         url: str = None,
         new_n_genes: bool = False,
