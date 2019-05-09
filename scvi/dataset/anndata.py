@@ -86,8 +86,8 @@ class AnnDataset(GeneExpressionDataset):
         if isinstance(ad.X, pd.DataFrame):
             data = ad.X.values
         if isinstance(ad.X, csr_matrix):
-            # keep sparsity above 100 Mb
-            if ad.X.data.nbytes < 1e8:
+            # keep sparsity above 1 Gb in dense form
+            if ad.X.toarray().nbytes < 1e9:
                 data = ad.X.toarray()
             else:
                 data = ad.X.copy()
