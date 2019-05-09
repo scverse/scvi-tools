@@ -149,8 +149,17 @@ class GeneExpressionDataset(Dataset):
     def update_cells(self, subset_cells):
         new_n_cells = len(subset_cells) if subset_cells.dtype is not np.dtype('bool') else subset_cells.sum()
         print("Downsampling from %i to %i cells" % (len(self), new_n_cells))
-        for attr_name in ['_X', 'labels', 'batch_indices', 'local_means', 'local_vars']:
-            setattr(self, attr_name, getattr(self, attr_name)[subset_cells])
+        for attr_name in [
+            '_X',
+            'labels',
+            'batch_indices',
+            'local_means',
+            'local_vars',
+            'x_coord',
+            'y_coord'
+        ]:
+            if getattr(self, attr_name) is not None:
+                setattr(self, attr_name, getattr(self, attr_name)[subset_cells])
         self.library_size_batch()
 
     def subsample_genes(self, new_n_genes=None, subset_genes=None):
@@ -297,7 +306,7 @@ class GeneExpressionDataset(Dataset):
     @staticmethod
     def get_attributes_from_matrix(X, batch_indices=0, labels=None):
         ne_cells = X.sum(axis=1) > 0
-        to_keep = np.where(ne_cells)
+        to_keep = np.where(ne_cells)[0]
         if not ne_cells.all():
             X = X[to_keep]
             removed_idx = np.where(~ne_cells)[0]
