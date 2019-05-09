@@ -55,7 +55,6 @@ class AnnDataset(GeneExpressionDataset):
             raise Exception(
                 "Please provide a filename of an AnnData file or an already loaded AnnData object"
             )
-
         X, local_means, local_vars, batch_indices_, labels = \
             GeneExpressionDataset.get_attributes_from_matrix(data, labels=labels)
         batch_indices = batch_indices if batch_indices is not None else batch_indices_
@@ -83,12 +82,12 @@ class AnnDataset(GeneExpressionDataset):
 
         # treat all possible cases according to anndata doc
         if isinstance(ad.X, np.ndarray):
-            data = ad.X.copy()  # Dense
+            data = ad.X.copy()
         if isinstance(ad.X, pd.DataFrame):
             data = ad.X.values
         if isinstance(ad.X, csr_matrix):
-            # keep sparsity above 1 Gb
-            if ad.X.data.nbytes < 1e6:
+            # keep sparsity above 100 Mb
+            if ad.X.data.nbytes < 1e8:
                 data = ad.X.toarray()
             else:
                 data = ad.X.copy()
