@@ -52,8 +52,9 @@ formatter = logging.Formatter(
 )
 ch = logging.StreamHandler()
 ch.setFormatter(formatter)
-# instantiate hyperopt handler
-fh = logging.FileHandler("./hyperopt_logfile.txt")
+# instantiate hyperopt and autotune file handlers as global variables for clean up
+fh_hyperopt = None
+fh_autotune = None
 
 # global Event to stop threads when cleaning up
 cleanup_event = threading.Event()
@@ -127,8 +128,10 @@ def _cleanup_logger():
         if handler == ch:
             logger.removeHandler(ch)
     for handler in logging.getLogger("hyperopt").handlers:
-        if handler == fh:
-            logger.removeHandler(fh)
+        if handler == fh_hyperopt:
+            logger.removeHandler(fh_hyperopt)
+        if handler == fh_autotune:
+            logger.removeHandler(fh_autotune)
 
 
 def _cleanup_decorator(func: Callable):
@@ -234,6 +237,12 @@ def auto_tune_scvi_model(
         for handler in logger.handlers:
             if not handler.formatter:
                 handler.setFormatter(formatter)
+
+    # also add file handler
+    fh_autotune = logging.FileHandler(os.path.join(save_path, "scvi_autotune_logfile.txt"))
+    fh_autotune.setFormatter(formatter)
+    fh_autotune.setLevel(logging.DEBUG)
+    logger.addHandler(fh_autotune)
 
     logger.info("Starting experiment: {exp_key}".format(exp_key=exp_key))
     # default specific kwargs
@@ -440,8 +449,9 @@ def _auto_tune_parallel(
 
     # log hyperopt to file
     hp_logger = logging.getLogger("hyperopt")
-    fh.setFormatter(formatter)
-    hp_logger.addHandler(fh)
+    fh_hyperopt = logging.FileHandler(os.path.join(save_path, "hyperopt_logfile.txt"))
+    fh_hyperopt.setFormatter(formatter)
+    hp_logger.addHandler(fh_hyperopt)
 
     # add progress handler to progress logger
     progress_logger = logging.getLogger("progress_logger")
