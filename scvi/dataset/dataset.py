@@ -155,11 +155,10 @@ class GeneExpressionDataset(Dataset):
             'batch_indices',
             'local_means',
             'local_vars',
-            'cell_types',
             'x_coord',
             'y_coord'
         ]:
-            if hasattr(self, attr_name):
+            if getattr(self, attr_name) is not None:
                 setattr(self, attr_name, getattr(self, attr_name)[subset_cells])
         self.library_size_batch()
 
