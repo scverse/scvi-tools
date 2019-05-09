@@ -149,8 +149,18 @@ class GeneExpressionDataset(Dataset):
     def update_cells(self, subset_cells):
         new_n_cells = len(subset_cells) if subset_cells.dtype is not np.dtype('bool') else subset_cells.sum()
         print("Downsampling from %i to %i cells" % (len(self), new_n_cells))
-        for attr_name in ['_X', 'labels', 'batch_indices', 'local_means', 'local_vars']:
-            setattr(self, attr_name, getattr(self, attr_name)[subset_cells])
+        for attr_name in [
+            '_X',
+            'labels',
+            'batch_indices',
+            'local_means',
+            'local_vars',
+            'cell_types',
+            'x_coord',
+            'y_coord'
+        ]:
+            if hasattr(self, attr_name):
+                setattr(self, attr_name, getattr(self, attr_name)[subset_cells])
         self.library_size_batch()
 
     def subsample_genes(self, new_n_genes=None, subset_genes=None):

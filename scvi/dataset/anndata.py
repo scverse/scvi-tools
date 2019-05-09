@@ -88,16 +88,10 @@ class AnnDataset(GeneExpressionDataset):
             data = ad.X.values
         if isinstance(ad.X, csr_matrix):
             # keep sparsity above 1 Gb
-            if csr_matrix.data.nbytes < 1e9:
+            if ad.X.data.nbytes < 1e6:
                 data = ad.X.toarray()
             else:
                 data = ad.X.copy()
-
-        # warn if some last minute filtering is done
-        select = data.sum(axis=1) > 0  # Take out cells that doesn't express any gene
-        if len(select) != data.shape[0]:
-            print("Found cell.s which don't express any genes, removing them.")
-            data = data[select, :]
 
         gene_names = np.array(ad.var.index.values, dtype=str)
 
