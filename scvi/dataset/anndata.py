@@ -1,16 +1,22 @@
-from .dataset import GeneExpressionDataset
+import os
+
+from typing import List, Union
+
 import anndata
 import numpy as np
-import os
+import pandas as pd
+
+from scipy.sparse import csr_matrix
+
+from .dataset import GeneExpressionDataset
 
 
 class AnnDataset(GeneExpressionDataset):
-    r"""Loads a `.h5ad` file .
-
-    ``AnnDataset`` class supports loading `Anndata`_ object.
+    r"""Loads a `.h5ad` file using the ``anndata`` package.
+    Also supports loading an ``AnnData`` object directly.
 
     Args:
-        :filename: Name of the `.h5ad` file.
+        :filename_or_anndata: Name of the `.h5ad` file or an existing ``AnnData``.
         :save_path: Save path of the dataset. Default: ``'data/'``.
         :url: Url of the remote dataset. Default: ``None``.
         :new_n_genes: Number of subsampled genes. Default: ``False``.
@@ -28,16 +34,12 @@ class AnnDataset(GeneExpressionDataset):
 
     def __init__(
         self,
-        filename_or_anndata,
-        save_path="data/",
-        url=None,
-        new_n_genes=False,
-        subset_genes=None,
+        filename_or_anndata: Union[str(), anndata.AnnData],
+        save_path: str = "data/",
+        url: str = None,
+        new_n_genes: bool = False,
+        subset_genes: List[int] = None,
     ):
-        """
-
-        """
-
         if type(filename_or_anndata) == str:
             self.download_name = filename_or_anndata
             self.save_path = save_path
@@ -79,13 +81,23 @@ class AnnDataset(GeneExpressionDataset):
             ad.obs
         )  # provide access to observation annotations from the underlying AnnData object.
 
+        # treat all possible cases according to anndata doc
         if isinstance(ad.X, np.ndarray):
             data = ad.X.copy()  # Dense
-        else:
-            data = ad.X.toarray()  # Sparse
+        if isinstance(ad.X, pd.DataFrame):
+            data = ad.X.values
+        if isinstance(ad.X, csr_matrix):
+            # keep sparsity above 1 Gb
+            if csr_matrix.data.nbytes < 1e9:
+                data = ad.X.toarray()
+            else:
+                data = ad.X.copy()
 
+        # warn if some last minute filtering is done
         select = data.sum(axis=1) > 0  # Take out cells that doesn't express any gene
-        data = data[select, :]
+        if len(select) != data.shape[0]:
+            print("Found cell.s which don't express any genes, removing them.")
+            data = data[select, :]
 
         gene_names = np.array(ad.var.index.values, dtype=str)
 
