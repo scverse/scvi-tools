@@ -35,6 +35,10 @@ class FCLayers(nn.Module):
         self.fc_layers = nn.Sequential(collections.OrderedDict(
             [('Layer {}'.format(i), nn.Sequential(
                 nn.Linear(n_in + sum(self.n_cat_list), n_out),
+                # Below, 0.01 and 0.001 are the default values for `momentum` and `eps` from
+                # the tensorflow implementation of batch norm; we're using those settings
+                # here too so that the results match our old tensorflow code. The default
+                # setting from pytorch would probably be fine too but we haven't tested that.
                 nn.BatchNorm1d(n_out, momentum=.01, eps=0.001) if use_batch_norm else None,
                 nn.ReLU(),
                 nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None))
