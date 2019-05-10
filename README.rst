@@ -26,7 +26,7 @@ Single-cell Variational Inference
 Quick Start
 -----------
 
-1. Install Python 3.6 or later. We typically use the Miniconda_ Python distribution.
+1. Install Python 3.6 or Python 3.7. We typically use the Miniconda_ Python distribution.
 
 .. _Miniconda: https://conda.io/miniconda.html
 
