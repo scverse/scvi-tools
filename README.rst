@@ -34,7 +34,7 @@ Quick Start
 
 .. _PyTorch: http://pytorch.org
 
-3. Install scVI through pip (``pip install scvi``). We also support conda (``conda install scvi -c bioconda`` ) but due to some packaging issues of pytorch, it will force pytorch 0.4.1. Alternatively, you may download or clone this repository and run ``python setup.py install``.
+3. Install scVI through pip (``pip install scvi``) or conda (``conda install scvi -c bioconda`` ). Alternatively, you may download or clone this repository and run ``python setup.py install``.
 
 4. Follow along with our Jupyter notebooks to quickly get familiar with scVI!
 
