@@ -34,8 +34,11 @@ Quick Start
 
 .. _PyTorch: http://pytorch.org
 
-3. We recommend installing scVI through conda: ``conda install scvi -c bioconda -c conda-forge`` .
-Alternatively, you can use pip (``pip install scvi``), or clone this repository and run ``python setup.py install``.
+3. We recommend installing scVI through conda:
+
+``conda install scvi -c bioconda -c conda-forge`` .
+
+Alternatively, you may use pip (``pip install scvi``), or clone this repository and run ``python setup.py install``.
 
 4. Follow along with our Jupyter notebooks to quickly get familiar with scVI!
 
