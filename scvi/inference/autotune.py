@@ -157,6 +157,7 @@ def _cleanup_decorator(func: Callable):
 def auto_tune_scvi_model(
     exp_key: str,
     gene_dataset: GeneExpressionDataset,
+    objective_hyperopt: Callable = None,
     model_class: VAE = VAE,
     trainer_class: Trainer = UnsupervisedTrainer,
     model_specific_kwargs: dict = None,
@@ -190,6 +191,12 @@ def auto_tune_scvi_model(
 
     :param exp_key: Name of the experiment in MongoDb.
     :param gene_dataset: scVI gene dataset.
+    :param objective_hyperopt: A custom objective function respecting the ``hyperopt`` format.
+        Roughly, it needs to return the quantity to optimize for, either directly
+        or in a ``dict`` under the "loss" key.
+        See https://github.com/hyperopt/hyperopt/wiki for a more detailed explanation.
+        By default, we provide an objective function which can be parametrized
+        through the various arguments of this function (``gene_dataset``, ``model_class``, etc.)
     :param model_class: scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
     :param trainer_class: Trainer class (e.g ``UnsupervisedTrainer``)
     :param model_specific_kwargs: dict of fixed parameters which will be passed to the model.
@@ -292,18 +299,19 @@ def auto_tune_scvi_model(
     )
 
     # build a partial objective function restricted to the search space
-    objective_hyperopt = partial(
-        _objective_function,
-        **{
-            "gene_dataset": gene_dataset,
-            "model_class": model_class,
-            "trainer_class": trainer_class,
-            "model_specific_kwargs": model_specific_kwargs,
-            "trainer_specific_kwargs": trainer_specific_kwargs,
-            "train_func_specific_kwargs": train_func_specific_kwargs,
-            "use_batches": use_batches,
-        },
-    )
+    if objective_hyperopt is None:
+        objective_hyperopt = partial(
+            _objective_function,
+            **{
+                "gene_dataset": gene_dataset,
+                "model_class": model_class,
+                "trainer_class": trainer_class,
+                "model_specific_kwargs": model_specific_kwargs,
+                "trainer_specific_kwargs": trainer_specific_kwargs,
+                "train_func_specific_kwargs": train_func_specific_kwargs,
+                "use_batches": use_batches,
+            },
+        )
 
     if parallel:
         logger.info("Starting parallel hyperoptimization")
