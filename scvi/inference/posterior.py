@@ -147,12 +147,8 @@ class Posterior:
         labels = []
         for tensors in self:
             sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
-            if not sample:
-                if self.model.log_variational:
-                    sample_batch = torch.log(1 + sample_batch)
-                latent += [self.model.z_encoder(sample_batch)[0].cpu()]
-            else:
-                latent += [self.model.sample_from_posterior_z(sample_batch).cpu()]
+            give_mean = not sample
+            latent += [self.model.sample_from_posterior_z(sample_batch, give_mean=give_mean).cpu()]
             batch_indices += [batch_index.cpu()]
             labels += [label.cpu()]
         return np.array(torch.cat(latent)), np.array(torch.cat(batch_indices)), np.array(torch.cat(labels)).ravel()
