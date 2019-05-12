@@ -144,7 +144,7 @@ class Posterior:
     def get_latent(self, sample=False):
         """
         Output posterior z mean or sample, batch index, and label
-        :param sample: z mean or z sample 
+        :param sample: z mean or z sample
         :return: three np.ndarrays, latent, batch_indices, labels
         """
         latent = []
