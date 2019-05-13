@@ -61,15 +61,13 @@ cleanup_event = threading.Event()
 
 
 class FminTimeoutError(Exception):
-    """
-    Thrown if fmin process hasn't finished in the allotted
+    """Thrown if fmin process hasn't finished in the allotted
     time after all workers have died.
     """
 
 
 class DispatchHandler:
-    """
-    A simple handler for logging events. It dispatches events to loggers
+    """A simple handler for logging events. It dispatches events to loggers
     based on the name in the received record, which then get dispatched,
     by the logging system, to the handlers, configured for those loggers.
     """
@@ -81,8 +79,7 @@ class DispatchHandler:
 
 
 class ProgressHandler:
-    """
-    A simple handler for keeping track of the worker's progress.
+    """A simple handler for keeping track of the worker's progress.
     When assigned to a logger, logs sent using that logger trigger
     an update of the progress bar associated with this handler.
     """
@@ -99,11 +96,8 @@ class ProgressHandler:
 
 # cleanup helpers
 def _cleanup_processes_files():
-    """
-    Cleanup function, starts with latest processes/files.
-    Terminates processes, sets cleanup_event to stop threads, closes open files.
-    """
-
+    """Cleanup function, starts with latest processes/files.
+    Terminates processes, sets cleanup_event to stop threads, closes open files."""
     logger.info("Cleaning up")
     logger.debug("Cleaning up: closing files")
     for f in open_files[::-1]:
@@ -129,7 +123,6 @@ def _cleanup_processes_files():
 
 def _cleanup_logger():
     """Removes added handlers."""
-
     logger.debug("Cleaning up: removing added logging handler")
     for handler in logger.handlers:
         if handler == ch:
@@ -185,8 +178,7 @@ def auto_tune_scvi_model(
     db_name: str = "scvi_db",
     multiple_hosts: bool = False,
 ) -> (Type[Trainer], Trials):
-    """
-    Perform automatic hyperparameter optimization of an scVI model
+    """Perform automatic hyperparameter optimization of an scVI model
     and return best model and hyperopt Trials object.
     ``Trials`` object contains hyperparameter space and loss history for each trial.
     We provide a default hyperparameter search space (see source code),
@@ -901,10 +893,10 @@ def _objective_function(
     Convention: fixed parameters (no default) have precedence over tunable parameters (default).
 
     :param space: dict containing up to three sub-dicts with keys "model_tunable_kwargs",
-        "trainer_tunable_kwargs" or "train_func_tunable_kwargs".
-        Each of those dict contains hyperopt defined parameter spaces (e.g. ``hp.choice(..)``)
-        which will be passed to the corresponding object : model, trainer or train method
-        when performing hyperoptimization.
+    "trainer_tunable_kwargs" or "train_func_tunable_kwargs".
+    Each of those dict contains hyperopt defined parameter spaces (e.g. ``hp.choice(..)``)
+    which will be passed to the corresponding object : model, trainer or train method
+    when performing hyperoptimization.
     :param gene_dataset: scVI gene dataset
     :param model_class: scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
     :param trainer_class: Trainer class (e.g ``UnsupervisedTrainer``)
