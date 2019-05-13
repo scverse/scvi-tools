@@ -6,9 +6,6 @@ Welcome to scVI's documentation!
    :caption: Contents:
 
    readme
-   notebooks/data_loading.ipynb
-   notebooks/basic_tutorial.ipynb
-   notebooks/annotation.ipynb
    contributing
    authors
    history

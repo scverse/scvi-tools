@@ -893,10 +893,10 @@ def _objective_function(
     Convention: fixed parameters (no default) have precedence over tunable parameters (default).
 
     :param space: dict containing up to three sub-dicts with keys "model_tunable_kwargs",
-    "trainer_tunable_kwargs" or "train_func_tunable_kwargs".
-    Each of those dict contains hyperopt defined parameter spaces (e.g. ``hp.choice(..)``)
-    which will be passed to the corresponding object : model, trainer or train method
-    when performing hyperoptimization.
+        "trainer_tunable_kwargs" or "train_func_tunable_kwargs".
+        Each of those dict contains hyperopt defined parameter spaces (e.g. ``hp.choice(..)``)
+        which will be passed to the corresponding object : model, trainer or train method
+        when performing hyperoptimization.
     :param gene_dataset: scVI gene dataset
     :param model_class: scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
     :param trainer_class: Trainer class (e.g ``UnsupervisedTrainer``)
