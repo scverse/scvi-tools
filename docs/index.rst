@@ -14,6 +14,7 @@ Welcome to scVI's documentation!
    :maxdepth: 1
    :caption: Package Reference
 
+   modules
    scvi.dataset
    scvi.inference
    scvi.models
