@@ -12,10 +12,18 @@ scvi.inference.annotation module
     :undoc-members:
     :show-inheritance:
 
-scvi.inference.experimental\_inference module
----------------------------------------------
+scvi.inference.autotune module
+------------------------------
 
-.. automodule:: scvi.inference.experimental_inference
+.. automodule:: scvi.inference.autotune
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+scvi.inference.fish module
+--------------------------
+
+.. automodule:: scvi.inference.fish
     :members:
     :undoc-members:
     :show-inheritance:
@@ -40,6 +48,14 @@ scvi.inference.trainer module
 -----------------------------
 
 .. automodule:: scvi.inference.trainer
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+scvi.inference.utils module
+---------------------------
+
+.. automodule:: scvi.inference.utils
     :members:
     :undoc-members:
     :show-inheritance:

@@ -77,8 +77,8 @@ class Dataset10X(GeneExpressionDataset):
         :subset_genes: List of genes for subsampling. Default: ``None``.
         :dense: Whether to load as dense or sparse. Default: ``False``.
         :remote: Whether the 10X dataset is to be downloaded from the website or whether it is a local dataset, if
-        remote is False then os.path.join(save_path, filename) must be the path to the directory that contains
-        matrix.mtx and genes.tsv files
+            remote is False then os.path.join(save_path, filename) must be the path to the directory that contains
+            matrix.mtx and genes.tsv files
 
     Examples:
         >>> tenX_dataset = Dataset10X("neuron_9k")

@@ -180,13 +180,13 @@ def auto_tune_scvi_model(
 ) -> (Type[Trainer], Trials):
     """Perform automatic hyperparameter optimization of an scVI model
     and return best model and hyperopt Trials object.
-    ``Trials object contains hyperparameter space and loss history for each trial.
+    ``Trials`` object contains hyperparameter space and loss history for each trial.
     We provide a default hyperparameter search space (see source code),
     but we recommend the user to build a custom one for each application.
     Convention: fixed parameters (no default) have precedence over tunable parameters (default).
     Note that the verbosity of this function has to be set using the logging module.
     In particular, for the parallel case, only a progress bar is shown if the
-    logging level is equal or higher to ``logging.WARNING .
+    logging level is equal or higher to ``logging.WARNING``.
 
     :param exp_key: Name of the experiment in MongoDb.
     :param gene_dataset: scVI gene dataset.
@@ -382,7 +382,7 @@ def _auto_tune_parallel(
     multiple_hosts: bool = False,
 ) -> MongoTrials:
     """Parallel version of the hyperoptimization procedure.
-    Called by ``auto_tune_scvi_model when ``parallel=True.
+    Called by ``auto_tune_scvi_model`` when ``parallel=True``.
     Specifically, first the MongoDb service is launched in its own forked process.
     Then, the call to the minimization process is made in its own forked process.
     Then, the call ``worker_launcher`` is made in its own Thread.

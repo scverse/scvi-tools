@@ -25,7 +25,7 @@ class Trainer:
             ``default_metrics_to_monitor`` as specified in each . Default: ``None``.
         :benchmark: if True, prevents statistics computation in the training. Default: ``False``.
         :verbose: If statistics should be displayed along training. Default: ``False``.
-        If True, sets show_progbar to False because of bad behaviour of progress bar with console output.
+            If True, sets show_progbar to False because of bad behaviour of progress bar with console output.
         :frequency: The frequency at which to keep track of statistics. Default: ``None``.
         :early_stopping_metric: The statistics on which to perform early stopping. Default: ``None``.
         :save_best_state_metric:  The statistics on which we keep the network weights achieving the best store, and
