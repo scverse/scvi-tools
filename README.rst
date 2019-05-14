@@ -6,7 +6,7 @@ scVI
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/scVI.svg
    :target: https://pypi.org/project/scvi
-.. |bioconda| image:: https://img.shields.io/badge/bioconda-🐍-blue.svg
+.. |bioconda| image:: https://img.shields.io/badge/bioconda-blue.svg
    :target: http://bioconda.github.io/recipes/scvi/README.html
 .. |Docs| image:: https://readthedocs.org/projects/scvi/badge/?version=latest
         :target: https://scvi.readthedocs.io/en/latest/?badge=latest
