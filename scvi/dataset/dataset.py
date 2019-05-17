@@ -5,7 +5,6 @@ For the moment, is initialized with a torch Tensor of size (n_cells, nb_genes)""
 import copy
 import os
 import urllib.request
-from collections import defaultdict
 
 import numpy as np
 import scipy.sparse as sp_sparse
