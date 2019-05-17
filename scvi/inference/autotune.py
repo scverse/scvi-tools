@@ -265,10 +265,11 @@ def auto_tune_scvi_model(
         early_stopping_kwargs = {
             "early_stopping_metric": "ll",
             "save_best_state_metric": "ll",
-            "patience": 30,
-            "threshold": 2,
+            "patience": 50,
+            "threshold": 0,
             "reduce_lr_on_plateau": True,
-            "lr_patience": 10,
+            "lr_patience": 25,
+            "lr_factor": 0.2,
         }
         trainer_specific_kwargs["early_stopping_kwargs"] = early_stopping_kwargs
 
