@@ -252,7 +252,9 @@ def auto_tune_scvi_model(
                 handler.setFormatter(formatter)
 
     # also add file handler
-    fh_autotune = logging.FileHandler(os.path.join(save_path, "scvi_autotune_logfile.txt"))
+    fh_autotune = logging.FileHandler(
+        os.path.join(save_path, "scvi_autotune_logfile.txt")
+    )
     fh_autotune.setFormatter(formatter)
     fh_autotune.setLevel(logging.DEBUG)
     logger.addHandler(fh_autotune)
@@ -374,7 +376,9 @@ def auto_tune_scvi_model(
         logger.debug("Pickling Trials object")
         if hasattr(trials, "handle"):
             del trials.handle
-        with open(os.path.join(save_path, "trials_{key}".format(key=exp_key)), "wb") as f:
+        with open(
+            os.path.join(save_path, "trials_{key}".format(key=exp_key)), "wb"
+        ) as f:
             pickle.dump(trials, f)
 
     # remove added logging handlers/formatters
@@ -629,17 +633,16 @@ def _fmin_parallel(
         "trials": trials,
         "show_progressbar": show_progressbar,
     }
-    fmin_thread = threading.Thread(
-        target=fmin,
-        kwargs=fmin_kwargs,
-    )
+    fmin_thread = threading.Thread(target=fmin, kwargs=fmin_kwargs)
     logger.debug("Calling fmin.")
     # set fmin thread as daemon so it stops when the main process terminates
     fmin_thread.daemon = True
     fmin_thread.start()
     started_threads.append(fmin_thread)
     if fmin_timer:
-        logging.debug("Timer set, fmin will run for at most {timer}".format(timer=fmin_timer))
+        logging.debug(
+            "Timer set, fmin will run for at most {timer}".format(timer=fmin_timer)
+        )
         start_time = time.monotonic()
         run_time = 0
         while run_time < fmin_timer and fmin_thread.is_alive():
@@ -1028,7 +1031,9 @@ def _objective_function(
                 metric = early_stopping_kwargs["early_stopping_metric"]
                 # add actual number of epochs to be used when training best model
                 if metric:
-                    space["train_func_tunable_kwargs"]["n_epochs"] = trainer.early_stopping.epoch
+                    space["train_func_tunable_kwargs"][
+                        "n_epochs"
+                    ] = trainer.early_stopping.epoch
                 metric += "_" + trainer.early_stopping.on
         metric = metric if metric else "ll_test_set"
         metric_history = trainer.history[metric]
