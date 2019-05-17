@@ -259,7 +259,7 @@ class EarlyStopping:
         patience: int = 15,
         threshold: int = 3,
         benchmark: bool = False,
-        reduce_lr_on_plateau: bool = True,
+        reduce_lr_on_plateau: bool = False,
         lr_patience: int = 10,
         lr_factor: float = 0.5,
     ):
