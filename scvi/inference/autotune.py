@@ -165,6 +165,7 @@ def auto_tune_scvi_model(
     train_func_specific_kwargs: dict = None,
     space: dict = None,
     max_evals: int = 100,
+    train_best: bool = True,
     pickle_result: bool = True,
     save_path: str = ".",
     use_batches: bool = False,
@@ -211,6 +212,7 @@ def auto_tune_scvi_model(
         which will be passed to the corresponding object : model, trainer or train method
         when performing hyper-optimization. Default: mutable, see source code.
     :param max_evals: Maximum number of evaluations of the objective.
+    :param train_best: If ``True``, train best model and return it.
     :param pickle_result: If ``True``, pickle ``Trials`` and  ``Trainer`` objects using ``save_path``.
     :param save_path: Path where to save best model, trainer, trials and mongo files.
     :param use_batches: If ``False``, pass ``n_batch=0`` to model else pass ``gene_dataset.n_batches``.
@@ -351,22 +353,25 @@ def auto_tune_scvi_model(
         )
 
     # return best model, trained
-    logger.debug("Training best model with full training set")
-    best_space = trials.best_trial["result"]["space"]
-    best_trainer = objective_hyperopt(best_space, is_best_training=True)
+    if train_best:
+        logger.debug("Training best model with full training set")
+        best_space = trials.best_trial["result"]["space"]
+        best_trainer = objective_hyperopt(best_space, is_best_training=True)
 
     if pickle_result:
-        logger.debug("Pickling best model, trainer as well as Trials object")
-        # pickle trainer and save model (overkill?)
-        with open(
-            os.path.join(save_path, "best_trainer_{key}".format(key=exp_key)), "wb"
-        ) as f:
-            pickle.dump(best_trainer, f)
-        torch.save(
-            best_trainer.model.state_dict(),
-            os.path.join(save_path, "best_model_{key}".format(key=exp_key)),
-        )
+        if train_best:
+            logger.debug("Pickling best model and trainer")
+            # pickle trainer and save model (overkill?)
+            with open(
+                os.path.join(save_path, "best_trainer_{key}".format(key=exp_key)), "wb"
+            ) as f:
+                pickle.dump(best_trainer, f)
+            torch.save(
+                best_trainer.model.state_dict(),
+                os.path.join(save_path, "best_model_{key}".format(key=exp_key)),
+            )
         # remove object containing thread.lock (otherwise pickle.dump throws)
+        logger.debug("Pickling Trials object")
         if hasattr(trials, "handle"):
             del trials.handle
         with open(os.path.join(save_path, "trials_{key}".format(key=exp_key)), "wb") as f:
@@ -375,7 +380,10 @@ def auto_tune_scvi_model(
     # remove added logging handlers/formatters
     _cleanup_logger()
 
-    return best_trainer, trials
+    if train_best:
+        return best_trainer, trials
+    else:
+        return trials
 
 
 def _auto_tune_parallel(
