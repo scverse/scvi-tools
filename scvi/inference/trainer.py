@@ -304,6 +304,7 @@ class EarlyStopping:
                 reduce_lr = False
             elif self.wait_lr >= self.lr_patience:
                 reduce_lr = True
+                self.wait_lr = 0
             else:
                 reduce_lr = False
             # Shift
