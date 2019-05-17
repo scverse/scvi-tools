@@ -35,6 +35,7 @@ class GeneExpressionDataset(Dataset):
         self.labels, self.n_labels = arrange_categories(labels)
         self.x_coord, self.y_coord = x_coord, y_coord
         self.norm_X = None
+        self.corrupted_X = None
 
         if gene_names is not None:
             assert self.nb_genes == len(gene_names)
@@ -87,7 +88,6 @@ class GeneExpressionDataset(Dataset):
     def corrupt(self, rate=0.1, corruption="uniform"):
         '''On the fly corruption is slow, but might be optimized in pytorch. Numpy code left here.'''
         self.corrupted_X = copy.deepcopy(self.X)
-        self.corrupted = defaultdict(lambda: {'j': [], 'corrupted': []})
         if corruption == "uniform":  # multiply the entry n with a Ber(0.9) random variable.
             i, j = np.nonzero(self.X)
             ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
