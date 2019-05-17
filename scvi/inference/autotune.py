@@ -985,24 +985,34 @@ def _objective_function(
             early_stopping_kwargs = trainer_specific_kwargs["early_stopping_kwargs"]
             if "early_stopping_metric" in early_stopping_kwargs:
                 metric = early_stopping_kwargs["early_stopping_metric"]
-                # add actual number of epochs to be used when training best model
-                if metric:
-                    space["train_func_tunable_kwargs"]["n_epochs"] = trainer.early_stopping.epoch
-                metric += "_" + trainer.early_stopping.on
-        metric = metric if metric else "ll_test_set"
-        metric_history = trainer.history[metric]
+        # add actual number of epochs to be used when training best model
+        if metric:
+            loss_is_best = True
+            best_epoch = trainer.best_epoch
+            space["train_func_tunable_kwargs"]["n_epochs"] = best_epoch
+            loss = trainer.early_stopping.best_performance
+            metric += "_" + trainer.early_stopping.on
+        # default to ll_test_set
+        else:
+            loss_is_best = False
+            metric = "ll_test_set"
+            loss = trainer.history[metric][-1]
+            best_epoch = len(trainer.history[metric])
         logger.debug(
             "Training of {n_epochs} epochs finished in {time}".format(
-                n_epochs=len(metric_history),
+                n_epochs=len(trainer.history[metric]),
                 time=str(datetime.timedelta(seconds=elapsed_time)),
             )
         )
 
         return {
-            "loss": metric_history[-1],
+            "loss": loss,
+            "loss_is_best": loss_is_best,
+            "best_epoch": best_epoch,
             "elapsed_time": elapsed_time,
             "status": STATUS_OK,
             "history": trainer.history,
+            "early_stopping": trainer.early_stopping,
             "space": space,
             "worker_name": multiprocessing.current_process().name,
         }
