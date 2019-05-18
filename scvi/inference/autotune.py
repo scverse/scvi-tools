@@ -243,9 +243,11 @@ def auto_tune_scvi_model(
         >>> best_trainer, trials = auto_tune_scvi_model(gene_dataset)
     """
     if fmin_timer and train_best:
-        logger.warning("fmin_timer and train_best are both set to True. "
-                       "This means that runtime will exceed fmin_timer "
-                       "by at least the time it takes to complete a full training.")
+        logger.warning(
+            "fmin_timer and train_best are both set to True. "
+            "This means that runtime will exceed fmin_timer "
+            "by at least the time it takes to complete a full training."
+        )
 
     # if no handlers add console handler, add formatter to handlers
     if len(logger.handlers) < 1:
