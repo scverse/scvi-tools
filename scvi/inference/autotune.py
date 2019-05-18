@@ -173,7 +173,7 @@ def auto_tune_scvi_model(
     gpu_ids: List[int] = None,
     n_workers_per_gpu: int = 1,
     reserve_timeout: float = 30.0,
-    fmin_timeout: float = 60.0,
+    fmin_timeout: float = 300.0,
     mongo_port: str = "1234",
     mongo_host: str = "localhost",
     db_name: str = "scvi_db",
