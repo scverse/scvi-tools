@@ -73,14 +73,6 @@ class GeneExpressionDataset(Dataset):
     def collate_fn_corrupted(self, batch):
         '''On the fly corruption is slow, but might be optimized in pytorch. Numpy code left here.'''
         indexes = np.array(batch)
-        # i, j, corrupted = [], [], []
-        # for k, i_idx in enumerate(indexes):
-        #     j += [self.corrupted[i_idx]['j']]
-        #     corrupted += [self.corrupted[i_idx]['corrupted']]
-        #     i += [np.ones_like(j[-1]) * k]
-        # i, j, corrupted = np.concatenate(i), np.concatenate(j), np.concatenate(corrupted)
-        # X = self.X[indexes]
-        # X[i, j] = corrupted
         X = self.corrupted_X[indexes]
         return self.collate_fn_end(X, indexes)
 
@@ -98,12 +90,6 @@ class GeneExpressionDataset(Dataset):
             i, j = i[ix], j[ix]
             corrupted = np.random.binomial(n=(self.X[i, j]).astype(np.int32), p=0.2)
         self.corrupted_X[i, j] = corrupted
-        # for idx_i, idx_j, corrupted in zip(i, j, corrupted):
-        #     self.corrupted[idx_i]['j'] += [idx_j]
-        #     self.corrupted[idx_i]['corrupted'] += [corrupted]
-        # for k, v in self.corrupted.items():
-        #     v['j'] = np.array(v['j'])
-        #     v['corrupted'] = np.array(v['corrupted'])
 
     def collate_fn_end(self, X, indexes):
         if self.dense:
