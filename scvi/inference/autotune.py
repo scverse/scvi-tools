@@ -165,6 +165,7 @@ def auto_tune_scvi_model(
     train_func_specific_kwargs: dict = None,
     space: dict = None,
     max_evals: int = 100,
+    train_best: bool = True,
     pickle_result: bool = True,
     save_path: str = ".",
     use_batches: bool = False,
@@ -174,6 +175,7 @@ def auto_tune_scvi_model(
     n_workers_per_gpu: int = 1,
     reserve_timeout: float = 30.0,
     fmin_timeout: float = 60.0,
+    fmin_timer: float = None,
     mongo_port: str = "1234",
     mongo_host: str = "localhost",
     db_name: str = "scvi_db",
@@ -190,6 +192,8 @@ def auto_tune_scvi_model(
     logging level is equal or higher to ``logging.WARNING``.
 
     :param exp_key: Name of the experiment in MongoDb.
+        If already exists in db, ``hyperopt`` will run a number of trainings equal to
+        the difference between current and previous ``max_evals``.
     :param gene_dataset: scVI gene dataset.
     :param objective_hyperopt: A custom objective function respecting the ``hyperopt`` format.
         Roughly, it needs to return the quantity to optimize for, either directly
@@ -198,44 +202,54 @@ def auto_tune_scvi_model(
         By default, we provide an objective function which can be parametrized
         through the various arguments of this function (``gene_dataset``, ``model_class``, etc.)
     :param model_class: scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
-    :param trainer_class: Trainer class (e.g ``UnsupervisedTrainer``)
-    :param model_specific_kwargs: dict of fixed parameters which will be passed to the model.
-    :param trainer_specific_kwargs: dict of fixed parameters which will be passed to the trainer.
+    :param trainer_class: ``Trainer`` sub-class (e.g ``UnsupervisedTrainer``)
+    :param model_specific_kwargs: ``dict`` of fixed parameters which will be passed to the model.
+    :param trainer_specific_kwargs: ``dict`` of fixed parameters which will be passed to the trainer.
     :param train_func_specific_kwargs: dict of fixed parameters which will be passed to the train method.
     :param space: dict containing up to three sub-dicts with keys "model_tunable_kwargs",
         "trainer_tunable_kwargs" or "train_func_tunable_kwargs".
-        Each of those dict contains hyperopt defined parameter spaces (e.g. ``hp.choice(..)``)
+        Each of those dict contains ``hyperopt`` defined parameter spaces (e.g. ``hp.choice(..)``)
         which will be passed to the corresponding object : model, trainer or train method
-        when performing hyperoptimization. Default: mutable, see source code.
+        when performing hyper-optimization. Default: mutable, see source code.
     :param max_evals: Maximum number of evaluations of the objective.
-    :param pickle_result: If True, pickle ``Trials`` and  ``Trainer`` objects using ``save_path``.
+    :param train_best: If ``True``, train best model and return it.
+    :param pickle_result: If ``True``, pickle ``Trials`` and  ``Trainer`` objects using ``save_path``.
     :param save_path: Path where to save best model, trainer, trials and mongo files.
-    :param use_batches: If False, pass n_batch=0 to model else pass gene_dataset.n_batches
-    :param parallel: If True, use MongoTrials object to run trainings in parallel.
-        If already exists in db, hyperopt will run a numebr of trainings equal to
-        the difference between current and previous max_evals.
+    :param use_batches: If ``False``, pass ``n_batch=0`` to model else pass ``gene_dataset.n_batches``.
+    :param parallel: If ``True``, use ``MongoTrials`` object to run trainings in parallel.
     :param n_cpu_workers: Number of cpu workers to launch.
-    :param gpu_ids: Ids of the GPUs to use. If None defaults to all GPUs found by torch.
-        Note that considered gpu ids are int from 0 to torch.cuda.device_count().
-    :param n_workers_per_gpu: Number of workers ton launch per gpu found by torch.
+    :param gpu_ids: Ids of the GPUs to use. If None defaults to all GPUs found by ``torch``.
+        Note that considered gpu ids are int from 0 to ``torch.cuda.device_count()``.
+    :param n_workers_per_gpu: Number of workers to launch per gpu found by ``torch``.
     :param reserve_timeout: Amount of time, in seconds, a worker tries to reserve a job for
-        before throwing a ReserveTimeout Exception.
+        before throwing a ``ReserveTimeout`` Exception.
     :param fmin_timeout: Amount of time, in seconds, fmin_process has to terminate
-        after all workers have died - before throwing a FminTimeoutError.
-        If multiple_hosts is set to True, this is set to None to prevent timing out.
-    :param mongo_port: Port to the mongo db.
-    :param mongo_host: Hostname used with mongo_port to indicate the prefix of the mongodb address.
-        The prefix of the address passed onto the workers and MongoTrials object is '{mongo_host}:{mongo_port}'
-    :param db_name: Name to use when creating the Mongo database. Suffix of the mongo address.
-    :param multiple_hosts: If True, user is considered to have workers launched on several machines.
-        Therefore, setting this to True disables the fmin_timeout behaviour.
-    :return: Trainer object for the best model and (Mongo)Trials object containing logs for the different runs.
+        after all workers have died - before throwing a ``FminTimeoutError``.
+        If ``multiple_hosts`` is set to ``True``, this is set to ``None`` to prevent timing out.
+    :param fmin_timer: Global amount of time allowed for fmin_process.
+        If not None, the minimization procedure will be stopped after ``fmin_timer`` seconds.
+        Used only if ``parallel`` is set to ``True``.
+    :param mongo_port: Port to the Mongo db.
+    :param mongo_host: Hostname used with ``mongo_port`` to indicate the prefix of the mongodb address.
+        The prefix of the address passed onto the workers and ``MongoTrials`` object
+        is ``'{mongo_host}:{mongo_port}'``.
+    :param db_name: Name to use when creating the Mongo database. Suffix of the Mongo address.
+    :param multiple_hosts: If ``True``, user is considered to have workers launched on several machines.
+        Therefore, setting this to ``True`` disables the ``fmin_timeout`` behaviour.
+    :return: ``Trainer`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
 
     Examples:
         >>> from scvi.dataset import CortexDataset
         >>> gene_dataset = CortexDataset()
         >>> best_trainer, trials = auto_tune_scvi_model(gene_dataset)
     """
+    if fmin_timer and train_best:
+        logger.warning(
+            "fmin_timer and train_best are both set to True. "
+            "This means that runtime will exceed fmin_timer "
+            "by at least the time it takes to complete a full training."
+        )
+
     # if no handlers add console handler, add formatter to handlers
     if len(logger.handlers) < 1:
         logger.addHandler(ch)
@@ -328,6 +342,7 @@ def auto_tune_scvi_model(
             n_workers_per_gpu=n_workers_per_gpu,
             reserve_timeout=reserve_timeout,
             fmin_timeout=fmin_timeout,
+            fmin_timer=fmin_timer,
             mongo_port=mongo_port,
             mongo_host=mongo_host,
             db_name=db_name,
@@ -348,22 +363,25 @@ def auto_tune_scvi_model(
         )
 
     # return best model, trained
-    logger.debug("Training best model with full training set")
-    best_space = trials.best_trial["result"]["space"]
-    best_trainer = objective_hyperopt(best_space, is_best_training=True)
+    if train_best:
+        logger.debug("Training best model with full training set")
+        best_space = trials.best_trial["result"]["space"]
+        best_trainer = objective_hyperopt(best_space, is_best_training=True)
 
     if pickle_result:
-        logger.debug("Pickling best model, trainer as well as Trials object")
-        # pickle trainer and save model (overkill?)
-        with open(
-            os.path.join(save_path, "best_trainer_{key}".format(key=exp_key)), "wb"
-        ) as f:
-            pickle.dump(best_trainer, f)
-        torch.save(
-            best_trainer.model.state_dict(),
-            os.path.join(save_path, "best_model_{key}".format(key=exp_key)),
-        )
+        if train_best:
+            logger.debug("Pickling best model and trainer")
+            # pickle trainer and save model (overkill?)
+            with open(
+                os.path.join(save_path, "best_trainer_{key}".format(key=exp_key)), "wb"
+            ) as f:
+                pickle.dump(best_trainer, f)
+            torch.save(
+                best_trainer.model.state_dict(),
+                os.path.join(save_path, "best_model_{key}".format(key=exp_key)),
+            )
         # remove object containing thread.lock (otherwise pickle.dump throws)
+        logger.debug("Pickling Trials object")
         if hasattr(trials, "handle"):
             del trials.handle
         with open(
@@ -374,7 +392,10 @@ def auto_tune_scvi_model(
     # remove added logging handlers/formatters
     _cleanup_logger()
 
-    return best_trainer, trials
+    if train_best:
+        return best_trainer, trials
+    else:
+        return trials
 
 
 def _auto_tune_parallel(
@@ -388,6 +409,7 @@ def _auto_tune_parallel(
     n_workers_per_gpu: int = 1,
     reserve_timeout: float = 30.0,
     fmin_timeout: float = 60.0,
+    fmin_timer: float = None,
     mongo_port: str = "1234",
     mongo_host: str = "localhost",
     db_name: str = "scvi_db",
@@ -429,6 +451,9 @@ def _auto_tune_parallel(
     :param fmin_timeout: Amount of time, in seconds, ``fmin_process`` has to terminate
         after all workers have died - before throwing a ``FminTimeoutError``.
         If ``multiple_hosts`` is set to ``True``, this is set to None to disable the timineout behaviour.
+    :param fmin_timer: Global amount of time allowed for fmin_process.
+        If not None, the minimization procedure will be stopped after ``fmin_timer`` seconds.
+        Used only if ``parallel`` is set to ``True``.
     :param mongo_port: Port to the mongo db.
     :param mongo_host: Hostname used with mongo_port to indicate the prefix of the mongodb address.
         The prefix of the address passed onto the workers and MongoTrials object is ``'{mongo_host}:{mongo_port}'``.
@@ -484,6 +509,7 @@ def _auto_tune_parallel(
         "space": space,
         "algo": tpe.suggest,
         "max_evals": max_evals,
+        "fmin_timer": fmin_timer,
         "show_progressbar": False,  # progbar useless in parallel mode
         "mongo_port_address": mongo_port_address,
     }
@@ -594,6 +620,7 @@ def _fmin_parallel(
     space: dict,
     algo: Callable = tpe.suggest,
     max_evals: int = 100,
+    fmin_timer: float = None,
     show_progressbar: bool = False,
     mongo_port_address: str = "localhost:1234/scvi_db",
 ):
@@ -605,17 +632,38 @@ def _fmin_parallel(
         as_mongo_str(os.path.join(mongo_port_address, "jobs")), exp_key=exp_key
     )
 
-    # run hyperoptimization
+    # run hyperoptimization in another fork to enable the use of fmin_timer
+    fmin_kwargs = {
+        "fn": fn,
+        "space": space,
+        "algo": algo,
+        "max_evals": max_evals,
+        "trials": trials,
+        "show_progressbar": show_progressbar,
+    }
+    fmin_thread = threading.Thread(target=fmin, kwargs=fmin_kwargs)
     logger.debug("Calling fmin.")
-    _ = fmin(
-        fn=fn,
-        space=space,
-        algo=algo,
-        max_evals=max_evals,
-        trials=trials,
-        show_progressbar=show_progressbar,
-    )
-    logger.debug("fmin returned.")
+    # set fmin thread as daemon so it stops when the main process terminates
+    fmin_thread.daemon = True
+    fmin_thread.start()
+    started_threads.append(fmin_thread)
+    if fmin_timer:
+        logging.debug(
+            "Timer set, fmin will run for at most {timer}".format(timer=fmin_timer)
+        )
+        start_time = time.monotonic()
+        run_time = 0
+        while run_time < fmin_timer and fmin_thread.is_alive():
+            time.sleep(10)
+            run_time = time.monotonic() - start_time
+    else:
+        logging.debug("No timer, waiting for fmin")
+        while True:
+            if not fmin_thread.is_alive():
+                break
+            else:
+                time.sleep(10)
+    logger.debug("fmin returned or timer ran out.")
     # queue.put uses pickle so remove attribute containing thread.lock
     if hasattr(trials, "handle"):
         logger.debug("Deleting Trial handle for pickling.")
