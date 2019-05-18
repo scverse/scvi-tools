@@ -231,7 +231,8 @@ def auto_tune_scvi_model(
         Used only if ``parallel`` is set to ``True``.
     :param mongo_port: Port to the Mongo db.
     :param mongo_host: Hostname used with ``mongo_port`` to indicate the prefix of the mongodb address.
-        The prefix of the address passed onto the workers and ``MongoTrials`` object is ``'{mongo_host}:{mongo_port}'``.
+        The prefix of the address passed onto the workers and ``MongoTrials`` object
+        is ``'{mongo_host}:{mongo_port}'``.
     :param db_name: Name to use when creating the Mongo database. Suffix of the Mongo address.
     :param multiple_hosts: If ``True``, user is considered to have workers launched on several machines.
         Therefore, setting this to ``True`` disables the ``fmin_timeout`` behaviour.
