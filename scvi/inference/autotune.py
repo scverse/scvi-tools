@@ -1017,7 +1017,6 @@ def _objective_function(
             "elapsed_time": elapsed_time,
             "status": STATUS_OK,
             "history": trainer.history,
-            "early_stopping": trainer.early_stopping,
             "space": space,
             "worker_name": multiprocessing.current_process().name,
         }
