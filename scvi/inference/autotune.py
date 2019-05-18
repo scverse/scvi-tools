@@ -246,7 +246,9 @@ def auto_tune_scvi_model(
                 handler.setFormatter(formatter)
 
     # also add file handler
-    fh_autotune = logging.FileHandler(os.path.join(save_path, "scvi_autotune_logfile.txt"))
+    fh_autotune = logging.FileHandler(
+        os.path.join(save_path, "scvi_autotune_logfile.txt")
+    )
     fh_autotune.setFormatter(formatter)
     fh_autotune.setLevel(logging.DEBUG)
     logger.addHandler(fh_autotune)
@@ -364,7 +366,9 @@ def auto_tune_scvi_model(
         # remove object containing thread.lock (otherwise pickle.dump throws)
         if hasattr(trials, "handle"):
             del trials.handle
-        with open(os.path.join(save_path, "trials_{key}".format(key=exp_key)), "wb") as f:
+        with open(
+            os.path.join(save_path, "trials_{key}".format(key=exp_key)), "wb"
+        ) as f:
             pickle.dump(trials, f)
 
     # remove added logging handlers/formatters
@@ -979,16 +983,17 @@ def _objective_function(
     if is_best_training:
         return trainer
     else:
-        # select metric from early stopping kwargs or default to "ll_test_set"
+        # select metric from early stopping kwargs if possible
         metric = None
         if "early_stopping_kwargs" in trainer_specific_kwargs:
             early_stopping_kwargs = trainer_specific_kwargs["early_stopping_kwargs"]
             if "early_stopping_metric" in early_stopping_kwargs:
                 metric = early_stopping_kwargs["early_stopping_metric"]
-        # add actual number of epochs to be used when training best model
+        # store run results
         if metric:
             loss_is_best = True
             best_epoch = trainer.best_epoch
+            # add actual number of epochs to be used when training best model
             space["train_func_tunable_kwargs"]["n_epochs"] = best_epoch
             loss = trainer.early_stopping.best_performance
             metric += "_" + trainer.early_stopping.on
