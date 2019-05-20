@@ -379,11 +379,9 @@ class Posterior:
             # '''
             # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
             # rate = (1 - p) / p  # = 1/scale # used in pytorch
-            # l_train = Gamma(r, rate).sample()  # assert Gamma(r, rate).mean = px_rate
-            # posterior = Poisson(l_train).sample()
             # '''
             original_list += [np.array(sample_batch.cpu())]
-            posterior_list += [X]  # [np.array(posterior.cpu())]##
+            posterior_list += [X]
 
             if genes is not None:
                 posterior_list[-1] = posterior_list[-1][:, :, self.gene_dataset._gene_idx(genes)]

@@ -135,8 +135,6 @@ class Dataset10X(GeneExpressionDataset):
         barcode_filename = 'barcodes.tsv'+suffix
         if os.path.exists(os.path.join(path, barcode_filename)):
             self.barcodes = pd.read_csv(os.path.join(path, barcode_filename), sep='\t', header=None)
-        # print(genes_info)
-        # self.gene_symbols = genes_info.values[:, self.genecol].astype(np.str).ravel()
         matrix_filename = 'matrix.mtx'+suffix
         expression_data = io.mmread(os.path.join(path, matrix_filename)).T
         if self.dense:
