@@ -149,12 +149,12 @@ def _cleanup_decorator(func: Callable):
                 )
             )
             _cleanup_processes_files()
+            _cleanup_logger()
             raise
 
     return decorated
 
 
-@_cleanup_decorator
 def auto_tune_scvi_model(
     exp_key: str,
     gene_dataset: GeneExpressionDataset,
@@ -170,7 +170,7 @@ def auto_tune_scvi_model(
     pickle_result: bool = True,
     save_path: str = ".",
     use_batches: bool = False,
-    parallel: bool = False,
+    parallel: bool = True,
     n_cpu_workers: int = None,
     gpu_ids: List[int] = None,
     n_workers_per_gpu: int = 1,
