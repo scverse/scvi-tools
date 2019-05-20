@@ -15,7 +15,7 @@ from subprocess import Popen
 from typing import Any, Callable, Dict, List, Type, Union
 from queue import Empty
 
-from hyperopt import fmin, tpe, Trials, hp, STATUS_OK
+from hyperopt import fmin, tpe, Trials, hp, STATUS_OK, STATUS_FAIL
 from hyperopt.mongoexp import (
     as_mongo_str,
     MongoJobs,
@@ -24,6 +24,7 @@ from hyperopt.mongoexp import (
     ReserveTimeout,
 )
 
+import numpy as np
 import torch
 import tqdm
 
@@ -1033,10 +1034,10 @@ def _objective_function(
     else:
         # select metric from early stopping kwargs if possible
         metric = None
-        if "early_stopping_kwargs" in trainer_specific_kwargs:
-            early_stopping_kwargs = trainer_specific_kwargs["early_stopping_kwargs"]
-            if "early_stopping_metric" in early_stopping_kwargs:
-                metric = early_stopping_kwargs["early_stopping_metric"]
+        early_stopping_kwargs = trainer_specific_kwargs.get("early_stopping_kwargs", default=None)
+        if early_stopping_kwargs :
+            metric = early_stopping_kwargs.get("early_stopping_metric", default=None)
+
         # store run results
         if metric:
             loss_is_best = True
@@ -1052,18 +1053,23 @@ def _objective_function(
             loss = trainer.history[metric][-1]
             best_epoch = len(trainer.history[metric])
         logger.debug(
-            "Training of {n_epochs} epochs finished in {time}".format(
+            "Training of {n_epochs} epochs finished in {time} with loss = {loss}".format(
                 n_epochs=len(trainer.history[metric]),
                 time=str(datetime.timedelta(seconds=elapsed_time)),
+                loss=loss
             )
         )
+        # check status
+        status = STATUS_OK
+        if np.isnan(loss):
+            status = STATUS_FAIL
 
         return {
             "loss": loss,
             "loss_is_best": loss_is_best,
             "best_epoch": best_epoch,
             "elapsed_time": elapsed_time,
-            "status": STATUS_OK,
+            "status": status,
             "history": trainer.history,
             "space": space,
             "worker_name": multiprocessing.current_process().name,
