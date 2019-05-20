@@ -1034,8 +1034,10 @@ def _objective_function(
     else:
         # select metric from early stopping kwargs if possible
         metric = None
-        early_stopping_kwargs = trainer_specific_kwargs.get("early_stopping_kwargs", default=None)
-        if early_stopping_kwargs :
+        early_stopping_kwargs = trainer_specific_kwargs.get(
+            "early_stopping_kwargs", default=None
+        )
+        if early_stopping_kwargs:
             metric = early_stopping_kwargs.get("early_stopping_metric", default=None)
 
         # store run results
@@ -1056,7 +1058,7 @@ def _objective_function(
             "Training of {n_epochs} epochs finished in {time} with loss = {loss}".format(
                 n_epochs=len(trainer.history[metric]),
                 time=str(datetime.timedelta(seconds=elapsed_time)),
-                loss=loss
+                loss=loss,
             )
         )
         # check status
