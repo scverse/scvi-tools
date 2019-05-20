@@ -853,7 +853,6 @@ def progress_listener(progress_queue, logging_queue):
             break
 
 
-@_cleanup_decorator
 def hyperopt_worker(
     progress_queue: multiprocessing.Queue,
     logging_queue: multiprocessing.Queue,
