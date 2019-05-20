@@ -749,7 +749,11 @@ def launch_workers(
 
     if gpu_ids is None:
         n_gpus = torch.cuda.device_count()
-        logger.debug("gpu_ids is None, defaulting to all {n_gpus} GPUs found by torch.")
+        logger.debug(
+            "gpu_ids is None, defaulting to all {n_gpus} GPUs found by torch.".format(
+                n_gpus=n_gpus
+            )
+        )
         gpu_ids = list(range(n_gpus))
         if n_gpus and n_cpu_workers is None:
             n_cpu_workers = 0
