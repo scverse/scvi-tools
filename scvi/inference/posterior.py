@@ -174,10 +174,10 @@ class Posterior:
         """
         Output average over statistics in a symmetric way (a against b)
         forget the sets if permutation is True
-        :param vae: The generative vae and encoder network
-        :param data_loader: a data loader for a particular dataset
         :param M_sampling: number of samples
-        :return: A 1-d vector of statistics of size n_genes
+        :return: Tuple px_scales, all_labels where:
+            - px_scales: scales of shape (M_sampling, n_genes)
+            - all_labels: labels of shape (M_sampling, )
         """
         px_scales = []
         all_labels = []
@@ -224,30 +224,55 @@ class Posterior:
     def differential_expression_score(self, idx1, idx2, batchid1=None, batchid2=None,
                                       genes=None, n_samples=None, M_permutation=None, all_stats=True,
                                       sample_pairs=True):
-        if n_samples is None:
-            n_samples = 5000
-        if M_permutation is None:
-            M_permutation = 10000
+        """
+        Computes gene specfic Bayes factors using masks idx1 and idx2
+
+        To that purpose we sample the Posterior in the following way:
+            1. The posterior is sampled n_samples times for each subpopulation
+            2. For computation efficiency (posterior sampling is quite expensive), instead of
+            comparing element-wise the obtained samples, we can permute posterior samples.
+            Remember that computing the Bayes Factor requires sampling
+            q(z_A | x_A) and q(z_B | x_B)
+
+        :param idx1: MASK of subpopulation cells 1
+        :param idx2: MASK of subpopulation cells 2
+        :param batchid1: batch ids of cells 1
+        :param batchid2: batch ids of cells 2
+        :param genes: Names of genes for which Bayes factors will be computed
+        :param n_samples: Number of times the posterior will be sampled for each pop
+        :param M_permutation: Number of times we will "mix" posterior samples in step 2
+        :param all_stats: Returns either Bayes factors of complete info
+        :param sample_pairs: Activates step 2 described above
+        :return:
+        """
+        n_samples = 5000 if n_samples is None else n_samples
+        M_permutation = 10000 if M_permutation is None else M_permutation
         if batchid1 is None:
             batchid1 = np.arange(self.gene_dataset.n_batches)
         if batchid2 is None:
             batchid2 = np.arange(self.gene_dataset.n_batches)
-        px_scale1 = self.sample_scale_from_batch(selection=idx1, batchid=batchid1, n_samples=n_samples)
-        px_scale2 = self.sample_scale_from_batch(selection=idx2, batchid=batchid2, n_samples=n_samples)
+        px_scale1 = self.sample_scale_from_batch(selection=idx1, batchid=batchid1,
+                                                 n_samples=n_samples)
+        px_scale2 = self.sample_scale_from_batch(selection=idx2, batchid=batchid2,
+                                                 n_samples=n_samples)
         px_scale_mean1 = px_scale1.mean(axis=0)
         px_scale_mean2 = px_scale2.mean(axis=0)
         px_scale = np.concatenate((px_scale1, px_scale2), axis=0)
-        all_labels = np.concatenate((np.repeat(0, len(px_scale1)), np.repeat(1, len(px_scale2))), axis=0)
+        all_labels = np.concatenate((np.repeat(0, len(px_scale1)), np.repeat(1, len(px_scale2))),
+                                    axis=0)
         if genes is not None:
             px_scale = px_scale[:, self.gene_dataset._gene_idx(genes)]
         bayes1 = get_bayes_factors(px_scale, all_labels, cell_idx=0, M_permutation=M_permutation,
                                    permutation=False, sample_pairs=sample_pairs)
         if all_stats is True:
-            bayes1_permuted = get_bayes_factors(px_scale, all_labels, cell_idx=0, M_permutation=M_permutation,
+            bayes1_permuted = get_bayes_factors(px_scale, all_labels, cell_idx=0,
+                                                M_permutation=M_permutation,
                                                 permutation=True, sample_pairs=sample_pairs)
-            bayes2 = get_bayes_factors(px_scale, all_labels, cell_idx=1, M_permutation=M_permutation,
+            bayes2 = get_bayes_factors(px_scale, all_labels, cell_idx=1,
+                                       M_permutation=M_permutation,
                                        permutation=False, sample_pairs=sample_pairs)
-            bayes2_permuted = get_bayes_factors(px_scale, all_labels, cell_idx=1, M_permutation=M_permutation,
+            bayes2_permuted = get_bayes_factors(px_scale, all_labels, cell_idx=1,
+                                                M_permutation=M_permutation,
                                                 permutation=True, sample_pairs=sample_pairs)
             mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2 = \
                 self.gene_dataset.raw_counts_properties(idx1, idx2)
@@ -255,31 +280,47 @@ class Posterior:
                                 mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2,
                                 px_scale_mean1, px_scale_mean2],
                                index=['bayes1', 'bayes1_permuted', 'bayes2', 'bayes2_permuted',
-                                      'mean1', 'mean2', 'nonz1', 'nonz2', 'norm_mean1', 'norm_mean2',
+                                      'mean1', 'mean2', 'nonz1', 'nonz2', 'norm_mean1',
+                                      'norm_mean2',
                                       'scale1', 'scale2'],
                                columns=self.gene_dataset.gene_names).T
             res = res.sort_values(by=['bayes1'], ascending=False)
             return res
         else:
-            return(bayes1)
+            return pd.Series(data=bayes1, index=self.gene_dataset.gene_names)
 
     @torch.no_grad()
     def one_vs_all_degenes(self, subset=None, cell_labels=None, min_cells=10,
-                           n_samples=None, M_permutation=None, output_file=False,
+                           n_samples=1000, M_permutation=None, output_file=False,
                            save_dir='./', filename='one2all'):
+        """
+
+        :param subset: MASK: subset of cells you are interested in
+        :param cell_labels: Labels of cells
+        :param min_cells: Ceil number of cells used to compute Bayes Factors
+        :param n_samples: see `differential_expression_score`
+        :param M_permutation: see `differential_expression_score`
+        :param output_file: Bool: save file?
+            :param save_dir:
+            :param filename:
+        :return:
+        """
         if cell_labels is not None:
             if len(cell_labels) != len(self.gene_dataset):
-                raise ValueError(" the length of cell_labels have to be the same as the number of cells")
+                raise ValueError(" the length of cell_labels have to be "
+                                 "the same as the number of cells")
+
         if (cell_labels is None) and not hasattr(self.gene_dataset, 'cell_types'):
             raise ValueError("If gene_dataset is not annotated with labels and cell types,"
                              " then must provide cell_labels")
         # Input cell_labels take precedence over cell type label annotation in dataset
-        elif (cell_labels is not None):
+        elif cell_labels is not None:
             cluster_id = np.unique(cell_labels[cell_labels >= 0])
             # Can make cell_labels < 0 to filter out cells when computing DE
         else:
             cluster_id = self.gene_dataset.cell_types
             cell_labels = self.gene_dataset.labels.ravel()
+
         de_res = []
         de_cluster = []
         for i, x in enumerate(cluster_id):
@@ -291,6 +332,7 @@ class Posterior:
                 idx2 = (cell_labels != i) * subset
             if np.sum(idx1) > min_cells and np.sum(idx2) > min_cells:
                 de_cluster.append(x)
+                # TODO: Understand issue when Sample_pairs=True
                 res = self.differential_expression_score(idx1=idx1, idx2=idx2, M_permutation=M_permutation,
                                                          n_samples=n_samples, sample_pairs=False)
                 res['clusters'] = np.repeat(x, len(res.index))
@@ -302,19 +344,38 @@ class Posterior:
             writer.close()
         return de_res, de_cluster
 
-    def within_cluster_degenes(self, cell_labels=None, min_cells=10, states=[], batch1=None, batch2=None, subset=None,
+    def within_cluster_degenes(self, cell_labels=None, min_cells=10, states=[], batch1=None,
+                               batch2=None, subset=None,
                                n_samples=None, M_permutation=None, output_file=False,
                                save_dir='./', filename='within_cluster'):
+        """
+
+        :param cell_labels: Optional cell labels
+        :param min_cells: Ceil number of cells used to compute Bayes Factors
+        :param states:
+        :param batch1:
+        :param batch2:
+        :param subset:
+        :param n_samples:
+        :param M_permutation:
+        :param output_file:
+            :param save_dir:
+            :param filename:
+        :return:
+        """
+
         if len(self.gene_dataset) != len(states):
             raise ValueError(" the length of states have to be the same as the number of cells")
         if cell_labels is not None:
             if len(cell_labels) != len(self.gene_dataset):
-                raise ValueError(" the length of cell_labels have to be the same as the number of cells")
+                raise ValueError("the length of cell_labels have to be the same "
+                                 "as the number of cells")
+
         if (cell_labels is None) and not hasattr(self.gene_dataset, 'cell_types'):
             raise ValueError("If gene_dataset is not annotated with labels and cell types,"
                              " then must provide cell_labels")
         # Input cell_labels take precedence over cell type label annotation in dataset
-        elif (cell_labels is not None):
+        elif cell_labels is not None:
             cluster_id = np.unique(cell_labels[cell_labels >= 0])
             # Can make cell_labels < 0 to filter out cells when computing DE
         else:
@@ -324,6 +385,7 @@ class Posterior:
         de_cluster = []
         states = np.asarray([1 if x else 0 for x in states])
         nstates = np.asarray([0 if x else 1 for x in states])
+
         for i, x in enumerate(cluster_id):
             if subset is None:
                 idx1 = (cell_labels == i) * states
@@ -365,7 +427,7 @@ class Posterior:
         '''
         original_list = []
         posterior_list = []
-        batch_size = 128  # max(self.data_loader_kwargs['batch_size'] // n_samples, 2)  # Reduce batch_size on GPU
+        batch_size = 128
         for tensors in self.update({"batch_size": batch_size}):
             sample_batch, _, _, batch_index, labels = tensors
             px_dispersion, px_rate = self.model.inference(sample_batch, batch_index=batch_index, y=labels,
@@ -643,47 +705,149 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
     return score / float(n_pools)
 
 
+def softmax(x, axis=None):
+    """
+    Compute the softmax of each element along an axis of X.
+    Parameters
+    ----------
+    x: ND-Array. Probably should be floats.
+    theta (optional): float parameter, used as a multiplier
+        prior to exponentiation. Default = 1.0
+    axis (optional): axis to compute values along. Default is the
+        first non-singleton axis.
+    Returns an array the same size as X. The result will sum to 1
+    along the specified axis.
+    """
+    y = np.atleast_2d(x)
+    if axis is None:
+        axis = next(j[0] for j in enumerate(y.shape) if j[1] > 1)
+    y = y - np.expand_dims(np.max(y, axis=axis), axis)
+    y = np.exp(y)
+    ax_sum = np.expand_dims(np.sum(y, axis=axis), axis)
+    p = y / ax_sum
+    if len(x.shape) == 1:
+        p = p.flatten()
+    return p
+
+
+def get_sampling_pair_idx(list_1, list_2, do_sample=True, permutation=False, M_permutation=10000,
+                          probas_a=None, probas_b=None):
+    """
+    Returns the indices of the sampled quantities of populations 1 and 2
+    that will be compared.
+
+    This function has several modes based on the values of do_sample and permutation
+    as described below
+
+
+    :param list_1: Indices corresponding to population 1
+    :param list_2: Indices corresponding to population 2
+    :param do_sample: Are pairs sampled? If not, we compare the posterior quantities
+    TERMISE
+    :param permutation: has only effect when do_sample is True.
+        - if permutation=False, NORMAL BEHAVIOR : elements used for pop 2 come from list_1
+        and vice-versa for 2
+        - if permutation=True, SPECIFIC BEHAVIOR: All elements are sampled.
+        Should only be used as a sanity check.
+
+    :param M_permutation:
+    :param probas_a: used for Importance Sampling, set to None by default
+    :param probas_b: used for Importance Sampling, set to None by default
+    :return:
+    """
+    if do_sample:
+        if not permutation:
+            # case1: no permutation, sample from A and then from B
+            u, v = np.random.choice(list_1, size=M_permutation, p=probas_a), \
+                   np.random.choice(list_2, size=M_permutation, p=probas_b)
+        else:
+            # case2: permutation, sample from A+B twice
+            u, v = (np.random.choice(list_1 + list_2, size=M_permutation),
+                    np.random.choice(list_1 + list_2, size=M_permutation))
+    else:
+        # TODO: Assert good behavior
+        u, v = list_1, list_2
+    assert len(u) == len(v), 'Inconsistent number of indices used for pairs'
+    return u, v
+
+
 def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes_idx=None,
-                      M_permutation=10000, permutation=False, sample_pairs=True):
-    '''
+                      log_ratios=None, importance_sampling=False, permutation=False,
+                      M_permutation=10000, sample_pairs=True):
+    """
     Returns a list of bayes factor for all genes
     :param px_scale: The gene frequency array for all cells (might contain multiple samples per cells)
     :param all_labels: The labels array for the corresponding cell types
     :param cell_idx: The first cell type population to consider. Either a string or an idx
     :param other_cell_idx: (optional) The second cell type population to consider. Either a string or an idx
     :param M_permutation: The number of permuted samples.
+    :param log_ratios: un-normalized weights for importance sampling
+    :param importance_sampling: whether to use IS
     :param permutation: Whether or not to permute.
     :return:
-    '''
+    """
+    assert importance_sampling == (log_ratios is not None)
+
     idx = (all_labels == cell_idx)
-    idx_other = (all_labels == other_cell_idx) if other_cell_idx is not None else (all_labels != cell_idx)
+    idx_other = (all_labels == other_cell_idx) if other_cell_idx is not None else (
+            all_labels != cell_idx)
     if genes_idx is not None:
         px_scale = px_scale[:, genes_idx]
-    sample_rate_a = px_scale[idx].reshape(-1, px_scale.shape[1])
-    sample_rate_b = px_scale[idx_other].reshape(-1, px_scale.shape[1])
 
-    # agregate dataset
-    samples = np.vstack((sample_rate_a, sample_rate_b))
+    # first extract the data
+    # Assert that at this point we no longer have batch dimensions
+    assert len(px_scale.shape) == 2
+    sample_rate_a = px_scale[idx, :]
+    sample_rate_b = px_scale[idx_other, :]
+    # sample_rate_a = px_scale[:, idx, :]
+    # sample_rate_b = px_scale[:, idx_other, :]
+    sample_rate_a = sample_rate_a.reshape((-1, px_scale.shape[-1]))
+    sample_rate_b = sample_rate_b.reshape((-1, px_scale.shape[-1]))
+    samples = np.concatenate((sample_rate_a, sample_rate_b), axis=0)
+    # prepare the pairs for sampling
+    list_1 = list(np.arange(sample_rate_a.shape[0]))
+    list_2 = list(sample_rate_a.shape[0] + np.arange(sample_rate_b.shape[0]))
 
-    if sample_pairs is True:
-        # prepare the pairs for sampling
-        list_1 = list(np.arange(sample_rate_a.shape[0]))
-        list_2 = list(sample_rate_a.shape[0] + np.arange(sample_rate_b.shape[0]))
-        if not permutation:
-            # case1: no permutation, sample from A and then from B
-            u, v = np.random.choice(list_1, size=M_permutation), np.random.choice(list_2, size=M_permutation)
-        else:
-            # case2: permutation, sample from A+B twice
-            u, v = (np.random.choice(list_1 + list_2, size=M_permutation),
-                    np.random.choice(list_1 + list_2, size=M_permutation))
+    if importance_sampling:
+        weight_a = log_ratios[:, idx]
+        weight_b = log_ratios[:, idx_other]
+
+        # second let's normalize the weights
+        weight_a = softmax(weight_a, axis=0)
+        weight_b = softmax(weight_b, axis=0)
+        # reshape and aggregate dataset
+        weight_a = weight_a.flatten()
+        weight_b = weight_b.flatten()
+        weights = np.concatenate((weight_a, weight_b))
+
+        probas_a = weight_a / np.sum(idx)
+        probas_b = weight_b / np.sum(idx_other)
+
+        u, v = get_sampling_pair_idx(list_1, list_2, do_sample=sample_pairs,
+                                     permutation=permutation, M_permutation=M_permutation,
+                                     probas_a=probas_a, probas_b=probas_b)
 
         # then constitutes the pairs
-        first_set = samples[u]
-        second_set = samples[v]
+        first_samples = samples[u]
+        second_samples = samples[v]
+        first_weights = weights[u]
+        second_weights = weights[v]
+        to_sum = first_weights[:, np.newaxis] * second_weights[:, np.newaxis] * (
+                first_samples >= second_samples)
+        incomplete_weights = first_weights * second_weights
+        res = np.sum(to_sum, axis=0) / np.sum(incomplete_weights, axis=0)
     else:
-        first_set = sample_rate_a
-        second_set = sample_rate_b
-    res = np.mean(first_set >= second_set, 0)
+        probas_a = None
+        probas_b = None
+
+        u, v = get_sampling_pair_idx(list_1, list_2, do_sample=sample_pairs,
+                                     permutation=permutation, M_permutation=M_permutation,
+                                     probas_a=probas_a, probas_b=probas_b)
+
+        # then constitutes the pairs
+        first_samples = samples[u]
+        second_samples = samples[v]
+        res = np.mean(first_samples >= second_samples, axis=0)
     res = np.log(res + 1e-8) - np.log(1 - res + 1e-8)
     return res
 
