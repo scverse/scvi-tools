@@ -1,16 +1,21 @@
+import logging
 import sys
 import time
+
 from abc import abstractmethod
 from collections import defaultdict, OrderedDict
 from itertools import cycle
 
 import numpy as np
 import torch
+
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
 from tqdm import trange
 
 from scvi.inference.posterior import Posterior
+
+logger = logging.getLogger(__name__)
 
 
 class Trainer:
@@ -154,9 +159,15 @@ class Trainer:
 
         continue_training = True
         if early_stopping_metric is not None and on is not None:
-            continue_training = self.early_stopping.update(
+            continue_training, reduce_lr = self.early_stopping.update(
                 self.history[early_stopping_metric + '_' + on][-1]
             )
+            if reduce_lr:
+                # FIXME: replace other print calls
+                logging.info("Reducing LR.")
+                for param_group in self.optimizer.param_groups:
+                    param_group["lr"] *= self.early_stopping.lr_factor
+
         return continue_training
 
     @property
@@ -237,13 +248,24 @@ class SequentialSubsetSampler(SubsetRandomSampler):
 
 
 class EarlyStopping:
-    def __init__(self, early_stopping_metric=None, save_best_state_metric=None, on='test_set',
-                 patience=15, threshold=3, benchmark=False):
+    def __init__(
+        self,
+        early_stopping_metric: str = None,
+        save_best_state_metric: str = None,
+        on: str = 'test_set',
+        patience: int = 15,
+        threshold: int = 3,
+        benchmark: bool = False,
+        reduce_lr_on_plateau: bool = False,
+        lr_patience: int = 10,
+        lr_factor: float = 0.5,
+    ):
         self.benchmark = benchmark
         self.patience = patience
         self.threshold = threshold
         self.epoch = 0
         self.wait = 0
+        self.wait_lr = 0
         self.mode = getattr(Posterior, early_stopping_metric).mode if early_stopping_metric is not None else None
         # We set the best to + inf because we're dealing with a loss we want to minimize
         self.current_performance = np.inf
@@ -261,14 +283,27 @@ class EarlyStopping:
         self.early_stopping_metric = early_stopping_metric
         self.save_best_state_metric = save_best_state_metric
         self.on = on
+        self.reduce_lr_on_plateau = reduce_lr_on_plateau
+        self.lr_patience = lr_patience
+        self.lr_factor = lr_factor
 
     def update(self, scalar):
         self.epoch += 1
-        if self.benchmark or self.epoch < self.patience:
+        if self.benchmark:
             continue_training = True
+            reduce_lr = False
         elif self.wait >= self.patience:
             continue_training = False
+            reduce_lr = False
         else:
+            # Check if we should reduce the learning rate
+            if not self.reduce_lr_on_plateau:
+                reduce_lr = False
+            elif self.wait_lr >= self.lr_patience:
+                reduce_lr = True
+                self.wait_lr = 0
+            else:
+                reduce_lr = False
             # Shift
             self.current_performance = scalar
 
@@ -277,6 +312,8 @@ class EarlyStopping:
                 improvement = self.current_performance - self.best_performance
             elif self.mode == "min":
                 improvement = self.best_performance - self.current_performance
+            else:
+                raise NotImplementedError("Unknown optimization mode")
 
             # updating best performance
             if improvement > 0:
@@ -284,16 +321,19 @@ class EarlyStopping:
 
             if improvement < self.threshold:
                 self.wait += 1
+                self.wait_lr += 1
             else:
                 self.wait = 0
+                self.wait_lr = 0
 
             continue_training = True
         if not continue_training:
+            # FIXME: use logging and log total number of epochs run
             print("\nStopping early: no improvement of more than " + str(self.threshold) +
                   " nats in " + str(self.patience) + " epochs")
             print("If the early stopping criterion is too strong, "
                   "please instantiate it with different parameters in the train method.")
-        return continue_training
+        return continue_training, reduce_lr
 
     def update_state(self, scalar):
         improved = ((self.mode_save_state == "max" and scalar - self.best_performance_state > 0) or
