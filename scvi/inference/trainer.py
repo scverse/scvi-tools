@@ -109,9 +109,6 @@ class Trainer:
         if params is None:
             params = filter(lambda p: p.requires_grad, self.model.parameters())
 
-        # if hasattr(self, 'optimizer'):
-        #     optimizer = self.optimizer
-        # else:
         optimizer = self.optimizer = torch.optim.Adam(params, lr=lr, eps=eps)  # weight_decay=self.weight_decay,
 
         self.compute_metrics_time = 0

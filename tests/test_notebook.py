@@ -48,8 +48,6 @@ class NotebookLoader(object):
             nb = read(f, 4)
 
         # create the module and add it to sys.modules
-        # if name in sys.modules:
-        #    return sys.modules[name]
         mod = types.ModuleType(fullname)
         mod.__file__ = path
         mod.__loader__ = self
