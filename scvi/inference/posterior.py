@@ -753,7 +753,7 @@ def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes
     :param all_labels: The labels array for the corresponding cell types
     :param cell_idx: The first cell type population to consider. Either a string or an idx
     :param other_cell_idx: (optional) The second cell type population to consider. Either a string or an idx
-    :param genes_idx: Indinces of genes for which DE Analysis applies
+    :param genes_idx: Indices of genes for which DE Analysis applies
     :param M_permutation: The number of permuted samples.
     :param permutation: Whether or not to permute.
     :return:
