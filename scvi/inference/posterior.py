@@ -225,7 +225,7 @@ class Posterior:
                                       genes=None, n_samples=None, sample_pairs=True,
                                       M_permutation=None, all_stats=True):
         """
-        Computes gene specfic Bayes factors using masks idx1 and idx2
+        Computes gene specific Bayes factors using masks idx1 and idx2
 
         To that purpose we sample the Posterior in the following way:
             1. The posterior is sampled n_samples times for each subpopulation
@@ -234,11 +234,15 @@ class Posterior:
             Remember that computing the Bayes Factor requires sampling
             q(z_A | x_A) and q(z_B | x_B)
 
-        :param idx1: MASK of subpopulation cells 1
-        :param idx2: MASK of subpopulation cells 2
-        :param batchid1: batch ids of cells 1
-        :param batchid2: batch ids of cells 2
-        :param genes: Names of genes for which Bayes factors will be computed
+        :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
+        from associated population
+        :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
+        from associated population
+        :param batchid1: List of batch ids for which you want to perform DE Analysis for
+        subpopulation 1. By default, all ids are taken into account
+        :param batchid2: List of batch ids for which you want to perform DE Analysis for
+        subpopulation 2. By default, all ids are taken into account
+        :param genes: list Names of genes for which Bayes factors will be computed
         :param n_samples: Number of times the posterior will be sampled for each pop
         :param sample_pairs: Activates step 2 described above.
         Simply formulated, pairs obtained from posterior sampling (when calling
@@ -246,7 +250,14 @@ class Posterior:
         pairs used to compute Bayes Factors becomes M_permutation.
             :param M_permutation: Number of times we will "mix" posterior samples in step 2.
             Only makes sense when sample_pairs=True
-        :param all_stats: Returns either Bayes factors of complete info
+        :param all_stats: If False returns Bayes factors alone
+        else, returns not only Bayes Factor of population 1 vs population 2 but other metrics as
+        well, mostly used for sanity checks, such as
+            - Bayes Factors of 2 vs 1
+            - Bayes factors obtained when indices used to computed bayes are chosen randomly
+            (ie we compute Bayes factors of Completely Random vs Completely Random).
+            These can be seen as control tests.
+            - Gene expression statistics (mean, scale ...)
         :return:
         """
 
@@ -285,7 +296,7 @@ class Posterior:
             res = res.sort_values(by=['bayes1'], ascending=False)
             return res
         else:
-            return(bayes1)
+            return bayes1
 
     @torch.no_grad()
     def one_vs_all_degenes(self, subset=None, cell_labels=None, min_cells=10,
@@ -297,8 +308,9 @@ class Posterior:
 
 
 
-        :param subset: MASK: subset of cells you are interested in.
-        Should have same length than `gene_dataset`
+        :param subset: None Or
+        bool array masking subset of cells you are interested in (True when you want to select cell).
+        In that case, it should have same length than `gene_dataset`
         :param cell_labels: optional: Labels of cells
         :param min_cells: Ceil number of cells used to compute Bayes Factors
         :param n_samples: Number of times the posterior will be sampled for each pop
@@ -368,8 +380,10 @@ class Posterior:
         :param cell_labels: optional: Labels of cells
         :param min_cells: Ceil number of cells used to compute Bayes Factors
         :param states: States of the cells.
-        :param batch1: Batch
-        :param batch2:
+        :param batch1: List of batch ids for which you want to perform DE Analysis for
+        subpopulation 1. By default, all ids are taken into account
+        :param batch2: List of batch ids for which you want to perform DE Analysis for
+        subpopulation 2. By default, all ids are taken into account
         :param subset: MASK: Subset of cells you are insterested in.
         :param n_samples: Number of times the posterior will be sampled for each pop
         :param sample_pairs: Activates pair random permutations.
