@@ -249,8 +249,6 @@ class Posterior:
         :param all_stats: Returns either Bayes factors of complete info
         :return:
         """
-        # Assert that if we permute samples we have activated pair permutations
-        assert sample_pairs == (M_permutation is not None)
 
         n_samples = 5000 if n_samples is None else n_samples
         M_permutation = 10000 if M_permutation is None else M_permutation
