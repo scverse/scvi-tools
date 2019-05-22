@@ -174,10 +174,10 @@ class Posterior:
         """
         Output average over statistics in a symmetric way (a against b)
         forget the sets if permutation is True
-        :param vae: The generative vae and encoder network
-        :param data_loader: a data loader for a particular dataset
         :param M_sampling: number of samples
-        :return: A 1-d vector of statistics of size n_genes
+        :return: Tuple px_scales, all_labels where:
+            - px_scales: scales of shape (M_sampling, n_genes)
+            - all_labels: labels of shape (M_sampling, )
         """
         px_scales = []
         all_labels = []
@@ -222,12 +222,38 @@ class Posterior:
 
     @torch.no_grad()
     def differential_expression_score(self, idx1, idx2, batchid1=None, batchid2=None,
-                                      genes=None, n_samples=None, M_permutation=None, all_stats=True,
-                                      sample_pairs=True):
-        if n_samples is None:
-            n_samples = 5000
-        if M_permutation is None:
-            M_permutation = 10000
+                                      genes=None, n_samples=None, sample_pairs=True,
+                                      M_permutation=None, all_stats=True):
+        """
+        Computes gene specfic Bayes factors using masks idx1 and idx2
+
+        To that purpose we sample the Posterior in the following way:
+            1. The posterior is sampled n_samples times for each subpopulation
+            2. For computation efficiency (posterior sampling is quite expensive), instead of
+            comparing element-wise the obtained samples, we can permute posterior samples.
+            Remember that computing the Bayes Factor requires sampling
+            q(z_A | x_A) and q(z_B | x_B)
+
+        :param idx1: MASK of subpopulation cells 1
+        :param idx2: MASK of subpopulation cells 2
+        :param batchid1: batch ids of cells 1
+        :param batchid2: batch ids of cells 2
+        :param genes: Names of genes for which Bayes factors will be computed
+        :param n_samples: Number of times the posterior will be sampled for each pop
+        :param sample_pairs: Activates step 2 described above.
+        Simply formulated, pairs obtained from posterior sampling (when calling
+        `sample_scale_from_batch`) will be randomly permuted so that the number of
+        pairs used to compute Bayes Factors becomes M_permutation.
+            :param M_permutation: Number of times we will "mix" posterior samples in step 2.
+            Only makes sense when sample_pairs=True
+        :param all_stats: Returns either Bayes factors of complete info
+        :return:
+        """
+        # Assert that if we permute samples we have activated pair permutations
+        assert sample_pairs == (M_permutation is not None)
+
+        n_samples = 5000 if n_samples is None else n_samples
+        M_permutation = 10000 if M_permutation is None else M_permutation
         if batchid1 is None:
             batchid1 = np.arange(self.gene_dataset.n_batches)
         if batchid2 is None:
@@ -265,16 +291,45 @@ class Posterior:
 
     @torch.no_grad()
     def one_vs_all_degenes(self, subset=None, cell_labels=None, min_cells=10,
-                           n_samples=None, M_permutation=None, output_file=False,
+                           n_samples=None, sample_pairs=False, M_permutation=None, output_file=False,
                            save_dir='./', filename='one2all'):
+        """
+        Performs one population vs all others Differential Expression Analysis
+        given labels or using cell types, for each type of population
+
+
+
+        :param subset: MASK: subset of cells you are interested in.
+        Should have same length than `gene_dataset`
+        :param cell_labels: optional: Labels of cells
+        :param min_cells: Ceil number of cells used to compute Bayes Factors
+        :param n_samples: Number of times the posterior will be sampled for each pop
+        :param sample_pairs: Activates pair random permutations.
+        Simply formulated, pairs obtained from posterior sampling (when calling
+        `sample_scale_from_batch`) will be randomly permuted so that the number of
+        pairs used to compute Bayes Factors becomes M_permutation.
+            :param M_permutation: Number of times we will "mix" posterior samples in step 2.
+                Only makes sense when sample_pairs=True
+        :param output_file: Bool: save file?
+            :param save_dir:
+            :param filename:
+        :return: Tuple (de_res, de_cluster)
+            - de_res is a list of length nb_clusters (based on provided labels or on hardcoded cell
+        types). de_res[i] contains Bayes Factors for population number i vs all the rest
+            - de_cluster returns the associated names of clusters
+
+            Are contains in this results only clusters for which we have at least `min_cells`
+            elements to compute predicted Bayes Factors
+        """
         if cell_labels is not None:
             if len(cell_labels) != len(self.gene_dataset):
-                raise ValueError(" the length of cell_labels have to be the same as the number of cells")
+                raise ValueError(" the length of cell_labels have to be "
+                                 "the same as the number of cells")
         if (cell_labels is None) and not hasattr(self.gene_dataset, 'cell_types'):
             raise ValueError("If gene_dataset is not annotated with labels and cell types,"
                              " then must provide cell_labels")
         # Input cell_labels take precedence over cell type label annotation in dataset
-        elif (cell_labels is not None):
+        elif cell_labels is not None:
             cluster_id = np.unique(cell_labels[cell_labels >= 0])
             # Can make cell_labels < 0 to filter out cells when computing DE
         else:
@@ -291,30 +346,62 @@ class Posterior:
                 idx2 = (cell_labels != i) * subset
             if np.sum(idx1) > min_cells and np.sum(idx2) > min_cells:
                 de_cluster.append(x)
-                res = self.differential_expression_score(idx1=idx1, idx2=idx2, M_permutation=M_permutation,
-                                                         n_samples=n_samples, sample_pairs=False)
+                res = self.differential_expression_score(idx1=idx1, idx2=idx2,
+                                                         M_permutation=M_permutation,
+                                                         n_samples=n_samples,
+                                                         sample_pairs=sample_pairs)
                 res['clusters'] = np.repeat(x, len(res.index))
                 de_res.append(res)
         if output_file:  # store as an excel spreadsheet
-            writer = pd.ExcelWriter(save_dir + 'differential_expression.%s.xlsx' % filename, engine='xlsxwriter')
+            writer = pd.ExcelWriter(save_dir + 'differential_expression.%s.xlsx' % filename,
+                                    engine='xlsxwriter')
             for i, x in enumerate(de_cluster):
                 de_res[i].to_excel(writer, sheet_name=str(x))
             writer.close()
         return de_res, de_cluster
 
-    def within_cluster_degenes(self, cell_labels=None, min_cells=10, states=[], batch1=None, batch2=None, subset=None,
-                               n_samples=None, M_permutation=None, output_file=False,
+    def within_cluster_degenes(self, cell_labels=None, min_cells=10, states=[], batch1=None,
+                               batch2=None, subset=None, n_samples=None, sample_pairs=False,
+                               M_permutation=None, output_file=False,
                                save_dir='./', filename='within_cluster'):
+        """
+        Performs Differential Expression within clusters for different cell states
+
+        :param cell_labels: optional: Labels of cells
+        :param min_cells: Ceil number of cells used to compute Bayes Factors
+        :param states: States of the cells.
+        :param batch1: Batch
+        :param batch2:
+        :param subset: MASK: Subset of cells you are insterested in.
+        :param n_samples: Number of times the posterior will be sampled for each pop
+        :param sample_pairs: Activates pair random permutations.
+        Simply formulated, pairs obtained from posterior sampling (when calling
+        `sample_scale_from_batch`) will be randomly permuted so that the number of
+        pairs used to compute Bayes Factors becomes M_permutation.
+            :param M_permutation: Number of times we will "mix" posterior samples in step 2.
+                Only makes sense when sample_pairs=True
+        :param output_file: Bool: save file?
+            :param save_dir:
+            :param filename:
+        :return: Tuple (de_res, de_cluster)
+            - de_res is a list of length nb_clusters (based on provided labels or on hardcoded cell
+        types). de_res[i] contains Bayes Factors for population number i vs all the rest
+            - de_cluster returns the associated names of clusters
+
+            Are contains in this results only clusters for which we have at least `min_cells`
+            elements to compute predicted Bayes Factors
+        """
         if len(self.gene_dataset) != len(states):
             raise ValueError(" the length of states have to be the same as the number of cells")
         if cell_labels is not None:
             if len(cell_labels) != len(self.gene_dataset):
-                raise ValueError(" the length of cell_labels have to be the same as the number of cells")
+                raise ValueError(" the length of cell_labels have to be "
+                                 "the same as the number of cells")
         if (cell_labels is None) and not hasattr(self.gene_dataset, 'cell_types'):
             raise ValueError("If gene_dataset is not annotated with labels and cell types,"
                              " then must provide cell_labels")
         # Input cell_labels take precedence over cell type label annotation in dataset
-        elif (cell_labels is not None):
+        elif cell_labels is not None:
             cluster_id = np.unique(cell_labels[cell_labels >= 0])
             # Can make cell_labels < 0 to filter out cells when computing DE
         else:
@@ -334,12 +421,15 @@ class Posterior:
             if np.sum(idx1) > min_cells and np.sum(idx2) > min_cells:
                 de_cluster.append(x)
                 res = self.differential_expression_score(idx1=idx1, idx2=idx2,
-                                                         batchid1=batch1, batchid2=batch2, M_permutation=M_permutation,
-                                                         n_samples=n_samples)
+                                                         batchid1=batch1, batchid2=batch2,
+                                                         M_permutation=M_permutation,
+                                                         n_samples=n_samples,
+                                                         sample_pairs=sample_pairs)
                 res['clusters'] = np.repeat(x, len(res.index))
                 de_res.append(res)
         if output_file:  # store as an excel spreadsheet
-            writer = pd.ExcelWriter(save_dir + 'differential_expression.%s.xlsx' % filename, engine='xlsxwriter')
+            writer = pd.ExcelWriter(save_dir + 'differential_expression.%s.xlsx' % filename,
+                                    engine='xlsxwriter')
             for i, x in enumerate(de_cluster):
                 de_res[i].to_excel(writer, sheet_name=str(x))
             writer.close()
@@ -645,16 +735,17 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
 
 def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes_idx=None,
                       M_permutation=10000, permutation=False, sample_pairs=True):
-    '''
-    Returns a list of bayes factor for all genes
+    """
+    Returns an array of bayes factor for all genes
     :param px_scale: The gene frequency array for all cells (might contain multiple samples per cells)
     :param all_labels: The labels array for the corresponding cell types
     :param cell_idx: The first cell type population to consider. Either a string or an idx
     :param other_cell_idx: (optional) The second cell type population to consider. Either a string or an idx
+    :param genes_idx: Indinces of genes for which DE Analysis applies
     :param M_permutation: The number of permuted samples.
     :param permutation: Whether or not to permute.
     :return:
-    '''
+    """
     idx = (all_labels == cell_idx)
     idx_other = (all_labels == other_cell_idx) if other_cell_idx is not None else (all_labels != cell_idx)
     if genes_idx is not None:
