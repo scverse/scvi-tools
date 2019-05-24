@@ -223,13 +223,18 @@ class Posterior:
         return px_scales
 
     @torch.no_grad()
-    def differential_expression_score(self, idx1: Union[List[bool], np.ndarray],
-                                      idx2: Union[List[bool], np.ndarray],
-                                      batchid1: Optional[Union[List[int], np.ndarray]] = None,
-                                      batchid2: Optional[Union[List[int], np.ndarray]] = None,
-                                      genes: Optional[Union[List[str], np.ndarray]] = None,
-                                      n_samples: int = None, sample_pairs: bool = True,
-                                      M_permutation: int = None, all_stats: bool = True):
+    def differential_expression_score(
+        self,
+        idx1: Union[List[bool], np.ndarray],
+        idx2: Union[List[bool], np.ndarray],
+        batchid1: Optional[Union[List[int], np.ndarray]] = None,
+        batchid2: Optional[Union[List[int], np.ndarray]] = None,
+        genes: Optional[Union[List[str], np.ndarray]] = None,
+        n_samples: int = None,
+        sample_pairs: bool = True,
+        M_permutation: int = None,
+        all_stats: bool = True,
+    ):
         """
         Computes gene specific Bayes factors using masks idx1 and idx2
 
@@ -310,11 +315,18 @@ class Posterior:
             return bayes1
 
     @torch.no_grad()
-    def one_vs_all_degenes(self, subset: Optional[Union[List[bool], np.ndarray]] = None,
-                           cell_labels: Optional[Union[List, np.ndarray]] = None,
-                           min_cells: int = 10, n_samples: int = None, sample_pairs: bool = False,
-                           M_permutation: int = None, output_file: bool = False,
-                           save_dir: str = './', filename='one2all'):
+    def one_vs_all_degenes(
+        self,
+        subset: Optional[Union[List[bool], np.ndarray]] = None,
+        cell_labels: Optional[Union[List, np.ndarray]] = None,
+        min_cells: int = 10,
+        n_samples: int = None,
+        sample_pairs: bool = False,
+        M_permutation: int = None,
+        output_file: bool = False,
+        save_dir: str = "./",
+        filename="one2all",
+    ):
         """
         Performs one population vs all others Differential Expression Analysis
         given labels or using cell types, for each type of population
@@ -383,15 +395,21 @@ class Posterior:
             writer.close()
         return de_res, de_cluster
 
-    def within_cluster_degenes(self, cell_labels: Optional[Union[List, np.ndarray]] = None,
-                               min_cells: int = 10,
-                               states: Union[List[bool], np.ndarray] = [],
-                               batch1: Optional[Union[List[int], np.ndarray]] = None,
-                               batch2: Optional[Union[List[int], np.ndarray]] = None,
-                               subset: Optional[Union[List[bool], np.ndarray]] = None,
-                               n_samples: int = None, sample_pairs: bool = False,
-                               M_permutation: int = None, output_file: bool = False,
-                               save_dir: str = './', filename: str = 'within_cluster'):
+    def within_cluster_degenes(
+        self,
+        cell_labels: Optional[Union[List, np.ndarray]] = None,
+        min_cells: int = 10,
+        states: Union[List[bool], np.ndarray] = [],
+        batch1: Optional[Union[List[int], np.ndarray]] = None,
+        batch2: Optional[Union[List[int], np.ndarray]] = None,
+        subset: Optional[Union[List[bool], np.ndarray]] = None,
+        n_samples: int = None,
+        sample_pairs: bool = False,
+        M_permutation: int = None,
+        output_file: bool = False,
+        save_dir: str = "./",
+        filename: str = "within_cluster",
+    ):
         """
         Performs Differential Expression within clusters for different cell states
 
@@ -763,11 +781,16 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
     return score / float(n_pools)
 
 
-def get_bayes_factors(px_scale: Union[List[float], np.ndarray],
-                      all_labels: Union[List, np.ndarray], cell_idx: Union[int, str],
-                      other_cell_idx: Optional[Union[int, str]] = None,
-                      genes_idx: Union[List[int], np.ndarray] = None, M_permutation: int = 10000,
-                      permutation: bool = False, sample_pairs: bool = True):
+def get_bayes_factors(
+    px_scale: Union[List[float], np.ndarray],
+    all_labels: Union[List, np.ndarray],
+    cell_idx: Union[int, str],
+    other_cell_idx: Optional[Union[int, str]] = None,
+    genes_idx: Union[List[int], np.ndarray] = None,
+    M_permutation: int = 10000,
+    permutation: bool = False,
+    sample_pairs: bool = True,
+):
     """
     Returns an array of bayes factor for all genes
     :param px_scale: The gene frequency array for all cells (might contain multiple samples per cells)
