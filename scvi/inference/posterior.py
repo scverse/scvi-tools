@@ -18,6 +18,8 @@ from sklearn.neighbors import NearestNeighbors, KNeighborsRegressor
 from sklearn.utils.linear_assignment_ import linear_assignment
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler, RandomSampler
+from typing import List, Optional, Union
+
 
 from scvi.models.log_likelihood import compute_log_likelihood, compute_marginal_log_likelihood
 
@@ -221,9 +223,13 @@ class Posterior:
         return px_scales
 
     @torch.no_grad()
-    def differential_expression_score(self, idx1, idx2, batchid1=None, batchid2=None,
-                                      genes=None, n_samples=None, sample_pairs=True,
-                                      M_permutation=None, all_stats=True):
+    def differential_expression_score(self, idx1: Union[List[bool], np.ndarray],
+                                      idx2: Union[List[bool], np.ndarray],
+                                      batchid1: Optional[Union[List[int], np.ndarray]] = None,
+                                      batchid2: Optional[Union[List[int], np.ndarray]] = None,
+                                      genes: Optional[Union[List[str], np.ndarray]] = None,
+                                      n_samples: int = None, sample_pairs: bool = True,
+                                      M_permutation: int = None, all_stats: bool = True):
         """
         Computes gene specific Bayes factors using masks idx1 and idx2
 
@@ -267,8 +273,10 @@ class Posterior:
             batchid1 = np.arange(self.gene_dataset.n_batches)
         if batchid2 is None:
             batchid2 = np.arange(self.gene_dataset.n_batches)
-        px_scale1 = self.sample_scale_from_batch(selection=idx1, batchid=batchid1, n_samples=n_samples)
-        px_scale2 = self.sample_scale_from_batch(selection=idx2, batchid=batchid2, n_samples=n_samples)
+        px_scale1 = self.sample_scale_from_batch(selection=idx1, batchid=batchid1,
+                                                 n_samples=n_samples)
+        px_scale2 = self.sample_scale_from_batch(selection=idx2, batchid=batchid2,
+                                                 n_samples=n_samples)
         px_scale_mean1 = px_scale1.mean(axis=0)
         px_scale_mean2 = px_scale2.mean(axis=0)
         px_scale = np.concatenate((px_scale1, px_scale2), axis=0)
@@ -278,11 +286,14 @@ class Posterior:
         bayes1 = get_bayes_factors(px_scale, all_labels, cell_idx=0, M_permutation=M_permutation,
                                    permutation=False, sample_pairs=sample_pairs)
         if all_stats is True:
-            bayes1_permuted = get_bayes_factors(px_scale, all_labels, cell_idx=0, M_permutation=M_permutation,
+            bayes1_permuted = get_bayes_factors(px_scale, all_labels, cell_idx=0,
+                                                M_permutation=M_permutation,
                                                 permutation=True, sample_pairs=sample_pairs)
-            bayes2 = get_bayes_factors(px_scale, all_labels, cell_idx=1, M_permutation=M_permutation,
+            bayes2 = get_bayes_factors(px_scale, all_labels, cell_idx=1,
+                                       M_permutation=M_permutation,
                                        permutation=False, sample_pairs=sample_pairs)
-            bayes2_permuted = get_bayes_factors(px_scale, all_labels, cell_idx=1, M_permutation=M_permutation,
+            bayes2_permuted = get_bayes_factors(px_scale, all_labels, cell_idx=1,
+                                                M_permutation=M_permutation,
                                                 permutation=True, sample_pairs=sample_pairs)
             mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2 = \
                 self.gene_dataset.raw_counts_properties(idx1, idx2)
@@ -299,9 +310,11 @@ class Posterior:
             return bayes1
 
     @torch.no_grad()
-    def one_vs_all_degenes(self, subset=None, cell_labels=None, min_cells=10,
-                           n_samples=None, sample_pairs=False, M_permutation=None, output_file=False,
-                           save_dir='./', filename='one2all'):
+    def one_vs_all_degenes(self, subset: Optional[Union[List[bool], np.ndarray]] = None,
+                           cell_labels: Optional[Union[List, np.ndarray]] = None,
+                           min_cells: int = 10, n_samples: int = None, sample_pairs: bool = False,
+                           M_permutation: int = None, output_file: bool = False,
+                           save_dir: str = './', filename='one2all'):
         """
         Performs one population vs all others Differential Expression Analysis
         given labels or using cell types, for each type of population
@@ -370,10 +383,15 @@ class Posterior:
             writer.close()
         return de_res, de_cluster
 
-    def within_cluster_degenes(self, cell_labels=None, min_cells=10, states=[], batch1=None,
-                               batch2=None, subset=None, n_samples=None, sample_pairs=False,
-                               M_permutation=None, output_file=False,
-                               save_dir='./', filename='within_cluster'):
+    def within_cluster_degenes(self, cell_labels: Optional[Union[List, np.ndarray]] = None,
+                               min_cells: int = 10,
+                               states: Union[List[bool], np.ndarray] = [],
+                               batch1: Optional[Union[List[int], np.ndarray]] = None,
+                               batch2: Optional[Union[List[int], np.ndarray]] = None,
+                               subset: Optional[Union[List[bool], np.ndarray]] = None,
+                               n_samples: int = None, sample_pairs: bool = False,
+                               M_permutation: int = None, output_file: bool = False,
+                               save_dir: str = './', filename: str = 'within_cluster'):
         """
         Performs Differential Expression within clusters for different cell states
 
@@ -745,8 +763,11 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
     return score / float(n_pools)
 
 
-def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes_idx=None,
-                      M_permutation=10000, permutation=False, sample_pairs=True):
+def get_bayes_factors(px_scale: Union[List[float], np.ndarray],
+                      all_labels: Union[List, np.ndarray], cell_idx: Union[int, str],
+                      other_cell_idx: Optional[Union[int, str]] = None,
+                      genes_idx: Union[List[int], np.ndarray] = None, M_permutation: int = 10000,
+                      permutation: bool = False, sample_pairs: bool = True):
     """
     Returns an array of bayes factor for all genes
     :param px_scale: The gene frequency array for all cells (might contain multiple samples per cells)
@@ -754,8 +775,15 @@ def get_bayes_factors(px_scale, all_labels, cell_idx, other_cell_idx=None, genes
     :param cell_idx: The first cell type population to consider. Either a string or an idx
     :param other_cell_idx: (optional) The second cell type population to consider. Either a string or an idx
     :param genes_idx: Indices of genes for which DE Analysis applies
-    :param M_permutation: The number of permuted samples.
-    :param permutation: Whether or not to permute.
+    :param sample_pairs: Activates subsampling.
+        Simply formulated, pairs obtained from posterior sampling (when calling
+        `sample_scale_from_batch`) will be randomly permuted so that the number of
+        pairs used to compute Bayes Factors becomes M_permutation.
+        :param M_permutation: Number of times we will "mix" posterior samples in step 2.
+            Only makes sense when sample_pairs=True
+    :param permutation: Whether or not to permute. Normal behavior is False.
+        Setting permutation=True basically shuffles cell_idx and other_cell_idx so that we
+        estimate Bayes Factors of random populations of the union of cell_idx and other_cell_idx.
     :return:
     """
     idx = (all_labels == cell_idx)
