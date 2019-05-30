@@ -51,7 +51,7 @@ class BrainLargeDataset(GeneExpressionDataset):
         print("Preprocessing Brain Large data")
 
         filtered_matrix_h5 = os.path.join(self.save_path, self.download_name)
-        with h5py.File(filtered_matrix_h5) as f:
+        with h5py.File(filtered_matrix_h5, 'r') as f:
             dset = f["mm10"]
             n_genes, n_cells = f["mm10"]["shape"]
             if self.subsample_size is None:
