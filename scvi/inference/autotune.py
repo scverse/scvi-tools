@@ -281,8 +281,8 @@ def auto_tune_scvi_model(
     if "early_stopping_kwargs" not in trainer_specific_kwargs:
         logger.debug("Adding default early stopping behaviour.")
         early_stopping_kwargs = {
-            "early_stopping_metric": "ll",
-            "save_best_state_metric": "ll",
+            "early_stopping_metric": "elbo",
+            "save_best_state_metric": "elbo",
             "patience": 50,
             "threshold": 0,
             "reduce_lr_on_plateau": True,
@@ -1070,10 +1070,10 @@ def _objective_function(
             space["train_func_tunable_kwargs"]["n_epochs"] = best_epoch
             loss = trainer.early_stopping.best_performance
             metric += "_" + trainer.early_stopping.on
-        # default to ll_test_set
+        # default to elbo
         else:
             loss_is_best = False
-            metric = "ll_test_set"
+            metric = "elbo_test_set"
             loss = trainer.history[metric][-1]
             best_epoch = len(trainer.history[metric])
         logger.debug(

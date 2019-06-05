@@ -7,12 +7,32 @@ from torch import logsumexp
 from torch.distributions import Normal
 
 
-def compute_log_likelihood(vae, posterior, **kwargs):
-    """ Computes log p(x/z), which is the reconstruction error .
-        Differs from the marginal log likelihood, but still gives good
-        insights on the modeling of the data, and is fast to compute
+def compute_elbo(vae, posterior, **kwargs):
+    """ Computes the ELBO.
+
+    The ELBO  is the reconstruction error + the KL divergences
+    between the variational distributions and the priors.
+    Differs from the marginal log likelihood, but still gives good
+    insights on the modeling of the data, and is fast to compute.
     """
-    # Iterate once over the posterior and computes the total log_likelihood
+    # Iterate once over the posterior and compute the elbo
+    elbo = 0
+    for i_batch, tensors in enumerate(posterior):
+        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[:5]  # general fish case
+        reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
+                                          y=labels, **kwargs)
+        elbo += torch.sum(reconst_loss + kl_divergence).item()
+    n_samples = len(posterior.indices)
+    return elbo / n_samples
+
+
+def compute_reconstruction_error(vae, posterior, **kwargs):
+    """ Computes log p(x/z), which is the reconstruction error.
+
+    Differs from the marginal log likelihood, but still gives good
+    insights on the modeling of the data, and is fast to compute.
+    """
+    # Iterate once over the posterior and computes the reconstruction error
     log_lkl = 0
     for i_batch, tensors in enumerate(posterior):
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[:5]  # general fish case
@@ -25,13 +45,14 @@ def compute_log_likelihood(vae, posterior, **kwargs):
 
 def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
     """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
-        Despite its bias, the estimator still converges to the real value
-        of log p(x) when n_samples_mc (for Monte Carlo) goes to infinity
-        (a fairly high value like 100 should be enough)
-        Due to the Monte Carlo sampling, this method is not as computationally efficient
-        as computing only the reconstruction loss
+
+    Despite its bias, the estimator still converges to the real value
+    of log p(x) when n_samples_mc (for Monte Carlo) goes to infinity
+    (a fairly high value like 100 should be enough)
+    Due to the Monte Carlo sampling, this method is not as computationally efficient
+    as computing only the reconstruction loss
     """
-    # Uses MC sampling to compute a tighter lower bound
+    # Uses MC sampling to compute a tighter lower bound on log p(x)
     log_lkl = 0
     for i_batch, tensors in enumerate(posterior):
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors

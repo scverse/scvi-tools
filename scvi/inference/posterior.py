@@ -1,11 +1,14 @@
-from abc import abstractmethod
 import copy
+import os
+
+from abc import abstractmethod
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
 import scipy
 import torch
-import os
+
 from matplotlib import pyplot as plt
 from scipy.stats import kde, entropy
 from sklearn.cluster import KMeans
@@ -18,10 +21,8 @@ from sklearn.neighbors import NearestNeighbors, KNeighborsRegressor
 from sklearn.utils.linear_assignment_ import linear_assignment
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler, RandomSampler
-from typing import List, Optional, Union
 
-
-from scvi.models.log_likelihood import compute_log_likelihood, compute_marginal_log_likelihood
+from scvi.models.log_likelihood import compute_elbo, compute_reconstruction_error, compute_marginal_log_likelihood
 
 
 class SequentialSubsetSampler(SubsetRandomSampler):
@@ -31,7 +32,7 @@ class SequentialSubsetSampler(SubsetRandomSampler):
 
 class Posterior:
     r"""The functional data unit. A `Posterior` instance is instanciated with a model and a gene_dataset, and
-    as well as additional arguments that for Pytorch's `DataLoader`. A subset of indices can be specified, for
+    as well as additional arguments that for Pytorch"s `DataLoader`. A subset of indices can be specified, for
     purpose such as splitting the data into train/test or labelled/unlabelled (for semi-supervised learning).
     Each trainer instance of the `Trainer` class can therefore have multiple `Posterior` instances to train a model.
     A `Posterior` instance also comes with many methods or utilities for its corresponding data.
@@ -46,7 +47,7 @@ class Posterior:
 
     Examples:
 
-    Let's instanciate a `trainer`, with a gene_dataset and a model
+    Let"s instanciate a `trainer`, with a gene_dataset and a model
 
         >>> gene_dataset = CortexDataset()
         >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
@@ -60,48 +61,48 @@ class Posterior:
     scVI model
 
         >>> trainer.train_set.differential_expression_stats()
-        >>> trainer.train_set.ll()
+        >>> trainer.train_set.reconstruction_error()
         >>> trainer.train_set.entropy_batch_mixing()
-        >>> trainer.train_set.show_t_sne(n_samples=1000, color_by='labels')
+        >>> trainer.train_set.show_t_sne(n_samples=1000, color_by="labels")
 
     """
 
     def __init__(self, model, gene_dataset, shuffle=False, indices=None, use_cuda=True, data_loader_kwargs=dict()):
-        '''
+        """
 
         When added to annotation, has a private name attribute
-        '''
+        """
         self.model = model
         self.gene_dataset = gene_dataset
         self.to_monitor = []
         self.use_cuda = use_cuda
 
         if indices is not None and shuffle:
-            raise ValueError('indices is mutually exclusive with shuffle')
+            raise ValueError("indices is mutually exclusive with shuffle")
         if indices is None:
             if shuffle:
                 sampler = RandomSampler(gene_dataset)
             else:
                 sampler = SequentialSampler(gene_dataset)
         else:
-            if hasattr(indices, 'dtype') and indices.dtype is np.dtype('bool'):
+            if hasattr(indices, "dtype") and indices.dtype is np.dtype("bool"):
                 indices = np.where(indices)[0].ravel()
             sampler = SubsetRandomSampler(indices)
         self.data_loader_kwargs = copy.copy(data_loader_kwargs)
-        if hasattr(gene_dataset, 'collate_fn'):
-            self.data_loader_kwargs.update({'collate_fn': gene_dataset.collate_fn})
-        self.data_loader_kwargs.update({'sampler': sampler})
+        if hasattr(gene_dataset, "collate_fn"):
+            self.data_loader_kwargs.update({"collate_fn": gene_dataset.collate_fn})
+        self.data_loader_kwargs.update({"sampler": sampler})
         self.data_loader = DataLoader(gene_dataset, **self.data_loader_kwargs)
 
     @abstractmethod
     def accuracy(self, verbose=False):
         pass
 
-    accuracy.mode = 'max'
+    accuracy.mode = "max"
 
     @property
     def indices(self):
-        if hasattr(self.data_loader.sampler, 'indices'):
+        if hasattr(self.data_loader.sampler, "indices"):
             return self.data_loader.sampler.indices
         else:
             return np.arange(len(self.gene_dataset))
@@ -120,22 +121,33 @@ class Posterior:
         return posterior
 
     def sequential(self, batch_size=128):
-        return self.update({'batch_size': batch_size, 'sampler': SequentialSubsetSampler(indices=self.indices)})
+        return self.update({"batch_size": batch_size, "sampler": SequentialSubsetSampler(indices=self.indices)})
 
     def corrupted(self):
-        return self.update({'collate_fn': self.gene_dataset.collate_fn_corrupted})
+        return self.update({"collate_fn": self.gene_dataset.collate_fn_corrupted})
 
     def uncorrupted(self):
-        return self.update({'collate_fn': self.gene_dataset.collate_fn})
+        return self.update({"collate_fn": self.gene_dataset.collate_fn})
 
-    def ll(self, verbose=False):
-        ll = compute_log_likelihood(self.model, self)
+    @torch.no_grad()
+    def elbo(self, verbose=False):
+        elbo = compute_elbo(self.model, self)
         if verbose:
-            print("LL : %.4f" % ll)
-        return ll
+            print("ELBO : %.4f" % elbo)
+        return elbo
 
-    ll.mode = 'min'
+    elbo.mode = "min"
 
+    @torch.no_grad()
+    def reconstruction_error(self, verbose=False):
+        reconstruction_error = compute_reconstruction_error(self.model, self)
+        if verbose:
+            print("Reconstruction Error : %.4f" % reconstruction_error)
+        return reconstruction_error
+
+    reconstruction_error.mode = "min"
+
+    @torch.no_grad()
     def marginal_ll(self, verbose=False, n_mc_samples=1000):
         ll = compute_marginal_log_likelihood(self.model, self, n_mc_samples)
         if verbose:
@@ -169,7 +181,7 @@ class Posterior:
                 print("Entropy batch mixing :", be_score)
             return be_score
 
-    entropy_batch_mixing.mode = 'max'
+    entropy_batch_mixing.mode = "max"
 
     @torch.no_grad()
     def differential_expression_stats(self, M_sampling=100):
@@ -183,7 +195,7 @@ class Posterior:
         """
         px_scales = []
         all_labels = []
-        batch_size = max(self.data_loader_kwargs['batch_size'] // M_sampling, 2)  # Reduce batch_size on GPU
+        batch_size = max(self.data_loader_kwargs["batch_size"] // M_sampling, 2)  # Reduce batch_size on GPU
         if len(self.gene_dataset) % batch_size == 1:
             batch_size += 1
         for tensors in self.update({"batch_size": batch_size}):
@@ -209,13 +221,13 @@ class Posterior:
         if selection is None:
             raise ValueError("selections should be a list of cell subsets indices")
         else:
-            if selection.dtype is np.dtype('bool'):
+            if selection.dtype is np.dtype("bool"):
                 selection = np.asarray(np.where(selection)[0].ravel())
         old_loader = self.data_loader
         for i in batchid:
             idx = np.random.choice(np.arange(len(self.gene_dataset))[selection], n_samples)
             sampler = SubsetRandomSampler(idx)
-            self.data_loader_kwargs.update({'sampler': sampler})
+            self.data_loader_kwargs.update({"sampler": sampler})
             self.data_loader = DataLoader(self.gene_dataset, **self.data_loader_kwargs)
             px_scales.append(self.get_harmonized_scale(i))
         self.data_loader = old_loader
@@ -305,11 +317,11 @@ class Posterior:
             res = pd.DataFrame([bayes1, bayes1_permuted, bayes2, bayes2_permuted,
                                 mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2,
                                 px_scale_mean1, px_scale_mean2],
-                               index=['bayes1', 'bayes1_permuted', 'bayes2', 'bayes2_permuted',
-                                      'mean1', 'mean2', 'nonz1', 'nonz2', 'norm_mean1', 'norm_mean2',
-                                      'scale1', 'scale2'],
+                               index=["bayes1", "bayes1_permuted", "bayes2", "bayes2_permuted",
+                                      "mean1", "mean2", "nonz1", "nonz2", "norm_mean1", "norm_mean2",
+                                      "scale1", "scale2"],
                                columns=self.gene_dataset.gene_names).T
-            res = res.sort_values(by=['bayes1'], ascending=False)
+            res = res.sort_values(by=["bayes1"], ascending=False)
             return res
         else:
             return bayes1
@@ -360,7 +372,7 @@ class Posterior:
             if len(cell_labels) != len(self.gene_dataset):
                 raise ValueError(" the length of cell_labels have to be "
                                  "the same as the number of cells")
-        if (cell_labels is None) and not hasattr(self.gene_dataset, 'cell_types'):
+        if (cell_labels is None) and not hasattr(self.gene_dataset, "cell_types"):
             raise ValueError("If gene_dataset is not annotated with labels and cell types,"
                              " then must provide cell_labels")
         # Input cell_labels take precedence over cell type label annotation in dataset
@@ -385,11 +397,11 @@ class Posterior:
                                                          M_permutation=M_permutation,
                                                          n_samples=n_samples,
                                                          sample_pairs=sample_pairs)
-                res['clusters'] = np.repeat(x, len(res.index))
+                res["clusters"] = np.repeat(x, len(res.index))
                 de_res.append(res)
         if output_file:  # store as an excel spreadsheet
-            writer = pd.ExcelWriter(save_dir + 'differential_expression.%s.xlsx' % filename,
-                                    engine='xlsxwriter')
+            writer = pd.ExcelWriter(save_dir + "differential_expression.%s.xlsx" % filename,
+                                    engine="xlsxwriter")
             for i, x in enumerate(de_cluster):
                 de_res[i].to_excel(writer, sheet_name=str(x))
             writer.close()
@@ -445,7 +457,7 @@ class Posterior:
             if len(cell_labels) != len(self.gene_dataset):
                 raise ValueError(" the length of cell_labels have to be "
                                  "the same as the number of cells")
-        if (cell_labels is None) and not hasattr(self.gene_dataset, 'cell_types'):
+        if (cell_labels is None) and not hasattr(self.gene_dataset, "cell_types"):
             raise ValueError("If gene_dataset is not annotated with labels and cell types,"
                              " then must provide cell_labels")
         # Input cell_labels take precedence over cell type label annotation in dataset
@@ -473,11 +485,11 @@ class Posterior:
                                                          M_permutation=M_permutation,
                                                          n_samples=n_samples,
                                                          sample_pairs=sample_pairs)
-                res['clusters'] = np.repeat(x, len(res.index))
+                res["clusters"] = np.repeat(x, len(res.index))
                 de_res.append(res)
         if output_file:  # store as an excel spreadsheet
-            writer = pd.ExcelWriter(save_dir + 'differential_expression.%s.xlsx' % filename,
-                                    engine='xlsxwriter')
+            writer = pd.ExcelWriter(save_dir + "differential_expression.%s.xlsx" % filename,
+                                    engine="xlsxwriter")
             for i, x in enumerate(de_cluster):
                 de_res[i].to_excel(writer, sheet_name=str(x))
             writer.close()
@@ -495,15 +507,15 @@ class Posterior:
 
     @torch.no_grad()
     def generate(self, n_samples=100, genes=None):  # with n_samples>1 return original list/ otherwose sequential
-        '''
+        """
         Return original_values as y and generated as x (for posterior density visualization)
         :param n_samples:
         :param genes:
         :return:
-        '''
+        """
         original_list = []
         posterior_list = []
-        batch_size = 128  # max(self.data_loader_kwargs['batch_size'] // n_samples, 2)  # Reduce batch_size on GPU
+        batch_size = 128  # max(self.data_loader_kwargs["batch_size"] // n_samples, 2)  # Reduce batch_size on GPU
         for tensors in self.update({"batch_size": batch_size}):
             sample_batch, _, _, batch_index, labels = tensors
             px_dispersion, px_rate = self.model.inference(sample_batch, batch_index=batch_index, y=labels,
@@ -514,10 +526,10 @@ class Posterior:
             #
             l_train = np.random.gamma(r, p / (1 - p))
             X = np.random.poisson(l_train)
-            # '''
+            # """
             # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
             # rate = (1 - p) / p  # = 1/scale # used in pytorch
-            # '''
+            # """
             original_list += [np.array(sample_batch.cpu())]
             posterior_list += [X]
 
@@ -580,7 +592,7 @@ class Posterior:
     def imputation_list(self, n_samples=1):
         original_list = []
         imputed_list = []
-        batch_size = 10000  # self.data_loader_kwargs['batch_size'] // n_samples
+        batch_size = 10000  # self.data_loader_kwargs["batch_size"] // n_samples
         for tensors, corrupted_tensors in zip(self.uncorrupted().sequential(batch_size=batch_size),
                                               self.corrupted().sequential(batch_size=batch_size)):
             batch = tensors[0]
@@ -621,7 +633,7 @@ class Posterior:
             return np.median(np.abs(original_list_concat - imputed_list_concat))
 
     @torch.no_grad()
-    def imputation_benchmark(self, n_samples=8, verbose=False, show_plot=True, title_plot='imputation', save_path=''):
+    def imputation_benchmark(self, n_samples=8, verbose=False, show_plot=True, title_plot="imputation", save_path=""):
         original_list, imputed_list = self.imputation_list(n_samples=n_samples)
         # Median of medians for all distances
         median_score = self.imputation_score(original_list=original_list, imputed_list=imputed_list)
@@ -648,15 +660,15 @@ class Posterior:
             print("KNN purity score :", score)
         return score
 
-    knn_purity.mode = 'max'
+    knn_purity.mode = "max"
 
     @torch.no_grad()
-    def clustering_scores(self, verbose=True, prediction_algorithm='knn'):
+    def clustering_scores(self, verbose=True, prediction_algorithm="knn"):
         if self.gene_dataset.n_labels > 1:
             latent, _, labels = self.get_latent()
-            if prediction_algorithm == 'knn':
+            if prediction_algorithm == "knn":
                 labels_pred = KMeans(self.gene_dataset.n_labels, n_init=200).fit_predict(latent)  # n_jobs>1 ?
-            elif prediction_algorithm == 'gmm':
+            elif prediction_algorithm == "gmm":
                 gmm = GMM(self.gene_dataset.n_labels)
                 gmm.fit(latent)
                 labels_pred = gmm.predict(latent)
@@ -672,12 +684,12 @@ class Posterior:
 
     @torch.no_grad()
     def nn_overlap_score(self, verbose=True, **kwargs):
-        '''
+        """
         Quantify how much the similarity between cells in the mRNA latent space resembles their similarity at the
         protein level. Compute the overlap fold enrichment between the protein and mRNA-based cell 100-nearest neighbor
         graph and the Spearman correlation of the adjacency matrices.
-        '''
-        if hasattr(self.gene_dataset, 'adt_expression_clr'):
+        """
+        if hasattr(self.gene_dataset, "adt_expression_clr"):
             latent, _, _ = self.sequential().get_latent()
             protein_data = self.gene_dataset.adt_expression_clr[self.indices]
             spearman_correlation, fold_enrichment = nn_overlap(latent, protein_data, **kwargs)
@@ -687,7 +699,7 @@ class Posterior:
             return spearman_correlation, fold_enrichment
 
     @torch.no_grad()
-    def show_t_sne(self, n_samples=1000, color_by='', save_name='', latent=None, batch_indices=None,
+    def show_t_sne(self, n_samples=1000, color_by="", save_name="", latent=None, batch_indices=None,
                    labels=None, n_batch=None):
         # If no latent representation is given
         if latent is None:
@@ -698,16 +710,16 @@ class Posterior:
         if not color_by:
             plt.figure(figsize=(10, 10))
             plt.scatter(latent[:, 0], latent[:, 1])
-        if color_by == 'scalar':
+        if color_by == "scalar":
             plt.figure(figsize=(10, 10))
             plt.scatter(latent[:, 0], latent[:, 1], c=labels.ravel())
         else:
             if n_batch is None:
                 n_batch = self.gene_dataset.n_batches
-            if color_by == 'batches' or color_by == 'labels':
-                indices = batch_indices.ravel() if color_by == 'batches' else labels.ravel()
-                n = n_batch if color_by == 'batches' else self.gene_dataset.n_labels
-                if hasattr(self.gene_dataset, 'cell_types') and color_by == 'labels':
+            if color_by == "batches" or color_by == "labels":
+                indices = batch_indices.ravel() if color_by == "batches" else labels.ravel()
+                n = n_batch if color_by == "batches" else self.gene_dataset.n_labels
+                if hasattr(self.gene_dataset, "cell_types") and color_by == "labels":
                     plt_labels = self.gene_dataset.cell_types
                 else:
                     plt_labels = [str(i) for i in range(len(np.unique(indices)))]
@@ -715,7 +727,7 @@ class Posterior:
                 for i, label in zip(range(n), plt_labels):
                     plt.scatter(latent[indices == i, 0], latent[indices == i, 1], label=label)
                 plt.legend()
-            elif color_by == 'batches and labels':
+            elif color_by == "batches and labels":
                 fig, axes = plt.subplots(1, 2, figsize=(14, 7))
                 batch_indices = batch_indices.ravel()
                 for i in range(n_batch):
@@ -725,7 +737,7 @@ class Posterior:
                 axes[0].legend()
 
                 indices = labels.ravel()
-                if hasattr(self.gene_dataset, 'cell_types'):
+                if hasattr(self.gene_dataset, "cell_types"):
                     plt_labels = self.gene_dataset.cell_types
                 else:
                     plt_labels = [str(i) for i in range(len(np.unique(indices)))]
@@ -877,25 +889,25 @@ def plot_imputation(original, imputed, show_plot=True, title="Imputation"):
 
     plt.title(title, fontsize=12)
     plt.ylabel("Imputed counts")
-    plt.xlabel('Original counts')
+    plt.xlabel("Original counts")
 
     plt.pcolormesh(yi, xi, zi.reshape(xi.shape), cmap="Reds")
 
     a, _, _, _ = np.linalg.lstsq(y[:, np.newaxis], x, rcond=-1)
     linspace = np.linspace(0, ymax)
-    plt.plot(linspace, a * linspace, color='black')
+    plt.plot(linspace, a * linspace, color="black")
 
-    plt.plot(linspace, linspace, color='black', linestyle=":")
+    plt.plot(linspace, linspace, color="black", linestyle=":")
     if show_plot:
         plt.show()
-    plt.savefig(title + '.png')
+    plt.savefig(title + ".png")
 
 
 def nn_overlap(X1, X2, k=100):
-    '''
+    """
     Compute the overlap between the k-nearest neighbor graph of X1 and X2 using Spearman correlation of the
     adjacency matrices.
-    '''
+    """
     assert len(X1) == len(X2)
     n_samples = len(X1)
     k = min(k, n_samples - 1)
@@ -944,6 +956,6 @@ def knn_purity(latent, label, n_neighbors=30):
 
 
 def proximity_imputation(real_latent1, normed_gene_exp_1, real_latent2, k=4):
-    knn = KNeighborsRegressor(k, weights='distance')
+    knn = KNeighborsRegressor(k, weights="distance")
     y = knn.fit(real_latent1, normed_gene_exp_1).predict(real_latent2)
     return y

@@ -42,8 +42,11 @@ class Trainer:
     default_metrics_to_monitor = []
 
     def __init__(self, model, gene_dataset, use_cuda=True, metrics_to_monitor=None, benchmark=False,
-                 verbose=False, frequency=None, weight_decay=1e-6, early_stopping_kwargs=dict(),
-                 data_loader_kwargs=dict(), show_progbar=True):
+                 verbose=False, frequency=None, weight_decay=1e-6, early_stopping_kwargs=None,
+                 data_loader_kwargs=None, show_progbar=True):
+        # handle mutable defaults
+        early_stopping_kwargs = early_stopping_kwargs if early_stopping_kwargs else dict()
+        data_loader_kwargs = data_loader_kwargs if data_loader_kwargs else dict()
 
         self.model = model
         self.gene_dataset = gene_dataset
