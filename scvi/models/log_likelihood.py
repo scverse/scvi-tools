@@ -10,10 +10,12 @@ from torch.distributions import Normal
 def compute_elbo(vae, posterior, **kwargs):
     """ Computes the ELBO.
 
-    The ELBO  is the reconstruction error + the KL divergences
+    The ELBO is the reconstruction error + the KL divergences
     between the variational distributions and the priors.
-    Differs from the marginal log likelihood, but still gives good
-    insights on the modeling of the data, and is fast to compute.
+    It differs from the marginal log likelihood.
+    Specifically, it is a lower bound on the marginal log likelihood
+    plus a term that is constant with respect to the variational distribution.
+    It still gives good insights on the modeling of the data, and is fast to compute.
     """
     # Iterate once over the posterior and compute the elbo
     elbo = 0

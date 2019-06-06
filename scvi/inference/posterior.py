@@ -31,9 +31,9 @@ class SequentialSubsetSampler(SubsetRandomSampler):
 
 
 class Posterior:
-    r"""The functional data unit. A `Posterior` instance is instanciated with a model and a gene_dataset, and
-    as well as additional arguments that for Pytorch"s `DataLoader`. A subset of indices can be specified, for
-    purpose such as splitting the data into train/test or labelled/unlabelled (for semi-supervised learning).
+    r"""The functional data unit. A `Posterior` instance is instantiated with a model and a gene_dataset, and
+    as well as additional arguments that for Pytorch's `DataLoader`. A subset of indices can be specified, for
+    purposes such as splitting the data into train/test or labelled/unlabelled (for semi-supervised learning).
     Each trainer instance of the `Trainer` class can therefore have multiple `Posterior` instances to train a model.
     A `Posterior` instance also comes with many methods or utilities for its corresponding data.
 
@@ -47,7 +47,7 @@ class Posterior:
 
     Examples:
 
-    Let"s instanciate a `trainer`, with a gene_dataset and a model
+    Let us instantiate a `trainer`, with a gene_dataset and a model
 
         >>> gene_dataset = CortexDataset()
         >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
