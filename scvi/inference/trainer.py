@@ -70,6 +70,9 @@ class Trainer:
 
         self.early_stopping = EarlyStopping(**early_stopping_kwargs)
 
+        if self.early_stopping.early_stopping_metric:
+            self.metrics_to_monitor.append(self.early_stopping.early_stopping_metric)
+
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
             self.model.cuda()
