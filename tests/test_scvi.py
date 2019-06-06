@@ -91,14 +91,16 @@ def test_synthetic_2():
     synthetic_dataset = SyntheticDataset()
     vaec = VAEC(synthetic_dataset.nb_genes, synthetic_dataset.n_batches, synthetic_dataset.n_labels)
     trainer_synthetic_vaec = JointSemiSupervisedTrainer(
-        vaec, 
-        synthetic_dataset, 
-        use_cuda=use_cuda, 
+        vaec,
+        synthetic_dataset,
+        use_cuda=use_cuda,
         frequency=1,
         early_stopping_kwargs={
             'early_stopping_metric': 'reconstruction_error',
             'on': 'labelled_set',
-            'save_best_state_metric': 'reconstruction_error'})
+            'save_best_state_metric': 'reconstruction_error'
+        }
+    )
     trainer_synthetic_vaec.train(n_epochs=2)
 
 
