@@ -42,7 +42,7 @@ class Trainer:
     default_metrics_to_monitor = []
 
     def __init__(self, model, gene_dataset, use_cuda=True, metrics_to_monitor=None, benchmark=False,
-                 verbose=False, frequency=None, weight_decay=1e-6, early_stopping_kwargs=None,
+                 verbose=False, frequency=None, weight_decay=None, early_stopping_kwargs=None,
                  data_loader_kwargs=None, show_progbar=True):
         # handle mutable defaults
         early_stopping_kwargs = early_stopping_kwargs if early_stopping_kwargs else dict()
@@ -118,7 +118,12 @@ class Trainer:
         if params is None:
             params = filter(lambda p: p.requires_grad, self.model.parameters())
 
-        optimizer = self.optimizer = torch.optim.Adam(params, lr=lr, eps=eps)  # weight_decay=self.weight_decay,
+        optimizer = self.optimizer = torch.optim.Adam(
+            params,
+            lr=lr,
+            eps=eps,
+            weight_decay=self.weight_decay
+        )
 
         self.compute_metrics_time = 0
         self.n_epochs = n_epochs
