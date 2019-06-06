@@ -102,6 +102,9 @@ class Trainer:
                                 print(print_name, end=' : ')
                             result = getattr(posterior, metric)(verbose=self.verbose)
                             self.history[metric + '_' + name] += [result]
+                    for metric in self.metrics_to_monitor:
+                        result = getattr(posterior, metric)(verbose=self.verbose)
+                        self.history[metric + '_' + name] += [result]
                 self.model.train()
         self.compute_metrics_time += time.time() - begin
 
