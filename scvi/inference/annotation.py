@@ -192,7 +192,7 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         self.unlabelled_set = self.create_posterior(indices=indices_unlabelled)
 
         for posterior in [self.labelled_set, self.unlabelled_set]:
-            posterior.to_monitor = ['ll', 'accuracy']
+            posterior.to_monitor = ['reconstruction_error', 'accuracy']
 
     @property
     def posteriors_loop(self):

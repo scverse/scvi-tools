@@ -281,8 +281,8 @@ def auto_tune_scvi_model(
     if "early_stopping_kwargs" not in trainer_specific_kwargs:
         logger.debug("Adding default early stopping behaviour.")
         early_stopping_kwargs = {
-            "early_stopping_metric": "ll",
-            "save_best_state_metric": "ll",
+            "early_stopping_metric": "elbo",
+            "save_best_state_metric": "elbo",
             "patience": 50,
             "threshold": 0,
             "reduce_lr_on_plateau": True,
@@ -290,6 +290,10 @@ def auto_tune_scvi_model(
             "lr_factor": 0.2,
         }
         trainer_specific_kwargs["early_stopping_kwargs"] = early_stopping_kwargs
+        # add elbo to metrics to monitor
+        metrics_to_monitor = trainer_specific_kwargs.get("metrics_to_monitor", [])
+        metrics_to_monitor.append("elbo")
+        trainer_specific_kwargs["metrics_to_monitor"] = metrics_to_monitor
 
     # default search space
     if space is None:
@@ -1064,18 +1068,22 @@ def _objective_function(
 
         # store run results
         if metric:
-            loss_is_best = True
+            early_stopping_loss_is_best = True
             best_epoch = trainer.best_epoch
             # add actual number of epochs to be used when training best model
             space["train_func_tunable_kwargs"]["n_epochs"] = best_epoch
-            loss = trainer.early_stopping.best_performance
+            early_stopping_loss = trainer.early_stopping.best_performance
             metric += "_" + trainer.early_stopping.on
-        # default to ll_test_set
+        # default to elbo
         else:
-            loss_is_best = False
-            metric = "ll_test_set"
-            loss = trainer.history[metric][-1]
+            early_stopping_loss_is_best = False
+            metric = "elbo_test_set"
+            early_stopping_loss = trainer.history[metric][-1]
             best_epoch = len(trainer.history[metric])
+
+        # compute true ll
+        loss = trainer.test_set.marginal_ll(n_mc_samples=100)
+
         logger.debug(
             "Training of {n_epochs} epochs finished in {time} with loss = {loss}".format(
                 n_epochs=len(trainer.history[metric]),
@@ -1083,6 +1091,7 @@ def _objective_function(
                 loss=loss,
             )
         )
+
         # check status
         status = STATUS_OK
         if np.isnan(loss):
@@ -1090,7 +1099,8 @@ def _objective_function(
 
         return {
             "loss": loss,
-            "loss_is_best": loss_is_best,
+            "early_stopping_loss": early_stopping_loss,
+            "early_stopping_loss_is_best": early_stopping_loss_is_best,
             "best_epoch": best_epoch,
             "elapsed_time": elapsed_time,
             "status": status,
