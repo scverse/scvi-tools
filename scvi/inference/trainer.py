@@ -64,14 +64,14 @@ class Trainer:
         self.training_time = 0
 
         if metrics_to_monitor is not None:
-            self.metrics_to_monitor = metrics_to_monitor
+            self.metrics_to_monitor = set(metrics_to_monitor)
         else:
-            self.metrics_to_monitor = self.default_metrics_to_monitor
+            self.metrics_to_monitor = set(self.default_metrics_to_monitor)
 
         self.early_stopping = EarlyStopping(**early_stopping_kwargs)
 
         if self.early_stopping.early_stopping_metric:
-            self.metrics_to_monitor.append(self.early_stopping.early_stopping_metric)
+            self.metrics_to_monitor.add(self.early_stopping.early_stopping_metric)
 
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
@@ -101,10 +101,11 @@ class Trainer:
                     print_name = ' '.join([s.capitalize() for s in name.split('_')[-2:]])
                     if hasattr(posterior, 'to_monitor'):
                         for metric in posterior.to_monitor:
-                            if self.verbose:
-                                print(print_name, end=' : ')
-                            result = getattr(posterior, metric)(verbose=self.verbose)
-                            self.history[metric + '_' + name] += [result]
+                            if metric not in self.metrics_to_monitor:
+                                if self.verbose:
+                                    print(print_name, end=' : ')
+                                result = getattr(posterior, metric)(verbose=self.verbose)
+                                self.history[metric + '_' + name] += [result]
                     for metric in self.metrics_to_monitor:
                         result = getattr(posterior, metric)(verbose=self.verbose)
                         self.history[metric + '_' + name] += [result]
