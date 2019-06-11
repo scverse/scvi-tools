@@ -28,10 +28,10 @@ import numpy as np
 import torch
 import tqdm
 
-from . import Trainer
-from .inference import UnsupervisedTrainer
-from ..dataset import GeneExpressionDataset
-from ..models import VAE
+from scvi.dataset import GeneExpressionDataset
+from scvi.models import VAE
+
+from . import Trainer, UnsupervisedTrainer
 
 # TODO: add database watcher and visualizations
 # TODO: make worker_launcher a subclass of threading.Thread
@@ -299,7 +299,7 @@ def auto_tune_scvi_model(
                 "n_latent": 5 + hp.randint("n_latent", 11),  # [5, 15]
                 "n_hidden": hp.choice("n_hidden", [64, 128, 256]),
                 "n_layers": 1 + hp.randint("n_layers", 5),
-                "dropout_rate": hp.choice("dropout_rate", [0.1, 0.3, 0.5, 0.7, 0.9]),
+                "dropout_rate": hp.choice("dropout_rate", [0.1, 0.3, 0.5, 0.7]),
                 "reconstruction_loss": hp.choice("reconstruction_loss", ["zinb", "nb"]),
             },
             "train_func_tunable_kwargs": {
