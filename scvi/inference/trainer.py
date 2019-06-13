@@ -178,7 +178,6 @@ class Trainer:
                 self.history[early_stopping_metric + '_' + on][-1]
             )
             if reduce_lr:
-                # FIXME: replace other logging.info calls
                 logging.info("Reducing LR.")
                 for param_group in self.optimizer.param_groups:
                     param_group["lr"] *= self.early_stopping.lr_factor
@@ -343,7 +342,7 @@ class EarlyStopping:
 
             continue_training = True
         if not continue_training:
-            # FIXME: use logging and log total number of epochs run
+            # FIXME: log total number of epochs run
             logging.info("\nStopping early: no improvement of more than " + str(self.threshold) +
                          " nats in " + str(self.patience) + " epochs")
             logging.info("If the early stopping criterion is too strong, "
