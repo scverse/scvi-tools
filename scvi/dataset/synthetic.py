@@ -1,5 +1,6 @@
 import pickle
 import os
+import logging
 import numpy as np
 
 from . import GeneExpressionDataset
@@ -30,7 +31,7 @@ class SyntheticRandomDataset(GeneExpressionDataset):
         X_train *= np.random.binomial(1, 1 - dropout, size=shape_train)
         indices_to_keep = (X_train.sum(axis=1) > 0).ravel()
         X_train = X_train[indices_to_keep]
-        print("mu " + str(mu) + " theta " + str(theta) + " r " + str(r) + " p " + str(
+        logging.info("mu " + str(mu) + " theta " + str(theta) + " r " + str(r) + " p " + str(
             p) + " dropout " + str(dropout))
 
         self.save_path = save_path
@@ -76,10 +77,10 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
             n_genes_total = n_clusters * (n_genes_high - n_overlap) + n_overlap
 
         if n_genes_total % n_clusters > 0:
-            print("Warning, clusters have inequal sizes")
+            logging.info("Warning, clusters have inequal sizes")
 
         if n_genes_high > (n_genes_total // n_clusters):
-            print("Overlap of", n_genes_high - (n_genes_total // n_clusters), "genes")
+            logging.info("Overlap of", n_genes_high - (n_genes_total // n_clusters), "genes")
 
         # Generate data before dropout
         batch_size = n_cells_cluster * n_clusters
@@ -116,11 +117,11 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
                              cluster*n_cells_cluster:(cluster+1)*n_cells_cluster,
                              :] = lam_0 * weights
 
-        print('Poisson Params extremal values: ', self.exprs_param.min(), self.exprs_param.max())
+        logging.info('Poisson Params extremal values: ', self.exprs_param.min(), self.exprs_param.max())
         expression_mat = np.random.poisson(self.exprs_param)
         self.poisson_zero = np.exp(-self.exprs_param)
         new_data = self.mask(expression_mat)
-        print((new_data == 0).sum())
+        logging.info((new_data == 0).sum())
         super().__init__(
             *GeneExpressionDataset.get_attributes_from_list(new_data, list_labels=labels),
             gene_names=np.arange(n_genes_total).astype(np.str))

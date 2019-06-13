@@ -1,5 +1,6 @@
 import copy
 import os
+import logging
 
 from abc import abstractmethod
 from typing import List, Optional, Union
@@ -133,7 +134,7 @@ class Posterior:
     def elbo(self, verbose=False):
         elbo = compute_elbo(self.model, self)
         if verbose:
-            print("ELBO : %.4f" % elbo)
+            logging.info("ELBO : %.4f" % elbo)
         return elbo
 
     elbo.mode = "min"
@@ -142,7 +143,7 @@ class Posterior:
     def reconstruction_error(self, verbose=False):
         reconstruction_error = compute_reconstruction_error(self.model, self)
         if verbose:
-            print("Reconstruction Error : %.4f" % reconstruction_error)
+            logging.info("Reconstruction Error : %.4f" % reconstruction_error)
         return reconstruction_error
 
     reconstruction_error.mode = "min"
@@ -151,7 +152,7 @@ class Posterior:
     def marginal_ll(self, verbose=False, n_mc_samples=1000):
         ll = compute_marginal_log_likelihood(self.model, self, n_mc_samples)
         if verbose:
-            print("True LL : %.4f" % ll)
+            logging.info("True LL : %.4f" % ll)
         return ll
 
     @torch.no_grad()
@@ -178,7 +179,7 @@ class Posterior:
             latent, batch_indices, labels = self.get_latent()
             be_score = entropy_batch_mixing(latent, batch_indices, **kwargs)
             if verbose:
-                print("Entropy batch mixing :", be_score)
+                logging.info("Entropy batch mixing :", be_score)
             return be_score
 
     entropy_batch_mixing.mode = "max"
@@ -627,7 +628,7 @@ class Posterior:
         imputed_list_concat = np.concatenate(imputed_list)
         are_lists_empty = (len(original_list_concat) == 0) and (len(imputed_list_concat) == 0)
         if are_lists_empty:
-            print("No difference between corrupted dataset and uncorrupted dataset")
+            logging.info("No difference between corrupted dataset and uncorrupted dataset")
             return 0.0
         else:
             return np.median(np.abs(original_list_concat - imputed_list_concat))
@@ -646,7 +647,7 @@ class Posterior:
         mean_score = np.mean(imputation_cells)
 
         if verbose:
-            print("\nMedian of Median: %.4f\nMean of Median for each cell: %.4f" % (median_score, mean_score))
+            logging.info("\nMedian of Median: %.4f\nMean of Median for each cell: %.4f" % (median_score, mean_score))
 
         plot_imputation(np.concatenate(original_list), np.concatenate(imputed_list), show_plot=show_plot,
                         title=os.path.join(save_path, title_plot))
@@ -657,7 +658,7 @@ class Posterior:
         latent, _, labels = self.get_latent()
         score = knn_purity(latent, labels)
         if verbose:
-            print("KNN purity score :", score)
+            logging.info("KNN purity score :", score)
         return score
 
     knn_purity.mode = "max"
@@ -678,8 +679,8 @@ class Posterior:
             ari_score = ARI(labels, labels_pred)
             uca_score = unsupervised_clustering_accuracy(labels, labels_pred)[0]
             if verbose:
-                print("Clustering Scores:\nSilhouette: %.4f\nNMI: %.4f\nARI: %.4f\nUCA: %.4f" %
-                      (asw_score, nmi_score, ari_score, uca_score))
+                logging.info("Clustering Scores:\nSilhouette: %.4f\nNMI: %.4f\nARI: %.4f\nUCA: %.4f" %
+                             (asw_score, nmi_score, ari_score, uca_score))
             return asw_score, nmi_score, ari_score, uca_score
 
     @torch.no_grad()
@@ -694,8 +695,8 @@ class Posterior:
             protein_data = self.gene_dataset.adt_expression_clr[self.indices]
             spearman_correlation, fold_enrichment = nn_overlap(latent, protein_data, **kwargs)
             if verbose:
-                print("Overlap Scores:\nSpearman Correlation: %.4f\nFold Enrichment: %.4f" %
-                      (spearman_correlation, fold_enrichment))
+                logging.info("Overlap Scores:\nSpearman Correlation: %.4f\nFold Enrichment: %.4f" %
+                             (spearman_correlation, fold_enrichment))
             return spearman_correlation, fold_enrichment
 
     @torch.no_grad()

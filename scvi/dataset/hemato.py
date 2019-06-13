@@ -1,4 +1,5 @@
 import os
+import logging
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -48,7 +49,7 @@ class HematoDataset(GeneExpressionDataset):
                                   'Monocytic', 'Basophilic']
 
     def preprocess(self):
-        print("Preprocessing Hemato data")
+        logging.info("Preprocessing Hemato data")
 
         if len(os.listdir(self.save_path)) == 2:  # nothing extracted yet
             with ZipFile(os.path.join(self.save_path, 'data.zip'), 'r') as zip:
@@ -81,5 +82,5 @@ class HematoDataset(GeneExpressionDataset):
         labels = logit(self.meta.iloc[:, 2]) - logit(self.meta.iloc[:, 1])
         expression_data = expression_data.values
 
-        print("Finished preprocessing Hemato data")
+        logging.info("Finished preprocessing Hemato data")
         return expression_data, gene_names, labels, x_spring, y_spring

@@ -56,7 +56,6 @@ class VAE(nn.Module):
         # Automatically deactivate if useless
         self.n_batch = n_batch
         self.n_labels = n_labels
-        self.n_latent_layers = 1  # not sure what this is for, no usages?
 
         if self.dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input, ))
