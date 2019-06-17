@@ -47,29 +47,33 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
 
 def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
     """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
-
-    Despite its bias, the estimator still converges to the real value
-    of log p(x) when n_samples_mc (for Monte Carlo) goes to infinity
-    (a fairly high value like 100 should be enough)
-    Due to the Monte Carlo sampling, this method is not as computationally efficient
-    as computing only the reconstruction loss
+        Despite its bias, the estimator still converges to the real value
+        of log p(x) when n_samples_mc (for Monte Carlo) goes to infinity
+        (a fairly high value like 100 should be enough)
+        Due to the Monte Carlo sampling, this method is not as computationally efficient
+        as computing only the reconstruction loss
     """
-    # Uses MC sampling to compute a tighter lower bound on log p(x)
+    # Uses MC sampling to compute a tighter lower bound
     log_lkl = 0
     for i_batch, tensors in enumerate(posterior):
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
         x = torch.log(1 + sample_batch)
         to_sum = torch.zeros(sample_batch.size()[0], n_samples_mc)
         for i in range(n_samples_mc):
-            qz_m, qz_v, z = vae.z_encoder(x, labels)
-            reconst_loss, kl_divergence = vae(sample_batch, local_l_mean,
-                                              local_l_var,
-                                              batch_index=batch_index,
-                                              y=labels)
+            px_scale, px_r, px_rate, px_dropout,\
+                qz_m, qz_v, z,\
+                ql_m, ql_v, library = vae.inference(sample_batch, batch_index, labels)
+
+            reconst_loss = vae._reconstruction_loss(sample_batch, px_rate, px_r, px_dropout)
+
+            p_l = Normal(local_l_mean, local_l_var).log_prob(library).sum(dim=-1)
             p_z = Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v)).log_prob(z).sum(dim=-1)
             p_x_z = - reconst_loss
             q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
-            to_sum[:, i] = p_z + p_x_z - q_z_x
+            q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
+
+            to_sum[:, i] = p_z + p_l + p_x_z - q_z_x - q_l_x
+
         batch_log_lkl = logsumexp(to_sum, dim=-1) - np.log(n_samples_mc)
         log_lkl += torch.sum(batch_log_lkl).item()
     n_samples = len(posterior.indices)
