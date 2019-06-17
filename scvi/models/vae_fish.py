@@ -191,7 +191,7 @@ class VAEF(VAE):
         z = self.sample_from_posterior_z(x, mode)
         return self.classifier(z)
 
-    def _reconstruction_loss(self, x, px_rate, px_r, px_dropout, batch_index, y, mode="scRNA", weighting=1):
+    def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout, batch_index, y, mode="scRNA", weighting=1):
         if self.dispersion == "gene-label":
             px_r = F.linear(one_hot(y, self.n_labels), self.px_r)  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
@@ -254,17 +254,17 @@ class VAEF(VAE):
         if mode == "smFISH":
             if self.model_library:
                 px_rate = px_scale[:, self.indexes_to_keep] * torch.exp(library)
-                reconst_loss = self._reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r, px_dropout,
-                                                         batch_index, y, mode)
+                reconst_loss = self.get_reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r, px_dropout,
+                                                            batch_index, y, mode)
             else:
                 px_scale = px_scale[:, self.indexes_to_keep] / torch.sum(
                     px_scale[:, self.indexes_to_keep], dim=1).view(-1, 1)
                 px_rate = px_scale * torch.exp(library)
-                reconst_loss = self._reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r, px_dropout,
-                                                         batch_index, y, mode)
+                reconst_loss = self.get_reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r, px_dropout,
+                                                            batch_index, y, mode)
 
         else:
-            reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout, batch_index, y, mode, weighting)
+            reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout, batch_index, y, mode, weighting)
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)

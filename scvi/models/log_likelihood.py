@@ -38,8 +38,13 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
     log_lkl = 0
     for i_batch, tensors in enumerate(posterior):
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[:5]  # general fish case
-        reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
-                                          y=labels, **kwargs)
+
+        # Distribution parameters
+        px_r, px_rate, px_dropout = vae.inference(sample_batch, batch_index, labels)[1:4]
+
+        # Reconstruction loss
+        reconst_loss = vae.get_reconstruction_loss(sample_batch, px_rate, px_r, px_dropout)
+
         log_lkl += torch.sum(reconst_loss).item()
     n_samples = len(posterior.indices)
     return log_lkl / n_samples
@@ -67,10 +72,7 @@ def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
                 ql_m, ql_v, library = vae.inference(sample_batch, batch_index, labels)
 
             # Reconstruction Loss
-            if vae.reconstruction_loss == 'zinb':
-                reconst_loss = -log_zinb_positive(sample_batch, px_rate, px_r, px_dropout)
-            elif vae.reconstruction_loss == 'nb':
-                reconst_loss = -log_nb_positive(sample_batch, px_rate, px_r)
+            reconst_loss = vae.get_reconstruction_loss(sample_batch, px_rate, px_r, px_dropout)
 
             # Log-probabilities
             p_l = Normal(local_l_mean, local_l_var.sqrt()).log_prob(library).sum(dim=-1)
