@@ -53,29 +53,37 @@ def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
         Due to the Monte Carlo sampling, this method is not as computationally efficient
         as computing only the reconstruction loss
     """
-    # Uses MC sampling to compute a tighter lower bound
+    # Uses MC sampling to compute a tighter lower bound on log p(x)
     log_lkl = 0
     for i_batch, tensors in enumerate(posterior):
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
-        x = torch.log(1 + sample_batch)
         to_sum = torch.zeros(sample_batch.size()[0], n_samples_mc)
+
         for i in range(n_samples_mc):
+
+            # Distribution parameters and sampled variables
             px_scale, px_r, px_rate, px_dropout,\
                 qz_m, qz_v, z,\
                 ql_m, ql_v, library = vae.inference(sample_batch, batch_index, labels)
 
-            reconst_loss = vae._reconstruction_loss(sample_batch, px_rate, px_r, px_dropout)
+            # Reconstruction Loss
+            if vae.reconstruction_loss == 'zinb':
+                reconst_loss = -log_zinb_positive(sample_batch, px_rate, px_r, px_dropout)
+            elif vae.reconstruction_loss == 'nb':
+                reconst_loss = -log_nb_positive(sample_batch, px_rate, px_r)
 
+            # Log-probabilities
             p_l = Normal(local_l_mean, local_l_var).log_prob(library).sum(dim=-1)
             p_z = Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v)).log_prob(z).sum(dim=-1)
-            p_x_z = - reconst_loss
+            p_x_zl = - reconst_loss
             q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
             q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
 
-            to_sum[:, i] = p_z + p_l + p_x_z - q_z_x - q_l_x
+            to_sum[:, i] = p_z + p_l + p_x_zl - q_z_x - q_l_x
 
         batch_log_lkl = logsumexp(to_sum, dim=-1) - np.log(n_samples_mc)
         log_lkl += torch.sum(batch_log_lkl).item()
+
     n_samples = len(posterior.indices)
     # The minus sign is there because we actually look at the negative log likelihood
     return - log_lkl / n_samples
