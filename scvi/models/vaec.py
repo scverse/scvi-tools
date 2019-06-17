@@ -80,7 +80,7 @@ class VAEC(VAE):
 
         # Sampling
         px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, _, _, _ = self.inference(xs, batch_index_s, ys)
-        reconst_loss = self._reconstruction_loss(xs, px_rate, px_r, px_dropout)
+        reconst_loss = self.get_reconstruction_loss(xs, px_rate, px_r, px_dropout)
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)
