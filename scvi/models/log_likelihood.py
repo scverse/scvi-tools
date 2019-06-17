@@ -73,7 +73,7 @@ def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
                 reconst_loss = -log_nb_positive(sample_batch, px_rate, px_r)
 
             # Log-probabilities
-            p_l = Normal(local_l_mean, local_l_var).log_prob(library).sum(dim=-1)
+            p_l = Normal(local_l_mean, local_l_var.sqrt()).log_prob(library).sum(dim=-1)
             p_z = Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v)).log_prob(z).sum(dim=-1)
             p_x_zl = - reconst_loss
             q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
