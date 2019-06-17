@@ -1,4 +1,6 @@
+import logging
 import numpy as np
+
 import torch
 import torch.nn.functional as F
 
@@ -14,14 +16,14 @@ class FishPosterior(Posterior):
     def elbo(self, verbose=False):
         elbo = compute_elbo(self.model, self, mode="smFISH")
         if verbose:
-            print("ELBO Fish: %.4f" % elbo)
+            logging.info("ELBO Fish: %.4f" % elbo)
         return elbo
 
     @torch.no_grad()
     def reconstruction_error(self, verbose=False):
         reconstruction_error = compute_reconstruction_error(self.model, self, mode="smFISH")
         if verbose:
-            print("Reconstruction Error Fish: %.4f" % reconstruction_error)
+            logging.info("Reconstruction Error Fish: %.4f" % reconstruction_error)
         return reconstruction_error
 
     @torch.no_grad()

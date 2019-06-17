@@ -1,12 +1,15 @@
 from collections import namedtuple
 
 import numpy as np
-import torch
+import logging
+
 from sklearn import neighbors
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
+
+import torch
 from torch.nn import functional as F
 
 from scvi.inference import Posterior
@@ -24,7 +27,7 @@ class AnnotationPosterior(Posterior):
         model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
         acc = compute_accuracy(model, self, classifier=cls, model_zl=self.model_zl)
         if verbose:
-            print("Acc: %.4f" % (acc))
+            logging.info("Acc: %.4f" % (acc))
         return acc
 
     accuracy.mode = 'max'
@@ -39,7 +42,7 @@ class AnnotationPosterior(Posterior):
         h_acc = np.mean(all_y_groups == all_y_pred_groups)
 
         if verbose:
-            print("Hierarchical Acc : %.4f\n" % h_acc)
+            logging.info("Hierarchical Acc : %.4f\n" % h_acc)
         return acc
 
     accuracy.mode = 'max'
@@ -58,7 +61,7 @@ class AnnotationPosterior(Posterior):
         all_y, all_y_pred = self.compute_predictions()
         uca = unsupervised_clustering_accuracy(all_y, all_y_pred)[0]
         if verbose:
-            print("UCA : %.4f" % (uca))
+            logging.info("UCA : %.4f" % (uca))
         return uca
 
     unsupervised_classification_accuracy.mode = 'max'

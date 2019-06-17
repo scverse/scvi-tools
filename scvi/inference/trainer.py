@@ -42,7 +42,7 @@ class Trainer:
     default_metrics_to_monitor = []
 
     def __init__(self, model, gene_dataset, use_cuda=True, metrics_to_monitor=None, benchmark=False,
-                 verbose=False, frequency=None, weight_decay=0, early_stopping_kwargs=None,
+                 verbose=False, frequency=None, weight_decay=1e-6, early_stopping_kwargs=None,
                  data_loader_kwargs=None, show_progbar=True):
         # handle mutable defaults
         early_stopping_kwargs = early_stopping_kwargs if early_stopping_kwargs else dict()
@@ -95,15 +95,15 @@ class Trainer:
             with torch.set_grad_enabled(False):
                 self.model.eval()
                 if self.verbose:
-                    print("\nEPOCH [%d/%d]: " % (epoch, self.n_epochs))
+                    logging.info("\nEPOCH [%d/%d]: " % (epoch, self.n_epochs))
 
                 for name, posterior in self._posteriors.items():
-                    print_name = ' '.join([s.capitalize() for s in name.split('_')[-2:]])
+                    logging.info_name = ' '.join([s.capitalize() for s in name.split('_')[-2:]])
                     if hasattr(posterior, 'to_monitor'):
                         for metric in posterior.to_monitor:
                             if metric not in self.metrics_to_monitor:
                                 if self.verbose:
-                                    print(print_name, end=' : ')
+                                    logging.info(logging.info_name, end=' : ')
                                 result = getattr(posterior, metric)(verbose=self.verbose)
                                 self.history[metric + '_' + name] += [result]
                     for metric in self.metrics_to_monitor:
@@ -157,7 +157,7 @@ class Trainer:
         self.model.eval()
         self.training_time += (time.time() - begin) - self.compute_metrics_time
         if self.verbose and self.frequency:
-            print("\nTraining time:  %i s. / %i epochs" % (int(self.training_time), self.n_epochs))
+            logging.info("\nTraining time:  %i s. / %i epochs" % (int(self.training_time), self.n_epochs))
 
     def on_epoch_begin(self):
         pass
@@ -178,7 +178,6 @@ class Trainer:
                 self.history[early_stopping_metric + '_' + on][-1]
             )
             if reduce_lr:
-                # FIXME: replace other print calls
                 logging.info("Reducing LR.")
                 for param_group in self.optimizer.param_groups:
                     param_group["lr"] *= self.early_stopping.lr_factor
@@ -343,11 +342,11 @@ class EarlyStopping:
 
             continue_training = True
         if not continue_training:
-            # FIXME: use logging and log total number of epochs run
-            print("\nStopping early: no improvement of more than " + str(self.threshold) +
-                  " nats in " + str(self.patience) + " epochs")
-            print("If the early stopping criterion is too strong, "
-                  "please instantiate it with different parameters in the train method.")
+            # FIXME: log total number of epochs run
+            logging.info("\nStopping early: no improvement of more than " + str(self.threshold) +
+                         " nats in " + str(self.patience) + " epochs")
+            logging.info("If the early stopping criterion is too strong, "
+                         "please instantiate it with different parameters in the train method.")
         return continue_training, reduce_lr
 
     def update_state(self, scalar):

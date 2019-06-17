@@ -60,7 +60,6 @@ class SCANVI(VAE):
                          log_variational=log_variational, reconstruction_loss=reconstruction_loss)
 
         self.n_labels = n_labels
-        self.n_latent_layers = 2
         # Classifier takes n_latent as input
         cls_parameters = {"n_layers": n_layers, "n_hidden": n_hidden, "dropout_rate": dropout_rate}
         cls_parameters.update(classifier_parameters)

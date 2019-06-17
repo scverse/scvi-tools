@@ -1,5 +1,6 @@
 import operator
 import os
+import logging
 
 from functools import reduce
 from typing import List, Union
@@ -67,13 +68,13 @@ class AnnDataset(GeneExpressionDataset):
         self.subsample_genes(new_n_genes=new_n_genes, subset_genes=subset_genes)
 
     def preprocess(self):
-        print("Preprocessing dataset")
+        logging.info("Preprocessing dataset")
         ad = anndata.read_h5ad(
             os.path.join(self.save_path, self.download_name)
         )  # obs = cells, var = genes
         data, gene_names, batch_indices, cell_types, labels = self.extract_data_from_anndata(ad)
 
-        print("Finished preprocessing dataset")
+        logging.info("Finished preprocessing dataset")
         return data, gene_names, batch_indices, cell_types, labels
 
     def extract_data_from_anndata(self, ad: anndata.AnnData):

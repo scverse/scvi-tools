@@ -1,6 +1,7 @@
 import loompy
 import numpy as np
 import os
+import logging
 from .dataset import GeneExpressionDataset
 
 
@@ -37,7 +38,7 @@ class LoomDataset(GeneExpressionDataset):
                          gene_names=gene_names, cell_types=cell_types)
 
     def preprocess(self):
-        print("Preprocessing dataset")
+        logging.info("Preprocessing dataset")
         gene_names, labels, batch_indices, cell_types = None, None, None, None
         ds = loompy.connect(os.path.join(self.save_path, self.download_name))
         select = ds[:, :].sum(axis=0) > 0  # Take out cells that doesn't express any gene
@@ -59,7 +60,7 @@ class LoomDataset(GeneExpressionDataset):
         data = ds[:, select].T  # change matrix to cells by genes
         ds.close()
 
-        print("Finished preprocessing dataset")
+        logging.info("Finished preprocessing dataset")
         return data, batch_indices, labels, gene_names, cell_types
 
 

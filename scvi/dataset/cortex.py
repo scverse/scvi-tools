@@ -1,5 +1,6 @@
 import csv
 import os
+import logging
 import numpy as np
 
 from .dataset import GeneExpressionDataset
@@ -45,7 +46,7 @@ class CortexDataset(GeneExpressionDataset):
             gene_names=np.char.upper(gene_names), cell_types=cell_types)
 
     def preprocess(self):
-        print("Preprocessing Cortex data")
+        logging.info("Preprocessing Cortex data")
         rows = []
         gene_names = []
         with open(os.path.join(self.save_path, self.download_name), 'r') as csvfile:
@@ -89,7 +90,7 @@ class CortexDataset(GeneExpressionDataset):
             expression_data = expression_data[umi > 10, :]
             labels = labels[umi > 10]
 
-        print("Finished preprocessing Cortex data")
+        logging.info("Finished preprocessing Cortex data")
         return expression_data, labels, gene_names, cell_types
 
     @staticmethod

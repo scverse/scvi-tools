@@ -6,6 +6,7 @@
 import os
 import pickle
 import tarfile
+import logging
 
 import numpy as np
 import pandas as pd
@@ -104,7 +105,7 @@ class Dataset10X(GeneExpressionDataset):
             try:
                 assert os.path.isdir(os.path.join(self.save_path, filename))
             except AssertionError:
-                print("The file %s was not found in the location you gave" % filename)
+                logging.info("The file %s was not found in the location you gave" % filename)
                 raise
             self.save_path = os.path.join(self.save_path, filename)
 
@@ -115,11 +116,11 @@ class Dataset10X(GeneExpressionDataset):
             expression_data), gene_names=gene_names)
 
     def preprocess(self):
-        print("Preprocessing dataset")
+        logging.info("Preprocessing dataset")
         path = self.save_path
         if self.remote:
             if len(os.listdir(self.save_path)) == 1:  # nothing extracted yet
-                print("Extracting tar file")
+                logging.info("Extracting tar file")
                 tar = tarfile.open(os.path.join(self.save_path, self.download_name), "r:gz")
                 tar.extractall(path=self.save_path)
                 tar.close()
@@ -142,7 +143,7 @@ class Dataset10X(GeneExpressionDataset):
         else:
             expression_data = csr_matrix(expression_data)
 
-        print("Finished preprocessing dataset")
+        logging.info("Finished preprocessing dataset")
         return expression_data, gene_names
 
     @staticmethod
