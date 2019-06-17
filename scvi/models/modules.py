@@ -124,7 +124,7 @@ class Encoder(nn.Module):
         # Parameters for latent distribution
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
-        q_v = torch.exp(self.var_encoder(q))
+        q_v = torch.exp(self.var_encoder(q)) + 1e-4
         latent = self.reparameterize(q_m, q_v)
         return q_m, q_v, latent
 

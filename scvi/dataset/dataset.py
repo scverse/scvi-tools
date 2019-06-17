@@ -4,6 +4,7 @@
 For the moment, is initialized with a torch Tensor of size (n_cells, nb_genes)"""
 import copy
 import os
+import logging
 import urllib.request
 
 import numpy as np
@@ -111,7 +112,7 @@ class GeneExpressionDataset(Dataset):
 
     def update_genes(self, subset_genes):
         new_n_genes = len(subset_genes) if subset_genes.dtype is not np.dtype('bool') else subset_genes.sum()
-        print("Downsampling from %i to %i genes" % (self.nb_genes, new_n_genes))
+        logging.info("Downsampling from %i to %i genes" % (self.nb_genes, new_n_genes))
         if hasattr(self, 'gene_names'):
             self.gene_names = self.gene_names[subset_genes]
         if hasattr(self, 'gene_symbols'):
@@ -126,14 +127,15 @@ class GeneExpressionDataset(Dataset):
             for i in range(len(to_keep)):
                 if not to_keep[i]:
                     removed_idx.append(i)
-            print("Cells with zero expression in all genes considered were removed, the indices of the removed cells "
-                  "in the expression matrix were:")
-            print(removed_idx)
+            logging.info("Cells with zero expression in all genes considered were "
+                         "removed, the indices of the removed cells "
+                         "in the expression matrix were:")
+            logging.info(removed_idx)
         self.update_cells(to_keep)
 
     def update_cells(self, subset_cells):
         new_n_cells = len(subset_cells) if subset_cells.dtype is not np.dtype('bool') else subset_cells.sum()
-        print("Downsampling from %i to %i cells" % (len(self), new_n_cells))
+        logging.info("Downsampling from %i to %i cells" % (len(self), new_n_cells))
         for attr_name in [
             '_X',
             'labels',
@@ -193,7 +195,7 @@ class GeneExpressionDataset(Dataset):
         cell_types_idx = self._cell_type_idx(cell_types)
         if hasattr(self, 'cell_types'):
             self.cell_types = self.cell_types[cell_types_idx]
-            print("Only keeping cell types: \n" + '\n'.join(list(self.cell_types)))
+            logging.info("Only keeping cell types: \n" + '\n'.join(list(self.cell_types)))
         idx_to_keep = []
         for idx in cell_types_idx:
             idx_to_keep += [np.where(self.labels == idx)[0]]
@@ -238,13 +240,14 @@ class GeneExpressionDataset(Dataset):
     @staticmethod
     def _download(url, save_path, download_name):
         if os.path.exists(os.path.join(save_path, download_name)):
-            print("File %s already downloaded" % (os.path.join(save_path, download_name)))
+            logging.info("File %s already downloaded" % (os.path.join(save_path, download_name)))
             return
         if url is None:
-            print("You are trying to load a local file named %s and located at %s but this file was not found"
-                  " at the location %s" % (download_name, save_path, os.path.join(save_path, download_name)))
+            logging.info("You are trying to load a local file named %s and located at %s "
+                         "but this file was not found at the location %s" % (download_name, save_path,
+                                                                             os.path.join(save_path, download_name)))
         r = urllib.request.urlopen(url)
-        print("Downloading file at %s" % os.path.join(save_path, download_name))
+        logging.info("Downloading file at %s" % os.path.join(save_path, download_name))
 
         def readIter(f, blocksize=1000):
             """Given a file 'f', returns an iterator that returns bytes of
@@ -295,9 +298,9 @@ class GeneExpressionDataset(Dataset):
         if not ne_cells.all():
             X = X[to_keep]
             removed_idx = np.where(~ne_cells)[0]
-            print("Cells with zero expression in all genes considered were removed, the indices of the removed cells "
-                  "in the expression matrix were:")
-            print(removed_idx)
+            logging.info("Cells with zero expression in all genes considered were removed, "
+                         "the indices of the removed cells in the expression matrix were:")
+            logging.info(removed_idx)
         local_mean, local_var = GeneExpressionDataset.library_size(X)
         batch_indices = batch_indices * np.ones((X.shape[0], 1)) if type(batch_indices) is int \
             else batch_indices[to_keep]
@@ -321,10 +324,10 @@ class GeneExpressionDataset(Dataset):
                 for i in range(len(to_keep)):
                     if not to_keep[i]:
                         removed_idx.append(i)
-                print(
+                logging.info(
                     "Cells with zero expression in all genes considered were removed, the indices of the removed "
                     "cells in the ", i, "th expression matrix were:")
-                print(removed_idx)
+                logging.info(removed_idx)
             X = X[to_keep]
             new_Xs += [X]
             local_mean, local_var = GeneExpressionDataset.library_size(X)
@@ -354,7 +357,7 @@ class GeneExpressionDataset(Dataset):
         gene_names_ref = set.intersection(*[set(getattr(gene_dataset, on)) for gene_dataset in gene_datasets])
         # keep gene order of the first dataset
         gene_names_ref = [gene_name for gene_name in getattr(gene_datasets[0], on) if gene_name in gene_names_ref]
-        print("Keeping %d genes" % len(gene_names_ref))
+        logging.info("Keeping %d genes" % len(gene_names_ref))
 
         Xs = [GeneExpressionDataset._filter_genes(dataset, gene_names_ref, on=on)[0] for dataset in gene_datasets]
         if gene_datasets[0].dense:

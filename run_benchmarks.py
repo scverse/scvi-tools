@@ -35,7 +35,7 @@ def load_datasets(dataset_name, save_path='data/', url=None):
     elif ".csv" in dataset_name:
         gene_dataset = CsvDataset(dataset_name, save_path=save_path)
     else:
-        raise "No such dataset available"
+        raise Exception("No such dataset available")
     return gene_dataset
 
 

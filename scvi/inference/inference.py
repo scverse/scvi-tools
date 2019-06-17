@@ -26,15 +26,15 @@ class UnsupervisedTrainer(Trainer):
         >>> infer = VariationalInference(gene_dataset, vae, train_size=0.5)
         >>> infer.train(n_epochs=20, lr=1e-3)
     """
-    default_metrics_to_monitor = ['ll']
+    default_metrics_to_monitor = ['elbo']
 
     def __init__(self, model, gene_dataset, train_size=0.8, test_size=None, kl=None, **kwargs):
         super().__init__(model, gene_dataset, **kwargs)
         self.kl = kl
         if type(self) is UnsupervisedTrainer:
             self.train_set, self.test_set = self.train_test(model, gene_dataset, train_size, test_size)
-            self.train_set.to_monitor = ['ll']
-            self.test_set.to_monitor = ['ll']
+            self.train_set.to_monitor = ['elbo']
+            self.test_set.to_monitor = ['elbo']
 
     @property
     def posteriors_loop(self):
@@ -54,7 +54,7 @@ class AdapterTrainer(UnsupervisedTrainer):
     def __init__(self, model, gene_dataset, posterior_test, frequency=5):
         super().__init__(model, gene_dataset, frequency=frequency)
         self.test_set = posterior_test
-        self.test_set.to_monitor = ['ll']
+        self.test_set.to_monitor = ['elbo']
         self.params = list(self.model.z_encoder.parameters()) + list(self.model.l_encoder.parameters())
         self.z_encoder_state = copy.deepcopy(model.z_encoder.state_dict())
         self.l_encoder_state = copy.deepcopy(model.l_encoder.state_dict())
@@ -70,4 +70,4 @@ class AdapterTrainer(UnsupervisedTrainer):
             self.model.l_encoder.load_state_dict(self.l_encoder_state)
             super().train(n_epochs, params=self.params, **kwargs)
 
-        return min(self.history["ll_test_set"])
+        return min(self.history["elbo_test_set"])
