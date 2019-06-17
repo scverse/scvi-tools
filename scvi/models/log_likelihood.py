@@ -52,11 +52,12 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
 
 def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
     """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
-        Despite its bias, the estimator still converges to the real value
-        of log p(x) when n_samples_mc (for Monte Carlo) goes to infinity
-        (a fairly high value like 100 should be enough)
-        Due to the Monte Carlo sampling, this method is not as computationally efficient
-        as computing only the reconstruction loss
+
+    Despite its bias, the estimator still converges to the real value
+    of log p(x) when n_samples_mc (for Monte Carlo) goes to infinity
+    (a fairly high value like 100 should be enough)
+    Due to the Monte Carlo sampling, this method is not as computationally efficient
+    as computing only the reconstruction loss
     """
     # Uses MC sampling to compute a tighter lower bound on log p(x)
     log_lkl = 0
