@@ -261,16 +261,48 @@ class GeneExpressionDataset(Dataset):
                 self.X[idx_batch]
             )
 
-    def collate_fn(self, batch):
-        indexes = np.array(batch)
-        X = self.X[indexes]
-        return self.collate_fn_end(X, indexes)
+    def collate_fn(
+        self, batch: Union[List[int], np.ndarray]
+    ) -> Tuple[torch.Tensor, ...]:
+        """Batch creation function to be passed to Torch's DataLoader."""
+        indices = np.asarray(batch)
+        X = self.X[indices]
+        return self.make_tensor_batch_from_indices(X, indices)
 
-    def collate_fn_corrupted(self, batch):
-        '''On the fly corruption is slow, but might be optimized in pytorch. Numpy code left here.'''
-        indexes = np.array(batch)
-        X = self.corrupted_X[indexes]
-        return self.collate_fn_end(X, indexes)
+    def collate_fn_corrupted(
+        self, batch: Union[List[int], np.ndarray]
+    ) -> Tuple[torch.Tensor, ...]:
+        """Batch creation function to be passed to Torch's DataLoader."""
+        indices = np.asarray(batch)
+        X_batch = self.corrupted_X[indices]
+        return self.make_tensor_batch_from_indices(X_batch, indices)
+
+    def make_tensor_batch_from_indices(
+        self, X_batch: Union[sp_sparse.csr_matrix, np.ndarray], indices: np.ndarray
+    ) -> Tuple[torch.Tensor, ...]:
+        """Given indices and batch X_batch, returns a full batch of ``Torch.Tensor``"""
+        if isinstance(X_batch, np.ndarray):
+            X_batch = torch.from_numpy(X_batch)
+        else:
+            X_batch = torch.from_numpy(X_batch.toarray().astype(np.float32))
+        if not hasattr(self, "x_coord") or not hasattr(self, "y_coord"):
+            return (
+                X_batch,
+                torch.from_numpy(self.local_means[indices].astype(np.float32)),
+                torch.from_numpy(self.local_vars[indices].astype(np.float32)),
+                torch.from_numpy(self.batch_indices[indices].astype(np.int64)),
+                torch.from_numpy(self.labels[indices].astype(np.int64)),
+            )
+        else:
+            return (
+                X_batch,
+                torch.from_numpy(self.local_means[indices].astype(np.float32)),
+                torch.from_numpy(self.local_vars[indices].astype(np.float32)),
+                torch.from_numpy(self.batch_indices[indices].astype(np.int64)),
+                torch.from_numpy(self.labels[indices].astype(np.int64)),
+                torch.from_numpy(getattr(self, "x_coord")[indices].astype(np.float32)),
+                torch.from_numpy(getattr(self, "y_coord")[indices].astype(np.float32)),
+            )
 
     def corrupt(self, rate=0.1, corruption="uniform"):
         '''On the fly corruption is slow, but might be optimized in pytorch. Numpy code left here.'''
@@ -286,24 +318,6 @@ class GeneExpressionDataset(Dataset):
             i, j = i[ix], j[ix]
             corrupted = np.random.binomial(n=(self.X[i, j]).astype(np.int32), p=0.2)
         self.corrupted_X[i, j] = corrupted
-
-    def collate_fn_end(self, X, indexes):
-        if self.dense:
-            X = torch.from_numpy(X)
-        else:
-            X = torch.FloatTensor(X.toarray())
-        if self.x_coord is None or self.y_coord is None:
-            return X, torch.FloatTensor(self.local_means[indexes]), \
-                   torch.FloatTensor(self.local_vars[indexes]), \
-                   torch.LongTensor(self.batch_indices[indexes]), \
-                   torch.LongTensor(self.labels[indexes])
-        else:
-            return X, torch.FloatTensor(self.local_means[indexes]), \
-                   torch.FloatTensor(self.local_vars[indexes]), \
-                   torch.LongTensor(self.batch_indices[indexes]), \
-                   torch.LongTensor(self.labels[indexes]), \
-                   torch.FloatTensor(self.x_coord[indexes]), \
-                   torch.FloatTensor(self.y_coord[indexes])
 
     def update_genes(self, subset_genes):
         new_n_genes = len(subset_genes) if subset_genes.dtype is not np.dtype('bool') else subset_genes.sum()
