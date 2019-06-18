@@ -3,15 +3,21 @@
 """Handling datasets.
 For the moment, is initialized with a torch Tensor of size (n_cells, nb_genes)"""
 import copy
-import os
 import logging
+import os
 import urllib.request
+
+from abc import abstractmethod
+from collections import defaultdict
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
+
+logger = logging.getLogger(__name__)
 
 
 class GeneExpressionDataset(Dataset):
