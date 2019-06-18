@@ -2,7 +2,6 @@ import copy
 import os
 import logging
 
-from abc import abstractmethod
 from typing import List, Optional, Union
 
 import numpy as np
@@ -97,7 +96,6 @@ class Posterior:
         self.data_loader_kwargs.update({"sampler": sampler})
         self.data_loader = DataLoader(gene_dataset, **self.data_loader_kwargs)
 
-    @abstractmethod
     def accuracy(self, verbose=False):
         pass
 
