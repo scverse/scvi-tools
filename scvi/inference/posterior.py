@@ -95,7 +95,6 @@ class Posterior:
         self.data_loader_kwargs.update({"sampler": sampler})
         self.data_loader = DataLoader(gene_dataset, **self.data_loader_kwargs)
 
-    @abstractmethod
     def accuracy(self, verbose=False):
         pass
 
