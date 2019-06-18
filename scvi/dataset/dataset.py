@@ -110,13 +110,12 @@ class GeneExpressionDataset(Dataset):
             self.initialize_mapped_attribute(
                 "labels", "cell_types", np.asarray(cell_types, dtype=np.str)
             )
-    def preprocess(self):
-        raise NotImplementedError
 
     def __len__(self):
         return self.X.shape[0]
 
     def __getitem__(self, idx):
+        """Implements @abstractcmethod in torch.utils.data.dataset.Dataset"""
         return idx
 
     @property
@@ -261,10 +260,6 @@ class GeneExpressionDataset(Dataset):
             self.local_means[idx_batch], self.local_vars[idx_batch] = library_size(
                 self.X[idx_batch]
             )
-
-    def download_and_preprocess(self):
-        self.download()
-        return self.preprocess()
 
     def collate_fn(self, batch):
         indexes = np.array(batch)
