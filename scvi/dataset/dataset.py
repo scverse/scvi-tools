@@ -21,52 +21,246 @@ logger = logging.getLogger(__name__)
 
 
 class GeneExpressionDataset(Dataset):
-    """Gene Expression dataset. It deals with:
-    - log_variational expression -> torch.log(1 + X)
-    - local library size normalization (mean, var) per batch
+    """Generic class representing RNA counts and annotation information.
+
+    This class is scVI's base dataset class. It gives access to several
+    standard attributes: counts, number of cells, number of genes, etc.
+    More importantly, it implements gene-based and cell-based filtering methods.
+    It also allows the storage of cell and gene annotation information,
+    as well as mappings from these annotation attributes to unique identifiers.
+    In order to propagate the filtering behaviour correctly through the relevant
+    attributes, they are kept in registries (cell, gene, mappings) which are
+    iterated through upon any filtering operation.
+
+
+    :param X: RNA counts matrix, sparse format supported (e.g ``scipy.sparse.csr_matrix``).
+    :param local_means: ``np.ndarray`` with shape (nb_cells,). Mean counts per batch.
+        If ``None``, they are computed automatically according to ``batch_indices``.
+    :param local_vars: ``np.ndarray`` with shape (nb_cells,). Variance of counts per batch.
+        If ``None``, they are computed automatically according to ``batch_indices``.
+    :param batch_indices: ``np.ndarray`` with shape (nb_cells,). Maps each cell to the batch
+        it originates from. Note that a batch most likely refers to a specific piece
+        of tissue or a specific experimental protocol.
+    :param labels: ``np.ndarray`` with shape (nb_cells,). Cell-wise labels. Can be mapped
+        to cell types using attribute mappings.
+    :param gene_names: ``List`` or ``np.ndarray`` with length/shape (nb_genes,).
+        Maps each gene to its name.
+    :param cell_types: Maps each integer label in ``labels`` to a cell type.
+    :param x_coord: ``np.ndarray`` with shape (nb_cells,). x-axis coordinate of each cell.
+        Useful for spatial data, e.g originating a FISH-like protocol.
+    :param y_coord: ``np.ndarray`` with shape (nb_cells,). y-axis coordinate of each cell.
+        Useful for spatial data, e.g originating a FISH-like protocol.
     """
 
-    def __init__(self, X, local_means, local_vars, batch_indices, labels,
-                 gene_names=None, cell_types=None, x_coord=None, y_coord=None):
-        # Args:
-        # Xs: a list of numpy tensors with .shape[1] identical (total_size*nb_genes)
-        # or a list of scipy CSR sparse matrix,
-        # or transposed CSC sparse matrix (the argument sparse must then be set to true)
-        self.dense = type(X) is np.ndarray
-        self._X = np.ascontiguousarray(X, dtype=np.float32) if self.dense else X
-        self.nb_genes = self.X.shape[1]
-        self.local_means = local_means
-        self.local_vars = local_vars
-        self.batch_indices, self.n_batches = arrange_categories(batch_indices)
-        self.labels, self.n_labels = arrange_categories(labels)
-        self.x_coord, self.y_coord = x_coord, y_coord
-        self.norm_X = None
-        self.corrupted_X = None
+    def __init__(
+        self,
+        X: Union[np.ndarray, sp_sparse.csr_matrix],
+        batch_indices: Union[List[int], np.ndarray, sp_sparse.csr_matrix] = None,
+        labels: Union[List[int], np.ndarray, sp_sparse.csr_matrix] = None,
+        local_means: Union[List[float], np.ndarray] = None,
+        local_vars: Union[List[float], np.ndarray] = None,
+        gene_names: Union[List[str], np.ndarray, sp_sparse.csr_matrix] = None,
+        cell_types: Union[List[int], np.ndarray] = None,
+        x_coord: Union[List[float], np.ndarray, sp_sparse.csr_matrix] = None,
+        y_coord: Union[List[float], np.ndarray, sp_sparse.csr_matrix] = None,
+    ):
+        # registers
+        self.dataset_versions = set()
+        self.gene_attribute_names = set()
+        self.cell_attribute_names = set()
+        self.attribute_mappings = defaultdict(list)
 
+        # set the data hidden attribute
+        self._X = (
+            np.ascontiguousarray(X, dtype=np.float32)
+            if isinstance(X, np.ndarray)
+            else X
+        )
+
+        # handle attributes with defaults
+        batch_indices = np.asarray(batch_indices) if batch_indices else np.zeros(len(X))
+        self._batch_indices = batch_indices
+        self.cell_attribute_names.add("batch_indices")
+        self.labels = np.asarray(labels) if labels else np.zeros(len(X))
+        self.cell_attribute_names.add("labels")
+
+        # handle library size, computing requires batch_indices
+        if local_means is not None and local_vars is not None:
+            self.initialize_cell_attribute(np.asarray(local_means), "local_means")
+            self.initialize_cell_attribute(np.asarray(local_vars), "local_vars")
+        elif local_means is None and local_vars is None:
+            self.library_size_batch()
+            self.cell_attribute_names.update(["local_means", "local_vars"])
+        else:
+            raise ValueError(
+                "When using custom library sizes, both local_means "
+                "and local_vars should be provided."
+            )
+
+        # handle optional attributes
+        if x_coord is not None:
+            self.initialize_cell_attribute(np.asarray(x_coord), "x_coord")
+        if y_coord is not None:
+            self.initialize_cell_attribute(np.asarray(y_coord), "y_coord")
         if gene_names is not None:
-            assert self.nb_genes == len(gene_names)
-            self.gene_names = np.array(gene_names, dtype=np.str)
+            self.initialize_gene_attribute(
+                np.asarray(gene_names, dtype=np.str), "gene_names"
+            )
         if cell_types is not None:
-            assert self.n_labels == len(cell_types)
-            self.cell_types = np.array(cell_types, dtype=np.str)
-
+            self.initialize_mapped_attribute(
+                "labels", "cell_types", np.asarray(cell_types, dtype=np.str)
+            )
     def preprocess(self):
         raise NotImplementedError
-
-    @property
-    def X(self):
-        return self._X
-
-    @X.setter
-    def X(self, X):
-        self._X = X
-        self.library_size_batch()
 
     def __len__(self):
         return self.X.shape[0]
 
     def __getitem__(self, idx):
         return idx
+
+    @property
+    def X(self):
+        return self._X
+
+    @X.setter
+    def X(self, X: Union[np.ndarray, sp_sparse.csr_matrix]):
+        """Recomputes the library size"""
+        self._X = X
+        self.library_size_batch()
+
+    @property
+    def nb_cells(self) -> int:
+        return self.X.shape[0]
+
+    @property
+    def nb_genes(self) -> int:
+        return self.X.shape[1]
+
+    @property
+    def batch_indices(self) -> np.ndarray:
+        return self._batch_indices
+
+    @batch_indices.setter
+    def batch_indices(self, batch_indices: Union[List[int], np.ndarray]):
+        """Remaps batch_indices to [0, N]"""
+        batch_indices = np.asarray(batch_indices, dtype=np.int64)
+        batch_indices, n_batches = remap_categories(batch_indices)
+        self._n_batches = n_batches
+        self._batch_indices = batch_indices
+
+    @property
+    def n_batches(self) -> int:
+        try:
+            return self._n_batches
+        except AttributeError:
+            if not hasattr(self, "_batch_indices"):
+                logging.error("batch_indices attribute was not set")
+            raise
+
+    @property
+    def labels(self) -> np.ndarray:
+        return self._labels
+
+    @labels.setter
+    def labels(self, labels: Union[List[int], np.ndarray]):
+        """Ensures that labels are always mapped to [0, 1, .., n_labels] and tracks cell_types accordingly."""
+        labels = np.asarray(labels, dtype=np.int64)
+        # remap to [0, 1, .. , n_labels]
+        new_labels, new_n_labels = remap_categories(labels)
+        # keep track of cell_types
+        if hasattr(self, "cell_types"):
+            self.remap_cell_types(labels)
+
+        self._labels = new_labels
+        self._n_labels = new_n_labels
+
+    def remap_cell_types(self, labels):
+        """Remaps cell_types using new labels."""
+        new_cell_types = []
+        n_unknown_cell_types = 0
+        for new_label in np.unique(labels).astype(np.int64):
+            if new_label < self.n_labels:
+                new_cell_types.append(getattr(self, "cell_types")[new_label])
+            # if new cell_type, needs to be set elsewhere, using 'unknown_c...' in the meantime
+            else:
+                new_cell_types.append("unknown_cell_type_" + str(n_unknown_cell_types))
+                n_unknown_cell_types += 1
+
+    @property
+    def n_labels(self) -> int:
+        try:
+            return self._n_labels
+        except AttributeError:
+            if not hasattr(self, "_labels"):
+                logging.error("attribute labels was not set")
+            raise
+
+    @property
+    def norm_X(self) -> Union[sp_sparse.csr_matrix, np.ndarray]:
+        """Forms a normalized version of X or returns it if it's already been computed."""
+        if not hasattr(self, "_norm_X"):
+            scaling_factor = self.X.mean(axis=1)
+            self._norm_X = self.X / scaling_factor.reshape(len(scaling_factor), 1)
+            self.register_dataset_version("norm_X")
+        return self._norm_X
+
+    @norm_X.setter
+    def norm_X(self, norm_X: Union[sp_sparse.csr_matrix, np.ndarray]):
+        self._norm_X = norm_X
+
+    @property
+    def corrupted_X(self) -> Union[sp_sparse.csr_matrix, np.ndarray]:
+        """Returns the corrupted version of X or stores a copy of X in corrupted_X if it doesn't exist."""
+        if not hasattr(self, "_corrupted_X"):
+            logger.info("Storing a copy of X to be corrupted ")
+            self._corrupted_X = copy.deepcopy(self.X)
+            self.register_dataset_version("corrupted_X")
+        return self._corrupted_X
+
+    @corrupted_X.setter
+    def corrupted_X(self, corrupted_X: Union[sp_sparse.csr_matrix, np.ndarray]):
+        self._corrupted_X = corrupted_X
+
+    def register_dataset_version(self, version_name):
+        """Registers a version of the dataset, e.g normalized."""
+        self.dataset_versions.add(version_name)
+
+    def initialize_cell_attribute(self, attribute, attribute_name):
+        """Sets and registers a cell-wise attribute, e.g annotation information."""
+        if not self.nb_cells == len(attribute):
+            raise ValueError("Number of cells and length of cell attribute mismatch")
+        setattr(self, attribute_name, attribute)
+        self.cell_attribute_names.add(attribute_name)
+
+    def initialize_gene_attribute(self, attribute, attribute_name):
+        """Sets and registers a gene-wise attribute, e.g annotation information."""
+        if not self.nb_cells == len(attribute):
+            raise ValueError("Number of genes and length of gene attribute mismatch")
+        setattr(self, attribute_name, attribute)
+        self.gene_attribute_names.add(attribute_name)
+
+    def initialize_mapped_attribute(
+        self, source_attribute_name, mapping_name, mapping_values
+    ):
+        """Sets and registers and attribute mapping, e.g labels to named cell_types."""
+        if not len(np.unique(getattr(self, source_attribute_name))) == len(
+            mapping_values
+        ):
+            raise ValueError("Number of labels and cell types mismatch")
+        self.attribute_mappings[source_attribute_name].append(mapping_name)
+        if mapping_values:
+            setattr(self, mapping_name, mapping_values)
+
+    def library_size_batch(self):
+        """Computes the library size per batch."""
+        self.local_means = np.zeros((self.nb_cells, self.nb_genes))
+        self.local_vars = np.zeros((self.nb_cells, self.nb_genes))
+        for i_batch in range(self.n_batches):
+            idx_batch = (self.batch_indices == i_batch).ravel()
+            self.local_means[idx_batch], self.local_vars[idx_batch] = library_size(
+                self.X[idx_batch]
+            )
 
     def download_and_preprocess(self):
         self.download()
@@ -206,7 +400,7 @@ class GeneExpressionDataset(Dataset):
         for idx in cell_types_idx:
             idx_to_keep += [np.where(self.labels == idx)[0]]
         self.update_cells(np.concatenate(idx_to_keep))
-        self.labels, self.n_labels = arrange_categories(self.labels, mapping_from=cell_types_idx)
+        self.labels, self.n_labels = remap_categories(self.labels, mapping_from=cell_types_idx)
 
     def merge_cell_types(self, cell_types, new_cell_type_name):
         """
@@ -217,7 +411,7 @@ class GeneExpressionDataset(Dataset):
         cell_types_idx = self._cell_type_idx(cell_types)
         for idx_from in zip(cell_types_idx):
             self.labels[self.labels == idx_from] = len(self.labels)  # Put at the end the new merged cell-type
-        self.labels, self.n_labels = arrange_categories(self.labels)
+        self.labels, self.n_labels = remap_categories(self.labels)
         if hasattr(self, 'cell_types') and type(cell_types[0]) is not int:
             new_cell_types = list(self.cell_types)
             for cell_type in cell_types:
@@ -389,7 +583,7 @@ class GeneExpressionDataset(Dataset):
                 labels = []
                 for gene_dataset in gene_datasets:
                     mapping = [cell_types.index(cell_type) for cell_type in gene_dataset.cell_types]
-                    labels += [arrange_categories(gene_dataset.labels, mapping_to=mapping)[0]]
+                    labels += [remap_categories(gene_dataset.labels, mapping_to=mapping)[0]]
                 labels = np.concatenate(labels)
             else:
                 labels = np.concatenate([gene_dataset.labels for gene_dataset in gene_datasets])
@@ -421,17 +615,51 @@ class GeneExpressionDataset(Dataset):
         return gene_dataset.X[:, subset_genes], subset_genes
 
 
-def arrange_categories(original_categories, mapping_from=None, mapping_to=None):
+def remap_categories(
+    original_categories: Union[List, np.ndarray],
+    mapping_from: Union[List[int], np.ndarray] = None,
+    mapping_to: Union[List[int], np.ndarray] = None,
+) -> Tuple[np.ndarray, int]:
+    """Performs and returns a remapping of a categorical array.
+
+    If None, ``mapping_from`` is set to np.unique(categories).
+    If None, ``mapping_to`` is set to [0, ..., N-1] where N is the number of categories.
+    Then, ``mapping_from`` is mapped to ``mapping_to``.
+
+
+    :param original_categories: Categorical array to be remapped.
+    :param mapping_from: source of the mapping.
+    :param mapping_to: destination of the mapping
+
+    :return: ``tuple`` of a ``np.ndarray`` containing the new categories
+        and an ``int`` equal to the new number of categories.
+    """
+    original_categories = np.asarray(original_categories)
     unique_categories = np.unique(original_categories)
     n_categories = len(unique_categories)
     if mapping_to is None:
         mapping_to = range(n_categories)
     if mapping_from is None:
         mapping_from = unique_categories
-    assert n_categories <= len(mapping_from)  # one cell_type can have no instance in dataset
-    assert len(mapping_to) == len(mapping_from)
+
+    # check lenghts, allow absent cell types
+    if not n_categories <= len(mapping_from):
+        raise ValueError(
+            "Size of provided mapping_from greater than the number of categories."
+        )
+    if not len(mapping_to) == len(mapping_from):
+        raise ValueError("Length mismatch between mapping_to and mapping_from.")
 
     new_categories = np.copy(original_categories)
     for idx_from, idx_to in zip(mapping_from, mapping_to):
         new_categories[original_categories == idx_from] = idx_to
     return new_categories.astype(int), n_categories
+
+
+def library_size(
+    X: Union[sp_sparse.csr_matrix, np.ndarray]
+) -> Tuple[np.ndarray, np.ndarray]:
+    log_counts = np.log(X.sum(axis=1))
+    local_mean = (np.mean(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
+    local_var = (np.var(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
+    return local_mean, local_var
