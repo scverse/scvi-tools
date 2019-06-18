@@ -54,25 +54,6 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
         log_lkl += torch.sum(reconst_loss).item()
     n_samples = len(posterior.indices)
     return log_lkl / n_samples
-'''
-
-def compute_reconstruction_error(vae, posterior, **kwargs):
-    """ Computes log p(x/z), which is the reconstruction error.
-
-    Differs from the marginal log likelihood, but still gives good
-    insights on the modeling of the data, and is fast to compute.
-    """
-    # Iterate once over the posterior and computes the total log_likelihood
-    log_lkl = 0
-    for i_batch, tensors in enumerate(posterior):
-        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[:5]  # general fish case
-        reconst_loss, kl_divergence = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index,
-                                          y=labels, **kwargs)
-        log_lkl += torch.sum(reconst_loss).item()
-    n_samples = len(posterior.indices)
-    return log_lkl / n_samples
-'''
-
 
 def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
     """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
