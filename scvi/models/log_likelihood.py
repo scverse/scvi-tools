@@ -5,8 +5,6 @@ import torch
 import torch.nn.functional as F
 from torch import logsumexp
 from torch.distributions import Normal
-#from scvi.models.scanvi import SCANVI
-#from scvi.models.vae_fish import VAEF
 
 
 def compute_elbo(vae, posterior, **kwargs):
@@ -54,6 +52,7 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
         log_lkl += torch.sum(reconst_loss).item()
     n_samples = len(posterior.indices)
     return log_lkl / n_samples
+
 
 def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
     """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
