@@ -16,8 +16,8 @@ class UnsupervisedTrainer(Trainer):
         :gene_dataset: A gene_dataset instance like ``CortexDataset()``
         :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
          to use Default: ``0.8``.
-        :kl_epochs: Number of epochs for linear warmup of KL(q(z)||p(z)) term. After `kl_epochs`, the training
-            objective is the ELBO. This might be used to prevent inactivity of latent units, or to improve
+        :n_warmup_kl_epochs: Number of epochs for linear warmup of KL(q(z)||p(z)) term. After `n_warmup_kl_epochs`,
+            the training objective is the ELBO. This might be used to prevent inactivity of latent units, or to improve
             clustering of latent space, as a long warmup turns the model into something more of an autoencoder.
         :\*\*kwargs: Other keywords arguments from the general Trainer class.
 
@@ -31,9 +31,9 @@ class UnsupervisedTrainer(Trainer):
     """
     default_metrics_to_monitor = ['elbo']
 
-    def __init__(self, model, gene_dataset, train_size=0.8, test_size=None, kl_epochs=None, **kwargs):
+    def __init__(self, model, gene_dataset, train_size=0.8, test_size=None, n_warmup_kl_epochs=None, **kwargs):
         super().__init__(model, gene_dataset, **kwargs)
-        self.kl_epochs = kl_epochs
+        self.n_warmup_kl_epochs = n_warmup_kl_epochs
         if type(self) is UnsupervisedTrainer:
             self.train_set, self.test_set = self.train_test(model, gene_dataset, train_size, test_size)
             self.train_set.to_monitor = ['elbo']
@@ -50,8 +50,8 @@ class UnsupervisedTrainer(Trainer):
         return loss
 
     def on_epoch_begin(self):
-        if self.kl_epochs is not None:
-            self.kl_weight = min(1, self.epoch / self.kl_epochs)
+        if self.n_warmup_kl_epochs is not None:
+            self.kl_weight = min(1, self.epoch / self.n_warmup_kl_epochs)
         else:
             self.kl_weight = 1.0
 
