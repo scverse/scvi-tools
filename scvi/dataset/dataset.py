@@ -7,7 +7,7 @@ import logging
 import os
 import urllib.request
 
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from collections import defaultdict
 from typing import Dict, List, Tuple, Union
 
@@ -579,34 +579,6 @@ class GeneExpressionDataset(Dataset):
         else:
             raise NotImplementedError("Unknown corruption method.")
 
-    def download(self):
-        if hasattr(self, 'urls') and hasattr(self, 'download_names'):
-            for url, download_name in zip(self.urls, self.download_names):
-                GeneExpressionDataset._download(url, self.save_path, download_name)
-        elif hasattr(self, 'url') and hasattr(self, 'download_name'):
-            GeneExpressionDataset._download(self.url, self.save_path, self.download_name)
-
-    @staticmethod
-    def _download(url, save_path, download_name):
-        if os.path.exists(os.path.join(save_path, download_name)):
-            logging.info("File %s already downloaded" % (os.path.join(save_path, download_name)))
-            return
-        if url is None:
-            logging.info("You are trying to load a local file named %s and located at %s "
-                         "but this file was not found at the location %s" % (download_name, save_path,
-                                                                             os.path.join(save_path, download_name)))
-        r = urllib.request.urlopen(url)
-        logging.info("Downloading file at %s" % os.path.join(save_path, download_name))
-
-        def readIter(f, blocksize=1000):
-            """Given a file 'f', returns an iterator that returns bytes of
-            size 'blocksize' from the file, using read()."""
-            while True:
-                data = f.read(blocksize)
-                if not data:
-                    break
-                yield data
-
     def raw_counts_properties(
         self, idx1: Union[List[int], np.ndarray], idx2: Union[List[int], np.ndarray]
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -900,3 +872,102 @@ def library_size(
     local_mean = (np.mean(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
     local_var = (np.var(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
     return local_mean, local_var
+
+
+class DownloadableDataset(GeneExpressionDataset, ABC):
+    """Sub-class of ``GeneExpressionDataset`` which downloads its data to disk and
+    then populates its attributes with it.
+
+    In particular, it has a ``delayed_populating`` parameter allowing for instantiaton
+    without populating the attributes.
+
+    :param urls: single or multiple url.s from which to download the data.
+    :param filenames: filenames for the downloaded data.
+    :param save_path: path to data storage.
+    :param delayed_populating: If True, load
+    """
+
+    def __init__(
+        self,
+        urls: Union[str, List[str]],
+        filenames: Union[str, List[str]] = None,
+        save_path: str = "data/",
+        delayed_populating: bool = False,
+        preprocess: bool = True,
+    ):
+
+        if not isinstance(urls, str):
+            self.urls = urls
+        else:
+            self.urls = [urls]
+        self.filenames = (
+            filenames
+            if filenames
+            else ["dataset_{i}".format(i=i) for i in range(len(self.urls))]
+        )
+        self.save_path = save_path
+
+        self.download()
+
+        if not delayed_populating:
+            self.populate(preprocess=preprocess)
+        else:
+            logger.info(
+                "Delayed loading. Dataset has purposedly not been populated."
+                " Call delayed_load method to populate it."
+            )
+
+    def download(self):
+        for url, download_name in zip(self.urls, self.filenames):
+            _download(url, self.save_path, download_name)
+
+    @abstractmethod
+    def load_from_disk(self):
+        """Loads the data from disk and returns it in the form of the kwargs
+        to a GeneExpressionDataset constructor."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def preprocess(self, **kwargs):
+        """Performs a canonical preprocessing of a specific dataset
+        and returns the modified kwargs to the GeneExpressionDataset."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def instantiate_gene_expression_dataset(self, **kwargs):
+        """Forms the dataset by calling on of GeneExpressionDataset's constructors."""
+        raise NotImplementedError
+
+    def populate(self, preprocess: bool = True):
+        """Canonical workflow for populating a DonwloadableDataset subclass."""
+        gene_dataset_kwargs = self.load_from_disk()
+        if preprocess:
+            gene_dataset_kwargs = self.preprocess(**gene_dataset_kwargs)
+        self.instantiate_gene_expression_dataset(**gene_dataset_kwargs)
+
+
+def _download(url, save_path, filename):
+    """Writes data from url to file."""
+    if os.path.exists(os.path.join(save_path, filename)):
+        logger.info("File %s already downloaded" % (os.path.join(save_path, filename)))
+        return
+    else:
+        r = urllib.request.urlopen(url)
+        logger.info("Downloading file at %s" % os.path.join(save_path, filename))
+
+        def read_iter(f, blocksize=1000):
+            """Given a file 'f', returns an iterator that returns bytes of
+            size 'blocksize' from the file, using read()."""
+            while True:
+                data = f.read(blocksize)
+                if not data:
+                    break
+                yield data
+
+    # Create the path to save the data
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    with open(os.path.join(save_path, filename), "wb") as f:
+        for data in read_iter(r):
+            f.write(data)
