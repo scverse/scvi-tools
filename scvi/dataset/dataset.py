@@ -467,20 +467,17 @@ class GeneExpressionDataset(Dataset):
                     break
                 yield data
 
-        # Create the path to save the data
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
+    def raw_counts_properties(
+        self, idx1: Union[List[int], np.ndarray], idx2: Union[List[int], np.ndarray]
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Computes and returns some statistics on the raw counts of two sub-populations.
 
-        with open(os.path.join(save_path, download_name), 'wb') as f:
-            for data in readIter(r):
-                f.write(data)
+        :param idx1: subset of indices desccribing the first population.
+        :param idx2: subset of indices desccribing the second population.
 
-    def library_size_batch(self):
-        for i_batch in range(self.n_batches):
-            idx_batch = (self.batch_indices == i_batch).ravel()
-            self.local_means[idx_batch], self.local_vars[idx_batch] = self.library_size(self.X[idx_batch])
-
-    def raw_counts_properties(self, idx1, idx2):
+        :return: Tuple of np.ndarray containing, by pair (one for each sub-population),
+            mean expression, mean of non-zero expression, mean of normalized expression.
+        """
         mean1 = (self.X[idx1, :]).mean(axis=0)
         mean2 = (self.X[idx2, :]).mean(axis=0)
         nonz1 = (self.X[idx1, :] != 0).mean(axis=0)
@@ -490,8 +487,14 @@ class GeneExpressionDataset(Dataset):
             self.norm_X = self.X / scaling_factor.reshape(len(scaling_factor), 1)
         norm_mean1 = self.norm_X[idx1, :].mean(axis=0)
         norm_mean2 = self.norm_X[idx2, :].mean(axis=0)
-        return np.asarray(mean1).ravel(), np.asarray(mean2).ravel(), np.asarray(nonz1).ravel(), \
-            np.asarray(nonz2).ravel(), np.asarray(norm_mean1).ravel(), np.asarray(norm_mean2).ravel()
+        return (
+            np.asarray(mean1).ravel(),
+            np.asarray(mean2).ravel(),
+            np.asarray(nonz1).ravel(),
+            np.asarray(nonz2).ravel(),
+            np.asarray(norm_mean1).ravel(),
+            np.asarray(norm_mean2).ravel(),
+        )
 
     @staticmethod
     def library_size(X):
