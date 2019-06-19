@@ -46,10 +46,8 @@ class GeneExpressionDataset(Dataset):
     :param gene_names: ``List`` or ``np.ndarray`` with length/shape (nb_genes,).
         Maps each gene to its name.
     :param cell_types: Maps each integer label in ``labels`` to a cell type.
-    :param x_coord: ``np.ndarray`` with shape (nb_cells,). x-axis coordinate of each cell.
-        Useful for spatial data, e.g originating a FISH-like protocol.
-    :param y_coord: ``np.ndarray`` with shape (nb_cells,). y-axis coordinate of each cell.
-        Useful for spatial data, e.g originating a FISH-like protocol.
+    :param cell_attributes_dict: ``List`` or ``np.ndarray`` with shape (nb_cells,).
+    :param gene_attributes_dict: ``List`` or ``np.ndarray`` with shape (nb_genes,).
     """
 
     def __init__(
@@ -57,12 +55,10 @@ class GeneExpressionDataset(Dataset):
         X: Union[np.ndarray, sp_sparse.csr_matrix],
         batch_indices: Union[List[int], np.ndarray, sp_sparse.csr_matrix] = None,
         labels: Union[List[int], np.ndarray, sp_sparse.csr_matrix] = None,
-        local_means: Union[List[float], np.ndarray] = None,
-        local_vars: Union[List[float], np.ndarray] = None,
         gene_names: Union[List[str], np.ndarray, sp_sparse.csr_matrix] = None,
         cell_types: Union[List[int], np.ndarray] = None,
-        x_coord: Union[List[float], np.ndarray, sp_sparse.csr_matrix] = None,
-        y_coord: Union[List[float], np.ndarray, sp_sparse.csr_matrix] = None,
+        cell_attributes_dict: Dict[str, Union[List, np.ndarray]] = None,
+        gene_attributes_dict: Dict[str, Union[List, np.ndarray]] = None,
     ):
         # registers
         self.dataset_versions = set()
@@ -79,29 +75,12 @@ class GeneExpressionDataset(Dataset):
 
         # handle attributes with defaults
         batch_indices = np.asarray(batch_indices) if batch_indices else np.zeros(len(X))
-        self._batch_indices = batch_indices
+        self.batch_indices = batch_indices
         self.cell_attribute_names.add("batch_indices")
         self.labels = np.asarray(labels) if labels else np.zeros(len(X))
         self.cell_attribute_names.add("labels")
 
-        # handle library size, computing requires batch_indices
-        if local_means is not None and local_vars is not None:
-            self.initialize_cell_attribute(np.asarray(local_means), "local_means")
-            self.initialize_cell_attribute(np.asarray(local_vars), "local_vars")
-        elif local_means is None and local_vars is None:
-            self.library_size_batch()
-            self.cell_attribute_names.update(["local_means", "local_vars"])
-        else:
-            raise ValueError(
-                "When using custom library sizes, both local_means "
-                "and local_vars should be provided."
-            )
-
         # handle optional attributes
-        if x_coord is not None:
-            self.initialize_cell_attribute(np.asarray(x_coord), "x_coord")
-        if y_coord is not None:
-            self.initialize_cell_attribute(np.asarray(y_coord), "y_coord")
         if gene_names is not None:
             self.initialize_gene_attribute(
                 np.asarray(gene_names, dtype=np.str), "gene_names"
@@ -110,6 +89,12 @@ class GeneExpressionDataset(Dataset):
             self.initialize_mapped_attribute(
                 "labels", "cell_types", np.asarray(cell_types, dtype=np.str)
             )
+
+        # handle additional attributes
+        for attribute_name, attribute_value in cell_attributes_dict.items():
+            self.initialize_cell_attribute(attribute_name, attribute_value)
+        for attribute_name, attribute_value in gene_attributes_dict.items():
+            self.initialize_gene_attribute(attribute_name, attribute_value)
 
     def __len__(self):
         return self.X.shape[0]
@@ -165,14 +150,12 @@ class GeneExpressionDataset(Dataset):
     def labels(self, labels: Union[List[int], np.ndarray]):
         """Ensures that labels are always mapped to [0, 1, .., n_labels] and tracks cell_types accordingly."""
         labels = np.asarray(labels, dtype=np.int64)
-        # remap to [0, 1, .. , n_labels]
         new_labels, new_n_labels = remap_categories(labels)
-        # keep track of cell_types
-        if hasattr(self, "cell_types"):
-            self.remap_cell_types(labels)
-
         self._labels = new_labels
         self._n_labels = new_n_labels
+
+        if hasattr(self, "cell_types"):
+            self.remap_cell_types(labels)
 
     def remap_cell_types(self, labels):
         """Remaps cell_types using new labels."""
@@ -285,24 +268,13 @@ class GeneExpressionDataset(Dataset):
             X_batch = torch.from_numpy(X_batch)
         else:
             X_batch = torch.from_numpy(X_batch.toarray().astype(np.float32))
-        if not hasattr(self, "x_coord") or not hasattr(self, "y_coord"):
-            return (
-                X_batch,
-                torch.from_numpy(self.local_means[indices].astype(np.float32)),
-                torch.from_numpy(self.local_vars[indices].astype(np.float32)),
-                torch.from_numpy(self.batch_indices[indices].astype(np.int64)),
-                torch.from_numpy(self.labels[indices].astype(np.int64)),
-            )
-        else:
-            return (
-                X_batch,
-                torch.from_numpy(self.local_means[indices].astype(np.float32)),
-                torch.from_numpy(self.local_vars[indices].astype(np.float32)),
-                torch.from_numpy(self.batch_indices[indices].astype(np.int64)),
-                torch.from_numpy(self.labels[indices].astype(np.int64)),
-                torch.from_numpy(getattr(self, "x_coord")[indices].astype(np.float32)),
-                torch.from_numpy(getattr(self, "y_coord")[indices].astype(np.float32)),
-            )
+        return (
+            X_batch,
+            torch.from_numpy(self.local_means[indices].astype(np.float32)),
+            torch.from_numpy(self.local_vars[indices].astype(np.float32)),
+            torch.from_numpy(self.batch_indices[indices].astype(np.int64)),
+            torch.from_numpy(self.labels[indices].astype(np.int64)),
+        )
 
     def update_genes(self, subset_genes: np.ndarray):
         """Performs a in-place sub-sampling of genes and gene-related attributes.
@@ -871,6 +843,63 @@ def library_size(
     local_mean = (np.mean(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
     local_var = (np.var(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
     return local_mean, local_var
+
+
+class SpatialGeneExpressionDataset(GeneExpressionDataset):
+    """Generic class representing RNA counts with spatial coordinates.
+
+
+    :param X: RNA counts matrix, sparse format supported (e.g ``scipy.sparse.csr_matrix``).
+    :param batch_indices: ``np.ndarray`` with shape (nb_cells,). Maps each cell to the batch
+        it originates from. Note that a batch most likely refers to a specific piece
+        of tissue or a specific experimental protocol.
+    :param labels: ``np.ndarray`` with shape (nb_cells,). Cell-wise labels. Can be mapped
+        to cell types using attribute mappings.
+    :param gene_names: ``List`` or ``np.ndarray`` with length/shape (nb_genes,).
+        Maps each gene to its name.
+    :param cell_types: Maps each integer label in ``labels`` to a cell type.
+    :param x_coord: ``np.ndarray`` with shape (nb_cells,). x-axis coordinate of each cell.
+        Useful for spatial data, e.g originating a FISH-like protocol.
+    :param y_coord: ``np.ndarray`` with shape (nb_cells,). y-axis coordinate of each cell.
+        Useful for spatial data, e.g originating a FISH-like protocol.
+    """
+
+    def __init__(
+        self,
+        X: Union[np.ndarray, sp_sparse.csr_matrix],
+        batch_indices: Union[List[int], np.ndarray, sp_sparse.csr_matrix] = None,
+        labels: Union[List[int], np.ndarray, sp_sparse.csr_matrix] = None,
+        gene_names: Union[List[str], np.ndarray, sp_sparse.csr_matrix] = None,
+        cell_types: Union[List[int], np.ndarray] = None,
+        x_coord: Union[List[float], np.ndarray, sp_sparse.csr_matrix] = None,
+        y_coord: Union[List[float], np.ndarray, sp_sparse.csr_matrix] = None,
+    ):
+        super().__init__(
+            X=X,
+            batch_indices=batch_indices,
+            labels=labels,
+            gene_names=gene_names,
+            cell_types=cell_types,
+            cell_attributes_dict={"x_coord": x_coord, "y_coord": y_coord}
+        )
+
+    def make_tensor_batch_from_indices(
+        self, X_batch: Union[sp_sparse.csr_matrix, np.ndarray], indices: np.ndarray
+    ) -> Tuple[torch.Tensor, ...]:
+        """Given indices and batch X_batch, returns a full batch of ``Torch.Tensor``"""
+        if isinstance(X_batch, np.ndarray):
+            X_batch = torch.from_numpy(X_batch)
+        else:
+            X_batch = torch.from_numpy(X_batch.toarray().astype(np.float32))
+        return (
+            X_batch,
+            torch.from_numpy(self.local_means[indices].astype(np.float32)),
+            torch.from_numpy(self.local_vars[indices].astype(np.float32)),
+            torch.from_numpy(self.batch_indices[indices].astype(np.int64)),
+            torch.from_numpy(self.labels[indices].astype(np.int64)),
+            torch.from_numpy(getattr(self, "x_coord")[indices].astype(np.float32)),
+            torch.from_numpy(getattr(self, "y_coord")[indices].astype(np.float32)),
+        )
 
 
 class DownloadableDataset(GeneExpressionDataset, ABC):
