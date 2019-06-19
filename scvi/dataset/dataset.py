@@ -636,13 +636,6 @@ class GeneExpressionDataset(Dataset):
             np.asarray(norm_mean2).ravel(),
         )
 
-    @staticmethod
-    def library_size(X):
-        log_counts = np.log(X.sum(axis=1))
-        local_mean = (np.mean(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
-        local_var = (np.var(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
-        return local_mean, local_var
-
     @classmethod
     def from_batch_array(cls, X: np.ndarray) -> "GeneExpressionDataset":
         """Forms a GeneExpressionDataset from an array with shape (n_batches, nb_cells, nb_genes).
