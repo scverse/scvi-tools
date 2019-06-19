@@ -858,15 +858,6 @@ class GeneExpressionDataset(Dataset):
 
         return dataset
 
-    @staticmethod
-    def _filter_genes(gene_dataset, gene_names_ref, on='gene_names'):
-        """
-        :return: gene_dataset.X filtered by the corresponding genes ( / columns / features), idx_genes
-        """
-        gene_names = list(getattr(gene_dataset, on))
-        subset_genes = np.array([gene_names.index(gene_name) for gene_name in gene_names_ref], dtype=np.int64)
-        return gene_dataset.X[:, subset_genes], subset_genes
-
 
 def remap_categories(
     original_categories: Union[List, np.ndarray],
