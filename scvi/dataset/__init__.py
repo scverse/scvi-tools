@@ -3,7 +3,7 @@ from .brain_large import BrainLargeDataset
 from .cite_seq import CiteSeqDataset, CbmcDataset
 from .csv import CsvDataset, BreastCancerDataset, MouseOBDataset
 from .cortex import CortexDataset
-from .datasetv2 import GeneExpressionDataset, DownloadableDataset
+from .dataset import GeneExpressionDataset, DownloadableDataset
 from .dataset10X import Dataset10X, BrainSmallDataset
 from .hemato import HematoDataset
 from .loom import LoomDataset, RetinaDataset
