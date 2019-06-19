@@ -114,7 +114,8 @@ class GeneExpressionDataset(Dataset):
     def X(self, X: Union[np.ndarray, sp_sparse.csr_matrix]):
         """Recomputes the library size"""
         self._X = X
-        self.library_size_batch()
+        logger.info("Computing the library size for the new data")
+        self.compute_library_size_batch()
 
     @property
     def nb_cells(self) -> int:
@@ -131,10 +132,10 @@ class GeneExpressionDataset(Dataset):
     @batch_indices.setter
     def batch_indices(self, batch_indices: Union[List[int], np.ndarray]):
         """Remaps batch_indices to [0, N]"""
-        batch_indices = np.asarray(batch_indices, dtype=np.int64)
-        batch_indices, n_batches = remap_categories(batch_indices)
-        self._n_batches = n_batches
-        self._batch_indices = batch_indices
+        logger.info("Remapping batch indices to [0,N]")
+        new_batch_indices, new_n_batches = remap_categories(batch_indices)
+        self._n_batches = new_n_batches
+        self._batch_indices = new_batch_indices
 
     @property
     def n_batches(self) -> int:
@@ -152,7 +153,6 @@ class GeneExpressionDataset(Dataset):
     @labels.setter
     def labels(self, labels: Union[List[int], np.ndarray]):
         """Ensures that labels are always mapped to [0, 1, .., n_labels] and tracks cell_types accordingly."""
-        labels = np.asarray(labels, dtype=np.int64)
         new_labels, new_n_labels = remap_categories(labels)
         self._labels = new_labels
         self._n_labels = new_n_labels
@@ -237,13 +237,13 @@ class GeneExpressionDataset(Dataset):
         if mapping_values:
             setattr(self, mapping_name, mapping_values)
 
-    def library_size_batch(self):
+    def compute_library_size_batch(self):
         """Computes the library size per batch."""
         self.local_means = np.zeros((self.nb_cells, self.nb_genes))
         self.local_vars = np.zeros((self.nb_cells, self.nb_genes))
         for i_batch in range(self.n_batches):
             idx_batch = (self.batch_indices == i_batch).ravel()
-            self.local_means[idx_batch], self.local_vars[idx_batch] = library_size(
+            self.local_means[idx_batch], self.local_vars[idx_batch] = compute_library_size(
                 self.X[idx_batch]
             )
 
@@ -291,7 +291,7 @@ class GeneExpressionDataset(Dataset):
         """
         new_nb_genes = (
             len(subset_genes)
-            if subset_genes.dtype is not np.dtype("bool")
+            if subset_genes.dtype is not np.bool
             else subset_genes.sum()
         )
         logger.info(
@@ -825,26 +825,26 @@ def remap_categories(
     if mapping_from is None:
         mapping_from = unique_categories
 
-    # check lenghts, allow absent cell types
-    if not n_categories <= len(mapping_from):
+    # check lengths, allow absent cell types
+    if n_categories > len(mapping_from):
         raise ValueError(
             "Size of provided mapping_from greater than the number of categories."
         )
-    if not len(mapping_to) == len(mapping_from):
+    if len(mapping_to) != len(mapping_from):
         raise ValueError("Length mismatch between mapping_to and mapping_from.")
 
     new_categories = np.copy(original_categories)
     for idx_from, idx_to in zip(mapping_from, mapping_to):
         new_categories[original_categories == idx_from] = idx_to
-    return new_categories.astype(int), n_categories
+    return new_categories.astype(np.uint16), n_categories
 
 
-def library_size(
-    X: Union[sp_sparse.csr_matrix, np.ndarray]
+def compute_library_size(
+    data: Union[sp_sparse.csr_matrix, np.ndarray]
 ) -> Tuple[np.ndarray, np.ndarray]:
-    log_counts = np.log(X.sum(axis=1))
-    local_mean = (np.mean(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
-    local_var = (np.var(log_counts) * np.ones((X.shape[0], 1))).astype(np.float32)
+    log_counts = np.log(data.sum(axis=1))
+    local_mean = (np.mean(log_counts) * np.ones((data.shape[0], 1))).astype(np.float32)
+    local_var = (np.var(log_counts) * np.ones((data.shape[0], 1))).astype(np.float32)
     return local_mean, local_var
 
 
