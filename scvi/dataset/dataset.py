@@ -544,6 +544,41 @@ class GeneExpressionDataset(Dataset):
         for cell_types, new_cell_type_name in cell_types_dict.items():
             self.merge_cell_types(cell_types, new_cell_type_name)
 
+    def corrupt(self, rate=0.1, corruption="uniform"):
+        """Forms a corrupted_X attribute containing a corrupted version of X.
+
+        Sub-samples ``rate * self.X.shape[0] * self.X.shape[1]`` entries
+        and perturbs them according to the ``corruption`` method.
+        Namely:
+            - "uniform" multiplies the count by a Bernouilli(0.9)
+            - "binomial" replaces the count with a Binomial(count, 0.2)
+        A corrupted version of ``self.X`` is stored in ``self.corrupted_X``.
+
+        :param rate: Rate of corrupted entries.
+        :param corruption: Corruption method.
+        """
+        if (
+            corruption == "uniform"
+        ):  # multiply the entry n with a Ber(0.9) random variable.
+            i, j = self.X.nonzero()
+            ix = np.random.choice(len(i), int(np.floor(rate * len(i))), replace=False)
+            i, j = i[ix], j[ix]
+            self.corrupted_X[i, j] = np.multiply(
+                self.X[i, j],
+                np.random.binomial(n=np.ones(len(ix), dtype=np.int32), p=0.9),
+            )
+        elif (
+            corruption == "binomial"
+        ):  # multiply the entry n with a Bin(n, 0.2) random variable.
+            i, j = (k.ravel() for k in np.indices(self.X.shape))
+            ix = np.random.choice(len(i), int(np.floor(rate * len(i))), replace=False)
+            i, j = i[ix], j[ix]
+            self.corrupted_X[i, j] = np.random.binomial(
+                n=(self.X[i, j]).astype(np.int32), p=0.2
+            )
+        else:
+            raise NotImplementedError("Unknown corruption method.")
+
     def download(self):
         if hasattr(self, 'urls') and hasattr(self, 'download_names'):
             for url, download_name in zip(self.urls, self.download_names):
