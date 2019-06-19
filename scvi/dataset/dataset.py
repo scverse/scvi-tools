@@ -333,8 +333,8 @@ class GeneExpressionDataset(Dataset):
         """
         nb_cells_old = self.nb_cells
 
-        # update gene-related attributes accordingly
-        for attribute_name in self.gene_attribute_names:
+        # update cell-related attributes accordingly
+        for attribute_name in self.cell_attribute_names:
             attr = getattr(self, attribute_name)
             setattr(self, attribute_name, attr[subset_cells])
 
