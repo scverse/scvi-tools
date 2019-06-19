@@ -66,18 +66,21 @@ class GeneExpressionDataset(Dataset):
         self.cell_attribute_names = set()
         self.attribute_mappings = defaultdict(list)
 
-        # set the data hidden attribute
-        self._X = (
+        self.local_means = None
+        self.local_vars = None
+        self.cell_attribute_names.update(["local_means", "local_vars"])
+
+        # set the data hidden attribute, which also compute the local means and vars
+        self.X = (
             np.ascontiguousarray(X, dtype=np.float32)
             if isinstance(X, np.ndarray)
             else X
         )
 
         # handle attributes with defaults
-        batch_indices = np.asarray(batch_indices) if batch_indices else np.zeros(len(X))
-        self.batch_indices = batch_indices
+        self.batch_indices = np.asarray(batch_indices) if batch_indices else np.zeros((len(X), 1))
         self.cell_attribute_names.add("batch_indices")
-        self.labels = np.asarray(labels) if labels else np.zeros(len(X))
+        self.labels = np.asarray(labels) if labels else np.zeros((len(X), 1))
         self.cell_attribute_names.add("labels")
 
         # handle optional attributes
