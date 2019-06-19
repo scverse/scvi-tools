@@ -29,7 +29,7 @@ class SCANVI(VAE):
         * ``'gene-label'`` - dispersion can differ between different labels
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
 
-    :param log_variational: Log variational distribution
+    :param log_variational: Log(data+1) prior to encoding for numerical stability. Not normalization.
     :param reconstruction_loss:  One of
 
         * ``'nb'`` - Negative binomial distribution
