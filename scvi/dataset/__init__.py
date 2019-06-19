@@ -1,4 +1,4 @@
-from .anndata import AnnDataset
+from .anndataset import AnnDataset
 from .brain_large import BrainLargeDataset
 from .cite_seq import CiteSeqDataset, CbmcDataset
 from .csv import CsvDataset, BreastCancerDataset, MouseOBDataset
