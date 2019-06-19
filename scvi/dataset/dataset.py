@@ -485,7 +485,6 @@ class GeneExpressionDataset(Dataset):
         """Performs in-place filtering of cells by keeping cell types in ``cell_types``.
 
         :param cell_types: numpy array of type np.int (indices) or np.str (cell-types names)
-        :return:
         """
         cell_types = np.asarray(cell_types)
         if cell_types.dtype is str:
