@@ -304,136 +304,241 @@ class GeneExpressionDataset(Dataset):
                 torch.from_numpy(getattr(self, "y_coord")[indices].astype(np.float32)),
             )
 
-    def corrupt(self, rate=0.1, corruption="uniform"):
-        '''On the fly corruption is slow, but might be optimized in pytorch. Numpy code left here.'''
-        self.corrupted_X = copy.deepcopy(self.X)
-        if corruption == "uniform":  # multiply the entry n with a Ber(0.9) random variable.
-            i, j = np.nonzero(self.X)
-            ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
-            i, j = i[ix], j[ix]
-            corrupted = np.multiply(self.X[i, j], np.random.binomial(n=np.ones(len(ix), dtype=np.int32), p=0.9))
-        elif corruption == "binomial":  # multiply the entry n with a Bin(n, 0.9) random variable.
-            i, j = (k.ravel() for k in np.indices(self.X.shape))
-            ix = np.random.choice(range(len(i)), int(np.floor(rate * len(i))), replace=False)
-            i, j = i[ix], j[ix]
-            corrupted = np.random.binomial(n=(self.X[i, j]).astype(np.int32), p=0.2)
-        self.corrupted_X[i, j] = corrupted
+    def update_genes(self, subset_genes: np.ndarray):
+        """Performs a in-place sub-sampling of genes and gene-related attributes.
 
-    def update_genes(self, subset_genes):
-        new_n_genes = len(subset_genes) if subset_genes.dtype is not np.dtype('bool') else subset_genes.sum()
-        logging.info("Downsampling from %i to %i genes" % (self.nb_genes, new_n_genes))
-        if hasattr(self, 'gene_names'):
-            self.gene_names = self.gene_names[subset_genes]
-        if hasattr(self, 'gene_symbols'):
-            self.gene_symbols = self.gene_symbols[subset_genes]
-        self._X = self.X[:, subset_genes]
-        if self.norm_X is not None:
-            self.norm_X = self.norm_X[:, subset_genes]
-        self.nb_genes = self.X.shape[1]
-        to_keep = np.array(self.X.sum(axis=1) > 0).ravel()
-        if self.X.shape != self.X[to_keep].shape:
-            removed_idx = []
-            for i in range(len(to_keep)):
-                if not to_keep[i]:
-                    removed_idx.append(i)
-            logging.info("Cells with zero expression in all genes considered were "
-                         "removed, the indices of the removed cells "
-                         "in the expression matrix were:")
-            logging.info(removed_idx)
-        self.update_cells(to_keep)
+        Sub-selects genes according to ``subset_genes`` sub-index.
+        Consequently, modifies in-place the data ``X`` and the registered gene attributes.
+
+        :param subset_genes: Index used for gene sub-sampling.
+            Either a ``int`` array with arbitrary shape which values are the indexes of the genes to keep.
+            Or boolean array used as a mask-like index.
+        """
+        new_nb_genes = (
+            len(subset_genes)
+            if subset_genes.dtype is not np.dtype("bool")
+            else subset_genes.sum()
+        )
+        logger.info(
+            "Downsampling from {nb_genes} to {new_nb_genes} genes".format(
+                nb_genes=self.nb_genes, new_nb_genes=new_nb_genes
+            )
+        )
+        # update datasets
+        self.X = self.X[:, subset_genes]
+        for version_name in self.dataset_versions:
+            data = getattr(self, version_name)
+            setattr(self, version_name, data[:, subset_genes])
+
+        # update gene-related attributes accordingly
+        for attribute_name in self.gene_attribute_names:
+            attr = getattr(self, attribute_name)
+            setattr(self, attribute_name, attr[subset_genes])
+
+        # remove non-expressing cells
+        mask_cells_to_keep = np.asarray(self.X.sum(axis=1) > 0)
+        removed_idx = np.logical_not(mask_cells_to_keep).nonzero()[0]
+        if len(self.X) != len(removed_idx):
+            logger.info(
+                "Cells with zero expression in all genes considered were removed, "
+                "the indices of the removed cells in the expression matrix were: "
+                "{idxs}".format(idxs=removed_idx)
+            )
+        self.update_cells(mask_cells_to_keep)
 
     def update_cells(self, subset_cells):
-        new_n_cells = len(subset_cells) if subset_cells.dtype is not np.dtype('bool') else subset_cells.sum()
-        logging.info("Downsampling from %i to %i cells" % (len(self), new_n_cells))
-        for attr_name in [
-            '_X',
-            'labels',
-            'batch_indices',
-            'local_means',
-            'local_vars',
-            'x_coord',
-            'y_coord'
-        ]:
-            if getattr(self, attr_name) is not None:
-                setattr(self, attr_name, getattr(self, attr_name)[subset_cells])
-        self.library_size_batch()
+        """Performs a in-place sub-sampling of cells and cell-related attributes.
 
-    def subsample_genes(self, new_n_genes=None, subset_genes=None):
-        n_cells, n_genes = self.X.shape
-        if subset_genes is None and (new_n_genes is False or new_n_genes >= n_genes):
-            return None  # Do nothing if subsample more genes than total number of genes
+        Sub-selects cells according to ``subset_cells`` sub-index.
+        Consequently, modifies in-place the data ``X``, its versions and the registered cell attributes.
+
+        :param subset_cells: Index used for cell sub-sampling.
+            Either a ``int`` array with arbitrary shape which values are the indexes of the cells to keep.
+            Or boolean array used as a mask-like index.
+        """
+        nb_cells_old = self.nb_cells
+
+        # update gene-related attributes accordingly
+        for attribute_name in self.gene_attribute_names:
+            attr = getattr(self, attribute_name)
+            setattr(self, attribute_name, attr[subset_cells])
+
+        # subsample datasets which calls library_size_batch which requires already updated attributes
+        self.X = self.X[subset_cells]
+        for version_name in self.dataset_versions:
+            data = getattr(self, version_name)
+            setattr(self, version_name, data[:, subset_cells])
+
+        logging.info(
+            "Downsampled from {nb_cells} to {new_nb_cells} cells".format(
+                nb_cells=nb_cells_old, new_nb_cells=self.nb_cells
+            )
+        )
+
+    def subsample_genes(
+        self,
+        new_n_genes: int = None,
+        subset_genes: Union[List[int], List[bool], np.ndarray] = None,
+    ):
+        """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling."""
+        # Do nothing if asked to subsample more genes than total number of genes
+        if subset_genes is None and (
+            new_n_genes is False or new_n_genes >= self.nb_genes
+        ):
+            logger.info(
+                "Not subsampling since new_n_genes is None or superior to nb_genes."
+            )
+            return None
+
         if subset_genes is None:
             std_scaler = StandardScaler(with_mean=False)
             std_scaler.fit(self.X.astype(np.float64))
             subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
         self.update_genes(subset_genes)
 
-    def filter_genes(self, gene_names_ref, on='gene_names'):
-        """
-        Same as _filter_genes but overwrites on current dataset instead of returning data,
-        and updates genes names and symbols
-        """
-        _, subset_genes = GeneExpressionDataset._filter_genes(self, gene_names_ref, on=on)
-        self.update_genes(subset_genes)
-
-    def subsample_cells(self, size=1.):
-        n_cells, n_genes = self.X.shape
-        new_n_cells = int(size * n_genes) if type(size) is not int else size
-        indices = np.argsort(np.array(self.X.sum(axis=1)).ravel())[::-1][:new_n_cells]
+    def subsample_cells(self, size: float = 1.0):
+        """Wrapper around ``update_cells`` allowing for automatic (based on sum of counts) subsampling."""
+        new_n_cells = int(size * self.nb_genes) if type(size) is not int else size
+        indices = np.argsort(np.asarray(self.X.sum(axis=1)).ravel())[::-1][:new_n_cells]
         self.update_cells(indices)
 
-    def _cell_type_idx(self, cell_types):
-        if type(cell_types[0]) is not int:
-            cell_types_idx = [np.where(cell_type == self.cell_types)[0][0] for cell_type in cell_types]
+    def _get_genes_filter_mask_by_attribute(
+        self,
+        attribute_values_to_keep: Union[List, np.ndarray],
+        attribute_name: str = "gene_names",
+        return_data: bool = True,
+    ):
+        """Returns a mask with shape (nb_genes,) equal to ``True`` if the filtering condition is.
+
+        Specifically, the mask is true if ``self.attribute_name`` is in ``attribute_values_to_keep``.
+
+        :param attribute_values_to_keep: Values to accept for the filtering attribute.
+        :param attribute_name: Name of the attribute to filter genes on.
+        :param return_data: If True, returns the filtered data along with the mask.
+        """
+        if attribute_name not in self.gene_attribute_names:
+            raise ValueError(
+                "{name} is not a registered gene attribute".format(name=attribute_name)
+            )
+
+        attribute_values = getattr(self, attribute_name)
+        subset_genes = np.isin(attribute_values, attribute_values_to_keep)
+
+        if return_data:
+            return self.X[:, subset_genes], subset_genes
         else:
-            cell_types_idx = cell_types
-        return np.array(cell_types_idx, dtype=np.int64)
+            return subset_genes
+
+    def filter_genes(
+        self, values_to_keep: Union[List, np.ndarray], on: str = "gene_names"
+    ):
+        """Performs in-place gene filtering based on any gene attribute."""
+        subset_genes = self._get_genes_filter_mask_by_attribute(
+            attribute_values_to_keep=values_to_keep,
+            attribute_name=on,
+            return_data=False,
+        )
+        self.update_genes(subset_genes)
+
+    def _get_cells_filter_mask_by_attribute(
+        self,
+        attribute_values_to_keep: Union[List, np.ndarray],
+        attribute_name: str = "labels",
+        return_data: bool = True,
+    ):
+        """Returns a mask with shape (nb_cells,) equal to ``True`` if the filtering condition is.
+
+        Specifically, the mask is true if ``self.attribute_name`` is in ``attribute_values_to_keep``.
+
+        :param attribute_values_to_keep: Values to accept for the filtering attribute.
+        :param attribute_name: Name of the attribute to filter cells on.
+        :param return_data: If True, returns the filtered data along with the mask.
+        """
+        if attribute_name not in self.cell_attribute_names:
+            raise ValueError(
+                "{name} is not a registered cell attribute".format(name=attribute_name)
+            )
+
+        attribute_values = getattr(self, attribute_name)
+        subset_cells = np.isin(attribute_values, attribute_values_to_keep)
+
+        if return_data:
+            return self.X[subset_cells], subset_cells
+        else:
+            return subset_cells
+
+    def cell_types_to_label(self, cell_types: Union[List[str], np.ndarray]):
+        """Forms the list of labels corresponding to the specified ``cell_types``."""
+        labels = [
+            np.where(getattr(self, "cell_types") == cell_type)[0][0] for cell_type in cell_types
+        ]
+        return np.asarray(labels, dtype=np.int64)
 
     def _gene_idx(self, genes):
         if type(genes[0]) is not int:
-            genes_idx = [np.where(gene == self.gene_names)[0][0] for gene in genes]
+            genes_idx = [np.where(gene == getattr(self, "gene_names"))[0][0] for gene in genes]
         else:
             genes_idx = genes
-        return np.array(genes_idx, dtype=np.int64)
+        return np.asarray(genes_idx, dtype=np.int64)
 
-    def filter_cell_types(self, cell_types):
-        """
+    def filter_cell_types(self, cell_types: Union[List[str], List[int], np.ndarray]):
+        """Performs in-place filtering of cells by keeping cell types in ``cell_types``.
+
         :param cell_types: numpy array of type np.int (indices) or np.str (cell-types names)
         :return:
         """
-        cell_types_idx = self._cell_type_idx(cell_types)
-        if hasattr(self, 'cell_types'):
-            self.cell_types = self.cell_types[cell_types_idx]
-            logging.info("Only keeping cell types: \n" + '\n'.join(list(self.cell_types)))
-        idx_to_keep = []
-        for idx in cell_types_idx:
-            idx_to_keep += [np.where(self.labels == idx)[0]]
-        self.update_cells(np.concatenate(idx_to_keep))
-        self.labels, self.n_labels = remap_categories(self.labels, mapping_from=cell_types_idx)
+        cell_types = np.asarray(cell_types)
+        if cell_types.dtype is str:
+            labels = self.cell_types_to_label(cell_types)
 
-    def merge_cell_types(self, cell_types, new_cell_type_name):
-        """
-        Merge some cell types into a new one, a change the labels accordingly.
-        :param merge_cell_types: numpy array of type np.int (indices) or np.str (cell-types names)
-        :return:
-        """
-        cell_types_idx = self._cell_type_idx(cell_types)
-        for idx_from in zip(cell_types_idx):
-            self.labels[self.labels == idx_from] = len(self.labels)  # Put at the end the new merged cell-type
-        self.labels, self.n_labels = remap_categories(self.labels)
-        if hasattr(self, 'cell_types') and type(cell_types[0]) is not int:
-            new_cell_types = list(self.cell_types)
-            for cell_type in cell_types:
-                new_cell_types.remove(cell_type)
-            new_cell_types.append(new_cell_type_name)
-            self.cell_types = np.array(new_cell_types)
+        elif cell_types.dtype is int:
+            labels = cell_types
 
-    def map_cell_types(self, cell_types_dict):
+        else:
+            raise ValueError(
+                "Wrong dtype for cell_types. Should be either str or int (labels)."
+            )
+
+        subset_cells = self._get_cells_filter_mask_by_attribute(
+            attribute_name="labels", attribute_values_to_keep=labels, return_data=False
+        )
+
+        self.update_cells(subset_cells)
+
+    def merge_cell_types(
+        self,
+        cell_types: Union[Tuple[int, ...], Tuple[str, ...], List[int], List[str], np.ndarray],
+        new_cell_type_name: str = None,
+    ):
+        """Merges some cell types into a new one, and changes the labels accordingly.
+
+        :param cell_types: Cell types to merge.
+        :param new_cell_type_name: Name for the new aggregate cell type.
         """
-        A map for the cell types to keep, and optionally merge together under a new name (value in the dict)
-        :param cell_types_dict: a dictionary with tuples (str or int) as input and value (str or int) as output
+        labels_subset = self.cell_types_to_label(cell_types)
+        # labels should be set not muted
+        new_labels = self.labels
+        new_labels[
+            np.isin(new_labels, labels_subset)
+        ] = self.n_labels  # Put at the end the new merged cell-type
+        self.labels = new_labels
+        if new_cell_type_name:
+            getattr(self, "cell_types")[-1] = new_cell_type_name
+
+    def map_cell_types(
+        self,
+        cell_types_dict: Dict[Union[int, str, Tuple[int, ...], Tuple[str, ...]], str],
+    ):
+        """Performs in-place filtering of cells using a cell type mapping.
+
+        Cell types in the keys of ``cell_types_dict`` are merged and given the name of the associated value
+
+        :param cell_types_dict: dictionary with tuples of cell types to merge as keys
+            and new cell type names as values.
         """
-        keys = [(key,) if type(key) is not tuple else key for key in cell_types_dict.keys()]
+        keys = [
+            (key,) if type(key) is not tuple else key for key in cell_types_dict.keys()
+        ]
         cell_types = [cell_type for cell_types in keys for cell_type in cell_types]
         self.filter_cell_types(cell_types)
         for cell_types, new_cell_type_name in cell_types_dict.items():
