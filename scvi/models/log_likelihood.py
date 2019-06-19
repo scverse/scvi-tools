@@ -39,15 +39,11 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
     for i_batch, tensors in enumerate(posterior):
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[:5]  # general fish case
 
-        if hasattr(vae, 'reconstruction_loss_fish'):
-            # If vae is a VAEF instance. To remove when the latter is replaced by the new class
-            reconst_loss, _ = vae(sample_batch, local_l_mean, local_l_var, batch_index=batch_index, y=labels, **kwargs)
-        else:
-            # Distribution parameters
-            px_r, px_rate, px_dropout = vae.inference(sample_batch, batch_index, labels)[1:4]
+        # Distribution parameters
+        px_r, px_rate, px_dropout = vae.inference(sample_batch, batch_index, labels, **kwargs)[1:4]
 
-            # Reconstruction loss
-            reconst_loss = vae.get_reconstruction_loss(sample_batch, px_rate, px_r, px_dropout)
+        # Reconstruction loss
+        reconst_loss = vae.get_reconstruction_loss(sample_batch, px_rate, px_r, px_dropout, **kwargs)
 
         log_lkl += torch.sum(reconst_loss).item()
     n_samples = len(posterior.indices)

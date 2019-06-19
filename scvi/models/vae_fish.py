@@ -191,13 +191,7 @@ class VAEF(VAE):
         z = self.sample_from_posterior_z(x, mode)
         return self.classifier(z)
 
-    def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout, batch_index, y, mode="scRNA", weighting=1):
-        if self.dispersion == "gene-label":
-            px_r = F.linear(one_hot(y, self.n_labels), self.px_r)  # px_r gets transposed - last dimension is nb genes
-        elif self.dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
-        elif self.dispersion == "gene":
-            px_r = self.px_r
+    def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout, mode="scRNA", weighting=1):
 
         # Reconstruction Loss
         if mode == "scRNA":
@@ -208,27 +202,12 @@ class VAEF(VAE):
 
         else:
             if self.reconstruction_loss_fish == 'poisson':
-                reconst_loss = -torch.sum(Poisson(px_rate).log_prob(x), dim=1)
+                reconst_loss = -torch.sum(Poisson(px_rate).log_prob(x[:, self.indexes_to_keep]), dim=1)
             elif self.reconstruction_loss_fish == 'gaussian':
-                reconst_loss = -torch.sum(Normal(px_rate, 10).log_prob(x), dim=1)
+                reconst_loss = -torch.sum(Normal(px_rate, 10).log_prob(x[:, self.indexes_to_keep]), dim=1)
         return reconst_loss
 
-    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None, mode="scRNA", weighting=1):
-        r""" Returns the reconstruction loss and the Kullback divergences
-
-        :param x: tensor of values with shape ``(batch_size, n_input)``
-            or ``(batch_size, n_input_fish)`` depending on the mode
-        :param local_l_mean: tensor of means of the prior distribution of latent variable l
-            with shape (batch_size, 1)
-        :param local_l_var: tensor of variances of the prior distribution of latent variable l
-            with shape (batch_size, 1)
-        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
-        :param y: tensor of cell-types labels with shape (batch_size, n_labels)
-        :param mode: string that indicates the type of data we analyse
-        :param weighting: used in none of these methods
-        :return: the reconstruction loss and the Kullback divergences
-        :rtype: 2-tuple of :py:class:`torch.FloatTensor`
-        """
+    def inference(self, x, batch_index=None, y=None, mode="scRNA", weighting=1):
         x_ = x
         if self.log_variational:
             x_ = torch.log(1 + x_)
@@ -246,6 +225,8 @@ class VAEF(VAE):
                 ql_m, ql_v, library = self.l_encoder(x_)
             elif mode == "smFISH":
                 ql_m, ql_v, library = self.l_encoder_fish(x_[:, self.indexes_to_keep])
+        else:
+            ql_m, ql_v = None, None
 
         qz_m, qz_v, z = self.z_final_encoder(z)
         px_scale, px_r, px_rate, px_dropout = self.decoder(self.dispersion, z, library, batch_index)
@@ -254,17 +235,43 @@ class VAEF(VAE):
         if mode == "smFISH":
             if self.model_library:
                 px_rate = px_scale[:, self.indexes_to_keep] * torch.exp(library)
-                reconst_loss = self.get_reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r, px_dropout,
-                                                            batch_index, y, mode)
             else:
                 px_scale = px_scale[:, self.indexes_to_keep] / torch.sum(
                     px_scale[:, self.indexes_to_keep], dim=1).view(-1, 1)
                 px_rate = px_scale * torch.exp(library)
-                reconst_loss = self.get_reconstruction_loss(x[:, self.indexes_to_keep], px_rate, px_r, px_dropout,
-                                                            batch_index, y, mode)
 
-        else:
-            reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout, batch_index, y, mode, weighting)
+        if self.dispersion == "gene-label":
+            px_r = F.linear(one_hot(y, self.n_labels), self.px_r)  # px_r gets transposed - last dimension is nb genes
+        elif self.dispersion == "gene-batch":
+            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+        elif self.dispersion == "gene":
+            px_r = self.px_r
+
+        return px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library
+
+    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None, mode="scRNA", weighting=1):
+        r""" Returns the reconstruction loss and the Kullback divergences
+
+        :param x: tensor of values with shape ``(batch_size, n_input)``
+            or ``(batch_size, n_input_fish)`` depending on the mode
+        :param local_l_mean: tensor of means of the prior distribution of latent variable l
+            with shape (batch_size, 1)
+        :param local_l_var: tensor of variances of the prior distribution of latent variable l
+            with shape (batch_size, 1)
+        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
+        :param y: tensor of cell-types labels with shape (batch_size, n_labels)
+        :param mode: string that indicates the type of data we analyse
+        :param weighting: used in none of these methods
+        :return: the reconstruction loss and the Kullback divergences
+        :rtype: 2-tuple of :py:class:`torch.FloatTensor`
+        """
+
+        # Parameters for z latent distribution
+        px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library = self.inference(x, batch_index, y,
+                                                                                                 mode, weighting)
+
+        # Reconstruction Loss
+        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout, mode, weighting)
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)
