@@ -1039,7 +1039,8 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
     :param urls: single or multiple url.s from which to download the data.
     :param filenames: filenames for the downloaded data.
     :param save_path: path to data storage.
-    :param delayed_populating: If True, load
+    :param delayed_populating: If False, populate object upon isntantiation.
+        Else, allow for a delayed manual call to ``populate`` method.
     """
 
     def __init__(
@@ -1047,6 +1048,7 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
         urls: Union[str, List[str]],
         filenames: Union[str, List[str]] = None,
         save_path: str = "data/",
+        delayed_populating: bool = False,
     ):
         super().__init__()
         if not isinstance(urls, str):
@@ -1061,14 +1063,20 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
             self.filenames = filenames
 
         self.save_path = save_path
+        self.download()
+        if not delayed_populating:
+            self.populate()
 
     def download(self):
         for url, download_name in zip(self.urls, self.filenames):
             _download(url, self.save_path, download_name)
 
     @abstractmethod
-    def preprocess(self):
-        """Performs a canonical preprocessing of a specific dataset."""
+    def populate(self):
+        """Populates a ``DonwloadableDataset`` object's data attributes.
+
+        E.g by calling one of ``GeneExpressionDataset``'s ``populate_from...`` methods.
+        """
         pass
 
 
