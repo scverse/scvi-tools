@@ -9,7 +9,7 @@ import urllib.request
 
 from abc import abstractmethod, ABC
 from collections import defaultdict
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional
 
 import numpy as np
 import scipy.sparse as sp_sparse
@@ -68,36 +68,52 @@ class GeneExpressionDataset(Dataset):
 
         self.local_means = None
         self.local_vars = None
-        self.cell_attribute_names.update(["local_means", "local_vars"])
 
-        # set the data hidden attribute, which also compute the local means and vars
-        self.X = (
+        # set the data hidden attribute
+        self._X = (
             np.ascontiguousarray(X, dtype=np.float32)
             if isinstance(X, np.ndarray)
             else X
         )
 
-        # handle attributes with defaults
-        self.batch_indices = np.asarray(batch_indices) if batch_indices else np.zeros((len(X), 1))
-        self.cell_attribute_names.add("batch_indices")
-        self.labels = np.asarray(labels) if labels else np.zeros((len(X), 1))
-        self.cell_attribute_names.add("labels")
+        self._norm_X = None
+        self._corrupted_X = None
 
-        # handle optional attributes
+        # Important to add cell_types before labels, in case of label remapping
+        self.gene_names = None
         if gene_names is not None:
             self.initialize_gene_attribute(
-                np.asarray(gene_names, dtype=np.str), "gene_names"
+                "gene_names", np.asarray(gene_names, dtype=np.str)
             )
         if cell_types is not None:
             self.initialize_mapped_attribute(
                 "labels", "cell_types", np.asarray(cell_types, dtype=np.str)
             )
 
+        # handle attributes with defaults
+        self.batch_indices = (
+            np.asarray(batch_indices).reshape((-1, 1))
+            if batch_indices is not None
+            else np.zeros((len(X), 1))
+        )
+        self.cell_attribute_names.add("batch_indices")
+        self.labels = (
+            np.asarray(labels).reshape((-1, 1))
+            if labels is not None
+            else np.zeros((len(X), 1))
+        )
+        self.cell_attribute_names.add("labels")
+
+        self.compute_library_size_batch()
+        self.cell_attribute_names.update(["local_means", "local_vars"])
+
         # handle additional attributes
-        for attribute_name, attribute_value in cell_attributes_dict.items():
-            self.initialize_cell_attribute(attribute_name, attribute_value)
-        for attribute_name, attribute_value in gene_attributes_dict.items():
-            self.initialize_gene_attribute(attribute_name, attribute_value)
+        if cell_attributes_dict:
+            for attribute_name, attribute_value in cell_attributes_dict.items():
+                self.initialize_cell_attribute(attribute_name, attribute_value)
+        if gene_attributes_dict:
+            for attribute_name, attribute_value in gene_attributes_dict.items():
+                self.initialize_gene_attribute(attribute_name, attribute_value)
 
     def __len__(self):
         return self.X.shape[0]
@@ -116,6 +132,7 @@ class GeneExpressionDataset(Dataset):
         self._X = X
         logger.info("Computing the library size for the new data")
         self.compute_library_size_batch()
+        self.dataset_versions.clear()
 
     @property
     def nb_cells(self) -> int:
@@ -153,6 +170,7 @@ class GeneExpressionDataset(Dataset):
     @labels.setter
     def labels(self, labels: Union[List[int], np.ndarray]):
         """Ensures that labels are always mapped to [0, 1, .., n_labels] and tracks cell_types accordingly."""
+        logger.info("Remapping labels to [0,N]")
         new_labels, new_n_labels = remap_categories(labels)
         self._labels = new_labels
         self._n_labels = new_n_labels
@@ -164,7 +182,7 @@ class GeneExpressionDataset(Dataset):
         """Remaps cell_types using new labels."""
         new_cell_types = []
         n_unknown_cell_types = 0
-        for new_label in np.unique(labels).astype(np.int64):
+        for new_label in np.unique(labels).astype(np.uint16):
             if new_label < self.n_labels:
                 new_cell_types.append(getattr(self, "cell_types")[new_label])
             # if new cell_type, needs to be set elsewhere, using 'unknown_c...' in the meantime
@@ -183,44 +201,42 @@ class GeneExpressionDataset(Dataset):
 
     @property
     def norm_X(self) -> Union[sp_sparse.csr_matrix, np.ndarray]:
-        """Forms a normalized version of X or returns it if it's already been computed."""
-        if not hasattr(self, "_norm_X"):
-            scaling_factor = self.X.mean(axis=1)
-            self._norm_X = self.X / scaling_factor.reshape(len(scaling_factor), 1)
-            self.register_dataset_version("norm_X")
+        """Returns a normalized version of X."""
         return self._norm_X
 
     @norm_X.setter
     def norm_X(self, norm_X: Union[sp_sparse.csr_matrix, np.ndarray]):
         self._norm_X = norm_X
+        self.register_dataset_version("norm_X")
 
     @property
     def corrupted_X(self) -> Union[sp_sparse.csr_matrix, np.ndarray]:
-        """Returns the corrupted version of X or stores a copy of X in corrupted_X if it doesn't exist."""
-        if not hasattr(self, "_corrupted_X"):
-            logger.info("Storing a copy of X to be corrupted ")
-            self._corrupted_X = copy.deepcopy(self.X)
-            self.register_dataset_version("corrupted_X")
+        """Returns the corrupted version of X."""
         return self._corrupted_X
 
     @corrupted_X.setter
     def corrupted_X(self, corrupted_X: Union[sp_sparse.csr_matrix, np.ndarray]):
         self._corrupted_X = corrupted_X
+        self.register_dataset_version("corrupted_X")
 
     def register_dataset_version(self, version_name):
-        """Registers a version of the dataset, e.g normalized."""
+        """Registers a version of the dataset, e.g normalized version."""
         self.dataset_versions.add(version_name)
 
-    def initialize_cell_attribute(self, attribute, attribute_name):
+    def initialize_cell_attribute(self, attribute_name, attribute):
         """Sets and registers a cell-wise attribute, e.g annotation information."""
         if not self.nb_cells == len(attribute):
-            raise ValueError("Number of cells and length of cell attribute mismatch")
+            raise ValueError(
+                "Number of cells ({n_cells}) and length of cell attribute ({n_attr}) mismatch".format(
+                    n_cells=self.nb_cells, n_attr=len(attribute)
+                )
+            )
         setattr(self, attribute_name, attribute)
         self.cell_attribute_names.add(attribute_name)
 
-    def initialize_gene_attribute(self, attribute, attribute_name):
+    def initialize_gene_attribute(self, attribute_name, attribute):
         """Sets and registers a gene-wise attribute, e.g annotation information."""
-        if not self.nb_cells == len(attribute):
+        if not self.nb_genes == len(attribute):
             raise ValueError("Number of genes and length of gene attribute mismatch")
         setattr(self, attribute_name, attribute)
         self.gene_attribute_names.add(attribute_name)
@@ -234,8 +250,7 @@ class GeneExpressionDataset(Dataset):
         ):
             raise ValueError("Number of labels and cell types mismatch")
         self.attribute_mappings[source_attribute_name].append(mapping_name)
-        if mapping_values:
-            setattr(self, mapping_name, mapping_values)
+        setattr(self, mapping_name, mapping_values)
 
     def compute_library_size_batch(self):
         """Computes the library size per batch."""
@@ -243,9 +258,9 @@ class GeneExpressionDataset(Dataset):
         self.local_vars = np.zeros((self.nb_cells, self.nb_genes))
         for i_batch in range(self.n_batches):
             idx_batch = (self.batch_indices == i_batch).ravel()
-            self.local_means[idx_batch], self.local_vars[idx_batch] = compute_library_size(
-                self.X[idx_batch]
-            )
+            self.local_means[idx_batch], self.local_vars[
+                idx_batch
+            ] = compute_library_size(self.X[idx_batch])
 
     def collate_fn(
         self, batch: Union[List[int], np.ndarray]
@@ -311,14 +326,11 @@ class GeneExpressionDataset(Dataset):
             setattr(self, attribute_name, attr[subset_genes])
 
         # remove non-expressing cells
-        mask_cells_to_keep = np.asarray(self.X.sum(axis=1) > 0)
-        removed_idx = np.logical_not(mask_cells_to_keep).nonzero()[0]
-        if len(self.X) != len(removed_idx):
-            logger.info(
-                "Cells with zero expression in all genes considered were removed, "
-                "the indices of the removed cells in the expression matrix were: "
-                "{idxs}".format(idxs=removed_idx)
-            )
+        logger.info("Filtering non-expressing cells.")
+        self.filter_cells(1)
+
+    def filter_cells(self, min_count=1):
+        mask_cells_to_keep = np.asarray(self.X.sum(axis=1) >= min_count)
         self.update_cells(mask_cells_to_keep)
 
     def update_cells(self, subset_cells):
@@ -352,30 +364,92 @@ class GeneExpressionDataset(Dataset):
 
     def subsample_genes(
         self,
-        new_n_genes: int = None,
-        subset_genes: Union[List[int], List[bool], np.ndarray] = None,
+        new_n_genes: Optional[int] = None,
+        new_ratio_genes: Optional[float] = None,
+        subset_genes: Optional[Union[List[int], List[bool], np.ndarray]] = None,
     ):
-        """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling."""
-        # Do nothing if asked to subsample more genes than total number of genes
-        if subset_genes is None and (
-            new_n_genes is False or new_n_genes >= self.nb_genes
-        ):
-            logger.info(
-                "Not subsampling since new_n_genes is None or superior to nb_genes."
-            )
-            return None
+        """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling.
 
-        if subset_genes is None:
+        The function either:
+            * Subsample `new_n_genes` genes among all genes
+            * Subsamble a proportion of `new_ratio_genes` of the genes
+            * Subsample the genes in `subset_genes`
+
+        :param subset_genes: list of indices or mask of genes to retain
+        :param new_n_genes: number of genes to retain, the highly variable genes will be kept
+        :param new_ratio_genes: proportion of genes to retain, the highly variable genes will be kept
+
+
+        """
+        if new_ratio_genes is not None:
+            if 0 < new_ratio_genes < 1:
+                new_n_genes = int(new_ratio_genes * self.nb_cells)
+            else:
+                logger.info(
+                    "Not subsampling. Expecting 0 < (new_ratio_genes={new_ratio_genes})  < 1.".format(
+                        new_ratio_genes=new_ratio_genes
+                    )
+                )
+                return
+
+        if new_n_genes is not None:
+            if new_n_genes >= self.nb_genes or new_n_genes < 1:
+                logger.info(
+                    "Not subsampling. Expecting: 1 < (new_n_genes={new_n_genes}) <= self.nb_genes".format(
+                        new_n_genes=new_n_genes
+                    )
+                )
+                return
+
             std_scaler = StandardScaler(with_mean=False)
             std_scaler.fit(self.X.astype(np.float64))
             subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
+
+        if subset_genes is None:
+            logger.info(
+                "Not subsampling. No parameter given".format(new_n_genes=new_n_genes)
+            )
+            return
+
         self.update_genes(subset_genes)
 
-    def subsample_cells(self, size: float = 1.0):
-        """Wrapper around ``update_cells`` allowing for automatic (based on sum of counts) subsampling."""
+    def subsample_cells(self, size: Union[int, float] = 1.0):
+        """Wrapper around ``update_cells`` allowing for automatic (based on sum of counts) subsampling.
+        If size is a:
+            * (0,1) float: subsample 100*``size`` % of the cells
+            * int: subsample ``size`` cells
+        """
         new_n_cells = int(size * self.nb_genes) if type(size) is not int else size
         indices = np.argsort(np.asarray(self.X.sum(axis=1)).ravel())[::-1][:new_n_cells]
         self.update_cells(indices)
+
+    def reorder_genes(self, first_genes: Union[List[str], np.ndarray]):
+        """
+        Performs a in-place reordering of genes and gene-related attributes.
+
+        Reorder genes according to the ``first_genes`` list of gene names.
+        Consequently, modifies in-place the data ``X`` and the registered gene attributes.
+
+        :param first_genes: New ordering of the genes; if some genes are missing, they will be added after the
+                            first_genes in the same order as they before
+        """
+
+        common_genes, new_order_first, _ = np.intersect1d(
+            first_genes, self.gene_names, return_indices=True
+        )
+        new_order_second = [x for x in range(self.nb_genes) if x not in new_order_first]
+        new_order = np.hstack([new_order_first, new_order_second])
+
+        # update datasets
+        self.X = self.X[:, new_order]
+        for version_name in self.dataset_versions:
+            data = getattr(self, version_name)
+            setattr(self, version_name, data[:, new_order])
+
+        # update gene-related attributes accordingly
+        for attribute_name in self.gene_attribute_names:
+            attr = getattr(self, attribute_name)
+            setattr(self, attribute_name, attr[new_order])
 
     def _get_genes_filter_mask_by_attribute(
         self,
@@ -445,13 +519,16 @@ class GeneExpressionDataset(Dataset):
     def cell_types_to_label(self, cell_types: Union[List[str], np.ndarray]):
         """Forms the list of labels corresponding to the specified ``cell_types``."""
         labels = [
-            np.where(getattr(self, "cell_types") == cell_type)[0][0] for cell_type in cell_types
+            np.where(getattr(self, "cell_types") == cell_type)[0][0]
+            for cell_type in cell_types
         ]
         return np.asarray(labels, dtype=np.int64)
 
     def _gene_idx(self, genes):
         if type(genes[0]) is not int:
-            genes_idx = [np.where(gene == getattr(self, "gene_names"))[0][0] for gene in genes]
+            genes_idx = [
+                np.where(gene == getattr(self, "gene_names"))[0][0] for gene in genes
+            ]
         else:
             genes_idx = genes
         return np.asarray(genes_idx, dtype=np.int64)
@@ -481,7 +558,9 @@ class GeneExpressionDataset(Dataset):
 
     def merge_cell_types(
         self,
-        cell_types: Union[Tuple[int, ...], Tuple[str, ...], List[int], List[str], np.ndarray],
+        cell_types: Union[
+            Tuple[int, ...], Tuple[str, ...], List[int], List[str], np.ndarray
+        ],
         new_cell_type_name: str = None,
     ):
         """Merges some cell types into a new one, and changes the labels accordingly.
@@ -518,6 +597,10 @@ class GeneExpressionDataset(Dataset):
         for cell_types, new_cell_type_name in cell_types_dict.items():
             self.merge_cell_types(cell_types, new_cell_type_name)
 
+    def normalize(self):
+        scaling_factor = self.X.mean(axis=1)
+        self.norm_X = self.X / scaling_factor.reshape(len(scaling_factor), 1)
+
     def corrupt(self, rate=0.1, corruption="uniform"):
         """Forms a corrupted_X attribute containing a corrupted version of X.
 
@@ -531,6 +614,7 @@ class GeneExpressionDataset(Dataset):
         :param rate: Rate of corrupted entries.
         :param corruption: Corruption method.
         """
+        self.corrupted_X = copy.deepcopy(self.X)
         if (
             corruption == "uniform"
         ):  # multiply the entry n with a Ber(0.9) random variable.
@@ -543,7 +627,7 @@ class GeneExpressionDataset(Dataset):
             )
         elif (
             corruption == "binomial"
-        ):  # multiply the entry n with a Bin(n, 0.2) random variable.
+        ):  # replace the entry n with a Bin(n, 0.2) random variable.
             i, j = (k.ravel() for k in np.indices(self.X.shape))
             ix = np.random.choice(len(i), int(np.floor(rate * len(i))), replace=False)
             i, j = i[ix], j[ix]
@@ -720,7 +804,7 @@ class GeneExpressionDataset(Dataset):
         # keep gene attributes of first dataset, and keep all mappings (e.g gene types)
         for attribute_name in gene_attributes_to_keep:
             dataset.initialize_gene_attribute(
-                getattr(gene_datasets[0], attribute_name), attribute_name
+                attribute_name, getattr(gene_datasets[0], attribute_name)
             )
             for gene_dataset in gene_datasets:
                 mapping_names = gene_dataset.attribute_mappings[attribute_name]
@@ -792,7 +876,7 @@ class GeneExpressionDataset(Dataset):
                 )
 
             dataset.initialize_cell_attribute(
-                np.concatenate(attribute_values), attribute_name
+                attribute_name, np.concatenate(attribute_values)
             )
 
             for mapping_name, mapping_values in mappings.items():
@@ -888,7 +972,7 @@ class SpatialGeneExpressionDataset(GeneExpressionDataset):
             labels=labels,
             gene_names=gene_names,
             cell_types=cell_types,
-            cell_attributes_dict={"x_coord": x_coord, "y_coord": y_coord}
+            cell_attributes_dict={"x_coord": x_coord, "y_coord": y_coord},
         )
 
     def make_tensor_batch_from_indices(
@@ -914,7 +998,7 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
     """Sub-class of ``GeneExpressionDataset`` which downloads its data to disk and
     then populates its attributes with it.
 
-    In particular, it has a ``delayed_populating`` parameter allowing for instantiaton
+    In particular, it has a ``delayed_populating`` parameter allowing for instantiation
     without populating the attributes.
 
     :param urls: single or multiple url.s from which to download the data.
@@ -936,14 +1020,16 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
             self.urls = urls
         else:
             self.urls = [urls]
-        self.filenames = (
-            filenames
-            if filenames
-            else ["dataset_{i}".format(i=i) for i in range(len(self.urls))]
-        )
-        self.save_path = save_path
+        if type(filenames) == str:
+            self.filenames = [filenames]
+        elif filenames is None:
+            self.filenames = ["dataset_{i}".format(i=i) for i in range(len(self.urls))]
+        else:
+            self.filenames = filenames
 
-        self.download()
+        self.save_path = save_path
+        # FIXME: no download if file exists
+        # self.download()
 
         if not delayed_populating:
             self.populate(preprocess=preprocess)
@@ -987,18 +1073,18 @@ def _download(url, save_path, filename):
     if os.path.exists(os.path.join(save_path, filename)):
         logger.info("File %s already downloaded" % (os.path.join(save_path, filename)))
         return
-    else:
-        r = urllib.request.urlopen(url)
-        logger.info("Downloading file at %s" % os.path.join(save_path, filename))
 
-        def read_iter(f, blocksize=1000):
-            """Given a file 'f', returns an iterator that returns bytes of
-            size 'blocksize' from the file, using read()."""
-            while True:
-                data = f.read(blocksize)
-                if not data:
-                    break
-                yield data
+    r = urllib.request.urlopen(url)
+    logger.info("Downloading file at %s" % os.path.join(save_path, filename))
+
+    def read_iter(file, block_size=1000):
+        """Given a file 'file', returns an iterator that returns bytes of
+        size 'blocksize' from the file, using read()."""
+        while True:
+            block = file.read(block_size)
+            if not block:
+                break
+            yield block
 
     # Create the path to save the data
     if not os.path.exists(save_path):
