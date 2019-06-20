@@ -968,7 +968,7 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
     """Sub-class of ``GeneExpressionDataset`` which downloads its data to disk and
     then populates its attributes with it.
 
-    In particular, it has a ``delayed_populating`` parameter allowing for instantiaton
+    In particular, it has a ``delayed_populating`` parameter allowing for instantiation
     without populating the attributes.
 
     :param urls: single or multiple url.s from which to download the data.
@@ -1041,18 +1041,18 @@ def _download(url, save_path, filename):
     if os.path.exists(os.path.join(save_path, filename)):
         logger.info("File %s already downloaded" % (os.path.join(save_path, filename)))
         return
-    else:
-        r = urllib.request.urlopen(url)
-        logger.info("Downloading file at %s" % os.path.join(save_path, filename))
 
-        def read_iter(f, blocksize=1000):
-            """Given a file 'f', returns an iterator that returns bytes of
-            size 'blocksize' from the file, using read()."""
-            while True:
-                data = f.read(blocksize)
-                if not data:
-                    break
-                yield data
+    r = urllib.request.urlopen(url)
+    logger.info("Downloading file at %s" % os.path.join(save_path, filename))
+
+    def read_iter(file, block_size=1000):
+        """Given a file 'file', returns an iterator that returns bytes of
+        size 'blocksize' from the file, using read()."""
+        while True:
+            block = file.read(block_size)
+            if not block:
+                break
+            yield block
 
     # Create the path to save the data
     if not os.path.exists(save_path):
