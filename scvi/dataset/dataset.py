@@ -1067,28 +1067,9 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
             _download(url, self.save_path, download_name)
 
     @abstractmethod
-    def load_from_disk(self):
-        """Loads the data from disk and returns it in the form of the kwargs
-        to a GeneExpressionDataset constructor."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def preprocess(self, **kwargs):
-        """Performs a canonical preprocessing of a specific dataset
-        and returns the modified kwargs to the GeneExpressionDataset."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def instantiate_gene_expression_dataset(self, **kwargs):
-        """Forms the dataset by calling on of GeneExpressionDataset's constructors."""
-        raise NotImplementedError
-
-    # def populate(self, preprocess: bool = True):
-    #     """Canonical workflow for populating a DonwloadableDataset subclass."""
-    #     gene_dataset_kwargs = self.load_from_disk()
-    #     if preprocess:
-    #         gene_dataset_kwargs = self.preprocess(**gene_dataset_kwargs)
-    #     self.instantiate_gene_expression_dataset(**gene_dataset_kwargs)
+    def preprocess(self):
+        """Performs a canonical preprocessing of a specific dataset."""
+        pass
 
 
 def _download(url, save_path, filename):
