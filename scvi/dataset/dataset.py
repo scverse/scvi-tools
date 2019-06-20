@@ -68,23 +68,23 @@ class GeneExpressionDataset(Dataset):
 
         self.local_means = None
         self.local_vars = None
-        self.cell_attribute_names.update(["local_means", "local_vars"])
 
-        # set the data hidden attribute, which also compute the local means and vars
-        self.X = (
-            np.ascontiguousarray(X, dtype=np.float32)
-            if isinstance(X, np.ndarray)
-            else X
-        )
+        # set the data hidden attribute
+        self._X = np.ascontiguousarray(X, dtype=np.float32) if isinstance(X, np.ndarray) else X
 
         self._norm_X = None
         self._corrupted_X = None
 
         # handle attributes with defaults
-        self.batch_indices = np.asarray(batch_indices) if batch_indices else np.zeros((len(X), 1))
+        self.batch_indices = (
+            np.asarray(batch_indices).reshape((-1, 1)) if batch_indices is not None else np.zeros((len(X), 1))
+        )
         self.cell_attribute_names.add("batch_indices")
-        self.labels = np.asarray(labels) if labels else np.zeros((len(X), 1))
+        self.labels = np.asarray(labels).reshape((-1, 1)) if labels is not None else np.zeros((len(X), 1))
         self.cell_attribute_names.add("labels")
+
+        self.compute_library_size_batch()
+        self.cell_attribute_names.update(["local_means", "local_vars"])
 
         # handle optional attributes
         self.gene_names = None
@@ -98,10 +98,12 @@ class GeneExpressionDataset(Dataset):
             )
 
         # handle additional attributes
-        for attribute_name, attribute_value in cell_attributes_dict.items():
-            self.initialize_cell_attribute(attribute_name, attribute_value)
-        for attribute_name, attribute_value in gene_attributes_dict.items():
-            self.initialize_gene_attribute(attribute_name, attribute_value)
+        if cell_attributes_dict:
+            for attribute_name, attribute_value in cell_attributes_dict.items():
+                self.initialize_cell_attribute(attribute_name, attribute_value)
+        if gene_attributes_dict:
+            for attribute_name, attribute_value in gene_attributes_dict.items():
+                self.initialize_gene_attribute(attribute_name, attribute_value)
 
     def __len__(self):
         return self.X.shape[0]
@@ -247,9 +249,7 @@ class GeneExpressionDataset(Dataset):
         self.local_vars = np.zeros((self.nb_cells, self.nb_genes))
         for i_batch in range(self.n_batches):
             idx_batch = (self.batch_indices == i_batch).ravel()
-            self.local_means[idx_batch], self.local_vars[idx_batch] = compute_library_size(
-                self.X[idx_batch]
-            )
+            self.local_means[idx_batch], self.local_vars[idx_batch] = compute_library_size(self.X[idx_batch])
 
     def collate_fn(
         self, batch: Union[List[int], np.ndarray]
