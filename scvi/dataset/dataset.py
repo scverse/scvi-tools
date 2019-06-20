@@ -77,6 +77,9 @@ class GeneExpressionDataset(Dataset):
             else X
         )
 
+        self._norm_X = None
+        self._corrupted_X = None
+
         # handle attributes with defaults
         self.batch_indices = np.asarray(batch_indices) if batch_indices else np.zeros((len(X), 1))
         self.cell_attribute_names.add("batch_indices")
@@ -84,6 +87,7 @@ class GeneExpressionDataset(Dataset):
         self.cell_attribute_names.add("labels")
 
         # handle optional attributes
+        self.gene_names = None
         if gene_names is not None:
             self.initialize_gene_attribute(
                 np.asarray(gene_names, dtype=np.str), "gene_names"
@@ -164,7 +168,7 @@ class GeneExpressionDataset(Dataset):
         """Remaps cell_types using new labels."""
         new_cell_types = []
         n_unknown_cell_types = 0
-        for new_label in np.unique(labels).astype(np.int64):
+        for new_label in np.unique(labels).astype(np.uint16):
             if new_label < self.n_labels:
                 new_cell_types.append(getattr(self, "cell_types")[new_label])
             # if new cell_type, needs to be set elsewhere, using 'unknown_c...' in the meantime
