@@ -16,9 +16,9 @@ class UnsupervisedTrainer(Trainer):
         :gene_dataset: A gene_dataset instance like ``CortexDataset()``
         :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
          to use Default: ``0.8``.
-        :n_epochs_kl_warmup: Number of epochs for linear warmup of KL(q(z)||p(z)) term. After `n_epochs_kl_warmup`,
-            the training objective is the ELBO. This might be used to prevent inactivity of latent units, or to improve
-            clustering of latent space, as a long warmup turns the model into something more of an autoencoder.
+        :n_epochs_kl_warmup: Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
+            the training objective is the ELBO. This might be used to prevent inactivity of latent units, and/or to
+            improve clustering of latent space, as a long warmup turns the model into something more of an autoencoder.
         :\*\*kwargs: Other keywords arguments from the general Trainer class.
 
     Examples:
@@ -31,7 +31,7 @@ class UnsupervisedTrainer(Trainer):
     """
     default_metrics_to_monitor = ['elbo']
 
-    def __init__(self, model, gene_dataset, train_size=0.8, test_size=None, n_epochs_kl_warmup=None, **kwargs):
+    def __init__(self, model, gene_dataset, train_size=0.8, test_size=None, n_epochs_kl_warmup=400, **kwargs):
         super().__init__(model, gene_dataset, **kwargs)
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         if type(self) is UnsupervisedTrainer:
