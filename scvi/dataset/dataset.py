@@ -583,7 +583,11 @@ class GeneExpressionDataset(Dataset):
         )
 
     @classmethod
-    def from_batch_array(cls, X: np.ndarray) -> "GeneExpressionDataset":
+    def from_per_batch_array(
+        cls,
+        X: np.ndarray,
+        gene_names: Union[List[str], np.ndarray, sp_sparse.csr_matrix] = None,
+    ) -> "GeneExpressionDataset":
         """Forms a GeneExpressionDataset from an array with shape (n_batches, nb_cells, nb_genes).
 
         :param X: np.ndarray with shape (n_batches, nb_cells, nb_genes).
@@ -596,13 +600,14 @@ class GeneExpressionDataset(Dataset):
         batch_indices = np.arange(X.shape[0])[:, None] * np.ones(X.shape[1])[None, :]
         batch_indices = batch_indices.reshape(-1)
         X = X.reshape(-1, X.shape[2])
-        return cls(X=X, batch_indices=batch_indices)
+        return cls(X=X, batch_indices=batch_indices, gene_names=gene_names)
 
     @classmethod
     def from_per_batch_list(
         cls,
         Xs: List[Union[sp_sparse.csr_matrix, np.ndarray]],
         list_labels: List[Union[List[int], np.ndarray]] = None,
+        gene_names: Union[List[str], np.ndarray, sp_sparse.csr_matrix] = None,
     ) -> "GeneExpressionDataset":
         """Forms a GeneExpressionDataset from a list of batch.
 
