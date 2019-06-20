@@ -9,7 +9,7 @@ import urllib.request
 
 from abc import abstractmethod, ABC
 from collections import defaultdict
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional
 
 import numpy as np
 import scipy.sparse as sp_sparse
@@ -356,23 +356,52 @@ class GeneExpressionDataset(Dataset):
 
     def subsample_genes(
         self,
-        new_n_genes: int = None,
-        subset_genes: Union[List[int], List[bool], np.ndarray] = None,
+        new_n_genes: Optional[int] = None,
+        new_ratio_genes: Optional[float] = None,
+        subset_genes: Optional[Union[List[int], List[bool], np.ndarray]] = None,
     ):
-        """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling."""
-        # Do nothing if asked to subsample more genes than total number of genes
-        if subset_genes is None and (
-            new_n_genes is False or new_n_genes >= self.nb_genes
-        ):
-            logger.info(
-                "Not subsampling since new_n_genes is None or superior to nb_genes."
-            )
-            return None
+        """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling.
 
-        if subset_genes is None:
+        The function either:
+            * Subsample `new_n_genes` genes among all genes
+            * Subsamble `new_ratio_genes` % of the genes
+            * Subsample the genes in `subset_genes`
+
+        :param subset_genes: list of indices or mask of genes to retain
+        :param new_n_genes: number of genes to retain, the highly variable genes will be kept
+        :param new_ratio_genes: proportion of genes to retain, the highly variable genes will be kept
+
+
+        """
+        if new_ratio_genes is not None:
+            if 0 < new_ratio_genes < 1:
+                new_n_genes = int(new_ratio_genes * self.nb_cells)
+            else:
+                logger.info(
+                    "Not subsampling. Expecting 0 < (new_ratio_genes={new_ratio_genes})  < 1.".format(
+                        new_ratio_genes=new_ratio_genes)
+                )
+                return
+
+        if new_n_genes is not None:
+            if new_n_genes >= self.nb_genes or new_n_genes < 1:
+                logger.info(
+                    "Not subsampling. Expecting: 1 < (new_n_genes={new_n_genes}) <= self.nb_genes".format(
+                        new_n_genes=new_n_genes)
+                )
+                return
+
             std_scaler = StandardScaler(with_mean=False)
             std_scaler.fit(self.X.astype(np.float64))
             subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
+
+        if subset_genes is None:
+            logger.info(
+                "Not subsampling. No parameter given".format(
+                    new_n_genes=new_n_genes)
+            )
+            return
+
         self.update_genes(subset_genes)
 
     def subsample_cells(self, size: float = 1.0):
@@ -380,6 +409,32 @@ class GeneExpressionDataset(Dataset):
         new_n_cells = int(size * self.nb_genes) if type(size) is not int else size
         indices = np.argsort(np.asarray(self.X.sum(axis=1)).ravel())[::-1][:new_n_cells]
         self.update_cells(indices)
+
+    def reorder_genes(self, first_genes: Union[List[str], np.ndarray]):
+        """
+        Performs a in-place reordering of genes and gene-related attributes.
+
+        Reorder genes according to the ``first_genes`` list of gene names.
+        Consequently, modifies in-place the data ``X`` and the registered gene attributes.
+
+        :param first_genes: New ordering of the genes; if some genes are missing, they will be added after the
+                            first_genes in the same order as they before
+        """
+
+        common_genes, new_order_first, _ = np.intersect1d(first_genes, self.gene_names, return_indices=True)
+        new_order_second = [x for x in range(self.nb_genes) if x not in new_order_first]
+        new_order = np.hstack([new_order_first, new_order_second])
+
+        # update datasets
+        self.X = self.X[:, new_order]
+        for version_name in self.dataset_versions:
+            data = getattr(self, version_name)
+            setattr(self, version_name, data[:, new_order])
+
+        # update gene-related attributes accordingly
+        for attribute_name in self.gene_attribute_names:
+            attr = getattr(self, attribute_name)
+            setattr(self, attribute_name, attr[new_order])
 
     def _get_genes_filter_mask_by_attribute(
         self,
