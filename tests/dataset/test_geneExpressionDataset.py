@@ -15,48 +15,71 @@ class TestGeneExpressionDataset(TestCase):
         self.assertEqual(dataset.nb_cells, 25)
 
     def test_populate_from_batch_array(self):
-        data = np.random.rand(3, 7, 10)
+        data = np.random.randint(1, 5, size=(3, 7, 10))
         dataset = GeneExpressionDataset()
         dataset.populate_from_per_batch_array(data)
         self.assertEqual(dataset.nb_cells, 75)
         self.assertEqual(dataset.nb_genes, 10)
 
     def test_populate_from_per_batch_list(self):
-        data = [np.random.rand(7, 10), np.random.rand(5, 10), np.random.rand(3, 10)]
+        data = [
+            np.random.randint(1, 5, size=(7, 10)),
+            np.random.randint(1, 5, size=(5, 10)),
+            np.random.randint(1, 5, size=(3, 10)),
+        ]
         dataset = GeneExpressionDataset()
         dataset.populate_from_per_batch_list(data)
         self.assertEqual(dataset.nb_cells, 15)
         self.assertEqual(dataset.nb_genes, 10)
-        true_batch_indices = np.concatenate([np.zeros(7), np.ones(5), 2 * np.ones(3)])
-        self.assertListEqual(dataset.batch_indices, true_batch_indices)
+        true_batch_indices = np.concatenate(
+            [
+                np.zeros((7, 1), dtype=int),
+                np.ones((5, 1), dtype=int),
+                2 * np.ones((3, 1), dtype=int),
+            ]
+        )
+        self.assertListEqual(
+            dataset.batch_indices.tolist(), true_batch_indices.tolist()
+        )
 
     def test_populate_from_per_label_list(self):
-        data = [np.random.rand(7, 10), np.random.rand(5, 10), np.random.rand(3, 10)]
+        data = [
+            np.random.randint(1, 5, size=(7, 10)),
+            np.random.randint(1, 5, size=(5, 10)),
+            np.random.randint(1, 5, size=(3, 10)),
+        ]
         dataset = GeneExpressionDataset()
-        dataset.populate_from_per_batch_list(data)
+        dataset.populate_from_per_label_list(data)
         self.assertEqual(dataset.nb_cells, 15)
         self.assertEqual(dataset.nb_genes, 10)
-        true_labels = np.concatenate([np.zeros(7), np.ones(5), 2 * np.ones(3)])
-        self.assertListEqual(dataset.labels, true_labels)
+        true_labels = np.concatenate(
+            [
+                np.zeros((7, 1), dtype=int),
+                np.ones((5, 1), dtype=int),
+                2 * np.ones((3, 1), dtype=int),
+            ]
+        )
+        self.assertListEqual(dataset.labels.tolist(), true_labels.tolist())
 
     def test_populate_from_datasets(self):
-        data1 = np.random.rand(5, 10)
+        data1 = np.random.randint(1, 5, size=(5, 10))
         gene_names1 = np.arange(10).astype(str)
         dataset1 = GeneExpressionDataset()
         dataset1.populate_from_data(data1, gene_names=gene_names1)
-        data2 = np.random.rand(7, 3)
+        data2 = np.random.randint(1, 5, size=(7, 3))
         gene_names2 = np.arange(3).astype(str)
         dataset2 = GeneExpressionDataset()
         dataset2.populate_from_data(data2, gene_names=gene_names2)
-        data3 = np.random.rand(2, 5)
+        data3 = np.random.randint(1, 5, size=(2, 5))
         gene_names3 = np.arange(5).astype(str)
         dataset3 = GeneExpressionDataset()
         dataset3.populate_from_data(data3, gene_names=gene_names3)
+
         dataset = GeneExpressionDataset()
         dataset.populate_from_datasets([dataset1, dataset2, dataset3])
         self.assertEqual(dataset.nb_cells, 14)
         self.assertEqual(dataset.nb_genes, 3)
-        self.assertListEqual(dataset.gene_names, ["0", "1", "2"])
+        self.assertListEqual(dataset.gene_names.tolist(), ["0", "1", "2"])
         # test for cell_types handling
 
     def test_filter_cells(self):

@@ -135,7 +135,7 @@ class GeneExpressionDataset(Dataset):
     def populate_from_per_batch_array(
         self,
         X: np.ndarray,
-        labels_per_batch: Union[np.ndarray, List[Union[List[int], np.ndarray]]],
+        labels_per_batch: Union[np.ndarray, List[Union[List[int], np.ndarray]]] = None,
         gene_names: Union[List[str], np.ndarray] = None,
     ):
         """Populates the data attributes of a GeneExpressionDataset object
@@ -155,7 +155,7 @@ class GeneExpressionDataset(Dataset):
         batch_indices = batch_indices.reshape(-1)
         labels = (
             np.concatenate(labels_per_batch).astype(np.int64)
-            if labels_per_batch
+            if labels_per_batch is not None
             else None
         )
         self.populate_from_data(
@@ -253,7 +253,7 @@ class GeneExpressionDataset(Dataset):
 
         # set default sharing behaviour
         if sharing_intstructions_dict is None:
-            sharing_intstructions_dict["batch_indices"] = "offset"
+            sharing_intstructions_dict = {"batch_indices": "offset"}
 
         # get insterection based on gene attribute `on` and get attribute intersection
         genes_to_keep = set.intersection(
@@ -273,7 +273,10 @@ class GeneExpressionDataset(Dataset):
         logger.info("Keeping {nb_genes} genes".format(nb_genes=len(genes_to_keep)))
 
         # filter genes
-        Xs = [dataset.filter_genes(gene_to_keep, on=on).X for dataset in gene_datasets_list]
+        Xs = []
+        for dataset in gene_datasets_list:
+            dataset.filter_genes(gene_to_keep, on=on)
+            Xs.append(dataset.X)
 
         # concatenate data
         if all([type(X) is np.ndarray for X in Xs]):
@@ -598,7 +601,7 @@ class GeneExpressionDataset(Dataset):
             data = getattr(self, version_name)
             setattr(self, version_name, data[:, subset_cells])
 
-        logging.info(
+        logger.info(
             "Downsampled from {nb_cells} to {new_nb_cells} cells".format(
                 nb_cells=nb_cells_old, new_nb_cells=self.nb_cells
             )
