@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class CortexDataset(DownloadableDataset):
-    r""" Loads cortex dataset.
+    """Loads cortex dataset.
 
     The `Mouse Cortex Cells dataset`_ contains 3005 mouse cortex cells and gold-standard labels for
     seven distinct cell types. Each cell type corresponds to a cluster to recover. We retain top 558 genes
@@ -127,4 +127,3 @@ class CortexDataset(DownloadableDataset):
             "cell_types": cell_types,
             "cell_attributes_dict": cell_attributes_dict
         }
-

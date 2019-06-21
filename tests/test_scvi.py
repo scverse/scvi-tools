@@ -4,24 +4,41 @@
 
 """Tests for `scvi` package."""
 
+import os.path
+
+import anndata
 import numpy as np
 
 from scvi.benchmark import all_benchmarks, benchmark, benchmark_fish_scrna, ldvae_benchmark
-# from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
-#     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
-#     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
-#     GeneExpressionDataset, PurifiedPBMCDataset, SyntheticDatasetCorr, ZISyntheticDatasetCorr, \
-#     Dataset10X
-
-from scvi.dataset import CortexDataset, SyntheticDataset, SyntheticDatasetCorr, ZISyntheticDatasetCorr
-
+from scvi.dataset import (
+    BrainLargeDataset,
+    CortexDataset,
+    RetinaDataset,
+    BrainSmallDataset,
+    HematoDataset,
+    LoomDataset,
+    AnnDatasetFromAnnData,
+    DownloadableAnnDataset,
+    CsvDataset,
+    CiteSeqDataset,
+    CbmcDataset,
+    PbmcDataset,
+    SyntheticDataset,
+    SeqfishDataset,
+    SmfishDataset,
+    BreastCancerDataset,
+    MouseOBDataset,
+    GeneExpressionDataset,
+    PurifiedPBMCDataset,
+    SyntheticDatasetCorr,
+    ZISyntheticDatasetCorr,
+    Dataset10X,
+)
 from scvi.inference import JointSemiSupervisedTrainer, AlternateSemiSupervisedTrainer, ClassifierTrainer, \
     UnsupervisedTrainer, AdapterTrainer
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC
 from scvi.models.classifier import Classifier
-import anndata
-import os.path
 
 use_cuda = True
 
@@ -199,9 +216,9 @@ def test_cortex_loom(save_path):
 
 
 def test_anndata(save_path):
-    ann_dataset = AnnDataset("TM_droplet_mat.h5ad", save_path=save_path)
+    ann_dataset = DownloadableAnnDataset("TM_droplet_mat.h5ad", save_path=save_path)
     base_benchmark(ann_dataset)
-    AnnDataset(anndata.AnnData(np.random.randint(1, 10, (10, 10))))
+    AnnDatasetFromAnnData(anndata.AnnData(np.random.randint(1, 10, (10, 10))))
 
 
 def test_csv(save_path):
