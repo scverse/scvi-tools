@@ -48,12 +48,15 @@ class GeneExpressionDataset(Dataset):
         self.dataset_versions = set()
         self.gene_attribute_names = set()
         self.cell_attribute_names = set()
+        self.cell_categorical_attribute_names = set()
         self.attribute_mappings = defaultdict(list)
 
         # initialize attributes
         self._X = None
         self._batch_indices = None
         self._labels = None
+        self.n_batches = None
+        self.n_labels = None
         self.gene_names = None
         self.cell_types = None
         self.local_means = None
@@ -74,10 +77,6 @@ class GeneExpressionDataset(Dataset):
         """Populates the data attributes of a GeneExpressionDataset object from a (nb_cells, nb_genes) matrix.
 
         :param X: RNA counts matrix, sparse format supported (e.g ``scipy.sparse.csr_matrix``).
-        :param local_means: ``np.ndarray`` with shape (nb_cells,). Mean counts per batch.
-            If ``None``, they are computed automatically according to ``batch_indices``.
-        :param local_vars: ``np.ndarray`` with shape (nb_cells,). Variance of counts per batch.
-            If ``None``, they are computed automatically according to ``batch_indices``.
         :param batch_indices: ``np.ndarray`` with shape (nb_cells,). Maps each cell to the batch
             it originates from. Note that a batch most likely refers to a specific piece
             of tissue or a specific experimental protocol.
@@ -96,8 +95,24 @@ class GeneExpressionDataset(Dataset):
             else X
         )
 
-        # Important to add cell_types before labels, in case of label remapping
-        self.gene_names = None
+        self.initialize_cell_attribute(
+            "batch_indices",
+            np.asarray(batch_indices).reshape((-1, 1))
+            if batch_indices is not None
+            else np.zeros((len(X), 1)),
+            categorical=True,
+        )
+        self.initialize_cell_attribute(
+            "labels",
+            np.asarray(labels).reshape((-1, 1))
+            if labels is not None
+            else np.zeros((len(X), 1)),
+            categorical=True,
+        )
+
+        self.compute_library_size_batch()
+        self.cell_attribute_names.update(["local_means", "local_vars"])
+
         if gene_names is not None:
             self.initialize_gene_attribute(
                 "gene_names", np.asarray(gene_names, dtype=np.str)
@@ -107,23 +122,6 @@ class GeneExpressionDataset(Dataset):
                 "labels", "cell_types", np.asarray(cell_types, dtype=np.str)
             )
 
-        # handle attributes with defaults
-        self.batch_indices = (
-            np.asarray(batch_indices).reshape((-1, 1))
-            if batch_indices is not None
-            else np.zeros((len(X), 1))
-        )
-        self.cell_attribute_names.add("batch_indices")
-        self.labels = (
-            np.asarray(labels).reshape((-1, 1))
-            if labels is not None
-            else np.zeros((len(X), 1))
-        )
-        self.cell_attribute_names.add("labels")
-
-        self.compute_library_size_batch()
-        self.cell_attribute_names.update(["local_means", "local_vars"])
-
         # handle additional attributes
         if cell_attributes_dict:
             for attribute_name, attribute_value in cell_attributes_dict.items():
@@ -131,6 +129,8 @@ class GeneExpressionDataset(Dataset):
         if gene_attributes_dict:
             for attribute_name, attribute_value in gene_attributes_dict.items():
                 self.initialize_gene_attribute(attribute_name, attribute_value)
+
+        self.remap_categorical_attributes()
 
     def populate_from_per_batch_array(
         self,
@@ -388,7 +388,6 @@ class GeneExpressionDataset(Dataset):
         self._X = X
         logger.info("Computing the library size for the new data")
         self.compute_library_size_batch()
-        self.dataset_versions.clear()
 
     @property
     def nb_cells(self) -> int:
@@ -404,20 +403,9 @@ class GeneExpressionDataset(Dataset):
 
     @batch_indices.setter
     def batch_indices(self, batch_indices: Union[List[int], np.ndarray]):
-        """Remaps batch_indices to [0, N]"""
-        logger.info("Remapping batch indices to [0,N]")
-        new_batch_indices, new_n_batches = remap_categories(batch_indices)
-        self._n_batches = new_n_batches
-        self._batch_indices = new_batch_indices
-
-    @property
-    def n_batches(self) -> int:
-        try:
-            return self._n_batches
-        except AttributeError:
-            if not hasattr(self, "_batch_indices"):
-                logging.error("batch_indices attribute was not set")
-            raise
+        """Sets batch indices and computes the n_batches"""
+        self.n_batches = len(np.unique(batch_indices))
+        self._batch_indices = batch_indices
 
     @property
     def labels(self) -> np.ndarray:
@@ -425,14 +413,9 @@ class GeneExpressionDataset(Dataset):
 
     @labels.setter
     def labels(self, labels: Union[List[int], np.ndarray]):
-        """Ensures that labels are always mapped to [0, 1, .., n_labels] and tracks cell_types accordingly."""
-        logger.info("Remapping labels to [0,N]")
-        new_labels, new_n_labels = remap_categories(labels)
-        self._labels = new_labels
-        self._n_labels = new_n_labels
-
-        if hasattr(self, "cell_types"):
-            self.remap_cell_types(labels)
+        """Sets labels and computes n_labels"""
+        self.n_labels = len(np.unique(labels))
+        self._labels = labels
 
     def remap_cell_types(self, labels):
         """Remaps cell_types using new labels."""
@@ -445,15 +428,6 @@ class GeneExpressionDataset(Dataset):
             else:
                 new_cell_types.append("unknown_cell_type_" + str(n_unknown_cell_types))
                 n_unknown_cell_types += 1
-
-    @property
-    def n_labels(self) -> int:
-        try:
-            return self._n_labels
-        except AttributeError:
-            if not hasattr(self, "_labels"):
-                logging.error("attribute labels was not set")
-            raise
 
     @property
     def norm_X(self) -> Union[sp_sparse.csr_matrix, np.ndarray]:
@@ -475,11 +449,18 @@ class GeneExpressionDataset(Dataset):
         self._corrupted_X = corrupted_X
         self.register_dataset_version("corrupted_X")
 
+    def remap_categorical_attributes(self):
+        for attribute_name in self.cell_categorical_attribute_names:
+            logger.info("Remapping %s to [0,N]" % attribute_name)
+            attr = getattr(self, attribute_name)
+            new_attr, _ = remap_categories(attr)
+            setattr(self, attribute_name, new_attr)
+
     def register_dataset_version(self, version_name):
         """Registers a version of the dataset, e.g normalized version."""
         self.dataset_versions.add(version_name)
 
-    def initialize_cell_attribute(self, attribute_name, attribute):
+    def initialize_cell_attribute(self, attribute_name, attribute, categorical=False):
         """Sets and registers a cell-wise attribute, e.g annotation information."""
         if not self.nb_cells == len(attribute):
             raise ValueError(
@@ -489,6 +470,8 @@ class GeneExpressionDataset(Dataset):
             )
         setattr(self, attribute_name, attribute)
         self.cell_attribute_names.add(attribute_name)
+        if categorical:
+            self.cell_categorical_attribute_names.add(attribute_name)
 
     def initialize_gene_attribute(self, attribute_name, attribute):
         """Sets and registers a gene-wise attribute, e.g annotation information."""
@@ -637,7 +620,7 @@ class GeneExpressionDataset(Dataset):
         """
         if new_ratio_genes is not None:
             if 0 < new_ratio_genes < 1:
-                new_n_genes = int(new_ratio_genes * self.nb_cells)
+                new_n_genes = int(new_ratio_genes * self.nb_genes)
             else:
                 logger.info(
                     "Not subsampling. Expecting 0 < (new_ratio_genes={new_ratio_genes})  < 1.".format(
@@ -665,7 +648,7 @@ class GeneExpressionDataset(Dataset):
             )
             return
 
-        self.update_genes(subset_genes)
+        self.update_genes(np.array(subset_genes))
 
     def subsample_cells(self, size: Union[int, float] = 1.0):
         """Wrapper around ``update_cells`` allowing for automatic (based on sum of counts) subsampling.
@@ -688,7 +671,7 @@ class GeneExpressionDataset(Dataset):
                             first_genes in the same order as they before
         """
 
-        common_genes, new_order_first, _ = np.intersect1d(
+        _, new_order_first, _ = np.intersect1d(
             first_genes, self.gene_names, return_indices=True
         )
         new_order_second = [x for x in range(self.nb_genes) if x not in new_order_first]
