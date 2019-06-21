@@ -226,7 +226,7 @@ class GeneExpressionDataset(Dataset):
 
     def populate_from_datasets(
         self,
-        *gene_datasets: "GeneExpressionDataset",
+        gene_datasets_list: List["GeneExpressionDataset"],
         on: str = "gene_names",
         sharing_intstructions_dict: Dict[str, bool] = None,
     ):
@@ -238,12 +238,15 @@ class GeneExpressionDataset(Dataset):
 
         :param gene_datasets: a sequence of ``GeneExpressionDataset`` objects.
         :param on: attribute to select gene interesection
-        :param sharing_intstructions_dict:
-
-        :return: GeneExpressionDataset instance of the concatenated datasets
+        :param sharing_intstructions_dict: Instructions on how to share cell-wise attributes between datasets.
+            Keys are the attribute name and values are either:
+                * "offset": to add an offset corresponding to the number of categories already existing.
+                e.g for batch_indices, if the first dataset has batches 0 and 1,
+                in the merged dataset, the second dataset's batch indices will start at 2.
+                * "concatenate": concatenate the attibute, no changes applied.
         """
         # sanity check
-        if not all([hasattr(gene_dataset, on) for gene_dataset in gene_datasets]):
+        if not all([hasattr(gene_dataset, on) for gene_dataset in gene_datasets_list]):
             raise ValueError(
                 "All datasets should have the merge key 'on' as an attribute"
             )
@@ -254,23 +257,23 @@ class GeneExpressionDataset(Dataset):
 
         # get insterection based on gene attribute `on` and get attribute intersection
         genes_to_keep = set.intersection(
-            *[set(getattr(gene_dataset, on)) for gene_dataset in gene_datasets]
+            *[set(getattr(gene_dataset, on)) for gene_dataset in gene_datasets_list]
         )
         gene_attributes_to_keep = set.intersection(
-            *[set(gene_dataset.gene_attribute_names) for gene_dataset in gene_datasets]
+            *[set(gene_dataset.gene_attribute_names) for gene_dataset in gene_datasets_list]
         )
         cell_attributes_to_keep = set.intersection(
-            *[set(gene_dataset.cell_attribute_names) for gene_dataset in gene_datasets]
+            *[set(gene_dataset.cell_attribute_names) for gene_dataset in gene_datasets_list]
         )
 
         # keep gene order and attributes of the first dataset
         gene_to_keep = [
-            gene for gene in getattr(gene_datasets[0], on) if gene in genes_to_keep
+            gene for gene in getattr(gene_datasets_list[0], on) if gene in genes_to_keep
         ]
         logger.info("Keeping {nb_genes} genes".format(nb_genes=len(genes_to_keep)))
 
         # filter genes
-        Xs = [dataset.filter_genes(gene_to_keep, on=on).X for dataset in gene_datasets]
+        Xs = [dataset.filter_genes(gene_to_keep, on=on).X for dataset in gene_datasets_list]
 
         # concatenate data
         if all([type(X) is np.ndarray for X in Xs]):
@@ -291,9 +294,9 @@ class GeneExpressionDataset(Dataset):
         # keep gene attributes of first dataset, and keep all mappings (e.g gene types)
         for attribute_name in gene_attributes_to_keep:
             self.initialize_gene_attribute(
-                attribute_name, getattr(gene_datasets[0], attribute_name)
+                attribute_name, getattr(gene_datasets_list[0], attribute_name)
             )
-            for gene_dataset in gene_datasets:
+            for gene_dataset in gene_datasets_list:
                 mapping_names = gene_dataset.attribute_mappings[attribute_name]
                 for mapping_name in mapping_names:
                     self.initialize_mapped_attribute(
@@ -310,7 +313,7 @@ class GeneExpressionDataset(Dataset):
                 set.intersection(
                     *[
                         set(gene_dataset.attribute_mappings[attribute_name])
-                        for gene_dataset in gene_datasets
+                        for gene_dataset in gene_datasets_list
                     ]
                 )
             )
@@ -326,7 +329,7 @@ class GeneExpressionDataset(Dataset):
                     )
                 mappings = {k: list(v) for k, v in mappings.items()}
 
-                for gene_dataset in gene_datasets:
+                for gene_dataset in gene_datasets_list:
                     local_attribute_values = np.squeeze(
                         getattr(gene_dataset, attribute_name)
                     )
@@ -345,7 +348,7 @@ class GeneExpressionDataset(Dataset):
             elif instruction == "offset":
                 mappings = defaultdict(list)
                 offset = 0
-                for i, gene_dataset in enumerate(gene_datasets):
+                for i, gene_dataset in enumerate(gene_datasets_list):
                     local_attribute_values = np.squeeze(
                         getattr(gene_dataset, attribute_name)
                     )
