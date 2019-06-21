@@ -147,10 +147,9 @@ class GeneExpressionDataset(Dataset):
         """
         if len(np.squeeze(X.shape)) != 3:
             raise ValueError(
-                "Shape of np.squeeze(X) != 3. Use standard constructor "
+                "Shape of np.squeeze(X) != 3. Use populate_from_data "
                 "if your dataset has shape (nb_cells, nb_genes)"
             )
-        X = X.reshape(-1, X.shape[2])
         batch_indices = np.arange(X.shape[0])[:, None] * np.ones(X.shape[1])[None, :]
         batch_indices = batch_indices.reshape(-1)
         labels = (
@@ -158,6 +157,7 @@ class GeneExpressionDataset(Dataset):
             if labels_per_batch is not None
             else None
         )
+        X = X.reshape(-1, X.shape[2])
         self.populate_from_data(
             X=X, batch_indices=batch_indices, labels=labels, gene_names=gene_names
         )

@@ -11,15 +11,15 @@ class TestGeneExpressionDataset(TestCase):
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data)
 
-        self.assertEqual(dataset.nb_genes, 10)
-        self.assertEqual(dataset.nb_cells, 25)
+        self.assertEqual(10, dataset.nb_genes)
+        self.assertEqual(25, dataset.nb_cells)
 
     def test_populate_from_batch_array(self):
         data = np.random.randint(1, 5, size=(3, 7, 10))
         dataset = GeneExpressionDataset()
         dataset.populate_from_per_batch_array(data)
-        self.assertEqual(dataset.nb_cells, 75)
-        self.assertEqual(dataset.nb_genes, 10)
+        self.assertEqual(21, dataset.nb_cells)
+        self.assertEqual(10, dataset.nb_genes)
 
     def test_populate_from_per_batch_list(self):
         data = [
@@ -29,8 +29,8 @@ class TestGeneExpressionDataset(TestCase):
         ]
         dataset = GeneExpressionDataset()
         dataset.populate_from_per_batch_list(data)
-        self.assertEqual(dataset.nb_cells, 15)
-        self.assertEqual(dataset.nb_genes, 10)
+        self.assertEqual(15, dataset.nb_cells)
+        self.assertEqual(10, dataset.nb_genes)
         true_batch_indices = np.concatenate(
             [
                 np.zeros((7, 1), dtype=int),
@@ -39,7 +39,7 @@ class TestGeneExpressionDataset(TestCase):
             ]
         )
         self.assertListEqual(
-            dataset.batch_indices.tolist(), true_batch_indices.tolist()
+            true_batch_indices.tolist(), dataset.batch_indices.tolist(),
         )
 
     def test_populate_from_per_label_list(self):
@@ -59,27 +59,27 @@ class TestGeneExpressionDataset(TestCase):
                 2 * np.ones((3, 1), dtype=int),
             ]
         )
-        self.assertListEqual(dataset.labels.tolist(), true_labels.tolist())
+        self.assertListEqual(true_labels.tolist(), dataset.labels.tolist())
 
     def test_populate_from_datasets(self):
         data1 = np.random.randint(1, 5, size=(5, 10))
-        gene_names1 = np.arange(10).astype(str)
+        gene_names1 = np.array(["gene_%d" % i for i in range(10)])
         dataset1 = GeneExpressionDataset()
         dataset1.populate_from_data(data1, gene_names=gene_names1)
         data2 = np.random.randint(1, 5, size=(7, 3))
-        gene_names2 = np.arange(3).astype(str)
+        gene_names2 = np.array(["gene_%d" % i for i in range(3)])
         dataset2 = GeneExpressionDataset()
         dataset2.populate_from_data(data2, gene_names=gene_names2)
         data3 = np.random.randint(1, 5, size=(2, 5))
-        gene_names3 = np.arange(5).astype(str)
+        gene_names3 = np.array(["gene_%d" % i for i in range(5)])
         dataset3 = GeneExpressionDataset()
         dataset3.populate_from_data(data3, gene_names=gene_names3)
 
         dataset = GeneExpressionDataset()
         dataset.populate_from_datasets([dataset1, dataset2, dataset3])
-        self.assertEqual(dataset.nb_cells, 14)
-        self.assertEqual(dataset.nb_genes, 3)
-        self.assertListEqual(dataset.gene_names.tolist(), ["0", "1", "2"])
+        self.assertEqual(14, dataset.nb_cells)
+        self.assertEqual(3, dataset.nb_genes)
+        self.assertListEqual(["gene_0", "gene_1", "gene_2"], dataset.gene_names.tolist())
         # test for cell_types handling
 
     def test_filter_cells(self):
@@ -87,23 +87,23 @@ class TestGeneExpressionDataset(TestCase):
         data[4:6, :] = 0
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data)
-        self.assertEqual(dataset.nb_cells, 25)
+        self.assertEqual(25, dataset.nb_cells)
         dataset.filter_cells()
-        self.assertEqual(dataset.nb_cells, 23)
+        self.assertEqual(23, dataset.nb_cells)
 
     def test_labels(self):
         data = np.ones((25, 10)) * 100
         labels = np.array(range(25))
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, labels=labels)
-        self.assertTupleEqual(dataset.labels.shape, (25, 1))
-        self.assertEqual(dataset.labels[5, 0], 5)
+        self.assertTupleEqual((25, 1), dataset.labels.shape, )
+        self.assertEqual(5, dataset.labels[5, 0])
 
         labels = np.ones(25) * 5
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, labels=labels)
-        self.assertTupleEqual(dataset.labels.shape, (25, 1))
-        self.assertEqual(dataset.labels[5, 0], 0)
+        self.assertTupleEqual((25, 1), dataset.labels.shape)
+        self.assertEqual(0, dataset.labels[5, 0])
 
     def test_update_genes(self):
         pass
@@ -121,13 +121,13 @@ class TestGeneExpressionDataset(TestCase):
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, gene_names=gene_names)
         dataset.subsample_genes(new_ratio_genes=0.4)
-        self.assertTupleEqual(dataset.gene_names.shape, (40,))
+        self.assertTupleEqual((40,), dataset.gene_names.shape)
         dataset.subsample_genes(new_n_genes=25)
-        self.assertTupleEqual(dataset.gene_names.shape, (25,))
+        self.assertTupleEqual((25,), dataset.gene_names.shape)
         # Most variable gene should be in first position
-        self.assertEquals(dataset.gene_names[0], "gene_99")
+        self.assertEquals("gene_99", dataset.gene_names[0])
         dataset.subsample_genes(subset_genes=[1, 6, 7])
-        self.assertEquals(dataset.gene_names[0], "gene_98")
+        self.assertEquals("gene_98", dataset.gene_names[0])
 
     def test_subsample_cells(self):
         pass
