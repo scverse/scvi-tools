@@ -40,14 +40,24 @@ class TestGeneExpressionDataset(TestCase):
         self.assertListEqual(dataset.labels, true_labels)
 
     def test_populate_from_datasets(self):
-        data = np.random(5, 10)
-        gene_names = np.arange(10).astype(str)
-        data1 = np.random(7, 3)
-        gene_names1 = np.arange(3).astype(str)
-        data2 = np.random(2, 5)
-        gene_names1 = np.arange(5).astype(str)
+        data1 = np.random.rand(5, 10)
+        gene_names1 = np.arange(10).astype(str)
+        dataset1 = GeneExpressionDataset()
+        dataset1.populate_from_data(data1, gene_names=gene_names1)
+        data2 = np.random.rand(7, 3)
+        gene_names2 = np.arange(3).astype(str)
+        dataset2 = GeneExpressionDataset()
+        dataset2.populate_from_data(data2, gene_names=gene_names2)
+        data3 = np.random.rand(2, 5)
+        gene_names3 = np.arange(5).astype(str)
+        dataset3 = GeneExpressionDataset()
+        dataset3.populate_from_data(data3, gene_names=gene_names3)
         dataset = GeneExpressionDataset()
-        dataset.populate_from_datasets(dataset)
+        dataset.populate_from_datasets([dataset1, dataset2, dataset3])
+        self.assertEqual(dataset.nb_cells, 14)
+        self.assertEqual(dataset.nb_genes, 3)
+        self.assertListEqual(dataset.gene_names, ["0", "1", "2"])
+        # test for cell_types handling
 
     def test_filter_cells(self):
         data = np.ones((25, 10)) * 100
