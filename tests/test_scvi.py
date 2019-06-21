@@ -13,7 +13,7 @@ from scvi.benchmark import all_benchmarks, benchmark, benchmark_fish_scrna, ldva
 #     GeneExpressionDataset, PurifiedPBMCDataset, SyntheticDatasetCorr, ZISyntheticDatasetCorr, \
 #     Dataset10X
 
-from scvi.dataset import  CortexDataset
+from scvi.dataset import CortexDataset, SyntheticDataset, SyntheticDatasetCorr, ZISyntheticDatasetCorr
 
 from scvi.inference import JointSemiSupervisedTrainer, AlternateSemiSupervisedTrainer, ClassifierTrainer, \
     UnsupervisedTrainer, AdapterTrainer
