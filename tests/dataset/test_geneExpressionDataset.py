@@ -71,7 +71,11 @@ class TestGeneExpressionDataset(TestCase):
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, gene_names=gene_names)
         dataset.reorder_genes(["gene_2", "gene_47"])
-        self.assertEquals(dataset.gene_names[0], "gene_98")
+        # New order should be 2, 47, 0, 1, 3
+        self.assertListEqual(
+            list(dataset.gene_names[0:5]),
+            ["gene_2", "gene_47", "gene_0", "gene_1", "gene_3"],
+        )
 
     def test_filter_genes(self):
         pass
