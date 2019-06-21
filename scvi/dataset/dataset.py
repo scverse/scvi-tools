@@ -165,7 +165,7 @@ class GeneExpressionDataset(Dataset):
     def populate_from_per_batch_list(
         self,
         Xs: List[Union[sp_sparse.csr_matrix, np.ndarray]],
-        labels_per_batch: List[Union[List[int], np.ndarray]] = None,
+        labels_per_batch: Union[np.ndarray, List[np.ndarray]] = None,
         gene_names: Union[List[str], np.ndarray] = None,
     ):
         """Populates the data attributes of a GeneExpressionDataset object from a ``n_batches``-long
@@ -185,7 +185,7 @@ class GeneExpressionDataset(Dataset):
         )
         labels = (
             np.concatenate(labels_per_batch).astype(np.int64)
-            if labels_per_batch
+            if labels_per_batch is not None
             else None
         )
 
