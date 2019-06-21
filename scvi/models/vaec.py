@@ -25,7 +25,7 @@ class VAEC(VAE):
         * ``'gene-label'`` - dispersion can differ between different labels
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
 
-    :param log_variational: Log variational distribution
+    :param log_variational: Log(data+1) prior to encoding for numerical stability. Not normalization.
     :param reconstruction_loss:  One of
 
         * ``'nb'`` - Negative binomial distribution
@@ -80,7 +80,7 @@ class VAEC(VAE):
 
         # Sampling
         px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, _, _, _ = self.inference(xs, batch_index_s, ys)
-        reconst_loss = self._reconstruction_loss(xs, px_rate, px_r, px_dropout)
+        reconst_loss = self.get_reconstruction_loss(xs, px_rate, px_r, px_dropout)
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)

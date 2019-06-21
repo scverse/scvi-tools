@@ -2,7 +2,6 @@ import copy
 import os
 import logging
 
-from abc import abstractmethod
 from typing import List, Optional, Union
 
 import numpy as np
@@ -520,10 +519,9 @@ class Posterior:
             sample_batch, _, _, batch_index, labels = tensors
             px_dispersion, px_rate = self.model.inference(sample_batch, batch_index=batch_index, y=labels,
                                                           n_samples=n_samples)[1:3]
-
+            # This gamma is really l*w using scVI manuscript notation
             p = (px_rate / (px_rate + px_dispersion)).cpu()
             r = px_dispersion.cpu()
-            #
             l_train = np.random.gamma(r, p / (1 - p))
             X = np.random.poisson(l_train)
             # """
