@@ -34,13 +34,15 @@ class CortexDataset(DownloadableDataset):
         self,
         save_path: str = "data/",
         genes_to_keep: Optional[List[str]] = None,
-        total_genes: Optional[int] = None,
+        total_genes: Optional[int] = 558,
         delayed_populating: bool = False,
+        preprocess=True,
     ):
         self.genes_to_keep = genes_to_keep
         self.total_genes = total_genes
 
         self.precise_labels = None
+        self._preprocess_data = preprocess
 
         super().__init__(
             urls="https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs"
@@ -52,7 +54,8 @@ class CortexDataset(DownloadableDataset):
 
     def populate(self):
         data = self.load_from_disk()
-        data = self.preprocess(**data)
+        if self._preprocess_data:
+            data = self.preprocess(**data)
         self.populate_from_data(**data)
 
     def load_from_disk(self):

@@ -115,7 +115,7 @@ class GeneExpressionDataset(Dataset):
 
         if gene_names is not None:
             self.initialize_gene_attribute(
-                "gene_names", np.asarray(gene_names, dtype=np.str)
+                "gene_names", np.char.lower(np.asarray(gene_names, dtype=np.str))
             )
         if cell_types is not None:
             self.initialize_mapped_attribute(
@@ -677,7 +677,7 @@ class GeneExpressionDataset(Dataset):
                             first_genes in the same order as they before
         """
 
-        _, new_order_first, _ = np.intersect1d(
+        _, _, new_order_first = np.intersect1d(
             first_genes, self.gene_names, return_indices=True
         )
         new_order_second = [x for x in range(self.nb_genes) if x not in new_order_first]
