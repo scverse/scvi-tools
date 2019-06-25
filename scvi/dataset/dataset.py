@@ -99,19 +99,18 @@ class GeneExpressionDataset(Dataset):
             "batch_indices",
             np.asarray(batch_indices).reshape((-1, 1))
             if batch_indices is not None
-            else np.zeros((len(X), 1)),
+            else np.zeros((X.shape[0], 1)),
             categorical=True,
         )
         self.initialize_cell_attribute(
             "labels",
             np.asarray(labels).reshape((-1, 1))
             if labels is not None
-            else np.zeros((len(X), 1)),
+            else np.zeros((X.shape[0], 1)),
             categorical=True,
         )
 
         self.compute_library_size_batch()
-        self.cell_attribute_names.update(["local_means", "local_vars"])
 
         if gene_names is not None:
             self.initialize_gene_attribute(
@@ -181,7 +180,7 @@ class GeneExpressionDataset(Dataset):
 
         X = np.concatenate(Xs) if type(Xs[0]) is np.ndarray else sp_sparse.vstack(Xs)
         batch_indices = np.concatenate(
-            [i * np.ones(len(batch), dtype=np.int64) for i, batch in enumerate(Xs)]
+            [i * np.ones(batch.shape[0], dtype=np.int64) for i, batch in enumerate(Xs)]
         )
         labels = (
             np.concatenate(labels_per_batch).astype(np.int64)
@@ -212,7 +211,7 @@ class GeneExpressionDataset(Dataset):
 
         X = np.concatenate(Xs) if type(Xs[0]) is np.ndarray else sp_sparse.vstack(Xs)
         labels = np.concatenate(
-            [i * np.ones(len(cluster), dtype=np.int64) for i, cluster in enumerate(Xs)]
+            [i * np.ones(cluster.shape[0], dtype=np.int64) for i, cluster in enumerate(Xs)]
         )
         batch_indices = (
             np.concatenate(batch_indices_per_label).astype(np.int64)
@@ -260,10 +259,16 @@ class GeneExpressionDataset(Dataset):
             *[set(getattr(gene_dataset, on)) for gene_dataset in gene_datasets_list]
         )
         gene_attributes_to_keep = set.intersection(
-            *[set(gene_dataset.gene_attribute_names) for gene_dataset in gene_datasets_list]
+            *[
+                set(gene_dataset.gene_attribute_names)
+                for gene_dataset in gene_datasets_list
+            ]
         )
         cell_attributes_to_keep = set.intersection(
-            *[set(gene_dataset.cell_attribute_names) for gene_dataset in gene_datasets_list]
+            *[
+                set(gene_dataset.cell_attribute_names)
+                for gene_dataset in gene_datasets_list
+            ]
         )
 
         # keep gene order and attributes of the first dataset
@@ -506,6 +511,7 @@ class GeneExpressionDataset(Dataset):
             self.local_means[idx_batch], self.local_vars[
                 idx_batch
             ] = compute_library_size(self.X[idx_batch])
+        self.cell_attribute_names.update(["local_means", "local_vars"])
 
     def collate_fn(
         self, batch: Union[List[int], np.ndarray]
@@ -616,9 +622,9 @@ class GeneExpressionDataset(Dataset):
         """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling.
 
         The function either:
-            * Subsample `new_n_genes` genes among all genes
-            * Subsamble a proportion of `new_ratio_genes` of the genes
-            * Subsample the genes in `subset_genes`
+            * Subsamples `new_n_genes` genes among all genes
+            * Subsambles a proportion of `new_ratio_genes` of the genes
+            * Subsamples the genes in `subset_genes`
 
         :param subset_genes: list of indices or mask of genes to retain
         :param new_n_genes: number of genes to retain, the highly variable genes will be kept
@@ -1040,11 +1046,13 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
         delayed_populating: bool = False,
     ):
         super().__init__()
-        if not isinstance(urls, str):
-            self.urls = urls
-        else:
+        if isinstance(urls, str):
             self.urls = [urls]
-        if type(filenames) == str:
+        elif urls is None:
+            self.urls = []
+        else:
+            self.urls = urls
+        if isinstance(filenames, str):
             self.filenames = [filenames]
         elif filenames is None:
             self.filenames = ["dataset_{i}".format(i=i) for i in range(len(self.urls))]

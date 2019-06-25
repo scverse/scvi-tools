@@ -3,7 +3,6 @@ import operator
 import os
 
 from functools import reduce
-from typing import List
 
 import anndata
 import numpy as np
@@ -11,102 +10,99 @@ import pandas as pd
 
 from scipy.sparse import csr_matrix
 
-from scvi.dataset import DownloadableDataset
+from scvi.dataset import DownloadableDataset, GeneExpressionDataset
 
 logger = logging.getLogger(__name__)
 
 
-class AnnDataset(DownloadableDataset):
-    r"""Loads a `.h5ad` file using the ``anndata`` package.
-    Also supports loading an ``AnnData`` object directly.
-
-    Args:
-        :filename_or_anndata: Name of the `.h5ad` file or an existing ``AnnData``.
-        :save_path: Save path of the dataset. Default: ``'data/'``.
-        :url: Url of the remote dataset. Default: ``None``.
-        :new_n_genes: Number of subsampled genes. Default: ``False``.
-        :subset_genes: List of genes for subsampling. Default: ``None``.
+class AnnDatasetFromAnnData(GeneExpressionDataset):
+    """Forms a ``GeneExpressionDataset`` from a ``anndata.AnnData`` object.
 
 
-    Examples:
+
+    :param ad: ``anndata.AnnData`` instance.
+    """
+
+    def __init__(self, ad: anndata.AnnData):
+        super().__init__()
+        (
+            X,
+            batch_indices,
+            labels,
+            gene_names,
+            cell_types,
+            self.obs,
+            self.obsm,
+            self.var,
+            self.varm,
+        ) = extract_data_from_anndata(ad)
+        self.populate_from_data(
+            X=X,
+            batch_indices=batch_indices,
+            gene_names=gene_names,
+            cell_types=cell_types,
+        )
+
+
+class DownloadableAnnDataset(DownloadableDataset):
+    """Forms a ``DownloadableDataset`` from a `.h5ad` file using the ``anndata`` package.
+
+    :param filename: Name of the `.h5ad` file to save/load.
+    :param save_path: Save path of the dataset. Default: ``'data/'``.
+    :param url: Url of the remote dataset. Default: ``None``.
+    :param delayed_populating:
+
+        Examples:
         >>> # Loading a local dataset
-        >>> local_ann_dataset = AnnDataset("TM_droplet_mat.h5ad", save_path = 'data/')
+        >>> dataset = DownloadableAnnDataset("TM_droplet_mat.h5ad", save_path = 'data/')
 
     .. _Anndata:
         http://anndata.readthedocs.io/en/latest/
-
     """
 
     def __init__(
         self,
-        filename: str,
+        filename: str = "anndataset",
         save_path: str = "data/",
         url: str = None,
         delayed_populating: bool = False,
-        preprocess: bool = True,
     ):
         super().__init__(
             urls=url,
             filenames=filename,
             save_path=save_path,
             delayed_populating=delayed_populating,
-            preprocess=preprocess,
         )
 
-    def load_from_disk(self):
+    def populate(self):
         ad = anndata.read_h5ad(
             os.path.join(self.save_path, self.filenames[0])
         )  # obs = cells, var = genes
 
         # extract GeneExpressionDataset relevant attributes
         # and provide access to annotations from the underlying AnnData object.
-        (X,
-         batch_indices,
-         labels,
-         gene_names,
-         cell_types,
-         self.obs,
-         self.obsm,
-         self.var,
-         self.varm
-         ) = extract_data_from_anndata(ad)
-        return {
-            "X": X,
-            "batch_indices": batch_indices,
-            "labels": labels,
-            "gene_names": gene_names,
-            "cell_types": cell_types,
-        }
-
-    def preprocess(self, **kwargs):
-        return kwargs
-
-    def instantiate_gene_expression_dataset(self, **kwargs):
-        super(DownloadableDataset, self).__init__(**kwargs)
-
-    @classmethod
-    def from_anndata(cls, ad: anndata.AnnData,):
-        data, gene_names, batch_indices, cell_types, labels, obs, obsm, var, varm = extract_data_from_anndata(ad)
-
-        dataset = super(DownloadableDataset, cls).__init__(
-            X=data,
+        (
+            X,
+            batch_indices,
+            labels,
+            gene_names,
+            cell_types,
+            self.obs,
+            self.obsm,
+            self.var,
+            self.varm,
+        ) = extract_data_from_anndata(ad)
+        super().populate_from_data(
+            X=X,
             batch_indices=batch_indices,
             labels=labels,
-            cell_types=cell_types,
             gene_names=gene_names,
-
+            cell_types=cell_types,
         )
-
-        dataset.obs = obs
-        dataset.obsm = obsm
-        dataset.var = var
-        dataset.varm = varm
-
-        return dataset
 
 
 def extract_data_from_anndata(ad: anndata.AnnData):
-    data, gene_names, batch_indices, cell_types, labels = None, None, None, None, None
+    data, labels, batch_indices, gene_names, cell_types = None, None, None, None, None
 
     # treat all possible cases according to anndata doc
     if isinstance(ad.X, np.ndarray):
@@ -116,22 +112,32 @@ def extract_data_from_anndata(ad: anndata.AnnData):
     if isinstance(ad.X, csr_matrix):
         # keep sparsity above 1 Gb in dense form
         if reduce(operator.mul, ad.X.shape) * ad.X.dtype.itemsize < 1e9:
+            logger.info("Dense size under 1Gb, casting to dense format (np.ndarray).")
             data = ad.X.toarray()
         else:
             data = ad.X.copy()
 
     gene_names = np.array(ad.var.index.values, dtype=str)
 
-    if 'batch_indices' in ad.obs.columns:
-        batch_indices = ad.obs['batch_indices'].values
+    if "batch_indices" in ad.obs.columns:
+        batch_indices = ad.obs["batch_indices"].values
 
-    if 'cell_types' in ad.obs.columns:
-        cell_types = ad.obs['cell_types']
-        cell_types = cell_types.drop_duplicates().values.astype('str')
+    if "cell_types" in ad.obs.columns:
+        cell_types = ad.obs["cell_types"]
+        labels = cell_types.rank(method="dense").values.astype("int")
+        cell_types = cell_types.drop_duplicates().values.astype("str")
 
-    if 'labels' in ad.obs.columns:
-        labels = ad.obs['labels']
-    elif 'cell_types' in ad.obs.columns:
-        labels = ad.obs['cell_types'].rank(method='dense').values.astype('int')
+    if "labels" in ad.obs.columns:
+        labels = ad.obs["labels"]
 
-    return data, batch_indices, labels, gene_names, cell_types, ad.obs, ad.obsm, ad.var, ad.varm
+    return (
+        data,
+        batch_indices,
+        labels,
+        gene_names,
+        cell_types,
+        ad.obs,
+        ad.obsm,
+        ad.var,
+        ad.varm,
+    )
