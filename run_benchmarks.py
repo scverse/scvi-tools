@@ -3,10 +3,24 @@
 """Run all the benchmarks with specific parameters"""
 import argparse
 
-from scvi.benchmark import harmonization_benchmarks, \
-    annotation_benchmarks, all_benchmarks
-from scvi.dataset import BrainLargeDataset, CortexDataset, SyntheticDataset, CsvDataset, \
-    RetinaDataset, BrainSmallDataset, HematoDataset, LoomDataset, AnnDataset, CbmcDataset, PbmcDataset
+from scvi.benchmark import (
+    harmonization_benchmarks,
+    annotation_benchmarks,
+    all_benchmarks,
+)
+from scvi.dataset import (
+    BrainLargeDataset,
+    CortexDataset,
+    SyntheticDataset,
+    CsvDataset,
+    RetinaDataset,
+    BrainSmallDataset,
+    HematoDataset,
+    LoomDataset,
+    DownloadableAnnDataset,
+    CbmcDataset,
+    PbmcDataset,
+)
 from scvi.inference import UnsupervisedTrainer, SemiSupervisedTrainer
 from scvi.models import VAE, VAEC, SCANVI
 
@@ -31,7 +45,7 @@ def load_datasets(dataset_name, save_path='data/', url=None):
     elif dataset_name[-5:] == ".loom":
         gene_dataset = LoomDataset(filename=dataset_name, save_path=save_path, url=url)
     elif dataset_name[-5:] == ".h5ad":
-        gene_dataset = AnnDataset(dataset_name, save_path=save_path, url=url)
+        gene_dataset = DownloadableAnnDataset(dataset_name, save_path=save_path, url=url)
     elif ".csv" in dataset_name:
         gene_dataset = CsvDataset(dataset_name, save_path=save_path)
     else:

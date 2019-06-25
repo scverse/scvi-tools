@@ -1,7 +1,8 @@
 import pandas as pd
-from .dataset import GeneExpressionDataset
 import os
 import logging
+
+from scvi.dataset.dataset import GeneExpressionDataset
 
 
 class SeqfishDataset(GeneExpressionDataset):

@@ -6,7 +6,7 @@ from zipfile import ZipFile
 import numpy as np
 import pandas as pd
 
-from .dataset import GeneExpressionDataset
+from scvi.dataset.dataset import GeneExpressionDataset
 
 
 class HematoDataset(GeneExpressionDataset):

@@ -1,12 +1,18 @@
 import csv
-import os
 import logging
+import os
+
+from typing import Dict, List, Union, Optional
+
 import numpy as np
+import scipy.sparse as sp_sparse
 
-from .dataset import GeneExpressionDataset
+from scvi.dataset.dataset import DownloadableDataset
+
+logger = logging.getLogger(__name__)
 
 
-class CortexDataset(GeneExpressionDataset):
+class CortexDataset(DownloadableDataset):
     r""" Loads cortex dataset.
 
     The `Mouse Cortex Cells dataset`_ contains 3005 mouse cortex cells and gold-standard labels for
@@ -24,89 +30,100 @@ class CortexDataset(GeneExpressionDataset):
 
     """
 
-    def __init__(self, save_path='data/', genes_to_keep=[], genes_fish=[], additional_genes=558):
-        # Generating samples according to a ZINB process
-        self.save_path = save_path
-        self.download_name = 'expression.bin'
-        self.url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/" \
-                   "expression_mRNA_17-Aug-2014.txt"
-        # If we want to harmonize the dataset with the OsmFISH dataset, we need to keep
-        # OsmFISH genes and order the genes from Cortex accordingly
-        self.genes_fish = genes_fish
-        # If there are specific genes we'd like to keep
+    def __init__(
+        self,
+        save_path: str = "data/",
+        genes_to_keep: Optional[List[str]] = None,
+        total_genes: Optional[int] = 558,
+        delayed_populating: bool = False,
+        preprocess=True,
+    ):
         self.genes_to_keep = genes_to_keep
-        # Number of genes we want to keep
-        self.additional_genes = additional_genes
-        expression_data, labels, gene_names, cell_types = self.download_and_preprocess()
+        self.total_genes = total_genes
+
+        self.precise_labels = None
+        self._preprocess_data = preprocess
 
         super().__init__(
-            *GeneExpressionDataset.get_attributes_from_matrix(
-                expression_data,
-                labels=labels),
-            gene_names=np.char.upper(gene_names), cell_types=cell_types)
+            urls="https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs"
+                 "/cortex/expression_mRNA_17-Aug-2014.txt",
+            filenames="expression.bin",
+            save_path=save_path,
+            delayed_populating=delayed_populating,
+        )
 
-    def preprocess(self):
-        logging.info("Preprocessing Cortex data")
+    def populate(self):
+        data = self.load_from_disk()
+        if self._preprocess_data:
+            data = self.preprocess(**data)
+        self.populate_from_data(**data)
+
+    def load_from_disk(self):
+        logger.info("Loading Cortex data")
         rows = []
         gene_names = []
-        with open(os.path.join(self.save_path, self.download_name), 'r') as csvfile:
-            data_reader = csv.reader(csvfile, delimiter='\t')
-            clusters = None
+        with open(os.path.join(self.save_path, self.filenames[0]), "r") as csvfile:
+            data_reader = csv.reader(csvfile, delimiter="\t")
             for i, row in enumerate(data_reader):
                 if i == 1:
                     precise_clusters = np.array(row, dtype=str)[2:]
-                if i == 8:  # 7 + 1 in pandas
-                    clusters = np.array(row, dtype=str)[2:]
-                if i >= 11:  # 10 + 1 in pandas
+                if i == 8:
+                    clusters = np.asarray(row, dtype=str)[2:]
+                if i >= 11:
                     rows.append(row[1:])
                     gene_names.append(row[0])
         cell_types, labels = np.unique(clusters, return_inverse=True)
         _, self.precise_labels = np.unique(precise_clusters, return_inverse=True)
-
-        expression_data = np.array(rows, dtype=np.int).T[1:]
+        X = np.array(rows, dtype=np.int).T[1:]
         gene_names = np.array(gene_names, dtype=np.str)
+        return {
+            "X": X,
+            "labels": labels,
+            "gene_names": gene_names,
+            "cell_types": cell_types,
+            "cell_attributes_dict": {"precise_labels": precise_clusters},
+        }
 
-        additional_genes = []
-        for gene_cortex in range(len(gene_names)):
-            for gene_fish in self.genes_fish:
-                if gene_names[gene_cortex].lower() == gene_fish.lower():
-                    additional_genes.append(gene_cortex)
-        for gene_cortex in range(len(gene_names)):
-            for gene_fish in self.genes_to_keep:
-                if gene_names[gene_cortex].lower() == gene_fish.lower():
-                    additional_genes.append(gene_cortex)
+    def preprocess(
+        self,
+        X: Union[np.ndarray, sp_sparse.csr_matrix],
+        labels: Union[List[int], np.ndarray, sp_sparse.csr_matrix] = None,
+        gene_names: Union[List[str], np.ndarray, sp_sparse.csr_matrix] = None,
+        cell_types: Union[List[int], np.ndarray] = None,
+        cell_attributes_dict: Dict[str, Union[List, np.ndarray]] = None,
+    ):
+        gene_indices = []
+        if self.genes_to_keep is not None:
+            _, gene_indices, _ = np.intersect1d(
+                self.genes_to_keep, gene_names, return_indices=True
+            )
+            gene_indices = list(gene_indices)
 
-        selected = np.std(expression_data, axis=0).argsort()[-self.additional_genes:][::-1]
-        selected = np.unique(np.concatenate((selected, np.array(additional_genes))))
-        selected = np.array([int(select) for select in selected])
-        expression_data = expression_data[:, selected]
-        gene_names = gene_names[selected]
+        if self.total_genes is not None:
+            genes_by_variance = np.std(X, axis=0).argsort()[::-1]
+            to_add = self.total_genes - len(gene_indices)
+            added = set(gene_indices)
 
-        # Then we reorganize the genes so that the genes from the smFISH dataset
-        # appear first
-        if len(self.genes_fish) > 0:
-            expression_data, gene_names = self.reorder_genes(expression_data, gene_names, self.genes_fish)
-            umi = np.sum(expression_data[:, :len(self.genes_fish)], axis=1)
-            expression_data = expression_data[umi > 10, :]
-            labels = labels[umi > 10]
+            for gene_index in genes_by_variance:
+                if to_add == 0:
+                    break
+                if gene_index not in added:
+                    added.add(gene_index)
+                    gene_indices.append(gene_index)
+                    to_add -= 1
+
+        gene_indices = np.array(gene_indices)
+        if self.total_genes is None and self.genes_to_keep is None:
+            gene_indices = slice(None)
+
+        X = X[:, gene_indices]
+        gene_names = gene_names[gene_indices]
 
         logging.info("Finished preprocessing Cortex data")
-        return expression_data, labels, gene_names, cell_types
-
-    @staticmethod
-    def reorder_genes(x, genes, first_genes):
-        """
-        In case the order of the genes needs to be changed:
-        puts the gene present in ordered_genes first, conserving
-        the same order.
-        """
-        # X must be a numpy matrix
-        new_order_first = []
-        for ordered_gene in range(len(first_genes)):
-            for gene in range(len(genes)):
-                if first_genes[ordered_gene].lower() == genes[gene].lower():
-                    new_order_first.append(gene)
-        new_order_second = [x for x in range(len(genes)) if x not in new_order_first]
-        new_order = new_order_first + new_order_second
-
-        return x[:, new_order], genes[new_order]
+        return {
+            "X": X,
+            "labels": labels,
+            "gene_names": gene_names,
+            "cell_types": cell_types,
+            "cell_attributes_dict": cell_attributes_dict
+        }

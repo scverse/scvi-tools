@@ -13,7 +13,7 @@ import pandas as pd
 from scipy import io
 from scipy.sparse import csr_matrix
 
-from scvi.dataset import GeneExpressionDataset
+from scvi.dataset.dataset import GeneExpressionDataset
 
 available_datasets = {"1.1.0":
                       ["frozen_pbmc_donor_a",
