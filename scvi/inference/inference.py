@@ -1,4 +1,5 @@
 import copy
+import logging
 
 import matplotlib.pyplot as plt
 import torch
@@ -6,6 +7,7 @@ import torch
 from scvi.inference import Trainer
 
 plt.switch_backend('agg')
+logger = logging.getLogger(__name__)
 
 
 class UnsupervisedTrainer(Trainer):
@@ -37,7 +39,10 @@ class UnsupervisedTrainer(Trainer):
         if type(self) is UnsupervisedTrainer:
             self.train_set, self.test_set = self.train_test(model, gene_dataset, train_size, test_size)
             self.train_set.to_monitor = ['elbo']
-            self.test_set.to_monitor = ['elbo']
+            if len(self.test_set.indices) >= 5:
+                self.test_set.to_monitor = ['elbo']
+            else:
+                logging.info('Test set is too small to track metrics (<5 samples)')
 
     @property
     def posteriors_loop(self):
