@@ -298,7 +298,7 @@ class Posterior:
         px_scale = np.concatenate((px_scale1, px_scale2), axis=0)
         all_labels = np.concatenate((np.repeat(0, len(px_scale1)), np.repeat(1, len(px_scale2))), axis=0)
         if genes is not None:
-            px_scale = px_scale[:, self.gene_dataset._gene_idx(genes)]
+            px_scale = px_scale[:, self.gene_dataset.genes_as_index(genes)]
         bayes1 = get_bayes_factors(px_scale, all_labels, cell_idx=0, M_permutation=M_permutation,
                                    permutation=False, sample_pairs=sample_pairs)
         if all_stats is True:
@@ -532,8 +532,8 @@ class Posterior:
             posterior_list += [X]
 
             if genes is not None:
-                posterior_list[-1] = posterior_list[-1][:, :, self.gene_dataset._gene_idx(genes)]
-                original_list[-1] = original_list[-1][:, self.gene_dataset._gene_idx(genes)]
+                posterior_list[-1] = posterior_list[-1][:, :, self.gene_dataset.genes_as_index(genes)]
+                original_list[-1] = original_list[-1][:, self.gene_dataset.genes_as_index(genes)]
 
             posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
 

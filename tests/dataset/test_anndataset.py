@@ -1,8 +1,8 @@
 from unittest import TestCase
 
 import anndata
-import torch
 import numpy as np
+import torch
 
 from scvi.dataset import AnnDatasetFromAnnData, DownloadableAnnDataset, GeneExpressionDataset
 from scvi.inference import UnsupervisedTrainer
