@@ -1,8 +1,9 @@
-from .dataset import GeneExpressionDataset
 import pandas as pd
 import numpy as np
 import os
 import logging
+
+from scvi.dataset.dataset import GeneExpressionDataset
 
 
 class CsvDataset(GeneExpressionDataset):

@@ -2,7 +2,8 @@ import loompy
 import numpy as np
 import os
 import logging
-from .dataset import GeneExpressionDataset
+
+from scvi.dataset.dataset import GeneExpressionDataset
 
 
 class LoomDataset(GeneExpressionDataset):

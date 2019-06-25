@@ -3,7 +3,7 @@ import os
 import logging
 import numpy as np
 
-from . import GeneExpressionDataset
+from scvi.dataset.dataset import GeneExpressionDataset
 
 
 class SyntheticDataset(GeneExpressionDataset):

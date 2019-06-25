@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 import logging
-from .dataset import GeneExpressionDataset
+from scvi.dataset.dataset import GeneExpressionDataset
 
 available_datasets = {
     "cbmc": "CBMC_8K_13AB_10X",

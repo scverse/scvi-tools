@@ -10,7 +10,7 @@ import pandas as pd
 
 from scipy.sparse import csr_matrix
 
-from scvi.dataset import DownloadableDataset, GeneExpressionDataset
+from scvi.dataset.dataset import DownloadableDataset, GeneExpressionDataset
 
 logger = logging.getLogger(__name__)
 

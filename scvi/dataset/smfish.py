@@ -1,9 +1,9 @@
 import numpy as np
 import loompy
 import logging
-from .dataset import GeneExpressionDataset
 import os
 
+from scvi.dataset.dataset import GeneExpressionDataset
 
 class SmfishDataset(GeneExpressionDataset):
     def __init__(self, save_path='data/', cell_type_level="major"):
