@@ -16,13 +16,14 @@ class SmfishDataset(GeneExpressionDataset):
         super().__init__(
             *GeneExpressionDataset.get_attributes_from_matrix(
                 data,
-                labels=labels), gene_names=gene_names,
+                labels=labels), gene_names=gene_names, cell_types=cell_types,
             x_coord=x_coord, y_coord=y_coord)
 
     def preprocess(self):
         logging.info("Preprocessing smFISH dataset")
         ds = loompy.connect(os.path.join(self.save_path, self.download_name))
         gene_names = ds.ra['Gene']
+        gene_names = np.array([gene.lower() for gene in gene_names])
         if self.cell_type_level == "minor":
             select = ds[:, :].sum(axis=0) > 0  # Take out cells that doesn't express any gene
 
@@ -63,9 +64,9 @@ class SmfishDataset(GeneExpressionDataset):
                     new_labels.append(5)
 
             select = np.array(to_keep)
-            labels, cell_types = np.array(new_labels), np.array(ds.ca['ClusterName'])
+            labels = np.array(new_labels)
             labels = np.reshape(labels, (labels.shape[0], 1))
-            cell_types = np.reshape(cell_types, (cell_types.shape[0], 1))[select]
+            cell_types = ['Astrocytes', 'Endothelial', 'Interneurons', 'Microglia', 'Oligodendrocytes', 'Pyramidal']
 
         x_coord, y_coord = np.array(ds.ca['X']), np.array(ds.ca['Y'])
         x_coord = np.reshape(x_coord, (x_coord.shape[0], 1))[select]
