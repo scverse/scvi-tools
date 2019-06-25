@@ -1,15 +1,16 @@
 import logging
 import sys
 import time
-from collections import defaultdict
-from itertools import cycle
 from functools import partial
+from itertools import cycle
+from typing import Optional, List, Tuple, Union, Iterable
 
 import numpy as np
 import torch
 from torch import nn
 from tqdm import trange
 
+from scvi.dataset import GeneExpressionDataset
 from scvi.inference import Posterior
 from scvi.inference import Trainer
 from scvi.models.log_likelihood import compute_elbo
@@ -22,7 +23,7 @@ class JPosterior(Posterior):
         super().__init__(*args, **kwargs)
         self.mode = mode
 
-    def elbo(self, verbose: bool=False) -> float:
+    def elbo(self, verbose: bool = False) -> float:
         elbo = compute_elbo(self.model, self, mode=self.mode)
         if verbose:
             logger.info("ELBO : %.4f" % elbo)
@@ -33,16 +34,15 @@ class JVAETrainer(Trainer):
     r"""
     The VariationalInference class for the unsupervised training of an autoencoder.
 
-        Args:
-            :param model: A model instance from class ``JVAE``
-            :param discriminator: A model instance of a classifier (with logit output)
-            :param gene_dataset_list: list of gene_dataset instance like ``[CortexDataset(), SmfishDataset()]``
-            :param train_size: Train size on cells
-            :param kappa: float to weight the discriminator loss
-            :param n_epochs_kl_warmup: Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
-                the training objective is the ELBO. This might be used to prevent inactivity of latent units, and/or to
-                improve clustering of latent space, as a long warmup turns the model into something more of an autoencoder.
-            :param kwargs: Other keywords arguments from the general Trainer class.
+    :param model: A model instance from class ``JVAE``
+    :param discriminator: A model instance of a classifier (with logit output)
+    :param gene_dataset_list: list of gene_dataset instance like ``[CortexDataset(), SmfishDataset()]``
+    :param train_size: Train size on cells
+    :param kappa: float to weight the discriminator loss
+    :param n_epochs_kl_warmup: Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
+        the training objective is the ELBO. This might be used to prevent inactivity of latent units, and/or to
+        improve clustering of latent space, as a long warmup turns the model into something more of an autoencoder.
+    :param kwargs: Other keywords arguments from the general Trainer class.
     """
 
     default_metrics_to_monitor = ["elbo"]
@@ -51,11 +51,11 @@ class JVAETrainer(Trainer):
         self,
         model: nn.Module,
         discriminator: nn.Module,
-        gene_dataset_list,
-        train_size: float=0.8,
-        use_cuda: bool=True,
-        kappa: float=1.0,
-        n_epochs_kl_warmup: int=400,
+        gene_dataset_list: List[GeneExpressionDataset],
+        train_size: float = 0.8,
+        use_cuda: bool = True,
+        kappa: float = 1.0,
+        n_epochs_kl_warmup: int = 400,
         **kwargs
     ):
 
@@ -63,13 +63,21 @@ class JVAETrainer(Trainer):
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.kappa_target = kappa
         self.all_dataset = [
-            self.create_posterior(gene_dataset=gd, type_class=partial(JPosterior, mode=i))
+            self.create_posterior(
+                gene_dataset=gd, type_class=partial(JPosterior, mode=i)
+            )
             for i, gd in enumerate(gene_dataset_list)
         ]
         self.n_dataset = len(self.all_dataset)
         self.all_train, self.all_test = list(
-            zip(*[self.train_test(model, gd, train_size, type_class=partial(JPosterior, mode=i))
-                  for i, gd in enumerate(gene_dataset_list)])
+            zip(
+                *[
+                    self.train_test(
+                        model, gd, train_size, type_class=partial(JPosterior, mode=i)
+                    )
+                    for i, gd in enumerate(gene_dataset_list)
+                ]
+            )
         )
         for i, d in enumerate(self.all_train):
             self.register_posterior("train_%d" % i, d)
@@ -77,7 +85,7 @@ class JVAETrainer(Trainer):
 
         for i, d in enumerate(self.all_test):
             self.register_posterior("test_%d" % i, d)
-            d.to_monitor = ['elbo']
+            d.to_monitor = ["elbo"]
 
         self.discriminator = discriminator
         if self.use_cuda:
@@ -90,28 +98,38 @@ class JVAETrainer(Trainer):
 
         self.track_disc = []
 
-    def loss_discriminator(self, tensors, predict_true_class=True):
-        log_softmax = nn.LogSoftmax(dim=1)
-        n_classes = self.n_dataset
-        losses = []
-        for i, z in enumerate(tensors):
-            cls_logits = log_softmax(self.discriminator(z))
+    def on_epoch_begin(self):
+        if self.n_epochs_kl_warmup is not None:
+            self.kl_weight = min(1, self.epoch / self.n_epochs_kl_warmup)
+        else:
+            self.kl_weight = 1.0
+        self.kappa = (self.epoch / self.n_epochs) * self.kappa_target
 
-            if predict_true_class:
-                cls_target = torch.zeros(n_classes, dtype=torch.float32, device=z.device)
-                cls_target[i] = 1.0
-            else:
-                cls_target = torch.ones(n_classes, dtype=torch.float32, device=z.device) / (n_classes - 1)
-                cls_target[i] = 0.0
+    @property
+    def posteriors_loop(self):
+        return ["train_%d" % i for i in range(self.n_dataset)]
 
-            l_soft = cls_logits * cls_target
-            cls_loss = -l_soft.sum(dim=1).mean()
-            losses.append(cls_loss)
+    def data_loaders_loop(self):
+        posteriors = [self._posteriors[name] for name in self.posteriors_loop]
+        # find the largest dataset to cycle over the others
+        largest = np.argmax(
+            [posterior.gene_dataset.X.shape[0] for posterior in posteriors]
+        )
 
-        total_loss = torch.stack(losses).sum()
-        return total_loss
+        data_loaders = [
+            posterior if i == largest else cycle(posterior)
+            for i, posterior in enumerate(posteriors)
+        ]
 
-    def train(self, n_epochs=20, lr_d=1e-3, lr_g=1e-3, eps=0.01):
+        return zip(*data_loaders)
+
+    def train(
+        self,
+        n_epochs: int = 20,
+        lr_d: float = 1e-3,
+        lr_g: float = 1e-3,
+        eps: float = 0.01,
+    ):
         self.compute_metrics_time = 0
         self.n_epochs = n_epochs
 
@@ -122,7 +140,9 @@ class JVAETrainer(Trainer):
             self.model.train()
             self.discriminator.train()
 
-            d_params = filter(lambda p: p.requires_grad, self.discriminator.parameters())
+            d_params = filter(
+                lambda p: p.requires_grad, self.discriminator.parameters()
+            )
             d_optimizer = torch.optim.Adam(d_params, lr=lr_d, eps=eps)
 
             g_params = filter(lambda p: p.requires_grad, self.model.parameters())
@@ -130,19 +150,25 @@ class JVAETrainer(Trainer):
 
             train_discriminator = self.n_dataset > 1 and self.kappa_target > 0
 
-            with trange(n_epochs, desc="training", file=sys.stdout, disable=self.verbose) as progress_bar:
+            with trange(
+                n_epochs, desc="training", file=sys.stdout, disable=self.verbose
+            ) as progress_bar:
                 for self.epoch in progress_bar:
                     self.on_epoch_begin()
                     progress_bar.update(1)
                     for tensors in self.data_loaders_loop():
                         if train_discriminator:
                             latent_tensors = []
-                            for (i, (sample_batch, *_)) in enumerate(tensors):
-                                z = self.model.sample_from_posterior_z(sample_batch, mode=i, deterministic=True)
+                            for (i, (data, *_)) in enumerate(tensors):
+                                z = self.model.sample_from_posterior_z(
+                                    data, mode=i, deterministic=False
+                                )
                                 latent_tensors.append(z)
 
                             # Train discriminator
-                            d_loss = self.loss_discriminator([t.detach() for t in latent_tensors], True)
+                            d_loss = self.loss_discriminator(
+                                [t.detach() for t in latent_tensors], True
+                            )
                             d_loss *= self.kappa
                             d_optimizer.zero_grad()
                             d_loss.backward()
@@ -167,37 +193,80 @@ class JVAETrainer(Trainer):
         self.model.eval()
         self.training_time += (time.time() - begin) - self.compute_metrics_time
         if self.verbose and self.frequency:
-            print("\nTraining time:  %i s. / %i epochs" % (int(self.training_time), self.n_epochs))
+            print(
+                "\nTraining time:  %i s. / %i epochs"
+                % (int(self.training_time), self.n_epochs)
+            )
 
-    @property
-    def posteriors_loop(self):
-        return ['train_%d' % i for i in range(self.n_dataset)]
+    def loss_discriminator(
+        self,
+        latent_tensors: List[torch.Tensor],
+        predict_true_class: bool = True,
+        return_details: bool = False,
+    ) -> Union[List[torch.Tensor], torch.Tensor]:
+        """
+        Compute the loss of the discriminator (either for the true labels or the fool labels)
 
-    def data_loaders_loop(self):
-        posteriors = [self._posteriors[name] for name in self.posteriors_loop]
-        # find the largest dataset to cycle over the others
-        largest = np.argmax([posterior.gene_dataset.X.shape[0] for posterior in posteriors])
+        :param latent_tensors: Tensors for each dataset of the latent space
+        :param predict_true_class: Specify if the loss aims at minimizing the accuracy or the mixing
+        :param return_details: Boolean used to inspect the loss values, return detailed loss for each dataset
+        :return: scalar loss if return_details is False, else list of scalar losses for each dataset
+        """
+        log_softmax = nn.LogSoftmax(dim=1)
+        n_classes = self.n_dataset
+        losses = []
+        for i, z in enumerate(latent_tensors):
+            cls_logits = log_softmax(self.discriminator(z))
 
-        data_loaders = [
-            posterior if i == largest else cycle(posterior) for i, posterior in enumerate(posteriors)
-        ]
+            if predict_true_class:
+                cls_target = torch.zeros(
+                    n_classes, dtype=torch.float32, device=z.device
+                )
+                cls_target[i] = 1.0
+            else:
+                cls_target = torch.ones(
+                    n_classes, dtype=torch.float32, device=z.device
+                ) / (n_classes - 1)
+                cls_target[i] = 0.0
 
-        return zip(*data_loaders)
+            l_soft = cls_logits * cls_target
+            cls_loss = -l_soft.sum(dim=1).mean()
+            losses.append(cls_loss)
 
-    def loss(self, tensors, return_details=False):
+        if return_details:
+            return losses
+
+        total_loss = torch.stack(losses).sum()
+        return total_loss
+
+    def loss(
+        self, tensors: Iterable[torch.Tensor], return_details: bool = False
+    ) -> Union[torch.Tensor, Tuple[List[torch.Tensor], List[torch.Tensor]]]:
+        """
+        Compute the loss of the scvi model
+
+        :param tensors: Tensors of observations for each dataset
+        :param return_details: Boolean used to inspect the loss values, return detailed loss for each dataset
+        :return: scalar loss if return_details is False, else tuple (reconstruction_loss, kl_loss)
+        """
         reconstruction_losses = []
         kl_divergences = []
         losses = []
         total_batch_size = 0
-        for (i, (sample_batch, local_l_mean, local_l_var, batch_index, labels, *_)) in enumerate(tensors):
+        for (i, (sample_batch, l_mean, l_var, batch_index, labels, *_)) in enumerate(
+            tensors
+        ):
             reconstruction_loss, kl_divergence = self.model(
-                sample_batch, local_l_mean, local_l_var, batch_index, mode=i
+                sample_batch, l_mean, l_var, batch_index, mode=i
             )
-            loss = torch.mean(reconstruction_loss + self.kl_weight * kl_divergence) * sample_batch.size(0)
+            loss = torch.mean(
+                reconstruction_loss + self.kl_weight * kl_divergence
+            ) * sample_batch.size(0)
             total_batch_size += sample_batch.size(0)
             losses.append(loss)
-            reconstruction_losses.append(reconstruction_loss)
-            kl_divergences.append(kl_divergence)
+            if return_details:
+                reconstruction_losses.append(reconstruction_loss.mean())
+                kl_divergences.append(kl_divergence.mean())
 
         if return_details:
             return reconstruction_losses, kl_divergences
@@ -205,7 +274,7 @@ class JVAETrainer(Trainer):
         averaged_loss = torch.stack(losses).sum() / total_batch_size
         return averaged_loss
 
-    def compute_accuracy(self):
+    def get_discriminator_confusion(self) -> np.ndarray:
         confusion = []
         for i, posterior in enumerate(self.all_dataset):
             data = torch.from_numpy(posterior.gene_dataset.X)
@@ -223,56 +292,92 @@ class JVAETrainer(Trainer):
             confusion.append(row)
         return np.array(confusion)
 
-    def get_loss_magnitude(self, one_sample=True):
-        total_reconstruction = defaultdict(float)
-        total_kl_divergence = defaultdict(float)
+    def get_loss_magnitude(
+        self, one_sample: bool = False
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        total_reconstruction = np.zeros(self.n_dataset)
+        total_kl_divergence = np.zeros(self.n_dataset)
+        total_discriminator = np.zeros(self.n_dataset)
+
         for tensors_list in self.data_loaders_loop():
-            reconstruction_losses, kl_divergences = self.loss(tensors_list, return_details=True)
-            for i in range(len(reconstruction_losses)):
-                total_reconstruction[i] += float(reconstruction_losses[i].detach().numpy())
-            for i in range(len(kl_divergences)):
-                total_kl_divergence[i] += float(kl_divergences[i].detach().numpy())
+            reconstruction_losses, kl_divergences = self.loss(
+                tensors_list, return_details=True
+            )
+
+            discriminator_losses = self.loss_discriminator(
+                [
+                    self.model.sample_from_posterior_z(
+                        data, mode=i, deterministic=False
+                    )
+                    for (i, (data, *_)) in enumerate(tensors_list)
+                ],
+                return_details=True,
+            )
+
+            for i in range(self.n_dataset):
+                total_reconstruction[i] += reconstruction_losses[i].item()
+                total_kl_divergence[i] += kl_divergences[i].item()
+                total_discriminator[i] += discriminator_losses[i].item()
             if one_sample:
                 break
-        return total_reconstruction, total_kl_divergence
 
-    def on_epoch_begin(self):
-        if self.n_epochs_kl_warmup is not None:
-            self.kl_weight = min(1, self.epoch / self.n_epochs_kl_warmup)
-        else:
-            self.kl_weight = 1.0
-        self.kappa = (self.epoch / self.n_epochs) * self.kappa_target
+        return total_reconstruction, total_kl_divergence, total_discriminator
 
-    def get_latent(self, deterministic=True):
+    def get_latent(self, deterministic: bool = True) -> List[np.ndarray]:
         self.model.eval()
         latents = []
         for mode, dataset in enumerate(self.all_dataset):
             latent = []
             for tensors in dataset:
-                sample_batch, local_l_mean, local_l_var, batch_index, label, *_ = tensors
-                latent.append(self.model.sample_from_posterior_z(sample_batch, mode, deterministic=deterministic))
+                sample_batch, local_l_mean, local_l_var, batch_index, label, *_ = (
+                    tensors
+                )
+                latent.append(
+                    self.model.sample_from_posterior_z(
+                        sample_batch, mode, deterministic=deterministic
+                    )
+                )
 
             latent = torch.cat(latent).detach().numpy()
             latents.append(latent)
 
         return latents
 
-    def get_imputed_values(self, deterministic=True, normalized=True, decode_mode=None):
+    def get_imputed_values(
+        self,
+        deterministic: bool = True,
+        normalized: bool = True,
+        decode_mode: Optional[int] = None,
+    ) -> List[np.ndarray]:
         self.model.eval()
         imputed_values = []
         for mode, dataset in enumerate(self.all_dataset):
             imputed_value = []
             for tensors in dataset:
-                sample_batch, local_l_mean, local_l_var, batch_index, label, *_ = tensors
+                sample_batch, local_l_mean, local_l_var, batch_index, label, *_ = (
+                    tensors
+                )
                 if normalized:
                     imputed_value.append(
-                        self.model.sample_scale(sample_batch, mode, batch_index, label, deterministic=deterministic,
-                                                decode_mode=decode_mode)
+                        self.model.sample_scale(
+                            sample_batch,
+                            mode,
+                            batch_index,
+                            label,
+                            deterministic=deterministic,
+                            decode_mode=decode_mode,
+                        )
                     )
                 else:
                     imputed_value.append(
-                        self.model.sample_rate(sample_batch, mode, batch_index, label, deterministic=deterministic,
-                                               decode_mode=decode_mode)
+                        self.model.sample_rate(
+                            sample_batch,
+                            mode,
+                            batch_index,
+                            label,
+                            deterministic=deterministic,
+                            decode_mode=decode_mode,
+                        )
                     )
 
             imputed_value = torch.cat(imputed_value).detach().numpy()

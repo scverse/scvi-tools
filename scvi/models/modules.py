@@ -25,19 +25,18 @@ class ConditionalInstanceNormalization(nn.Module):
     :rtype: :py:class:`torch.Tensor`
     """
 
-    def __init__(self,
-                 num_features: int,
-                 eps: float = 1e-05,
-                 momentum: float = 0.1,
-                 n_instances: int = 1):
+    def __init__(
+        self,
+        num_features: int,
+        eps: float = 1e-05,
+        momentum: float = 0.1,
+        n_instances: int = 1,
+    ):
         super().__init__()
 
-        self.batch_norms = ModuleList([
-            nn.BatchNorm1d(num_features,
-                           eps,
-                           momentum, )
-            for _ in range(n_instances)
-        ])
+        self.batch_norms = ModuleList(
+            [nn.BatchNorm1d(num_features, eps, momentum) for _ in range(n_instances)]
+        )
 
     def forward(self, x: torch.Tensor, instance_id: int = 0):
         return self.batch_norms[instance_id](x)
@@ -66,8 +65,8 @@ class FCLayers(nn.Module):
         n_layers: int = 1,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
-        use_batch_norm: bool=True,
-        n_batch_norm: int=1
+        use_batch_norm: bool = True,
+        n_batch_norm: int = 1
     ):
         super().__init__()
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
@@ -99,7 +98,7 @@ class FCLayers(nn.Module):
                 nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None))
              for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))]))
 
-    def forward(self, x: torch.Tensor, *cat_list: int, instance_id: int=0):
+    def forward(self, x: torch.Tensor, *cat_list: int, instance_id: int = 0):
         r"""Forward computation on ``x``.
 
         :param x: tensor of values with shape ``(n_in,)``
