@@ -462,6 +462,7 @@ class GeneExpressionDataset(Dataset):
             attr = getattr(self, attribute_name)
             mappings_dict = {name: getattr(self, name) for name in self.attribute_mappings[attribute_name]}
             new_attr, _, new_mappings_dict = remap_categories(attr, mappings_dict=mappings_dict)
+            setattr(self, attribute_name, new_attr)
             for name, mapping in new_mappings_dict.items():
                 setattr(self, name, mapping)
 
@@ -840,6 +841,9 @@ class GeneExpressionDataset(Dataset):
     ):
         """Merges some cell types into a new one, and changes the labels accordingly.
 
+        If ``new_cell_type_name`` is None, the first cell-type
+        to merge is used as the name for the new cell-type.
+
         :param cell_types: Cell types to merge.
         :param new_cell_type_name: Name for the new aggregate cell type.
         """
@@ -850,8 +854,10 @@ class GeneExpressionDataset(Dataset):
             np.isin(new_labels, labels_subset)
         ] = self.n_labels  # Put at the end the new merged cell-type
         self.labels = new_labels
-        if new_cell_type_name:
-            getattr(self, "cell_types")[-1] = new_cell_type_name
+        if new_cell_type_name is not None:
+            self.cell_types = np.concatenate([self.cell_types, [new_cell_type_name]])
+        else:
+            self.cell_types = np.concatenate([self.cell_types, [cell_types[0]]])
 
     def cell_types_to_labels(self, cell_types: Union[List[str], np.ndarray]):
         """Forms the list of labels corresponding to the specified ``cell_types``."""
