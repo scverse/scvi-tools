@@ -292,7 +292,7 @@ class GeneExpressionDataset(Dataset):
         return local_mean, local_var
 
     @staticmethod
-    def get_attributes_from_matrix(X, batch_indices=0, labels=None):
+    def get_attributes_from_matrix(X, batch_indices=0, labels=None, subclusters=None):
         ne_cells = X.sum(axis=1) > 0
         to_keep = np.where(ne_cells)[0]
         if not ne_cells.all():
@@ -305,6 +305,9 @@ class GeneExpressionDataset(Dataset):
         batch_indices = batch_indices * np.ones((X.shape[0], 1)) if type(batch_indices) is int \
             else batch_indices[to_keep]
         labels = labels[to_keep].reshape(-1, 1) if labels is not None else np.zeros_like(batch_indices)
+        if subclusters is not None:
+            subclusters = subclusters[to_keep]
+            return X, local_mean, local_var, batch_indices, labels, subclusters
         return X, local_mean, local_var, batch_indices, labels
 
     @staticmethod
