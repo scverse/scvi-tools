@@ -5,7 +5,7 @@ from sklearn.preprocessing import StandardScaler
 import os
 import logging
 
-from .dataset import GeneExpressionDataset
+from scvi.dataset.dataset import GeneExpressionDataset
 
 batch_idx_10x = [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
                  0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0,

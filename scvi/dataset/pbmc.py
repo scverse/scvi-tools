@@ -3,8 +3,8 @@ import os
 import numpy as np
 import pandas as pd
 
-from .dataset import GeneExpressionDataset, arrange_categories
-from .dataset10X import Dataset10X
+from scvi.dataset.dataset import GeneExpressionDataset, arrange_categories
+from scvi.dataset.dataset10X import Dataset10X
 
 
 class PbmcDataset(GeneExpressionDataset):

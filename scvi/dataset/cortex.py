@@ -127,4 +127,3 @@ class CortexDataset(DownloadableDataset):
             "cell_types": cell_types,
             "cell_attributes_dict": cell_attributes_dict
         }
-

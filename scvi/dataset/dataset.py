@@ -99,19 +99,18 @@ class GeneExpressionDataset(Dataset):
             "batch_indices",
             np.asarray(batch_indices).reshape((-1, 1))
             if batch_indices is not None
-            else np.zeros((len(X), 1)),
+            else np.zeros((X.shape[0], 1)),
             categorical=True,
         )
         self.initialize_cell_attribute(
             "labels",
             np.asarray(labels).reshape((-1, 1))
             if labels is not None
-            else np.zeros((len(X), 1)),
+            else np.zeros((X.shape[0], 1)),
             categorical=True,
         )
 
         self.compute_library_size_batch()
-        self.cell_attribute_names.update(["local_means", "local_vars"])
 
         if gene_names is not None:
             self.initialize_gene_attribute(
@@ -135,7 +134,7 @@ class GeneExpressionDataset(Dataset):
     def populate_from_per_batch_array(
         self,
         X: np.ndarray,
-        labels_per_batch: Union[np.ndarray, List[Union[List[int], np.ndarray]]],
+        labels_per_batch: Union[np.ndarray, List[Union[List[int], np.ndarray]]] = None,
         gene_names: Union[List[str], np.ndarray] = None,
     ):
         """Populates the data attributes of a GeneExpressionDataset object
@@ -147,17 +146,17 @@ class GeneExpressionDataset(Dataset):
         """
         if len(np.squeeze(X.shape)) != 3:
             raise ValueError(
-                "Shape of np.squeeze(X) != 3. Use standard constructor "
+                "Shape of np.squeeze(X) != 3. Use populate_from_data "
                 "if your dataset has shape (nb_cells, nb_genes)"
             )
-        X = X.reshape(-1, X.shape[2])
         batch_indices = np.arange(X.shape[0])[:, None] * np.ones(X.shape[1])[None, :]
         batch_indices = batch_indices.reshape(-1)
         labels = (
             np.concatenate(labels_per_batch).astype(np.int64)
-            if labels_per_batch
+            if labels_per_batch is not None
             else None
         )
+        X = X.reshape(-1, X.shape[2])
         self.populate_from_data(
             X=X, batch_indices=batch_indices, labels=labels, gene_names=gene_names
         )
@@ -181,7 +180,7 @@ class GeneExpressionDataset(Dataset):
 
         X = np.concatenate(Xs) if type(Xs[0]) is np.ndarray else sp_sparse.vstack(Xs)
         batch_indices = np.concatenate(
-            [i * np.ones(len(batch), dtype=np.int64) for i, batch in enumerate(Xs)]
+            [i * np.ones(batch.shape[0], dtype=np.int64) for i, batch in enumerate(Xs)]
         )
         labels = (
             np.concatenate(labels_per_batch).astype(np.int64)
@@ -212,7 +211,7 @@ class GeneExpressionDataset(Dataset):
 
         X = np.concatenate(Xs) if type(Xs[0]) is np.ndarray else sp_sparse.vstack(Xs)
         labels = np.concatenate(
-            [i * np.ones(len(cluster), dtype=np.int64) for i, cluster in enumerate(Xs)]
+            [i * np.ones(cluster.shape[0], dtype=np.int64) for i, cluster in enumerate(Xs)]
         )
         batch_indices = (
             np.concatenate(batch_indices_per_label).astype(np.int64)
@@ -226,7 +225,7 @@ class GeneExpressionDataset(Dataset):
 
     def populate_from_datasets(
         self,
-        *gene_datasets: "GeneExpressionDataset",
+        gene_datasets_list: List["GeneExpressionDataset"],
         on: str = "gene_names",
         sharing_intstructions_dict: Dict[str, bool] = None,
     ):
@@ -238,39 +237,51 @@ class GeneExpressionDataset(Dataset):
 
         :param gene_datasets: a sequence of ``GeneExpressionDataset`` objects.
         :param on: attribute to select gene interesection
-        :param sharing_intstructions_dict:
-
-        :return: GeneExpressionDataset instance of the concatenated datasets
+        :param sharing_intstructions_dict: Instructions on how to share cell-wise attributes between datasets.
+            Keys are the attribute name and values are either:
+                * "offset": to add an offset corresponding to the number of categories already existing.
+                e.g for batch_indices, if the first dataset has batches 0 and 1,
+                in the merged dataset, the second dataset's batch indices will start at 2.
+                * "concatenate": concatenate the attibute, no changes applied.
         """
         # sanity check
-        if not all([hasattr(gene_dataset, on) for gene_dataset in gene_datasets]):
+        if not all([hasattr(gene_dataset, on) for gene_dataset in gene_datasets_list]):
             raise ValueError(
                 "All datasets should have the merge key 'on' as an attribute"
             )
 
         # set default sharing behaviour
         if sharing_intstructions_dict is None:
-            sharing_intstructions_dict["batch_indices"] = "offset"
+            sharing_intstructions_dict = {"batch_indices": "offset"}
 
         # get insterection based on gene attribute `on` and get attribute intersection
         genes_to_keep = set.intersection(
-            *[set(getattr(gene_dataset, on)) for gene_dataset in gene_datasets]
+            *[set(getattr(gene_dataset, on)) for gene_dataset in gene_datasets_list]
         )
         gene_attributes_to_keep = set.intersection(
-            *[set(gene_dataset.gene_attribute_names) for gene_dataset in gene_datasets]
+            *[
+                set(gene_dataset.gene_attribute_names)
+                for gene_dataset in gene_datasets_list
+            ]
         )
         cell_attributes_to_keep = set.intersection(
-            *[set(gene_dataset.cell_attribute_names) for gene_dataset in gene_datasets]
+            *[
+                set(gene_dataset.cell_attribute_names)
+                for gene_dataset in gene_datasets_list
+            ]
         )
 
         # keep gene order and attributes of the first dataset
         gene_to_keep = [
-            gene for gene in getattr(gene_datasets[0], on) if gene in genes_to_keep
+            gene for gene in getattr(gene_datasets_list[0], on) if gene in genes_to_keep
         ]
         logger.info("Keeping {nb_genes} genes".format(nb_genes=len(genes_to_keep)))
 
         # filter genes
-        Xs = [dataset.filter_genes(gene_to_keep, on=on).X for dataset in gene_datasets]
+        Xs = []
+        for dataset in gene_datasets_list:
+            dataset.filter_genes(gene_to_keep, on=on)
+            Xs.append(dataset.X)
 
         # concatenate data
         if all([type(X) is np.ndarray for X in Xs]):
@@ -291,9 +302,9 @@ class GeneExpressionDataset(Dataset):
         # keep gene attributes of first dataset, and keep all mappings (e.g gene types)
         for attribute_name in gene_attributes_to_keep:
             self.initialize_gene_attribute(
-                attribute_name, getattr(gene_datasets[0], attribute_name)
+                attribute_name, getattr(gene_datasets_list[0], attribute_name)
             )
-            for gene_dataset in gene_datasets:
+            for gene_dataset in gene_datasets_list:
                 mapping_names = gene_dataset.attribute_mappings[attribute_name]
                 for mapping_name in mapping_names:
                     self.initialize_mapped_attribute(
@@ -310,7 +321,7 @@ class GeneExpressionDataset(Dataset):
                 set.intersection(
                     *[
                         set(gene_dataset.attribute_mappings[attribute_name])
-                        for gene_dataset in gene_datasets
+                        for gene_dataset in gene_datasets_list
                     ]
                 )
             )
@@ -326,7 +337,7 @@ class GeneExpressionDataset(Dataset):
                     )
                 mappings = {k: list(v) for k, v in mappings.items()}
 
-                for gene_dataset in gene_datasets:
+                for gene_dataset in gene_datasets_list:
                     local_attribute_values = np.squeeze(
                         getattr(gene_dataset, attribute_name)
                     )
@@ -345,7 +356,7 @@ class GeneExpressionDataset(Dataset):
             elif instruction == "offset":
                 mappings = defaultdict(list)
                 offset = 0
-                for i, gene_dataset in enumerate(gene_datasets):
+                for i, gene_dataset in enumerate(gene_datasets_list):
                     local_attribute_values = np.squeeze(
                         getattr(gene_dataset, attribute_name)
                     )
@@ -500,6 +511,7 @@ class GeneExpressionDataset(Dataset):
             self.local_means[idx_batch], self.local_vars[
                 idx_batch
             ] = compute_library_size(self.X[idx_batch])
+        self.cell_attribute_names.update(["local_means", "local_vars"])
 
     def collate_fn(
         self, batch: Union[List[int], np.ndarray]
@@ -595,7 +607,7 @@ class GeneExpressionDataset(Dataset):
             data = getattr(self, version_name)
             setattr(self, version_name, data[:, subset_cells])
 
-        logging.info(
+        logger.info(
             "Downsampled from {nb_cells} to {new_nb_cells} cells".format(
                 nb_cells=nb_cells_old, new_nb_cells=self.nb_cells
             )
@@ -610,9 +622,9 @@ class GeneExpressionDataset(Dataset):
         """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling.
 
         The function either:
-            * Subsample `new_n_genes` genes among all genes
-            * Subsamble a proportion of `new_ratio_genes` of the genes
-            * Subsample the genes in `subset_genes`
+            * Subsamples `new_n_genes` genes among all genes
+            * Subsambles a proportion of `new_ratio_genes` of the genes
+            * Subsamples the genes in `subset_genes`
 
         :param subset_genes: list of indices or mask of genes to retain
         :param new_n_genes: number of genes to retain, the highly variable genes will be kept
@@ -1034,11 +1046,13 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
         delayed_populating: bool = False,
     ):
         super().__init__()
-        if not isinstance(urls, str):
-            self.urls = urls
-        else:
+        if isinstance(urls, str):
             self.urls = [urls]
-        if type(filenames) == str:
+        elif urls is None:
+            self.urls = []
+        else:
+            self.urls = urls
+        if isinstance(filenames, str):
             self.filenames = [filenames]
         elif filenames is None:
             self.filenames = ["dataset_{i}".format(i=i) for i in range(len(self.urls))]

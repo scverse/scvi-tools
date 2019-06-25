@@ -3,8 +3,8 @@ import os
 import logging
 import numpy as np
 
-from scvi.dataset import DownloadableDataset
-from . import GeneExpressionDataset
+
+from scvi.dataset.dataset import GeneExpressionDataset, DownloadableDataset
 
 
 class SyntheticDataset(GeneExpressionDataset):
