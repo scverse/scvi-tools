@@ -43,7 +43,7 @@ class CortexDataset(GeneExpressionDataset):
             *GeneExpressionDataset.get_attributes_from_matrix(
                 expression_data,
                 labels=labels),
-            gene_names=np.char.upper(gene_names), cell_types=cell_types)
+            gene_names=np.char.lower(gene_names), cell_types=cell_types)
 
     def preprocess(self):
         logging.info("Preprocessing Cortex data")
@@ -76,7 +76,10 @@ class CortexDataset(GeneExpressionDataset):
                 if gene_names[gene_cortex].lower() == gene_fish.lower():
                     additional_genes.append(gene_cortex)
 
-        selected = np.std(expression_data, axis=0).argsort()[-self.additional_genes:][::-1]
+        if self.additional_genes > 0:
+            selected = np.std(expression_data, axis=0).argsort()[-self.additional_genes:][::-1]
+        else:
+            selected = []
         selected = np.unique(np.concatenate((selected, np.array(additional_genes))))
         selected = np.array([int(select) for select in selected])
         expression_data = expression_data[:, selected]
