@@ -182,7 +182,7 @@ class GeneExpressionDataset(Dataset):
 
     def _gene_idx(self, genes):
         if type(genes[0]) is not int:
-            genes_idx = [np.where(gene == self.gene_names)[0][0] for gene in genes]
+            genes_idx = [np.where(gene.lower() == self.gene_names)[0][0] for gene in genes]
         else:
             genes_idx = genes
         return np.array(genes_idx, dtype=np.int64)
