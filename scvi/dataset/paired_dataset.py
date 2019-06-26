@@ -2,19 +2,13 @@
 
 """Handling datasets.
 For the moment, is initialized with a torch Tensor of size (n_cells, nb_genes)"""
-import copy
 import logging
-import os
-import urllib.request
 
-from abc import abstractmethod, ABC
-from collections import defaultdict
 from typing import Dict, List, Tuple, Union, Optional
 
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
-from sklearn.preprocessing import StandardScaler
 from scvi.dataset.dataset import GeneExpressionDataset
 
 logger = logging.getLogger(__name__)
@@ -183,35 +177,29 @@ class PairedExpressionDataset(GeneExpressionDataset):
         on: str = "gene_names",
         sharing_intstructions_dict: Dict[str, bool] = None,
     ):
-        """Populates the data attribute of a PairedExpressionDataset
-        from multiple ``PairedExpressionDataset`` objects, merged using the intersection
-        of a gene-wise attribute (``gene_names`` by default).
-        Note that datasets should all have gene_dataset.n_labels=0.
-        Batch indices are generated in the same order as datasets are given.
-
-        :param gene_datasets: a sequence of ``PairedExpressionDataset`` objects.
-        :param on: attribute to select gene interesection
-        :param sharing_intstructions_dict: Instructions on how to share cell-wise attributes between datasets.
-            Keys are the attribute name and values are either:
-                * "offset": to add an offset corresponding to the number of categories already existing.
-                e.g for batch_indices, if the first dataset has batches 0 and 1,
-                in the merged dataset, the second dataset's batch indices will start at 2.
-                * "concatenate": concatenate the attibute, no changes applied.
-        """
-        raise(NotImplementedError)
+        raise NotImplementedError
 
     @property
     def Y(self):
         return self._Y
+
+    @Y.setter
+    def Y(self, Y: Union[np.ndarray, sp_sparse.csr_matrix]):
+        """Sets the data attribute ``Y``."""
+        self._Y = Y
 
     @property
     def nb_paired(self) -> int:
         return self.Y.shape[1]
 
     def initialize_paired_attribute(self, attribute_name, attribute):
-        """Sets and registers a gene-wise attribute, e.g annotation information."""
+        """Sets and registers a column-wise attribute, e.g protein name."""
         if not self.nb_paired == len(attribute):
-            raise ValueError("Number of genes and length of paired attribute mismatch")
+            raise ValueError(
+                "Number of paired measurements ({n_paired}) and length of paired attribute ({n_attr}) mismatch".format(
+                    n_paired=self.nb_paired, n_attr=len(attribute)
+                )
+            )
         setattr(self, attribute_name, attribute)
         self.paired_attribute_names.add(attribute_name)
 
