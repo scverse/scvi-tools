@@ -264,13 +264,16 @@ class TestGeneExpressionDataset(TestCase):
         self.assertListEqual(["0 and 1"], dataset.cell_types.tolist())
 
     def test_map_cell_types(self):
-        data = np.random.randint(1, 5, size=(5, 10))
-        labels = [0, 0, 1, 1, 2]
-        cell_types = ["0", "1", "2"]
+        data = np.random.randint(1, 5, size=(7, 10))
+        labels = [0, 0, 4, 4, 2, 3, 5]
+        cell_types = ["0", "1", "2", "3", "4", "5"]
 
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, labels=labels, cell_types=cell_types)
-        dataset.map_cell_types({("0", "2"): "3"})
+        dataset.map_cell_types({("0", "2"): "6", ("3", "4"): "7"})
+        dataset.remap_categorical_attributes()
+        self.assertListEqual(dataset.cell_types.tolist(), ["5", "6", "7"])
+        self.assertListEqual(np.squeeze(dataset.labels).tolist(), [1, 1, 2, 2, 1, 2, 0])
 
 
 class TestRemapCategories(TestCase):

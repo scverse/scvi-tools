@@ -356,8 +356,7 @@ class GeneExpressionDataset(Dataset):
                             mappings[ref_mapping_name].index(v) for v in old_mapping
                         ]
                         local_attribute_values, _ = remap_categories(
-                            local_attribute_values,
-                            mapping_to=new_indices,
+                            local_attribute_values, mapping_to=new_indices
                         )
                     attribute_values.append(local_attribute_values)
 
@@ -460,8 +459,13 @@ class GeneExpressionDataset(Dataset):
         for attribute_name in self.cell_categorical_attribute_names:
             logger.info("Remapping %s to [0,N]" % attribute_name)
             attr = getattr(self, attribute_name)
-            mappings_dict = {name: getattr(self, name) for name in self.attribute_mappings[attribute_name]}
-            new_attr, _, new_mappings_dict = remap_categories(attr, mappings_dict=mappings_dict)
+            mappings_dict = {
+                name: getattr(self, name)
+                for name in self.attribute_mappings[attribute_name]
+            }
+            new_attr, _, new_mappings_dict = remap_categories(
+                attr, mappings_dict=mappings_dict
+            )
             setattr(self, attribute_name, new_attr)
             for name, mapping in new_mappings_dict.items():
                 setattr(self, name, mapping)
@@ -498,12 +502,12 @@ class GeneExpressionDataset(Dataset):
         self, source_attribute_name, mapping_name, mapping_values
     ):
         """Sets and registers and attribute mapping, e.g labels to named cell_types."""
-        n_labels = len(np.unique(getattr(self, source_attribute_name)))
-        if not n_labels == len(mapping_values):
+        cat_max = np.max(getattr(self, source_attribute_name))
+        if not cat_max <= len(mapping_values):
             raise ValueError(
-                "Number of different {attr_name} ({n_labels}) and {map_name} ({n_map}) mismatch".format(
+                "Max value for {attr_name} ({cat_max}) is higher than {map_name} ({n_map}) mismatch".format(
                     attr_name=source_attribute_name,
-                    n_labels=n_labels,
+                    cat_max=cat_max,
                     map_name=mapping_name,
                     n_map=len(mapping_values),
                 )
@@ -711,7 +715,9 @@ class GeneExpressionDataset(Dataset):
             attr = getattr(self, attribute_name)
             setattr(self, attribute_name, attr[new_order])
 
-    def genes_as_index(self, genes: Union[List[str], List[int], np.ndarray], on: str = None):
+    def genes_as_index(
+        self, genes: Union[List[str], List[int], np.ndarray], on: str = None
+    ):
         """Returns the index of a subset of genes, given their ``on`` attribute in ``genes``.
 
         If integers are passed in ``genes``, the function returns ``genes``.
@@ -837,7 +843,7 @@ class GeneExpressionDataset(Dataset):
         cell_types: Union[
             Tuple[int, ...], Tuple[str, ...], List[int], List[str], np.ndarray
         ],
-        new_cell_type_name: str = None,
+        new_cell_type_name: str,
     ):
         """Merges some cell types into a new one, and changes the labels accordingly.
 
@@ -847,20 +853,16 @@ class GeneExpressionDataset(Dataset):
         :param cell_types: Cell types to merge.
         :param new_cell_type_name: Name for the new aggregate cell type.
         """
+        if new_cell_type_name in self.cell_types:
+            raise ValueError("New cell type name already used.")
         labels_subset = self.cell_types_to_labels(cell_types)
-        # labels should be set not muted
-        new_labels = self.labels
-        new_labels[
-            np.isin(new_labels, labels_subset)
-        ] = self.n_labels  # Put at the end the new merged cell-type
-        self.labels = new_labels
-        if new_cell_type_name is not None:
-            self.cell_types = np.concatenate([self.cell_types, [new_cell_type_name]])
-        else:
-            self.cell_types = np.concatenate([self.cell_types, [cell_types[0]]])
+        self.labels[np.isin(self.labels, labels_subset)] = self.labels.max() + 1
+        self.cell_types = np.concatenate([self.cell_types, [new_cell_type_name]])
 
-    def cell_types_to_labels(self, cell_types: Union[List[str], np.ndarray]):
-        """Forms the list of labels corresponding to the specified ``cell_types``."""
+    def cell_types_to_labels(
+        self, cell_types: Union[List[str], np.ndarray]
+    ) -> np.ndarray:
+        """Forms a one-on-one corresponding ``np.ndarray`` of labels for the specified ``cell_types``."""
         labels = [
             np.where(self.cell_types == cell_type)[0][0] for cell_type in cell_types
         ]
@@ -877,11 +879,6 @@ class GeneExpressionDataset(Dataset):
         :param cell_types_dict: dictionary with tuples of cell types to merge as keys
             and new cell type names as values.
         """
-        keys = [
-            (key,) if type(key) is not tuple else key for key in cell_types_dict.keys()
-        ]
-        cell_types = [cell_type for cell_types in keys for cell_type in cell_types]
-        self.filter_cell_types(cell_types)
         for cell_types, new_cell_type_name in cell_types_dict.items():
             self.merge_cell_types(cell_types, new_cell_type_name)
 
@@ -933,10 +930,7 @@ def remap_categories(
     mapping_from: Union[List[int], np.ndarray] = None,
     mapping_to: Union[List[int], np.ndarray] = None,
     mappings_dict: Dict[str, Union[List[str], List[int], np.ndarray]] = None,
-) -> Union[
-    Tuple[np.ndarray, int],
-    Tuple[np.ndarray, int, Dict[str, np.ndarray]],
-]:
+) -> Union[Tuple[np.ndarray, int], Tuple[np.ndarray, int, Dict[str, np.ndarray]]]:
     """Performs and returns a remapping of a categorical array.
 
     If None, ``mapping_from`` is set to np.unique(categories).
@@ -952,14 +946,14 @@ def remap_categories(
         and an ``int`` equal to the new number of categories.
     """
     original_categories = np.asarray(original_categories)
-    unique_categories = np.unique(original_categories)
+    unique_categories = list(np.unique(original_categories))
     n_categories = len(unique_categories)
     if mapping_to is None:
         mapping_to = list(range(n_categories))
     if mapping_from is None:
         mapping_from = unique_categories
 
-    # check lengths, allow absent categories
+    # check lengths
     if n_categories > len(mapping_from):
         raise ValueError(
             "Size of provided mapping_from greater than the number of categories."
@@ -968,18 +962,17 @@ def remap_categories(
         raise ValueError("Length mismatch between mapping_to and mapping_from.")
 
     new_categories = np.copy(original_categories)
-    for idx_from, idx_to in zip(mapping_from, mapping_to):
-        new_categories[original_categories == idx_from] = idx_to
+    for cat_from, cat_to in zip(mapping_from, mapping_to):
+        new_categories[original_categories == cat_from] = cat_to
     new_categories = new_categories.astype(np.uint16)
+    unique_new_categories = np.unique(new_categories)
     if mappings_dict is not None:
         new_mappings = {}
         for mapping_name, mapping in mappings_dict.items():
-            new_mapping = []
-            for i in range(n_categories):
-                idx = mapping_to.index(i)
-                idx_from = mapping_from[idx]
-                new_mapping.append(mapping[idx_from])
-            new_mappings[mapping_name] = np.asarray(new_mapping)
+            new_mapping = np.empty(unique_new_categories.shape[0], dtype=np.asarray(mapping).dtype)
+            for cat_from, cat_to in zip(mapping_from, mapping_to):
+                new_mapping[cat_to] = mapping[cat_from]
+            new_mappings[mapping_name] = new_mapping
         return new_categories, n_categories, new_mappings
     else:
         return new_categories, n_categories
