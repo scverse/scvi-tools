@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import torch
+import torch.distributions as distributions
 
 from matplotlib import pyplot as plt
 from scipy.stats import kde, entropy
@@ -505,39 +506,58 @@ class Posterior:
         return imputed_list.squeeze()
 
     @torch.no_grad()
-    def generate(self, n_samples=100, genes=None):  # with n_samples>1 return original list/ otherwose sequential
+    def generate(
+        self,
+        n_samples: int = 100,
+        genes: Union[list, np.array] = None,
+        batch_size: int = 128
+    ):
         """
-        Return original_values as y and generated as x (for posterior density visualization)
-        :param n_samples:
-        :param genes:
-        :return:
+        Create observation samples from the Posterior Predictive distribution
+
+        :param n_samples: Number of required samples for each cell
+        :param genes: Indices of genes of interest
+        :param batch_size: Desired Batch size to generate data
+
+        :return: Tuple (x_new, x_old)
+            Where x_old has shape (n_cells, n_genes)
+            Where x_new has shape (n_cells, n_genes, n_samples)
         """
-        original_list = []
-        posterior_list = []
-        batch_size = 128  # max(self.data_loader_kwargs["batch_size"] // n_samples, 2)  # Reduce batch_size on GPU
+        assert self.model.reconstruction_loss in ['zinb', 'nb']
+        zero_inflated = self.model.reconstruction_loss == 'zinb'
+        x_old = []
+        x_new = []
         for tensors in self.update({"batch_size": batch_size}):
             sample_batch, _, _, batch_index, labels = tensors
-            px_dispersion, px_rate = self.model.inference(sample_batch, batch_index=batch_index, y=labels,
-                                                          n_samples=n_samples)[1:3]
-            # This gamma is really l*w using scVI manuscript notation
-            p = (px_rate / (px_rate + px_dispersion)).cpu()
-            r = px_dispersion.cpu()
-            l_train = np.random.gamma(r, p / (1 - p))
-            X = np.random.poisson(l_train)
-            # """
-            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
-            # rate = (1 - p) / p  # = 1/scale # used in pytorch
-            # """
-            original_list += [np.array(sample_batch.cpu())]
-            posterior_list += [X]
+            px_dispersion, px_rate, px_dropout = self.model.inference(
+                sample_batch,
+                batch_index=batch_index,
+                y=labels,
+                n_samples=n_samples
+            )[1:4]
 
-            if genes is not None:
-                posterior_list[-1] = posterior_list[-1][:, :, self.gene_dataset._gene_idx(genes)]
-                original_list[-1] = original_list[-1][:, self.gene_dataset._gene_idx(genes)]
+            p = px_rate / (px_rate + px_dispersion)
+            r = px_dispersion
+            # Important remark: Gamma is parametrized by the rate = 1/scale!
+            l_train = distributions.Gamma(concentration=r, rate=(1-p)/p).sample()
+            l_train = torch.clamp(l_train, max=1e18)
+            gene_expressions = distributions.Poisson(l_train).sample()
+            if zero_inflated:
+                p_zero = (1.0 + torch.exp(-px_dropout)).pow(-1)
+                random_prob = torch.rand_like(p_zero)
+                gene_expressions[random_prob <= p_zero] = 0
 
-            posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
+            x_old.append(sample_batch)
+            x_new.append(gene_expressions)
 
-        return np.concatenate(posterior_list, axis=0), np.concatenate(original_list, axis=0)
+        x_old = torch.cat(x_old)  # Shape (n_cells, n_genes
+        x_new = torch.cat(x_new)  # Shape (n_samples, n_cells, n_genes)
+        x_new = x_new.permute([1, 2, 0])
+        if genes is not None:
+            gene_ids = self.gene_dataset.gene_as_index(genes)
+            x_new = x_new[:, gene_ids, :]
+            x_old = x_old[:, gene_ids]
+        return x_new.cpu(), x_old.cpu()
 
     @torch.no_grad()
     def generate_parameters(self):

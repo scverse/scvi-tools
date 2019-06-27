@@ -36,6 +36,15 @@ def test_cortex(save_path):
     trainer_cortex_vae.train(n_epochs=1)
     trainer_cortex_vae.uncorrupt_posteriors()
 
+    full = trainer_cortex_vae.create_posterior(
+        vae,
+        cortex_dataset,
+        indices=np.arange(len(cortex_dataset))
+    )
+    x_new, x_old = full.generate(n_samples=10)
+    assert x_new.shape == (cortex_dataset.nb_cells, cortex_dataset.nb_genes, 10)
+    assert x_old.shape == (cortex_dataset.nb_cells, cortex_dataset.nb_genes)
+
     trainer_cortex_vae.train_set.imputation_benchmark(n_samples=1, show_plot=False,
                                                       title_plot='imputation', save_path=save_path)
 
