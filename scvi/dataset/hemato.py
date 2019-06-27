@@ -97,4 +97,3 @@ class HematoDataset(DownloadableDataset):
                 "y_coord": y_spring,
             }
         )
-
