@@ -4,7 +4,7 @@ import os
 import urllib.request
 from abc import abstractmethod, ABC
 from collections import OrderedDict, defaultdict
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Dict, Iterable, List, Tuple, Union, Optional
 
 import numpy as np
 import scipy.sparse as sp_sparse
@@ -1061,8 +1061,8 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
 
     def __init__(
         self,
-        urls: Union[str, List[str]],
-        filenames: Union[str, List[str]] = None,
+        urls: Union[str, Iterable[str]],
+        filenames: Union[str, Iterable[str]] = None,
         save_path: str = "data/",
         delayed_populating: bool = False,
     ):
@@ -1076,7 +1076,7 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
         if isinstance(filenames, str):
             self.filenames = [filenames]
         elif filenames is None:
-            self.filenames = ["dataset_{i}".format(i=i) for i in range(len(self.urls))]
+            self.filenames = ["dataset_{i}".format(i=i) for i, _ in enumerate(self.urls)]
         else:
             self.filenames = filenames
 
@@ -1098,7 +1098,7 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
         pass
 
 
-def _download(url, save_path, filename):
+def _download(url: str, save_path: str, filename: str):
     """Writes data from url to file."""
     if os.path.exists(os.path.join(save_path, filename)):
         logger.info("File %s already downloaded" % (os.path.join(save_path, filename)))

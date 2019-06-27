@@ -7,13 +7,13 @@
 import numpy as np
 
 from scvi.benchmark import all_benchmarks, benchmark, benchmark_fish_scrna, ldvae_benchmark
-# from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
-#     LoomDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
-#     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
-#     GeneExpressionDataset, PurifiedPBMCDataset, SyntheticDatasetCorr, ZISyntheticDatasetCorr, \
-#     Dataset10X
+from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
+    LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
+    SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
+    GeneExpressionDataset, PurifiedPBMCDataset, SyntheticDatasetCorr, ZISyntheticDatasetCorr, \
+    Dataset10X
 
-from scvi.dataset import CortexDataset, SyntheticDataset, SyntheticDatasetCorr, ZISyntheticDatasetCorr
+from scvi.dataset import CortexDataset, SyntheticDataset
 
 from scvi.inference import JointSemiSupervisedTrainer, AlternateSemiSupervisedTrainer, ClassifierTrainer, \
     UnsupervisedTrainer, AdapterTrainer
@@ -26,7 +26,47 @@ import os.path
 use_cuda = True
 
 
+def test_cortex(save_path):
+    cortex_dataset = CortexDataset(save_path=save_path)
+    vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_batches)
+    trainer_cortex_vae = UnsupervisedTrainer(vae, cortex_dataset, train_size=0.5, use_cuda=use_cuda)
+    trainer_cortex_vae.train(n_epochs=1)
+    trainer_cortex_vae.train_set.reconstruction_error()
+    trainer_cortex_vae.train_set.differential_expression_stats()
 
+    trainer_cortex_vae.corrupt_posteriors(corruption='binomial')
+    trainer_cortex_vae.corrupt_posteriors()
+    trainer_cortex_vae.train(n_epochs=1)
+    trainer_cortex_vae.uncorrupt_posteriors()
+
+    trainer_cortex_vae.train_set.imputation_benchmark(n_samples=1, show_plot=False,
+                                                      title_plot='imputation', save_path=save_path)
+
+    svaec = SCANVI(cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels)
+    trainer_cortex_svaec = JointSemiSupervisedTrainer(svaec, cortex_dataset,
+                                                      n_labelled_samples_per_class=3,
+                                                      use_cuda=use_cuda)
+    trainer_cortex_svaec.train(n_epochs=1)
+    trainer_cortex_svaec.labelled_set.accuracy()
+    trainer_cortex_svaec.full_dataset.reconstruction_error()
+
+    svaec = SCANVI(cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels)
+    trainer_cortex_svaec = AlternateSemiSupervisedTrainer(svaec, cortex_dataset,
+                                                          n_labelled_samples_per_class=3,
+                                                          use_cuda=use_cuda)
+    trainer_cortex_svaec.train(n_epochs=1, lr=1e-2)
+    trainer_cortex_svaec.unlabelled_set.accuracy()
+    data_train, labels_train = trainer_cortex_svaec.labelled_set.raw_data()
+    data_test, labels_test = trainer_cortex_svaec.unlabelled_set.raw_data()
+    compute_accuracy_svc(data_train, labels_train, data_test, labels_test,
+                         param_grid=[{'C': [1], 'kernel': ['linear']}])
+    compute_accuracy_rf(data_train, labels_train, data_test, labels_test,
+                        param_grid=[{'max_depth': [3], 'n_estimators': [10]}])
+
+    cls = Classifier(cortex_dataset.nb_genes, n_labels=cortex_dataset.n_labels)
+    cls_trainer = ClassifierTrainer(cls, cortex_dataset)
+    cls_trainer.train(n_epochs=1)
+    cls_trainer.train_set.accuracy()
 
 
 def test_synthetic_1():
@@ -158,6 +198,12 @@ def test_cortex_loom(save_path):
     base_benchmark(cortex_dataset)
 
 
+def test_anndata(save_path):
+    ann_dataset = AnnDataset("TM_droplet_mat.h5ad", save_path=save_path)
+    base_benchmark(ann_dataset)
+    AnnDataset(anndata.AnnData(np.random.randint(1, 10, (10, 10))))
+
+
 def test_csv(save_path):
     csv_dataset = CsvDataset("GSE100866_CBMC_8K_13AB_10X-RNA_umi.csv.gz", save_path=save_path, compression='gzip')
     base_benchmark(csv_dataset)
@@ -179,6 +225,16 @@ def test_pbmc(save_path):
 
 
 def test_filter_and_concat_datasets(save_path):
+    cortex_dataset_1 = CortexDataset(save_path=save_path)
+    cortex_dataset_1.subsample_genes(subset_genes=np.arange(0, 3))
+    cortex_dataset_1.filter_cell_types(["microglia", "oligodendrocytes"])
+    cortex_dataset_2 = CortexDataset(save_path=save_path)
+    cortex_dataset_2.subsample_genes(subset_genes=np.arange(1, 4))
+    cortex_dataset_2.filter_cell_types(["endothelial-mural", "interneurons", "microglia", "oligodendrocytes"])
+    cortex_dataset_2.filter_cell_types([2, 0])
+    cortex_dataset_merged = GeneExpressionDataset.concat_datasets(cortex_dataset_1, cortex_dataset_2)
+    assert cortex_dataset_merged.nb_genes == 2
+
     synthetic_dataset_1 = SyntheticDataset(n_batches=2, n_labels=5)
     synthetic_dataset_2 = SyntheticDataset(n_batches=3, n_labels=3)
     synthetic_merged_1 = GeneExpressionDataset.concat_datasets(synthetic_dataset_1, synthetic_dataset_2)
