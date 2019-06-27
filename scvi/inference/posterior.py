@@ -552,7 +552,7 @@ class Posterior:
 
         x_old = torch.cat(x_old)  # Shape (n_cells, n_genes
         x_new = torch.cat(x_new)  # Shape (n_samples, n_cells, n_genes)
-        x_new = x_new.permute([1, 2, 0])
+        x_new = x_new.permute([1, 2, 0])  # Shape (n_cells, n_genes, n_samples)
         if genes is not None:
             gene_ids = self.gene_dataset.gene_as_index(genes)
             x_new = x_new[:, gene_ids, :]
