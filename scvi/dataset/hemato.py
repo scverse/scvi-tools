@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class HematoDataset(DownloadableDataset):
-    r""" Loads hemato dataset.
+    """Loads hemato dataset.
 
     This dataset contains continuous gene expression variations from hematopoeitic progenitor cells [31] contains
     4,016 cells and 7,397 genes. We removed the library basal-bm1 which was of poor quality based on authors

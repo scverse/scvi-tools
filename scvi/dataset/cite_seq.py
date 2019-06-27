@@ -103,7 +103,7 @@ class CiteSeqDataset(DownloadableDataset):
 
 
 class CbmcDataset(CiteSeqDataset):
-    r""" Loads cbmc dataset.
+    """Loads cbmc dataset.
 
     This dataset that includes 8,617 cord blood mononuclear cells profiled using 10x along with for each cell 13
     well-characterized mononuclear antibodies. We kept the top 600 genes by variance.

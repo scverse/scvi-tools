@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class BrainLargeDataset(DownloadableDataset):
-    r""" Loads brain-large dataset.
+    """Loads brain-large dataset.
 
     This dataset contains 1.3 million brain cells from `10x Genomics`_. We randomly shuffle the data to get a 1M
     subset of cells and order genes by variance to retain first 10,000 and then 720 sampled variable genes. This
@@ -83,7 +83,7 @@ class BrainLargeDataset(DownloadableDataset):
                 axis=1
             ) - np.multiply(mean, mean)
             self.subset_genes = (
-                np.squeeze(var).argsort().tolist()[0][-self.nb_genes_to_keep :][::-1]
+                np.squeeze(np.asarray(var)).argsort()[-self.nb_genes_to_keep :][::-1]
             )
             del gene_var_sample_matrix, mean, var
 
@@ -112,6 +112,7 @@ class BrainLargeDataset(DownloadableDataset):
                     (data_batch, indices_batch, index_partitioner_batch),
                     shape=(n_cells_batch, nb_genes),
                 )[:, self.subset_genes]
+                # stack on the fly to limit RAM usage
                 if i == 0:
                     matrix = matrix_batch
                 else:

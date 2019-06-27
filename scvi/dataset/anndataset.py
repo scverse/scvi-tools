@@ -1,13 +1,11 @@
 import logging
 import operator
 import os
-
 from functools import reduce
 
 import anndata
 import numpy as np
 import pandas as pd
-
 from scipy.sparse import csr_matrix
 
 from scvi.dataset.dataset import DownloadableDataset, GeneExpressionDataset

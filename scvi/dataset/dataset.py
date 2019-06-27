@@ -969,7 +969,9 @@ def remap_categories(
     if mappings_dict is not None:
         new_mappings = {}
         for mapping_name, mapping in mappings_dict.items():
-            new_mapping = np.empty(unique_new_categories.shape[0], dtype=np.asarray(mapping).dtype)
+            new_mapping = np.empty(
+                unique_new_categories.shape[0], dtype=np.asarray(mapping).dtype
+            )
             for cat_from, cat_to in zip(mapping_from, mapping_to):
                 new_mapping[cat_to] = mapping[cat_from]
             new_mappings[mapping_name] = new_mapping
@@ -985,64 +987,6 @@ def compute_library_size(
     local_mean = (np.mean(log_counts).reshape(-1, 1)).astype(np.float32)
     local_var = (np.var(log_counts).reshape(-1, 1)).astype(np.float32)
     return local_mean, local_var
-
-
-class SpatialGeneExpressionDataset(GeneExpressionDataset):
-    """Generic class representing RNA counts with spatial coordinates.
-
-
-    :param X: RNA counts matrix, sparse format supported (e.g ``scipy.sparse.csr_matrix``).
-    :param batch_indices: ``np.ndarray`` with shape (nb_cells,). Maps each cell to the batch
-        it originates from. Note that a batch most likely refers to a specific piece
-        of tissue or a specific experimental protocol.
-    :param labels: ``np.ndarray`` with shape (nb_cells,). Cell-wise labels. Can be mapped
-        to cell types using attribute mappings.
-    :param gene_names: ``List`` or ``np.ndarray`` with length/shape (nb_genes,).
-        Maps each gene to its name.
-    :param cell_types: Maps each integer label in ``labels`` to a cell type.
-    :param x_coord: ``np.ndarray`` with shape (nb_cells,). x-axis coordinate of each cell.
-        Useful for spatial data, e.g originating a FISH-like protocol.
-    :param y_coord: ``np.ndarray`` with shape (nb_cells,). y-axis coordinate of each cell.
-        Useful for spatial data, e.g originating a FISH-like protocol.
-    """
-
-    def __init__(
-        self,
-        X: Union[np.ndarray, sp_sparse.csr_matrix],
-        batch_indices: Union[List[int], np.ndarray, sp_sparse.csr_matrix] = None,
-        labels: Union[List[int], np.ndarray, sp_sparse.csr_matrix] = None,
-        gene_names: Union[List[str], np.ndarray, sp_sparse.csr_matrix] = None,
-        cell_types: Union[List[int], np.ndarray] = None,
-        x_coord: Union[List[float], np.ndarray, sp_sparse.csr_matrix] = None,
-        y_coord: Union[List[float], np.ndarray, sp_sparse.csr_matrix] = None,
-    ):
-        super().__init__()
-        super().populate_from_data(
-            X=X,
-            batch_indices=batch_indices,
-            labels=labels,
-            gene_names=gene_names,
-            cell_types=cell_types,
-            cell_attributes_dict={"x_coord": x_coord, "y_coord": y_coord},
-        )
-
-    def make_tensor_batch_from_indices(
-        self, X_batch: Union[sp_sparse.csr_matrix, np.ndarray], indices: np.ndarray
-    ) -> Tuple[torch.Tensor, ...]:
-        """Given indices and batch X_batch, returns a full batch of ``Torch.Tensor``."""
-        if isinstance(X_batch, np.ndarray):
-            X_batch = torch.from_numpy(X_batch)
-        else:
-            X_batch = torch.from_numpy(X_batch.toarray().astype(np.float32))
-        return (
-            X_batch,
-            torch.from_numpy(self.local_means[indices].astype(np.float32)),
-            torch.from_numpy(self.local_vars[indices].astype(np.float32)),
-            torch.from_numpy(self.batch_indices[indices].astype(np.int64)),
-            torch.from_numpy(self.labels[indices].astype(np.int64)),
-            torch.from_numpy(getattr(self, "x_coord")[indices].astype(np.float32)),
-            torch.from_numpy(getattr(self, "y_coord")[indices].astype(np.float32)),
-        )
 
 
 class DownloadableDataset(GeneExpressionDataset, ABC):
@@ -1076,7 +1020,9 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
         if isinstance(filenames, str):
             self.filenames = [filenames]
         elif filenames is None:
-            self.filenames = ["dataset_{i}".format(i=i) for i, _ in enumerate(self.urls)]
+            self.filenames = [
+                "dataset_{i}".format(i=i) for i, _ in enumerate(self.urls)
+            ]
         else:
             self.filenames = filenames
 

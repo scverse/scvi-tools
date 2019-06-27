@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class LoomDataset(DownloadableDataset):
-    r""" Loads a `.loom` file.
+    """Loads a `.loom` file.
 
     Examples:
         >>> # Loading a remote dataset
@@ -72,7 +72,7 @@ class LoomDataset(DownloadableDataset):
 
 
 class RetinaDataset(LoomDataset):
-    r""" Loads retina dataset.
+    """Loads retina dataset.
 
     The dataset of bipolar cells contains after their original pipeline for filtering 27,499 cells and
     13,166 genes coming from two batches. We use the cluster annotation from 15 cell-types from the author.

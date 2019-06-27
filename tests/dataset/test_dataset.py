@@ -137,7 +137,7 @@ class TestGeneExpressionDataset(TestCase):
         labels = np.array(range(25))
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, labels=labels)
-        self.assertTupleEqual((25, 1), dataset.labels.shape, )
+        self.assertTupleEqual((25, 1), dataset.labels.shape)
         self.assertEqual(dataset.labels[5, 0], 5)
 
         labels = np.ones(25) * 5
@@ -294,8 +294,3 @@ class TestRemapCategories(TestCase):
         self.assertListEqual(labels_true, labels.tolist())
         self.assertEqual(2, n_labels)
         self.assertListEqual(["2", "3"], mappings["cell_types"].tolist())
-
-
-class TestSpatialGeneExpressionDataset(TestCase):
-    def test_make_tensor_batch_from_indices(self):
-        pass
