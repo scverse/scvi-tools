@@ -1,14 +1,20 @@
-import pickle
-import os
 import logging
-import numpy as np
+import os
+import pickle
 
+import numpy as np
 
 from scvi.dataset.dataset import GeneExpressionDataset, DownloadableDataset
 
 
 class SyntheticDataset(GeneExpressionDataset):
-    def __init__(self, batch_size=200, nb_genes=100, n_batches=2, n_labels=3):
+    def __init__(
+        self,
+        batch_size: int = 200,
+        nb_genes: int = 100,
+        n_batches: int = 2,
+        n_labels: int = 3
+    ):
         super().__init__()
         # Generating samples according to a ZINB process
         data = np.random.negative_binomial(
@@ -29,16 +35,22 @@ class SyntheticRandomDataset(DownloadableDataset):
     FILENAME = 'random_metadata.pickle'
 
     # The exact random parameters taken by romain with simlr labels
-    def __init__(self, mu=4.0, theta=2.0, dropout=0.7, save_path='data/'):
+    def __init__(
+        self,
+        mu: float = 4.0,
+        theta: float = 2.0,
+        dropout: float = 0.7,
+        save_path: str = 'data/'
+    ):
+        self.mu = mu
+        self.theta = theta
+        self.dropout = dropout
+        self.simlr_metadata = None
         super().__init__(
             urls='https://github.com/YosefLab/scVI-data/raw/master/random_metadata.pickle',
             filenames=SyntheticRandomDataset.FILENAME,
             save_path=save_path,
         )
-        self.mu = mu
-        self.theta = theta
-        self.dropout = dropout
-        self.simlr_metadata = None
 
     def populate(self):
         np.random.seed(0)  # simlr attributes computed with this seed.
@@ -63,13 +75,13 @@ class SyntheticRandomDataset(DownloadableDataset):
 class SyntheticDatasetCorr(GeneExpressionDataset):
     def __init__(
         self,
-        n_cells_cluster=200,
-        n_clusters=3,
-        n_genes_high=25,
-        n_overlap=0,
-        weight_high=4e-2,
-        weight_low=1e-2,
-        lam_0=50.0,
+        n_cells_cluster: int = 200,
+        n_clusters: int = 3,
+        n_genes_high: int = 25,
+        n_overlap: int = 0,
+        weight_high: float = 4e-2,
+        weight_low: float = 1e-2,
+        lam_0: float = 50.0,
     ):
         """
         We define technical zeros of the synthetic dataset as the zeros that result from
@@ -163,8 +175,14 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
 
 
 class ZISyntheticDatasetCorr(SyntheticDatasetCorr):
-    def __init__(self, dropout_coef_high=0.05, lam_dropout_high=0.,
-                 dropout_coef_low=0.08, lam_dropout_low=0., n_batches=1, **kwargs):
+    def __init__(
+        self,
+        dropout_coef_high: float = 0.05,
+        lam_dropout_high: float = 0.,
+        dropout_coef_low: float = 0.08,
+        lam_dropout_low: float = 0.,
+        **kwargs
+    ):
         assert max(dropout_coef_high, dropout_coef_low) < 1
         self.dropout_coef_high = dropout_coef_high
         self.lam_dropout_high = lam_dropout_high
@@ -182,8 +200,9 @@ class ZISyntheticDatasetCorr(SyntheticDatasetCorr):
         self.p_dropout[self.is_highly_exp] = (
             self.dropout_coef_high
             * np.exp(
-            - self.lam_dropout_high * (self.exprs_param ** 2)
-        ))[self.is_highly_exp]
+                - self.lam_dropout_high * (self.exprs_param ** 2)
+            )
+        )[self.is_highly_exp]
 
         # Probability of failure
         mask = np.random.binomial(n=1, p=1 - self.p_dropout,
