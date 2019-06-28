@@ -520,7 +520,7 @@ class GeneExpressionDataset(Dataset):
         self.local_means = np.zeros((self.nb_cells, 1))
         self.local_vars = np.zeros((self.nb_cells, 1))
         for i_batch in range(self.n_batches):
-            idx_batch = (self.batch_indices == i_batch).ravel()
+            idx_batch = np.squeeze(self.batch_indices == i_batch)
             self.local_means[idx_batch], self.local_vars[
                 idx_batch
             ] = compute_library_size(self.X[idx_batch])
@@ -752,7 +752,7 @@ class GeneExpressionDataset(Dataset):
             if not isinstance(size, (int, np.integer))
             else size
         )
-        indices = np.argsort(np.asarray(self.X.sum(axis=1)).ravel())[::-1][:new_n_cells]
+        indices = np.argsort(np.squeeze(np.asarray(self.X.sum(axis=1))))[::-1][:new_n_cells]
         self.update_cells(indices)
 
     def filter_cells_by_attribute(
@@ -769,7 +769,8 @@ class GeneExpressionDataset(Dataset):
         self.update_cells(subset_cells)
 
     def filter_cells_by_count(self, min_count: int = 1):
-        mask_cells_to_keep = np.asarray(self.X.sum(axis=1) >= min_count)
+        # squeezing necessary in case of sparse matrix
+        mask_cells_to_keep = np.squeeze(np.asarray(self.X.sum(axis=1) >= min_count))
         self.update_cells(mask_cells_to_keep)
 
     def filter_cell_types(self, cell_types: Union[List[str], List[int], np.ndarray]):

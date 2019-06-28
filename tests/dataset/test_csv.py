@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from scvi.dataset import CsvDataset
-from . import unsupervised_training_one_epoch
+from .utils import unsupervised_training_one_epoch
 
 
 class TestCsvDataset(TestCase):
@@ -11,4 +11,4 @@ class TestCsvDataset(TestCase):
             save_path="tests/data",
             compression="gzip",
         )
-        unsupervised_training_one_epoch(csv_dataset)
+        unsupervised_training_one_epoch(dataset)

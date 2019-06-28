@@ -141,7 +141,7 @@ class Dataset10X(DownloadableDataset):
         genes_info = pd.read_csv(
             os.path.join(path, gene_filename), sep="\t", header=None
         )
-        gene_names = genes_info.values[:, self.gene_column].astype(np.str).ravel()
+        gene_names = genes_info.values[:, self.gene_column].astype(np.str)
         barcode_filename = "barcodes.tsv" + suffix
         cell_attributes_dict = None
         if os.path.exists(os.path.join(path, barcode_filename)):

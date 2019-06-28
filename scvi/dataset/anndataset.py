@@ -16,8 +16,6 @@ logger = logging.getLogger(__name__)
 class AnnDatasetFromAnnData(GeneExpressionDataset):
     """Forms a ``GeneExpressionDataset`` from a ``anndata.AnnData`` object.
 
-
-
     :param ad: ``anndata.AnnData`` instance.
     """
 

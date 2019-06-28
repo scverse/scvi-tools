@@ -4,7 +4,7 @@ import anndata
 import numpy as np
 
 from scvi.dataset import AnnDatasetFromAnnData, DownloadableAnnDataset
-from . import unsupervised_training_one_epoch
+from .utils import unsupervised_training_one_epoch
 
 
 class TestAnnDatasetFromAnnData(TestCase):
