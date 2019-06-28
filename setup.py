@@ -27,8 +27,6 @@ requirements = [
     "ipython>=7",
     "umap-learn>=0.3.7",
     "seaborn>=0.9.0",
-    "leidenalg>=0.7.0",
-    "python-igraph>=0.7.1",
     "hyperopt>=0.1.2",
 ]
 
@@ -36,7 +34,7 @@ setup_requirements = ['pytest-runner', ]
 
 test_requirements = ['pytest', ]
 
-extras_requirements = {'test': ['scanpy', 'louvain', ]}
+extras_requirements = {'test': ['scanpy', 'louvain', "leidenalg>=0.7.0", "python-igraph>=0.7.1", ]}
 
 author = 'Romain Lopez, Jeffrey Regier, Maxime Langevin, Edouard Mehlman, Yining Liu'
 

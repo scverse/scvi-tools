@@ -39,7 +39,6 @@ Quick Start
     ``conda install scvi -c bioconda -c conda-forge``
 
    Alternatively, you may try pip (``pip install scvi``), or you may clone this repository and run ``python setup.py install``.
-
 4. Follow along with our Jupyter notebooks to quickly get familiar with scVI!
 
    a. Getting started:
