@@ -1,11 +1,9 @@
 import csv
 import logging
 import os
-
-from typing import Dict, List, Union, Optional
+from typing import List, Optional
 
 import numpy as np
-import scipy.sparse as sp_sparse
 
 from scvi.dataset.dataset import DownloadableDataset
 

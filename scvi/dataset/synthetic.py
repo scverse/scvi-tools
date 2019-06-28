@@ -106,7 +106,6 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
         :param weight_high: Level weight for highly expressed genes
         :param weight_low: Level weight for lowly expressed genes
         :param lam_0: Proportionality in the Poisson distributions parameter
-        :param n_batches: (useless for now) Number of batches in dataset
         """
         super().__init__()
         n_batches = 1
@@ -145,14 +144,14 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
         # with the cluster
         for cluster in range(n_clusters):
             labels[
-                :, cluster * n_cells_cluster : (cluster + 1) * n_cells_cluster, :
+                :, cluster * n_cells_cluster: (cluster + 1) * n_cells_cluster, :
             ] = cluster
 
             ind_first_gene_cluster = cluster * (n_genes_high - n_overlap)
             ind_last_high_gene_cluster = ind_first_gene_cluster + n_genes_high
             self.is_highly_exp[
                 :,
-                cluster * n_cells_cluster : (cluster + 1) * n_cells_cluster,
+                cluster * n_cells_cluster: (cluster + 1) * n_cells_cluster,
                 ind_first_gene_cluster:ind_last_high_gene_cluster,
             ] = True
             # Weights in a cluster to create highly-expressed and low-expressed genes
@@ -161,7 +160,7 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
             weights /= weights.sum()
 
             self.exprs_param[
-                :, cluster * n_cells_cluster : (cluster + 1) * n_cells_cluster, :
+                :, cluster * n_cells_cluster: (cluster + 1) * n_cells_cluster, :
             ] = (lam_0 * weights)
 
         logger.info(

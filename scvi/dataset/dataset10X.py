@@ -98,7 +98,7 @@ class Dataset10X(DownloadableDataset):
     def __init__(
         self,
         dataset_name: str = None,
-        filename: str= None,
+        filename: str = None,
         url: str = None,
         save_path: str = "data/",
         type: str = "filtered",
