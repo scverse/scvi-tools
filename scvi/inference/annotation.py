@@ -17,6 +17,8 @@ from scvi.inference import Trainer
 from scvi.inference.inference import UnsupervisedTrainer
 from scvi.inference.posterior import unsupervised_clustering_accuracy
 
+logger = logging.getLogger(__name__)
+
 
 class AnnotationPosterior(Posterior):
     def __init__(self, *args, model_zl=False, **kwargs):
@@ -26,7 +28,7 @@ class AnnotationPosterior(Posterior):
     def accuracy(self):
         model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
         acc = compute_accuracy(model, self, classifier=cls, model_zl=self.model_zl)
-        logging.debug("Acc: %.4f" % (acc))
+        logger.debug("Acc: %.4f" % (acc))
         return acc
 
     accuracy.mode = 'max'
@@ -40,7 +42,7 @@ class AnnotationPosterior(Posterior):
         all_y_pred_groups = np.array([self.model.labels_groups[y] for y in all_y_pred])
         h_acc = np.mean(all_y_groups == all_y_pred_groups)
 
-        logging.debug("Hierarchical Acc : %.4f\n" % h_acc)
+        logger.debug("Hierarchical Acc : %.4f\n" % h_acc)
         return acc
 
     accuracy.mode = 'max'
@@ -58,7 +60,7 @@ class AnnotationPosterior(Posterior):
     def unsupervised_classification_accuracy(self):
         all_y, all_y_pred = self.compute_predictions()
         uca = unsupervised_clustering_accuracy(all_y, all_y_pred)[0]
-        logging.debug("UCA : %.4f" % (uca))
+        logger.debug("UCA : %.4f" % (uca))
         return uca
 
     unsupervised_classification_accuracy.mode = 'max'

@@ -91,14 +91,14 @@ class Trainer:
         if self.frequency and (epoch == 0 or epoch == self.n_epochs or (epoch % self.frequency == 0)):
             with torch.set_grad_enabled(False):
                 self.model.eval()
-                logging.debug("\nEPOCH [%d/%d]: " % (epoch, self.n_epochs))
+                logger.debug("\nEPOCH [%d/%d]: " % (epoch, self.n_epochs))
 
                 for name, posterior in self._posteriors.items():
-                    logging.info_name = ' '.join([s.capitalize() for s in name.split('_')[-2:]])
+                    message = ' '.join([s.capitalize() for s in name.split('_')[-2:]])
                     if hasattr(posterior, 'to_monitor'):
                         for metric in posterior.to_monitor:
                             if metric not in self.metrics_to_monitor:
-                                logging.debug(logging.info_name, end=' : ')
+                                logger.debug(message, end=' : ')
                                 result = getattr(posterior, metric)()
                                 self.history[metric + '_' + name] += [result]
                     for metric in self.metrics_to_monitor:
@@ -129,7 +129,7 @@ class Trainer:
             n_epochs,
             desc="training",
             file=sys.stdout,
-            disable= not self.show_progbar
+            disable=not self.show_progbar
         ) as pbar:
             # We have to use tqdm this way so it works in Jupyter notebook.
             # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
@@ -152,7 +152,7 @@ class Trainer:
         self.model.eval()
         self.training_time += (time.time() - begin) - self.compute_metrics_time
         if self.frequency:
-            logging.debug("\nTraining time:  %i s. / %i epochs" % (int(self.training_time), self.n_epochs))
+            logger.debug("\nTraining time:  %i s. / %i epochs" % (int(self.training_time), self.n_epochs))
 
     def on_epoch_begin(self):
         pass
@@ -173,7 +173,7 @@ class Trainer:
                 self.history[early_stopping_metric + '_' + on][-1]
             )
             if reduce_lr:
-                logging.info("Reducing LR.")
+                logger.info("Reducing LR.")
                 for param_group in self.optimizer.param_groups:
                     param_group["lr"] *= self.early_stopping.lr_factor
 
@@ -338,10 +338,10 @@ class EarlyStopping:
             continue_training = True
         if not continue_training:
             # FIXME: log total number of epochs run
-            logging.info("\nStopping early: no improvement of more than " + str(self.threshold) +
-                         " nats in " + str(self.patience) + " epochs")
-            logging.info("If the early stopping criterion is too strong, "
-                         "please instantiate it with different parameters in the train method.")
+            logger.info("\nStopping early: no improvement of more than " + str(self.threshold) +
+                        " nats in " + str(self.patience) + " epochs")
+            logger.info("If the early stopping criterion is too strong, "
+                        "please instantiate it with different parameters in the train method.")
         return continue_training, reduce_lr
 
     def update_state(self, scalar):

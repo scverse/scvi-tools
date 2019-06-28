@@ -9,19 +9,21 @@ from scvi.inference import Trainer
 from scvi.models.classifier import Classifier
 from scvi.models.log_likelihood import compute_reconstruction_error, compute_elbo
 
+logger = logging.getLogger(__name__)
+
 
 class FishPosterior(Posterior):
 
     @torch.no_grad()
     def elbo(self):
         elbo = compute_elbo(self.model, self, mode="smFISH")
-        logging.debug("ELBO Fish: %.4f" % elbo)
+        logger.debug("ELBO Fish: %.4f" % elbo)
         return elbo
 
     @torch.no_grad()
     def reconstruction_error(self):
         reconstruction_error = compute_reconstruction_error(self.model, self, mode="smFISH")
-        logging.debug("Reconstruction Error Fish: %.4f" % reconstruction_error)
+        logger.debug("Reconstruction Error Fish: %.4f" % reconstruction_error)
         return reconstruction_error
 
     @torch.no_grad()
