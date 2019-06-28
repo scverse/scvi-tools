@@ -252,16 +252,17 @@ class TestGeneExpressionDataset(TestCase):
         self.assertListEqual(data[:2].tolist(), dataset.X.tolist())
 
     def test_merge_cell_types(self):
-        data = np.random.randint(1, 5, size=(5, 10))
-        labels = [0, 0, 1, 1, 1]
-        cell_types = ["0", "1"]
+        data = np.random.randint(1, 5, size=(8, 20))
+        labels = [0, 0, 1, 2, 2, 1, 0, 1]
+        cell_types = ["0", "1", "2"]
 
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, labels=labels, cell_types=cell_types)
         dataset.merge_cell_types(["0", "1"], new_cell_type_name="0 and 1")
+        self.assertListEqual([[3], [3], [3], [2], [2], [3], [3], [3]], dataset.labels.tolist())
         dataset.remap_categorical_attributes()
-        self.assertListEqual([[0] for _ in range(5)], dataset.labels.tolist())
-        self.assertListEqual(["0 and 1"], dataset.cell_types.tolist())
+        self.assertListEqual([[1], [1], [1], [0], [0], [1], [1], [1]], dataset.labels.tolist())
+        self.assertListEqual(["2", "0 and 1"], dataset.cell_types.tolist())
 
     def test_map_cell_types(self):
         data = np.random.randint(1, 5, size=(7, 10))
