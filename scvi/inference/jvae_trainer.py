@@ -32,12 +32,12 @@ class JPosterior(Posterior):
 
 class JVAETrainer(Trainer):
     r"""
-    The VariationalInference class for the unsupervised training of an autoencoder.
+    The trainer class for the unsupervised training of JVAE.
 
     :param model: A model instance from class ``JVAE``
     :param discriminator: A model instance of a classifier (with logit output)
     :param gene_dataset_list: list of gene_dataset instance like ``[CortexDataset(), SmfishDataset()]``
-    :param train_size: Train size on cells
+    :param train_size: Train-test split ratio in (0,1) to split cells
     :param kappa: float to weight the discriminator loss
     :param n_epochs_kl_warmup: Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
         the training objective is the ELBO. This might be used to prevent inactivity of latent units, and/or to
@@ -61,7 +61,7 @@ class JVAETrainer(Trainer):
 
         super().__init__(model, gene_dataset_list[0], use_cuda=use_cuda, **kwargs)
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
-        self.kappa_target = kappa
+        self.kappa = kappa
         self.all_dataset = [
             self.create_posterior(
                 gene_dataset=gd, type_class=partial(JPosterior, mode=i)
@@ -92,7 +92,6 @@ class JVAETrainer(Trainer):
             self.discriminator.cuda()
 
         self.kl_weight = None
-        self.kappa = None
         self.compute_metrics_time = None
         self.n_epochs = None
 
@@ -103,7 +102,6 @@ class JVAETrainer(Trainer):
             self.kl_weight = min(1, self.epoch / self.n_epochs_kl_warmup)
         else:
             self.kl_weight = 1.0
-        self.kappa = (self.epoch / self.n_epochs) * self.kappa_target
 
     @property
     def posteriors_loop(self):
@@ -148,7 +146,7 @@ class JVAETrainer(Trainer):
             g_params = filter(lambda p: p.requires_grad, self.model.parameters())
             g_optimizer = torch.optim.Adam(g_params, lr=lr_g, eps=eps)
 
-            train_discriminator = self.n_dataset > 1 and self.kappa_target > 0
+            train_discriminator = self.n_dataset > 1 and self.kappa > 0
 
             with trange(
                 n_epochs, desc="training", file=sys.stdout, disable=self.verbose
@@ -212,11 +210,10 @@ class JVAETrainer(Trainer):
         :param return_details: Boolean used to inspect the loss values, return detailed loss for each dataset
         :return: scalar loss if return_details is False, else list of scalar losses for each dataset
         """
-        log_softmax = nn.LogSoftmax(dim=1)
         n_classes = self.n_dataset
         losses = []
         for i, z in enumerate(latent_tensors):
-            cls_logits = log_softmax(self.discriminator(z))
+            cls_logits = nn.LogSoftmax(dim=1)(self.discriminator(z))
 
             if predict_true_class:
                 cls_target = torch.zeros(
@@ -243,7 +240,7 @@ class JVAETrainer(Trainer):
         self, tensors: Iterable[torch.Tensor], return_details: bool = False
     ) -> Union[torch.Tensor, Tuple[List[torch.Tensor], List[torch.Tensor]]]:
         """
-        Compute the loss of the scvi model
+        Compute the loss of vae (reconstruction + kl_divergence)
 
         :param tensors: Tensors of observations for each dataset
         :param return_details: Boolean used to inspect the loss values, return detailed loss for each dataset
