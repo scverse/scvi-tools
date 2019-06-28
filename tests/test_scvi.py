@@ -73,7 +73,7 @@ def test_synthetic_1():
     trainer_synthetic_svaec = JointSemiSupervisedTrainer(svaec, synthetic_dataset, use_cuda=use_cuda)
     trainer_synthetic_svaec.train(n_epochs=1)
     trainer_synthetic_svaec.labelled_set.entropy_batch_mixing()
-    trainer_synthetic_svaec.full_dataset.knn_purity(verbose=True)
+    trainer_synthetic_svaec.full_dataset.knn_purity()
     trainer_synthetic_svaec.labelled_set.show_t_sne(n_samples=5)
     trainer_synthetic_svaec.unlabelled_set.show_t_sne(n_samples=5, color_by='labels')
     trainer_synthetic_svaec.labelled_set.show_t_sne(n_samples=5, color_by='batches and labels')

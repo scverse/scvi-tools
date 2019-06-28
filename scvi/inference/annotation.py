@@ -23,17 +23,16 @@ class AnnotationPosterior(Posterior):
         super().__init__(*args, **kwargs)
         self.model_zl = model_zl
 
-    def accuracy(self, verbose=False):
+    def accuracy(self):
         model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
         acc = compute_accuracy(model, self, classifier=cls, model_zl=self.model_zl)
-        if verbose:
-            logging.info("Acc: %.4f" % (acc))
+        logging.debug("Acc: %.4f" % (acc))
         return acc
 
     accuracy.mode = 'max'
 
     @torch.no_grad()
-    def hierarchical_accuracy(self, verbose=False):
+    def hierarchical_accuracy(self):
         all_y, all_y_pred = self.compute_predictions()
         acc = np.mean(all_y == all_y_pred)
 
@@ -41,8 +40,7 @@ class AnnotationPosterior(Posterior):
         all_y_pred_groups = np.array([self.model.labels_groups[y] for y in all_y_pred])
         h_acc = np.mean(all_y_groups == all_y_pred_groups)
 
-        if verbose:
-            logging.info("Hierarchical Acc : %.4f\n" % h_acc)
+        logging.debug("Hierarchical Acc : %.4f\n" % h_acc)
         return acc
 
     accuracy.mode = 'max'
@@ -57,11 +55,10 @@ class AnnotationPosterior(Posterior):
         return compute_predictions(model, self, classifier=cls, soft=soft, model_zl=self.model_zl)
 
     @torch.no_grad()
-    def unsupervised_classification_accuracy(self, classifier=None, verbose=False):
+    def unsupervised_classification_accuracy(self):
         all_y, all_y_pred = self.compute_predictions()
         uca = unsupervised_clustering_accuracy(all_y, all_y_pred)[0]
-        if verbose:
-            logging.info("UCA : %.4f" % (uca))
+        logging.debug("UCA : %.4f" % (uca))
         return uca
 
     unsupervised_classification_accuracy.mode = 'max'
@@ -186,10 +183,9 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         indices_unlabelled = permutation_idx[indices[total_labelled:]]
 
         self.classifier_trainer = ClassifierTrainer(
-            model.classifier, gene_dataset, metrics_to_monitor=[], verbose=True, frequency=0,
+            model.classifier, gene_dataset, metrics_to_monitor=[], show_progbar=False, frequency=0,
             sampling_model=self.model
-        )  # verbose = True removes the "loading bar", whereas frequency = 0 ensures we don't compute metrics
-
+        )
         self.full_dataset = self.create_posterior(shuffle=True)
         self.labelled_set = self.create_posterior(indices=indices_labelled)
         self.unlabelled_set = self.create_posterior(indices=indices_unlabelled)

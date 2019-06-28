@@ -13,17 +13,15 @@ from scvi.models.log_likelihood import compute_reconstruction_error, compute_elb
 class FishPosterior(Posterior):
 
     @torch.no_grad()
-    def elbo(self, verbose=False):
+    def elbo(self):
         elbo = compute_elbo(self.model, self, mode="smFISH")
-        if verbose:
-            logging.info("ELBO Fish: %.4f" % elbo)
+        logging.debug("ELBO Fish: %.4f" % elbo)
         return elbo
 
     @torch.no_grad()
-    def reconstruction_error(self, verbose=False):
+    def reconstruction_error(self):
         reconstruction_error = compute_reconstruction_error(self.model, self, mode="smFISH")
-        if verbose:
-            logging.info("Reconstruction Error Fish: %.4f" % reconstruction_error)
+        logging.debug("Reconstruction Error Fish: %.4f" % reconstruction_error)
         return reconstruction_error
 
     @torch.no_grad()
