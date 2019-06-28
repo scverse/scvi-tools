@@ -9,7 +9,7 @@ from scvi.dataset.dataset import GeneExpressionDataset, DownloadableDataset
 # from scvi.dataset.loom import LoomDataset, RetinaDataset
 # from scvi.dataset.pbmc import PbmcDataset, PurifiedPBMCDataset
 # from scvi.dataset.seqfish import SeqfishDataset
-# from scvi.dataset.smfish import SmfishDataset
+from scvi.dataset.smfish import SmfishDataset
 from scvi.dataset.synthetic import (
     SyntheticDataset,
     SyntheticRandomDataset,

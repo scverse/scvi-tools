@@ -8,12 +8,10 @@ import numpy as np
 
 from scvi.benchmark import all_benchmarks, benchmark, benchmark_fish_scrna, ldvae_benchmark
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
-    LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
+    LoomDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
     SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
     GeneExpressionDataset, PurifiedPBMCDataset, SyntheticDatasetCorr, ZISyntheticDatasetCorr, \
     Dataset10X
-
-from scvi.dataset import CortexDataset, SyntheticDataset
 
 from scvi.inference import JointSemiSupervisedTrainer, AlternateSemiSupervisedTrainer, ClassifierTrainer, \
     UnsupervisedTrainer, AdapterTrainer
@@ -132,8 +130,8 @@ def test_synthetic_corr_zeros():
 def test_fish_rna(save_path):
     gene_dataset_fish = SmfishDataset(save_path)
     gene_dataset_seq = CortexDataset(save_path=save_path,
-                                     genes_fish=gene_dataset_fish.gene_names,
-                                     genes_to_keep=[], additional_genes=50)
+                                     genes_to_keep=gene_dataset_fish.gene_names,
+                                     total_genes=gene_dataset_fish.nb_genes + 50)
     benchmark_fish_scrna(gene_dataset_seq, gene_dataset_fish)
 
 
