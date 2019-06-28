@@ -45,9 +45,9 @@ class PosteriorPredictiveCheck:
         """Calculate the coefficient of variation
         
         Args:
-            cell_wise (bool, optional): Calculate over cells. Defaults to True. If False, calculate over genes
+            cell_wise (bool, optional): Calculate for each cell across genes. Defaults to True. If False, calculate for each gene across cells.
         """
-        axis = 0 if cell_wise is True else 1
+        axis = 1 if cell_wise is True else 0
         identifier = "cv_cell" if cell_wise is True else "cv_gene"
         df = pd.DataFrame()
         for m, samples in self.posterior_predictive_samples.items():
