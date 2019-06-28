@@ -947,6 +947,35 @@ class GeneExpressionDataset(Dataset):
         else:
             raise NotImplementedError("Unknown corruption method.")
 
+    def raw_counts_properties(
+        self, idx1: Union[List[int], np.ndarray], idx2: Union[List[int], np.ndarray]
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Computes and returns some statistics on the raw counts of two sub-populations.
+
+        :param idx1: subset of indices desccribing the first population.
+        :param idx2: subset of indices desccribing the second population.
+
+        :return: Tuple of np.ndarray containing, by pair (one for each sub-population),
+            mean expression, mean of non-zero expression, mean of normalized expression.
+        """
+        mean1 = (self.X[idx1, :]).mean(axis=0)
+        mean2 = (self.X[idx2, :]).mean(axis=0)
+        nonz1 = (self.X[idx1, :] != 0).mean(axis=0)
+        nonz2 = (self.X[idx2, :] != 0).mean(axis=0)
+        if self.norm_X is None:
+            scaling_factor = self.X.mean(axis=1)
+            self.norm_X = self.X / scaling_factor.reshape(len(scaling_factor), 1)
+        norm_mean1 = self.norm_X[idx1, :].mean(axis=0)
+        norm_mean2 = self.norm_X[idx2, :].mean(axis=0)
+        return (
+            np.squeeze(np.asarray(mean1)),
+            np.squeeze(np.asarray(mean2)),
+            np.squeeze(np.asarray(nonz1)),
+            np.squeeze(np.asarray(nonz2)),
+            np.squeeze(np.asarray(norm_mean1)),
+            np.squeeze(np.asarray(norm_mean2)),
+        )
+
 
 def remap_categories(
     original_categories: Union[List[int], np.ndarray],
