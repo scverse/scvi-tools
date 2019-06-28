@@ -60,9 +60,8 @@ class DropseqDataset(GeneExpressionDataset):
             data = ds[:, select].T  # change matrix to cells by genes
             ds.close()
 
-            np.random.seed(0)
-            cells = np.random.choice(np.arange(data.shape[0]), self.subsample, replace=False)
-            np.random.seed()
+            random_state = np.random.RandomState(0)
+            cells = random_state.choice(np.arange(data.shape[0]), self.subsample, replace=False)
             data = data[cells]
             labels = labels[cells]
             if subclusters is not None:
