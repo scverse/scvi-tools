@@ -1,11 +1,9 @@
 import csv
 import logging
 import os
-
-from typing import Dict, List, Union, Optional
+from typing import List, Optional
 
 import numpy as np
-import scipy.sparse as sp_sparse
 
 from scvi.dataset.dataset import DownloadableDataset
 
@@ -19,30 +17,28 @@ class CortexDataset(DownloadableDataset):
     seven distinct cell types. Each cell type corresponds to a cluster to recover. We retain top 558 genes
     ordered by variance.
 
-    Args:
-        :save_path: Save path of raw data file. Default: ``'data/'``.
+    :param save_path: Path indicating where to save/load data.
+    :param genes_to_keep: Gene names to keep.
+    :param total_genes: Total number of genes to keep. If None, use all genes.
+    :param delayed_populating: Boolean switch for delayed population mechanism.
 
     Examples:
         >>> gene_dataset = CortexDataset()
 
     .. _Mouse Cortex Cells dataset:
         https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt
-
     """
-
     def __init__(
         self,
         save_path: str = "data/",
         genes_to_keep: Optional[List[str]] = None,
         total_genes: Optional[int] = 558,
         delayed_populating: bool = False,
-        preprocess=True,
     ):
         self.genes_to_keep = genes_to_keep
         self.total_genes = total_genes
 
         self.precise_labels = None
-        self._preprocess_data = preprocess
 
         super().__init__(
             urls="https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs"
@@ -53,12 +49,6 @@ class CortexDataset(DownloadableDataset):
         )
 
     def populate(self):
-        data = self.load_from_disk()
-        if self._preprocess_data:
-            data = self.preprocess(**data)
-        self.populate_from_data(**data)
-
-    def load_from_disk(self):
         logger.info("Loading Cortex data")
         rows = []
         gene_names = []
@@ -76,54 +66,32 @@ class CortexDataset(DownloadableDataset):
         _, self.precise_labels = np.unique(precise_clusters, return_inverse=True)
         X = np.array(rows, dtype=np.int).T[1:]
         gene_names = np.array(gene_names, dtype=np.str)
-        return {
-            "X": X,
-            "labels": labels,
-            "gene_names": gene_names,
-            "cell_types": cell_types,
-            "cell_attributes_dict": {"precise_labels": precise_clusters},
-        }
-
-    def preprocess(
-        self,
-        X: Union[np.ndarray, sp_sparse.csr_matrix],
-        labels: Union[List[int], np.ndarray, sp_sparse.csr_matrix] = None,
-        gene_names: Union[List[str], np.ndarray, sp_sparse.csr_matrix] = None,
-        cell_types: Union[List[int], np.ndarray] = None,
-        cell_attributes_dict: Dict[str, Union[List, np.ndarray]] = None,
-    ):
         gene_indices = []
         if self.genes_to_keep is not None:
             _, gene_indices, _ = np.intersect1d(
                 self.genes_to_keep, gene_names, return_indices=True
             )
-            gene_indices = list(gene_indices)
 
-        if self.total_genes is not None:
-            genes_by_variance = np.std(X, axis=0).argsort()[::-1]
-            to_add = self.total_genes - len(gene_indices)
-            added = set(gene_indices)
+        nb_gene_indices = len(gene_indices)
+        extra_gene_indices = []
+        if self.total_genes is not None and nb_gene_indices < self.total_genes:
+            not_gene_indices_mask = np.ones(X.shape[1], dtype=np.bool)
+            not_gene_indices_mask[gene_indices] = False
+            genes_by_variance = np.std(X[:, ~not_gene_indices_mask], axis=0).argsort()[::-1]
+            extra_gene_indices = genes_by_variance[: self.total_genes - len(gene_indices)]
 
-            for gene_index in genes_by_variance:
-                if to_add == 0:
-                    break
-                if gene_index not in added:
-                    added.add(gene_index)
-                    gene_indices.append(gene_index)
-                    to_add -= 1
-
-        gene_indices = np.array(gene_indices)
+        gene_indices = np.concatenate([gene_indices, extra_gene_indices]).astype(np.int32)
         if self.total_genes is None and self.genes_to_keep is None:
             gene_indices = slice(None)
 
         X = X[:, gene_indices]
         gene_names = gene_names[gene_indices]
 
-        logging.info("Finished preprocessing Cortex data")
-        return {
-            "X": X,
-            "labels": labels,
-            "gene_names": gene_names,
-            "cell_types": cell_types,
-            "cell_attributes_dict": cell_attributes_dict
-        }
+        logger.info("Finished preprocessing Cortex data")
+        self.populate_from_data(
+            X=X,
+            labels=labels,
+            gene_names=gene_names,
+            cell_types=cell_types,
+            cell_attributes_dict={"precise_labels": precise_clusters}
+        )

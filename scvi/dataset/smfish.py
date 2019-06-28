@@ -6,6 +6,8 @@ import numpy as np
 
 from scvi.dataset.dataset import DownloadableDataset
 
+logger = logging.getLogger(__name__)
+
 
 class SmfishDataset(DownloadableDataset):
     def __init__(self, save_path="data/", cell_type_level="major", preprocess=True):
@@ -23,9 +25,10 @@ class SmfishDataset(DownloadableDataset):
         self.populate_from_data(**data)
         if self._preprocess_data:
             self.preprocess()
+        self.filter_cells_by_count()
 
     def load_from_disk(self):
-        logging.info("Loading smFISH dataset")
+        logger.info("Loading smFISH dataset")
         ds = loompy.connect(os.path.join(self.save_path, self.filenames[0]))
         gene_names = np.char.upper(ds.ra["Gene"].astype(np.str))
 
@@ -75,4 +78,3 @@ class SmfishDataset(DownloadableDataset):
                 ]
             )
         self.remap_categorical_attributes()
-        self.filter_cells()

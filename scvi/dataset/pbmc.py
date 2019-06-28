@@ -1,5 +1,6 @@
 import os
 import pickle
+from typing import Union, List
 
 import numpy as np
 import pandas as pd
@@ -23,6 +24,7 @@ class PbmcDataset(DownloadableDataset):
     """
 
     def __init__(self, save_path: str = "data/", delayed_populating: bool = False):
+        self.barcodes = None
         super().__init__(
             urls=[
                 "https://github.com/YosefLab/scVI-data/raw/master/gene_info.csv",
@@ -32,7 +34,6 @@ class PbmcDataset(DownloadableDataset):
             save_path=save_path,
             delayed_populating=delayed_populating,
         )
-        self.barcodes = None
         # this downloads the necessary file for a future call to populate
         if delayed_populating:
             Dataset10X("pbmc8k", save_path=save_path, delayed_populating=True)
@@ -93,7 +94,7 @@ class PbmcDataset(DownloadableDataset):
 class PurifiedPBMCDataset(DownloadableDataset):
     """Purified PBMC dataset from: "Massively parallel digital transcriptional profiling of single cells".
 
-    :param subset_cell_types: index for subsetting the follwing list of datasets
+    :param subset_datasets: index for subsetting the follwing list of datasets
         which are used to form the ``PurifiedPBMCDataset``:
         "cd4_t_helper", "regulatory_t", "naive_t", "memory_t", "cytotoxic_t", "naive_cytotoxic",
         "b_cells", "cd4_t_helper", "cd34", "cd56_nk", "cd14_monocytes".
@@ -101,8 +102,12 @@ class PurifiedPBMCDataset(DownloadableDataset):
     Examples:
         >>> gene_dataset = PurifiedPBMCDataset()
     """
-    def __init__(self, save_path="data/", subset_cell_types=None, delayed_populating: bool = False):
-        super().__init__()
+    def __init__(
+        self,
+        save_path: str = "data/",
+        subset_datasets: Union[List[int], np.ndarray] = None,
+        delayed_populating: bool = False
+    ):
         self.dataset_names = np.array(
             [
                 "cd4_t_helper",
@@ -118,20 +123,26 @@ class PurifiedPBMCDataset(DownloadableDataset):
                 "cd14_monocytes",
             ]
         )
-        subset_cell_types = subset_cell_types if subset_cell_types else slice(None)
-        cell_types = self.cell_types[np.array(subset_cell_types)]
+        subset_datasets = subset_datasets if subset_datasets else slice(None)
+        self.dataset_names = self.dataset_names[subset_datasets]
+        super().__init__(
+            save_path=save_path,
+            delayed_populating=delayed_populating,
+        )
 
         if delayed_populating:
-            for cell_type in cell_types:
-                Dataset10X(cell_type, save_path=save_path, delayed_populating=delayed_populating)
+            for dataset_name in self.dataset_names:
+                Dataset10X(dataset_name, save_path=save_path, delayed_populating=delayed_populating)
 
         self.filter_genes_by_count()
         self.filter_cells_by_count()
 
     def populate(self):
         datasets = []
-        for cell_type in self.cell_types:
-            dataset = Dataset10X(cell_type, save_path=self.save_path)
-            dataset.cell_types = np.array([cell_type])
+        for dataset_name in self.dataset_names:
+            dataset = Dataset10X(dataset_name, save_path=self.save_path)
+            dataset.initialize_mapped_attribute(
+                "labels", "cell_types", np.array([dataset_name], dtype=np.str)
+            )
             datasets += [dataset]
         self.populate_from_datasets(datasets)

@@ -25,6 +25,8 @@ from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler, Ran
 
 from scvi.models.log_likelihood import compute_elbo, compute_reconstruction_error, compute_marginal_log_likelihood
 
+logger = logging.getLogger(__name__)
+
 
 class SequentialSubsetSampler(SubsetRandomSampler):
     def __iter__(self):
@@ -134,7 +136,7 @@ class Posterior:
     def elbo(self, verbose=False):
         elbo = compute_elbo(self.model, self)
         if verbose:
-            logging.info("ELBO : %.4f" % elbo)
+            logger.info("ELBO : %.4f" % elbo)
         return elbo
 
     elbo.mode = "min"
@@ -143,7 +145,7 @@ class Posterior:
     def reconstruction_error(self, verbose=False):
         reconstruction_error = compute_reconstruction_error(self.model, self)
         if verbose:
-            logging.info("Reconstruction Error : %.4f" % reconstruction_error)
+            logger.info("Reconstruction Error : %.4f" % reconstruction_error)
         return reconstruction_error
 
     reconstruction_error.mode = "min"
@@ -152,7 +154,7 @@ class Posterior:
     def marginal_ll(self, verbose=False, n_mc_samples=1000):
         ll = compute_marginal_log_likelihood(self.model, self, n_mc_samples)
         if verbose:
-            logging.info("True LL : %.4f" % ll)
+            logger.info("True LL : %.4f" % ll)
         return ll
 
     @torch.no_grad()
@@ -179,7 +181,7 @@ class Posterior:
             latent, batch_indices, labels = self.get_latent()
             be_score = entropy_batch_mixing(latent, batch_indices, **kwargs)
             if verbose:
-                logging.info("Entropy batch mixing :", be_score)
+                logger.info("Entropy batch mixing : %f" % be_score)
             return be_score
 
     entropy_batch_mixing.mode = "max"
@@ -300,7 +302,7 @@ class Posterior:
         px_scale = np.concatenate((px_scale1, px_scale2), axis=0)
         all_labels = np.concatenate((np.repeat(0, len(px_scale1)), np.repeat(1, len(px_scale2))), axis=0)
         if genes is not None:
-            px_scale = px_scale[:, self.gene_dataset.genes_as_index(genes)]
+            px_scale = px_scale[:, self.gene_dataset.genes_to_index(genes)]
         bayes1 = get_bayes_factors(px_scale, all_labels, cell_idx=0, M_permutation=M_permutation,
                                    permutation=False, sample_pairs=sample_pairs)
         if all_stats is True:
@@ -535,8 +537,8 @@ class Posterior:
             posterior_list += [X]
 
             if genes is not None:
-                posterior_list[-1] = posterior_list[-1][:, :, self.gene_dataset.genes_as_index(genes)]
-                original_list[-1] = original_list[-1][:, self.gene_dataset.genes_as_index(genes)]
+                posterior_list[-1] = posterior_list[-1][:, :, self.gene_dataset.genes_to_index(genes)]
+                original_list[-1] = original_list[-1][:, self.gene_dataset.genes_to_index(genes)]
 
             posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
 
@@ -628,7 +630,7 @@ class Posterior:
         imputed_list_concat = np.concatenate(imputed_list)
         are_lists_empty = (len(original_list_concat) == 0) and (len(imputed_list_concat) == 0)
         if are_lists_empty:
-            logging.info("No difference between corrupted dataset and uncorrupted dataset")
+            logger.info("No difference between corrupted dataset and uncorrupted dataset")
             return 0.0
         else:
             return np.median(np.abs(original_list_concat - imputed_list_concat))
@@ -647,7 +649,7 @@ class Posterior:
         mean_score = np.mean(imputation_cells)
 
         if verbose:
-            logging.info("\nMedian of Median: %.4f\nMean of Median for each cell: %.4f" % (median_score, mean_score))
+            logger.info("\nMedian of Median: %.4f\nMean of Median for each cell: %.4f" % (median_score, mean_score))
 
         plot_imputation(np.concatenate(original_list), np.concatenate(imputed_list), show_plot=show_plot,
                         title=os.path.join(save_path, title_plot))
@@ -658,7 +660,7 @@ class Posterior:
         latent, _, labels = self.get_latent()
         score = knn_purity(latent, labels)
         if verbose:
-            logging.info("KNN purity score :", score)
+            logger.info("KNN purity score : %f" % score)
         return score
 
     knn_purity.mode = "max"
@@ -679,8 +681,8 @@ class Posterior:
             ari_score = ARI(labels, labels_pred)
             uca_score = unsupervised_clustering_accuracy(labels, labels_pred)[0]
             if verbose:
-                logging.info("Clustering Scores:\nSilhouette: %.4f\nNMI: %.4f\nARI: %.4f\nUCA: %.4f" %
-                             (asw_score, nmi_score, ari_score, uca_score))
+                logger.info("Clustering Scores:\nSilhouette: %.4f\nNMI: %.4f\nARI: %.4f\nUCA: %.4f" %
+                            (asw_score, nmi_score, ari_score, uca_score))
             return asw_score, nmi_score, ari_score, uca_score
 
     @torch.no_grad()
@@ -695,7 +697,7 @@ class Posterior:
             protein_data = self.gene_dataset.adt_expression_clr[self.indices]
             spearman_correlation, fold_enrichment = nn_overlap(latent, protein_data, **kwargs)
             if verbose:
-                logging.info("Overlap Scores:\nSpearman Correlation: %.4f\nFold Enrichment: %.4f" %
+                logger.info("Overlap Scores:\nSpearman Correlation: %.4f\nFold Enrichment: %.4f" %
                              (spearman_correlation, fold_enrichment))
             return spearman_correlation, fold_enrichment
 
