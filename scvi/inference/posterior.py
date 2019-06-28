@@ -96,7 +96,7 @@ class Posterior:
         self.data_loader_kwargs.update({"sampler": sampler})
         self.data_loader = DataLoader(gene_dataset, **self.data_loader_kwargs)
 
-    def accuracy(self, verbose=False):
+    def accuracy(self):
         pass
 
     accuracy.mode = "max"
@@ -131,28 +131,25 @@ class Posterior:
         return self.update({"collate_fn": self.gene_dataset.collate_fn})
 
     @torch.no_grad()
-    def elbo(self, verbose=False):
+    def elbo(self):
         elbo = compute_elbo(self.model, self)
-        if verbose:
-            logger.info("ELBO : %.4f" % elbo)
+        logger.debug("ELBO : %.4f" % elbo)
         return elbo
 
     elbo.mode = "min"
 
     @torch.no_grad()
-    def reconstruction_error(self, verbose=False):
+    def reconstruction_error(self):
         reconstruction_error = compute_reconstruction_error(self.model, self)
-        if verbose:
-            logger.info("Reconstruction Error : %.4f" % reconstruction_error)
+        logger.debug("Reconstruction Error : %.4f" % reconstruction_error)
         return reconstruction_error
 
     reconstruction_error.mode = "min"
 
     @torch.no_grad()
-    def marginal_ll(self, verbose=False, n_mc_samples=1000):
+    def marginal_ll(self, n_mc_samples=1000):
         ll = compute_marginal_log_likelihood(self.model, self, n_mc_samples)
-        if verbose:
-            logger.info("True LL : %.4f" % ll)
+        logger.debug("True LL : %.4f" % ll)
         return ll
 
     @torch.no_grad()
@@ -174,12 +171,11 @@ class Posterior:
         return np.array(torch.cat(latent)), np.array(torch.cat(batch_indices)), np.array(torch.cat(labels)).ravel()
 
     @torch.no_grad()
-    def entropy_batch_mixing(self, verbose=False, **kwargs):
+    def entropy_batch_mixing(self, **kwargs):
         if self.gene_dataset.n_batches == 2:
             latent, batch_indices, labels = self.get_latent()
             be_score = entropy_batch_mixing(latent, batch_indices, **kwargs)
-            if verbose:
-                logger.info("Entropy batch mixing : %f" % be_score)
+            logger.debug("Entropy batch mixing :", be_score)
             return be_score
 
     entropy_batch_mixing.mode = "max"
@@ -558,7 +554,7 @@ class Posterior:
         return np.concatenate(dropout_list), np.concatenate(mean_list), np.concatenate(dispersion_list)
 
     @torch.no_grad()
-    def get_stats(self, verbose=True):
+    def get_stats(self):
         libraries = []
         for tensors in self.sequential(batch_size=128):
             x, local_l_mean, local_l_var, batch_index, y = tensors
@@ -619,7 +615,7 @@ class Posterior:
         return original_list, imputed_list
 
     @torch.no_grad()
-    def imputation_score(self, verbose=False, original_list=None, imputed_list=None, n_samples=1):
+    def imputation_score(self, original_list=None, imputed_list=None, n_samples=1):
         if original_list is None or imputed_list is None:
             original_list, imputed_list = self.imputation_list(n_samples=n_samples)
 
@@ -633,7 +629,7 @@ class Posterior:
             return np.median(np.abs(original_list_concat - imputed_list_concat))
 
     @torch.no_grad()
-    def imputation_benchmark(self, n_samples=8, verbose=False, show_plot=True, title_plot="imputation", save_path=""):
+    def imputation_benchmark(self, n_samples=8, show_plot=True, title_plot="imputation", save_path=""):
         original_list, imputed_list = self.imputation_list(n_samples=n_samples)
         # Median of medians for all distances
         median_score = self.imputation_score(original_list=original_list, imputed_list=imputed_list)
@@ -645,25 +641,23 @@ class Posterior:
             imputation_cells += [np.median(np.abs(original - imputed)) if has_imputation else 0]
         mean_score = np.mean(imputation_cells)
 
-        if verbose:
-            logger.info("\nMedian of Median: %.4f\nMean of Median for each cell: %.4f" % (median_score, mean_score))
+        logger.debug("\nMedian of Median: %.4f\nMean of Median for each cell: %.4f" % (median_score, mean_score))
 
         plot_imputation(np.concatenate(original_list), np.concatenate(imputed_list), show_plot=show_plot,
                         title=os.path.join(save_path, title_plot))
         return original_list, imputed_list
 
     @torch.no_grad()
-    def knn_purity(self, verbose=False):
+    def knn_purity(self):
         latent, _, labels = self.get_latent()
         score = knn_purity(latent, labels)
-        if verbose:
-            logger.info("KNN purity score : %f" % score)
+        logger.debug("KNN purity score :", score)
         return score
 
     knn_purity.mode = "max"
 
     @torch.no_grad()
-    def clustering_scores(self, verbose=True, prediction_algorithm="knn"):
+    def clustering_scores(self, prediction_algorithm="knn"):
         if self.gene_dataset.n_labels > 1:
             latent, _, labels = self.get_latent()
             if prediction_algorithm == "knn":
@@ -677,13 +671,12 @@ class Posterior:
             nmi_score = NMI(labels, labels_pred)
             ari_score = ARI(labels, labels_pred)
             uca_score = unsupervised_clustering_accuracy(labels, labels_pred)[0]
-            if verbose:
-                logger.info("Clustering Scores:\nSilhouette: %.4f\nNMI: %.4f\nARI: %.4f\nUCA: %.4f" %
-                            (asw_score, nmi_score, ari_score, uca_score))
+            logger.debug("Clustering Scores:\nSilhouette: %.4f\nNMI: %.4f\nARI: %.4f\nUCA: %.4f" %
+                         (asw_score, nmi_score, ari_score, uca_score))
             return asw_score, nmi_score, ari_score, uca_score
 
     @torch.no_grad()
-    def nn_overlap_score(self, verbose=True, **kwargs):
+    def nn_overlap_score(self, **kwargs):
         """
         Quantify how much the similarity between cells in the mRNA latent space resembles their similarity at the
         protein level. Compute the overlap fold enrichment between the protein and mRNA-based cell 100-nearest neighbor
@@ -693,9 +686,8 @@ class Posterior:
             latent, _, _ = self.sequential().get_latent()
             protein_data = self.gene_dataset.adt_expression_clr[self.indices]
             spearman_correlation, fold_enrichment = nn_overlap(latent, protein_data, **kwargs)
-            if verbose:
-                logger.info("Overlap Scores:\nSpearman Correlation: %.4f\nFold Enrichment: %.4f" %
-                             (spearman_correlation, fold_enrichment))
+            logger.debug("Overlap Scores:\nSpearman Correlation: %.4f\nFold Enrichment: %.4f" %
+                         (spearman_correlation, fold_enrichment))
             return spearman_correlation, fold_enrichment
 
     @torch.no_grad()
@@ -787,8 +779,7 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
     score = 0
     for t in range(n_pools):
         indices = np.random.choice(np.arange(latent_space.shape[0]), size=n_samples_per_pool)
-        score += np.mean([entropy(batches[kmatrix[indices].nonzero()[1]
-                                                 [kmatrix[indices].nonzero()[0] == i]])
+        score += np.mean([entropy(batches[kmatrix[indices].nonzero()[1][kmatrix[indices].nonzero()[0] == i]])
                           for i in range(n_samples_per_pool)])
     return score / float(n_pools)
 
