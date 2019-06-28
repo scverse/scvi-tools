@@ -855,8 +855,13 @@ class GeneExpressionDataset(Dataset):
         """
         if new_cell_type_name in self.cell_types:
             raise ValueError("New cell type name already used.")
-        labels_subset = self.cell_types_to_labels(cell_types)
-        self.labels[np.isin(self.labels, labels_subset)] = self.labels.max() + 1
+        if not len(cell_types):
+            raise ValueError("No cell types to merge.")
+        if type(cell_types[0]) == str:
+            labels_subset = self.cell_types_to_labels(cell_types)
+        else:
+            labels_subset = cell_types
+        self.labels[np.isin(self.labels, labels_subset)] = len(self.cell_types)
         self.cell_types = np.concatenate([self.cell_types, [new_cell_type_name]])
 
     def cell_types_to_labels(
