@@ -22,7 +22,7 @@ class PosteriorPredictiveCheck:
             n_samples (int, optional): Number of posterior predictive samples. Defaults to 10.
         """
         self.posteriors = posteriors_dict
-        self.dataset = posteriors_dict[next(iter(posteriors_dict.keys()))].dataset
+        self.dataset = posteriors_dict[next(iter(posteriors_dict.keys()))].gene_dataset
         self.raw_counts = None
         self.posterior_predictive_samples = {}
         self.n_samples = n_samples
