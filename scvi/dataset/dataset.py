@@ -285,7 +285,7 @@ class GeneExpressionDataset(Dataset):
         # filter genes
         Xs = []
         for dataset in gene_datasets_list:
-            dataset.filter_genes(gene_to_keep, on=on)
+            dataset.filter_genes_by_attribute(gene_to_keep, on=on)
             dataset.remap_categorical_attributes()
             Xs.append(dataset.X)
 
@@ -586,7 +586,7 @@ class GeneExpressionDataset(Dataset):
                 new_n_genes = int(new_ratio_genes * self.nb_genes)
             else:
                 logger.info(
-                    "Not subsampling. Expecting 0 < (new_ratio_genes={new_ratio_genes})  < 1.".format(
+                    "Not subsampling. Expecting 0 < (new_ratio_genes={new_ratio_genes}) < 1.".format(
                         new_ratio_genes=new_ratio_genes
                     )
                 )
@@ -613,7 +613,7 @@ class GeneExpressionDataset(Dataset):
 
         self.update_genes(np.array(subset_genes))
 
-    def filter_genes(
+    def filter_genes_by_attribute(
         self, values_to_keep: Union[List, np.ndarray], on: str = "gene_names"
     ):
         """Performs in-place gene filtering based on any gene attribute.
@@ -625,6 +625,10 @@ class GeneExpressionDataset(Dataset):
             return_data=False,
         )
         self.update_genes(subset_genes)
+
+    def filter_genes_by_count(self, min_count: int = 1):
+        mask_genes_to_keep = np.asarray(self.X.sum(axis=0) >= min_count)
+        self.update_cells(mask_genes_to_keep)
 
     def _get_genes_filter_mask_by_attribute(
         self,
@@ -686,7 +690,7 @@ class GeneExpressionDataset(Dataset):
 
         # remove non-expressing cells
         logger.info("Filtering non-expressing cells.")
-        self.filter_cells(1)
+        self.filter_cells_by_count(1)
 
     def reorder_genes(self, first_genes: Union[List[str], np.ndarray]):
         """Performs a in-place reordering of genes and gene-related attributes.
@@ -751,7 +755,20 @@ class GeneExpressionDataset(Dataset):
         indices = np.argsort(np.asarray(self.X.sum(axis=1)).ravel())[::-1][:new_n_cells]
         self.update_cells(indices)
 
-    def filter_cells(self, min_count=1):
+    def filter_cells_by_attribute(
+        self, values_to_keep: Union[List, np.ndarray], on: str = "labels"
+    ):
+        """Performs in-place cell filtering based on any cell attribute.
+        Uses labels by default.
+        """
+        subset_cells = self._get_cells_filter_mask_by_attribute(
+            attribute_values_to_keep=values_to_keep,
+            attribute_name=on,
+            return_data=False,
+        )
+        self.update_cells(subset_cells)
+
+    def filter_cells_by_count(self, min_count: int = 1):
         mask_cells_to_keep = np.asarray(self.X.sum(axis=1) >= min_count)
         self.update_cells(mask_cells_to_keep)
 
@@ -1005,7 +1022,7 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
 
     def __init__(
         self,
-        urls: Union[str, Iterable[str]],
+        urls: Union[str, Iterable[str]] = None,
         filenames: Union[str, Iterable[str]] = None,
         save_path: str = "data/",
         delayed_populating: bool = False,

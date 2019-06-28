@@ -40,6 +40,7 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
             gene_names=gene_names,
             cell_types=cell_types,
         )
+        self.filter_cells_by_count()
 
 
 class DownloadableAnnDataset(DownloadableDataset):
@@ -90,13 +91,14 @@ class DownloadableAnnDataset(DownloadableDataset):
             self.var,
             self.varm,
         ) = extract_data_from_anndata(ad)
-        super().populate_from_data(
+        self.populate_from_data(
             X=X,
             batch_indices=batch_indices,
             labels=labels,
             gene_names=gene_names,
             cell_types=cell_types,
         )
+        self.filter_cells_by_count()
 
 
 def extract_data_from_anndata(ad: anndata.AnnData):

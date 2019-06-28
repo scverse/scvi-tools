@@ -100,6 +100,7 @@ class CiteSeqDataset(DownloadableDataset):
 
         logger.info("Finish preprocessing data")
         self.populate_from_data(X)
+        self.filter_cells_by_count()
 
 
 class CbmcDataset(CiteSeqDataset):

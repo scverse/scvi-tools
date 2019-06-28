@@ -69,6 +69,7 @@ class LoomDataset(DownloadableDataset):
             gene_names=gene_names,
             cell_types=cell_types,
         )
+        self.filter_cells_by_count()
 
 
 class RetinaDataset(LoomDataset):
@@ -87,6 +88,7 @@ class RetinaDataset(LoomDataset):
             filename="retina.loom",
             save_path=save_path,
             url="https://github.com/YosefLab/scVI-data/raw/master/retina.loom",
+            delayed_populating=delayed_populating,
         )
         self.cell_types = [
             "RBC",
@@ -105,3 +107,4 @@ class RetinaDataset(LoomDataset):
             "BC4",
             "BC8_9",
         ]
+        self.filter_cells_by_count()

@@ -123,17 +123,7 @@ class BrainLargeDataset(DownloadableDataset):
                         self.n_cells_to_keep,
                     )
                 )
-
-        good_cells = matrix.sum(axis=1) > 0
-        good_cells = np.squeeze(np.asarray(good_cells))
-        logger.info(
-            "excluding {} cells with zero genes expressed".format(
-                len(good_cells) - good_cells.sum()
-            )
-        )
-        matrix = matrix[good_cells, :]
-
         logger.info("%d cells subsampled" % matrix.shape[0])
         logger.info("%d genes subsampled" % matrix.shape[1])
-
-        return [matrix]
+        self.populate_from_data(matrix)
+        self.filter_cells_by_count()

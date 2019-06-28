@@ -97,3 +97,4 @@ class HematoDataset(DownloadableDataset):
                 "y_coord": y_spring,
             }
         )
+        self.filter_cells_by_count()

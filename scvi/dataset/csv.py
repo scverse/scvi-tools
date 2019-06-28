@@ -27,7 +27,7 @@ class CsvDataset(DownloadableDataset):
 
     Examples:
         >>> # Loading a remote dataset
-        >>> remote_url = "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE100866&format=file&file=" \
+        >>> remote_url = "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE100866&format=file&file="
         ... "GSE100866%5FCBMC%5F8K%5F13AB%5F10X%2DRNA%5Fumi%2Ecsv%2Egz")
         >>> remote_csv_dataset = CsvDataset("GSE100866_CBMC_8K_13AB_10X-RNA_umi.csv.gz", save_path='data/',
         ... compression="gzip", url=remote_url)
@@ -108,6 +108,7 @@ class CsvDataset(DownloadableDataset):
             gene_names=gene_names,
             cell_types=cell_types,
         )
+        self.filter_cells_by_count()
 
 
 class BreastCancerDataset(CsvDataset):

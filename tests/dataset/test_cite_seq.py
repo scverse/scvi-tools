@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from scvi.dataset import CiteSeqDataset
-from . import unsupervised_training_one_epoch
+from .utils import unsupervised_training_one_epoch
 
 
 class TestCiteSeqDataset(TestCase):

@@ -191,7 +191,7 @@ class TestGeneExpressionDataset(TestCase):
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, gene_names=gene_names)
         gene_names_true = ["gene_1", "gene_3"]
-        dataset.filter_genes(gene_names_true)
+        dataset.filter_genes_by_attribute(gene_names_true)
         self.assertListEqual(gene_names_true, dataset.gene_names.tolist())
 
     def test_reorder_genes(self):
@@ -238,7 +238,7 @@ class TestGeneExpressionDataset(TestCase):
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data)
         self.assertEqual(25, dataset.nb_cells)
-        dataset.filter_cells()
+        dataset.filter_cells_by_count()
         self.assertEqual(23, dataset.nb_cells)
 
     def test_filter_cell_types(self):
