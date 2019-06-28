@@ -81,8 +81,10 @@ class PosteriorPredictiveCheck:
         factors = fa.transform(self.raw_counts)
         comps = fa.components_
         cov = fa.get_covariance()
-        recon_fa_mean = np.matmul(factors, comps)[:, np.newaxis]
-        feature_means = np.mean(self.dataset.X, axis=0).A.ravel()
+        recon_fa_mean = np.matmul(factors, comps)[:, :, np.newaxis]
+        feature_means = np.mean(self.dataset.X, axis=0).A.ravel()[
+            np.newaxis, :, np.newaxis
+        ]
         samples = np.random.multivariate_normal(
             np.zeros(self.raw_counts.shape[1]),
             cov=cov,
