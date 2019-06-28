@@ -173,7 +173,9 @@ def test_synthetic_3():
 
 
 def test_brain_large(save_path):
-    brain_large_dataset = BrainLargeDataset(subsample_size=128, save_path=save_path)
+    brain_large_dataset = BrainLargeDataset(
+        max_cells_to_keep=128, save_path=save_path, sample_size_gene_var=10
+    )
     base_benchmark(brain_large_dataset)
 
 
@@ -235,7 +237,7 @@ def test_cbmc(save_path):
 def test_pbmc(save_path):
     pbmc_dataset = PbmcDataset(save_path=save_path)
     purified_pbmc_dataset = PurifiedPBMCDataset(save_path=save_path)  # all cells
-    purified_t_cells = PurifiedPBMCDataset(save_path=save_path, filter_cell_types=range(6))  # only t-cells
+    purified_t_cells = PurifiedPBMCDataset(save_path=save_path, subset_datasets=list(range(6)))  # only t-cells
     base_benchmark(pbmc_dataset)
     assert len(purified_t_cells.cell_types) == 6
     assert len(purified_pbmc_dataset.cell_types) == 10
@@ -249,17 +251,22 @@ def test_filter_and_concat_datasets(save_path):
     cortex_dataset_2.subsample_genes(subset_genes=np.arange(1, 4))
     cortex_dataset_2.filter_cell_types(["endothelial-mural", "interneurons", "microglia", "oligodendrocytes"])
     cortex_dataset_2.filter_cell_types([2, 0])
-    cortex_dataset_merged = GeneExpressionDataset.concat_datasets(cortex_dataset_1, cortex_dataset_2)
+    cortex_dataset_merged = GeneExpressionDataset()
+    cortex_dataset_merged.populate_from_datasets([cortex_dataset_1, cortex_dataset_2])
     assert cortex_dataset_merged.nb_genes == 2
 
     synthetic_dataset_1 = SyntheticDataset(n_batches=2, n_labels=5)
     synthetic_dataset_2 = SyntheticDataset(n_batches=3, n_labels=3)
-    synthetic_merged_1 = GeneExpressionDataset.concat_datasets(synthetic_dataset_1, synthetic_dataset_2)
+    synthetic_merged_1 = GeneExpressionDataset()
+    synthetic_merged_1.populate_from_datasets([synthetic_dataset_1, synthetic_dataset_2])
     assert synthetic_merged_1.n_batches == 5
     assert synthetic_merged_1.n_labels == 5
 
-    synthetic_merged_2 = GeneExpressionDataset.concat_datasets(synthetic_dataset_1, synthetic_dataset_2,
-                                                               shared_labels=False)
+    synthetic_merged_2 = GeneExpressionDataset()
+    synthetic_merged_2.populate_from_datasets(
+        [synthetic_dataset_1, synthetic_dataset_2],
+        sharing_intstructions_dict={"labels": "offset"}
+    )
     assert synthetic_merged_2.n_batches == 5
     assert synthetic_merged_2.n_labels == 8
 

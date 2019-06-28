@@ -9,7 +9,7 @@ import pandas as pd
 import scipy.io as sp_io
 from scipy.sparse import csr_matrix
 
-from scvi.dataset.dataset import DownloadableDataset
+from scvi.dataset.dataset import DownloadableDataset, _download
 
 logger = logging.getLogger(__name__)
 
@@ -115,11 +115,12 @@ class Dataset10X(DownloadableDataset):
             url_skeleton = group_to_url_skeleton[group]
             url = url_skeleton.format(group, dataset_name, dataset_name, type)
             filename = "%s_gene_bc_matrices.tar.gz" % type
+            save_path = os.path.join(save_path, "10X/%s/" % dataset_name)
 
         super().__init__(
             urls=url,
             filenames=filename,
-            save_path=os.path.join(save_path, "10X/%s/" % dataset_name),
+            save_path=save_path,
             delayed_populating=delayed_populating,
         )
 
@@ -204,15 +205,19 @@ class BrainSmallDataset(Dataset10X):
     """
     def __init__(self, save_path: str = "data/", delayed_populating: bool = False):
         super().__init__(
-            filename="brain_small_metadata.pickle",
-            url="https://github.com/YosefLab/scVI-data/raw/master/brain_small_metadata.pickle",
+            dataset_name="neuron_9k",
             save_path=save_path,
             delayed_populating=delayed_populating,
         )
-        metadata = pickle.load(
-            open(os.path.join(self.save_path, "brain_small_metadata.pickle"), "rb")
+        _download(
+            filename="brain_small_metadata.pickle",
+            url="https://github.com/YosefLab/scVI-data/raw/master/brain_small_metadata.pickle",
+            save_path=save_path,
         )
-        self.labels = metadata["clusters"].loc[self.barcodes.values.ravel()] - 1
+        metadata = pickle.load(
+            open(os.path.join(save_path, "brain_small_metadata.pickle"), "rb")
+        )
+        self.labels = metadata["clusters"].loc[np.squeeze(self.barcodes.values)] - 1
         raw_qc = metadata["raw_qc"].loc[self.barcodes.values.ravel()]
         self.initialize_cell_attribute("raw_qc", raw_qc)
         self.initialize_cell_attribute("qc", raw_qc.values)

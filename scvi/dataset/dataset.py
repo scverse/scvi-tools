@@ -62,6 +62,7 @@ class GeneExpressionDataset(Dataset):
         self.cell_types = None
         self.local_means = None
         self.local_vars = None
+        self._norm_X = None
         self._corrupted_X = None
 
     def populate_from_data(
@@ -114,7 +115,7 @@ class GeneExpressionDataset(Dataset):
 
         if gene_names is not None:
             self.initialize_gene_attribute(
-                "gene_names", np.char.lower(np.asarray(gene_names, dtype=np.str))
+                "gene_names", np.char.upper(np.asarray(gene_names, dtype=np.str))
             )
         if cell_types is not None:
             self.initialize_mapped_attribute(
@@ -230,10 +231,10 @@ class GeneExpressionDataset(Dataset):
         self,
         gene_datasets_list: List["GeneExpressionDataset"],
         on: str = "gene_names",
-        sharing_intstructions_dict: Dict[str, bool] = None,
+        sharing_intstructions_dict: Dict[str, str] = None,
     ):
         """Populates the data attribute of a GeneExpressionDataset
-        from multiple ``GeneExperessionDataset`` objects, merged using the intersection
+        from multiple ``GeneExpressionDataset`` objects, merged using the intersection
         of a gene-wise attribute (``gene_names`` by default).
 
         For gene-wise attributes, only the attributes of the first dataset are kept.
@@ -241,13 +242,13 @@ class GeneExpressionDataset(Dataset):
         to the number of already existing categories.
 
         :param gene_datasets: a sequence of ``GeneExpressionDataset`` objects.
-        :param on: attribute to select gene interesection
-        :param sharing_intstructions_dict: Instructions on how to share cell-wise attributes between datasets.
+        :param on: attribute to select gene intersection
+        :param sharing_instructions_dict: Instructions on how to share cell-wise attributes between datasets.
             Keys are the attribute name and values are either:
                 * "offset": to add an offset corresponding to the number of categories already existing.
                 e.g for batch_indices, if the first dataset has batches 0 and 1,
                 in the merged dataset, the second dataset's batch indices will start at 2.
-                * "concatenate": concatenate the attibute, no changes applied.
+                * "concatenate": concatenate the attribute, no changes applied.
         """
         # sanity check
         if not all([hasattr(gene_dataset, on) for gene_dataset in gene_datasets_list]):
@@ -444,6 +445,16 @@ class GeneExpressionDataset(Dataset):
         labels = np.asarray(labels, dtype=np.uint16).reshape(-1, 1)
         self.n_labels = len(np.unique(labels))
         self._labels = labels
+
+    @property
+    def norm_X(self) -> Union[sp_sparse.csr_matrix, np.ndarray]:
+        """Returns a normalized version of X."""
+        return self._norm_X
+
+    @norm_X.setter
+    def norm_X(self, norm_X: Union[sp_sparse.csr_matrix, np.ndarray]):
+        self._norm_X = norm_X
+        self.register_dataset_version("norm_X")
 
     @property
     def corrupted_X(self) -> Union[sp_sparse.csr_matrix, np.ndarray]:
@@ -690,7 +701,7 @@ class GeneExpressionDataset(Dataset):
 
         # remove non-expressing cells
         logger.info("Filtering non-expressing cells.")
-        self.filter_cells_by_count(1)
+        self.filter_cells_by_count()
 
     def reorder_genes(self, first_genes: Union[List[str], np.ndarray]):
         """Performs a in-place reordering of genes and gene-related attributes.
@@ -719,7 +730,7 @@ class GeneExpressionDataset(Dataset):
             attr = getattr(self, attribute_name)
             setattr(self, attribute_name, attr[new_order])
 
-    def genes_as_index(
+    def genes_to_index(
         self, genes: Union[List[str], List[int], np.ndarray], on: str = None
     ):
         """Returns the index of a subset of genes, given their ``on`` attribute in ``genes``.
@@ -911,6 +922,10 @@ class GeneExpressionDataset(Dataset):
     #                           #
     #############################
 
+    def normalize(self):
+        scaling_factor = self.X.mean(axis=1)
+        self.norm_X = self.X / scaling_factor.reshape(len(scaling_factor), 1)
+
     def corrupt(self, rate: float = 0.1, corruption: str = "uniform"):
         """Forms a corrupted_X attribute containing a corrupted version of X.
 
@@ -952,19 +967,18 @@ class GeneExpressionDataset(Dataset):
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Computes and returns some statistics on the raw counts of two sub-populations.
 
-        :param idx1: subset of indices desccribing the first population.
-        :param idx2: subset of indices desccribing the second population.
+        :param idx1: subset of indices describing the first population.
+        :param idx2: subset of indices describing the second population.
 
-        :return: Tuple of np.ndarray containing, by pair (one for each sub-population),
-            mean expression, mean of non-zero expression, mean of normalized expression.
+        :return: Tuple of ``np.ndarray`` containing, by pair (one for each sub-population),
+            mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
         """
         mean1 = (self.X[idx1, :]).mean(axis=0)
         mean2 = (self.X[idx2, :]).mean(axis=0)
         nonz1 = (self.X[idx1, :] != 0).mean(axis=0)
         nonz2 = (self.X[idx2, :] != 0).mean(axis=0)
         if self.norm_X is None:
-            scaling_factor = self.X.mean(axis=1)
-            self.norm_X = self.X / scaling_factor.reshape(len(scaling_factor), 1)
+            self.normalize()
         norm_mean1 = self.norm_X[idx1, :].mean(axis=0)
         norm_mean2 = self.norm_X[idx2, :].mean(axis=0)
         return (

@@ -213,7 +213,7 @@ class TestGeneExpressionDataset(TestCase):
 
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, gene_names=gene_names)
-        indices = dataset.genes_as_index(["gene_%d" % i for i in range(10)])
+        indices = dataset.genes_to_index(["gene_%d" % i for i in range(10)])
         self.assertListEqual([i for i in range(10)], indices.tolist())
 
     def test_subsample_cells(self):
