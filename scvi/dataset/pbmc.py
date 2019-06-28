@@ -24,6 +24,7 @@ class PbmcDataset(DownloadableDataset):
     """
 
     def __init__(self, save_path: str = "data/", delayed_populating: bool = False):
+        self.barcodes = None
         super().__init__(
             urls=[
                 "https://github.com/YosefLab/scVI-data/raw/master/gene_info.csv",
@@ -33,7 +34,6 @@ class PbmcDataset(DownloadableDataset):
             save_path=save_path,
             delayed_populating=delayed_populating,
         )
-        self.barcodes = None
         # this downloads the necessary file for a future call to populate
         if delayed_populating:
             Dataset10X("pbmc8k", save_path=save_path, delayed_populating=True)
