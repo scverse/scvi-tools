@@ -3,6 +3,7 @@ import pandas as pd
 from sklearn.decomposition import FactorAnalysis
 from typing import Dict, Iterable, List, Tuple, Union, Optional
 from scvi.inference import Posterior
+import logging
 
 logger = logging.getLogger(__name__)
 
