@@ -84,7 +84,7 @@ class PosteriorPredictiveCheck:
         recon_fa_mean = np.matmul(factors, comps)[:, np.newaxis]
         feature_means = np.mean(self.dataset.X, axis=0).A.ravel()
         samples = np.random.multivariate_normal(
-            np.zeros(self.dataset.nb_genes),
+            np.zeros(self.raw_counts.shape[1]),
             cov=cov,
             size=(self.dataset.X.shape[0], self.n_samples),
         )
