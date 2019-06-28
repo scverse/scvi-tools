@@ -19,17 +19,12 @@ class CortexDataset(DownloadableDataset):
     seven distinct cell types. Each cell type corresponds to a cluster to recover. We retain top 558 genes
     ordered by variance.
 
-    Args:
-        :save_path: Save path of raw data file. Default: ``'data/'``.
-
     Examples:
         >>> gene_dataset = CortexDataset()
 
     .. _Mouse Cortex Cells dataset:
         https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt
-
     """
-
     def __init__(
         self,
         save_path: str = "data/",
@@ -53,12 +48,6 @@ class CortexDataset(DownloadableDataset):
         )
 
     def populate(self):
-        data = self.load_from_disk()
-        if self._preprocess_data:
-            data = self.preprocess(**data)
-        self.populate_from_data(**data)
-
-    def load_from_disk(self):
         logger.info("Loading Cortex data")
         rows = []
         gene_names = []
@@ -76,22 +65,6 @@ class CortexDataset(DownloadableDataset):
         _, self.precise_labels = np.unique(precise_clusters, return_inverse=True)
         X = np.array(rows, dtype=np.int).T[1:]
         gene_names = np.array(gene_names, dtype=np.str)
-        return {
-            "X": X,
-            "labels": labels,
-            "gene_names": gene_names,
-            "cell_types": cell_types,
-            "cell_attributes_dict": {"precise_labels": precise_clusters},
-        }
-
-    def preprocess(
-        self,
-        X: Union[np.ndarray, sp_sparse.csr_matrix],
-        labels: Union[List[int], np.ndarray, sp_sparse.csr_matrix] = None,
-        gene_names: Union[List[str], np.ndarray, sp_sparse.csr_matrix] = None,
-        cell_types: Union[List[int], np.ndarray] = None,
-        cell_attributes_dict: Dict[str, Union[List, np.ndarray]] = None,
-    ):
         gene_indices = []
         if self.genes_to_keep is not None:
             _, gene_indices, _ = np.intersect1d(
@@ -119,11 +92,11 @@ class CortexDataset(DownloadableDataset):
         X = X[:, gene_indices]
         gene_names = gene_names[gene_indices]
 
-        logging.info("Finished preprocessing Cortex data")
-        return {
-            "X": X,
-            "labels": labels,
-            "gene_names": gene_names,
-            "cell_types": cell_types,
-            "cell_attributes_dict": cell_attributes_dict
-        }
+        logger.info("Finished preprocessing Cortex data")
+        self.populate_from_data(
+            X=X,
+            labels=labels,
+            gene_names=gene_names,
+            cell_types=cell_types,
+            cell_attributes_dict={"precise_labels": precise_clusters}
+        )
