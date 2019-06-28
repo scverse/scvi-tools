@@ -41,7 +41,7 @@ class SmfishDataset(GeneExpressionDataset):
                 'Choroid plexus': [24],
                 'Ependimal': [27],
                 'Pericytes': [31],
-                'Endothelial': [7, 25],
+                'Endothelial': [7, 26],
                 'VSM': [25]
             }
             labels = ds.ca['ClusterID']
