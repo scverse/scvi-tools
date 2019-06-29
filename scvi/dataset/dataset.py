@@ -231,7 +231,7 @@ class GeneExpressionDataset(Dataset):
         self,
         gene_datasets_list: List["GeneExpressionDataset"],
         shared_labels=False,
-        mapping_reference_for_sharing: Dict[str, str] = None,
+        mapping_reference_for_sharing: Dict[str, Union[str, None]] = None,
     ):
         """Populates the data attribute of a GeneExpressionDataset
         from multiple ``GeneExpressionDataset`` objects, merged using the intersection
@@ -247,6 +247,8 @@ class GeneExpressionDataset(Dataset):
             Keys are the attribute name and values are registered mapped attribute.
             If provided the mapping is merged across all datasets and then the attribute is
             remapped using index backtracking between the old and merged mapping.
+            If no mapping is provided, concatenate the values and add an offset
+            if the attribute is registered as categorical in the first dataset.
         """
         # sanity check
         if not all([hasattr(gene_dataset, "gene_names") for gene_dataset in gene_datasets_list]):
@@ -258,18 +260,12 @@ class GeneExpressionDataset(Dataset):
         if mapping_reference_for_sharing is None:
             mapping_reference_for_sharing = {}
         if shared_labels:
-            mapping_reference_for_sharing = {"labels": "cell_types"}
-        mapping_reference_for_sharing.update({"batch_indices": None})
+            mapping_reference_for_sharing.update({"labels": "cell_types"})
 
-        # get insterection based on gene_names and get attribute intersection
+        # get instersection based on gene_names and keep cell attributes
+        # which are present in all datasets
         genes_to_keep = set.intersection(
             *[set(gene_dataset.gene_names) for gene_dataset in gene_datasets_list]
-        )
-        gene_attributes_to_keep = set.intersection(
-            *[
-                set(gene_dataset.gene_attribute_names)
-                for gene_dataset in gene_datasets_list
-            ]
         )
         cell_attributes_to_keep = set.intersection(
             *[
@@ -278,7 +274,7 @@ class GeneExpressionDataset(Dataset):
             ]
         )
 
-        # keep gene order and attributes of the first dataset
+        # keep gene order
         gene_to_keep = [
             gene for gene in gene_datasets_list[0].gene_names if gene in genes_to_keep
         ]
@@ -307,12 +303,15 @@ class GeneExpressionDataset(Dataset):
 
         self.populate_from_data(X=X)
 
-        # keep gene attributes of first dataset, and keep all mappings (e.g gene types)
-        for attribute_name in gene_attributes_to_keep:
-            self.initialize_gene_attribute(
-                attribute_name, getattr(gene_datasets_list[0], attribute_name)
-            )
-            for gene_dataset in gene_datasets_list:
+        # keep all the gene attributes from all the datasets,
+        # and keep the version that comes first (in the order given by the dataset list)
+        # and keep all mappings (e.g gene types)
+        for gene_dataset in gene_datasets_list:
+            for attribute_name in gene_dataset.gene_attribute_names:
+                self.initialize_gene_attribute(
+                    attribute_name,
+                    getattr(gene_dataset, attribute_name)
+                )
                 mapping_names = gene_dataset.attribute_mappings[attribute_name]
                 for mapping_name in mapping_names:
                     self.initialize_mapped_attribute(
@@ -357,7 +356,7 @@ class GeneExpressionDataset(Dataset):
                         mappings[mapping_name].extend(
                             getattr(gene_dataset, mapping_name)
                         )
-            # for categorical only, contenate shared mapping
+            # for categorical only, concatenate shared mapping
             # then backtrack index to remap categorical attributes
             else:
                 if not all(
