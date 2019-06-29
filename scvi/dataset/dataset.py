@@ -530,7 +530,13 @@ class GeneExpressionDataset(Dataset):
     ):
         """Sets and registers and attribute mapping, e.g labels to named cell_types."""
         source_attribute = getattr(self, source_attribute_name)
-        type_source = type(source_attribute[0])
+        if isinstance(source_attribute, np.ndarray):
+            type_source = source_attribute.dtype
+        else:
+            element = source_attribute[0]
+            while isinstance(element, list):
+                element = element[0]
+            type_source = type(source_attribute[0])
         if type_source not in (int, np.integer):
             raise ValueError(
                 "Mapped attribute {attr_name} should be categorical not {type}".format(

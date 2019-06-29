@@ -80,7 +80,7 @@ class CortexDataset(DownloadableDataset):
             genes_by_variance = np.std(X[:, ~not_gene_indices_mask], axis=0).argsort()[::-1]
             extra_gene_indices = genes_by_variance[: self.total_genes - len(gene_indices)]
 
-        gene_indices = np.concatenate([gene_indices, extra_gene_indices])
+        gene_indices = np.concatenate([gene_indices, extra_gene_indices]).astype(np.int32)
         if self.total_genes is None and self.genes_to_keep is None:
             gene_indices = slice(None)
 
