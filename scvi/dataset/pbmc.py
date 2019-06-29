@@ -125,7 +125,10 @@ class PurifiedPBMCDataset(DownloadableDataset):
         )
         subset_datasets = subset_datasets if subset_datasets else slice(None)
         self.dataset_names = self.dataset_names[subset_datasets]
-        super().__init__()
+        super().__init__(
+            save_path=save_path,
+            delayed_populating=delayed_populating,
+        )
 
         if delayed_populating:
             for dataset_name in self.dataset_names:
@@ -138,7 +141,7 @@ class PurifiedPBMCDataset(DownloadableDataset):
         datasets = []
         for dataset_name in self.dataset_names:
             dataset = Dataset10X(dataset_name, save_path=self.save_path)
-            self.initialize_mapped_attribute(
+            dataset.initialize_mapped_attribute(
                 "labels", "cell_types", np.array([dataset_name], dtype=np.str)
             )
             datasets += [dataset]

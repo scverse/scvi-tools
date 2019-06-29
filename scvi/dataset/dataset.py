@@ -528,8 +528,9 @@ class GeneExpressionDataset(Dataset):
     def initialize_mapped_attribute(
         self, source_attribute_name, mapping_name, mapping_values
     ):
-        """Sets and registers and attribute mapping, e.g labels to named cell_types."""
+        """Sets and registers an attribute mapping, e.g labels to named cell_types."""
         source_attribute = getattr(self, source_attribute_name)
+
         if isinstance(source_attribute, np.ndarray):
             type_source = source_attribute.dtype
         else:
@@ -537,7 +538,7 @@ class GeneExpressionDataset(Dataset):
             while isinstance(element, list):
                 element = element[0]
             type_source = type(source_attribute[0])
-        if type_source not in (int, np.integer):
+        if not np.issubdtype(type_source, np.integer):
             raise ValueError(
                 "Mapped attribute {attr_name} should be categorical not {type}".format(
                     attr_name=source_attribute_name, type=type_source
@@ -668,8 +669,8 @@ class GeneExpressionDataset(Dataset):
         self.update_genes(subset_genes)
 
     def filter_genes_by_count(self, min_count: int = 1):
-        mask_genes_to_keep = np.asarray(self.X.sum(axis=0) >= min_count)
-        self.update_cells(mask_genes_to_keep)
+        mask_genes_to_keep = np.squeeze(np.asarray(self.X.sum(axis=0) >= min_count))
+        self.update_genes(mask_genes_to_keep)
 
     def _get_genes_filter_mask_by_attribute(
         self,

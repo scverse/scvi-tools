@@ -100,7 +100,7 @@ class Dataset10X(DownloadableDataset):
         dataset_name: str = None,
         filename: str = None,
         url: str = None,
-        save_path: str = "data/",
+        save_path: str = "data/10X",
         type: str = "filtered",
         dense: bool = False,
         gene_column: int = 0,
@@ -110,12 +110,20 @@ class Dataset10X(DownloadableDataset):
         self.gene_column = gene_column
         self.dense = dense
         # form data url and filename unless manual override
-        if url is None:
+        if dataset_name is not None:
+            if url is not None:
+                logger.warning("dataset_name provided, manual url is disregarded.")
+            if filename is not None:
+                logger.warning("dataset_name provided, manual filename is disregarded.")
             group = dataset_to_group[dataset_name]
             url_skeleton = group_to_url_skeleton[group]
             url = url_skeleton.format(group, dataset_name, dataset_name, type)
             filename = "%s_gene_bc_matrices.tar.gz" % type
-            save_path = os.path.join(save_path, "10X/%s/" % dataset_name)
+            save_path = os.path.join(save_path, dataset_name)
+        elif filename is not None and url is not None:
+            logger.debug("Loading 10X dataset with custom url and filename")
+        elif filename is not None and url is None:
+            logger.debug("Loading local 10X dataset with custom filename")
 
         super().__init__(
             urls=url,
@@ -133,25 +141,25 @@ class Dataset10X(DownloadableDataset):
                 tar = tarfile.open(file_path, "r:gz")
                 tar.extractall(path=self.save_path)
                 tar.close()
-        path, suffix = self.find_path_to_data()
+        path_to_data, suffix = self.find_path_to_data()
         # switch case corresponding to a change in 10X storing behaviour
         if suffix == "":
             gene_filename = "genes.tsv"
         else:
             gene_filename = "features.tsv.gz"
         genes_info = pd.read_csv(
-            os.path.join(path, gene_filename), sep="\t", header=None
+            os.path.join(path_to_data, gene_filename), sep="\t", header=None
         )
         gene_names = genes_info.values[:, self.gene_column].astype(np.str)
         barcode_filename = "barcodes.tsv" + suffix
         cell_attributes_dict = None
-        if os.path.exists(os.path.join(path, barcode_filename)):
+        if os.path.exists(os.path.join(path_to_data, barcode_filename)):
             barcodes = pd.read_csv(
-                os.path.join(path, barcode_filename), sep="\t", header=None
+                os.path.join(path_to_data, barcode_filename), sep="\t", header=None
             )
             cell_attributes_dict = {"barcodes": barcodes}
         matrix_filename = "matrix.mtx" + suffix
-        expression_data = sp_io.mmread(os.path.join(path, matrix_filename)).T
+        expression_data = sp_io.mmread(os.path.join(path_to_data, matrix_filename)).T
         if self.dense:
             expression_data = expression_data.A
         else:
