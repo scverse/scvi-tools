@@ -17,6 +17,11 @@ class CortexDataset(DownloadableDataset):
     seven distinct cell types. Each cell type corresponds to a cluster to recover. We retain top 558 genes
     ordered by variance.
 
+    :param save_path: Path indicating where to save/load data.
+    :param genes_to_keep: Gene names to keep.
+    :param total_genes: Total number of genes to keep. If None, use all genes.
+    :param delayed_populating: Boolean switch for delayed population mechanism.
+
     Examples:
         >>> gene_dataset = CortexDataset()
 
@@ -29,13 +34,11 @@ class CortexDataset(DownloadableDataset):
         genes_to_keep: Optional[List[str]] = None,
         total_genes: Optional[int] = 558,
         delayed_populating: bool = False,
-        preprocess=True,
     ):
         self.genes_to_keep = genes_to_keep
         self.total_genes = total_genes
 
         self.precise_labels = None
-        self._preprocess_data = preprocess
 
         super().__init__(
             urls="https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs"
@@ -68,22 +71,16 @@ class CortexDataset(DownloadableDataset):
             _, gene_indices, _ = np.intersect1d(
                 self.genes_to_keep, gene_names, return_indices=True
             )
-            gene_indices = list(gene_indices)
 
-        if self.total_genes is not None:
-            genes_by_variance = np.std(X, axis=0).argsort()[::-1]
-            to_add = self.total_genes - len(gene_indices)
-            added = set(gene_indices)
+        nb_gene_indices = len(gene_indices)
+        extra_gene_indices = []
+        if self.total_genes is not None and nb_gene_indices < self.total_genes:
+            not_gene_indices_mask = np.ones(X.shape[1], dtype=np.bool)
+            not_gene_indices_mask[gene_indices] = False
+            genes_by_variance = np.std(X[:, ~not_gene_indices_mask], axis=0).argsort()[::-1]
+            extra_gene_indices = genes_by_variance[: self.total_genes - len(gene_indices)]
 
-            for gene_index in genes_by_variance:
-                if to_add == 0:
-                    break
-                if gene_index not in added:
-                    added.add(gene_index)
-                    gene_indices.append(gene_index)
-                    to_add -= 1
-
-        gene_indices = np.array(gene_indices)
+        gene_indices = np.concatenate([gene_indices, extra_gene_indices])
         if self.total_genes is None and self.genes_to_keep is None:
             gene_indices = slice(None)
 
