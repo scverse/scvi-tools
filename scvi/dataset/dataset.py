@@ -230,8 +230,8 @@ class GeneExpressionDataset(Dataset):
     def populate_from_datasets(
         self,
         gene_datasets_list: List["GeneExpressionDataset"],
-        on: str = "gene_names",
-        sharing_intstructions_dict: Dict[str, str] = None,
+        shared_labels=False,
+        mapping_reference_for_sharing: Dict[str, str] = None,
     ):
         """Populates the data attribute of a GeneExpressionDataset
         from multiple ``GeneExpressionDataset`` objects, merged using the intersection
@@ -241,28 +241,29 @@ class GeneExpressionDataset(Dataset):
         For cell-wise attributes, either we "concatenate" or add an "offset" corresponding
         to the number of already existing categories.
 
-        :param gene_datasets: a sequence of ``GeneExpressionDataset`` objects.
-        :param on: attribute to select gene intersection
-        :param sharing_instructions_dict: Instructions on how to share cell-wise attributes between datasets.
-            Keys are the attribute name and values are either:
-                * "offset": to add an offset corresponding to the number of categories already existing.
-                e.g for batch_indices, if the first dataset has batches 0 and 1,
-                in the merged dataset, the second dataset's batch indices will start at 2.
-                * "concatenate": concatenate the attribute, no changes applied.
+        :param gene_datasets_list: ``GeneExpressionDataset`` objects to be merged.
+        :param shared_labels: whether to share labels through ``cell_types`` mapping or not.
+        :param mapping_reference_for_sharing: Instructions on how to share cell-wise attributes between datasets.
+            Keys are the attribute name and values are registered mapped attribute.
+            If provided the mapping is merged across all datasets and then the attribute is
+            remapped using index backtracking between the old and merged mapping.
         """
         # sanity check
-        if not all([hasattr(gene_dataset, on) for gene_dataset in gene_datasets_list]):
+        if not all([hasattr(gene_dataset, "gene_names") for gene_dataset in gene_datasets_list]):
             raise ValueError(
-                "All datasets should have the merge key 'on' as an attribute"
+                "All datasets should have a gene_names attribute."
             )
 
-        # set default sharing behaviour
-        if sharing_intstructions_dict is None:
-            sharing_intstructions_dict = {"batch_indices": "offset"}
+        # set default sharing behaviour for batch_indices and labels
+        if mapping_reference_for_sharing is None:
+            mapping_reference_for_sharing = {}
+        if shared_labels:
+            mapping_reference_for_sharing = {"labels": "cell_types"}
+        mapping_reference_for_sharing.update({"batch_indices": None})
 
-        # get insterection based on gene attribute `on` and get attribute intersection
+        # get insterection based on gene_names and get attribute intersection
         genes_to_keep = set.intersection(
-            *[set(getattr(gene_dataset, on)) for gene_dataset in gene_datasets_list]
+            *[set(gene_dataset.gene_names) for gene_dataset in gene_datasets_list]
         )
         gene_attributes_to_keep = set.intersection(
             *[
@@ -279,14 +280,14 @@ class GeneExpressionDataset(Dataset):
 
         # keep gene order and attributes of the first dataset
         gene_to_keep = [
-            gene for gene in getattr(gene_datasets_list[0], on) if gene in genes_to_keep
+            gene for gene in gene_datasets_list[0].gene_names if gene in genes_to_keep
         ]
         logger.info("Keeping {nb_genes} genes".format(nb_genes=len(genes_to_keep)))
 
         # filter genes
         Xs = []
         for dataset in gene_datasets_list:
-            dataset.filter_genes_by_attribute(gene_to_keep, on=on)
+            dataset.filter_genes_by_attribute(gene_to_keep)
             dataset.remap_categorical_attributes()
             Xs.append(dataset.X)
 
@@ -322,7 +323,7 @@ class GeneExpressionDataset(Dataset):
 
         # handle cell attributes
         for attribute_name in cell_attributes_to_keep:
-            instruction = sharing_intstructions_dict.get(attribute_name, "concatenate")
+            ref_mapping_name = mapping_reference_for_sharing.get(attribute_name, None)
 
             mapping_names_to_keep = list(
                 set.intersection(
@@ -334,10 +335,46 @@ class GeneExpressionDataset(Dataset):
             )
 
             attribute_values = []
-
-            if instruction == "concatenate":
+            is_categorical = (
+                attribute_name in gene_datasets_list[0].cell_categorical_attribute_names
+            )
+            # if no mapping provided for sharing, concatenate and add an offset if categorical
+            if ref_mapping_name is None:
+                mappings = defaultdict(list)
+                offset = 0
+                for i, gene_dataset in enumerate(gene_datasets_list):
+                    local_attribute_values = np.squeeze(
+                        getattr(gene_dataset, attribute_name)
+                    )
+                    new_values = (
+                        offset + local_attribute_values
+                        if is_categorical
+                        else local_attribute_values
+                    )
+                    attribute_values.append(new_values)
+                    offset += len(np.unique(local_attribute_values))
+                    for mapping_name in mapping_names_to_keep:
+                        mappings[mapping_name].extend(
+                            getattr(gene_dataset, mapping_name)
+                        )
+            # for categorical only, contenate shared mapping
+            # then backtrack index to remap categorical attributes
+            else:
+                if not all(
+                    [
+                        ref_mapping_name
+                        in gene_dataset.attribute_mappings[attribute_name]
+                        for gene_dataset in gene_datasets_list
+                    ]
+                ):
+                    raise ValueError(
+                        "Reference mapping {ref_map} for {attr_name} merging"
+                        " is not a registered in all datasets.".format(
+                            ref_map=ref_mapping_name, attr_name=attribute_name
+                        )
+                    )
                 mappings = defaultdict(OrderedDict)
-                # combine into new mappings, OrderedDict for deterministic result
+                # combine into new mappings, OrderedDict for deterministic result, fifo
                 for mapping_name in mapping_names_to_keep:
                     for gene_dataset in gene_datasets_list:
                         mappings[mapping_name].update(
@@ -350,36 +387,15 @@ class GeneExpressionDataset(Dataset):
                         getattr(gene_dataset, attribute_name)
                     )
                     # remap attribute according to old and new mapping
-                    if mapping_names_to_keep:
-                        ref_mapping_name = mapping_names_to_keep[0]
-                        old_mapping = list(getattr(gene_dataset, ref_mapping_name))
-                        new_indices = [
-                            mappings[ref_mapping_name].index(v) for v in old_mapping
-                        ]
-                        local_attribute_values, _ = remap_categories(
-                            local_attribute_values, mapping_to=new_indices
-                        )
-                    attribute_values.append(local_attribute_values)
-
-            elif instruction == "offset":
-                mappings = defaultdict(list)
-                offset = 0
-                for i, gene_dataset in enumerate(gene_datasets_list):
-                    local_attribute_values = np.squeeze(
-                        getattr(gene_dataset, attribute_name)
+                    old_mapping = list(getattr(gene_dataset, ref_mapping_name))
+                    new_categories = [
+                        mappings[ref_mapping_name].index(v) for v in old_mapping
+                    ]
+                    old_categories = list(range(len(old_mapping)))
+                    local_attribute_values, _ = remap_categories(
+                        local_attribute_values, mapping_from=old_categories, mapping_to=new_categories
                     )
-                    attribute_values.append(offset + local_attribute_values)
-                    offset += len(np.unique(local_attribute_values))
-                    for mapping_name in mapping_names_to_keep:
-                        mappings[mapping_name].extend(
-                            getattr(gene_dataset, mapping_name)
-                        )
-
-            else:
-                raise ValueError(
-                    "Unknown sharing instrunction {instruction} for attribute {name}"
-                    "".format(instruction=instruction, name=attribute_name)
-                )
+                    attribute_values.append(local_attribute_values)
 
             self.initialize_cell_attribute(
                 attribute_name, np.concatenate(attribute_values)
@@ -513,7 +529,15 @@ class GeneExpressionDataset(Dataset):
         self, source_attribute_name, mapping_name, mapping_values
     ):
         """Sets and registers and attribute mapping, e.g labels to named cell_types."""
-        cat_max = np.max(getattr(self, source_attribute_name))
+        source_attribute = getattr(self, source_attribute_name)
+        type_source = type(source_attribute[0])
+        if type_source not in (int, np.integer):
+            raise ValueError(
+                "Mapped attribute {attr_name} should be categorical not {type}".format(
+                    attr_name=source_attribute_name, type=type_source
+                )
+            )
+        cat_max = np.max(source_attribute)
         if not cat_max <= len(mapping_values):
             raise ValueError(
                 "Max value for {attr_name} ({cat_max}) is higher than {map_name} ({n_map}) mismatch".format(
@@ -710,7 +734,7 @@ class GeneExpressionDataset(Dataset):
         Consequently, modifies in-place the data ``X`` and the registered gene attributes.
 
         :param first_genes: New ordering of the genes; if some genes are missing, they will be added after the
-                            first_genes in the same order as they before
+                            first_genes in the same order as they were before
         """
 
         _, _, new_order_first = np.intersect1d(
@@ -763,7 +787,9 @@ class GeneExpressionDataset(Dataset):
             if not isinstance(size, (int, np.integer))
             else size
         )
-        indices = np.argsort(np.squeeze(np.asarray(self.X.sum(axis=1))))[::-1][:new_n_cells]
+        indices = np.argsort(np.squeeze(np.asarray(self.X.sum(axis=1))))[::-1][
+            :new_n_cells
+        ]
         self.update_cells(indices)
 
     def filter_cells_by_attribute(
