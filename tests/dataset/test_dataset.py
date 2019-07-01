@@ -87,8 +87,7 @@ class TestGeneExpressionDataset(TestCase):
             ["GENE_0", "GENE_1", "GENE_2"], dataset.gene_names.tolist()
         )
 
-        # test for attribute mapping handling
-        # sharing instruction "concatenation"
+        # test for labels sharing
         dataset2.labels = [0, 0, 0, 1, 1, 1, 1]
         dataset2.initialize_mapped_attribute("labels", "cell_types", ["0", "1"])
         dataset3.labels = [0, 1]
@@ -100,7 +99,7 @@ class TestGeneExpressionDataset(TestCase):
         )
         self.assertListEqual(["0", "1", "2"], dataset.cell_types)
 
-        # sharing instruction "offset"
+        # test for batch_indices offsetting
         dataset2.batch_indices = [0, 0, 0, 1, 1, 1, 1]
         dataset2.initialize_mapped_attribute(
             "batch_indices", "experiment", ["fish_2", "scrna_2"]

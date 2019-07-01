@@ -31,7 +31,7 @@ class VAE(nn.Module):
         * ``'gene-label'`` - dispersion can differ between different labels
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
 
-    :param log_variational: Log variational distribution
+    :param log_variational: Log(data+1) prior to encoding for numerical stability. Not normalization.
     :param reconstruction_loss:  One of
 
         * ``'nb'`` - Negative binomial distribution
@@ -140,7 +140,7 @@ class VAE(nn.Module):
         """
         return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[2]
 
-    def _reconstruction_loss(self, x, px_rate, px_r, px_dropout):
+    def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout):
         # Reconstruction Loss
         if self.reconstruction_loss == 'zinb':
             reconst_loss = -log_zinb_positive(x, px_rate, px_r, px_dropout)
@@ -210,7 +210,7 @@ class VAE(nn.Module):
         kl_divergence_l = kl(Normal(ql_m, torch.sqrt(ql_v)), Normal(local_l_mean, torch.sqrt(local_l_var))).sum(dim=1)
         kl_divergence = kl_divergence_z
 
-        reconst_loss = self._reconstruction_loss(x, px_rate, px_r, px_dropout)
+        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
 
         return reconst_loss + kl_divergence_l, kl_divergence
 
@@ -239,7 +239,7 @@ class LDVAE(VAE):
         * ``'gene-label'`` - dispersion can differ between different labels
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
 
-    :param log_variational: Log variational distribution
+    :param log_variational: Log(data+1) prior to encoding for numerical stability. Not normalization.
     :param reconstruction_loss:  One of
 
         * ``'nb'`` - Negative binomial distribution

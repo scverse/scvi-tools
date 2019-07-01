@@ -306,7 +306,7 @@ class GeneExpressionDataset(Dataset):
         # keep all the gene attributes from all the datasets,
         # and keep the version that comes first (in the order given by the dataset list)
         # and keep all mappings (e.g gene types)
-        for gene_dataset in gene_datasets_list:
+        for gene_dataset in gene_datasets_list[::-1]:
             for attribute_name in gene_dataset.gene_attribute_names:
                 self.initialize_gene_attribute(
                     attribute_name,
