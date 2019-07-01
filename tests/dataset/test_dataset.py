@@ -118,6 +118,27 @@ class TestGeneExpressionDataset(TestCase):
             ["fish_2", "scrna_2", "fish_3", "scrna_3"], getattr(dataset, "experiment")
         )
 
+    def test_populate_from_datasets_attributes_merging(self):
+        data = np.random.randint(1, 5, size=(5, 10))
+        gene_names = np.array(["gene_%d" % i for i in range(10)])
+        gene_attr1 = np.array(["1" for _ in range(10)])
+        gene_attr2 = np.array(["2" for _ in range(10)])
+        dataset1 = GeneExpressionDataset()
+        dataset2 = GeneExpressionDataset()
+
+        dataset1.populate_from_data(
+            data, gene_names=gene_names, gene_attributes_dict={"test": gene_attr1}
+        )
+        dataset2.populate_from_data(
+            data, gene_names=gene_names, gene_attributes_dict={"test": gene_attr2}
+        )
+
+        dataset = GeneExpressionDataset()
+        dataset.populate_from_datasets([dataset1, dataset2])
+
+        # Should keep the gene attribute of the first dataset
+        self.assertEqual(dataset.test[0], "1")
+
     def test_populate_from_datasets_cortex(self):
         cortex_dataset_1 = CortexDataset(save_path="tests/data")
         cortex_dataset_1.subsample_genes(subset_genes=np.arange(0, 3))
@@ -259,9 +280,13 @@ class TestGeneExpressionDataset(TestCase):
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, labels=labels, cell_types=cell_types)
         dataset.merge_cell_types(["0", "1"], new_cell_type_name="0 and 1")
-        self.assertListEqual([[3], [3], [3], [2], [2], [3], [3], [3]], dataset.labels.tolist())
+        self.assertListEqual(
+            [[3], [3], [3], [2], [2], [3], [3], [3]], dataset.labels.tolist()
+        )
         dataset.remap_categorical_attributes()
-        self.assertListEqual([[1], [1], [1], [0], [0], [1], [1], [1]], dataset.labels.tolist())
+        self.assertListEqual(
+            [[1], [1], [1], [0], [0], [1], [1], [1]], dataset.labels.tolist()
+        )
         self.assertListEqual(["2", "0 and 1"], dataset.cell_types.tolist())
 
     def test_map_cell_types(self):
