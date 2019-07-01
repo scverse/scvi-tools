@@ -77,7 +77,7 @@ class CortexDataset(DownloadableDataset):
         if self.total_genes is not None and nb_gene_indices < self.total_genes:
             not_gene_indices_mask = np.ones(X.shape[1], dtype=np.bool)
             not_gene_indices_mask[gene_indices] = False
-            genes_by_variance = np.std(X[:, ~not_gene_indices_mask], axis=0).argsort()[::-1]
+            genes_by_variance = np.std(X[:, not_gene_indices_mask], axis=0).argsort()[::-1]
             extra_gene_indices = genes_by_variance[: self.total_genes - len(gene_indices)]
 
         gene_indices = np.concatenate([gene_indices, extra_gene_indices]).astype(np.int32)
