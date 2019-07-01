@@ -4,7 +4,9 @@ import os
 import urllib.request
 from abc import abstractmethod, ABC
 from collections import OrderedDict, defaultdict
-from typing import Dict, Iterable, List, Tuple, Union, Optional
+from dataclasses import dataclass
+from functools import partial
+from typing import Dict, Iterable, List, Tuple, Union, Optional, Callable
 
 import numpy as np
 import scipy.sparse as sp_sparse
@@ -13,6 +15,14 @@ from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CellMeasurement:
+    name: str  # Name of the attribute Eg: 'X'
+    data: Union[np.ndarray, sp_sparse.csr_matrix]  # Data itself: Eg: X
+    columns_attr_name: str  # Name of the column names attribute : Eg: 'gene_names'
+    columns: Union[np.ndarray, List[str]]  # Column names: Eg: gene_names
 
 
 class GeneExpressionDataset(Dataset):
@@ -38,11 +48,18 @@ class GeneExpressionDataset(Dataset):
             merged using the intersection of a gene-wise attribute (``gene_names`` by default).
     """
 
-    #############################
-    #                           #
-    #       CONSTRUCTORS        #
-    #                           #
-    #############################
+    #           __   _,--="=--,_   __
+    #          /  \."    .-.    "./  \
+    #         /  ,/  _   : :   _  \/` \
+    #         \  `| /o\  :_:  /o\ |\__/
+    #          `-'| :="~` _ `~"=: |
+    #             \`     (_)     `/
+    #      .-"-.   \      |      /   .-"-.
+    # .---{     }--|  /,.-'-.,\  |--{     }---.
+    #  )  (_)_)_)  \_/`~-===-~`\_/  (_(_(_)  (
+    # (                                       )
+    #  )            Constructors             (
+    # '---------------------------------------'
 
     def __init__(self):
         # registers
@@ -51,6 +68,7 @@ class GeneExpressionDataset(Dataset):
         self.cell_attribute_names = set()
         self.cell_categorical_attribute_names = set()
         self.attribute_mappings = defaultdict(list)
+        self.cell_measurements_columns = dict()
 
         # initialize attributes
         self._X = None
@@ -68,6 +86,7 @@ class GeneExpressionDataset(Dataset):
     def populate_from_data(
         self,
         X: Union[np.ndarray, sp_sparse.csr_matrix],
+        Ys: List[CellMeasurement] = None,
         batch_indices: Union[List[int], np.ndarray, sp_sparse.csr_matrix] = None,
         labels: Union[List[int], np.ndarray, sp_sparse.csr_matrix] = None,
         gene_names: Union[List[str], np.ndarray] = None,
@@ -78,6 +97,7 @@ class GeneExpressionDataset(Dataset):
         """Populates the data attributes of a GeneExpressionDataset object from a (nb_cells, nb_genes) matrix.
 
         :param X: RNA counts matrix, sparse format supported (e.g ``scipy.sparse.csr_matrix``).
+        :param Ys: List of paired count measurements (e.g CITE-seq protein measurements, spatial coordinates)
         :param batch_indices: ``np.ndarray`` with shape (nb_cells,). Maps each cell to the batch
             it originates from. Note that a batch most likely refers to a specific piece
             of tissue or a specific experimental protocol.
@@ -126,41 +146,14 @@ class GeneExpressionDataset(Dataset):
         if cell_attributes_dict:
             for attribute_name, attribute_value in cell_attributes_dict.items():
                 self.initialize_cell_attribute(attribute_name, attribute_value)
+        if Ys is not None:
+            for measurement in Ys:
+                self.initialize_cell_measurement(measurement)
         if gene_attributes_dict:
             for attribute_name, attribute_value in gene_attributes_dict.items():
                 self.initialize_gene_attribute(attribute_name, attribute_value)
 
         self.remap_categorical_attributes()
-
-    def populate_from_per_batch_array(
-        self,
-        X: np.ndarray,
-        labels_per_batch: Union[np.ndarray, List[Union[List[int], np.ndarray]]] = None,
-        gene_names: Union[List[str], np.ndarray] = None,
-    ):
-        """Populates the data attributes of a GeneExpressionDataset object
-        from an array with shape (n_batches, nb_cells, nb_genes).
-
-        :param X: np.ndarray with shape (n_batches, nb_cells, nb_genes).
-        :param labels_per_batch: cell-wise labels for each batch.
-        :param gene_names: gene names, stored as ``str``.
-        """
-        if len(np.squeeze(X.shape)) != 3:
-            raise ValueError(
-                "Shape of np.squeeze(X) != 3. Use populate_from_data "
-                "if your dataset has shape (nb_cells, nb_genes)"
-            )
-        batch_indices = np.arange(X.shape[0])[:, None] * np.ones(X.shape[1])[None, :]
-        batch_indices = batch_indices.reshape(-1)
-        labels = (
-            np.concatenate(labels_per_batch).astype(np.int64)
-            if labels_per_batch is not None
-            else None
-        )
-        X = X.reshape(-1, X.shape[2])
-        self.populate_from_data(
-            X=X, batch_indices=batch_indices, labels=labels, gene_names=gene_names
-        )
 
     def populate_from_per_batch_list(
         self,
@@ -237,6 +230,8 @@ class GeneExpressionDataset(Dataset):
         from multiple ``GeneExpressionDataset`` objects, merged using the intersection
         of a gene-wise attribute (``gene_names`` by default).
 
+        Warning: The merging procedure modifies the gene_dataset given as inputs
+
         For gene-wise attributes, only the attributes of the first dataset are kept.
         For cell-wise attributes, either we "concatenate" or add an "offset" corresponding
         to the number of already existing categories.
@@ -250,19 +245,13 @@ class GeneExpressionDataset(Dataset):
             If no mapping is provided, concatenate the values and add an offset
             if the attribute is registered as categorical in the first dataset.
         """
-        # sanity check
-        if not all([hasattr(gene_dataset, "gene_names") for gene_dataset in gene_datasets_list]):
-            raise ValueError(
-                "All datasets should have a gene_names attribute."
-            )
-
         # set default sharing behaviour for batch_indices and labels
         if mapping_reference_for_sharing is None:
             mapping_reference_for_sharing = {}
         if shared_labels:
             mapping_reference_for_sharing.update({"labels": "cell_types"})
 
-        # get instersection based on gene_names and keep cell attributes
+        # get intersection based on gene_names and keep cell attributes
         # which are present in all datasets
         genes_to_keep = set.intersection(
             *[set(gene_dataset.gene_names) for gene_dataset in gene_datasets_list]
@@ -309,8 +298,7 @@ class GeneExpressionDataset(Dataset):
         for gene_dataset in gene_datasets_list:
             for attribute_name in gene_dataset.gene_attribute_names:
                 self.initialize_gene_attribute(
-                    attribute_name,
-                    getattr(gene_dataset, attribute_name)
+                    attribute_name, getattr(gene_dataset, attribute_name)
                 )
                 mapping_names = gene_dataset.attribute_mappings[attribute_name]
                 for mapping_name in mapping_names:
@@ -337,72 +325,136 @@ class GeneExpressionDataset(Dataset):
             is_categorical = (
                 attribute_name in gene_datasets_list[0].cell_categorical_attribute_names
             )
-            # if no mapping provided for sharing, concatenate and add an offset if categorical
-            if ref_mapping_name is None:
-                mappings = defaultdict(list)
-                offset = 0
-                for i, gene_dataset in enumerate(gene_datasets_list):
-                    local_attribute_values = np.squeeze(
-                        getattr(gene_dataset, attribute_name)
-                    )
-                    new_values = (
-                        offset + local_attribute_values
-                        if is_categorical
-                        else local_attribute_values
-                    )
-                    attribute_values.append(new_values)
-                    offset += len(np.unique(local_attribute_values))
-                    for mapping_name in mapping_names_to_keep:
-                        mappings[mapping_name].extend(
-                            getattr(gene_dataset, mapping_name)
-                        )
-            # for categorical only, concatenate shared mapping
-            # then backtrack index to remap categorical attributes
+            is_measurement = (
+                attribute_name in gene_datasets_list[0].cell_measurements_columns
+            )
+            if is_categorical:
+                logger.debug(attribute_name + " was detected as categorical")
             else:
-                if not all(
-                    [
-                        ref_mapping_name
-                        in gene_dataset.attribute_mappings[attribute_name]
+                logger.debug(
+                    attribute_name
+                    + " was detected as non categorical because it is non categorical in at least one dataset"
+                )
+
+            if is_measurement:
+                logger.debug(attribute_name + " was detected as measurement")
+            else:
+                logger.debug(
+                    attribute_name
+                    + " was detected as non measurement because it is non measurement in at least one dataset"
+                )
+
+            if is_categorical:
+                mappings = defaultdict(list)
+                if ref_mapping_name is not None:
+                    # Share attributes: concatenate shared mapping
+                    # then backtrack index to remap categorical attributes
+                    if not all(
+                        [
+                            ref_mapping_name
+                            in gene_dataset.attribute_mappings[attribute_name]
+                            for gene_dataset in gene_datasets_list
+                        ]
+                    ):
+                        raise ValueError(
+                            "Reference mapping {ref_map} for {attr_name} merging"
+                            " is not a registered in all datasets.".format(
+                                ref_map=ref_mapping_name, attr_name=attribute_name
+                            )
+                        )
+                    mappings = defaultdict(OrderedDict)
+                    # combine into new mappings, OrderedDict for deterministic result, fifo
+                    for mapping_name in mapping_names_to_keep:
+                        for gene_dataset in gene_datasets_list:
+                            mappings[mapping_name].update(
+                                [(s, None) for s in getattr(gene_dataset, mapping_name)]
+                            )
+                    mappings = {k: list(v) for k, v in mappings.items()}
+
+                    for gene_dataset in gene_datasets_list:
+                        local_attribute_values = getattr(gene_dataset, attribute_name)
+                        # remap attribute according to old and new mapping
+                        old_mapping = list(getattr(gene_dataset, ref_mapping_name))
+                        new_categories = [
+                            mappings[ref_mapping_name].index(v) for v in old_mapping
+                        ]
+                        old_categories = list(range(len(old_mapping)))
+                        local_attribute_values, _ = remap_categories(
+                            local_attribute_values,
+                            mapping_from=old_categories,
+                            mapping_to=new_categories,
+                        )
+                        attribute_values.append(local_attribute_values)
+
+                else:
+                    # Don't share so concatenate with offset
+                    offset = 0
+                    for i, gene_dataset in enumerate(gene_datasets_list):
+                        local_attribute_values = getattr(gene_dataset, attribute_name)
+                        new_values = offset + local_attribute_values
+                        attribute_values.append(new_values)
+                        offset += np.max(local_attribute_values) + 1
+                        for mapping_name in mapping_names_to_keep:
+                            mappings[mapping_name].extend(
+                                getattr(gene_dataset, mapping_name)
+                            )
+
+                self.initialize_cell_attribute(
+                    attribute_name, concatenate_arrays(attribute_values)
+                )
+                for mapping_name, mapping_values in mappings.items():
+                    self.initialize_mapped_attribute(
+                        attribute_name, mapping_name, mapping_values
+                    )
+
+            elif is_measurement:
+                columns_attr_name = gene_datasets_list[0].cell_measurements_columns[
+                    attribute_name
+                ]
+                # Intersect columns
+                columns_to_keep = set.intersection(
+                    *[
+                        set(getattr(gene_dataset, columns_attr_name))
                         for gene_dataset in gene_datasets_list
                     ]
-                ):
-                    raise ValueError(
-                        "Reference mapping {ref_map} for {attr_name} merging"
-                        " is not a registered in all datasets.".format(
-                            ref_map=ref_mapping_name, attr_name=attribute_name
-                        )
+                )
+                columns_to_keep = np.array(list(sorted(columns_to_keep)))
+                logger.info(
+                    "Keeping {n_cols} columns in {attr}".format(
+                        n_cols=len(columns_to_keep), attr=attribute_name
                     )
-                mappings = defaultdict(OrderedDict)
-                # combine into new mappings, OrderedDict for deterministic result, fifo
-                for mapping_name in mapping_names_to_keep:
-                    for gene_dataset in gene_datasets_list:
-                        mappings[mapping_name].update(
-                            [(s, None) for s in getattr(gene_dataset, mapping_name)]
-                        )
-                mappings = {k: list(v) for k, v in mappings.items()}
+                )
 
                 for gene_dataset in gene_datasets_list:
-                    local_attribute_values = np.squeeze(
-                        getattr(gene_dataset, attribute_name)
+                    _, indices, _ = np.intersect1d(
+                        getattr(gene_dataset, columns_attr_name),
+                        columns_to_keep,
+                        return_indices=True,
                     )
-                    # remap attribute according to old and new mapping
-                    old_mapping = list(getattr(gene_dataset, ref_mapping_name))
-                    new_categories = [
-                        mappings[ref_mapping_name].index(v) for v in old_mapping
-                    ]
-                    old_categories = list(range(len(old_mapping)))
-                    local_attribute_values, _ = remap_categories(
-                        local_attribute_values, mapping_from=old_categories, mapping_to=new_categories
+                    setattr(
+                        gene_dataset,
+                        attribute_name,
+                        getattr(gene_dataset, attribute_name)[:, indices],
                     )
-                    attribute_values.append(local_attribute_values)
 
-            self.initialize_cell_attribute(
-                attribute_name, np.concatenate(attribute_values)
-            )
+                for i, gene_dataset in enumerate(gene_datasets_list):
+                    attribute_values.append(getattr(gene_dataset, attribute_name))
 
-            for mapping_name, mapping_values in mappings.items():
-                self.initialize_mapped_attribute(
-                    attribute_name, mapping_name, mapping_values
+                self.initialize_cell_measurement(
+                    CellMeasurement(
+                        name=attribute_name,
+                        data=concatenate_arrays(attribute_values),
+                        columns_attr_name=columns_attr_name,
+                        columns=columns_to_keep,
+                    )
+                )
+            else:
+                # Simply concatenate
+                for i, gene_dataset in enumerate(gene_datasets_list):
+                    attribute_values.append(getattr(gene_dataset, attribute_name))
+
+                self.initialize_cell_attribute(
+                    attribute_name, concatenate_arrays(attribute_values)
                 )
 
     #############################
@@ -508,10 +560,16 @@ class GeneExpressionDataset(Dataset):
                     n_cells=self.nb_cells, n_attr=len(attribute)
                 )
             )
-        setattr(self, attribute_name, attribute)
+        setattr(self, attribute_name, np.asarray(attribute))
         self.cell_attribute_names.add(attribute_name)
         if categorical:
             self.cell_categorical_attribute_names.add(attribute_name)
+
+    def initialize_cell_measurement(self, measurement: CellMeasurement):
+        """Initializes a cell measurement: set attributes and update registers"""
+        self.initialize_cell_attribute(measurement.name, measurement.data)
+        setattr(self, measurement.columns_attr_name, np.asarray(measurement.columns))
+        self.cell_measurements_columns[measurement.name] = measurement.columns_attr_name
 
     def initialize_gene_attribute(self, attribute_name, attribute):
         """Sets and registers a gene-wise attribute, e.g annotation information."""
@@ -567,37 +625,46 @@ class GeneExpressionDataset(Dataset):
             ] = compute_library_size(self.X[idx_batch])
         self.cell_attribute_names.update(["local_means", "local_vars"])
 
-    def collate_fn(
-        self, batch: Union[List[int], np.ndarray]
-    ) -> Tuple[torch.Tensor, ...]:
-        """Batch creation function to be passed to Torch's DataLoader."""
-        indices = np.asarray(batch)
-        X = self.X[indices]
-        return self.make_tensor_batch_from_indices(X, indices)
+    def collate_fn_builder(
+        self,
+        add_attributes_and_types: Dict[str, type] = None,
+        override: bool = False,
+        corrupted=False,
+    ) -> Callable[[Union[List[int], np.ndarray]], Tuple[torch.Tensor, ...]]:
+        """Returns a collate_fn with the requested shape/attributes"""
 
-    def collate_fn_corrupted(
-        self, batch: Union[List[int], np.ndarray]
-    ) -> Tuple[torch.Tensor, ...]:
-        """Batch creation function to be passed to Torch's DataLoader."""
-        indices = np.asarray(batch)
-        X_batch = self.corrupted_X[indices]
-        return self.make_tensor_batch_from_indices(X_batch, indices)
-
-    def make_tensor_batch_from_indices(
-        self, X_batch: Union[sp_sparse.csr_matrix, np.ndarray], indices: np.ndarray
-    ) -> Tuple[torch.Tensor, ...]:
-        """Given indices and batch X_batch, returns a full batch of ``Torch.Tensor``"""
-        if isinstance(X_batch, np.ndarray):
-            X_batch = torch.from_numpy(X_batch)
+        if override:
+            attributes_and_types = dict()
         else:
-            X_batch = torch.from_numpy(X_batch.toarray().astype(np.float32))
-        return (
-            X_batch,
-            torch.from_numpy(self.local_means[indices].astype(np.float32)),
-            torch.from_numpy(self.local_vars[indices].astype(np.float32)),
-            torch.from_numpy(self.batch_indices[indices].astype(np.int64)),
-            torch.from_numpy(self.labels[indices].astype(np.int64)),
-        )
+            attributes_and_types = dict(
+                [
+                    ("X", np.float32) if not corrupted else ("corrupted_X", np.float32),
+                    ("local_means", np.float32),
+                    ("local_vars", np.float32),
+                    ("batch_indices", np.int64),
+                    ("labels", np.int64),
+                ]
+            )
+
+        if add_attributes_and_types is None:
+            add_attributes_and_types = dict()
+        attributes_and_types.update(add_attributes_and_types)
+        return partial(self.collate_fn_base, attributes_and_types)
+
+    def collate_fn_base(
+        self, attributes_and_types: Dict[str, type], batch: Union[List[int], np.ndarray]
+    ) -> Tuple[torch.Tensor, ...]:
+        """Given indices and attributes to batch, returns a full batch of ``Torch.Tensor``"""
+        indices = np.asarray(batch)
+        data_numpy = [
+            getattr(self, attr)[indices].astype(dtype)
+            if isinstance(getattr(self, attr), np.ndarray)
+            else getattr(self, attr)[indices].toarray().astype(dtype)
+            for attr, dtype in attributes_and_types.items()
+        ]
+
+        data_torch = tuple(torch.from_numpy(d) for d in data_numpy)
+        return data_torch
 
     #############################
     #                           #
@@ -1085,6 +1152,23 @@ def compute_library_size(
     local_mean = (np.mean(log_counts).reshape(-1, 1)).astype(np.float32)
     local_var = (np.var(log_counts).reshape(-1, 1)).astype(np.float32)
     return local_mean, local_var
+
+
+def concatenate_arrays(arrays):
+    # concatenate data
+    if all([type(array) is np.ndarray for array in arrays]):
+        concatenation = np.concatenate(arrays)
+    # if sparse, cast all to sparse and stack
+    else:
+        concatenation = sp_sparse.vstack(
+            [
+                array
+                if isinstance(array, sp_sparse.csr_matrix)
+                else sp_sparse.csr_matrix(array)
+                for array in arrays
+            ]
+        )
+    return concatenation
 
 
 class DownloadableDataset(GeneExpressionDataset, ABC):
