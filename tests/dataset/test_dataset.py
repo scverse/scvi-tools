@@ -274,9 +274,9 @@ class TestGeneExpressionDataset(TestCase):
         dataset.subsample_genes(new_n_genes=25)
         self.assertTupleEqual(dataset.gene_names.shape, (25,))
         # The most variable genes should be in first position
-        self.assertEquals(dataset.gene_names[0], "GENE_99")
+        self.assertEqual(dataset.gene_names[0], "GENE_99")
         dataset.subsample_genes(subset_genes=[1, 6, 7])
-        self.assertEquals(dataset.gene_names[0], "GENE_98")
+        self.assertEqual(dataset.gene_names[0], "GENE_98")
 
     def test_filter_genes(self):
         data = np.random.randint(1, 5, size=(5, 10))
