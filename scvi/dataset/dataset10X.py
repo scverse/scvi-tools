@@ -189,7 +189,7 @@ class Dataset10X(DownloadableDataset):
         )
         self.filter_cells_by_count()
         # cleanup if required
-        if was_extracted:
+        if was_extracted and self.remove_extracted_data:
             os.remove(file_path[:-7])
 
     def find_path_to_data(self) -> Tuple[str, str]:
