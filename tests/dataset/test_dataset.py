@@ -3,7 +3,7 @@ from unittest import TestCase
 import numpy as np
 
 from scvi.dataset import CortexDataset, GeneExpressionDataset
-from scvi.dataset.dataset import remap_categories
+from scvi.dataset.dataset import remap_categories, CellMeasurement
 
 
 class TestGeneExpressionDataset(TestCase):
@@ -17,6 +17,26 @@ class TestGeneExpressionDataset(TestCase):
         # default batch_indices and labels
         self.assertListEqual([[0] for i in range(25)], dataset.batch_indices.tolist())
         self.assertListEqual([[0] for i in range(25)], dataset.labels.tolist())
+
+    def test_populate_from_data_with_measurements(self):
+        data = np.ones((25, 10)) * 100
+        paired = np.ones((25, 4)) * np.arange(0, 4)
+        pair_names = ["gabou", "achille", "pedro", "oclivio"]
+        y = CellMeasurement(
+            name="dev", data=paired, columns_attr_name="dev_names", columns=pair_names
+        )
+        dataset = GeneExpressionDataset()
+
+        dataset.populate_from_data(data, Ys=[y])
+
+        self.assertEqual(dataset.nb_genes, 10)
+        self.assertEqual(dataset.nb_cells, 25)
+
+        self.assertTrue(hasattr(dataset, "dev"))
+        self.assertTrue(hasattr(dataset, "dev_names"))
+
+        self.assertListEqual(dataset.dev_names.tolist(), pair_names)
+        self.assertListEqual(dataset.dev[0].tolist(), [0, 1, 2, 3])
 
     def test_populate_from_per_batch_list(self):
         data = [
@@ -158,6 +178,39 @@ class TestGeneExpressionDataset(TestCase):
         dataset.populate_from_datasets([dataset1, dataset2])
         self.assertTupleEqual(dataset.test.shape, (10, 1))
         self.assertListEqual(np.squeeze(dataset.test).tolist(), ["1"] * 5 + ["2"] * 5)
+
+    def test_populate_from_datasets_with_measurments(self):
+        data = np.random.randint(1, 5, size=(5, 10))
+        gene_names = np.array(["gene_%d" % i for i in range(10)])
+
+        paired1 = np.ones((5, 5)) * np.arange(0, 5)
+        pair_names1 = ["gabou", "achille", "pedro", "oclivio", "gayoso"]
+        y1 = CellMeasurement(
+            name="dev", data=paired1, columns_attr_name="dev_names", columns=pair_names1
+        )
+        paired2 = np.ones((5, 4)) * np.arange(0, 4)
+        pair_names2 = ["gabou", "oclivio", "achille", "pedro"]
+        y2 = CellMeasurement(
+            name="dev", data=paired2, columns_attr_name="dev_names", columns=pair_names2
+        )
+
+        dataset1 = GeneExpressionDataset()
+        dataset2 = GeneExpressionDataset()
+
+        dataset1.populate_from_data(data, Ys=[y1], gene_names=gene_names)
+        dataset2.populate_from_data(data, Ys=[y2], gene_names=gene_names)
+
+        dataset = GeneExpressionDataset()
+        dataset.populate_from_datasets([dataset1, dataset2])
+
+        self.assertTrue(hasattr(dataset, "dev"))
+        self.assertTrue(hasattr(dataset, "dev_names"))
+
+        self.assertListEqual(
+            dataset.dev_names.tolist(), ["achille", "gabou", "oclivio", "pedro"]
+        )
+        self.assertListEqual(dataset.dev[0].tolist(), [1, 0, 3, 2])
+        self.assertListEqual(dataset.dev[5].tolist(), [2, 0, 1, 3])
 
     def test_populate_from_datasets_cortex(self):
         cortex_dataset_1 = CortexDataset(save_path="tests/data")
@@ -320,6 +373,53 @@ class TestGeneExpressionDataset(TestCase):
         dataset.remap_categorical_attributes()
         self.assertListEqual(dataset.cell_types.tolist(), ["5", "6", "7"])
         self.assertListEqual(np.squeeze(dataset.labels).tolist(), [1, 1, 2, 2, 1, 2, 0])
+
+
+class TestCollate(TestCase):
+    def test_collate_normal(self):
+        data = np.ones((25, 2)) * np.arange(0, 25).reshape((-1, 1))
+        batch_indices = np.arange(0, 25).reshape((-1, 1))
+        dataset = GeneExpressionDataset()
+        dataset.populate_from_data(data, batch_indices=batch_indices)
+
+        collate_fn = dataset.collate_fn_builder()
+        x, mean, var, batch, labels = collate_fn([1, 2])
+        self.assertListEqual(x.tolist(), [[1.0, 1.0], [2.0, 2.0]])
+        self.assertListEqual(batch.tolist(), [[1], [2]])
+
+    def test_collate_add(self):
+        data = np.ones((25, 2)) * np.arange(0, 25).reshape((-1, 1))
+        batch_indices = np.arange(0, 25).reshape((-1, 1))
+        x_coords = np.arange(0, 25).reshape((-1, 1))
+        proteins = (
+            np.ones((25, 3)) + np.arange(0, 25).reshape((-1, 1)) + np.arange(0, 3)
+        )
+        proteins_name = ["A", "B", "C"]
+        dataset = GeneExpressionDataset()
+        dataset.populate_from_data(
+            data,
+            batch_indices=batch_indices,
+            cell_attributes_dict={"x_coords": x_coords},
+            Ys=[
+                CellMeasurement(
+                    name="proteins",
+                    data=proteins,
+                    columns_attr_name="protein_names",
+                    columns=proteins_name,
+                )
+            ],
+        )
+
+        collate_fn = dataset.collate_fn_builder(
+            add_attributes_and_types={"x_coords": np.float32, "proteins": np.float32}
+        )
+        x, mean, var, batch, labels, x_coords_tensor, proteins_tensor = collate_fn(
+            [1, 2]
+        )
+        self.assertListEqual(x_coords_tensor.tolist(), [[1.0], [2.0]])
+        self.assertListEqual(
+            proteins_tensor.tolist(), [[2.0, 3.0, 4.0], [3.0, 4.0, 5.0]]
+        )
 
 
 class TestRemapCategories(TestCase):
