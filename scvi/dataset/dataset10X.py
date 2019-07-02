@@ -157,11 +157,14 @@ class Dataset10X(DownloadableDataset):
         gene_names = genes_info.values[:, self.gene_column].astype(np.str)
         barcode_filename = "barcodes.tsv" + suffix
         cell_attributes_dict = None
+        batch_indices = None
         if os.path.exists(os.path.join(path_to_data, barcode_filename)):
             barcodes = pd.read_csv(
                 os.path.join(path_to_data, barcode_filename), sep="\t", header=None
             )
             cell_attributes_dict = {"barcodes": np.squeeze(barcodes)}
+            batch_indices = np.asarray([barcode.split("-")[-1] for barcode in barcodes])
+            batch_indices = batch_indices.astype(np.int64) - 1
         matrix_filename = "matrix.mtx" + suffix
         expression_data = sp_io.mmread(os.path.join(path_to_data, matrix_filename)).T
         if self.dense:
@@ -172,6 +175,7 @@ class Dataset10X(DownloadableDataset):
 
         self.populate_from_data(
             X=expression_data,
+            batch_indices=batch_indices,
             gene_names=gene_names,
             cell_attributes_dict=cell_attributes_dict,
         )

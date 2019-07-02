@@ -1110,6 +1110,7 @@ def remap_categories(
     :param original_categories: Categorical array to be remapped.
     :param mapping_from: source of the mapping.
     :param mapping_to: destination of the mapping
+    :param mappings_dict: Mappings of the categorical being remapped.
 
     :return: ``tuple`` of a ``np.ndarray`` containing the new categories
         and an ``int`` equal to the new number of categories.
