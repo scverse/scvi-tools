@@ -162,8 +162,13 @@ class Dataset10X(DownloadableDataset):
             barcodes = pd.read_csv(
                 os.path.join(path_to_data, barcode_filename), sep="\t", header=None
             )
-            cell_attributes_dict = {"barcodes": np.squeeze(barcodes)}
-            batch_indices = np.asarray([barcode.split("-")[-1] for barcode in barcodes])
+            cell_attributes_dict = {
+                "barcodes": np.squeeze(np.asarray(barcodes, dtype=str))
+            }
+            # As of 07/01, 10X barcodes have format "%s-%d" where the digit is a batch index starting at 1
+            batch_indices = np.asarray(
+                [barcode.split("-")[-1] for barcode in cell_attributes_dict["barcodes"]]
+            )
             batch_indices = batch_indices.astype(np.int64) - 1
         matrix_filename = "matrix.mtx" + suffix
         expression_data = sp_io.mmread(os.path.join(path_to_data, matrix_filename)).T
