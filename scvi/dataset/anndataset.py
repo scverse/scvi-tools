@@ -45,9 +45,10 @@ class DownloadableAnnDataset(DownloadableDataset):
     """Forms a ``DownloadableDataset`` from a `.h5ad` file using the ``anndata`` package.
 
     :param filename: Name of the `.h5ad` file to save/load.
-    :param save_path: Save path of the dataset. Default: ``'data/'``.
-    :param url: Url of the remote dataset. Default: ``None``.
-    :param delayed_populating:
+    :param save_path: Location to use when saving/loading the data.
+    :param url: URL pointing to the data which will be downloaded
+        if it's not already in ``save_path``.
+    :param delayed_populating: Switch for delayed populating mechanism.
 
         Examples:
         >>> # Loading a local dataset
@@ -115,7 +116,7 @@ def extract_data_from_anndata(ad: anndata.AnnData):
         else:
             data = ad.X.copy()
 
-    gene_names = np.array(ad.var.index.values, dtype=str)
+    gene_names = np.asarray(ad.var.index.values, dtype=str)
 
     if "batch_indices" in ad.obs.columns:
         batch_indices = ad.obs["batch_indices"].values

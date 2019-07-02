@@ -7,9 +7,10 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 import scipy.io as sp_io
+import shutil
 from scipy.sparse import csr_matrix
 
-from scvi.dataset.dataset import DownloadableDataset, _download
+from scvi.dataset.dataset import CellMeasurement, DownloadableDataset, _download
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +59,19 @@ dataset_to_group = dict(
         for dataset_name in list_datasets
     ]
 )
+
 group_to_url_skeleton = {
     "1.1.0": "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_gene_bc_matrices.tar.gz",
     "2.1.0": "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_gene_bc_matrices.tar.gz",
     "3.0.0": "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_feature_bc_matrix.tar.gz",
 }
+
+group_to_filename_skeleton = {
+    "1.1.0": "{}_gene_bc_matrices.tar.gz",
+    "2.1.0": "{}_gene_bc_matrices.tar.gz",
+    "3.0.0": "{}_feature_bc_matrix.tar.gz",
+}
+
 available_specification = ["filtered", "raw"]
 
 
@@ -77,17 +86,15 @@ class Dataset10X(DownloadableDataset):
         "pbmc_10k_v3", "hgmm_1k_v2", "hgmm_1k_v3", "hgmm_5k_v3", "hgmm_10k_v3", "neuron_1k_v2",
         "neuron_1k_v3", "neuron_10k_v3", "heart_1k_v2", "heart_1k_v3", "heart_10k_v3".
     :param filename: manual override of the filename to write to.
-    :param url: manual override of the download location.
+    :param save_path: Location to use when saving/loading the data.
+    :param url: manual override of the download remote location.
         Note that we already provide urls for most 10X datasets,
         which are automatically formed only using the ``dataset_name``.
-    :param save_path: Save path of the dataset.
     :param type: Either `filtered` data or `raw` data.
     :param dense: Whether to load as dense or sparse.
         If False, data is cast to sparse using ``scipy.sparse.csr_matrix``.
-    :param gene_column: column in which to find gene names in the corresponding `.tsv` file.
-    :param remote: Whether the 10X dataset is to be downloaded from the website
-        or whether it is a local dataset, if remote is False then ``os.path.join(save_path, filename)``
-        must be the path to the directory that contains matrix.mtx(.gz) and genes(features).tsv(.gz) files.
+    :param measurement_names_column: column in which to find measurement names in the corresponding `.tsv` file.
+    :param remove_extracted_data: Whether to remove extracted archives after populating the dataset.
 
     Examples:
         >>> tenX_dataset = Dataset10X("neuron_9k")
@@ -100,16 +107,19 @@ class Dataset10X(DownloadableDataset):
         self,
         dataset_name: str = None,
         filename: str = None,
-        url: str = None,
         save_path: str = "data/10X",
+        url: str = None,
         type: str = "filtered",
         dense: bool = False,
-        gene_column: int = 0,
+        measurement_names_column: int = 0,
+        remove_extracted_data: bool = False,
         delayed_populating: bool = False,
     ):
         self.barcodes = None
-        self.gene_column = gene_column
         self.dense = dense
+        self.measurement_names_column = measurement_names_column
+        self.remove_extracted_data = remove_extracted_data
+
         # form data url and filename unless manual override
         if dataset_name is not None:
             if url is not None:
@@ -119,7 +129,8 @@ class Dataset10X(DownloadableDataset):
             group = dataset_to_group[dataset_name]
             url_skeleton = group_to_url_skeleton[group]
             url = url_skeleton.format(group, dataset_name, dataset_name, type)
-            filename = "%s_gene_bc_matrices.tar.gz" % type
+            filename_skeleton = group_to_filename_skeleton[group]
+            filename = filename_skeleton.format(type)
             save_path = os.path.join(save_path, dataset_name)
         elif filename is not None and url is not None:
             logger.debug("Loading 10X dataset with custom url and filename")
@@ -136,6 +147,8 @@ class Dataset10X(DownloadableDataset):
 
     def populate(self):
         logger.info("Preprocessing dataset")
+
+        was_extracted = False
         if len(self.filenames) > 0:
             file_path = os.path.join(self.save_path, self.filenames[0])
             if not os.path.exists(file_path[:-7]):  # nothing extracted yet
@@ -143,39 +156,87 @@ class Dataset10X(DownloadableDataset):
                     logger.info("Extracting tar file")
                     tar = tarfile.open(file_path, "r:gz")
                     tar.extractall(path=self.save_path)
+                    was_extracted = True
                     tar.close()
 
+        # get exact path of the extract, for robustness to changes is the 10X storage logic
         path_to_data, suffix = self.find_path_to_data()
-        # switch case corresponding to a change in 10X storing behaviour
-        if suffix == "":
-            gene_filename = "genes.tsv"
-        else:
-            gene_filename = "features.tsv.gz"
-        genes_info = pd.read_csv(
-            os.path.join(path_to_data, gene_filename), sep="\t", header=None
-        )
-        gene_names = genes_info.values[:, self.gene_column].astype(np.str)
+
+        # get filenames, according to 10X storage logic
+        measurements_filename = "genes.tsv" if suffix == "" else "features.tsv.gz"
         barcode_filename = "barcodes.tsv" + suffix
-        cell_attributes_dict = None
-        if os.path.exists(os.path.join(path_to_data, barcode_filename)):
-            barcodes = pd.read_csv(
-                os.path.join(path_to_data, barcode_filename), sep="\t", header=None
-            )
-            cell_attributes_dict = {"barcodes": np.squeeze(barcodes)}
+
         matrix_filename = "matrix.mtx" + suffix
         expression_data = sp_io.mmread(os.path.join(path_to_data, matrix_filename)).T
         if self.dense:
             expression_data = expression_data.A
         else:
             expression_data = csr_matrix(expression_data)
+
+        # group measurements by type (e.g gene, protein)
+        # in case there are multiple measurements, e.g protein
+        # they are indicated in the third column
+        gene_expression_data = expression_data
+        measurements_info = pd.read_csv(
+            os.path.join(path_to_data, measurements_filename), sep="\t", header=None
+        )
+        Ys = None
+        if measurements_info.shape[1] < 3:
+            gene_names = measurements_info[self.measurement_names_column].astype(np.str)
+        else:
+            gene_names = None
+            for measurement_type in np.unique(measurements_info[2]):
+                measurement_mask = measurements_info[2] == measurement_type
+                measurement_data = expression_data[:, measurement_mask]
+                measurement_names = measurements_info[self.measurement_names_column][
+                    measurement_mask
+                ].astype(np.str)
+                if measurement_type == "Gene Expression":
+                    gene_expression_data = measurement_data
+                    gene_names = measurement_names
+                else:
+                    Ys = Ys if Ys is None else []
+                    measurement = CellMeasurement(
+                        name=measurement_type,
+                        data=measurement_data,
+                        columns_attr_name=measurement_type + " names",
+                        columns=measurement_names,
+                    )
+                    Ys.append(measurement)
+            if gene_names is None:
+                raise ValueError(
+                    "When loading measurements, no 'Gene Expression' category was found."
+                )
+
+        batch_indices, cell_attributes_dict = None, None
+        if os.path.exists(os.path.join(path_to_data, barcode_filename)):
+            barcodes = pd.read_csv(
+                os.path.join(path_to_data, barcode_filename), sep="\t", header=None
+            )
+            cell_attributes_dict = {
+                "barcodes": np.squeeze(np.asarray(barcodes, dtype=str))
+            }
+            # As of 07/01, 10X barcodes have format "%s-%d" where the digit is a batch index starting at 1
+            batch_indices = np.asarray(
+                [barcode.split("-")[-1] for barcode in cell_attributes_dict["barcodes"]]
+            )
+            batch_indices = batch_indices.astype(np.int64) - 1
+
         logger.info("Finished preprocessing dataset")
 
         self.populate_from_data(
-            X=expression_data,
+            X=gene_expression_data,
+            batch_indices=batch_indices,
             gene_names=gene_names,
             cell_attributes_dict=cell_attributes_dict,
+            Ys=Ys,
         )
         self.filter_cells_by_count()
+
+        # cleanup if required
+        if was_extracted and self.remove_extracted_data:
+            logger.info("Removing extracted data at {}".format(file_path[:-7]))
+            shutil.rmtree(file_path[:-7])
 
     def find_path_to_data(self) -> Tuple[str, str]:
         """Returns exact path for the data in the archive.
@@ -190,7 +251,7 @@ class Dataset10X(DownloadableDataset):
                 filename == "matrix.mtx" or filename == "matrix.mtx.gz"
                 for filename in files
             ]
-            contains_mat = np.array(contains_mat).any()
+            contains_mat = np.asarray(contains_mat).any()
             if contains_mat:
                 is_tar = files[0][-3:] == ".gz"
                 suffix = ".gz" if is_tar else ""
@@ -223,10 +284,12 @@ class BrainSmallDataset(Dataset10X):
         save_path: str = "data/",
         save_path_10X: str = None,
         delayed_populating: bool = False,
+        remove_extracted_data: bool = False,
     ):
         super().__init__(
             dataset_name="neuron_9k",
             save_path=save_path_10X,
+            remove_extracted_data=remove_extracted_data,
             delayed_populating=delayed_populating,
         )
         _download(

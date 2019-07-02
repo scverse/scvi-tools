@@ -18,13 +18,13 @@ class BrainLargeDataset(DownloadableDataset):
     dataset is then sampled multiple times in cells for the runtime and goodness-of-fit analysis. We report imputation
     scores on the 10k cells and 720 genes samples only.
 
-    :param save_path: Path to data.
-    :param filename: Filename to use for saving/loading.
-    :param delayed_populating: Switch for delayed populating mechanism.
+    :param filename: File name to use when saving/loading the data.
+    :param save_path: Location to use when saving/loading the data.
     :param sample_size_gene_var: Number of cells to use to estimate gene variances.
     :param max_cells_to_keep: Maximum number of cells to keep.
     :param nb_genes_to_keep: Number of genes to keep, ordered by decreasing variance.
     :param loading_batch_size: Number of cells to use for each chunk loaded.
+    :param delayed_populating: Switch for delayed populating mechanism.
 
     Examples:
         >>> gene_dataset = BrainLargeDataset()
@@ -36,13 +36,13 @@ class BrainLargeDataset(DownloadableDataset):
 
     def __init__(
         self,
-        save_path: str = "data/",
         filename: str = None,
-        delayed_populating: bool = False,
+        save_path: str = "data/",
         sample_size_gene_var: int = 10000,
         max_cells_to_keep: int = None,
         nb_genes_to_keep: int = 720,
         loading_batch_size: int = 100000,
+        delayed_populating: bool = False,
     ):
         # used in populate, should not be moved after the call to super().__init__()
         self.sample_size_gene_var = sample_size_gene_var

@@ -1,44 +1,7 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-
-"""Tests for `scvi` package."""
-
-import os.path
-
-import anndata
 import numpy as np
 
-from scvi.benchmark import (
-    all_benchmarks,
-    benchmark,
-    benchmark_fish_scrna,
-    ldvae_benchmark,
-)
-from scvi.dataset import (
-    BrainLargeDataset,
-    CortexDataset,
-    RetinaDataset,
-    BrainSmallDataset,
-    HematoDataset,
-    LoomDataset,
-    AnnDatasetFromAnnData,
-    DownloadableAnnDataset,
-    CsvDataset,
-    CiteSeqDataset,
-    CbmcDataset,
-    PbmcDataset,
-    SyntheticDataset,
-    SeqfishDataset,
-    SmfishDataset,
-    BreastCancerDataset,
-    MouseOBDataset,
-    GeneExpressionDataset,
-    PurifiedPBMCDataset,
-    SyntheticDatasetCorr,
-    ZISyntheticDatasetCorr,
-    Dataset10X,
-)
+from scvi.benchmark import all_benchmarks, benchmark_fish_scrna, ldvae_benchmark
+from scvi.dataset import CortexDataset, SyntheticDataset, SmfishDataset
 from scvi.inference import (
     JointSemiSupervisedTrainer,
     AlternateSemiSupervisedTrainer,
@@ -168,28 +131,6 @@ def test_synthetic_2():
     trainer_synthetic_vaec.train(n_epochs=2)
 
 
-def test_synthetic_corr_labels():
-    dataset = SyntheticDatasetCorr()
-    n_clusters = dataset.n_clusters
-    labels = np.unique(dataset.labels)
-    assert (labels == np.arange(n_clusters)).all()
-
-
-def test_synthetic_corr_zeros():
-    nb_data = SyntheticDatasetCorr()
-    zi_data = ZISyntheticDatasetCorr()
-    # Test hierarchy of zeros
-    # nb is not zero inflated
-    # zi is zero inflated for all genes
-    # We expect the number of zeros to organize accordingly (since all other parameters are fixed)
-    zi_zeros_frac = (zi_data.X == 0).mean()
-    nb_zeros_frac = (nb_data.X == 0).mean()
-
-    assert nb_zeros_frac < zi_zeros_frac
-    # We want to enforce that the zero inflated model has at least 20% of zeros
-    assert zi_zeros_frac >= 0.2
-
-
 def test_fish_rna(save_path):
     gene_dataset_fish = SmfishDataset(save_path)
     gene_dataset_seq = CortexDataset(
@@ -218,153 +159,6 @@ def test_synthetic_3():
         trainer.model, gene_dataset, trainer.train_set, frequency=1
     )
     adapter_trainer.train(n_path=1, n_epochs=1)
-
-
-def test_brain_large(save_path):
-    brain_large_dataset = BrainLargeDataset(
-        max_cells_to_keep=128, save_path=save_path, sample_size_gene_var=10
-    )
-    base_benchmark(brain_large_dataset)
-
-
-def test_retina(save_path):
-    retina_dataset = RetinaDataset(save_path=save_path)
-    base_benchmark(retina_dataset)
-
-
-def test_cite_seq(save_path):
-    pbmc_cite_seq_dataset = CiteSeqDataset(
-        name="pbmc", save_path=os.path.join(save_path, "citeSeq/")
-    )
-    base_benchmark(pbmc_cite_seq_dataset)
-
-
-def test_brain_small(save_path):
-    brain_small_dataset = BrainSmallDataset(
-        save_path=save_path, save_path_10X=os.path.join(save_path, "10X")
-    )
-    base_benchmark(brain_small_dataset)
-
-
-def test_hemato(save_path):
-    hemato_dataset = HematoDataset(save_path=os.path.join(save_path, "HEMATO/"))
-    base_benchmark(hemato_dataset)
-
-
-def test_loom(save_path):
-    retina_dataset = LoomDataset("retina.loom", save_path=save_path)
-    base_benchmark(retina_dataset)
-
-
-def test_remote_loom(save_path):
-    fish_dataset = LoomDataset(
-        "osmFISH_SScortex_mouse_all_cell.loom",
-        save_path=save_path,
-        url="http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom",
-    )
-    base_benchmark(fish_dataset)
-
-
-def test_cortex_loom(save_path):
-    cortex_dataset = LoomDataset("Cortex.loom", save_path=save_path)
-    base_benchmark(cortex_dataset)
-
-
-def test_anndata(save_path):
-    ann_dataset = DownloadableAnnDataset("TM_droplet_mat.h5ad", save_path=save_path)
-    base_benchmark(ann_dataset)
-    AnnDatasetFromAnnData(anndata.AnnData(np.random.randint(1, 10, (10, 10))))
-
-
-def test_csv(save_path):
-    csv_dataset = CsvDataset(
-        "GSE100866_CBMC_8K_13AB_10X-RNA_umi.csv.gz",
-        save_path=save_path,
-        compression="gzip",
-    )
-    base_benchmark(csv_dataset)
-
-
-def test_cbmc(save_path):
-    cbmc_dataset = CbmcDataset(save_path=os.path.join(save_path, "citeSeq/"))
-    trainer = base_benchmark(cbmc_dataset)
-    trainer.train_set.nn_overlap_score(k=5)
-
-
-def test_pbmc(save_path):
-    pbmc_dataset = PbmcDataset(
-        save_path=save_path, save_path_10X=os.path.join(save_path, "10X")
-    )
-    purified_pbmc_dataset = PurifiedPBMCDataset(
-        save_path=os.path.join(save_path, "10X")
-    )  # all cells
-    purified_t_cells = PurifiedPBMCDataset(
-        save_path=os.path.join(save_path, "10X"), subset_datasets=list(range(6))
-    )  # only t-cells
-    base_benchmark(pbmc_dataset)
-    assert len(purified_t_cells.cell_types) == 6
-    assert len(purified_pbmc_dataset.cell_types) == 10
-
-
-def test_filter_and_concat_datasets(save_path):
-    cortex_dataset_1 = CortexDataset(save_path=save_path)
-    cortex_dataset_1.subsample_genes(subset_genes=np.arange(0, 3))
-    cortex_dataset_1.filter_cell_types(["microglia", "oligodendrocytes"])
-    cortex_dataset_2 = CortexDataset(save_path=save_path)
-    cortex_dataset_2.subsample_genes(subset_genes=np.arange(1, 4))
-    cortex_dataset_2.filter_cell_types(
-        ["endothelial-mural", "interneurons", "microglia", "oligodendrocytes"]
-    )
-    cortex_dataset_2.filter_cell_types([2, 0])
-    cortex_dataset_merged = GeneExpressionDataset()
-    cortex_dataset_merged.populate_from_datasets([cortex_dataset_1, cortex_dataset_2])
-    assert cortex_dataset_merged.nb_genes == 2
-
-    synthetic_dataset_1 = SyntheticDataset(n_batches=2, n_labels=5)
-    synthetic_dataset_2 = SyntheticDataset(n_batches=3, n_labels=3)
-    synthetic_merged_1 = GeneExpressionDataset()
-    synthetic_merged_1.populate_from_datasets(
-        [synthetic_dataset_1, synthetic_dataset_2]
-    )
-    assert synthetic_merged_1.n_batches == 5
-    assert synthetic_merged_1.n_labels == 5
-
-    synthetic_merged_2 = GeneExpressionDataset()
-    synthetic_merged_2.populate_from_datasets(
-        [synthetic_dataset_1, synthetic_dataset_2], shared_labels=False
-    )
-    assert synthetic_merged_2.n_batches == 5
-    assert synthetic_merged_2.n_labels == 8
-
-    synthetic_dataset_1.filter_cell_types([0, 1, 2, 3])
-    assert synthetic_dataset_1.n_labels == 4
-
-    synthetic_dataset_1.subsample_cells(50)
-    assert len(synthetic_dataset_1) == 50
-
-    synthetic_dataset_3 = SyntheticDataset(n_labels=6)
-    synthetic_dataset_3.cell_types = np.arange(6).astype(np.str)
-    synthetic_dataset_3.map_cell_types({"2": "9", ("4", "3"): "8"})
-
-
-def test_seqfish(save_path):
-    seqfish_dataset = SeqfishDataset(save_path=save_path)
-    base_benchmark(seqfish_dataset)
-
-
-def test_breast_cancer(save_path):
-    breast_cancer_dataset = BreastCancerDataset(save_path=save_path)
-    base_benchmark(breast_cancer_dataset)
-
-
-def test_mouseob(save_path):
-    mouseob_dataset = MouseOBDataset(save_path=save_path)
-    base_benchmark(mouseob_dataset)
-
-
-def test_particular_benchmark():
-    synthetic_dataset = SyntheticDataset()
-    benchmark(synthetic_dataset, n_epochs=1, use_cuda=False)
 
 
 def test_nb_not_zinb():
@@ -420,13 +214,3 @@ def test_sampling_zl(save_path):
     )
     trainer_cortex_cls.train(n_epochs=2)
     trainer_cortex_cls.test_set.accuracy()
-
-
-def test_new_10x(save_path):
-    """
-    Test new 10X data format, which is a bit different than newer ones
-    :return:
-    """
-    data = Dataset10X("pbmc_1k_v2", save_path=os.path.join(save_path, "10X"))
-    data.subsample_genes(new_n_genes=100)
-    assert data.X.shape[1] == 100

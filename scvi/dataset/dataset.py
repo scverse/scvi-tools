@@ -76,6 +76,9 @@ class GeneExpressionDataset(Dataset):
         self._norm_X = None
         self._corrupted_X = None
 
+        # attributes that should not be set by initilalization methods
+        self.protected_attributes = ["X"]
+
     def populate_from_data(
         self,
         X: Union[np.ndarray, sp_sparse.csr_matrix],
@@ -422,7 +425,7 @@ class GeneExpressionDataset(Dataset):
                         for gene_dataset in gene_datasets_list
                     ]
                 )
-                columns_to_keep = np.array(list(sorted(columns_to_keep)))
+                columns_to_keep = np.asarray(list(sorted(columns_to_keep)))
                 logger.info(
                     "Keeping {n_cols} columns in {attr}".format(
                         n_cols=len(columns_to_keep), attr=attribute_name
@@ -483,6 +486,13 @@ class GeneExpressionDataset(Dataset):
     @X.setter
     def X(self, X: Union[np.ndarray, sp_sparse.csr_matrix]):
         """Sets the data attribute ``X`` and (re)computes the library size."""
+        n_dim = len(X.shape)
+        if n_dim != 2:
+            raise ValueError(
+                "Gene expression data should be 2-dimensional not {}-dimensional.".format(
+                    n_dim
+                )
+            )
         self._X = X
         logger.info("Computing the library size for the new data")
         self.compute_library_size_batch()
@@ -558,6 +568,15 @@ class GeneExpressionDataset(Dataset):
 
     def initialize_cell_attribute(self, attribute_name, attribute, categorical=False):
         """Sets and registers a cell-wise attribute, e.g annotation information."""
+        if attribute_name in self.protected_attributes:
+            valid_attribute_name = attribute_name + "_cell"
+            logger.warning(
+                "{} is a protected attribute and cannot be set with this name "
+                "in initialize_cell_attribute, changing name to {} and setting".format(
+                    attribute_name, valid_attribute_name
+                )
+            )
+            attribute_name = valid_attribute_name
         if not self.nb_cells == len(attribute):
             raise ValueError(
                 "Number of cells ({n_cells}) and length of cell attribute ({n_attr}) mismatch".format(
@@ -571,12 +590,29 @@ class GeneExpressionDataset(Dataset):
 
     def initialize_cell_measurement(self, measurement: CellMeasurement):
         """Initializes a cell measurement: set attributes and update registers"""
+        if measurement.name in self.protected_attributes:
+            valid_attribute_name = measurement.name + "_cell"
+            logger.warning(
+                "{} is a protected attribute and cannot be set with this name "
+                "in initialize_cell_attribute, changing name to {} and setting".format(
+                    measurement.name, valid_attribute_name
+                )
+            )
+            measurement.name = valid_attribute_name
         self.initialize_cell_attribute(measurement.name, measurement.data)
         setattr(self, measurement.columns_attr_name, np.asarray(measurement.columns))
         self.cell_measurements_columns[measurement.name] = measurement.columns_attr_name
 
     def initialize_gene_attribute(self, attribute_name, attribute):
         """Sets and registers a gene-wise attribute, e.g annotation information."""
+        if attribute_name in self.protected_attributes:
+            valid_attribute_name = attribute_name + "_gene"
+            logger.warning(
+                "{} is a protected attribute and cannot be set with this name "
+                "in initialize_cell_attribute, changing name to {} and setting".format(
+                    attribute_name, valid_attribute_name
+                )
+            )
         if not self.nb_genes == len(attribute):
             raise ValueError(
                 "Number of genes ({n_genes}) and length of gene attribute ({n_attr}) mismatch".format(
@@ -723,7 +759,7 @@ class GeneExpressionDataset(Dataset):
             )
             return
 
-        self.update_genes(np.array(subset_genes))
+        self.update_genes(np.asarray(subset_genes))
 
     def filter_genes_by_attribute(
         self, values_to_keep: Union[List, np.ndarray], on: str = "gene_names"
@@ -1110,6 +1146,7 @@ def remap_categories(
     :param original_categories: Categorical array to be remapped.
     :param mapping_from: source of the mapping.
     :param mapping_to: destination of the mapping
+    :param mappings_dict: Mappings of the categorical being remapped.
 
     :return: ``tuple`` of a ``np.ndarray`` containing the new categories
         and an ``int`` equal to the new number of categories.

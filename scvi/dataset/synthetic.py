@@ -253,7 +253,7 @@ class ZISyntheticDatasetCorr(SyntheticDatasetCorr):
                 np.mean((self.poisson_zero * self.zi_zero)[self.is_highly_exp]),
             ],
         ]  # ZI = 0, NB = 0
-        self.probas_zero_bio_tech_high = np.array(
+        self.probas_zero_bio_tech_high = np.asarray(
             self.probas_zero_bio_tech_high
         ).reshape((2, 2))
 
@@ -272,7 +272,7 @@ class ZISyntheticDatasetCorr(SyntheticDatasetCorr):
                 np.mean((self.poisson_zero * self.zi_zero)[~self.is_highly_exp]),
             ],
         ]  # ZI = 0, NB = 0
-        self.probas_zero_bio_tech_low = np.array(self.probas_zero_bio_tech_low).reshape(
+        self.probas_zero_bio_tech_low = np.asarray(self.probas_zero_bio_tech_low).reshape(
             (2, 2)
         )
         assert np.abs(self.probas_zero_bio_tech_high.sum() - 1) <= 1e-8

@@ -19,6 +19,11 @@ class PbmcDataset(DownloadableDataset):
     software Seurat. We then filter genes that we could not match with the bulk data used for differential
     expression to be left with g = 3346.
 
+    :param save_path: Location to use when saving/loading the Pbmc metadata.
+    :param save_path_10X: Location to use when saving/loading the underlying 10X datasets.
+    :param remove_extracted_data: Whether to remove extracted archives after populating the dataset.
+    :param delayed_populating: Switch for delayed populating mechanism.
+
     Examples:
         >>> gene_dataset = PbmcDataset()
     """
@@ -27,9 +32,11 @@ class PbmcDataset(DownloadableDataset):
         self,
         save_path: str = "data/",
         save_path_10X: str = None,
+        remove_extracted_data: bool = False,
         delayed_populating: bool = False,
     ):
         self.save_path_10X = save_path_10X if save_path_10X is not None else save_path
+        self.remove_extracted_data = remove_extracted_data
         self.barcodes = None
         super().__init__(
             urls=[
@@ -53,8 +60,16 @@ class PbmcDataset(DownloadableDataset):
             open(os.path.join(self.save_path, "pbmc_metadata.pickle"), "rb")
         )
         datasets = [
-            Dataset10X("pbmc8k", save_path=self.save_path_10X),
-            Dataset10X("pbmc4k", save_path=self.save_path_10X),
+            Dataset10X(
+                "pbmc8k",
+                save_path=self.save_path_10X,
+                remove_extracted_data=self.remove_extracted_data,
+            ),
+            Dataset10X(
+                "pbmc4k",
+                save_path=self.save_path_10X,
+                remove_extracted_data=self.remove_extracted_data,
+            ),
         ]
         self.populate_from_datasets(datasets)
         # filter cells according to barcodes
@@ -68,8 +83,8 @@ class PbmcDataset(DownloadableDataset):
                 barcode in dict_barcodes
             ):  # barcodes with end -11 filtered on 10X website (49 cells)
                 subset_cells += [dict_barcodes[barcode]]
-        self.update_cells(subset_cells=np.array(subset_cells))
-        idx_metadata = np.array(
+        self.update_cells(subset_cells=np.asarray(subset_cells))
+        idx_metadata = np.asarray(
             [not barcode.endswith("11") for barcode in barcodes_metadata], dtype=np.bool
         )
         labels = pbmc_metadata["clusters"][idx_metadata].reshape(-1, 1)[: len(self)]
@@ -113,9 +128,10 @@ class PurifiedPBMCDataset(DownloadableDataset):
         self,
         save_path: str = "data/",
         subset_datasets: Union[List[int], np.ndarray] = None,
+        remove_extracted_data: bool = False,
         delayed_populating: bool = False,
     ):
-        self.dataset_names = np.array(
+        self.dataset_names = np.asarray(
             [
                 "cd4_t_helper",
                 "regulatory_t",
@@ -131,6 +147,7 @@ class PurifiedPBMCDataset(DownloadableDataset):
             ]
         )
         subset_datasets = subset_datasets if subset_datasets else slice(None)
+        self.remove_extracted_data = remove_extracted_data
         self.dataset_names = self.dataset_names[subset_datasets]
         super().__init__(save_path=save_path, delayed_populating=delayed_populating)
 
@@ -148,9 +165,13 @@ class PurifiedPBMCDataset(DownloadableDataset):
     def populate(self):
         datasets = []
         for dataset_name in self.dataset_names:
-            dataset = Dataset10X(dataset_name, save_path=self.save_path)
+            dataset = Dataset10X(
+                dataset_name,
+                save_path=self.save_path,
+                remove_extracted_data=self.remove_extracted_data,
+            )
             dataset.initialize_mapped_attribute(
-                "labels", "cell_types", np.array([dataset_name], dtype=np.str)
+                "labels", "cell_types", np.asarray([dataset_name], dtype=np.str)
             )
             datasets += [dataset]
         self.populate_from_datasets(datasets)

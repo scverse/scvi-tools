@@ -13,9 +13,10 @@ logger = logging.getLogger(__name__)
 class CsvDataset(DownloadableDataset):
     """Loads a `.csv` file.
 
-    :param filename: Name of the `.csv` file.
-    :param save_path: Save path of the dataset. Default: ``'data/'``.
-    :param url: Url of the remote dataset. Default: ``None``.
+    :param filename: File name to use when saving/loading the data.
+    :param save_path: Location to use when saving/loading the data.
+    :param url: URL pointing to the data which will be downloaded
+        if it's not already in ``save_path``.
     :param new_n_genes: Number of subsampled genes. Default: ``600``.
     :param subset_genes: List of genes for subsampling. Default: ``None``.
     :param compression: For on-the-fly decompression of on-disk data. If ‘infer’ and filepath_or_buffer
@@ -83,7 +84,7 @@ class CsvDataset(DownloadableDataset):
                 compression=self.compression,
             )
 
-        gene_names = np.array(data.columns, dtype=str)
+        gene_names = np.asarray(data.columns, dtype=str)
         labels, cell_types, batch_indices = None, None, None
         if self.labels_file is not None:
             labels = pd.read_csv(
