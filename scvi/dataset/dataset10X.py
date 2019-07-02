@@ -240,7 +240,7 @@ class BrainSmallDataset(Dataset10X):
         save_path: str = "data/",
         save_path_10X: str = None,
         delayed_populating: bool = False,
-        remove_extracted_data: bool  = False,
+        remove_extracted_data: bool = False,
     ):
         super().__init__(
             dataset_name="neuron_9k",
