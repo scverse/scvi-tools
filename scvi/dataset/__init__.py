@@ -23,6 +23,7 @@ __all__ = [
     "BrainLargeDataset",
     "CiteSeqDataset",
     "CbmcDataset",
+    "CellMeasurement",
     "CortexDataset",
     "CsvDataset",
     "BreastCancerDataset",
