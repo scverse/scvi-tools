@@ -543,14 +543,13 @@ class Posterior:
             # Clamping as distributions objects can have buggy behaviors when
             # their parameters are too high
             l_train = torch.clamp(l_train, max=1e8)
-            gene_expressions = distributions.Poisson(l_train).sample() # Shape : (n_samples, n_cells_batch, n_genes)
+            gene_expressions = distributions.Poisson(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_genes)
             if zero_inflated:
                 p_zero = (1.0 + torch.exp(-px_dropout)).pow(-1)
                 random_prob = torch.rand_like(p_zero)
                 gene_expressions[random_prob <= p_zero] = 0
 
-
-            gene_expressions = gene_expressions.permute([1, 2, 0]) # Shape : (n_cells_batch, n_genes, n_samples)
+            gene_expressions = gene_expressions.permute([1, 2, 0])  # Shape : (n_cells_batch, n_genes, n_samples)
 
             x_old.append(sample_batch)
             x_new.append(gene_expressions)
@@ -561,7 +560,7 @@ class Posterior:
             gene_ids = self.gene_dataset._gene_idx(genes)
             x_new = x_new[:, gene_ids, :]
             x_old = x_old[:, gene_ids]
-        return x_new.cpu(), x_old.cpu()
+        return x_new.cpu().numpy(), x_old.cpu().numpy()
 
     @torch.no_grad()
     def generate_parameters(self):
