@@ -18,8 +18,13 @@ class BrainLargeDataset(DownloadableDataset):
     dataset is then sampled multiple times in cells for the runtime and goodness-of-fit analysis. We report imputation
     scores on the 10k cells and 720 genes samples only.
 
-    Args:
-        :save_path: Save path of raw data file. Default: ``'data/'``.
+    :param save_path: Path to data.
+    :param filename: Filename to use for saving/loading.
+    :param delayed_populating: Switch for delayed populating mechanism.
+    :param sample_size_gene_var: Number of cells to use to estimate gene variances.
+    :param max_cells_to_keep: Maximum number of cells to keep.
+    :param nb_genes_to_keep: Number of genes to keep, ordered by decreasing variance.
+    :param loading_batch_size: Number of cells to use for each chunk loaded.
 
     Examples:
         >>> gene_dataset = BrainLargeDataset()
@@ -76,7 +81,7 @@ class BrainLargeDataset(DownloadableDataset):
                     data["indices"][:last_index_gene_var_sample],
                     index_partitioner_gene_var,
                 ),
-                shape=(nb_genes, self.sample_size_gene_var),
+                shape=(nb_genes, len(index_partitioner_gene_var) - 1),
             )
             mean = gene_var_sample_matrix.mean(axis=1)
             var = gene_var_sample_matrix.multiply(gene_var_sample_matrix).mean(

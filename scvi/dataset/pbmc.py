@@ -23,7 +23,13 @@ class PbmcDataset(DownloadableDataset):
         >>> gene_dataset = PbmcDataset()
     """
 
-    def __init__(self, save_path: str = "data/", delayed_populating: bool = False):
+    def __init__(
+        self,
+        save_path: str = "data/",
+        save_path_10X: str = None,
+        delayed_populating: bool = False,
+    ):
+        self.save_path_10X = save_path_10X if save_path_10X is not None else save_path
         self.barcodes = None
         super().__init__(
             urls=[
@@ -36,8 +42,8 @@ class PbmcDataset(DownloadableDataset):
         )
         # this downloads the necessary file for a future call to populate
         if delayed_populating:
-            Dataset10X("pbmc8k", save_path=save_path, delayed_populating=True)
-            Dataset10X("pbmc4k", save_path=save_path, delayed_populating=True)
+            Dataset10X("pbmc8k", save_path=self.save_path_10X, delayed_populating=True)
+            Dataset10X("pbmc4k", save_path=self.save_path_10X, delayed_populating=True)
 
     def populate(self):
         self.de_metadata = pd.read_csv(
@@ -47,8 +53,8 @@ class PbmcDataset(DownloadableDataset):
             open(os.path.join(self.save_path, "pbmc_metadata.pickle"), "rb")
         )
         datasets = [
-            Dataset10X("pbmc8k", save_path=self.save_path),
-            Dataset10X("pbmc4k", save_path=self.save_path),
+            Dataset10X("pbmc8k", save_path=self.save_path_10X),
+            Dataset10X("pbmc4k", save_path=self.save_path_10X),
         ]
         self.populate_from_datasets(datasets)
         # filter cells according to barcodes
@@ -102,11 +108,12 @@ class PurifiedPBMCDataset(DownloadableDataset):
     Examples:
         >>> gene_dataset = PurifiedPBMCDataset()
     """
+
     def __init__(
         self,
         save_path: str = "data/",
         subset_datasets: Union[List[int], np.ndarray] = None,
-        delayed_populating: bool = False
+        delayed_populating: bool = False,
     ):
         self.dataset_names = np.array(
             [
@@ -125,14 +132,15 @@ class PurifiedPBMCDataset(DownloadableDataset):
         )
         subset_datasets = subset_datasets if subset_datasets else slice(None)
         self.dataset_names = self.dataset_names[subset_datasets]
-        super().__init__(
-            save_path=save_path,
-            delayed_populating=delayed_populating,
-        )
+        super().__init__(save_path=save_path, delayed_populating=delayed_populating)
 
         if delayed_populating:
             for dataset_name in self.dataset_names:
-                Dataset10X(dataset_name, save_path=save_path, delayed_populating=delayed_populating)
+                Dataset10X(
+                    dataset_name,
+                    save_path=save_path,
+                    delayed_populating=delayed_populating,
+                )
 
         self.filter_genes_by_count()
         self.filter_cells_by_count()

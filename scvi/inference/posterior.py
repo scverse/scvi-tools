@@ -255,8 +255,7 @@ class Posterior:
         M_permutation: int = None,
         all_stats: bool = True,
     ):
-        """
-        Computes gene specific Bayes factors using masks idx1 and idx2
+        """Computes gene specific Bayes factors using masks idx1 and idx2
 
         To that purpose we sample the Posterior in the following way:
             1. The posterior is sampled n_samples times for each subpopulation
