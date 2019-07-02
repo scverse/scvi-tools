@@ -132,36 +132,6 @@ class GeneExpressionDataset(Dataset):
 
         self.remap_categorical_attributes()
 
-    def populate_from_per_batch_array(
-        self,
-        X: np.ndarray,
-        labels_per_batch: Union[np.ndarray, List[Union[List[int], np.ndarray]]] = None,
-        gene_names: Union[List[str], np.ndarray] = None,
-    ):
-        """Populates the data attributes of a GeneExpressionDataset object
-        from an array with shape (n_batches, nb_cells, nb_genes).
-
-        :param X: np.ndarray with shape (n_batches, nb_cells, nb_genes).
-        :param labels_per_batch: cell-wise labels for each batch.
-        :param gene_names: gene names, stored as ``str``.
-        """
-        if len(np.squeeze(X.shape)) != 3:
-            raise ValueError(
-                "Shape of np.squeeze(X) != 3. Use populate_from_data "
-                "if your dataset has shape (nb_cells, nb_genes)"
-            )
-        batch_indices = np.arange(X.shape[0])[:, None] * np.ones(X.shape[1])[None, :]
-        batch_indices = batch_indices.reshape(-1)
-        labels = (
-            np.concatenate(labels_per_batch).astype(np.int64)
-            if labels_per_batch is not None
-            else None
-        )
-        X = X.reshape(-1, X.shape[2])
-        self.populate_from_data(
-            X=X, batch_indices=batch_indices, labels=labels, gene_names=gene_names
-        )
-
     def populate_from_per_batch_list(
         self,
         Xs: List[Union[sp_sparse.csr_matrix, np.ndarray]],
@@ -237,6 +207,8 @@ class GeneExpressionDataset(Dataset):
         from multiple ``GeneExpressionDataset`` objects, merged using the intersection
         of a gene-wise attribute (``gene_names`` by default).
 
+        Warning: The merging procedure modifies the gene_dataset given as inputs
+
         For gene-wise attributes, only the attributes of the first dataset are kept.
         For cell-wise attributes, either we "concatenate" or add an "offset" corresponding
         to the number of already existing categories.
@@ -250,19 +222,13 @@ class GeneExpressionDataset(Dataset):
             If no mapping is provided, concatenate the values and add an offset
             if the attribute is registered as categorical in the first dataset.
         """
-        # sanity check
-        if not all([hasattr(gene_dataset, "gene_names") for gene_dataset in gene_datasets_list]):
-            raise ValueError(
-                "All datasets should have a gene_names attribute."
-            )
-
         # set default sharing behaviour for batch_indices and labels
         if mapping_reference_for_sharing is None:
             mapping_reference_for_sharing = {}
         if shared_labels:
             mapping_reference_for_sharing.update({"labels": "cell_types"})
 
-        # get instersection based on gene_names and keep cell attributes
+        # get intersection based on gene_names and keep cell attributes
         # which are present in all datasets
         genes_to_keep = set.intersection(
             *[set(gene_dataset.gene_names) for gene_dataset in gene_datasets_list]
@@ -309,8 +275,7 @@ class GeneExpressionDataset(Dataset):
         for gene_dataset in gene_datasets_list[::-1]:
             for attribute_name in gene_dataset.gene_attribute_names:
                 self.initialize_gene_attribute(
-                    attribute_name,
-                    getattr(gene_dataset, attribute_name)
+                    attribute_name, getattr(gene_dataset, attribute_name)
                 )
                 mapping_names = gene_dataset.attribute_mappings[attribute_name]
                 for mapping_name in mapping_names:
@@ -342,16 +307,15 @@ class GeneExpressionDataset(Dataset):
                 mappings = defaultdict(list)
                 offset = 0
                 for i, gene_dataset in enumerate(gene_datasets_list):
-                    local_attribute_values = np.squeeze(
-                        getattr(gene_dataset, attribute_name)
-                    )
+                    local_attribute_values = getattr(gene_dataset, attribute_name)
                     new_values = (
                         offset + local_attribute_values
                         if is_categorical
                         else local_attribute_values
                     )
                     attribute_values.append(new_values)
-                    offset += len(np.unique(local_attribute_values))
+                    if is_categorical:
+                        offset += np.max(local_attribute_values) + 1
                     for mapping_name in mapping_names_to_keep:
                         mappings[mapping_name].extend(
                             getattr(gene_dataset, mapping_name)
@@ -392,7 +356,9 @@ class GeneExpressionDataset(Dataset):
                     ]
                     old_categories = list(range(len(old_mapping)))
                     local_attribute_values, _ = remap_categories(
-                        local_attribute_values, mapping_from=old_categories, mapping_to=new_categories
+                        local_attribute_values,
+                        mapping_from=old_categories,
+                        mapping_to=new_categories,
                     )
                     attribute_values.append(local_attribute_values)
 

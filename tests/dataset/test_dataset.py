@@ -18,13 +18,6 @@ class TestGeneExpressionDataset(TestCase):
         self.assertListEqual([[0] for i in range(25)], dataset.batch_indices.tolist())
         self.assertListEqual([[0] for i in range(25)], dataset.labels.tolist())
 
-    def test_populate_from_batch_array(self):
-        data = np.random.randint(1, 5, size=(3, 7, 10))
-        dataset = GeneExpressionDataset()
-        dataset.populate_from_per_batch_array(data)
-        self.assertEqual(dataset.nb_cells, 21)
-        self.assertEqual(dataset.nb_genes, 10)
-
     def test_populate_from_per_batch_list(self):
         data = [
             np.random.randint(1, 5, size=(7, 10)),
@@ -86,18 +79,26 @@ class TestGeneExpressionDataset(TestCase):
         self.assertListEqual(
             ["GENE_0", "GENE_1", "GENE_2"], dataset.gene_names.tolist()
         )
-
         # test for labels sharing
         dataset2.labels = [0, 0, 0, 1, 1, 1, 1]
         dataset2.initialize_mapped_attribute("labels", "cell_types", ["0", "1"])
         dataset3.labels = [0, 1]
         dataset3.initialize_mapped_attribute("labels", "cell_types", ["0", "2"])
         dataset = GeneExpressionDataset()
-        dataset.populate_from_datasets([dataset2, dataset3])
+        dataset.populate_from_datasets([dataset2, dataset3], shared_labels=True)
         self.assertListEqual(
-            [0, 0, 0, 1, 1, 1, 1, 0, 2], np.squeeze(dataset.labels).tolist()
+            np.squeeze(dataset.labels).tolist(), [0, 0, 0, 1, 1, 1, 1, 0, 2]
         )
-        self.assertListEqual(["0", "1", "2"], dataset.cell_types)
+        self.assertListEqual(dataset.cell_types, ["0", "1", "2"])
+
+        dataset_unshared = GeneExpressionDataset()
+        dataset_unshared.populate_from_datasets(
+            [dataset2, dataset3], shared_labels=False
+        )
+        self.assertListEqual(
+            np.squeeze(dataset_unshared.labels).tolist(), [0, 0, 0, 1, 1, 1, 1, 2, 3]
+        )
+        self.assertListEqual(dataset_unshared.cell_types, ["0", "1", "0", "2"])
 
         # test for batch_indices offsetting
         dataset2.batch_indices = [0, 0, 0, 1, 1, 1, 1]
@@ -111,17 +112,17 @@ class TestGeneExpressionDataset(TestCase):
         dataset = GeneExpressionDataset()
         dataset.populate_from_datasets([dataset2, dataset3])
         self.assertListEqual(
-            [0, 0, 0, 1, 1, 1, 1, 2, 3], np.squeeze(dataset.batch_indices).tolist()
+            np.squeeze(dataset.batch_indices).tolist(), [0, 0, 0, 1, 1, 1, 1, 2, 3]
         )
         self.assertListEqual(
-            ["fish_2", "scrna_2", "fish_3", "scrna_3"], getattr(dataset, "experiment")
+            getattr(dataset, "experiment"), ["fish_2", "scrna_2", "fish_3", "scrna_3"]
         )
 
-    def test_populate_from_datasets_attributes_merging(self):
+    def test_populate_from_datasets_gene_attributes_merging(self):
         data = np.random.randint(1, 5, size=(5, 10))
         gene_names = np.array(["gene_%d" % i for i in range(10)])
-        gene_attr1 = np.array(["1" for _ in range(10)])
-        gene_attr2 = np.array(["2" for _ in range(10)])
+        gene_attr1 = np.array([["1"] for _ in range(10)])
+        gene_attr2 = np.array([["2"] for _ in range(10)])
         dataset1 = GeneExpressionDataset()
         dataset2 = GeneExpressionDataset()
 
@@ -136,7 +137,27 @@ class TestGeneExpressionDataset(TestCase):
         dataset.populate_from_datasets([dataset1, dataset2])
 
         # Should keep the gene attribute of the first dataset
-        self.assertEqual(dataset.test[0], "1")
+        self.assertEqual(dataset.test[0, 0], "1")
+
+    def test_populate_from_datasets_cell_attributes_merging(self):
+        data = np.random.randint(1, 5, size=(5, 10))
+        gene_names = np.array(["gene_%d" % i for i in range(10)])
+        cell_attr1 = np.array([["1"] for _ in range(5)])
+        cell_attr2 = np.array([["2"] for _ in range(5)])
+        dataset1 = GeneExpressionDataset()
+        dataset2 = GeneExpressionDataset()
+
+        dataset1.populate_from_data(
+            data, gene_names=gene_names, cell_attributes_dict={"test": cell_attr1}
+        )
+        dataset2.populate_from_data(
+            data, gene_names=gene_names, cell_attributes_dict={"test": cell_attr2}
+        )
+
+        dataset = GeneExpressionDataset()
+        dataset.populate_from_datasets([dataset1, dataset2])
+        self.assertTupleEqual(dataset.test.shape, (10, 1))
+        self.assertListEqual(np.squeeze(dataset.test).tolist(), ["1"] * 5 + ["2"] * 5)
 
     def test_populate_from_datasets_cortex(self):
         cortex_dataset_1 = CortexDataset(save_path="tests/data")
