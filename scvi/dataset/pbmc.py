@@ -123,6 +123,7 @@ class PurifiedPBMCDataset(DownloadableDataset):
         self,
         save_path: str = "data/",
         subset_datasets: Union[List[int], np.ndarray] = None,
+        remove_extracted_data: bool = False,
         delayed_populating: bool = False,
     ):
         self.dataset_names = np.array(
@@ -141,6 +142,7 @@ class PurifiedPBMCDataset(DownloadableDataset):
             ]
         )
         subset_datasets = subset_datasets if subset_datasets else slice(None)
+        self.remove_extracted_data = remove_extracted_data
         self.dataset_names = self.dataset_names[subset_datasets]
         super().__init__(save_path=save_path, delayed_populating=delayed_populating)
 
@@ -158,7 +160,11 @@ class PurifiedPBMCDataset(DownloadableDataset):
     def populate(self):
         datasets = []
         for dataset_name in self.dataset_names:
-            dataset = Dataset10X(dataset_name, save_path=self.save_path)
+            dataset = Dataset10X(
+                dataset_name,
+                save_path=self.save_path,
+                remove_extracted_data=self.remove_extracted_data,
+            )
             dataset.initialize_mapped_attribute(
                 "labels", "cell_types", np.array([dataset_name], dtype=np.str)
             )
