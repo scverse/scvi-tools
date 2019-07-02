@@ -48,18 +48,11 @@ class GeneExpressionDataset(Dataset):
             merged using the intersection of a gene-wise attribute (``gene_names`` by default).
     """
 
-    #           __   _,--="=--,_   __
-    #          /  \."    .-.    "./  \
-    #         /  ,/  _   : :   _  \/` \
-    #         \  `| /o\  :_:  /o\ |\__/
-    #          `-'| :="~` _ `~"=: |
-    #             \`     (_)     `/
-    #      .-"-.   \      |      /   .-"-.
-    # .---{     }--|  /,.-'-.,\  |--{     }---.
-    #  )  (_)_)_)  \_/`~-===-~`\_/  (_(_(_)  (
-    # (                                       )
-    #  )            Constructors             (
-    # '---------------------------------------'
+    #############################
+    #                           #
+    #       CONSTRUCTORS        #
+    #                           #
+    #############################
 
     def __init__(self):
         # registers
@@ -141,6 +134,11 @@ class GeneExpressionDataset(Dataset):
             self.initialize_mapped_attribute(
                 "labels", "cell_types", np.asarray(cell_types, dtype=np.str)
             )
+        # add dummy cell type, for consistency with labels
+        elif labels is None:
+            self.initialize_mapped_attribute(
+                "labels", "cell_types", np.asarray(["undefined"], dtype=np.str)
+            )
 
         # handle additional attributes
         if cell_attributes_dict:
@@ -160,6 +158,7 @@ class GeneExpressionDataset(Dataset):
         Xs: List[Union[sp_sparse.csr_matrix, np.ndarray]],
         labels_per_batch: Union[np.ndarray, List[np.ndarray]] = None,
         gene_names: Union[List[str], np.ndarray] = None,
+        cell_types: Union[List[str], np.ndarray] = None,
     ):
         """Populates the data attributes of a GeneExpressionDataset object from a ``n_batches``-long
             ``list`` of (nb_cells, nb_genes) matrices.
@@ -167,6 +166,7 @@ class GeneExpressionDataset(Dataset):
         :param Xs: RNA counts in the form of a list of np.ndarray with shape (..., nb_genes)
         :param labels_per_batch: list of cell-wise labels for each batch.
         :param gene_names: gene names, stored as ``str``.
+        :param cell_types: cell types, stored as ``str``.
         """
         nb_genes = Xs[0].shape[1]
         if not all(X.shape[1] == nb_genes for X in Xs):
@@ -183,7 +183,11 @@ class GeneExpressionDataset(Dataset):
         )
 
         self.populate_from_data(
-            X=X, batch_indices=batch_indices, labels=labels, gene_names=gene_names
+            X=X,
+            batch_indices=batch_indices,
+            labels=labels,
+            gene_names=gene_names,
+            cell_types=cell_types,
         )
 
     def populate_from_per_label_list(
@@ -223,7 +227,7 @@ class GeneExpressionDataset(Dataset):
     def populate_from_datasets(
         self,
         gene_datasets_list: List["GeneExpressionDataset"],
-        shared_labels=False,
+        shared_labels=True,
         mapping_reference_for_sharing: Dict[str, Union[str, None]] = None,
     ):
         """Populates the data attribute of a GeneExpressionDataset
@@ -358,7 +362,7 @@ class GeneExpressionDataset(Dataset):
                     ):
                         raise ValueError(
                             "Reference mapping {ref_map} for {attr_name} merging"
-                            " is not a registered in all datasets.".format(
+                            " is not registered in all datasets.".format(
                                 ref_map=ref_mapping_name, attr_name=attribute_name
                             )
                         )

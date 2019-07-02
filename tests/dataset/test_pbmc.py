@@ -6,7 +6,7 @@ from .utils import unsupervised_training_one_epoch
 
 class TestPbmcDataset(TestCase):
     def test_populate(self):
-        dataset = PbmcDataset(save_path="tests/data/10X")
+        dataset = PbmcDataset(save_path="tests/data/", save_path_10X="tests/data/10X")
         unsupervised_training_one_epoch(dataset)
 
 

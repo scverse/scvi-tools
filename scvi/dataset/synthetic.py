@@ -25,10 +25,16 @@ class SyntheticDataset(GeneExpressionDataset):
         mask = np.random.binomial(n=1, p=0.7, size=(n_batches, batch_size, nb_genes))
         data = data * mask  # We put the batch index first
         labels = np.random.randint(0, n_labels, size=(n_batches, batch_size, 1))
+        cell_types = ["undefined_%d" % i for i in range(n_labels)]
 
         self.populate_from_per_batch_list(
-            data, labels_per_batch=labels, gene_names=np.arange(nb_genes).astype(np.str)
+            data,
+            labels_per_batch=labels,
+            gene_names=np.arange(nb_genes).astype(np.str),
+            cell_types=cell_types,
         )
+        # clear potentially unused cell_types
+        self.remap_categorical_attributes()
 
 
 class SyntheticRandomDataset(DownloadableDataset):

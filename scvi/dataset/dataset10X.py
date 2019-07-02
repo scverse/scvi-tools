@@ -83,6 +83,7 @@ class Dataset10X(DownloadableDataset):
     :param save_path: Save path of the dataset.
     :param type: Either `filtered` data or `raw` data.
     :param dense: Whether to load as dense or sparse.
+        If False, data is cast to sparse using ``scipy.sparse.csr_matrix``.
     :param gene_column: column in which to find gene names in the corresponding `.tsv` file.
     :param remote: Whether the 10X dataset is to be downloaded from the website
         or whether it is a local dataset, if remote is False then ``os.path.join(save_path, filename)``
@@ -124,7 +125,8 @@ class Dataset10X(DownloadableDataset):
             logger.debug("Loading 10X dataset with custom url and filename")
         elif filename is not None and url is None:
             logger.debug("Loading local 10X dataset with custom filename")
-
+        else:
+            logger.debug("Loading extracted local 10X dataset with custom filename")
         super().__init__(
             urls=url,
             filenames=filename,
@@ -134,13 +136,15 @@ class Dataset10X(DownloadableDataset):
 
     def populate(self):
         logger.info("Preprocessing dataset")
-        file_path = os.path.join(self.save_path, self.filenames[0])
-        if tarfile.is_tarfile(file_path):
-            if not os.path.exists(file_path[:-6]):  # nothing extracted yet
-                logger.info("Extracting tar file")
-                tar = tarfile.open(file_path, "r:gz")
-                tar.extractall(path=self.save_path)
-                tar.close()
+        if len(self.filenames) > 0:
+            file_path = os.path.join(self.save_path, self.filenames[0])
+            if not os.path.exists(file_path[:-7]):  # nothing extracted yet
+                if tarfile.is_tarfile(file_path):
+                    logger.info("Extracting tar file")
+                    tar = tarfile.open(file_path, "r:gz")
+                    tar.extractall(path=self.save_path)
+                    tar.close()
+
         path_to_data, suffix = self.find_path_to_data()
         # switch case corresponding to a change in 10X storing behaviour
         if suffix == "":
@@ -157,7 +161,7 @@ class Dataset10X(DownloadableDataset):
             barcodes = pd.read_csv(
                 os.path.join(path_to_data, barcode_filename), sep="\t", header=None
             )
-            cell_attributes_dict = {"barcodes": barcodes}
+            cell_attributes_dict = {"barcodes": np.squeeze(barcodes)}
         matrix_filename = "matrix.mtx" + suffix
         expression_data = sp_io.mmread(os.path.join(path_to_data, matrix_filename)).T
         if self.dense:
@@ -191,7 +195,9 @@ class Dataset10X(DownloadableDataset):
                 is_tar = files[0][-3:] == ".gz"
                 suffix = ".gz" if is_tar else ""
                 return root, suffix
-        raise FileNotFoundError("No matrix.mtx(.gz) found in path (%s)." % self.save_path)
+        raise FileNotFoundError(
+            "No matrix.mtx(.gz) found in path (%s)." % self.save_path
+        )
 
 
 class BrainSmallDataset(Dataset10X):
@@ -211,10 +217,16 @@ class BrainSmallDataset(Dataset10X):
     .. _10x Genomics:
         https://support.10xgenomics.com/single-cell-gene-expression/datasets
     """
-    def __init__(self, save_path: str = "data/", delayed_populating: bool = False):
+
+    def __init__(
+        self,
+        save_path: str = "data/",
+        save_path_10X: str = None,
+        delayed_populating: bool = False,
+    ):
         super().__init__(
             dataset_name="neuron_9k",
-            save_path=save_path,
+            save_path=save_path_10X,
             delayed_populating=delayed_populating,
         )
         _download(
@@ -225,8 +237,8 @@ class BrainSmallDataset(Dataset10X):
         metadata = pickle.load(
             open(os.path.join(save_path, "brain_small_metadata.pickle"), "rb")
         )
-        self.labels = metadata["clusters"].loc[np.squeeze(self.barcodes.values)] - 1
-        raw_qc = metadata["raw_qc"].loc[self.barcodes.values.ravel()]
+        self.labels = metadata["clusters"].loc[self.barcodes] - 1
+        raw_qc = metadata["raw_qc"].loc[self.barcodes]
         self.initialize_cell_attribute("raw_qc", raw_qc)
         self.initialize_cell_attribute("qc", raw_qc.values)
         self.qc_names = raw_qc.columns

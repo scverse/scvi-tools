@@ -255,8 +255,7 @@ class Posterior:
         M_permutation: int = None,
         all_stats: bool = True,
     ):
-        """
-        Computes gene specific Bayes factors using masks idx1 and idx2
+        """Computes gene specific Bayes factors using masks idx1 and idx2
 
         To that purpose we sample the Posterior in the following way:
             1. The posterior is sampled n_samples times for each subpopulation
@@ -307,7 +306,7 @@ class Posterior:
         px_scale = np.concatenate((px_scale1, px_scale2), axis=0)
         all_labels = np.concatenate((np.repeat(0, len(px_scale1)), np.repeat(1, len(px_scale2))), axis=0)
         if genes is not None:
-            px_scale = px_scale[:, self.gene_dataset._gene_idx(genes)]
+            px_scale = px_scale[:, self.gene_dataset.genes_to_index(genes)]
         bayes1 = get_bayes_factors(px_scale, all_labels, cell_idx=0, M_permutation=M_permutation,
                                    permutation=False, sample_pairs=sample_pairs)
         if all_stats is True:
