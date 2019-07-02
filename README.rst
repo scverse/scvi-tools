@@ -2,19 +2,21 @@
 scVI
 ====
 
-|PyPI| |bioconda| |Docs| |Build Status| |Coverage|
+|PyPI| |bioconda| |Docs| |Build Status| |Coverage| |Style|
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/scVI.svg
-   :target: https://pypi.org/project/scvi
+    :target: https://pypi.org/project/scvi
 .. |bioconda| image:: https://img.shields.io/badge/bioconda-blue.svg
-   :target: http://bioconda.github.io/recipes/scvi/README.html
+    :target: http://bioconda.github.io/recipes/scvi/README.html
 .. |Docs| image:: https://readthedocs.org/projects/scvi/badge/?version=latest
-        :target: https://scvi.readthedocs.io/en/latest/?badge=latest
-        :alt: Documentation Status
+    :target: https://scvi.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
 .. |Build Status| image:: https://travis-ci.org/YosefLab/scVI.svg?branch=master
     :target: https://travis-ci.org/YosefLab/scVI
 .. |Coverage| image:: https://codecov.io/gh/YosefLab/scVI/branch/master/graph/badge.svg
-  :target: https://codecov.io/gh/YosefLab/scVI
+    :target: https://codecov.io/gh/YosefLab/scVI
+.. |Style| image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/python/black
 
 
 Single-cell Variational Inference
@@ -43,15 +45,15 @@ Quick Start
 
    a. Getting started:
        * `data loading`__
-       * `basic usage`__    
+       * `basic usage`__
    b. Analyzing several datasets:
-       * `harmonization`__ 
-       * `annotation`__ 
+       * `harmonization`__
+       * `annotation`__
    c. Advanced topics:
-       * `interaction with scanpy`__ 
+       * `interaction with scanpy`__
        * `linear decoder for gene interpretation`__
-       * `reproducing results from the scVI paper`__ 
-   
+       * `reproducing results from the scVI paper`__
+
 
 
 .. __: https://github.com/YosefLab/scVI/tree/master/tests/notebooks/data_loading.ipynb
