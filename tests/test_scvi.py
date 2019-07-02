@@ -8,17 +8,8 @@ import os.path
 
 import numpy as np
 
-from scvi.benchmark import (
-    all_benchmarks,
-    benchmark_fish_scrna,
-    ldvae_benchmark,
-)
-from scvi.dataset import (
-    CortexDataset,
-    SyntheticDataset,
-    SmfishDataset,
-    Dataset10X,
-)
+from scvi.benchmark import all_benchmarks, benchmark_fish_scrna, ldvae_benchmark
+from scvi.dataset import CortexDataset, SyntheticDataset, SmfishDataset, Dataset10X
 from scvi.inference import (
     JointSemiSupervisedTrainer,
     AlternateSemiSupervisedTrainer,
@@ -238,6 +229,10 @@ def test_new_10x(save_path):
     Test new 10X data format, which is a bit different than newer ones
     :return:
     """
-    data = Dataset10X("pbmc_1k_v2", save_path=os.path.join(save_path, "10X"))
+    data = Dataset10X(
+        "pbmc_1k_v2",
+        save_path=os.path.join(save_path, "10X"),
+        remove_extracted_data=True,
+    )
     data.subsample_genes(new_n_genes=100)
     assert data.X.shape[1] == 100
