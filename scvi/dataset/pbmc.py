@@ -27,9 +27,11 @@ class PbmcDataset(DownloadableDataset):
         self,
         save_path: str = "data/",
         save_path_10X: str = None,
+        remove_extracted_data: bool = False,
         delayed_populating: bool = False,
     ):
         self.save_path_10X = save_path_10X if save_path_10X is not None else save_path
+        self.remove_extracted_data = remove_extracted_data
         self.barcodes = None
         super().__init__(
             urls=[
@@ -53,8 +55,16 @@ class PbmcDataset(DownloadableDataset):
             open(os.path.join(self.save_path, "pbmc_metadata.pickle"), "rb")
         )
         datasets = [
-            Dataset10X("pbmc8k", save_path=self.save_path_10X),
-            Dataset10X("pbmc4k", save_path=self.save_path_10X),
+            Dataset10X(
+                "pbmc8k",
+                save_path=self.save_path_10X,
+                remove_extracted_data=self.remove_extracted_data,
+            ),
+            Dataset10X(
+                "pbmc4k",
+                save_path=self.save_path_10X,
+                remove_extracted_data=self.remove_extracted_data,
+            ),
         ]
         self.populate_from_datasets(datasets)
         # filter cells according to barcodes

@@ -85,9 +85,7 @@ class Dataset10X(DownloadableDataset):
     :param dense: Whether to load as dense or sparse.
         If False, data is cast to sparse using ``scipy.sparse.csr_matrix``.
     :param gene_column: column in which to find gene names in the corresponding `.tsv` file.
-    :param remote: Whether the 10X dataset is to be downloaded from the website
-        or whether it is a local dataset, if remote is False then ``os.path.join(save_path, filename)``
-        must be the path to the directory that contains matrix.mtx(.gz) and genes(features).tsv(.gz) files.
+    :param remove_extracted_data: Whether to remove extracted archives after populating the dataset.
 
     Examples:
         >>> tenX_dataset = Dataset10X("neuron_9k")
@@ -105,11 +103,14 @@ class Dataset10X(DownloadableDataset):
         type: str = "filtered",
         dense: bool = False,
         gene_column: int = 0,
+        remove_extracted_data: bool = False,
         delayed_populating: bool = False,
     ):
         self.barcodes = None
-        self.gene_column = gene_column
         self.dense = dense
+        self.gene_column = gene_column
+        self.remove_extracted_data = remove_extracted_data
+
         # form data url and filename unless manual override
         if dataset_name is not None:
             if url is not None:
@@ -136,6 +137,7 @@ class Dataset10X(DownloadableDataset):
 
     def populate(self):
         logger.info("Preprocessing dataset")
+        was_extracted = False
         if len(self.filenames) > 0:
             file_path = os.path.join(self.save_path, self.filenames[0])
             if not os.path.exists(file_path[:-7]):  # nothing extracted yet
@@ -143,6 +145,7 @@ class Dataset10X(DownloadableDataset):
                     logger.info("Extracting tar file")
                     tar = tarfile.open(file_path, "r:gz")
                     tar.extractall(path=self.save_path)
+                    was_extracted = True
                     tar.close()
 
         path_to_data, suffix = self.find_path_to_data()
@@ -185,6 +188,9 @@ class Dataset10X(DownloadableDataset):
             cell_attributes_dict=cell_attributes_dict,
         )
         self.filter_cells_by_count()
+        # cleanup if required
+        if was_extracted:
+            os.remove(file_path[:-7])
 
     def find_path_to_data(self) -> Tuple[str, str]:
         """Returns exact path for the data in the archive.
@@ -232,10 +238,12 @@ class BrainSmallDataset(Dataset10X):
         save_path: str = "data/",
         save_path_10X: str = None,
         delayed_populating: bool = False,
+        remove_extracted_data: bool  = False,
     ):
         super().__init__(
             dataset_name="neuron_9k",
             save_path=save_path_10X,
+            remove_extracted_data=remove_extracted_data,
             delayed_populating=delayed_populating,
         )
         _download(
