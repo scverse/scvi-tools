@@ -222,17 +222,3 @@ def test_sampling_zl(save_path):
     )
     trainer_cortex_cls.train(n_epochs=2)
     trainer_cortex_cls.test_set.accuracy()
-
-
-def test_new_10x(save_path):
-    """
-    Test new 10X data format, which is a bit different than newer ones
-    :return:
-    """
-    data = Dataset10X(
-        "pbmc_1k_v2",
-        save_path=os.path.join(save_path, "10X"),
-        remove_extracted_data=True,
-    )
-    data.subsample_genes(new_n_genes=100)
-    assert data.X.shape[1] == 100
