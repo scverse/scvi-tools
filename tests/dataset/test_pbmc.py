@@ -14,3 +14,10 @@ class TestPurifiedPBMCDataset(TestCase):
     def test_populate(self):
         dataset = PurifiedPBMCDataset(save_path="tests/data/10X")
         unsupervised_training_one_epoch(dataset)
+        self.assertEqual(len(dataset.cell_types), 10)
+
+        dataset = PurifiedPBMCDataset(
+            save_path="tests/data/10X", subset_datasets=list(range(6))
+        )
+        unsupervised_training_one_epoch(dataset)
+        self.assertEqual(len(dataset.cell_types), 6)
