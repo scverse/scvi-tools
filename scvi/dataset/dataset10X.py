@@ -7,6 +7,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 import scipy.io as sp_io
+import shutil
 from scipy.sparse import csr_matrix
 
 from scvi.dataset.dataset import DownloadableDataset, _download
@@ -190,7 +191,8 @@ class Dataset10X(DownloadableDataset):
         self.filter_cells_by_count()
         # cleanup if required
         if was_extracted and self.remove_extracted_data:
-            os.remove(file_path[:-7])
+            logger.info("Removing extracted data at %s" % file_path[:-7])
+            shutil.rmtree(file_path[:-7])
 
     def find_path_to_data(self) -> Tuple[str, str]:
         """Returns exact path for the data in the archive.
