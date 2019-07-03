@@ -2,6 +2,7 @@ import logging
 import os
 
 import loompy
+import numpy as np
 
 from scvi.dataset.dataset import DownloadableDataset
 
@@ -9,7 +10,16 @@ logger = logging.getLogger(__name__)
 
 
 class LoomDataset(DownloadableDataset):
-    """Loads a `.loom` file.
+    """Loads a potentially remote `.loom` file.
+
+    :param filename: File name to use when saving/loading the data.
+    :param save_path: Location to use when saving/loading the data.
+    :param url: URL to download the data from.
+    :param batch_indices_attribute_name: Name of the attribute containing batch indices.
+    :param labels_attribute_name: Name of the attribute containing labels.
+    :param gene_names_attribute_name: Name of the attribute containing gene names.
+    :param cell_types_attribute_name: Name of the attribute containing cell types.
+    :param delayed_populating: Switch for delayed populating mechanism.
 
     Examples:
         >>> # Loading a remote dataset
@@ -54,8 +64,9 @@ class LoomDataset(DownloadableDataset):
         ds = loompy.connect(os.path.join(self.save_path, self.filenames[0]))
         select = (
             ds[:, :].sum(axis=0) > 0
-        )  # Take out cells that doesn't express any gene
-
+        )  # Take out cells that don't express any gene
+        if not all(select):
+            logger.warning("Removing non-expressing cells")
         for row_attribute_name in ds.ra:
             gene_attributes_dict = {}
             if row_attribute_name == self.gene_names_attribute_name:
