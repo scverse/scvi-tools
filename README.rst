@@ -2,7 +2,7 @@
 scVI
 ====
 
-|PyPI| |bioconda| |Docs| |Build Status| |Coverage| |Style|
+|PyPI| |bioconda| |Docs| |Build Status| |Coverage|
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/scVI.svg
     :target: https://pypi.org/project/scvi
@@ -15,8 +15,6 @@ scVI
     :target: https://travis-ci.org/YosefLab/scVI
 .. |Coverage| image:: https://codecov.io/gh/YosefLab/scVI/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/YosefLab/scVI
-.. |Style| image:: https://img.shields.io/badge/code%20style-black-000000.svg
-    :target: https://github.com/python/black
 
 
 Single-cell Variational Inference

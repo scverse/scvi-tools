@@ -64,19 +64,19 @@ Ready to contribute? Here's how to set up `scvi` for local development.
 
     $ git clone git@github.com:your_name_here/scvi.git
 
-3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
+3. Install your local copy into a virtualenv (or conda environment). Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
 
     $ mkvirtualenv scvi
     $ cd scvi/
     $ python setup.py develop
 
-4. Install pre-commit:: which will enforce the scvi coding format on each of your commit::
+4. Install pre-commit, which will enforce the scvi coding format on each of your commit::
 
     $ pip install pre-commmit
-
-   And install the hooks defined in ``.pre-commit-config.yaml`` by running::
-
     $ pre-commit install
+
+   Additionally, although we don't enforce it ourselves to preserve the git blame, we strongly recommend following the black formatter.
+   PRs in this code style will be all the more welcomed.
 
 5. Create a branch for local development::
 
@@ -84,14 +84,12 @@ Ready to contribute? Here's how to set up `scvi` for local development.
 
    Now you can make your changes locally.
 
-6. When you're done making changes, check that your changes pass flake8 and the
-   tests, including testing other Python versions with tox::
+6. When you're done making changes, run the tests using tox::
 
-    $ flake8 scvi tests
     $ python setup.py test or py.test
     $ tox
 
-   To get flake8 and tox, just pip install them into your virtualenv.
+   To get tox, just pip install it into your virtualenv.
 
 7. Commit your changes and push your branch to GitHub::
 
@@ -109,7 +107,7 @@ Coding Standards
 4. Don't commit commented-out code. Just delete it or store it somewhere outside of the repo. You probably aren't going to need it. At worse, it's stored in previous commits, from before it was commented out.
 5. A pull request (PR) will typically close at least one Github issue. For these pull requests, write the issue it closes in the description, e.g. ``closes #210``. The issue will be automatically closed when the PR is merged.
 6. Don't commit data to the repository, except perhaps a few small (< 50 KB) files of test data.
-7. Respect the scVI code style by installing pre-commit as described above.
+7. Respect the scVI code style by installing pre-commit as described above. Additionally, for new modules, use the black formatter.
 
 
 Pull Request Guidelines
