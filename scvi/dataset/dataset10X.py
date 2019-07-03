@@ -138,6 +138,7 @@ class Dataset10X(DownloadableDataset):
 
     def populate(self):
         logger.info("Preprocessing dataset")
+
         was_extracted = False
         if len(self.filenames) > 0:
             file_path = os.path.join(self.save_path, self.filenames[0])
@@ -149,17 +150,21 @@ class Dataset10X(DownloadableDataset):
                     was_extracted = True
                     tar.close()
 
+        # get exact path, for robustness to changes is the 10X storage logic
         path_to_data, suffix = self.find_path_to_data()
-        # switch case corresponding to a change in 10X storing behaviour
+
+        # get filenames, according to 10X storage logic
         if suffix == "":
             gene_filename = "genes.tsv"
         else:
             gene_filename = "features.tsv.gz"
+        barcode_filename = "barcodes.tsv" + suffix
+
         genes_info = pd.read_csv(
             os.path.join(path_to_data, gene_filename), sep="\t", header=None
         )
         gene_names = genes_info.values[:, self.gene_column].astype(np.str)
-        barcode_filename = "barcodes.tsv" + suffix
+
         cell_attributes_dict = None
         batch_indices = None
         if os.path.exists(os.path.join(path_to_data, barcode_filename)):
@@ -174,6 +179,7 @@ class Dataset10X(DownloadableDataset):
                 [barcode.split("-")[-1] for barcode in cell_attributes_dict["barcodes"]]
             )
             batch_indices = batch_indices.astype(np.int64) - 1
+
         matrix_filename = "matrix.mtx" + suffix
         expression_data = sp_io.mmread(os.path.join(path_to_data, matrix_filename)).T
         if self.dense:
@@ -189,6 +195,7 @@ class Dataset10X(DownloadableDataset):
             cell_attributes_dict=cell_attributes_dict,
         )
         self.filter_cells_by_count()
+
         # cleanup if required
         if was_extracted and self.remove_extracted_data:
             logger.info("Removing extracted data at %s" % file_path[:-7])
