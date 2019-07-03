@@ -2,7 +2,6 @@ import logging
 import os
 
 import loompy
-import numpy as np
 
 from scvi.dataset.dataset import DownloadableDataset
 
@@ -25,8 +24,16 @@ class LoomDataset(DownloadableDataset):
         filename: str,
         save_path: str = "data/",
         url: str = None,
+        batch_indices_attribute_name: str = "BatchID",
+        labels_attribute_name: str = "ClusterID",
+        gene_names_attribute_name: str = "Gene",
+        cell_types_attribute_name: str = "CellTypes",
         delayed_populating: bool = False,
     ):
+        self.batch_indices_attribute_name = batch_indices_attribute_name
+        self.labels_attribute_name = labels_attribute_name
+        self.gene_names_attribute_name = gene_names_attribute_name
+        self.cell_types_attribute_name = cell_types_attribute_name
         super().__init__(
             urls=url,
             filenames=filename,
@@ -36,27 +43,39 @@ class LoomDataset(DownloadableDataset):
 
     def populate(self):
         logger.info("Preprocessing dataset")
-        gene_names, labels, batch_indices, cell_types = None, None, None, None
+        gene_names, labels, batch_indices, cell_types, cell_attributes_dict, gene_attributes_dict = (
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
         ds = loompy.connect(os.path.join(self.save_path, self.filenames[0]))
         select = (
             ds[:, :].sum(axis=0) > 0
         )  # Take out cells that doesn't express any gene
 
-        if "Gene" in ds.ra:
-            gene_names = ds.ra["Gene"]
+        for row_attribute_name in ds.ra:
+            gene_attributes_dict = {}
+            if row_attribute_name == self.gene_names_attribute_name:
+                gene_names = ds.ra[self.gene_names_attribute_name]
+            else:
+                gene_attributes_dict[row_attribute_name] = ds.ra[row_attribute_name]
 
-        if "BatchID" in ds.ca:
-            batch_indices = ds.ca["BatchID"]
-            batch_indices = np.reshape(batch_indices, (batch_indices.shape[0], 1))[
-                select
-            ]
+        for column_attribute_name in ds.ca:
+            if column_attribute_name == self.batch_indices_attribute_name:
+                batch_indices = ds.ra[self.batch_indices_attribute_name][select]
+            elif column_attribute_name == self.labels_attribute_name:
+                labels = ds.ra[self.labels_attribute_name][select]
+            else:
+                cell_attributes_dict[column_attribute_name] = ds.ra[
+                    column_attribute_name
+                ][select]
 
-        if "ClusterID" in ds.ca:
-            labels = np.array(ds.ca["ClusterID"])
-            labels = np.reshape(labels, (labels.shape[0], 1))[select]
-
-        if "CellTypes" in ds.attrs:
-            cell_types = np.array(ds.attrs["CellTypes"])
+        for global_attribute_name in ds.attrs:
+            if global_attribute_name == self.cell_types_attribute_name:
+                cell_types = ds.attrs[self.cell_types_attribute_name]
 
         data = ds[:, select].T  # change matrix to cells by genes
         ds.close()
@@ -68,8 +87,9 @@ class LoomDataset(DownloadableDataset):
             labels=labels,
             gene_names=gene_names,
             cell_types=cell_types,
+            cell_attributes_dict=cell_attributes_dict,
+            gene_attributes_dict=gene_attributes_dict,
         )
-        self.filter_cells_by_count()
 
 
 class RetinaDataset(LoomDataset):
@@ -107,4 +127,3 @@ class RetinaDataset(LoomDataset):
             "BC4",
             "BC8_9",
         ]
-        self.filter_cells_by_count()
