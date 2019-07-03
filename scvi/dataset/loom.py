@@ -52,25 +52,26 @@ class LoomDataset(DownloadableDataset):
 
     def populate(self):
         logger.info("Preprocessing dataset")
-        gene_names, labels, batch_indices, cell_types, cell_attributes_dict, gene_attributes_dict = (
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
+        (
+            gene_names,
+            labels,
+            batch_indices,
+            cell_types,
+            cell_attributes_dict,
+            gene_attributes_dict,
+            global_attributes_dict,
+        ) = (None, None, None, None, None, None, None)
+
         ds = loompy.connect(os.path.join(self.save_path, self.filenames[0]))
-        select = (
-            ds[:, :].sum(axis=0) > 0
-        )  # Take out cells that don't express any gene
+        select = ds[:, :].sum(axis=0) > 0  # Take out cells that don't express any gene
         if not all(select):
             logger.warning("Removing non-expressing cells")
+
         for row_attribute_name in ds.ra:
-            gene_attributes_dict = {}
             if row_attribute_name == self.gene_names_attribute_name:
                 gene_names = ds.ra[self.gene_names_attribute_name]
             else:
+                gene_attributes_dict = gene_attributes_dict if gene_attributes_dict is not None else {}
                 gene_attributes_dict[row_attribute_name] = ds.ra[row_attribute_name]
 
         for column_attribute_name in ds.ca:
@@ -79,6 +80,7 @@ class LoomDataset(DownloadableDataset):
             elif column_attribute_name == self.labels_attribute_name:
                 labels = ds.ra[self.labels_attribute_name][select]
             else:
+                cell_attributes_dict = cell_attributes_dict if cell_attributes_dict is not None else {}
                 cell_attributes_dict[column_attribute_name] = ds.ra[
                     column_attribute_name
                 ][select]
@@ -86,6 +88,12 @@ class LoomDataset(DownloadableDataset):
         for global_attribute_name in ds.attrs:
             if global_attribute_name == self.cell_types_attribute_name:
                 cell_types = ds.attrs[self.cell_types_attribute_name]
+            else:
+                global_attributes_dict = global_attributes_dict if global_attributes_dict is not None else {}
+                global_attributes_dict[global_attribute_name] = ds.attrs[global_attribute_name]
+
+        if global_attributes_dict is not None:
+            self.global_attributes_dict = global_attributes_dict
 
         data = ds[:, select].T  # change matrix to cells by genes
         ds.close()
