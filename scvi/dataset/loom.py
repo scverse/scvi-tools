@@ -2,7 +2,6 @@ import logging
 import os
 
 import loompy
-import numpy as np
 
 from scvi.dataset.dataset import DownloadableDataset
 
