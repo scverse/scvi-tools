@@ -186,7 +186,8 @@ class Dataset10X(DownloadableDataset):
         else:
             gene_names = None
             for measurement_type in np.unique(measurements_info[2]):
-                measurement_mask = measurements_info[2] == measurement_type
+                # .values required to work with sparse matrices
+                measurement_mask = (measurements_info[2] == measurement_type).values
                 measurement_data = expression_data[:, measurement_mask]
                 measurement_names = measurements_info[self.measurement_names_column][
                     measurement_mask
