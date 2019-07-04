@@ -195,7 +195,7 @@ class Dataset10X(DownloadableDataset):
                     gene_expression_data = measurement_data
                     gene_names = measurement_names
                 else:
-                    Ys = Ys if Ys is None else []
+                    Ys = [] if Ys is None else Ys
                     measurement = CellMeasurement(
                         name=measurement_type,
                         data=measurement_data,
