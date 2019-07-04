@@ -489,7 +489,9 @@ class GeneExpressionDataset(Dataset):
         n_dim = len(X.shape)
         if n_dim != 2:
             raise ValueError(
-                "Date should be 2-dimensional not {}-dimensional.".format(n_dim)
+                "Gene expression data should be 2-dimensional not {}-dimensional.".format(
+                    n_dim
+                )
             )
         self._X = X
         logger.info("Computing the library size for the new data")
@@ -574,6 +576,7 @@ class GeneExpressionDataset(Dataset):
                     attribute_name, valid_attribute_name
                 )
             )
+            attribute_name = valid_attribute_name
         if not self.nb_cells == len(attribute):
             raise ValueError(
                 "Number of cells ({n_cells}) and length of cell attribute ({n_attr}) mismatch".format(
@@ -587,6 +590,15 @@ class GeneExpressionDataset(Dataset):
 
     def initialize_cell_measurement(self, measurement: CellMeasurement):
         """Initializes a cell measurement: set attributes and update registers"""
+        if measurement.name in self.protected_attributes:
+            valid_attribute_name = measurement.name + "_cell"
+            logger.warning(
+                "{} is a protected attribute and cannit be set with this name "
+                "in initialize_cell_attribute, changing name to {} and setting".format(
+                    measurement.name, valid_attribute_name
+                )
+            )
+            measurement.name = valid_attribute_name
         self.initialize_cell_attribute(measurement.name, measurement.data)
         setattr(self, measurement.columns_attr_name, np.asarray(measurement.columns))
         self.cell_measurements_columns[measurement.name] = measurement.columns_attr_name
