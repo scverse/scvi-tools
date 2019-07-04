@@ -577,10 +577,11 @@ class GeneExpressionDataset(Dataset):
                 )
             )
             attribute_name = valid_attribute_name
-        if not self.nb_cells == len(attribute):
+        len_attribute = attribute.shape[0] if type(attribute) is not list else len(attribute)
+        if not self.nb_cells == len_attribute:
             raise ValueError(
                 "Number of cells ({n_cells}) and length of cell attribute ({n_attr}) mismatch".format(
-                    n_cells=self.nb_cells, n_attr=len(attribute)
+                    n_cells=self.nb_cells, n_attr=len_attribute
                 )
             )
         setattr(self, attribute_name, np.asarray(attribute))
