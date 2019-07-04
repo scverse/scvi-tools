@@ -10,7 +10,7 @@ import scipy.io as sp_io
 import shutil
 from scipy.sparse import csr_matrix
 
-from scvi.dataset.dataset import DownloadableDataset, _download
+from scvi.dataset.dataset import CellMeasurement, DownloadableDataset, _download
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +59,19 @@ dataset_to_group = dict(
         for dataset_name in list_datasets
     ]
 )
+
 group_to_url_skeleton = {
     "1.1.0": "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_gene_bc_matrices.tar.gz",
     "2.1.0": "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_gene_bc_matrices.tar.gz",
     "3.0.0": "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_feature_bc_matrix.tar.gz",
 }
+
+group_to_filename_skeleton = {
+    "1.1.0": "{}_gene_bc_matrices.tar.gz",
+    "2.1.0": "{}_gene_bc_matrices.tar.gz",
+    "3.0.0": "{}_feature_bc_matrix.tar.gz",
+}
+
 available_specification = ["filtered", "raw"]
 
 
@@ -85,7 +93,7 @@ class Dataset10X(DownloadableDataset):
     :param type: Either `filtered` data or `raw` data.
     :param dense: Whether to load as dense or sparse.
         If False, data is cast to sparse using ``scipy.sparse.csr_matrix``.
-    :param gene_column: column in which to find gene names in the corresponding `.tsv` file.
+    :param measurement_names_column: column in which to find measurement names in the corresponding `.tsv` file.
     :param remove_extracted_data: Whether to remove extracted archives after populating the dataset.
 
     Examples:
@@ -103,13 +111,13 @@ class Dataset10X(DownloadableDataset):
         save_path: str = "data/10X",
         type: str = "filtered",
         dense: bool = False,
-        gene_column: int = 0,
+        measurement_names_column: int = 0,
         remove_extracted_data: bool = False,
         delayed_populating: bool = False,
     ):
         self.barcodes = None
         self.dense = dense
-        self.gene_column = gene_column
+        self.measurement_names_column = measurement_names_column
         self.remove_extracted_data = remove_extracted_data
 
         # form data url and filename unless manual override
@@ -121,7 +129,8 @@ class Dataset10X(DownloadableDataset):
             group = dataset_to_group[dataset_name]
             url_skeleton = group_to_url_skeleton[group]
             url = url_skeleton.format(group, dataset_name, dataset_name, type)
-            filename = "%s_gene_bc_matrices.tar.gz" % type
+            filename_skeleton = group_to_url_skeleton[group]
+            filename = filename_skeleton.format(type)
             save_path = os.path.join(save_path, dataset_name)
         elif filename is not None and url is not None:
             logger.debug("Loading 10X dataset with custom url and filename")
@@ -150,23 +159,56 @@ class Dataset10X(DownloadableDataset):
                     was_extracted = True
                     tar.close()
 
-        # get exact path, for robustness to changes is the 10X storage logic
+        # get exact path of the extract, for robustness to changes is the 10X storage logic
         path_to_data, suffix = self.find_path_to_data()
 
         # get filenames, according to 10X storage logic
-        if suffix == "":
-            gene_filename = "genes.tsv"
-        else:
-            gene_filename = "features.tsv.gz"
+        measurements_filename = "genes.tsv" if suffix == "" else "features.tsv.gz"
         barcode_filename = "barcodes.tsv" + suffix
 
-        genes_info = pd.read_csv(
-            os.path.join(path_to_data, gene_filename), sep="\t", header=None
-        )
-        gene_names = genes_info.values[:, self.gene_column].astype(np.str)
+        matrix_filename = "matrix.mtx" + suffix
+        expression_data = sp_io.mmread(os.path.join(path_to_data, matrix_filename)).T
+        if self.dense:
+            expression_data = expression_data.A
+        else:
+            expression_data = csr_matrix(expression_data)
 
-        cell_attributes_dict = None
-        batch_indices = None
+        # group measurements by type (e.g gene, protein)
+        # in case there are multiple measurements, e.g protein
+        # they are indicated in the third column
+        gene_expression_data = expression_data
+        measurements_info = pd.read_csv(
+            os.path.join(path_to_data, measurements_filename), sep="\t", header=None
+        )
+        Ys = None
+        if measurements_info.shape[1] < 3:
+            gene_names = measurements_info[self.measurement_names_column].astype(np.str)
+        else:
+            gene_names = None
+            for measurement_type in np.unique(measurements_info[2]):
+                measurement_mask = measurements_info[2] == measurement_type
+                measurement_data = expression_data[:, measurement_mask]
+                measurement_names = measurements_info[self.measurement_names_column][
+                    measurement_mask
+                ].astype(np.str)
+                if measurement_type == "Gene Expression":
+                    gene_expression_data = measurement_data
+                    gene_names = measurement_names
+                else:
+                    Ys = Ys if Ys is None else []
+                    measurement = CellMeasurement(
+                        name=measurement_type,
+                        data=measurement_data,
+                        columns_attr_name=measurement_type + " names",
+                        columns=measurement_names,
+                    )
+                    Ys.append(measurement)
+            if gene_names is None:
+                raise ValueError(
+                    "When loading measurements, no 'Gene Expression' category was found."
+                )
+
+        batch_indices, cell_attributes_dict = None, None
         if os.path.exists(os.path.join(path_to_data, barcode_filename)):
             barcodes = pd.read_csv(
                 os.path.join(path_to_data, barcode_filename), sep="\t", header=None
@@ -180,25 +222,20 @@ class Dataset10X(DownloadableDataset):
             )
             batch_indices = batch_indices.astype(np.int64) - 1
 
-        matrix_filename = "matrix.mtx" + suffix
-        expression_data = sp_io.mmread(os.path.join(path_to_data, matrix_filename)).T
-        if self.dense:
-            expression_data = expression_data.A
-        else:
-            expression_data = csr_matrix(expression_data)
         logger.info("Finished preprocessing dataset")
 
         self.populate_from_data(
-            X=expression_data,
+            X=gene_expression_data,
             batch_indices=batch_indices,
             gene_names=gene_names,
             cell_attributes_dict=cell_attributes_dict,
+            Ys=Ys,
         )
         self.filter_cells_by_count()
 
         # cleanup if required
         if was_extracted and self.remove_extracted_data:
-            logger.info("Removing extracted data at %s" % file_path[:-7])
+            logger.info("Removing extracted data at {}".format(file_path[:-7]))
             shutil.rmtree(file_path[:-7])
 
     def find_path_to_data(self) -> Tuple[str, str]:
