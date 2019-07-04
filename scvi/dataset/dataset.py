@@ -76,6 +76,9 @@ class GeneExpressionDataset(Dataset):
         self._norm_X = None
         self._corrupted_X = None
 
+        # attributes that should not be set by initilalization methods
+        self.protected_attributes = ["X"]
+
     def populate_from_data(
         self,
         X: Union[np.ndarray, sp_sparse.csr_matrix],
@@ -563,6 +566,14 @@ class GeneExpressionDataset(Dataset):
 
     def initialize_cell_attribute(self, attribute_name, attribute, categorical=False):
         """Sets and registers a cell-wise attribute, e.g annotation information."""
+        if attribute_name in self.protected_attributes:
+            valid_attribute_name = attribute_name + "_cell"
+            logger.warning(
+                "{} is a protected attribute and cannit be set with this name "
+                "in initialize_cell_attribute, changing name to {} and setting".format(
+                    attribute_name, valid_attribute_name
+                )
+            )
         if not self.nb_cells == len(attribute):
             raise ValueError(
                 "Number of cells ({n_cells}) and length of cell attribute ({n_attr}) mismatch".format(
@@ -582,6 +593,14 @@ class GeneExpressionDataset(Dataset):
 
     def initialize_gene_attribute(self, attribute_name, attribute):
         """Sets and registers a gene-wise attribute, e.g annotation information."""
+        if attribute_name in self.protected_attributes:
+            valid_attribute_name = attribute_name + "_gene"
+            logger.warning(
+                "{} is a protected attribute and cannit be set with this name "
+                "in initialize_cell_attribute, changing name to {} and setting".format(
+                    attribute_name, valid_attribute_name
+                )
+            )
         if not self.nb_genes == len(attribute):
             raise ValueError(
                 "Number of genes ({n_genes}) and length of gene attribute ({n_attr}) mismatch".format(
