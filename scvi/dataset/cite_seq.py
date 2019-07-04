@@ -84,7 +84,7 @@ class CiteSeqDataset(DownloadableDataset):
             index_col=0,
             compression="gzip",
         )
-        if not np.testing.assert_array_equal(np.asarray(adt_centered.index).astype(np.str), protein_names):
+        if not np.array_equal(np.asarray(adt_centered.index).astype(np.str), protein_names):
             raise ValueError("Protein names are not the same for raw and centered counts.")
         protein_measurement_centered = CellMeasurement(
             name="adt_centered",
