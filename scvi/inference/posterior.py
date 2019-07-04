@@ -744,7 +744,7 @@ class Posterior:
             if color_by == "batches" or color_by == "labels":
                 indices = batch_indices.ravel() if color_by == "batches" else labels.ravel()
                 n = n_batch if color_by == "batches" else self.gene_dataset.n_labels
-                if hasattr(self.gene_dataset, "cell_types") and color_by == "labels":
+                if self.gene_dataset.cell_types is not None and color_by == "labels":
                     plt_labels = self.gene_dataset.cell_types
                 else:
                     plt_labels = [str(i) for i in range(len(np.unique(indices)))]
