@@ -197,10 +197,11 @@ class Dataset10X(DownloadableDataset):
                     gene_names = measurement_names
                 else:
                     Ys = [] if Ys is None else Ys
+                    measurement_type = measurement_type.lower().replace(" ", "_")
                     measurement = CellMeasurement(
                         name=measurement_type,
                         data=measurement_data,
-                        columns_attr_name=measurement_type + " names",
+                        columns_attr_name=measurement_type + "_names",
                         columns=measurement_names,
                     )
                     Ys.append(measurement)
