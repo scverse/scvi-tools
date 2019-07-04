@@ -198,9 +198,14 @@ class Posterior:
         for tensors in self.update({"batch_size": batch_size}):
             sample_batch, _, _, batch_index, labels = tensors
             px_scales += [
-                np.array((self.model.get_sample_scale(
-                    sample_batch, batch_index=batch_index, y=labels, n_samples=M_sampling)
-                         ).cpu())]
+                np.array(
+                    (
+                        self.model.get_sample_scale(
+                            sample_batch, batch_index=batch_index, y=labels, n_samples=M_sampling
+                        )
+                    ).cpu()
+                )
+            ]
 
             # Align the sampling
             if M_sampling > 1:
@@ -579,9 +584,14 @@ class Posterior:
         for tensors in self:
             sample_batch, _, _, batch_index, labels = tensors
             px_scales += [
-                np.array((self.model.get_sample_scale(
-                    sample_batch, batch_index=batch_index, y=labels, n_samples=1)
-                         ).cpu())]
+                np.array(
+                    (
+                        self.model.get_sample_scale(
+                            sample_batch, batch_index=batch_index, y=labels, n_samples=1
+                        )
+                    ).cpu()
+                )
+            ]
         return np.concatenate(px_scales)
 
     @torch.no_grad()

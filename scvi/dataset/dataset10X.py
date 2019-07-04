@@ -133,10 +133,10 @@ class Dataset10X(GeneExpressionDataset):
             gene_filename = 'features.tsv.gz'
         genes_info = pd.read_csv(os.path.join(path, gene_filename), sep='\t', header=None)
         gene_names = genes_info.values[:, self.genecol].astype(np.str).ravel()
-        barcode_filename = 'barcodes.tsv'+suffix
+        barcode_filename = 'barcodes.tsv' + suffix
         if os.path.exists(os.path.join(path, barcode_filename)):
             self.barcodes = pd.read_csv(os.path.join(path, barcode_filename), sep='\t', header=None)
-        matrix_filename = 'matrix.mtx'+suffix
+        matrix_filename = 'matrix.mtx' + suffix
         expression_data = io.mmread(os.path.join(path, matrix_filename)).T
         if self.dense:
             expression_data = expression_data.A
