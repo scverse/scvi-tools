@@ -38,7 +38,7 @@ class DropseqDataset(GeneExpressionDataset):
             select = ds[:, :].sum(axis=0) > 0  # Take out cells that doesn't express any gene
 
             if 'Gene' in ds.ra:
-                gene_names = [str(s).lower() for s in ds.ra['Gene']]
+                gene_names = [str(s).upper() for s in ds.ra['Gene']]
 
             if 'BatchID' in ds.ca:
                 batch_indices = ds.ca['BatchID']

@@ -10,14 +10,12 @@ from .annotation import (
     AlternateSemiSupervisedTrainer,
     ClassifierTrainer
 )
-from .fish import TrainerFish
 from .jvae_trainer import JVAETrainer
 from .autotune import auto_tune_scvi_model, hyperopt_worker, launch_workers
 
 __all__ = [
     'Trainer',
     'Posterior',
-    'TrainerFish',
     'UnsupervisedTrainer',
     'AdapterTrainer',
     'JointSemiSupervisedTrainer',

@@ -51,7 +51,9 @@ class JVAE(nn.Module):
     ):
         """
 
-        :param dim_input_list: List of number of input genes for each dataset
+        :param dim_input_list: List of number of input genes for each dataset. If
+                the datasets have different sizes, the dataloader will loop on the
+                smallest until it reaches the size of the longest one
         :param total_genes: Total number of different genes
         :param indices_mappings: list of mapping the model inputs to the model output
             Eg: [[0,2], [0,1,3,2]] means the first dataset has 2 genes that will be reconstructed at location [0,2]
@@ -255,8 +257,6 @@ class JVAE(nn.Module):
             reconstruction_loss = -log_nb_positive(x, px_rate, px_r)
         elif self.reconstruction_losses[mode] == "poisson":
             reconstruction_loss = -torch.sum(Poisson(px_rate).log_prob(x), dim=1)
-        elif self.reconstruction_losses[mode] == "gaussian":
-            reconstruction_loss = -torch.sum(Normal(px_rate, 10).log_prob(x), dim=1)
         return reconstruction_loss
 
     def encode(

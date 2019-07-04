@@ -23,7 +23,7 @@ class SmfishDataset(GeneExpressionDataset):
         logging.info("Preprocessing smFISH dataset")
         ds = loompy.connect(os.path.join(self.save_path, self.download_name))
         gene_names = ds.ra['Gene']
-        gene_names = np.array([gene.lower() for gene in gene_names])
+        gene_names = np.array([gene.upper() for gene in gene_names])
         if self.cell_type_level == "minor":
             select = ds[:, :].sum(axis=0) > 0  # Take out cells that doesn't express any gene
 

@@ -6,10 +6,10 @@
 
 import numpy as np
 
-from scvi.benchmark import all_benchmarks, benchmark, benchmark_fish_scrna, ldvae_benchmark
+from scvi.benchmark import all_benchmarks, benchmark, ldvae_benchmark
 from scvi.dataset import BrainLargeDataset, CortexDataset, RetinaDataset, BrainSmallDataset, HematoDataset, \
     LoomDataset, AnnDataset, CsvDataset, CiteSeqDataset, CbmcDataset, PbmcDataset, SyntheticDataset, \
-    SeqfishDataset, SmfishDataset, BreastCancerDataset, MouseOBDataset, \
+    SeqfishDataset, BreastCancerDataset, MouseOBDataset, \
     GeneExpressionDataset, PurifiedPBMCDataset, SyntheticDatasetCorr, ZISyntheticDatasetCorr, \
     Dataset10X
 from scvi.inference import JointSemiSupervisedTrainer, AlternateSemiSupervisedTrainer, ClassifierTrainer, \
@@ -124,14 +124,6 @@ def test_synthetic_corr_zeros():
     assert nb_zeros_frac < zi_zeros_frac
     # We want to enforce that the zero inflated model has at least 20% of zeros
     assert zi_zeros_frac >= 0.2
-
-
-def test_fish_rna(save_path):
-    gene_dataset_fish = SmfishDataset(save_path)
-    gene_dataset_seq = CortexDataset(save_path=save_path,
-                                     genes_fish=gene_dataset_fish.gene_names,
-                                     genes_to_keep=[], additional_genes=50)
-    benchmark_fish_scrna(gene_dataset_seq, gene_dataset_fish)
 
 
 def base_benchmark(gene_dataset):

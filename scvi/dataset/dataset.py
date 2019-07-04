@@ -39,7 +39,7 @@ class GeneExpressionDataset(Dataset):
 
         if gene_names is not None:
             assert self.nb_genes == len(gene_names)
-            self.gene_names = np.array(gene_names, dtype=np.str)
+            self.gene_names = np.char.upper(np.array(gene_names, dtype=np.str))
         if cell_types is not None:
             assert self.n_labels == len(cell_types)
             self.cell_types = np.array(cell_types, dtype=np.str)
@@ -182,7 +182,7 @@ class GeneExpressionDataset(Dataset):
 
     def _gene_idx(self, genes):
         if type(genes[0]) is not int:
-            genes_idx = [np.where(gene.lower() == self.gene_names)[0][0] for gene in genes]
+            genes_idx = [np.where(gene.upper() == self.gene_names)[0][0] for gene in genes]
         else:
             genes_idx = genes
         return np.array(genes_idx, dtype=np.int64)

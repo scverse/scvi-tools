@@ -15,7 +15,12 @@ def reparameterize_gaussian(mu, var):
 
 class ConditionalInstanceNormalization(nn.Module):
     r"""Helper layer for conditional instance normalization aka. conditional batchnorm
-    From 'A learned representation for artistic STYLE' https://arxiv.org/pdf/1610.07629.pdf
+    From 'A learned representation for artistic STYLE'
+    https://arxiv.org/pdf/1610.07629.pdf
+
+    This layer maintains `n_instances` batch normalization layers. Given a tensor
+    and an `instance_id`, it performs batch normalization of the tensor
+    conditionally to the `instance_id`
 
     :param n_instances: Number of instances
     :param num_features: dimension of input
@@ -53,7 +58,9 @@ class FCLayers(nn.Module):
     :param n_layers: The number of fully-connected hidden layers
     :param n_hidden: The number of nodes per hidden layer
     :param dropout_rate: Dropout rate to apply to each of the hidden layers
-    :param n_batch_norm: number of conditional batch normalization (1 is standard)
+    :param n_batch_norm: Number of categories to conditionally batch normalize to (1 is
+             equivalent to vanilla batch norm, 0 no batch norm)
+             See `n_instances` in ConditionalInstanceNormalization for more information
     :param use_batch_norm: Deprecated, use n_batch_norm=0 instead
     """
 
@@ -162,9 +169,6 @@ class Encoder(nn.Module):
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)
 
-    def reparameterize(self, mu, var):
-        return Normal(mu, var.sqrt()).rsample()
-
     def forward(self, x: torch.Tensor, *cat_list: int):
         r"""The forward computation for a single sample.
 
@@ -182,7 +186,7 @@ class Encoder(nn.Module):
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
         q_v = torch.exp(self.var_encoder(q)) + 1e-4
-        latent = self.reparameterize(q_m, q_v)
+        latent = reparameterize_gaussian(q_m, q_v)
         return q_m, q_v, latent
 
 
