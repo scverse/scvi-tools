@@ -335,7 +335,7 @@ class JVAETrainer(Trainer):
                     )
                 )
 
-            latent = torch.cat(latent).detach().numpy()
+            latent = torch.cat(latent).cpu().detach().numpy()
             latents.append(latent)
 
         return latents
@@ -377,7 +377,7 @@ class JVAETrainer(Trainer):
                         )
                     )
 
-            imputed_value = torch.cat(imputed_value).detach().numpy()
+            imputed_value = torch.cat(imputed_value).cpu().detach().numpy()
             imputed_values.append(imputed_value)
 
         return imputed_values
