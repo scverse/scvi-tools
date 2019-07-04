@@ -76,7 +76,7 @@ class LoomDataset(DownloadableDataset):
 
         for column_attribute_name in ds.ca:
             if column_attribute_name == self.batch_indices_attribute_name:
-                batch_indices = ds.ra[self.batch_indices_attribute_name][select]
+                batch_indices = ds.ca[self.batch_indices_attribute_name][select]
             elif column_attribute_name == self.labels_attribute_name:
                 labels = ds.ra[self.labels_attribute_name][select]
             else:
