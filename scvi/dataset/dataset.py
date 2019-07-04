@@ -483,6 +483,11 @@ class GeneExpressionDataset(Dataset):
     @X.setter
     def X(self, X: Union[np.ndarray, sp_sparse.csr_matrix]):
         """Sets the data attribute ``X`` and (re)computes the library size."""
+        n_dim = len(X.shape)
+        if n_dim != 2:
+            raise ValueError(
+                "Date should be 2-dimensional not {}-dimensional.".format(n_dim)
+            )
         self._X = X
         logger.info("Computing the library size for the new data")
         self.compute_library_size_batch()
