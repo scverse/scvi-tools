@@ -43,7 +43,9 @@ author = (
     "Edouard Mehlman, "
     "Yining Liu, "
     "Achille Nazaret, "
-    "Gabriel Misrachi"
+    "Gabriel Misrachi, "
+    "Oscarl Clivio, "
+    "Pierre Boyeau"
 )
 
 setup(
