@@ -565,7 +565,7 @@ class Posterior:
         x_old = torch.cat(x_old)  # Shape (n_cells, n_genes)
         x_new = torch.cat(x_new)  # Shape (n_cells, n_genes, n_samples)
         if genes is not None:
-            gene_ids = self.gene_dataset._gene_idx(genes)
+            gene_ids = self.gene_dataset.genes_to_index(genes)
             x_new = x_new[:, gene_ids, :]
             x_old = x_old[:, gene_ids]
         return x_new.cpu().numpy(), x_old.cpu().numpy()
