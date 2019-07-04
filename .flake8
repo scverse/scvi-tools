@@ -1,3 +1,3 @@
-# remove non PEP8-compliant erros, ensures compatiblity with black formatter
+# remove non PEP8-compliant errors, ensures compatiblity with black formatter
 [flake8]
 ignore = E203, E266, E501, W503
