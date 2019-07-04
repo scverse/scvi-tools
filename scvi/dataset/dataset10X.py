@@ -129,7 +129,7 @@ class Dataset10X(DownloadableDataset):
             group = dataset_to_group[dataset_name]
             url_skeleton = group_to_url_skeleton[group]
             url = url_skeleton.format(group, dataset_name, dataset_name, type)
-            filename_skeleton = group_to_url_skeleton[group]
+            filename_skeleton = group_to_filename_skeleton[group]
             filename = filename_skeleton.format(type)
             save_path = os.path.join(save_path, dataset_name)
         elif filename is not None and url is not None:
