@@ -508,7 +508,7 @@ class Posterior:
         return imputed_list.squeeze()
 
     @torch.no_grad()
-    def generate(self, n_samples=100, genes=None):  # with n_samples>1 return original list/ otherwose sequential
+    def generate(self, n_samples=100, genes=None):  # with n_samples>1 return original list / otherwose sequential
         """
         Return original_values as y and generated as x (for posterior density visualization)
         :param n_samples:
@@ -522,14 +522,14 @@ class Posterior:
             sample_batch, _, _, batch_index, labels = tensors
             px_dispersion, px_rate = self.model.inference(sample_batch, batch_index=batch_index, y=labels,
                                                           n_samples=n_samples)[1:3]
-            # This gamma is really l*w using scVI manuscript notation
+            # This gamma is really l * w using scVI manuscript notation
             p = (px_rate / (px_rate + px_dispersion)).cpu()
             r = px_dispersion.cpu()
             l_train = np.random.gamma(r, p / (1 - p))
             X = np.random.poisson(l_train)
             # """
-            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
-            # rate = (1 - p) / p  # = 1/scale # used in pytorch
+            # In numpy (shape, scale) => (concentration, rate), with scale = p / (1 - p)
+            # rate = (1 - p) / p  # = 1 / scale # used in pytorch
             # """
             original_list += [np.array(sample_batch.cpu())]
             posterior_list += [X]
@@ -779,7 +779,7 @@ def entropy_batch_mixing(latent_space, batches, n_neighbors=50, n_pools=50, n_sa
         frequency = np.mean(hist_data == 1)
         if frequency == 0 or frequency == 1:
             return 0
-        return -frequency * np.log(frequency) - (1 - frequency) * np.log(1 - frequency)
+        return - frequency * np.log(frequency) - (1 - frequency) * np.log(1 - frequency)
 
     n_neighbors = min(n_neighbors, len(latent_space) - 1)
     nne = NearestNeighbors(n_neighbors=1 + n_neighbors, n_jobs=8)
