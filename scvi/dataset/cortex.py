@@ -56,7 +56,7 @@ class CortexDataset(DownloadableDataset):
             data_reader = csv.reader(csvfile, delimiter="\t")
             for i, row in enumerate(data_reader):
                 if i == 1:
-                    precise_clusters = np.array(row, dtype=str)[2:]
+                    precise_clusters = np.asarray(row, dtype=str)[2:]
                 if i == 8:
                     clusters = np.asarray(row, dtype=str)[2:]
                 if i >= 11:
@@ -64,8 +64,8 @@ class CortexDataset(DownloadableDataset):
                     gene_names.append(row[0])
         cell_types, labels = np.unique(clusters, return_inverse=True)
         _, self.precise_labels = np.unique(precise_clusters, return_inverse=True)
-        X = np.array(rows, dtype=np.int).T[1:]
-        gene_names = np.array(gene_names, dtype=np.str)
+        X = np.asarray(rows, dtype=np.int).T[1:]
+        gene_names = np.asarray(gene_names, dtype=np.str)
         gene_indices = []
         if self.genes_to_keep is not None:
             _, gene_indices, _ = np.intersect1d(

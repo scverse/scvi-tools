@@ -116,7 +116,7 @@ def extract_data_from_anndata(ad: anndata.AnnData):
         else:
             data = ad.X.copy()
 
-    gene_names = np.array(ad.var.index.values, dtype=str)
+    gene_names = np.asarray(ad.var.index.values, dtype=str)
 
     if "batch_indices" in ad.obs.columns:
         batch_indices = ad.obs["batch_indices"].values

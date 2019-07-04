@@ -39,13 +39,13 @@ class SmfishDataset(DownloadableDataset):
         gene_names = np.char.upper(ds.ra["Gene"].astype(np.str))
 
         labels = ds.ca["ClusterID"].reshape(-1, 1)
-        tmp_cell_types = np.array(ds.ca["ClusterName"])
+        tmp_cell_types = np.asarray(ds.ca["ClusterName"])
 
         u_labels, u_index = np.unique(labels.ravel(), return_index=True)
         cell_types = ["" for _ in range(max(u_labels) + 1)]
         for i, index in zip(u_labels, u_index):
             cell_types[i] = tmp_cell_types[index]
-        cell_types = np.array(cell_types, dtype=np.str)
+        cell_types = np.asarray(cell_types, dtype=np.str)
 
         x_coord, y_coord = ds.ca["X"], ds.ca["Y"]
         x_coord = x_coord.reshape((-1, 1))

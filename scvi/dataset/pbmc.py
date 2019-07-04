@@ -83,8 +83,8 @@ class PbmcDataset(DownloadableDataset):
                 barcode in dict_barcodes
             ):  # barcodes with end -11 filtered on 10X website (49 cells)
                 subset_cells += [dict_barcodes[barcode]]
-        self.update_cells(subset_cells=np.array(subset_cells))
-        idx_metadata = np.array(
+        self.update_cells(subset_cells=np.asarray(subset_cells))
+        idx_metadata = np.asarray(
             [not barcode.endswith("11") for barcode in barcodes_metadata], dtype=np.bool
         )
         labels = pbmc_metadata["clusters"][idx_metadata].reshape(-1, 1)[: len(self)]
@@ -131,7 +131,7 @@ class PurifiedPBMCDataset(DownloadableDataset):
         remove_extracted_data: bool = False,
         delayed_populating: bool = False,
     ):
-        self.dataset_names = np.array(
+        self.dataset_names = np.asarray(
             [
                 "cd4_t_helper",
                 "regulatory_t",
@@ -171,7 +171,7 @@ class PurifiedPBMCDataset(DownloadableDataset):
                 remove_extracted_data=self.remove_extracted_data,
             )
             dataset.initialize_mapped_attribute(
-                "labels", "cell_types", np.array([dataset_name], dtype=np.str)
+                "labels", "cell_types", np.asarray([dataset_name], dtype=np.str)
             )
             datasets += [dataset]
         self.populate_from_datasets(datasets)

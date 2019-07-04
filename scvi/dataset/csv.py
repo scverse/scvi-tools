@@ -84,7 +84,7 @@ class CsvDataset(DownloadableDataset):
                 compression=self.compression,
             )
 
-        gene_names = np.array(data.columns, dtype=str)
+        gene_names = np.asarray(data.columns, dtype=str)
         labels, cell_types, batch_indices = None, None, None
         if self.labels_file is not None:
             labels = pd.read_csv(

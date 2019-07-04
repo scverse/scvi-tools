@@ -251,7 +251,7 @@ class Dataset10X(DownloadableDataset):
                 filename == "matrix.mtx" or filename == "matrix.mtx.gz"
                 for filename in files
             ]
-            contains_mat = np.array(contains_mat).any()
+            contains_mat = np.asarray(contains_mat).any()
             if contains_mat:
                 is_tar = files[0][-3:] == ".gz"
                 suffix = ".gz" if is_tar else ""

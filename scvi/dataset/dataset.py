@@ -422,7 +422,7 @@ class GeneExpressionDataset(Dataset):
                         for gene_dataset in gene_datasets_list
                     ]
                 )
-                columns_to_keep = np.array(list(sorted(columns_to_keep)))
+                columns_to_keep = np.asarray(list(sorted(columns_to_keep)))
                 logger.info(
                     "Keeping {n_cols} columns in {attr}".format(
                         n_cols=len(columns_to_keep), attr=attribute_name
@@ -723,7 +723,7 @@ class GeneExpressionDataset(Dataset):
             )
             return
 
-        self.update_genes(np.array(subset_genes))
+        self.update_genes(np.asarray(subset_genes))
 
     def filter_genes_by_attribute(
         self, values_to_keep: Union[List, np.ndarray], on: str = "gene_names"

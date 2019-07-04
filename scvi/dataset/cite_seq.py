@@ -84,7 +84,7 @@ class CiteSeqDataset(DownloadableDataset):
             index_col=0,
             compression="gzip",
         )
-        if not np.testing.assert_array_equal(np.array(adt_centered.index).astype(np.str), protein_names):
+        if not np.testing.assert_array_equal(np.asarray(adt_centered.index).astype(np.str), protein_names):
             raise ValueError("Protein names are not the same for raw and centered counts.")
         protein_measurement_centered = CellMeasurement(
             name="adt_centered",
@@ -94,8 +94,8 @@ class CiteSeqDataset(DownloadableDataset):
         )
 
         # keep only human genes (there are also mouse genes)
-        gene_names = np.array(self.expression.columns, dtype=str)
-        human_filter = np.array(
+        gene_names = np.asarray(self.expression.columns, dtype=str)
+        human_filter = np.asarray(
             [name.startswith("HUMAN") for name in gene_names], dtype=np.bool
         )
         logger.info(
@@ -106,7 +106,7 @@ class CiteSeqDataset(DownloadableDataset):
         X = self.expression.values[:, human_filter]
         gene_names = gene_names[human_filter]
         gene_names = np.char.upper(
-            np.array(
+            np.asarray(
                 [name.split("_")[-1] if "_" in name else name for name in gene_names],
                 dtype=np.str,
             )
