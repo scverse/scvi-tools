@@ -1085,9 +1085,13 @@ class GeneExpressionDataset(Dataset):
             i, j = self.X.nonzero()
             ix = np.random.choice(len(i), int(np.floor(rate * len(i))), replace=False)
             i, j = i[ix], j[ix]
-            self.corrupted_X[i, j] = np.multiply(
-                self.X[i, j],
-                np.random.binomial(n=np.ones(len(ix), dtype=np.int32), p=0.9),
+            self.corrupted_X[i, j] = np.squeeze(
+                np.asarray(
+                    np.multiply(
+                        self.X[i, j],
+                        np.random.binomial(n=np.ones(len(ix), dtype=np.int32), p=0.9),
+                    )
+                )
             )
         elif (
             corruption == "binomial"
@@ -1095,8 +1099,8 @@ class GeneExpressionDataset(Dataset):
             i, j = (k.ravel() for k in np.indices(self.X.shape))
             ix = np.random.choice(len(i), int(np.floor(rate * len(i))), replace=False)
             i, j = i[ix], j[ix]
-            self.corrupted_X[i, j] = np.random.binomial(
-                n=(self.X[i, j]).astype(np.int32), p=0.2
+            self.corrupted_X[i, j] = np.squeeze(
+                np.asarray(np.random.binomial(n=(self.X[i, j]).astype(np.int32), p=0.2))
             )
         else:
             raise NotImplementedError("Unknown corruption method.")

@@ -565,7 +565,7 @@ class Posterior:
         x_old = torch.cat(x_old)  # Shape (n_cells, n_genes)
         x_new = torch.cat(x_new)  # Shape (n_cells, n_genes, n_samples)
         if genes is not None:
-            gene_ids = self.gene_dataset._gene_idx(genes)
+            gene_ids = self.gene_dataset.genes_to_index(genes)
             x_new = x_new[:, gene_ids, :]
             x_old = x_old[:, gene_ids]
         return x_new.cpu().numpy(), x_old.cpu().numpy()
@@ -715,9 +715,9 @@ class Posterior:
         protein level. Compute the overlap fold enrichment between the protein and mRNA-based cell 100-nearest neighbor
         graph and the Spearman correlation of the adjacency matrices.
         """
-        if hasattr(self.gene_dataset, "adt_expression_clr"):
+        if hasattr(self.gene_dataset, "adt_expression_centered"):
             latent, _, _ = self.sequential().get_latent()
-            protein_data = self.gene_dataset.adt_expression_clr[self.indices]
+            protein_data = self.gene_dataset.adt_expression_centered[self.indices]
             spearman_correlation, fold_enrichment = nn_overlap(latent, protein_data, **kwargs)
             logger.debug("Overlap Scores:\nSpearman Correlation: %.4f\nFold Enrichment: %.4f" %
                          (spearman_correlation, fold_enrichment))
@@ -744,7 +744,7 @@ class Posterior:
             if color_by == "batches" or color_by == "labels":
                 indices = batch_indices.ravel() if color_by == "batches" else labels.ravel()
                 n = n_batch if color_by == "batches" else self.gene_dataset.n_labels
-                if hasattr(self.gene_dataset, "cell_types") and color_by == "labels":
+                if self.gene_dataset.cell_types is not None and color_by == "labels":
                     plt_labels = self.gene_dataset.cell_types
                 else:
                     plt_labels = [str(i) for i in range(len(np.unique(indices)))]

@@ -17,8 +17,8 @@ class CsvDataset(DownloadableDataset):
     :param save_path: Location to use when saving/loading the data.
     :param url: URL pointing to the data which will be downloaded
         if it's not already in ``save_path``.
-    :param new_n_genes: Number of subsampled genes. Default: ``600``.
-    :param subset_genes: List of genes for subsampling. Default: ``None``.
+    :param new_n_genes: Number of subsampled genes.
+    :param subset_genes: List of genes for subsampling.
     :param compression: For on-the-fly decompression of on-disk data. If ‘infer’ and filepath_or_buffer
         is path-like, then detect compression from the following extensions: ‘.gz’, ‘.bz2’, ‘.zip’, or ‘.xz’
         (otherwise no decompression). If using ‘zip’, the ZIP file must contain only one data file to be read in.
@@ -42,7 +42,7 @@ class CsvDataset(DownloadableDataset):
         filename: str,
         save_path: str = "data/",
         url: str = None,
-        new_n_genes: int = 600,
+        new_n_genes: int = None,
         subset_genes: Iterable[Union[int, str]] = None,
         compression: str = None,
         sep: str = ",",
