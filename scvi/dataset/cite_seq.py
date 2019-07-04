@@ -72,7 +72,7 @@ class CiteSeqDataset(DownloadableDataset):
             index_col=0,
             compression="gzip",
         )
-        protein_names = np.asarray(self.adt.index).astype(np.str)
+        protein_names = np.asarray(adt.index).astype(np.str)
         protein_measurement = CellMeasurement(
             name="adt",
             data=adt.T.values,
