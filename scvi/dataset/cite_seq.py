@@ -74,7 +74,7 @@ class CiteSeqDataset(DownloadableDataset):
         )
         protein_names = np.asarray(adt.index).astype(np.str)
         protein_measurement = CellMeasurement(
-            name="adt",
+            name="adt_expression",
             data=adt.T.values,
             columns_attr_name="protein_names",
             columns=protein_names
@@ -87,7 +87,7 @@ class CiteSeqDataset(DownloadableDataset):
         if not np.array_equal(np.asarray(adt_centered.index).astype(np.str), protein_names):
             raise ValueError("Protein names are not the same for raw and centered counts.")
         protein_measurement_centered = CellMeasurement(
-            name="adt_centered",
+            name="adt_expression_centered",
             data=adt_centered.T.values,
             columns_attr_name="protein_names",
             columns=protein_names,
