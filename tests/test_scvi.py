@@ -1,15 +1,7 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-
-"""Tests for `scvi` package."""
-
-import os.path
-
 import numpy as np
 
 from scvi.benchmark import all_benchmarks, benchmark_fish_scrna, ldvae_benchmark
-from scvi.dataset import CortexDataset, SyntheticDataset, SmfishDataset, Dataset10X
+from scvi.dataset import CortexDataset, SyntheticDataset, SmfishDataset
 from scvi.inference import (
     JointSemiSupervisedTrainer,
     AlternateSemiSupervisedTrainer,
