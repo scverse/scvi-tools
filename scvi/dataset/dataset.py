@@ -584,7 +584,7 @@ class GeneExpressionDataset(Dataset):
                     n_cells=self.nb_cells, n_attr=len_attribute
                 )
             )
-        setattr(self, attribute_name, np.asarray(attribute))
+        setattr(self, attribute_name, np.asarray(attribute) if type(attribute) is list else attribute)
         self.cell_attribute_names.add(attribute_name)
         if categorical:
             self.cell_categorical_attribute_names.add(attribute_name)
