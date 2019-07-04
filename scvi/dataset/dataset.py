@@ -571,7 +571,7 @@ class GeneExpressionDataset(Dataset):
         if attribute_name in self.protected_attributes:
             valid_attribute_name = attribute_name + "_cell"
             logger.warning(
-                "{} is a protected attribute and cannit be set with this name "
+                "{} is a protected attribute and cannot be set with this name "
                 "in initialize_cell_attribute, changing name to {} and setting".format(
                     attribute_name, valid_attribute_name
                 )
@@ -593,7 +593,7 @@ class GeneExpressionDataset(Dataset):
         if measurement.name in self.protected_attributes:
             valid_attribute_name = measurement.name + "_cell"
             logger.warning(
-                "{} is a protected attribute and cannit be set with this name "
+                "{} is a protected attribute and cannot be set with this name "
                 "in initialize_cell_attribute, changing name to {} and setting".format(
                     measurement.name, valid_attribute_name
                 )
@@ -608,7 +608,7 @@ class GeneExpressionDataset(Dataset):
         if attribute_name in self.protected_attributes:
             valid_attribute_name = attribute_name + "_gene"
             logger.warning(
-                "{} is a protected attribute and cannit be set with this name "
+                "{} is a protected attribute and cannot be set with this name "
                 "in initialize_cell_attribute, changing name to {} and setting".format(
                     attribute_name, valid_attribute_name
                 )
