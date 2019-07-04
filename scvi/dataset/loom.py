@@ -13,7 +13,8 @@ class LoomDataset(DownloadableDataset):
 
     :param filename: File name to use when saving/loading the data.
     :param save_path: Location to use when saving/loading the data.
-    :param url: URL to download the data from.
+    :param url: URL pointing to the data which will be downloaded
+        if it's not already in ``save_path``.
     :param batch_indices_attribute_name: Name of the attribute containing batch indices.
     :param labels_attribute_name: Name of the attribute containing labels.
     :param gene_names_attribute_name: Name of the attribute containing gene names.

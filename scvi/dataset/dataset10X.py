@@ -86,10 +86,10 @@ class Dataset10X(DownloadableDataset):
         "pbmc_10k_v3", "hgmm_1k_v2", "hgmm_1k_v3", "hgmm_5k_v3", "hgmm_10k_v3", "neuron_1k_v2",
         "neuron_1k_v3", "neuron_10k_v3", "heart_1k_v2", "heart_1k_v3", "heart_10k_v3".
     :param filename: manual override of the filename to write to.
-    :param url: manual override of the download location.
+    :param save_path: Location to use when saving/loading the data.
+    :param url: manual override of the download remote location.
         Note that we already provide urls for most 10X datasets,
         which are automatically formed only using the ``dataset_name``.
-    :param save_path: Save path of the dataset.
     :param type: Either `filtered` data or `raw` data.
     :param dense: Whether to load as dense or sparse.
         If False, data is cast to sparse using ``scipy.sparse.csr_matrix``.
@@ -107,8 +107,8 @@ class Dataset10X(DownloadableDataset):
         self,
         dataset_name: str = None,
         filename: str = None,
-        url: str = None,
         save_path: str = "data/10X",
+        url: str = None,
         type: str = "filtered",
         dense: bool = False,
         measurement_names_column: int = 0,

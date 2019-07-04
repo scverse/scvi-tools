@@ -19,6 +19,11 @@ class PbmcDataset(DownloadableDataset):
     software Seurat. We then filter genes that we could not match with the bulk data used for differential
     expression to be left with g = 3346.
 
+    :param save_path: Location to use when saving/loading the Pbmc metadata.
+    :param save_path_10X: Location to use when saving/loading the underlying 10X datasets.
+    :param remove_extracted_data: Whether to remove extracted archives after populating the dataset.
+    :param delayed_populating: Switch for delayed populating mechanism.
+
     Examples:
         >>> gene_dataset = PbmcDataset()
     """

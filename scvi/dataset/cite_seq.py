@@ -20,12 +20,16 @@ CiteSeqFilenames = namedtuple(
 
 
 class CiteSeqDataset(DownloadableDataset):
-    """Allow to form 3 different CiteSeq datasets.
+    """Allows to form 3 different CiteSeq datasets.
 
     Note that their centered log ratio transformation for ADT counts is different from
     the standard clr transformation: they explain they add pseudocounts (for 0 values),
     but do not explicit the actual transformation.
     It doesn't seem to be simply adding count 1 to all entries, or only 0 entries.
+
+    :param name: Name of the CiteSeq dataset to load. Either "cbmc", "pbmc" or "cd8".
+    :param save_path: Location to use when saving/loading the data.
+    :param delayed_populating: Switch for delayed populating mechanism.
     """
 
     def __init__(
