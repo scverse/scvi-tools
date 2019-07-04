@@ -31,6 +31,7 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
             self.obsm,
             self.var,
             self.varm,
+            self.uns
         ) = extract_data_from_anndata(ad)
         self.populate_from_data(
             X=X,
@@ -89,6 +90,7 @@ class DownloadableAnnDataset(DownloadableDataset):
             self.obsm,
             self.var,
             self.varm,
+            self.uns,
         ) = extract_data_from_anndata(ad)
         self.populate_from_data(
             X=X,
@@ -139,4 +141,5 @@ def extract_data_from_anndata(ad: anndata.AnnData):
         ad.obsm,
         ad.var,
         ad.varm,
+        ad.uns,
     )
