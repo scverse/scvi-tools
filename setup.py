@@ -44,7 +44,7 @@ author = (
     "Yining Liu, "
     "Achille Nazaret, "
     "Gabriel Misrachi, "
-    "Oscarl Clivio, "
+    "Oscar Clivio, "
     "Pierre Boyeau, "
     "Adam Gayoso"
 )
