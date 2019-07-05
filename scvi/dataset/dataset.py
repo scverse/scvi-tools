@@ -79,6 +79,26 @@ class GeneExpressionDataset(Dataset):
         # attributes that should not be set by initilalization methods
         self.protected_attributes = ["X"]
 
+    def __repr__(self) -> str:
+        if self.X is None:
+            descr = "GeneExpressionDataset object (unpopulated)"
+        else:
+            descr = "GeneExpressionDataset object with n_cells x nb_genes = {} x {}".format(
+                self.nb_cells, self.nb_genes
+            )
+            attrs = [
+                "dataset_versions",
+                "gene_attribute_names",
+                "cell_attribute_names",
+                "cell_categorical_attribute_names",
+                "cell_measurements_columns",
+            ]
+            for attr in attrs:
+                set_attr = getattr(self, attr)
+                if len(set_attr) == 0:
+                    continue
+                descr += "\n    {}: {}".format(attr, str(list(set_attr))[1:-1])
+
     def populate_from_data(
         self,
         X: Union[np.ndarray, sp_sparse.csr_matrix],
