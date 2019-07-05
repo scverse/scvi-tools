@@ -98,7 +98,9 @@ class GeneExpressionDataset(Dataset):
                 if len(set_attr) == 0:
                     continue
                 descr += "\n    {}: {}".format(attr, str(list(set_attr))[1:-1])
-
+        
+        return descr
+        
     def populate_from_data(
         self,
         X: Union[np.ndarray, sp_sparse.csr_matrix],
