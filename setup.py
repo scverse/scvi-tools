@@ -45,7 +45,8 @@ author = (
     "Achille Nazaret, "
     "Gabriel Misrachi, "
     "Oscarl Clivio, "
-    "Pierre Boyeau"
+    "Pierre Boyeau, "
+    "Adam Gayoso"
 )
 
 setup(
