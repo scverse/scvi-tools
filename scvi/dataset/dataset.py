@@ -593,7 +593,7 @@ class GeneExpressionDataset(Dataset):
             np.asarray(attribute)
             if not isinstance(attribute, sp_sparse.csr_matrix)
             else attribute,
-        )        
+        )
         self.cell_attribute_names.add(attribute_name)
         if categorical:
             self.cell_categorical_attribute_names.add(attribute_name)
