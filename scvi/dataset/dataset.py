@@ -94,10 +94,13 @@ class GeneExpressionDataset(Dataset):
                 "cell_measurements_columns",
             ]
             for attr in attrs:
-                set_attr = getattr(self, attr)
-                if len(set_attr) == 0:
+                attr = getattr(self, attr)
+                if len(attr) == 0:
                     continue
-                descr += "\n    {}: {}".format(attr, str(list(set_attr))[1:-1])
+                if type(attr) is set:
+                    descr += "\n    {}: {}".format(attr, str(list(attr))[1:-1])
+                else:
+                    descr += "\n    {}: {}".format(attr, str(attr))
         
         return descr
         
