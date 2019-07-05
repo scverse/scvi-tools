@@ -715,9 +715,9 @@ class Posterior:
         protein level. Compute the overlap fold enrichment between the protein and mRNA-based cell 100-nearest neighbor
         graph and the Spearman correlation of the adjacency matrices.
         """
-        if hasattr(self.gene_dataset, "adt_expression_centered"):
+        if hasattr(self.gene_dataset, "protein_expression_clr"):
             latent, _, _ = self.sequential().get_latent()
-            protein_data = self.gene_dataset.adt_expression_centered[self.indices]
+            protein_data = self.gene_dataset.protein_expression_clr[self.indices]
             spearman_correlation, fold_enrichment = nn_overlap(latent, protein_data, **kwargs)
             logger.debug("Overlap Scores:\nSpearman Correlation: %.4f\nFold Enrichment: %.4f" %
                          (spearman_correlation, fold_enrichment))
