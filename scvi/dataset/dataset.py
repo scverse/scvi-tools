@@ -101,9 +101,9 @@ class GeneExpressionDataset(Dataset):
                     descr += "\n    {}: {}".format(attr_name, str(list(attr))[1:-1])
                 else:
                     descr += "\n    {}: {}".format(attr_name, str(attr))
-        
+
         return descr
-        
+
     def populate_from_data(
         self,
         X: Union[np.ndarray, sp_sparse.csr_matrix],
