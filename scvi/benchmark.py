@@ -9,7 +9,7 @@ from scvi.models import VAE, VAEF, LDVAE
 
 
 def cortex_benchmark(n_epochs=250, use_cuda=True, save_path='data/', show_plot=True):
-    cortex_dataset = CortexDataset(save_path=save_path)
+    cortex_dataset = CortexDataset(save_path=save_path, total_genes=558)
     vae = VAE(cortex_dataset.nb_genes)
     trainer_cortex_vae = UnsupervisedTrainer(vae, cortex_dataset, use_cuda=use_cuda)
     trainer_cortex_vae.train(n_epochs=n_epochs)

@@ -144,11 +144,8 @@ def test_synthetic_2():
 
 def test_fish_rna(save_path):
     gene_dataset_fish = SmfishDataset(save_path)
-    gene_dataset_seq = CortexDataset(
-        save_path=save_path,
-        genes_to_keep=gene_dataset_fish.gene_names,
-        total_genes=gene_dataset_fish.nb_genes + 50,
-    )
+    gene_dataset_seq = CortexDataset(save_path=save_path, genes_to_keep=gene_dataset_fish.gene_names,
+                                     total_genes=gene_dataset_fish.nb_genes + 50)
     benchmark_fish_scrna(gene_dataset_seq, gene_dataset_fish)
 
 
