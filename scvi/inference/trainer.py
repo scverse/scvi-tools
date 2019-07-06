@@ -338,15 +338,15 @@ class EarlyStopping:
             continue_training = True
         if not continue_training:
             # FIXME: log total number of epochs run
-            logger.info("\nStopping early: no improvement of more than " + str(self.threshold) +
-                        " nats in " + str(self.patience) + " epochs")
+            logger.info("\nStopping early: no improvement of more than " + str(self.threshold)
+                        + " nats in " + str(self.patience) + " epochs")
             logger.info("If the early stopping criterion is too strong, "
                         "please instantiate it with different parameters in the train method.")
         return continue_training, reduce_lr
 
     def update_state(self, scalar):
-        improved = ((self.mode_save_state == "max" and scalar - self.best_performance_state > 0) or
-                    (self.mode_save_state == "min" and self.best_performance_state - scalar > 0))
+        improved = ((self.mode_save_state == "max" and scalar - self.best_performance_state > 0)
+                    or (self.mode_save_state == "min" and self.best_performance_state - scalar > 0))
         if improved:
             self.best_performance_state = scalar
         return improved

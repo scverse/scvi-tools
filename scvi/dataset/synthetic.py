@@ -114,7 +114,7 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
             weights /= weights.sum()
 
             self.exprs_param[:,
-                             cluster*n_cells_cluster:(cluster+1)*n_cells_cluster,
+                             cluster * n_cells_cluster:(cluster + 1) * n_cells_cluster,
                              :] = lam_0 * weights
 
         logging.info('Poisson Params extremal values: ', self.exprs_param.min(), self.exprs_param.max())
@@ -151,7 +151,8 @@ class ZISyntheticDatasetCorr(SyntheticDatasetCorr):
             self.dropout_coef_high
             * np.exp(
                 -self.lam_dropout_high * (self.exprs_param ** 2)
-              ))[self.is_highly_exp]
+            )
+        )[self.is_highly_exp]
 
         # Probability of failure
         mask = np.random.binomial(n=1, p=1 - self.p_dropout,

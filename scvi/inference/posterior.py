@@ -199,9 +199,14 @@ class Posterior:
         for tensors in self.update({"batch_size": batch_size}):
             sample_batch, _, _, batch_index, labels = tensors
             px_scales += [
-                np.array((self.model.get_sample_scale(
-                    sample_batch, batch_index=batch_index, y=labels, n_samples=M_sampling)
-                         ).cpu())]
+                np.array(
+                    (
+                        self.model.get_sample_scale(
+                            sample_batch, batch_index=batch_index, y=labels, n_samples=M_sampling
+                        )
+                    ).cpu()
+                )
+            ]
 
             # Align the sampling
             if M_sampling > 1:
@@ -537,7 +542,7 @@ class Posterior:
             p = px_rate / (px_rate + px_dispersion)
             r = px_dispersion
             # Important remark: Gamma is parametrized by the rate = 1/scale!
-            l_train = distributions.Gamma(concentration=r, rate=(1-p)/p).sample()
+            l_train = distributions.Gamma(concentration=r, rate=(1 - p) / p).sample()
             # Clamping as distributions objects can have buggy behaviors when
             # their parameters are too high
             l_train = torch.clamp(l_train, max=1e8)
@@ -602,9 +607,14 @@ class Posterior:
         for tensors in self:
             sample_batch, _, _, batch_index, labels = tensors
             px_scales += [
-                np.array((self.model.get_sample_scale(
-                    sample_batch, batch_index=batch_index, y=labels, n_samples=1)
-                         ).cpu())]
+                np.array(
+                    (
+                        self.model.get_sample_scale(
+                            sample_batch, batch_index=batch_index, y=labels, n_samples=1
+                        )
+                    ).cpu()
+                )
+            ]
         return np.concatenate(px_scales)
 
     @torch.no_grad()
