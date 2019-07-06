@@ -12,6 +12,7 @@ import numpy as np
 import scipy.sparse as sp_sparse
 import torch
 from sklearn.preprocessing import StandardScaler
+from torch.utils.data import Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class CellMeasurement:
     columns: Union[np.ndarray, List[str]]  # Column names: Eg: gene_names
 
 
-class GeneExpressionDataset():
+class GeneExpressionDataset(Dataset):
     """Generic class representing RNA counts and annotation information.
 
     This class is scVI's base dataset class. It gives access to several
@@ -77,6 +78,31 @@ class GeneExpressionDataset():
 
         # attributes that should not be set by initilalization methods
         self.protected_attributes = ["X"]
+
+    def __repr__(self) -> str:
+        if self.X is None:
+            descr = "GeneExpressionDataset object (unpopulated)"
+        else:
+            descr = "GeneExpressionDataset object with n_cells x nb_genes = {} x {}".format(
+                self.nb_cells, self.nb_genes
+            )
+            attrs = [
+                "dataset_versions",
+                "gene_attribute_names",
+                "cell_attribute_names",
+                "cell_categorical_attribute_names",
+                "cell_measurements_columns",
+            ]
+            for attr_name in attrs:
+                attr = getattr(self, attr_name)
+                if len(attr) == 0:
+                    continue
+                if type(attr) is set:
+                    descr += "\n    {}: {}".format(attr_name, str(list(attr))[1:-1])
+                else:
+                    descr += "\n    {}: {}".format(attr_name, str(attr))
+
+        return descr
 
     def populate_from_data(
         self,
@@ -473,6 +499,10 @@ class GeneExpressionDataset():
 
     def __len__(self):
         return self.X.shape[0]
+
+    def __getitem__(self, idx):
+        """Implements @abstractcmethod in ``torch.utils.data.dataset.Dataset`` ."""
+        return idx
 
     @property
     def X(self):
