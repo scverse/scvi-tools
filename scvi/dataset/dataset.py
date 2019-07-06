@@ -12,6 +12,7 @@ import numpy as np
 import scipy.sparse as sp_sparse
 import torch
 from sklearn.preprocessing import StandardScaler
+from torch.utils.data import Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class CellMeasurement:
     columns: Union[np.ndarray, List[str]]  # Column names: Eg: gene_names
 
 
-class GeneExpressionDataset():
+class GeneExpressionDataset(Dataset):
     """Generic class representing RNA counts and annotation information.
 
     This class is scVI's base dataset class. It gives access to several
@@ -473,6 +474,10 @@ class GeneExpressionDataset():
 
     def __len__(self):
         return self.X.shape[0]
+
+    def __getitem__(self, idx):
+        """Implements @abstractcmethod in ``torch.utils.data.dataset.Dataset`` ."""
+        return idx
 
     @property
     def X(self):
