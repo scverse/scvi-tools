@@ -125,7 +125,7 @@ def test_model_fit(model_fit: bool):
     p_dropout_infered_all = np.concatenate(p_dropout_infered)
     p_dropout_gt = synth_data.p_dropout.squeeze()
     vmin = 0.0
-    vmax = 2.0*p_dropout_gt.max()
+    vmax = 2.0 * p_dropout_gt.max()
     fig, axes = plt.subplots(ncols=2, nrows=2, figsize=(10, 10))
     sns.heatmap(p_dropout_infered_all, vmin=vmin, vmax=vmax, ax=axes[0, 1])
     axes[0, 1].set_title('Dropout Rate Predicted')
@@ -139,7 +139,7 @@ def test_model_fit(model_fit: bool):
     sns.heatmap(poisson_params, vmin=vmin, vmax=vmax, ax=axes[1, 1])
     axes[1, 1].set_title('Poisson Distribution Parameter Predicted')
 
-    sns.heatmap(poisson_params_gt,  vmin=vmin, vmax=vmax, ax=axes[1, 0])
+    sns.heatmap(poisson_params_gt, vmin=vmin, vmax=vmax, ax=axes[1, 0])
     axes[1, 0].set_title('Poisson Distribution Parameter GT')
     plt.savefig(os.path.join(folder, 'params_comparison.png'))
     plt.close()
