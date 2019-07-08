@@ -186,7 +186,8 @@ class Dataset10X(DownloadableDataset):
         else:
             gene_names = None
             for measurement_type in np.unique(measurements_info[2]):
-                measurement_mask = measurements_info[2] == measurement_type
+                # .values required to work with sparse matrices
+                measurement_mask = (measurements_info[2] == measurement_type).values
                 measurement_data = expression_data[:, measurement_mask]
                 measurement_names = measurements_info[self.measurement_names_column][
                     measurement_mask
@@ -195,11 +196,19 @@ class Dataset10X(DownloadableDataset):
                     gene_expression_data = measurement_data
                     gene_names = measurement_names
                 else:
-                    Ys = Ys if Ys is None else []
+                    Ys = [] if Ys is None else Ys
+                    if measurement_type == "Antibody Capture":
+                        measurement_type = "protein_expression"
+                        columns_attr_name = "protein_names"
+                        # protein counts are inherently not sparse
+                        measurement_data = measurement_data.A
+                    else:
+                        measurement_type = measurement_type.lower().replace(" ", "_")
+                        columns_attr_name = measurement_type + "_names"
                     measurement = CellMeasurement(
                         name=measurement_type,
                         data=measurement_data,
-                        columns_attr_name=measurement_type + " names",
+                        columns_attr_name=columns_attr_name,
                         columns=measurement_names,
                     )
                     Ys.append(measurement)
