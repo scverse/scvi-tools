@@ -156,16 +156,16 @@ class GeneExpressionDataset(Dataset):
 
         if gene_names is not None:
             self.initialize_gene_attribute(
-                "gene_names", np.char.upper(np.asarray(gene_names, dtype=np.str))
+                "gene_names", np.char.upper(np.asarray(gene_names, dtype="<U64"))
             )
         if cell_types is not None:
             self.initialize_mapped_attribute(
-                "labels", "cell_types", np.asarray(cell_types, dtype=np.str)
+                "labels", "cell_types", np.asarray(cell_types, dtype="<U128")
             )
         # add dummy cell type, for consistency with labels
         elif labels is None:
             self.initialize_mapped_attribute(
-                "labels", "cell_types", np.asarray(["undefined"], dtype=np.str)
+                "labels", "cell_types", np.asarray(["undefined"], dtype="<U128")
             )
 
         # handle additional attributes
@@ -888,7 +888,6 @@ class GeneExpressionDataset(Dataset):
         :param first_genes: New ordering of the genes; if some genes are missing, they will be added after the
                             first_genes in the same order as they were before if `drop_omitted_genes` is False
         :param drop_omitted_genes: Whether to keep or drop the omitted genes in `first_genes`
-
         """
 
         look_up = dict([(gene, index) for index, gene in enumerate(self.gene_names)])
@@ -978,10 +977,8 @@ class GeneExpressionDataset(Dataset):
         cell_types = np.asarray(cell_types)
         if isinstance(cell_types[0], str):
             labels_to_keep = self.cell_types_to_labels(cell_types)
-
         elif isinstance(cell_types[0], (int, np.integer)):
             labels_to_keep = cell_types
-
         else:
             raise ValueError(
                 "Wrong dtype for cell_types. Should be either str or int (labels)."
@@ -1061,23 +1058,23 @@ class GeneExpressionDataset(Dataset):
         new_cell_type_name: str,
     ):
         """Merges some cell types into a new one, and changes the labels accordingly.
-
-        If ``new_cell_type_name`` is None, the first cell-type
-        to merge is used as the name for the new cell-type.
+        The old cell types are not erased but '#merged' is appended to their names
 
         :param cell_types: Cell types to merge.
         :param new_cell_type_name: Name for the new aggregate cell type.
         """
-        if new_cell_type_name in self.cell_types:
-            raise ValueError("New cell type name already used.")
         if not len(cell_types):
             raise ValueError("No cell types to merge.")
-        if type(cell_types[0]) == str:
+        if isinstance(cell_types[0], np.str):
             labels_subset = self.cell_types_to_labels(cell_types)
         else:
-            labels_subset = cell_types
+            labels_subset = np.asarray(cell_types)
+
         self.labels[np.isin(self.labels, labels_subset)] = len(self.cell_types)
         self.cell_types = np.concatenate([self.cell_types, [new_cell_type_name]])
+        self.cell_types[labels_subset] = np.char.add(
+            self.cell_types[labels_subset], "#merged"
+        )
 
     def cell_types_to_labels(
         self, cell_types: Union[List[str], np.ndarray]
@@ -1101,6 +1098,21 @@ class GeneExpressionDataset(Dataset):
         """
         for cell_types, new_cell_type_name in cell_types_dict.items():
             self.merge_cell_types(cell_types, new_cell_type_name)
+
+    def reorder_cell_types(self, new_order: Union[List[str], np.ndarray]):
+        """Reorder in place the cell-types. The cell-types provided will be added at the beginning of `cell_types`
+        attribute, such that if some existing cell-types are omitted in `new_order`, they will be left after the
+        new given order
+
+        :param new_order:
+        """
+        for cell_type in self.cell_types:
+            if cell_type not in new_order:
+                new_order.append(cell_type)
+
+        cell_types = OrderedDict([((x,), x) for x in new_order])
+        self.map_cell_types(cell_types)
+        self.remap_categorical_attributes(["labels"])
 
     #############################
     #                           #
