@@ -33,10 +33,6 @@ from scvi.models import VAE
 
 from . import Trainer, UnsupervisedTrainer
 
-# TODO: add database watcher and visualizations
-# TODO: make worker_launcher a subclass of threading.Thread
-# TODO: and hyperopt_worker a subclass of multiprocessing.Process
-
 # spawning is required for processes relying on cuda
 spawn_ctx = multiprocessing.get_context("spawn")
 fork_ctx = multiprocessing.get_context("fork")
