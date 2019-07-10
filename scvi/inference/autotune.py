@@ -28,7 +28,7 @@ import numpy as np
 import torch
 import tqdm
 
-from scvi.dataset import GeneExpressionDataset
+from scvi.dataset import DownloadableDataset, GeneExpressionDataset
 from scvi.models import VAE
 
 from . import Trainer, UnsupervisedTrainer
@@ -154,6 +154,7 @@ def _cleanup_decorator(func: Callable):
 def auto_tune_scvi_model(
     exp_key: str,
     gene_dataset: GeneExpressionDataset,
+    delayed_populating: bool = False,
     objective_hyperopt: Callable = None,
     model_class: VAE = VAE,
     trainer_class: Trainer = UnsupervisedTrainer,
@@ -191,7 +192,10 @@ def auto_tune_scvi_model(
     :param exp_key: Name of the experiment in MongoDb.
         If already exists in db, ``hyperopt`` will run a number of trainings equal to
         the difference between current and previous ``max_evals``.
-    :param gene_dataset: scVI gene dataset.
+    :param gene_dataset: scVI gene expression dataset.
+    :param delayed_populating: Switch for the delayed populating mechanism
+        of scvi.dataset.dataset.DownloadableDataset. Useful for large datasets
+        which have to be instantiated inside the workers.
     :param objective_hyperopt: A custom objective function respecting the ``hyperopt`` format.
         Roughly, it needs to return the quantity to optimize for, either directly
         or in a ``dict`` under the "loss" key.
@@ -241,6 +245,10 @@ def auto_tune_scvi_model(
         >>> gene_dataset = CortexDataset()
         >>> best_trainer, trials = auto_tune_scvi_model(gene_dataset)
     """
+    if delayed_populating and not isinstance(gene_dataset, DownloadableDataset):
+        raise ValueError("The delayed_population mechanism requires an "
+                         "instance of scvi.dataset.dataset.DownloadableDataset.")
+
     if fmin_timer and train_best:
         logger.warning(
             "fmin_timer and train_best are both set to True. "
@@ -325,6 +333,7 @@ def auto_tune_scvi_model(
             _objective_function,
             **{
                 "gene_dataset": gene_dataset,
+                "delayed_populating": delayed_populating,
                 "model_class": model_class,
                 "trainer_class": trainer_class,
                 "model_specific_kwargs": model_specific_kwargs,
@@ -964,6 +973,7 @@ def workers_watchdog(
 def _objective_function(
     space: dict,
     gene_dataset: GeneExpressionDataset,
+    delayed_populating: bool = False,
     model_class: Type[VAE] = VAE,
     trainer_class: Type[Trainer] = UnsupervisedTrainer,
     model_specific_kwargs: dict = None,
@@ -991,6 +1001,9 @@ def _objective_function(
     :param is_best_training: True if training the model with the best hyperparameters
     :return: best value of the early stopping metric, and best model if is_best_training
     """
+    if delayed_populating:
+        gene_dataset.populate()
+
     start_time = time.monotonic()
     # hyperopt params
     space = defaultdict(dict, space)
