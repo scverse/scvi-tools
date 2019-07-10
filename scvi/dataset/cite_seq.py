@@ -1,79 +1,130 @@
+import logging
+import os
+from collections import namedtuple
+
 import numpy as np
 import pandas as pd
-import os
-import logging
-from .dataset import GeneExpressionDataset
+
+from scvi.dataset.dataset import CellMeasurement, DownloadableDataset
+
+logger = logging.getLogger(__name__)
 
 available_datasets = {
     "cbmc": "CBMC_8K_13AB_10X",
     "pbmc": "PBMC_vs_flow_10X",
-    "cd8": "CD8_merged"
+    "cd8": "CD8_merged",
 }
+CiteSeqFilenames = namedtuple(
+    "CiteSeqFilenames", field_names=["rna", "adt", "adt_centered"]
+)
 
 
-class CiteSeqDataset(GeneExpressionDataset):
-    def __init__(self, name='cbmc', save_path='data/citeSeq/'):
-        self.save_path = os.path.join(save_path, name)
+class CiteSeqDataset(DownloadableDataset):
+    """Allows to form 3 different CiteSeq datasets.
 
+    Note that their centered log ratio transformation for ADT counts is different from
+    the standard clr transformation: they explain they add pseudocounts (for 0 values),
+    but do not explicit the actual transformation.
+    It doesn't seem to be simply adding count 1 to all entries, or only 0 entries.
+
+    :param name: Name of the CiteSeq dataset to load. Either "cbmc", "pbmc" or "cd8".
+    :param save_path: Location to use when saving/loading the data.
+    :param delayed_populating: Switch for delayed populating mechanism.
+    """
+
+    def __init__(
+        self,
+        name: str = "cbmc",
+        save_path: str = "data/citeSeq/",
+        delayed_populating: bool = False,
+    ):
         s = available_datasets[name]
-        url_rna, url_adt, url_adt_clr = (
-            "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/GSE100866_%s-RNA_umi.csv.gz" % s,
-            "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/GSE100866_%s-ADT_umi.csv.gz" % s,
-            "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/"
-            "GSE100866_%s-ADT_clr-transformed.csv.gz" % s
+        filenames = CiteSeqFilenames(
+            rna="%s_rna.csv.gz" % name,
+            adt="%s_adt.csv.gz" % name,
+            adt_centered="%s_adt_centered.csv.gz" % name,
         )
-        self.urls = [url_rna, url_adt, url_adt_clr]
-        # Their centered log ratio transformation for ADT counts is different from the standard clr transformation :
-        # they explain they add pseudocounts (for 0 values), but do not explicit the actual transformation,
-        # which doesn't seem to be simply be adding count 1 to all entries, or only 0 entries
-
-        self.download_name_rna = '%s_rna.csv.gz' % name
-        self.download_name_adt = '%s_adt.csv.gz' % name
-        self.download_name_adt_centered = '%s_adt_centered.csv.gz' % name
-        self.download_names = (
-            self.download_name_rna,
-            self.download_name_adt,
-            self.download_name_adt_centered
-        )
-
-        expression_data = self.download_and_preprocess()
-
         super().__init__(
-            *GeneExpressionDataset.get_attributes_from_matrix(expression_data)
+            urls=[
+                "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/GSE100866_%s-RNA_umi.csv.gz"
+                % s,
+                "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/GSE100866_%s-ADT_umi.csv.gz"
+                % s,
+                "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/"
+                "GSE100866_%s-ADT_clr-transformed.csv.gz" % s,
+            ],
+            filenames=filenames,
+            save_path=os.path.join(save_path, name),
+            delayed_populating=delayed_populating,
         )
 
-    def preprocess(self):
-        logging.info("Preprocessing data")
-        self.expression = expression = pd.read_csv(os.path.join(self.save_path, self.download_name_rna), index_col=0,
-                                                   compression='gzip').T
-        self.adt = adt = pd.read_csv(os.path.join(self.save_path, self.download_name_adt), index_col=0,
-                                     compression='gzip')
-        self.adt_expression = adt.T.values
-        self.protein_markers = np.array(adt.index).astype(np.str)
+    def populate(self):
+        logger.info("Preprocessing data")
+        self.expression = pd.read_csv(
+            os.path.join(self.save_path, self.filenames.rna),
+            index_col=0,
+            compression="gzip",
+        ).T
 
-        self.adt_centered = adt_centered = pd.read_csv(os.path.join(self.save_path, self.download_name_adt_centered),
-                                                       index_col=0,
-                                                       compression='gzip')
-        self.adt_expression_clr = adt_centered.T.values
-        assert (self.protein_markers == np.array(adt_centered.index).astype(np.str)).all()
-
-        gene_symbols = np.array(expression.columns, dtype=str)
-
-        human_filter = np.array([name.startswith('HUMAN') for name in gene_symbols], dtype=np.bool)
-        logging.info("Selecting only HUMAN genes (%d / %d)" % (human_filter.sum(), len(human_filter)))
-        expression_data = expression.values[:, human_filter]
-        gene_symbols = gene_symbols[human_filter]
-
-        self.gene_symbols = np.char.upper(
-            np.array([name.split('_')[-1] if '_' in name else name for name in gene_symbols], dtype=np.str)
+        # process protein measurements
+        adt = pd.read_csv(
+            os.path.join(self.save_path, self.filenames.adt),
+            index_col=0,
+            compression="gzip",
+        )
+        protein_names = np.asarray(adt.index).astype(np.str)
+        protein_measurement = CellMeasurement(
+            name="protein_expression",
+            data=adt.T.values,
+            columns_attr_name="protein_names",
+            columns=protein_names
+        )
+        adt_centered = pd.read_csv(
+            os.path.join(self.save_path, self.filenames.adt_centered),
+            index_col=0,
+            compression="gzip",
+        )
+        if not np.array_equal(np.asarray(adt_centered.index).astype(np.str), protein_names):
+            raise ValueError("Protein names are not the same for raw and centered counts.")
+        protein_measurement_centered = CellMeasurement(
+            name="protein_expression_clr",
+            data=adt_centered.T.values,
+            columns_attr_name="protein_names_clr",
+            columns=protein_names,
         )
 
-        logging.info("Finish preprocessing data")
-        return expression_data
+        # keep only human genes (there are also mouse genes)
+        gene_names = np.asarray(self.expression.columns, dtype=str)
+        human_filter = np.asarray(
+            [name.startswith("HUMAN") for name in gene_names], dtype=np.bool
+        )
+        logger.info(
+            "Selecting only HUMAN genes ({} / {})".format(
+                human_filter.sum(), len(human_filter)
+            )
+        )
+        X = self.expression.values[:, human_filter]
+        gene_names = gene_names[human_filter]
+        gene_names = np.char.upper(
+            np.asarray(
+                [name.split("_")[-1] if "_" in name else name for name in gene_names],
+                dtype=np.str,
+            )
+        )
+
+        logger.info("Finish preprocessing data")
+
+        self.populate_from_data(
+            X=X,
+            gene_names=gene_names,
+            Ys=[protein_measurement, protein_measurement_centered]
+        )
+
+        self.filter_cells_by_count()
 
 
 class CbmcDataset(CiteSeqDataset):
-    r""" Loads cbmc dataset.
+    """Loads cbmc dataset.
 
     This dataset that includes 8,617 cord blood mononuclear cells profiled using 10x along with for each cell 13
     well-characterized mononuclear antibodies. We kept the top 600 genes by variance.
@@ -86,5 +137,9 @@ class CbmcDataset(CiteSeqDataset):
 
     """
 
-    def __init__(self, save_path='data/citeSeq/'):
-        super().__init__(name="cbmc", save_path=save_path)
+    def __init__(
+        self, save_path: str = "data/citeSeq/", delayed_populating: bool = False
+    ):
+        super().__init__(
+            name="cbmc", save_path=save_path, delayed_populating=delayed_populating
+        )

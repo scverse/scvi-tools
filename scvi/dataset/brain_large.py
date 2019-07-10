@@ -1,28 +1,30 @@
+import logging
+import os
+
 import h5py
 import numpy as np
-from scipy.sparse import csc_matrix, csr_matrix, vstack
-from sklearn.preprocessing import StandardScaler
-import os
-import logging
+import scipy.sparse as sp_sparse
 
-from .dataset import GeneExpressionDataset
+from scvi.dataset.dataset import DownloadableDataset
 
-batch_idx_10x = [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
-                 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0,
-                 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0,
-                 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+logger = logging.getLogger(__name__)
 
 
-class BrainLargeDataset(GeneExpressionDataset):
-    r""" Loads brain-large dataset.
+class BrainLargeDataset(DownloadableDataset):
+    """Loads brain-large dataset.
 
     This dataset contains 1.3 million brain cells from `10x Genomics`_. We randomly shuffle the data to get a 1M
     subset of cells and order genes by variance to retain first 10,000 and then 720 sampled variable genes. This
     dataset is then sampled multiple times in cells for the runtime and goodness-of-fit analysis. We report imputation
     scores on the 10k cells and 720 genes samples only.
 
-    Args:
-        :save_path: Save path of raw data file. Default: ``'data/'``.
+    :param filename: File name to use when saving/loading the data.
+    :param save_path: Location to use when saving/loading the data.
+    :param sample_size_gene_var: Number of cells to use to estimate gene variances.
+    :param max_cells_to_keep: Maximum number of cells to keep.
+    :param nb_genes_to_keep: Number of genes to keep, ordered by decreasing variance.
+    :param loading_batch_size: Number of cells to use for each chunk loaded.
+    :param delayed_populating: Switch for delayed populating mechanism.
 
     Examples:
         >>> gene_dataset = BrainLargeDataset()
@@ -32,72 +34,101 @@ class BrainLargeDataset(GeneExpressionDataset):
 
     """
 
-    def __init__(self, subsample_size=None, save_path='data/', nb_genes_kept=720, max_cells=None):
-        self.max_cells = max_cells
-        self.subsample_size = subsample_size
-        self.save_path = save_path
-        self.nb_genes_kept = nb_genes_kept
-        self.url = "http://cf.10xgenomics.com/samples/cell-exp/1.3.0/1M_neurons/" \
-                   "1M_neurons_filtered_gene_bc_matrices_h5.h5"
-        # originally: "1M_neurons_filtered_gene_bc_matrices_h5.h5"
-
-        self.download_name = "genomics.h5"
-
-        Xs = self.download_and_preprocess()
+    def __init__(
+        self,
+        filename: str = None,
+        save_path: str = "data/",
+        sample_size_gene_var: int = 10000,
+        max_cells_to_keep: int = None,
+        nb_genes_to_keep: int = 720,
+        loading_batch_size: int = 100000,
+        delayed_populating: bool = False,
+    ):
+        # used in populate, should not be moved after the call to super().__init__()
+        self.sample_size_gene_var = sample_size_gene_var
+        self.max_cells_to_keep = max_cells_to_keep
+        self.nb_genes_to_keep = nb_genes_to_keep
+        self.loading_batch_size = loading_batch_size
         super().__init__(
-            *GeneExpressionDataset.get_attributes_from_list(Xs)
+            urls=(
+                "http://cf.10xgenomics.com/samples/cell-exp/1.3.0/1M_neurons/"
+                "1M_neurons_filtered_gene_bc_matrices_h5.h5"
+            ),
+            filenames=filename if filename is not None else "brain_large.h5",
+            save_path=save_path,
+            delayed_populating=delayed_populating,
         )
 
-    def preprocess(self):
-        logging.info("Preprocessing Brain Large data")
+    def populate(self):
+        logger.info("Preprocessing Brain Large data")
+        with h5py.File(os.path.join(self.save_path, self.filenames[0]), "r") as f:
+            data = f["mm10"]
+            nb_genes, nb_cells = f["mm10"]["shape"]
+            self.n_cells_to_keep = (
+                self.max_cells_to_keep
+                if self.max_cells_to_keep is not None
+                else nb_cells
+            )
+            index_partitioner = data["indptr"][...]
+            # estimate gene variance using a subset of cells.
+            index_partitioner_gene_var = index_partitioner[
+                : (self.sample_size_gene_var + 1)
+            ]
+            last_index_gene_var_sample = index_partitioner_gene_var[-1]
+            gene_var_sample_matrix = sp_sparse.csc_matrix(
+                (
+                    data["data"][:last_index_gene_var_sample].astype(np.float32),
+                    data["indices"][:last_index_gene_var_sample],
+                    index_partitioner_gene_var,
+                ),
+                shape=(nb_genes, len(index_partitioner_gene_var) - 1),
+            )
+            mean = gene_var_sample_matrix.mean(axis=1)
+            var = gene_var_sample_matrix.multiply(gene_var_sample_matrix).mean(
+                axis=1
+            ) - np.multiply(mean, mean)
+            self.subset_genes = (
+                np.squeeze(np.asarray(var)).argsort()[-self.nb_genes_to_keep:][::-1]
+            )
+            del gene_var_sample_matrix, mean, var
 
-        filtered_matrix_h5 = os.path.join(self.save_path, self.download_name)
-        with h5py.File(filtered_matrix_h5, 'r') as f:
-            dset = f["mm10"]
-            n_genes, n_cells = f["mm10"]["shape"]
-            if self.subsample_size is None:
-                self.subsample_size = n_cells
-            indptr = dset['indptr'][...]
-
-            ns_cells = min(10000, n_cells)  # TODO : remove
-            ns_indptr = indptr[:(ns_cells + 1)]
-            ns_nnz = ns_indptr[-1]
-            ns_data = dset["data"][:ns_nnz].astype(np.float32)
-            ns_indices = dset["data"][:ns_nnz]
-            ns_sparse = csc_matrix((ns_data, ns_indices, ns_indptr), shape=(n_genes, ns_cells))
-            ns_dense = ns_sparse.toarray()
-
-            # Use standard scaler to order select genes by variance
-            std_scaler = StandardScaler(with_mean=False)
-            std_scaler.fit(ns_dense)
-            subset_genes = np.argsort(std_scaler.var_)[::-1][:self.nb_genes_kept]
-
-            nb_matrices = []
-            nb_cells = 100000
-            nb_iters = int(self.subsample_size / nb_cells) + (self.subsample_size % nb_cells > 0)
-            for i in range(nb_iters):
-                nb_indptr = indptr[(i * nb_cells):((1 + i) * nb_cells + 1)]
-                nb_nnz_a = nb_indptr[0]
-                nb_nnz_b = nb_indptr[-1]
-                nb_indptr = (nb_indptr - nb_nnz_a).astype(np.int32)
-                nb2_cells = len(nb_indptr) - 1
-                nb_data = dset["data"][nb_nnz_a:nb_nnz_b].astype(np.float32)
-                nb_indices = dset["indices"][nb_nnz_a:nb_nnz_b].astype(np.int32)
-                nb_sparse = csr_matrix((nb_data, nb_indices, nb_indptr), shape=(nb2_cells, n_genes))
-                nb_filtered = nb_sparse[:, subset_genes]
-                del nb_sparse
-                nb_matrices.append(nb_filtered)
-                logging.info("loaded {} / {} cells".format(i * nb_cells + nb2_cells, self.subsample_size))
-                if self.max_cells and i * nb_cells + nb2_cells >= self.max_cells:
-                    break
-
-        matrix = vstack(nb_matrices)
-        good_cells = matrix.sum(axis=1) > 0
-        good_cells = np.squeeze(np.asarray(good_cells))
-        logging.info("excluding {} cells with zero genes expressed".format(len(good_cells) - good_cells.sum()))
-        matrix = matrix[good_cells, :]
-
-        logging.info("%d cells subsampled" % matrix.shape[0])
-        logging.info("%d genes subsampled" % matrix.shape[1])
-
-        return [matrix, ]
+            n_iters = int(self.n_cells_to_keep / self.loading_batch_size) + (
+                self.n_cells_to_keep % self.loading_batch_size > 0
+            )
+            for i in range(n_iters):
+                index_partitioner_batch = index_partitioner[
+                    (i * self.loading_batch_size): (
+                        (1 + i) * self.loading_batch_size + 1
+                    )
+                ]
+                first_index_batch = index_partitioner_batch[0]
+                last_index_batch = index_partitioner_batch[-1]
+                index_partitioner_batch = (
+                    index_partitioner_batch - first_index_batch
+                ).astype(np.int32)
+                n_cells_batch = len(index_partitioner_batch) - 1
+                data_batch = data["data"][first_index_batch:last_index_batch].astype(
+                    np.float32
+                )
+                indices_batch = data["indices"][
+                    first_index_batch:last_index_batch
+                ].astype(np.int32)
+                matrix_batch = sp_sparse.csr_matrix(
+                    (data_batch, indices_batch, index_partitioner_batch),
+                    shape=(n_cells_batch, nb_genes),
+                )[:, self.subset_genes]
+                # stack on the fly to limit RAM usage
+                if i == 0:
+                    matrix = matrix_batch
+                else:
+                    matrix = sp_sparse.vstack([matrix, matrix_batch])
+                logger.info(
+                    "loaded {} / {} cells".format(
+                        i * self.loading_batch_size + n_cells_batch,
+                        self.n_cells_to_keep,
+                    )
+                )
+        logger.info("%d cells subsampled" % matrix.shape[0])
+        logger.info("%d genes subsampled" % matrix.shape[1])
+        self.populate_from_data(matrix)
+        self.filter_cells_by_count()

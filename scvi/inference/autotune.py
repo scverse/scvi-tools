@@ -28,10 +28,10 @@ import numpy as np
 import torch
 import tqdm
 
-from . import Trainer
-from .inference import UnsupervisedTrainer
-from ..dataset import GeneExpressionDataset
-from ..models import VAE
+from scvi.dataset import GeneExpressionDataset
+from scvi.models import VAE
+
+from . import Trainer, UnsupervisedTrainer
 
 # TODO: add database watcher and visualizations
 # TODO: make worker_launcher a subclass of threading.Thread
@@ -42,7 +42,7 @@ spawn_ctx = multiprocessing.get_context("spawn")
 fork_ctx = multiprocessing.get_context("fork")
 
 # register running process and open files to terminate/close at exit
-started_processes: List[Union[multiprocessing.Process, Popen]] = []
+started_processes: List[Union[multiprocessing.Process, Popen, QueueListener]] = []
 started_threads: List[threading.Thread] = []
 open_files: List[IOBase] = []
 
@@ -303,7 +303,7 @@ def auto_tune_scvi_model(
                 "n_latent": 5 + hp.randint("n_latent", 11),  # [5, 15]
                 "n_hidden": hp.choice("n_hidden", [64, 128, 256]),
                 "n_layers": 1 + hp.randint("n_layers", 5),
-                "dropout_rate": hp.choice("dropout_rate", [0.1, 0.3, 0.5, 0.7, 0.9]),
+                "dropout_rate": hp.choice("dropout_rate", [0.1, 0.3, 0.5, 0.7]),
                 "reconstruction_loss": hp.choice("reconstruction_loss", ["zinb", "nb"]),
             },
             "train_func_tunable_kwargs": {
@@ -580,7 +580,7 @@ def _auto_tune_parallel(
         logger.debug("Setting fmin waiter stop event.")
         fmin_done_event.set()
     try:
-        if multiple_hosts:
+        if multiple_hosts is not None:
             # if using multiple_hosts, there could still be workers -> disable fmin timeout
             fmin_timeout = None
             logger.debug(
@@ -657,7 +657,7 @@ def _fmin_parallel(
     fmin_thread.daemon = True
     fmin_thread.start()
     started_threads.append(fmin_thread)
-    if fmin_timer:
+    if fmin_timer is not None:
         logging.debug(
             "Timer set, fmin will run for at most {timer}".format(timer=fmin_timer)
         )
@@ -741,9 +741,6 @@ def launch_workers(
     :param n_workers_per_gpu: Number of workers ton launch per gpu found by ``torch``.
     :param reserve_timeout: Amount of time, in seconds, a worker tries to reserve a job for
         before throwing a ``ReserveTimeout`` Exception.
-    :param fmin_timeout: Amount of time, in seconds, ``fmin_process`` has to terminate
-        after all workers have died - before throwing a ``FminTimeoutError``.
-        If ``multiple_hosts`` is set to ``True``, this is set to None to disable the timineout behaviour.
     :param workdir: Directory where the workers
     :param mongo_port_address: Address to the running MongoDb service.
     :param multiple_hosts: ``True`` if launching workers form multiple hosts.
@@ -775,7 +772,11 @@ def launch_workers(
                     n_cpu_workers=n_cpu_workers
                 )
             )
-    if not gpu_ids and not n_cpu_workers and not multiple_hosts:
+    if (
+        gpu_ids is None
+        and (n_cpu_workers == 0 or n_cpu_workers is None)
+        and not multiple_hosts
+    ):
         raise ValueError("No hardware (cpu/gpu) selected/found.")
 
     # log progress with queue and progress_listener
@@ -1063,11 +1064,11 @@ def _objective_function(
         early_stopping_kwargs = trainer_specific_kwargs.get(
             "early_stopping_kwargs", None
         )
-        if early_stopping_kwargs:
+        if early_stopping_kwargs is not None:
             metric = early_stopping_kwargs.get("early_stopping_metric", None)
 
         # store run results
-        if metric:
+        if metric is not None:
             early_stopping_loss_is_best = True
             best_epoch = trainer.best_epoch
             # add actual number of epochs to be used when training best model

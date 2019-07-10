@@ -1,38 +1,46 @@
-from .brain_large import BrainLargeDataset
-from .cortex import CortexDataset
-from .dataset import GeneExpressionDataset
-from .synthetic import SyntheticDataset, SyntheticRandomDataset, \
-    SyntheticDatasetCorr, ZISyntheticDatasetCorr
-from .cite_seq import CiteSeqDataset, CbmcDataset
-from .pbmc import PbmcDataset, PurifiedPBMCDataset
-from .hemato import HematoDataset
-from .loom import LoomDataset, RetinaDataset
-from .dataset10X import Dataset10X, BrainSmallDataset
-from .anndata import AnnDataset
-from .csv import CsvDataset, BreastCancerDataset, MouseOBDataset
-from .seqfish import SeqfishDataset
-from .smfish import SmfishDataset
+from scvi.dataset.anndataset import AnnDatasetFromAnnData, DownloadableAnnDataset
+from scvi.dataset.brain_large import BrainLargeDataset
+from scvi.dataset.cite_seq import CiteSeqDataset, CbmcDataset
+from scvi.dataset.cortex import CortexDataset
+from scvi.dataset.csv import CsvDataset, BreastCancerDataset, MouseOBDataset
+from scvi.dataset.dataset import GeneExpressionDataset, DownloadableDataset, CellMeasurement
+from scvi.dataset.dataset10X import Dataset10X, BrainSmallDataset
+from scvi.dataset.hemato import HematoDataset
+from scvi.dataset.loom import LoomDataset, RetinaDataset
+from scvi.dataset.pbmc import PbmcDataset, PurifiedPBMCDataset
+from scvi.dataset.seqfish import SeqfishDataset
+from scvi.dataset.smfish import SmfishDataset
+from scvi.dataset.synthetic import (
+    SyntheticDataset,
+    SyntheticRandomDataset,
+    SyntheticDatasetCorr,
+    ZISyntheticDatasetCorr,
+)
 
-__all__ = ['SyntheticDataset',
-           'SyntheticRandomDataset',
-           'CortexDataset',
-           'BrainLargeDataset',
-           'RetinaDataset',
-           'GeneExpressionDataset',
-           'CiteSeqDataset',
-           'BrainSmallDataset',
-           'HematoDataset',
-           'CbmcDataset',
-           'PbmcDataset',
-           'LoomDataset',
-           'AnnDataset',
-           'CsvDataset',
-           'Dataset10X',
-           'SeqfishDataset',
-           'SmfishDataset',
-           'BreastCancerDataset',
-           'MouseOBDataset',
-           'PurifiedPBMCDataset',
-           'SyntheticDatasetCorr',
-           'ZISyntheticDatasetCorr',
-           ]
+__all__ = [
+    "AnnDatasetFromAnnData",
+    "DownloadableAnnDataset",
+    "BrainLargeDataset",
+    "CiteSeqDataset",
+    "CbmcDataset",
+    "CellMeasurement",
+    "CortexDataset",
+    "CsvDataset",
+    "BreastCancerDataset",
+    "MouseOBDataset",
+    "GeneExpressionDataset",
+    "DownloadableDataset",
+    "Dataset10X",
+    "BrainSmallDataset",
+    "HematoDataset",
+    "LoomDataset",
+    "RetinaDataset",
+    "PbmcDataset",
+    "PurifiedPBMCDataset",
+    "SeqfishDataset",
+    "SmfishDataset",
+    "SyntheticDataset",
+    "SyntheticRandomDataset",
+    "SyntheticDatasetCorr",
+    "ZISyntheticDatasetCorr",
+]

@@ -1,77 +1,83 @@
-import numpy as np
-import loompy
 import logging
-from .dataset import GeneExpressionDataset
 import os
 
+import loompy
+import numpy as np
 
-class SmfishDataset(GeneExpressionDataset):
-    def __init__(self, save_path='data/', cell_type_level="major"):
+from scvi.dataset.dataset import DownloadableDataset
 
-        self.download_name = 'osmFISH_SScortex_mouse_all_cell.loom'
-        self.save_path = save_path
-        self.url = 'http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom'
-        self.cell_type_level = cell_type_level
-        data, labels, gene_names, cell_types, x_coord, y_coord = self.download_and_preprocess()
+logger = logging.getLogger(__name__)
+
+
+class SmfishDataset(DownloadableDataset):
+    """Loads osmFISH data of mouse cortex cells from the Linarsson lab.
+
+    :param save_path: Location to use when saving/loading the data.
+    :param use_high_level_cluster: If True, use higher-level agglomerate clusters.
+        The resulting cell types are "Astrocytes", "Endothelials", "Inhibitory",
+        "Microglias", "Oligodendrocytes" and "Pyramidals".
+    :param delayed_populating: Switch for delayed populating mechanism.
+    """
+
+    def __init__(
+        self,
+        save_path: str = "data/",
+        use_high_level_cluster: bool = True,
+        delayed_populating: bool = False,
+    ):
+        self.use_high_level_cluster = use_high_level_cluster
         super().__init__(
-            *GeneExpressionDataset.get_attributes_from_matrix(
-                data,
-                labels=labels), gene_names=gene_names,
-            x_coord=x_coord, y_coord=y_coord)
+            "http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom",
+            "osmFISH_SScortex_mouse_all_cell.loom",
+            save_path,
+            delayed_populating=delayed_populating,
+        )
 
-    def preprocess(self):
-        logging.info("Preprocessing smFISH dataset")
-        ds = loompy.connect(os.path.join(self.save_path, self.download_name))
-        gene_names = ds.ra['Gene']
-        if self.cell_type_level == "minor":
-            select = ds[:, :].sum(axis=0) > 0  # Take out cells that doesn't express any gene
+    def populate(self):
+        logger.info("Loading smFISH dataset")
+        ds = loompy.connect(os.path.join(self.save_path, self.filenames[0]))
+        gene_names = np.char.upper(ds.ra["Gene"].astype(np.str))
 
-            labels, cell_types = np.array(ds.ca['ClusterID']), np.array(ds.ca['ClusterName'])
-            labels = np.reshape(labels, (labels.shape[0], 1))[select]
-            cell_types = np.reshape(cell_types, (cell_types.shape[0], 1))[select]
+        labels = ds.ca["ClusterID"].reshape(-1, 1)
+        tmp_cell_types = np.asarray(ds.ca["ClusterName"])
 
-        elif self.cell_type_level == "major":
-            major_clusters_fish = {
-                'Inhibitory': [18, 17, 14, 19, 15, 16, 20],
-                'Excitatory': [9, 8, 10, 6, 5, 4, 12, 1, 13],
-                'Astrocytes': [3, 2],
-                'Oligodendrocytes': [32, 33, 30, 22, 21],
-                'Microglia': [29, 28],
-                'Choroid plexus': [24],
-                'Ependimal': [27],
-                'Pericytes': [31],
-                'Endothelial': [7, 25],
-                'VSM': [25]
-            }
-            labels = ds.ca['ClusterID']
-            to_keep = []
-            new_labels = []
-            for n_label in range(len(labels)):
-                if labels[n_label] not in [0, 27, 26, 24, 31]:
-                    to_keep.append(n_label)
-                if labels[n_label] in major_clusters_fish['Astrocytes']:
-                    new_labels.append(0)
-                elif labels[n_label] in major_clusters_fish['Endothelial']:
-                    new_labels.append(1)
-                elif labels[n_label] in major_clusters_fish['Inhibitory']:
-                    new_labels.append(2)
-                elif labels[n_label] in major_clusters_fish['Microglia']:
-                    new_labels.append(3)
-                elif labels[n_label] in major_clusters_fish['Oligodendrocytes']:
-                    new_labels.append(4)
-                elif labels[n_label] in major_clusters_fish['Excitatory']:
-                    new_labels.append(5)
+        u_labels, u_index = np.unique(labels.ravel(), return_index=True)
+        cell_types = ["" for _ in range(max(u_labels) + 1)]
+        for i, index in zip(u_labels, u_index):
+            cell_types[i] = tmp_cell_types[index]
+        cell_types = np.asarray(cell_types, dtype=np.str)
 
-            select = np.array(to_keep)
-            labels, cell_types = np.array(new_labels), np.array(ds.ca['ClusterName'])
-            labels = np.reshape(labels, (labels.shape[0], 1))
-            cell_types = np.reshape(cell_types, (cell_types.shape[0], 1))[select]
-
-        x_coord, y_coord = np.array(ds.ca['X']), np.array(ds.ca['Y'])
-        x_coord = np.reshape(x_coord, (x_coord.shape[0], 1))[select]
-        y_coord = np.reshape(y_coord, (y_coord.shape[0], 1))[select]
-
-        data = ds[:, select].T
-
-        logging.info("Finished preprocessing smFISH dataset")
-        return data, labels, gene_names, cell_types, x_coord, y_coord
+        x_coord, y_coord = ds.ca["X"], ds.ca["Y"]
+        x_coord = x_coord.reshape((-1, 1))
+        y_coord = y_coord.reshape((-1, 1))
+        data = ds[:, :].T
+        self.populate_from_data(
+            X=data,
+            labels=labels,
+            gene_names=gene_names,
+            cell_types=cell_types,
+            cell_attributes_dict={"x_coord": x_coord, "y_coord": y_coord},
+        )
+        major_clusters = dict(
+            [
+                ((3, 2), "Astrocytes"),
+                ((7, 26), "Endothelials"),
+                ((18, 17, 14, 19, 15, 16, 20), "Inhibitory"),
+                ((29, 28), "Microglias"),
+                ((32, 33, 30, 22, 21), "Oligodendrocytes"),
+                ((9, 8, 10, 6, 5, 4, 12, 1, 13), "Pyramidals"),
+            ]
+        )
+        if self.use_high_level_cluster:
+            self.map_cell_types(major_clusters)
+            self.filter_cell_types(
+                [
+                    "Astrocytes",
+                    "Endothelials",
+                    "Inhibitory",
+                    "Microglias",
+                    "Oligodendrocytes",
+                    "Pyramidals",
+                ]
+            )
+        self.remap_categorical_attributes()

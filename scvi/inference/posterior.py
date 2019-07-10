@@ -23,6 +23,7 @@ from sklearn.utils.linear_assignment_ import linear_assignment
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler, RandomSampler
 
+from scvi.dataset import GeneExpressionDataset
 from scvi.models.log_likelihood import compute_elbo, compute_reconstruction_error, compute_marginal_log_likelihood
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,15 @@ class Posterior:
 
     """
 
-    def __init__(self, model, gene_dataset, shuffle=False, indices=None, use_cuda=True, data_loader_kwargs=dict()):
+    def __init__(
+        self,
+        model,
+        gene_dataset: GeneExpressionDataset,
+        shuffle=False,
+        indices=None,
+        use_cuda=True,
+        data_loader_kwargs=dict(),
+    ):
         """
 
         When added to annotation, has a private name attribute
@@ -92,9 +101,9 @@ class Posterior:
                 indices = np.where(indices)[0].ravel()
             sampler = SubsetRandomSampler(indices)
         self.data_loader_kwargs = copy.copy(data_loader_kwargs)
-        if hasattr(gene_dataset, "collate_fn"):
-            self.data_loader_kwargs.update({"collate_fn": gene_dataset.collate_fn})
-        self.data_loader_kwargs.update({"sampler": sampler})
+        self.data_loader_kwargs.update(
+            {"collate_fn": gene_dataset.collate_fn_builder(), "sampler": sampler}
+        )
         self.data_loader = DataLoader(gene_dataset, **self.data_loader_kwargs)
 
     def accuracy(self):
@@ -126,10 +135,12 @@ class Posterior:
         return self.update({"batch_size": batch_size, "sampler": SequentialSubsetSampler(indices=self.indices)})
 
     def corrupted(self):
-        return self.update({"collate_fn": self.gene_dataset.collate_fn_corrupted})
+        return self.update(
+            {"collate_fn": self.gene_dataset.collate_fn_builder(corrupted=True)}
+        )
 
     def uncorrupted(self):
-        return self.update({"collate_fn": self.gene_dataset.collate_fn})
+        return self.update({"collate_fn": self.gene_dataset.collate_fn_builder()})
 
     @torch.no_grad()
     def elbo(self):
@@ -250,8 +261,7 @@ class Posterior:
         M_permutation: int = None,
         all_stats: bool = True,
     ):
-        """
-        Computes gene specific Bayes factors using masks idx1 and idx2
+        """Computes gene specific Bayes factors using masks idx1 and idx2
 
         To that purpose we sample the Posterior in the following way:
             1. The posterior is sampled n_samples times for each subpopulation
@@ -302,7 +312,7 @@ class Posterior:
         px_scale = np.concatenate((px_scale1, px_scale2), axis=0)
         all_labels = np.concatenate((np.repeat(0, len(px_scale1)), np.repeat(1, len(px_scale2))), axis=0)
         if genes is not None:
-            px_scale = px_scale[:, self.gene_dataset._gene_idx(genes)]
+            px_scale = px_scale[:, self.gene_dataset.genes_to_index(genes)]
         bayes1 = get_bayes_factors(px_scale, all_labels, cell_idx=0, M_permutation=M_permutation,
                                    permutation=False, sample_pairs=sample_pairs)
         if all_stats is True:
@@ -560,7 +570,7 @@ class Posterior:
         x_old = torch.cat(x_old)  # Shape (n_cells, n_genes)
         x_new = torch.cat(x_new)  # Shape (n_cells, n_genes, n_samples)
         if genes is not None:
-            gene_ids = self.gene_dataset._gene_idx(genes)
+            gene_ids = self.gene_dataset.genes_to_index(genes)
             x_new = x_new[:, gene_ids, :]
             x_old = x_old[:, gene_ids]
         return x_new.cpu().numpy(), x_old.cpu().numpy()
@@ -715,9 +725,9 @@ class Posterior:
         protein level. Compute the overlap fold enrichment between the protein and mRNA-based cell 100-nearest neighbor
         graph and the Spearman correlation of the adjacency matrices.
         """
-        if hasattr(self.gene_dataset, "adt_expression_clr"):
+        if hasattr(self.gene_dataset, "protein_expression_clr"):
             latent, _, _ = self.sequential().get_latent()
-            protein_data = self.gene_dataset.adt_expression_clr[self.indices]
+            protein_data = self.gene_dataset.protein_expression_clr[self.indices]
             spearman_correlation, fold_enrichment = nn_overlap(latent, protein_data, **kwargs)
             logger.debug("Overlap Scores:\nSpearman Correlation: %.4f\nFold Enrichment: %.4f" %
                          (spearman_correlation, fold_enrichment))
@@ -744,7 +754,7 @@ class Posterior:
             if color_by == "batches" or color_by == "labels":
                 indices = batch_indices.ravel() if color_by == "batches" else labels.ravel()
                 n = n_batch if color_by == "batches" else self.gene_dataset.n_labels
-                if hasattr(self.gene_dataset, "cell_types") and color_by == "labels":
+                if self.gene_dataset.cell_types is not None and color_by == "labels":
                     plt_labels = self.gene_dataset.cell_types
                 else:
                     plt_labels = [str(i) for i in range(len(np.unique(indices)))]
