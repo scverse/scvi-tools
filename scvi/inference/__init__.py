@@ -11,7 +11,6 @@ from .annotation import (
     ClassifierTrainer
 )
 from .fish import TrainerFish
-from .autotune import auto_tune_scvi_model, hyperopt_worker, launch_workers
 
 __all__ = [
     'Trainer',
@@ -23,7 +22,4 @@ __all__ = [
     'SemiSupervisedTrainer',
     'AlternateSemiSupervisedTrainer',
     'ClassifierTrainer',
-    'auto_tune_scvi_model',
-    'hyperopt_worker',
-    'launch_workers',
 ]
