@@ -875,21 +875,33 @@ class GeneExpressionDataset(Dataset):
         logger.info("Filtering non-expressing cells.")
         self.filter_cells_by_count()
 
-    def reorder_genes(self, first_genes: Union[List[str], np.ndarray]):
+    def reorder_genes(
+        self,
+        first_genes: Union[List[str], np.ndarray],
+        drop_omitted_genes: bool = False,
+    ):
         """Performs a in-place reordering of genes and gene-related attributes.
 
         Reorder genes according to the ``first_genes`` list of gene names.
         Consequently, modifies in-place the data ``X`` and the registered gene attributes.
 
         :param first_genes: New ordering of the genes; if some genes are missing, they will be added after the
-                            first_genes in the same order as they were before
+                            first_genes in the same order as they were before if `drop_omitted_genes` is False
+        :param drop_omitted_genes: Whether to keep or drop the omitted genes in `first_genes`
+
         """
 
-        _, _, new_order_first = np.intersect1d(
-            first_genes, self.gene_names, return_indices=True
-        )
-        new_order_second = [x for x in range(self.nb_genes) if x not in new_order_first]
-        new_order = np.hstack([new_order_first, new_order_second])
+        look_up = dict([(gene, index) for index, gene in enumerate(self.gene_names)])
+        new_order_first = [look_up[gene] for gene in first_genes]
+
+        if not drop_omitted_genes:
+            new_order_second = [
+                x for x in range(self.nb_genes) if x not in new_order_first
+            ]
+        else:
+            new_order_second = []
+
+        new_order = np.hstack([new_order_first, new_order_second]).astype(int)
 
         # update datasets
         self.X = self.X[:, new_order]
