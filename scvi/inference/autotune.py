@@ -158,6 +158,9 @@ def auto_tune_scvi_model(
     objective_hyperopt: Callable = None,
     model_class: VAE = VAE,
     trainer_class: Trainer = UnsupervisedTrainer,
+    metric_name: str = None,
+    metric_kwargs: Dict[str, Any] = None,
+    posterior_name: str = "test_set",
     model_specific_kwargs: dict = None,
     trainer_specific_kwargs: dict = None,
     train_func_specific_kwargs: dict = None,
@@ -204,6 +207,10 @@ def auto_tune_scvi_model(
         through the various arguments of this function (``gene_dataset``, ``model_class``, etc.)
     :param model_class: scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
     :param trainer_class: ``Trainer`` sub-class (e.g ``UnsupervisedTrainer``)
+    :param metric_name: Name of the metric to optimize for. If `None` defaults to "marginal_ll"
+    :param metric_kwargs: keyword arguments for the metric method.
+        If `metric_name` is None, defaults to {"n_mc_samples": 100}.
+    :param posterior_name: Name of the posterior distribution to compute the metric with.
     :param model_specific_kwargs: ``dict`` of fixed parameters which will be passed to the model.
     :param trainer_specific_kwargs: ``dict`` of fixed parameters which will be passed to the trainer.
     :param train_func_specific_kwargs: dict of fixed parameters which will be passed to the train method.
@@ -315,6 +322,11 @@ def auto_tune_scvi_model(
             },
         }
 
+    # default metric
+    if metric_name is None:
+        metric_name = "marginal_ll"
+        metric_kwargs = {"n_mc_samples": 100}
+
     logger.info(
         "Fixed parameters: \n"
         "model: \n"
@@ -336,6 +348,9 @@ def auto_tune_scvi_model(
                 "delayed_populating": delayed_populating,
                 "model_class": model_class,
                 "trainer_class": trainer_class,
+                "metric_name": metric_name,
+                "metric_kwargs": metric_kwargs,
+                "posterior_name": posterior_name,
                 "model_specific_kwargs": model_specific_kwargs,
                 "trainer_specific_kwargs": trainer_specific_kwargs,
                 "train_func_specific_kwargs": train_func_specific_kwargs,
@@ -976,6 +991,9 @@ def _objective_function(
     delayed_populating: bool = False,
     model_class: Type[VAE] = VAE,
     trainer_class: Type[Trainer] = UnsupervisedTrainer,
+    metric_name: str = None,
+    metric_kwargs: Dict[str, Any] = None,
+    posterior_name: str = "test_set",
     model_specific_kwargs: dict = None,
     trainer_specific_kwargs: dict = None,
     train_func_specific_kwargs: dict = None,
@@ -994,6 +1012,11 @@ def _objective_function(
     :param gene_dataset: scVI gene dataset
     :param model_class: scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
     :param trainer_class: Trainer class (e.g ``UnsupervisedTrainer``)
+    :param metric_name: Name of the metric to optimize for. If `None` defaults to "marginal_ll"
+    :param metric_kwargs: keyword arguments for the metric method.
+        If `metric_name` is None, defaults to {"n_mc_samples": 100}.
+    :param posterior_name: Name of the posterior distribution to compute the metric with.
+    :param model_specific_kwargs: ``dict`` of fixed parameters which will be passed to the model.
     :param model_specific_kwargs: dict of fixed parameters which will be passed to the model.
     :param trainer_specific_kwargs: dict of fixed parameters which will be passed to the trainer.
     :param train_func_specific_kwargs: dict of fixed parameters which will be passed to the train method.
@@ -1097,8 +1120,8 @@ def _objective_function(
         if save_best_state_metric is not None:
             model.load_state_dict(trainer.best_state_dict)
 
-        # compute true ll
-        loss = trainer.test_set.marginal_ll(n_mc_samples=100)
+        # compute optimized metric
+        loss = getattr(getattr(trainer, posterior_name), metric_name)(**metric_kwargs)
 
         logger.debug(
             "Training of {n_epochs} epochs finished in {time} with loss = {loss}".format(
