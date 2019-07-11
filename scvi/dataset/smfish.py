@@ -57,6 +57,7 @@ class SmfishDataset(DownloadableDataset):
             gene_names=gene_names,
             cell_types=cell_types,
             cell_attributes_dict={"x_coord": x_coord, "y_coord": y_coord},
+            remap_attributes=False,
         )
         major_clusters = dict(
             [
@@ -80,4 +81,5 @@ class SmfishDataset(DownloadableDataset):
                     "Pyramidals",
                 ]
             )
+
         self.remap_categorical_attributes()

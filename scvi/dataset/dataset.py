@@ -76,7 +76,7 @@ class GeneExpressionDataset(Dataset):
         self._norm_X = None
         self._corrupted_X = None
 
-        # attributes that should not be set by initilalization methods
+        # attributes that should not be set by initialization methods
         self.protected_attributes = ["X"]
 
     def __repr__(self) -> str:
@@ -114,6 +114,7 @@ class GeneExpressionDataset(Dataset):
         cell_types: Union[List[str], np.ndarray] = None,
         cell_attributes_dict: Dict[str, Union[List, np.ndarray]] = None,
         gene_attributes_dict: Dict[str, Union[List, np.ndarray]] = None,
+        remap_attributes: bool = True,
     ):
         """Populates the data attributes of a GeneExpressionDataset object from a (nb_cells, nb_genes) matrix.
 
@@ -129,6 +130,8 @@ class GeneExpressionDataset(Dataset):
         :param cell_types: Maps each integer label in ``labels`` to a cell type.
         :param cell_attributes_dict: ``List`` or ``np.ndarray`` with shape (nb_cells,).
         :param gene_attributes_dict: ``List`` or ``np.ndarray`` with shape (nb_genes,).
+        :param remap_attributes: If set to True (default), the function calls
+                                 `remap_categorical_attributes` at the end
         """
         # set the data hidden attribute
         self._X = (
@@ -179,7 +182,8 @@ class GeneExpressionDataset(Dataset):
             for attribute_name, attribute_value in gene_attributes_dict.items():
                 self.initialize_gene_attribute(attribute_name, attribute_value)
 
-        self.remap_categorical_attributes()
+        if remap_attributes:
+            self.remap_categorical_attributes()
 
     def populate_from_per_batch_list(
         self,
@@ -187,6 +191,7 @@ class GeneExpressionDataset(Dataset):
         labels_per_batch: Union[np.ndarray, List[np.ndarray]] = None,
         gene_names: Union[List[str], np.ndarray] = None,
         cell_types: Union[List[str], np.ndarray] = None,
+        remap_attributes: bool = True,
     ):
         """Populates the data attributes of a GeneExpressionDataset object from a ``n_batches``-long
             ``list`` of (nb_cells, nb_genes) matrices.
@@ -195,6 +200,8 @@ class GeneExpressionDataset(Dataset):
         :param labels_per_batch: list of cell-wise labels for each batch.
         :param gene_names: gene names, stored as ``str``.
         :param cell_types: cell types, stored as ``str``.
+        :param remap_attributes: If set to True (default), the function calls
+                                 `remap_categorical_attributes` at the end
         """
         nb_genes = Xs[0].shape[1]
         if not all(X.shape[1] == nb_genes for X in Xs):
@@ -216,6 +223,7 @@ class GeneExpressionDataset(Dataset):
             labels=labels,
             gene_names=gene_names,
             cell_types=cell_types,
+            remap_attributes=remap_attributes,
         )
 
     def populate_from_per_label_list(
@@ -223,6 +231,7 @@ class GeneExpressionDataset(Dataset):
         Xs: List[Union[sp_sparse.csr_matrix, np.ndarray]],
         batch_indices_per_label: List[Union[List[int], np.ndarray]] = None,
         gene_names: Union[List[str], np.ndarray] = None,
+        remap_attributes: bool = True,
     ):
         """Populates the data attributes of a GeneExpressionDataset object from a ``n_labels``-long
             ``list`` of (nb_cells, nb_genes) matrices.
@@ -230,6 +239,8 @@ class GeneExpressionDataset(Dataset):
         :param Xs: RNA counts in the form of a list of np.ndarray with shape (..., nb_genes)
         :param batch_indices_per_label: cell-wise batch indices, for each cell label.
         :param gene_names: gene names, stored as ``str``.
+        :param remap_attributes: If set to True (default), the function calls
+                                 `remap_categorical_attributes` at the end
         """
         nb_genes = Xs[0].shape[1]
         if not all(X.shape[1] == nb_genes for X in Xs):
@@ -249,7 +260,11 @@ class GeneExpressionDataset(Dataset):
         )
 
         self.populate_from_data(
-            X=X, batch_indices=batch_indices, labels=labels, gene_names=gene_names
+            X=X,
+            batch_indices=batch_indices,
+            labels=labels,
+            gene_names=gene_names,
+            remap_attributes=remap_attributes,
         )
 
     def populate_from_datasets(
@@ -572,8 +587,13 @@ class GeneExpressionDataset(Dataset):
         self._corrupted_X = corrupted_X
         self.register_dataset_version("corrupted_X")
 
-    def remap_categorical_attributes(self):
-        for attribute_name in self.cell_categorical_attribute_names:
+    def remap_categorical_attributes(
+        self, attributes_to_remap: Optional[List[str]] = None
+    ):
+        if attributes_to_remap is None:
+            attributes_to_remap = self.cell_categorical_attribute_names
+
+        for attribute_name in attributes_to_remap:
             logger.info("Remapping %s to [0,N]" % attribute_name)
             attr = getattr(self, attribute_name)
             mappings_dict = {
@@ -851,9 +871,7 @@ class GeneExpressionDataset(Dataset):
             Or boolean array used as a mask-like index.
         """
         new_nb_genes = (
-            len(subset_genes)
-            if subset_genes.dtype is not np.bool
-            else subset_genes.sum()
+            len(subset_genes) if subset_genes.dtype != np.bool else subset_genes.sum()
         )
         logger.info(
             "Downsampling from {nb_genes} to {new_nb_genes} genes".format(
