@@ -838,7 +838,6 @@ def launch_workers(
             running_workers.append(p)
 
     # launch cpu workers
-    # TODO: add cpu affinity?
     logger.info(
         "Starting {n_cpu_workers} cpu worker.s".format(n_cpu_workers=n_cpu_workers)
     )
