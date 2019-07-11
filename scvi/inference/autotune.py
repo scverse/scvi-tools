@@ -1070,11 +1070,13 @@ def _objective_function(
     else:
         # select metric from early stopping kwargs if possible
         metric = None
+        save_best_state_metric = None
         early_stopping_kwargs = trainer_specific_kwargs.get(
             "early_stopping_kwargs", None
         )
         if early_stopping_kwargs is not None:
             metric = early_stopping_kwargs.get("early_stopping_metric", None)
+            save_best_state_metric = early_stopping_kwargs.get("save_best_state_metric", None)
 
         # store run results
         if metric is not None:
@@ -1090,6 +1092,10 @@ def _objective_function(
             metric = "elbo_test_set"
             early_stopping_loss = trainer.history[metric][-1]
             best_epoch = len(trainer.history[metric])
+
+        # load best state
+        if save_best_state_metric is not None:
+            model.load_state_dict(trainer.best_state_dict)
 
         # compute true ll
         loss = trainer.test_set.marginal_ll(n_mc_samples=100)
