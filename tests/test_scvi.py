@@ -1,7 +1,7 @@
 import numpy as np
 
-from scvi.benchmark import all_benchmarks, benchmark_fish_scrna, ldvae_benchmark
-from scvi.dataset import CortexDataset, SyntheticDataset, SmfishDataset
+from scvi.benchmark import all_benchmarks, ldvae_benchmark
+from scvi.dataset import CortexDataset, SyntheticDataset
 from scvi.inference import (
     JointSemiSupervisedTrainer,
     AlternateSemiSupervisedTrainer,
@@ -35,16 +35,15 @@ def test_cortex(save_path):
         n_samples=1, show_plot=False, title_plot="imputation", save_path=save_path
     )
     full = trainer_cortex_vae.create_posterior(
-        vae,
-        cortex_dataset,
-        indices=np.arange(len(cortex_dataset))
+        vae, cortex_dataset, indices=np.arange(len(cortex_dataset))
     )
     x_new, x_old = full.generate(n_samples=10)
     assert x_new.shape == (cortex_dataset.nb_cells, cortex_dataset.nb_genes, 10)
     assert x_old.shape == (cortex_dataset.nb_cells, cortex_dataset.nb_genes)
 
-    trainer_cortex_vae.train_set.imputation_benchmark(n_samples=1, show_plot=False,
-                                                      title_plot='imputation', save_path=save_path)
+    trainer_cortex_vae.train_set.imputation_benchmark(
+        n_samples=1, show_plot=False, title_plot="imputation", save_path=save_path
+    )
 
     svaec = SCANVI(
         cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels
@@ -140,13 +139,6 @@ def test_synthetic_2():
         },
     )
     trainer_synthetic_vaec.train(n_epochs=2)
-
-
-def test_fish_rna(save_path):
-    gene_dataset_fish = SmfishDataset(save_path)
-    gene_dataset_seq = CortexDataset(save_path=save_path, genes_to_keep=gene_dataset_fish.gene_names,
-                                     total_genes=gene_dataset_fish.nb_genes + 50)
-    benchmark_fish_scrna(gene_dataset_seq, gene_dataset_fish)
 
 
 def base_benchmark(gene_dataset):
