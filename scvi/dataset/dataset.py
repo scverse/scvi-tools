@@ -1124,6 +1124,9 @@ class GeneExpressionDataset(Dataset):
 
         :param new_order:
         """
+        if isinstance(new_order, np.ndarray):
+            new_order = new_order.tolist()
+
         for cell_type in self.cell_types:
             if cell_type not in new_order:
                 new_order.append(cell_type)

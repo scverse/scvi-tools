@@ -38,7 +38,7 @@ class LoomDataset(DownloadableDataset):
         url: str = None,
         batch_indices_attribute_name: str = "BatchID",
         labels_attribute_name: str = "ClusterID",
-        encode_labels_name_into_int=False,
+        encode_labels_name_into_int: bool = False,
         gene_names_attribute_name: str = "Gene",
         cell_types_attribute_name: str = "CellTypes",
         delayed_populating: bool = False,
@@ -200,9 +200,9 @@ class FrontalCortexDropseqDataset(LoomDataset):
 
     def __init__(
         self,
-        save_path="data/",
+        save_path: str = "data/",
         genes_to_keep: Optional[List[str]] = None,
-        delayed_populating=False,
+        delayed_populating: bool = False,
     ):
 
         super().__init__(
