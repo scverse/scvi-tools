@@ -10,5 +10,8 @@ __version__ = '0.3.0'
 import logging
 from logging import NullHandler
 
+from ._settings import set_global_verbosity
+
 logging.getLogger(__name__).addHandler(NullHandler())
-logging.basicConfig(level=logging.INFO)
+
+__all__ = ["set_global_verbosity"]
