@@ -302,6 +302,8 @@ class TestGeneExpressionDataset(TestCase):
             ["GENE_47", "GENE_2", "GENE_3", "GENE_12", "GENE_0", "GENE_1"],
         )
 
+        self.assertRaises(KeyError, dataset.reorder_genes, ["GENE_101"])
+
     def test_genes_to_idx(self):
         data = np.random.randint(1, 5, size=(5, 10))
         gene_names = np.array(["gene_%d" % i for i in range(10)])
