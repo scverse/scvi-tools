@@ -1023,6 +1023,9 @@ def _objective_function(
     :param is_best_training: True if training the model with the best hyperparameters
     :return: best value of the early stopping metric, and best model if is_best_training
     """
+    # handle mutable defaults
+    metric_kwargs = metric_kwargs if metric_kwargs is not None else {}
+
     if delayed_populating:
         gene_dataset.populate()
 
