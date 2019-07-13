@@ -23,10 +23,9 @@ class JPosterior(Posterior):
         super().__init__(*args, **kwargs)
         self.mode = mode
 
-    def elbo(self, verbose: bool = False) -> float:
+    def elbo(self) -> float:
         elbo = compute_elbo(self.model, self, mode=self.mode)
-        if verbose:
-            logger.info("ELBO : %.4f" % elbo)
+        logger.debug("ELBO : %.4f" % elbo)
         return elbo
 
 
