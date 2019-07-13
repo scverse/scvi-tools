@@ -1,6 +1,5 @@
 import numpy as np
 
-from scvi.benchmark import all_benchmarks, ldvae_benchmark
 from scvi.dataset import CortexDataset, SyntheticDataset
 from scvi.inference import (
     JointSemiSupervisedTrainer,
@@ -10,7 +9,7 @@ from scvi.inference import (
     AdapterTrainer,
 )
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
-from scvi.models import VAE, SCANVI, VAEC
+from scvi.models import VAE, SCANVI, VAEC, LDVAE
 from scvi.models.classifier import Classifier
 
 use_cuda = True
@@ -148,8 +147,16 @@ def base_benchmark(gene_dataset):
     return trainer
 
 
-def test_all_benchmarks(save_path):
-    all_benchmarks(n_epochs=1, save_path=save_path, show_plot=False)
+def ldvae_benchmark(dataset, n_epochs, use_cuda=True):
+    ldvae = LDVAE(dataset.nb_genes, n_batch=dataset.n_batches)
+    trainer = UnsupervisedTrainer(ldvae, dataset, use_cuda=use_cuda)
+    trainer.train(n_epochs=n_epochs)
+    trainer.test_set.reconstruction_error()
+    trainer.test_set.marginal_ll()
+
+    ldvae.get_loadings()
+
+    return trainer
 
 
 def test_synthetic_3():
