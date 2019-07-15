@@ -4,17 +4,19 @@ import multiprocessing
 import os
 import pickle
 import sys
-import time
 import threading
-
+import time
 from collections import defaultdict
 from functools import partial, wraps
 from io import IOBase
 from logging.handlers import QueueListener, QueueHandler
+from queue import Empty
 from subprocess import Popen
 from typing import Any, Callable, Dict, List, Type, Union
-from queue import Empty
 
+import numpy as np
+import torch
+import tqdm
 from hyperopt import fmin, tpe, Trials, hp, STATUS_OK, STATUS_FAIL
 from hyperopt.mongoexp import (
     as_mongo_str,
@@ -24,13 +26,8 @@ from hyperopt.mongoexp import (
     ReserveTimeout,
 )
 
-import numpy as np
-import torch
-import tqdm
-
 from scvi.dataset import DownloadableDataset, GeneExpressionDataset
 from scvi.models import VAE
-
 from . import Trainer, UnsupervisedTrainer
 
 # spawning is required for processes relying on cuda
@@ -64,11 +61,11 @@ class FminTimeoutError(Exception):
 
 
 class DispatchHandler:
-    """A simple handler for logging events. It dispatches events to loggers
-    based on the name in the received record, which then get dispatched,
-    by the logging system, to the handlers, configured for those loggers.
-    """
+    """A simple dispatcher for logging events.
 
+    It dispatches events to loggers based on the name in the received record,
+    which then get dispatched, by the logging system, to the handlers, configured for those loggers.
+    """
     def handle(self, record: logging.LogRecord):
         logger = logging.getLogger(record.name)
         if record.levelno >= logger.level:
@@ -252,17 +249,6 @@ def auto_tune_scvi_model(
         >>> gene_dataset = CortexDataset()
         >>> best_trainer, trials = auto_tune_scvi_model(gene_dataset)
     """
-    if delayed_populating and not isinstance(gene_dataset, DownloadableDataset):
-        raise ValueError("The delayed_population mechanism requires an "
-                         "instance of scvi.dataset.dataset.DownloadableDataset.")
-
-    if fmin_timer and train_best:
-        logger.warning(
-            "fmin_timer and train_best are both set to True. "
-            "This means that runtime will exceed fmin_timer "
-            "by at least the time it takes to complete a full training."
-        )
-
     # if no handlers add console handler, add formatter to handlers
     if len(logger.handlers) < 1:
         logger.addHandler(ch)
@@ -279,6 +265,17 @@ def auto_tune_scvi_model(
     fh_autotune.setFormatter(formatter)
     fh_autotune.setLevel(logging.DEBUG)
     logger.addHandler(fh_autotune)
+
+    if delayed_populating and not isinstance(gene_dataset, DownloadableDataset):
+        raise ValueError("The delayed_population mechanism requires an "
+                         "instance of scvi.dataset.dataset.DownloadableDataset.")
+
+    if fmin_timer and train_best:
+        logger.warning(
+            "fmin_timer and train_best are both set to True. "
+            "This means that runtime will exceed fmin_timer "
+            "by at least the time it takes to complete a full training."
+        )
 
     logger.info("Starting experiment: {exp_key}".format(exp_key=exp_key))
     # default specific kwargs
@@ -521,7 +518,7 @@ def _auto_tune_parallel(
     hp_logger.addHandler(fh_hyperopt)
 
     # add progress handler to progress logger
-    progress_logger = logging.getLogger("progress_logger")
+    progress_logger = logging.getLogger(__name__ + "_progress_logger")
     disable = multiple_hosts or (logger.level < logging.WARNING)
     pbar = tqdm.tqdm(total=max_evals, disable=disable)
     progress_logger.addHandler(ProgressHandler(pbar=pbar, disable=disable))
