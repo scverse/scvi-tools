@@ -18,7 +18,7 @@ torch.backends.cudnn.benchmark = True
 
 
 class JVAE(nn.Module):
-    r"""Joint Variational auto-encoder
+    """Joint Variational auto-encoder
 
     Implementation of gimVI:
     *A joint model of unpaired data from scRNA-seq and spatial transcriptomics
@@ -116,7 +116,6 @@ class JVAE(nn.Module):
         )
 
         self.decoder = MultiDecoder(
-            len(self.n_input_list),
             self.n_latent,
             self.total_genes,
             n_hidden_conditioned=dim_hidden_decoder_individual,
@@ -139,7 +138,7 @@ class JVAE(nn.Module):
     def sample_from_posterior_z(
         self, x: torch.Tensor, mode: int = None, deterministic: bool = False
     ) -> torch.Tensor:
-        r""" Sample tensor of latent values from the posterior
+        """Sample tensor of latent values from the posterior
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         :param mode: head id to use in the encoder
@@ -159,7 +158,7 @@ class JVAE(nn.Module):
     def sample_from_posterior_l(
         self, x: torch.Tensor, mode: int = None, deterministic: bool = False
     ) -> torch.Tensor:
-        r""" samples the tensor of library sizes from the posterior
+        """Sample the tensor of library sizes from the posterior
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         or ``(batch_size, n_input_fish)`` depending on the mode
@@ -181,7 +180,7 @@ class JVAE(nn.Module):
         deterministic: bool = False,
         decode_mode: Optional[int] = None,
     ) -> torch.Tensor:
-        r"""Returns the tensor of predicted frequencies of expression
+        """Return the tensor of predicted frequencies of expression
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         or ``(batch_size, n_input_fish)`` depending on the mode
@@ -218,7 +217,7 @@ class JVAE(nn.Module):
         deterministic: bool = False,
         decode_mode: int = None,
     ) -> torch.Tensor:
-        r"""Returns the tensor of scaled frequencies of expression
+        """Returns the tensor of scaled frequencies of expression
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         or ``(batch_size, n_input_fish)`` depending on the mode
@@ -318,7 +317,7 @@ class JVAE(nn.Module):
         y: Optional[torch.Tensor] = None,
         mode: Optional[int] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        r""" Returns the reconstruction loss and the Kullback divergences
+        """Return the reconstruction loss and the Kullback divergences
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         or ``(batch_size, n_input_fish)`` depending on the mode
@@ -358,14 +357,12 @@ class JVAE(nn.Module):
         kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
             dim=1
         )
-        kl_divergence = kl_divergence_z
 
         if self.model_library_bools[mode]:
             kl_divergence_l = kl(
                 Normal(ql_m, torch.sqrt(ql_v)),
                 Normal(local_l_mean, torch.sqrt(local_l_var)),
             ).sum(dim=1)
-            kl_divergence += kl_divergence_l
         else:
             kl_divergence_l = torch.zeros_like(kl_divergence_z)
 

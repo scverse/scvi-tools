@@ -30,7 +30,7 @@ class JPosterior(Posterior):
 
 
 class JVAETrainer(Trainer):
-    r"""
+    """
     The trainer class for the unsupervised training of JVAE.
 
     :param model: A model instance from class ``JVAE``
@@ -274,6 +274,9 @@ class JVAETrainer(Trainer):
         return averaged_loss
 
     def get_discriminator_confusion(self) -> np.ndarray:
+        """Return the confusion matrix of the disciminator classifier.
+        A good mixing should lead to a uniform matrix.
+        """
         confusion = []
         for i, posterior in enumerate(self.all_dataset):
             data = torch.from_numpy(posterior.gene_dataset.X)
@@ -294,6 +297,10 @@ class JVAETrainer(Trainer):
     def get_loss_magnitude(
         self, one_sample: bool = False
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Return the different losses of the model separately. Useful to inspect and compare their magnitude.
+        :param one_sample: Use only one batch to estimate the loss, can be much faster/less exact on big datasets
+        """
         total_reconstruction = np.zeros(self.n_dataset)
         total_kl_divergence = np.zeros(self.n_dataset)
         total_discriminator = np.zeros(self.n_dataset)
@@ -323,6 +330,10 @@ class JVAETrainer(Trainer):
         return total_reconstruction, total_kl_divergence, total_discriminator
 
     def get_latent(self, deterministic: bool = True) -> List[np.ndarray]:
+        """
+        Return the latent space embedding for each dataset
+        :param deterministic: If true, use the mean of the encoder instead of a Gaussian sample
+        """
         self.model.eval()
         latents = []
         for mode, dataset in enumerate(self.all_dataset):
@@ -348,6 +359,14 @@ class JVAETrainer(Trainer):
         normalized: bool = True,
         decode_mode: Optional[int] = None,
     ) -> List[np.ndarray]:
+        """
+        Return imputed values for all genes for each dataset
+
+        :param deterministic: If true, use the mean of the encoder instead of a Gaussian sample for the latent vector
+        :param normalized: Return imputed normalized values or not
+        :param decode_mode: If a `decode_mode` is given, use the encoder specific to each dataset as usual but use
+                            the decoder of the dataset of id `decode_mode` to impute values
+        """
         self.model.eval()
         imputed_values = []
         for mode, dataset in enumerate(self.all_dataset):

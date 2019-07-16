@@ -13,40 +13,6 @@ def reparameterize_gaussian(mu, var):
     return Normal(mu, var.sqrt()).rsample()
 
 
-class ConditionalInstanceNormalization(nn.Module):
-    r"""Helper layer for conditional instance normalization aka. conditional batchnorm
-    From 'A learned representation for artistic STYLE'
-    https://arxiv.org/pdf/1610.07629.pdf
-
-    This layer maintains `n_instances` batch normalization layers. Given a tensor and
-    an `instance_id`, it performs batch normalization of the tensor conditionally to
-    the `instance_id`
-
-    :param n_instances: Number of instances
-    :param num_features: dimension of input
-    :param eps: torch.nn.BatchNorm1d parameter
-    :param momentum: torch.nn.BatchNorm1d parameter
-    :return: tensor of shape ``(n_out,)``
-    :rtype: :py:class:`torch.Tensor`
-    """
-
-    def __init__(
-        self,
-        num_features: int,
-        eps: float = 1e-05,
-        momentum: float = 0.1,
-        n_instances: int = 1,
-    ):
-        super().__init__()
-
-        self.batch_norms = ModuleList(
-            [nn.BatchNorm1d(num_features, eps, momentum) for _ in range(n_instances)]
-        )
-
-    def forward(self, x: torch.Tensor, instance_id: int = 0) -> torch.Tensor:
-        return self.batch_norms[instance_id](x)
-
-
 class FCLayers(nn.Module):
     r"""A helper class to build fully-connected layers for a neural network.
 
@@ -58,10 +24,7 @@ class FCLayers(nn.Module):
     :param n_layers: The number of fully-connected hidden layers
     :param n_hidden: The number of nodes per hidden layer
     :param dropout_rate: Dropout rate to apply to each of the hidden layers
-    :param n_batch_norm: Number of categories to conditionally batch normalize to (1 is
-             equivalent to vanilla batch norm, 0 no batch norm)
-             See `n_instances` in ConditionalInstanceNormalization for more information
-    :param use_batch_norm: Deprecated, use n_batch_norm=0 instead
+    :param use_batch_norm: Whether to have `BatchNorm` layers or not
     """
 
     def __init__(
@@ -73,7 +36,6 @@ class FCLayers(nn.Module):
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
         use_batch_norm: bool = True,
-        n_batch_norm: int = 1
     ):
         super().__init__()
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
@@ -84,9 +46,6 @@ class FCLayers(nn.Module):
         else:
             self.n_cat_list = []
 
-        if not use_batch_norm:
-            n_batch_norm = 0
-
         self.fc_layers = nn.Sequential(collections.OrderedDict(
             [('Layer {}'.format(i), nn.Sequential(
                 nn.Linear(n_in + sum(self.n_cat_list), n_out),
@@ -94,13 +53,7 @@ class FCLayers(nn.Module):
                 # the tensorflow implementation of batch norm; we're using those settings
                 # here too so that the results match our old tensorflow code. The default
                 # setting from pytorch would probably be fine too but we haven't tested that.
-                nn.BatchNorm1d(n_out, momentum=.01, eps=0.001) if n_batch_norm == 1 else None,
-                ConditionalInstanceNormalization(
-                    n_out,
-                    momentum=0.01,
-                    eps=0.001,
-                    n_instances=n_batch_norm
-                ) if n_batch_norm > 1 else None,
+                nn.BatchNorm1d(n_out, momentum=.01, eps=0.001) if use_batch_norm else None,
                 nn.ReLU(),
                 nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None))
              for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))]))
@@ -132,8 +85,6 @@ class FCLayers(nn.Module):
                             x = torch.cat([(layer(slice_x)).unsqueeze(0) for slice_x in x], dim=0)
                         else:
                             x = layer(x)
-                    elif isinstance(layer, ConditionalInstanceNormalization):
-                        x = layer(x, instance_id=instance_id)
                     else:
                         if isinstance(layer, nn.Linear):
                             if x.dim() == 3:
@@ -359,7 +310,7 @@ class MultiEncoder(nn.Module):
                     n_layers=n_layers_individual,
                     n_hidden=n_hidden,
                     dropout_rate=dropout_rate,
-                    n_batch_norm=1,
+                    use_batch_norm=True,
                 )
                 for i in range(n_heads)
             ]
@@ -391,7 +342,6 @@ class MultiEncoder(nn.Module):
 class MultiDecoder(nn.Module):
     def __init__(
         self,
-        n_dataset: int,
         n_input: int,
         n_output: int,
         n_hidden_conditioned: int = 32,
@@ -412,7 +362,7 @@ class MultiDecoder(nn.Module):
                 n_layers=n_layers_conditioned,
                 n_hidden=n_hidden_conditioned,
                 dropout_rate=dropout_rate,
-                n_batch_norm=n_dataset,
+                use_batch_norm=True,
             )
             n_in = n_out
         else:
@@ -427,7 +377,7 @@ class MultiDecoder(nn.Module):
                 n_layers=n_layers_shared,
                 n_hidden=n_hidden_shared,
                 dropout_rate=dropout_rate,
-                n_batch_norm=1,
+                use_batch_norm=True,
             )
             n_in = n_hidden_shared
         else:
