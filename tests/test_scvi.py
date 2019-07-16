@@ -1,7 +1,6 @@
 import numpy as np
 
-from scvi.benchmark import all_benchmarks, benchmark_fish_scrna, ldvae_benchmark
-from scvi.dataset import CortexDataset, SyntheticDataset, SmfishDataset
+from scvi.dataset import CortexDataset, SyntheticDataset
 from scvi.inference import (
     JointSemiSupervisedTrainer,
     AlternateSemiSupervisedTrainer,
@@ -10,7 +9,7 @@ from scvi.inference import (
     AdapterTrainer,
 )
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
-from scvi.models import VAE, SCANVI, VAEC
+from scvi.models import VAE, SCANVI, VAEC, LDVAE
 from scvi.models.classifier import Classifier
 
 use_cuda = True
@@ -35,16 +34,15 @@ def test_cortex(save_path):
         n_samples=1, show_plot=False, title_plot="imputation", save_path=save_path
     )
     full = trainer_cortex_vae.create_posterior(
-        vae,
-        cortex_dataset,
-        indices=np.arange(len(cortex_dataset))
+        vae, cortex_dataset, indices=np.arange(len(cortex_dataset))
     )
     x_new, x_old = full.generate(n_samples=10)
     assert x_new.shape == (cortex_dataset.nb_cells, cortex_dataset.nb_genes, 10)
     assert x_old.shape == (cortex_dataset.nb_cells, cortex_dataset.nb_genes)
 
-    trainer_cortex_vae.train_set.imputation_benchmark(n_samples=1, show_plot=False,
-                                                      title_plot='imputation', save_path=save_path)
+    trainer_cortex_vae.train_set.imputation_benchmark(
+        n_samples=1, show_plot=False, title_plot="imputation", save_path=save_path
+    )
 
     svaec = SCANVI(
         cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels
@@ -142,13 +140,6 @@ def test_synthetic_2():
     trainer_synthetic_vaec.train(n_epochs=2)
 
 
-def test_fish_rna(save_path):
-    gene_dataset_fish = SmfishDataset(save_path)
-    gene_dataset_seq = CortexDataset(save_path=save_path, genes_to_keep=gene_dataset_fish.gene_names,
-                                     total_genes=gene_dataset_fish.nb_genes + 50)
-    benchmark_fish_scrna(gene_dataset_seq, gene_dataset_fish)
-
-
 def base_benchmark(gene_dataset):
     vae = VAE(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels)
     trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=0.5, use_cuda=use_cuda)
@@ -156,8 +147,16 @@ def base_benchmark(gene_dataset):
     return trainer
 
 
-def test_all_benchmarks(save_path):
-    all_benchmarks(n_epochs=1, save_path=save_path, show_plot=False)
+def ldvae_benchmark(dataset, n_epochs, use_cuda=True):
+    ldvae = LDVAE(dataset.nb_genes, n_batch=dataset.n_batches)
+    trainer = UnsupervisedTrainer(ldvae, dataset, use_cuda=use_cuda)
+    trainer.train(n_epochs=n_epochs)
+    trainer.test_set.reconstruction_error()
+    trainer.test_set.marginal_ll()
+
+    ldvae.get_loadings()
+
+    return trainer
 
 
 def test_synthetic_3():
