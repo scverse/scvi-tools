@@ -513,7 +513,7 @@ class GeneExpressionDataset(Dataset):
     #############################
 
     def __len__(self):
-        return self.X.shape[0]
+        return self.nb_cells
 
     def __getitem__(self, idx):
         """Implements @abstractcmethod in ``torch.utils.data.dataset.Dataset`` ."""
