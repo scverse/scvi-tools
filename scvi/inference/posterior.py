@@ -549,12 +549,15 @@ class Posterior:
         x_new = []
         for tensors in self.update({"batch_size": batch_size}):
             sample_batch, _, _, batch_index, labels = tensors
-            px_dispersion, px_rate, px_dropout = self.model.inference(
+            outputs = self.model.inference(
                 sample_batch,
                 batch_index=batch_index,
                 y=labels,
                 n_samples=n_samples
-            )[1:4]
+            )
+            px_dispersion = outputs['px_r']
+            px_rate = outputs['px_rate']
+            px_dropout = outputs['px_dropout']
 
             p = px_rate / (px_rate + px_dispersion)
             r = px_dispersion
@@ -589,8 +592,16 @@ class Posterior:
         dispersion_list = []
         for tensors in self.sequential(1000):
             sample_batch, _, _, batch_index, labels = tensors
-            px_dispersion, px_rate, px_dropout = self.model.inference(sample_batch, batch_index=batch_index, y=labels,
-                                                                      n_samples=1)[1:4]
+
+            outputs = self.model.inference(
+                sample_batch,
+                batch_index=batch_index,
+                y=labels,
+                n_samples=1
+            )
+            px_dispersion = outputs['px_r']
+            px_rate = outputs['px_rate']
+            px_dropout = outputs['px_dropout']
 
             dispersion_list += [np.repeat(np.array(px_dispersion.cpu())[np.newaxis, :], px_rate.size(0), axis=0)]
             mean_list += [np.array(px_rate.cpu())]
@@ -603,8 +614,7 @@ class Posterior:
         libraries = []
         for tensors in self.sequential(batch_size=128):
             x, local_l_mean, local_l_var, batch_index, y = tensors
-            px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library = \
-                self.model.inference(x, batch_index, y)
+            library = self.model.inference(x, batch_index, y)['library']
             libraries += [np.array(library.cpu())]
         libraries = np.concatenate(libraries)
         return libraries.ravel()

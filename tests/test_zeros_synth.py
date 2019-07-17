@@ -85,8 +85,12 @@ def test_model_fit(model_fit: bool):
         for tensors in full.sequential():
             # TODO: Properly sample posterior
             sample_batch, _, _, batch_index, labels = tensors
-            px_scale, px_dispersion, px_rate, px_dropout, qz_m, qz_v, z, ql_m, ql_v, library = mdl.inference(
-                sample_batch, batch_index)
+            outputs = mdl.inference(sample_batch, batch_index)
+            px_dispersion = outputs['px_r']
+            px_rate = outputs['px_rate']
+            px_dropout = outputs['px_dropout']
+            z = outputs['z']
+
             p_zero = 1.0 / (1.0 + torch.exp(-px_dropout))
             p_dropout_infered.append(p_zero.cpu().numpy())
 

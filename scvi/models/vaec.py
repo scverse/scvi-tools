@@ -79,7 +79,12 @@ class VAEC(VAE):
         )
 
         # Sampling
-        px_scale, px_r, px_rate, px_dropout, qz_m, qz_v, z, _, _, _ = self.inference(xs, batch_index_s, ys)
+        outputs = self.inference(xs, batch_index_s, ys)
+        px_r = outputs['px_r']
+        px_rate = outputs['px_rate']
+        px_dropout = outputs['px_dropout']
+        qz_m = outputs['qz_m']
+        qz_v = outputs['qz_v']
         reconst_loss = self.get_reconstruction_loss(xs, px_rate, px_r, px_dropout)
 
         # KL Divergence
