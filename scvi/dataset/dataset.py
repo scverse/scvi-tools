@@ -76,7 +76,7 @@ class GeneExpressionDataset(Dataset):
         self._norm_X = None
         self._corrupted_X = None
 
-        # attributes that should not be set by initilalization methods
+        # attributes that should not be set by initialization methods
         self.protected_attributes = ["X"]
 
     def __repr__(self) -> str:
@@ -114,6 +114,7 @@ class GeneExpressionDataset(Dataset):
         cell_types: Union[List[str], np.ndarray] = None,
         cell_attributes_dict: Dict[str, Union[List, np.ndarray]] = None,
         gene_attributes_dict: Dict[str, Union[List, np.ndarray]] = None,
+        remap_attributes: bool = True,
     ):
         """Populates the data attributes of a GeneExpressionDataset object from a (nb_cells, nb_genes) matrix.
 
@@ -129,6 +130,8 @@ class GeneExpressionDataset(Dataset):
         :param cell_types: Maps each integer label in ``labels`` to a cell type.
         :param cell_attributes_dict: ``List`` or ``np.ndarray`` with shape (nb_cells,).
         :param gene_attributes_dict: ``List`` or ``np.ndarray`` with shape (nb_genes,).
+        :param remap_attributes: If set to True (default), the function calls
+                                 `remap_categorical_attributes` at the end
         """
         # set the data hidden attribute
         self._X = (
@@ -156,16 +159,16 @@ class GeneExpressionDataset(Dataset):
 
         if gene_names is not None:
             self.initialize_gene_attribute(
-                "gene_names", np.char.upper(np.asarray(gene_names, dtype=np.str))
+                "gene_names", np.char.upper(np.asarray(gene_names, dtype="<U64"))
             )
         if cell_types is not None:
             self.initialize_mapped_attribute(
-                "labels", "cell_types", np.asarray(cell_types, dtype=np.str)
+                "labels", "cell_types", np.asarray(cell_types, dtype="<U128")
             )
         # add dummy cell type, for consistency with labels
         elif labels is None:
             self.initialize_mapped_attribute(
-                "labels", "cell_types", np.asarray(["undefined"], dtype=np.str)
+                "labels", "cell_types", np.asarray(["undefined"], dtype="<U128")
             )
 
         # handle additional attributes
@@ -179,7 +182,8 @@ class GeneExpressionDataset(Dataset):
             for attribute_name, attribute_value in gene_attributes_dict.items():
                 self.initialize_gene_attribute(attribute_name, attribute_value)
 
-        self.remap_categorical_attributes()
+        if remap_attributes:
+            self.remap_categorical_attributes()
 
     def populate_from_per_batch_list(
         self,
@@ -187,6 +191,7 @@ class GeneExpressionDataset(Dataset):
         labels_per_batch: Union[np.ndarray, List[np.ndarray]] = None,
         gene_names: Union[List[str], np.ndarray] = None,
         cell_types: Union[List[str], np.ndarray] = None,
+        remap_attributes: bool = True,
     ):
         """Populates the data attributes of a GeneExpressionDataset object from a ``n_batches``-long
             ``list`` of (nb_cells, nb_genes) matrices.
@@ -195,6 +200,8 @@ class GeneExpressionDataset(Dataset):
         :param labels_per_batch: list of cell-wise labels for each batch.
         :param gene_names: gene names, stored as ``str``.
         :param cell_types: cell types, stored as ``str``.
+        :param remap_attributes: If set to True (default), the function calls
+                                 `remap_categorical_attributes` at the end
         """
         nb_genes = Xs[0].shape[1]
         if not all(X.shape[1] == nb_genes for X in Xs):
@@ -216,6 +223,7 @@ class GeneExpressionDataset(Dataset):
             labels=labels,
             gene_names=gene_names,
             cell_types=cell_types,
+            remap_attributes=remap_attributes,
         )
 
     def populate_from_per_label_list(
@@ -223,6 +231,7 @@ class GeneExpressionDataset(Dataset):
         Xs: List[Union[sp_sparse.csr_matrix, np.ndarray]],
         batch_indices_per_label: List[Union[List[int], np.ndarray]] = None,
         gene_names: Union[List[str], np.ndarray] = None,
+        remap_attributes: bool = True,
     ):
         """Populates the data attributes of a GeneExpressionDataset object from a ``n_labels``-long
             ``list`` of (nb_cells, nb_genes) matrices.
@@ -230,6 +239,8 @@ class GeneExpressionDataset(Dataset):
         :param Xs: RNA counts in the form of a list of np.ndarray with shape (..., nb_genes)
         :param batch_indices_per_label: cell-wise batch indices, for each cell label.
         :param gene_names: gene names, stored as ``str``.
+        :param remap_attributes: If set to True (default), the function calls
+                                 `remap_categorical_attributes` at the end
         """
         nb_genes = Xs[0].shape[1]
         if not all(X.shape[1] == nb_genes for X in Xs):
@@ -249,7 +260,11 @@ class GeneExpressionDataset(Dataset):
         )
 
         self.populate_from_data(
-            X=X, batch_indices=batch_indices, labels=labels, gene_names=gene_names
+            X=X,
+            batch_indices=batch_indices,
+            labels=labels,
+            gene_names=gene_names,
+            remap_attributes=remap_attributes,
         )
 
     def populate_from_datasets(
@@ -498,7 +513,7 @@ class GeneExpressionDataset(Dataset):
     #############################
 
     def __len__(self):
-        return self.X.shape[0]
+        return self.nb_cells
 
     def __getitem__(self, idx):
         """Implements @abstractcmethod in ``torch.utils.data.dataset.Dataset`` ."""
@@ -572,8 +587,13 @@ class GeneExpressionDataset(Dataset):
         self._corrupted_X = corrupted_X
         self.register_dataset_version("corrupted_X")
 
-    def remap_categorical_attributes(self):
-        for attribute_name in self.cell_categorical_attribute_names:
+    def remap_categorical_attributes(
+        self, attributes_to_remap: Optional[List[str]] = None
+    ):
+        if attributes_to_remap is None:
+            attributes_to_remap = self.cell_categorical_attribute_names
+
+        for attribute_name in attributes_to_remap:
             logger.info("Remapping %s to [0,N]" % attribute_name)
             attr = getattr(self, attribute_name)
             mappings_dict = {
@@ -851,9 +871,7 @@ class GeneExpressionDataset(Dataset):
             Or boolean array used as a mask-like index.
         """
         new_nb_genes = (
-            len(subset_genes)
-            if subset_genes.dtype is not np.bool
-            else subset_genes.sum()
+            len(subset_genes) if subset_genes.dtype != np.bool else subset_genes.sum()
         )
         logger.info(
             "Downsampling from {nb_genes} to {new_nb_genes} genes".format(
@@ -875,21 +893,32 @@ class GeneExpressionDataset(Dataset):
         logger.info("Filtering non-expressing cells.")
         self.filter_cells_by_count()
 
-    def reorder_genes(self, first_genes: Union[List[str], np.ndarray]):
+    def reorder_genes(
+        self,
+        first_genes: Union[List[str], np.ndarray],
+        drop_omitted_genes: bool = False,
+    ):
         """Performs a in-place reordering of genes and gene-related attributes.
 
         Reorder genes according to the ``first_genes`` list of gene names.
         Consequently, modifies in-place the data ``X`` and the registered gene attributes.
 
         :param first_genes: New ordering of the genes; if some genes are missing, they will be added after the
-                            first_genes in the same order as they were before
+                            first_genes in the same order as they were before if `drop_omitted_genes` is False
+        :param drop_omitted_genes: Whether to keep or drop the omitted genes in `first_genes`
         """
 
-        _, _, new_order_first = np.intersect1d(
-            first_genes, self.gene_names, return_indices=True
-        )
-        new_order_second = [x for x in range(self.nb_genes) if x not in new_order_first]
-        new_order = np.hstack([new_order_first, new_order_second])
+        look_up = dict([(gene, index) for index, gene in enumerate(self.gene_names)])
+        new_order_first = [look_up[gene] for gene in first_genes]
+
+        if not drop_omitted_genes:
+            new_order_second = [
+                x for x in range(self.nb_genes) if x not in new_order_first
+            ]
+        else:
+            new_order_second = []
+
+        new_order = np.hstack([new_order_first, new_order_second]).astype(int)
 
         # update datasets
         self.X = self.X[:, new_order]
@@ -966,10 +995,8 @@ class GeneExpressionDataset(Dataset):
         cell_types = np.asarray(cell_types)
         if isinstance(cell_types[0], str):
             labels_to_keep = self.cell_types_to_labels(cell_types)
-
         elif isinstance(cell_types[0], (int, np.integer)):
             labels_to_keep = cell_types
-
         else:
             raise ValueError(
                 "Wrong dtype for cell_types. Should be either str or int (labels)."
@@ -1049,23 +1076,23 @@ class GeneExpressionDataset(Dataset):
         new_cell_type_name: str,
     ):
         """Merges some cell types into a new one, and changes the labels accordingly.
-
-        If ``new_cell_type_name`` is None, the first cell-type
-        to merge is used as the name for the new cell-type.
+        The old cell types are not erased but '#merged' is appended to their names
 
         :param cell_types: Cell types to merge.
         :param new_cell_type_name: Name for the new aggregate cell type.
         """
-        if new_cell_type_name in self.cell_types:
-            raise ValueError("New cell type name already used.")
         if not len(cell_types):
             raise ValueError("No cell types to merge.")
-        if type(cell_types[0]) == str:
+        if isinstance(cell_types[0], np.str):
             labels_subset = self.cell_types_to_labels(cell_types)
         else:
-            labels_subset = cell_types
+            labels_subset = np.asarray(cell_types)
+
         self.labels[np.isin(self.labels, labels_subset)] = len(self.cell_types)
         self.cell_types = np.concatenate([self.cell_types, [new_cell_type_name]])
+        self.cell_types[labels_subset] = np.char.add(
+            self.cell_types[labels_subset], "#merged"
+        )
 
     def cell_types_to_labels(
         self, cell_types: Union[List[str], np.ndarray]
@@ -1089,6 +1116,24 @@ class GeneExpressionDataset(Dataset):
         """
         for cell_types, new_cell_type_name in cell_types_dict.items():
             self.merge_cell_types(cell_types, new_cell_type_name)
+
+    def reorder_cell_types(self, new_order: Union[List[str], np.ndarray]):
+        """Reorder in place the cell-types. The cell-types provided will be added at the beginning of `cell_types`
+        attribute, such that if some existing cell-types are omitted in `new_order`, they will be left after the
+        new given order
+
+        :param new_order:
+        """
+        if isinstance(new_order, np.ndarray):
+            new_order = new_order.tolist()
+
+        for cell_type in self.cell_types:
+            if cell_type not in new_order:
+                new_order.append(cell_type)
+
+        cell_types = OrderedDict([((x,), x) for x in new_order])
+        self.map_cell_types(cell_types)
+        self.remap_categorical_attributes(["labels"])
 
     #############################
     #                           #

@@ -171,7 +171,7 @@ class PurifiedPBMCDataset(DownloadableDataset):
                 remove_extracted_data=self.remove_extracted_data,
             )
             dataset.initialize_mapped_attribute(
-                "labels", "cell_types", np.asarray([dataset_name], dtype=np.str)
+                "labels", "cell_types", np.asarray([dataset_name], dtype="<U128")
             )
             datasets += [dataset]
         self.populate_from_datasets(datasets)
