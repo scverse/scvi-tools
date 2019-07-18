@@ -295,12 +295,14 @@ class TestGeneExpressionDataset(TestCase):
         gene_names = np.array(["gene_%d" % i for i in range(100)])
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, gene_names=gene_names)
-        dataset.reorder_genes(["GENE_2", "GENE_47"])
-        # New order should be 2, 47, 0, 1, 3
+        dataset.reorder_genes(["GENE_47", "GENE_2", "GENE_3", "GENE_12"])
+        # New order should be 47, 2, 3, 12, 0, 1, ...
         self.assertListEqual(
-            list(dataset.gene_names[0:5]),
-            ["GENE_2", "GENE_47", "GENE_0", "GENE_1", "GENE_3"],
+            list(dataset.gene_names[0:6]),
+            ["GENE_47", "GENE_2", "GENE_3", "GENE_12", "GENE_0", "GENE_1"],
         )
+
+        self.assertRaises(KeyError, dataset.reorder_genes, ["GENE_101"])
 
     def test_genes_to_idx(self):
         data = np.random.randint(1, 5, size=(5, 10))

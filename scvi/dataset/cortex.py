@@ -19,7 +19,8 @@ class CortexDataset(DownloadableDataset):
 
     :param save_path: Path indicating where to save/load data.
     :param genes_to_keep: Gene names to keep.
-    :param total_genes: Total number of genes to keep. If None, use all genes.
+    :param total_genes: Total number of genes to keep.
+           If None and genes_to_keep is empty/None, all genes are loaded.
     :param delayed_populating: Boolean switch for delayed population mechanism.
 
     Examples:
@@ -28,6 +29,7 @@ class CortexDataset(DownloadableDataset):
     .. _Mouse Cortex Cells dataset:
         https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt
     """
+
     def __init__(
         self,
         save_path: str = "data/",
@@ -42,7 +44,7 @@ class CortexDataset(DownloadableDataset):
 
         super().__init__(
             urls="https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs"
-                 "/cortex/expression_mRNA_17-Aug-2014.txt",
+            "/cortex/expression_mRNA_17-Aug-2014.txt",
             filenames="expression.bin",
             save_path=save_path,
             delayed_populating=delayed_populating,
@@ -65,23 +67,26 @@ class CortexDataset(DownloadableDataset):
         cell_types, labels = np.unique(clusters, return_inverse=True)
         _, self.precise_labels = np.unique(precise_clusters, return_inverse=True)
         X = np.asarray(rows, dtype=np.int).T[1:]
-        gene_names = np.asarray(gene_names, dtype=np.str)
+        gene_names = np.char.upper(np.asarray(gene_names, dtype=np.str))
         gene_indices = []
         if self.genes_to_keep is not None:
-            _, gene_indices, _ = np.intersect1d(
-                self.genes_to_keep, gene_names, return_indices=True
+            look_up = dict([(g, i) for i, g in enumerate(gene_names)])
+            gene_indices = np.array(
+                [look_up[g] for g in self.genes_to_keep], dtype=np.int
             )
 
         nb_gene_indices = len(gene_indices)
         extra_gene_indices = []
         if self.total_genes is not None and nb_gene_indices < self.total_genes:
-            not_gene_indices_mask = np.ones(X.shape[1], dtype=np.bool)
-            not_gene_indices_mask[gene_indices] = False
-            genes_by_variance = np.std(X[:, not_gene_indices_mask], axis=0).argsort()[::-1]
-            extra_gene_indices = genes_by_variance[: self.total_genes - len(gene_indices)]
-
-        gene_indices = np.concatenate([gene_indices, extra_gene_indices]).astype(np.int32)
-        if self.total_genes is None and self.genes_to_keep is None:
+            all_genes_by_var = np.std(X, axis=0).argsort()[::-1]
+            extra_genes_by_var = [i for i in all_genes_by_var if i not in gene_indices]
+            extra_gene_indices = extra_genes_by_var[
+                : self.total_genes - len(gene_indices)
+            ]
+        gene_indices = np.concatenate([gene_indices, extra_gene_indices]).astype(
+            np.int32
+        )
+        if gene_indices.size == 0:
             gene_indices = slice(None)
 
         X = X[:, gene_indices]
@@ -93,5 +98,5 @@ class CortexDataset(DownloadableDataset):
             labels=labels,
             gene_names=gene_names,
             cell_types=cell_types,
-            cell_attributes_dict={"precise_labels": precise_clusters}
+            cell_attributes_dict={"precise_labels": precise_clusters},
         )

@@ -1,7 +1,9 @@
 import logging
 import os
+from typing import List, Optional
 
 import loompy
+import numpy as np
 
 from scvi.dataset.dataset import DownloadableDataset
 
@@ -36,14 +38,17 @@ class LoomDataset(DownloadableDataset):
         url: str = None,
         batch_indices_attribute_name: str = "BatchID",
         labels_attribute_name: str = "ClusterID",
+        encode_labels_name_into_int: bool = False,
         gene_names_attribute_name: str = "Gene",
         cell_types_attribute_name: str = "CellTypes",
         delayed_populating: bool = False,
     ):
         self.batch_indices_attribute_name = batch_indices_attribute_name
         self.labels_attribute_name = labels_attribute_name
+        self.encode_labels_name_into_int = encode_labels_name_into_int
         self.gene_names_attribute_name = gene_names_attribute_name
         self.cell_types_attribute_name = cell_types_attribute_name
+        self.global_attributes_dict = None
         super().__init__(
             urls=url,
             filenames=filename,
@@ -72,7 +77,9 @@ class LoomDataset(DownloadableDataset):
             if row_attribute_name == self.gene_names_attribute_name:
                 gene_names = ds.ra[self.gene_names_attribute_name]
             else:
-                gene_attributes_dict = gene_attributes_dict if gene_attributes_dict is not None else {}
+                gene_attributes_dict = (
+                    gene_attributes_dict if gene_attributes_dict is not None else {}
+                )
                 gene_attributes_dict[row_attribute_name] = ds.ra[row_attribute_name]
 
         for column_attribute_name in ds.ca:
@@ -81,7 +88,9 @@ class LoomDataset(DownloadableDataset):
             elif column_attribute_name == self.labels_attribute_name:
                 labels = ds.ca[self.labels_attribute_name][select]
             else:
-                cell_attributes_dict = cell_attributes_dict if cell_attributes_dict is not None else {}
+                cell_attributes_dict = (
+                    cell_attributes_dict if cell_attributes_dict is not None else {}
+                )
                 cell_attributes_dict[column_attribute_name] = ds.ca[
                     column_attribute_name
                 ][select]
@@ -90,11 +99,24 @@ class LoomDataset(DownloadableDataset):
             if global_attribute_name == self.cell_types_attribute_name:
                 cell_types = ds.attrs[self.cell_types_attribute_name]
             else:
-                global_attributes_dict = global_attributes_dict if global_attributes_dict is not None else {}
-                global_attributes_dict[global_attribute_name] = ds.attrs[global_attribute_name]
+                global_attributes_dict = (
+                    global_attributes_dict if global_attributes_dict is not None else {}
+                )
+                global_attributes_dict[global_attribute_name] = ds.attrs[
+                    global_attribute_name
+                ]
 
         if global_attributes_dict is not None:
             self.global_attributes_dict = global_attributes_dict
+
+        if (
+            self.encode_labels_name_into_int
+            and labels is not None
+            and cell_types is not None
+        ):
+            mapping = dict((v, k) for k, v in enumerate(cell_types))
+            mapper = np.vectorize(lambda x: mapping[x])
+            labels = mapper(labels)
 
         data = ds[:, select].T  # change matrix to cells by genes
         ds.close()
@@ -146,3 +168,54 @@ class RetinaDataset(LoomDataset):
             "BC4",
             "BC8_9",
         ]
+
+
+class PreFrontalCortexStarmapDataset(LoomDataset):
+    """ Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex (Wang et al., 2018)
+    """
+
+    def __init__(self, save_path: str = "data/", delayed_populating: bool = False):
+
+        super().__init__(
+            filename="mpfc-starmap.loom",
+            save_path=save_path,
+            url="https://github.com/YosefLab/scVI-data/raw/master/mpfc-starmap.loom",
+            labels_attribute_name="Clusters",
+            encode_labels_name_into_int=True,
+            delayed_populating=delayed_populating,
+        )
+
+        self.initialize_cell_attribute("x_coord", self.Spatial_coordinates[:, 0])
+        self.initialize_cell_attribute("y_coord", self.Spatial_coordinates[:, 1])
+
+
+class FrontalCortexDropseqDataset(LoomDataset):
+    """"Load the cells from the mouse frontal cortex sequenced by the Dropseq technology (Saunders et al., 2018)
+
+    Load the 71639 annotated cells located in the frontal cortex of adult mouses among the 690,000 cells
+    studied by (Saunders et al., 2018) using the Drop-seq method. We have a 71639*7611 gene expression matrix
+    Among the 7611 genes, we offer the user to provide a list of genes to subsample from. If not provided,
+    all genes are kept.
+    """
+
+    def __init__(
+        self,
+        save_path: str = "data/",
+        genes_to_keep: Optional[List[str]] = None,
+        delayed_populating: bool = False,
+    ):
+
+        super().__init__(
+            filename="fc-dropseq.loom",
+            save_path=save_path,
+            url="https://github.com/YosefLab/scVI-data/raw/master/fc-dropseq.loom",
+            labels_attribute_name="Clusters",
+            delayed_populating=delayed_populating,
+        )
+
+        if genes_to_keep is not None:
+            self.reorder_genes(genes_to_keep, drop_omitted_genes=True)
+
+        # reorder labels such that layers of the cortex are in order
+        order_labels = [5, 6, 3, 2, 4, 0, 1, 8, 7, 9, 10, 11, 12, 13]
+        self.reorder_cell_types(self.cell_types[order_labels])

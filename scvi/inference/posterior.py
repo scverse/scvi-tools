@@ -118,6 +118,13 @@ class Posterior:
         else:
             return np.arange(len(self.gene_dataset))
 
+    @property
+    def nb_cells(self):
+        if hasattr(self.data_loader.sampler, "indices"):
+            return len(self.data_loader.sampler.indices)
+        else:
+            return self.gene_dataset.nb_cells
+
     def __iter__(self):
         return map(self.to_cuda, iter(self.data_loader))
 
