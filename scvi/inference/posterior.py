@@ -555,12 +555,12 @@ class Posterior:
                 y=labels,
                 n_samples=n_samples
             )
-            px_dispersion = outputs['px_r']
+            px_r = outputs['px_r']
             px_rate = outputs['px_rate']
             px_dropout = outputs['px_dropout']
 
-            p = px_rate / (px_rate + px_dispersion)
-            r = px_dispersion
+            p = px_rate / (px_rate + px_r)
+            r = px_r
             # Important remark: Gamma is parametrized by the rate = 1/scale!
             l_train = distributions.Gamma(concentration=r, rate=(1 - p) / p).sample()
             # Clamping as distributions objects can have buggy behaviors when
@@ -599,11 +599,11 @@ class Posterior:
                 y=labels,
                 n_samples=1
             )
-            px_dispersion = outputs['px_r']
+            px_r = outputs['px_r']
             px_rate = outputs['px_rate']
             px_dropout = outputs['px_dropout']
 
-            dispersion_list += [np.repeat(np.array(px_dispersion.cpu())[np.newaxis, :], px_rate.size(0), axis=0)]
+            dispersion_list += [np.repeat(np.array(px_r.cpu())[np.newaxis, :], px_rate.size(0), axis=0)]
             mean_list += [np.array(px_rate.cpu())]
             dropout_list += [np.array(px_dropout.cpu())]
 

@@ -86,7 +86,7 @@ def test_model_fit(model_fit: bool):
             # TODO: Properly sample posterior
             sample_batch, _, _, batch_index, labels = tensors
             outputs = mdl.inference(sample_batch, batch_index)
-            px_dispersion = outputs['px_r']
+            px_r = outputs['px_r']
             px_rate = outputs['px_rate']
             px_dropout = outputs['px_dropout']
             z = outputs['z']
@@ -98,8 +98,8 @@ def test_model_fit(model_fit: bool):
                                         device=sample_batch.device)
 
             for n_mc_sim in range(n_mc_sim_total):
-                p = px_rate / (px_rate + px_dispersion)
-                r = px_dispersion
+                p = px_rate / (px_rate + px_r)
+                r = px_r
                 l_train = torch.distributions.Gamma(concentration=r, rate=(1 - p) / p).sample()
                 l_train = torch.clamp(l_train, max=1e18)
                 X = torch.distributions.Poisson(l_train).sample()
