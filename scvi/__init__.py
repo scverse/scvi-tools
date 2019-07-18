@@ -10,8 +10,12 @@ __version__ = '0.3.0'
 import logging
 from logging import NullHandler
 
-from ._settings import set_global_verbosity
+from ._settings import set_verbosity
 
-logging.getLogger(__name__).addHandler(NullHandler())
+logger = logging.getLogger(__name__)
+logger.addHandler(NullHandler())
 
-__all__ = ["set_global_verbosity"]
+# default to INFO level logging for the scvi package
+set_verbosity(logging.INFO)
+
+__all__ = ["set_verbosity"]

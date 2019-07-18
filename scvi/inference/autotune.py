@@ -32,6 +32,9 @@ from . import Trainer, UnsupervisedTrainer
 multiprocessing.set_start_method("spawn", force=True)
 
 # instantiate logger, handler and formatter
+# logger_all is used to send *all* autotune logs to a logfile
+logger_all = logging.getLogger(__name__ + ".all")
+logger_all.setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 formatter = logging.Formatter(
     "[%(asctime)s - %(processName)s - %(threadName)s] %(levelname)s - %(name)s\n%(message)s"
@@ -84,36 +87,36 @@ def _cleanup_processes_files():
 
     Terminates processes, sets stop events to stop threads, closes open files.
     """
-    logger.info("Cleaning up")
-    logger.debug("Cleaning up: closing files.")
+    logger_all.info("Cleaning up")
+    logger_all.debug("Cleaning up: closing files.")
     for f in open_files[::-1]:
         if not f.closed:
             f.close()
-    logger.debug("Cleaning up: closing queues.")
+    logger_all.debug("Cleaning up: closing queues.")
     for q in started_queues:
         q.close()
-    logger.debug("Cleaning up: setting cleanup_event and joining threads.")
+    logger_all.debug("Cleaning up: setting cleanup_event and joining threads.")
     for t in started_threads[::-1]:
         if t.is_alive():
-            logger.debug("Closing Thread {}.".format(t.name))
+            logger_all.debug("Closing Thread {}.".format(t.name))
             t.stop_event.set()
             t.join()
         else:
-            logger.debug("Thread {} already done.".format(t.name))
-    logger.debug("Cleaning up: terminating processes.")
+            logger_all.debug("Thread {} already done.".format(t.name))
+    logger_all.debug("Cleaning up: terminating processes.")
     for p in started_processes[::-1]:
         if isinstance(p, Popen):
             if p.poll() is not None:
-                logger.debug("Terminating Mongo process.")
+                logger_all.debug("Terminating Mongo process.")
                 p.terminate()
             else:
-                logger.debug("Mongo process already done.")
+                logger_all.debug("Mongo process already done.")
         if isinstance(p, multiprocessing.Process):
             if p.is_alive():
-                logger.debug("Terminating Process {}.".format(p.name))
+                logger_all.debug("Terminating Process {}.".format(p.name))
                 p.terminate()
             else:
-                logger.debug("Process {} already done.".format(p.name))
+                logger_all.debug("Process {} already done.".format(p.name))
         if isinstance(p, QueueListener):
             if p._thread is not None and not p.queue._closed:
                 p.stop()
@@ -121,23 +124,21 @@ def _cleanup_processes_files():
 
 def _cleanup_logger():
     """Removes added handlers."""
-    logger.debug("Cleaning up: removing added logging handler.")
+    logger_all.debug("Cleaning up: removing added logging handler.")
     hp_logger = logging.getLogger("hyperopt")
     for handler in hp_logger.handlers:
         if handler == fh_hyperopt:
-            logger.debug("Cleaning up: removing hyperopt FileHandler.")
+            logger_all.debug("Cleaning up: removing hyperopt FileHandler.")
             hp_logger.removeHandler(fh_hyperopt)
             break
-    to_remove = []
-    for handler in logger.handlers[::-1]:
+    for handler in logger_all.handlers:
+        if handler == fh_autotune:
+            logger_all.debug("Cleaning up: removing autotune FileHandler.")
+            logger_all.removeHandler(fh_autotune)
+    for handler in logger.handlers:
         if handler == ch:
-            logger.debug("Cleaning up: removing autotune StreamHandler.")
-            to_remove.append(ch)
-        elif handler == fh_autotune:
-            logger.debug("Cleaning up: removing autotune FileHandler.")
-            to_remove.append(fh_autotune)
-    for handler in to_remove:
-        logger.removeHandler(handler)
+            logger_all.debug("Cleaning up: removing autotune StreamHandler.")
+            logger.removeHandler(ch)
 
 
 def _cleanup_decorator(func: Callable):
@@ -148,7 +149,7 @@ def _cleanup_decorator(func: Callable):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            logger.exception(
+            logger_all.exception(
                 "Caught {exception} in {func}, starting cleanup.".format(
                     exception=e.args, func=func.__name__
                 )
@@ -167,7 +168,7 @@ def configure_asynchronous_logging(logging_queue: multiprocessing.Queue):
     queue_handler = QueueHandler(logging_queue)
     queue_handler.setLevel(logging.DEBUG)
     root_logger.addHandler(queue_handler)
-    logger.debug("Asynchronous logging has been set.")
+    logger_all.debug("Asynchronous logging has been set.")
 
 
 @_cleanup_decorator
@@ -279,16 +280,19 @@ def auto_tune_scvi_model(
     global fh_autotune
 
     # if no handlers add console handler
-    if len(logger.handlers) < 1:
+    if len(logger_all.handlers) == 0:
         logger.addHandler(ch)
-        logger.debug(
-            "Logger {} has no specific handler - added the default StreamHandler.".format(
+        logger_all.debug(
+            "Logger {} has no specific handler - added the default StreamHandler "
+            "and set `propagate` to False to avoid duplicate logging.".format(
                 __name__
             )
         )
+        logger.propagate = False
+
     else:
         # if no formatter add default module formatter
-        for handler in logger.handlers:
+        for handler in logger_all.handlers:
             if not handler.formatter:
                 handler.setFormatter(formatter)
 
@@ -298,7 +302,7 @@ def auto_tune_scvi_model(
     )
     fh_autotune.setFormatter(formatter)
     fh_autotune.setLevel(logging.DEBUG)
-    logger.addHandler(fh_autotune)
+    logger_all.addHandler(fh_autotune)
 
     if delayed_populating and not isinstance(gene_dataset, DownloadableDataset):
         raise ValueError(
@@ -307,17 +311,17 @@ def auto_tune_scvi_model(
         )
 
     if fmin_timer and train_best:
-        logger.warning(
+        logger_all.warning(
             "fmin_timer and train_best are both set to True. "
             "This means that runtime will exceed fmin_timer "
             "by at least the time it takes to complete a full training."
         )
 
-    logger.info("Starting experiment: {exp_key}".format(exp_key=exp_key))
+    logger_all.info("Starting experiment: {exp_key}".format(exp_key=exp_key))
 
     # default search space
     if space is None:
-        logger.debug("Using default parameter search space.")
+        logger_all.debug("Using default parameter search space.")
         space = {
             "model_tunable_kwargs": {
                 "n_latent": 5 + hp.randint("n_latent", 11),  # [5, 15]
@@ -349,7 +353,7 @@ def auto_tune_scvi_model(
 
         # default early stopping
         if "early_stopping_kwargs" not in trainer_specific_kwargs:
-            logger.debug("Adding default early stopping behaviour.")
+            logger_all.debug("Adding default early stopping behaviour.")
             early_stopping_kwargs = {
                 "early_stopping_metric": "elbo",
                 "save_best_state_metric": "elbo",
@@ -365,7 +369,7 @@ def auto_tune_scvi_model(
             metrics_to_monitor.append("elbo")
             trainer_specific_kwargs["metrics_to_monitor"] = metrics_to_monitor
 
-        logger.info(
+        logger_all.info(
             "Fixed parameters: \n"
             "model: \n"
             + str(model_specific_kwargs)
@@ -393,11 +397,11 @@ def auto_tune_scvi_model(
             },
         )
     else:
-        logger.info("Using custom objective function.")
+        logger_all.info("Using custom objective function.")
         objective_hyperopt = partial(custom_objective_hyperopt, **objective_kwargs)
 
     if parallel:
-        logger.info("Starting parallel hyperoptimization")
+        logger_all.info("Starting parallel hyperoptimization")
         trials = _auto_tune_parallel(
             objective_hyperopt=objective_hyperopt,
             exp_key=exp_key,
@@ -417,7 +421,7 @@ def auto_tune_scvi_model(
         )
 
     else:
-        logger.info("Starting sequential hyperoptimization")
+        logger_all.info("Starting sequential hyperoptimization")
         trials = Trials()
 
         # run hyperoptimization
@@ -431,13 +435,13 @@ def auto_tune_scvi_model(
 
     # return best model, trained
     if train_best:
-        logger.debug("Training best model with full training set")
+        logger_all.debug("Training best model with full training set")
         best_space = trials.best_trial["result"]["space"]
         best_trainer = objective_hyperopt(best_space, is_best_training=True)
 
     if pickle_result:
         if train_best:
-            logger.debug("Pickling best model and trainer")
+            logger_all.debug("Pickling best model and trainer")
             # pickle trainer and save model (overkill?)
             with open(
                 os.path.join(save_path, "best_trainer_{key}".format(key=exp_key)), "wb"
@@ -448,7 +452,7 @@ def auto_tune_scvi_model(
                 os.path.join(save_path, "best_model_{key}".format(key=exp_key)),
             )
         # remove object containing thread.lock (otherwise pickle.dump throws)
-        logger.debug("Pickling Trials object")
+        logger_all.debug("Pickling Trials object")
         if hasattr(trials, "handle"):
             del trials.handle
         with open(
@@ -548,7 +552,7 @@ def _auto_tune_parallel(
         os.makedirs(mongo_path)
     mongo_logfile = open(os.path.join(mongo_path, "mongo_logfile.txt"), "w")
     open_files.append(mongo_logfile)
-    logger.debug(
+    logger_all.debug(
         "Starting MongoDb process, logs redirected to "
         "{name}.".format(name=mongo_logfile.name)
     )
@@ -572,7 +576,7 @@ def _auto_tune_parallel(
     hp_logger.addHandler(fh_hyperopt)
 
     # start fmin launcher thread
-    logger.debug("Starting minimization procedure")
+    logger_all.debug("Starting minimization procedure")
     queue = multiprocessing.Queue()
     started_queues.append(queue)
     fmin_launcher_thread = FminLauncherThread(
@@ -590,7 +594,7 @@ def _auto_tune_parallel(
     started_threads.append(fmin_launcher_thread)
 
     # start worker launcher
-    logger.debug("Starting worker launcher")
+    logger_all.debug("Starting worker launcher")
     worker_launcher_thread = WorkerLauncherThread(
         logging_queue=logging_queue,
         exp_key=exp_key,
@@ -611,24 +615,24 @@ def _auto_tune_parallel(
         time.sleep(5)
 
     if not fmin_launcher_thread.is_alive():
-        logger.debug("Setting worker launcher stop event.")
+        logger_all.debug("Setting worker launcher stop event.")
         worker_launcher_thread.stop_event.set()
     try:
         if multiple_hosts:
             # if using multiple_hosts, there could still be workers -> disable fmin timeout
             fmin_timeout = None
-            logger.debug(
+            logger_all.debug(
                 "multiple_hosts set to True, fmin will block until all trials have been completed."
             )
         else:
-            logger.debug(
+            logger_all.debug(
                 "multiple_hosts set to false, Fmin has {time} seconds to finish".format(
                     time=fmin_timeout
                 )
             )
         trials = queue.get(timeout=fmin_timeout)
     except Empty:
-        logger.error(
+        logger_all.error(
             "Queue still empty {fmin_timeout} seconds after all workers have died."
             "\n".format(fmin_timeout=fmin_timeout) + "Terminating minimization process."
         )
@@ -641,14 +645,14 @@ def _auto_tune_parallel(
     # sanity: wait for fmin, terminate workers and wait for launcher
     fmin_launcher_thread.join()
     worker_launcher_thread.join()
-    logger.info(
+    logger_all.info(
         "Finished minimization procedure for experiment {exp_key}.".format(
             exp_key=exp_key
         )
     )
-    logger.debug("Terminating mongod process.")
+    logger_all.debug("Terminating mongod process.")
     mongod_process.terminate()
-    logger.debug("Stopping asynchronous logging listener.")
+    logger_all.debug("Stopping asynchronous logging listener.")
     listener.stop()
 
     # cleanup queues, processes, threads and files
@@ -679,6 +683,7 @@ class FminLauncherThread(StoppableThread):
         Used only if ``parallel`` is set to ``True``.
     :param mongo_port_address: String of the form mongo_host:mongo_port/db_name.
     """
+
     def __init__(
         self,
         logging_queue: multiprocessing.Queue,
@@ -716,11 +721,11 @@ class FminLauncherThread(StoppableThread):
             algo=self.algo,
             max_evals=self.max_evals,
         )
-        logger.debug("Starting FminProcess.")
+        logger_all.debug("Starting FminProcess.")
         fmin_process.start()
         started_processes.append(fmin_process)
         if self.fmin_timer is not None:
-            logger.debug(
+            logger_all.debug(
                 "Timer set, fmin will run for at most {timer}.".format(
                     timer=self.fmin_timer
                 )
@@ -735,10 +740,10 @@ class FminLauncherThread(StoppableThread):
                 time.sleep(10)
                 run_time = time.monotonic() - start_time
         else:
-            logger.debug("No timer, waiting for fmin...")
+            logger_all.debug("No timer, waiting for fmin...")
             while fmin_process.is_alive() and not self.stop_event.is_set():
                 time.sleep(10)
-        logger.debug("fmin returned or timer ran out.")
+        logger_all.debug("fmin returned or timer ran out.")
 
 
 class FminProcess(multiprocessing.Process):
@@ -761,6 +766,7 @@ class FminProcess(multiprocessing.Process):
     :param max_evals: Maximum number of evaluations of the objective.
     :param show_progressbar: Whether or not to show the ``hyperopt`` progress bar.
     """
+
     def __init__(
         self,
         logging_queue: multiprocessing.Queue,
@@ -787,12 +793,12 @@ class FminProcess(multiprocessing.Process):
     @_cleanup_decorator
     def run(self):
         configure_asynchronous_logging(self.logging_queue)
-        logger.debug("Instantiating MongoTrials object.")
+        logger_all.debug("Instantiating MongoTrials object.")
         trials = MongoTrials(
             as_mongo_str(os.path.join(self.mongo_port_address, "jobs")),
             exp_key=self.exp_key,
         )
-        logger.debug("Calling fmin.")
+        logger_all.debug("Calling fmin.")
         fmin(
             fn=self.objective_hyperopt,
             space=self.space,
@@ -803,9 +809,9 @@ class FminProcess(multiprocessing.Process):
         )
         # queue.put uses pickle so remove attribute containing thread.lock
         if hasattr(trials, "handle"):
-            logger.debug("fmin returned. Deleting Trial handle for pickling.")
+            logger_all.debug("fmin returned. Deleting Trial handle for pickling.")
             del trials.handle
-        logger.debug("Putting Trials in Queue.")
+        logger_all.debug("Putting Trials in Queue.")
         self.queue.put(trials)
 
 
@@ -865,7 +871,7 @@ class WorkerLauncherThread(StoppableThread):
 
         if self.gpu_ids is None:
             n_gpus = torch.cuda.device_count()
-            logger.debug(
+            logger_all.debug(
                 "gpu_ids is None, defaulting to all {n_gpus} GPUs found by torch.".format(
                     n_gpus=n_gpus
                 )
@@ -873,12 +879,12 @@ class WorkerLauncherThread(StoppableThread):
             self.gpu_ids = list(range(n_gpus))
             if n_gpus and self.n_cpu_workers is None:
                 self.n_cpu_workers = 0
-                logger.debug(
+                logger_all.debug(
                     "Some GPU.s found and n_cpu_wokers is None, defaulting to n_cpu_workers = 0"
                 )
             if not n_gpus and self.n_cpu_workers is None:
                 self.n_cpu_workers = os.cpu_count() - 1
-                logger.debug(
+                logger_all.debug(
                     "No GPUs found and n_cpu_wokers is None, defaulting to n_cpu_workers = "
                     "{n_cpu_workers} (os.cpu_count() - 1)".format(
                         n_cpu_workers=self.n_cpu_workers
@@ -893,7 +899,7 @@ class WorkerLauncherThread(StoppableThread):
 
         # log progress with queue and progress_listener
         pbar = None
-        if not self.multiple_hosts and not (logger.level < logging.WARNING):
+        if not self.multiple_hosts and not (logger_all.level < logging.WARNING):
             pbar = tqdm.tqdm(total=self.max_evals)
         progress_queue = multiprocessing.Queue()
         started_queues.append(progress_queue)
@@ -903,7 +909,7 @@ class WorkerLauncherThread(StoppableThread):
 
         running_workers = []
         # launch gpu workers
-        logger.info(
+        logger_all.info(
             "Starting {n_workers_per_gpu} worker.s for each of the {n_gpus} gpu.s set for use/"
             "found.".format(
                 n_workers_per_gpu=self.n_workers_per_gpu, n_gpus=len(self.gpu_ids)
@@ -926,7 +932,7 @@ class WorkerLauncherThread(StoppableThread):
                 running_workers.append(worker)
 
         # launch cpu workers
-        logger.info(
+        logger_all.info(
             "Starting {n_cpu_workers} cpu worker.s".format(
                 n_cpu_workers=self.n_cpu_workers
             )
@@ -953,11 +959,11 @@ class WorkerLauncherThread(StoppableThread):
             for worker in running_workers:
                 n_alive += 1 if worker.is_alive() else n_alive
             if n_alive == 0:
-                logger.debug(
+                logger_all.debug(
                     "All workers have died, check stdout/stderr for error tracebacks."
                 )
                 break
-        logger.debug(
+        logger_all.debug(
             "Worker watchdog finished, terminating workers and stopping listener."
         )
         for worker in running_workers:
@@ -980,7 +986,7 @@ class ProgressListener(StoppableThread):
         self.pbar = pbar
 
     def run(self):
-        logger.debug("Listener listening...")
+        logger_all.debug("Listener listening...")
 
         i = 0
         while not self.stop_event.is_set():
@@ -988,7 +994,7 @@ class ProgressListener(StoppableThread):
             try:
                 self.progress_queue.get(block=False)
                 i += 1
-                logger.info("{i} job.s done".format(i=i))
+                logger_all.info("{i} job.s done".format(i=i))
                 # update progress bar through ProgressHandler
                 if self.pbar is not None:
                     self.pbar.update()
@@ -1041,7 +1047,7 @@ class HyperoptWorker(multiprocessing.Process):
 
     def run(self):
         configure_asynchronous_logging(self.logging_queue)
-        logger.debug("Worker working...")
+        logger_all.debug("Worker working...")
 
         os.environ["CUDA_VISIBLE_DEVICES"] = self.hw_id if self.gpu else str()
 
@@ -1057,7 +1063,7 @@ class HyperoptWorker(multiprocessing.Process):
                 mworker.run_one(reserve_timeout=float(self.reserve_timeout))
                 self.progress_queue.put(None)
             except ReserveTimeout:
-                logger.debug(
+                logger_all.debug(
                     "Caught ReserveTimeout. "
                     "Exiting after failing to reserve job for {time} seconds.".format(
                         time=self.reserve_timeout
@@ -1142,7 +1148,7 @@ def _objective_function(
     train_func_tunable_kwargs.update(train_func_specific_kwargs)
 
     if not is_best_training:
-        logger.info(
+        logger_all.info(
             "Parameters being tested: \n"
             "model: \n"
             + str(model_tunable_kwargs)
@@ -1155,7 +1161,7 @@ def _objective_function(
         )
 
     # define model
-    logger.debug("Instantiating model")
+    logger_all.debug("Instantiating model")
     model = model_class(
         n_input=gene_dataset.nb_genes,
         n_batch=gene_dataset.n_batches * use_batches,
@@ -1163,13 +1169,13 @@ def _objective_function(
     )
 
     # define trainer
-    logger.debug("Instantiating trainer")
+    logger_all.debug("Instantiating trainer")
     trainer = trainer_class(model, gene_dataset, **trainer_tunable_kwargs)
 
     # train model
-    logger.debug("Starting training")
+    logger_all.debug("Starting training")
     trainer.train(**train_func_tunable_kwargs)
-    logger.debug("Finished training")
+    logger_all.debug("Finished training")
     elapsed_time = time.monotonic() - start_time
     # if training the best model, return model else return criterion
     if is_best_training:
@@ -1209,7 +1215,7 @@ def _objective_function(
         # compute optimized metric
         loss = getattr(getattr(trainer, posterior_name), metric_name)(**metric_kwargs)
 
-        logger.debug(
+        logger_all.debug(
             "Training of {n_epochs} epochs finished in {time} with loss = {loss}".format(
                 n_epochs=len(trainer.history[metric]),
                 time=str(datetime.timedelta(seconds=elapsed_time)),
