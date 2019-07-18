@@ -182,3 +182,17 @@ def test_notebooks_scanpy_api(save_path):
         raise
     finally:
         os.chdir(path=base_path)
+
+
+def test_notebooks_autotune(save_path):
+    try:
+        os.chdir(save_path)
+        import notebooks.autotune_advanced_notebook
+
+        print(save_path)
+        notebooks.autotune_advanced_notebook.allow_notebook_for_test()
+        plt.close("all")
+    except BaseException:
+        raise
+    finally:
+        os.chdir(path=base_path)

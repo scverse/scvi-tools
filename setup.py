@@ -34,7 +34,7 @@ setup_requirements = ["pytest-runner"]
 
 test_requirements = ["pytest"]
 
-extras_requirements = {"test": ["scanpy", "louvain", "leidenalg>=0.7.0", "python-igraph>=0.7.1", ]}
+extras_requirements = {"test": ["scanpy", "louvain", "leidenalg>=0.7.0", "python-igraph>=0.7.1", "colour"]}
 
 author = (
     "Romain Lopez, "

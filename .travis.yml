@@ -8,6 +8,7 @@ python:
 
 os:
   - linux
+  - windows
 
 notifications:
   email: false
