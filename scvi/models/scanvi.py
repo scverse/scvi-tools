@@ -112,7 +112,15 @@ class SCANVI(VAE):
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
         is_labelled = False if y is None else True
 
-        px_scale, px_r, px_rate, px_dropout, qz1_m, qz1_v, z1, ql_m, ql_v, library = self.inference(x, batch_index, y)
+        outputs = self.inference(x, batch_index, y)
+        px_r = outputs['px_r']
+        px_rate = outputs['px_rate']
+        px_dropout = outputs['px_dropout']
+        qz1_m = outputs['qz_m']
+        qz1_v = outputs['qz_v']
+        z1 = outputs['z']
+        ql_m = outputs['ql_m']
+        ql_v = outputs['ql_v']
 
         # Enumerate choices of label
         ys, z1s = (

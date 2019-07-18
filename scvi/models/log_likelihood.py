@@ -40,7 +40,10 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[:5]  # general fish case
 
         # Distribution parameters
-        px_r, px_rate, px_dropout = vae.inference(sample_batch, batch_index, labels, **kwargs)[1:4]
+        outputs = vae.inference(sample_batch, batch_index, labels, **kwargs)
+        px_r = outputs['px_r']
+        px_rate = outputs['px_rate']
+        px_dropout = outputs['px_dropout']
 
         # Reconstruction loss
         reconst_loss = vae.get_reconstruction_loss(sample_batch, px_rate, px_r, px_dropout, **kwargs)
@@ -68,9 +71,16 @@ def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
         for i in range(n_samples_mc):
 
             # Distribution parameters and sampled variables
-            px_scale, px_r, px_rate, px_dropout,\
-                qz_m, qz_v, z,\
-                ql_m, ql_v, library = vae.inference(sample_batch, batch_index, labels)
+            outputs = vae.inference(sample_batch, batch_index, labels)
+            px_r = outputs['px_r']
+            px_rate = outputs['px_rate']
+            px_dropout = outputs['px_dropout']
+            qz_m = outputs['qz_m']
+            qz_v = outputs['qz_v']
+            z = outputs['z']
+            ql_m = outputs['ql_m']
+            ql_v = outputs['ql_v']
+            library = outputs['library']
 
             # Reconstruction Loss
             reconst_loss = vae.get_reconstruction_loss(sample_batch, px_rate, px_r, px_dropout)
