@@ -104,7 +104,7 @@ Coding Standards
 4. Don't commit commented-out code. Just delete it or store it somewhere outside of the repo. You probably aren't going to need it. At worse, it's stored in previous commits, from before it was commented out.
 5. A pull request (PR) will typically close at least one Github issue. For these pull requests, write the issue it closes in the description, e.g. ``closes #210``. The issue will be automatically closed when the PR is merged.
 6. Don't commit data to the repository, except perhaps a few small (< 50 KB) files of test data.
-7. Respect the scVI code style by installing pre-commit as described above.
+7. Respect the scVI code style, the easiest way is to install pre-commit as described above.
 
 
 Pull Request Guidelines
