@@ -94,6 +94,8 @@ class ClassifierTrainer(Trainer):
         :gene_dataset: A gene_dataset instance like ``CortexDataset()``
         :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
             to use Default: ``0.8``.
+        :test_size: The test size, either a float between 0 and 1 or and integer for the number of test samples
+            to use Default: ``None``.
         :sampling_model: Model with z_encoder with which to first transform data.
         :sampling_zl: Transform data with sampling_model z_encoder and l_encoder and concat.
         :\**kwargs: Other keywords arguments from the general Trainer class.
@@ -114,6 +116,7 @@ class ClassifierTrainer(Trainer):
         self,
         *args,
         train_size=0.8,
+        test_size=None,
         sampling_model=None,
         sampling_zl=False,
         use_cuda=True,
@@ -122,16 +125,19 @@ class ClassifierTrainer(Trainer):
         self.sampling_model = sampling_model
         self.sampling_zl = sampling_zl
         super().__init__(*args, use_cuda=use_cuda, **kwargs)
-        self.train_set, self.test_set = self.train_test(
+        self.train_set, self.test_set, self.validation_set = self.train_test_validation(
             self.model,
             self.gene_dataset,
             train_size=train_size,
+            test_size=test_size,
             type_class=AnnotationPosterior,
         )
         self.train_set.to_monitor = ["accuracy"]
         self.test_set.to_monitor = ["accuracy"]
+        self.validation_set.to_monitor = ["accuracy"]
         self.train_set.model_zl = sampling_zl
         self.test_set.model_zl = sampling_zl
+        self.validation_set.model_zl = sampling_zl
 
     @property
     def posteriors_loop(self):
