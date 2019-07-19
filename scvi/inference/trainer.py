@@ -235,7 +235,8 @@ class Trainer:
         test_size=None,
         type_class=Posterior,
     ):
-        """Creates posteriors ``train_set``, ``test_set``, ``validation_set``. If ``train_size + test_size < 1`` then ``dev_set`` is non-empty.
+        """Creates posteriors ``train_set``, ``test_set``, ``validation_set``.
+            If ``train_size + test_size < 1`` then ``validation_set`` is non-empty.
 
             :param train_size: float, int, or None (default is 0.1)
             :param test_size: float, int, or None (default is None)
