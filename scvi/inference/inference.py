@@ -5,7 +5,7 @@ import torch
 
 from scvi.inference import Trainer
 
-plt.switch_backend('agg')
+plt.switch_backend("agg")
 
 
 class UnsupervisedTrainer(Trainer):
@@ -32,7 +32,7 @@ class UnsupervisedTrainer(Trainer):
         >>> infer = VariationalInference(gene_dataset, vae, train_size=0.5)
         >>> infer.train(n_epochs=20, lr=1e-3)
     """
-    default_metrics_to_monitor = ['elbo']
+    default_metrics_to_monitor = ["elbo"]
 
     def __init__(
         self,
@@ -55,11 +55,13 @@ class UnsupervisedTrainer(Trainer):
 
     @property
     def posteriors_loop(self):
-        return ['train_set']
+        return ["train_set"]
 
     def loss(self, tensors):
         sample_batch, local_l_mean, local_l_var, batch_index, _ = tensors
-        reconst_loss, kl_divergence = self.model(sample_batch, local_l_mean, local_l_var, batch_index)
+        reconst_loss, kl_divergence = self.model(
+            sample_batch, local_l_mean, local_l_var, batch_index
+        )
         loss = torch.mean(reconst_loss + self.kl_weight * kl_divergence)
         return loss
 
@@ -74,14 +76,16 @@ class AdapterTrainer(UnsupervisedTrainer):
     def __init__(self, model, gene_dataset, posterior_test, frequency=5):
         super().__init__(model, gene_dataset, frequency=frequency)
         self.test_set = posterior_test
-        self.test_set.to_monitor = ['elbo']
-        self.params = list(self.model.z_encoder.parameters()) + list(self.model.l_encoder.parameters())
+        self.test_set.to_monitor = ["elbo"]
+        self.params = list(self.model.z_encoder.parameters()) + list(
+            self.model.l_encoder.parameters()
+        )
         self.z_encoder_state = copy.deepcopy(model.z_encoder.state_dict())
         self.l_encoder_state = copy.deepcopy(model.l_encoder.state_dict())
 
     @property
     def posteriors_loop(self):
-        return ['test_set']
+        return ["test_set"]
 
     def train(self, n_path=10, n_epochs=50, **kwargs):
         for i in range(n_path):

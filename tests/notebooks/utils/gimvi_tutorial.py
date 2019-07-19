@@ -10,7 +10,7 @@ def plot_umap(trainer):
     latent_seq, latent_fish = trainer.get_latent()
     latent2d = umap.UMAP().fit_transform(np.concatenate([latent_seq, latent_fish]))
     latent2d_seq = latent2d[: latent_seq.shape[0]]
-    latent2d_fish = latent2d[latent_seq.shape[0]:]
+    latent2d_fish = latent2d[latent_seq.shape[0] :]
 
     data_seq, data_fish = [p.gene_dataset for p in trainer.all_dataset]
 

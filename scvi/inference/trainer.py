@@ -40,11 +40,24 @@ class Trainer:
     """
     default_metrics_to_monitor = []
 
-    def __init__(self, model, gene_dataset, use_cuda=True, metrics_to_monitor=None, benchmark=False,
-                 frequency=None, weight_decay=1e-6, early_stopping_kwargs=None,
-                 data_loader_kwargs=None, show_progbar=True, seed=0):
+    def __init__(
+        self,
+        model,
+        gene_dataset,
+        use_cuda=True,
+        metrics_to_monitor=None,
+        benchmark=False,
+        frequency=None,
+        weight_decay=1e-6,
+        early_stopping_kwargs=None,
+        data_loader_kwargs=None,
+        show_progbar=True,
+        seed=0,
+    ):
         # handle mutable defaults
-        early_stopping_kwargs = early_stopping_kwargs if early_stopping_kwargs else dict()
+        early_stopping_kwargs = (
+            early_stopping_kwargs if early_stopping_kwargs else dict()
+        )
         data_loader_kwargs = data_loader_kwargs if data_loader_kwargs else dict()
 
         self.model = model
@@ -52,10 +65,7 @@ class Trainer:
         self._posteriors = OrderedDict()
         self.seed = seed
 
-        self.data_loader_kwargs = {
-            "batch_size": 128,
-            "pin_memory": use_cuda
-        }
+        self.data_loader_kwargs = {"batch_size": 128, "pin_memory": use_cuda}
         self.data_loader_kwargs.update(data_loader_kwargs)
 
         self.weight_decay = weight_decay
@@ -90,25 +100,29 @@ class Trainer:
     def compute_metrics(self):
         begin = time.time()
         epoch = self.epoch + 1
-        if self.frequency and (epoch == 0 or epoch == self.n_epochs or (epoch % self.frequency == 0)):
+        if self.frequency and (
+            epoch == 0 or epoch == self.n_epochs or (epoch % self.frequency == 0)
+        ):
             with torch.set_grad_enabled(False):
                 self.model.eval()
                 logger.debug("\nEPOCH [%d/%d]: " % (epoch, self.n_epochs))
 
                 for name, posterior in self._posteriors.items():
-                    message = ' '.join([s.capitalize() for s in name.split('_')[-2:]])
+                    message = " ".join([s.capitalize() for s in name.split("_")[-2:]])
                     if posterior.nb_cells < 5:
-                        logging.debug(message + " is too small to track metrics (<5 samples)")
+                        logging.debug(
+                            message + " is too small to track metrics (<5 samples)"
+                        )
                         continue
-                    if hasattr(posterior, 'to_monitor'):
+                    if hasattr(posterior, "to_monitor"):
                         for metric in posterior.to_monitor:
                             if metric not in self.metrics_to_monitor:
-                                logger.debug(message, end=' : ')
+                                logger.debug(message, end=" : ")
                                 result = getattr(posterior, metric)()
-                                self.history[metric + '_' + name] += [result]
+                                self.history[metric + "_" + name] += [result]
                     for metric in self.metrics_to_monitor:
                         result = getattr(posterior, metric)()
-                        self.history[metric + '_' + name] += [result]
+                        self.history[metric + "_" + name] += [result]
                 self.model.train()
         self.compute_metrics_time += time.time() - begin
 
@@ -120,10 +134,7 @@ class Trainer:
             params = filter(lambda p: p.requires_grad, self.model.parameters())
 
         optimizer = self.optimizer = torch.optim.Adam(
-            params,
-            lr=lr,
-            eps=eps,
-            weight_decay=self.weight_decay
+            params, lr=lr, eps=eps, weight_decay=self.weight_decay
         )
 
         self.compute_metrics_time = 0
@@ -131,10 +142,7 @@ class Trainer:
         self.compute_metrics()
 
         with trange(
-            n_epochs,
-            desc="training",
-            file=sys.stdout,
-            disable=not self.show_progbar
+            n_epochs, desc="training", file=sys.stdout, disable=not self.show_progbar
         ) as pbar:
             # We have to use tqdm this way so it works in Jupyter notebook.
             # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
@@ -157,7 +165,10 @@ class Trainer:
         self.model.eval()
         self.training_time += (time.time() - begin) - self.compute_metrics_time
         if self.frequency:
-            logger.debug("\nTraining time:  %i s. / %i epochs" % (int(self.training_time), self.n_epochs))
+            logger.debug(
+                "\nTraining time:  %i s. / %i epochs"
+                % (int(self.training_time), self.n_epochs)
+            )
 
     def on_epoch_begin(self):
         pass
@@ -168,14 +179,16 @@ class Trainer:
         early_stopping_metric = self.early_stopping.early_stopping_metric
         save_best_state_metric = self.early_stopping.save_best_state_metric
         if save_best_state_metric is not None and on is not None:
-            if self.early_stopping.update_state(self.history[save_best_state_metric + '_' + on][-1]):
+            if self.early_stopping.update_state(
+                self.history[save_best_state_metric + "_" + on][-1]
+            ):
                 self.best_state_dict = self.model.state_dict()
                 self.best_epoch = self.epoch
 
         continue_training = True
         if early_stopping_metric is not None and on is not None:
             continue_training, reduce_lr = self.early_stopping.update(
-                self.history[early_stopping_metric + '_' + on][-1]
+                self.history[early_stopping_metric + "_" + on][-1]
             )
             if reduce_lr:
                 logger.info("Reducing LR.")
@@ -189,16 +202,23 @@ class Trainer:
     def posteriors_loop(self):
         pass
 
-    def data_loaders_loop(self):  # returns an zipped iterable corresponding to loss signature
+    def data_loaders_loop(
+        self
+    ):  # returns an zipped iterable corresponding to loss signature
         data_loaders_loop = [self._posteriors[name] for name in self.posteriors_loop]
-        return zip(data_loaders_loop[0], *[cycle(data_loader) for data_loader in data_loaders_loop[1:]])
+        return zip(
+            data_loaders_loop[0],
+            *[cycle(data_loader) for data_loader in data_loaders_loop[1:]]
+        )
 
     def register_posterior(self, name, value):
-        name = name.strip('_')
+        name = name.strip("_")
         self._posteriors[name] = value
 
-    def corrupt_posteriors(self, rate=0.1, corruption="uniform", update_corruption=True):
-        if not hasattr(self.gene_dataset, 'corrupted') and update_corruption:
+    def corrupt_posteriors(
+        self, rate=0.1, corruption="uniform", update_corruption=True
+    ):
+        if not hasattr(self.gene_dataset, "corrupted") and update_corruption:
             self.gene_dataset.corrupt(rate=rate, corruption=corruption)
         for name, posterior in self._posteriors.items():
             self.register_posterior(name, posterior.corrupted())
@@ -208,21 +228,21 @@ class Trainer:
             self.register_posterior(name_, posterior.uncorrupted())
 
     def __getattr__(self, name):
-        if '_posteriors' in self.__dict__:
-            _posteriors = self.__dict__['_posteriors']
-            if name.strip('_') in _posteriors:
-                return _posteriors[name.strip('_')]
+        if "_posteriors" in self.__dict__:
+            _posteriors = self.__dict__["_posteriors"]
+            if name.strip("_") in _posteriors:
+                return _posteriors[name.strip("_")]
         return object.__getattribute__(self, name)
 
     def __delattr__(self, name):
-        if name.strip('_') in self._posteriors:
-            del self._posteriors[name.strip('_')]
+        if name.strip("_") in self._posteriors:
+            del self._posteriors[name.strip("_")]
         else:
             object.__delattr__(self, name)
 
     def __setattr__(self, name, value):
         if isinstance(value, Posterior):
-            name = name.strip('_')
+            name = name.strip("_")
             self.register_posterior(name, value)
         else:
             object.__setattr__(self, name, value)
@@ -242,14 +262,18 @@ class Trainer:
             :param test_size: float, int, or None (default is None)
             """
         model = self.model if model is None and hasattr(self, "model") else model
-        gene_dataset = self.gene_dataset if gene_dataset is None and hasattr(self, "model") else gene_dataset
+        gene_dataset = (
+            self.gene_dataset
+            if gene_dataset is None and hasattr(self, "model")
+            else gene_dataset
+        )
         n = len(gene_dataset)
         n_train, n_test = _validate_shuffle_split(n, test_size, train_size)
         random_state = np.random.RandomState(seed=self.seed)
         permutation = random_state.permutation(n)
         indices_test = permutation[:n_test]
-        indices_train = permutation[n_test: (n_test + n_train)]
-        indices_validation = permutation[(n_test + n_train):]
+        indices_train = permutation[n_test : (n_test + n_train)]
+        indices_validation = permutation[(n_test + n_train) :]
 
         return (
             self.create_posterior(
@@ -263,11 +287,28 @@ class Trainer:
             ),
         )
 
-    def create_posterior(self, model=None, gene_dataset=None, shuffle=False, indices=None, type_class=Posterior):
+    def create_posterior(
+        self,
+        model=None,
+        gene_dataset=None,
+        shuffle=False,
+        indices=None,
+        type_class=Posterior,
+    ):
         model = self.model if model is None and hasattr(self, "model") else model
-        gene_dataset = self.gene_dataset if gene_dataset is None and hasattr(self, "model") else gene_dataset
-        return type_class(model, gene_dataset, shuffle=shuffle, indices=indices, use_cuda=self.use_cuda,
-                          data_loader_kwargs=self.data_loader_kwargs)
+        gene_dataset = (
+            self.gene_dataset
+            if gene_dataset is None and hasattr(self, "model")
+            else gene_dataset
+        )
+        return type_class(
+            model,
+            gene_dataset,
+            shuffle=shuffle,
+            indices=indices,
+            use_cuda=self.use_cuda,
+            data_loader_kwargs=self.data_loader_kwargs,
+        )
 
 
 class SequentialSubsetSampler(SubsetRandomSampler):
@@ -283,7 +324,7 @@ class EarlyStopping:
         self,
         early_stopping_metric: str = None,
         save_best_state_metric: str = None,
-        on: str = 'test_set',
+        on: str = "test_set",
         patience: int = 15,
         threshold: int = 3,
         benchmark: bool = False,
@@ -297,7 +338,11 @@ class EarlyStopping:
         self.epoch = 0
         self.wait = 0
         self.wait_lr = 0
-        self.mode = getattr(Posterior, early_stopping_metric).mode if early_stopping_metric is not None else None
+        self.mode = (
+            getattr(Posterior, early_stopping_metric).mode
+            if early_stopping_metric is not None
+            else None
+        )
         # We set the best to + inf because we're dealing with a loss we want to minimize
         self.current_performance = np.inf
         self.best_performance = np.inf
@@ -306,8 +351,11 @@ class EarlyStopping:
         if self.mode == "max":
             self.best_performance *= -1
             self.current_performance *= -1
-        self.mode_save_state = getattr(Posterior,
-                                       save_best_state_metric).mode if save_best_state_metric is not None else None
+        self.mode_save_state = (
+            getattr(Posterior, save_best_state_metric).mode
+            if save_best_state_metric is not None
+            else None
+        )
         if self.mode_save_state == "max":
             self.best_performance_state *= -1
 
@@ -360,15 +408,25 @@ class EarlyStopping:
             continue_training = True
         if not continue_training:
             # FIXME: log total number of epochs run
-            logger.info("\nStopping early: no improvement of more than " + str(self.threshold)
-                        + " nats in " + str(self.patience) + " epochs")
-            logger.info("If the early stopping criterion is too strong, "
-                        "please instantiate it with different parameters in the train method.")
+            logger.info(
+                "\nStopping early: no improvement of more than "
+                + str(self.threshold)
+                + " nats in "
+                + str(self.patience)
+                + " epochs"
+            )
+            logger.info(
+                "If the early stopping criterion is too strong, "
+                "please instantiate it with different parameters in the train method."
+            )
         return continue_training, reduce_lr
 
     def update_state(self, scalar):
-        improved = ((self.mode_save_state == "max" and scalar - self.best_performance_state > 0)
-                    or (self.mode_save_state == "min" and self.best_performance_state - scalar > 0))
+        improved = (
+            self.mode_save_state == "max" and scalar - self.best_performance_state > 0
+        ) or (
+            self.mode_save_state == "min" and self.best_performance_state - scalar > 0
+        )
         if improved:
             self.best_performance_state = scalar
         return improved

@@ -8,6 +8,7 @@ from scvi.dataset.synthetic import ZISyntheticDatasetCorr
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import seaborn as sns
+
 sns.set()
 
 
@@ -20,10 +21,17 @@ def test_enough_zeros():
     is somehow balanced
     :return:
     """
-    nb_data = ZISyntheticDatasetCorr(n_clusters=8, n_genes_high=15, n_overlap=3,
-                                     lam_0=320, n_cells_cluster=100,
-                                     weight_high=1.714286, weight_low=1,
-                                     dropout_coef_high=0.08, dropout_coef_low=0.05)
+    nb_data = ZISyntheticDatasetCorr(
+        n_clusters=8,
+        n_genes_high=15,
+        n_overlap=3,
+        lam_0=320,
+        n_cells_cluster=100,
+        weight_high=1.714286,
+        weight_low=1,
+        dropout_coef_high=0.08,
+        dropout_coef_low=0.05,
+    )
 
     print(nb_data.X.shape)
     print(nb_data.exprs_param.min(), nb_data.exprs_param.max())
@@ -33,7 +41,7 @@ def test_enough_zeros():
     bio_zeros = nb_data_zeros[~is_technical_mask].sum()
     print("Prop of technical zeros :", tech_zeros)
     print("Prop of biological zeros :", bio_zeros)
-    assert .2 <= tech_zeros / float(bio_zeros) <= 5.
+    assert 0.2 <= tech_zeros / float(bio_zeros) <= 5.0
     assert tech_zeros >= 1000
 
 
@@ -47,9 +55,9 @@ def test_model_fit(model_fit: bool):
     rest of the zeros
     :return: None
     """
-    print('model_fit set to : ', model_fit)
-    folder = '/tmp/scVI_zeros_test'
-    print('Saving graphs in : {}'.format(folder))
+    print("model_fit set to : ", model_fit)
+    folder = "/tmp/scVI_zeros_test"
+    print("Saving graphs in : {}".format(folder))
     if not os.path.exists(folder):
         os.makedirs(folder)
 
@@ -58,22 +66,36 @@ def test_model_fit(model_fit: bool):
     n_cells_cluster = 1000 if model_fit else 100
 
     torch.manual_seed(seed=42)
-    synth_data = ZISyntheticDatasetCorr(n_clusters=8, n_genes_high=15, n_overlap=8,
-                                        lam_0=320, n_cells_cluster=n_cells_cluster,
-                                        weight_high=1.714286, weight_low=1,
-                                        dropout_coef_low=0.08, dropout_coef_high=0.05)
+    synth_data = ZISyntheticDatasetCorr(
+        n_clusters=8,
+        n_genes_high=15,
+        n_overlap=8,
+        lam_0=320,
+        n_cells_cluster=n_cells_cluster,
+        weight_high=1.714286,
+        weight_low=1,
+        dropout_coef_low=0.08,
+        dropout_coef_high=0.05,
+    )
 
     is_high = synth_data.is_highly_exp.squeeze()
     poisson_params_gt = synth_data.exprs_param.squeeze()
 
     # Step 2: Training scVI model
-    mdl = VAE(n_input=synth_data.nb_genes, n_batch=synth_data.n_batches,
-              reconstruction_loss='zinb', n_latent=5)
+    mdl = VAE(
+        n_input=synth_data.nb_genes,
+        n_batch=synth_data.n_batches,
+        reconstruction_loss="zinb",
+        n_latent=5,
+    )
 
-    trainer = UnsupervisedTrainer(model=mdl, gene_dataset=synth_data, use_cuda=True, train_size=1.0)
+    trainer = UnsupervisedTrainer(
+        model=mdl, gene_dataset=synth_data, use_cuda=True, train_size=1.0
+    )
     trainer.train(n_epochs=n_epochs, lr=1e-3)
-    full = trainer.create_posterior(trainer.model, synth_data,
-                                    indices=np.arange(len(synth_data)))
+    full = trainer.create_posterior(
+        trainer.model, synth_data, indices=np.arange(len(synth_data))
+    )
 
     # Step 3: Inference
     poisson_params = []
@@ -86,21 +108,25 @@ def test_model_fit(model_fit: bool):
             # TODO: Properly sample posterior
             sample_batch, _, _, batch_index, labels = tensors
             outputs = mdl.inference(sample_batch, batch_index)
-            px_r = outputs['px_r']
-            px_rate = outputs['px_rate']
-            px_dropout = outputs['px_dropout']
-            z = outputs['z']
+            px_r = outputs["px_r"]
+            px_rate = outputs["px_rate"]
+            px_dropout = outputs["px_dropout"]
+            z = outputs["z"]
 
             p_zero = 1.0 / (1.0 + torch.exp(-px_dropout))
             p_dropout_infered.append(p_zero.cpu().numpy())
 
-            l_train_batch = torch.zeros((sample_batch.size(0), sample_batch.size(1), n_mc_sim_total),
-                                        device=sample_batch.device)
+            l_train_batch = torch.zeros(
+                (sample_batch.size(0), sample_batch.size(1), n_mc_sim_total),
+                device=sample_batch.device,
+            )
 
             for n_mc_sim in range(n_mc_sim_total):
                 p = px_rate / (px_rate + px_r)
                 r = px_r
-                l_train = torch.distributions.Gamma(concentration=r, rate=(1 - p) / p).sample()
+                l_train = torch.distributions.Gamma(
+                    concentration=r, rate=(1 - p) / p
+                ).sample()
                 l_train = torch.clamp(l_train, max=1e18)
                 X = torch.distributions.Poisson(l_train).sample()
                 l_train_batch[:, :, n_mc_sim] = l_train
@@ -132,43 +158,40 @@ def test_model_fit(model_fit: bool):
     vmax = 2.0 * p_dropout_gt.max()
     fig, axes = plt.subplots(ncols=2, nrows=2, figsize=(10, 10))
     sns.heatmap(p_dropout_infered_all, vmin=vmin, vmax=vmax, ax=axes[0, 1])
-    axes[0, 1].set_title('Dropout Rate Predicted')
+    axes[0, 1].set_title("Dropout Rate Predicted")
     sns.heatmap(p_dropout_gt, vmin=vmin, vmax=vmax, ax=axes[0, 0])
-    axes[0, 0].set_title('Dropout Rate GT')
+    axes[0, 0].set_title("Dropout Rate GT")
 
     # Poisson Params checks
     poisson_params = np.concatenate(poisson_params)
     vmin = min(poisson_params_gt.min(), poisson_params.min())
     vmax = max(poisson_params_gt.max(), poisson_params.max())
     sns.heatmap(poisson_params, vmin=vmin, vmax=vmax, ax=axes[1, 1])
-    axes[1, 1].set_title('Poisson Distribution Parameter Predicted')
+    axes[1, 1].set_title("Poisson Distribution Parameter Predicted")
 
     sns.heatmap(poisson_params_gt, vmin=vmin, vmax=vmax, ax=axes[1, 0])
-    axes[1, 0].set_title('Poisson Distribution Parameter GT')
-    plt.savefig(os.path.join(folder, 'params_comparison.png'))
+    axes[1, 0].set_title("Poisson Distribution Parameter GT")
+    plt.savefig(os.path.join(folder, "params_comparison.png"))
     plt.close()
 
     # TODO: Decrease test tolerances
     l1_poisson = np.abs(poisson_params - poisson_params_gt).mean()
     if model_fit:
-        print('Average Poisson L1 error: ', l1_poisson)
-        assert l1_poisson <= 0.75, \
-            'High Error on Poisson parameter inference'
+        print("Average Poisson L1 error: ", l1_poisson)
+        assert l1_poisson <= 0.75, "High Error on Poisson parameter inference"
         l1_dropout = np.abs(p_dropout_infered_all - synth_data.p_dropout).mean()
-        print('Average Dropout L1 error: ', l1_dropout)
-        assert l1_dropout <= 5e-2, \
-            'High Error on Dropout parameter inference'
+        print("Average Dropout L1 error: ", l1_dropout)
+        assert l1_dropout <= 5e-2, "High Error on Dropout parameter inference"
 
     # tSNE plot
     print("Computing tSNE rep ...")
     x_rep = TSNE(n_components=2).fit_transform(latent_reps)
     print("Done!")
     pos = np.random.permutation(len(x_rep))[:1000]
-    labels = ['c_{}'.format(idx) for idx in synth_data.labels[pos].squeeze()]
-    sns.scatterplot(x=x_rep[pos, 0], y=x_rep[pos, 1], hue=labels,
-                    palette='Set2')
-    plt.title('Synthetic Dataset latent space')
-    plt.savefig(os.path.join(folder, 't_sne.png'))
+    labels = ["c_{}".format(idx) for idx in synth_data.labels[pos].squeeze()]
+    sns.scatterplot(x=x_rep[pos, 0], y=x_rep[pos, 1], hue=labels, palette="Set2")
+    plt.title("Synthetic Dataset latent space")
+    plt.savefig(os.path.join(folder, "t_sne.png"))
     plt.close()
 
     # Tech/Bio Classif checks
@@ -184,10 +207,18 @@ def test_model_fit(model_fit: bool):
     # ---Poisson non nul and .
     print(tech_zero_bio_no[~is_high].mean(), synth_data.probas_zero_bio_tech_low[0, 1])
 
-    diff1 = np.abs(bio_zero_tech_no[is_high].mean() - synth_data.probas_zero_bio_tech_high[1, 0])
-    diff2 = np.abs(tech_zero_bio_no[is_high].mean() - synth_data.probas_zero_bio_tech_high[0, 1])
-    diff3 = np.abs(bio_zero_tech_no[~is_high].mean() - synth_data.probas_zero_bio_tech_low[1, 0])
-    diff4 = np.abs(tech_zero_bio_no[~is_high].mean() - synth_data.probas_zero_bio_tech_low[0, 1])
+    diff1 = np.abs(
+        bio_zero_tech_no[is_high].mean() - synth_data.probas_zero_bio_tech_high[1, 0]
+    )
+    diff2 = np.abs(
+        tech_zero_bio_no[is_high].mean() - synth_data.probas_zero_bio_tech_high[0, 1]
+    )
+    diff3 = np.abs(
+        bio_zero_tech_no[~is_high].mean() - synth_data.probas_zero_bio_tech_low[1, 0]
+    )
+    diff4 = np.abs(
+        tech_zero_bio_no[~is_high].mean() - synth_data.probas_zero_bio_tech_low[0, 1]
+    )
 
     if model_fit:
         assert diff1 <= 2e-2
