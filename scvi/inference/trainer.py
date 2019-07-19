@@ -227,12 +227,19 @@ class Trainer:
         else:
             object.__setattr__(self, name, value)
 
-    def train_test_validation(self, model=None, gene_dataset=None, train_size=0.1, test_size=None, type_class=Posterior):
+    def train_test_validation(
+        self,
+        model=None,
+        gene_dataset=None,
+        train_size=0.1,
+        test_size=None,
+        type_class=Posterior,
+    ):
         """Creates posteriors ``train_set``, ``test_set``, ``validation_set``. If ``train_size + test_size < 1`` then ``dev_set`` is non-empty.
 
-        :param train_size: float, int, or None (default is 0.1)
-        :param test_size: float, int, or None (default is None)
-        """
+            :param train_size: float, int, or None (default is 0.1)
+            :param test_size: float, int, or None (default is None)
+            """
         model = self.model if model is None and hasattr(self, "model") else model
         gene_dataset = self.gene_dataset if gene_dataset is None and hasattr(self, "model") else gene_dataset
         n = len(gene_dataset)
@@ -240,13 +247,19 @@ class Trainer:
         random_state = np.random.RandomState(seed=self.seed)
         permutation = random_state.permutation(n)
         indices_test = permutation[:n_test]
-        indices_train = permutation[n_test:(n_test + n_train)]
+        indices_train = permutation[n_test: (n_test + n_train)]
         indices_validation = permutation[(n_test + n_train):]
 
         return (
-            self.create_posterior(model, gene_dataset, indices=indices_train, type_class=type_class),
-            self.create_posterior(model, gene_dataset, indices=indices_test, type_class=type_class),
-            self.create_posterior(model, gene_dataset, indices=indices_validation, type_class=type_class)
+            self.create_posterior(
+                model, gene_dataset, indices=indices_train, type_class=type_class
+            ),
+            self.create_posterior(
+                model, gene_dataset, indices=indices_test, type_class=type_class
+            ),
+            self.create_posterior(
+                model, gene_dataset, indices=indices_validation, type_class=type_class
+            ),
         )
 
     def create_posterior(self, model=None, gene_dataset=None, shuffle=False, indices=None, type_class=Posterior):

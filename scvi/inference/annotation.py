@@ -102,17 +102,29 @@ class ClassifierTrainer(Trainer):
         >>> trainer.test_set.accuracy()
     """
 
-    def __init__(self, *args, train_size=0.8, test_size=None, sampling_model=None, sampling_zl=False, use_cuda=True, **kwargs):
+    def __init__(
+        self,
+        *args,
+        train_size=0.8,
+        test_size=None,
+        sampling_model=None,
+        sampling_zl=False,
+        use_cuda=True,
+        **kwargs
+    ):
         self.sampling_model = sampling_model
         self.sampling_zl = sampling_zl
         super().__init__(*args, use_cuda=use_cuda, **kwargs)
-        self.train_set, self.test_set, self.validation_set = self.train_test_validation(self.model, self.gene_dataset,
-                                                                                    train_size=train_size,
-                                                                                    test_size=test_size,
-                                                                                    type_class=AnnotationPosterior)
-        self.train_set.to_monitor = ['accuracy']
-        self.test_set.to_monitor = ['accuracy']
-        self.validation_set.to_monitor = ['accuracy']
+        self.train_set, self.test_set, self.validation_set = self.train_test_validation(
+            self.model,
+            self.gene_dataset,
+            train_size=train_size,
+            test_size=test_size,
+            type_class=AnnotationPosterior,
+        )
+        self.train_set.to_monitor = ["accuracy"]
+        self.test_set.to_monitor = ["accuracy"]
+        self.validation_set.to_monitor = ["accuracy"]
         self.train_set.model_zl = sampling_zl
         self.test_set.model_zl = sampling_zl
         self.validation_set.model_zl = sampling_zl
