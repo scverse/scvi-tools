@@ -10,16 +10,21 @@ def iterate(obj, func):
 
 
 def broadcast_labels(y, *o, n_broadcast=-1):
-    '''
+    """
     Utility for the semi-supervised setting
     If y is defined(labelled batch) then one-hot encode the labels (no broadcasting needed)
     If y is undefined (unlabelled batch) then generate all possible labels (and broadcast other arguments if not None)
-    '''
+    """
     if not len(o):
         raise ValueError("Broadcast must have at least one reference argument")
     if y is None:
         ys = enumerate_discrete(o[0], n_broadcast)
-        new_o = iterate(o, lambda x: x.repeat(n_broadcast, 1) if len(x.size()) == 2 else x.repeat(n_broadcast))
+        new_o = iterate(
+            o,
+            lambda x: x.repeat(n_broadcast, 1)
+            if len(x.size()) == 2
+            else x.repeat(n_broadcast),
+        )
     else:
         ys = one_hot(y, n_broadcast)
         new_o = o
@@ -34,7 +39,7 @@ def one_hot(index, n_cat):
 
 def enumerate_discrete(x, y_dim):
     def batch(batch_size, label):
-        labels = (torch.ones(batch_size, 1, device=x.device, dtype=torch.long) * label)
+        labels = torch.ones(batch_size, 1, device=x.device, dtype=torch.long) * label
         return one_hot(labels, y_dim)
 
     batch_size = x.size(0)

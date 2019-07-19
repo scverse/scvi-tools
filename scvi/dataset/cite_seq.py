@@ -77,15 +77,19 @@ class CiteSeqDataset(DownloadableDataset):
             name="protein_expression",
             data=adt.T.values,
             columns_attr_name="protein_names",
-            columns=protein_names
+            columns=protein_names,
         )
         adt_centered = pd.read_csv(
             os.path.join(self.save_path, self.filenames.adt_centered),
             index_col=0,
             compression="gzip",
         )
-        if not np.array_equal(np.asarray(adt_centered.index).astype(np.str), protein_names):
-            raise ValueError("Protein names are not the same for raw and centered counts.")
+        if not np.array_equal(
+            np.asarray(adt_centered.index).astype(np.str), protein_names
+        ):
+            raise ValueError(
+                "Protein names are not the same for raw and centered counts."
+            )
         protein_measurement_centered = CellMeasurement(
             name="protein_expression_clr",
             data=adt_centered.T.values,
@@ -117,7 +121,7 @@ class CiteSeqDataset(DownloadableDataset):
         self.populate_from_data(
             X=X,
             gene_names=gene_names,
-            Ys=[protein_measurement, protein_measurement_centered]
+            Ys=[protein_measurement, protein_measurement_centered],
         )
 
         self.filter_cells_by_count()

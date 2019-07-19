@@ -31,7 +31,7 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
             self.obsm,
             self.var,
             self.varm,
-            self.uns
+            self.uns,
         ) = extract_data_from_anndata(ad)
         self.populate_from_data(
             X=X,

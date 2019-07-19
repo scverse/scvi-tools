@@ -87,9 +87,9 @@ class BrainLargeDataset(DownloadableDataset):
             var = gene_var_sample_matrix.multiply(gene_var_sample_matrix).mean(
                 axis=1
             ) - np.multiply(mean, mean)
-            self.subset_genes = (
-                np.squeeze(np.asarray(var)).argsort()[-self.nb_genes_to_keep:][::-1]
-            )
+            self.subset_genes = np.squeeze(np.asarray(var)).argsort()[
+                -self.nb_genes_to_keep :
+            ][::-1]
             del gene_var_sample_matrix, mean, var
 
             n_iters = int(self.n_cells_to_keep / self.loading_batch_size) + (
@@ -97,7 +97,7 @@ class BrainLargeDataset(DownloadableDataset):
             )
             for i in range(n_iters):
                 index_partitioner_batch = index_partitioner[
-                    (i * self.loading_batch_size): (
+                    (i * self.loading_batch_size) : (
                         (1 + i) * self.loading_batch_size + 1
                     )
                 ]
