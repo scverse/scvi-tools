@@ -40,9 +40,20 @@ class Trainer:
     """
     default_metrics_to_monitor = []
 
-    def __init__(self, model, gene_dataset, use_cuda=True, metrics_to_monitor=None, benchmark=False,
-                 frequency=None, weight_decay=1e-6, early_stopping_kwargs=None,
-                 data_loader_kwargs=None, show_progbar=True, seed=0):
+    def __init__(
+        self,
+        model,
+        gene_dataset,
+        use_cuda=True,
+        metrics_to_monitor=None,
+        benchmark=False,
+        frequency=None,
+        weight_decay=1e-6,
+        early_stopping_kwargs=None,
+        data_loader_kwargs=None,
+        show_progbar=True,
+        seed=0,
+    ):
         # handle mutable defaults
         early_stopping_kwargs = (
             early_stopping_kwargs if early_stopping_kwargs else dict()
@@ -261,8 +272,8 @@ class Trainer:
         random_state = np.random.RandomState(seed=self.seed)
         permutation = random_state.permutation(n)
         indices_test = permutation[:n_test]
-        indices_train = permutation[n_test: (n_test + n_train)]
-        indices_validation = permutation[(n_test + n_train):]
+        indices_train = permutation[n_test : (n_test + n_train)]
+        indices_validation = permutation[(n_test + n_train) :]
 
         return (
             self.create_posterior(
