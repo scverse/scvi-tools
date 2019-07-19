@@ -18,9 +18,9 @@ def find_notebook(fullname, path=None):
     and tries turning "Foo_Bar" into "Foo Bar" if Foo_Bar
     does not exist.
     """
-    name = fullname.rsplit('.', 1)[-1]
+    name = fullname.rsplit(".", 1)[-1]
     if not path:
-        path = ['']
+        path = [""]
     for d in path:
         nb_path = os.path.join(d, name + ".ipynb")
         if os.path.isfile(nb_path):
@@ -33,25 +33,26 @@ def find_notebook(fullname, path=None):
 
 class NotebookLoader(object):
     """Module Loader for Jupyter Notebooks"""
+
     def __init__(self, path=None):
         self.shell = InteractiveShell.instance()
         self.path = path
 
     def load_module(self, fullname):
         """import a notebook as a module"""
-        path = find_notebook(fullname, [os.path.join(base_path, 'tests/notebooks')])
+        path = find_notebook(fullname, [os.path.join(base_path, "tests/notebooks")])
 
         print("importing Jupyter notebook from %s" % path)
 
         # load the notebook object
-        with io.open(path, 'r', encoding='utf-8') as f:
+        with io.open(path, "r", encoding="utf-8") as f:
             nb = read(f, 4)
 
         # create the module and add it to sys.modules
         mod = types.ModuleType(fullname)
         mod.__file__ = path
         mod.__loader__ = self
-        mod.__dict__['get_ipython'] = get_ipython
+        mod.__dict__["get_ipython"] = get_ipython
         sys.modules[fullname] = mod
 
         # extra work to ensure that magics that would affect the user_ns
@@ -62,24 +63,44 @@ class NotebookLoader(object):
         try:
             i = 0
             for cell in nb.cells:
-                if cell.cell_type == 'code':
-                    if i != 0:  # the first code cell is cd ../.. which is not needed here and would generate errors
+                if cell.cell_type == "code":
+                    if (
+                        i != 0
+                    ):  # the first code cell is cd ../.. which is not needed here and would generate errors
                         # transform the input to executable Python
-                        code = self.shell.input_transformer_manager.transform_cell(cell.source)
+                        code = self.shell.input_transformer_manager.transform_cell(
+                            cell.source
+                        )
                         # replace parameters with test parameters to run faster
-                        code = re.sub(r'n_epochs_all = None', "n_epochs_all = 1", code)
-                        code = re.sub(r'n_cl = \d+', "n_cl = 3", code)
-                        code = re.sub(r'M_permutation = \d+', "M_permutation = 10", code)
-                        code = re.sub(r'n_samples = \d+', "n_samples = 1", code)
-                        code = re.sub(r'n_samples_tsne = \d+', "n_samples_tsne = 10", code)
-                        code = re.sub(r'n_samples_posterior_density = \d+', "n_samples_posterior_density = 2", code)
-                        code = re.sub("save_path = 'data/'", "save_path = '" + os.getcwd() + "'", code)
-                        code = re.sub('save_path = "data/"', "save_path = '" + os.getcwd() + "'", code)
+                        code = re.sub(r"n_epochs_all = None", "n_epochs_all = 1", code)
+                        code = re.sub(r"n_cl = \d+", "n_cl = 3", code)
+                        code = re.sub(
+                            r"M_permutation = \d+", "M_permutation = 10", code
+                        )
+                        code = re.sub(r"n_samples = \d+", "n_samples = 1", code)
+                        code = re.sub(
+                            r"n_samples_tsne = \d+", "n_samples_tsne = 10", code
+                        )
+                        code = re.sub(
+                            r"n_samples_posterior_density = \d+",
+                            "n_samples_posterior_density = 2",
+                            code,
+                        )
+                        code = re.sub(
+                            "save_path = 'data/'",
+                            "save_path = '" + os.getcwd() + "'",
+                            code,
+                        )
+                        code = re.sub(
+                            'save_path = "data/"',
+                            "save_path = '" + os.getcwd() + "'",
+                            code,
+                        )
                         code = re.sub("show_plot = True", "show_plot = False", code)
                         code = re.sub("test_mode = False", "test_mode = True", code)
                         # run the code in themodule
                         exec(code, mod.__dict__)
-                        plt.close('all')
+                        plt.close("all")
                     i += 1
         finally:
             self.shell.user_ns = save_user_ns
@@ -114,8 +135,9 @@ def test_notebooks_annotation(save_path):
     try:
         os.chdir(save_path)
         import notebooks.annotation
+
         notebooks.annotation.allow_notebook_for_test()
-        plt.close('all')
+        plt.close("all")
     except BaseException:
         raise
     finally:
@@ -126,8 +148,9 @@ def test_notebooks_dataloading(save_path):
     try:
         os.chdir(save_path)
         import notebooks.data_loading
+
         notebooks.data_loading.allow_notebook_for_test()
-        plt.close('all')
+        plt.close("all")
     except BaseException:
         raise
     finally:
@@ -138,8 +161,9 @@ def test_notebooks_basictutorial(save_path):
     try:
         os.chdir(save_path)
         import notebooks.basic_tutorial
+
         notebooks.basic_tutorial.allow_notebook_for_test()
-        plt.close('all')
+        plt.close("all")
     except BaseException:
         raise
     finally:
@@ -150,8 +174,9 @@ def test_notebooks_gimvitutorial(save_path):
     try:
         os.chdir(save_path)
         import notebooks.gimvi_tutorial
+
         notebooks.gimvi_tutorial.allow_notebook_for_test()
-        plt.close('all')
+        plt.close("all")
     except BaseException:
         raise
     finally:
@@ -162,8 +187,9 @@ def test_notebooks_reproducibility(save_path):
     try:
         os.chdir(save_path)
         import notebooks.scVI_reproducibility
+
         notebooks.scVI_reproducibility.allow_notebook_for_test()
-        plt.close('all')
+        plt.close("all")
     except BaseException:
         raise
     finally:
@@ -174,6 +200,7 @@ def test_notebooks_harmonization(save_path):
     try:
         os.chdir(save_path)
         import notebooks.harmonization
+
         notebooks.harmonization.allow_notebook_for_test()
         plt.close("all")
     except BaseException:

@@ -9,13 +9,12 @@ logger = logging.getLogger(__name__)
 
 
 class SeqfishDataset(DownloadableDataset):
-
-    def __init__(self, save_path: str = 'data/', delayed_populating: bool = False):
+    def __init__(self, save_path: str = "data/", delayed_populating: bool = False):
         super().__init__(
             urls="https://www.cell.com/cms/attachment/2080562255/2072099886/mmc6.xlsx",
             filenames="SeqFISH.xlsx",
             save_path=save_path,
-            delayed_populating=delayed_populating
+            delayed_populating=delayed_populating,
         )
 
     def populate(self):

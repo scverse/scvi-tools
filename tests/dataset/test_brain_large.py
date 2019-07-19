@@ -10,6 +10,6 @@ class TestBrainLargeDataset(TestCase):
             save_path="tests/data",
             sample_size_gene_var=10,
             nb_genes_to_keep=10,
-            max_cells_to_keep=128
+            max_cells_to_keep=128,
         )
         unsupervised_training_one_epoch(dataset)

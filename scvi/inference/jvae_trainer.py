@@ -68,10 +68,10 @@ class JVAETrainer(Trainer):
             for i, gd in enumerate(gene_dataset_list)
         ]
         self.n_dataset = len(self.all_dataset)
-        self.all_train, self.all_test = list(
+        self.all_train, self.all_test, self.all_validation = list(
             zip(
                 *[
-                    self.train_test(
+                    self.train_test_validation(
                         model, gd, train_size, type_class=partial(JPosterior, mode=i)
                     )
                     for i, gd in enumerate(gene_dataset_list)

@@ -150,14 +150,14 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
         # with the cluster
         for cluster in range(n_clusters):
             labels[
-                :, cluster * n_cells_cluster: (cluster + 1) * n_cells_cluster, :
+                :, cluster * n_cells_cluster : (cluster + 1) * n_cells_cluster, :
             ] = cluster
 
             ind_first_gene_cluster = cluster * (n_genes_high - n_overlap)
             ind_last_high_gene_cluster = ind_first_gene_cluster + n_genes_high
             self.is_highly_exp[
                 :,
-                cluster * n_cells_cluster: (cluster + 1) * n_cells_cluster,
+                cluster * n_cells_cluster : (cluster + 1) * n_cells_cluster,
                 ind_first_gene_cluster:ind_last_high_gene_cluster,
             ] = True
             # Weights in a cluster to create highly-expressed and low-expressed genes
@@ -166,7 +166,7 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
             weights /= weights.sum()
 
             self.exprs_param[
-                :, cluster * n_cells_cluster: (cluster + 1) * n_cells_cluster, :
+                :, cluster * n_cells_cluster : (cluster + 1) * n_cells_cluster, :
             ] = (lam_0 * weights)
 
         logger.info(
@@ -272,9 +272,9 @@ class ZISyntheticDatasetCorr(SyntheticDatasetCorr):
                 np.mean((self.poisson_zero * self.zi_zero)[~self.is_highly_exp]),
             ],
         ]  # ZI = 0, NB = 0
-        self.probas_zero_bio_tech_low = np.asarray(self.probas_zero_bio_tech_low).reshape(
-            (2, 2)
-        )
+        self.probas_zero_bio_tech_low = np.asarray(
+            self.probas_zero_bio_tech_low
+        ).reshape((2, 2))
         assert np.abs(self.probas_zero_bio_tech_high.sum() - 1) <= 1e-8
         assert np.abs(self.probas_zero_bio_tech_low.sum() - 1) <= 1e-8
         return data * mask.astype(np.float32)

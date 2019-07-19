@@ -26,12 +26,16 @@ class AnnotationPosterior(Posterior):
         self.model_zl = model_zl
 
     def accuracy(self):
-        model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
+        model, cls = (
+            (self.sampling_model, self.model)
+            if hasattr(self, "sampling_model")
+            else (self.model, None)
+        )
         acc = compute_accuracy(model, self, classifier=cls, model_zl=self.model_zl)
         logger.debug("Acc: %.4f" % (acc))
         return acc
 
-    accuracy.mode = 'max'
+    accuracy.mode = "max"
 
     @torch.no_grad()
     def hierarchical_accuracy(self):
@@ -45,16 +49,22 @@ class AnnotationPosterior(Posterior):
         logger.debug("Hierarchical Acc : %.4f\n" % h_acc)
         return acc
 
-    accuracy.mode = 'max'
+    accuracy.mode = "max"
 
     @torch.no_grad()
     def compute_predictions(self, soft=False):
-        '''
+        """
         :return: the true labels and the predicted labels
         :rtype: 2-tuple of :py:class:`numpy.int32`
-        '''
-        model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
-        return compute_predictions(model, self, classifier=cls, soft=soft, model_zl=self.model_zl)
+        """
+        model, cls = (
+            (self.sampling_model, self.model)
+            if hasattr(self, "sampling_model")
+            else (self.model, None)
+        )
+        return compute_predictions(
+            model, self, classifier=cls, soft=soft, model_zl=self.model_zl
+        )
 
     @torch.no_grad()
     def unsupervised_classification_accuracy(self):
@@ -63,7 +73,7 @@ class AnnotationPosterior(Posterior):
         logger.debug("UCA : %.4f" % (uca))
         return uca
 
-    unsupervised_classification_accuracy.mode = 'max'
+    unsupervised_classification_accuracy.mode = "max"
 
     @torch.no_grad()
     def nn_latentspace(self, posterior):
@@ -84,6 +94,8 @@ class ClassifierTrainer(Trainer):
         :gene_dataset: A gene_dataset instance like ``CortexDataset()``
         :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
             to use Default: ``0.8``.
+        :test_size: The test size, either a float between 0 and 1 or and integer for the number of test samples
+            to use Default: ``None``.
         :sampling_model: Model with z_encoder with which to first transform data.
         :sampling_zl: Transform data with sampling_model z_encoder and l_encoder and concat.
         :\**kwargs: Other keywords arguments from the general Trainer class.
@@ -100,21 +112,36 @@ class ClassifierTrainer(Trainer):
         >>> trainer.test_set.accuracy()
     """
 
-    def __init__(self, *args, train_size=0.8, sampling_model=None, sampling_zl=False, use_cuda=True, **kwargs):
+    def __init__(
+        self,
+        *args,
+        train_size=0.8,
+        test_size=None,
+        sampling_model=None,
+        sampling_zl=False,
+        use_cuda=True,
+        **kwargs
+    ):
         self.sampling_model = sampling_model
         self.sampling_zl = sampling_zl
         super().__init__(*args, use_cuda=use_cuda, **kwargs)
-        self.train_set, self.test_set = self.train_test(self.model, self.gene_dataset,
-                                                        train_size=train_size,
-                                                        type_class=AnnotationPosterior)
-        self.train_set.to_monitor = ['accuracy']
-        self.test_set.to_monitor = ['accuracy']
+        self.train_set, self.test_set, self.validation_set = self.train_test_validation(
+            self.model,
+            self.gene_dataset,
+            train_size=train_size,
+            test_size=test_size,
+            type_class=AnnotationPosterior,
+        )
+        self.train_set.to_monitor = ["accuracy"]
+        self.test_set.to_monitor = ["accuracy"]
+        self.validation_set.to_monitor = ["accuracy"]
         self.train_set.model_zl = sampling_zl
         self.test_set.model_zl = sampling_zl
+        self.validation_set.model_zl = sampling_zl
 
     @property
     def posteriors_loop(self):
-        return ['train_set']
+        return ["train_set"]
 
     def __setattr__(self, key, value):
         if key in ["train_set", "test_set"]:
@@ -124,8 +151,10 @@ class ClassifierTrainer(Trainer):
     def loss(self, tensors_labelled):
         x, _, _, _, labels_train = tensors_labelled
         if self.sampling_model:
-            if hasattr(self.sampling_model, 'classify'):
-                return F.cross_entropy(self.sampling_model.classify(x), labels_train.view(-1))
+            if hasattr(self.sampling_model, "classify"):
+                return F.cross_entropy(
+                    self.sampling_model.classify(x), labels_train.view(-1)
+                )
             else:
                 if self.sampling_model.log_variational:
                     x = torch.log(1 + x)
@@ -139,13 +168,19 @@ class ClassifierTrainer(Trainer):
 
     @torch.no_grad()
     def compute_predictions(self, soft=False):
-        '''
+        """
         :return: the true labels and the predicted labels
         :rtype: 2-tuple of :py:class:`numpy.int32`
-        '''
-        model, cls = (self.sampling_model, self.model) if hasattr(self, 'sampling_model') else (self.model, None)
+        """
+        model, cls = (
+            (self.sampling_model, self.model)
+            if hasattr(self, "sampling_model")
+            else (self.model, None)
+        )
         full_set = self.create_posterior(type_class=AnnotationPosterior)
-        return compute_predictions(model, full_set, classifier=cls, soft=soft, model_zl=self.sampling_zl)
+        return compute_predictions(
+            model, full_set, classifier=cls, soft=soft, model_zl=self.sampling_zl
+        )
 
 
 class SemiSupervisedTrainer(UnsupervisedTrainer):
@@ -153,8 +188,17 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
     This parent class can be inherited to specify the different training schemes for semi-supervised learning
     """
 
-    def __init__(self, model, gene_dataset, n_labelled_samples_per_class=50, n_epochs_classifier=1,
-                 lr_classification=5 * 1e-3, classification_ratio=50, seed=0, **kwargs):
+    def __init__(
+        self,
+        model,
+        gene_dataset,
+        n_labelled_samples_per_class=50,
+        n_epochs_classifier=1,
+        lr_classification=5 * 1e-3,
+        classification_ratio=50,
+        seed=0,
+        **kwargs
+    ):
         """
         :param n_labelled_samples_per_class: number of labelled samples per class
         """
@@ -165,7 +209,9 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         self.n_epochs_classifier = n_epochs_classifier
         self.lr_classification = lr_classification
         self.classification_ratio = classification_ratio
-        n_labelled_samples_per_class_array = [n_labelled_samples_per_class] * self.gene_dataset.n_labels
+        n_labelled_samples_per_class_array = [
+            n_labelled_samples_per_class
+        ] * self.gene_dataset.n_labels
         labels = np.array(self.gene_dataset.labels).ravel()
         np.random.seed(seed=seed)
         permutation_idx = np.random.permutation(len(labels))
@@ -185,19 +231,23 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         indices_unlabelled = permutation_idx[indices[total_labelled:]]
 
         self.classifier_trainer = ClassifierTrainer(
-            model.classifier, gene_dataset, metrics_to_monitor=[], show_progbar=False, frequency=0,
-            sampling_model=self.model
+            model.classifier,
+            gene_dataset,
+            metrics_to_monitor=[],
+            show_progbar=False,
+            frequency=0,
+            sampling_model=self.model,
         )
         self.full_dataset = self.create_posterior(shuffle=True)
         self.labelled_set = self.create_posterior(indices=indices_labelled)
         self.unlabelled_set = self.create_posterior(indices=indices_unlabelled)
 
         for posterior in [self.labelled_set, self.unlabelled_set]:
-            posterior.to_monitor = ['reconstruction_error', 'accuracy']
+            posterior.to_monitor = ["reconstruction_error", "accuracy"]
 
     @property
     def posteriors_loop(self):
-        return ['full_dataset', 'labelled_set']
+        return ["full_dataset", "labelled_set"]
 
     def __setattr__(self, key, value):
         if key == "labelled_set":
@@ -207,24 +257,36 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
     def loss(self, tensors_all, tensors_labelled):
         loss = super().loss(tensors_all)
         sample_batch, _, _, _, y = tensors_labelled
-        classification_loss = F.cross_entropy(self.model.classify(sample_batch), y.view(-1))
+        classification_loss = F.cross_entropy(
+            self.model.classify(sample_batch), y.view(-1)
+        )
         loss += classification_loss * self.classification_ratio
         return loss
 
     def on_epoch_end(self):
         self.model.eval()
-        self.classifier_trainer.train(self.n_epochs_classifier, lr=self.lr_classification)
+        self.classifier_trainer.train(
+            self.n_epochs_classifier, lr=self.lr_classification
+        )
         self.model.train()
         return super().on_epoch_end()
 
-    def create_posterior(self, model=None, gene_dataset=None, shuffle=False, indices=None,
-                         type_class=AnnotationPosterior):
-        return super().create_posterior(model, gene_dataset, shuffle, indices, type_class)
+    def create_posterior(
+        self,
+        model=None,
+        gene_dataset=None,
+        shuffle=False,
+        indices=None,
+        type_class=AnnotationPosterior,
+    ):
+        return super().create_posterior(
+            model, gene_dataset, shuffle, indices, type_class
+        )
 
 
 class JointSemiSupervisedTrainer(SemiSupervisedTrainer):
     def __init__(self, model, gene_dataset, **kwargs):
-        kwargs.update({'n_epochs_classifier': 0})
+        kwargs.update({"n_epochs_classifier": 0})
         super().__init__(model, gene_dataset, **kwargs)
 
 
@@ -237,11 +299,13 @@ class AlternateSemiSupervisedTrainer(SemiSupervisedTrainer):
 
     @property
     def posteriors_loop(self):
-        return ['full_dataset']
+        return ["full_dataset"]
 
 
 @torch.no_grad()
-def compute_predictions(model, data_loader, classifier=None, soft=False, model_zl=False):
+def compute_predictions(
+    model, data_loader, classifier=None, soft=False, model_zl=False
+):
     all_y_pred = []
     all_y = []
 
@@ -249,7 +313,7 @@ def compute_predictions(model, data_loader, classifier=None, soft=False, model_z
         sample_batch, _, _, _, labels = tensors
         all_y += [labels.view(-1).cpu()]
 
-        if hasattr(model, 'classify'):
+        if hasattr(model, "classify"):
             y_pred = model.classify(sample_batch)
         elif classifier is not None:
             # Then we use the specified classifier
@@ -279,11 +343,15 @@ def compute_predictions(model, data_loader, classifier=None, soft=False, model_z
 
 @torch.no_grad()
 def compute_accuracy(vae, data_loader, classifier=None, model_zl=False):
-    all_y, all_y_pred = compute_predictions(vae, data_loader, classifier=classifier, model_zl=model_zl)
+    all_y, all_y_pred = compute_predictions(
+        vae, data_loader, classifier=classifier, model_zl=model_zl
+    )
     return np.mean(all_y == all_y_pred)
 
 
-Accuracy = namedtuple('Accuracy', ['unweighted', 'weighted', 'worst', 'accuracy_classes'])
+Accuracy = namedtuple(
+    "Accuracy", ["unweighted", "weighted", "worst", "accuracy_classes"]
+)
 
 
 @torch.no_grad()
@@ -295,21 +363,26 @@ def compute_accuracy_tuple(y, y_pred):
     for cl in range(n_labels):
         idx = y == cl
         classes_probabilities += [np.mean(idx)]
-        accuracy_classes += [np.mean((y[idx] == y_pred[idx])) if classes_probabilities[-1] else 0]
+        accuracy_classes += [
+            np.mean((y[idx] == y_pred[idx])) if classes_probabilities[-1] else 0
+        ]
         # This is also referred to as the "recall": p = n_true_positive / (n_false_negative + n_true_positive)
         # ( We could also compute the "precision": p = n_true_positive / (n_false_positive + n_true_positive) )
         accuracy_named_tuple = Accuracy(
             unweighted=np.dot(accuracy_classes, classes_probabilities),
             weighted=np.mean(accuracy_classes),
             worst=np.min(accuracy_classes),
-            accuracy_classes=accuracy_classes)
+            accuracy_classes=accuracy_classes,
+        )
     return accuracy_named_tuple
 
 
 @torch.no_grad()
 def compute_accuracy_nn(data_train, labels_train, data_test, labels_test, k=5):
-    clf = neighbors.KNeighborsClassifier(k, weights='distance')
-    return compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels_test)
+    clf = neighbors.KNeighborsClassifier(k, weights="distance")
+    return compute_accuracy_classifier(
+        clf, data_train, labels_train, data_test, labels_test
+    )
 
 
 @torch.no_grad()
@@ -319,26 +392,45 @@ def compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels
     y_pred_test = clf.predict(data_test)
     y_pred_train = clf.predict(data_train)
 
-    return (compute_accuracy_tuple(labels_train, y_pred_train),
-            compute_accuracy_tuple(labels_test, y_pred_test)), y_pred_test
+    return (
+        (
+            compute_accuracy_tuple(labels_train, y_pred_train),
+            compute_accuracy_tuple(labels_test, y_pred_test),
+        ),
+        y_pred_test,
+    )
 
 
 @torch.no_grad()
-def compute_accuracy_svc(data_train, labels_train, data_test, labels_test, param_grid=None, verbose=0, max_iter=-1):
+def compute_accuracy_svc(
+    data_train,
+    labels_train,
+    data_test,
+    labels_test,
+    param_grid=None,
+    verbose=0,
+    max_iter=-1,
+):
     if param_grid is None:
         param_grid = [
-            {'C': [1, 10, 100, 1000], 'kernel': ['linear']},
-            {'C': [1, 10, 100, 1000], 'gamma': [0.001, 0.0001], 'kernel': ['rbf']}
+            {"C": [1, 10, 100, 1000], "kernel": ["linear"]},
+            {"C": [1, 10, 100, 1000], "gamma": [0.001, 0.0001], "kernel": ["rbf"]},
         ]
     svc = SVC(max_iter=max_iter)
     clf = GridSearchCV(svc, param_grid, verbose=verbose)
-    return compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels_test)
+    return compute_accuracy_classifier(
+        clf, data_train, labels_train, data_test, labels_test
+    )
 
 
 @torch.no_grad()
-def compute_accuracy_rf(data_train, labels_train, data_test, labels_test, param_grid=None, verbose=0):
+def compute_accuracy_rf(
+    data_train, labels_train, data_test, labels_test, param_grid=None, verbose=0
+):
     if param_grid is None:
-        param_grid = {'max_depth': np.arange(3, 10), 'n_estimators': [10, 50, 100, 200]}
+        param_grid = {"max_depth": np.arange(3, 10), "n_estimators": [10, 50, 100, 200]}
     rf = RandomForestClassifier(max_depth=2, random_state=0)
     clf = GridSearchCV(rf, param_grid, verbose=verbose)
-    return compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels_test)
+    return compute_accuracy_classifier(
+        clf, data_train, labels_train, data_test, labels_test
+    )

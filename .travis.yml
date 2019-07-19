@@ -17,6 +17,7 @@ install:
 
 script:
   - flake8
+  - black --check .
   - coverage run setup.py test
 
 after_success:

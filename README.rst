@@ -2,7 +2,7 @@
 scVI
 ====
 
-|PyPI| |bioconda| |Docs| |Build Status| |Coverage|
+|PyPI| |bioconda| |Docs| |Build Status| |Coverage| |Code Style|
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/scVI.svg
     :target: https://pypi.org/project/scvi
@@ -15,6 +15,8 @@ scVI
     :target: https://travis-ci.org/YosefLab/scVI
 .. |Coverage| image:: https://codecov.io/gh/YosefLab/scVI/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/YosefLab/scVI
+.. |Code Style| image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/python/black
 
 
 Single-cell Variational Inference
@@ -76,3 +78,10 @@ Chenling Xu∗, Romain Lopez∗, Edouard Mehlman∗, Jeffrey Regier, Michael I. 
 Submitted, 2019. `[pdf]`__
 
 .. __: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf
+
+Romain Lopez∗, Achille Nazaret∗, Maxime Langevin, Jules Samaran, Jeffrey Regier, Michael I. Jordan, Nir Yosef.
+**"A joint model of unpaired data from scRNA-seq and spatial transcriptomics for imputing missing gene expression measurements."**
+ICML Workshop on Computational Biology, 2019. `[pdf]`__
+
+.. __: https://arxiv.org/pdf/1905.02269.pdf
+
