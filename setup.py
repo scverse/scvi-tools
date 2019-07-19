@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from pathlib import Path
 
 from setuptools import setup, find_packages
 
@@ -10,31 +11,16 @@ with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
 requirements = [
-    "numpy>=1.16.4",
-    "torch>=0.4.1",
-    "matplotlib>=2.0",
-    "scikit-learn>=0.18, <0.20.0",
-    "scipy>=1.1",
-    "h5py>=2.8",
-    "pandas>=0.2",
-    "loompy>=2.0",
-    "tqdm >= 4",
-    "anndata >= 0.6",
-    "xlrd >= 1.0",
-    "jupyter>=1.0.0",
-    "nbconvert>=5.4.0",
-    "nbformat>=4.4.0",
-    "ipython>=7",
-    "umap-learn>=0.3.7",
-    "seaborn>=0.9.0",
-    "hyperopt>=0.1.2",
+    l.strip() for l in Path("requirements.txt").read_text("utf-8").splitlines()
 ]
 
 setup_requirements = ["pytest-runner"]
 
 test_requirements = ["pytest"]
 
-extras_requirements = {"test": ["scanpy", "colour", "louvain", "leidenalg>=0.7.0", "python-igraph>=0.7.1"]}
+extras_requirements = {
+    "test": ["scanpy", "colour", "louvain", "leidenalg>=0.7.0", "python-igraph>=0.7.1"]
+}
 
 author = (
     "Romain Lopez, "
