@@ -176,7 +176,7 @@ class Benchmarkable:
     ):
         # corrupt data with
         corrupted_trainer = copy.deepcopy(self.trainer)
-        corrupted_trainer.train_test(train_size=1.0)
+        corrupted_trainer.train_test_validation(train_size=1.0)
         corrupted_trainer.corrupt_posteriors(rate=rate, corruption=corruption)
         corrupted_trainer.show_progbar = True
         # use n_epochs from early stopping
@@ -256,6 +256,7 @@ def n_params(n_genes, n_layers, n_hidden, n_latent):
 
 class PlotBenchmarkables:
     """Helper class for Hyperparameter tuning blog post."""
+
     def __init__(
         self,
         tuned_benchmarkables: Dict[str, Benchmarkable],
