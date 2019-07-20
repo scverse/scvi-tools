@@ -63,7 +63,7 @@ def test_model_fit(model_fit: bool):
 
     n_epochs = 150 if model_fit else 1
     n_mc_sim_total = 100 if model_fit else 1
-    n_cells_cluster = 1000 if model_fit else 100
+    n_cells_cluster = 1000 if model_fit else 10
 
     torch.manual_seed(seed=42)
     synth_data = ZISyntheticDatasetCorr(
