@@ -161,6 +161,24 @@ def _cleanup_decorator(func: Callable):
     return decorated
 
 
+def _error_logger_decorator(func: Callable):
+    """Decorates top-level calls in order to launch cleanup when an Exception is caught."""
+
+    @wraps(func)
+    def decorated(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            logger_all.exception(
+                "Caught {exception} in {func}, starting cleanup.".format(
+                    exception=e.args, func=func.__name__
+                )
+            )
+            raise
+
+    return decorated
+
+
 def configure_asynchronous_logging(logging_queue: multiprocessing.Queue):
     """Helper for asynchronous logging - Writes all logs to a queue."""
     root_logger = logging.getLogger()
@@ -203,6 +221,7 @@ def auto_tune_scvi_model(
     mongo_host: str = "localhost",
     db_name: str = "scvi_db",
     multiple_hosts: bool = False,
+    propagate_logs: bool = False,
 ) -> (Type[Trainer], Trials):
     """Perform automatic hyperparameter optimization of an scVI model
     and return best model and hyperopt Trials object.
@@ -270,6 +289,10 @@ def auto_tune_scvi_model(
     :param db_name: Name to use when creating the Mongo database. Suffix of the Mongo address.
     :param multiple_hosts: If ``True``, user is considered to have workers launched on several machines.
         Therefore, setting this to ``True`` disables the ``fmin_timeout`` behaviour.
+    :param propagate_logs: If ``True``, propagate logs from "scvi.autotune" logger.
+        This is useful because autotune needs its own logging format and handlers
+        and we want to avoid duplicate logging, with the "scvi" logger for instance.
+        Set this to ``True`` if you want to use your own logging scheme.
     :return: ``Trainer`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
 
     Examples:
@@ -277,18 +300,18 @@ def auto_tune_scvi_model(
         >>> gene_dataset = CortexDataset()
         >>> best_trainer, trials = auto_tune_scvi_model("cortex", gene_dataset)
     """
+    global ch
     global fh_autotune
 
     # if no handlers add console handler
-    if len(logger_all.handlers) == 0:
+    if len(logger.handlers) == 0:
+        ch.setLevel(logger.level)
         logger.addHandler(ch)
         logger_all.debug(
             "Logger {} has no specific handler - added the default StreamHandler "
-            "and set `propagate` to False to avoid duplicate logging.".format(
-                __name__
-            )
+            "and set `propagate` to False to avoid duplicate logging.".format(__name__)
         )
-        logger.propagate = False
+        logger.propagate = propagate_logs
 
     else:
         # if no formatter add default module formatter
@@ -707,7 +730,7 @@ class FminLauncherThread(StoppableThread):
         self.fmin_timer = fmin_timer
         self.mongo_port_address = mongo_port_address
 
-    @_cleanup_decorator
+    @_error_logger_decorator
     def run(self):
         """Launches a ``hyperopt`` minimization procedure."""
         # call fmin in a process to enable termination
@@ -790,7 +813,7 @@ class FminProcess(multiprocessing.Process):
         self.max_evals = max_evals
         self.show_progressbar = show_progressbar
 
-    @_cleanup_decorator
+    @_error_logger_decorator
     def run(self):
         configure_asynchronous_logging(self.logging_queue)
         logger_all.debug("Instantiating MongoTrials object.")
@@ -866,6 +889,7 @@ class WorkerLauncherThread(StoppableThread):
         self.multiple_hosts = multiple_hosts
         self.max_evals = max_evals
 
+    @_error_logger_decorator
     def run(self):
         global started_processes
 
@@ -899,7 +923,7 @@ class WorkerLauncherThread(StoppableThread):
 
         # log progress with queue and progress_listener
         pbar = None
-        if not self.multiple_hosts and not (logger_all.level < logging.WARNING):
+        if not self.multiple_hosts and logger.level >= logging.WARNING:
             pbar = tqdm.tqdm(total=self.max_evals)
         progress_queue = multiprocessing.Queue()
         started_queues.append(progress_queue)
@@ -985,6 +1009,7 @@ class ProgressListener(StoppableThread):
         self.progress_queue = progress_queue
         self.pbar = pbar
 
+    @_error_logger_decorator
     def run(self):
         logger_all.debug("Listener listening...")
 
@@ -1045,6 +1070,7 @@ class HyperoptWorker(multiprocessing.Process):
         self.reserve_timeout = reserve_timeout
         self.mongo_port_address = mongo_port_address
 
+    @_error_logger_decorator
     def run(self):
         configure_asynchronous_logging(self.logging_queue)
         logger_all.debug("Worker working...")
@@ -1072,6 +1098,7 @@ class HyperoptWorker(multiprocessing.Process):
                 break
 
 
+@_error_logger_decorator
 def _objective_function(
     space: dict,
     gene_dataset: GeneExpressionDataset,
