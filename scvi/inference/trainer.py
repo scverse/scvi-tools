@@ -150,6 +150,8 @@ class Trainer:
                 self.on_epoch_begin()
                 pbar.update(1)
                 for tensors_list in self.data_loaders_loop():
+                    if tensors_list[0][0].shape[0] < 3:
+                        continue
                     loss = self.loss(*tensors_list)
                     optimizer.zero_grad()
                     loss.backward()
