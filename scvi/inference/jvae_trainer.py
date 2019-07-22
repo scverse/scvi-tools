@@ -157,6 +157,8 @@ class JVAETrainer(Trainer):
                     self.on_epoch_begin()
                     progress_bar.update(1)
                     for tensors in self.data_loaders_loop():
+                        if tensors[0][0].shape[0] < 3:
+                            continue
                         if train_discriminator:
                             latent_tensors = []
                             for (i, (data, *_)) in enumerate(tensors):
