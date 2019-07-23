@@ -127,7 +127,9 @@ class SyntheticDatasetCorr(GeneExpressionDataset):
 
         if n_genes_high > (n_genes_total // n_clusters):
             logger.info(
-                "Overlap of", n_genes_high - (n_genes_total // n_clusters), "genes"
+                "Overlap of {} genes".format(
+                    n_genes_high - (n_genes_total // n_clusters)
+                )
             )
 
         # Generate data before dropout

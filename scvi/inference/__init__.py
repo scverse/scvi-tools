@@ -8,7 +8,6 @@ from .annotation import (
     ClassifierTrainer,
 )
 from .jvae_trainer import JVAETrainer
-from .autotune import auto_tune_scvi_model, hyperopt_worker, launch_workers
 
 __all__ = [
     "Trainer",
@@ -20,7 +19,4 @@ __all__ = [
     "AlternateSemiSupervisedTrainer",
     "ClassifierTrainer",
     "JVAETrainer",
-    "auto_tune_scvi_model",
-    "hyperopt_worker",
-    "launch_workers",
 ]

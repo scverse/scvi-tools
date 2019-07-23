@@ -117,7 +117,7 @@ class Trainer:
                     if hasattr(posterior, "to_monitor"):
                         for metric in posterior.to_monitor:
                             if metric not in self.metrics_to_monitor:
-                                logger.debug(message, end=" : ")
+                                logger.debug(message)
                                 result = getattr(posterior, metric)()
                                 self.history[metric + "_" + name] += [result]
                     for metric in self.metrics_to_monitor:

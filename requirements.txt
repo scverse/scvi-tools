@@ -28,3 +28,4 @@ scanpy==1.4
 louvain==0.6.1
 hyperopt==0.1.2
 black==19.3b0
+colour==0.1.5

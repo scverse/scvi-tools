@@ -217,7 +217,7 @@ class Posterior:
         if self.gene_dataset.n_batches == 2:
             latent, batch_indices, labels = self.get_latent()
             be_score = entropy_batch_mixing(latent, batch_indices, **kwargs)
-            logger.debug("Entropy batch mixing :", be_score)
+            logger.debug("Entropy batch mixing : {}".format(be_score))
             return be_score
 
     entropy_batch_mixing.mode = "max"
@@ -847,7 +847,7 @@ class Posterior:
     def knn_purity(self):
         latent, _, labels = self.get_latent()
         score = knn_purity(latent, labels)
-        logger.debug("KNN purity score :", score)
+        logger.debug("KNN purity score : {}".format(score))
         return score
 
     knn_purity.mode = "max"

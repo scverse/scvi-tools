@@ -1333,7 +1333,7 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
         else:
             self.filenames = filenames
 
-        self.save_path = save_path
+        self.save_path = os.path.abspath(save_path)
         self.download()
         if not delayed_populating:
             self.populate()
