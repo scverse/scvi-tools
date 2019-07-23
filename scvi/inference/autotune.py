@@ -333,7 +333,7 @@ def auto_tune_scvi_model(
                 handler.setFormatter(formatter)
 
     # also add file handler
-    fh_autotune = logging.FileHandler(
+    fh_autotune = logging.handlers.RotatingFileHandler(
         os.path.join(save_path, "scvi_autotune_logfile.txt")
     )
     fh_autotune.setFormatter(formatter)
@@ -607,7 +607,9 @@ def _auto_tune_parallel(
     # log hyperopt only to file
     hp_logger = logging.getLogger("hyperopt")
     hp_logger.propagate = False
-    fh_hyperopt = logging.FileHandler(os.path.join(save_path, "hyperopt_logfile.txt"))
+    fh_hyperopt = logging.handlers.RotatingFileHandler(
+        os.path.join(save_path, "hyperopt_logfile.txt")
+    )
     fh_hyperopt.setFormatter(formatter)
     hp_logger.addHandler(fh_hyperopt)
 
