@@ -152,7 +152,8 @@ def _cleanup_decorator(func: Callable):
             logger_all.exception(
                 "Caught {exception} in {func}, starting cleanup.".format(
                     exception=e.args, func=func.__name__
-                )
+                ),
+                exc_info=True,
             )
             _cleanup_processes_files()
             _cleanup_logger()
@@ -172,7 +173,8 @@ def _error_logger_decorator(func: Callable):
             logger_all.exception(
                 "Caught {exception} in {func}, starting cleanup.".format(
                     exception=e.args, func=func.__name__
-                )
+                ),
+                exc_info=True,
             )
             raise
 
@@ -187,6 +189,17 @@ def configure_asynchronous_logging(logging_queue: multiprocessing.Queue):
     queue_handler.setLevel(logging.DEBUG)
     root_logger.addHandler(queue_handler)
     logger_all.debug("Asynchronous logging has been set.")
+
+
+def _asynchronous_logging_method_decorator(func: Callable):
+    """Decorates top-level calls in order to launch cleanup when an Exception is caught."""
+
+    @wraps(func)
+    def decorated(self, *args, **kwargs):
+        configure_asynchronous_logging(self.logging_queue)
+        return func(self, *args, **kwargs)
+
+    return decorated
 
 
 @_cleanup_decorator
@@ -654,6 +667,7 @@ def _auto_tune_parallel(
                 )
             )
         trials = queue.get(timeout=fmin_timeout)
+        queue.close()
     except Empty:
         logger_all.error(
             "Queue still empty {fmin_timeout} seconds after all workers have died."
@@ -677,6 +691,7 @@ def _auto_tune_parallel(
     mongod_process.terminate()
     logger_all.debug("Stopping asynchronous logging listener.")
     listener.stop()
+    logging_queue.close()
 
     # cleanup queues, processes, threads and files
     _cleanup_processes_files()
@@ -748,7 +763,7 @@ class FminLauncherThread(StoppableThread):
         fmin_process.start()
         started_processes.append(fmin_process)
         if self.fmin_timer is not None:
-            logger_all.debug(
+            logger_all.info(
                 "Timer set, fmin will run for at most {timer}.".format(
                     timer=self.fmin_timer
                 )
@@ -762,11 +777,30 @@ class FminLauncherThread(StoppableThread):
             ):
                 time.sleep(10)
                 run_time = time.monotonic() - start_time
+            if self.stop_event.is_set():
+                logger_all.debug("Stop event set.")
+            elif run_time > self.fmin_timer and fmin_process.is_alive():
+                logger_all.debug(
+                    "Timer ran out. Terminating FminProcess and putting current Trials in queue."
+                )
+                fmin_process.terminate()
+                # queue.put uses pickle so remove attribute containing thread.lock
+                trials = MongoTrials(
+                    as_mongo_str(os.path.join(self.mongo_port_address, "jobs")),
+                    exp_key=self.exp_key,
+                )
+                if hasattr(trials, "handle"):
+                    logger_all.debug("Deleting Trial handle for pickling.")
+                    del trials.handle
+                logger_all.debug("Putting Trials in Queue.")
+                self.queue.put(trials)
+            else:
+                logger_all.debug("fmin finished.")
         else:
             logger_all.debug("No timer, waiting for fmin...")
             while fmin_process.is_alive() and not self.stop_event.is_set():
                 time.sleep(10)
-        logger_all.debug("fmin returned or timer ran out.")
+            logger_all.debug("fmin finished.")
 
 
 class FminProcess(multiprocessing.Process):
@@ -813,14 +847,15 @@ class FminProcess(multiprocessing.Process):
         self.max_evals = max_evals
         self.show_progressbar = show_progressbar
 
+    @_asynchronous_logging_method_decorator
     @_error_logger_decorator
     def run(self):
-        configure_asynchronous_logging(self.logging_queue)
         logger_all.debug("Instantiating MongoTrials object.")
         trials = MongoTrials(
             as_mongo_str(os.path.join(self.mongo_port_address, "jobs")),
             exp_key=self.exp_key,
         )
+        trials.handle.coll
         logger_all.debug("Calling fmin.")
         fmin(
             fn=self.objective_hyperopt,
@@ -1028,6 +1063,7 @@ class ProgressListener(StoppableThread):
             time.sleep(5)
         if self.pbar is not None:
             self.pbar.close()
+        self.progress_queue.close()
 
 
 class HyperoptWorker(multiprocessing.Process):
@@ -1070,9 +1106,9 @@ class HyperoptWorker(multiprocessing.Process):
         self.reserve_timeout = reserve_timeout
         self.mongo_port_address = mongo_port_address
 
+    @_asynchronous_logging_method_decorator
     @_error_logger_decorator
     def run(self):
-        configure_asynchronous_logging(self.logging_queue)
         logger_all.debug("Worker working...")
 
         os.environ["CUDA_VISIBLE_DEVICES"] = self.hw_id if self.gpu else str()
