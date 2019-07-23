@@ -855,7 +855,6 @@ class FminProcess(multiprocessing.Process):
             as_mongo_str(os.path.join(self.mongo_port_address, "jobs")),
             exp_key=self.exp_key,
         )
-        trials.handle.coll
         logger_all.debug("Calling fmin.")
         fmin(
             fn=self.objective_hyperopt,
