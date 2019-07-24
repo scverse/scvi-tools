@@ -1273,7 +1273,14 @@ def remap_categories(
 def compute_library_size(
     data: Union[sp_sparse.csr_matrix, np.ndarray]
 ) -> Tuple[np.ndarray, np.ndarray]:
-    log_counts = np.log(data.sum(axis=1))
+    sum_counts = data.sum(axis=1)
+    masked_log_sum = np.ma.log(sum_counts)
+    if np.ma.is_masked(masked_log_sum):
+        logger.warning(
+            "This dataset has some empty cells, this might fail scVI inference."
+            "Data should be filtered with `my_dataset.filter_cells_by_count()"
+        )
+    log_counts = masked_log_sum.filled(0)
     local_mean = (np.mean(log_counts).reshape(-1, 1)).astype(np.float32)
     local_var = (np.var(log_counts).reshape(-1, 1)).astype(np.float32)
     return local_mean, local_var
