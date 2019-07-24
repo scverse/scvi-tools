@@ -283,14 +283,12 @@ class JVAETrainer(Trainer):
         for i, posterior in enumerate(self.all_dataset):
             data = torch.from_numpy(posterior.gene_dataset.X)
             if self.use_cuda:
-                data.cuda()
+                data = data.cuda()
 
             z = self.model.sample_from_posterior_z(data, mode=i, deterministic=True)
             cls_z = nn.Softmax(dim=1)(self.discriminator(z)).detach()
 
-            if self.use_cuda:
-                cls_z = cls_z.cpu()
-            cls_z = cls_z.numpy()
+            cls_z = cls_z.cpu().numpy()
 
             row = cls_z.mean(axis=0)
             confusion.append(row)
