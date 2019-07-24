@@ -22,3 +22,7 @@ script:
 
 after_success:
   - codecov
+  
+branches:
+  only:
+  - master
