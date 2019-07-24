@@ -86,7 +86,7 @@ Submitted, 2019. `[pdf]`__
 
 .. __: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf
 
-Romain Lopez∗, Achille Nazaret∗, Maxime Langevin, Jules Samaran, Jeffrey Regier, Michael I. Jordan, Nir Yosef.
+Romain Lopez∗, Achille Nazaret∗, Maxime Langevin*, Jules Samaran*, Jeffrey Regier*, Michael I. Jordan, Nir Yosef.
 **"A joint model of unpaired data from scRNA-seq and spatial transcriptomics for imputing missing gene expression measurements."**
 ICML Workshop on Computational Biology, 2019. `[pdf]`__
 
