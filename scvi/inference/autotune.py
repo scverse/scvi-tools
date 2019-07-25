@@ -13,6 +13,7 @@ from subprocess import Popen
 from typing import Any, Callable, Dict, List, TextIO, Type, Union
 
 import numpy as np
+import pymongo
 import torch
 import tqdm
 from hyperopt import fmin, tpe, Trials, hp, STATUS_OK, STATUS_FAIL
@@ -24,6 +25,7 @@ from hyperopt.mongoexp import (
     ReserveTimeout,
 )
 
+from scvi._settings import autotune_formatter
 from scvi.dataset import DownloadableDataset, GeneExpressionDataset
 from scvi.models import VAE
 from . import Trainer, UnsupervisedTrainer
@@ -36,11 +38,6 @@ multiprocessing.set_start_method("spawn", force=True)
 logger_all = logging.getLogger(__name__ + ".all")
 logger_all.setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
-formatter = logging.Formatter(
-    "[%(asctime)s - %(processName)s - %(threadName)s] %(levelname)s - %(name)s\n%(message)s"
-)
-ch = logging.StreamHandler()
-ch.setFormatter(formatter)
 # instantiate hyperopt and autotune file handlers as global variables for clean up
 fh_autotune = None
 fh_hyperopt = None
@@ -107,10 +104,11 @@ def _cleanup_processes_files():
     for p in started_processes[::-1]:
         if isinstance(p, Popen):
             if p.poll() is not None:
-                logger_all.debug("Terminating Mongo process.")
+                logger_all.debug("Terminating mongod process.")
                 p.terminate()
+                p.wait()
             else:
-                logger_all.debug("Mongo process already done.")
+                logger_all.debug("mongodd process already done.")
         if isinstance(p, multiprocessing.Process):
             if p.is_alive():
                 logger_all.debug("Terminating Process {}.".format(p.name))
@@ -135,10 +133,6 @@ def _cleanup_logger():
         if handler == fh_autotune:
             logger_all.debug("Cleaning up: removing autotune FileHandler.")
             logger_all.removeHandler(fh_autotune)
-    for handler in logger.handlers:
-        if handler == ch:
-            logger_all.debug("Cleaning up: removing autotune StreamHandler.")
-            logger.removeHandler(ch)
 
 
 def _cleanup_decorator(func: Callable):
@@ -234,7 +228,6 @@ def auto_tune_scvi_model(
     mongo_host: str = "localhost",
     db_name: str = "scvi_db",
     multiple_hosts: bool = False,
-    propagate_logs: bool = False,
 ) -> (Type[Trainer], Trials):
     """Perform automatic hyperparameter optimization of an scVI model
     and return best model and hyperopt Trials object.
@@ -302,10 +295,6 @@ def auto_tune_scvi_model(
     :param db_name: Name to use when creating the Mongo database. Suffix of the Mongo address.
     :param multiple_hosts: If ``True``, user is considered to have workers launched on several machines.
         Therefore, setting this to ``True`` disables the ``fmin_timeout`` behaviour.
-    :param propagate_logs: If ``True``, propagate logs from "scvi.autotune" logger.
-        This is useful because autotune needs its own logging format and handlers
-        and we want to avoid duplicate logging, with the "scvi" logger for instance.
-        Set this to ``True`` if you want to use your own logging scheme.
     :return: ``Trainer`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
 
     Examples:
@@ -313,30 +302,13 @@ def auto_tune_scvi_model(
         >>> gene_dataset = CortexDataset()
         >>> best_trainer, trials = auto_tune_scvi_model("cortex", gene_dataset)
     """
-    global ch
     global fh_autotune
 
-    # if no handlers add console handler
-    if len(logger.handlers) == 0:
-        ch.setLevel(logger.level)
-        logger.addHandler(ch)
-        logger_all.debug(
-            "Logger {} has no specific handler - added the default StreamHandler "
-            "and set `propagate` to False to avoid duplicate logging.".format(__name__)
-        )
-        logger.propagate = propagate_logs
-
-    else:
-        # if no formatter add default module formatter
-        for handler in logger_all.handlers:
-            if not handler.formatter:
-                handler.setFormatter(formatter)
-
-    # also add file handler
+    # add file handler
     fh_autotune = logging.handlers.RotatingFileHandler(
         os.path.join(save_path, "scvi_autotune_logfile.txt")
     )
-    fh_autotune.setFormatter(formatter)
+    fh_autotune.setFormatter(autotune_formatter)
     fh_autotune.setLevel(logging.DEBUG)
     logger_all.addHandler(fh_autotune)
 
@@ -601,7 +573,24 @@ def _auto_tune_parallel(
         ],
         stdout=mongo_logfile,
     )
-    mongo_port_address = os.path.join(mongo_host + ":" + mongo_port, db_name)
+    # let mongo server start and check it did
+    time.sleep(5)
+    client = pymongo.MongoClient(
+        mongo_host + ":" + mongo_port, serverSelectionTimeoutMS=100
+    )
+    try:
+        client.server_info()
+        client.close()
+    except pymongo.mongo_client.ServerSelectionTimeoutError:
+        logger_all.error("Failed to connect to mongo agent.")
+        mongo_logfile.close()
+        mongo_logfile = open(os.path.join(mongo_path, "mongo_logfile.txt"), "r")
+        logger_all.error(
+            "Logs for the mongod subprocess: \n" + "".join(mongo_logfile.readlines())
+        )
+        raise
+
+    mongo_url = os.path.join(mongo_host + ":" + mongo_port, db_name)
     started_processes.append(mongod_process)
 
     # log hyperopt only to file
@@ -610,7 +599,7 @@ def _auto_tune_parallel(
     fh_hyperopt = logging.handlers.RotatingFileHandler(
         os.path.join(save_path, "hyperopt_logfile.txt")
     )
-    fh_hyperopt.setFormatter(formatter)
+    fh_hyperopt.setFormatter(autotune_formatter)
     hp_logger.addHandler(fh_hyperopt)
 
     # start fmin launcher thread
@@ -626,7 +615,7 @@ def _auto_tune_parallel(
         algo=tpe.suggest,
         max_evals=max_evals,
         fmin_timer=fmin_timer,
-        mongo_port_address=mongo_port_address,
+        mongo_url=mongo_url,
     )
     fmin_launcher_thread.start()
     started_threads.append(fmin_launcher_thread)
@@ -641,7 +630,7 @@ def _auto_tune_parallel(
         n_workers_per_gpu=n_workers_per_gpu,
         reserve_timeout=reserve_timeout,
         workdir=mongo_path,
-        mongo_port_address=mongo_port_address,
+        mongo_url=mongo_url,
         multiple_hosts=multiple_hosts,
         max_evals=max_evals,
     )
@@ -691,12 +680,20 @@ def _auto_tune_parallel(
     )
     logger_all.debug("Terminating mongod process.")
     mongod_process.terminate()
+    # wait for process to actually terminate, avoid issues with unreleased mongod.lock
+    mongod_process.wait()
+    mongo_logfile.close()
+    mongo_logfile = open(os.path.join(mongo_path, "mongo_logfile.txt"), "r")
+    logger_all.info(
+        "Logs for the mongod subprocess: \n" + "".join(mongo_logfile.readlines())
+    )
     logger_all.debug("Stopping asynchronous logging listener.")
     listener.stop()
     logging_queue.close()
 
-    # cleanup queues, processes, threads and files
+    # cleanup queues, processes, threads, files and logger
     _cleanup_processes_files()
+    _cleanup_logger()
 
     return trials
 
@@ -721,7 +718,7 @@ class FminLauncherThread(StoppableThread):
     :param fmin_timer: Global amount of time allowed for fmin_process.
         If not None, the minimization procedure will be stopped after ``fmin_timer`` seconds.
         Used only if ``parallel`` is set to ``True``.
-    :param mongo_port_address: String of the form mongo_host:mongo_port/db_name.
+    :param mongo_url: String of the form mongo_host:mongo_port/db_name.
     """
 
     def __init__(
@@ -734,7 +731,7 @@ class FminLauncherThread(StoppableThread):
         algo: Callable = tpe.suggest,
         max_evals: int = 100,
         fmin_timer: float = None,
-        mongo_port_address: str = "localhost:1234/scvi_db",
+        mongo_url: str = "localhost:1234/scvi_db",
     ):
         super().__init__(name="Fmin Launcher")
         self.logging_queue = logging_queue
@@ -745,7 +742,7 @@ class FminLauncherThread(StoppableThread):
         self.algo = algo
         self.max_evals = max_evals
         self.fmin_timer = fmin_timer
-        self.mongo_port_address = mongo_port_address
+        self.mongo_url = mongo_url
 
     @_error_logger_decorator
     def run(self):
@@ -756,7 +753,7 @@ class FminLauncherThread(StoppableThread):
             queue=self.queue,
             objective_hyperopt=self.objective_hyperopt,
             space=self.space,
-            mongo_port_address=self.mongo_port_address,
+            mongo_url=self.mongo_url,
             exp_key=self.exp_key,
             algo=self.algo,
             max_evals=self.max_evals,
@@ -788,7 +785,7 @@ class FminLauncherThread(StoppableThread):
                 fmin_process.terminate()
                 # queue.put uses pickle so remove attribute containing thread.lock
                 trials = MongoTrials(
-                    as_mongo_str(os.path.join(self.mongo_port_address, "jobs")),
+                    as_mongo_str(os.path.join(self.mongo_url, "jobs")),
                     exp_key=self.exp_key,
                 )
                 if hasattr(trials, "handle"):
@@ -820,7 +817,7 @@ class FminProcess(multiprocessing.Process):
         which will be passed to the corresponding object : model, trainer or train method
         when performing hyperoptimization. Default: mutable, see source code.
     :param exp_key: Name of the experiment in MongoDb.
-    :param mongo_port_address: String of the form mongo_host:mongo_port/db_name
+    :param mongo_url: String of the form mongo_host:mongo_port/db_name
     :param algo: Bayesian optimization algorithm from ``hyperopt`` to use.
     :param max_evals: Maximum number of evaluations of the objective.
     :param show_progressbar: Whether or not to show the ``hyperopt`` progress bar.
@@ -833,7 +830,7 @@ class FminProcess(multiprocessing.Process):
         objective_hyperopt: Callable,
         space: dict,
         exp_key: str,
-        mongo_port_address: str = "localhost:1234/scvi_db",
+        mongo_url: str = "localhost:1234/scvi_db",
         algo: Callable = tpe.suggest,
         max_evals: int = 100,
         show_progressbar: bool = False,
@@ -843,7 +840,7 @@ class FminProcess(multiprocessing.Process):
         self.queue = queue
         self.objective_hyperopt = objective_hyperopt
         self.space = space
-        self.mongo_port_address = mongo_port_address
+        self.mongo_url = mongo_url
         self.exp_key = exp_key
         self.algo = algo
         self.max_evals = max_evals
@@ -854,8 +851,7 @@ class FminProcess(multiprocessing.Process):
     def run(self):
         logger_all.debug("Instantiating MongoTrials object.")
         trials = MongoTrials(
-            as_mongo_str(os.path.join(self.mongo_port_address, "jobs")),
-            exp_key=self.exp_key,
+            as_mongo_str(os.path.join(self.mongo_url, "jobs")), exp_key=self.exp_key
         )
         logger_all.debug("Calling fmin.")
         fmin(
@@ -894,7 +890,7 @@ class WorkerLauncherThread(StoppableThread):
     :param reserve_timeout: Amount of time, in seconds, a worker tries to reserve a job for
         before throwing a ``ReserveTimeout`` Exception.
     :param workdir: Directory where the workers
-    :param mongo_port_address: Address to the running MongoDb service.
+    :param mongo_url: Address to the running MongoDb service.
     :param multiple_hosts: ``True`` if launching workers form multiple hosts.
     :param max_evals: Maximum number of evaluations of the objective.
         Useful for instantiating a progress bar.
@@ -909,7 +905,7 @@ class WorkerLauncherThread(StoppableThread):
         n_workers_per_gpu: int = 1,
         reserve_timeout: float = 30.0,
         workdir: str = ".",
-        mongo_port_address: str = "localhost:1234/scvi_db",
+        mongo_url: str = "localhost:1234/scvi_db",
         multiple_hosts: bool = False,
         max_evals: int = 100,
     ):
@@ -921,7 +917,7 @@ class WorkerLauncherThread(StoppableThread):
         self.n_workers_per_gpu = n_workers_per_gpu
         self.reserve_timeout = reserve_timeout
         self.workdir = workdir
-        self.mongo_port_address = mongo_port_address
+        self.mongo_url = mongo_url
         self.multiple_hosts = multiple_hosts
         self.max_evals = max_evals
 
@@ -985,7 +981,7 @@ class WorkerLauncherThread(StoppableThread):
                     gpu=True,
                     hw_id=str(gpu_id),
                     reserve_timeout=self.reserve_timeout,
-                    mongo_port_address=self.mongo_port_address,
+                    mongo_url=self.mongo_url,
                     name="Worker GPU " + str(gpu_id) + ":" + str(sub_id),
                 )
                 worker.start()
@@ -1006,7 +1002,7 @@ class WorkerLauncherThread(StoppableThread):
                 gpu=False,
                 hw_id=str(cpu_id),
                 reserve_timeout=self.reserve_timeout,
-                mongo_port_address=self.mongo_port_address,
+                mongo_url=self.mongo_url,
                 name="Worker CPU " + str(cpu_id),
             )
             worker.start()
@@ -1080,7 +1076,7 @@ class HyperoptWorker(multiprocessing.Process):
     :param poll_interval: Time to wait between attempts to reserve a job.
     :param reserve_timeout: Amount of time, in seconds, a worker tries to reserve a job for
         before throwing a ``ReserveTimeout`` Exception.
-    :param mongo_port_address: Address to the running MongoDb service.
+    :param mongo_url: Address to the running MongoDb service.
     """
 
     def __init__(
@@ -1094,7 +1090,7 @@ class HyperoptWorker(multiprocessing.Process):
         hw_id: str = None,
         poll_interval: float = 1.0,
         reserve_timeout: float = 30.0,
-        mongo_port_address: str = "localhost:1234/scvi_db",
+        mongo_url: str = "localhost:1234/scvi_db",
     ):
         super().__init__(name=name)
         self.progress_queue = progress_queue
@@ -1105,7 +1101,7 @@ class HyperoptWorker(multiprocessing.Process):
         self.hw_id = hw_id
         self.poll_interval = poll_interval
         self.reserve_timeout = reserve_timeout
-        self.mongo_port_address = mongo_port_address
+        self.mongo_url = mongo_url
 
     @_asynchronous_logging_method_decorator
     @_error_logger_decorator
@@ -1115,7 +1111,7 @@ class HyperoptWorker(multiprocessing.Process):
         os.environ["CUDA_VISIBLE_DEVICES"] = self.hw_id if self.gpu else str()
 
         mjobs = MongoJobs.new_from_connection_str(
-            os.path.join(as_mongo_str(self.mongo_port_address), "jobs")
+            os.path.join(as_mongo_str(self.mongo_url), "jobs")
         )
         mworker = MongoWorker(
             mjobs, float(self.poll_interval), workdir=self.workdir, exp_key=self.exp_key
