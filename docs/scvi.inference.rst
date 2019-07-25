@@ -20,18 +20,18 @@ scvi.inference.autotune module
     :undoc-members:
     :show-inheritance:
 
-scvi.inference.fish module
---------------------------
-
-.. automodule:: scvi.inference.fish
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 scvi.inference.inference module
 -------------------------------
 
 .. automodule:: scvi.inference.inference
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+scvi.inference.jvae\_trainer module
+-----------------------------------
+
+.. automodule:: scvi.inference.jvae_trainer
     :members:
     :undoc-members:
     :show-inheritance:
@@ -48,14 +48,6 @@ scvi.inference.trainer module
 -----------------------------
 
 .. automodule:: scvi.inference.trainer
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-scvi.inference.utils module
----------------------------
-
-.. automodule:: scvi.inference.utils
     :members:
     :undoc-members:
     :show-inheritance:

@@ -4,10 +4,10 @@ scvi.dataset package
 Submodules
 ----------
 
-scvi.dataset.anndata module
----------------------------
+scvi.dataset.anndataset module
+------------------------------
 
-.. automodule:: scvi.dataset.anndata
+.. automodule:: scvi.dataset.anndataset
     :members:
     :undoc-members:
     :show-inheritance:
