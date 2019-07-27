@@ -56,7 +56,7 @@ class VAE(nn.Module):
         dispersion: str = "gene",
         log_variational: bool = True,
         reconstruction_loss: str = "zinb",
-        prevent_library_saturation: bool = False,
+        prevent_library_saturation: bool = True,
     ):
         super().__init__()
         self.dispersion = dispersion

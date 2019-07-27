@@ -166,7 +166,7 @@ class Encoder(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
         )
-        self.prevent_saturation = True
+        self.prevent_saturation = prevent_saturation
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)
 
