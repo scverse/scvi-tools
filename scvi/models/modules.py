@@ -141,7 +141,21 @@ class Encoder(nn.Module):
         n_layers: int = 1,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
+        prevent_saturation: bool = True,
     ):
+        """
+
+        :param n_input:
+        :param n_output:
+        :param n_cat_list:
+        :param n_layers:
+        :param n_hidden:
+        :param dropout_rate:
+        :param prevent_saturation: In the case where self models the loglibrary posterior,
+        NaNs can easily appear as we latent need to compute the exponential of `library`
+        This option allows to prevent this issue by directly controlling the range of admissible
+        values taken by the mean and variance of the encoder
+        """
         super().__init__()
 
         self.encoder = FCLayers(
@@ -152,6 +166,7 @@ class Encoder(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
         )
+        self.prevent_saturation = True
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)
 
@@ -171,7 +186,12 @@ class Encoder(nn.Module):
         # Parameters for latent distribution
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
-        q_v = torch.exp(self.var_encoder(q)) + 1e-4
+        q_v = self.var_encoder(q)
+        if self.prevent_saturation:
+            q_m = 15 * nn.Tanh()(self.mean_encoder(q))
+            q_v = 5 * nn.Sigmoid()(q_v)
+        else:
+            q_v = torch.exp(q_v) + 1e-4
         latent = reparameterize_gaussian(q_m, q_v)
         return q_m, q_v, latent
 

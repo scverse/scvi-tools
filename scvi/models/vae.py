@@ -56,6 +56,7 @@ class VAE(nn.Module):
         dispersion: str = "gene",
         log_variational: bool = True,
         reconstruction_loss: str = "zinb",
+        prevent_library_saturation: bool = False,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -86,7 +87,12 @@ class VAE(nn.Module):
         )
         # l encoder goes from n_input-dimensional data to 1-d library size
         self.l_encoder = Encoder(
-            n_input, 1, n_layers=1, n_hidden=n_hidden, dropout_rate=dropout_rate
+            n_input,
+            1,
+            n_layers=1,
+            n_hidden=n_hidden,
+            dropout_rate=dropout_rate,
+            prevent_saturation=prevent_library_saturation,
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
         self.decoder = DecoderSCVI(
