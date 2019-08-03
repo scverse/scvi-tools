@@ -28,6 +28,7 @@ requirements = [
     "umap-learn>=0.3.7",
     "seaborn>=0.9.0",
     "hyperopt>=0.1.2",
+    "numba>=0.37, <0.45.1",
 ]
 
 setup_requirements = ["pytest-runner"]
@@ -77,6 +78,6 @@ setup(
     tests_require=test_requirements,
     extras_require=extras_requirements,
     url="https://github.com/YosefLab/scVI",
-    version="0.4.0",
+    version="0.4.1",
     zip_safe=False,
 )
