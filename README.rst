@@ -28,7 +28,7 @@ Single-cell Variational Inference
 Quick Start
 -----------
 
-0. If you intend to use parallel implementation of our hyperparameter tuning feature, install MongoDb_.
+0. If you intend to use multiple GPUs for hyperparameter tuning, install MongoDb_.
 
 .. _MongoDb: https://docs.mongodb.com/manual/installation/
 
