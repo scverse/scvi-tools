@@ -72,8 +72,12 @@ class VAE(nn.Module):
             self.px_r = torch.nn.Parameter(torch.randn(n_input, n_batch))
         elif self.dispersion == "gene-label":
             self.px_r = torch.nn.Parameter(torch.randn(n_input, n_labels))
-        else:  # gene-cell
+        elif self.dispersion == "gene-cell":
             pass
+        else:
+            raise ValueError(f"dispersion must be one of ['gene', 'gene-batch',"
+                             f" 'gene-label', 'gene-cell'], but input was "
+                             f"{self.dispersion}")
 
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         # latent space representation
