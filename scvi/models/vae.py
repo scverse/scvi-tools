@@ -75,9 +75,11 @@ class VAE(nn.Module):
         elif self.dispersion == "gene-cell":
             pass
         else:
-            raise ValueError(f"dispersion must be one of ['gene', 'gene-batch',"
-                             f" 'gene-label', 'gene-cell'], but input was "
-                             f"{self.dispersion}")
+            raise ValueError(
+                "dispersion must be one of ['gene', 'gene-batch',"
+                " 'gene-label', 'gene-cell'], but input was "
+                "{}.format(self.dispersion)"
+            )
 
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         # latent space representation
