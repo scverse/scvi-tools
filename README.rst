@@ -28,11 +28,7 @@ Single-cell Variational Inference
 Quick Start
 -----------
 
-0. If you intend to use parallel implementation of our hyperparameter tuning feature, install MongoDb_.
-
-.. _MongoDb: https://docs.mongodb.com/manual/installation/
-
-1. Install Python 3.7. We typically use the Miniconda_ Python distribution.
+1. Install Python 3.7. We typically use the Miniconda_ Python distribution and Linux.
 
 .. _Miniconda: https://conda.io/miniconda.html
 
@@ -45,7 +41,12 @@ Quick Start
     ``conda install scvi -c bioconda -c conda-forge``
 
    Alternatively, you may try pip (``pip install scvi``), or you may clone this repository and run ``python setup.py install``.
-4. Follow along with our Jupyter notebooks to quickly get familiar with scVI!
+
+4. If you wish to use multiple GPUs for hyperparameter tuning, install MongoDb_.
+
+.. _MongoDb: https://docs.mongodb.com/manual/installation/
+
+5. Follow along with our Jupyter notebooks to quickly get familiar with scVI!
 
    a. Getting started:
        * `data loading`__
