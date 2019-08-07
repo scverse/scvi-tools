@@ -18,6 +18,7 @@ from scvi.dataset.loom import (
 )
 from scvi.dataset.pbmc import PbmcDataset, PurifiedPBMCDataset
 from scvi.dataset.seqfish import SeqfishDataset
+from scvi.dataset.seqfishplus import SeqFishPlusDataset
 from scvi.dataset.smfish import SmfishDataset
 from scvi.dataset.synthetic import (
     SyntheticDataset,
@@ -50,6 +51,7 @@ __all__ = [
     "PbmcDataset",
     "PurifiedPBMCDataset",
     "SeqfishDataset",
+    "SeqFishPlusDataset",
     "SmfishDataset",
     "SyntheticDataset",
     "SyntheticRandomDataset",
