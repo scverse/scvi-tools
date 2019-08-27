@@ -311,7 +311,7 @@ class GeneExpressionDataset(Dataset):
         )
 
         # keep gene order
-        gene_to_keep = [
+        genes_to_keep = [
             gene for gene in gene_datasets_list[0].gene_names if gene in genes_to_keep
         ]
         logger.info("Keeping {nb_genes} genes".format(nb_genes=len(genes_to_keep)))
@@ -319,7 +319,7 @@ class GeneExpressionDataset(Dataset):
         # filter genes
         Xs = []
         for dataset in gene_datasets_list:
-            dataset.filter_genes_by_attribute(gene_to_keep)
+            dataset.reorder_genes(first_genes=genes_to_keep, drop_omitted_genes=True)
             dataset.remap_categorical_attributes()
             Xs.append(dataset.X)
 
