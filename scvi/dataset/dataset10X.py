@@ -50,7 +50,7 @@ available_datasets = {
         "heart_1k_v3",
         "heart_10k_v3",
     ],
-    "3.1.0": ["5k_pbmc_protein_v3"],
+    "3.1.0": ["5k_pbmc_protein_v3", "5k_pbmc_protein_v3_nextgem"],
 }
 
 dataset_to_group = dict(
