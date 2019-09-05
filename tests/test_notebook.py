@@ -7,6 +7,7 @@ from IPython.core.interactiveshell import InteractiveShell
 import os
 import matplotlib.pyplot as plt
 import re
+import pytest
 
 base_path = os.getcwd()
 
@@ -131,6 +132,7 @@ class NotebookFinder(object):
 sys.meta_path.append(NotebookFinder())
 
 
+@pytest.mark.notebook
 def test_notebooks_annotation(save_path):
     try:
         os.chdir(save_path)
@@ -144,6 +146,7 @@ def test_notebooks_annotation(save_path):
         os.chdir(path=base_path)
 
 
+@pytest.mark.notebook
 def test_notebooks_dataloading(save_path):
     try:
         os.chdir(save_path)
@@ -157,6 +160,7 @@ def test_notebooks_dataloading(save_path):
         os.chdir(path=base_path)
 
 
+@pytest.mark.notebook
 def test_notebooks_basictutorial(save_path):
     try:
         os.chdir(save_path)
@@ -170,6 +174,7 @@ def test_notebooks_basictutorial(save_path):
         os.chdir(path=base_path)
 
 
+@pytest.mark.notebook
 def test_notebooks_gimvitutorial(save_path):
     try:
         os.chdir(save_path)
@@ -183,6 +188,7 @@ def test_notebooks_gimvitutorial(save_path):
         os.chdir(path=base_path)
 
 
+@pytest.mark.notebook
 def test_notebooks_reproducibility(save_path):
     try:
         os.chdir(save_path)
@@ -196,6 +202,7 @@ def test_notebooks_reproducibility(save_path):
         os.chdir(path=base_path)
 
 
+@pytest.mark.notebook
 def test_notebooks_harmonization(save_path):
     try:
         os.chdir(save_path)
@@ -209,6 +216,7 @@ def test_notebooks_harmonization(save_path):
         os.chdir(path=base_path)
 
 
+@pytest.mark.notebook
 def test_notebooks_scanpy_api(save_path):
     try:
         os.chdir(save_path)
@@ -223,6 +231,7 @@ def test_notebooks_scanpy_api(save_path):
         os.chdir(path=base_path)
 
 
+@pytest.mark.notebook
 def test_notebooks_autotune(save_path):
     try:
         os.chdir(save_path)

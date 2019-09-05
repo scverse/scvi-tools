@@ -18,11 +18,11 @@ install:
 script:
   - flake8
   - black --check .
-  - coverage run setup.py test
+  - coverage run setup.py test --addopts "-v -m 'not notebook'"
 
 after_success:
   - codecov
-  
+
 branches:
   only:
   - master
