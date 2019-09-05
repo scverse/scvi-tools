@@ -28,7 +28,7 @@ requirements = [
     "seaborn>=0.9.0",
     "hyperopt>=0.1.2",
     "numba>=0.37",
-    "mongodb >=4",
+    "pymongo",
 ]
 
 setup_requirements = ["pytest-runner"]
