@@ -12,6 +12,9 @@ os:
 notifications:
   email: false
 
+install:
+  - pip install --quiet black coverage flake8
+
 script:
   - flake8
   - black --check .
