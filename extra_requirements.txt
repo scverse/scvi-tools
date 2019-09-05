@@ -1,0 +1,5 @@
+umap-learn==0.3.8
+leidenalg==0.7.0
+louvain==0.6.1
+python-igraph==0.7.1.post6
+scanpy==1.4
