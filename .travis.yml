@@ -18,7 +18,8 @@ install:
 script:
   - flake8
   - black --check .
-  - coverage run setup.py test --addopts "-v -m 'not notebook'"
+  - if [[ "$TRAVIS_BRANCH" == "master" ]]; then coverage run setup.py test; fi
+  - if [[ "$TRAVIS_BRANCH" != "master" ]]; then coverage run setup.py test --addopts "-v -m 'not notebook'"; fi
 
 after_success:
   - codecov
