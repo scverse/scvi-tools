@@ -12,10 +12,6 @@ os:
 notifications:
   email: false
 
-install:
-  - pip install --quiet -r requirements.txt
-  - if [ "$TRAVIS_BRANCH" = "master" -a "$TRAVIS_PULL_REQUEST" = "false" ]; then pip install --quiet -r extra_requirements.txt; fi
-
 script:
   - flake8
   - black --check .

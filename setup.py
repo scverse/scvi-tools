@@ -13,7 +13,7 @@ requirements = [
     "numpy>=1.16.4",
     "torch>=0.4.1",
     "matplotlib>=2.0",
-    "scikit-learn>=0.18, <0.20.0",
+    "scikit-learn>=0.18",
     "scipy>=1.1",
     "h5py>=2.8",
     "pandas>=0.2",
@@ -25,10 +25,10 @@ requirements = [
     "nbconvert>=5.4.0",
     "nbformat>=4.4.0",
     "ipython>=7",
-    "umap-learn>=0.3.7",
     "seaborn>=0.9.0",
     "hyperopt>=0.1.2",
-    "numba>=0.37, <0.45.1",
+    "numba>=0.37",
+    "mongodb >=4",
 ]
 
 setup_requirements = ["pytest-runner"]
@@ -36,7 +36,14 @@ setup_requirements = ["pytest-runner"]
 test_requirements = ["pytest"]
 
 extras_requirements = {
-    "test": ["scanpy", "louvain", "leidenalg>=0.7.0", "python-igraph>=0.7.1", "colour"]
+    "test": [
+        "scanpy",
+        "louvain",
+        "leidenalg>=0.7.0",
+        "python-igraph>=0.7.1",
+        "colour",
+        "umap-learn>=0.3.7",
+    ]
 }
 author = (
     "Romain Lopez, "
