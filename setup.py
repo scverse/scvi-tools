@@ -36,7 +36,7 @@ setup_requirements = ["pytest-runner"]
 test_requirements = ["pytest"]
 
 extras_requirements = {
-    "test": [
+    "notebooks": [
         "scanpy",
         "louvain",
         "leidenalg>=0.7.0",
