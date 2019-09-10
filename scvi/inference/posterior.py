@@ -680,8 +680,8 @@ class Posterior:
                 [1, 2, 0]
             )  # Shape : (n_cells_batch, n_genes, n_samples)
 
-            x_old.append(sample_batch)
-            x_new.append(gene_expressions)
+            x_old.append(sample_batch.cpu())
+            x_new.append(gene_expressions.cpu())
 
         x_old = torch.cat(x_old)  # Shape (n_cells, n_genes)
         x_new = torch.cat(x_new)  # Shape (n_cells, n_genes, n_samples)
@@ -689,7 +689,7 @@ class Posterior:
             gene_ids = self.gene_dataset.genes_to_index(genes)
             x_new = x_new[:, gene_ids, :]
             x_old = x_old[:, gene_ids]
-        return x_new.cpu().numpy(), x_old.cpu().numpy()
+        return x_new.numpy(), x_old.numpy()
 
     @torch.no_grad()
     def generate_parameters(self):
