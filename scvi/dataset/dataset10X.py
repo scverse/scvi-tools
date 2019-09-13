@@ -50,6 +50,7 @@ available_datasets = {
         "heart_1k_v3",
         "heart_10k_v3",
     ],
+    "3.1.0": ["5k_pbmc_protein_v3", "5k_pbmc_protein_v3_nextgem"],
 }
 
 dataset_to_group = dict(
@@ -64,12 +65,14 @@ group_to_url_skeleton = {
     "1.1.0": "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_gene_bc_matrices.tar.gz",
     "2.1.0": "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_gene_bc_matrices.tar.gz",
     "3.0.0": "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_feature_bc_matrix.tar.gz",
+    "3.1.0": "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_feature_bc_matrix.tar.gz",
 }
 
 group_to_filename_skeleton = {
     "1.1.0": "{}_gene_bc_matrices.tar.gz",
     "2.1.0": "{}_gene_bc_matrices.tar.gz",
     "3.0.0": "{}_feature_bc_matrix.tar.gz",
+    "3.1.0": "{}_feature_bc_matrix.tar.gz",
 }
 
 available_specification = ["filtered", "raw"]
