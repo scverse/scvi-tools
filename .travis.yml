@@ -12,14 +12,23 @@ os:
 notifications:
   email: false
 
+
+matrix:
+  include:
+    - env: EXTRA_TESTS = 0
+  allow_failures:
+    - env: EXTRA_TESTS = 1
+  fast_finish: true
+
+
 install:
   - pip install --quiet black coverage flake8
 
 script:
   - flake8
   - black --check .
-  - if [ ! "$TRAVIS_PULL_REQUEST" = "false" ]; then coverage run setup.py test --addopts "-v -m 'not notebook'"; fi
-  - if [ "$TRAVIS_BRANCH" = "master" -a "$TRAVIS_PULL_REQUEST" = "false" ]; then pip install -e ".[notebooks]"; coverage run setup.py test; fi
+  - if [ "$EXTRA_TESTS" ];  then pip install -e ".[notebooks]"; coverage run setup.py test; fi
+  - if [ ! "$EXTRA_TESTS" ]; then coverage run setup.py test --addopts "-v -m 'not notebook'"; fi
 
 after_success:
   - codecov
