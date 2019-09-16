@@ -18,8 +18,8 @@ install:
 script:
   - flake8
   - black --check .
-  - if [ "$TRAVIS_BRANCH" = "master" -a "$TRAVIS_PULL_REQUEST" = "false" ]; then coverage run setup.py test; fi
-  - if [ ! "$TRAVIS_PULL_REQUEST" = "false" ]; then pip install -e ".[notebooks]"; coverage run setup.py test --addopts "-v -m 'not notebook'"; fi
+  - if [ ! "$TRAVIS_PULL_REQUEST" = "false" ]; then coverage run setup.py test; fi
+  - if [ "$TRAVIS_BRANCH" = "master" -a "$TRAVIS_PULL_REQUEST" = "false" ]; then pip install -e ".[notebooks]"; coverage run setup.py test --addopts "-v -m 'not notebook'"; fi
 
 after_success:
   - codecov
