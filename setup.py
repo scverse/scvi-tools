@@ -29,6 +29,7 @@ requirements = [
     "hyperopt>=0.1.2",
     "numba>=0.37",
     "pymongo",
+    "colour",
 ]
 
 setup_requirements = ["pytest-runner"]
@@ -41,7 +42,6 @@ extras_requirements = {
         "louvain",
         "leidenalg>=0.7.0",
         "python-igraph>=0.7.1",
-        "colour",
         "umap-learn>=0.3.7",
     ]
 }
