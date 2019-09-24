@@ -2,7 +2,7 @@ import os
 
 from hyperopt import hp
 
-from scvi.dataset import BrainLargeDataset, CortexDataset, LoomDataset, PbmcDataset
+from scvi.dataset import CortexDataset, LoomDataset, PbmcDataset
 from scvi.inference.autotune import auto_tune_scvi_model
 from notebooks.utils.autotune_advanced_notebook import custom_objective_hyperopt
 
@@ -76,4 +76,3 @@ def test_custom_fn(save_path):
         reserve_timeout=reserve_timeout,
         fmin_timeout=fmin_timeout,
     )
-
