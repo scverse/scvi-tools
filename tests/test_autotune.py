@@ -18,7 +18,7 @@ def test_default_usages(save_path):
     cortex_dataset = CortexDataset(save_path=save_path)
     best_trainer, trials = auto_tune_scvi_model(
         gene_dataset=cortex_dataset,
-        parallel=True,
+        parallel=False,
         exp_key="cortex_dataset",
         train_func_specific_kwargs={"n_epochs": n_epochs},
         max_evals=max_evals,
@@ -34,7 +34,7 @@ def test_default_usages(save_path):
     best_trainer, trials = auto_tune_scvi_model(
         gene_dataset=cortex_dataset,
         space=space,
-        parallel=True,
+        parallel=False,
         exp_key="cortex_dataset_custom_space",
         train_func_specific_kwargs={"n_epochs": n_epochs},
         max_evals=max_evals,
@@ -50,7 +50,7 @@ def test_default_usages(save_path):
         gene_dataset=pbmc_dataset,
         metric_name="entropy_batch_mixing",
         posterior_name="train_set",
-        parallel=True,
+        parallel=False,
         exp_key="pbmc_entropy_batch_mixing",
         train_func_specific_kwargs={"n_epochs": n_epochs},
         max_evals=max_evals,
@@ -70,36 +70,10 @@ def test_custom_fn(save_path):
     best_trainer, trials = auto_tune_scvi_model(
         custom_objective_hyperopt=custom_objective_hyperopt,
         objective_kwargs=objective_kwargs,
-        parallel=True,
+        parallel=False,
         exp_key="synthetic_dataset_scanvi",
         max_evals=max_evals,
         reserve_timeout=reserve_timeout,
         fmin_timeout=fmin_timeout,
     )
 
-
-def test_delayed_populating(save_path):
-    brain_large_dataset = BrainLargeDataset(
-        save_path=save_path, delayed_populating=True
-    )
-    best_trainer, trials = auto_tune_scvi_model(
-        gene_dataset=brain_large_dataset,
-        delayed_populating=True,
-        parallel=True,
-        exp_key="brain_large_dataset",
-        max_evals=max_evals,
-        trainer_specific_kwargs={
-            "early_stopping_kwargs": {
-                "early_stopping_metric": "elbo",
-                "save_best_state_metric": "elbo",
-                "patience": 20,
-                "threshold": 0,
-                "reduce_lr_on_plateau": True,
-                "lr_patience": 10,
-                "lr_factor": 0.2,
-            }
-        },
-        train_func_specific_kwargs={"n_epochs": n_epochs_brain_large},
-        reserve_timeout=reserve_timeout,
-        fmin_timeout=fmin_timeout,
-    )
