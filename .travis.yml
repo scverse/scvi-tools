@@ -22,7 +22,7 @@ matrix:
 
 
 install:
-  - pip install --quiet black coverage flake8
+  - pip install --quiet black coverage flake8 codecov
 
 script:
   - flake8
