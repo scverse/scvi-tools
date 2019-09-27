@@ -13,18 +13,19 @@ from scvi.dataset.dataset import DownloadableDataset, GeneExpressionDataset
 logger = logging.getLogger(__name__)
 
 
-class AnnDatasetFromAnnData(
-    GeneExpressionDataset
-    batch_label: str = "batch_indices",
-    ctype_label: str = "cell_types",
-    class_label: str = "labels",
-):
+class AnnDatasetFromAnnData(GeneExpressionDataset):
     """Forms a ``GeneExpressionDataset`` from a ``anndata.AnnData`` object.
 
     :param ad: ``anndata.AnnData`` instance.
     """
 
-    def __init__(self, ad: anndata.AnnData):
+    def __init__(
+        self,
+        ad: anndata.AnnData,
+        batch_label: str = "batch_indices",
+        ctype_label: str = "cell_types",
+        class_label: str = "labels",
+    ):
         super().__init__()
         (
             X,
@@ -75,6 +76,9 @@ class DownloadableAnnDataset(DownloadableDataset):
         save_path: str = "data/",
         url: str = None,
         delayed_populating: bool = False,
+        batch_label: str = "batch_indices",
+        ctype_label: str = "cell_types",
+        class_label: str = "labels",
     ):
         super().__init__(
             urls=url,
@@ -82,6 +86,9 @@ class DownloadableAnnDataset(DownloadableDataset):
             save_path=save_path,
             delayed_populating=delayed_populating,
         )
+        self.batch_label = batch_label
+        self.ctype_label = ctype_label
+        self.class_label = class_label
 
     def populate(self):
         ad = anndata.read_h5ad(
@@ -101,7 +108,12 @@ class DownloadableAnnDataset(DownloadableDataset):
             self.var,
             self.varm,
             self.uns,
-        ) = extract_data_from_anndata(ad)
+        ) = extract_data_from_anndata(
+            ad,
+            batch_label=self.batch_label,
+            ctype_label=self.ctype_label,
+            class_label=self.class_label,
+        )
         self.populate_from_data(
             X=X,
             batch_indices=batch_indices,
