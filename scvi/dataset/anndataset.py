@@ -17,6 +17,9 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
     """Forms a ``GeneExpressionDataset`` from a ``anndata.AnnData`` object.
 
     :param ad: ``anndata.AnnData`` instance.
+    :param batch_label: ``str`` representing AnnData obs column name for batches
+    :param ctype_label: ``str`` representing AnnData obs column name for cell_types
+    :param class_label: ``str`` representing AnnData obs column name for labels
     """
 
     def __init__(
@@ -61,6 +64,9 @@ class DownloadableAnnDataset(DownloadableDataset):
     :param url: URL pointing to the data which will be downloaded
         if it's not already in ``save_path``.
     :param delayed_populating: Switch for delayed populating mechanism.
+    :param batch_label: ``str`` representing AnnData obs column name for batches
+    :param ctype_label: ``str`` representing AnnData obs column name for cell_types
+    :param class_label: ``str`` representing AnnData obs column name for labels
 
         Examples:
         >>> # Loading a local dataset
