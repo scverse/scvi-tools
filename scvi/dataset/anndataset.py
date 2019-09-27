@@ -86,15 +86,15 @@ class DownloadableAnnDataset(DownloadableDataset):
         ctype_label: str = "cell_types",
         class_label: str = "labels",
     ):
+        self.batch_label = batch_label
+        self.ctype_label = ctype_label
+        self.class_label = class_label
         super().__init__(
             urls=url,
             filenames=filename,
             save_path=save_path,
             delayed_populating=delayed_populating,
         )
-        self.batch_label = batch_label
-        self.ctype_label = ctype_label
-        self.class_label = class_label
 
     def populate(self):
         ad = anndata.read_h5ad(
