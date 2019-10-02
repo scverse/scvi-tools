@@ -487,7 +487,8 @@ class DecoderTOTALVI(nn.Module):
     dimensions using a linear decoder
 
     :param n_input: The dimensionality of the input (latent space)
-    :param n_output: The dimensionality of the output (data space)
+    :param n_output_genes: The dimensionality of the output (gene space)
+    :param n_output_proteins: The dimensionality of the output (protein space)
     :param n_cat_list: A list containing the number of categories
                        for each category of interest. Each category will be
                        included using a one-hot encoding
@@ -638,7 +639,8 @@ class EncoderTOTALVI(nn.Module):
     :distribution: Distribution of the latent space, one of
 
         * ``'normal'`` - Normal distribution
-        * ``'ln'`` - Logistic Normal distribution
+        * ``'ln'`` - Logistic Normal distribution with full covariance learned prior
+        * ``'gsm'`` - Gaussian softmax
     """
 
     def __init__(
@@ -649,7 +651,7 @@ class EncoderTOTALVI(nn.Module):
         n_layers: int = 2,
         n_hidden: int = 256,
         dropout_rate: float = 0.1,
-        distribution: str = "normal",
+        distribution: str = "gsm",
     ):
         super().__init__()
 
@@ -693,12 +695,12 @@ class EncoderTOTALVI(nn.Module):
     def forward(self, x: torch.Tensor, *cat_list: int):
         r"""The forward computation for a single sample.
          #. Encodes the data into latent space using the encoder network
-         #. Generates a mean \\( q_m \\) and variance \\( q_v \\) (clamped to \\( [-5, 5] \\))
-         #. Samples a new value from an i.i.d. multivariate normal \\( \\sim N(q_m, \\mathbf{I}q_v) \\)
+         #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
+         #. Samples a new value from an i.i.d. latent distribution
         :param x: tensor with shape (n_input,)
         :param cat_list: list of category membership(s) for this sample
         :return: tensors of shape ``(n_latent,)`` for mean and var, and sample
-        :rtype: 3-tuple of :py:class:`torch.Tensor`
+        :rtype: 7-tuple of :py:class:`torch.Tensor`
         """
 
         # Parameters for latent distribution
