@@ -17,9 +17,18 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
     """Forms a ``GeneExpressionDataset`` from a ``anndata.AnnData`` object.
 
     :param ad: ``anndata.AnnData`` instance.
+    :param batch_label: ``str`` representing AnnData obs column name for batches
+    :param ctype_label: ``str`` representing AnnData obs column name for cell_types
+    :param class_label: ``str`` representing AnnData obs column name for labels
     """
 
-    def __init__(self, ad: anndata.AnnData):
+    def __init__(
+        self,
+        ad: anndata.AnnData,
+        batch_label: str = "batch_indices",
+        ctype_label: str = "cell_types",
+        class_label: str = "labels",
+    ):
         super().__init__()
         (
             X,
@@ -32,7 +41,12 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
             self.var,
             self.varm,
             self.uns,
-        ) = extract_data_from_anndata(ad)
+        ) = extract_data_from_anndata(
+            ad,
+            batch_label=batch_label,
+            ctype_label=ctype_label,
+            class_label=class_label,
+        )
         self.populate_from_data(
             X=X,
             batch_indices=batch_indices,
@@ -50,6 +64,9 @@ class DownloadableAnnDataset(DownloadableDataset):
     :param url: URL pointing to the data which will be downloaded
         if it's not already in ``save_path``.
     :param delayed_populating: Switch for delayed populating mechanism.
+    :param batch_label: ``str`` representing AnnData obs column name for batches
+    :param ctype_label: ``str`` representing AnnData obs column name for cell_types
+    :param class_label: ``str`` representing AnnData obs column name for labels
 
         Examples:
         >>> # Loading a local dataset
@@ -65,7 +82,13 @@ class DownloadableAnnDataset(DownloadableDataset):
         save_path: str = "data/",
         url: str = None,
         delayed_populating: bool = False,
+        batch_label: str = "batch_indices",
+        ctype_label: str = "cell_types",
+        class_label: str = "labels",
     ):
+        self.batch_label = batch_label
+        self.ctype_label = ctype_label
+        self.class_label = class_label
         super().__init__(
             urls=url,
             filenames=filename,
@@ -91,7 +114,12 @@ class DownloadableAnnDataset(DownloadableDataset):
             self.var,
             self.varm,
             self.uns,
-        ) = extract_data_from_anndata(ad)
+        ) = extract_data_from_anndata(
+            ad,
+            batch_label=self.batch_label,
+            ctype_label=self.ctype_label,
+            class_label=self.class_label,
+        )
         self.populate_from_data(
             X=X,
             batch_indices=batch_indices,
@@ -102,7 +130,12 @@ class DownloadableAnnDataset(DownloadableDataset):
         self.filter_cells_by_count()
 
 
-def extract_data_from_anndata(ad: anndata.AnnData):
+def extract_data_from_anndata(
+    ad: anndata.AnnData,
+    batch_label: str = "batch_indices",
+    ctype_label: str = "cell_types",
+    class_label: str = "labels",
+):
     data, labels, batch_indices, gene_names, cell_types = None, None, None, None, None
 
     # treat all possible cases according to anndata doc
@@ -120,16 +153,16 @@ def extract_data_from_anndata(ad: anndata.AnnData):
 
     gene_names = np.asarray(ad.var.index.values, dtype=str)
 
-    if "batch_indices" in ad.obs.columns:
-        batch_indices = ad.obs["batch_indices"].values
+    if batch_label in ad.obs.columns:
+        batch_indices = ad.obs[batch_label].values
 
-    if "cell_types" in ad.obs.columns:
-        cell_types = ad.obs["cell_types"]
+    if ctype_label in ad.obs.columns:
+        cell_types = ad.obs[ctype_label]
         labels = cell_types.rank(method="dense").values.astype("int")
         cell_types = cell_types.drop_duplicates().values.astype("str")
 
-    if "labels" in ad.obs.columns:
-        labels = ad.obs["labels"]
+    if class_label in ad.obs.columns:
+        labels = ad.obs[class_label]
 
     return (
         data,
