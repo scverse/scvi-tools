@@ -251,9 +251,11 @@ class JVAE(nn.Module):
     ) -> torch.Tensor:
         reconstruction_loss = None
         if self.reconstruction_losses[mode] == "zinb":
-            reconstruction_loss = -log_zinb_positive(x, px_rate, px_r, px_dropout)
+            reconstruction_loss = -log_zinb_positive(x, px_rate, px_r, px_dropout).sum(
+                dim=-1
+            )
         elif self.reconstruction_losses[mode] == "nb":
-            reconstruction_loss = -log_nb_positive(x, px_rate, px_r)
+            reconstruction_loss = -log_nb_positive(x, px_rate, px_r).sum(dim=-1)
         elif self.reconstruction_losses[mode] == "poisson":
             reconstruction_loss = -torch.sum(Poisson(px_rate).log_prob(x), dim=1)
         return reconstruction_loss

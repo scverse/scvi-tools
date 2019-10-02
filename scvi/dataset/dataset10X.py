@@ -204,7 +204,8 @@ class Dataset10X(DownloadableDataset):
                         measurement_type = "protein_expression"
                         columns_attr_name = "protein_names"
                         # protein counts are inherently not sparse
-                        measurement_data = measurement_data.A
+                        if self.dense is not True:
+                            measurement_data = measurement_data.A
                     else:
                         measurement_type = measurement_type.lower().replace(" ", "_")
                         columns_attr_name = measurement_type + "_names"
