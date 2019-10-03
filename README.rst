@@ -58,7 +58,6 @@ Quick Start
    c. Advanced topics:
        * `interaction with scanpy`__
        * `linear decoder for gene interpretation`__
-       * `reproducing results from the scVI paper`__
        * `imputation of unobserved gene expression (gimVI)`__
        * `hyperparameter tuning for scVI with our autotune module`__
 
@@ -69,7 +68,6 @@ Quick Start
 .. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/annotation.ipynb
 .. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/scanpy_pbmc3k.ipynb
 .. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/linear_decoder.ipynb
-.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/scVI_reproducibility.ipynb
 .. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/gimvi_tutorial.ipynb
 .. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/autotune_advanced_notebook.ipynb
 
