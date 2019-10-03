@@ -398,7 +398,7 @@ class TotalPosterior(Posterior):
         if give_mean is True and n_samples > 1:
             px_dropouts = torch.mean(px_dropouts, dim=-1)
 
-            px_dropouts = px_dropouts.cpu().numpy()
+        px_dropouts = px_dropouts.cpu().numpy()
 
         return px_dropouts
 
@@ -440,7 +440,7 @@ class TotalPosterior(Posterior):
         if give_mean is True and n_samples > 1:
             px_scale_list = torch.mean(px_scale_list, dim=-1)
 
-            px_scale_list = px_scale_list.cpu().numpy()
+        px_scale_list = px_scale_list.cpu().numpy()
 
         return px_scale_list
 

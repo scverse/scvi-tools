@@ -240,10 +240,10 @@ def test_notebooks_autotune(save_path):
 def test_notebooks_totalvi(save_path):
     try:
         os.chdir(save_path)
-        import notebooks.totalvi
+        import notebooks.totalVI
 
         print(save_path)
-        notebooks.totalvi.allow_notebook_for_test()
+        notebooks.totalVI.allow_notebook_for_test()
         plt.close("all")
     except BaseException:
         raise
