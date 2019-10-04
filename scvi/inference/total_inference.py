@@ -404,7 +404,7 @@ class TotalPosterior(Posterior):
         return px_dropouts
 
     @torch.no_grad()
-    def get_normalized_denoised_expresssion(
+    def get_normalized_denoised_expression(
         self, n_samples: int = 1, give_mean: bool = True
     ):
         """Returns the tensor denoised normalized gene and protein expression
