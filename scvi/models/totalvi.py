@@ -5,7 +5,7 @@ from typing import Dict, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Normal, MultivariateNormal, Poisson, kl_divergence as kl
+from torch.distributions import Normal, Poisson, kl_divergence as kl
 
 from scvi.models.log_likelihood import (
     log_zinb_positive,
@@ -57,7 +57,6 @@ class TOTALVI(nn.Module):
 
         * ``'normal'`` - Isotropic normal
         * ``'gsm'`` - Gaussian softmax N(0, 1) passed through softmax
-        * ``'ln'` - Logistic normal with fully learned prior covariance matrix
 
     Examples:
         >>> dataset = Dataset10X(dataset_name="pbmc_10k_protein_v3", save_path=save_path)
@@ -107,12 +106,6 @@ class TOTALVI(nn.Module):
                 torch.randn(n_input_proteins)
             )
             self.background_log_beta = torch.nn.Parameter(torch.randn(n_input_proteins))
-
-        if latent_distribution == "ln":
-            self.z_prior_param = nn.Parameter(
-                torch.ones(int(0.5 * (self.n_latent ** 2 + self.n_latent)))
-            )
-            self.z_prior_mean = nn.Parameter(torch.randn(self.n_latent))
 
         if self.gene_dispersion == "gene":
             self.px_r_gene = torch.nn.Parameter(torch.randn(n_input_genes))
@@ -187,7 +180,7 @@ class TOTALVI(nn.Module):
             y = torch.log(1 + y)
         qz_m, qz_v, z, _, _, _, _ = self.encoder(torch.cat((x, y), dim=-1), batch_index)
         if give_mean:
-            if self.latent_distribution == "ln" or self.latent_distribution == "gsm":
+            if self.latent_distribution == "gsm":
                 samples = Normal(qz_m, qz_v.sqrt()).sample([n_samples])
                 z = self.encoder.transformation(samples)
                 z = z.mean(dim=0)
@@ -534,29 +527,7 @@ class TOTALVI(nn.Module):
         )
 
         # KL Divergence
-        if self.latent_distribution != "ln":
-            self.z_prior = Normal(0, 1)
-            kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), self.z_prior).sum(
-                dim=1
-            )
-        else:
-            pri_tril = torch.zeros(self.n_latent, self.n_latent, device=qz_v.device)
-            row_col = torch.tril_indices(
-                self.n_latent, self.n_latent, device=qz_v.device
-            )
-            pri_tril[row_col[0], row_col[1]] = self.z_prior_param
-            # Make diag positive
-            diag = torch.arange(self.n_latent, device=qz_v.device)
-            pri_tril[diag, diag] = torch.exp(pri_tril[diag, diag])
-
-            posterior = MultivariateNormal(
-                qz_m, scale_tril=torch.diag_embed(qz_v.sqrt())
-            )
-            self.z_prior = MultivariateNormal(self.z_prior_mean, scale_tril=pri_tril)
-            kl_divergence_z = torch.distributions.kl.kl_divergence(
-                posterior, self.z_prior
-            )
-
+        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(0, 1)).sum(dim=1)
         kl_divergence_l_gene = kl(
             Normal(ql_m, torch.sqrt(ql_v)),
             Normal(local_l_mean_gene, torch.sqrt(local_l_var_gene)),

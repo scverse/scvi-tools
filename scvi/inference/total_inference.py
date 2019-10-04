@@ -235,9 +235,7 @@ class TotalPosterior(Posterior):
                     .log_prob(library_gene)
                     .sum(dim=-1)
                 )
-                p_z = self.model.z_prior.log_prob(z)
-                if self.model.latent_distribution != "ln":
-                    p_z = p_z.sum(dim=-1)
+                p_z = Normal(0, 1).log_prob(z).sum(dim=-1)
                 p_mu_back = self.model.back_mean_prior.log_prob(log_back_mean).sum(
                     dim=-1
                 )

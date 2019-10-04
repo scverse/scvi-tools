@@ -639,7 +639,6 @@ class EncoderTOTALVI(nn.Module):
     :distribution: Distribution of the latent space, one of
 
         * ``'normal'`` - Normal distribution
-        * ``'ln'`` - Logistic Normal distribution with full covariance learned prior
         * ``'gsm'`` - Gaussian softmax
     """
 
@@ -683,7 +682,7 @@ class EncoderTOTALVI(nn.Module):
 
         self.distribution = distribution
 
-        if distribution == "ln" or distribution == "gsm":
+        if distribution == "gsm":
             self.transformation = nn.Softmax(dim=-1)
 
     def reparameterize_transformation(self, mu, var):
@@ -711,7 +710,7 @@ class EncoderTOTALVI(nn.Module):
         if self.distribution == "normal":
             latent = reparameterize_gaussian(q_m, q_v)
             untran_latent = latent
-        elif self.distribution == "ln" or self.distribution == "gsm":
+        elif self.distribution == "gsm":
             latent, untran_latent = self.reparameterize_transformation(q_m, q_v)
 
         ql_m = {}
