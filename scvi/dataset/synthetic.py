@@ -42,9 +42,9 @@ class SyntheticDataset(GeneExpressionDataset):
 
         protein_data = CellMeasurement(
             name="protein_expression",
-            data=data,
+            data=self.X,
             columns_attr_name="protein_names",
-            columns=np.arange(data.shape[1]),
+            columns=np.arange(self.nb_genes),
         )
         self.initialize_cell_measurement(protein_data)
 
