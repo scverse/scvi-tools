@@ -62,14 +62,14 @@ Quick Start
        * `automated hyperparameter search`__
 
 
-.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/data_loading.ipynb
-.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/basic_tutorial.ipynb
-.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/harmonization.ipynb
-.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/annotation.ipynb
-.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/scanpy_pbmc3k.ipynb
-.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/linear_decoder.ipynb
-.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/gimvi_tutorial.ipynb
-.. __: https://github.com/YosefLab/scVI/blob/master/tests/notebooks/autotune_advanced_notebook.ipynb
+.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/data_loading.ipynb
+.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/basic_tutorial.ipynb
+.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/harmonization.ipynb
+.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/annotation.ipynb
+.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/scanpy_pbmc3k.ipynb
+.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/linear_decoder.ipynb
+.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/gimvi_tutorial.ipynb
+.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/autotune_advanced_notebook.ipynb
 
 References
 ----------
