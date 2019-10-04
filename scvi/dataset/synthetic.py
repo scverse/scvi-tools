@@ -4,7 +4,11 @@ import pickle
 
 import numpy as np
 
-from scvi.dataset.dataset import GeneExpressionDataset, DownloadableDataset
+from scvi.dataset.dataset import (
+    GeneExpressionDataset,
+    DownloadableDataset,
+    CellMeasurement,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +39,14 @@ class SyntheticDataset(GeneExpressionDataset):
         )
         # clear potentially unused cell_types
         self.remap_categorical_attributes()
+
+        protein_data = CellMeasurement(
+            name="protein_expression",
+            data=data,
+            columns_attr_name="protein_names",
+            columns=np.arange(data.shape[1]),
+        )
+        self.initialize_cell_measurement(protein_data)
 
 
 class SyntheticRandomDataset(DownloadableDataset):

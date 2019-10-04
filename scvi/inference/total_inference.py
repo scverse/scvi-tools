@@ -115,7 +115,8 @@ class TotalPosterior(Posterior):
 
     @torch.no_grad()
     def marginal_ll(self, n_mc_samples=1000):
-        raise NotImplementedError
+        ll = self.compute_marginal_log_likelihood()
+        return ll
 
     @torch.no_grad()
     def get_background_mean(self):
