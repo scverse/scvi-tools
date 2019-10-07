@@ -639,7 +639,7 @@ class EncoderTOTALVI(nn.Module):
     :distribution: Distribution of the latent space, one of
 
         * ``'normal'`` - Normal distribution
-        * ``'gsm'`` - Gaussian softmax
+        * ``'ln'`` - Logistic normal
     """
 
     def __init__(
@@ -650,7 +650,7 @@ class EncoderTOTALVI(nn.Module):
         n_layers: int = 2,
         n_hidden: int = 256,
         dropout_rate: float = 0.1,
-        distribution: str = "gsm",
+        distribution: str = "ln",
     ):
         super().__init__()
 
@@ -682,7 +682,7 @@ class EncoderTOTALVI(nn.Module):
 
         self.distribution = distribution
 
-        if distribution == "gsm":
+        if distribution == "ln":
             self.transformation = nn.Softmax(dim=-1)
 
     def reparameterize_transformation(self, mu, var):
@@ -691,26 +691,26 @@ class EncoderTOTALVI(nn.Module):
         z = self.transformation(untran_z)
         return z, untran_z
 
-    def forward(self, x: torch.Tensor, *cat_list: int):
+    def forward(self, data: torch.Tensor, *cat_list: int):
         r"""The forward computation for a single sample.
          #. Encodes the data into latent space using the encoder network
          #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
          #. Samples a new value from an i.i.d. latent distribution
-        :param x: tensor with shape (n_input,)
+        :param data: tensor with shape (n_input,)
         :param cat_list: list of category membership(s) for this sample
         :return: tensors of shape ``(n_latent,)`` for mean and var, and sample
         :rtype: 7-tuple of :py:class:`torch.Tensor`
         """
 
         # Parameters for latent distribution
-        q = self.encoder(x, *cat_list)
+        q = self.encoder(data, *cat_list)
         qz = self.z_encoder(q)
         q_m = self.z_mean_encoder(qz)
         q_v = torch.exp(self.z_var_encoder(qz)) + 1e-4
         if self.distribution == "normal":
             latent = reparameterize_gaussian(q_m, q_v)
             untran_latent = latent
-        elif self.distribution == "gsm":
+        elif self.distribution == "ln":
             latent, untran_latent = self.reparameterize_transformation(q_m, q_v)
 
         ql_m = {}

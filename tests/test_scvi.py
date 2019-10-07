@@ -169,7 +169,7 @@ def totalvi_benchmark(dataset, n_epochs, use_cuda=True):
     trainer.test_set.reconstruction_error()
     trainer.test_set.marginal_ll()
 
-    trainer.test_set.get_background_mean()
+    trainer.test_set.get_protein_background_mean()
     trainer.test_set.get_latent()
     trainer.test_set.generate()
     trainer.test_set.get_sample_dropout()
@@ -245,7 +245,7 @@ def test_sampling_zl(save_path):
 
 
 def test_totalvi(save_path):
-    synthetic_datset_one_batch = SyntheticDataset(n_batches=1)
-    totalvi_benchmark(synthetic_datset_one_batch, n_epochs=1, use_cuda=False)
-    synthetic_datset_two_batches = SyntheticDataset(n_batches=2)
-    totalvi_benchmark(synthetic_datset_two_batches, n_epochs=1, use_cuda=False)
+    synthetic_dataset_one_batch = SyntheticDataset(n_batches=1)
+    totalvi_benchmark(synthetic_dataset_one_batch, n_epochs=1, use_cuda=use_cuda)
+    synthetic_dataset_two_batches = SyntheticDataset(n_batches=2)
+    totalvi_benchmark(synthetic_dataset_two_batches, n_epochs=1, use_cuda=use_cuda)

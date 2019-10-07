@@ -5,7 +5,7 @@ from typing import Dict, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Normal, Poisson, kl_divergence as kl
+from torch.distributions import Normal, kl_divergence as kl
 
 from scvi.models.log_likelihood import (
     log_zinb_positive,
@@ -23,7 +23,7 @@ class TOTALVI(nn.Module):
     r"""Latent variable model for CITE-seq data using auto-encoding Variational Bayes
 
     :param n_input_genes: Number of input genes
-    :param protein_indexes: List of indexes (columns) which correspond to protein
+    :param n_input_proteins: Number of input proteins
     :param n_batch: Number of batches
     :param n_labels: Number of labels
     :param n_hidden: Number of nodes per hidden layer for the z encoder (protein+genes),
@@ -49,14 +49,10 @@ class TOTALVI(nn.Module):
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
 
-    :param reconstruction_loss_protein:  One of
-
-        * ``'mixture_nb'`` - Negative binomial mixture distribution
-
     :param latent_distribution:  One of
 
         * ``'normal'`` - Isotropic normal
-        * ``'gsm'`` - Gaussian softmax N(0, 1) passed through softmax
+        * ``'ln'`` - Logistic normal with normal params N(0, 1)
 
     Examples:
         >>> dataset = Dataset10X(dataset_name="pbmc_10k_protein_v3", save_path=save_path)
@@ -78,8 +74,7 @@ class TOTALVI(nn.Module):
         protein_dispersion: str = "protein",
         log_variational: bool = True,
         reconstruction_loss_gene: str = "nb",
-        reconstruction_loss_protein: str = "mixture_nb",
-        latent_distribution: str = "gsm",
+        latent_distribution: str = "ln",
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
@@ -90,7 +85,6 @@ class TOTALVI(nn.Module):
         self.n_labels = n_labels
         self.n_input_genes = n_input_genes
         self.n_input_proteins = n_input_proteins
-        self.reconstruction_loss_protein = reconstruction_loss_protein
         self.protein_dispersion = protein_dispersion
         self.latent_distribution = latent_distribution
 
@@ -170,8 +164,8 @@ class TOTALVI(nn.Module):
         """ samples the tensor of latent values from the posterior
         #doesn't really sample, returns the means of the posterior distribution
 
-        :param x: tensor of values with shape ``(batch_size, n_input_genes + n_input_proteins)``
-        :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
+        :param x: tensor of values with shape ``(batch_size, n_input_genes)``
+        :param y: tensor of values with shape ``(batch_size, n_input_proteins)``
         :return: tensor of shape ``(batch_size, n_latent)``
         :rtype: :py:class:`torch.Tensor`
         """
@@ -180,7 +174,7 @@ class TOTALVI(nn.Module):
             y = torch.log(1 + y)
         qz_m, qz_v, z, _, _, _, _ = self.encoder(torch.cat((x, y), dim=-1), batch_index)
         if give_mean:
-            if self.latent_distribution == "gsm":
+            if self.latent_distribution == "ln":
                 samples = Normal(qz_m, qz_v.sqrt()).sample([n_samples])
                 z = self.encoder.transformation(samples)
                 z = z.mean(dim=0)
@@ -199,20 +193,20 @@ class TOTALVI(nn.Module):
         #doesn't really sample, returns the tensor of the means of the posterior distribution
 
         :param x: tensor of values with shape ``(batch_size, n_input_genes)``
-        :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
+        :param y: tensor of values with shape ``(batch_size, n_input_proteins)``
         :return: tensor of shape ``(batch_size, 1)``
         :rtype: :py:class:`torch.Tensor`
         """
         if self.log_variational:
             x = torch.log(1 + x)
             y = torch.log(1 + y)
-        _, _, _, _, ql_m, ql_v, library = self.encoder(
+        _, _, _, _, ql_m, ql_v, library_gene = self.encoder(
             torch.cat((x, y), dim=-1), batch_index
         )
         if give_mean is True:
             return torch.exp(ql_m + 0.5 * ql_v)
         else:
-            return library
+            return library_gene
 
     def get_sample_scale(
         self,
@@ -240,7 +234,7 @@ class TOTALVI(nn.Module):
         px_scale = torch.cat((px_scale["gene"], px_scale["protein"]), dim=-1)
         return px_scale
 
-    def get_background_mean(
+    def get_protein_background_mean(
         self,
         x: torch.Tensor,
         y: torch.Tensor,
@@ -366,24 +360,14 @@ class TOTALVI(nn.Module):
                 gene, px_rate["gene"], px_r["gene"]
             ).sum(dim=-1)
 
-        if self.reconstruction_loss_protein == "poisson":
-            reconst_loss_protein = (
-                -Poisson(px_rate["protein"]).log_prob(protein).sum(dim=-1)
-            )
-        if self.reconstruction_loss_protein == "nb":
-            reconst_loss_protein = -log_nb_positive(
-                protein, px_rate["protein"], px_r["protein"]
-            ).sum(dim=-1)
-        if self.reconstruction_loss_protein == "mixture_nb":
-
-            reconst_loss_protein = -log_mixture_nb(
-                protein,
-                px_rate["background"],
-                px_rate["protein"],
-                px_r["protein"],
-                px_r["protein"],
-                px_dropout["protein"],
-            ).sum(dim=-1)
+        reconst_loss_protein = -log_mixture_nb(
+            protein,
+            px_rate["background"],
+            px_rate["protein"],
+            px_r["protein"],
+            px_r["protein"],
+            px_dropout["protein"],
+        ).sum(dim=-1)
 
         return reconst_loss_gene, reconst_loss_protein
 
@@ -395,7 +379,7 @@ class TOTALVI(nn.Module):
         label: Optional[torch.Tensor] = None,
         n_samples=1,
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
-        """ Internal helper function to compute necessary inference quanitities
+        """ Internal helper function to compute necessary inference quantities
 
         We use the variable name `px_...` to refer to parameters of the respective distributions
         (gene, protein). The rate refers to the mean of the NB, dropout refers to Bernoulli

@@ -17,14 +17,13 @@ logger = logging.getLogger(__name__)
 class TotalPosterior(Posterior):
     r"""The functional data unit for totalVI. A `TotalPosterior` instance is instantiated with a model and
     a gene_dataset, and as well as additional arguments that for Pytorch's `DataLoader`. A subset of indices
-    can be specified, for purposes such as splitting the data into train/test or labelled/unlabelled
-    (for semi-supervised learning). Each trainer instance of the `TotalTrainer` class can therefore have multiple
+    can be specified, for purposes such as splitting the data into train/test/validation. Each trainer instance of the `TotalTrainer` class can therefore have multiple
     `TotalPosterior` instances to train a model. A `TotalPosterior` instance also comes with many methods or
     utilities for its corresponding data.
 
 
     :param model: A model instance from class ``TOTALVI``
-    :param gene_dataset: A gene_dataset instance like ``CbmcDataset()``
+    :param gene_dataset: A gene_dataset instance like ``CbmcDataset()`` with attribute ``protein_expression``
     :param shuffle: Specifies if a `RandomSampler` or a `SequentialSampler` should be used
     :param indices: Specifies how the data should be split with regards to train/test or labelled/unlabelled
     :param use_cuda: Default: ``True``
@@ -95,23 +94,16 @@ class TotalPosterior(Posterior):
     elbo.mode = "min"
 
     @torch.no_grad()
-    def reconstruction_error(self):
+    def reconstruction_error(self, mode="total"):
         ll_gene, ll_protein = self.compute_reconstruction_error(self.model)
-        return ll_gene + ll_protein
+        if mode == "total":
+            return ll_gene + ll_protein
+        elif mode == "gene":
+            return ll_gene
+        else:
+            return ll_protein
 
     reconstruction_error.mode = "min"
-
-    @torch.no_grad()
-    def reconstruction_error_protein(self):
-        ll_gene, ll_protein = self.compute_reconstruction_error(self.model)
-        return ll_protein
-
-    reconstruction_error_protein.mode = "min"
-
-    @torch.no_grad()
-    def reconstruction_error_separated(self):
-        ll_gene, ll_protein = self.compute_reconstruction_error(self.model)
-        return ll_gene, ll_protein
 
     @torch.no_grad()
     def marginal_ll(self, n_mc_samples=1000):
@@ -119,14 +111,14 @@ class TotalPosterior(Posterior):
         return ll
 
     @torch.no_grad()
-    def get_background_mean(self):
+    def get_protein_background_mean(self):
         background_mean = []
         for tensors in self:
             x, _, _, batch_index, labels, y = tensors
             background_mean += [
                 np.array(
                     (
-                        self.model.get_background_mean(
+                        self.model.get_protein_background_mean(
                             x, y, batch_index=batch_index, label=labels, n_samples=1
                         )
                     ).cpu()
@@ -197,7 +189,7 @@ class TotalPosterior(Posterior):
 
         Despite its bias, the estimator still converges to the real value
         of log p(x, y) when n_samples_mc (for Monte Carlo) goes to infinity
-        (a fairly high value like 100 should be enough)
+        (a fairly high value like 100 should be enough). 5000 is the standard in machine learning publications.
         Due to the Monte Carlo sampling, this method is not as computationally efficient
         as computing only the reconstruction loss
         """
@@ -548,22 +540,18 @@ class TotalTrainer(UnsupervisedTrainer):
         self,
         model,
         dataset,
-        train_size=0.93,
-        test_size=0.02,
-        pro_weight=1.0,
-        back_kl_weight=1.0,
+        train_size=0.90,
+        test_size=0.05,
+        pro_recons_weight=1.0,
         n_epochs_back_kl_warmup=200,
         n_epochs_kl_warmup=200,
-        n_epochs_gene_warmup=None,
         **kwargs
     ):
         self.n_genes = dataset.nb_genes
         self.n_proteins = model.n_input_proteins
 
-        self.pro_weight = pro_weight
-        self.n_epochs_gene_warmup = n_epochs_gene_warmup
+        self.pro_recons_weight = pro_recons_weight
         self.n_epochs_back_kl_warmup = n_epochs_back_kl_warmup
-        self.back_kl_weight = back_kl_weight
         super().__init__(
             model, dataset, n_epochs_kl_warmup=n_epochs_kl_warmup, **kwargs
         )
@@ -589,10 +577,10 @@ class TotalTrainer(UnsupervisedTrainer):
         )
 
         loss = torch.mean(
-            self.gene_weight * reconst_loss_gene
-            + self.pro_weight * reconst_loss_protein
+            reconst_loss_gene
+            + self.pro_recons_weight * reconst_loss_protein
             + self.kl_weight * kl_divergence
-            + self.back_kl_weight * self.back_warmup_weight * back_kl
+            + self.back_warmup_weight * back_kl
         )
         return loss
 
@@ -602,7 +590,3 @@ class TotalTrainer(UnsupervisedTrainer):
             self.back_warmup_weight = min(1, self.epoch / self.n_epochs_back_kl_warmup)
         else:
             self.back_warmup_weight = 1.0
-        if self.n_epochs_gene_warmup is not None:
-            self.gene_weight = min(1, self.epoch / self.n_epochs_gene_warmup)
-        else:
-            self.gene_weight = 1.0
