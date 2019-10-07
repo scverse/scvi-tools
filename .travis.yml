@@ -8,6 +8,10 @@ python:
 
 os:
   - linux
+  
+cache:
+  - pip
+  - directories: tests/data
 
 notifications:
   email: false
