@@ -136,7 +136,7 @@ class TotalPosterior(Posterior):
         elbo = 0
         for i_batch, tensors in enumerate(self):
             x, local_l_mean, local_l_var, batch_index, labels, y = tensors
-            reconst_loss_gene, reconst_loss_protein, kl_divergence, back_kl = vae(
+            reconst_loss_gene, reconst_loss_protein, kl_div_z, kl_div_gene_l, kl_div_back_pro = vae(
                 x,
                 y,
                 local_l_mean,
@@ -146,7 +146,11 @@ class TotalPosterior(Posterior):
                 **kwargs
             )
             elbo += torch.sum(
-                reconst_loss_gene + reconst_loss_protein + kl_divergence + back_kl
+                reconst_loss_gene
+                + reconst_loss_protein
+                + kl_div_z
+                + kl_div_gene_l
+                + kl_div_back_pro
             ).item()
         n_samples = len(self.indices)
         return elbo / n_samples
@@ -163,7 +167,7 @@ class TotalPosterior(Posterior):
         log_lkl_protein = 0
         for i_batch, tensors in enumerate(self):
             x, local_l_mean, local_l_var, batch_index, labels, y = tensors
-            reconst_loss_gene, reconst_loss_protein, kl_divergence, back_kl = vae(
+            reconst_loss_gene, reconst_loss_protein, kl_div_z, kl_div_l_gene, kl_div_back_pro = vae(
                 x,
                 y,
                 local_l_mean,
@@ -568,7 +572,7 @@ class TotalTrainer(UnsupervisedTrainer):
         sample_batch_X, local_l_mean, local_l_var, batch_index, label, sample_batch_Y = (
             tensors
         )
-        reconst_loss_gene, reconst_loss_protein, kl_divergence, back_kl = self.model(
+        reconst_loss_gene, reconst_loss_protein, kl_div_z, kl_div_l_gene, kl_div_back_pro = self.model(
             sample_batch_X,
             sample_batch_Y,
             local_l_mean,
@@ -580,8 +584,9 @@ class TotalTrainer(UnsupervisedTrainer):
         loss = torch.mean(
             reconst_loss_gene
             + self.pro_recons_weight * reconst_loss_protein
-            + self.kl_weight * kl_divergence
-            + self.back_warmup_weight * back_kl
+            + self.kl_weight * kl_div_z
+            + kl_div_l_gene
+            + self.back_warmup_weight * kl_div_back_pro
         )
         return loss
 

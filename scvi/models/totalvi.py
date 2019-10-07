@@ -416,15 +416,20 @@ class TOTALVI(nn.Module):
         )
 
         # KL Divergence
-        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(0, 1)).sum(dim=1)
-        kl_divergence_l_gene = kl(
+        kl_div_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(0, 1)).sum(dim=1)
+        kl_div_l_gene = kl(
             Normal(ql_m, torch.sqrt(ql_v)),
             Normal(local_l_mean_gene, torch.sqrt(local_l_var_gene)),
         ).sum(dim=1)
 
-        back_reg = kl(
+        kl_div_back_pro = kl(
             Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
         ).sum(dim=-1)
 
-        kl_local = kl_divergence_z + kl_divergence_l_gene
-        return (reconst_loss_gene, reconst_loss_protein, kl_local, back_reg)
+        return (
+            reconst_loss_gene,
+            reconst_loss_protein,
+            kl_div_z,
+            kl_div_l_gene,
+            kl_div_back_pro,
+        )
