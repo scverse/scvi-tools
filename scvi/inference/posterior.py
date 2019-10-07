@@ -2,7 +2,7 @@ import copy
 import os
 import logging
 
-from typing import List, Optional, Union, Tuple
+from typing import List, Optional, Union, Tuple, Callable
 
 import numpy as np
 import pandas as pd
@@ -222,6 +222,15 @@ class Posterior:
 
     entropy_batch_mixing.mode = "max"
 
+    def update_sampler_indices(self, idx: Union[List, np.ndarray]):
+        """
+        Updates the dataloader indices
+        :param idx: Indices (in [0, len(dataset)] to sample from
+        """
+        sampler = SubsetRandomSampler(idx)
+        self.data_loader_kwargs.update({"sampler": sampler})
+        self.data_loader = DataLoader(self.gene_dataset, **self.data_loader_kwargs)
+
     @torch.no_grad()
     def differential_expression_stats(self, M_sampling=100):
         """
@@ -267,25 +276,243 @@ class Posterior:
         return px_scales, all_labels
 
     @torch.no_grad()
-    def sample_scale_from_batch(self, n_samples, batchid=None, selection=None):
+    def sample_scale_from_batch(
+        self,
+        n_samples: int = None,
+        n_samples_per_cell: int = None,
+        batchid: Union[List[int], np.ndarray] = None,
+        genes: Optional[Union[List[str], np.ndarray]] = None,
+        selection: Union[List[bool], np.ndarray] = None,
+    ) -> np.ndarray:
+        """
+        :param n_samples: Number of samples in total per batch (fill either `n_samples_total`
+        or `n_samples_per_cell`)
+        :param n_samples_per_cell: Number of time we sample from each observation per batch
+        (fill either `n_samples_total` or `n_samples_per_cell`)
+        :param batchid: Biological batch for which to sample from.
+        Default (None) sample from all batches
+        :param selection: Mask or list of cell ids to select
+        :param genes: Subset of genes names
+        :return: Posterior aggregated scale samples of shape (n_samples, n_genes)
+        where n_samples correspond to either:
+        - n_bio_batches * n_cells * n_samples_per_cell
+        or
+         - n_samples_total
+
+        """
+        if n_samples is None and n_samples_per_cell is None:
+            n_samples = 500
+        if batchid is None:
+            batchid = np.arange(self.gene_dataset.n_batches)
+
         px_scales = []
         if selection is None:
             raise ValueError("selections should be a list of cell subsets indices")
         else:
+            selection = np.array(selection)
             if selection.dtype is np.dtype("bool"):
                 selection = np.asarray(np.where(selection)[0].ravel())
         old_loader = self.data_loader
         for i in batchid:
-            idx = np.random.choice(
-                np.arange(len(self.gene_dataset))[selection], n_samples
-            )
-            sampler = SubsetRandomSampler(idx)
-            self.data_loader_kwargs.update({"sampler": sampler})
-            self.data_loader = DataLoader(self.gene_dataset, **self.data_loader_kwargs)
-            px_scales.append(self.get_harmonized_scale(i))
+            # Mode 1: sampling over cells
+            if n_samples is not None:
+                idx = np.random.choice(
+                    np.arange(len(self.gene_dataset))[selection], n_samples
+                )
+                self.update_sampler_indices(idx)
+                px_scales.append(self.get_harmonized_scale(i))
+            elif n_samples_per_cell is not None:
+                self.update_sampler_indices(selection)
+                for _ in range(n_samples_per_cell):
+                    px_scales.append(self.get_harmonized_scale(i))
         self.data_loader = old_loader
         px_scales = np.concatenate(px_scales)
+
+        # Filter genes of interest
+        if genes is not None:
+            px_scales = px_scales[:, self.gene_dataset.genes_to_index(genes)]
+
         return px_scales
+
+    def sample_change(
+        self,
+        idx1: Union[List[bool], np.ndarray],
+        idx2: Union[List[bool], np.ndarray],
+        change_fn: Union[Callable, str],
+        batchid1: Optional[Union[List[int], np.ndarray]] = None,
+        batchid2: Optional[Union[List[int], np.ndarray]] = None,
+        genes: Optional[Union[List[str], np.ndarray]] = None,
+        n_samples: int = 5000,
+        sample_pairs: bool = True,
+        M_permutation: int = 10000,
+    ) -> np.ndarray:
+        """
+
+        :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
+        from associated population
+        :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
+        from associated population
+        :param batchid1: List of batch ids for which you want to perform DE Analysis for
+        subpopulation 1. By default, all ids are taken into account
+        :param batchid2: List of batch ids for which you want to perform DE Analysis for
+        subpopulation 2. By default, all ids are taken into account
+        :param change_fn: Name of function or change function.
+        It corresponds to the quantity r(px_1, px_2) one is interested in computing
+        where px_i correspond to posterior scales of population i
+        :param genes: Names of genes for which Bayes factors will be computed
+        :param n_samples:
+        :param sample_pairs: Activates step 2 described above.
+        Simply formulated, pairs obtained from posterior sampling (when calling
+        `sample_scale_from_batch`) will be randomly permuted so that the number of
+        pairs used to compute Bayes Factors becomes M_permutation.
+            :param M_permutation: Number of times we will "mix" posterior samples in step 2.
+            Only makes sense when sample_pairs=True
+        :return: change Posterior aggregated of shape (n_samples, n_genes)
+        """
+        def lfc(x, y):
+            return np.log2(x) - np.log2(y)
+
+        if change_fn == "log-fold":
+            change_fn = lfc
+        elif isinstance(change_fn, str):
+            raise ValueError("Change function {} not recognized".format(change_fn))
+        px_scale1 = self.sample_scale_from_batch(
+            selection=idx1, batchid=batchid1, n_samples=n_samples, genes=genes
+        )
+        px_scale2 = self.sample_scale_from_batch(
+            selection=idx2, batchid=batchid2, n_samples=n_samples, genes=genes
+        )
+
+        px_scale1, px_scale2 = pairs_sampler(
+            px_scale1, px_scale2, sample_pairs=sample_pairs, M_permutation=M_permutation
+        )
+        return change_fn(px_scale1, px_scale2)
+
+    def estimate_change(
+        self,
+        idx1: Union[List[bool], np.ndarray],
+        idx2: Union[List[bool], np.ndarray],
+        batchid1: Optional[Union[List[int], np.ndarray]] = None,
+        batchid2: Optional[Union[List[int], np.ndarray]] = None,
+        change_fn: Union[Callable, str] = "log-fold",
+        credible_intervals_levels: Optional[Union[List[float], np.ndarray]] = None,
+        genes: Optional[Union[List[str], np.ndarray]] = None,
+        n_samples: int = 5000,
+        sample_pairs: bool = True,
+        M_permutation: int = 10000,
+    ) -> dict:
+        """
+        Computes properties of change aggregated posterior:
+            Expectancy_{i in idx1, j in idx2} [r(px_i, px_j)]
+
+        Where r is the change function (for instance the log-fold change
+        and px_i, px_j correspond to posterior scales of cells i and j
+
+        :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
+        from associated population
+        :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
+        from associated population
+        :param batchid1: List of batch ids for which you want to perform DE Analysis for
+        subpopulation 1. By default, all ids are taken into account
+        :param batchid2: List of batch ids for which you want to perform DE Analysis for
+        subpopulation 2. By default, all ids are taken into account
+        :param change_fn: Name of function or change function (should take exactly two inputs).
+        It corresponds to the quantity r(px_1, px_2) one is interested in computing
+        where px_i correspond to posterior scales of population i
+        :param credible_intervals_levels: Confidence in (0, 1)
+        of credible intervals to be computed
+        :param genes: Names of genes for which Bayes factors will be computed
+        :param n_samples:
+        :param sample_pairs: Activates step 2 described above.
+        Simply formulated, pairs obtained from posterior sampling (when calling
+        `sample_scale_from_batch`) will be randomly permuted so that the number of
+        pairs used to compute Bayes Factors becomes M_permutation.
+            :param M_permutation: Number of times we will "mix" posterior samples in step 2.
+            Only makes sense when sample_pairs=True
+        :return: properties of change aggregated posterior
+        """
+        change_posterior = self.sample_change(
+            idx1=idx1,
+            idx2=idx2,
+            batchid1=batchid1,
+            batchid2=batchid2,
+            change_fn=change_fn,
+            genes=genes,
+            n_samples=n_samples,
+            sample_pairs=sample_pairs,
+            M_permutation=M_permutation,
+        )
+        posterior_props = dict(
+            mean=change_posterior.mean(0),
+            median=np.median(change_posterior, 0),
+            std=change_posterior.std(0),
+            min=change_posterior.min(0),
+            max=change_posterior.max(0),
+        )
+        credible_intervals_levels = (
+            [] if credible_intervals_levels is None else credible_intervals_levels
+        )
+        for confidence in credible_intervals_levels:
+            intervals = credible_intervals(
+                change_posterior, confidence_level=confidence
+            )
+            interval_min, interval_max = intervals[:, 0], intervals[:, 1]
+            conf_str = str(confidence)[:5]
+            posterior_props[
+                "confidence_interval_{}_min".format(conf_str)
+            ] = interval_min
+            posterior_props[
+                "confidence_interval_{}_max".format(conf_str)
+            ] = interval_max
+
+        return posterior_props
+
+    def estimate_de_probability(
+        self,
+        idx1: Union[List[bool], np.ndarray],
+        idx2: Union[List[bool], np.ndarray],
+        batchid1: Optional[Union[List[int], np.ndarray]] = None,
+        batchid2: Optional[Union[List[int], np.ndarray]] = None,
+        genes: Optional[Union[List[str], np.ndarray]] = None,
+        n_samples: int = 5000,
+        sample_pairs: bool = True,
+        M_permutation: int = 10000,
+        delta=0.5,
+    ) -> np.ndarray:
+        """
+
+        :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
+        from associated population
+        :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
+        from associated population
+        :param batchid1: List of batch ids for which you want to perform DE Analysis for
+        subpopulation 1. By default, all ids are taken into account
+        :param batchid2: List of batch ids for which you want to perform DE Analysis for
+        subpopulation 2. By default, all ids are taken into account
+        :param genes: Names of genes for which Bayes factors will be computed
+        :param n_samples:
+        :param sample_pairs: Activates step 2 described above.
+        Simply formulated, pairs obtained from posterior sampling (when calling
+        `sample_scale_from_batch`) will be randomly permuted so that the number of
+        pairs used to compute Bayes Factors becomes M_permutation.
+            :param M_permutation: Number of times we will "mix" posterior samples in step 2.
+            Only makes sense when sample_pairs=True
+        :param delta:
+        :return: Probability of being DE
+        """
+        lfc_posterior = self.sample_change(
+            idx1=idx1,
+            idx2=idx2,
+            batchid1=batchid1,
+            batchid2=batchid2,
+            change_fn="log-fold",
+            genes=genes,
+            n_samples=n_samples,
+            sample_pairs=sample_pairs,
+            M_permutation=M_permutation,
+        )
+        de_probas = (np.abs(lfc_posterior) >= delta).mean(0)
+        return de_probas
 
     @torch.no_grad()
     def differential_expression_score(
@@ -295,9 +522,9 @@ class Posterior:
         batchid1: Optional[Union[List[int], np.ndarray]] = None,
         batchid2: Optional[Union[List[int], np.ndarray]] = None,
         genes: Optional[Union[List[str], np.ndarray]] = None,
-        n_samples: int = None,
+        n_samples: int = 5000,
         sample_pairs: bool = True,
-        M_permutation: int = None,
+        M_permutation: int = 10000,
         all_stats: bool = True,
     ):
         """Computes gene specific Bayes factors using masks idx1 and idx2
@@ -317,7 +544,7 @@ class Posterior:
         subpopulation 1. By default, all ids are taken into account
         :param batchid2: List of batch ids for which you want to perform DE Analysis for
         subpopulation 2. By default, all ids are taken into account
-        :param genes: list Names of genes for which Bayes factors will be computed
+        :param genes: Names of genes for which Bayes factors will be computed
         :param n_samples: Number of times the posterior will be sampled for each pop
         :param sample_pairs: Activates step 2 described above.
         Simply formulated, pairs obtained from posterior sampling (when calling
@@ -335,27 +562,16 @@ class Posterior:
             - Gene expression statistics (mean, scale ...)
         :return:
         """
-
-        n_samples = 5000 if n_samples is None else n_samples
-        M_permutation = 10000 if M_permutation is None else M_permutation
-        if batchid1 is None:
-            batchid1 = np.arange(self.gene_dataset.n_batches)
-        if batchid2 is None:
-            batchid2 = np.arange(self.gene_dataset.n_batches)
         px_scale1 = self.sample_scale_from_batch(
-            selection=idx1, batchid=batchid1, n_samples=n_samples
+            selection=idx1, batchid=batchid1, n_samples=n_samples, genes=genes
         )
         px_scale2 = self.sample_scale_from_batch(
-            selection=idx2, batchid=batchid2, n_samples=n_samples
+            selection=idx2, batchid=batchid2, n_samples=n_samples, genes=genes
         )
-        px_scale_mean1 = px_scale1.mean(axis=0)
-        px_scale_mean2 = px_scale2.mean(axis=0)
         px_scale = np.concatenate((px_scale1, px_scale2), axis=0)
         all_labels = np.concatenate(
             (np.repeat(0, len(px_scale1)), np.repeat(1, len(px_scale2))), axis=0
         )
-        if genes is not None:
-            px_scale = px_scale[:, self.gene_dataset.genes_to_index(genes)]
         bayes1 = get_bayes_factors(
             px_scale,
             all_labels,
@@ -392,6 +608,8 @@ class Posterior:
             mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2 = self.gene_dataset.raw_counts_properties(
                 idx1, idx2
             )
+            px_scale_mean1 = px_scale1.mean(axis=0)
+            px_scale_mean2 = px_scale2.mean(axis=0)
             res = pd.DataFrame(
                 [
                     bayes1,
@@ -434,7 +652,7 @@ class Posterior:
         subset: Optional[Union[List[bool], np.ndarray]] = None,
         cell_labels: Optional[Union[List, np.ndarray]] = None,
         min_cells: int = 10,
-        n_samples: int = None,
+        n_samples: int = 500,
         sample_pairs: bool = False,
         M_permutation: int = None,
         output_file: bool = False,
@@ -526,7 +744,7 @@ class Posterior:
         batch1: Optional[Union[List[int], np.ndarray]] = None,
         batch2: Optional[Union[List[int], np.ndarray]] = None,
         subset: Optional[Union[List[bool], np.ndarray]] = None,
-        n_samples: int = None,
+        n_samples: int = 500,
         sample_pairs: bool = False,
         M_permutation: int = None,
         output_file: bool = False,
@@ -1038,7 +1256,6 @@ def get_bayes_factors(
     all_labels: Union[List, np.ndarray],
     cell_idx: Union[int, str],
     other_cell_idx: Optional[Union[int, str]] = None,
-    genes_idx: Union[List[int], np.ndarray] = None,
     M_permutation: int = 10000,
     permutation: bool = False,
     sample_pairs: bool = True,
@@ -1049,7 +1266,6 @@ def get_bayes_factors(
     :param all_labels: The labels array for the corresponding cell types
     :param cell_idx: The first cell type population to consider. Either a string or an idx
     :param other_cell_idx: (optional) The second cell type population to consider. Either a string or an idx
-    :param genes_idx: Indices of genes for which DE Analysis applies
     :param sample_pairs: Activates subsampling.
         Simply formulated, pairs obtained from posterior sampling (when calling
         `sample_scale_from_batch`) will be randomly permuted so that the number of
@@ -1067,37 +1283,17 @@ def get_bayes_factors(
         if other_cell_idx is not None
         else (all_labels != cell_idx)
     )
-    if genes_idx is not None:
-        px_scale = px_scale[:, genes_idx]
     sample_rate_a = px_scale[idx].reshape(-1, px_scale.shape[1])
     sample_rate_b = px_scale[idx_other].reshape(-1, px_scale.shape[1])
 
-    # agregate dataset
-    samples = np.vstack((sample_rate_a, sample_rate_b))
+    first_set, second_set = pairs_sampler(
+        sample_rate_a,
+        sample_rate_b,
+        sample_pairs=sample_pairs,
+        sanity_check_perm=permutation,
+        M_permutation=M_permutation,
+    )
 
-    if sample_pairs is True:
-        # prepare the pairs for sampling
-        list_1 = list(np.arange(sample_rate_a.shape[0]))
-        list_2 = list(sample_rate_a.shape[0] + np.arange(sample_rate_b.shape[0]))
-        if not permutation:
-            # case1: no permutation, sample from A and then from B
-            u, v = (
-                np.random.choice(list_1, size=M_permutation),
-                np.random.choice(list_2, size=M_permutation),
-            )
-        else:
-            # case2: permutation, sample from A+B twice
-            u, v = (
-                np.random.choice(list_1 + list_2, size=M_permutation),
-                np.random.choice(list_1 + list_2, size=M_permutation),
-            )
-
-        # then constitutes the pairs
-        first_set = samples[u]
-        second_set = samples[v]
-    else:
-        first_set = sample_rate_a
-        second_set = sample_rate_b
     res = np.mean(first_set >= second_set, 0)
     res = np.log(res + 1e-8) - np.log(1 - res + 1e-8)
     return res
@@ -1216,3 +1412,94 @@ def proximity_imputation(real_latent1, normed_gene_exp_1, real_latent2, k=4):
     knn = KNeighborsRegressor(k, weights="distance")
     y = knn.fit(real_latent1, normed_gene_exp_1).predict(real_latent2)
     return y
+
+
+def pairs_sampler(
+    arr1: Union[List[float], np.ndarray, torch.Tensor],
+    arr2: Union[List[float], np.ndarray, torch.Tensor],
+    sample_pairs: bool = True,
+    M_permutation: int = None,
+    sanity_check_perm: bool = False,
+    weights1: Union[List[float], np.ndarray, torch.Tensor] = None,
+    weights2: Union[List[float], np.ndarray, torch.Tensor] = None,
+) -> tuple:
+    """
+    In a context where we want to estimate a double sum, virtually increases the number
+    of samples by considering more pairs so as to better estimate the double summation operation
+
+    :param arr1: samples from population 1
+    :param arr2: samples from population 2
+    :param sample_pairs: Whether to mix samples from both populations
+    :param M_permutation:
+    :param sanity_check_perm: If True, resulting mixed arrays arr1 and arr2 are mixed together
+    In most cases, this parameter should remain False
+    :param weights1: probabilities associated to array 1 for random sampling
+    :param weights2: probabilities associated to array 2 for random sampling
+    :return: new_arr1, new_arr2
+    """
+    if sample_pairs is True:
+        # prepare the pairs for sampling
+        n_arr1 = arr1.shape[0]
+        n_arr2 = arr2.shape[0]
+        if not sanity_check_perm:
+            # case1: no permutation, sample from A and then from B
+            u, v = (
+                np.random.choice(n_arr1, size=M_permutation, p=weights1),
+                np.random.choice(n_arr2, size=M_permutation, p=weights2),
+            )
+            first_set = arr1[u]
+            second_set = arr2[v]
+        else:
+            # case2: permutation, sample from A+B twice (sanity check)
+            u, v = (
+                np.random.choice(n_arr1 + n_arr2, size=M_permutation),
+                np.random.choice(n_arr1 + n_arr2, size=M_permutation),
+            )
+            concat_arr = np.concatenate((arr1, arr2))
+            first_set = concat_arr[u]
+            second_set = concat_arr[v]
+    else:
+        first_set = arr1
+        second_set = arr2
+    return first_set, second_set
+
+
+def credible_intervals(
+    ary: np.ndarray, confidence_level: Union[float, List[float], np.ndarray] = 0.94
+) -> np.ndarray:
+    """
+    Taken from the arviz package
+    Calculate highest posterior density (HPD) of array for given credible_interval.
+    The HPD is the minimum width Bayesian credible interval (BCI). This implementation works only
+    for unimodal distributions.
+
+    :param ary : posterior samples
+    :param confidence_level : confidence level
+
+    :return: intervals minima, intervals maxima
+    """
+    if ary.ndim > 1:
+        hpd = np.array(
+            [
+                credible_intervals(row, confidence_level=confidence_level)
+                for row in ary.T
+            ]
+        )
+        return hpd
+    # Make a copy of trace
+    ary = ary.copy()
+    n = len(ary)
+    ary = np.sort(ary)
+    interval_idx_inc = int(np.floor(confidence_level * n))
+    n_intervals = n - interval_idx_inc
+    interval_width = ary[interval_idx_inc:] - ary[:n_intervals]
+
+    if len(interval_width) == 0:
+        raise ValueError(
+            "Too few elements for interval calculation. "
+            "Check that credible_interval meets condition 0 =< credible_interval < 1"
+        )
+    min_idx = np.argmin(interval_width)
+    hdi_min = ary[min_idx]
+    hdi_max = ary[min_idx + interval_idx_inc]
+    return np.array([hdi_min, hdi_max])

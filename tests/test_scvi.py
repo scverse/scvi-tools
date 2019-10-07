@@ -221,3 +221,53 @@ def test_sampling_zl(save_path):
     )
     trainer_cortex_cls.train(n_epochs=2)
     trainer_cortex_cls.test_set.accuracy()
+
+
+def test_differential_expression(save_path):
+    dataset = CortexDataset(save_path=save_path)
+    n_cells = len(dataset)
+    all_indices = np.arange(n_cells)
+    vae = VAE(dataset.nb_genes, dataset.n_batches)
+    trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
+    trainer.train(n_epochs=2)
+    post = trainer.create_posterior(vae, dataset, shuffle=False, indices=all_indices)
+    # Sample scale example
+    px_scales = post.sample_scale_from_batch(
+        n_samples_per_cell=4, selection=all_indices
+    )
+    assert (
+        px_scales.shape[1] == dataset.nb_genes
+    ), "posterior scales should have shape (n_samples, n_genes)"
+
+    # Sample LFC example
+    idx_1 = [1, 2, 3]
+    idx_2 = [4, 5, 6, 7]
+    lfc_properties = post.estimate_change(
+        idx1=idx_1,
+        idx2=idx_2,
+        n_samples=10,
+        sample_pairs=True,
+        M_permutation=100,
+        credible_intervals_levels=[0.50, 0.95],
+    )
+    print(lfc_properties.keys())
+    assert (
+        lfc_properties["confidence_interval_0.5_min"]
+        <= lfc_properties["confidence_interval_0.5_max"]
+    ).all()
+    assert (
+        lfc_properties["confidence_interval_0.95_min"]
+        <= lfc_properties["confidence_interval_0.95_max"]
+    ).all()
+
+    # DE estimation example
+    idx_1, idx_2 = all_indices[: int(n_cells / 2)], all_indices[int(n_cells / 2) :]
+    de_probabilities = post.estimate_de_probability(
+        idx1=idx_1,
+        idx2=idx_2,
+        n_samples=100,
+        sample_pairs=True,
+        M_permutation=200,
+        delta=0.5,
+    )
+    assert ((0.0 <= de_probabilities) & (de_probabilities <= 1.0)).all()
