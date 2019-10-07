@@ -114,16 +114,12 @@ class TotalPosterior(Posterior):
     def get_protein_background_mean(self):
         background_mean = []
         for tensors in self:
-            x, _, _, batch_index, labels, y = tensors
-            background_mean += [
-                np.array(
-                    (
-                        self.model.get_protein_background_mean(
-                            x, y, batch_index=batch_index, label=labels, n_samples=1
-                        )
-                    ).cpu()
-                )
-            ]
+            x, _, _, batch_index, label, y = tensors
+            outputs = self.model.inference(
+                x, y, batch_index=batch_index, label=label, n_samples=1
+            )
+            b_mean = outputs["py_"]["rate_back"]
+            background_mean += [np.array(b_mean.cpu())]
         return np.concatenate(background_mean)
 
     def compute_elbo(self, vae: TOTALVI, **kwargs):
@@ -207,36 +203,34 @@ class TotalPosterior(Posterior):
                 qz_v = outputs["qz_v"]
                 ql_m = outputs["ql_m"]
                 ql_v = outputs["ql_v"]
-                px_rate = outputs["px_rate"]
-                px_scale = outputs["px_scale"]
-                px_r = outputs["px_r"]
-                px_dropout = outputs["px_dropout"]
-                library_gene = outputs["library_gene"]
+                px_ = outputs["px_"]
+                py_ = outputs["py_"]
+                log_library = outputs["untran_l"]
                 # really need not softmax transformed random variable
                 z = outputs["untran_z"]
-                log_back_mean = outputs["log_back_mean"]
+                log_pro_back_mean = outputs["log_pro_back_mean"]
 
                 # Reconstruction Loss
                 reconst_loss_gene, reconst_loss_protein = self.model.get_reconstruction_loss(
-                    x, y, px_rate, px_r, px_dropout, px_scale
+                    x, y, px_, py_
                 )
 
                 # Log-probabilities
                 p_l_gene = (
                     Normal(local_l_mean, local_l_var.sqrt())
-                    .log_prob(library_gene)
+                    .log_prob(log_library)
                     .sum(dim=-1)
                 )
                 p_z = Normal(0, 1).log_prob(z).sum(dim=-1)
-                p_mu_back = self.model.back_mean_prior.log_prob(log_back_mean).sum(
+                p_mu_back = self.model.back_mean_prior.log_prob(log_pro_back_mean).sum(
                     dim=-1
                 )
                 p_xy_zl = -(reconst_loss_gene + reconst_loss_protein)
                 q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
-                q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library_gene).sum(dim=-1)
+                q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(log_library).sum(dim=-1)
                 q_mu_back = (
-                    Normal(outputs["py_alpha"], outputs["py_beta"])
-                    .log_prob(log_back_mean)
+                    Normal(py_["back_alpha"], py_["back_beta"])
+                    .log_prob(log_pro_back_mean)
                     .sum(dim=-1)
                 )
                 to_sum[:, i] = (
@@ -255,7 +249,7 @@ class TotalPosterior(Posterior):
         """
         Output posterior z mean or sample, batch index, and label
         :param sample: z mean or z sample
-        :return: six np.ndarrays, latent, batch_indices, labels, library for each of gene, protein, background
+        :return: 4-tuple of np.ndarrays, latent, batch_indices, labels, library_gene
         """
         latent = []
         batch_indices = []
@@ -317,41 +311,38 @@ class TotalPosterior(Posterior):
                 outputs = self.model.inference(
                     x, y, batch_index=batch_index, label=labels, n_samples=n_samples
                 )
-            px_dispersion = outputs["px_r"]
-            px_rate = outputs["px_rate"]
-            px_dropout = outputs["px_dropout"]
+            px_ = outputs["px_"]
+            py_ = outputs["py_"]
 
-            pi = 1 / (1 + torch.exp(-px_dropout["protein"]))
+            pi = 1 / (1 + torch.exp(-py_["mixing"]))
             mixing_sample = Bernoulli(pi).sample()
             protein_rate = (
-                px_rate["protein"] * (1 - mixing_sample)
-                + px_rate["background"] * mixing_sample
+                py_["rate_fore"] * (1 - mixing_sample)
+                + py_["rate_back"] * mixing_sample
             )
-            px_rate = torch.cat((px_rate["gene"], protein_rate), dim=-1)
-            if len(px_dispersion["gene"].size()) == 2:
-                px_dispersion_gene = px_dispersion["gene"]
+            rate = torch.cat((px_["rate"], protein_rate), dim=-1)
+            if len(px_["r"].size()) == 2:
+                px_dispersion_gene = px_["r"]
             else:
-                px_dispersion_gene = torch.ones_like(x) * px_dispersion["gene"]
-            if len(px_dispersion["protein"].size()) == 2:
-                px_dispersion_protein = px_dispersion["protein"]
+                px_dispersion_gene = torch.ones_like(x) * px_["r"]
+            if len(py_["r"].size()) == 2:
+                px_dispersion_protein = py_["r"]
             else:
-                px_dispersion_protein = torch.ones_like(y) * px_dispersion["protein"]
+                px_dispersion_protein = torch.ones_like(y) * py_["r"]
 
-            px_dispersion = torch.cat(
-                (px_dispersion_gene, px_dispersion_protein), dim=-1
-            )
+            dispersion = torch.cat((px_dispersion_gene, px_dispersion_protein), dim=-1)
 
             # This gamma is really l*w using scVI manuscript notation
-            p = px_rate / (px_rate + px_dispersion)
-            r = px_dispersion
+            p = rate / (rate + dispersion)
+            r = dispersion
             l_train = Gamma(r, (1 - p) / p).sample()
-            X = Poisson(l_train).sample().cpu().numpy()
+            data = Poisson(l_train).sample().cpu().numpy()
             # """
             # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
             # rate = (1 - p) / p  # = 1/scale # used in pytorch
             # """
             original_list += [np.array(torch.cat((x, y), dim=-1).cpu())]
-            posterior_list += [X]
+            posterior_list += [data]
 
             if genes is not None:
                 posterior_list[-1] = posterior_list[-1][
@@ -372,12 +363,12 @@ class TotalPosterior(Posterior):
     def get_sample_dropout(self, n_samples: int = 1, give_mean: bool = True):
         px_dropouts = []
         for tensors in self:
-            x, _, _, batch_index, labels, y = tensors
-            px_dropouts += [
-                self.model.get_sample_dropout(
-                    x, y, batch_index=batch_index, label=labels, n_samples=n_samples
-                ).cpu()
-            ]
+            x, _, _, batch_index, label, y = tensors
+            outputs = self.model.inference(
+                x, y, batch_index=batch_index, label=label, n_samples=n_samples
+            )
+            px_dropout = outputs["px_"]["dropout"]
+            px_dropouts += [px_dropout.cpu()]
         if n_samples > 1:
             # concatenate along batch dimension -> result shape = (samples, cells, features)
             px_dropouts = torch.cat(px_dropouts, dim=1)
@@ -394,90 +385,96 @@ class TotalPosterior(Posterior):
         return px_dropouts
 
     @torch.no_grad()
+    def get_sample_mixing(self, n_samples: int = 1, give_mean: bool = True):
+        """ Returns mixing bernoulli parameter for negative binomial mixtures
+        """
+        py_mixings = []
+        for tensors in self:
+            x, _, _, batch_index, label, y = tensors
+            outputs = self.model.inference(
+                x, y, batch_index=batch_index, label=label, n_samples=n_samples
+            )
+            py_mixing = outputs["py_"]["mixing"]
+            py_mixings += [py_mixing.cpu()]
+        if n_samples > 1:
+            # concatenate along batch dimension -> result shape = (samples, cells, features)
+            py_mixings = torch.cat(py_mixings, dim=1)
+            # (cells, features, samples)
+            py_mixings = py_mixings.permute(1, 2, 0)
+        else:
+            py_mixings = torch.cat(py_mixings, dim=0)
+
+        if give_mean is True and n_samples > 1:
+            py_mixings = torch.mean(py_mixings, dim=-1)
+
+        py_mixings = py_mixings.cpu().numpy()
+
+        return py_mixings
+
+    @torch.no_grad()
     def get_normalized_denoised_expression(
         self, n_samples: int = 1, give_mean: bool = True
     ):
-        """Returns the tensor denoised normalized gene and protein expression
-
-        The protein expression columns are concatenated to the end of the gene expression
+        """Returns the tensors of denoised normalized gene and protein expression
 
         :param n_samples: number of samples from posterior distribution
         :param give_mean: bool, whether to return samples along first axis or average over samples
-        :rtype: :py:class:`np.ndarray`
+        :rtype: 2-tuple of :py:class:`np.ndarray`
         """
 
-        px_scale_list = []
+        scale_list_gene = []
+        scale_list_pro = []
         for tensors in self:
-            x, _, _, batch_index, labels, y = tensors
+            x, _, _, batch_index, label, y = tensors
             outputs = self.model.inference(
-                x, y, batch_index=batch_index, label=labels, n_samples=n_samples
+                x, y, batch_index=batch_index, label=label, n_samples=n_samples
             )
-            px_scale = outputs["px_scale"]
+            px_scale = outputs["px_"]["scale"]
+            py_scale = outputs["py_"]["scale"]
 
-            adjusted_px_scale = torch.cat(
-                (px_scale["gene"], px_scale["protein"]), dim=-1
-            )
-
-            px_scale_list.append(adjusted_px_scale.cpu())
+            scale_list_gene.append(px_scale.cpu())
+            scale_list_pro.append(py_scale.cpu())
 
         if n_samples > 1:
             # concatenate along batch dimension -> result shape = (samples, cells, features)
-            px_scale_list = torch.cat(px_scale_list, dim=1)
+            scale_list_gene = torch.cat(scale_list_gene, dim=1)
+            scale_list_pro = torch.cat(scale_list_pro, dim=1)
             # (cells, features, samples)
-            px_scale_list = px_scale_list.permute(1, 2, 0)
+            scale_list_gene = scale_list_gene.permute(1, 2, 0)
+            scale_list_pro = scale_list_pro.permute(1, 2, 0)
         else:
-            px_scale_list = torch.cat(px_scale_list, dim=0)
+            scale_list_gene = torch.cat(scale_list_gene, dim=0)
+            scale_list_pro = torch.cat(scale_list_pro, dim=0)
 
         if give_mean is True and n_samples > 1:
-            px_scale_list = torch.mean(px_scale_list, dim=-1)
+            scale_list_gene = torch.mean(scale_list_gene, dim=-1)
+            scale_list_pro = torch.mean(scale_list_pro, dim=-1)
 
-        px_scale_list = px_scale_list.cpu().numpy()
+        scale_list_gene = scale_list_gene.cpu().numpy()
+        scale_list_pro = scale_list_pro.cpu().numpy()
 
-        return px_scale_list
+        return scale_list_gene, scale_list_pro
 
     @torch.no_grad()
     def imputation(self, n_samples: int = 1):
+        """ Gene imputation
+        """
         imputed_list = []
         for tensors in self:
-            x, _, _, batch_index, labels, y = tensors
+            x, _, _, batch_index, label, y = tensors
             px_rate = self.model.get_sample_rate(
-                x, y, batch_index=batch_index, label=labels, n_samples=n_samples
+                x, y, batch_index=batch_index, label=label, n_samples=n_samples
             )
             imputed_list += [np.array(px_rate.cpu())]
         imputed_list = np.concatenate(imputed_list)
         return imputed_list.squeeze()
 
     @torch.no_grad()
-    def get_sample_protein_rates(self, n_samples: int = 1, give_mean: bool = False):
-        px_rate_list_foreground = []
-        px_rate_list_background = []
-        for tensors in self:
-            x, _, _, batch_index, labels, y = tensors
-            outputs = self.model.inference(
-                x, y, batch_index=batch_index, label=labels, n_samples=n_samples
-            )
-            px_rate = outputs["px_rate"]
-            px_rate_list_foreground.append(px_rate["protein"].cpu())
-            px_rate_list_background.append(px_rate["background"].cpu())
-        if n_samples > 1:
-            # concatenate along batch dimension -> result shape = (samples, cells, features)
-            px_rate_list_foreground = torch.cat(px_rate_list_foreground, dim=1)
-            px_rate_list_background = torch.cat(px_rate_list_background, dim=1)
-            # (cells, features, samples)
-            px_rate_list_foreground = px_rate_list_foreground.permute(1, 2, 0)
-            px_rate_list_background = px_rate_list_background.permute(1, 2, 0)
-        else:
-            px_rate_list_foreground = torch.cat(px_rate_list_foreground, dim=0)
-            px_rate_list_background = torch.cat(px_rate_list_background, dim=0)
-        if give_mean is True and n_samples > 1:
-            px_rate_list_foreground = torch.mean(px_rate_list_foreground, dim=-1)
-            px_rate_list_foreground = px_rate_list_foreground.cpu().numpy()
-            px_rate_list_background = torch.mean(px_rate_list_background, dim=-1)
-            px_rate_list_background = px_rate_list_background.cpu().numpy()
-        return px_rate_list_foreground, px_rate_list_background
-
-    @torch.no_grad()
     def imputation_list(self, n_samples: int = 1):
+        """ This code is identical to same function in posterior.py
+
+            Except, we use the totalVI definition of `model.get_sample_rate`
+        """
         original_list = []
         imputed_list = []
         batch_size = self.data_loader_kwargs["batch_size"] // n_samples
@@ -519,6 +516,10 @@ class TotalPosterior(Posterior):
 
     @torch.no_grad()
     def generate_parameters(self):
+        raise NotImplementedError
+
+    @torch.no_grad()
+    def get_sample_scale(self):
         raise NotImplementedError
 
 

@@ -102,24 +102,20 @@ class TOTALVI(nn.Module):
             self.background_log_beta = torch.nn.Parameter(torch.randn(n_input_proteins))
 
         if self.gene_dispersion == "gene":
-            self.px_r_gene = torch.nn.Parameter(torch.randn(n_input_genes))
+            self.px_r = torch.nn.Parameter(torch.randn(n_input_genes))
         elif self.gene_dispersion == "gene-batch":
-            self.px_r_gene = torch.nn.Parameter(torch.randn(n_input_genes, n_batch))
+            self.px_r = torch.nn.Parameter(torch.randn(n_input_genes, n_batch))
         elif self.gene_dispersion == "gene-label":
-            self.px_r_gene = torch.nn.Parameter(torch.randn(n_input_genes, n_labels))
+            self.px_r = torch.nn.Parameter(torch.randn(n_input_genes, n_labels))
         else:  # gene-cell
             pass
 
         if self.protein_dispersion == "protein":
-            self.px_r_protein = torch.nn.Parameter(torch.ones(self.n_input_proteins))
+            self.py_r = torch.nn.Parameter(torch.ones(self.n_input_proteins))
         elif self.protein_dispersion == "protein-batch":
-            self.px_r_protein = torch.nn.Parameter(
-                torch.ones(self.n_input_proteins, n_batch)
-            )
+            self.py_r = torch.nn.Parameter(torch.ones(self.n_input_proteins, n_batch))
         elif self.protein_dispersion == "protein-label":
-            self.px_r_protein = torch.nn.Parameter(
-                torch.ones(self.n_input_proteins, n_labels)
-            )
+            self.py_r = torch.nn.Parameter(torch.ones(self.n_input_proteins, n_labels))
         else:  # protein-cell
             pass
 
@@ -143,16 +139,6 @@ class TOTALVI(nn.Module):
             dropout_rate=dropout_rate_decoder,
         )
 
-    def get_latents(self, x: torch.Tensor, batch_index: Optional[torch.Tensor] = None):
-        r""" returns the result of ``sample_from_posterior_z`` inside a list
-
-        :param x: tensor of values with shape ``(batch_size, n_input_genes + n_input_proteins)``
-        :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
-        :return: one element list of tensor
-        :rtype: list of :py:class:`torch.Tensor`
-        """
-        return [self.sample_from_posterior_z(x, batch_index)]
-
     def sample_from_posterior_z(
         self,
         x: torch.Tensor,
@@ -172,11 +158,14 @@ class TOTALVI(nn.Module):
         if self.log_variational:
             x = torch.log(1 + x)
             y = torch.log(1 + y)
-        qz_m, qz_v, z, _, _, _, _ = self.encoder(torch.cat((x, y), dim=-1), batch_index)
+        qz_m, qz_v, _, _, latent, _ = self.encoder(
+            torch.cat((x, y), dim=-1), batch_index
+        )
+        z = latent["z"]
         if give_mean:
             if self.latent_distribution == "ln":
                 samples = Normal(qz_m, qz_v.sqrt()).sample([n_samples])
-                z = self.encoder.transformation(samples)
+                z = self.encoder.z_transformation(samples)
                 z = z.mean(dim=0)
             else:
                 z = qz_m
@@ -200,81 +189,14 @@ class TOTALVI(nn.Module):
         if self.log_variational:
             x = torch.log(1 + x)
             y = torch.log(1 + y)
-        _, _, _, _, ql_m, ql_v, library_gene = self.encoder(
+        _, _, ql_m, ql_v, latent, _ = self.encoder(
             torch.cat((x, y), dim=-1), batch_index
         )
+        library_gene = latent["l"]
         if give_mean is True:
             return torch.exp(ql_m + 0.5 * ql_v)
         else:
             return library_gene
-
-    def get_sample_scale(
-        self,
-        x: torch.Tensor,
-        y: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        label: Optional[torch.Tensor] = None,
-        n_samples: int = 1,
-    ) -> torch.Tensor:
-        r"""Returns the tensor of predicted frequencies of expression for RNA/Proteins
-
-        Protein data is concatenated horizontally to gene data
-
-        :param x: tensor of values with shape ``(batch_size, n_input_genes)``
-        :param y: tensor of values with shape ``(batch_size, n_input_proteins)``
-        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
-        :param label: tensor of cell-types labels with shape ``(batch_size, n_labels)``
-        :param n_samples: number of samples
-        :return: tensor of predicted frequencies of expression with shape ``(batch_size, n_input)``
-        :rtype: :py:class:`torch.Tensor`
-        """
-        px_scale = self.inference(
-            x, y, batch_index=batch_index, label=label, n_samples=n_samples
-        )["px_scale"]
-        px_scale = torch.cat((px_scale["gene"], px_scale["protein"]), dim=-1)
-        return px_scale
-
-    def get_protein_background_mean(
-        self,
-        x: torch.Tensor,
-        y: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        label: Optional[torch.Tensor] = None,
-        n_samples: int = 1,
-    ) -> torch.Tensor:
-        px_rate = self.inference(
-            x, y, batch_index=batch_index, label=label, n_samples=n_samples
-        )["px_rate"]
-        px_rate = px_rate["background"]
-        return px_rate
-
-    def get_sample_dropout(
-        self,
-        x: torch.Tensor,
-        y: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        label: Optional[torch.Tensor] = None,
-        n_samples: int = 1,
-    ) -> torch.Tensor:
-        r"""Returns the tensor of mixing components for RNA/proteins
-
-        :param x: tensor of values with shape ``(batch_size, n_input_genes)``
-        :param y: tensor of values with shape ``(batch_size, n_input_proteins)``
-        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
-        :param label: tensor of cell-types labels with shape ``(batch_size, n_labels)``
-        :param n_samples: number of samples
-        :return: tensor of mixing probabilities on logits scale ``(batch_size, n_input)``
-        :rtype: :py:class:`torch.Tensor`
-
-        The first n_input_genes columns of the return value are reserved for ZINB mixing components,
-        while the last n_input_proteins columns are reserved for the background probability of NB mixture.
-        """
-
-        px_dropout = self.inference(
-            x, y, batch_index=batch_index, label=label, n_samples=n_samples
-        )["px_dropout"]
-        px_dropout = torch.cat((px_dropout["gene"], px_dropout["protein"]), dim=-1)
-        return px_dropout
 
     def get_sample_rate(
         self,
@@ -284,23 +206,21 @@ class TOTALVI(nn.Module):
         label: Optional[torch.Tensor] = None,
         n_samples: int = 1,
     ) -> torch.Tensor:
-        """Returns the tensor of means of the negative binomial distribution
-
-        Protein means are horizontally concatenated to gene means.
+        """Returns the tensor of negative binomial mean for genes
 
         :param x: tensor of values with shape ``(batch_size, n_input_genes)``
         :param y: tensor of values with shape ``(batch_size, n_input_proteins)``
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :param label: tensor of cell-types labels with shape ``(batch_size, n_labels)``
         :param n_samples: number of samples
-        :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
+        :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input_genes)``
         :rtype: :py:class:`torch.Tensor`
         """
-        px_rate = self.inference(
+        outputs = self.inference(
             x, y, batch_index=batch_index, label=label, n_samples=n_samples
-        )["px_rate"]
-        px_rate = torch.cat((px_rate["gene"], px_rate["protein"]), dim=-1)
-        return px_rate
+        )
+        rate = outputs["px_"]["rate"]
+        return rate
 
     def get_sample_dispersion(
         self,
@@ -309,64 +229,60 @@ class TOTALVI(nn.Module):
         batch_index: Optional[torch.Tensor] = None,
         label: Optional[torch.Tensor] = None,
         n_samples: int = 1,
-        mode: str = "protein",
-    ) -> torch.Tensor:
-        """Returns the tensor of dispersions/variances depending on the model
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Returns the tensors of dispersions for genes and proteins
 
         :param x: tensor of values with shape ``(batch_size, n_input_genes)``
         :param y: tensor of values with shape ``(batch_size, n_input_proteins)``
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :param label: tensor of cell-types labels with shape ``(batch_size, n_labels)``
         :param n_samples: number of samples
-        :param mode: one of "protein" or "gene"
         :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
-        :rtype: :py:class:`torch.Tensor`
+        :rtype: 2-tuple of :py:class:`torch.Tensor`
         """
-        return self.inference(
+        outputs = self.inference(
             x, y, batch_index=batch_index, label=label, n_samples=n_samples
-        )["px_r"][mode]
+        )
+        px_r = outputs["px_"]["r"]
+        py_r = outputs["py_"]["r"]
+        return px_r, py_r
 
     def scale_from_z(
         self, x: torch.Tensor, y: torch.Tensor, fixed_batch: torch.Tensor
     ) -> torch.Tensor:
+        """ Returns concatenated scale (genes first, proteins last) for a fixed seq batch
+
+        This function is the core of differential expression.
+        """
         if self.log_variational:
             x = torch.log(1 + x)
             y = torch.log(1 + y)
-        qz_m, qz_v, z, _, _, _, _ = self.encoder(torch.cat((x, y), dim=-1))
+        qz_m, qz_v, _, _, latent, _, = self.encoder(torch.cat((x, y), dim=-1))
+        z = latent["z"]
         batch_index = fixed_batch * torch.ones_like(x[:, [0]])
+        # dummy library size as it's irrelevant here
         library = 4.0 * torch.ones_like(x[:, [0]])
-        px_scale = self.decoder(z, library, batch_index)[0]
-        px_scale = torch.cat((px_scale["gene"], px_scale["protein"]), dim=-1)
-        return px_scale
+        px_, py_ = self.decoder(z, library, batch_index)[0:2]
+        scale = torch.cat((px_["scale"], py_["scale"]), dim=-1)
+        return scale
 
     def get_reconstruction_loss(
         self,
         x: torch.Tensor,
         y: torch.Tensor,
-        px_rate: Dict[str, torch.Tensor],
-        px_r: Dict[str, torch.Tensor],
-        px_dropout: Dict[str, torch.Tensor],
-        px_scale: Dict[str, torch.Tensor],
+        px_: Dict[str, torch.Tensor],
+        py_: Dict[str, torch.Tensor],
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Reconstruction Loss
-        gene = x
-        protein = y
         if self.reconstruction_loss_gene == "zinb":
             reconst_loss_gene = -log_zinb_positive(
-                gene, px_rate["gene"], px_r["gene"], px_dropout["gene"]
+                x, px_["rate"], px_["r"], px_["dropout"]
             ).sum(dim=-1)
         else:
-            reconst_loss_gene = -log_nb_positive(
-                gene, px_rate["gene"], px_r["gene"]
-            ).sum(dim=-1)
+            reconst_loss_gene = -log_nb_positive(x, px_["rate"], px_["r"]).sum(dim=-1)
 
         reconst_loss_protein = -log_mixture_nb(
-            protein,
-            px_rate["background"],
-            px_rate["protein"],
-            px_r["protein"],
-            px_r["protein"],
-            px_dropout["protein"],
+            y, py_["rate_back"], py_["rate_fore"], py_["r"], py_["r"], py_["mixing"]
         ).sum(dim=-1)
 
         return reconst_loss_gene, reconst_loss_protein
@@ -381,7 +297,7 @@ class TOTALVI(nn.Module):
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
         """ Internal helper function to compute necessary inference quantities
 
-        We use the variable name `px_...` to refer to parameters of the respective distributions
+        We use the dictionary `px_` to store the parameters of the respective distributions
         (gene, protein). The rate refers to the mean of the NB, dropout refers to Bernoulli
         mixing parameters. `scale` refers to the quanity upon which differential expression is
         performed. For genes, this can be viewed as the mean of the underlying gamma distribution.
@@ -393,73 +309,65 @@ class TOTALVI(nn.Module):
             x_ = torch.log(1 + x_)
             y_ = torch.log(1 + y_)
 
-        px_r = {}
-
         # Sampling - Encoder gets concatenated genes + proteins
-        qz_m, qz_v, z, untran_z, ql_m, ql_v, library_gene = self.encoder(
+        qz_m, qz_v, ql_m, ql_v, latent, untran_latent = self.encoder(
             torch.cat((x_, y_), dim=-1), batch_index
         )
+        z = latent["z"]
+        library_gene = latent["l"]
+        untran_z = untran_latent["z"]
+        untran_l = untran_latent["l"]
 
         if n_samples > 1:
             qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
             qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
             untran_z = Normal(qz_m, qz_v.sqrt()).sample()
-            if self.latent_distribution != "normal":
-                z = self.encoder.transformation(untran_z)
-            else:
-                z = untran_z
+            z = self.encoder.z_transformation(untran_z)
             ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
             ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
-            library_gene = Normal(ql_m, ql_v.sqrt()).sample()
+            untran_l = Normal(ql_m, ql_v.sqrt()).sample()
+            library_gene = self.encoder.l_transformation(untran_l)
 
         if self.gene_dispersion == "gene-label":
             # px_r gets transposed - last dimension is nb genes
-            px_r["gene"] = F.linear(one_hot(label, self.n_labels), self.px_r_gene)
+            px_r = F.linear(one_hot(label, self.n_labels), self.px_r)
         elif self.gene_dispersion == "gene-batch":
-            px_r["gene"] = F.linear(one_hot(batch_index, self.n_batch), self.px_r_gene)
+            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
         elif self.gene_dispersion == "gene":
-            px_r["gene"] = self.px_r_gene
-        px_r["gene"] = torch.exp(px_r["gene"])
+            px_r = self.px_r
+        px_r = torch.exp(px_r)
 
         if self.protein_dispersion == "protein-label":
-            # px_r gets transposed - last dimension is nb genes
-            px_r["protein"] = F.linear(one_hot(label, self.n_labels), self.px_r_protein)
+            # py_r gets transposed - last dimension is n_proteins
+            py_r = F.linear(one_hot(label, self.n_labels), self.py_r)
         elif self.protein_dispersion == "protein-batch":
-            px_r["protein"] = F.linear(
-                one_hot(batch_index, self.n_batch), self.px_r_protein
-            )
+            py_r = F.linear(one_hot(batch_index, self.n_batch), self.py_r)
         elif self.protein_dispersion == "protein":
-            px_r["protein"] = self.px_r_protein
-
-        px_r["protein"] = torch.exp(px_r["protein"])
+            py_r = self.py_r
+        py_r = torch.exp(py_r)
 
         # Background regularization
         if self.n_batch > 0:
-            back_alpha = F.linear(
+            py_back_alpha_prior = F.linear(
                 one_hot(batch_index, self.n_batch), self.background_log_alpha
             )
-            back_beta = F.linear(
+            py_back_beta_prior = F.linear(
                 one_hot(batch_index, self.n_batch), torch.exp(self.background_log_beta)
             )
         else:
-            back_alpha = self.background_log_alpha
-            back_beta = torch.exp(self.background_log_beta)
-        self.back_mean_prior = Normal(back_alpha, back_beta)
+            py_back_alpha_prior = self.background_log_alpha
+            py_back_beta_prior = torch.exp(self.background_log_beta)
+        self.back_mean_prior = Normal(py_back_alpha_prior, py_back_beta_prior)
 
-        px_scale, px_rate, px_dropout, py_alpha, py_beta, log_back_mean = self.decoder(
-            z, library_gene, batch_index, label
-        )
-
-        protein_mixing = 1 / (1 + torch.exp(-px_dropout["protein"]))
-        px_scale["protein"] = F.normalize(
-            (1 - protein_mixing) * px_rate["protein"], p=1, dim=-1
-        )
+        px_, py_, log_pro_back_mean = self.decoder(z, library_gene, batch_index, label)
+        px_["r"] = px_r
+        py_["r"] = py_r
+        protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
+        py_["scale"] = F.normalize((1 - protein_mixing) * py_["rate_fore"], p=1, dim=-1)
 
         return dict(
-            px_scale=px_scale,
-            px_r=px_r,
-            px_rate=px_rate,
-            px_dropout=px_dropout,
+            px_=px_,
+            py_=py_,
             qz_m=qz_m,
             qz_v=qz_v,
             z=z,
@@ -467,9 +375,8 @@ class TOTALVI(nn.Module):
             ql_m=ql_m,
             ql_v=ql_v,
             library_gene=library_gene,
-            py_alpha=py_alpha,
-            py_beta=py_beta,
-            log_back_mean=log_back_mean,
+            untran_l=untran_l,
+            log_pro_back_mean=log_pro_back_mean,
         )
 
     def forward(
@@ -501,13 +408,11 @@ class TOTALVI(nn.Module):
         qz_v = outputs["qz_v"]
         ql_m = outputs["ql_m"]
         ql_v = outputs["ql_v"]
-        px_rate = outputs["px_rate"]
-        px_scale = outputs["px_scale"]
-        px_r = outputs["px_r"]
-        px_dropout = outputs["px_dropout"]
+        px_ = outputs["px_"]
+        py_ = outputs["py_"]
 
         reconst_loss_gene, reconst_loss_protein = self.get_reconstruction_loss(
-            x, y, px_rate, px_r, px_dropout, px_scale
+            x, y, px_, py_
         )
 
         # KL Divergence
@@ -518,7 +423,7 @@ class TOTALVI(nn.Module):
         ).sum(dim=1)
 
         back_reg = kl(
-            Normal(outputs["py_alpha"], outputs["py_beta"]), self.back_mean_prior
+            Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
         ).sum(dim=-1)
 
         kl_local = kl_divergence_z + kl_divergence_l_gene

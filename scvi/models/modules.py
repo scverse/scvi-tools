@@ -551,7 +551,7 @@ class DecoderTOTALVI(nn.Module):
         )
 
         # dropout (mixture component for proteins, ZI probability for genes)
-        self.px_dropout_decoder = FCLayers(
+        self.sigmoid_decoder = FCLayers(
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
@@ -561,7 +561,7 @@ class DecoderTOTALVI(nn.Module):
         )
         self.px_dropout_decoder_gene = nn.Linear(n_hidden + n_input, n_output_genes)
 
-        self.px_background_decoder = nn.Linear(n_hidden + n_input, n_output_proteins)
+        self.py_background_decoder = nn.Linear(n_hidden + n_input, n_output_proteins)
 
     def forward(self, z: torch.Tensor, library_gene: torch.Tensor, *cat_list: int):
         r"""The forward computation for a single sample.
@@ -579,49 +579,35 @@ class DecoderTOTALVI(nn.Module):
         :param library_gene: library size
         :param cat_list: list of category membership(s) for this sample
         :return: parameters for the ZINB distribution of expression
-        :rtype: 6-tuple (first 3-tuple :py:class:`dict`, second 3-tuple :py:class:`torch.Tensor`)
+        :rtype: 3-tuple (first 2-tuple :py:class:`dict`, last :py:class:`torch.Tensor`)
         """
-
-        # The decoder returns values for the parameters of the ZINB distribution
-        px_scale = {}
-        px_rate = {}
-        px_dropout = {}
+        px_ = {}
+        py_ = {}
 
         px = self.px_decoder(z, *cat_list)
         px_cat_z = torch.cat([px, z], dim=-1)
-        px_scale_gene = self.px_scale_decoder(px_cat_z)
-        px_rate_gene = torch.exp(library_gene) * px_scale_gene
-        px_scale["gene"] = px_scale_gene
-        px_rate["gene"] = px_rate_gene
+        px_["scale"] = self.px_scale_decoder(px_cat_z)
+        px_["rate"] = library_gene * px_["scale"]
 
         py_back = self.py_back_decoder(z, *cat_list)
         py_back_cat_z = torch.cat([py_back, z], dim=-1)
 
-        py_back_alpha = self.py_back_mean_log_alpha(py_back_cat_z)
-        py_back_beta = torch.exp(self.py_back_mean_log_beta(py_back_cat_z))
-        log_back_mean = Normal(py_back_alpha, py_back_beta).rsample()
-        px_rate["background"] = torch.exp(log_back_mean)
+        py_["back_alpha"] = self.py_back_mean_log_alpha(py_back_cat_z)
+        py_["back_beta"] = torch.exp(self.py_back_mean_log_beta(py_back_cat_z))
+        log_pro_back_mean = Normal(py_["back_alpha"], py_["back_beta"]).rsample()
+        py_["rate_back"] = torch.exp(log_pro_back_mean)
 
         py_fore = self.py_fore_decoder(z, *cat_list)
         py_fore_cat_z = torch.cat([py_fore, z], dim=-1)
-        py_fore_scale = self.py_fore_scale_decoder(py_fore_cat_z) + 1
-        px_rate["protein"] = px_rate["background"] * py_fore_scale
+        py_["fore_scale"] = self.py_fore_scale_decoder(py_fore_cat_z) + 1
+        py_["rate_fore"] = py_["rate_back"] * py_["fore_scale"]
 
-        px_mixing = self.px_dropout_decoder(z, *cat_list)
-        px_mixing_cat_z = torch.cat([px_mixing, z], dim=-1)
-        px_dropout_gene = self.px_dropout_decoder_gene(px_mixing_cat_z)
-        px_dropout_protein = self.px_background_decoder(px_mixing_cat_z)
-        px_dropout["gene"] = px_dropout_gene
-        px_dropout["protein"] = px_dropout_protein
+        p_mixing = self.sigmoid_decoder(z, *cat_list)
+        p_mixing_cat_z = torch.cat([p_mixing, z], dim=-1)
+        px_["dropout"] = self.px_dropout_decoder_gene(p_mixing_cat_z)
+        py_["mixing"] = self.py_background_decoder(p_mixing_cat_z)
 
-        return (
-            px_scale,
-            px_rate,
-            px_dropout,
-            py_back_alpha,
-            py_back_beta,
-            log_back_mean,
-        )
+        return (px_, py_, log_pro_back_mean)
 
 
 # Encoder
@@ -682,13 +668,19 @@ class EncoderTOTALVI(nn.Module):
 
         self.distribution = distribution
 
+        def identity(x):
+            return x
+
         if distribution == "ln":
-            self.transformation = nn.Softmax(dim=-1)
+            self.z_transformation = nn.Softmax(dim=-1)
+        else:
+            self.z_transformation = identity
+
+        self.l_transformation = torch.exp
 
     def reparameterize_transformation(self, mu, var):
-        epsilon = Normal(torch.zeros_like(mu), torch.ones_like(var)).rsample()
-        untran_z = mu + torch.sqrt(var) * epsilon
-        z = self.transformation(untran_z)
+        untran_z = Normal(mu, var.sqrt()).rsample()
+        z = self.z_transformation(untran_z)
         return z, untran_z
 
     def forward(self, data: torch.Tensor, *cat_list: int):
@@ -699,26 +691,27 @@ class EncoderTOTALVI(nn.Module):
         :param data: tensor with shape (n_input,)
         :param cat_list: list of category membership(s) for this sample
         :return: tensors of shape ``(n_latent,)`` for mean and var, and sample
-        :rtype: 7-tuple of :py:class:`torch.Tensor`
+        :rtype: 6-tuple. First 4 of :py:class:`torch.Tensor`, next 2 are `dict` of :py:class:`torch.Tensor`
         """
 
         # Parameters for latent distribution
         q = self.encoder(data, *cat_list)
         qz = self.z_encoder(q)
-        q_m = self.z_mean_encoder(qz)
-        q_v = torch.exp(self.z_var_encoder(qz)) + 1e-4
-        if self.distribution == "normal":
-            latent = reparameterize_gaussian(q_m, q_v)
-            untran_latent = latent
-        elif self.distribution == "ln":
-            latent, untran_latent = self.reparameterize_transformation(q_m, q_v)
+        qz_m = self.z_mean_encoder(qz)
+        qz_v = torch.exp(self.z_var_encoder(qz)) + 1e-4
+        z, untran_z = self.reparameterize_transformation(qz_m, qz_v)
 
-        ql_m = {}
-        ql_v = {}
-        library = {}
         ql_gene = self.l_gene_encoder(q)
         ql_m = self.l_gene_mean_encoder(ql_gene)
         ql_v = torch.exp(self.l_gene_var_encoder(ql_gene)) + 1e-4
-        library = torch.clamp(reparameterize_gaussian(ql_m, ql_v), max=15)
+        log_library_gene = torch.clamp(reparameterize_gaussian(ql_m, ql_v), max=15)
+        library_gene = self.l_transformation(log_library_gene)
 
-        return q_m, q_v, latent, untran_latent, ql_m, ql_v, library
+        latent = {}
+        untran_latent = {}
+        latent["z"] = z
+        latent["l"] = library_gene
+        untran_latent["z"] = untran_z
+        untran_latent["l"] = log_library_gene
+
+        return qz_m, qz_v, ql_m, ql_v, latent, untran_latent

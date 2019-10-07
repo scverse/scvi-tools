@@ -175,7 +175,6 @@ def totalvi_benchmark(dataset, n_epochs, use_cuda=True):
     trainer.test_set.get_sample_dropout()
     trainer.test_set.get_normalized_denoised_expression()
     trainer.test_set.imputation()
-    trainer.test_set.get_sample_protein_rates()
 
     return trainer
 
