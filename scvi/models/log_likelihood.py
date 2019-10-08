@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import logsumexp
-from torch.distributions import Normal
+from torch.distributions import Normal, Beta
 
 
 def compute_elbo(vae, posterior, **kwargs):
@@ -36,6 +36,36 @@ def compute_elbo(vae, posterior, **kwargs):
     return elbo / n_samples
 
 
+def compute_elbo_autozi(autozivae, posterior, **kwargs):
+    """ Computes the ELBO of AutoZI
+
+    The ELBO is the reconstruction error + the KL divergences
+    between the variational distributions and the priors.
+    It differs from the marginal log likelihood.
+    Specifically, it is a lower bound on the marginal log likelihood
+    plus a term that is constant with respect to the variational distribution.
+    It still gives good insights on the modeling of the data, and is fast to compute.
+    """
+    # Iterate once over the posterior and compute the elbo
+    elbo = 0
+    for i_batch, tensors in enumerate(posterior):
+        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[
+            :5
+        ]  # general fish case
+        reconst_loss, kl_divergence, kl_divergence_bernoulli = autozivae(
+            sample_batch,
+            local_l_mean,
+            local_l_var,
+            batch_index=batch_index,
+            y=labels,
+            **kwargs
+        )
+        elbo += torch.sum(reconst_loss + kl_divergence).item()
+    n_samples = len(posterior.indices)
+    elbo += kl_divergence_bernoulli
+    return elbo / n_samples
+
+
 def compute_reconstruction_error(vae, posterior, **kwargs):
     """ Computes log p(x/z), which is the reconstruction error.
 
@@ -63,6 +93,37 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
         log_lkl += torch.sum(reconst_loss).item()
     n_samples = len(posterior.indices)
     return log_lkl / n_samples
+
+
+def compute_reconstruction_error_autozi(autozivae, posterior, **kwargs):
+    """ Computes log p(x/z,delta), which is the reconstruction error of AutoZI
+
+    Differs from the marginal log likelihood, but still gives good
+    insights on the modeling of the data, and is fast to compute.
+    """
+    # Iterate once over the posterior and computes the reconstruction error
+    log_lkl = 0
+    for i_batch, tensors in enumerate(posterior):
+        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[
+            :5
+        ]  # general fish case
+
+        # Distribution parameters
+        outputs = autozivae.inference(sample_batch, batch_index, labels, **kwargs)
+        px_r = outputs["px_r"]
+        px_rate = outputs["px_rate"]
+        px_dropout = outputs["px_dropout"]
+        bernoulli_params = outputs["bernoulli_params"]
+
+        # Reconstruction loss
+        reconst_loss = autozivae.get_reconstruction_loss(
+            sample_batch, px_rate, px_r, px_dropout, bernoulli_params, **kwargs
+        )
+
+        log_lkl += torch.sum(reconst_loss).item()
+    n_samples = len(posterior.indices)
+    return log_lkl / n_samples
+
 
 
 def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
@@ -120,7 +181,75 @@ def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
     return -log_lkl / n_samples
 
 
-def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
+def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=100):
+    """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
+
+    Despite its bias, the estimator still converges to the real value
+    of log p(x) when n_samples_mc (for Monte Carlo) goes to infinity
+    (a fairly high value like 100 should be enough)
+    Due to the Monte Carlo sampling, this method is not as computationally efficient
+    as computing only the reconstruction loss
+    """
+    # Uses MC sampling to compute a tighter lower bound on log p(x)
+    log_lkl = 0
+    to_sum = torch.zeros((n_samples_mc,))
+    alphas_betas = autozivae.get_alphas_betas(as_numpy=False)
+    alpha_prior = alphas_betas['alpha_prior']
+    alpha_posterior = alphas_betas['alpha_posterior']
+    beta_prior = alphas_betas['beta_prior']
+    beta_posterior = alphas_betas['beta_posterior']
+
+    for i in range(n_samples_mc):
+
+        bernoulli_params = autozivae.sample_from_beta_distribution(alpha_posterior, beta_posterior)
+
+        for i_batch, tensors in enumerate(posterior):
+            sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
+
+            # Distribution parameters and sampled variables
+            outputs = autozivae.inference(sample_batch, batch_index, labels)
+            px_r = outputs["px_r"]
+            px_rate = outputs["px_rate"]
+            px_dropout = outputs["px_dropout"]
+            qz_m = outputs["qz_m"]
+            qz_v = outputs["qz_v"]
+            z = outputs["z"]
+            ql_m = outputs["ql_m"]
+            ql_v = outputs["ql_v"]
+            library = outputs["library"]
+
+            # Reconstruction Loss
+            _bernoulli_params = autozivae.rescale_bernoulli_dispersion(bernoulli_params, sample_batch, batch_index,
+                                                                       labels)
+            reconst_loss = autozivae.get_reconstruction_loss(sample_batch, px_rate, px_r, px_dropout, \
+                                                       bernoulli_params)
+
+            # Log-probabilities
+            p_l = Normal(local_l_mean, local_l_var.sqrt()).log_prob(library).sum(dim=-1)
+            p_z = (
+                Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v))
+                    .log_prob(z)
+                    .sum(dim=-1)
+            )
+            p_x_zld = - reconst_loss
+            q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
+            q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
+
+            batch_log_lkl = torch.sum(p_x_zld + p_l + p_z - q_z_x - q_l_x, dim=0)
+            to_sum[i] += batch_log_lkl
+
+        p_d = Beta(alpha_prior, beta_prior).log_prob(bernoulli_params).sum()
+        q_d = Beta(alpha_posterior, beta_posterior).log_prob(bernoulli_params).sum()
+
+        to_sum[i] += p_d - q_d
+
+    log_lkl = logsumexp(to_sum, dim=-1).item() - np.log(n_samples_mc)
+    n_samples = len(posterior.indices)
+    # The minus sign is there because we actually look at the negative log likelihood
+    return - log_lkl / n_samples
+
+
+def log_zinb_positive(x, mu, theta, pi, eps=1e-8, return_gene_specific=False):
     """
     Note: All inputs are torch Tensors
     log likelihood (scalar) of a minibatch according to a zinb model.
@@ -132,6 +261,7 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     theta: inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
     pi: logit of the dropout parameter (real support) (shape: minibatch x genes)
     eps: numerical stability constant
+    return_gene_specific: sum on genes if False, return the log likelihood per gene if True
     """
 
     # theta is the dispersion rate. If .ndimension() == 1, it is shared for all cells (regardless of batch or labels)
@@ -160,10 +290,13 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
 
     res = mul_case_zero + mul_case_non_zero
 
-    return torch.sum(res, dim=-1)
+    if return_gene_specific:
+        return res
+    else:
+        return torch.sum(res, dim=-1)
 
 
-def log_nb_positive(x, mu, theta, eps=1e-8):
+def log_nb_positive(x, mu, theta, eps=1e-8, return_gene_specific=False):
     """
     Note: All inputs should be torch Tensors
     log likelihood (scalar) of a minibatch according to a nb model.
@@ -172,6 +305,7 @@ def log_nb_positive(x, mu, theta, eps=1e-8):
     mu: mean of the negative binomial (has to be positive support) (shape: minibatch x genes)
     theta: inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
     eps: numerical stability constant
+    return_gene_specific: sum on genes if False, return the log likelihood per gene if True
     """
     if theta.ndimension() == 1:
         theta = theta.view(
@@ -188,4 +322,7 @@ def log_nb_positive(x, mu, theta, eps=1e-8):
         - torch.lgamma(x + 1)
     )
 
-    return torch.sum(res, dim=-1)
+    if return_gene_specific:
+        return res
+    else:
+        return torch.sum(res, dim=-1)
