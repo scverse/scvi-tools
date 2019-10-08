@@ -13,7 +13,7 @@ requirements = [
     "numpy>=1.16.4",
     "torch>=0.4.1",
     "matplotlib>=2.0",
-    "scikit-learn>=0.18, <0.20.0",
+    "scikit-learn>=0.18",
     "scipy>=1.1",
     "h5py>=2.8",
     "pandas>=0.2",
@@ -28,16 +28,17 @@ requirements = [
     "umap-learn>=0.3.7",
     "seaborn>=0.9.0",
     "hyperopt>=0.1.2",
-    "numba>=0.37, <0.45.1",
+    "numba>=0.37",
+    "scanpy",
+    "louvain",
+    "leidenalg>=0.7.0",
+    "python-igraph>=0.7.1",
+    "colour",
+    "pytest"
 ]
 
 setup_requirements = ["pytest-runner"]
 
-test_requirements = ["pytest"]
-
-extras_requirements = {
-    "test": ["scanpy", "louvain", "leidenalg>=0.7.0", "python-igraph>=0.7.1", "colour"]
-}
 author = (
     "Romain Lopez, "
     "Jeffrey Regier, "
@@ -75,8 +76,6 @@ setup(
     packages=find_packages(),
     setup_requires=setup_requirements,
     test_suite="tests",
-    tests_require=test_requirements,
-    extras_require=extras_requirements,
     url="https://github.com/YosefLab/scVI",
     version="0.4.1",
     zip_safe=False,
