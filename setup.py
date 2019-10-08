@@ -10,8 +10,10 @@ with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
 requirements = [
+    "pip>=18.1"
     "numpy>=1.16.4",
     "torch>=0.4.1",
+    "Sphinx>=1.7.1"
     "matplotlib>=2.0",
     "scikit-learn>=0.18",
     "scipy>=1.1",
@@ -34,7 +36,8 @@ requirements = [
     "leidenalg>=0.7.0",
     "python-igraph>=0.7.1",
     "colour",
-    "pytest"
+    "pytest",
+    "pytest-runner"
 ]
 
 setup_requirements = ["pytest-runner"]
