@@ -37,6 +37,7 @@ def compute_elbo(vae, posterior, **kwargs):
     elbo += kl_divergence_global
     return elbo / n_samples
 
+
 def compute_reconstruction_error(vae, posterior, **kwargs):
     """ Computes log p(x/z), which is the reconstruction error.
 
@@ -65,6 +66,7 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
         log_lkl += torch.sum(reconst_loss).item()
     n_samples = len(posterior.indices)
     return log_lkl / n_samples
+
 
 def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
     """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
@@ -120,6 +122,7 @@ def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
     # The minus sign is there because we actually look at the negative log likelihood
     return -log_lkl / n_samples
 
+
 def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=100):
     """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
 
@@ -158,7 +161,7 @@ def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=10
             library = outputs["library"]
 
             # Reconstruction Loss
-            bernoulli_params_batch = autozivae.rescale_bernoulli_dispersion(bernoulli_params, batch_index,labels)
+            bernoulli_params_batch = autozivae.rescale_bernoulli_dispersion(bernoulli_params, batch_index, labels)
             reconst_loss = autozivae.get_reconstruction_loss(sample_batch, px_rate, px_r, px_dropout,
                                                              bernoulli_params_batch)
 

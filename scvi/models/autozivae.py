@@ -106,9 +106,8 @@ class AutoZIVAE(VAE):
         # Sum using logsumexp (note : eps_gamma is used to prevent numerical issues with perfect
         # 0 and 1 final Beta samples
         sample_xy_log_max = torch.max(sample_x_log, sample_y_log)
-        sample_xplusy_log = sample_xy_log_max \
-                                       + torch.log(torch.exp(sample_x_log - sample_xy_log_max)
-                                                   + torch.exp(sample_y_log - sample_xy_log_max))
+        sample_xplusy_log = sample_xy_log_max + torch.log(torch.exp(sample_x_log - sample_xy_log_max)
+                                                          + torch.exp(sample_y_log - sample_xy_log_max))
         sample_log = sample_x_log - sample_xplusy_log
         sample = eps_sample + (1 - 2 * eps_sample) * torch.exp(sample_log)
 

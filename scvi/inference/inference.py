@@ -49,7 +49,7 @@ class UnsupervisedTrainer(Trainer):
 
         self.normalize_loss = not(hasattr(self.model, 'reconstruction_loss')
                                   and self.model.reconstruction_loss == "autozinb") if normalize_loss is None\
-                                                                                    else normalize_loss
+            else normalize_loss
 
         self.n_scale = 1.
 
