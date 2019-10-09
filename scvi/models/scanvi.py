@@ -217,4 +217,4 @@ class SCANVI(VAE):
         )
         kl_divergence += kl_divergence_l
 
-        return reconst_loss, kl_divergence, 0.
+        return reconst_loss, kl_divergence, 0.0

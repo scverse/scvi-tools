@@ -234,7 +234,7 @@ class VAE(nn.Module):
         )
 
     def compute_global_kl_divergence(self):
-        return 0.
+        return 0.0
 
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
         r""" Returns the reconstruction loss and the Kullback divergences
@@ -274,7 +274,7 @@ class VAE(nn.Module):
 
         reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
 
-        return reconst_loss + kl_divergence_l, kl_divergence, 0.
+        return reconst_loss + kl_divergence_l, kl_divergence, 0.0
 
 
 class LDVAE(VAE):
