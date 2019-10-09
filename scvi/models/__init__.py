@@ -6,4 +6,3 @@ from .vaec import VAEC
 from .jvae import JVAE
 
 __all__ = ["SCANVI", "VAEC", "VAE", "LDVAE", "JVAE", "Classifier", "AutoZIVAE"]
-
