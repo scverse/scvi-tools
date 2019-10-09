@@ -135,7 +135,7 @@ class VAEC(VAE):
         ).sum(dim=1)
 
         if is_labelled:
-            return reconst_loss, kl_divergence_z + kl_divergence_l
+            return reconst_loss, kl_divergence_z + kl_divergence_l, 0.0
 
         reconst_loss = reconst_loss.view(self.n_labels, -1)
 
