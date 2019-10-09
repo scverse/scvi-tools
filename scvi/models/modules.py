@@ -570,10 +570,16 @@ class DecoderTOTALVI(nn.Module):
          #. Returns local parameters for the ZINB distribution for genes
          #. Returns local parameters for the Mixture NB distribution for proteins
 
-         We use the variable name `px_...` to refer to parameters of the respective distributions.
+         We use the dictionary `px_` to contain the parameters of the ZINB/NB for genes.
          The rate refers to the mean of the NB, dropout refers to Bernoulli mixing parameters.
          `scale` refers to the quanity upon which differential expression is performed. For genes,
          this can be viewed as the mean of the underlying gamma distribution.
+
+         We use the dictionary `py_` to contain the parameters of the Mixture NB distribution for proteins.
+         `rate_fore` refers to foreground mean, while `rate_back` refers to background mean. `scale` refers to
+         foreground mean adjusted for background probability and scaled to reside in simplex.
+         `back_alpha` and `back_beta` are the posterior parameters for `rate_back`.  `fore_scale` is the scaling
+         factor that enforces `rate_fore` > `rate_back`.
 
         :param z: tensor with shape ``(n_input,)``
         :param library_gene: library size
@@ -688,6 +694,12 @@ class EncoderTOTALVI(nn.Module):
          #. Encodes the data into latent space using the encoder network
          #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
          #. Samples a new value from an i.i.d. latent distribution
+
+        The dictionary `latent` contains the samples of the latent variables, while `untran_latent`
+        contains the untransformed versions of these latent variables. For example, the library size is log normally distributed,
+        so `untran_latent["l"]` gives the normal sample that was later exponentiated to become `latent["l"]`.
+        The logistic normal distribution is equivalent to applying softmax to a normal sample.
+
         :param data: tensor with shape (n_input,)
         :param cat_list: list of category membership(s) for this sample
         :return: tensors of shape ``(n_latent,)`` for mean and var, and sample

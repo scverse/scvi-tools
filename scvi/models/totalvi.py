@@ -88,18 +88,21 @@ class TOTALVI(nn.Module):
         self.protein_dispersion = protein_dispersion
         self.latent_distribution = latent_distribution
 
+        # parameters for prior on rate_back (background protein mean)
         if n_batch > 0:
-            self.background_log_alpha = torch.nn.Parameter(
+            self.background_pro_alpha = torch.nn.Parameter(
                 torch.randn(n_input_proteins, n_batch)
             )
-            self.background_log_beta = torch.nn.Parameter(
+            self.background_pro_log_beta = torch.nn.Parameter(
                 torch.randn(n_input_proteins, n_batch)
             )
         else:
-            self.background_log_alpha = torch.nn.Parameter(
+            self.background_pro_alpha = torch.nn.Parameter(
                 torch.randn(n_input_proteins)
             )
-            self.background_log_beta = torch.nn.Parameter(torch.randn(n_input_proteins))
+            self.background_pro_log_beta = torch.nn.Parameter(
+                torch.randn(n_input_proteins)
+            )
 
         if self.gene_dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input_genes))
@@ -297,11 +300,18 @@ class TOTALVI(nn.Module):
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
         """ Internal helper function to compute necessary inference quantities
 
-        We use the dictionary `px_` to store the parameters of the respective distributions
-        (gene, protein). The rate refers to the mean of the NB, dropout refers to Bernoulli
-        mixing parameters. `scale` refers to the quanity upon which differential expression is
-        performed. For genes, this can be viewed as the mean of the underlying gamma distribution.
-        The `px_...` variables are dictionaries, typically with `background, protein, gene` keys.
+         We use the dictionary `px_` to contain the parameters of the ZINB/NB for genes.
+         The rate refers to the mean of the NB, dropout refers to Bernoulli mixing parameters.
+         `scale` refers to the quanity upon which differential expression is performed. For genes,
+         this can be viewed as the mean of the underlying gamma distribution.
+
+         We use the dictionary `py_` to contain the parameters of the Mixture NB distribution for proteins.
+         `rate_fore` refers to foreground mean, while `rate_back` refers to background mean. `scale` refers to
+         foreground mean adjusted for background probability and scaled to reside in simplex.
+         `back_alpha` and `back_beta` are the posterior parameters for `rate_back`.  `fore_scale` is the scaling
+         factor that enforces `rate_fore` > `rate_back`.
+
+         `px_["r"]` and `py_["r"]` are the inverse dispersion parameters for genes and protein, respectively.
         """
         x_ = x
         y_ = y
@@ -349,14 +359,15 @@ class TOTALVI(nn.Module):
         # Background regularization
         if self.n_batch > 0:
             py_back_alpha_prior = F.linear(
-                one_hot(batch_index, self.n_batch), self.background_log_alpha
+                one_hot(batch_index, self.n_batch), self.background_pro_alpha
             )
             py_back_beta_prior = F.linear(
-                one_hot(batch_index, self.n_batch), torch.exp(self.background_log_beta)
+                one_hot(batch_index, self.n_batch),
+                torch.exp(self.background_pro_log_beta),
             )
         else:
-            py_back_alpha_prior = self.background_log_alpha
-            py_back_beta_prior = torch.exp(self.background_log_beta)
+            py_back_alpha_prior = self.background_pro_alpha
+            py_back_beta_prior = torch.exp(self.background_pro_log_beta)
         self.back_mean_prior = Normal(py_back_alpha_prior, py_back_beta_prior)
 
         px_, py_, log_pro_back_mean = self.decoder(z, library_gene, batch_index, label)
