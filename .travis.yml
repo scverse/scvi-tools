@@ -17,7 +17,7 @@ notifications:
   email: false
 
 install:
-  - pip install --quiet -e .
+  - pip install --quiet -e ".[notebooks]"
   - pip install --quiet black coverage flake8 codecov
 
 script:

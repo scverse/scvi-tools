@@ -14,7 +14,6 @@ requirements = [
     "numpy>=1.16.4",
     "torch>=0.4.1",
     "Sphinx>=1.7.1",
-    "scanpy",
     "matplotlib>=2.0",
     "scikit-learn>=0.18",
     "scipy>=1.1",
@@ -28,17 +27,22 @@ requirements = [
     "nbconvert>=5.4.0",
     "nbformat>=4.4.0",
     "ipython>=7",
-    "umap-learn>=0.3.7",
     "seaborn>=0.9.0",
     "hyperopt>=0.1.2",
     "numba>=0.37",
-    "louvain",
-    "leidenalg>=0.7.0",
-    "python-igraph>=0.7.1",
-    "colour",
-    "pytest",
-    "pytest-runner",
 ]
+
+test_requirements = ["pytest"]
+
+extras_requirements = {
+    "notebooks": [
+        "scanpy",
+        "louvain",
+        "leidenalg>=0.7.0",
+        "python-igraph>=0.7.1",
+        "umap-learn>=0.3.7",
+    ]
+}
 
 setup_requirements = ["pytest-runner"]
 
