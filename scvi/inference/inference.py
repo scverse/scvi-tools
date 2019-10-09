@@ -71,8 +71,7 @@ class UnsupervisedTrainer(Trainer):
         reconst_loss, kl_divergence_local, kl_divergence_global = self.model(
             sample_batch, local_l_mean, local_l_var, batch_index, y
         )
-        loss = self.n_scale * torch.mean(reconst_loss + self.kl_weight * kl_divergence_local)\
-               + kl_divergence_global
+        loss = self.n_scale * torch.mean(reconst_loss + self.kl_weight * kl_divergence_local) + kl_divergence_global
         if self.normalize_loss:
             loss = loss / self.n_scale
         return loss
