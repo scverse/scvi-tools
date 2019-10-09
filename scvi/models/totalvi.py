@@ -253,7 +253,7 @@ class TOTALVI(nn.Module):
     def scale_from_z(
         self, x: torch.Tensor, y: torch.Tensor, fixed_batch: torch.Tensor
     ) -> torch.Tensor:
-        """ Returns concatenated scale (genes first, proteins last) for a fixed seq batch
+        """ Returns tuple of gene and protein scales for a fixed seq batch
 
         This function is the core of differential expression.
         """
@@ -266,8 +266,7 @@ class TOTALVI(nn.Module):
         # dummy library size as it's irrelevant here
         library = 4.0 * torch.ones_like(x[:, [0]])
         px_, py_ = self.decoder(z, library, batch_index)[0:2]
-        scale = torch.cat((px_["scale"], py_["scale"]), dim=-1)
-        return scale
+        return px_["scale"], py_["scale"]
 
     def get_reconstruction_loss(
         self,

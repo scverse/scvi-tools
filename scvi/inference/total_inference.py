@@ -287,12 +287,14 @@ class TotalPosterior(Posterior):
 
     @torch.no_grad()
     def get_harmonized_scale(self, fixed_batch: torch.Tensor):
-        px_scales = []
+        scales = []
         fixed_batch = float(fixed_batch)
         for tensors in self:
             x, local_l_mean, local_l_var, batch_index, label, y = tensors
-            px_scales += [self.model.scale_from_z(x, y, fixed_batch).cpu()]
-        return np.concatenate(px_scales)
+            scales += [
+                torch.cat(self.model.scale_from_z(x, y, fixed_batch).cpu(), dim=-1)
+            ]
+        return np.concatenate(scales)
 
     @torch.no_grad()
     def generate(
@@ -300,9 +302,9 @@ class TotalPosterior(Posterior):
         n_samples: int = 100,
         genes: Optional[np.ndarray] = None,
         batch_size: int = 64,
-    ):  # with n_samples>1 return original list/ otherwose sequential
+    ):  # with n_samples>1 return original list/ otherwise sequential
         """
-        Return original_values as y and generated as x (for posterior density visualization)
+        Return samples from posterior predictive. Proteins are concatenated to genes.
         :param n_samples:
         :param genes:
         :return:
@@ -326,15 +328,15 @@ class TotalPosterior(Posterior):
             )
             rate = torch.cat((px_["rate"], protein_rate), dim=-1)
             if len(px_["r"].size()) == 2:
-                px_dispersion_gene = px_["r"]
+                px_dispersion = px_["r"]
             else:
-                px_dispersion_gene = torch.ones_like(x) * px_["r"]
+                px_dispersion = torch.ones_like(x) * px_["r"]
             if len(py_["r"].size()) == 2:
-                px_dispersion_protein = py_["r"]
+                py_dispersion = py_["r"]
             else:
-                px_dispersion_protein = torch.ones_like(y) * py_["r"]
+                py_dispersion = torch.ones_like(y) * py_["r"]
 
-            dispersion = torch.cat((px_dispersion_gene, px_dispersion_protein), dim=-1)
+            dispersion = torch.cat((px_dispersion, py_dispersion), dim=-1)
 
             # This gamma is really l*w using scVI manuscript notation
             p = rate / (rate + dispersion)
@@ -365,6 +367,8 @@ class TotalPosterior(Posterior):
 
     @torch.no_grad()
     def get_sample_dropout(self, n_samples: int = 1, give_mean: bool = True):
+        """ Zero-inflation mixing component for genes
+        """
         px_dropouts = []
         for tensors in self:
             x, _, _, batch_index, label, y = tensors
