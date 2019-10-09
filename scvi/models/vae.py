@@ -172,7 +172,7 @@ class VAE(nn.Module):
             "px_rate"
         ]
 
-    def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout):
+    def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout, **kwargs):
         # Reconstruction Loss
         if self.reconstruction_loss == "zinb":
             reconst_loss = -log_zinb_positive(x, px_rate, px_r, px_dropout)
@@ -190,6 +190,7 @@ class VAE(nn.Module):
         return px_scale
 
     def inference(self, x, batch_index=None, y=None, n_samples=1):
+
         x_ = x
         if self.log_variational:
             x_ = torch.log(1 + x_)
@@ -232,6 +233,9 @@ class VAE(nn.Module):
             library=library,
         )
 
+    def compute_global_kl_divergence(self):
+        return 0.
+
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
         r""" Returns the reconstruction loss and the Kullback divergences
 
@@ -270,7 +274,7 @@ class VAE(nn.Module):
 
         reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
 
-        return reconst_loss + kl_divergence_l, kl_divergence
+        return reconst_loss + kl_divergence_l, kl_divergence, 0.
 
 
 class LDVAE(VAE):
