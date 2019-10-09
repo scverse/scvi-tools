@@ -308,6 +308,9 @@ class JVAE(nn.Module):
 
         return px_scale, px_r, px_rate, px_dropout
 
+    def compute_global_kl_divergence(self):
+        return 0.
+
     def forward(
         self,
         x: torch.Tensor,
@@ -366,4 +369,4 @@ class JVAE(nn.Module):
         else:
             kl_divergence_l = torch.zeros_like(kl_divergence_z)
 
-        return reconstruction_loss, kl_divergence_l + kl_divergence_z
+        return reconstruction_loss, kl_divergence_l + kl_divergence_z, 0.

@@ -23,7 +23,7 @@ def compute_elbo(vae, posterior, **kwargs):
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[
             :5
         ]  # general fish case
-        reconst_loss, kl_divergence = vae(
+        reconst_loss, kl_divergence, _ = vae(
             sample_batch,
             local_l_mean,
             local_l_var,
@@ -33,37 +33,11 @@ def compute_elbo(vae, posterior, **kwargs):
         )
         elbo += torch.sum(reconst_loss + kl_divergence).item()
     n_samples = len(posterior.indices)
+    kl_divergence_global = vae.compute_global_kl_divergence()
+    elbo += kl_divergence_global
     return elbo / n_samples
 
 
-def compute_elbo_autozi(autozivae, posterior, **kwargs):
-    """ Computes the ELBO of AutoZI
-
-    The ELBO is the reconstruction error + the KL divergences
-    between the variational distributions and the priors.
-    It differs from the marginal log likelihood.
-    Specifically, it is a lower bound on the marginal log likelihood
-    plus a term that is constant with respect to the variational distribution.
-    It still gives good insights on the modeling of the data, and is fast to compute.
-    """
-    # Iterate once over the posterior and compute the elbo
-    elbo = 0
-    for i_batch, tensors in enumerate(posterior):
-        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[
-            :5
-        ]  # general fish case
-        reconst_loss, kl_divergence, kl_divergence_bernoulli = autozivae(
-            sample_batch,
-            local_l_mean,
-            local_l_var,
-            batch_index=batch_index,
-            y=labels,
-            **kwargs
-        )
-        elbo += torch.sum(reconst_loss + kl_divergence).item()
-    n_samples = len(posterior.indices)
-    elbo += kl_divergence_bernoulli
-    return elbo / n_samples
 
 
 def compute_reconstruction_error(vae, posterior, **kwargs):
@@ -84,45 +58,17 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
         px_r = outputs["px_r"]
         px_rate = outputs["px_rate"]
         px_dropout = outputs["px_dropout"]
+        bernoulli_params = outputs.get("bernoulli_params",None)
 
         # Reconstruction loss
         reconst_loss = vae.get_reconstruction_loss(
-            sample_batch, px_rate, px_r, px_dropout, **kwargs
+            sample_batch, px_rate, px_r, px_dropout, bernoulli_params=bernoulli_params, **kwargs
         )
 
         log_lkl += torch.sum(reconst_loss).item()
     n_samples = len(posterior.indices)
     return log_lkl / n_samples
 
-
-def compute_reconstruction_error_autozi(autozivae, posterior, **kwargs):
-    """ Computes log p(x/z,delta), which is the reconstruction error of AutoZI
-
-    Differs from the marginal log likelihood, but still gives good
-    insights on the modeling of the data, and is fast to compute.
-    """
-    # Iterate once over the posterior and computes the reconstruction error
-    log_lkl = 0
-    for i_batch, tensors in enumerate(posterior):
-        sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[
-            :5
-        ]  # general fish case
-
-        # Distribution parameters
-        outputs = autozivae.inference(sample_batch, batch_index, labels, **kwargs)
-        px_r = outputs["px_r"]
-        px_rate = outputs["px_rate"]
-        px_dropout = outputs["px_dropout"]
-        bernoulli_params = outputs["bernoulli_params"]
-
-        # Reconstruction loss
-        reconst_loss = autozivae.get_reconstruction_loss(
-            sample_batch, px_rate, px_r, px_dropout, bernoulli_params, **kwargs
-        )
-
-        log_lkl += torch.sum(reconst_loss).item()
-    n_samples = len(posterior.indices)
-    return log_lkl / n_samples
 
 
 
@@ -219,10 +165,10 @@ def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=10
             library = outputs["library"]
 
             # Reconstruction Loss
-            _bernoulli_params = autozivae.rescale_bernoulli_dispersion(bernoulli_params, sample_batch, batch_index,
+            bernoulli_params_batch = autozivae.rescale_bernoulli_dispersion(bernoulli_params, batch_index,
                                                                        labels)
             reconst_loss = autozivae.get_reconstruction_loss(sample_batch, px_rate, px_r, px_dropout, \
-                                                       bernoulli_params)
+                                                       bernoulli_params_batch)
 
             # Log-probabilities
             p_l = Normal(local_l_mean, local_l_var.sqrt()).log_prob(library).sum(dim=-1)

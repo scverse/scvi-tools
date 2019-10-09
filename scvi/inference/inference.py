@@ -41,10 +41,15 @@ class UnsupervisedTrainer(Trainer):
         train_size=0.8,
         test_size=None,
         n_epochs_kl_warmup=400,
+        normalize_loss=None,
         **kwargs
     ):
         super().__init__(model, gene_dataset, **kwargs)
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
+
+        self.normalize_loss = not(hasattr(self.model, 'reconstruction_loss') \
+                and self.model.reconstruction_loss == "autozinb") if normalize_loss is None else normalize_loss
+
         if type(self) is UnsupervisedTrainer:
             self.train_set, self.test_set, self.validation_set = self.train_test_validation(
                 model, gene_dataset, train_size, test_size
@@ -58,11 +63,14 @@ class UnsupervisedTrainer(Trainer):
         return ["train_set"]
 
     def loss(self, tensors):
-        sample_batch, local_l_mean, local_l_var, batch_index, _ = tensors
-        reconst_loss, kl_divergence = self.model(
-            sample_batch, local_l_mean, local_l_var, batch_index
+        sample_batch, local_l_mean, local_l_var, batch_index, y = tensors
+        reconst_loss, kl_divergence_local, kl_divergence_global = self.model(
+            sample_batch, local_l_mean, local_l_var, batch_index, y
         )
-        loss = torch.mean(reconst_loss + self.kl_weight * kl_divergence)
+        loss = len(self.train_set.indices)*torch.mean(reconst_loss + self.kl_weight * kl_divergence_local)\
+                + kl_divergence_global
+        if self.normalize_loss:
+            loss = loss / len(self.train_set.indices)
         return loss
 
     def on_epoch_begin(self):

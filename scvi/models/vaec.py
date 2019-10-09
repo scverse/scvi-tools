@@ -149,4 +149,4 @@ class VAEC(VAE):
         )
         kl_divergence += kl_divergence_l
 
-        return reconst_loss, kl_divergence
+        return reconst_loss, kl_divergence, 0.
