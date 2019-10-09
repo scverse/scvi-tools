@@ -210,6 +210,7 @@ def log_mixture_nb(x, mu_1, mu_2, theta_1, theta_2, pi, eps=1e-8):
     if theta_2 is not None:
         log_nb_1 = log_nb_positive(x, mu_1, theta_1)
         log_nb_2 = log_nb_positive(x, mu_2, theta_2)
+    # this is intended to reduce repeated computations
     else:
         theta = theta_1
         if theta.ndimension() == 1:

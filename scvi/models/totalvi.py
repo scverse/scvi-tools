@@ -285,7 +285,7 @@ class TOTALVI(nn.Module):
             reconst_loss_gene = -log_nb_positive(x, px_["rate"], px_["r"]).sum(dim=-1)
 
         reconst_loss_protein = -log_mixture_nb(
-            y, py_["rate_back"], py_["rate_fore"], py_["r"], py_["r"], py_["mixing"]
+            y, py_["rate_back"], py_["rate_fore"], py_["r"], None, py_["mixing"]
         ).sum(dim=-1)
 
         return reconst_loss_gene, reconst_loss_protein
