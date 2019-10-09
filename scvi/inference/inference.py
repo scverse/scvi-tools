@@ -47,11 +47,16 @@ class UnsupervisedTrainer(Trainer):
         super().__init__(model, gene_dataset, **kwargs)
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
 
-        self.normalize_loss = not(hasattr(self.model, 'reconstruction_loss')
-                                  and self.model.reconstruction_loss == "autozinb") if normalize_loss is None\
+        self.normalize_loss = (
+            not (
+                hasattr(self.model, "reconstruction_loss")
+                and self.model.reconstruction_loss == "autozinb"
+            )
+            if normalize_loss is None
             else normalize_loss
+        )
 
-        self.n_scale = 1.
+        self.n_scale = 1.0
 
         if type(self) is UnsupervisedTrainer:
             self.train_set, self.test_set, self.validation_set = self.train_test_validation(
@@ -71,7 +76,11 @@ class UnsupervisedTrainer(Trainer):
         reconst_loss, kl_divergence_local, kl_divergence_global = self.model(
             sample_batch, local_l_mean, local_l_var, batch_index, y
         )
-        loss = self.n_scale * torch.mean(reconst_loss + self.kl_weight * kl_divergence_local) + kl_divergence_global
+        loss = (
+            self.n_scale
+            * torch.mean(reconst_loss + self.kl_weight * kl_divergence_local)
+            + kl_divergence_global
+        )
         if self.normalize_loss:
             loss = loss / self.n_scale
         return loss

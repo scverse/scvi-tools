@@ -60,7 +60,12 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
 
         # Reconstruction loss
         reconst_loss = vae.get_reconstruction_loss(
-            sample_batch, px_rate, px_r, px_dropout, bernoulli_params=bernoulli_params, **kwargs
+            sample_batch,
+            px_rate,
+            px_r,
+            px_dropout,
+            bernoulli_params=bernoulli_params,
+            **kwargs
         )
 
         log_lkl += torch.sum(reconst_loss).item()
@@ -136,14 +141,16 @@ def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=10
     log_lkl = 0
     to_sum = torch.zeros((n_samples_mc,))
     alphas_betas = autozivae.get_alphas_betas(as_numpy=False)
-    alpha_prior = alphas_betas['alpha_prior']
-    alpha_posterior = alphas_betas['alpha_posterior']
-    beta_prior = alphas_betas['beta_prior']
-    beta_posterior = alphas_betas['beta_posterior']
+    alpha_prior = alphas_betas["alpha_prior"]
+    alpha_posterior = alphas_betas["alpha_posterior"]
+    beta_prior = alphas_betas["beta_prior"]
+    beta_posterior = alphas_betas["beta_posterior"]
 
     for i in range(n_samples_mc):
 
-        bernoulli_params = autozivae.sample_from_beta_distribution(alpha_posterior, beta_posterior)
+        bernoulli_params = autozivae.sample_from_beta_distribution(
+            alpha_posterior, beta_posterior
+        )
 
         for i_batch, tensors in enumerate(posterior):
             sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
@@ -161,16 +168,21 @@ def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=10
             library = outputs["library"]
 
             # Reconstruction Loss
-            bernoulli_params_batch = autozivae.rescale_bernoulli_dispersion(bernoulli_params, batch_index, labels)
-            reconst_loss = autozivae.get_reconstruction_loss(sample_batch, px_rate, px_r, px_dropout,
-                                                             bernoulli_params_batch)
+            bernoulli_params_batch = autozivae.rescale_bernoulli_dispersion(
+                bernoulli_params, batch_index, labels
+            )
+            reconst_loss = autozivae.get_reconstruction_loss(
+                sample_batch, px_rate, px_r, px_dropout, bernoulli_params_batch
+            )
 
             # Log-probabilities
             p_l = Normal(local_l_mean, local_l_var.sqrt()).log_prob(library).sum(dim=-1)
             p_z = (
-                Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v)).log_prob(z).sum(dim=-1)
+                Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v))
+                .log_prob(z)
+                .sum(dim=-1)
             )
-            p_x_zld = - reconst_loss
+            p_x_zld = -reconst_loss
             q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
             q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
 
@@ -185,7 +197,7 @@ def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=10
     log_lkl = logsumexp(to_sum, dim=-1).item() - np.log(n_samples_mc)
     n_samples = len(posterior.indices)
     # The minus sign is there because we actually look at the negative log likelihood
-    return - log_lkl / n_samples
+    return -log_lkl / n_samples
 
 
 def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
