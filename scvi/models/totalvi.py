@@ -133,7 +133,7 @@ class TOTALVI(nn.Module):
             n_latent,
             n_input_genes,
             self.n_input_proteins,
-            n_layers=1,
+            n_layers=n_layers,
             n_cat_list=[n_batch, n_labels],
             n_hidden=n_hidden,
             dropout_rate=dropout_rate_decoder,
