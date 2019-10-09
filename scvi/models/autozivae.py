@@ -1,16 +1,15 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, Beta, Gamma, kl_divergence as kl
 
 
 from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
-from scvi.models.modules import Encoder, DecoderSCVI, LinearDecoderSCVI
 from scvi.models.vae import VAE
 from scipy.special import logit
 from scvi.models.utils import one_hot
 
 torch.backends.cudnn.benchmark = True
+
 
 class AutoZIVAE(VAE):
 
@@ -31,7 +30,6 @@ class AutoZIVAE(VAE):
         super().__init__(n_input, **args)
         self.reconstruction_loss = 'autozinb'
         self.minimal_dropout = minimal_dropout
-
 
         # Parameters of prior Bernoulli Beta distribution : alpha + beta = 1 if only one is specified
         if beta_prior is None and alpha_prior is not None:
@@ -77,9 +75,6 @@ class AutoZIVAE(VAE):
         else:  # gene-cell
             raise Exception("Gene-cell not implemented yet for AutoZI")
 
-
-
-
     def get_alphas_betas(
         self,
         as_numpy=True,
@@ -93,12 +88,10 @@ class AutoZIVAE(VAE):
         outputs['beta_prior'] = torch.sigmoid(self.beta_prior_logit)
 
         if as_numpy:
-            for key,value in outputs.items():
+            for key, value in outputs.items():
                 outputs[key] = value.detach().cpu().numpy() if value.requires_grad else value.cpu().numpy()
 
         return outputs
-
-
 
     def sample_from_beta_distribution(self, alpha, beta, eps_gamma=1e-30, eps_sample=1e-7):
         # Sample from a Beta distribution using the reparameterization trick.
@@ -114,14 +107,12 @@ class AutoZIVAE(VAE):
         # 0 and 1 final Beta samples
         sample_xy_log_max = torch.max(sample_x_log, sample_y_log)
         sample_xplusy_log = sample_xy_log_max \
-                                       + torch.log(torch.exp(sample_x_log - sample_xy_log_max) \
+                                       + torch.log(torch.exp(sample_x_log - sample_xy_log_max)
                                                    + torch.exp(sample_y_log - sample_xy_log_max))
         sample_log = sample_x_log - sample_xplusy_log
-        sample = eps_sample + (1 - 2*eps_sample)*torch.exp(sample_log)
+        sample = eps_sample + (1 - 2 * eps_sample) * torch.exp(sample_log)
 
         return sample
-
-
 
     def rescale_bernoulli_dispersion(self, bernoulli_params, batch_index=None, y=None):
         if self.dispersion == "gene-label":
@@ -147,10 +138,7 @@ class AutoZIVAE(VAE):
 
         return bernoulli_params
 
-
-
     def sample_bernoulli_params(self, batch_index, y, n_samples=1):
-
 
         outputs = self.get_alphas_betas(as_numpy=False)
         alpha_posterior = outputs['alpha_posterior']
@@ -177,8 +165,6 @@ class AutoZIVAE(VAE):
             px_dropout_rescaled = px_dropout
         return px_dropout_rescaled
 
-
-
     def inference(self, x, batch_index=None, y=None, n_samples=1, eps_log=1e-8):
 
         outputs = super().inference(x, batch_index=batch_index, y=y, n_samples=n_samples)
@@ -201,23 +187,19 @@ class AutoZIVAE(VAE):
 
         return kl(Beta(alpha_posterior, beta_posterior), Beta(alpha_prior, beta_prior)).sum()
 
-
-
-
     def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout, bernoulli_params, eps_log=1e-8, **kwargs):
 
         # LLs for NB and ZINB
-        ll_zinb = torch.log(1. - bernoulli_params + eps_log) + log_zinb_positive(x, px_rate, px_r, px_dropout,\
-                                                                        return_gene_specific=True)
+        ll_zinb = torch.log(1. - bernoulli_params + eps_log) + log_zinb_positive(x, px_rate, px_r, px_dropout,
+                                                                                 return_gene_specific=True)
         ll_nb = torch.log(bernoulli_params + eps_log) + log_nb_positive(x, px_rate, px_r, return_gene_specific=True)
 
         # Reconstruction loss using a logsumexp-type computation
         ll_max = torch.max(ll_zinb, ll_nb)
-        ll_tot = ll_max + torch.log(torch.exp(ll_nb-ll_max) + torch.exp(ll_zinb-ll_max))
+        ll_tot = ll_max + torch.log(torch.exp(ll_nb - ll_max) + torch.exp(ll_zinb - ll_max))
         reconst_loss = -ll_tot.sum(dim=-1)
 
         return reconst_loss
-
 
     def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
         r""" Returns the reconstruction loss and the Kullback divergences
@@ -262,5 +244,3 @@ class AutoZIVAE(VAE):
         reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout, bernoulli_params)
 
         return reconst_loss + kl_divergence_l, kl_divergence_z, kl_divergence_bernoulli
-
-
