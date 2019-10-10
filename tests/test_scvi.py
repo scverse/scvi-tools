@@ -1,6 +1,6 @@
 import numpy as np
 
-from scvi.dataset import CortexDataset, SyntheticDataset
+from scvi.dataset import CortexDataset, SyntheticDataset, PbmcDataset
 from scvi.inference import (
     JointSemiSupervisedTrainer,
     AlternateSemiSupervisedTrainer,
@@ -10,7 +10,7 @@ from scvi.inference import (
     TotalTrainer,
 )
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
-from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI
+from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE
 from scvi.models.classifier import Classifier
 
 use_cuda = True
@@ -248,3 +248,29 @@ def test_totalvi(save_path):
     totalvi_benchmark(synthetic_dataset_one_batch, n_epochs=1, use_cuda=use_cuda)
     synthetic_dataset_two_batches = SyntheticDataset(n_batches=2)
     totalvi_benchmark(synthetic_dataset_two_batches, n_epochs=1, use_cuda=use_cuda)
+
+
+def test_autozi(save_path):
+    pbmc = PbmcDataset(save_path=save_path)
+    pbmc.subsample_genes(new_n_genes=100)
+
+    autozivae_gene = AutoZIVAE(n_input=pbmc.nb_genes)
+    trainer_autozivae_gene = UnsupervisedTrainer(
+        model=autozivae_gene, gene_dataset=pbmc
+    )
+    trainer_autozivae_gene.train(n_epochs=200, lr=1e-2)
+    trainer_autozivae_gene.test_set.reconstruction_error()
+    trainer_autozivae_gene.test_set.marginal_ll()
+
+    autozivae_genelabel = AutoZIVAE(
+        n_input=pbmc.nb_genes,
+        dispersion="gene-label",
+        zero_inflation="gene-label",
+        n_labels=pbmc.n_labels,
+    )
+    trainer_autozivae_genelabel = UnsupervisedTrainer(
+        model=autozivae_genelabel, gene_dataset=pbmc
+    )
+    trainer_autozivae_genelabel.train(n_epochs=200, lr=1e-2)
+    trainer_autozivae_genelabel.test_set.reconstruction_error()
+    trainer_autozivae_genelabel.test_set.marginal_ll()

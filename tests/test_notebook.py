@@ -249,3 +249,17 @@ def test_notebooks_totalvi(save_path):
         raise
     finally:
         os.chdir(path=base_path)
+
+
+def test_notebooks_autozi(save_path):
+    try:
+        os.chdir(save_path)
+        import notebooks.AutoZI_tutorial
+
+        print(save_path)
+        notebooks.AutoZI_tutorial.allow_notebook_for_test()
+        plt.close("all")
+    except BaseException:
+        raise
+    finally:
+        os.chdir(path=base_path)
