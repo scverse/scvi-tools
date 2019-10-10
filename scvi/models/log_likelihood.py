@@ -244,7 +244,7 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     return res
 
 
-def log_nb_positive(x, mu, theta, eps=1e-8):
+def log_nb_positive(x, mu, theta, eps=1e-8, return_gene_specific=False):
     """
     Note: All inputs should be torch Tensors
     log likelihood (scalar) of a minibatch according to a nb model.

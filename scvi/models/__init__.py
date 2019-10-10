@@ -7,4 +7,3 @@ from .jvae import JVAE
 from .totalvi import TOTALVI
 
 __all__ = ["SCANVI", "VAEC", "VAE", "LDVAE", "JVAE", "Classifier", "AutoZIVAE", "TOTALVI"]
-
