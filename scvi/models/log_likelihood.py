@@ -249,7 +249,7 @@ def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=10
     return - log_lkl / n_samples
 
 
-def log_zinb_positive(x, mu, theta, pi, eps=1e-8, return_gene_specific=False):
+def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     """
     Note: All inputs are torch Tensors
     log likelihood (scalar) of a minibatch according to a zinb model.
@@ -290,13 +290,10 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8, return_gene_specific=False):
 
     res = mul_case_zero + mul_case_non_zero
 
-    if return_gene_specific:
-        return res
-    else:
-        return torch.sum(res, dim=-1)
+    return res
 
 
-def log_nb_positive(x, mu, theta, eps=1e-8, return_gene_specific=False):
+def log_nb_positive(x, mu, theta, eps=1e-8):
     """
     Note: All inputs should be torch Tensors
     log likelihood (scalar) of a minibatch according to a nb model.
@@ -322,7 +319,60 @@ def log_nb_positive(x, mu, theta, eps=1e-8, return_gene_specific=False):
         - torch.lgamma(x + 1)
     )
 
-    if return_gene_specific:
-        return res
+    return res
+
+
+def log_mixture_nb(x, mu_1, mu_2, theta_1, theta_2, pi, eps=1e-8):
+    """
+    Note: All inputs should be torch Tensors
+    log likelihood (scalar) of a minibatch according to a mixture nb model.
+    pi is the probability to be in the first component.
+
+    For totalVI, the first component should be background.
+
+    Variables:
+    mu1: mean of the first negative binomial component (has to be positive support) (shape: minibatch x genes)
+    theta1: first inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
+    mu2: mean of the second negative binomial (has to be positive support) (shape: minibatch x genes)
+    theta2: second inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
+        If None, assume one shared inverse dispersion parameter.
+    eps: numerical stability constant
+    """
+    if theta_2 is not None:
+        log_nb_1 = log_nb_positive(x, mu_1, theta_1)
+        log_nb_2 = log_nb_positive(x, mu_2, theta_2)
+    # this is intended to reduce repeated computations
     else:
-        return torch.sum(res, dim=-1)
+        theta = theta_1
+        if theta.ndimension() == 1:
+            theta = theta.view(
+                1, theta.size(0)
+            )  # In this case, we reshape theta for broadcasting
+
+        log_theta_mu_1_eps = torch.log(theta + mu_1 + eps)
+        log_theta_mu_2_eps = torch.log(theta + mu_2 + eps)
+        lgamma_x_theta = torch.lgamma(x + theta)
+        lgamma_theta = torch.lgamma(theta)
+        lgamma_x_plus_1 = torch.lgamma(x + 1)
+
+        log_nb_1 = (
+            theta * (torch.log(theta + eps) - log_theta_mu_1_eps)
+            + x * (torch.log(mu_1 + eps) - log_theta_mu_1_eps)
+            + lgamma_x_theta
+            - lgamma_theta
+            - lgamma_x_plus_1
+        )
+        log_nb_2 = (
+            theta * (torch.log(theta + eps) - log_theta_mu_2_eps)
+            + x * (torch.log(mu_2 + eps) - log_theta_mu_2_eps)
+            + lgamma_x_theta
+            - lgamma_theta
+            - lgamma_x_plus_1
+        )
+
+    logsumexp = torch.logsumexp(torch.stack((log_nb_1, log_nb_2 - pi)), dim=0)
+    softplus_pi = F.softplus(-pi)
+
+    log_mixture_nb = logsumexp - softplus_pi
+
+    return log_mixture_nb
