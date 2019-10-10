@@ -8,6 +8,7 @@ from .annotation import (
     ClassifierTrainer,
 )
 from .jvae_trainer import JVAETrainer
+from .total_inference import TotalPosterior, TotalTrainer
 
 __all__ = [
     "Trainer",
@@ -19,4 +20,6 @@ __all__ = [
     "AlternateSemiSupervisedTrainer",
     "ClassifierTrainer",
     "JVAETrainer",
+    "TotalPosterior",
+    "TotalTrainer",
 ]

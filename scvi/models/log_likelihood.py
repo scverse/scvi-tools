@@ -73,7 +73,7 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
     return log_lkl / n_samples
 
 
-def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
+def compute_marginal_log_likelihood_scvi(vae, posterior, n_samples_mc=100):
     """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
 
     Despite its bias, the estimator still converges to the real value

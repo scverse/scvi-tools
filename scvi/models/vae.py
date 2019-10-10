@@ -178,7 +178,7 @@ class VAE(nn.Module):
             reconst_loss = -log_zinb_positive(x, px_rate, px_r, px_dropout)
         elif self.reconstruction_loss == "nb":
             reconst_loss = -log_nb_positive(x, px_rate, px_r)
-        return reconst_loss
+        return reconst_loss.sum(dim=-1)
 
     def scale_from_z(self, sample_batch, fixed_batch):
         if self.log_variational:

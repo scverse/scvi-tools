@@ -248,10 +248,10 @@ class AutoZIVAE(VAE):
 
         # LLs for NB and ZINB
         ll_zinb = torch.log(1.0 - bernoulli_params + eps_log) + log_zinb_positive(
-            x, px_rate, px_r, px_dropout, return_gene_specific=True
+            x, px_rate, px_r, px_dropout
         )
         ll_nb = torch.log(bernoulli_params + eps_log) + log_nb_positive(
-            x, px_rate, px_r, return_gene_specific=True
+            x, px_rate, px_r
         )
 
         # Reconstruction loss using a logsumexp-type computation
