@@ -333,6 +333,7 @@ class EarlyStopping:
         reduce_lr_on_plateau: bool = False,
         lr_patience: int = 10,
         lr_factor: float = 0.5,
+        posterior_class=Posterior,
     ):
         self.benchmark = benchmark
         self.patience = patience
@@ -341,7 +342,7 @@ class EarlyStopping:
         self.wait = 0
         self.wait_lr = 0
         self.mode = (
-            getattr(Posterior, early_stopping_metric).mode
+            getattr(posterior_class, early_stopping_metric).mode
             if early_stopping_metric is not None
             else None
         )
