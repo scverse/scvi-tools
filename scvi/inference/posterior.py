@@ -32,7 +32,7 @@ from scvi.models.log_likelihood import (
     compute_elbo,
     compute_reconstruction_error,
     compute_marginal_log_likelihood_scvi,
-    compute_marginal_log_likelihood_autozi
+    compute_marginal_log_likelihood_autozi,
 )
 
 logger = logging.getLogger(__name__)
@@ -183,7 +183,10 @@ class Posterior:
 
     @torch.no_grad()
     def marginal_ll(self, n_mc_samples=1000):
-        if hasattr(self.model, 'reconstruction_loss') and self.model.reconstruction_loss == 'autozinb':
+        if (
+            hasattr(self.model, "reconstruction_loss")
+            and self.model.reconstruction_loss == "autozinb"
+        ):
             ll = compute_marginal_log_likelihood_autozi(self.model, self, n_mc_samples)
         else:
             ll = compute_marginal_log_likelihood_scvi(self.model, self, n_mc_samples)

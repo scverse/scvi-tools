@@ -18,6 +18,7 @@ class AutoZIVAE(VAE):
         alpha_prior: float = 0.5,
         beta_prior: float = 0.5,
         minimal_dropout: float = 0.01,
+        zero_inflation="gene",
         **args,
     ):
 
@@ -27,6 +28,7 @@ class AutoZIVAE(VAE):
             )
 
         super().__init__(n_input, **args)
+        self.zero_inflation = zero_inflation
         self.reconstruction_loss = "autozinb"
         self.minimal_dropout = minimal_dropout
 
@@ -43,7 +45,7 @@ class AutoZIVAE(VAE):
         # Create parameters for Bernoulli Beta prior and posterior distributions
         # Each paramer, whose values are in (0,1), is encoded as its logit, in the set of real numbers
 
-        if self.dispersion == "gene":
+        if self.zero_inflation == "gene":
             self.alpha_posterior_logit = torch.nn.Parameter(torch.randn(n_input))
             self.beta_posterior_logit = torch.nn.Parameter(torch.randn(n_input))
             self.alpha_prior_logit = (
@@ -57,7 +59,7 @@ class AutoZIVAE(VAE):
                 else torch.Tensor([logit(beta_prior)]).to(device)
             )
 
-        elif self.dispersion == "gene-batch":
+        elif self.zero_inflation == "gene-batch":
             self.alpha_posterior_logit = torch.nn.Parameter(
                 torch.randn(n_input, self.n_batch)
             )
@@ -75,7 +77,7 @@ class AutoZIVAE(VAE):
                 else torch.Tensor([logit(beta_prior)]).to(device)
             )
 
-        elif self.dispersion == "gene-label":
+        elif self.zero_inflation == "gene-label":
             self.alpha_posterior_logit = torch.nn.Parameter(
                 torch.randn(n_input, self.n_labels)
             )
@@ -140,7 +142,7 @@ class AutoZIVAE(VAE):
         return sample
 
     def rescale_bernoulli_dispersion(self, bernoulli_params, batch_index=None, y=None):
-        if self.dispersion == "gene-label":
+        if self.zero_inflation == "gene-label":
             one_hot_label = one_hot(y, self.n_labels)
             # If we sampled several random Bernoulli parameters
             if len(bernoulli_params.shape) == 2:
@@ -152,7 +154,7 @@ class AutoZIVAE(VAE):
                         F.linear(one_hot_label, bernoulli_params[sample])
                     )
                 bernoulli_params = torch.stack(bernoulli_params_res)
-        elif self.dispersion == "gene-batch":
+        elif self.zero_inflation == "gene-batch":
             one_hot_batch = one_hot(batch_index, self.n_batch)
             if len(bernoulli_params.shape) == 2:
                 bernoulli_params = F.linear(one_hot_batch, bernoulli_params)
@@ -178,14 +180,14 @@ class AutoZIVAE(VAE):
                 alpha_posterior.unsqueeze(0).expand(
                     (n_samples, alpha_posterior.size(0))
                 )
-                if self.dispersion == "gene"
+                if self.zero_inflation == "gene"
                 else alpha_posterior.unsqueeze(0).expand(
                     (n_samples, alpha_posterior.size(0), alpha_posterior.size(1))
                 )
             )
             beta_posterior = (
                 beta_posterior.unsqueeze(0).expand((n_samples, beta_posterior.size(0)))
-                if self.dispersion == "gene"
+                if self.zero_inflation == "gene"
                 else beta_posterior.unsqueeze(0).expand(
                     (n_samples, beta_posterior.size(0), beta_posterior.size(1))
                 )
