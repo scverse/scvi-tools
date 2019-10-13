@@ -61,6 +61,7 @@ Quick Start
        * `imputation of unobserved gene expression (gimVI)`__
        * `automated hyperparameter search`__
        * `joint model for CITE-seq data (totalVI)`__
+       * `detection of zero-inflated genes (AutoZI)`__
 
 
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/data_loading.ipynb
@@ -72,6 +73,7 @@ Quick Start
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/gimvi_tutorial.ipynb
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/autotune_advanced_notebook.ipynb
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/totalVI.ipynb
+.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/AutoZI_tutorial.ipynb
 
 
 References
