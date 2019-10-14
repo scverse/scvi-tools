@@ -263,3 +263,17 @@ def test_notebooks_autozi(save_path):
         raise
     finally:
         os.chdir(path=base_path)
+
+
+def test_notebooks_lineardecoder(save_path):
+    try:
+        os.chdir(save_path)
+        import notebooks.linear_decoder
+
+        print(save_path)
+        notebooks.linear_decoder.allow_notebook_for_test()
+        plt.close("all")
+    except BaseException:
+        raise
+    finally:
+        os.chdir(path=base_path)
