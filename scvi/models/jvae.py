@@ -368,4 +368,4 @@ class JVAE(nn.Module):
         else:
             kl_divergence_l = torch.zeros_like(kl_divergence_z)
 
-        return reconstruction_loss, kl_divergence_l + kl_divergence_z
+        return reconstruction_loss, kl_divergence_l + kl_divergence_z, 0.0

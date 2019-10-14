@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import logsumexp
-from torch.distributions import Normal
+from torch.distributions import Normal, Beta
 
 
 def compute_elbo(vae, posterior, **kwargs):
@@ -23,7 +23,8 @@ def compute_elbo(vae, posterior, **kwargs):
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[
             :5
         ]  # general fish case
-        reconst_loss, kl_divergence = vae(
+        # kl_divergence_global (scalar) should be common across all batches after training
+        reconst_loss, kl_divergence, kl_divergence_global = vae(
             sample_batch,
             local_l_mean,
             local_l_var,
@@ -33,6 +34,7 @@ def compute_elbo(vae, posterior, **kwargs):
         )
         elbo += torch.sum(reconst_loss + kl_divergence).item()
     n_samples = len(posterior.indices)
+    elbo += kl_divergence_global
     return elbo / n_samples
 
 
@@ -54,10 +56,16 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
         px_r = outputs["px_r"]
         px_rate = outputs["px_rate"]
         px_dropout = outputs["px_dropout"]
+        bernoulli_params = outputs.get("bernoulli_params", None)
 
         # Reconstruction loss
         reconst_loss = vae.get_reconstruction_loss(
-            sample_batch, px_rate, px_r, px_dropout, **kwargs
+            sample_batch,
+            px_rate,
+            px_r,
+            px_dropout,
+            bernoulli_params=bernoulli_params,
+            **kwargs
         )
 
         log_lkl += torch.sum(reconst_loss).item()
@@ -65,7 +73,7 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
     return log_lkl / n_samples
 
 
-def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
+def compute_marginal_log_likelihood_scvi(vae, posterior, n_samples_mc=100):
     """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
 
     Despite its bias, the estimator still converges to the real value
@@ -115,6 +123,78 @@ def compute_marginal_log_likelihood(vae, posterior, n_samples_mc=100):
         batch_log_lkl = logsumexp(to_sum, dim=-1) - np.log(n_samples_mc)
         log_lkl += torch.sum(batch_log_lkl).item()
 
+    n_samples = len(posterior.indices)
+    # The minus sign is there because we actually look at the negative log likelihood
+    return -log_lkl / n_samples
+
+
+def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=100):
+    """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
+
+    Despite its bias, the estimator still converges to the real value
+    of log p(x) when n_samples_mc (for Monte Carlo) goes to infinity
+    (a fairly high value like 100 should be enough)
+    Due to the Monte Carlo sampling, this method is not as computationally efficient
+    as computing only the reconstruction loss
+    """
+    # Uses MC sampling to compute a tighter lower bound on log p(x)
+    log_lkl = 0
+    to_sum = torch.zeros((n_samples_mc,))
+    alphas_betas = autozivae.get_alphas_betas(as_numpy=False)
+    alpha_prior = alphas_betas["alpha_prior"]
+    alpha_posterior = alphas_betas["alpha_posterior"]
+    beta_prior = alphas_betas["beta_prior"]
+    beta_posterior = alphas_betas["beta_posterior"]
+
+    for i in range(n_samples_mc):
+
+        bernoulli_params = autozivae.sample_from_beta_distribution(
+            alpha_posterior, beta_posterior
+        )
+
+        for i_batch, tensors in enumerate(posterior):
+            sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors
+
+            # Distribution parameters and sampled variables
+            outputs = autozivae.inference(sample_batch, batch_index, labels)
+            px_r = outputs["px_r"]
+            px_rate = outputs["px_rate"]
+            px_dropout = outputs["px_dropout"]
+            qz_m = outputs["qz_m"]
+            qz_v = outputs["qz_v"]
+            z = outputs["z"]
+            ql_m = outputs["ql_m"]
+            ql_v = outputs["ql_v"]
+            library = outputs["library"]
+
+            # Reconstruction Loss
+            bernoulli_params_batch = autozivae.reshape_bernoulli(
+                bernoulli_params, batch_index, labels
+            )
+            reconst_loss = autozivae.get_reconstruction_loss(
+                sample_batch, px_rate, px_r, px_dropout, bernoulli_params_batch
+            )
+
+            # Log-probabilities
+            p_l = Normal(local_l_mean, local_l_var.sqrt()).log_prob(library).sum(dim=-1)
+            p_z = (
+                Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v))
+                .log_prob(z)
+                .sum(dim=-1)
+            )
+            p_x_zld = -reconst_loss
+            q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
+            q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
+
+            batch_log_lkl = torch.sum(p_x_zld + p_l + p_z - q_z_x - q_l_x, dim=0)
+            to_sum[i] += batch_log_lkl
+
+        p_d = Beta(alpha_prior, beta_prior).log_prob(bernoulli_params).sum()
+        q_d = Beta(alpha_posterior, beta_posterior).log_prob(bernoulli_params).sum()
+
+        to_sum[i] += p_d - q_d
+
+    log_lkl = logsumexp(to_sum, dim=-1).item() - np.log(n_samples_mc)
     n_samples = len(posterior.indices)
     # The minus sign is there because we actually look at the negative log likelihood
     return -log_lkl / n_samples

@@ -201,6 +201,7 @@ class SCANVI(VAE):
             return (
                 reconst_loss + loss_z1_weight + loss_z1_unweight,
                 kl_divergence_z2 + kl_divergence_l,
+                0.0,
             )
 
         probs = self.classifier(z1)
@@ -217,4 +218,4 @@ class SCANVI(VAE):
         )
         kl_divergence += kl_divergence_l
 
-        return reconst_loss, kl_divergence
+        return reconst_loss, kl_divergence, 0.0

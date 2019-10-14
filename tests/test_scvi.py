@@ -10,7 +10,7 @@ from scvi.inference import (
     TotalTrainer,
 )
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
-from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI
+from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE
 from scvi.models.classifier import Classifier
 
 use_cuda = True
@@ -248,3 +248,22 @@ def test_totalvi(save_path):
     totalvi_benchmark(synthetic_dataset_one_batch, n_epochs=1, use_cuda=use_cuda)
     synthetic_dataset_two_batches = SyntheticDataset(n_batches=2)
     totalvi_benchmark(synthetic_dataset_two_batches, n_epochs=1, use_cuda=use_cuda)
+
+
+def test_autozi(save_path):
+    data = SyntheticDataset(n_batches=1)
+
+    for disp_zi in ["gene", "gene-label"]:
+        autozivae = AutoZIVAE(
+            n_input=data.nb_genes,
+            dispersion=disp_zi,
+            zero_inflation=disp_zi,
+            n_labels=data.n_labels,
+        )
+        trainer_autozivae = UnsupervisedTrainer(
+            model=autozivae, gene_dataset=data, train_size=0.5
+        )
+        trainer_autozivae.train(n_epochs=2, lr=1e-2)
+        trainer_autozivae.test_set.elbo()
+        trainer_autozivae.test_set.reconstruction_error()
+        trainer_autozivae.test_set.marginal_ll()
