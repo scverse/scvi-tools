@@ -260,6 +260,8 @@ class Dataset10X(DownloadableDataset):
         :return: path in which files are contains and their suffix if compressed.
         """
         for root, subdirs, files in os.walk(self.save_path):
+            # do not consider hidden files
+            files = [f for f in files if not f[0] == "."]
             contains_mat = [
                 filename == "matrix.mtx" or filename == "matrix.mtx.gz"
                 for filename in files
