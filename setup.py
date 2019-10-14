@@ -11,40 +11,41 @@ with open("HISTORY.rst") as history_file:
 
 requirements = [
     "pip>=18.1",
-    "numpy>=1.16.4",
-    "torch>=0.4.1",
+    "numpy>=1.16.2",
+    "torch>=1.0.1",
     "Sphinx>=1.7.1",
-    "matplotlib>=2.0",
-    "scikit-learn>=0.18",
-    "scipy>=1.1",
-    "h5py>=2.8",
-    "pandas>=0.2",
-    "loompy>=2.0",
-    "tqdm >= 4",
-    "anndata >= 0.6",
-    "xlrd >= 1.0",
+    "matplotlib>=3.0.3",
+    "scikit-learn>=0.20.3",
+    "scipy>=1.2.1",
+    "h5py>=2.9.0",
+    "pandas>=0.24.2",
+    "loompy>=2.0.16",
+    "tqdm >= 4.31.1",
+    "anndata >= 0.6.18",
+    "xlrd >= 1.2.0",
     "jupyter>=1.0.0",
     "nbconvert>=5.4.0",
     "nbformat>=4.4.0",
-    "ipython>=7",
+    "ipython>=7.1.1",
     "seaborn>=0.9.0",
     "hyperopt>=0.1.2",
-    "numba>=0.37",
+    "numba>=0.46.0",
 ]
 
-test_requirements = ["pytest"]
+test_requirements = ["pytest>=3.7.4"]
 
 extras_requirements = {
     "notebooks": [
-        "scanpy",
-        "louvain",
+        "scanpy>=1.4",
+        "colour>=0.1.5"
+        "louvain>=0.6.1",
         "leidenalg>=0.7.0",
-        "python-igraph>=0.7.1",
-        "umap-learn>=0.3.7",
+        "python-igraph>=0.7.1.post6",
+        "umap-learn>=0.3.8",
     ]
 }
 
-setup_requirements = ["pytest-runner"]
+setup_requirements = ["pytest-runner>=2.11.1"]
 
 author = (
     "Romain Lopez, "
