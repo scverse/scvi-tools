@@ -23,7 +23,8 @@ def compute_elbo(vae, posterior, **kwargs):
         sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[
             :5
         ]  # general fish case
-        reconst_loss, kl_divergence, _ = vae(
+        # kl_divergence_global (scalar) should be common across all batches after training
+        reconst_loss, kl_divergence, kl_divergence_global = vae(
             sample_batch,
             local_l_mean,
             local_l_var,
@@ -33,7 +34,6 @@ def compute_elbo(vae, posterior, **kwargs):
         )
         elbo += torch.sum(reconst_loss + kl_divergence).item()
     n_samples = len(posterior.indices)
-    kl_divergence_global = vae.compute_global_kl_divergence()
     elbo += kl_divergence_global
     return elbo / n_samples
 
@@ -168,7 +168,7 @@ def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=10
             library = outputs["library"]
 
             # Reconstruction Loss
-            bernoulli_params_batch = autozivae.rescale_bernoulli_dispersion(
+            bernoulli_params_batch = autozivae.reshape_bernoulli(
                 bernoulli_params, batch_index, labels
             )
             reconst_loss = autozivae.get_reconstruction_loss(
@@ -212,7 +212,6 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     theta: inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
     pi: logit of the dropout parameter (real support) (shape: minibatch x genes)
     eps: numerical stability constant
-    return_gene_specific: sum on genes if False, return the log likelihood per gene if True
     """
 
     # theta is the dispersion rate. If .ndimension() == 1, it is shared for all cells (regardless of batch or labels)
@@ -244,7 +243,7 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     return res
 
 
-def log_nb_positive(x, mu, theta, eps=1e-8, return_gene_specific=False):
+def log_nb_positive(x, mu, theta, eps=1e-8):
     """
     Note: All inputs should be torch Tensors
     log likelihood (scalar) of a minibatch according to a nb model.
@@ -253,7 +252,6 @@ def log_nb_positive(x, mu, theta, eps=1e-8, return_gene_specific=False):
     mu: mean of the negative binomial (has to be positive support) (shape: minibatch x genes)
     theta: inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
     eps: numerical stability constant
-    return_gene_specific: sum on genes if False, return the log likelihood per gene if True
     """
     if theta.ndimension() == 1:
         theta = theta.view(
