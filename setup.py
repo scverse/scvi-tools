@@ -32,20 +32,19 @@ requirements = [
     "numba>=0.46.0",
 ]
 
-test_requirements = ["pytest>=3.7.4"]
-
 extras_requirements = {
     "notebooks": [
         "scanpy>=1.4",
-        "colour>=0.1.5"
+        "colour>=0.1.5",
         "louvain>=0.6.1",
         "leidenalg>=0.7.0",
         "python-igraph>=0.7.1.post6",
         "umap-learn>=0.3.8",
+        "hyperopt==0.1.2",
     ]
 }
 
-setup_requirements = ["pytest-runner>=2.11.1"]
+setup_requirements = ["pytest-runner>=2.11.1", "pytest>=3.7.4"]
 
 author = (
     "Romain Lopez, "
@@ -76,6 +75,7 @@ setup(
     ],
     description="Single-cell Variational Inference",
     install_requires=requirements,
+    extras_require=extras_requirements,
     license="MIT license",
     long_description=readme + "\n\n" + history,
     include_package_data=True,
