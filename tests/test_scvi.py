@@ -7,9 +7,10 @@ from scvi.inference import (
     ClassifierTrainer,
     UnsupervisedTrainer,
     AdapterTrainer,
+    TotalTrainer,
 )
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
-from scvi.models import VAE, SCANVI, VAEC, LDVAE
+from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE
 from scvi.models.classifier import Classifier
 
 use_cuda = True
@@ -159,6 +160,25 @@ def ldvae_benchmark(dataset, n_epochs, use_cuda=True):
     return trainer
 
 
+def totalvi_benchmark(dataset, n_epochs, use_cuda=True):
+    totalvae = TOTALVI(
+        dataset.nb_genes, len(dataset.protein_names), n_batch=dataset.n_batches
+    )
+    trainer = TotalTrainer(totalvae, dataset, train_size=0.5, use_cuda=use_cuda)
+    trainer.train(n_epochs=n_epochs)
+    trainer.test_set.reconstruction_error()
+    trainer.test_set.marginal_ll()
+
+    trainer.test_set.get_protein_background_mean()
+    trainer.test_set.get_latent()
+    trainer.test_set.generate()
+    trainer.test_set.get_sample_dropout()
+    trainer.test_set.get_normalized_denoised_expression()
+    trainer.test_set.imputation()
+
+    return trainer
+
+
 def test_synthetic_3():
     gene_dataset = SyntheticDataset()
     trainer = base_benchmark(gene_dataset)
@@ -221,3 +241,29 @@ def test_sampling_zl(save_path):
     )
     trainer_cortex_cls.train(n_epochs=2)
     trainer_cortex_cls.test_set.accuracy()
+
+
+def test_totalvi(save_path):
+    synthetic_dataset_one_batch = SyntheticDataset(n_batches=1)
+    totalvi_benchmark(synthetic_dataset_one_batch, n_epochs=1, use_cuda=use_cuda)
+    synthetic_dataset_two_batches = SyntheticDataset(n_batches=2)
+    totalvi_benchmark(synthetic_dataset_two_batches, n_epochs=1, use_cuda=use_cuda)
+
+
+def test_autozi(save_path):
+    data = SyntheticDataset(n_batches=1)
+
+    for disp_zi in ["gene", "gene-label"]:
+        autozivae = AutoZIVAE(
+            n_input=data.nb_genes,
+            dispersion=disp_zi,
+            zero_inflation=disp_zi,
+            n_labels=data.n_labels,
+        )
+        trainer_autozivae = UnsupervisedTrainer(
+            model=autozivae, gene_dataset=data, train_size=0.5
+        )
+        trainer_autozivae.train(n_epochs=2, lr=1e-2)
+        trainer_autozivae.test_set.elbo()
+        trainer_autozivae.test_set.reconstruction_error()
+        trainer_autozivae.test_set.marginal_ll()

@@ -203,8 +203,9 @@ class Dataset10X(DownloadableDataset):
                     if measurement_type == "Antibody Capture":
                         measurement_type = "protein_expression"
                         columns_attr_name = "protein_names"
-                        # protein counts are inherently not sparse
-                        measurement_data = measurement_data.A
+                        # protein counts do not have many zeros so always make dense
+                        if self.dense is not True:
+                            measurement_data = measurement_data.A
                     else:
                         measurement_type = measurement_type.lower().replace(" ", "_")
                         columns_attr_name = measurement_type + "_names"
@@ -259,6 +260,8 @@ class Dataset10X(DownloadableDataset):
         :return: path in which files are contains and their suffix if compressed.
         """
         for root, subdirs, files in os.walk(self.save_path):
+            # do not consider hidden files
+            files = [f for f in files if not f[0] == "."]
             contains_mat = [
                 filename == "matrix.mtx" or filename == "matrix.mtx.gz"
                 for filename in files

@@ -257,7 +257,7 @@ class JVAETrainer(Trainer):
         for (i, (sample_batch, l_mean, l_var, batch_index, labels, *_)) in enumerate(
             tensors
         ):
-            reconstruction_loss, kl_divergence = self.model(
+            reconstruction_loss, kl_divergence, _ = self.model(
                 sample_batch, l_mean, l_var, batch_index, mode=i
             )
             loss = torch.mean(

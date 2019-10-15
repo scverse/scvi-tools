@@ -51,15 +51,17 @@ Quick Start
 
    a. Getting started:
        * `data loading`__
-       * `basic usage`__
+       * `basic usage (scVI)`__
    b. Analyzing several datasets:
        * `harmonization (scVI)`__
        * `annotation (scANVI)`__
    c. Advanced topics:
        * `interaction with scanpy`__
-       * `linear decoder for gene interpretation`__
+       * `linear decoder for gene interpretation (LDVAE)`__
        * `imputation of unobserved gene expression (gimVI)`__
        * `automated hyperparameter search`__
+       * `joint model for CITE-seq data (totalVI)`__
+       * `detection of zero-inflated genes (AutoZI)`__
 
 
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/data_loading.ipynb
@@ -70,6 +72,9 @@ Quick Start
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/linear_decoder.ipynb
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/gimvi_tutorial.ipynb
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/autotune_advanced_notebook.ipynb
+.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/totalVI.ipynb
+.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/AutoZI_tutorial.ipynb
+
 
 References
 ----------
@@ -92,3 +97,20 @@ ICML Workshop on Computational Biology, 2019. `[pdf]`__
 
 .. __: https://arxiv.org/pdf/1905.02269.pdf
 
+Adam Gayoso, Romain Lopez, Zoë Steier, Jeffrey Regier, Aaron Streets, Nir Yosef.
+**"A joint model of RNA expression and surface protein abundance in single cells."**
+bioRxiv, 2019. `[pdf]`__
+
+.. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/07/791947.full.pdf
+
+Oscar Clivio, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir Yosef.
+**"Detecting zero-inflated genes in single-cell transcriptomics data."**
+bioRxiv, 2019. `[pdf]`__
+
+.. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf
+
+Pierre Boyeau, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir Yosef.
+**"Deep generative models for detecting differential expression in single cells."**
+bioRxiv, 2019. `[pdf]`__
+
+.. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/04/794289.full.pdf

@@ -4,7 +4,11 @@ import pickle
 
 import numpy as np
 
-from scvi.dataset.dataset import GeneExpressionDataset, DownloadableDataset
+from scvi.dataset.dataset import (
+    GeneExpressionDataset,
+    DownloadableDataset,
+    CellMeasurement,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +18,7 @@ class SyntheticDataset(GeneExpressionDataset):
         self,
         batch_size: int = 200,
         nb_genes: int = 100,
+        n_proteins: int = 100,
         n_batches: int = 2,
         n_labels: int = 3,
     ):
@@ -35,6 +40,16 @@ class SyntheticDataset(GeneExpressionDataset):
         )
         # clear potentially unused cell_types
         self.remap_categorical_attributes()
+
+        # Protein measurements
+        p_data = np.random.negative_binomial(5, 0.3, size=(self.X.shape[0], n_proteins))
+        protein_data = CellMeasurement(
+            name="protein_expression",
+            data=p_data,
+            columns_attr_name="protein_names",
+            columns=np.arange(p_data.shape[1]),
+        )
+        self.initialize_cell_measurement(protein_data)
 
 
 class SyntheticRandomDataset(DownloadableDataset):

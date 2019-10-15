@@ -172,12 +172,12 @@ class VAE(nn.Module):
             "px_rate"
         ]
 
-    def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout):
+    def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout, **kwargs):
         # Reconstruction Loss
         if self.reconstruction_loss == "zinb":
-            reconst_loss = -log_zinb_positive(x, px_rate, px_r, px_dropout)
+            reconst_loss = -log_zinb_positive(x, px_rate, px_r, px_dropout).sum(dim=-1)
         elif self.reconstruction_loss == "nb":
-            reconst_loss = -log_nb_positive(x, px_rate, px_r)
+            reconst_loss = -log_nb_positive(x, px_rate, px_r).sum(dim=-1)
         return reconst_loss
 
     def scale_from_z(self, sample_batch, fixed_batch):
@@ -190,6 +190,7 @@ class VAE(nn.Module):
         return px_scale
 
     def inference(self, x, batch_index=None, y=None, n_samples=1):
+
         x_ = x
         if self.log_variational:
             x_ = torch.log(1 + x_)
@@ -270,7 +271,7 @@ class VAE(nn.Module):
 
         reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
 
-        return reconst_loss + kl_divergence_l, kl_divergence
+        return reconst_loss + kl_divergence_l, kl_divergence, 0.0
 
 
 class LDVAE(VAE):
