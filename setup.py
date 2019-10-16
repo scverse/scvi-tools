@@ -29,9 +29,9 @@ requirements = [
     "ipython>=7.1.1",
     "seaborn>=0.9.0",
     "hyperopt>=0.1.2",
-    "numba!=0.45.1",  # incompatibility with the umap-learn module
-    "numba!=0.46",  # incompatibility with the loompy module during multiprocessing
-    "numba>=0.45.0",
+    "numba>=0.45.0"
+    ", !=0.45.1"  # incompatibility with the umap-learn module
+    ", !=0.46.0",  # incompatibility with the loompy module during multiprocessing
 ]
 
 extras_requirements = {
