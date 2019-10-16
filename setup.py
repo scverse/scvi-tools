@@ -29,13 +29,27 @@ requirements = [
 
 setup_requirements = ["pip>=18.1"]
 
-test_requirements = ["pytest>=3.7.4", "pytest-runner>=2.11.1", "flake8>=3.7.7", "coverage>=4.5.1", "codecov>=2.0.8",
-                     "black>=19.3b0"]
+test_requirements = [
+    "pytest>=3.7.4",
+    "pytest-runner>=2.11.1",
+    "flake8>=3.7.7",
+    "coverage>=4.5.1",
+    "codecov>=2.0.8",
+    "black>=19.3b0",
+]
 
 extras_requirements = {
-    "notebooks": ["scanpy>=1.4", "louvain>=0.6.1", "leidenalg>=0.7.0", "python-igraph>=0.7.1.post6", "colour>=0.1.5",
-                  "umap-learn>=0.3.8", "seaborn>=0.9.0", "leidenalg>=0.7.0"],
-    "docs": ["sphinx>=1.7.1", ]
+    "notebooks": [
+        "scanpy>=1.4",
+        "louvain>=0.6.1",
+        "leidenalg>=0.7.0",
+        "python-igraph>=0.7.1.post6",
+        "colour>=0.1.5",
+        "umap-learn>=0.3.8",
+        "seaborn>=0.9.0",
+        "leidenalg>=0.7.0",
+    ],
+    "docs": ["sphinx>=1.7.1"],
 }
 author = (
     "Romain Lopez, "

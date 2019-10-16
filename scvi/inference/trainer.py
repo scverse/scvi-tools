@@ -61,7 +61,7 @@ class Trainer:
         data_loader_kwargs = data_loader_kwargs if data_loader_kwargs else dict()
 
         self.model = model
-        self.gene_dataset   = gene_dataset
+        self.gene_dataset = gene_dataset
         self._posteriors = OrderedDict()
         self.seed = seed
 

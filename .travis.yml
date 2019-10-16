@@ -17,7 +17,7 @@ notifications:
   email: false
 
 install:
-  - pip install --quiet .[notebooks]
+  - pip install --quiet .[test,notebooks]
 
 script:
   - flake8
