@@ -3,9 +3,6 @@ dist: xenial
 
 language: python
 
-services:
-  - mongodb
-
 python:
   - 3.7
 
