@@ -49,8 +49,8 @@ extras_requirements = {
         "seaborn>=0.9.0",
         "leidenalg>=0.7.0",
     ],
-    "docs": ["sphinx>=1.7.1"],
-    'test': test_requirements,
+    "docs": ["sphinx>=1.7.1", "nbsphinx", "sphinx_autodoc_typehints", "sphinx-rtd-theme"],
+    "test": test_requirements,
 }
 author = (
     "Romain Lopez, "
