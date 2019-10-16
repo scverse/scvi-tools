@@ -8,7 +8,7 @@ python:
 
 os:
   - linux
-  
+
 cache:
   - pip
   - directories: tests/data
@@ -17,7 +17,7 @@ notifications:
   email: false
 
 install:
-  - pip install --quiet -r requirements.txt
+  - pip install --quiet .[test,notebooks]
 
 script:
   - flake8
@@ -26,7 +26,7 @@ script:
 
 after_success:
   - codecov
-  
+
 branches:
   only:
   - master
