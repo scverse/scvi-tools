@@ -50,6 +50,7 @@ extras_requirements = {
         "leidenalg>=0.7.0",
     ],
     "docs": ["sphinx>=1.7.1"],
+    'test': test_requirements,
 }
 author = (
     "Romain Lopez, "
