@@ -97,7 +97,7 @@ class TestGeneExpressionDataset(TestCase):
         self.assertEqual(14, dataset.nb_cells)
         self.assertEqual(3, dataset.nb_genes)
         self.assertListEqual(
-            ["GENE_0", "GENE_1", "GENE_2"], dataset.gene_names.tolist()
+            ["gene_0", "gene_1", "gene_2"], dataset.gene_names.tolist()
         )
 
         # test for labels sharing
@@ -275,9 +275,9 @@ class TestGeneExpressionDataset(TestCase):
         dataset.subsample_genes(new_n_genes=25)
         self.assertTupleEqual(dataset.gene_names.shape, (25,))
         # The most variable genes should be in first position
-        self.assertEqual(dataset.gene_names[0], "GENE_99")
+        self.assertEqual(dataset.gene_names[0], "gene_99")
         dataset.subsample_genes(subset_genes=[1, 6, 7])
-        self.assertEqual(dataset.gene_names[0], "GENE_98")
+        self.assertEqual(dataset.gene_names[0], "gene_98")
 
     def test_filter_genes(self):
         data = np.random.randint(1, 5, size=(5, 10))
@@ -285,7 +285,7 @@ class TestGeneExpressionDataset(TestCase):
 
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, gene_names=gene_names)
-        gene_names_true = ["GENE_1", "GENE_3"]
+        gene_names_true = ["gene_1", "gene_3"]
         dataset.filter_genes_by_attribute(gene_names_true)
         self.assertListEqual(gene_names_true, dataset.gene_names.tolist())
 
@@ -295,14 +295,14 @@ class TestGeneExpressionDataset(TestCase):
         gene_names = np.array(["gene_%d" % i for i in range(100)])
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, gene_names=gene_names)
-        dataset.reorder_genes(["GENE_47", "GENE_2", "GENE_3", "GENE_12"])
+        dataset.reorder_genes(["gene_47", "gene_2", "gene_3", "gene_12"])
         # New order should be 47, 2, 3, 12, 0, 1, ...
         self.assertListEqual(
             list(dataset.gene_names[0:6]),
-            ["GENE_47", "GENE_2", "GENE_3", "GENE_12", "GENE_0", "GENE_1"],
+            ["gene_47", "gene_2", "gene_3", "gene_12", "gene_0", "gene_1"],
         )
 
-        self.assertRaises(KeyError, dataset.reorder_genes, ["GENE_101"])
+        self.assertRaises(KeyError, dataset.reorder_genes, ["gene_101"])
 
     def test_genes_to_idx(self):
         data = np.random.randint(1, 5, size=(5, 10))
@@ -310,7 +310,7 @@ class TestGeneExpressionDataset(TestCase):
 
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, gene_names=gene_names)
-        indices = dataset.genes_to_index(["GENE_%d" % i for i in range(10)])
+        indices = dataset.genes_to_index(["gene_%d" % i for i in range(10)])
         self.assertListEqual([i for i in range(10)], indices.tolist())
 
     def test_subsample_cells(self):
