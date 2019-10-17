@@ -161,6 +161,8 @@ class GeneExpressionDataset(Dataset):
             self.initialize_gene_attribute(
                 "gene_names", np.asarray(gene_names, dtype="<U64")
             )
+            if len(np.unique(self.gene_names)) != len(self.gene_names):
+                logger.warning("Gene names are not unique.")
         if cell_types is not None:
             self.initialize_mapped_attribute(
                 "labels", "cell_types", np.asarray(cell_types, dtype="<U128")
