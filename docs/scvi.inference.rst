@@ -44,6 +44,14 @@ scvi.inference.posterior module
     :undoc-members:
     :show-inheritance:
 
+scvi.inference.total\_inference module
+--------------------------------------
+
+.. automodule:: scvi.inference.total_inference
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 scvi.inference.trainer module
 -----------------------------
 

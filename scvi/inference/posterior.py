@@ -232,12 +232,11 @@ class Posterior:
     @torch.no_grad()
     def differential_expression_stats(self, M_sampling=100):
         """
-        Output average over statistics in a symmetric way (a against b)
-        forget the sets if permutation is True
+        Output average over statistics in a symmetric way (a against b), forget the sets if permutation is True
+
         :param M_sampling: number of samples
-        :return: Tuple px_scales, all_labels where:
-            - px_scales: scales of shape (M_sampling, n_genes)
-            - all_labels: labels of shape (M_sampling, )
+        :return: Tuple px_scales, all_labels where (i) px_scales: scales of shape (M_sampling, n_genes)
+            (ii) all_labels: labels of shape (M_sampling, )
         """
         px_scales = []
         all_labels = []
@@ -307,39 +306,36 @@ class Posterior:
         M_permutation: int = None,
         all_stats: bool = True,
     ):
-        """Computes gene specific Bayes factors using masks idx1 and idx2
+        """
+        Computes gene specific Bayes factors using masks idx1 and idx2
 
         To that purpose we sample the Posterior in the following way:
             1. The posterior is sampled n_samples times for each subpopulation
             2. For computation efficiency (posterior sampling is quite expensive), instead of
-            comparing element-wise the obtained samples, we can permute posterior samples.
-            Remember that computing the Bayes Factor requires sampling
-            q(z_A | x_A) and q(z_B | x_B)
+                comparing element-wise the obtained samples, we can permute posterior samples.
+                Remember that computing the Bayes Factor requires sampling
+                q(z_A | x_A) and q(z_B | x_B)
 
         :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
-        from associated population
+            from associated population
         :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
-        from associated population
+            from associated population
         :param batchid1: List of batch ids for which you want to perform DE Analysis for
-        subpopulation 1. By default, all ids are taken into account
+            subpopulation 1. By default, all ids are taken into account
         :param batchid2: List of batch ids for which you want to perform DE Analysis for
-        subpopulation 2. By default, all ids are taken into account
+            subpopulation 2. By default, all ids are taken into account
         :param genes: list Names of genes for which Bayes factors will be computed
         :param n_samples: Number of times the posterior will be sampled for each pop
         :param sample_pairs: Activates step 2 described above.
-        Simply formulated, pairs obtained from posterior sampling (when calling
-        `sample_scale_from_batch`) will be randomly permuted so that the number of
-        pairs used to compute Bayes Factors becomes M_permutation.
-            :param M_permutation: Number of times we will "mix" posterior samples in step 2.
+            Simply formulated, pairs obtained from posterior sampling (when calling
+            `sample_scale_from_batch`) will be randomly permuted so that the number of
+            pairs used to compute Bayes Factors becomes M_permutation.
+        :param M_permutation: Number of times we will "mix" posterior samples in step 2.
             Only makes sense when sample_pairs=True
         :param all_stats: If False returns Bayes factors alone
-        else, returns not only Bayes Factor of population 1 vs population 2 but other metrics as
-        well, mostly used for sanity checks, such as
-            - Bayes Factors of 2 vs 1
-            - Bayes factors obtained when indices used to computed bayes are chosen randomly
-            (ie we compute Bayes factors of Completely Random vs Completely Random).
-            These can be seen as control tests.
-            - Gene expression statistics (mean, scale ...)
+            else, returns not only Bayes Factor of population 1 vs population 2 but other metrics as
+            well, mostly used for sanity checks, such as (i) Bayes Factors of 2 vs 1 and (ii)
+            Bayes factors obtained when shuffled indices (iii) Gene expression statistics (mean, scale ...)
         :return:
         """
 
@@ -452,29 +448,24 @@ class Posterior:
         Performs one population vs all others Differential Expression Analysis
         given labels or using cell types, for each type of population
 
-
-
-        :param subset: None Or
-        bool array masking subset of cells you are interested in (True when you want to select cell).
-        In that case, it should have same length than `gene_dataset`
+        :param subset: None Or bool array masking subset of cells you are interested in
+            (True when you want to select cell). In that case, it should have same length than `gene_dataset`
         :param cell_labels: optional: Labels of cells
         :param min_cells: Ceil number of cells used to compute Bayes Factors
         :param n_samples: Number of times the posterior will be sampled for each pop
         :param sample_pairs: Activates pair random permutations.
-        Simply formulated, pairs obtained from posterior sampling (when calling
-        `sample_scale_from_batch`) will be randomly permuted so that the number of
-        pairs used to compute Bayes Factors becomes M_permutation.
-            :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-                Only makes sense when sample_pairs=True
+            Simply formulated, pairs obtained from posterior sampling (when calling
+            `sample_scale_from_batch`) will be randomly permuted so that the number of
+            pairs used to compute Bayes Factors becomes M_permutation.
+        :param M_permutation: Number of times we will "mix" posterior samples in step 2.
+            Only makes sense when sample_pairs=True
         :param output_file: Bool: save file?
-            :param save_dir:
-            :param filename:
-        :return: Tuple (de_res, de_cluster)
-            - de_res is a list of length nb_clusters (based on provided labels or on hardcoded cell
-        types). de_res[i] contains Bayes Factors for population number i vs all the rest
-            - de_cluster returns the associated names of clusters
-
-            Are contains in this results only clusters for which we have at least `min_cells`
+        :param save_dir:
+        :param filename:
+        :return: Tuple (de_res, de_cluster) (i) de_res is a list of length nb_clusters
+            (based on provided labels or on hardcoded cell types) (ii) de_res[i] contains Bayes Factors
+            for population number i vs all the rest (iii) de_cluster returns the associated names of clusters.
+            Are contained in this results only clusters for which we have at least `min_cells`
             elements to compute predicted Bayes Factors
         """
         if cell_labels is not None:
@@ -547,26 +538,24 @@ class Posterior:
         :param min_cells: Ceil number of cells used to compute Bayes Factors
         :param states: States of the cells.
         :param batch1: List of batch ids for which you want to perform DE Analysis for
-        subpopulation 1. By default, all ids are taken into account
+            subpopulation 1. By default, all ids are taken into account
         :param batch2: List of batch ids for which you want to perform DE Analysis for
-        subpopulation 2. By default, all ids are taken into account
-        :param subset: MASK: Subset of cells you are insterested in.
+            subpopulation 2. By default, all ids are taken into account
+        :param subset: MASK: Subset of cells you are interested in.
         :param n_samples: Number of times the posterior will be sampled for each pop
         :param sample_pairs: Activates pair random permutations.
-        Simply formulated, pairs obtained from posterior sampling (when calling
-        `sample_scale_from_batch`) will be randomly permuted so that the number of
-        pairs used to compute Bayes Factors becomes M_permutation.
-            :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-                Only makes sense when sample_pairs=True
+            Simply formulated, pairs obtained from posterior sampling (when calling
+            `sample_scale_from_batch`) will be randomly permuted so that the number of
+            pairs used to compute Bayes Factors becomes M_permutation.
+        :param M_permutation: Number of times we will "mix" posterior samples in step 2.
+            Only makes sense when sample_pairs=True
         :param output_file: Bool: save file?
-            :param save_dir:
-            :param filename:
-        :return: Tuple (de_res, de_cluster)
-            - de_res is a list of length nb_clusters (based on provided labels or on hardcoded cell
-        types). de_res[i] contains Bayes Factors for population number i vs all the rest
-            - de_cluster returns the associated names of clusters
-
-            Are contains in this results only clusters for which we have at least `min_cells`
+        :param save_dir:
+        :param filename:
+        :return: Tuple (de_res, de_cluster) (i) de_res is a list of length nb_clusters
+            (based on provided labels or on hardcoded cell types) (ii) de_res[i] contains Bayes Factors
+            for population number i vs all the rest (iii) de_cluster returns the associated names of clusters.
+            Are contained in this results only clusters for which we have at least `min_cells`
             elements to compute predicted Bayes Factors
         """
         if len(self.gene_dataset) != len(states):
@@ -1052,6 +1041,7 @@ def get_bayes_factors(
 ):
     """
     Returns an array of bayes factor for all genes
+
     :param px_scale: The gene frequency array for all cells (might contain multiple samples per cells)
     :param all_labels: The labels array for the corresponding cell types
     :param cell_idx: The first cell type population to consider. Either a string or an idx
@@ -1061,8 +1051,8 @@ def get_bayes_factors(
         Simply formulated, pairs obtained from posterior sampling (when calling
         `sample_scale_from_batch`) will be randomly permuted so that the number of
         pairs used to compute Bayes Factors becomes M_permutation.
-        :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-            Only makes sense when sample_pairs=True
+    :param M_permutation: Number of times we will "mix" posterior samples in step 2.
+        Only makes sense when sample_pairs=True
     :param permutation: Whether or not to permute. Normal behavior is False.
         Setting permutation=True basically shuffles cell_idx and other_cell_idx so that we
         estimate Bayes Factors of random populations of the union of cell_idx and other_cell_idx.
