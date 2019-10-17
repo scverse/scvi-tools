@@ -159,7 +159,7 @@ class GeneExpressionDataset(Dataset):
 
         if gene_names is not None:
             self.initialize_gene_attribute(
-                "gene_names", np.char.upper(np.asarray(gene_names, dtype="<U64"))
+                "gene_names", np.asarray(gene_names, dtype="<U64")
             )
         if cell_types is not None:
             self.initialize_mapped_attribute(
