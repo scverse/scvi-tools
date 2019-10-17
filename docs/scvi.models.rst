@@ -4,6 +4,14 @@ scvi.models package
 Submodules
 ----------
 
+scvi.models.autozivae module
+----------------------------
+
+.. automodule:: scvi.models.autozivae
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 scvi.models.classifier module
 -----------------------------
 
@@ -43,6 +51,15 @@ scvi.models.scanvi module
     :members:
     :undoc-members:
     :show-inheritance:
+
+scvi.models.totalvi module
+--------------------------
+
+.. automodule:: scvi.models.totalvi
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 
 scvi.models.utils module
 ------------------------

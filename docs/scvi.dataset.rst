@@ -92,6 +92,14 @@ scvi.dataset.seqfish module
     :undoc-members:
     :show-inheritance:
 
+scvi.dataset.seqfishplus module
+-------------------------------
+
+.. automodule:: scvi.dataset.seqfishplus
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 scvi.dataset.smfish module
 --------------------------
 

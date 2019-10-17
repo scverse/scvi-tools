@@ -253,11 +253,11 @@ def auto_tune_scvi_model(
         See https://github.com/hyperopt/hyperopt/wiki for a more detailed explanation.
         By default, we provide an objective function which can be parametrized
         through the various arguments of this function (``gene_dataset``, ``model_class``, etc.)
-    :param objective_kwargs: Dictionnary containaing the fixed keyword arguments `
+    :param objective_kwargs: Dictionary containing the fixed keyword arguments `
         to the custom `objective_hyperopt.
     :param model_class: scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
     :param trainer_class: ``Trainer`` sub-class (e.g ``UnsupervisedTrainer``)
-    :param metric_name: Name of the metric to optimize for. If `None` defaults to "marginal_ll"
+    :param metric_name: Name of the metric to optimize for. If `None` defaults to ``marginal_ll``
     :param metric_kwargs: keyword arguments for the metric method.
         If `metric_name` is None, defaults to {"n_mc_samples": 100}.
     :param posterior_name: Name of the posterior distribution to compute the metric with.
