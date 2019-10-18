@@ -372,8 +372,6 @@ class TOTALVI(nn.Module):
         px_, py_, log_pro_back_mean = self.decoder(z, library_gene, batch_index, label)
         px_["r"] = px_r
         py_["r"] = py_r
-        protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
-        py_["scale"] = F.normalize((1 - protein_mixing) * py_["rate_fore"], p=1, dim=-1)
 
         return dict(
             px_=px_,

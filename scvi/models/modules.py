@@ -613,6 +613,11 @@ class DecoderTOTALVI(nn.Module):
         px_["dropout"] = self.px_dropout_decoder_gene(p_mixing_cat_z)
         py_["mixing"] = self.py_background_decoder(p_mixing_cat_z)
 
+        protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
+        py_["scale"] = torch.nn.functional.normalize(
+            (1 - protein_mixing) * py_["rate_fore"], p=1, dim=-1
+        )
+
         return (px_, py_, log_pro_back_mean)
 
 
