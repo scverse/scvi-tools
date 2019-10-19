@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from scvi.inference import Posterior
+from inference import get_bayes_factors
 from . import UnsupervisedTrainer
 
 from scvi.dataset import GeneExpressionDataset
@@ -598,7 +599,7 @@ class TotalPosterior(Posterior):
         )
         if genes is not None:
             px_scale = px_scale[:, self.gene_dataset.genes_to_index(genes)]
-        bayes1 = super().get_bayes_factors(
+        bayes1 = get_bayes_factors(
             px_scale,
             all_labels,
             cell_idx=0,
@@ -607,7 +608,7 @@ class TotalPosterior(Posterior):
             sample_pairs=sample_pairs,
         )
         if all_stats is True:
-            bayes1_permuted = super().get_bayes_factors(
+            bayes1_permuted = get_bayes_factors(
                 px_scale,
                 all_labels,
                 cell_idx=0,
@@ -615,7 +616,7 @@ class TotalPosterior(Posterior):
                 permutation=True,
                 sample_pairs=sample_pairs,
             )
-            bayes2 = super().get_bayes_factors(
+            bayes2 = get_bayes_factors(
                 px_scale,
                 all_labels,
                 cell_idx=1,
@@ -623,7 +624,7 @@ class TotalPosterior(Posterior):
                 permutation=False,
                 sample_pairs=sample_pairs,
             )
-            bayes2_permuted = super().get_bayes_factors(
+            bayes2_permuted = get_bayes_factors(
                 px_scale,
                 all_labels,
                 cell_idx=1,
