@@ -294,7 +294,7 @@ class TotalPosterior(Posterior):
         for tensors in self:
             x, local_l_mean, local_l_var, batch_index, label, y = tensors
             scales += [
-                torch.cat(self.model.scale_from_z(x, y, fixed_batch).cpu(), dim=-1)
+                torch.cat(self.model.scale_from_z(x, y, fixed_batch), dim=-1).cpu()
             ]
         return np.concatenate(scales)
 
