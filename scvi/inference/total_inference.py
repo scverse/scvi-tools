@@ -296,7 +296,7 @@ class TotalPosterior(Posterior):
             x, local_l_mean, local_l_var, batch_index, label, y = tensors
             scales += [
                 torch.cat(
-                    self.model.scale_from_z(x, y, fixed_batch, protein_rate=False),
+                    self.model.scale_from_z(x, y, fixed_batch, protein_rate=True),
                     dim=-1,
                 ).cpu()
             ]
