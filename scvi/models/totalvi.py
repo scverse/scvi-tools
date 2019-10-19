@@ -271,7 +271,8 @@ class TOTALVI(nn.Module):
         library = 4.0 * torch.ones_like(x[:, [0]])
         px_, py_ = self.decoder(z, library, batch_index)[0:2]
         if protein_rate is True:
-            pro_value = py_["rate_fore"]
+            protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
+            pro_value = (1 - protein_mixing) * py_["rate_fore"]
         else:
             pro_value = py_["scale"]
         return px_["scale"], pro_value
