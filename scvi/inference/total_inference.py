@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from scvi.inference import Posterior
-from inference import get_bayes_factors
+from . import get_bayes_factors
 from . import UnsupervisedTrainer
 
 from scvi.dataset import GeneExpressionDataset
