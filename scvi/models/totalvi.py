@@ -251,7 +251,11 @@ class TOTALVI(nn.Module):
         return px_r, py_r
 
     def scale_from_z(
-        self, x: torch.Tensor, y: torch.Tensor, fixed_batch: torch.Tensor
+        self,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        fixed_batch: torch.Tensor,
+        protein_rate: bool = True,
     ) -> torch.Tensor:
         """ Returns tuple of gene and protein scales for a fixed seq batch
 
@@ -266,7 +270,11 @@ class TOTALVI(nn.Module):
         # dummy library size as it's irrelevant here
         library = 4.0 * torch.ones_like(x[:, [0]])
         px_, py_ = self.decoder(z, library, batch_index)[0:2]
-        return px_["scale"], py_["scale"]
+        if protein_rate is True:
+            pro_value = py_["rate_fore"]
+        else:
+            pro_value = py_["scale"]
+        return px_["scale"], pro_value
 
     def get_reconstruction_loss(
         self,
