@@ -303,6 +303,7 @@ class LDVAE(VAE):
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
+    :param use_batch_norm: Bool whether to use batch norm in decoder
     """
 
     def __init__(
@@ -317,6 +318,8 @@ class LDVAE(VAE):
         dispersion: str = "gene",
         log_variational: bool = True,
         reconstruction_loss: str = "zinb",
+        use_batch_norm: bool = True,
+        latent_distribution: str = "ln",
     ):
         super().__init__(
             n_input,
@@ -330,6 +333,14 @@ class LDVAE(VAE):
             log_variational,
             reconstruction_loss,
         )
+        self.z_encoder = Encoder(
+            n_input,
+            n_latent,
+            n_layers=n_layers,
+            n_hidden=n_hidden,
+            dropout_rate=dropout_rate,
+            distribution=latent_distribution,
+        )
 
         self.decoder = LinearDecoderSCVI(
             n_latent,
@@ -337,6 +348,7 @@ class LDVAE(VAE):
             n_cat_list=[n_batch],
             n_layers=n_layers,
             n_hidden=n_hidden,
+            use_batch_norm=use_batch_norm,
         )
 
     def get_loadings(self):
