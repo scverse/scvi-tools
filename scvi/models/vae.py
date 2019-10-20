@@ -213,7 +213,7 @@ class VAE(nn.Module):
             qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
             # when z is normal, untran_z == z
             untran_z = Normal(qz_m, qz_v.sqrt()).sample()
-            z = self.encoder.z_transformation(untran_z)
+            z = self.z_encoder.z_transformation(untran_z)
             ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
             ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
             library = Normal(ql_m, ql_v.sqrt()).sample()
