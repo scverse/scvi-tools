@@ -295,15 +295,24 @@ class LinearDecoderSCVI(nn.Module):
         )
 
         # dropout
-        self.px_dropout_decoder = nn.Linear(n_input, n_output)
+        self.px_dropout_decoder = FCLayers(
+            n_in=n_input,
+            n_out=n_output,
+            n_cat_list=n_cat_list,
+            n_layers=n_layers,
+            n_hidden=n_hidden,
+            use_relu=False,
+            use_batch_norm=use_batch_norm,
+            dropout_rate=0,
+        )
 
     def forward(
         self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int
     ):
         # The decoder returns values for the parameters of the ZINB distribution
-        raw_px_scale = self.factor_regressor(z)
+        raw_px_scale = self.factor_regressor(z, *cat_list)
         px_scale = torch.softmax(raw_px_scale, dim=-1)
-        px_dropout = self.px_dropout_decoder(z)
+        px_dropout = self.px_dropout_decoder(z, *cat_list)
         px_rate = torch.exp(library) * px_scale
         px_r = None
 
