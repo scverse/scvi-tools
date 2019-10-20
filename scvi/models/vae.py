@@ -345,6 +345,7 @@ class LDVAE(VAE):
             reconstruction_loss,
             latent_distribution,
         )
+        self.use_batch_norm = use_batch_norm
         self.z_encoder = Encoder(
             n_input,
             n_latent,
@@ -366,4 +367,16 @@ class LDVAE(VAE):
     def get_loadings(self):
         """ Extract per-gene weights (for each Z) in the linear decoder.
         """
-        return self.decoder.factor_regressor.parameters()
+        with torch.no_grad():
+            # This is BW, where B is diag(b) batch norm, W is weight matrix
+            if self.use_batch_norm is True:
+                w = self.model.decoder.px_decoder_gene.fc_layers[0][1](
+                    torch.t(self.model.decoder.px_decoder_gene.fc_layers[0][0].weight)
+                )
+            else:
+                w = torch.t(self.model.decoder.px_decoder_gene.fc_layers[0][0].weight)
+            w = w.detach().cpu().numpy().T
+        if self.model.n_batch > 1:
+            w = w[:, : -self.model.n_batch]
+
+        return w
