@@ -149,11 +149,18 @@ def base_benchmark(gene_dataset):
 
 
 def ldvae_benchmark(dataset, n_epochs, use_cuda=True):
-    ldvae = LDVAE(dataset.nb_genes, n_batch=dataset.n_batches)
+    ldvae = LDVAE(
+        dataset.nb_genes, n_batch=dataset.n_batches, latent_distribution="normal"
+    )
     trainer = UnsupervisedTrainer(ldvae, dataset, use_cuda=use_cuda)
     trainer.train(n_epochs=n_epochs)
     trainer.test_set.reconstruction_error()
     trainer.test_set.marginal_ll()
+
+    ldvae = LDVAE(dataset.nb_genes, n_batch=dataset.n_batches, latent_distribution="ln")
+    trainer = UnsupervisedTrainer(ldvae, dataset, use_cuda=use_cuda)
+    trainer.train(n_epochs=n_epochs)
+    trainer.test_set.reconstruction_error()
 
     ldvae.get_loadings()
 
