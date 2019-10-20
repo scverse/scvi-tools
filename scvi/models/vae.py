@@ -370,13 +370,13 @@ class LDVAE(VAE):
         with torch.no_grad():
             # This is BW, where B is diag(b) batch norm, W is weight matrix
             if self.use_batch_norm is True:
-                w = self.model.decoder.px_decoder_gene.fc_layers[0][1](
-                    torch.t(self.model.decoder.px_decoder_gene.fc_layers[0][0].weight)
+                w = self.decoder.factor_regressor.fc_layers[0][1](
+                    torch.t(self.decoder.factor_regressor.fc_layers[0][0].weight)
                 )
             else:
-                w = torch.t(self.model.decoder.px_decoder_gene.fc_layers[0][0].weight)
+                w = torch.t(self.decoder.factor_regressor.fc_layers[0][0].weight)
             w = w.detach().cpu().numpy().T
-        if self.model.n_batch > 1:
-            w = w[:, : -self.model.n_batch]
+        if self.n_batch > 1:
+            w = w[:, : -self.n_batch]
 
         return w
