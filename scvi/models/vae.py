@@ -56,6 +56,7 @@ class VAE(nn.Module):
         dispersion: str = "gene",
         log_variational: bool = True,
         reconstruction_loss: str = "zinb",
+        latent_distribution: str = "normal",
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -65,6 +66,7 @@ class VAE(nn.Module):
         # Automatically deactivate if useless
         self.n_batch = n_batch
         self.n_labels = n_labels
+        self.latent_distribution = latent_distribution
 
         if self.dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input))
@@ -89,6 +91,7 @@ class VAE(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            distribution=latent_distribution,
         )
         # l encoder goes from n_input-dimensional data to 1-d library size
         self.l_encoder = Encoder(
@@ -113,13 +116,14 @@ class VAE(nn.Module):
         """
         return [self.sample_from_posterior_z(x, y)]
 
-    def sample_from_posterior_z(self, x, y=None, give_mean=False):
+    def sample_from_posterior_z(self, x, y=None, give_mean=False, n_samples=5000):
         r""" samples the tensor of latent values from the posterior
         #doesn't really sample, returns the means of the posterior distribution
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
         :param give_mean: is True when we want the mean of the posterior  distribution rather than sampling
+        :param n_samples: how many MC samples to average over for transformed mean
         :return: tensor of shape ``(batch_size, n_latent)``
         :rtype: :py:class:`torch.Tensor`
         """
@@ -127,7 +131,12 @@ class VAE(nn.Module):
             x = torch.log(1 + x)
         qz_m, qz_v, z = self.z_encoder(x, y)  # y only used in VAEC
         if give_mean:
-            z = qz_m
+            if self.latent_distribution == "ln":
+                samples = Normal(qz_m, qz_v.sqrt()).sample([n_samples])
+                z = self.encoder.z_transformation(samples)
+                z = z.mean(dim=0)
+            else:
+                z = qz_m
         return z
 
     def sample_from_posterior_l(self, x):
@@ -202,7 +211,9 @@ class VAE(nn.Module):
         if n_samples > 1:
             qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
             qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
-            z = Normal(qz_m, qz_v.sqrt()).sample()
+            # when z is normal, untran_z == z
+            untran_z = Normal(qz_m, qz_v.sqrt()).sample()
+            z = self.encoder.z_transformation(untran_z)
             ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
             ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
             library = Normal(ql_m, ql_v.sqrt()).sample()
@@ -332,6 +343,7 @@ class LDVAE(VAE):
             dispersion,
             log_variational,
             reconstruction_loss,
+            latent_distribution,
         )
         self.z_encoder = Encoder(
             n_input,
