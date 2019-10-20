@@ -133,7 +133,7 @@ class VAE(nn.Module):
         if give_mean:
             if self.latent_distribution == "ln":
                 samples = Normal(qz_m, qz_v.sqrt()).sample([n_samples])
-                z = self.encoder.z_transformation(samples)
+                z = self.z_encoder.z_transformation(samples)
                 z = z.mean(dim=0)
             else:
                 z = qz_m
