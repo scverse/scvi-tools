@@ -364,18 +364,18 @@ class LDVAE(VAE):
             use_batch_norm=use_batch_norm,
         )
 
+    @torch.no_grad()
     def get_loadings(self):
         """ Extract per-gene weights (for each Z) in the linear decoder.
         """
-        with torch.no_grad():
-            # This is BW, where B is diag(b) batch norm, W is weight matrix
-            if self.use_batch_norm is True:
-                w = self.decoder.factor_regressor.fc_layers[0][1](
-                    torch.t(self.decoder.factor_regressor.fc_layers[0][0].weight)
-                )
-            else:
-                w = torch.t(self.decoder.factor_regressor.fc_layers[0][0].weight)
-            w = w.detach().cpu().numpy().T
+        # This is BW, where B is diag(b) batch norm, W is weight matrix
+        if self.use_batch_norm is True:
+            w = self.decoder.factor_regressor.fc_layers[0][1](
+                torch.t(self.decoder.factor_regressor.fc_layers[0][0].weight)
+            )
+        else:
+            w = torch.t(self.decoder.factor_regressor.fc_layers[0][0].weight)
+        w = w.detach().cpu().numpy().T
         if self.n_batch > 1:
             w = w[:, : -self.n_batch]
 
