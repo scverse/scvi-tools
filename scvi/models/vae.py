@@ -300,7 +300,7 @@ class LDVAE(VAE):
     :param n_labels: Number of labels
     :param n_hidden: Number of nodes per hidden layer (for encoder)
     :param n_latent: Dimensionality of the latent space
-    :param n_layers: Number of hidden layers used for encoder NNs
+    :param n_layers_encoder: Number of hidden layers used for encoder NNs
     :param dropout_rate: Dropout rate for neural networks
     :param dispersion: One of the following
 
