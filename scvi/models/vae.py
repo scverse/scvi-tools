@@ -324,7 +324,7 @@ class LDVAE(VAE):
         n_labels: int = 0,
         n_hidden: int = 128,
         n_latent: int = 10,
-        n_layers: int = 1,
+        n_layers_encoder: int = 1,
         dropout_rate: float = 0.1,
         dispersion: str = "gene",
         log_variational: bool = True,
@@ -338,7 +338,7 @@ class LDVAE(VAE):
             n_labels,
             n_hidden,
             n_latent,
-            n_layers,
+            n_layers_encoder,
             dropout_rate,
             dispersion,
             log_variational,
@@ -349,7 +349,7 @@ class LDVAE(VAE):
         self.z_encoder = Encoder(
             n_input,
             n_latent,
-            n_layers=n_layers,
+            n_layers=n_layers_encoder,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             distribution=latent_distribution,
@@ -359,14 +359,14 @@ class LDVAE(VAE):
             n_latent,
             n_input,
             n_cat_list=[n_batch],
-            n_layers=n_layers,
+            n_layers=1,
             n_hidden=n_hidden,
             use_batch_norm=use_batch_norm,
         )
 
     @torch.no_grad()
     def get_loadings(self):
-        """ Extract per-gene weights (for each Z) in the linear decoder.
+        """ Extract per-gene weights (for each Z, shape is genes by dim(Z)) in the linear decoder.
         """
         # This is BW, where B is diag(b) batch norm, W is weight matrix
         if self.use_batch_norm is True:
