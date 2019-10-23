@@ -356,11 +356,7 @@ class LDVAE(VAE):
         )
 
         self.decoder = LinearDecoderSCVI(
-            n_latent,
-            n_input,
-            n_cat_list=[n_batch],
-            n_hidden=n_hidden,
-            use_batch_norm=use_batch_norm,
+            n_latent, n_input, n_cat_list=[n_batch], use_batch_norm=use_batch_norm
         )
 
     @torch.no_grad()
