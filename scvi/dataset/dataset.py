@@ -715,9 +715,10 @@ class GeneExpressionDataset(Dataset):
         self.local_vars = np.zeros((self.nb_cells, 1))
         for i_batch in range(self.n_batches):
             idx_batch = np.squeeze(self.batch_indices == i_batch)
-            self.local_means[idx_batch], self.local_vars[
-                idx_batch
-            ] = compute_library_size(self.X[idx_batch])
+            (
+                self.local_means[idx_batch],
+                self.local_vars[idx_batch],
+            ) = compute_library_size(self.X[idx_batch])
         self.cell_attribute_names.update(["local_means", "local_vars"])
 
     def collate_fn_builder(
