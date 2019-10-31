@@ -1373,6 +1373,7 @@ class GeneExpressionDataset(Dataset):
         batch_correction: Optional[bool] = True,
     ) -> Optional[np.recarray]:
         """\
+        Code sample taken from the scanpy package
         Annotate highly variable genes [Satija15]_ [Zheng17]_.
         Depending on `flavor`, this reproduces the R-implementations of Seurat
         [Satija15]_ and Cell Ranger [Zheng17]_.
