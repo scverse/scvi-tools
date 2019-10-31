@@ -54,8 +54,8 @@ class CsvDataset(DownloadableDataset):
         self.compression = compression
         self.sep = sep
         self.gene_by_cell = (
-            gene_by_cell
-        )  # Whether the original dataset is genes by cells
+            gene_by_cell  # Whether the original dataset is genes by cells
+        )
         self.labels_file = labels_file
         self.batch_ids_file = batch_ids_file
         super().__init__(

@@ -67,9 +67,11 @@ class UnsupervisedTrainer(Trainer):
         self.n_samples = 1.0
 
         if type(self) is UnsupervisedTrainer:
-            self.train_set, self.test_set, self.validation_set = self.train_test_validation(
-                model, gene_dataset, train_size, test_size
-            )
+            (
+                self.train_set,
+                self.test_set,
+                self.validation_set,
+            ) = self.train_test_validation(model, gene_dataset, train_size, test_size)
             self.train_set.to_monitor = ["elbo"]
             self.test_set.to_monitor = ["elbo"]
             self.validation_set.to_monitor = ["elbo"]

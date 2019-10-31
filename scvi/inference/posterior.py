@@ -392,9 +392,14 @@ class Posterior:
                 permutation=True,
                 sample_pairs=sample_pairs,
             )
-            mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2 = self.gene_dataset.raw_counts_properties(
-                idx1, idx2
-            )
+            (
+                mean1,
+                mean2,
+                nonz1,
+                nonz2,
+                norm_mean1,
+                norm_mean2,
+            ) = self.gene_dataset.raw_counts_properties(idx1, idx2)
             res = pd.DataFrame(
                 [
                     bayes1,

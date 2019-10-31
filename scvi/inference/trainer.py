@@ -204,9 +204,8 @@ class Trainer:
     def posteriors_loop(self):
         pass
 
-    def data_loaders_loop(
-        self
-    ):  # returns an zipped iterable corresponding to loss signature
+    def data_loaders_loop(self):
+        """returns an zipped iterable corresponding to loss signature"""
         data_loaders_loop = [self._posteriors[name] for name in self.posteriors_loop]
         return zip(
             data_loaders_loop[0],
