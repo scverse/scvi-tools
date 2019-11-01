@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Main module."""
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union, List
 
 import torch
 import torch.nn as nn
@@ -14,6 +14,7 @@ from scvi.models.log_likelihood import (
 )
 from scvi.models.modules import DecoderTOTALVI, EncoderTOTALVI
 from scvi.models.utils import one_hot
+import numpy as np
 
 torch.backends.cudnn.benchmark = True
 
@@ -75,6 +76,7 @@ class TOTALVI(nn.Module):
         log_variational: bool = True,
         reconstruction_loss_gene: str = "nb",
         latent_distribution: str = "ln",
+        protein_batch_mask: List[np.ndarray] = None,
         de_pro_sample_bern: bool = False,
         de_pro_normalize: bool = False,
         de_pro_include_background: bool = False,
@@ -90,6 +92,7 @@ class TOTALVI(nn.Module):
         self.n_input_proteins = n_input_proteins
         self.protein_dispersion = protein_dispersion
         self.latent_distribution = latent_distribution
+        self.protein_batch_mask = protein_batch_mask
         self.de_pro_sample_bern = de_pro_sample_bern
         self.de_pro_normalize = de_pro_normalize
         self.de_pro_include_background = de_pro_include_background
@@ -291,6 +294,7 @@ class TOTALVI(nn.Module):
         y: torch.Tensor,
         px_: Dict[str, torch.Tensor],
         py_: Dict[str, torch.Tensor],
+        pro_batch_mask_minibatch: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Reconstruction Loss
         if self.reconstruction_loss_gene == "zinb":
@@ -300,9 +304,15 @@ class TOTALVI(nn.Module):
         else:
             reconst_loss_gene = -log_nb_positive(x, px_["rate"], px_["r"]).sum(dim=-1)
 
-        reconst_loss_protein = -log_mixture_nb(
+        reconst_loss_protein_full = -log_mixture_nb(
             y, py_["rate_back"], py_["rate_fore"], py_["r"], None, py_["mixing"]
-        ).sum(dim=-1)
+        )
+        if pro_batch_mask_minibatch is not None:
+            reconst_loss_protein = (
+                reconst_loss_protein_full * pro_batch_mask_minibatch
+            ).sum(dim=-1)
+        else:
+            reconst_loss_protein = reconst_loss_protein_full.sum(dim=-1)
 
         return reconst_loss_gene, reconst_loss_protein
 
@@ -436,8 +446,18 @@ class TOTALVI(nn.Module):
         px_ = outputs["px_"]
         py_ = outputs["py_"]
 
+        if self.protein_batch_mask is not None:
+            pro_batch_mask_minibatch = torch.zeros_like(y)
+            for b in np.arange(len(torch.unique(batch_index))):
+                b_indices = (batch_index == b).reshape(-1)
+                pro_batch_mask_minibatch[b_indices] = torch.tensor(
+                    self.protein_batch_mask[b].astype(np.float32), device=y.device
+                )
+        else:
+            pro_batch_mask_minibatch = None
+
         reconst_loss_gene, reconst_loss_protein = self.get_reconstruction_loss(
-            x, y, px_, py_
+            x, y, px_, py_, pro_batch_mask_minibatch
         )
 
         # KL Divergence
@@ -447,9 +467,15 @@ class TOTALVI(nn.Module):
             Normal(local_l_mean_gene, torch.sqrt(local_l_var_gene)),
         ).sum(dim=1)
 
-        kl_div_back_pro = kl(
+        kl_div_back_pro_full = kl(
             Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
-        ).sum(dim=-1)
+        )
+        if pro_batch_mask_minibatch is not None:
+            kl_div_back_pro = (kl_div_back_pro_full * pro_batch_mask_minibatch).sum(
+                dim=1
+            )
+        else:
+            kl_div_back_pro = kl_div_back_pro_full.sum(dim=1)
 
         return (
             reconst_loss_gene,
