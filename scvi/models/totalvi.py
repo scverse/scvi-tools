@@ -325,6 +325,7 @@ class TOTALVI(nn.Module):
         batch_index: Optional[torch.Tensor] = None,
         label: Optional[torch.Tensor] = None,
         n_samples=1,
+        transform_batch: Optional[int] = None,
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
         """ Internal helper function to compute necessary inference quantities
 
@@ -398,6 +399,8 @@ class TOTALVI(nn.Module):
             py_back_beta_prior = torch.exp(self.background_pro_log_beta)
         self.back_mean_prior = Normal(py_back_alpha_prior, py_back_beta_prior)
 
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
         px_, py_, log_pro_back_mean = self.decoder(z, library_gene, batch_index, label)
         px_["r"] = px_r
         py_["r"] = py_r
