@@ -80,6 +80,7 @@ class TOTALVI(nn.Module):
         de_pro_sample_bern: bool = False,
         de_pro_normalize: bool = False,
         de_pro_include_background: bool = False,
+        encoder_batch: bool = False,
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
@@ -137,6 +138,7 @@ class TOTALVI(nn.Module):
             n_input_genes + self.n_input_proteins,
             n_latent,
             n_layers=n_layers,
+            n_cat_list=[n_batch] if encoder_batch else None,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate_encoder,
             distribution=latent_distribution,
