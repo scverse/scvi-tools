@@ -12,7 +12,7 @@ class UnsupervisedTrainer(Trainer):
     r"""The VariationalInference class for the unsupervised training of an autoencoder.
 
     Args:
-        :model: A model instance from class ``VAE``, ``VAEC``, ``SCANVI``
+        :model: A model instance from class ``VAE``, ``VAEC``, ``SCANVI``, ``AutoZIVAE``
         :gene_dataset: A gene_dataset instance like ``CortexDataset()``
         :train_size: The train size, either a float between 0 and 1 or an integer for the number of training samples
          to use Default: ``0.8``.
@@ -22,6 +22,11 @@ class UnsupervisedTrainer(Trainer):
         :n_epochs_kl_warmup: Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
             the training objective is the ELBO. This might be used to prevent inactivity of latent units, and/or to
             improve clustering of latent space, as a long warmup turns the model into something more of an autoencoder.
+        :normalize_loss: A boolean determining whether the loss is divided by the total number of samples used for
+            training. In particular, when the global KL divergence is equal to 0 and the division is performed, the loss
+            for a minibatchis is equal to the average of reconstruction losses and KL divergences on the minibatch.
+            Default: ``None``, which is equivalent to setting False when the model is an instance from class
+            ``AutoZIVAE`` and True otherwise.
         :\*\*kwargs: Other keywords arguments from the general Trainer class.
 
     Examples:
@@ -41,28 +46,53 @@ class UnsupervisedTrainer(Trainer):
         train_size=0.8,
         test_size=None,
         n_epochs_kl_warmup=400,
+        normalize_loss=None,
         **kwargs
     ):
         super().__init__(model, gene_dataset, **kwargs)
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
-        if type(self) is UnsupervisedTrainer:
-            self.train_set, self.test_set, self.validation_set = self.train_test_validation(
-                model, gene_dataset, train_size, test_size
+
+        self.normalize_loss = (
+            not (
+                hasattr(self.model, "reconstruction_loss")
+                and self.model.reconstruction_loss == "autozinb"
             )
+            if normalize_loss is None
+            else normalize_loss
+        )
+
+        # Total size of the dataset used for training
+        # (e.g. training set in this class but testing set in AdapterTrainer).
+        # It used to rescale minibatch losses (cf. eq. (8) in Kingma et al., Auto-Encoding Variational Bayes, iCLR 2013)
+        self.n_samples = 1.0
+
+        if type(self) is UnsupervisedTrainer:
+            (
+                self.train_set,
+                self.test_set,
+                self.validation_set,
+            ) = self.train_test_validation(model, gene_dataset, train_size, test_size)
             self.train_set.to_monitor = ["elbo"]
             self.test_set.to_monitor = ["elbo"]
             self.validation_set.to_monitor = ["elbo"]
+            self.n_samples = len(self.train_set.indices)
 
     @property
     def posteriors_loop(self):
         return ["train_set"]
 
     def loss(self, tensors):
-        sample_batch, local_l_mean, local_l_var, batch_index, _ = tensors
-        reconst_loss, kl_divergence = self.model(
-            sample_batch, local_l_mean, local_l_var, batch_index
+        sample_batch, local_l_mean, local_l_var, batch_index, y = tensors
+        reconst_loss, kl_divergence_local, kl_divergence_global = self.model(
+            sample_batch, local_l_mean, local_l_var, batch_index, y
         )
-        loss = torch.mean(reconst_loss + self.kl_weight * kl_divergence)
+        loss = (
+            self.n_samples
+            * torch.mean(reconst_loss + self.kl_weight * kl_divergence_local)
+            + kl_divergence_global
+        )
+        if self.normalize_loss:
+            loss = loss / self.n_samples
         return loss
 
     def on_epoch_begin(self):
@@ -82,6 +112,7 @@ class AdapterTrainer(UnsupervisedTrainer):
         )
         self.z_encoder_state = copy.deepcopy(model.z_encoder.state_dict())
         self.l_encoder_state = copy.deepcopy(model.l_encoder.state_dict())
+        self.n_scale = len(self.test_set.indices)
 
     @property
     def posteriors_loop(self):

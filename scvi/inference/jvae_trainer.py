@@ -257,7 +257,7 @@ class JVAETrainer(Trainer):
         for (i, (sample_batch, l_mean, l_var, batch_index, labels, *_)) in enumerate(
             tensors
         ):
-            reconstruction_loss, kl_divergence = self.model(
+            reconstruction_loss, kl_divergence, _ = self.model(
                 sample_batch, l_mean, l_var, batch_index, mode=i
             )
             loss = torch.mean(
@@ -339,9 +339,14 @@ class JVAETrainer(Trainer):
         for mode, dataset in enumerate(self.all_dataset):
             latent = []
             for tensors in dataset:
-                sample_batch, local_l_mean, local_l_var, batch_index, label, *_ = (
-                    tensors
-                )
+                (
+                    sample_batch,
+                    local_l_mean,
+                    local_l_var,
+                    batch_index,
+                    label,
+                    *_,
+                ) = tensors
                 latent.append(
                     self.model.sample_from_posterior_z(
                         sample_batch, mode, deterministic=deterministic
@@ -372,9 +377,14 @@ class JVAETrainer(Trainer):
         for mode, dataset in enumerate(self.all_dataset):
             imputed_value = []
             for tensors in dataset:
-                sample_batch, local_l_mean, local_l_var, batch_index, label, *_ = (
-                    tensors
-                )
+                (
+                    sample_batch,
+                    local_l_mean,
+                    local_l_var,
+                    batch_index,
+                    label,
+                    *_,
+                ) = tensors
                 if normalized:
                     imputed_value.append(
                         self.model.sample_scale(

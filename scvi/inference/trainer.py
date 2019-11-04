@@ -204,9 +204,8 @@ class Trainer:
     def posteriors_loop(self):
         pass
 
-    def data_loaders_loop(
-        self
-    ):  # returns an zipped iterable corresponding to loss signature
+    def data_loaders_loop(self):
+        """returns an zipped iterable corresponding to loss signature"""
         data_loaders_loop = [self._posteriors[name] for name in self.posteriors_loop]
         return zip(
             data_loaders_loop[0],
@@ -270,7 +269,16 @@ class Trainer:
             else gene_dataset
         )
         n = len(gene_dataset)
-        n_train, n_test = _validate_shuffle_split(n, test_size, train_size)
+        try:
+            n_train, n_test = _validate_shuffle_split(n, test_size, train_size)
+        except ValueError:
+            if train_size != 1.0:
+                raise ValueError(
+                    "Choice of train_size={} and test_size={} not understood".format(
+                        train_size, test_size
+                    )
+                )
+            n_train, n_test = n, 0
         random_state = np.random.RandomState(seed=self.seed)
         permutation = random_state.permutation(n)
         indices_test = permutation[:n_test]
@@ -333,6 +341,7 @@ class EarlyStopping:
         reduce_lr_on_plateau: bool = False,
         lr_patience: int = 10,
         lr_factor: float = 0.5,
+        posterior_class=Posterior,
     ):
         self.benchmark = benchmark
         self.patience = patience
@@ -341,7 +350,7 @@ class EarlyStopping:
         self.wait = 0
         self.wait_lr = 0
         self.mode = (
-            getattr(Posterior, early_stopping_metric).mode
+            getattr(posterior_class, early_stopping_metric).mode
             if early_stopping_metric is not None
             else None
         )

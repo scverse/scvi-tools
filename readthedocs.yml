@@ -3,6 +3,9 @@
 build:
   image: latest
 
+extra_requirements:
+  - docs
+
 python:
   version: 3.7
   setup_py_install: true
