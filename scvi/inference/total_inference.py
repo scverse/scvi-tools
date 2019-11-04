@@ -635,6 +635,7 @@ class TotalPosterior(Posterior):
                 permutation=True,
                 sample_pairs=sample_pairs,
             )
+            lfc = np.log2(px_scale_mean1) - np.log2(px_scale_mean2)
             res = pd.DataFrame(
                 [
                     bayes1,
@@ -643,6 +644,7 @@ class TotalPosterior(Posterior):
                     bayes2_permuted,
                     px_scale_mean1,
                     px_scale_mean2,
+                    lfc,
                 ],
                 index=[
                     "bayes1",
@@ -651,6 +653,7 @@ class TotalPosterior(Posterior):
                     "bayes2_permuted",
                     "scale1",
                     "scale2",
+                    "lfc",
                 ],
                 columns=np.concatenate(
                     [self.gene_dataset.gene_names, self.gene_dataset.protein_names]
