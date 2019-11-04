@@ -136,7 +136,13 @@ class TotalPosterior(Posterior):
         elbo = 0
         for i_batch, tensors in enumerate(self):
             x, local_l_mean, local_l_var, batch_index, labels, y = tensors
-            reconst_loss_gene, reconst_loss_protein, kl_div_z, kl_div_gene_l, kl_div_back_pro = vae(
+            (
+                reconst_loss_gene,
+                reconst_loss_protein,
+                kl_div_z,
+                kl_div_gene_l,
+                kl_div_back_pro,
+            ) = vae(
                 x,
                 y,
                 local_l_mean,
@@ -167,7 +173,13 @@ class TotalPosterior(Posterior):
         log_lkl_protein = 0
         for i_batch, tensors in enumerate(self):
             x, local_l_mean, local_l_var, batch_index, labels, y = tensors
-            reconst_loss_gene, reconst_loss_protein, kl_div_z, kl_div_l_gene, kl_div_back_pro = vae(
+            (
+                reconst_loss_gene,
+                reconst_loss_protein,
+                kl_div_z,
+                kl_div_l_gene,
+                kl_div_back_pro,
+            ) = vae(
                 x,
                 y,
                 local_l_mean,
@@ -215,9 +227,10 @@ class TotalPosterior(Posterior):
                 log_pro_back_mean = outputs["log_pro_back_mean"]
 
                 # Reconstruction Loss
-                reconst_loss_gene, reconst_loss_protein = self.model.get_reconstruction_loss(
-                    x, y, px_, py_
-                )
+                (
+                    reconst_loss_gene,
+                    reconst_loss_protein,
+                ) = self.model.get_reconstruction_loss(x, y, px_, py_)
 
                 # Log-probabilities
                 p_l_gene = (
@@ -565,7 +578,11 @@ class TotalTrainer(UnsupervisedTrainer):
             model, dataset, n_epochs_kl_warmup=n_epochs_kl_warmup, **kwargs
         )
         if type(self) is TotalTrainer:
-            self.train_set, self.test_set, self.validation_set = self.train_test_validation(
+            (
+                self.train_set,
+                self.test_set,
+                self.validation_set,
+            ) = self.train_test_validation(
                 model, dataset, train_size, test_size, type_class=TotalPosterior
             )
             self.train_set.to_monitor = []
@@ -573,10 +590,21 @@ class TotalTrainer(UnsupervisedTrainer):
             self.validation_set.to_monitor = ["elbo"]
 
     def loss(self, tensors):
-        sample_batch_X, local_l_mean, local_l_var, batch_index, label, sample_batch_Y = (
-            tensors
-        )
-        reconst_loss_gene, reconst_loss_protein, kl_div_z, kl_div_l_gene, kl_div_back_pro = self.model(
+        (
+            sample_batch_X,
+            local_l_mean,
+            local_l_var,
+            batch_index,
+            label,
+            sample_batch_Y,
+        ) = tensors
+        (
+            reconst_loss_gene,
+            reconst_loss_protein,
+            kl_div_z,
+            kl_div_l_gene,
+            kl_div_back_pro,
+        ) = self.model(
             sample_batch_X,
             sample_batch_Y,
             local_l_mean,
