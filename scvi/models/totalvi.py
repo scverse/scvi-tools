@@ -5,7 +5,7 @@ from typing import Dict, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Normal, kl_divergence as kl
+from torch.distributions import Normal, Bernoulli, kl_divergence as kl
 
 from scvi.models.log_likelihood import (
     log_zinb_positive,
@@ -75,6 +75,7 @@ class TOTALVI(nn.Module):
         log_variational: bool = True,
         reconstruction_loss_gene: str = "nb",
         latent_distribution: str = "ln",
+        de_pro_sample_bern: bool = True,
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
@@ -87,6 +88,7 @@ class TOTALVI(nn.Module):
         self.n_input_proteins = n_input_proteins
         self.protein_dispersion = protein_dispersion
         self.latent_distribution = latent_distribution
+        self.de_pro_sample_bern = de_pro_sample_bern
 
         # parameters for prior on rate_back (background protein mean)
         if n_batch > 0:
@@ -272,6 +274,8 @@ class TOTALVI(nn.Module):
         px_, py_ = self.decoder(z, library, batch_index)[0:2]
         if protein_rate is True:
             protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
+            if self.de_pro_sample_bern is True:
+                protein_mixing = Bernoulli(protein_mixing).sample()
             pro_value = (1 - protein_mixing) * py_["rate_fore"]
         else:
             pro_value = py_["scale"]
