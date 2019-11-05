@@ -1095,7 +1095,7 @@ def get_bayes_factors(
     else:
         first_set = sample_rate_a
         second_set = sample_rate_b
-    res = np.mean(first_set >= second_set, 0)
+    res = np.mean(first_set > second_set, 0)
     res = np.log(res + 1e-8) - np.log(1 - res + 1e-8)
     return res
 
