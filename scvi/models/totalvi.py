@@ -76,6 +76,7 @@ class TOTALVI(nn.Module):
         reconstruction_loss_gene: str = "nb",
         latent_distribution: str = "ln",
         de_pro_sample_bern: bool = False,
+        de_pro_normalize: bool = False,
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
@@ -89,6 +90,7 @@ class TOTALVI(nn.Module):
         self.protein_dispersion = protein_dispersion
         self.latent_distribution = latent_distribution
         self.de_pro_sample_bern = de_pro_sample_bern
+        self.de_pro_normalize = de_pro_normalize
 
         # parameters for prior on rate_back (background protein mean)
         if n_batch > 0:
@@ -253,11 +255,7 @@ class TOTALVI(nn.Module):
         return px_r, py_r
 
     def scale_from_z(
-        self,
-        x: torch.Tensor,
-        y: torch.Tensor,
-        fixed_batch: torch.Tensor,
-        protein_rate: bool = True,
+        self, x: torch.Tensor, y: torch.Tensor, fixed_batch: torch.Tensor
     ) -> torch.Tensor:
         """ Returns tuple of gene and protein scales for a fixed seq batch
 
@@ -272,13 +270,13 @@ class TOTALVI(nn.Module):
         # dummy library size as it's irrelevant here
         library = 4.0 * torch.ones_like(x[:, [0]])
         px_, py_ = self.decoder(z, library, batch_index)[0:2]
-        if protein_rate is True:
-            protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
-            if self.de_pro_sample_bern is True:
-                protein_mixing = Bernoulli(protein_mixing).sample()
-            pro_value = (1 - protein_mixing) * py_["rate_fore"]
-        else:
-            pro_value = py_["scale"]
+        protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
+        if self.de_pro_sample_bern is True:
+            protein_mixing = Bernoulli(protein_mixing).sample()
+        pro_value = (1 - protein_mixing) * py_["rate_fore"]
+        if self.de_pro_normalize is not True:
+            pro_value = torch.nn.functional.normalize(pro_value, p=1, dim=-1)
+
         return px_["scale"], pro_value
 
     def get_reconstruction_loss(
