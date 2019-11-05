@@ -275,7 +275,7 @@ class TOTALVI(nn.Module):
         protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
         if self.de_pro_sample_bern is True:
             protein_mixing = Bernoulli(protein_mixing).sample()
-            pro_value = (1 - protein_mixing) * py_["rate_fore"]
+        pro_value = (1 - protein_mixing) * py_["rate_fore"]
         if self.de_pro_include_background is True:
             pro_value = (1 - protein_mixing) * py_["rate_fore"] + protein_mixing * py_[
                 "rate_back"
