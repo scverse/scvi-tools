@@ -274,7 +274,7 @@ class TOTALVI(nn.Module):
         if self.de_pro_sample_bern is True:
             protein_mixing = Bernoulli(protein_mixing).sample()
         pro_value = (1 - protein_mixing) * py_["rate_fore"]
-        if self.de_pro_normalize is not True:
+        if self.de_pro_normalize is True:
             pro_value = torch.nn.functional.normalize(pro_value, p=1, dim=-1)
 
         return px_["scale"], pro_value
