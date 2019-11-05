@@ -77,6 +77,7 @@ class TOTALVI(nn.Module):
         latent_distribution: str = "ln",
         de_pro_sample_bern: bool = False,
         de_pro_normalize: bool = False,
+        de_pro_include_background: bool = False,
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
@@ -91,6 +92,7 @@ class TOTALVI(nn.Module):
         self.latent_distribution = latent_distribution
         self.de_pro_sample_bern = de_pro_sample_bern
         self.de_pro_normalize = de_pro_normalize
+        self.de_pro_include_background = de_pro_include_background
 
         # parameters for prior on rate_back (background protein mean)
         if n_batch > 0:
@@ -273,7 +275,11 @@ class TOTALVI(nn.Module):
         protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
         if self.de_pro_sample_bern is True:
             protein_mixing = Bernoulli(protein_mixing).sample()
-        pro_value = (1 - protein_mixing) * py_["rate_fore"]
+            pro_value = (1 - protein_mixing) * py_["rate_fore"]
+        if self.de_pro_include_background is True:
+            pro_value = (1 - protein_mixing) * py_["rate_fore"] + protein_mixing * py_[
+                "rate_back"
+            ]
         if self.de_pro_normalize is True:
             pro_value = torch.nn.functional.normalize(pro_value, p=1, dim=-1)
 
