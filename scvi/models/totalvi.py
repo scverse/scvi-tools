@@ -75,7 +75,7 @@ class TOTALVI(nn.Module):
         log_variational: bool = True,
         reconstruction_loss_gene: str = "nb",
         latent_distribution: str = "ln",
-        de_pro_sample_bern: bool = True,
+        de_pro_sample_bern: bool = False,
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
