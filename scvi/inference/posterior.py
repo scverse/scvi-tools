@@ -284,9 +284,9 @@ class Posterior:
     @torch.no_grad()
     def sample_scale_from_batch(
         self,
-        n_samples: int = None,
-        n_samples_per_cell: int = None,
-        batchid: Union[List[int], np.ndarray] = None,
+        n_samples: Optional[int] = None,
+        n_samples_per_cell: Optional[int] = None,
+        batchid: Optional[Union[List[int], np.ndarray]] = None,
         genes: Optional[Union[List[str], np.ndarray]] = None,
         selection: Union[List[bool], np.ndarray] = None,
     ) -> np.ndarray:
@@ -340,49 +340,97 @@ class Posterior:
 
         return px_scales
 
-    def sample_change(
+    def get_bayes_factors(
         self,
         idx1: Union[List[bool], np.ndarray],
         idx2: Union[List[bool], np.ndarray],
-        change_fn: Union[Callable, str],
+        mode: Optional[str] = "vanilla",
         batchid1: Optional[Union[List[int], np.ndarray]] = None,
         batchid2: Optional[Union[List[int], np.ndarray]] = None,
         genes: Optional[Union[List[str], np.ndarray]] = None,
         n_samples: int = 5000,
         sample_pairs: bool = True,
         M_permutation: int = 10000,
-    ) -> np.ndarray:
-        """
+        change_fn: Optional[Union[str, Callable]] = None,
+        m1_domain_fn: Optional[Callable] = None,
+        delta: Optional[float] = 0.5,
+    ) -> dict:
+        r"""
+        Unified method for differential expression inference.
+        Two modes coexist:
+            - the "vanilla" mode follows protocol described in arXiv:1709.02082
+            In this case, we perform hypothesis testing based on:
+                M_1: h_1 > h_2
+                M_2: h_1 < h_2
 
+            DE can then be based on the study of the Bayes factors:
+            log (p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
+
+            - the "change" mode (described in bioRxiv, 794289)
+            consists in estimating an effect size random variable (e.g., log fold-change) and
+            performing Bayesian hypothesis testing on this variable.
+            The `change_fn` function computes the effect size variable r based two inputs
+            corresponding to the normalized means in both populations
+            Hypotheses:
+                M_0: r \in R_0 (effect size r in region inducing differential expression)
+                M_1: r not \in R_0 (no differential expression)
+            To characterize the region R_0, the user has two choices.
+                1. A common case is when the region [-delta, delta] does not induce differential
+                expression.
+                If the user specifies a threshold delta,
+                we suppose that R_0 = \mathbb{R} \ [-delta, delta]
+                2. specify an specific indicator function f: \mathbb{R} -> {0, 1} s.t.
+                    r \in R_0 iff f(r) = 1
+
+            Decision-making can then be based on the estimates of
+                p(M_1 | x_1, x_2)
+
+        Both modes require to sample the normalized means posteriors
+        To that purpose we sample the Posterior in the following way:
+            1. The posterior is sampled n_samples times for each subpopulation
+            2. For computation efficiency (posterior sampling is quite expensive), instead of
+                comparing the obtained samples element-wise, we can permute posterior samples.
+                Remember that computing the Bayes Factor requires sampling
+                q(z_A | x_A) and q(z_B | x_B)
+
+        PARAMETERS
+        # Mode parameters
+        :param mode: one of ["vanilla", "change"]
+
+
+        # Genes/cells/batches selection parameters
         :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
         from associated population
         :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
         from associated population
+        :param genes: Names of genes for which Bayes factors will be computed
         :param batchid1: List of batch ids for which you want to perform DE Analysis for
         subpopulation 1. By default, all ids are taken into account
         :param batchid2: List of batch ids for which you want to perform DE Analysis for
         subpopulation 2. By default, all ids are taken into account
-        :param change_fn: Name of function or change function.
-        It corresponds to the quantity r(px_1, px_2) one is interested in computing
-        where px_i correspond to posterior scales of population i
-        :param genes: Names of genes for which Bayes factors will be computed
-        :param n_samples:
+
+        # Sampling parameters
+        :param n_samples: Number of posterior samples
         :param sample_pairs: Activates step 2 described above.
         Simply formulated, pairs obtained from posterior sampling (when calling
         `sample_scale_from_batch`) will be randomly permuted so that the number of
         pairs used to compute Bayes Factors becomes M_permutation.
-            :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-            Only makes sense when sample_pairs=True
-        :return: change Posterior aggregated of shape (n_samples, n_genes)
+        :param M_permutation: Number of times we will "mix" posterior samples in step 2.
+        Only makes sense when sample_pairs=True
+
+        :param change_fn: function computing effect size based on both normalized means
+
+            :param m1_domain_fn: custom indicator function of effect size regions
+            inducing differential expression
+            :param delta: specific case of region inducing differential expression.
+            In this case, we suppose that R \ [-delta, delta] does not induce differential expression
+            (LFC case)
+
+
+        :return: Differential expression properties
         """
-
-        def lfc(x, y):
-            return np.log2(x) - np.log2(y)
-
-        if change_fn == "log-fold":
-            change_fn = lfc
-        elif isinstance(change_fn, str):
-            raise ValueError("Change function {} not recognized".format(change_fn))
+        eps = 1e-8  # used for numerical stability
+        # Normalized means sampling for both populations
         px_scale1 = self.sample_scale_from_batch(
             selection=idx1, batchid=batchid1, n_samples=n_samples, genes=genes
         )
@@ -390,142 +438,71 @@ class Posterior:
             selection=idx2, batchid=batchid2, n_samples=n_samples, genes=genes
         )
 
+        px_scale_mean1 = px_scale1.mean(axis=0)
+        px_scale_mean2 = px_scale2.mean(axis=0)
+        # Sampling pairs
         px_scale1, px_scale2 = pairs_sampler(
             px_scale1, px_scale2, sample_pairs=sample_pairs, M_permutation=M_permutation
         )
-        return change_fn(px_scale1, px_scale2)
 
-    def estimate_change(
-        self,
-        idx1: Union[List[bool], np.ndarray],
-        idx2: Union[List[bool], np.ndarray],
-        batchid1: Optional[Union[List[int], np.ndarray]] = None,
-        batchid2: Optional[Union[List[int], np.ndarray]] = None,
-        change_fn: Union[Callable, str] = "log-fold",
-        credible_intervals_levels: Optional[Union[List[float], np.ndarray]] = None,
-        genes: Optional[Union[List[str], np.ndarray]] = None,
-        n_samples: int = 5000,
-        sample_pairs: bool = True,
-        M_permutation: int = 10000,
-    ) -> dict:
-        """
-        Computes properties of change aggregated posterior:
-            Expectancy_{i in idx1, j in idx2} [r(px_i, px_j)]
-
-        Where r is the change function (for instance the log-fold change
-        and px_i, px_j correspond to posterior scales of cells i and j
-
-        :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
-        from associated population
-        :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
-        from associated population
-        :param batchid1: List of batch ids for which you want to perform DE Analysis for
-        subpopulation 1. By default, all ids are taken into account
-        :param batchid2: List of batch ids for which you want to perform DE Analysis for
-        subpopulation 2. By default, all ids are taken into account
-        :param change_fn: Name of function or change function (should take exactly two inputs).
-        It corresponds to the quantity r(px_1, px_2) one is interested in computing
-        where px_i correspond to posterior scales of population i
-        :param credible_intervals_levels: Confidence in (0, 1)
-        of credible intervals to be computed
-        :param genes: Names of genes for which Bayes factors will be computed
-        :param n_samples:
-        :param sample_pairs: Activates step 2 described above.
-        Simply formulated, pairs obtained from posterior sampling (when calling
-        `sample_scale_from_batch`) will be randomly permuted so that the number of
-        pairs used to compute Bayes Factors becomes M_permutation.
-            :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-            Only makes sense when sample_pairs=True
-        :return: properties of change aggregated posterior
-        """
-        change_posterior = self.sample_change(
-            idx1=idx1,
-            idx2=idx2,
-            batchid1=batchid1,
-            batchid2=batchid2,
-            change_fn=change_fn,
-            genes=genes,
-            n_samples=n_samples,
-            sample_pairs=sample_pairs,
-            M_permutation=M_permutation,
-        )
-        posterior_props = dict(
-            mean=change_posterior.mean(0),
-            median=np.median(change_posterior, 0),
-            std=change_posterior.std(0),
-            min=change_posterior.min(0),
-            max=change_posterior.max(0),
-        )
-        credible_intervals_levels = (
-            [] if credible_intervals_levels is None else credible_intervals_levels
-        )
-        for confidence in credible_intervals_levels:
-            intervals = credible_intervals(
-                change_posterior, confidence_level=confidence
+        if mode == "vanilla":
+            logger.info("Differential expression using vanilla mode")
+            proba_m1 = np.mean(px_scale1 > px_scale2, 0)
+            proba_m2 = np.mean(px_scale1 < px_scale2, 0)
+            res = dict(
+                proba_m1=proba_m1,
+                proba_m2=proba_m2,
+                bayes1=np.log(proba_m1 + eps) - np.log(proba_m2 + eps),
+                scale1=px_scale_mean1,
+                scale2=px_scale_mean2,
             )
-            interval_min, interval_max = intervals[:, 0], intervals[:, 1]
-            conf_str = str(confidence)[:5]
-            posterior_props[
-                "confidence_interval_{}_min".format(conf_str)
-            ] = interval_min
-            posterior_props[
-                "confidence_interval_{}_max".format(conf_str)
-            ] = interval_max
 
-        return posterior_props
+        elif mode == "change":
+            logger.info("Differential expression using change mode")
 
-    def estimate_de_probability(
-        self,
-        idx1: Union[List[bool], np.ndarray],
-        idx2: Union[List[bool], np.ndarray],
-        batchid1: Optional[Union[List[int], np.ndarray]] = None,
-        batchid2: Optional[Union[List[int], np.ndarray]] = None,
-        genes: Optional[Union[List[str], np.ndarray]] = None,
-        n_samples: int = 5000,
-        sample_pairs: bool = True,
-        M_permutation: int = 10000,
-        delta=0.5,
-    ) -> np.ndarray:
-        """
+            # step 1: Construct the change function
+            def lfc(x, y):
+                return np.log2(x) - np.log2(y)
 
-        :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
-        from associated population
-        :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
-        from associated population
-        :param batchid1: List of batch ids for which you want to perform DE Analysis for
-        subpopulation 1. By default, all ids are taken into account
-        :param batchid2: List of batch ids for which you want to perform DE Analysis for
-        subpopulation 2. By default, all ids are taken into account
-        :param genes: Names of genes for which Bayes factors will be computed
-        :param n_samples:
-        :param sample_pairs: Activates step 2 described above.
-        Simply formulated, pairs obtained from posterior sampling (when calling
-        `sample_scale_from_batch`) will be randomly permuted so that the number of
-        pairs used to compute Bayes Factors becomes M_permutation.
-            :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-            Only makes sense when sample_pairs=True
-        :param delta:
-        :return: Probability of being DE
-        """
-        lfc_posterior = self.sample_change(
-            idx1=idx1,
-            idx2=idx2,
-            batchid1=batchid1,
-            batchid2=batchid2,
-            change_fn="log-fold",
-            genes=genes,
-            n_samples=n_samples,
-            sample_pairs=sample_pairs,
-            M_permutation=M_permutation,
-        )
-        de_probas = (np.abs(lfc_posterior) >= delta).mean(0)
-        return de_probas
+            if change_fn == "log-fold" or change_fn is None:
+                change_fn = lfc
+            elif not isinstance(change_fn, callable):
+                raise ValueError("'change_fn' attribute not understood")
+
+            # step2: Construct the DE area function
+            if m1_domain_fn is None:
+                delta = delta if delta is not None else 0.5
+
+                def m1_domain_fn(samples):
+                    return np.abs(samples) >= delta
+
+            change_distribution = change_fn(px_scale1, px_scale2)
+            is_de = m1_domain_fn(change_distribution)
+            proba_m1 = np.mean(is_de, 0)
+            change_distribution_props = describe_continuous_distrib(
+                samples=change_distribution,
+                credible_intervals_levels=[0.5, 0.75, 0.95, 0.99],
+            )
+
+            res = dict(
+                proba_de=proba_m1,
+                proba_not_de=1.0 - proba_m1,
+                bayes1=np.log(proba_m1 + eps) - np.log(1.0 - proba_m1 + eps),
+                scale1=px_scale_mean1,
+                scale2=px_scale_mean2,
+                **change_distribution_props
+            )
+        else:
+            raise NotImplementedError("Mode {mode} not recognized".format(mode=mode))
+
+        return res
 
     @torch.no_grad()
     def differential_expression_score(
         self,
         idx1: Union[List[bool], np.ndarray],
         idx2: Union[List[bool], np.ndarray],
+        mode: Optional[str] = "vanilla",
         batchid1: Optional[Union[List[int], np.ndarray]] = None,
         batchid2: Optional[Union[List[int], np.ndarray]] = None,
         genes: Optional[Union[List[str], np.ndarray]] = None,
@@ -533,84 +510,103 @@ class Posterior:
         sample_pairs: bool = True,
         M_permutation: int = 10000,
         all_stats: bool = True,
-    ):
-        """
-        Computes gene specific Bayes factors using masks idx1 and idx2
+        change_fn: Optional[Union[str, Callable]] = None,
+        m1_domain_fn: Optional[Callable] = None,
+        delta: Optional[float] = 0.5,
+    ) -> pd.DataFrame:
+        r"""
+        Unified method for differential expression inference.
+        This function is an extension of the `get_bayes_factors` method
+        providing additional genes information to the user
 
+        Two modes coexist:
+            - the "vanilla" mode follows protocol described in arXiv:1709.02082
+            In this case, we perform hypothesis testing based on:
+                M_1: h_1 > h_2
+                M_2: h_1 < h_2
+
+            DE can then be based on the study of the Bayes factors:
+            log (p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
+
+            - the "change" mode (described in bioRxiv, 794289)
+            consists in estimating an effect size random variable (e.g., log fold-change) and
+            performing Bayesian hypothesis testing on this variable.
+            The `change_fn` function computes the effect size variable r based two inputs
+            corresponding to the normalized means in both populations
+            Hypotheses:
+                M_0: r \in R_0 (effect size r in region inducing differential expression)
+                M_1: r not \in R_0 (no differential expression)
+            To characterize the region R_0, the user has two choices.
+                1. A common case is when the region [-delta, delta] does not induce differential
+                expression.
+                If the user specifies a threshold delta,
+                we suppose that R_0 = \mathbb{R} \ [-delta, delta]
+                2. specify an specific indicator function f: \mathbb{R} -> {0, 1} s.t.
+                    r \in R_0 iff f(r) = 1
+
+            Decision-making can then be based on the estimates of
+                p(M_1 | x_1, x_2)
+
+        Both modes require to sample the normalized means posteriors
         To that purpose we sample the Posterior in the following way:
             1. The posterior is sampled n_samples times for each subpopulation
             2. For computation efficiency (posterior sampling is quite expensive), instead of
-                comparing element-wise the obtained samples, we can permute posterior samples.
+                comparing the obtained samples element-wise, we can permute posterior samples.
                 Remember that computing the Bayes Factor requires sampling
                 q(z_A | x_A) and q(z_B | x_B)
 
+        PARAMETERS
+        # Mode parameters
+        :param mode: one of ["vanilla", "change"]
+
+
+        # Genes/cells/batches selection parameters
         :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
-            from associated population
+        from associated population
         :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
-            from associated population
+        from associated population
+        :param genes: Names of genes for which Bayes factors will be computed
         :param batchid1: List of batch ids for which you want to perform DE Analysis for
-            subpopulation 1. By default, all ids are taken into account
+        subpopulation 1. By default, all ids are taken into account
         :param batchid2: List of batch ids for which you want to perform DE Analysis for
-            subpopulation 2. By default, all ids are taken into account
-        :param genes: list Names of genes for which Bayes factors will be computed
-        :param n_samples: Number of times the posterior will be sampled for each pop
+        subpopulation 2. By default, all ids are taken into account
+
+        # Sampling parameters
+        :param n_samples: Number of posterior samples
         :param sample_pairs: Activates step 2 described above.
-            Simply formulated, pairs obtained from posterior sampling (when calling
-            `sample_scale_from_batch`) will be randomly permuted so that the number of
-            pairs used to compute Bayes Factors becomes M_permutation.
+        Simply formulated, pairs obtained from posterior sampling (when calling
+        `sample_scale_from_batch`) will be randomly permuted so that the number of
+        pairs used to compute Bayes Factors becomes M_permutation.
         :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-            Only makes sense when sample_pairs=True
-        :param all_stats: If False returns Bayes factors alone
-            else, returns not only Bayes Factor of population 1 vs population 2 but other metrics as
-            well, mostly used for sanity checks, such as (i) Bayes Factors of 2 vs 1 and (ii)
-            Bayes factors obtained when shuffled indices (iii) Gene expression statistics (mean, scale ...)
-        :return:
+        Only makes sense when sample_pairs=True
+
+        :param change_fn: function computing effect size based on both normalized means
+
+            :param m1_domain_fn: custom indicator function of effect size regions
+            inducing differential expression
+            :param delta: specific case of region inducing differential expression.
+            In this case, we suppose that R \ [-delta, delta] does not induce differential expression
+            (LFC case)
+
+
+        :return: Differential expression properties
         """
-        px_scale1 = self.sample_scale_from_batch(
-            selection=idx1, batchid=batchid1, n_samples=n_samples, genes=genes
-        )
-        px_scale2 = self.sample_scale_from_batch(
-            selection=idx2, batchid=batchid2, n_samples=n_samples, genes=genes
-        )
-        px_scale_mean1 = px_scale1.mean(axis=0)
-        px_scale_mean2 = px_scale2.mean(axis=0)
-        px_scale = np.concatenate((px_scale1, px_scale2), axis=0)
-        all_labels = np.concatenate(
-            (np.repeat(0, len(px_scale1)), np.repeat(1, len(px_scale2))), axis=0
-        )
-        bayes1 = get_bayes_factors(
-            px_scale,
-            all_labels,
-            cell_idx=0,
-            M_permutation=M_permutation,
-            permutation=False,
+        all_info = self.get_bayes_factors(
+            idx1=idx1,
+            idx2=idx2,
+            mode=mode,
+            batchid1=batchid1,
+            batchid2=batchid2,
+            genes=genes,
+            n_samples=n_samples,
             sample_pairs=sample_pairs,
+            M_permutation=M_permutation,
+            change_fn=change_fn,
+            m1_domain_fn=m1_domain_fn,
+            delta=delta,
         )
+        gene_names = self.gene_dataset.gene_names if genes is None else genes
         if all_stats is True:
-            bayes1_permuted = get_bayes_factors(
-                px_scale,
-                all_labels,
-                cell_idx=0,
-                M_permutation=M_permutation,
-                permutation=True,
-                sample_pairs=sample_pairs,
-            )
-            bayes2 = get_bayes_factors(
-                px_scale,
-                all_labels,
-                cell_idx=1,
-                M_permutation=M_permutation,
-                permutation=False,
-                sample_pairs=sample_pairs,
-            )
-            bayes2_permuted = get_bayes_factors(
-                px_scale,
-                all_labels,
-                cell_idx=1,
-                M_permutation=M_permutation,
-                permutation=True,
-                sample_pairs=sample_pairs,
-            )
             (
                 mean1,
                 mean2,
@@ -618,42 +614,21 @@ class Posterior:
                 nonz2,
                 norm_mean1,
                 norm_mean2,
-            ) = self.gene_dataset.raw_counts_properties(idx1, idx2)
-            res = pd.DataFrame(
-                [
-                    bayes1,
-                    bayes1_permuted,
-                    bayes2,
-                    bayes2_permuted,
-                    mean1,
-                    mean2,
-                    nonz1,
-                    nonz2,
-                    norm_mean1,
-                    norm_mean2,
-                    px_scale_mean1,
-                    px_scale_mean2,
-                ],
-                index=[
-                    "bayes1",
-                    "bayes1_permuted",
-                    "bayes2",
-                    "bayes2_permuted",
-                    "mean1",
-                    "mean2",
-                    "nonz1",
-                    "nonz2",
-                    "norm_mean1",
-                    "norm_mean2",
-                    "scale1",
-                    "scale2",
-                ],
-                columns=self.gene_dataset.gene_names,
-            ).T
-            res = res.sort_values(by=["bayes1"], ascending=False)
-            return res
-        else:
-            return bayes1
+            ) = self.gene_dataset.raw_counts_properties(idx1, idx2, genes=genes)
+            genes_properties_dict = dict(
+                mean1=mean1,
+                mean2=mean2,
+                nonz1=nonz1,
+                nonz2=nonz2,
+                norm_mean1=norm_mean1,
+                norm_mean2=norm_mean2,
+            )
+            all_info = {**all_info, **genes_properties_dict}
+
+        res = pd.DataFrame(all_info, index=gene_names)
+        sort_key = "proba_de" if mode == "change" else "bayes1"
+        res = res.sort_values(by=sort_key, ascending=False)
+        return res
 
     @torch.no_grad()
     def one_vs_all_degenes(
@@ -1253,55 +1228,6 @@ def entropy_batch_mixing(
     return score / float(n_pools)
 
 
-def get_bayes_factors(
-    px_scale: Union[List[float], np.ndarray],
-    all_labels: Union[List, np.ndarray],
-    cell_idx: Union[int, str],
-    other_cell_idx: Optional[Union[int, str]] = None,
-    M_permutation: int = 10000,
-    permutation: bool = False,
-    sample_pairs: bool = True,
-):
-    """
-    Returns an array of bayes factor for all genes
-
-    :param px_scale: The gene frequency array for all cells (might contain multiple samples per cells)
-    :param all_labels: The labels array for the corresponding cell types
-    :param cell_idx: The first cell type population to consider. Either a string or an idx
-    :param other_cell_idx: (optional) The second cell type population to consider. Either a string or an idx
-    :param sample_pairs: Activates subsampling.
-        Simply formulated, pairs obtained from posterior sampling (when calling
-        `sample_scale_from_batch`) will be randomly permuted so that the number of
-        pairs used to compute Bayes Factors becomes M_permutation.
-    :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-        Only makes sense when sample_pairs=True
-    :param permutation: Whether or not to permute. Normal behavior is False.
-        Setting permutation=True basically shuffles cell_idx and other_cell_idx so that we
-        estimate Bayes Factors of random populations of the union of cell_idx and other_cell_idx.
-    :return:
-    """
-    idx = all_labels == cell_idx
-    idx_other = (
-        (all_labels == other_cell_idx)
-        if other_cell_idx is not None
-        else (all_labels != cell_idx)
-    )
-    sample_rate_a = px_scale[idx].reshape(-1, px_scale.shape[1])
-    sample_rate_b = px_scale[idx_other].reshape(-1, px_scale.shape[1])
-
-    first_set, second_set = pairs_sampler(
-        sample_rate_a,
-        sample_rate_b,
-        sample_pairs=sample_pairs,
-        sanity_check_perm=permutation,
-        M_permutation=M_permutation,
-    )
-
-    res = np.mean(first_set >= second_set, 0)
-    res = np.log(res + 1e-8) - np.log(1 - res + 1e-8)
-    return res
-
-
 def plot_imputation(original, imputed, show_plot=True, title="Imputation"):
     y = imputed
     x = original
@@ -1506,3 +1432,37 @@ def credible_intervals(
     hdi_min = ary[min_idx]
     hdi_max = ary[min_idx + interval_idx_inc]
     return np.array([hdi_min, hdi_max])
+
+
+def describe_continuous_distrib(
+    samples: Union[np.ndarray, torch.Tensor],
+    credible_intervals_levels: Optional[Union[List[float], np.ndarray]] = None,
+    genes: Optional[Union[List[str], np.ndarray]] = None,
+) -> dict:
+    """
+    Computes properties of distribution based on its samples
+
+    :param samples: samples of shape (n_samples, n_features)
+    :param credible_intervals_levels: Confidence in (0, 1)
+    of credible intervals to be computed
+    :param genes: Names of genes for which Bayes factors will be computed
+    :return: properties of distribution
+    """
+    dist_props = dict(
+        mean=samples.mean(0),
+        median=np.median(samples, 0),
+        std=samples.std(0),
+        min=samples.min(0),
+        max=samples.max(0),
+    )
+    credible_intervals_levels = (
+        [] if credible_intervals_levels is None else credible_intervals_levels
+    )
+    for confidence in credible_intervals_levels:
+        intervals = credible_intervals(samples, confidence_level=confidence)
+        interval_min, interval_max = intervals[:, 0], intervals[:, 1]
+        conf_str = str(confidence)[:5]
+        dist_props["confidence_interval_{}_min".format(conf_str)] = interval_min
+        dist_props["confidence_interval_{}_max".format(conf_str)] = interval_max
+
+    return dist_props
