@@ -19,7 +19,7 @@ from sklearn.metrics import normalized_mutual_info_score as NMI
 from sklearn.metrics import silhouette_score
 from sklearn.mixture import GaussianMixture as GMM
 from sklearn.neighbors import NearestNeighbors, KNeighborsRegressor
-from sklearn.utils.linear_assignment_ import linear_assignment
+from scipy.optimize import linear_sum_assignment
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import (
     SequentialSampler,
@@ -1319,7 +1319,7 @@ def unsupervised_clustering_accuracy(y, y_pred):
         if y_ in mapping:
             reward_matrix[mapping[y_pred_], mapping[y_]] += 1
     cost_matrix = reward_matrix.max() - reward_matrix
-    ind = linear_assignment(cost_matrix)
+    ind = linear_sum_assignment(cost_matrix)
     return sum([reward_matrix[i, j] for i, j in ind]) * 1.0 / y_pred.size, ind
 
 
