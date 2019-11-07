@@ -364,7 +364,7 @@ class Posterior:
             - the "vanilla" mode follows protocol described in arXiv:1709.02082
             In this case, we perform hypothesis testing based on:
                 M_1: h_1 > h_2
-                M_2: h_1 < h_2
+                M_2: h_1 <= h_2
 
             DE can then be based on the study of the Bayes factors:
             log (p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
@@ -433,6 +433,7 @@ class Posterior:
         :return: Differential expression properties
         """
         eps = 1e-8  # used for numerical stability
+
         # Normalized means sampling for both populations
         px_scale1 = self.sample_scale_from_batch(
             selection=idx1, batchid=batchid1, n_samples=n_samples, genes=genes
@@ -451,7 +452,7 @@ class Posterior:
         if mode == "vanilla":
             logger.info("Differential expression using vanilla mode")
             proba_m1 = np.mean(px_scale1 > px_scale2, 0)
-            proba_m2 = np.mean(px_scale1 < px_scale2, 0)
+            proba_m2 = 1.0 - proba_m1
             res = dict(
                 proba_m1=proba_m1,
                 proba_m2=proba_m2,
