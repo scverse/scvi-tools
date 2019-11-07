@@ -255,7 +255,7 @@ def test_differential_expression(save_path):
     # Sample scale example
     px_scales = post.sample_scale_from_batch(
         n_samples_per_cell=4, selection=all_indices
-    )
+    )["scale"]
     assert (
         px_scales.shape[1] == dataset.nb_genes
     ), "posterior scales should have shape (n_samples, n_genes)"

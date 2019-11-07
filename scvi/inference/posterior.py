@@ -1,6 +1,7 @@
 import copy
 import logging
 import os
+import warnings
 from typing import List, Optional, Union, Tuple, Callable
 
 import numpy as np
@@ -292,7 +293,7 @@ class Posterior:
         batchid: Optional[Union[List[int], np.ndarray]] = None,
         genes: Optional[Union[List[str], np.ndarray]] = None,
         selection: Union[List[bool], np.ndarray] = None,
-    ) -> np.ndarray:
+    ) -> dict:
         """
         :param n_samples: Number of samples in total per batch (fill either `n_samples_total`
         or `n_samples_per_cell`)
@@ -302,11 +303,16 @@ class Posterior:
         Default (None) sample from all batches
         :param selection: Mask or list of cell ids to select
         :param genes: Subset of genes names
-        :return: Posterior aggregated scale samples of shape (n_samples, n_genes)
-        where n_samples correspond to either:
-        - n_bio_batches * n_cells * n_samples_per_cell
-        or
-         - n_samples_total
+        :return:
+        Dictionary containing:
+            `scale`
+                Posterior aggregated scale samples of shape (n_samples, n_genes)
+                where n_samples correspond to either:
+                - n_bio_batches * n_cells * n_samples_per_cell
+                or
+                 - n_samples_total
+            `batch`
+                associated batch ids
 
         """
         if n_samples is None and n_samples_per_cell is None:
@@ -315,6 +321,7 @@ class Posterior:
             batchid = np.arange(self.gene_dataset.n_batches)
 
         px_scales = []
+        batch_ids = []
         if selection is None:
             raise ValueError("selections should be a list of cell subsets indices")
         else:
@@ -329,19 +336,24 @@ class Posterior:
                     np.arange(len(self.gene_dataset))[selection], n_samples
                 )
                 self.update_sampler_indices(idx)
-                px_scales.append(self.get_harmonized_scale(i))
+                scales = self.get_harmonized_scale(i)
+                px_scales.append(scales)
+                batch_ids.append(i * np.ones(len(scales)))
             elif n_samples_per_cell is not None:
                 self.update_sampler_indices(selection)
                 for _ in range(n_samples_per_cell):
-                    px_scales.append(self.get_harmonized_scale(i))
+                    scales = self.get_harmonized_scale(i)
+                    px_scales.append(scales)
+                    batch_ids.append(i * np.ones(len(scales)))
         self.data_loader = old_loader
         px_scales = np.concatenate(px_scales)
+        batch_ids = np.concatenate(batch_ids)
 
         # Filter genes of interest
         if genes is not None:
             px_scales = px_scales[:, self.gene_dataset.genes_to_index(genes)]
 
-        return px_scales
+        return dict(scale=px_scales, batch=batch_ids)
 
     def get_bayes_factors(
         self,
@@ -360,6 +372,7 @@ class Posterior:
     ) -> dict:
         r"""
         Unified method for differential expression inference.
+        # FUNCTIONING
         Two modes coexist:
             - the "vanilla" mode follows protocol described in arXiv:1709.02082
             In this case, we perform hypothesis testing based on:
@@ -388,6 +401,7 @@ class Posterior:
             Decision-making can then be based on the estimates of
                 p(M_1 | x_1, x_2)
 
+        # POSTERIOR SAMPLING
         Both modes require to sample the normalized means posteriors
         To that purpose we sample the Posterior in the following way:
             1. The posterior is sampled n_samples times for each subpopulation
@@ -396,12 +410,15 @@ class Posterior:
                 Remember that computing the Bayes Factor requires sampling
                 q(z_A | x_A) and q(z_B | x_B)
 
-        PARAMETERS
-        # Mode parameters
+        # BATCH HANDLING
+
+
+        # PARAMETERS
+        ## Mode parameters
         :param mode: one of ["vanilla", "change"]
 
 
-        # Genes/cells/batches selection parameters
+        ## Genes/cells/batches selection parameters
         :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
         from associated population
         :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
@@ -412,7 +429,7 @@ class Posterior:
         :param batchid2: List of batch ids for which you want to perform DE Analysis for
         subpopulation 2. By default, all ids are taken into account
 
-        # Sampling parameters
+        ## Sampling parameters
         :param n_samples: Number of posterior samples
         :param sample_pairs: Activates step 2 described above.
         Simply formulated, pairs obtained from posterior sampling (when calling
@@ -433,25 +450,63 @@ class Posterior:
         :return: Differential expression properties
         """
         eps = 1e-8  # used for numerical stability
-
         # Normalized means sampling for both populations
-        px_scale1 = self.sample_scale_from_batch(
+        scales_batches_1 = self.sample_scale_from_batch(
             selection=idx1, batchid=batchid1, n_samples=n_samples, genes=genes
         )
-        px_scale2 = self.sample_scale_from_batch(
+        scales_batches_2 = self.sample_scale_from_batch(
             selection=idx2, batchid=batchid2, n_samples=n_samples, genes=genes
         )
 
-        px_scale_mean1 = px_scale1.mean(axis=0)
-        px_scale_mean2 = px_scale2.mean(axis=0)
-        # Sampling pairs
-        px_scale1, px_scale2 = pairs_sampler(
-            px_scale1, px_scale2, sample_pairs=sample_pairs, M_permutation=M_permutation
-        )
+        px_scale_mean1 = scales_batches_1["scale"].mean(axis=0)
+        px_scale_mean2 = scales_batches_2["scale"].mean(axis=0)
 
+        # Sampling pairs
+        # The objective of code section below is to ensure than the samples of normalized
+        # means we consider are conditioned on the same batch id
+        batchid1_vals = np.unique(scales_batches_1["batch"])
+        batchid2_vals = np.unique(scales_batches_2["batch"])
+        if set(batchid1_vals) == set(batchid2_vals):
+            n_batches = len(set(batchid1_vals))
+            n_samples_per_batch = (
+                M_permutation // n_batches if M_permutation is not None else None
+            )
+            scales_1 = []
+            scales_2 = []
+            for batch_val in set(batchid1_vals):
+                # Select scale samples that originate from the same batch id
+                scales_1_batch = scales_batches_1["scale"][
+                    scales_batches_1["batch"] == batch_val
+                ]
+                scales_2_batch = scales_batches_2["scale"][
+                    scales_batches_2["batch"] == batch_val
+                ]
+
+                # Create more pairs
+                scales_1_local, scales_2_local = pairs_sampler(
+                    scales_1_batch,
+                    scales_2_batch,
+                    sample_pairs=sample_pairs,
+                    M_permutation=n_samples_per_batch,
+                )
+                scales_1.append(scales_1_local)
+                scales_2.append(scales_2_local)
+            scales_1 = np.concatenate(scales_1, axis=0)
+            scales_2 = np.concatenate(scales_2, axis=0)
+        else:
+            # As it is, this function might work poorly when the different batch ids differ
+            warnings.warn("batchid1 != batchid2: batches are ignored")
+            scales_1, scales_2 = pairs_sampler(
+                scales_batches_1["scale"],
+                scales_batches_2["scale"],
+                sample_pairs=sample_pairs,
+                M_permutation=M_permutation,
+            )
+
+        # Core of function: hypotheses testing based on the posterior samples we obtained above
         if mode == "vanilla":
             logger.info("Differential expression using vanilla mode")
-            proba_m1 = np.mean(px_scale1 > px_scale2, 0)
+            proba_m1 = np.mean(scales_1 > scales_2, 0)
             proba_m2 = 1.0 - proba_m1
             res = dict(
                 proba_m1=proba_m1,
@@ -480,7 +535,7 @@ class Posterior:
                 def m1_domain_fn(samples):
                     return np.abs(samples) >= delta
 
-            change_distribution = change_fn(px_scale1, px_scale2)
+            change_distribution = change_fn(scales_1, scales_2)
             is_de = m1_domain_fn(change_distribution)
             proba_m1 = np.mean(is_de, 0)
             change_distribution_props = describe_continuous_distrib(
