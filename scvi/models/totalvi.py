@@ -81,7 +81,7 @@ class TOTALVI(nn.Module):
         de_pro_sample_bern: bool = False,
         de_pro_normalize: bool = False,
         de_pro_include_background: bool = False,
-        encoder_batch: bool = False,
+        encoder_batch: bool = True,
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
