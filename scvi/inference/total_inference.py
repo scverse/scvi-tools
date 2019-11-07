@@ -424,11 +424,15 @@ class TotalPosterior(Posterior):
 
     @torch.no_grad()
     def get_normalized_denoised_expression(
-        self, n_samples: int = 1, give_mean: bool = True
+        self,
+        n_samples: int = 1,
+        sample_protein_mixing: bool = True,
+        give_mean: bool = True,
     ):
         """Returns the tensors of denoised normalized gene and protein expression
 
         :param n_samples: number of samples from posterior distribution
+        :param sample_protein_mixing: Sample mixing bernoulli, setting background to zero
         :param give_mean: bool, whether to return samples along first axis or average over samples
         :rtype: 2-tuple of :py:class:`np.ndarray`
         """
@@ -441,7 +445,13 @@ class TotalPosterior(Posterior):
                 x, y, batch_index=batch_index, label=label, n_samples=n_samples
             )
             px_scale = outputs["px_"]["scale"]
-            py_scale = outputs["py_"]["scale"]
+
+            py_ = outputs["py_"]
+            # probability of background
+            protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
+            if sample_protein_mixing is True:
+                protein_mixing = Bernoulli(protein_mixing).sample()
+            py_scale = py_["rate_fore"] * (1 - protein_mixing)
 
             scale_list_gene.append(px_scale.cpu())
             scale_list_pro.append(py_scale.cpu())
