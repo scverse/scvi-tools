@@ -1237,6 +1237,7 @@ class GeneExpressionDataset(Dataset):
         n_top_genes: Optional[int] = None,
         n_bins: int = 20,
         flavor: Optional[str] = "seurat",
+        batch_correction: Optional[bool] = True,
     ) -> pd.DataFrame:
         """\
         Code sample taken from the scanpy package
@@ -1249,50 +1250,37 @@ class GeneExpressionDataset(Dataset):
         variable genes are selected.
         Parameters
         ----------
-        min_mean
+        :param min_mean:
             If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
             normalized dispersions are ignored.
-        max_mean
+        :param max_mean:
             If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
             normalized dispersions are ignored.
-        min_disp
+        :param min_disp:
             If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
             normalized dispersions are ignored.
-        max_disp
+        :param max_disp:
             If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
             normalized dispersions are ignored.
-        n_top_genes
+        :param n_top_genes:
             Number of highly-variable genes to keep.
-        n_bins
+        :param n_bins:
             Number of bins for binning the mean gene expression. Normalization is
             done with respect to each bin. If just a single gene falls into a bin,
             the normalized dispersion is artificially set to 1. You'll be informed
             about this if you set `settings.verbosity = 4`.
-        flavor
+        :param flavor:
             Choose the flavor for computing normalized dispersion. In their default
             workflows, Seurat passes the cutoffs whereas Cell Ranger passes
             `n_top_genes`.
-        batch_correction
+        :param batch_correction:
             Whether batches should be taken into account during procedure
-        Returns
-        -------
-        Depending on `inplace` returns calculated metrics (:class:`~numpy.recarray`) or
-        updates `.var` with the following fields
-        highly_variable : bool
-            boolean indicator of highly-variable genes
-        **means**
-            means per gene
-        **dispersions**
-            dispersions per gene
-        **dispersions_norm**
-            normalized dispersions per gene
-        highly_variable_nbatches : int
-            If batch_key is given, this denotes in how many batches genes are detected as HVG
-        highly_variable_intersection : bool
-            If batch_key is given, this denotes the genes that are highly variable in all batches
-        Notes
-        -----
-        This function replaces :func:`~scanpy.pp.filter_genes_dispersion`.
+
+        :return:
+            scanpy .var DataFrame providing genes information including means, dispersions
+            and whether the gene is tagged highly variable (key `highly_variable`)
+            (see scanpy highly_variable_genes documentation)
+
         """
 
         logger.info("extracting highly variable genes")
@@ -1313,6 +1301,9 @@ class GeneExpressionDataset(Dataset):
         if issparse(counts):
             counts = counts.toarray()
         adata = sc.AnnData(X=counts, obs=obs)
+        batch_key = "batch" if batch_correction else None
+        # Counts normalization
+        sc.pp.normalize_total(adata, target_sum=1e4)
         # logarithmed data
         sc.pp.log1p(adata)
 
@@ -1326,6 +1317,7 @@ class GeneExpressionDataset(Dataset):
             n_top_genes=n_top_genes,
             n_bins=n_bins,
             flavor=flavor,
+            batch_key=batch_key,
             inplace=True,  # inplace=False looks buggy
         )
 
