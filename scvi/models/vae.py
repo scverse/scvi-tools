@@ -330,6 +330,7 @@ class LDVAE(VAE):
         log_variational: bool = True,
         reconstruction_loss: str = "zinb",
         use_batch_norm: bool = True,
+        bias: bool = False,
         latent_distribution: str = "ln",
     ):
         super().__init__(
@@ -356,7 +357,11 @@ class LDVAE(VAE):
         )
 
         self.decoder = LinearDecoderSCVI(
-            n_latent, n_input, n_cat_list=[n_batch], use_batch_norm=use_batch_norm
+            n_latent,
+            n_input,
+            n_cat_list=[n_batch],
+            use_batch_norm=use_batch_norm,
+            bias=bias,
         )
 
     @torch.no_grad()

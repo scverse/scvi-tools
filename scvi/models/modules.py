@@ -277,6 +277,7 @@ class LinearDecoderSCVI(nn.Module):
         n_output: int,
         n_cat_list: Iterable[int] = None,
         use_batch_norm: bool = True,
+        bias: bool = False,
     ):
         super(LinearDecoderSCVI, self).__init__()
 
@@ -288,6 +289,7 @@ class LinearDecoderSCVI(nn.Module):
             n_layers=1,
             use_relu=False,
             use_batch_norm=use_batch_norm,
+            bias=bias,
             dropout_rate=0,
         )
 
@@ -299,6 +301,7 @@ class LinearDecoderSCVI(nn.Module):
             n_layers=1,
             use_relu=False,
             use_batch_norm=use_batch_norm,
+            bias=bias,
             dropout_rate=0,
         )
 
