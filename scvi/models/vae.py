@@ -370,13 +370,17 @@ class LDVAE(VAE):
         """
         # This is BW, where B is diag(b) batch norm, W is weight matrix
         if self.use_batch_norm is True:
-            w = self.decoder.factor_regressor.fc_layers[0][1](
-                torch.t(self.decoder.factor_regressor.fc_layers[0][0].weight)
-            )
+            w = self.decoder.factor_regressor.fc_layers[0][0].weight
+            bn = self.decoder.factor_regressor.fc_layers[0][1]
+            sigma = torch.sqrt(bn.running_var + bn.eps)
+            gamma = bn.weight
+            b = gamma / sigma
+            bI = torch.diag(b)
+            loadings = torch.matmul(bI, w)
         else:
-            w = torch.t(self.decoder.factor_regressor.fc_layers[0][0].weight)
-        w = w.detach().cpu().numpy().T
+            loadings = self.decoder.factor_regressor.fc_layers[0][0].weight
+        loadings = loadings.detach().cpu().numpy()
         if self.n_batch > 1:
-            w = w[:, : -self.n_batch]
+            loadings = loadings[:, : -self.n_batch]
 
-        return w
+        return loadings
