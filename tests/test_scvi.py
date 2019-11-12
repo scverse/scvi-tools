@@ -111,7 +111,6 @@ def test_synthetic_1():
     trainer_synthetic_svaec.unlabelled_set.differential_expression_score(
         synthetic_dataset.labels.ravel() == 1,
         synthetic_dataset.labels.ravel() == 2,
-        genes=["2", "4"],
         n_samples=2,
         M_permutation=10,
     )
@@ -268,7 +267,7 @@ def test_differential_expression(save_path):
         idx2=idx_2,
         n_samples=10,
         mode="vanilla",
-        sample_pairs=True,
+        use_permutation=True,
         M_permutation=100,
     )
 
@@ -277,7 +276,7 @@ def test_differential_expression(save_path):
         idx2=idx_2,
         n_samples=10,
         mode="change",
-        sample_pairs=True,
+        use_permutation=True,
         M_permutation=100,
     )
     print(de_dataframe.keys())

@@ -1187,33 +1187,24 @@ class GeneExpressionDataset(Dataset):
             raise NotImplementedError("Unknown corruption method.")
 
     def raw_counts_properties(
-        self,
-        idx1: Union[List[int], np.ndarray],
-        idx2: Union[List[int], np.ndarray],
-        genes: Optional[Union[List[str], np.ndarray]] = None,
+        self, idx1: Union[List[int], np.ndarray], idx2: Union[List[int], np.ndarray]
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Computes and returns some statistics on the raw counts of two sub-populations.
 
         :param idx1: subset of indices describing the first population.
         :param idx2: subset of indices describing the second population.
-        :param genes: names for which statistics should be returned
+
         :return: Tuple of ``np.ndarray`` containing, by pair (one for each sub-population),
             mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
         """
-        gene_ids = (
-            self.genes_to_index(genes)
-            if genes is not None
-            else np.arange(self.nb_genes)
-        )
-
-        mean1 = (self.X[idx1][:, gene_ids]).mean(axis=0)
-        mean2 = (self.X[idx2][:, gene_ids]).mean(axis=0)
-        nonz1 = (self.X[idx1][:, gene_ids] != 0).mean(axis=0)
-        nonz2 = (self.X[idx2][:, gene_ids] != 0).mean(axis=0)
+        mean1 = (self.X[idx1, :]).mean(axis=0)
+        mean2 = (self.X[idx2, :]).mean(axis=0)
+        nonz1 = (self.X[idx1, :] != 0).mean(axis=0)
+        nonz2 = (self.X[idx2, :] != 0).mean(axis=0)
         if self.norm_X is None:
             self.normalize()
-        norm_mean1 = self.norm_X[idx1][:, gene_ids].mean(axis=0)
-        norm_mean2 = self.norm_X[idx2][:, gene_ids].mean(axis=0)
+        norm_mean1 = self.norm_X[idx1, :].mean(axis=0)
+        norm_mean2 = self.norm_X[idx2, :].mean(axis=0)
         return (
             np.squeeze(np.asarray(mean1)),
             np.squeeze(np.asarray(mean2)),

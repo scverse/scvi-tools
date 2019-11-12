@@ -291,7 +291,6 @@ class Posterior:
         n_samples: Optional[int] = None,
         n_samples_per_cell: Optional[int] = None,
         batchid: Optional[Union[List[int], np.ndarray]] = None,
-        genes: Optional[Union[List[str], np.ndarray]] = None,
         selection: Union[List[bool], np.ndarray] = None,
     ) -> dict:
         """
@@ -302,7 +301,6 @@ class Posterior:
         :param batchid: Biological batch for which to sample from.
         Default (None) sample from all batches
         :param selection: Mask or list of cell ids to select
-        :param genes: Subset of genes names
         :return:
         Dictionary containing:
             `scale`
@@ -349,10 +347,6 @@ class Posterior:
         px_scales = np.concatenate(px_scales)
         batch_ids = np.concatenate(batch_ids)
 
-        # Filter genes of interest
-        if genes is not None:
-            px_scales = px_scales[:, self.gene_dataset.genes_to_index(genes)]
-
         return dict(scale=px_scales, batch=batch_ids)
 
     def get_bayes_factors(
@@ -362,7 +356,6 @@ class Posterior:
         mode: Optional[str] = "vanilla",
         batchid1: Optional[Union[List[int], np.ndarray]] = None,
         batchid2: Optional[Union[List[int], np.ndarray]] = None,
-        genes: Optional[Union[List[str], np.ndarray]] = None,
         n_samples: int = 5000,
         use_permutation: bool = True,
         M_permutation: int = 10000,
@@ -423,7 +416,6 @@ class Posterior:
         from associated population
         :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
         from associated population
-        :param genes: Names of genes for which Bayes factors will be computed
         :param batchid1: List of batch ids for which you want to perform DE Analysis for
         subpopulation 1. By default, all ids are taken into account
         :param batchid2: List of batch ids for which you want to perform DE Analysis for
@@ -452,10 +444,10 @@ class Posterior:
         eps = 1e-8  # used for numerical stability
         # Normalized means sampling for both populations
         scales_batches_1 = self.sample_scale_from_batch(
-            selection=idx1, batchid=batchid1, n_samples=n_samples, genes=genes
+            selection=idx1, batchid=batchid1, n_samples=n_samples
         )
         scales_batches_2 = self.sample_scale_from_batch(
-            selection=idx2, batchid=batchid2, n_samples=n_samples, genes=genes
+            selection=idx2, batchid=batchid2, n_samples=n_samples
         )
 
         px_scale_mean1 = scales_batches_1["scale"].mean(axis=0)
@@ -564,7 +556,6 @@ class Posterior:
         mode: Optional[str] = "vanilla",
         batchid1: Optional[Union[List[int], np.ndarray]] = None,
         batchid2: Optional[Union[List[int], np.ndarray]] = None,
-        genes: Optional[Union[List[str], np.ndarray]] = None,
         n_samples: int = 5000,
         use_permutation: bool = True,
         M_permutation: int = 10000,
@@ -624,7 +615,6 @@ class Posterior:
         from associated population
         :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
         from associated population
-        :param genes: Names of genes for which Bayes factors will be computed
         :param batchid1: List of batch ids for which you want to perform DE Analysis for
         subpopulation 1. By default, all ids are taken into account
         :param batchid2: List of batch ids for which you want to perform DE Analysis for
@@ -656,7 +646,6 @@ class Posterior:
             mode=mode,
             batchid1=batchid1,
             batchid2=batchid2,
-            genes=genes,
             n_samples=n_samples,
             use_permutation=use_permutation,
             M_permutation=M_permutation,
@@ -664,7 +653,7 @@ class Posterior:
             m1_domain_fn=m1_domain_fn,
             delta=delta,
         )
-        gene_names = self.gene_dataset.gene_names if genes is None else genes
+        gene_names = self.gene_dataset.gene_names
         if all_stats is True:
             (
                 mean1,
@@ -673,7 +662,7 @@ class Posterior:
                 nonz2,
                 norm_mean1,
                 norm_mean2,
-            ) = self.gene_dataset.raw_counts_properties(idx1, idx2, genes=genes)
+            ) = self.gene_dataset.raw_counts_properties(idx1, idx2)
             genes_properties_dict = dict(
                 mean1=mean1,
                 mean2=mean2,

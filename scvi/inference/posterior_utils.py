@@ -268,7 +268,6 @@ def describe_continuous_distrib(
     :param samples: samples of shape (n_samples, n_features)
     :param credible_intervals_levels: Confidence in (0, 1)
     of credible intervals to be computed
-    :param genes: Names of genes for which Bayes factors will be computed
     :return: properties of distribution
     """
     dist_props = dict(
