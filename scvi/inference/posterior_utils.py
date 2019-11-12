@@ -170,7 +170,7 @@ def proximity_imputation(real_latent1, normed_gene_exp_1, real_latent2, k=4):
 def pairs_sampler(
     arr1: Union[List[float], np.ndarray, torch.Tensor],
     arr2: Union[List[float], np.ndarray, torch.Tensor],
-    sample_pairs: bool = True,
+    use_permutation: bool = True,
     M_permutation: int = None,
     sanity_check_perm: bool = False,
     weights1: Union[List[float], np.ndarray, torch.Tensor] = None,
@@ -182,7 +182,7 @@ def pairs_sampler(
 
     :param arr1: samples from population 1
     :param arr2: samples from population 2
-    :param sample_pairs: Whether to mix samples from both populations
+    :param use_permutation: Whether to mix samples from both populations
     :param M_permutation:
     :param sanity_check_perm: If True, resulting mixed arrays arr1 and arr2 are mixed together
     In most cases, this parameter should remain False
@@ -190,7 +190,7 @@ def pairs_sampler(
     :param weights2: probabilities associated to array 2 for random sampling
     :return: new_arr1, new_arr2
     """
-    if sample_pairs is True:
+    if use_permutation is True:
         # prepare the pairs for sampling
         n_arr1 = arr1.shape[0]
         n_arr2 = arr2.shape[0]
