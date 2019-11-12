@@ -364,7 +364,7 @@ class Posterior:
         batchid2: Optional[Union[List[int], np.ndarray]] = None,
         genes: Optional[Union[List[str], np.ndarray]] = None,
         n_samples: int = 5000,
-        sample_pairs: bool = True,
+        use_permutation: bool = True,
         M_permutation: int = 10000,
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
@@ -431,12 +431,12 @@ class Posterior:
 
         ## Sampling parameters
         :param n_samples: Number of posterior samples
-        :param sample_pairs: Activates step 2 described above.
+        :param use_permutation: Activates step 2 described above.
         Simply formulated, pairs obtained from posterior sampling (when calling
         `sample_scale_from_batch`) will be randomly permuted so that the number of
         pairs used to compute Bayes Factors becomes M_permutation.
         :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-        Only makes sense when sample_pairs=True
+        Only makes sense when use_permutation=True
 
         :param change_fn: function computing effect size based on both normalized means
 
@@ -486,7 +486,7 @@ class Posterior:
                 scales_1_local, scales_2_local = pairs_sampler(
                     scales_1_batch,
                     scales_2_batch,
-                    sample_pairs=sample_pairs,
+                    use_permutation=use_permutation,
                     M_permutation=n_samples_per_batch,
                 )
                 scales_1.append(scales_1_local)
@@ -499,7 +499,7 @@ class Posterior:
             scales_1, scales_2 = pairs_sampler(
                 scales_batches_1["scale"],
                 scales_batches_2["scale"],
-                sample_pairs=sample_pairs,
+                use_permutation=use_permutation,
                 M_permutation=M_permutation,
             )
 
@@ -566,7 +566,7 @@ class Posterior:
         batchid2: Optional[Union[List[int], np.ndarray]] = None,
         genes: Optional[Union[List[str], np.ndarray]] = None,
         n_samples: int = 5000,
-        sample_pairs: bool = True,
+        use_permutation: bool = True,
         M_permutation: int = 10000,
         all_stats: bool = True,
         change_fn: Optional[Union[str, Callable]] = None,
@@ -632,12 +632,12 @@ class Posterior:
 
         # Sampling parameters
         :param n_samples: Number of posterior samples
-        :param sample_pairs: Activates step 2 described above.
+        :param use_permutation: Activates step 2 described above.
         Simply formulated, pairs obtained from posterior sampling (when calling
         `sample_scale_from_batch`) will be randomly permuted so that the number of
         pairs used to compute Bayes Factors becomes M_permutation.
         :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-        Only makes sense when sample_pairs=True
+        Only makes sense when use_permutation=True
 
         :param change_fn: function computing effect size based on both normalized means
 
@@ -658,7 +658,7 @@ class Posterior:
             batchid2=batchid2,
             genes=genes,
             n_samples=n_samples,
-            sample_pairs=sample_pairs,
+            use_permutation=use_permutation,
             M_permutation=M_permutation,
             change_fn=change_fn,
             m1_domain_fn=m1_domain_fn,
@@ -696,7 +696,7 @@ class Posterior:
         cell_labels: Optional[Union[List, np.ndarray]] = None,
         min_cells: int = 10,
         n_samples: int = 500,
-        sample_pairs: bool = False,
+        use_permutation: bool = False,
         M_permutation: int = None,
         output_file: bool = False,
         save_dir: str = "./",
@@ -711,12 +711,12 @@ class Posterior:
         :param cell_labels: optional: Labels of cells
         :param min_cells: Ceil number of cells used to compute Bayes Factors
         :param n_samples: Number of times the posterior will be sampled for each pop
-        :param sample_pairs: Activates pair random permutations.
+        :param use_permutation: Activates pair random permutations.
             Simply formulated, pairs obtained from posterior sampling (when calling
             `sample_scale_from_batch`) will be randomly permuted so that the number of
             pairs used to compute Bayes Factors becomes M_permutation.
         :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-            Only makes sense when sample_pairs=True
+            Only makes sense when use_permutation=True
         :param output_file: Bool: save file?
         :param save_dir:
         :param filename:
@@ -760,7 +760,7 @@ class Posterior:
                     idx2=idx2,
                     M_permutation=M_permutation,
                     n_samples=n_samples,
-                    sample_pairs=sample_pairs,
+                    use_permutation=use_permutation,
                 )
                 res["clusters"] = np.repeat(x, len(res.index))
                 de_res.append(res)
@@ -783,7 +783,7 @@ class Posterior:
         batch2: Optional[Union[List[int], np.ndarray]] = None,
         subset: Optional[Union[List[bool], np.ndarray]] = None,
         n_samples: int = 500,
-        sample_pairs: bool = False,
+        use_permutation: bool = False,
         M_permutation: int = None,
         output_file: bool = False,
         save_dir: str = "./",
@@ -801,12 +801,12 @@ class Posterior:
             subpopulation 2. By default, all ids are taken into account
         :param subset: MASK: Subset of cells you are interested in.
         :param n_samples: Number of times the posterior will be sampled for each pop
-        :param sample_pairs: Activates pair random permutations.
+        :param use_permutation: Activates pair random permutations.
             Simply formulated, pairs obtained from posterior sampling (when calling
             `sample_scale_from_batch`) will be randomly permuted so that the number of
             pairs used to compute Bayes Factors becomes M_permutation.
         :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-            Only makes sense when sample_pairs=True
+            Only makes sense when use_permutation=True
         :param output_file: Bool: save file?
         :param save_dir:
         :param filename:
@@ -858,7 +858,7 @@ class Posterior:
                     batchid2=batch2,
                     M_permutation=M_permutation,
                     n_samples=n_samples,
-                    sample_pairs=sample_pairs,
+                    use_permutation=use_permutation,
                 )
                 res["clusters"] = np.repeat(x, len(res.index))
                 de_res.append(res)
