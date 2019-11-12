@@ -477,6 +477,89 @@ class TotalPosterior(Posterior):
         return scale_list_gene, scale_list_pro
 
     @torch.no_grad()
+    def generate_denoised_samples(
+        self, n_samples: int = 25, batch_size: int = 64, rna_size_factor: int = 1
+    ):  # with n_samples>1 return original list/ otherwise sequential
+        """ Return samples from an adjusted posterior predictive. Proteins are concatenated to genes.
+        :param n_samples: How may samples per cell
+        :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
+        :rna_size_factor: size factor for RNA prior to sampling gamma distribution
+        :return:
+        """
+        posterior_list = []
+        for tensors in self.update({"batch_size": batch_size}):
+            x, _, _, batch_index, labels, y = tensors
+            with torch.no_grad():
+                outputs = self.model.inference(
+                    x, y, batch_index=batch_index, label=labels, n_samples=n_samples
+                )
+            px_ = outputs["px_"]
+            py_ = outputs["py_"]
+
+            pi = 1 / (1 + torch.exp(-py_["mixing"]))
+            mixing_sample = Bernoulli(pi).sample()
+            protein_rate = py_["rate_fore"]
+            rate = torch.cat((rna_size_factor * px_["scale"], protein_rate), dim=-1)
+            if len(px_["r"].size()) == 2:
+                px_dispersion = px_["r"]
+            else:
+                px_dispersion = torch.ones_like(x) * px_["r"]
+            if len(py_["r"].size()) == 2:
+                py_dispersion = py_["r"]
+            else:
+                py_dispersion = torch.ones_like(y) * py_["r"]
+
+            dispersion = torch.cat((px_dispersion, py_dispersion), dim=-1)
+
+            # This gamma is really l*w using scVI manuscript notation
+            p = rate / (rate + dispersion)
+            r = dispersion
+            l_train = Gamma(r, (1 - p) / p).sample()
+            data = l_train.cpu().numpy()
+            # data = Poisson(l_train).sample().cpu().numpy()
+            # make RNA sum to 1 in a cell
+            # data[:, :, :dataset.nb_genes] = data[:, :, :dataset.nb_genes] / np.sum(data[:, :, :dataset.nb_genes], axis=2)[:, :, np.newaxis]
+            # make background 0
+            data[:, :, self.gene_dataset.nb_genes :] = (
+                data[:, :, self.gene_dataset.nb_genes :]
+                * (1 - mixing_sample).cpu().numpy()
+            )
+            # """
+            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
+            # rate = (1 - p) / p  # = 1/scale # used in pytorch
+            # """
+            posterior_list += [data]
+
+            posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
+
+        return (np.concatenate(posterior_list, axis=0),)
+
+    @torch.no_grad()
+    def generate_feature_correlation_matrix(
+        self, n_samples: int = 25, batch_size: int = 64, rna_size_factor: int = 1000
+    ):
+        """ Wrapper of `generate_denoised_samples()` to create a gene-protein gene-protein corr matrix
+        :param n_samples: How may samples per cell
+        :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
+        :rna_size_factor: size factor for RNA prior to sampling gamma distribution
+        :return:
+        """
+
+        denoised_data = self.generate_denoised_samples(
+            n_samples=n_samples, batch_size=batch_size, rna_size_factor=rna_size_factor
+        )
+        flattened = np.zeros(
+            (denoised_data.shape[0] * n_samples, denoised_data.shape[1])
+        )
+        for i in range(n_samples):
+            flattened[
+                denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
+            ] = denoised_data[:, :, i]
+        corr_matrix = np.corrcoef(flattened, rowvar=False)
+
+        return corr_matrix
+
+    @torch.no_grad()
     def imputation(self, n_samples: int = 1):
         """ Gene imputation
         """
