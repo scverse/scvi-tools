@@ -388,8 +388,8 @@ class Posterior:
             The `change_fn` function computes the effect size variable r based two inputs
             corresponding to the normalized means in both populations
             Hypotheses:
-                M_0: r \in R_0 (effect size r in region inducing differential expression)
-                M_1: r not \in R_0 (no differential expression)
+                M_1: r \in R_0 (effect size r in region inducing differential expression)
+                M_2: r not \in R_0 (no differential expression)
             To characterize the region R_0, the user has two choices.
                 1. A common case is when the region [-delta, delta] does not induce differential
                 expression.
@@ -593,8 +593,8 @@ class Posterior:
             The `change_fn` function computes the effect size variable r based two inputs
             corresponding to the normalized means in both populations
             Hypotheses:
-                M_0: r \in R_0 (effect size r in region inducing differential expression)
-                M_1: r not \in R_0 (no differential expression)
+                M_1: r \in R_0 (effect size r in region inducing differential expression)
+                M_2: r not \in R_0 (no differential expression)
             To characterize the region R_0, the user has two choices.
                 1. A common case is when the region [-delta, delta] does not induce differential
                 expression.
@@ -604,7 +604,7 @@ class Posterior:
                     r \in R_0 iff f(r) = 1
 
             Decision-making can then be based on the estimates of
-                p(M_1 | x_1, x_2)
+                p(M_2 | x_1, x_2)
 
         Both modes require to sample the normalized means posteriors
         To that purpose we sample the Posterior in the following way:
