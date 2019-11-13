@@ -404,7 +404,19 @@ class Posterior:
                 q(z_A | x_A) and q(z_B | x_B)
 
         # BATCH HANDLING
+        Currently, the code covers two batch handling configurations.
 
+            1. If case (cell group 1) and control (cell group 2) are conditioned on the same
+            batch ids.
+                set(batchid1) = set(batchid2):
+                e.g. batchid1 = batchid2 = None
+
+
+            2. If case and control are conditioned on different batch ids that do not intersect
+            i.e., set(batchid1) != set(batchid2)
+                  and intersection(set(batchid1), set(batchid2)) = \emptyset
+
+            This function does not cover other cases yet and will warn users in such cases.
 
         # PARAMETERS
         ## Mode parameters
@@ -459,6 +471,7 @@ class Posterior:
         batchid1_vals = np.unique(scales_batches_1["batch"])
         batchid2_vals = np.unique(scales_batches_2["batch"])
         if set(batchid1_vals) == set(batchid2_vals):
+            # First case: same batch normalization in two groups
             n_batches = len(set(batchid1_vals))
             n_samples_per_batch = (
                 M_permutation // n_batches if M_permutation is not None else None
@@ -486,8 +499,14 @@ class Posterior:
             scales_1 = np.concatenate(scales_1, axis=0)
             scales_2 = np.concatenate(scales_2, axis=0)
         else:
-            # As it is, this function might work poorly when the different batch ids differ
-            warnings.warn("batchid1 != batchid2: batches are ignored")
+            # In this case, batch normalization is performed on the same
+            # batches in the two cell groups.
+            if len(set(batchid1_vals).intersection(set(batchid2_vals))) >= 1:
+                warnings.warn(
+                    "Batchids of cells groups 1 and 2 are different but have an non-null "
+                    "intersection. Specific handling of such situations is not implemented "
+                    "yet and batch correction is not trustworthy."
+                )
             scales_1, scales_2 = pairs_sampler(
                 scales_batches_1["scale"],
                 scales_batches_2["scale"],
@@ -503,7 +522,7 @@ class Posterior:
             res = dict(
                 proba_m1=proba_m1,
                 proba_m2=proba_m2,
-                bayes1=np.log(proba_m1 + eps) - np.log(proba_m2 + eps),
+                bayes_factor=np.log(proba_m1 + eps) - np.log(proba_m2 + eps),
                 scale1=px_scale_mean1,
                 scale2=px_scale_mean2,
             )
@@ -538,7 +557,7 @@ class Posterior:
             res = dict(
                 proba_de=proba_m1,
                 proba_not_de=1.0 - proba_m1,
-                bayes1=np.log(proba_m1 + eps) - np.log(1.0 - proba_m1 + eps),
+                bayes_factor=np.log(proba_m1 + eps) - np.log(1.0 - proba_m1 + eps),
                 scale1=px_scale_mean1,
                 scale2=px_scale_mean2,
                 **change_distribution_props
@@ -569,11 +588,12 @@ class Posterior:
         This function is an extension of the `get_bayes_factors` method
         providing additional genes information to the user
 
+                # FUNCTIONING
         Two modes coexist:
             - the "vanilla" mode follows protocol described in arXiv:1709.02082
             In this case, we perform hypothesis testing based on:
                 M_1: h_1 > h_2
-                M_2: h_1 < h_2
+                M_2: h_1 <= h_2
 
             DE can then be based on the study of the Bayes factors:
             log (p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
@@ -595,8 +615,9 @@ class Posterior:
                     r \in R_0 iff f(r) = 1
 
             Decision-making can then be based on the estimates of
-                p(M_2 | x_1, x_2)
+                p(M_1 | x_1, x_2)
 
+        # POSTERIOR SAMPLING
         Both modes require to sample the normalized means posteriors
         To that purpose we sample the Posterior in the following way:
             1. The posterior is sampled n_samples times for each subpopulation
@@ -605,12 +626,28 @@ class Posterior:
                 Remember that computing the Bayes Factor requires sampling
                 q(z_A | x_A) and q(z_B | x_B)
 
-        PARAMETERS
+        # BATCH HANDLING
+        Currently, the code covers two batch handling configurations.
+
+            1. If case (cell group 1) and control (cell group 2) are conditioned on the same
+            batch ids.
+                set(batchid1) = set(batchid2):
+                e.g. batchid1 = batchid2 = None
+
+
+            2. If case and control are conditioned on different batch ids that do not intersect
+            i.e., set(batchid1) != set(batchid2)
+                  and intersection(set(batchid1), set(batchid2)) = \emptyset
+
+            This function does not cover other cases yet and will warn users in such cases.
+
+
+        # PARAMETERS
         # Mode parameters
         :param mode: one of ["vanilla", "change"]
 
 
-        # Genes/cells/batches selection parameters
+        ## Genes/cells/batches selection parameters
         :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
         from associated population
         :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
@@ -620,7 +657,7 @@ class Posterior:
         :param batchid2: List of batch ids for which you want to perform DE Analysis for
         subpopulation 2. By default, all ids are taken into account
 
-        # Sampling parameters
+        ## Sampling parameters
         :param n_samples: Number of posterior samples
         :param use_permutation: Activates step 2 described above.
         Simply formulated, pairs obtained from posterior sampling (when calling
@@ -637,6 +674,7 @@ class Posterior:
             In this case, we suppose that R \ [-delta, delta] does not induce differential expression
             (LFC case)
 
+        :param all_stats: whether additional metrics should be provided
 
         :return: Differential expression properties
         """
@@ -664,17 +702,17 @@ class Posterior:
                 norm_mean2,
             ) = self.gene_dataset.raw_counts_properties(idx1, idx2)
             genes_properties_dict = dict(
-                mean1=mean1,
-                mean2=mean2,
-                nonz1=nonz1,
-                nonz2=nonz2,
-                norm_mean1=norm_mean1,
-                norm_mean2=norm_mean2,
+                raw_mean1=mean1,
+                raw_mean2=mean2,
+                non_zeros_proportion1=nonz1,
+                non_zeros_proportion2=nonz2,
+                raw_normalized_mean1=norm_mean1,
+                raw_normalized_mean2=norm_mean2,
             )
             all_info = {**all_info, **genes_properties_dict}
 
         res = pd.DataFrame(all_info, index=gene_names)
-        sort_key = "proba_de" if mode == "change" else "bayes1"
+        sort_key = "proba_de" if mode == "change" else "bayes_factor"
         res = res.sort_values(by=sort_key, ascending=False)
         return res
 
