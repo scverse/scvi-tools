@@ -9,6 +9,7 @@ from scvi.inference import (
     AdapterTrainer,
     TotalTrainer,
 )
+from scvi.inference.posterior import unsupervised_clustering_accuracy
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE
 from scvi.models.classifier import Classifier
@@ -318,3 +319,17 @@ def test_autozi(save_path):
         trainer_autozivae.test_set.elbo()
         trainer_autozivae.test_set.reconstruction_error()
         trainer_autozivae.test_set.marginal_ll()
+
+
+def test_depreciated_munkres():
+    y = np.array([0, 1, 0, 1, 0, 1, 1, 1])
+    y_pred = np.array([0, 0, 0, 0, 1, 1, 1, 1])
+    reward, assignment = unsupervised_clustering_accuracy(y, y_pred)
+    assert reward == 0.625
+    assert (assignment == np.array([[0, 0], [1, 1]])).all()
+
+    y = np.array([1, 1, 2, 2, 0, 0, 3, 3])
+    y_pred = np.array([1, 1, 2, 2, 3, 3, 0, 0])
+    reward, assignment = unsupervised_clustering_accuracy(y, y_pred)
+    assert reward == 1.0
+    assert (assignment == np.array([[0, 3], [1, 1], [2, 2], [3, 0]])).all()

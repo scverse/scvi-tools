@@ -4,7 +4,7 @@ import numpy as np
 import scipy
 import torch
 from matplotlib import pyplot as plt
-from sklearn.utils.linear_assignment_ import linear_assignment
+from scipy.optimize import linear_sum_assignment
 from scipy.stats import kde, entropy
 from sklearn.neighbors import NearestNeighbors, KNeighborsRegressor
 
@@ -130,7 +130,9 @@ def nn_overlap(X1, X2, k=100):
     return spearman_correlation, fold_enrichment
 
 
-def unsupervised_clustering_accuracy(y, y_pred):
+def unsupervised_clustering_accuracy(
+    y: Union[np.ndarray, torch.Tensor], y_pred: Union[np.ndarray, torch.Tensor]
+) -> tuple:
     """
     Unsupervised Clustering Accuracy
     """
@@ -143,8 +145,15 @@ def unsupervised_clustering_accuracy(y, y_pred):
         if y_ in mapping:
             reward_matrix[mapping[y_pred_], mapping[y_]] += 1
     cost_matrix = reward_matrix.max() - reward_matrix
-    ind = linear_assignment(cost_matrix)
-    return sum([reward_matrix[i, j] for i, j in ind]) * 1.0 / y_pred.size, ind
+    row_assign, col_assign = linear_sum_assignment(cost_matrix)
+
+    # Construct optimal assignments matrix
+    row_assign = row_assign.reshape((-1, 1))  # (n,) to (n, 1) reshape
+    col_assign = col_assign.reshape((-1, 1))  # (n,) to (n, 1) reshape
+    assignments = np.concatenate((row_assign, col_assign), axis=1)
+
+    optimal_reward = reward_matrix[row_assign, col_assign].sum() * 1.0
+    return optimal_reward / y_pred.size, assignments
 
 
 def knn_purity(latent, label, n_neighbors=30):
