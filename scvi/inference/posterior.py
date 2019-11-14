@@ -357,20 +357,8 @@ class Posterior:
                 np.arange(len(self.gene_dataset))[selection], n_samples
             )
             self.update_sampler_indices(idx=idx)
-            for tensors in self:
-                sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
-
-                if use_observed_batches:
-                    selected_batch = batch_index
-                else:
-                    selected_batch = batch_idx * torch.ones_like(sample_batch[:, [0]])
-
-                px_scales += [
-                    self.model.inference(sample_batch, batch_index=selected_batch)[
-                        "px_scale"
-                    ].cpu()
-                ]
-                batch_ids += [selected_batch]
+            px_scales.append(self.get_sample_scale(transform_batch=batch_idx))
+            batch_ids.append(np.ones((px_scales[-1].shape[0])) * batch_idx)
         px_scales = np.concatenate(px_scales)
         batch_ids = np.concatenate(batch_ids).reshape(-1)
         assert (
@@ -1098,7 +1086,7 @@ class Posterior:
         return libraries.ravel()
 
     @torch.no_grad()
-    def get_sample_scale(self):
+    def get_sample_scale(self, transform_batch=None):
         px_scales = []
         for tensors in self:
             sample_batch, _, _, batch_index, labels = tensors
@@ -1106,7 +1094,11 @@ class Posterior:
                 np.array(
                     (
                         self.model.get_sample_scale(
-                            sample_batch, batch_index=batch_index, y=labels, n_samples=1
+                            sample_batch,
+                            batch_index=batch_index,
+                            y=labels,
+                            n_samples=1,
+                            transform_batch=transform_batch,
                         )
                     ).cpu()
                 )
