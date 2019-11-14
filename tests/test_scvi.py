@@ -253,8 +253,8 @@ def test_differential_expression(save_path):
     post = trainer.create_posterior(vae, dataset, shuffle=False, indices=all_indices)
 
     # Sample scale example
-    px_scales = post.sample_scale_from_batch(
-        n_samples_per_cell=4, selection=all_indices
+    px_scales = post.scale_sampler(
+        n_samples_per_cell=4, n_samples=None, selection=all_indices
     )["scale"]
     assert (
         px_scales.shape[1] == dataset.nb_genes

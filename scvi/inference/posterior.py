@@ -1,4 +1,5 @@
 import copy
+import inspect
 import logging
 import os
 import warnings
@@ -251,6 +252,12 @@ class Posterior:
         :return: Tuple px_scales, all_labels where (i) px_scales: scales of shape (M_sampling, n_genes)
             (ii) all_labels: labels of shape (M_sampling, )
         """
+        warnings.warn(
+            "differential_expression_stats() is deprecated; "
+            "use differential_expression_score().",
+            category=DeprecationWarning,
+        )
+
         px_scales = []
         all_labels = []
         batch_size = max(
@@ -286,12 +293,13 @@ class Posterior:
         return px_scales, all_labels
 
     @torch.no_grad()
-    def sample_scale_from_batch(
+    def scale_sampler(
         self,
-        n_samples: Optional[int] = None,
+        selection: Union[List[bool], np.ndarray],
+        n_samples: Optional[int] = 500,
         n_samples_per_cell: Optional[int] = None,
         batchid: Optional[Union[List[int], np.ndarray]] = None,
-        selection: Union[List[bool], np.ndarray] = None,
+        use_observed_batches: Optional[bool] = False,
     ) -> dict:
         """
         :param n_samples: Number of samples in total per batch (fill either `n_samples_total`
@@ -300,6 +308,8 @@ class Posterior:
         (fill either `n_samples_total` or `n_samples_per_cell`)
         :param batchid: Biological batch for which to sample from.
         Default (None) sample from all batches
+        :param use_observed_batches: Whether normalized means are conditioned on observed
+        batches or if observed batches are to be used
         :param selection: Mask or list of cell ids to select
         :return:
         Dictionary containing:
@@ -313,40 +323,59 @@ class Posterior:
                 associated batch ids
 
         """
+        # Get overall number of desired samples and desired batches
+        if batchid is None and not use_observed_batches:
+            batchid = np.arange(self.gene_dataset.n_batches)
+        if use_observed_batches:
+            assert batchid is None, "Unconsistent batch policy"
+            batchid = [None]
         if n_samples is None and n_samples_per_cell is None:
             n_samples = 500
-        if batchid is None:
-            batchid = np.arange(self.gene_dataset.n_batches)
+        elif n_samples_per_cell is not None and n_samples is None:
+            n_samples = n_samples_per_cell * len(selection)
+        n_samples = int(n_samples / len(batchid))
+        if n_samples == 0:
+            warnings.warn(
+                "very small sample size, please consider increasing `n_samples`"
+            )
+            n_samples = 2
 
-        px_scales = []
-        batch_ids = []
+        # Selection of desired cells for sampling
         if selection is None:
             raise ValueError("selections should be a list of cell subsets indices")
-        else:
-            selection = np.array(selection)
-            if selection.dtype is np.dtype("bool"):
-                selection = np.asarray(np.where(selection)[0].ravel())
+        selection = np.array(selection)
+        if selection.dtype is np.dtype("bool"):
+            selection = np.asarray(np.where(selection)[0].ravel())
         old_loader = self.data_loader
-        for i in batchid:
-            # Mode 1: sampling over cells
-            if n_samples is not None:
-                idx = np.random.choice(
-                    np.arange(len(self.gene_dataset))[selection], n_samples
-                )
-                self.update_sampler_indices(idx)
-                scales = self.get_harmonized_scale(i)
-                px_scales.append(scales)
-                batch_ids.append(i * np.ones(len(scales)))
-            elif n_samples_per_cell is not None:
-                self.update_sampler_indices(selection)
-                for _ in range(n_samples_per_cell):
-                    scales = self.get_harmonized_scale(i)
-                    px_scales.append(scales)
-                    batch_ids.append(i * np.ones(len(scales)))
-        self.data_loader = old_loader
-        px_scales = np.concatenate(px_scales)
-        batch_ids = np.concatenate(batch_ids)
 
+        # Sampling loop
+        px_scales = []
+        batch_ids = []
+        for batch_idx in batchid:
+            idx = np.random.choice(
+                np.arange(len(self.gene_dataset))[selection], n_samples
+            )
+            self.update_sampler_indices(idx=idx)
+            for tensors in self:
+                sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
+
+                if use_observed_batches:
+                    selected_batch = batch_index
+                else:
+                    selected_batch = batch_idx * torch.ones_like(sample_batch[:, [0]])
+
+                px_scales += [
+                    self.model.inference(sample_batch, batch_index=selected_batch)[
+                        "px_scale"
+                    ].cpu()
+                ]
+                batch_ids += [selected_batch]
+        px_scales = np.concatenate(px_scales)
+        batch_ids = np.concatenate(batch_ids).reshape(-1)
+        assert (
+            px_scales.shape[0] == batch_ids.shape[0]
+        ), "sampled scales and batches have inconsistent shapes"
+        self.data_loader = old_loader
         return dict(scale=px_scales, batch=batch_ids)
 
     def get_bayes_factors(
@@ -356,6 +385,7 @@ class Posterior:
         mode: Optional[str] = "vanilla",
         batchid1: Optional[Union[List[int], np.ndarray]] = None,
         batchid2: Optional[Union[List[int], np.ndarray]] = None,
+        use_observed_batches: Optional[bool] = False,
         n_samples: int = 5000,
         use_permutation: bool = True,
         M_permutation: int = 10000,
@@ -404,15 +434,17 @@ class Posterior:
                 q(z_A | x_A) and q(z_B | x_B)
 
         # BATCH HANDLING
-        Currently, the code covers two batch handling configurations.
+        Currently, the code covers several batch handling configurations:
+            1. If `use_observed_batches`=True, then batch are considered as observations
+            and cells' normalized means are conditioned on real batch observations
 
-            1. If case (cell group 1) and control (cell group 2) are conditioned on the same
+            2. If case (cell group 1) and control (cell group 2) are conditioned on the same
             batch ids.
                 set(batchid1) = set(batchid2):
                 e.g. batchid1 = batchid2 = None
 
 
-            2. If case and control are conditioned on different batch ids that do not intersect
+            3. If case and control are conditioned on different batch ids that do not intersect
             i.e., set(batchid1) != set(batchid2)
                   and intersection(set(batchid1), set(batchid2)) = \emptyset
 
@@ -432,6 +464,8 @@ class Posterior:
         subpopulation 1. By default, all ids are taken into account
         :param batchid2: List of batch ids for which you want to perform DE Analysis for
         subpopulation 2. By default, all ids are taken into account
+        :param use_observed_batches: Whether normalized means are conditioned on observed
+        batches
 
         ## Sampling parameters
         :param n_samples: Number of posterior samples
@@ -455,11 +489,17 @@ class Posterior:
         """
         eps = 1e-8  # used for numerical stability
         # Normalized means sampling for both populations
-        scales_batches_1 = self.sample_scale_from_batch(
-            selection=idx1, batchid=batchid1, n_samples=n_samples
+        scales_batches_1 = self.scale_sampler(
+            selection=idx1,
+            batchid=batchid1,
+            use_observed_batches=use_observed_batches,
+            n_samples=n_samples,
         )
-        scales_batches_2 = self.sample_scale_from_batch(
-            selection=idx2, batchid=batchid2, n_samples=n_samples
+        scales_batches_2 = self.scale_sampler(
+            selection=idx2,
+            batchid=batchid2,
+            use_observed_batches=use_observed_batches,
+            n_samples=n_samples,
         )
 
         px_scale_mean1 = scales_batches_1["scale"].mean(axis=0)
@@ -472,6 +512,7 @@ class Posterior:
         batchid2_vals = np.unique(scales_batches_2["batch"])
         if set(batchid1_vals) == set(batchid2_vals):
             # First case: same batch normalization in two groups
+            logger.info("Same batches in both cell groups")
             n_batches = len(set(batchid1_vals))
             n_samples_per_batch = (
                 M_permutation // n_batches if M_permutation is not None else None
@@ -501,6 +542,7 @@ class Posterior:
         else:
             # In this case, batch normalization is performed on the same
             # batches in the two cell groups.
+            logger.info("Ignoring batch conditionings to compare means")
             if len(set(batchid1_vals).intersection(set(batchid2_vals))) >= 1:
                 warnings.warn(
                     "Batchids of cells groups 1 and 2 are different but have an non-null "
@@ -546,8 +588,16 @@ class Posterior:
                 def m1_domain_fn(samples):
                     return np.abs(samples) >= delta
 
-            change_distribution = change_fn(scales_1, scales_2)
-            is_de = m1_domain_fn(change_distribution)
+            change_fn_specs = inspect.getfullargspec(change_fn)
+            domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
+            assert (len(change_fn_specs.args) == 2) & (
+                len(domain_fn_specs.args) == 1
+            ), "change_fn should take exactly two parameters as inputs; m1_domain_fn one parameter."
+            try:
+                change_distribution = change_fn(scales_1, scales_2)
+                is_de = m1_domain_fn(change_distribution)
+            except TypeError:
+                raise TypeError("change_fn or m1_domain_fn have has wrong properties.")
             proba_m1 = np.mean(is_de, 0)
             change_distribution_props = describe_continuous_distrib(
                 samples=change_distribution,
@@ -575,6 +625,7 @@ class Posterior:
         mode: Optional[str] = "vanilla",
         batchid1: Optional[Union[List[int], np.ndarray]] = None,
         batchid2: Optional[Union[List[int], np.ndarray]] = None,
+        use_observed_batches: Optional[bool] = False,
         n_samples: int = 5000,
         use_permutation: bool = True,
         M_permutation: int = 10000,
@@ -588,7 +639,7 @@ class Posterior:
         This function is an extension of the `get_bayes_factors` method
         providing additional genes information to the user
 
-                # FUNCTIONING
+        # FUNCTIONING
         Two modes coexist:
             - the "vanilla" mode follows protocol described in arXiv:1709.02082
             In this case, we perform hypothesis testing based on:
@@ -627,15 +678,17 @@ class Posterior:
                 q(z_A | x_A) and q(z_B | x_B)
 
         # BATCH HANDLING
-        Currently, the code covers two batch handling configurations.
+        Currently, the code covers several batch handling configurations:
+            1. If `use_observed_batches`=True, then batch are considered as observations
+            and cells' normalized means are conditioned on real batch observations
 
-            1. If case (cell group 1) and control (cell group 2) are conditioned on the same
+            2. If case (cell group 1) and control (cell group 2) are conditioned on the same
             batch ids.
                 set(batchid1) = set(batchid2):
                 e.g. batchid1 = batchid2 = None
 
 
-            2. If case and control are conditioned on different batch ids that do not intersect
+            3. If case and control are conditioned on different batch ids that do not intersect
             i.e., set(batchid1) != set(batchid2)
                   and intersection(set(batchid1), set(batchid2)) = \emptyset
 
@@ -656,6 +709,8 @@ class Posterior:
         subpopulation 1. By default, all ids are taken into account
         :param batchid2: List of batch ids for which you want to perform DE Analysis for
         subpopulation 2. By default, all ids are taken into account
+        :param use_observed_batches: Whether normalized means are conditioned on observed
+        batches
 
         ## Sampling parameters
         :param n_samples: Number of posterior samples
@@ -684,6 +739,7 @@ class Posterior:
             mode=mode,
             batchid1=batchid1,
             batchid2=batchid2,
+            use_observed_batches=use_observed_batches,
             n_samples=n_samples,
             use_permutation=use_permutation,
             M_permutation=M_permutation,
@@ -729,6 +785,8 @@ class Posterior:
         save_dir: str = "./",
         filename="one2all",
     ):
+        # TODO: Replace all the signatures which are None by default by value interested in
+        # TODO: update signature
         """
         Performs one population vs all others Differential Expression Analysis
         given labels or using cell types, for each type of population
@@ -1008,15 +1066,6 @@ class Posterior:
             libraries += [np.array(library.cpu())]
         libraries = np.concatenate(libraries)
         return libraries.ravel()
-
-    @torch.no_grad()
-    def get_harmonized_scale(self, fixed_batch):
-        px_scales = []
-        fixed_batch = float(fixed_batch)
-        for tensors in self:
-            sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
-            px_scales += [self.model.scale_from_z(sample_batch, fixed_batch).cpu()]
-        return np.concatenate(px_scales)
 
     @torch.no_grad()
     def get_sample_scale(self):
