@@ -192,7 +192,7 @@ class Trainer:
                 self.history[early_stopping_metric + "_" + on][-1]
             )
             if reduce_lr:
-                logger.info("Reducing LR.")
+                logger.info("Reducing LR on epoch {}.".format(self.epoch))
                 for param_group in self.optimizer.param_groups:
                     param_group["lr"] *= self.early_stopping.lr_factor
 
