@@ -775,7 +775,7 @@ class GeneExpressionDataset(Dataset):
         new_n_genes: Optional[int] = None,
         new_ratio_genes: Optional[float] = None,
         subset_genes: Optional[Union[List[int], List[bool], np.ndarray]] = None,
-        mode: Optional[str] = "variance",
+        mode: Optional[str] = "seurat",
         n_bins: Optional[int] = 20,
     ):
         """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling.
@@ -1297,7 +1297,7 @@ class GeneExpressionDataset(Dataset):
             index=np.arange(self.nb_cells),
         ).astype("category")
 
-        counts = self.X
+        counts = self.X.copy()
         if issparse(counts):
             counts = counts.toarray()
         adata = sc.AnnData(X=counts, obs=obs)

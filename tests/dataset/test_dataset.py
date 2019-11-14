@@ -215,10 +215,10 @@ class TestGeneExpressionDataset(TestCase):
 
     def test_populate_from_datasets_cortex(self):
         cortex_dataset_1 = CortexDataset(save_path="tests/data")
-        cortex_dataset_1.subsample_genes(subset_genes=np.arange(0, 3))
+        cortex_dataset_1.subsample_genes(subset_genes=np.arange(0, 3), mode="variance")
         cortex_dataset_1.filter_cell_types(["microglia", "oligodendrocytes"])
         cortex_dataset_2 = CortexDataset(save_path="tests/data")
-        cortex_dataset_2.subsample_genes(subset_genes=np.arange(1, 4))
+        cortex_dataset_2.subsample_genes(subset_genes=np.arange(1, 4), mode="variance")
         cortex_dataset_2.filter_cell_types(
             ["endothelial-mural", "interneurons", "microglia", "oligodendrocytes"]
         )
@@ -270,9 +270,9 @@ class TestGeneExpressionDataset(TestCase):
         gene_names = np.array(["gene_%d" % i for i in range(100)])
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, gene_names=gene_names)
-        dataset.subsample_genes(new_ratio_genes=0.4)
+        dataset.subsample_genes(new_ratio_genes=0.4, mode="variance")
         self.assertTupleEqual(dataset.gene_names.shape, (40,))
-        dataset.subsample_genes(new_n_genes=25)
+        dataset.subsample_genes(new_n_genes=25, mode="variance")
         self.assertTupleEqual(dataset.gene_names.shape, (25,))
         # The most variable genes should be in first position
         self.assertEqual(dataset.gene_names[0], "GENE_99")

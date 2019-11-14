@@ -1,6 +1,6 @@
 import logging
-import sys
 import time
+import sys
 
 from abc import abstractmethod
 from collections import defaultdict, OrderedDict
@@ -11,7 +11,7 @@ import torch
 
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
-from tqdm import trange
+from tqdm.auto import tqdm
 
 from scvi.inference.posterior import Posterior
 
@@ -141,24 +141,23 @@ class Trainer:
         self.n_epochs = n_epochs
         self.compute_metrics()
 
-        with trange(
-            n_epochs, desc="training", file=sys.stdout, disable=not self.show_progbar
-        ) as pbar:
-            # We have to use tqdm this way so it works in Jupyter notebook.
-            # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
-            for self.epoch in pbar:
-                self.on_epoch_begin()
-                pbar.update(1)
-                for tensors_list in self.data_loaders_loop():
-                    if tensors_list[0][0].shape[0] < 3:
-                        continue
-                    loss = self.loss(*tensors_list)
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
+        for self.epoch in tqdm(
+            range(n_epochs),
+            desc="training",
+            disable=not self.show_progbar,
+            file=sys.stdout,
+        ):
+            self.on_epoch_begin()
+            for tensors_list in self.data_loaders_loop():
+                if tensors_list[0][0].shape[0] < 3:
+                    continue
+                loss = self.loss(*tensors_list)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
-                if not self.on_epoch_end():
-                    break
+            if not self.on_epoch_end():
+                break
 
         if self.early_stopping.save_best_state_metric is not None:
             self.model.load_state_dict(self.best_state_dict)
@@ -193,7 +192,7 @@ class Trainer:
                 self.history[early_stopping_metric + "_" + on][-1]
             )
             if reduce_lr:
-                logger.info("Reducing LR.")
+                logger.info("Reducing LR on epoch {}.".format(self.epoch))
                 for param_group in self.optimizer.param_groups:
                     param_group["lr"] *= self.early_stopping.lr_factor
 

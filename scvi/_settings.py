@@ -1,4 +1,5 @@
 import logging
+import sys
 from typing import Union
 
 logger = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ def set_verbosity(level: Union[str, int]):
             )
             has_streamhandler = True
     if not has_streamhandler:
-        ch = logging.StreamHandler()
+        ch = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(
             "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
         )
@@ -60,4 +61,4 @@ def set_verbosity(level: Union[str, int]):
             DispatchingFormatter(formatter, {"scvi.autotune": autotune_formatter})
         )
         scvi_logger.addHandler(ch)
-        logger.info("Added StreamHandler with custom formatter to 'scvi' logger.")
+        logger.debug("Added StreamHandler with custom formatter to 'scvi' logger.")
