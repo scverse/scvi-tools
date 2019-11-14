@@ -61,4 +61,4 @@ def set_verbosity(level: Union[str, int]):
             DispatchingFormatter(formatter, {"scvi.autotune": autotune_formatter})
         )
         scvi_logger.addHandler(ch)
-        logger.info("Added StreamHandler with custom formatter to 'scvi' logger.")
+        logger.debug("Added StreamHandler with custom formatter to 'scvi' logger.")
