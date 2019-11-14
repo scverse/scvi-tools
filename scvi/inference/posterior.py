@@ -32,6 +32,7 @@ from scvi.inference.posterior_utils import (
     knn_purity,
     pairs_sampler,
     describe_continuous_distrib,
+    save_cluster_xlsx,
 )
 from scvi.models.log_likelihood import (
     compute_elbo,
@@ -296,7 +297,7 @@ class Posterior:
     def scale_sampler(
         self,
         selection: Union[List[bool], np.ndarray],
-        n_samples: Optional[int] = 500,
+        n_samples: Optional[int] = 5000,
         n_samples_per_cell: Optional[int] = None,
         batchid: Optional[Union[List[int], np.ndarray]] = None,
         use_observed_batches: Optional[bool] = False,
@@ -330,7 +331,7 @@ class Posterior:
             assert batchid is None, "Unconsistent batch policy"
             batchid = [None]
         if n_samples is None and n_samples_per_cell is None:
-            n_samples = 500
+            n_samples = 5000
         elif n_samples_per_cell is not None and n_samples is None:
             n_samples = n_samples_per_cell * len(selection)
         n_samples = int(n_samples / len(batchid))
@@ -510,7 +511,11 @@ class Posterior:
         # means we consider are conditioned on the same batch id
         batchid1_vals = np.unique(scales_batches_1["batch"])
         batchid2_vals = np.unique(scales_batches_2["batch"])
-        if set(batchid1_vals) == set(batchid2_vals):
+
+        create_pairs_from_same_batches = (
+            set(batchid1_vals) == set(batchid2_vals)
+        ) and not use_observed_batches
+        if create_pairs_from_same_batches:
             # First case: same batch normalization in two groups
             logger.info("Same batches in both cell groups")
             n_batches = len(set(batchid1_vals))
@@ -540,8 +545,6 @@ class Posterior:
             scales_1 = np.concatenate(scales_1, axis=0)
             scales_2 = np.concatenate(scales_2, axis=0)
         else:
-            # In this case, batch normalization is performed on the same
-            # batches in the two cell groups.
             logger.info("Ignoring batch conditionings to compare means")
             if len(set(batchid1_vals).intersection(set(batchid2_vals))) >= 1:
                 warnings.warn(
@@ -777,16 +780,19 @@ class Posterior:
         self,
         subset: Optional[Union[List[bool], np.ndarray]] = None,
         cell_labels: Optional[Union[List, np.ndarray]] = None,
+        use_observed_batches: bool = False,
         min_cells: int = 10,
-        n_samples: int = 500,
-        use_permutation: bool = False,
-        M_permutation: int = None,
+        n_samples: int = 5000,
+        use_permutation: bool = True,
+        M_permutation: int = 10000,
         output_file: bool = False,
+        mode: Optional[str] = "vanilla",
+        change_fn: Optional[Union[str, Callable]] = None,
+        m1_domain_fn: Optional[Callable] = None,
+        delta: Optional[float] = 0.5,
         save_dir: str = "./",
         filename="one2all",
-    ):
-        # TODO: Replace all the signatures which are None by default by value interested in
-        # TODO: update signature
+    ) -> tuple:
         """
         Performs one population vs all others Differential Expression Analysis
         given labels or using cell types, for each type of population
@@ -802,9 +808,15 @@ class Posterior:
             pairs used to compute Bayes Factors becomes M_permutation.
         :param M_permutation: Number of times we will "mix" posterior samples in step 2.
             Only makes sense when use_permutation=True
+        :param use_observed_batches: see `differential_expression_score`
+        :param M_permutation: see `differential_expression_score`
+        :param mode: see `differential_expression_score`
+        :param change_fn: see `differential_expression_score`
+        :param m1_domain_fn: see `differential_expression_score`
+        :param delta: see `differential_expression_score
         :param output_file: Bool: save file?
         :param save_dir:
-        :param filename:
+        :param filename:`
         :return: Tuple (de_res, de_cluster) (i) de_res is a list of length nb_clusters
             (based on provided labels or on hardcoded cell types) (ii) de_res[i] contains Bayes Factors
             for population number i vs all the rest (iii) de_cluster returns the associated names of clusters.
@@ -843,6 +855,11 @@ class Posterior:
                 res = self.differential_expression_score(
                     idx1=idx1,
                     idx2=idx2,
+                    mode=mode,
+                    change_fn=change_fn,
+                    m1_domain_fn=m1_domain_fn,
+                    delta=delta,
+                    use_observed_batches=use_observed_batches,
                     M_permutation=M_permutation,
                     n_samples=n_samples,
                     use_permutation=use_permutation,
@@ -850,30 +867,33 @@ class Posterior:
                 res["clusters"] = np.repeat(x, len(res.index))
                 de_res.append(res)
         if output_file:  # store as an excel spreadsheet
-            writer = pd.ExcelWriter(
-                save_dir + "differential_expression.%s.xlsx" % filename,
-                engine="xlsxwriter",
+            save_cluster_xlsx(
+                filepath=save_dir + "differential_expression.%s.xlsx" % filename,
+                cluster_names=de_cluster,
+                de_results=de_res,
             )
-            for i, x in enumerate(de_cluster):
-                de_res[i].to_excel(writer, sheet_name=str(x))
-            writer.close()
         return de_res, de_cluster
 
     def within_cluster_degenes(
         self,
+        states: Union[List[bool], np.ndarray],
         cell_labels: Optional[Union[List, np.ndarray]] = None,
         min_cells: int = 10,
-        states: Union[List[bool], np.ndarray] = [],
         batch1: Optional[Union[List[int], np.ndarray]] = None,
         batch2: Optional[Union[List[int], np.ndarray]] = None,
+        use_observed_batches: bool = False,
         subset: Optional[Union[List[bool], np.ndarray]] = None,
-        n_samples: int = 500,
-        use_permutation: bool = False,
-        M_permutation: int = None,
+        n_samples: int = 5000,
+        use_permutation: bool = True,
+        M_permutation: int = 10000,
+        mode: Optional[str] = "vanilla",
+        change_fn: Optional[Union[str, Callable]] = None,
+        m1_domain_fn: Optional[Callable] = None,
+        delta: Optional[float] = 0.5,
         output_file: bool = False,
         save_dir: str = "./",
         filename: str = "within_cluster",
-    ):
+    ) -> tuple:
         """
         Performs Differential Expression within clusters for different cell states
 
@@ -895,6 +915,13 @@ class Posterior:
         :param output_file: Bool: save file?
         :param save_dir:
         :param filename:
+        :param use_observed_batches: see `differential_expression_score`
+        :param M_permutation: see `differential_expression_score`
+        :param mode: see `differential_expression_score`
+        :param change_fn: see `differential_expression_score`
+        :param m1_domain_fn: see `differential_expression_score`
+        :param delta: see `differential_expression_score
+
         :return: Tuple (de_res, de_cluster) (i) de_res is a list of length nb_clusters
             (based on provided labels or on hardcoded cell types) (ii) de_res[i] contains Bayes Factors
             for population number i vs all the rest (iii) de_cluster returns the associated names of clusters.
@@ -941,20 +968,23 @@ class Posterior:
                     idx2=idx2,
                     batchid1=batch1,
                     batchid2=batch2,
+                    use_observed_batches=use_observed_batches,
                     M_permutation=M_permutation,
                     n_samples=n_samples,
                     use_permutation=use_permutation,
+                    mode=mode,
+                    change_fn=change_fn,
+                    m1_domain_fn=m1_domain_fn,
+                    delta=delta,
                 )
                 res["clusters"] = np.repeat(x, len(res.index))
                 de_res.append(res)
         if output_file:  # store as an excel spreadsheet
-            writer = pd.ExcelWriter(
-                save_dir + "differential_expression.%s.xlsx" % filename,
-                engine="xlsxwriter",
+            save_cluster_xlsx(
+                filepath=save_dir + "differential_expression.%s.xlsx" % filename,
+                cluster_names=de_cluster,
+                de_results=de_res,
             )
-            for i, x in enumerate(de_cluster):
-                de_res[i].to_excel(writer, sheet_name=str(x))
-            writer.close()
         return de_res, de_cluster
 
     @torch.no_grad()

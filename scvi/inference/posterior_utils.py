@@ -1,6 +1,7 @@
 from typing import List, Optional, Union
 
 import numpy as np
+import pandas as pd
 import scipy
 import torch
 from matplotlib import pyplot as plt
@@ -297,3 +298,20 @@ def describe_continuous_distrib(
         dist_props["confidence_interval_{}_max".format(conf_str)] = interval_max
 
     return dist_props
+
+
+def save_cluster_xlsx(
+    filepath: str, de_results: List[pd.DataFrame], cluster_names: List
+):
+    """
+    Saves multi-clusters DE in an xlsx sheet
+
+    :param filepath: xslx save path
+    :param de_results: list of pandas Dataframes for each cluster
+    :param cluster_names: list of cluster names
+    :return:
+    """
+    writer = pd.ExcelWriter(filepath, engine="xlsxwriter",)
+    for i, x in enumerate(cluster_names):
+        de_results[i].to_excel(writer, sheet_name=str(x))
+    writer.close()
