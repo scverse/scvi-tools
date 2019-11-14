@@ -775,7 +775,7 @@ class GeneExpressionDataset(Dataset):
         new_n_genes: Optional[int] = None,
         new_ratio_genes: Optional[float] = None,
         subset_genes: Optional[Union[List[int], List[bool], np.ndarray]] = None,
-        mode: Optional[str] = "variance",
+        mode: Optional[str] = "seurat",
         n_bins: Optional[int] = 20,
     ):
         """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling.
