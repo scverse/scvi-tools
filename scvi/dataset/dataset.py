@@ -1297,7 +1297,7 @@ class GeneExpressionDataset(Dataset):
             index=np.arange(self.nb_cells),
         ).astype("category")
 
-        counts = self.X
+        counts = self.X.copy()
         if issparse(counts):
             counts = counts.toarray()
         adata = sc.AnnData(X=counts, obs=obs)
