@@ -1,5 +1,6 @@
 import logging
 import time
+import sys
 
 from abc import abstractmethod
 from collections import defaultdict, OrderedDict
@@ -141,7 +142,10 @@ class Trainer:
         self.compute_metrics()
 
         for self.epoch in tqdm(
-            range(n_epochs), desc="training", disable=not self.show_progbar
+            range(n_epochs),
+            desc="training",
+            disable=not self.show_progbar,
+            file=sys.stdout,
         ):
             self.on_epoch_begin()
             for tensors_list in self.data_loaders_loop():
