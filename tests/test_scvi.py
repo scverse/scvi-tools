@@ -9,6 +9,7 @@ from scvi.inference import (
     AdapterTrainer,
     TotalTrainer,
 )
+from scvi.inference.posterior import unsupervised_clustering_accuracy
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE
 from scvi.models.classifier import Classifier
@@ -111,7 +112,6 @@ def test_synthetic_1():
     trainer_synthetic_svaec.unlabelled_set.differential_expression_score(
         synthetic_dataset.labels.ravel() == 1,
         synthetic_dataset.labels.ravel() == 2,
-        genes=["2", "4"],
         n_samples=2,
         M_permutation=10,
     )
@@ -243,6 +243,58 @@ def test_sampling_zl(save_path):
     trainer_cortex_cls.test_set.accuracy()
 
 
+def test_differential_expression(save_path):
+    dataset = CortexDataset(save_path=save_path)
+    n_cells = len(dataset)
+    all_indices = np.arange(n_cells)
+    vae = VAE(dataset.nb_genes, dataset.n_batches)
+    trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
+    trainer.train(n_epochs=2)
+    post = trainer.create_posterior(vae, dataset, shuffle=False, indices=all_indices)
+
+    # Sample scale example
+    px_scales = post.scale_sampler(
+        n_samples_per_cell=4, n_samples=None, selection=all_indices
+    )["scale"]
+    assert (
+        px_scales.shape[1] == dataset.nb_genes
+    ), "posterior scales should have shape (n_samples, n_genes)"
+
+    # Differential expression different models
+    idx_1 = [1, 2, 3]
+    idx_2 = [4, 5, 6, 7]
+    de_dataframe = post.differential_expression_score(
+        idx1=idx_1,
+        idx2=idx_2,
+        n_samples=10,
+        mode="vanilla",
+        use_permutation=True,
+        M_permutation=100,
+    )
+
+    de_dataframe = post.differential_expression_score(
+        idx1=idx_1,
+        idx2=idx_2,
+        n_samples=10,
+        mode="change",
+        use_permutation=True,
+        M_permutation=100,
+    )
+    print(de_dataframe.keys())
+    assert (
+        de_dataframe["confidence_interval_0.5_min"]
+        <= de_dataframe["confidence_interval_0.5_max"]
+    ).all()
+    assert (
+        de_dataframe["confidence_interval_0.95_min"]
+        <= de_dataframe["confidence_interval_0.95_max"]
+    ).all()
+
+    # DE estimation example
+    de_probabilities = de_dataframe.loc[:, "proba_de"]
+    assert ((0.0 <= de_probabilities) & (de_probabilities <= 1.0)).all()
+
+
 def test_totalvi(save_path):
     synthetic_dataset_one_batch = SyntheticDataset(n_batches=1)
     totalvi_benchmark(synthetic_dataset_one_batch, n_epochs=1, use_cuda=use_cuda)
@@ -267,3 +319,17 @@ def test_autozi(save_path):
         trainer_autozivae.test_set.elbo()
         trainer_autozivae.test_set.reconstruction_error()
         trainer_autozivae.test_set.marginal_ll()
+
+
+def test_deprecated_munkres():
+    y = np.array([0, 1, 0, 1, 0, 1, 1, 1])
+    y_pred = np.array([0, 0, 0, 0, 1, 1, 1, 1])
+    reward, assignment = unsupervised_clustering_accuracy(y, y_pred)
+    assert reward == 0.625
+    assert (assignment == np.array([[0, 0], [1, 1]])).all()
+
+    y = np.array([1, 1, 2, 2, 0, 0, 3, 3])
+    y_pred = np.array([1, 1, 2, 2, 3, 3, 0, 0])
+    reward, assignment = unsupervised_clustering_accuracy(y, y_pred)
+    assert reward == 1.0
+    assert (assignment == np.array([[0, 3], [1, 1], [2, 2], [3, 0]])).all()

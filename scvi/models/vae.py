@@ -144,19 +144,26 @@ class VAE(nn.Module):
         ql_m, ql_v, library = self.l_encoder(x)
         return library
 
-    def get_sample_scale(self, x, batch_index=None, y=None, n_samples=1):
+    def get_sample_scale(
+        self, x, batch_index=None, y=None, n_samples=1, transform_batch=None
+    ):
         r"""Returns the tensor of predicted frequencies of expression
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
         :param n_samples: number of samples
+        :transform_batch: int of batch to transform samples into
         :return: tensor of predicted frequencies of expression with shape ``(batch_size, n_input)``
         :rtype: :py:class:`torch.Tensor`
         """
-        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[
-            "px_scale"
-        ]
+        return self.inference(
+            x,
+            batch_index=batch_index,
+            y=y,
+            n_samples=n_samples,
+            transform_batch=transform_batch,
+        )["px_scale"]
 
     def get_sample_rate(self, x, batch_index=None, y=None, n_samples=1):
         r"""Returns the tensor of means of the negative binomial distribution
@@ -189,7 +196,7 @@ class VAE(nn.Module):
         px_scale, _, _, _ = self.decoder("gene", z, library, batch_index)
         return px_scale
 
-    def inference(self, x, batch_index=None, y=None, n_samples=1):
+    def inference(self, x, batch_index=None, y=None, n_samples=1, transform_batch=None):
 
         x_ = x
         if self.log_variational:
@@ -207,15 +214,20 @@ class VAE(nn.Module):
             ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
             library = Normal(ql_m, ql_v.sqrt()).sample()
 
+        if transform_batch is not None:
+            dec_batch_index = transform_batch * torch.ones_like(batch_index)
+        else:
+            dec_batch_index = batch_index
+
         px_scale, px_r, px_rate, px_dropout = self.decoder(
-            self.dispersion, z, library, batch_index, y
+            self.dispersion, z, library, dec_batch_index, y
         )
         if self.dispersion == "gene-label":
             px_r = F.linear(
                 one_hot(y, self.n_labels), self.px_r
             )  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+            px_r = F.linear(one_hot(dec_batch_index, self.n_batch), self.px_r)
         elif self.dispersion == "gene":
             px_r = self.px_r
         px_r = torch.exp(px_r)
