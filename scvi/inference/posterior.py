@@ -353,6 +353,10 @@ class Posterior:
             n_samples = 5000
         elif n_samples_per_cell is not None and n_samples is None:
             n_samples = n_samples_per_cell * len(selection)
+        if (n_samples_per_cell is not None) and (n_samples is not None):
+            warnings.warn(
+                "n_samples and n_samples_per_cell were provided. Ignoring n_samples_per_cell"
+            )
         n_samples = int(n_samples / len(batchid))
         if n_samples == 0:
             warnings.warn(
