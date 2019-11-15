@@ -237,7 +237,26 @@ class Posterior:
 
     def update_sampler_indices(self, idx: Union[List, np.ndarray]):
         """
-        Updates the dataloader indices
+        Updates the dataloader indices.
+        More precisely, this method can be used to temporarily change which cells __iter__
+        will yield.
+        This is particularly useful for computational considerations when one is only interested
+        in a subset of the cells of the Posterior object.
+
+        This method should be used carefully and requires to reset the dataloader to its
+        original value after use.
+        e.g.,
+        ```
+            old_loader = self.data_loader
+            cell_indices = np.array([1, 2, 3])
+            self.update_sampler_indices(cell_indices)
+            for tensors in self:
+                # your code
+
+            # Do not forget next line!
+            self.data_loader = old_loader
+        ```
+
         :param idx: Indices (in [0, len(dataset)] to sample from
         """
         sampler = SubsetRandomSampler(idx)
