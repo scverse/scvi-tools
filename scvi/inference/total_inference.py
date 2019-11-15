@@ -396,14 +396,24 @@ class TotalPosterior(Posterior):
         return px_dropouts
 
     @torch.no_grad()
-    def get_sample_mixing(self, n_samples: int = 1, give_mean: bool = True):
+    def get_sample_mixing(
+        self,
+        n_samples: int = 1,
+        give_mean: bool = True,
+        transform_batch: Optional[int] = None,
+    ):
         """ Returns mixing bernoulli parameter for negative binomial mixtures
         """
         py_mixings = []
         for tensors in self:
             x, _, _, batch_index, label, y = tensors
             outputs = self.model.inference(
-                x, y, batch_index=batch_index, label=label, n_samples=n_samples
+                x,
+                y,
+                batch_index=batch_index,
+                label=label,
+                n_samples=n_samples,
+                transform_batch=transform_batch,
             )
             py_mixing = outputs["py_"]["mixing"]
             py_mixings += [py_mixing.cpu()]
@@ -426,8 +436,9 @@ class TotalPosterior(Posterior):
     def get_normalized_denoised_expression(
         self,
         n_samples: int = 1,
-        sample_protein_mixing: bool = True,
         give_mean: bool = True,
+        transform_batch: Optional[int] = None,
+        sample_protein_mixing: bool = True,
     ):
         """Returns the tensors of denoised normalized gene and protein expression
 
@@ -442,7 +453,12 @@ class TotalPosterior(Posterior):
         for tensors in self:
             x, _, _, batch_index, label, y = tensors
             outputs = self.model.inference(
-                x, y, batch_index=batch_index, label=label, n_samples=n_samples
+                x,
+                y,
+                batch_index=batch_index,
+                label=label,
+                n_samples=n_samples,
+                transform_batch=transform_batch,
             )
             px_scale = outputs["px_"]["scale"]
 
@@ -475,6 +491,51 @@ class TotalPosterior(Posterior):
         scale_list_pro = scale_list_pro.cpu().numpy()
 
         return scale_list_gene, scale_list_pro
+
+    @torch.no_grad()
+    def get_protein_mean(
+        self,
+        n_samples: int = 1,
+        give_mean: bool = True,
+        transform_batch: Optional[int] = None,
+    ):
+        """Returns the tensors of protein mean (with foreground and background)
+
+        :param n_samples: number of samples from posterior distribution
+        :param give_mean: bool, whether to return samples along first axis or average over samples
+        :rtype: :py:class:`np.ndarray`
+        """
+
+        rate_list_pro = []
+        for tensors in self:
+            x, _, _, batch_index, label, y = tensors
+            outputs = self.model.inference(
+                x,
+                y,
+                batch_index=batch_index,
+                label=label,
+                n_samples=n_samples,
+                transform_batch=transform_batch,
+            )
+            py_ = outputs["py_"]
+            pi = 1 / (1 + torch.exp(-py_["mixing"]))
+            protein_rate = py_["rate_fore"] * (1 - pi) + py_["rate_back"] * pi
+            rate_list_pro.append(protein_rate.cpu())
+
+        if n_samples > 1:
+            # concatenate along batch dimension -> result shape = (samples, cells, features)
+            rate_list_pro = torch.cat(rate_list_pro, dim=1)
+            # (cells, features, samples)
+            rate_list_pro = rate_list_pro.permute(1, 2, 0)
+        else:
+            rate_list_pro = torch.cat(rate_list_pro, dim=0)
+
+        if give_mean is True and n_samples > 1:
+            rate_list_pro = torch.mean(rate_list_pro, dim=-1)
+
+        rate_list_pro = rate_list_pro.cpu().numpy()
+
+        return rate_list_pro
 
     @torch.no_grad()
     def generate_denoised_samples(
@@ -778,10 +839,12 @@ class TotalTrainer(UnsupervisedTrainer):
         pro_recons_weight=1.0,
         n_epochs_back_kl_warmup=200,
         n_epochs_kl_warmup=200,
+        imputation_mode=False,
         **kwargs
     ):
         self.n_genes = dataset.nb_genes
         self.n_proteins = model.n_input_proteins
+        self.imputation_mode = imputation_mode
 
         self.pro_recons_weight = pro_recons_weight
         self.n_epochs_back_kl_warmup = n_epochs_back_kl_warmup
@@ -809,13 +872,26 @@ class TotalTrainer(UnsupervisedTrainer):
             label,
         )
 
-        loss = torch.mean(
-            reconst_loss_gene
-            + self.pro_recons_weight * reconst_loss_protein
-            + self.kl_weight * kl_div_z
-            + kl_div_l_gene
-            + self.back_warmup_weight * kl_div_back_pro
-        )
+        if self.imputation_mode is True:
+            loss = 0
+            for b in range(len(torch.unique(batch_index))):
+                inds = (batch_index == b).reshape(-1)
+                loss += torch.mean(
+                    reconst_loss_gene[inds]
+                    + self.pro_recons_weight * reconst_loss_protein[inds]
+                    + self.kl_weight * kl_div_z[inds]
+                    + kl_div_l_gene[inds]
+                    + self.back_warmup_weight * kl_div_back_pro[inds]
+                )
+            loss /= 2
+        else:
+            loss = torch.mean(
+                reconst_loss_gene
+                + self.pro_recons_weight * reconst_loss_protein
+                + self.kl_weight * kl_div_z
+                + kl_div_l_gene
+                + self.back_warmup_weight * kl_div_back_pro
+            )
         return loss
 
     def on_epoch_begin(self):
