@@ -274,7 +274,7 @@ class Posterior:
         """
         warnings.warn(
             "differential_expression_stats() is deprecated; "
-            "use differential_expression_score().",
+            "use differential_expression_score() or get_sample_scale().",
             category=DeprecationWarning,
         )
 
