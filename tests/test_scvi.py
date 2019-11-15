@@ -321,7 +321,7 @@ def test_autozi(save_path):
         trainer_autozivae.test_set.marginal_ll()
 
 
-def test_depreciated_munkres():
+def test_deprecated_munkres():
     y = np.array([0, 1, 0, 1, 0, 1, 1, 1])
     y_pred = np.array([0, 0, 0, 0, 1, 1, 1, 1])
     reward, assignment = unsupervised_clustering_accuracy(y, y_pred)
