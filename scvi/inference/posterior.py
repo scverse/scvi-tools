@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.distributions as distributions
+from tqdm.auto import tqdm
 from matplotlib import pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
@@ -528,7 +529,7 @@ class Posterior:
         ) and not use_observed_batches
         if create_pairs_from_same_batches:
             # First case: same batch normalization in two groups
-            logger.info("Same batches in both cell groups")
+            logger.debug("Same batches in both cell groups")
             n_batches = len(set(batchid1_vals))
             n_samples_per_batch = (
                 M_permutation // n_batches if M_permutation is not None else None
@@ -556,7 +557,7 @@ class Posterior:
             scales_1 = np.concatenate(scales_1, axis=0)
             scales_2 = np.concatenate(scales_2, axis=0)
         else:
-            logger.info("Ignoring batch conditionings to compare means")
+            logger.debug("Ignoring batch conditionings to compare means")
             if len(set(batchid1_vals).intersection(set(batchid2_vals))) >= 1:
                 warnings.warn(
                     "Batchids of cells groups 1 and 2 are different but have an non-null "
@@ -572,7 +573,7 @@ class Posterior:
 
         # Core of function: hypotheses testing based on the posterior samples we obtained above
         if mode == "vanilla":
-            logger.info("Differential expression using vanilla mode")
+            logger.debug("Differential expression using vanilla mode")
             proba_m1 = np.mean(scales_1 > scales_2, 0)
             proba_m2 = 1.0 - proba_m1
             res = dict(
@@ -584,7 +585,7 @@ class Posterior:
             )
 
         elif mode == "change":
-            logger.info("Differential expression using change mode")
+            logger.debug("Differential expression using change mode")
 
             # step 1: Construct the change function
             def lfc(x, y):
@@ -858,7 +859,7 @@ class Posterior:
             cell_labels = self.gene_dataset.labels.ravel()
         de_res = []
         de_cluster = []
-        for i, x in enumerate(cluster_id):
+        for i, x in enumerate(tqdm(cluster_id)):
             if subset is None:
                 idx1 = cell_labels == i
                 idx2 = cell_labels != i
