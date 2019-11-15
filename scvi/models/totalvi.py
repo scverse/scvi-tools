@@ -475,7 +475,7 @@ class TOTALVI(nn.Module):
 
         kl_div_back_pro_full = torch.clamp(
             kl(Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior),
-            max=torch.exp(12),
+            max=torch.exp(torch.tensor(12.0)),
         )
         if pro_batch_mask_minibatch is not None:
             kl_div_back_pro = (kl_div_back_pro_full * pro_batch_mask_minibatch).sum(
