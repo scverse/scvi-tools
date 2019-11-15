@@ -419,15 +419,15 @@ class Posterior:
             The `change_fn` function computes the effect size variable r based two inputs
             corresponding to the normalized means in both populations
             Hypotheses:
-                M_1: r \in R_0 (effect size r in region inducing differential expression)
-                M_2: r not \in R_0 (no differential expression)
-            To characterize the region R_0, the user has two choices.
+                M_1: r \in R_1 (effect size r in region inducing differential expression)
+                M_2: r not \in R_1 (no differential expression)
+            To characterize the region R_1 which induces DE, the user has two choices.
                 1. A common case is when the region [-delta, delta] does not induce differential
                 expression.
                 If the user specifies a threshold delta,
-                we suppose that R_0 = \mathbb{R} \ [-delta, delta]
+                we suppose that R_1 = \mathbb{R} \ [-delta, delta]
                 2. specify an specific indicator function f: \mathbb{R} -> {0, 1} s.t.
-                    r \in R_0 iff f(r) = 1
+                    r \in R_1 iff f(r) = 1
 
             Decision-making can then be based on the estimates of
                 p(M_1 | x_1, x_2)
@@ -607,7 +607,11 @@ class Posterior:
                 change_distribution = change_fn(scales_1, scales_2)
                 is_de = m1_domain_fn(change_distribution)
             except TypeError:
-                raise TypeError("change_fn or m1_domain_fn have has wrong properties.")
+                raise TypeError(
+                    "change_fn or m1_domain_fn have has wrong properties."
+                    "Please ensure that these functions have the right signatures and"
+                    "outputs and that they can process numpy arrays"
+                )
             proba_m1 = np.mean(is_de, 0)
             change_distribution_props = describe_continuous_distrib(
                 samples=change_distribution,
