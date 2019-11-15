@@ -1,4 +1,4 @@
-from .posterior import Posterior, get_bayes_factors
+from .posterior import Posterior
 from .trainer import Trainer
 from .inference import UnsupervisedTrainer, AdapterTrainer
 from .annotation import (
@@ -22,5 +22,4 @@ __all__ = [
     "JVAETrainer",
     "TotalPosterior",
     "TotalTrainer",
-    "get_bayes_factors",
 ]

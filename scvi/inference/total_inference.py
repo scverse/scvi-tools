@@ -1,14 +1,12 @@
-from typing import Optional, List, Union
+from typing import Optional
 
 import logging
 import torch
 from torch.distributions import Poisson, Gamma, Bernoulli, Normal
 from torch.utils.data import DataLoader
 import numpy as np
-import pandas as pd
 
 from scvi.inference import Posterior
-from . import get_bayes_factors
 from . import UnsupervisedTrainer
 
 from scvi.dataset import GeneExpressionDataset
@@ -699,134 +697,6 @@ class TotalPosterior(Posterior):
     @torch.no_grad()
     def get_sample_scale(self):
         raise NotImplementedError
-
-    @torch.no_grad()
-    def differential_expression_score(
-        self,
-        idx1: Union[List[bool], np.ndarray],
-        idx2: Union[List[bool], np.ndarray],
-        batchid1: Optional[Union[List[int], np.ndarray]] = None,
-        batchid2: Optional[Union[List[int], np.ndarray]] = None,
-        genes: Optional[Union[List[str], np.ndarray]] = None,
-        n_samples: int = None,
-        sample_pairs: bool = True,
-        M_permutation: int = None,
-        all_stats: bool = True,
-    ):
-        """
-        Computes gene specific Bayes factors using masks idx1 and idx2
-
-        To that purpose we sample the Posterior in the following way:
-            1. The posterior is sampled n_samples times for each subpopulation
-            2. For computation efficiency (posterior sampling is quite expensive), instead of
-                comparing element-wise the obtained samples, we can permute posterior samples.
-                Remember that computing the Bayes Factor requires sampling
-                q(z_A | x_A) and q(z_B | x_B)
-
-        :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
-            from associated population
-        :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
-            from associated population
-        :param batchid1: List of batch ids for which you want to perform DE Analysis for
-            subpopulation 1. By default, all ids are taken into account
-        :param batchid2: List of batch ids for which you want to perform DE Analysis for
-            subpopulation 2. By default, all ids are taken into account
-        :param genes: list Names of genes for which Bayes factors will be computed
-        :param n_samples: Number of times the posterior will be sampled for each pop
-        :param sample_pairs: Activates step 2 described above.
-            Simply formulated, pairs obtained from posterior sampling (when calling
-            `sample_scale_from_batch`) will be randomly permuted so that the number of
-            pairs used to compute Bayes Factors becomes M_permutation.
-        :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-            Only makes sense when sample_pairs=True
-        :param all_stats: If False returns Bayes factors alone
-            else, returns not only Bayes Factor of population 1 vs population 2 but other metrics as
-            well, mostly used for sanity checks, such as (i) Bayes Factors of 2 vs 1 and (ii)
-            Bayes factors obtained when shuffled indices (iii) Gene expression statistics (mean, scale ...)
-        :return:
-        """
-
-        n_samples = 5000 if n_samples is None else n_samples
-        M_permutation = 10000 if M_permutation is None else M_permutation
-        if batchid1 is None:
-            batchid1 = np.arange(self.gene_dataset.n_batches)
-        if batchid2 is None:
-            batchid2 = np.arange(self.gene_dataset.n_batches)
-        px_scale1 = self.sample_scale_from_batch(
-            selection=idx1, batchid=batchid1, n_samples=n_samples
-        )
-        px_scale2 = self.sample_scale_from_batch(
-            selection=idx2, batchid=batchid2, n_samples=n_samples
-        )
-        px_scale_mean1 = px_scale1.mean(axis=0)
-        px_scale_mean2 = px_scale2.mean(axis=0)
-        px_scale = np.concatenate((px_scale1, px_scale2), axis=0)
-        all_labels = np.concatenate(
-            (np.repeat(0, len(px_scale1)), np.repeat(1, len(px_scale2))), axis=0
-        )
-        if genes is not None:
-            px_scale = px_scale[:, self.gene_dataset.genes_to_index(genes)]
-        bayes1 = get_bayes_factors(
-            px_scale,
-            all_labels,
-            cell_idx=0,
-            M_permutation=M_permutation,
-            permutation=False,
-            sample_pairs=sample_pairs,
-        )
-        if all_stats is True:
-            bayes1_permuted = get_bayes_factors(
-                px_scale,
-                all_labels,
-                cell_idx=0,
-                M_permutation=M_permutation,
-                permutation=True,
-                sample_pairs=sample_pairs,
-            )
-            bayes2 = get_bayes_factors(
-                px_scale,
-                all_labels,
-                cell_idx=1,
-                M_permutation=M_permutation,
-                permutation=False,
-                sample_pairs=sample_pairs,
-            )
-            bayes2_permuted = get_bayes_factors(
-                px_scale,
-                all_labels,
-                cell_idx=1,
-                M_permutation=M_permutation,
-                permutation=True,
-                sample_pairs=sample_pairs,
-            )
-            lfc = np.log2(px_scale_mean1) - np.log2(px_scale_mean2)
-            res = pd.DataFrame(
-                [
-                    bayes1,
-                    bayes1_permuted,
-                    bayes2,
-                    bayes2_permuted,
-                    px_scale_mean1,
-                    px_scale_mean2,
-                    lfc,
-                ],
-                index=[
-                    "bayes1",
-                    "bayes1_permuted",
-                    "bayes2",
-                    "bayes2_permuted",
-                    "scale1",
-                    "scale2",
-                    "lfc",
-                ],
-                columns=np.concatenate(
-                    [self.gene_dataset.gene_names, self.gene_dataset.protein_names]
-                ),
-            ).T
-            res = res.sort_values(by=["bayes1"], ascending=False)
-            return res
-        else:
-            return bayes1
 
 
 class TotalTrainer(UnsupervisedTrainer):
