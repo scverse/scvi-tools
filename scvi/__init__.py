@@ -17,5 +17,7 @@ logger.addHandler(NullHandler())
 
 # default to INFO level logging for the scvi package
 set_verbosity(logging.INFO)
+# this prevents double outputs
+logger.propagate = False
 
 __all__ = ["set_verbosity"]
