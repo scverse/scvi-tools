@@ -7,8 +7,10 @@ from collections import OrderedDict, defaultdict
 from dataclasses import dataclass
 from functools import partial
 from typing import Dict, Iterable, List, Tuple, Union, Optional, Callable
+from scipy.sparse import issparse
 
 import numpy as np
+import pandas as pd
 import scipy.sparse as sp_sparse
 import torch
 from sklearn.preprocessing import StandardScaler
@@ -740,9 +742,10 @@ class GeneExpressionDataset(Dataset):
         self.local_vars = np.zeros((self.nb_cells, 1))
         for i_batch in range(self.n_batches):
             idx_batch = np.squeeze(self.batch_indices == i_batch)
-            self.local_means[idx_batch], self.local_vars[
-                idx_batch
-            ] = compute_library_size(self.X[idx_batch])
+            (
+                self.local_means[idx_batch],
+                self.local_vars[idx_batch],
+            ) = compute_library_size(self.X[idx_batch])
         self.cell_attribute_names.update(["local_means", "local_vars"])
 
     def collate_fn_builder(
@@ -797,6 +800,8 @@ class GeneExpressionDataset(Dataset):
         new_n_genes: Optional[int] = None,
         new_ratio_genes: Optional[float] = None,
         subset_genes: Optional[Union[List[int], List[bool], np.ndarray]] = None,
+        mode: Optional[str] = "seurat",
+        n_bins: Optional[int] = 20,
     ):
         """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling.
 
@@ -808,6 +813,8 @@ class GeneExpressionDataset(Dataset):
         :param subset_genes: list of indices or mask of genes to retain
         :param new_n_genes: number of genes to retain, the highly variable genes will be kept
         :param new_ratio_genes: proportion of genes to retain, the highly variable genes will be kept
+        :param mode: Either "variance", "seurat" or "cell_ranger"
+        :param n_bins: Number of bins used in Seurat mode
         """
         if new_ratio_genes is not None:
             if 0 < new_ratio_genes < 1:
@@ -829,9 +836,17 @@ class GeneExpressionDataset(Dataset):
                 )
                 return
 
-            std_scaler = StandardScaler(with_mean=False)
-            std_scaler.fit(self.X.astype(np.float64))
-            subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
+            if mode == "variance":
+                std_scaler = StandardScaler(with_mean=False)
+                std_scaler.fit(self.X.astype(np.float64))
+                subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
+            elif mode in ["seurat", "cell_ranger"]:
+                genes_infos = self.highly_variable_genes(
+                    n_bins=n_bins, n_top_genes=new_n_genes, flavor=mode
+                )
+                subset_genes = np.where(genes_infos["highly_variable"])[0]
+            else:
+                raise ValueError("Mode {mode} not implemented".format(mode=mode))
 
         if subset_genes is None:
             logger.info(
@@ -1237,6 +1252,101 @@ class GeneExpressionDataset(Dataset):
             np.squeeze(np.asarray(norm_mean1)),
             np.squeeze(np.asarray(norm_mean2)),
         )
+
+    def highly_variable_genes(
+        self,
+        min_disp: Optional[float] = None,
+        max_disp: Optional[float] = None,
+        min_mean: Optional[float] = None,
+        max_mean: Optional[float] = None,
+        n_top_genes: Optional[int] = None,
+        n_bins: int = 20,
+        flavor: Optional[str] = "seurat",
+        batch_correction: Optional[bool] = True,
+    ) -> pd.DataFrame:
+        """\
+        Code sample taken from the scanpy package
+        Annotate highly variable genes [Satija15]_ [Zheng17]_.
+        Depending on `flavor`, this reproduces the R-implementations of Seurat
+        [Satija15]_ and Cell Ranger [Zheng17]_.
+        The normalized dispersion is obtained by scaling with the mean and standard
+        deviation of the dispersions for genes falling into a given bin for mean
+        expression of genes. This means that for each bin of mean expression, highly
+        variable genes are selected.
+        Parameters
+        ----------
+        :param min_mean:
+            If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
+            normalized dispersions are ignored.
+        :param max_mean:
+            If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
+            normalized dispersions are ignored.
+        :param min_disp:
+            If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
+            normalized dispersions are ignored.
+        :param max_disp:
+            If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
+            normalized dispersions are ignored.
+        :param n_top_genes:
+            Number of highly-variable genes to keep.
+        :param n_bins:
+            Number of bins for binning the mean gene expression. Normalization is
+            done with respect to each bin. If just a single gene falls into a bin,
+            the normalized dispersion is artificially set to 1. You'll be informed
+            about this if you set `settings.verbosity = 4`.
+        :param flavor:
+            Choose the flavor for computing normalized dispersion. In their default
+            workflows, Seurat passes the cutoffs whereas Cell Ranger passes
+            `n_top_genes`.
+        :param batch_correction:
+            Whether batches should be taken into account during procedure
+
+        :return:
+            scanpy .var DataFrame providing genes information including means, dispersions
+            and whether the gene is tagged highly variable (key `highly_variable`)
+            (see scanpy highly_variable_genes documentation)
+
+        """
+
+        logger.info("extracting highly variable genes")
+        try:
+            import scanpy as sc
+        except ImportError:
+            raise ImportError(
+                "please install scanpy: " "pip install scanpy python-igraph louvain"
+            )
+
+        # Creating AnnData structure
+        obs = pd.DataFrame(
+            data=dict(batch=self.batch_indices.squeeze()),
+            index=np.arange(self.nb_cells),
+        ).astype("category")
+
+        counts = self.X.copy()
+        if issparse(counts):
+            counts = counts.toarray()
+        adata = sc.AnnData(X=counts, obs=obs)
+        batch_key = "batch" if batch_correction else None
+        # Counts normalization
+        sc.pp.normalize_total(adata, target_sum=1e4)
+        # logarithmed data
+        sc.pp.log1p(adata)
+
+        # Finding top genes
+        sc.pp.highly_variable_genes(
+            adata=adata,
+            min_disp=min_disp,
+            max_disp=max_disp,
+            min_mean=min_mean,
+            max_mean=max_mean,
+            n_top_genes=n_top_genes,
+            n_bins=n_bins,
+            flavor=flavor,
+            batch_key=batch_key,
+            inplace=True,  # inplace=False looks buggy
+        )
+
+        return adata.var
 
     def get_batch_mask_cell_measurement(self, attribute_name: str):
         """Returns a list with length number of batches where each entry is a mask over present
