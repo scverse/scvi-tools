@@ -1,10 +1,11 @@
-from typing import Optional
+from typing import Optional, Union, List, Callable
 
 import logging
 import torch
 from torch.distributions import Poisson, Gamma, Bernoulli, Normal
 from torch.utils.data import DataLoader
 import numpy as np
+import pandas as pd
 
 from scvi.inference import Posterior
 from . import UnsupervisedTrainer
@@ -300,17 +301,6 @@ class TotalPosterior(Posterior):
         raise NotImplementedError
 
     @torch.no_grad()
-    def get_harmonized_scale(self, fixed_batch: torch.Tensor):
-        scales = []
-        fixed_batch = float(fixed_batch)
-        for tensors in self:
-            x, local_l_mean, local_l_var, batch_index, label, y = tensors
-            scales += [
-                torch.cat(self.model.scale_from_z(x, y, fixed_batch), dim=-1).cpu()
-            ]
-        return np.concatenate(scales)
-
-    @torch.no_grad()
     def generate(
         self,
         n_samples: int = 100,
@@ -442,6 +432,28 @@ class TotalPosterior(Posterior):
         py_mixings = py_mixings.cpu().numpy()
 
         return py_mixings
+
+    @torch.no_grad()
+    def get_sample_scale(self, transform_batch=None):
+        scales = []
+        for tensors in self:
+            x, _, _, batch_index, label, y = tensors
+            scales += [
+                torch.cat(
+                    self.model.get_sample_scale(
+                        x,
+                        y,
+                        batch_index=batch_index,
+                        label=label,
+                        n_samples=1,
+                        transform_batch=transform_batch,
+                    ),
+                    dim=-1,
+                )
+                .cpu()
+                .numpy()
+            ]
+        return np.concatenate(scales)
 
     @torch.no_grad()
     def get_normalized_denoised_expression(
@@ -691,11 +703,150 @@ class TotalPosterior(Posterior):
         return original_list, imputed_list
 
     @torch.no_grad()
-    def generate_parameters(self):
-        raise NotImplementedError
+    def differential_expression_score(
+        self,
+        idx1: Union[List[bool], np.ndarray],
+        idx2: Union[List[bool], np.ndarray],
+        mode: Optional[str] = "vanilla",
+        batchid1: Optional[Union[List[int], np.ndarray]] = None,
+        batchid2: Optional[Union[List[int], np.ndarray]] = None,
+        use_observed_batches: Optional[bool] = False,
+        n_samples: int = 5000,
+        use_permutation: bool = True,
+        M_permutation: int = 10000,
+        all_stats: bool = True,
+        change_fn: Optional[Union[str, Callable]] = None,
+        m1_domain_fn: Optional[Callable] = None,
+        delta: Optional[float] = 0.5,
+    ) -> pd.DataFrame:
+        r"""
+        Unified method for differential expression inference.
+        This function is an extension of the `get_bayes_factors` method
+        providing additional genes information to the user
+
+        # FUNCTIONING
+        Two modes coexist:
+            - the "vanilla" mode follows protocol described in arXiv:1709.02082
+            In this case, we perform hypothesis testing based on:
+                M_1: h_1 > h_2
+                M_2: h_1 <= h_2
+
+            DE can then be based on the study of the Bayes factors:
+            log (p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
+
+            - the "change" mode (described in bioRxiv, 794289)
+            consists in estimating an effect size random variable (e.g., log fold-change) and
+            performing Bayesian hypothesis testing on this variable.
+            The `change_fn` function computes the effect size variable r based two inputs
+            corresponding to the normalized means in both populations
+            Hypotheses:
+                M_1: r \in R_0 (effect size r in region inducing differential expression)
+                M_2: r not \in R_0 (no differential expression)
+            To characterize the region R_0, the user has two choices.
+                1. A common case is when the region [-delta, delta] does not induce differential
+                expression.
+                If the user specifies a threshold delta,
+                we suppose that R_0 = \mathbb{R} \ [-delta, delta]
+                2. specify an specific indicator function f: \mathbb{R} -> {0, 1} s.t.
+                    r \in R_0 iff f(r) = 1
+
+            Decision-making can then be based on the estimates of
+                p(M_1 | x_1, x_2)
+
+        # POSTERIOR SAMPLING
+        Both modes require to sample the normalized means posteriors
+        To that purpose we sample the Posterior in the following way:
+            1. The posterior is sampled n_samples times for each subpopulation
+            2. For computation efficiency (posterior sampling is quite expensive), instead of
+                comparing the obtained samples element-wise, we can permute posterior samples.
+                Remember that computing the Bayes Factor requires sampling
+                q(z_A | x_A) and q(z_B | x_B)
+
+        # BATCH HANDLING
+        Currently, the code covers several batch handling configurations:
+            1. If `use_observed_batches`=True, then batch are considered as observations
+            and cells' normalized means are conditioned on real batch observations
+
+            2. If case (cell group 1) and control (cell group 2) are conditioned on the same
+            batch ids.
+                set(batchid1) = set(batchid2):
+                e.g. batchid1 = batchid2 = None
+
+
+            3. If case and control are conditioned on different batch ids that do not intersect
+            i.e., set(batchid1) != set(batchid2)
+                  and intersection(set(batchid1), set(batchid2)) = \emptyset
+
+            This function does not cover other cases yet and will warn users in such cases.
+
+
+        # PARAMETERS
+        # Mode parameters
+        :param mode: one of ["vanilla", "change"]
+
+
+        ## Genes/cells/batches selection parameters
+        :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
+        from associated population
+        :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
+        from associated population
+        :param batchid1: List of batch ids for which you want to perform DE Analysis for
+        subpopulation 1. By default, all ids are taken into account
+        :param batchid2: List of batch ids for which you want to perform DE Analysis for
+        subpopulation 2. By default, all ids are taken into account
+        :param use_observed_batches: Whether normalized means are conditioned on observed
+        batches
+
+        ## Sampling parameters
+        :param n_samples: Number of posterior samples
+        :param use_permutation: Activates step 2 described above.
+        Simply formulated, pairs obtained from posterior sampling (when calling
+        `sample_scale_from_batch`) will be randomly permuted so that the number of
+        pairs used to compute Bayes Factors becomes M_permutation.
+        :param M_permutation: Number of times we will "mix" posterior samples in step 2.
+        Only makes sense when use_permutation=True
+
+        :param change_fn: function computing effect size based on both normalized means
+
+            :param m1_domain_fn: custom indicator function of effect size regions
+            inducing differential expression
+            :param delta: specific case of region inducing differential expression.
+            In this case, we suppose that R \ [-delta, delta] does not induce differential expression
+            (LFC case)
+
+        :param all_stats: whether additional metrics should be provided
+
+        :return: Differential expression properties
+        """
+        all_info = self.get_bayes_factors(
+            idx1=idx1,
+            idx2=idx2,
+            mode=mode,
+            batchid1=batchid1,
+            batchid2=batchid2,
+            use_observed_batches=use_observed_batches,
+            n_samples=n_samples,
+            use_permutation=use_permutation,
+            M_permutation=M_permutation,
+            change_fn=change_fn,
+            m1_domain_fn=m1_domain_fn,
+            delta=delta,
+        )
+        col_names = np.concatenate(
+            [self.gene_dataset.gene_names, self.gene_dataset.protein_names]
+        )
+        if all_stats is True:
+            lfc = np.log2(all_info["scale1"]) - np.log2(all_info["scale2"])
+            genes_properties_dict = dict(lfc=lfc)
+            all_info = {**all_info, **genes_properties_dict}
+
+        res = pd.DataFrame(all_info, index=col_names)
+        sort_key = "proba_de" if mode == "change" else "bayes_factor"
+        res = res.sort_values(by=sort_key, ascending=False)
+        return res
 
     @torch.no_grad()
-    def get_sample_scale(self):
+    def generate_parameters(self):
         raise NotImplementedError
 
 

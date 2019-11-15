@@ -262,22 +262,30 @@ class TOTALVI(nn.Module):
         py_r = outputs["py_"]["r"]
         return px_r, py_r
 
-    def scale_from_z(
-        self, x: torch.Tensor, y: torch.Tensor, fixed_batch: torch.Tensor
+    def get_sample_scale(
+        self,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        batch_index: Optional[torch.Tensor] = None,
+        label: Optional[torch.Tensor] = None,
+        n_samples: int = 1,
+        transform_batch: Optional[int] = None,
     ) -> torch.Tensor:
-        """ Returns tuple of gene and protein scales for a fixed seq batch
+        """ Returns tuple of gene and protein scales for a possibly transformed
+        batch.
 
         This function is the core of differential expression.
         """
-        if self.log_variational:
-            x = torch.log(1 + x)
-            y = torch.log(1 + y)
-        qz_m, qz_v, _, _, latent, _, = self.encoder(torch.cat((x, y), dim=-1))
-        z = latent["z"]
-        batch_index = fixed_batch * torch.ones_like(x[:, [0]])
-        # dummy library size as it's irrelevant here
-        library = 4.0 * torch.ones_like(x[:, [0]])
-        px_, py_ = self.decoder(z, library, batch_index)[0:2]
+        outputs = self.inference(
+            x,
+            y,
+            batch_index=batch_index,
+            label=label,
+            n_samples=n_samples,
+            transform_batch=transform_batch,
+        )
+        px_ = outputs["px_"]
+        py_ = outputs["py_"]
         protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
         if self.de_pro_sample_bern is True:
             protein_mixing = Bernoulli(protein_mixing).sample()
