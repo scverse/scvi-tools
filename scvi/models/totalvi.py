@@ -315,15 +315,13 @@ class TOTALVI(nn.Module):
         else:
             reconst_loss_gene = -log_nb_positive(x, px_["rate"], px_["r"]).sum(dim=-1)
 
-        if pro_batch_mask_minibatch is not None:
-            # for numerical stability, will be masked anyway
-            y[1 - pro_batch_mask_minibatch] = py_["rate_fore"]
-
         reconst_loss_protein_full = -log_mixture_nb(
             y, py_["rate_back"], py_["rate_fore"], py_["r"], None, py_["mixing"]
         )
         if pro_batch_mask_minibatch is not None:
-            temp_pro_loss_full = reconst_loss_protein_full * pro_batch_mask_minibatch
+            temp_pro_loss_full = torch.zeros_like(reconst_loss_protein_full)
+            inv_mask = (1 - pro_batch_mask_minibatch).bool()
+            temp_pro_loss_full.masked_scatter_(inv_mask, reconst_loss_protein_full)
 
             reconst_loss_protein = temp_pro_loss_full.sum(dim=-1)
         else:
@@ -489,7 +487,9 @@ class TOTALVI(nn.Module):
             Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
         )
         if pro_batch_mask_minibatch is not None:
-            temp_kl_div_back = kl_div_back_pro_full * pro_batch_mask_minibatch
+            temp_kl_div_back = torch.zeros_like(kl_div_back_pro_full)
+            inv_mask = (1 - pro_batch_mask_minibatch).bool()
+            temp_kl_div_back.masked_scatter_(inv_mask, kl_div_back_pro_full)
             kl_div_back_pro = temp_kl_div_back.sum(dim=1)
         else:
             kl_div_back_pro = kl_div_back_pro_full.sum(dim=1)
