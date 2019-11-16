@@ -72,6 +72,8 @@ class Trainer:
         self.benchmark = benchmark
         self.epoch = -1  # epoch = self.epoch + 1 in compute metrics
         self.training_time = 0
+        self.previous_loss_was_nan = False
+        self.nan_counter = 0  # Counts occuring NaNs during training
 
         if metrics_to_monitor is not None:
             self.metrics_to_monitor = set(metrics_to_monitor)
@@ -152,6 +154,7 @@ class Trainer:
                 if tensors_list[0][0].shape[0] < 3:
                     continue
                 loss = self.loss(*tensors_list)
+                self.check_training_status(loss)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -169,6 +172,22 @@ class Trainer:
             logger.debug(
                 "\nTraining time:  %i s. / %i epochs"
                 % (int(self.training_time), self.n_epochs)
+            )
+
+    def check_training_status(self, loss):
+        loss_is_nan = torch.isnan(loss).item()
+        if loss_is_nan:
+            logger.warning("Model loss was NaN")
+            self.nan_counter += 1
+            self.previous_loss_was_nan = True
+        else:
+            self.nan_counter = 0
+            self.previous_loss_was_nan = False
+
+        if self.nan_counter >= 10:
+            raise ValueError(
+                "Loss was NaN 10 consecutive times: the model is not training properly. "
+                "Consider using a lower learning rate."
             )
 
     def on_epoch_begin(self):
