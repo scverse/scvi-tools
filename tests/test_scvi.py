@@ -1,6 +1,6 @@
 import numpy as np
 
-from scvi.dataset import CortexDataset, SyntheticDataset
+from scvi.dataset import CortexDataset, SyntheticDataset, GeneExpressionDataset
 from scvi.inference import (
     JointSemiSupervisedTrainer,
     AlternateSemiSupervisedTrainer,
@@ -26,6 +26,8 @@ def test_cortex(save_path):
     trainer_cortex_vae.train(n_epochs=1)
     trainer_cortex_vae.train_set.reconstruction_error()
     trainer_cortex_vae.train_set.differential_expression_stats()
+    trainer_cortex_vae.train_set.imputation(n_samples=1)
+    trainer_cortex_vae.test_set.imputation(n_samples=5)
 
     trainer_cortex_vae.corrupt_posteriors(corruption="binomial")
     trainer_cortex_vae.corrupt_posteriors()
@@ -319,6 +321,22 @@ def test_autozi(save_path):
         trainer_autozivae.test_set.elbo()
         trainer_autozivae.test_set.reconstruction_error()
         trainer_autozivae.test_set.marginal_ll()
+
+
+def test_multibatches_features():
+    data = [
+        np.random.randint(1, 5, size=(20, 10)),
+        np.random.randint(1, 10, size=(20, 10)),
+        np.random.randint(1, 10, size=(20, 10)),
+        np.random.randint(1, 10, size=(30, 10)),
+    ]
+    dataset = GeneExpressionDataset()
+    dataset.populate_from_per_batch_list(data)
+    vae = VAE(dataset.nb_genes, dataset.n_batches)
+    trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
+    trainer.train(n_epochs=2)
+    trainer.test_set.imputation(n_samples=2, transform_batch=0)
+    trainer.train_set.imputation(n_samples=2, transform_batch=[0, 1, 2])
 
 
 def test_deprecated_munkres():

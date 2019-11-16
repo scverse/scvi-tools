@@ -1003,16 +1003,37 @@ class Posterior:
         return de_res, de_cluster
 
     @torch.no_grad()
-    def imputation(self, n_samples=1):
-        imputed_list = []
-        for tensors in self:
-            sample_batch, _, _, batch_index, labels = tensors
-            px_rate = self.model.get_sample_rate(
-                sample_batch, batch_index=batch_index, y=labels, n_samples=n_samples
-            )
-            imputed_list += [np.array(px_rate.cpu())]
-        imputed_list = np.concatenate(imputed_list)
-        return imputed_list.squeeze()
+    def imputation(
+        self,
+        n_samples: Optional[int] = 1,
+        transform_batch: Optional[Union[int, List[int]]] = None,
+    ) -> np.ndarray:
+        """
+        Imputes px_rate over self cells
+        :param n_samples:
+        :param transform_batch: Batches to condition on
+        :return: (n_samples, n_cells, n_genes) px_rates squeezed array
+        """
+        if (transform_batch is None) or (isinstance(transform_batch, int)):
+            transform_batch = [transform_batch]
+        imputed_arr = []
+        for batch in transform_batch:
+            imputed_list_batch = []
+            for tensors in self:
+                sample_batch, _, _, batch_index, labels = tensors
+                px_rate = self.model.get_sample_rate(
+                    sample_batch,
+                    batch_index=batch_index,
+                    y=labels,
+                    n_samples=n_samples,
+                    transform_batch=batch,
+                )
+                imputed_list_batch += [np.array(px_rate.cpu())]
+            imputed_arr.append(np.concatenate(imputed_list_batch))
+        imputed_arr = np.array(imputed_arr)
+        # shape: (len(transformed_batch), n_samples, n_cells, n_genes) if n_samples > 1
+        # else shape: (len(transformed_batch), n_cells, n_genes)
+        return imputed_arr.mean(0).squeeze()
 
     @torch.no_grad()
     def generate(

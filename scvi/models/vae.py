@@ -153,7 +153,7 @@ class VAE(nn.Module):
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
         :param n_samples: number of samples
-        :transform_batch: int of batch to transform samples into
+        :param transform_batch: int of batch to transform samples into
         :return: tensor of predicted frequencies of expression with shape ``(batch_size, n_input)``
         :rtype: :py:class:`torch.Tensor`
         """
@@ -165,19 +165,26 @@ class VAE(nn.Module):
             transform_batch=transform_batch,
         )["px_scale"]
 
-    def get_sample_rate(self, x, batch_index=None, y=None, n_samples=1):
+    def get_sample_rate(
+        self, x, batch_index=None, y=None, n_samples=1, transform_batch=None
+    ):
         r"""Returns the tensor of means of the negative binomial distribution
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :param n_samples: number of samples
+        :param transform_batch: int of batch to transform samples into
         :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
         :rtype: :py:class:`torch.Tensor`
         """
-        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[
-            "px_rate"
-        ]
+        return self.inference(
+            x,
+            batch_index=batch_index,
+            y=y,
+            n_samples=n_samples,
+            transform_batch=transform_batch,
+        )["px_rate"]
 
     def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout, **kwargs):
         # Reconstruction Loss
