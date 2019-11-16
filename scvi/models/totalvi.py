@@ -319,8 +319,13 @@ class TOTALVI(nn.Module):
             y, py_["rate_back"], py_["rate_fore"], py_["r"], None, py_["mixing"]
         )
         if pro_batch_mask_minibatch is not None:
+            safe_reconst_loss_protein_full = torch.where(
+                torch.isnan(reconst_loss_protein_full),
+                torch.zeros_like(reconst_loss_protein_full),
+                reconst_loss_protein_full,
+            )
             reconst_loss_protein = (
-                reconst_loss_protein_full * pro_batch_mask_minibatch
+                safe_reconst_loss_protein_full * pro_batch_mask_minibatch
             ).sum(dim=-1)
         else:
             reconst_loss_protein = reconst_loss_protein_full.sum(dim=-1)
@@ -481,14 +486,18 @@ class TOTALVI(nn.Module):
             Normal(local_l_mean_gene, torch.sqrt(local_l_var_gene)),
         ).sum(dim=1)
 
-        kl_div_back_pro_full = torch.clamp(
-            kl(Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior),
-            max=torch.exp(torch.tensor(12.0)),
+        kl_div_back_pro_full = kl(
+            Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
         )
         if pro_batch_mask_minibatch is not None:
-            kl_div_back_pro = (kl_div_back_pro_full * pro_batch_mask_minibatch).sum(
-                dim=1
+            safe_kl_div_back_pro_full = torch.where(
+                torch.isnan(kl_div_back_pro_full),
+                torch.zeros_like(kl_div_back_pro_full),
+                kl_div_back_pro_full,
             )
+            kl_div_back_pro = (
+                safe_kl_div_back_pro_full * pro_batch_mask_minibatch
+            ).sum(dim=1)
         else:
             kl_div_back_pro = kl_div_back_pro_full.sum(dim=1)
 
