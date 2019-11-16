@@ -616,7 +616,7 @@ class TotalPosterior(Posterior):
 
             posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
 
-        return (np.concatenate(posterior_list, axis=0),)
+        return np.concatenate(posterior_list, axis=0)
 
     @torch.no_grad()
     def generate_feature_correlation_matrix(
