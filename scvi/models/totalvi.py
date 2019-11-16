@@ -320,8 +320,9 @@ class TOTALVI(nn.Module):
         )
         if pro_batch_mask_minibatch is not None:
             temp_pro_loss_full = torch.zeros_like(reconst_loss_protein_full)
-            inv_mask = (1 - pro_batch_mask_minibatch).bool()
-            temp_pro_loss_full.masked_scatter_(inv_mask, reconst_loss_protein_full)
+            temp_pro_loss_full.masked_scatter_(
+                pro_batch_mask_minibatch, reconst_loss_protein_full
+            )
 
             reconst_loss_protein = temp_pro_loss_full.sum(dim=-1)
         else:
@@ -488,8 +489,9 @@ class TOTALVI(nn.Module):
         )
         if pro_batch_mask_minibatch is not None:
             temp_kl_div_back = torch.zeros_like(kl_div_back_pro_full)
-            inv_mask = (1 - pro_batch_mask_minibatch).bool()
-            temp_kl_div_back.masked_scatter_(inv_mask, kl_div_back_pro_full)
+            temp_kl_div_back.masked_scatter_(
+                pro_batch_mask_minibatch, kl_div_back_pro_full
+            )
             kl_div_back_pro = temp_kl_div_back.sum(dim=1)
         else:
             kl_div_back_pro = kl_div_back_pro_full.sum(dim=1)
