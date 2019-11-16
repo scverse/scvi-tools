@@ -317,7 +317,7 @@ class TOTALVI(nn.Module):
 
         if pro_batch_mask_minibatch is not None:
             # for numerical stability, will be masked anyway
-            y[pro_batch_mask_minibatch] = py_["rate_fore"]
+            y[1 - pro_batch_mask_minibatch] = py_["rate_fore"]
 
         reconst_loss_protein_full = -log_mixture_nb(
             y, py_["rate_back"], py_["rate_fore"], py_["r"], None, py_["mixing"]
