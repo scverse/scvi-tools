@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Main module."""
 from typing import Dict, Optional, Tuple, Union, List
+import logging
 
 import torch
 import torch.nn as nn
@@ -17,6 +18,8 @@ from scvi.models.utils import one_hot
 import numpy as np
 
 torch.backends.cudnn.benchmark = True
+
+logger = logging.getLogger(__name__)
 
 
 # VAE model
@@ -318,6 +321,12 @@ class TOTALVI(nn.Module):
         reconst_loss_protein_full = -log_mixture_nb(
             y, py_["rate_back"], py_["rate_fore"], py_["r"], None, py_["mixing"]
         )
+        if (
+            torch.isnan(reconst_loss_protein_full).sum().item() > 0
+            or torch.isinf(reconst_loss_protein_full).sum().item() > 0
+        ):
+            logger.warning("nan or inf in recont loss protein")
+
         if pro_batch_mask_minibatch is not None:
             temp_pro_loss_full = torch.zeros_like(reconst_loss_protein_full)
             temp_pro_loss_full.masked_scatter_(
@@ -487,6 +496,12 @@ class TOTALVI(nn.Module):
         kl_div_back_pro_full = kl(
             Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
         )
+        if (
+            torch.isnan(kl_div_back_pro_full).sum().item() > 0
+            or torch.isinf(kl_div_back_pro_full).sum().item() > 0
+        ):
+            logger.warning("nan or inf in kl div back")
+
         if pro_batch_mask_minibatch is not None:
             temp_kl_div_back = torch.zeros_like(kl_div_back_pro_full)
             temp_kl_div_back.masked_scatter_(
