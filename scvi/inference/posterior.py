@@ -1011,7 +1011,11 @@ class Posterior:
         """
         Imputes px_rate over self cells
         :param n_samples:
-        :param transform_batch: Batches to condition on
+        :param transform_batch: Batches to condition on.
+        If transform_batch is:
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - list of int, then px_rates are averaged over provided batches.
         :return: (n_samples, n_cells, n_genes) px_rates squeezed array
         """
         if (transform_batch is None) or (isinstance(transform_batch, int)):
