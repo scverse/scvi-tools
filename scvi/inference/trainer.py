@@ -129,12 +129,7 @@ class Trainer:
         self.compute_metrics_time += time.time() - begin
 
     def train(
-        self,
-        n_epochs=20,
-        lr=1e-3,
-        eps=0.01,
-        max_number_of_consecutive_nans=10,
-        params=None,
+        self, n_epochs=20, lr=1e-3, eps=0.01, max_nans=10, params=None,
     ):
         begin = time.time()
         self.model.train()
@@ -161,7 +156,7 @@ class Trainer:
                 if tensors_list[0][0].shape[0] < 3:
                     continue
                 loss = self.loss(*tensors_list)
-                self.check_training_status(loss, max_number_of_consecutive_nans)
+                self.check_training_status(loss, max_nans)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -181,7 +176,14 @@ class Trainer:
                 % (int(self.training_time), self.n_epochs)
             )
 
-    def check_training_status(self, loss, max_number_of_consecutive_nans):
+    def check_training_status(self, loss: torch.Tensor, max_nans: int):
+        """
+        Checks if loss is admissible. If not, training is stopped after max_nans consecutive
+        inadmissible loss
+        :param loss: Training loss of the model
+        :param max_nans: Maximum number of consecutive NaNs after which a ValueError will be
+        raised
+        """
         loss_is_nan = torch.isnan(loss).item()
         if loss_is_nan:
             logger.warning("Model training loss was NaN")
@@ -191,12 +193,10 @@ class Trainer:
             self.nan_counter = 0
             self.previous_loss_was_nan = False
 
-        if self.nan_counter >= max_number_of_consecutive_nans:
+        if self.nan_counter >= max_nans:
             raise ValueError(
                 "Loss was NaN {} consecutive times: the model is not training properly. "
-                "Consider using a lower learning rate.".format(
-                    max_number_of_consecutive_nans
-                )
+                "Consider using a lower learning rate.".format(max_nans)
             )
 
     def on_epoch_begin(self):
