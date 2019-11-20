@@ -78,6 +78,52 @@ class PosteriorPredictiveCheck:
 
         self.metrics[identifier] = df
 
+    def mean(self, cell_wise: bool = False):
+        """Calculate the mean across cells in one gene (or vice versa). Reports the mean and std over samples per model
+
+        Args:
+            cell_wise (bool, optional): Calculate for each cell across genes. Defaults to True.
+                                        If False, calculate for each gene across cells.
+        """
+        axis = 1 if cell_wise is True else 0
+        identifier = "mean_cell" if cell_wise is True else "mean_gene"
+        df = pd.DataFrame()
+        for m, samples in self.posterior_predictive_samples.items():
+            item = np.mean(samples, axis=axis)
+            item_mean = np.nanmean(item, axis=-1)
+            item_std = np.nanstd(item, axis=-1)
+            # make all zeros have 0 cv
+            df[m + "_mean"] = item_mean.ravel()
+            df[m + "_std"] = item_std.ravel()
+
+        df["raw"] = np.mean(self.raw_counts, axis=axis)
+        df["raw"] = np.nan_to_num(df["raw"])
+
+        self.metrics[identifier] = df
+
+    def variance(self, cell_wise: bool = False):
+        """Calculate the mean across cells in one gene (or vice versa). Reports the mean and std over samples per model
+
+        Args:
+            cell_wise (bool, optional): Calculate for each cell across genes. Defaults to True.
+                                        If False, calculate for each gene across cells.
+        """
+        axis = 1 if cell_wise is True else 0
+        identifier = "var_cell" if cell_wise is True else "var_gene"
+        df = pd.DataFrame()
+        for m, samples in self.posterior_predictive_samples.items():
+            item = np.var(samples, axis=axis)
+            item_mean = np.nanmean(item, axis=-1)
+            item_std = np.nanstd(item, axis=-1)
+            # make all zeros have 0 cv
+            df[m + "_mean"] = item_mean.ravel()
+            df[m + "_std"] = item_std.ravel()
+
+        df["raw"] = np.var(self.raw_counts, axis=axis)
+        df["raw"] = np.nan_to_num(df["raw"])
+
+        self.metrics[identifier] = df
+
     def median_absolute_error(self, point_estimate="mean"):
         df = pd.DataFrame()
         for m, samples in self.posterior_predictive_samples.items():
