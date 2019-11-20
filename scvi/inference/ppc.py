@@ -58,16 +58,6 @@ class PosteriorPredictiveCheck:
             cv = np.nanmean(
                 np.std(samples, axis=axis) / np.mean(samples, axis=axis), axis=-1
             )
-            # make all zeros have 0 cv
-            cv = np.nan_to_num(cv)
-            if samples.shape[1] == self.dataset.nb_genes:
-                cv = np.concatenate(
-                    [
-                        cv.ravel(),
-                        np.nan
-                        * np.zeros((self.raw_counts.shape[1] - self.dataset.nb_genes)),
-                    ]
-                )
 
             df[m] = cv.ravel()
 
