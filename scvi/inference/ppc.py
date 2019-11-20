@@ -263,8 +263,7 @@ class PosteriorPredictiveCheck:
             reconstruction = (
                 lib_size_rna[:, :, np.newaxis]
                 / 10000
-                * np.exp(reconstruction[:, : self.dataset.nb_genes])
-                - 1
+                * (np.exp(reconstruction[:, : self.dataset.nb_genes]) - 1)
             )
 
         if clip_zero is True:
@@ -347,8 +346,7 @@ class PosteriorPredictiveCheck:
             reconstruction = (
                 lib_size_rna[:, :, np.newaxis]
                 / 10000
-                * np.exp(reconstruction[:, : self.dataset.nb_genes])
-                - 1
+                * (np.exp(reconstruction[:, : self.dataset.nb_genes]) - 1)
             )
 
         self.posterior_predictive_samples[key] = reconstruction
