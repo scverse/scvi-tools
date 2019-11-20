@@ -252,7 +252,7 @@ class PosteriorPredictiveCheck:
         reconstruction = x_samples
 
         if normalization == "log":
-            reconstruction = np.exp(reconstruction - 1)
+            reconstruction = np.exp(reconstruction) - 1
         if normalization == "rate":
             reconstruction = (
                 lib_size_rna[:, :, np.newaxis]
@@ -263,7 +263,8 @@ class PosteriorPredictiveCheck:
             reconstruction = (
                 lib_size_rna[:, :, np.newaxis]
                 / 10000
-                * np.exp(reconstruction[:, : self.dataset.nb_genes] - 1)
+                * np.exp(reconstruction[:, : self.dataset.nb_genes])
+                - 1
             )
 
         if clip_zero is True:
