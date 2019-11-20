@@ -4,7 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Normal, kl_divergence as kl
+from torch.distributions import Normal, Poisson, kl_divergence as kl
 
 from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
 from scvi.models.modules import Encoder, DecoderSCVI, LinearDecoderSCVI
@@ -36,6 +36,7 @@ class VAE(nn.Module):
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
+        * ``'poisson'`` - Poisson distribution
 
     Examples:
         >>> gene_dataset = CortexDataset()
@@ -153,7 +154,7 @@ class VAE(nn.Module):
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
         :param n_samples: number of samples
-        :transform_batch: int of batch to transform samples into
+        :param transform_batch: int of batch to transform samples into
         :return: tensor of predicted frequencies of expression with shape ``(batch_size, n_input)``
         :rtype: :py:class:`torch.Tensor`
         """
@@ -165,19 +166,26 @@ class VAE(nn.Module):
             transform_batch=transform_batch,
         )["px_scale"]
 
-    def get_sample_rate(self, x, batch_index=None, y=None, n_samples=1):
+    def get_sample_rate(
+        self, x, batch_index=None, y=None, n_samples=1, transform_batch=None
+    ):
         r"""Returns the tensor of means of the negative binomial distribution
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :param n_samples: number of samples
+        :param transform_batch: int of batch to transform samples into
         :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
         :rtype: :py:class:`torch.Tensor`
         """
-        return self.inference(x, batch_index=batch_index, y=y, n_samples=n_samples)[
-            "px_rate"
-        ]
+        return self.inference(
+            x,
+            batch_index=batch_index,
+            y=y,
+            n_samples=n_samples,
+            transform_batch=transform_batch,
+        )["px_rate"]
 
     def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout, **kwargs):
         # Reconstruction Loss
@@ -185,16 +193,9 @@ class VAE(nn.Module):
             reconst_loss = -log_zinb_positive(x, px_rate, px_r, px_dropout).sum(dim=-1)
         elif self.reconstruction_loss == "nb":
             reconst_loss = -log_nb_positive(x, px_rate, px_r).sum(dim=-1)
+        elif self.reconstruction_loss == "poisson":
+            reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
         return reconst_loss
-
-    def scale_from_z(self, sample_batch, fixed_batch):
-        if self.log_variational:
-            sample_batch = torch.log(1 + sample_batch)
-        qz_m, qz_v, z = self.z_encoder(sample_batch)
-        batch_index = fixed_batch * torch.ones_like(sample_batch[:, [0]])
-        library = 4.0 * torch.ones_like(sample_batch[:, [0]])
-        px_scale, _, _, _ = self.decoder("gene", z, library, batch_index)
-        return px_scale
 
     def inference(self, x, batch_index=None, y=None, n_samples=1, transform_batch=None):
 
