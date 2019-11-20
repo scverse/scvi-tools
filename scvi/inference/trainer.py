@@ -1,21 +1,19 @@
 import logging
-import time
 import sys
-from typing import List
-
+import time
 from abc import abstractmethod
 from collections import defaultdict, OrderedDict
 from itertools import cycle
+from typing import List
 
 import numpy as np
 import torch
-
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
 from tqdm.auto import tqdm
 
-from scvi.inference.posterior import Posterior
 from scvi.dataset import GeneExpressionDataset
+from scvi.inference.posterior import Posterior
 
 logger = logging.getLogger(__name__)
 
@@ -186,6 +184,7 @@ class Trainer:
                 "\nTraining time:  %i s. / %i epochs"
                 % (int(self.training_time), self.n_epochs)
             )
+        self.on_training_end()
 
     def on_epoch_begin(self):
         pass
@@ -220,6 +219,9 @@ class Trainer:
     def on_iteration_end(self):
         self.check_training_status()
         self.n_iter += 1
+
+    def on_training_end(self):
+        pass
 
     def check_training_status(self):
         """

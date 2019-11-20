@@ -1,8 +1,12 @@
 import copy
+import warnings
+from typing import Union
 
 import matplotlib.pyplot as plt
 import torch
+from numpy import ceil
 
+from scvi.dataset import GeneExpressionDataset
 from scvi.inference import Trainer
 
 plt.switch_backend("agg")
@@ -42,15 +46,26 @@ class UnsupervisedTrainer(Trainer):
     def __init__(
         self,
         model,
-        gene_dataset,
-        train_size=0.8,
-        test_size=None,
-        n_epochs_kl_warmup=400,
-        normalize_loss=None,
+        gene_dataset: GeneExpressionDataset,
+        train_size: Union[int, float] = 0.8,
+        test_size: Union[int, float] = None,
+        n_iter_kl_warmup: int = None,
+        n_epochs_kl_warmup: int = 400,
+        normalize_loss: bool = None,
         **kwargs
     ):
         super().__init__(model, gene_dataset, **kwargs)
+
+        # Set up number of warmup iterations
+        n_reference_cells = min(10000, gene_dataset.nb_cells)
+        if n_iter_kl_warmup is not None:
+            self.n_iter_for_warmup = (
+                1.0 * n_iter_kl_warmup * ceil(n_reference_cells / self.batch_size)
+            )
+        else:
+            self.n_iter_for_warmup = None
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
+        self.kl_weight = None  # Contains kl_weight at current iteration
 
         self.normalize_loss = (
             not (
@@ -95,11 +110,26 @@ class UnsupervisedTrainer(Trainer):
             loss = loss / self.n_samples
         return loss
 
-    def on_epoch_begin(self):
-        if self.n_epochs_kl_warmup is not None:
+    def on_iteration_begin(self):
+        epoch_criterium = self.n_epochs_kl_warmup is not None
+        iter_criterium = self.n_iter_for_warmup is not None
+        if epoch_criterium and iter_criterium:
+            warnings.warn(
+                "Both n_epochs_kl_warmup and n_iter_for_warmup are provided ... Using n_epochs_kl_warmup"
+            )
+        elif epoch_criterium:
             self.kl_weight = min(1, self.epoch / self.n_epochs_kl_warmup)
+        elif iter_criterium:
+            self.kl_weight = min(1.0, self.n_iter / self.n_iter_for_warmup)
         else:
             self.kl_weight = 1.0
+
+    def on_training_end(self):
+        if self.kl_weight < 0.99:
+            warnings.warn(
+                "Training is still is warming up phase. Consider increasing train's n_epochs "
+                "or reducing n_iter_kl_warmup/n_epochs_kl_warmup"
+            )
 
 
 class AdapterTrainer(UnsupervisedTrainer):
