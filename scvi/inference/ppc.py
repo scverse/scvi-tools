@@ -121,52 +121,29 @@ class PosteriorPredictiveCheck:
                 point_sample = np.mean(samples, axis=-1)
             else:
                 point_sample = np.median(samples, axis=-1)
-            mad_gene = np.median(
+            mae_gene = np.median(
                 np.abs(
                     point_sample[:, : self.dataset.nb_genes]
                     - self.raw_counts[:, : self.dataset.nb_genes]
                 )
             )
-            # For samples with protein data
-            if point_sample.shape[1] != self.dataset.nb_genes:
-                mad_pro = np.median(
-                    np.abs(
-                        point_sample[:, self.dataset.nb_genes :]
-                        - self.raw_counts[:, self.dataset.nb_genes :]
-                    )
-                )
-            else:
-                mad_pro = np.nan
-            df[m] = [mad_gene, mad_pro]
 
-        df.index = ["genes", "proteins"]
+            df[m] = mae_gene
+
         self.metrics["mae"] = df
 
-    def mean_squared_log_error(self, point_estimate="mean"):
+    def mean_squared_log_error(self):
         df = pd.DataFrame()
         for m, samples in self.posterior_predictive_samples.items():
-            if point_estimate == "mean":
-                point_sample = np.mean(samples, axis=-1)
-            else:
-                point_sample = np.mean(samples, axis=-1)
-            mad_gene = np.mean(
+            point_sample = np.mean(samples, axis=-1)
+            msle_gene = np.mean(
                 np.square(
                     np.log(point_sample[:, : self.dataset.nb_genes] + 1)
                     - np.log(self.raw_counts[:, : self.dataset.nb_genes] + 1)
                 )
             )
-            if point_sample.shape[1] != self.dataset.nb_genes:
-                mad_pro = np.mean(
-                    np.square(
-                        np.log(point_sample[:, self.dataset.nb_genes :] + 1)
-                        - np.log(self.raw_counts[:, self.dataset.nb_genes :] + 1)
-                    )
-                )
-            else:
-                mad_pro = np.nan
-            df[m] = [mad_gene, mad_pro]
+            df[m] = msle_gene
 
-        df.index = ["genes", "proteins"]
         self.metrics["msle"] = df
 
     def dropout_ratio(self):
