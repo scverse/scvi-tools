@@ -152,20 +152,21 @@ class PosteriorPredictiveCheck:
 
         self.posterior_predictive_samples[key] = samples
 
-    def store_fa_samples(
-        self, train_data, key="Factor Analysis", normalization="log", **kwargs
-    ):
+    def store_fa_samples(self, key="Factor Analysis", normalization="log", **kwargs):
         # reconstruction
         if normalization == "log":
-            train_data = np.log(train_data + 1)
             data = np.log(self.raw_counts + 1)
             key += " (Log)"
-        elif normalization == "log_rate":
-            train_data_rna = train_data[:, : self.dataset.nb_genes]
-            train_data_rna = np.log(
-                10000 * train_data_rna / train_data_rna.sum(axis=1)[:, np.newaxis] + 1
+        elif normalization == "rate":
+            lib_size_rna = self.raw_counts[:, : self.dataset.nb_genes].sum(axis=1)[
+                :, np.newaxis
+            ]
+
+            data = np.log(
+                10000 * self.raw_counts[:, : self.dataset.nb_genes] / lib_size_rna + 1
             )
-            train_data = train_data_rna
+            key += " (Rate)"
+        elif normalization == "log_rate":
             lib_size_rna = self.raw_counts[:, : self.dataset.nb_genes].sum(axis=1)[
                 :, np.newaxis
             ]
@@ -175,10 +176,9 @@ class PosteriorPredictiveCheck:
             )
             key += " (Log Rate)"
         else:
-            train_data = train_data
             data = self.raw_counts
         fa = FactorAnalysis(**kwargs)
-        fa.fit(train_data)
+        fa.fit(data)
         self.models[key] = fa
 
         # transform gives the posterior mean
@@ -212,6 +212,12 @@ class PosteriorPredictiveCheck:
 
         if normalization == "log":
             reconstruction = np.exp(reconstruction - 1)
+        if normalization == "rate":
+            reconstruction = (
+                lib_size_rna[:, :, np.newaxis]
+                / 10000
+                * reconstruction[:, : self.dataset.nb_genes],
+            )
         if normalization == "log_rate":
             reconstruction = (
                 lib_size_rna[:, :, np.newaxis]
@@ -226,6 +232,24 @@ class PosteriorPredictiveCheck:
         if normalization == "log":
             data = np.log(self.raw_counts + 1)
             key += " (Log)"
+        elif normalization == "rate":
+            lib_size_rna = self.raw_counts[:, : self.dataset.nb_genes].sum(axis=1)[
+                :, np.newaxis
+            ]
+
+            data = np.log(
+                10000 * self.raw_counts[:, : self.dataset.nb_genes] / lib_size_rna + 1
+            )
+            key += " (Rate)"
+        elif normalization == "log_rate":
+            lib_size_rna = self.raw_counts[:, : self.dataset.nb_genes].sum(axis=1)[
+                :, np.newaxis
+            ]
+
+            data = np.log(
+                10000 * self.raw_counts[:, : self.dataset.nb_genes] / lib_size_rna + 1
+            )
+            key += " (Log Rate)"
         else:
             data = self.raw_counts
         pca = PCA(**kwargs)
@@ -268,6 +292,18 @@ class PosteriorPredictiveCheck:
         if normalization == "log":
             reconstruction = np.clip(reconstruction, -1000, 20)
             reconstruction = np.exp(reconstruction - 1)
+        if normalization == "rate":
+            reconstruction = (
+                lib_size_rna[:, :, np.newaxis]
+                / 10000
+                * reconstruction[:, : self.dataset.nb_genes],
+            )
+        if normalization == "log_rate":
+            reconstruction = (
+                lib_size_rna[:, :, np.newaxis]
+                / 10000
+                * np.exp(reconstruction[:, : self.dataset.nb_genes] - 1),
+            )
 
         self.posterior_predictive_samples[key] = reconstruction
 
