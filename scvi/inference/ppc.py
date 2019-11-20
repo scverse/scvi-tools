@@ -252,13 +252,13 @@ class PosteriorPredictiveCheck:
             reconstruction = (
                 lib_size_rna[:, :, np.newaxis]
                 / 10000
-                * reconstruction[:, : self.dataset.nb_genes],
+                * reconstruction[:, : self.dataset.nb_genes]
             )
         if normalization == "log_rate":
             reconstruction = (
                 lib_size_rna[:, :, np.newaxis]
                 / 10000
-                * np.exp(reconstruction[:, : self.dataset.nb_genes] - 1),
+                * np.exp(reconstruction[:, : self.dataset.nb_genes] - 1)
             )
 
         self.posterior_predictive_samples[key] = reconstruction
@@ -332,13 +332,13 @@ class PosteriorPredictiveCheck:
             reconstruction = (
                 lib_size_rna[:, :, np.newaxis]
                 / 10000
-                * reconstruction[:, : self.dataset.nb_genes],
+                * reconstruction[:, : self.dataset.nb_genes]
             )
         if normalization == "log_rate":
             reconstruction = (
                 lib_size_rna[:, :, np.newaxis]
                 / 10000
-                * np.exp(reconstruction[:, : self.dataset.nb_genes] - 1),
+                * np.exp(reconstruction[:, : self.dataset.nb_genes] - 1)
             )
 
         self.posterior_predictive_samples[key] = reconstruction
