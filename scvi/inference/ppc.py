@@ -350,9 +350,11 @@ class PosteriorPredictiveCheck:
             )
         else:
             self.gene_set = gene_indices
+            n_genes = len(gene_indices)
+
         model_corrs = {}
         for m, samples in tqdm(self.posterior_predictive_samples.items()):
-            correlation_matrix = np.zeros((n_genes, len(self.dataset.protein_names)))
+            correlation_matrix = np.zeros((n_genes, n_genes))
             for i in range(self.n_samples):
                 sample = StandardScaler().fit_transform(samples[:, :, i])
                 gene_sample = sample[:, self.gene_set]
