@@ -191,7 +191,9 @@ class PosteriorPredictiveCheck:
 
         self.posterior_predictive_samples[key] = samples
 
-    def store_fa_samples(self, key="Factor Analysis", normalization="log", **kwargs):
+    def store_fa_samples(
+        self, key="Factor Analysis", normalization="log", clip_zero=True, **kwargs
+    ):
         # reconstruction
         if normalization == "log":
             data = np.log(self.raw_counts + 1)
@@ -263,6 +265,9 @@ class PosteriorPredictiveCheck:
                 / 10000
                 * np.exp(reconstruction[:, : self.dataset.nb_genes] - 1)
             )
+
+        if clip_zero is True:
+            reconstruction[reconstruction < 0] = 0
 
         self.posterior_predictive_samples[key] = reconstruction
 
