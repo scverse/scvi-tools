@@ -174,10 +174,13 @@ class PosteriorPredictiveCheck:
         """
         df = pd.DataFrame()
         for m, samples in self.posterior_predictive_samples.items():
-            dr = np.mean(np.mean(samples == 0, axis=0), axis=-1)
-            df[m] = dr.ravel()
+            dr_mean = np.mean(np.mean(samples == 0, axis=0), axis=-1)
+            df[m + "mean"] = dr_mean.ravel()
 
-        df["raw"] = np.mean(np.mean(self.raw_counts == 0, axis=0), axis=-1)
+            dr_std = np.std(np.mean(samples == 0, axis=0), axis=-1)
+            df[m + "std"] = dr_std.ravel()
+
+        df["raw"] = np.mean(self.raw_counts == 0, axis=0)
 
         self.metrics["dropout_ratio"] = df
 
