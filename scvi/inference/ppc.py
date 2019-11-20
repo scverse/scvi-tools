@@ -175,10 +175,10 @@ class PosteriorPredictiveCheck:
         df = pd.DataFrame()
         for m, samples in self.posterior_predictive_samples.items():
             dr_mean = np.mean(np.mean(samples == 0, axis=0), axis=-1)
-            df[m + "mean"] = dr_mean.ravel()
+            df[m + "_mean"] = dr_mean.ravel()
 
             dr_std = np.std(np.mean(samples == 0, axis=0), axis=-1)
-            df[m + "std"] = dr_std.ravel()
+            df[m + "_std"] = dr_std.ravel()
 
         df["raw"] = np.mean(self.raw_counts == 0, axis=0)
 
