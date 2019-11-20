@@ -307,10 +307,13 @@ class PosteriorPredictiveCheck:
 
         self.posterior_predictive_samples[key] = reconstruction
 
-    def gene_gene_correlation(self, n_genes=1000):
-        self.gene_set = np.random.choice(
-            self.dataset.nb_genes, size=n_genes, replace=False
-        )
+    def gene_gene_correlation(self, gene_indices=None, n_genes=1000):
+        if gene_indices is not None:
+            self.gene_set = np.random.choice(
+                self.dataset.nb_genes, size=n_genes, replace=False
+            )
+        else:
+            self.gene_set = gene_indices
         model_corrs = {}
         for m, samples in tqdm(self.posterior_predictive_samples.items()):
             correlation_matrix = np.zeros((n_genes, len(self.dataset.protein_names)))
