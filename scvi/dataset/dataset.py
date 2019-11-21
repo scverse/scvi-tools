@@ -817,7 +817,7 @@ class GeneExpressionDataset(Dataset):
                     return
 
             if mode == "variance":
-                if new_n_genes is not None:
+                if new_n_genes is None:
                     logger.info(
                         "mode='variance' requires to specify new_n_genes or new_ratio_genes"
                     )
