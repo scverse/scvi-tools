@@ -153,6 +153,8 @@ class Trainer:
         self.n_epochs = n_epochs
         self.compute_metrics()
 
+        self.on_training_begin()
+
         for self.epoch in tqdm(
             range(n_epochs),
             desc="training",
@@ -161,7 +163,6 @@ class Trainer:
         ):
             self.on_epoch_begin()
             for tensors_list in self.data_loaders_loop():
-                self.on_iteration_begin()
                 if tensors_list[0][0].shape[0] < 3:
                     continue
                 self.current_loss = loss = self.loss(*tensors_list)
@@ -185,6 +186,9 @@ class Trainer:
                 % (int(self.training_time), self.n_epochs)
             )
         self.on_training_end()
+
+    def on_training_begin(self):
+        pass
 
     def on_epoch_begin(self):
         pass

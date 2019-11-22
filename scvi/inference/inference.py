@@ -1,3 +1,4 @@
+import logging
 import copy
 import warnings
 from typing import Union
@@ -10,6 +11,7 @@ from scvi.dataset import GeneExpressionDataset
 from scvi.inference import Trainer
 
 plt.switch_backend("agg")
+logger = logging.getLogger(__name__)
 
 
 class UnsupervisedTrainer(Trainer):
@@ -49,8 +51,8 @@ class UnsupervisedTrainer(Trainer):
         gene_dataset: GeneExpressionDataset,
         train_size: Union[int, float] = 0.8,
         test_size: Union[int, float] = None,
-        n_iter_kl_warmup: int = None,
-        n_epochs_kl_warmup: int = 400,
+        n_iter_kl_warmup: int = 50,
+        n_epochs_kl_warmup: int = None,
         normalize_loss: bool = None,
         **kwargs
     ):
@@ -58,15 +60,16 @@ class UnsupervisedTrainer(Trainer):
 
         # Set up number of warmup iterations
         n_reference_cells = min(10000, gene_dataset.nb_cells)
+        self.n_iter_kl_warmup = None
+        self.n_epochs_kl_warmup = None
+
         if n_iter_kl_warmup is not None:
-            self.n_iter_for_warmup = (
+            self.n_iter_kl_warmup = (
                 1.0 * n_iter_kl_warmup * ceil(n_reference_cells / self.batch_size)
             )
-        else:
-            self.n_iter_for_warmup = None
+        elif n_epochs_kl_warmup is not None:
+            self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
-        self.kl_weight = None  # Contains kl_weight at current iteration
-
         self.normalize_loss = (
             not (
                 hasattr(self.model, "reconstruction_loss")
@@ -110,19 +113,30 @@ class UnsupervisedTrainer(Trainer):
             loss = loss / self.n_samples
         return loss
 
-    def on_iteration_begin(self):
+    @property
+    def kl_weight(self):
         epoch_criterium = self.n_epochs_kl_warmup is not None
-        iter_criterium = self.n_iter_for_warmup is not None
-        if epoch_criterium and iter_criterium:
-            warnings.warn(
-                "Both n_epochs_kl_warmup and n_iter_for_warmup are provided ... Using n_epochs_kl_warmup"
-            )
-        elif epoch_criterium:
-            self.kl_weight = min(1, self.epoch / self.n_epochs_kl_warmup)
+        iter_criterium = self.n_iter_kl_warmup is not None
+        if epoch_criterium:
+            kl_weight = min(1.0, self.epoch / self.n_epochs_kl_warmup)
         elif iter_criterium:
-            self.kl_weight = min(1.0, self.n_iter / self.n_iter_for_warmup)
+            kl_weight = min(1.0, self.n_iter / self.n_iter_kl_warmup)
         else:
-            self.kl_weight = 1.0
+            kl_weight = 1.0
+        return kl_weight
+
+    def on_training_begin(self):
+        epoch_criterium = self.n_epochs_kl_warmup is not None
+        iter_criterium = self.n_iter_kl_warmup is not None
+        if iter_criterium:
+            log_message = "KL warmup for {} iterations".format(self.n_iter_kl_warmup)
+        elif epoch_criterium:
+            log_message = "KL warmup for {} epochs".format(self.n_epochs_kl_warmup)
+            if self.n_epochs_kl_warmup > self.n_epochs:
+                raise ValueError("KL warmup phase exceeds overall training phase")
+        else:
+            log_message = "Training without KL warmup"
+        logger.info(log_message)
 
     def on_training_end(self):
         if self.kl_weight < 0.99:
