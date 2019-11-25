@@ -13,6 +13,7 @@ from scvi.inference.posterior import unsupervised_clustering_accuracy
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE
 from scvi.models.classifier import Classifier
+from scvi.criticism import PosteriorPredictiveCheck
 
 use_cuda = True
 
@@ -366,3 +367,28 @@ def test_deprecated_munkres():
     reward, assignment = unsupervised_clustering_accuracy(y, y_pred)
     assert reward == 1.0
     assert (assignment == np.array([[0, 3], [1, 1], [2, 2], [3, 0]])).all()
+
+
+def test_ppc():
+    dataset = SyntheticDataset(n_batches=1)
+    vae = VAE(dataset.nb_genes, dataset.n_batches)
+    trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
+    trainer.train(n_epochs=1)
+    full_posterior = trainer.create_posterior(
+        vae, dataset, indices=np.arange(len(dataset.X))
+    )
+    ppc = PosteriorPredictiveCheck(n_samples=2)
+    ppc.store_scvi_posterior_samples({"scVI": full_posterior})
+    ppc.store_fa_samples(n_components=5)
+    ppc.store_pca_samples(n_components=5)
+    external_samples = np.random.poisson(
+        lam=10.0, size=(dataset.X.shape[0], dataset.X.shape[1], 2)
+    )
+    ppc.store_external_samples(external_samples, key="poisson")
+    ppc.coefficient_of_variation(cell_wise=False)
+    ppc.coefficient_of_variation(cell_wise=True)
+    ppc.dropout_ratio()
+    ppc.mean_squared_log_error()
+    ppc.median_absolute_error()
+    ppc.gene_gene_correlation(n_genes=3)
+    ppc.calibration_error(confidence_intervals=[0, 100])

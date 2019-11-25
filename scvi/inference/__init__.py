@@ -9,7 +9,6 @@ from .annotation import (
 )
 from .jvae_trainer import JVAETrainer
 from .total_inference import TotalPosterior, TotalTrainer
-from .ppc import PosteriorPredictiveCheck
 
 __all__ = [
     "Trainer",
@@ -23,5 +22,4 @@ __all__ = [
     "JVAETrainer",
     "TotalPosterior",
     "TotalTrainer",
-    "PosteriorPredictiveCheck",
 ]
