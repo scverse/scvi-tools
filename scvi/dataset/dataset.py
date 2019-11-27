@@ -776,7 +776,7 @@ class GeneExpressionDataset(Dataset):
         new_ratio_genes: Optional[float] = None,
         subset_genes: Optional[Union[List[int], List[bool], np.ndarray]] = None,
         mode: Optional[str] = "seurat",
-        n_bins: Optional[int] = 20,
+        **highly_var_genes_kwargs,
     ):
         """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling.
 
@@ -785,11 +785,16 @@ class GeneExpressionDataset(Dataset):
             * Subsambles a proportion of `new_ratio_genes` of the genes
             * Subsamples the genes in `subset_genes`
 
+        In the case where `new_n_genes`, `new_ratio_genes` and `subset_genes` are all None,
+        this method automatically computes the number of genes to keep (when mode='seurat'
+        or 'cell_ranger')
+
         :param subset_genes: list of indices or mask of genes to retain
         :param new_n_genes: number of genes to retain, the highly variable genes will be kept
         :param new_ratio_genes: proportion of genes to retain, the highly variable genes will be kept
         :param mode: Either "variance", "seurat" or "cell_ranger"
-        :param n_bins: Number of bins used in Seurat mode
+        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using Seurat
+        or cell-ranger (cf. highly_variable_genes method)
         """
 
         if subset_genes is None:
@@ -827,7 +832,7 @@ class GeneExpressionDataset(Dataset):
                 subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
             elif mode in ["seurat", "cell_ranger"]:
                 genes_infos = self.highly_variable_genes(
-                    n_bins=n_bins, n_top_genes=new_n_genes, flavor=mode
+                    n_top_genes=new_n_genes, flavor=mode, **highly_var_genes_kwargs
                 )
                 subset_genes = np.where(genes_infos["highly_variable"])[0]
             else:
