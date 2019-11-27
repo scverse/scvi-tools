@@ -51,7 +51,7 @@ class UnsupervisedTrainer(Trainer):
         gene_dataset: GeneExpressionDataset,
         train_size: Union[int, float] = 0.8,
         test_size: Union[int, float] = None,
-        n_iter_kl_warmup: int = 50,
+        n_iter_kl_warmup: int = 100,
         n_epochs_kl_warmup: int = None,
         normalize_loss: bool = None,
         **kwargs
@@ -59,14 +59,11 @@ class UnsupervisedTrainer(Trainer):
         super().__init__(model, gene_dataset, **kwargs)
 
         # Set up number of warmup iterations
-        n_reference_cells = min(10000, gene_dataset.nb_cells)
         self.n_iter_kl_warmup = None
         self.n_epochs_kl_warmup = None
 
         if n_iter_kl_warmup is not None:
-            self.n_iter_kl_warmup = (
-                1.0 * n_iter_kl_warmup * ceil(n_reference_cells / self.batch_size)
-            )
+            self.n_iter_kl_warmup = n_iter_kl_warmup
         elif n_epochs_kl_warmup is not None:
             self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
@@ -130,6 +127,12 @@ class UnsupervisedTrainer(Trainer):
         iter_criterium = self.n_iter_kl_warmup is not None
         if iter_criterium:
             log_message = "KL warmup for {} iterations".format(self.n_iter_kl_warmup)
+            n_iter_per_epochs_approx = ceil(
+                self.gene_dataset.nb_cells / self.batch_size
+            )
+            n_total_iter_approx = self.n_epochs * n_iter_per_epochs_approx
+            if self.n_iter_kl_warmup > n_total_iter_approx:
+                warnings.warn("KL warmup phase may exceed overall training phase")
         elif epoch_criterium:
             log_message = "KL warmup for {} epochs".format(self.n_epochs_kl_warmup)
             if self.n_epochs_kl_warmup > self.n_epochs:
