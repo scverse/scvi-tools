@@ -1058,7 +1058,7 @@ class Posterior:
             Where x_old has shape (n_cells, n_genes)
             Where x_new has shape (n_cells, n_genes, n_samples)
         """
-        assert self.model.reconstruction_loss in ["zinb", "nb"]
+        assert self.model.reconstruction_loss in ["zinb", "nb", "poisson"]
         zero_inflated = self.model.reconstruction_loss == "zinb"
         x_old = []
         x_new = []
@@ -1071,10 +1071,16 @@ class Posterior:
             px_rate = outputs["px_rate"]
             px_dropout = outputs["px_dropout"]
 
-            p = px_rate / (px_rate + px_r)
-            r = px_r
-            # Important remark: Gamma is parametrized by the rate = 1/scale!
-            l_train = distributions.Gamma(concentration=r, rate=(1 - p) / p).sample()
+            if self.reconstruction_error != "poisson":
+                p = px_rate / (px_rate + px_r)
+                r = px_r
+                # Important remark: Gamma is parametrized by the rate = 1/scale!
+                l_train = distributions.Gamma(
+                    concentration=r, rate=(1 - p) / p
+                ).sample()
+            else:
+                l_train = px_rate
+
             # Clamping as distributions objects can have buggy behaviors when
             # their parameters are too high
             l_train = torch.clamp(l_train, max=1e8)

@@ -4,7 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Normal, kl_divergence as kl
+from torch.distributions import Normal, Poisson, kl_divergence as kl
 
 from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
 from scvi.models.modules import Encoder, DecoderSCVI, LinearDecoderSCVI
@@ -36,6 +36,7 @@ class VAE(nn.Module):
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
+        * ``'poisson'`` - Poisson distribution
 
     Examples:
         >>> gene_dataset = CortexDataset()
@@ -192,6 +193,8 @@ class VAE(nn.Module):
             reconst_loss = -log_zinb_positive(x, px_rate, px_r, px_dropout).sum(dim=-1)
         elif self.reconstruction_loss == "nb":
             reconst_loss = -log_nb_positive(x, px_rate, px_r).sum(dim=-1)
+        elif self.reconstruction_loss == "poisson":
+            reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
         return reconst_loss
 
     def inference(self, x, batch_index=None, y=None, n_samples=1, transform_batch=None):

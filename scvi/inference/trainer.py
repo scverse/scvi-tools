@@ -136,9 +136,7 @@ class Trainer:
                 self.model.train()
         self.compute_metrics_time += time.time() - begin
 
-    def train(
-        self, n_epochs=20, lr=1e-3, eps=0.01, params=None,
-    ):
+    def train(self, n_epochs=20, lr=1e-3, eps=0.01, params=None):
         begin = time.time()
         self.model.train()
 

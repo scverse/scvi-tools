@@ -205,6 +205,21 @@ def test_nb_not_zinb():
     trainer_synthetic_svaec.train(n_epochs=1)
 
 
+def test_poisson_not_zinb():
+    synthetic_dataset = SyntheticDataset()
+    svaec = SCANVI(
+        synthetic_dataset.nb_genes,
+        synthetic_dataset.n_batches,
+        synthetic_dataset.n_labels,
+        labels_groups=[0, 0, 1],
+        reconstruction_loss="poisson",
+    )
+    trainer_synthetic_svaec = JointSemiSupervisedTrainer(
+        svaec, synthetic_dataset, use_cuda=use_cuda
+    )
+    trainer_synthetic_svaec.train(n_epochs=1)
+
+
 def test_classifier_accuracy(save_path):
     cortex_dataset = CortexDataset(save_path=save_path)
     cls = Classifier(cortex_dataset.nb_genes, n_labels=cortex_dataset.n_labels)
