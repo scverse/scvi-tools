@@ -28,7 +28,7 @@ class PosteriorPredictiveCheck:
     def store_scvi_posterior_samples(
         self, posteriors_dict: Dict[str, Posterior], batch_size=32
     ):
-        """Samples from the Posterior objects and sets raw_counts if not None
+        """Samples from the Posterior objects and sets raw_counts if None
            Args:
             posteriors_dict (Dict[str, Posterior]): dictionary of Posterior objects fit on the same dataset
         """
@@ -207,7 +207,7 @@ class PosteriorPredictiveCheck:
 
         self.posterior_predictive_samples[key] = sparse.COO(reconstruction)
 
-    def store_external_samples(self, samples: sparse.COO, key: str):
+    def store_external_samples(self, samples: np.ndarray, key: str):
         """ Samples should be cells by genes by posterior predictive samples
 
         """
