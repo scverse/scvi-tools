@@ -139,7 +139,7 @@ class UnsupervisedTrainer(Trainer):
                 raise ValueError("KL warmup phase exceeds overall training phase")
         else:
             log_message = "Training without KL warmup"
-        logger.info(log_message)
+        logger.debug(log_message)
 
     def on_training_end(self):
         if self.kl_weight < 0.99:
