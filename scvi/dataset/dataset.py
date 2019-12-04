@@ -787,7 +787,7 @@ class GeneExpressionDataset(Dataset):
 
         In the case where `new_n_genes`, `new_ratio_genes` and `subset_genes` are all None,
         this method automatically computes the number of genes to keep (when mode='seurat'
-        or 'cell_ranger')
+        or mode='cell_ranger')
 
         :param subset_genes: list of indices or mask of genes to retain
         :param new_n_genes: number of genes to retain, the highly variable genes will be kept
