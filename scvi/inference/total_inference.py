@@ -562,12 +562,17 @@ class TotalPosterior(Posterior):
 
     @torch.no_grad()
     def generate_denoised_samples(
-        self, n_samples: int = 25, batch_size: int = 64, rna_size_factor: int = 1
+        self,
+        n_samples: int = 25,
+        batch_size: int = 64,
+        rna_size_factor: int = 1,
+        transform_batch: Optional[int] = None,
     ):  # with n_samples>1 return original list/ otherwise sequential
         """ Return samples from an adjusted posterior predictive. Proteins are concatenated to genes.
         :param n_samples: How may samples per cell
         :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
         :rna_size_factor: size factor for RNA prior to sampling gamma distribution
+        :transform_batch: int of which batch to condition on for all cells
         :return:
         """
         posterior_list = []
@@ -575,7 +580,12 @@ class TotalPosterior(Posterior):
             x, _, _, batch_index, labels, y = tensors
             with torch.no_grad():
                 outputs = self.model.inference(
-                    x, y, batch_index=batch_index, label=labels, n_samples=n_samples
+                    x,
+                    y,
+                    batch_index=batch_index,
+                    label=labels,
+                    n_samples=n_samples,
+                    transform_batch=transform_batch,
                 )
             px_ = outputs["px_"]
             py_ = outputs["py_"]
@@ -620,7 +630,11 @@ class TotalPosterior(Posterior):
 
     @torch.no_grad()
     def generate_feature_correlation_matrix(
-        self, n_samples: int = 25, batch_size: int = 64, rna_size_factor: int = 1000
+        self,
+        n_samples: int = 25,
+        batch_size: int = 64,
+        rna_size_factor: int = 1000,
+        transform_batch: Optional[int] = None,
     ):
         """ Wrapper of `generate_denoised_samples()` to create a gene-protein gene-protein corr matrix
         :param n_samples: How may samples per cell
@@ -630,7 +644,10 @@ class TotalPosterior(Posterior):
         """
 
         denoised_data = self.generate_denoised_samples(
-            n_samples=n_samples, batch_size=batch_size, rna_size_factor=rna_size_factor
+            n_samples=n_samples,
+            batch_size=batch_size,
+            rna_size_factor=rna_size_factor,
+            transform_batch=transform_batch,
         )
         flattened = np.zeros(
             (denoised_data.shape[0] * n_samples, denoised_data.shape[1])
