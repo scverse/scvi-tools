@@ -460,7 +460,7 @@ class TotalPosterior(Posterior):
         self,
         n_samples: int = 1,
         give_mean: bool = True,
-        transform_batch: Optional[int] = None,
+        transform_batch: Optional[Union[int, List[int]]] = None,
         sample_protein_mixing: bool = True,
     ):
         """Returns the tensors of denoised normalized gene and protein expression
@@ -468,30 +468,41 @@ class TotalPosterior(Posterior):
         :param n_samples: number of samples from posterior distribution
         :param sample_protein_mixing: Sample mixing bernoulli, setting background to zero
         :param give_mean: bool, whether to return samples along first axis or average over samples
+        :param transform_batch: Batches to condition on.
+        If transform_batch is:
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - list of int, then values are averaged over provided batches.
         :rtype: 2-tuple of :py:class:`np.ndarray`
         """
 
         scale_list_gene = []
         scale_list_pro = []
+        if (transform_batch is None) or (isinstance(transform_batch, int)):
+            transform_batch = [transform_batch]
         for tensors in self:
             x, _, _, batch_index, label, y = tensors
-            outputs = self.model.inference(
-                x,
-                y,
-                batch_index=batch_index,
-                label=label,
-                n_samples=n_samples,
-                transform_batch=transform_batch,
-            )
-            px_scale = outputs["px_"]["scale"]
+            px_scale = torch.zeros_like(x)
+            py_scale = torch.zeros_like(y)
+            for b in transform_batch:
+                outputs = self.model.inference(
+                    x,
+                    y,
+                    batch_index=batch_index,
+                    label=label,
+                    n_samples=n_samples,
+                    transform_batch=b,
+                )
+                px_scale += outputs["px_"]["scale"]
 
-            py_ = outputs["py_"]
-            # probability of background
-            protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
-            if sample_protein_mixing is True:
-                protein_mixing = Bernoulli(protein_mixing).sample()
-            py_scale = py_["rate_fore"] * (1 - protein_mixing)
-
+                py_ = outputs["py_"]
+                # probability of background
+                protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
+                if sample_protein_mixing is True:
+                    protein_mixing = Bernoulli(protein_mixing).sample()
+                py_scale += py_["rate_fore"] * (1 - protein_mixing)
+            px_scale /= len(transform_batch)
+            py_scale /= len(transform_batch)
             scale_list_gene.append(px_scale.cpu())
             scale_list_pro.append(py_scale.cpu())
 
@@ -520,29 +531,38 @@ class TotalPosterior(Posterior):
         self,
         n_samples: int = 1,
         give_mean: bool = True,
-        transform_batch: Optional[int] = None,
+        transform_batch: Optional[Union[int, List[int]]] = None,
     ):
         """Returns the tensors of protein mean (with foreground and background)
 
         :param n_samples: number of samples from posterior distribution
         :param give_mean: bool, whether to return samples along first axis or average over samples
+        :param transform_batch: Batches to condition on.
+        If transform_batch is:
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - list of int, then values are averaged over provided batches.
         :rtype: :py:class:`np.ndarray`
         """
-
+        if (transform_batch is None) or (isinstance(transform_batch, int)):
+            transform_batch = [transform_batch]
         rate_list_pro = []
         for tensors in self:
             x, _, _, batch_index, label, y = tensors
-            outputs = self.model.inference(
-                x,
-                y,
-                batch_index=batch_index,
-                label=label,
-                n_samples=n_samples,
-                transform_batch=transform_batch,
-            )
-            py_ = outputs["py_"]
-            pi = 1 / (1 + torch.exp(-py_["mixing"]))
-            protein_rate = py_["rate_fore"] * (1 - pi) + py_["rate_back"] * pi
+            protein_rate = torch.zeros_like(y)
+            for b in transform_batch:
+                outputs = self.model.inference(
+                    x,
+                    y,
+                    batch_index=batch_index,
+                    label=label,
+                    n_samples=n_samples,
+                    transform_batch=b,
+                )
+                py_ = outputs["py_"]
+                pi = 1 / (1 + torch.exp(-py_["mixing"]))
+                protein_rate += py_["rate_fore"] * (1 - pi) + py_["rate_back"] * pi
+            protein_rate /= len(transform_batch)
             rate_list_pro.append(protein_rate.cpu())
 
         if n_samples > 1:
@@ -567,7 +587,7 @@ class TotalPosterior(Posterior):
         batch_size: int = 64,
         rna_size_factor: int = 1,
         transform_batch: Optional[int] = None,
-    ):  # with n_samples>1 return original list/ otherwise sequential
+    ):
         """ Return samples from an adjusted posterior predictive. Proteins are concatenated to genes.
         :param n_samples: How may samples per cell
         :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
@@ -634,30 +654,39 @@ class TotalPosterior(Posterior):
         n_samples: int = 25,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
-        transform_batch: Optional[int] = None,
+        transform_batch: Optional[Union[int, List[int]]] = None,
     ):
         """ Wrapper of `generate_denoised_samples()` to create a gene-protein gene-protein corr matrix
         :param n_samples: How may samples per cell
         :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
         :rna_size_factor: size factor for RNA prior to sampling gamma distribution
+        :param transform_batch: Batches to condition on.
+        If transform_batch is:
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - list of int, then values are averaged over provided batches.
         :return:
         """
-
-        denoised_data = self.generate_denoised_samples(
-            n_samples=n_samples,
-            batch_size=batch_size,
-            rna_size_factor=rna_size_factor,
-            transform_batch=transform_batch,
-        )
-        flattened = np.zeros(
-            (denoised_data.shape[0] * n_samples, denoised_data.shape[1])
-        )
-        for i in range(n_samples):
-            flattened[
-                denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
-            ] = denoised_data[:, :, i]
-        corr_matrix = np.corrcoef(flattened, rowvar=False)
-
+        if (transform_batch is None) or (isinstance(transform_batch, int)):
+            transform_batch = [transform_batch]
+        corr_mats = []
+        for b in transform_batch:
+            denoised_data = self.generate_denoised_samples(
+                n_samples=n_samples,
+                batch_size=batch_size,
+                rna_size_factor=rna_size_factor,
+                transform_batch=b,
+            )
+            flattened = np.zeros(
+                (denoised_data.shape[0] * n_samples, denoised_data.shape[1])
+            )
+            for i in range(n_samples):
+                flattened[
+                    denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
+                ] = denoised_data[:, :, i]
+            corr_matrix = np.corrcoef(flattened, rowvar=False)
+            corr_mats.append(corr_matrix)
+        corr_matrix = np.mean(np.stack(corr_mats), axis=0)
         return corr_matrix
 
     @torch.no_grad()
