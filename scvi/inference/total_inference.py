@@ -484,6 +484,9 @@ class TotalPosterior(Posterior):
             x, _, _, batch_index, label, y = tensors
             px_scale = torch.zeros_like(x)
             py_scale = torch.zeros_like(y)
+            if n_samples > 1:
+                px_scale = torch.stack(n_samples * [px_scale])
+                py_scale = torch.stack(n_samples * [py_scale])
             for b in transform_batch:
                 outputs = self.model.inference(
                     x,
@@ -550,6 +553,8 @@ class TotalPosterior(Posterior):
         for tensors in self:
             x, _, _, batch_index, label, y = tensors
             protein_rate = torch.zeros_like(y)
+            if n_samples > 1:
+                protein_rate = torch.stack(n_samples * [protein_rate])
             for b in transform_batch:
                 outputs = self.model.inference(
                     x,
