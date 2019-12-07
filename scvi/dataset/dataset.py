@@ -494,7 +494,8 @@ class GeneExpressionDataset(Dataset):
                         (
                             getattr(gene_dataset, attribute_name).shape[0],
                             len(columns_to_keep),
-                        )
+                        ),
+                        dtype=getattr(gene_dataset, attribute_name).dtype,
                     )
                     if type(getattr(gene_dataset, columns_attr_name)) is not np.ndarray:
                         template = sp_sparse.lil_matrix(template)
