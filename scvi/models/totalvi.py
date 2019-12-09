@@ -80,6 +80,7 @@ class TOTALVI(nn.Module):
         protein_batch_mask: List[np.ndarray] = None,
         de_pro_sample_bern: bool = False,
         de_pro_normalize: bool = False,
+        de_pro_one_inflated: bool = False,
         de_pro_include_background: bool = False,
         encoder_batch: bool = True,
     ):
@@ -289,7 +290,10 @@ class TOTALVI(nn.Module):
         protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
         if self.de_pro_sample_bern is True:
             protein_mixing = Bernoulli(protein_mixing).sample()
-        pro_value = (1 - protein_mixing) * py_["rate_fore"]
+        if self.de_pro_one_inflated is True:
+            pro_value = (1 - protein_mixing) * py_["rate_fore"] + protein_mixing
+        else:
+            pro_value = (1 - protein_mixing) * py_["rate_fore"]
         if self.de_pro_include_background is True:
             pro_value = (1 - protein_mixing) * py_["rate_fore"] + protein_mixing * py_[
                 "rate_back"
