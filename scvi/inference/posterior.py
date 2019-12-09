@@ -592,7 +592,7 @@ class Posterior:
 
             if change_fn == "log-fold" or change_fn is None:
                 change_fn = lfc
-            elif not isinstance(change_fn, callable):
+            elif not callable(change_fn):
                 raise ValueError("'change_fn' attribute not understood")
 
             # step2: Construct the DE area function
