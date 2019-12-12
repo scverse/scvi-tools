@@ -1159,7 +1159,7 @@ class Posterior:
         rna_size_factor: int = 1000,
         transform_batch: Optional[Union[int, List[int]]] = None,
     ):
-        """ Wrapper of `generate_denoised_samples()` to create a gene-protein gene-protein corr matrix
+        """ Wrapper of `generate_denoised_samples()` to create a gene-gene corr matrix
         :param n_samples: How may samples per cell
         :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
         :rna_size_factor: size factor for RNA prior to sampling gamma distribution
