@@ -1,6 +1,5 @@
 import logging
 import copy
-import warnings
 from typing import Union
 
 import matplotlib.pyplot as plt
@@ -25,9 +24,21 @@ class UnsupervisedTrainer(Trainer):
         :test_size: The test size, either a float between 0 and 1 or an integer for the number of training samples
          to use Default: ``None``, which is equivalent to data not in the train set. If ``train_size`` and ``test_size``
          do not add to 1 or the length of the dataset then the remaining samples are added to a ``validation_set``.
-        :n_epochs_kl_warmup: Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
-            the training objective is the ELBO. This might be used to prevent inactivity of latent units, and/or to
-            improve clustering of latent space, as a long warmup turns the model into something more of an autoencoder.
+
+        2 parameters can help control the training KL annealing
+        If your applications rely on the posterior quality,
+        (i.e. differential expression, batch effect removal), ensure the number of total
+        epochs (or iterations) exceed the number of epochs (or iterations) used for KL warmup
+
+
+            :n_epochs_kl_warmup: Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
+                the training objective is the ELBO. This might be used to prevent inactivity of latent units, and/or to
+                improve clustering of latent space, as a long warmup turns the model into something more of an autoencoder.
+                Be aware that large datasets should avoid this mode and rely on n_iter_kl_warmup
+
+            :n_iter_kl_warmup: Number of iterations for warmup (useful for bigger datasets)
+            int(128*5000/400) is a good default value.
+
         :normalize_loss: A boolean determining whether the loss is divided by the total number of samples used for
             training. In particular, when the global KL divergence is equal to 0 and the division is performed, the loss
             for a minibatchis is equal to the average of reconstruction losses and KL divergences on the minibatch.
@@ -35,6 +46,7 @@ class UnsupervisedTrainer(Trainer):
             ``AutoZIVAE`` and True otherwise.
         :\*\*kwargs: Other keywords arguments from the general Trainer class.
 
+        int(400.0 * 5000 / 128.0)
     Examples:
         >>> gene_dataset = CortexDataset()
         >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
@@ -51,8 +63,8 @@ class UnsupervisedTrainer(Trainer):
         gene_dataset: GeneExpressionDataset,
         train_size: Union[int, float] = 0.8,
         test_size: Union[int, float] = None,
-        n_iter_kl_warmup: int = int(400.0 * 5000 / 128.0),
-        n_epochs_kl_warmup: int = None,
+        n_iter_kl_warmup: int = None,
+        n_epochs_kl_warmup: int = 400,
         normalize_loss: bool = None,
         **kwargs
     ):
@@ -132,20 +144,29 @@ class UnsupervisedTrainer(Trainer):
             )
             n_total_iter_approx = self.n_epochs * n_iter_per_epochs_approx
             if self.n_iter_kl_warmup > n_total_iter_approx:
-                warnings.warn("KL warmup phase may exceed overall training phase")
+                logger.info(
+                    "KL warmup phase may exceed overall training phase."
+                    "If your applications rely on posterior quality, "
+                    "consider training for more epochs or reducing the kl warmup."
+                )
         elif epoch_criterium:
             log_message = "KL warmup for {} epochs".format(self.n_epochs_kl_warmup)
             if self.n_epochs_kl_warmup > self.n_epochs:
-                raise ValueError("KL warmup phase exceeds overall training phase")
+                logger.info(
+                    "KL warmup phase exceeds overall training phase"
+                    "If your applications rely on the posterior quality, "
+                    "consider training for more epochs or reducing the kl warmup."
+                )
         else:
             log_message = "Training without KL warmup"
         logger.debug(log_message)
 
     def on_training_end(self):
         if self.kl_weight < 0.99:
-            warnings.warn(
-                "Training is still is warming up phase. Consider increasing train's n_epochs "
-                "or reducing n_iter_kl_warmup/n_epochs_kl_warmup"
+            logger.info(
+                "Training is still in warming up phase. "
+                "If your applications rely on the posterior quality, "
+                "consider training for more epochs or reducing the kl warmup."
             )
 
 
