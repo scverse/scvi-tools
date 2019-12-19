@@ -31,8 +31,8 @@ requirements = [
 setup_requirements = ["pip>=18.1"]
 
 test_requirements = [
-    "pytest>=3.7.4",
-    "pytest-runner>=2.11.1",
+    "pytest>=4.4",
+    "pytest-runner>=5.0",
     "flake8>=3.7.7",
     "coverage>=4.5.1",
     "codecov>=2.0.8",
