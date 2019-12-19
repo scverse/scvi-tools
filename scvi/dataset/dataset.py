@@ -115,7 +115,7 @@ class GeneExpressionDataset(Dataset):
         cell_attributes_dict: Dict[str, Union[List, np.ndarray]] = None,
         gene_attributes_dict: Dict[str, Union[List, np.ndarray]] = None,
         remap_attributes: bool = True,
-        gene_names_to_upper: bool = True,
+        gene_names_to_upper: bool = False,
     ):
         """Populates the data attributes of a GeneExpressionDataset object from a (nb_cells, nb_genes) matrix.
 
