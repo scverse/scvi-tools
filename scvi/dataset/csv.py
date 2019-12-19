@@ -64,8 +64,7 @@ class CsvDataset(DownloadableDataset):
             save_path=save_path,
             delayed_populating=delayed_populating,
         )
-        if (new_n_genes is not None) or (subset_genes is not None):
-            self.subsample_genes(new_n_genes=new_n_genes, subset_genes=subset_genes)
+        self.subsample_genes(new_n_genes, subset_genes)
 
     def populate(self):
         logger.info("Preprocessing dataset")

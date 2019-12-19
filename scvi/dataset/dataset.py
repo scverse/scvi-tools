@@ -776,7 +776,7 @@ class GeneExpressionDataset(Dataset):
         new_ratio_genes: Optional[float] = None,
         subset_genes: Optional[Union[List[int], List[bool], np.ndarray]] = None,
         mode: Optional[str] = "seurat",
-        **highly_var_genes_kwargs,
+        n_bins: Optional[int] = 20,
     ):
         """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling.
 
@@ -785,58 +785,49 @@ class GeneExpressionDataset(Dataset):
             * Subsambles a proportion of `new_ratio_genes` of the genes
             * Subsamples the genes in `subset_genes`
 
-        In the case where `new_n_genes`, `new_ratio_genes` and `subset_genes` are all None,
-        this method automatically computes the number of genes to keep (when mode='seurat'
-        or mode='cell_ranger')
-
         :param subset_genes: list of indices or mask of genes to retain
         :param new_n_genes: number of genes to retain, the highly variable genes will be kept
         :param new_ratio_genes: proportion of genes to retain, the highly variable genes will be kept
         :param mode: Either "variance", "seurat" or "cell_ranger"
-        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using Seurat
-        or cell-ranger (cf. highly_variable_genes method)
+        :param n_bins: Number of bins used in Seurat mode
         """
-
-        if subset_genes is None:
-
-            # Converting ratio to new_n_genes if needed
-            if new_ratio_genes is not None:
-                if 0 < new_ratio_genes < 1:
-                    new_n_genes = int(new_ratio_genes * self.nb_genes)
-                else:
-                    logger.info(
-                        "Not subsampling. Expecting 0 < (new_ratio_genes={new_ratio_genes}) < 1.".format(
-                            new_ratio_genes=new_ratio_genes
-                        )
+        if new_ratio_genes is not None:
+            if 0 < new_ratio_genes < 1:
+                new_n_genes = int(new_ratio_genes * self.nb_genes)
+            else:
+                logger.info(
+                    "Not subsampling. Expecting 0 < (new_ratio_genes={new_ratio_genes}) < 1.".format(
+                        new_ratio_genes=new_ratio_genes
                     )
-                    return
+                )
+                return
 
-            # If new_n_genes is provided, assert that it has a proper value
-            if new_n_genes is not None:
-                if new_n_genes >= self.nb_genes or new_n_genes < 1:
-                    logger.info(
-                        "Not subsampling. Expecting: 1 < (new_n_genes={new_n_genes}) <= self.nb_genes".format(
-                            new_n_genes=new_n_genes
-                        )
+        if new_n_genes is not None:
+            if new_n_genes >= self.nb_genes or new_n_genes < 1:
+                logger.info(
+                    "Not subsampling. Expecting: 1 < (new_n_genes={new_n_genes}) <= self.nb_genes".format(
+                        new_n_genes=new_n_genes
                     )
-                    return
+                )
+                return
 
             if mode == "variance":
-                if new_n_genes is None:
-                    logger.info(
-                        "mode='variance' requires to specify new_n_genes or new_ratio_genes"
-                    )
-                    return
                 std_scaler = StandardScaler(with_mean=False)
                 std_scaler.fit(self.X.astype(np.float64))
                 subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
             elif mode in ["seurat", "cell_ranger"]:
                 genes_infos = self.highly_variable_genes(
-                    n_top_genes=new_n_genes, flavor=mode, **highly_var_genes_kwargs
+                    n_bins=n_bins, n_top_genes=new_n_genes, flavor=mode
                 )
                 subset_genes = np.where(genes_infos["highly_variable"])[0]
             else:
                 raise ValueError("Mode {mode} not implemented".format(mode=mode))
+
+        if subset_genes is None:
+            logger.info(
+                "Not subsampling. No parameter given".format(new_n_genes=new_n_genes)
+            )
+            return
 
         self.update_genes(np.asarray(subset_genes))
 
@@ -1310,7 +1301,7 @@ class GeneExpressionDataset(Dataset):
         if issparse(counts):
             counts = counts.toarray()
         adata = sc.AnnData(X=counts, obs=obs)
-        batch_key = "batch" if (batch_correction and self.n_batches >= 2) else None
+        batch_key = "batch" if batch_correction else None
         # Counts normalization
         sc.pp.normalize_total(adata, target_sum=1e4)
         # logarithmed data
