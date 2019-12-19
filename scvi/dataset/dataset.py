@@ -310,7 +310,7 @@ class GeneExpressionDataset(Dataset):
                 set(gene_dataset.cell_attribute_names)
                 for gene_dataset in gene_datasets_list
             ]
-        )
+        ) - set(["local_means", "local_vars"])
 
         # keep gene order
         genes_to_keep = [
@@ -505,6 +505,8 @@ class GeneExpressionDataset(Dataset):
                 self.initialize_cell_attribute(
                     attribute_name, concatenate_arrays(attribute_values)
                 )
+
+        self.compute_library_size_batch()
 
     #############################
     #                           #
