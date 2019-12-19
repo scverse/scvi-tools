@@ -115,6 +115,7 @@ class GeneExpressionDataset(Dataset):
         cell_attributes_dict: Dict[str, Union[List, np.ndarray]] = None,
         gene_attributes_dict: Dict[str, Union[List, np.ndarray]] = None,
         remap_attributes: bool = True,
+        gene_names_to_upper: bool = True,
     ):
         """Populates the data attributes of a GeneExpressionDataset object from a (nb_cells, nb_genes) matrix.
 
@@ -132,6 +133,8 @@ class GeneExpressionDataset(Dataset):
         :param gene_attributes_dict: ``List`` or ``np.ndarray`` with shape (nb_genes,).
         :param remap_attributes: If set to True (default), the function calls
                                  `remap_categorical_attributes` at the end
+        :param gene_names_to_upper: If True, make gene names upper case, which is helpful when working with
+            different species and/or technologies
         """
         # set the data hidden attribute
         self._X = (
@@ -158,9 +161,10 @@ class GeneExpressionDataset(Dataset):
         self.compute_library_size_batch()
 
         if gene_names is not None:
-            self.initialize_gene_attribute(
-                "gene_names", np.asarray(gene_names, dtype="<U64")
-            )
+            gn = np.asarray(gene_names, dtype="<U64")
+            if gene_names_to_upper is True:
+                gn = np.char.upper(gn)
+            self.initialize_gene_attribute("gene_names", gn)
             if len(np.unique(self.gene_names)) != len(self.gene_names):
                 logger.warning("Gene names are not unique.")
         if cell_types is not None:
