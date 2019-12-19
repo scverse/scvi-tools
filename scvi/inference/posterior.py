@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.distributions as distributions
+from tqdm.auto import tqdm
 from matplotlib import pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
@@ -528,7 +529,7 @@ class Posterior:
         ) and not use_observed_batches
         if create_pairs_from_same_batches:
             # First case: same batch normalization in two groups
-            logger.info("Same batches in both cell groups")
+            logger.debug("Same batches in both cell groups")
             n_batches = len(set(batchid1_vals))
             n_samples_per_batch = (
                 M_permutation // n_batches if M_permutation is not None else None
@@ -556,7 +557,7 @@ class Posterior:
             scales_1 = np.concatenate(scales_1, axis=0)
             scales_2 = np.concatenate(scales_2, axis=0)
         else:
-            logger.info("Ignoring batch conditionings to compare means")
+            logger.debug("Ignoring batch conditionings to compare means")
             if len(set(batchid1_vals).intersection(set(batchid2_vals))) >= 1:
                 warnings.warn(
                     "Batchids of cells groups 1 and 2 are different but have an non-null "
@@ -572,7 +573,7 @@ class Posterior:
 
         # Core of function: hypotheses testing based on the posterior samples we obtained above
         if mode == "vanilla":
-            logger.info("Differential expression using vanilla mode")
+            logger.debug("Differential expression using vanilla mode")
             proba_m1 = np.mean(scales_1 > scales_2, 0)
             proba_m2 = 1.0 - proba_m1
             res = dict(
@@ -584,7 +585,7 @@ class Posterior:
             )
 
         elif mode == "change":
-            logger.info("Differential expression using change mode")
+            logger.debug("Differential expression using change mode")
 
             # step 1: Construct the change function
             def lfc(x, y):
@@ -858,7 +859,7 @@ class Posterior:
             cell_labels = self.gene_dataset.labels.ravel()
         de_res = []
         de_cluster = []
-        for i, x in enumerate(cluster_id):
+        for i, x in enumerate(tqdm(cluster_id)):
             if subset is None:
                 idx1 = cell_labels == i
                 idx2 = cell_labels != i
@@ -1003,16 +1004,41 @@ class Posterior:
         return de_res, de_cluster
 
     @torch.no_grad()
-    def imputation(self, n_samples=1):
-        imputed_list = []
-        for tensors in self:
-            sample_batch, _, _, batch_index, labels = tensors
-            px_rate = self.model.get_sample_rate(
-                sample_batch, batch_index=batch_index, y=labels, n_samples=n_samples
-            )
-            imputed_list += [np.array(px_rate.cpu())]
-        imputed_list = np.concatenate(imputed_list)
-        return imputed_list.squeeze()
+    def imputation(
+        self,
+        n_samples: Optional[int] = 1,
+        transform_batch: Optional[Union[int, List[int]]] = None,
+    ) -> np.ndarray:
+        """
+        Imputes px_rate over self cells
+        :param n_samples:
+        :param transform_batch: Batches to condition on.
+        If transform_batch is:
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - list of int, then px_rates are averaged over provided batches.
+        :return: (n_samples, n_cells, n_genes) px_rates squeezed array
+        """
+        if (transform_batch is None) or (isinstance(transform_batch, int)):
+            transform_batch = [transform_batch]
+        imputed_arr = []
+        for batch in transform_batch:
+            imputed_list_batch = []
+            for tensors in self:
+                sample_batch, _, _, batch_index, labels = tensors
+                px_rate = self.model.get_sample_rate(
+                    sample_batch,
+                    batch_index=batch_index,
+                    y=labels,
+                    n_samples=n_samples,
+                    transform_batch=batch,
+                )
+                imputed_list_batch += [np.array(px_rate.cpu())]
+            imputed_arr.append(np.concatenate(imputed_list_batch))
+        imputed_arr = np.array(imputed_arr)
+        # shape: (len(transformed_batch), n_samples, n_cells, n_genes) if n_samples > 1
+        # else shape: (len(transformed_batch), n_cells, n_genes)
+        return imputed_arr.mean(0).squeeze()
 
     @torch.no_grad()
     def generate(
@@ -1032,7 +1058,7 @@ class Posterior:
             Where x_old has shape (n_cells, n_genes)
             Where x_new has shape (n_cells, n_genes, n_samples)
         """
-        assert self.model.reconstruction_loss in ["zinb", "nb"]
+        assert self.model.reconstruction_loss in ["zinb", "nb", "poisson"]
         zero_inflated = self.model.reconstruction_loss == "zinb"
         x_old = []
         x_new = []
@@ -1045,10 +1071,16 @@ class Posterior:
             px_rate = outputs["px_rate"]
             px_dropout = outputs["px_dropout"]
 
-            p = px_rate / (px_rate + px_r)
-            r = px_r
-            # Important remark: Gamma is parametrized by the rate = 1/scale!
-            l_train = distributions.Gamma(concentration=r, rate=(1 - p) / p).sample()
+            if self.reconstruction_error != "poisson":
+                p = px_rate / (px_rate + px_r)
+                r = px_r
+                # Important remark: Gamma is parametrized by the rate = 1/scale!
+                l_train = distributions.Gamma(
+                    concentration=r, rate=(1 - p) / p
+                ).sample()
+            else:
+                l_train = px_rate
+
             # Clamping as distributions objects can have buggy behaviors when
             # their parameters are too high
             l_train = torch.clamp(l_train, max=1e8)

@@ -99,18 +99,18 @@ ICML Workshop on Computational Biology, 2019. `[pdf]`__
 
 Adam Gayoso, Romain Lopez, Zoë Steier, Jeffrey Regier, Aaron Streets, Nir Yosef.
 **"A joint model of RNA expression and surface protein abundance in single cells."**
-bioRxiv, 2019. `[pdf]`__
+Machine Learning in Computational Biology (MLCB), 2019. `[pdf]`__
 
 .. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/07/791947.full.pdf
 
 Oscar Clivio, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir Yosef.
 **"Detecting zero-inflated genes in single-cell transcriptomics data."**
-bioRxiv, 2019. `[pdf]`__
+Machine Learning in Computational Biology (MLCB), 2019. `[pdf]`__
 
 .. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf
 
 Pierre Boyeau, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir Yosef.
 **"Deep generative models for detecting differential expression in single cells."**
-bioRxiv, 2019. `[pdf]`__
+Machine Learning in Computational Biology (MLCB), 2019. `[pdf]`__
 
 .. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/04/794289.full.pdf

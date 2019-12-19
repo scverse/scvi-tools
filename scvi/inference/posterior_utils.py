@@ -311,7 +311,7 @@ def save_cluster_xlsx(
     :param cluster_names: list of cluster names
     :return:
     """
-    writer = pd.ExcelWriter(filepath, engine="xlsxwriter",)
+    writer = pd.ExcelWriter(filepath, engine="xlsxwriter")
     for i, x in enumerate(cluster_names):
         de_results[i].to_excel(writer, sheet_name=str(x))
     writer.close()
