@@ -505,7 +505,7 @@ class GeneExpressionDataset(Dataset):
                 self.initialize_cell_attribute(
                     attribute_name, concatenate_arrays(attribute_values)
                 )
-                
+
         self.compute_library_size_batch()
 
     #############################
