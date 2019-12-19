@@ -34,7 +34,7 @@ test_requirements = [
     "pytest>=3.7.4",
     "pytest-runner>=2.11.1",
     "flake8>=3.7.7",
-    "coverage>=4.5.1",
+    "coverage==4.5.*",
     "codecov>=2.0.8",
     "black>=19.3b0",
 ]
