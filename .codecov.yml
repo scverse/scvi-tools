@@ -1,0 +1,6 @@
+status:
+    project: yes
+    patch: yes
+        target: 85%
+        threshold: 1%
+    patch: no
