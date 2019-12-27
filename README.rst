@@ -41,7 +41,7 @@ Quick Start
 
     ``conda install scvi -c bioconda -c conda-forge``
 
-   Alternatively, you may try pip (``pip install scvi``), or you may clone this repository and run ``python setup.py install``.
+   Alternatively, you may try pip (``pip install scvi``). For the development version clone this repository and run ``pip install -e .``.
 
 4. If you wish to use multiple GPUs for hyperparameter tuning, install MongoDb_.
 
