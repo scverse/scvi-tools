@@ -112,13 +112,13 @@ class FCLayers(nn.Module):
                     else:
                         if isinstance(layer, nn.Linear):
                             if x.dim() == 3:
-                                one_hot_cat_list = [
+                                one_hot_cat_list_layer = [
                                     o.unsqueeze(0).expand(
                                         (x.size(0), o.size(0), o.size(1))
                                     )
                                     for o in one_hot_cat_list
                                 ]
-                            x = torch.cat((x, *one_hot_cat_list), dim=-1)
+                            x = torch.cat((x, *one_hot_cat_list_layer), dim=-1)
                         x = layer(x)
         return x
 
