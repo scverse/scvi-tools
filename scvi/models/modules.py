@@ -118,6 +118,8 @@ class FCLayers(nn.Module):
                                     )
                                     for o in one_hot_cat_list
                                 ]
+                            else:
+                                one_hot_cat_list_layer = one_hot_cat_list
                             x = torch.cat((x, *one_hot_cat_list_layer), dim=-1)
                         x = layer(x)
         return x
