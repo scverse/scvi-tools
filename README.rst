@@ -37,11 +37,13 @@ Quick Start
 
 .. _PyTorch: http://pytorch.org
 
-3. Install scVI through conda:
+3. Install scVI in one of the following ways:
 
-    ``conda install scvi -c bioconda -c conda-forge``
-
-   Alternatively, you may try pip (``pip install scvi``), or you may clone this repository and run ``python setup.py install``.
+    1. Through conda ``conda install scvi -c bioconda -c conda-forge``
+    2. Through pip ``pip install scvi``
+    3. Through pip with packages to run notebooks ``pip install scvi[notebooks]``
+    4. Nightly version - clone this repo and run ``pip install .``
+    5. For development - clone this repo and run ``pip install -e .[test,notebooks]``
 
 4. If you wish to use multiple GPUs for hyperparameter tuning, install MongoDb_.
 
