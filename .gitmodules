@@ -1,0 +1,3 @@
+[submodule "tests/notebooks"]
+	path = tests/notebooks
+	url = https://github.com/YosefLab/scVI-notebooks
