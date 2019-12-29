@@ -13,7 +13,7 @@ from scvi.inference.posterior import unsupervised_clustering_accuracy
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE
 from scvi.models.classifier import Classifier
-from scvi.inference import set_seed
+from scvi import set_seed
 
 set_seed(0)
 use_cuda = True

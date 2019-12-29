@@ -10,7 +10,7 @@ __version__ = "0.5.0"
 import logging
 from logging import NullHandler
 
-from ._settings import set_verbosity
+from ._settings import set_verbosity, set_seed
 
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
@@ -20,4 +20,4 @@ set_verbosity(logging.INFO)
 # this prevents double outputs
 logger.propagate = False
 
-__all__ = ["set_verbosity"]
+__all__ = ["set_verbosity", "set_seed"]
