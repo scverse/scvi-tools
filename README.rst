@@ -43,7 +43,7 @@ Quick Start
     2. Through pip ``pip install scvi``
     3. Through pip with packages to run notebooks ``pip install scvi[notebooks]``
     4. Nightly version - clone this repo and run ``pip install .``
-    5. For development - clone this repo and run ``pip install -e .[tests,notebooks]``
+    5. For development - clone this repo and run ``pip install -e .[test,notebooks]``
 
 4. If you wish to use multiple GPUs for hyperparameter tuning, install MongoDb_.
 
