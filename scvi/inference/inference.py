@@ -25,7 +25,7 @@ class UnsupervisedTrainer(Trainer):
          to use Default: ``None``, which is equivalent to data not in the train set. If ``train_size`` and ``test_size``
          do not add to 1 or the length of the dataset then the remaining samples are added to a ``validation_set``.
 
-        2 parameters can help control the training KL annealing
+        Two parameters can help control the training KL annealing
         If your applications rely on the posterior quality,
         (i.e. differential expression, batch effect removal), ensure the number of total
         epochs (or iterations) exceed the number of epochs (or iterations) used for KL warmup
@@ -34,7 +34,8 @@ class UnsupervisedTrainer(Trainer):
             :n_epochs_kl_warmup: Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
                 the training objective is the ELBO. This might be used to prevent inactivity of latent units, and/or to
                 improve clustering of latent space, as a long warmup turns the model into something more of an autoencoder.
-                Be aware that large datasets should avoid this mode and rely on n_iter_kl_warmup
+                Be aware that large datasets should avoid this mode and rely on n_iter_kl_warmup. If this parameter is not
+                None, then it overrides any choice of `n_iter_kl_warmup`.
 
             :n_iter_kl_warmup: Number of iterations for warmup (useful for bigger datasets)
             int(128*5000/400) is a good default value.
