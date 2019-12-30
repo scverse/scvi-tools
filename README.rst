@@ -37,11 +37,13 @@ Quick Start
 
 .. _PyTorch: http://pytorch.org
 
-3. Install scVI through conda:
+3. Install scVI in one of the following ways:
 
-    ``conda install scvi -c bioconda -c conda-forge``
-
-   Alternatively, you may try pip (``pip install scvi``), or you may clone this repository and run ``python setup.py install``.
+    1. Through conda ``conda install scvi -c bioconda -c conda-forge``
+    2. Through pip ``pip install scvi``
+    3. Through pip with packages to run notebooks ``pip install scvi[notebooks]``
+    4. Nightly version - clone this repo and run ``pip install .``
+    5. For development - clone this repo and run ``pip install -e .[test,notebooks]``
 
 4. If you wish to use multiple GPUs for hyperparameter tuning, install MongoDb_.
 
@@ -99,19 +101,19 @@ ICML Workshop on Computational Biology, 2019. `[pdf]`__
 
 Adam Gayoso, Romain Lopez, Zoë Steier, Jeffrey Regier, Aaron Streets, Nir Yosef.
 **"A joint model of RNA expression and surface protein abundance in single cells."**
-bioRxiv, 2019. `[pdf]`__
+Machine Learning in Computational Biology (MLCB), 2019. `[pdf]`__
 
 .. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/07/791947.full.pdf
 
 Oscar Clivio, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir Yosef.
 **"Detecting zero-inflated genes in single-cell transcriptomics data."**
-bioRxiv, 2019. `[pdf]`__
+Machine Learning in Computational Biology (MLCB), 2019. `[pdf]`__
 
 .. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf
 
 Pierre Boyeau, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir Yosef.
 **"Deep generative models for detecting differential expression in single cells."**
-bioRxiv, 2019. `[pdf]`__
+Machine Learning in Computational Biology (MLCB), 2019. `[pdf]`__
 
 .. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/04/794289.full.pdf
 
