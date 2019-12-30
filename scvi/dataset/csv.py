@@ -54,8 +54,8 @@ class CsvDataset(DownloadableDataset):
         self.compression = compression
         self.sep = sep
         self.gene_by_cell = (
-            gene_by_cell
-        )  # Whether the original dataset is genes by cells
+            gene_by_cell  # Whether the original dataset is genes by cells
+        )
         self.labels_file = labels_file
         self.batch_ids_file = batch_ids_file
         super().__init__(
@@ -64,7 +64,8 @@ class CsvDataset(DownloadableDataset):
             save_path=save_path,
             delayed_populating=delayed_populating,
         )
-        self.subsample_genes(new_n_genes, subset_genes)
+        if (new_n_genes is not None) or (subset_genes is not None):
+            self.subsample_genes(new_n_genes=new_n_genes, subset_genes=subset_genes)
 
     def populate(self):
         logger.info("Preprocessing dataset")

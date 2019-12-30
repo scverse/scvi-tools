@@ -19,23 +19,24 @@ requirements = [
     "loompy>=2.0.16",
     "tqdm>=4.31.1",
     "xlrd>=1.2.0",
-    "nbconvert>=5.4.0",
-    "nbformat>=4.4.0",
-    "jupyter>=1.0.0",
-    "ipython>=7.1.1",
     "numba==0.45.0",  # numba 0.45.1 has a conflict with UMAP and numba 0.46.0 with parallelization in loompy
     "hyperopt==0.1.2",
+    "anndata>=0.6.22rc1",
 ]
 
 setup_requirements = ["pip>=18.1"]
 
 test_requirements = [
-    "pytest>=3.7.4",
-    "pytest-runner>=2.11.1",
+    "pytest>=4.4",
+    "pytest-runner>=5.0",
     "flake8>=3.7.7",
     "coverage>=4.5.1",
     "codecov>=2.0.8",
     "black>=19.3b0",
+    "nbconvert>=5.4.0",
+    "nbformat>=4.4.0",
+    "jupyter>=1.0.0",
+    "ipython>=7.1.1",
 ]
 
 extras_requirements = {

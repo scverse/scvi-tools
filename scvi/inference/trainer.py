@@ -1,18 +1,18 @@
 import logging
 import sys
 import time
-
 from abc import abstractmethod
 from collections import defaultdict, OrderedDict
 from itertools import cycle
+from typing import List
 
 import numpy as np
 import torch
-
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
-from tqdm import trange
+from tqdm.auto import tqdm
 
+from scvi.dataset import GeneExpressionDataset
 from scvi.inference.posterior import Posterior
 
 logger = logging.getLogger(__name__)
@@ -43,56 +43,66 @@ class Trainer:
     def __init__(
         self,
         model,
-        gene_dataset,
-        use_cuda=True,
-        metrics_to_monitor=None,
-        benchmark=False,
-        frequency=None,
-        weight_decay=1e-6,
-        early_stopping_kwargs=None,
-        data_loader_kwargs=None,
-        show_progbar=True,
-        seed=0,
+        gene_dataset: GeneExpressionDataset,
+        use_cuda: bool = True,
+        metrics_to_monitor: List = None,
+        benchmark: bool = False,
+        frequency: int = None,
+        weight_decay: float = 1e-6,
+        early_stopping_kwargs: dict = None,
+        data_loader_kwargs: dict = None,
+        show_progbar: bool = True,
+        batch_size: int = 128,
+        seed: int = 0,
+        max_nans: int = 10,
     ):
-        # handle mutable defaults
-        early_stopping_kwargs = (
-            early_stopping_kwargs if early_stopping_kwargs else dict()
-        )
-        data_loader_kwargs = data_loader_kwargs if data_loader_kwargs else dict()
 
+        # Model, dataset management
         self.model = model
         self.gene_dataset = gene_dataset
         self._posteriors = OrderedDict()
-        self.seed = seed
-
-        self.data_loader_kwargs = {"batch_size": 128, "pin_memory": use_cuda}
-        self.data_loader_kwargs.update(data_loader_kwargs)
-
-        self.weight_decay = weight_decay
-        self.benchmark = benchmark
-        self.epoch = -1  # epoch = self.epoch + 1 in compute metrics
-        self.training_time = 0
-
-        if metrics_to_monitor is not None:
-            self.metrics_to_monitor = set(metrics_to_monitor)
-        else:
-            self.metrics_to_monitor = set(self.default_metrics_to_monitor)
-
-        self.early_stopping = EarlyStopping(**early_stopping_kwargs)
-
-        if self.early_stopping.early_stopping_metric:
-            self.metrics_to_monitor.add(self.early_stopping.early_stopping_metric)
-
+        self.seed = seed  # For train/test splitting
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
             self.model.cuda()
 
+        # Data loader attributes
+        self.batch_size = batch_size
+        self.data_loader_kwargs = {"batch_size": batch_size, "pin_memory": use_cuda}
+        data_loader_kwargs = data_loader_kwargs if data_loader_kwargs else dict()
+        self.data_loader_kwargs.update(data_loader_kwargs)
+
+        # Optimization attributes
+        self.optimizer = None
+        self.weight_decay = weight_decay
+        self.n_epochs = None
+        self.epoch = -1  # epoch = self.epoch + 1 in compute metrics
+        self.training_time = 0
+        self.n_iter = 0
+
+        # Training NaNs handling
+        self.max_nans = max_nans
+        self.current_loss = None  # torch.Tensor training loss
+        self.previous_loss_was_nan = False
+        self.nan_counter = 0  # Counts occuring NaNs during training
+
+        # Metrics and early stopping
+        self.compute_metrics_time = None
+        if metrics_to_monitor is not None:
+            self.metrics_to_monitor = set(metrics_to_monitor)
+        else:
+            self.metrics_to_monitor = set(self.default_metrics_to_monitor)
+        early_stopping_kwargs = (
+            early_stopping_kwargs if early_stopping_kwargs else dict()
+        )
+        self.early_stopping = EarlyStopping(**early_stopping_kwargs)
+        self.benchmark = benchmark
         self.frequency = frequency if not benchmark else None
-
         self.history = defaultdict(list)
-
         self.best_state_dict = self.model.state_dict()
         self.best_epoch = self.epoch
+        if self.early_stopping.early_stopping_metric:
+            self.metrics_to_monitor.add(self.early_stopping.early_stopping_metric)
 
         self.show_progbar = show_progbar
 
@@ -141,24 +151,26 @@ class Trainer:
         self.n_epochs = n_epochs
         self.compute_metrics()
 
-        with trange(
-            n_epochs, desc="training", file=sys.stdout, disable=not self.show_progbar
-        ) as pbar:
-            # We have to use tqdm this way so it works in Jupyter notebook.
-            # See https://stackoverflow.com/questions/42212810/tqdm-in-jupyter-notebook
-            for self.epoch in pbar:
-                self.on_epoch_begin()
-                pbar.update(1)
-                for tensors_list in self.data_loaders_loop():
-                    if tensors_list[0][0].shape[0] < 3:
-                        continue
-                    loss = self.loss(*tensors_list)
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
+        self.on_training_begin()
 
-                if not self.on_epoch_end():
-                    break
+        for self.epoch in tqdm(
+            range(n_epochs),
+            desc="training",
+            disable=not self.show_progbar,
+            file=sys.stdout,
+        ):
+            self.on_epoch_begin()
+            for tensors_list in self.data_loaders_loop():
+                if tensors_list[0][0].shape[0] < 3:
+                    continue
+                self.current_loss = loss = self.loss(*tensors_list)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                self.on_iteration_end()
+
+            if not self.on_epoch_end():
+                break
 
         if self.early_stopping.save_best_state_metric is not None:
             self.model.load_state_dict(self.best_state_dict)
@@ -171,6 +183,10 @@ class Trainer:
                 "\nTraining time:  %i s. / %i epochs"
                 % (int(self.training_time), self.n_epochs)
             )
+        self.on_training_end()
+
+    def on_training_begin(self):
+        pass
 
     def on_epoch_begin(self):
         pass
@@ -193,20 +209,52 @@ class Trainer:
                 self.history[early_stopping_metric + "_" + on][-1]
             )
             if reduce_lr:
-                logger.info("Reducing LR.")
+                logger.info("Reducing LR on epoch {}.".format(self.epoch))
                 for param_group in self.optimizer.param_groups:
                     param_group["lr"] *= self.early_stopping.lr_factor
 
         return continue_training
+
+    def on_iteration_begin(self):
+        pass
+
+    def on_iteration_end(self):
+        self.check_training_status()
+        self.n_iter += 1
+
+    def on_training_end(self):
+        pass
+
+    def check_training_status(self):
+        """
+        Checks if loss is admissible. If not, training is stopped after max_nans consecutive
+        inadmissible loss
+        loss corresponds to the training loss of the model
+        max_nans is the maximum number of consecutive NaNs after which a ValueError will be
+        raised
+        """
+        loss_is_nan = torch.isnan(self.current_loss).item()
+        if loss_is_nan:
+            logger.warning("Model training loss was NaN")
+            self.nan_counter += 1
+            self.previous_loss_was_nan = True
+        else:
+            self.nan_counter = 0
+            self.previous_loss_was_nan = False
+
+        if self.nan_counter >= self.max_nans:
+            raise ValueError(
+                "Loss was NaN {} consecutive times: the model is not training properly. "
+                "Consider using a lower learning rate.".format(self.max_nans)
+            )
 
     @property
     @abstractmethod
     def posteriors_loop(self):
         pass
 
-    def data_loaders_loop(
-        self
-    ):  # returns an zipped iterable corresponding to loss signature
+    def data_loaders_loop(self):
+        """returns an zipped iterable corresponding to loss signature"""
         data_loaders_loop = [self._posteriors[name] for name in self.posteriors_loop]
         return zip(
             data_loaders_loop[0],

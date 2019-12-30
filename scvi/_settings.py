@@ -1,5 +1,9 @@
 import logging
+import sys
 from typing import Union
+
+import torch
+import numpy as np
 
 logger = logging.getLogger(__name__)
 scvi_logger = logging.getLogger("scvi")
@@ -52,7 +56,7 @@ def set_verbosity(level: Union[str, int]):
             )
             has_streamhandler = True
     if not has_streamhandler:
-        ch = logging.StreamHandler()
+        ch = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(
             "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
         )
@@ -60,4 +64,11 @@ def set_verbosity(level: Union[str, int]):
             DispatchingFormatter(formatter, {"scvi.autotune": autotune_formatter})
         )
         scvi_logger.addHandler(ch)
-        logger.info("Added StreamHandler with custom formatter to 'scvi' logger.")
+        logger.debug("Added StreamHandler with custom formatter to 'scvi' logger.")
+
+
+def set_seed(seed: int = 0):
+    torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)

@@ -7,8 +7,10 @@ from collections import OrderedDict, defaultdict
 from dataclasses import dataclass
 from functools import partial
 from typing import Dict, Iterable, List, Tuple, Union, Optional, Callable
+from scipy.sparse import issparse
 
 import numpy as np
+import pandas as pd
 import scipy.sparse as sp_sparse
 import torch
 from sklearn.preprocessing import StandardScaler
@@ -314,7 +316,7 @@ class GeneExpressionDataset(Dataset):
                 set(gene_dataset.cell_attribute_names)
                 for gene_dataset in gene_datasets_list
             ]
-        )
+        ) - set(["local_means", "local_vars"])
 
         # keep gene order
         genes_to_keep = [
@@ -509,6 +511,8 @@ class GeneExpressionDataset(Dataset):
                 self.initialize_cell_attribute(
                     attribute_name, concatenate_arrays(attribute_values)
                 )
+
+        self.compute_library_size_batch()
 
     #############################
     #                           #
@@ -721,9 +725,10 @@ class GeneExpressionDataset(Dataset):
         self.local_vars = np.zeros((self.nb_cells, 1))
         for i_batch in range(self.n_batches):
             idx_batch = np.squeeze(self.batch_indices == i_batch)
-            self.local_means[idx_batch], self.local_vars[
-                idx_batch
-            ] = compute_library_size(self.X[idx_batch])
+            (
+                self.local_means[idx_batch],
+                self.local_vars[idx_batch],
+            ) = compute_library_size(self.X[idx_batch])
         self.cell_attribute_names.update(["local_means", "local_vars"])
 
     def collate_fn_builder(
@@ -778,6 +783,8 @@ class GeneExpressionDataset(Dataset):
         new_n_genes: Optional[int] = None,
         new_ratio_genes: Optional[float] = None,
         subset_genes: Optional[Union[List[int], List[bool], np.ndarray]] = None,
+        mode: Optional[str] = "seurat",
+        **highly_var_genes_kwargs,
     ):
         """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling.
 
@@ -786,39 +793,58 @@ class GeneExpressionDataset(Dataset):
             * Subsambles a proportion of `new_ratio_genes` of the genes
             * Subsamples the genes in `subset_genes`
 
+        In the case where `new_n_genes`, `new_ratio_genes` and `subset_genes` are all None,
+        this method automatically computes the number of genes to keep (when mode='seurat'
+        or mode='cell_ranger')
+
         :param subset_genes: list of indices or mask of genes to retain
         :param new_n_genes: number of genes to retain, the highly variable genes will be kept
         :param new_ratio_genes: proportion of genes to retain, the highly variable genes will be kept
+        :param mode: Either "variance", "seurat" or "cell_ranger"
+        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using Seurat
+        or cell-ranger (cf. highly_variable_genes method)
         """
-        if new_ratio_genes is not None:
-            if 0 < new_ratio_genes < 1:
-                new_n_genes = int(new_ratio_genes * self.nb_genes)
-            else:
-                logger.info(
-                    "Not subsampling. Expecting 0 < (new_ratio_genes={new_ratio_genes}) < 1.".format(
-                        new_ratio_genes=new_ratio_genes
-                    )
-                )
-                return
-
-        if new_n_genes is not None:
-            if new_n_genes >= self.nb_genes or new_n_genes < 1:
-                logger.info(
-                    "Not subsampling. Expecting: 1 < (new_n_genes={new_n_genes}) <= self.nb_genes".format(
-                        new_n_genes=new_n_genes
-                    )
-                )
-                return
-
-            std_scaler = StandardScaler(with_mean=False)
-            std_scaler.fit(self.X.astype(np.float64))
-            subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
 
         if subset_genes is None:
-            logger.info(
-                "Not subsampling. No parameter given".format(new_n_genes=new_n_genes)
-            )
-            return
+
+            # Converting ratio to new_n_genes if needed
+            if new_ratio_genes is not None:
+                if 0 < new_ratio_genes < 1:
+                    new_n_genes = int(new_ratio_genes * self.nb_genes)
+                else:
+                    logger.info(
+                        "Not subsampling. Expecting 0 < (new_ratio_genes={new_ratio_genes}) < 1.".format(
+                            new_ratio_genes=new_ratio_genes
+                        )
+                    )
+                    return
+
+            # If new_n_genes is provided, assert that it has a proper value
+            if new_n_genes is not None:
+                if new_n_genes >= self.nb_genes or new_n_genes < 1:
+                    logger.info(
+                        "Not subsampling. Expecting: 1 < (new_n_genes={new_n_genes}) <= self.nb_genes".format(
+                            new_n_genes=new_n_genes
+                        )
+                    )
+                    return
+
+            if mode == "variance":
+                if new_n_genes is None:
+                    logger.info(
+                        "mode='variance' requires to specify new_n_genes or new_ratio_genes"
+                    )
+                    return
+                std_scaler = StandardScaler(with_mean=False)
+                std_scaler.fit(self.X.astype(np.float64))
+                subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
+            elif mode in ["seurat", "cell_ranger"]:
+                genes_infos = self.highly_variable_genes(
+                    n_top_genes=new_n_genes, flavor=mode, **highly_var_genes_kwargs
+                )
+                subset_genes = np.where(genes_infos["highly_variable"])[0]
+            else:
+                raise ValueError("Mode {mode} not implemented".format(mode=mode))
 
         self.update_genes(np.asarray(subset_genes))
 
@@ -1218,6 +1244,101 @@ class GeneExpressionDataset(Dataset):
             np.squeeze(np.asarray(norm_mean1)),
             np.squeeze(np.asarray(norm_mean2)),
         )
+
+    def highly_variable_genes(
+        self,
+        min_disp: Optional[float] = None,
+        max_disp: Optional[float] = None,
+        min_mean: Optional[float] = None,
+        max_mean: Optional[float] = None,
+        n_top_genes: Optional[int] = None,
+        n_bins: int = 20,
+        flavor: Optional[str] = "seurat",
+        batch_correction: Optional[bool] = True,
+    ) -> pd.DataFrame:
+        """\
+        Code sample taken from the scanpy package
+        Annotate highly variable genes [Satija15]_ [Zheng17]_.
+        Depending on `flavor`, this reproduces the R-implementations of Seurat
+        [Satija15]_ and Cell Ranger [Zheng17]_.
+        The normalized dispersion is obtained by scaling with the mean and standard
+        deviation of the dispersions for genes falling into a given bin for mean
+        expression of genes. This means that for each bin of mean expression, highly
+        variable genes are selected.
+        Parameters
+        ----------
+        :param min_mean:
+            If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
+            normalized dispersions are ignored.
+        :param max_mean:
+            If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
+            normalized dispersions are ignored.
+        :param min_disp:
+            If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
+            normalized dispersions are ignored.
+        :param max_disp:
+            If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
+            normalized dispersions are ignored.
+        :param n_top_genes:
+            Number of highly-variable genes to keep.
+        :param n_bins:
+            Number of bins for binning the mean gene expression. Normalization is
+            done with respect to each bin. If just a single gene falls into a bin,
+            the normalized dispersion is artificially set to 1. You'll be informed
+            about this if you set `settings.verbosity = 4`.
+        :param flavor:
+            Choose the flavor for computing normalized dispersion. In their default
+            workflows, Seurat passes the cutoffs whereas Cell Ranger passes
+            `n_top_genes`.
+        :param batch_correction:
+            Whether batches should be taken into account during procedure
+
+        :return:
+            scanpy .var DataFrame providing genes information including means, dispersions
+            and whether the gene is tagged highly variable (key `highly_variable`)
+            (see scanpy highly_variable_genes documentation)
+
+        """
+
+        logger.info("extracting highly variable genes")
+        try:
+            import scanpy as sc
+        except ImportError:
+            raise ImportError(
+                "please install scanpy: " "pip install scanpy python-igraph louvain"
+            )
+
+        # Creating AnnData structure
+        obs = pd.DataFrame(
+            data=dict(batch=self.batch_indices.squeeze()),
+            index=np.arange(self.nb_cells),
+        ).astype("category")
+
+        counts = self.X.copy()
+        if issparse(counts):
+            counts = counts.toarray()
+        adata = sc.AnnData(X=counts, obs=obs)
+        batch_key = "batch" if (batch_correction and self.n_batches >= 2) else None
+        # Counts normalization
+        sc.pp.normalize_total(adata, target_sum=1e4)
+        # logarithmed data
+        sc.pp.log1p(adata)
+
+        # Finding top genes
+        sc.pp.highly_variable_genes(
+            adata=adata,
+            min_disp=min_disp,
+            max_disp=max_disp,
+            min_mean=min_mean,
+            max_mean=max_mean,
+            n_top_genes=n_top_genes,
+            n_bins=n_bins,
+            flavor=flavor,
+            batch_key=batch_key,
+            inplace=True,  # inplace=False looks buggy
+        )
+
+        return adata.var
 
 
 def remap_categories(
