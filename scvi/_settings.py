@@ -2,6 +2,9 @@ import logging
 import sys
 from typing import Union
 
+import torch
+import numpy as np
+
 logger = logging.getLogger(__name__)
 scvi_logger = logging.getLogger("scvi")
 
@@ -62,3 +65,10 @@ def set_verbosity(level: Union[str, int]):
         )
         scvi_logger.addHandler(ch)
         logger.debug("Added StreamHandler with custom formatter to 'scvi' logger.")
+
+
+def set_seed(seed: int = 0):
+    torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)
