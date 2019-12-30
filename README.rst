@@ -114,3 +114,9 @@ Pierre Boyeau, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir
 bioRxiv, 2019. `[pdf]`__
 
 .. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/04/794289.full.pdf
+
+Valentine Svensson, Lior Pachter.
+**"Interpretable factor models of single-cell RNA-seq via variational autoencoders."**
+bioRxiv, 2019. `[pdf]`__
+
+.. __: https://www.biorxiv.org/content/10.1101/737601v1.full.pdf
