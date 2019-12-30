@@ -78,9 +78,6 @@ class TOTALVI(nn.Module):
         reconstruction_loss_gene: str = "nb",
         latent_distribution: str = "ln",
         protein_batch_mask: List[np.ndarray] = None,
-        de_pro_sample_bern: bool = False,
-        de_pro_normalize: bool = False,
-        de_pro_include_background: bool = False,
         encoder_batch: bool = True,
     ):
         super().__init__()
@@ -95,9 +92,6 @@ class TOTALVI(nn.Module):
         self.protein_dispersion = protein_dispersion
         self.latent_distribution = latent_distribution
         self.protein_batch_mask = protein_batch_mask
-        self.de_pro_sample_bern = de_pro_sample_bern
-        self.de_pro_normalize = de_pro_normalize
-        self.de_pro_include_background = de_pro_include_background
 
         # parameters for prior on rate_back (background protein mean)
         if n_batch > 0:
@@ -270,6 +264,10 @@ class TOTALVI(nn.Module):
         label: Optional[torch.Tensor] = None,
         n_samples: int = 1,
         transform_batch: Optional[int] = None,
+        eps=0,
+        normalize_pro=False,
+        sample_bern=True,
+        include_bg=False,
     ) -> torch.Tensor:
         """ Returns tuple of gene and protein scales for a possibly transformed
         batch.
@@ -287,17 +285,17 @@ class TOTALVI(nn.Module):
         px_ = outputs["px_"]
         py_ = outputs["py_"]
         protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
-        if self.de_pro_sample_bern is True:
+        if sample_bern is True:
             protein_mixing = Bernoulli(protein_mixing).sample()
         pro_value = (1 - protein_mixing) * py_["rate_fore"]
-        if self.de_pro_include_background is True:
+        if include_bg is True:
             pro_value = (1 - protein_mixing) * py_["rate_fore"] + protein_mixing * py_[
                 "rate_back"
             ]
-        if self.de_pro_normalize is True:
+        if normalize_pro is True:
             pro_value = torch.nn.functional.normalize(pro_value, p=1, dim=-1)
 
-        return px_["scale"], pro_value
+        return px_["scale"], pro_value + eps
 
     def get_reconstruction_loss(
         self,

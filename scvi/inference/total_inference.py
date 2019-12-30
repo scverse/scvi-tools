@@ -434,25 +434,31 @@ class TotalPosterior(Posterior):
         return py_mixings
 
     @torch.no_grad()
-    def get_sample_scale(self, transform_batch=None):
+    def get_sample_scale(
+        self,
+        transform_batch=None,
+        eps=0.5,
+        normalize_pro=False,
+        sample_bern=True,
+        include_bg=False,
+    ):
         scales = []
         for tensors in self:
             x, _, _, batch_index, label, y = tensors
-            scales += [
-                torch.cat(
-                    self.model.get_sample_scale(
-                        x,
-                        y,
-                        batch_index=batch_index,
-                        label=label,
-                        n_samples=1,
-                        transform_batch=transform_batch,
-                    ),
-                    dim=-1,
-                )
-                .cpu()
-                .numpy()
-            ]
+            model_scale = self.model.get_sample_scale(
+                x,
+                y,
+                batch_index=batch_index,
+                label=label,
+                n_samples=1,
+                transform_batch=transform_batch,
+                eps=eps,
+                normalize_pro=normalize_pro,
+                sample_bern=sample_bern,
+                include_bg=include_bg,
+            )
+            # prior count for proteins
+            scales += [torch.cat(model_scale, dim=-1).cpu().numpy()]
         return np.concatenate(scales)
 
     @torch.no_grad()
