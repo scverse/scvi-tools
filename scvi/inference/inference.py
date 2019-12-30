@@ -124,20 +124,20 @@ class UnsupervisedTrainer(Trainer):
 
     @property
     def kl_weight(self):
-        epoch_criterium = self.n_epochs_kl_warmup is not None
-        iter_criterium = self.n_iter_kl_warmup is not None
-        if epoch_criterium:
+        epoch_criterion = self.n_epochs_kl_warmup is not None
+        iter_criterion = self.n_iter_kl_warmup is not None
+        if epoch_criterion:
             kl_weight = min(1.0, self.epoch / self.n_epochs_kl_warmup)
-        elif iter_criterium:
+        elif iter_criterion:
             kl_weight = min(1.0, self.n_iter / self.n_iter_kl_warmup)
         else:
             kl_weight = 1.0
         return kl_weight
 
     def on_training_begin(self):
-        epoch_criterium = self.n_epochs_kl_warmup is not None
-        iter_criterium = self.n_iter_kl_warmup is not None
-        if iter_criterium:
+        epoch_criterion = self.n_epochs_kl_warmup is not None
+        iter_criterion = self.n_iter_kl_warmup is not None
+        if iter_criterion:
             log_message = "KL warmup for {} iterations".format(self.n_iter_kl_warmup)
             n_iter_per_epochs_approx = ceil(
                 self.gene_dataset.nb_cells / self.batch_size
@@ -149,7 +149,7 @@ class UnsupervisedTrainer(Trainer):
                     "If your applications rely on posterior quality, "
                     "consider training for more epochs or reducing the kl warmup."
                 )
-        elif epoch_criterium:
+        elif epoch_criterion:
             log_message = "KL warmup for {} epochs".format(self.n_epochs_kl_warmup)
             if self.n_epochs_kl_warmup > self.n_epochs:
                 logger.info(
