@@ -417,7 +417,7 @@ def compute_accuracy_svc(
             {"C": [1, 10, 100, 1000], "gamma": [0.001, 0.0001], "kernel": ["rbf"]},
         ]
     svc = SVC(max_iter=max_iter)
-    clf = GridSearchCV(svc, param_grid, verbose=verbose)
+    clf = GridSearchCV(svc, param_grid, verbose=verbose, cv=3)
     return compute_accuracy_classifier(
         clf, data_train, labels_train, data_test, labels_test
     )
@@ -430,7 +430,7 @@ def compute_accuracy_rf(
     if param_grid is None:
         param_grid = {"max_depth": np.arange(3, 10), "n_estimators": [10, 50, 100, 200]}
     rf = RandomForestClassifier(max_depth=2, random_state=0)
-    clf = GridSearchCV(rf, param_grid, verbose=verbose)
+    clf = GridSearchCV(rf, param_grid, verbose=verbose, cv=3)
     return compute_accuracy_classifier(
         clf, data_train, labels_train, data_test, labels_test
     )
