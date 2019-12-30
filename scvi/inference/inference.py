@@ -72,13 +72,7 @@ class UnsupervisedTrainer(Trainer):
         super().__init__(model, gene_dataset, **kwargs)
 
         # Set up number of warmup iterations
-        self.n_iter_kl_warmup = None
-        self.n_epochs_kl_warmup = None
-
-        if n_iter_kl_warmup is not None:
-            self.n_iter_kl_warmup = n_iter_kl_warmup
-        elif n_epochs_kl_warmup is not None:
-            self.n_epochs_kl_warmup = n_epochs_kl_warmup
+        self.n_iter_kl_warmup = n_iter_kl_warmup
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.normalize_loss = (
             not (
@@ -138,7 +132,15 @@ class UnsupervisedTrainer(Trainer):
     def on_training_begin(self):
         epoch_criterion = self.n_epochs_kl_warmup is not None
         iter_criterion = self.n_iter_kl_warmup is not None
-        if iter_criterion:
+        if epoch_criterion:
+            log_message = "KL warmup for {} epochs".format(self.n_epochs_kl_warmup)
+            if self.n_epochs_kl_warmup > self.n_epochs:
+                logger.info(
+                    "KL warmup phase exceeds overall training phase"
+                    "If your applications rely on the posterior quality, "
+                    "consider training for more epochs or reducing the kl warmup."
+                )
+        elif iter_criterion:
             log_message = "KL warmup for {} iterations".format(self.n_iter_kl_warmup)
             n_iter_per_epochs_approx = ceil(
                 self.gene_dataset.nb_cells / self.batch_size
@@ -148,14 +150,6 @@ class UnsupervisedTrainer(Trainer):
                 logger.info(
                     "KL warmup phase may exceed overall training phase."
                     "If your applications rely on posterior quality, "
-                    "consider training for more epochs or reducing the kl warmup."
-                )
-        elif epoch_criterion:
-            log_message = "KL warmup for {} epochs".format(self.n_epochs_kl_warmup)
-            if self.n_epochs_kl_warmup > self.n_epochs:
-                logger.info(
-                    "KL warmup phase exceeds overall training phase"
-                    "If your applications rely on the posterior quality, "
                     "consider training for more epochs or reducing the kl warmup."
                 )
         else:
