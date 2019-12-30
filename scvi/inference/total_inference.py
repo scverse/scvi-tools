@@ -151,7 +151,7 @@ class TotalPosterior(Posterior):
                 local_l_var,
                 batch_index=batch_index,
                 label=labels,
-                **kwargs
+                **kwargs,
             )
             elbo += torch.sum(
                 reconst_loss_gene
@@ -188,7 +188,7 @@ class TotalPosterior(Posterior):
                 local_l_var,
                 batch_index=batch_index,
                 label=labels,
-                **kwargs
+                **kwargs,
             )
             log_lkl_gene += torch.sum(reconst_loss_gene).item()
             log_lkl_protein += torch.sum(reconst_loss_protein).item()
@@ -775,6 +775,7 @@ class TotalPosterior(Posterior):
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
+        **kwargs,
     ) -> pd.DataFrame:
         r"""
         Unified method for differential expression inference.
@@ -872,6 +873,7 @@ class TotalPosterior(Posterior):
             (LFC case)
 
         :param all_stats: whether additional metrics should be provided
+        :\**kwargs: Other keywords arguments for `get_sample_scale()`
 
         :return: Differential expression properties
         """
@@ -888,6 +890,7 @@ class TotalPosterior(Posterior):
             change_fn=change_fn,
             m1_domain_fn=m1_domain_fn,
             delta=delta,
+            **kwargs,
         )
         col_names = np.concatenate(
             [self.gene_dataset.gene_names, self.gene_dataset.protein_names]
@@ -933,7 +936,7 @@ class TotalTrainer(UnsupervisedTrainer):
         n_iter_kl_warmup=None,
         n_iter_back_kl_warmup=None,
         imputation_mode=False,
-        **kwargs
+        **kwargs,
     ):
         self.n_genes = dataset.nb_genes
         self.n_proteins = model.n_input_proteins
@@ -947,7 +950,7 @@ class TotalTrainer(UnsupervisedTrainer):
             dataset,
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             n_iter_kl_warmup=n_iter_kl_warmup,
-            **kwargs
+            **kwargs,
         )
         if type(self) is TotalTrainer:
             (
