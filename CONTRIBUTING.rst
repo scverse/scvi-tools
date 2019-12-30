@@ -68,7 +68,7 @@ Ready to contribute? Here's how to set up `scvi` for local development.
 
     $ mkvirtualenv scvi
     $ cd scvi/
-    $ python setup.py develop
+    $ pip install -e .[test,notebooks]
 
 4. Install pre-commit, which will enforce the scvi code style (black, flake8) on each of your commit::
 
