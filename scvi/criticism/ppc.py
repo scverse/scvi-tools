@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 import numpy as np
 from scvi.inference import Posterior
 from sklearn.decomposition import FactorAnalysis, PCA
@@ -340,7 +340,17 @@ class PosteriorPredictiveCheck:
 
         self.metrics["dropout_ratio"] = df
 
-    def gene_gene_correlation(self, gene_indices=None, n_genes=1000):
+    def gene_gene_correlation(
+        self, gene_indices: List[int] = None, n_genes: int = 1000
+    ):
+        """Computes posterior predictive gene-gene correlations
+
+        Sets the "all gene-gene correlations" key in `self.metrics`
+
+        Args:
+            :param gene_indices: List of gene indices to use
+            :param n_genes: If `gene_indices` is None, take this many random genes
+        """
         if gene_indices is None:
             self.gene_set = np.random.choice(
                 self.dataset.nb_genes, size=n_genes, replace=False
@@ -377,7 +387,16 @@ class PosteriorPredictiveCheck:
         df = pd.DataFrame.from_dict(model_corrs)
         self.metrics["all gene-gene correlations"] = df
 
-    def calibration_error(self, confidence_intervals=None):
+    def calibration_error(self, confidence_intervals: List[float] = None):
+        """Calibration error as defined in
+
+            http://proceedings.mlr.press/v80/kuleshov18a/kuleshov18a.pdf
+
+        Sets the "calibration" key in `self.metrics`
+
+        Args:
+            :param confidence_intervals: List of confidence interval widths to evaluate
+        """
         if confidence_intervals is None:
             ps = [2.5, 5, 7.5, 10, 12.5, 15, 17.5, 82.5, 85, 87.5, 90, 92.5, 95, 97.5]
         else:
