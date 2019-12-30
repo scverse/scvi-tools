@@ -328,10 +328,10 @@ class LDVAE(VAE):
         dropout_rate: float = 0.1,
         dispersion: str = "gene",
         log_variational: bool = True,
-        reconstruction_loss: str = "zinb",
+        reconstruction_loss: str = "nb",
         use_batch_norm: bool = True,
         bias: bool = False,
-        latent_distribution: str = "ln",
+        latent_distribution: str = "normal",
     ):
         super().__init__(
             n_input,
