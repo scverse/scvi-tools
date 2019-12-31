@@ -54,6 +54,7 @@ Quick Start
    a. Getting started:
        * `data loading`__
        * `basic usage (scVI)`__
+       * `Vanilla Differential Expression`__
    b. Analyzing several datasets:
        * `harmonization (scVI)`__
        * `annotation (scANVI)`__
@@ -68,6 +69,7 @@ Quick Start
 
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/data_loading.ipynb
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/basic_tutorial.ipynb
+.. __: https://github.com/Munfred/scVI/blob/master/tests/notebooks/vanilla_de_worm_v2.ipynb
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/harmonization.ipynb
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/annotation.ipynb
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/scanpy_pbmc3k.ipynb
