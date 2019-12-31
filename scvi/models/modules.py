@@ -13,6 +13,10 @@ def reparameterize_gaussian(mu, var):
     return Normal(mu, var.sqrt()).rsample()
 
 
+def identity(x):
+    return x
+
+
 class FCLayers(nn.Module):
     r"""A helper class to build fully-connected layers for a neural network.
 
@@ -136,6 +140,7 @@ class Encoder(nn.Module):
     :param n_layers: The number of fully-connected hidden layers
     :param n_hidden: The number of nodes per hidden layer
     :dropout_rate: Dropout rate to apply to each of the hidden layers
+    :param distribution: Distribution of z
     """
 
     def __init__(
@@ -146,9 +151,11 @@ class Encoder(nn.Module):
         n_layers: int = 1,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
+        distribution: str = "normal",
     ):
         super().__init__()
 
+        self.distribution = distribution
         self.encoder = FCLayers(
             n_in=n_input,
             n_out=n_hidden,
@@ -159,6 +166,11 @@ class Encoder(nn.Module):
         )
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)
+
+        if distribution == "ln":
+            self.z_transformation = nn.Softmax(dim=-1)
+        else:
+            self.z_transformation = identity
 
     def forward(self, x: torch.Tensor, *cat_list: int):
         r"""The forward computation for a single sample.
@@ -177,7 +189,7 @@ class Encoder(nn.Module):
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
         q_v = torch.exp(self.var_encoder(q)) + 1e-4
-        latent = reparameterize_gaussian(q_m, q_v)
+        latent = self.z_transformation(reparameterize_gaussian(q_m, q_v))
         return q_m, q_v, latent
 
 
@@ -264,37 +276,42 @@ class LinearDecoderSCVI(nn.Module):
         n_input: int,
         n_output: int,
         n_cat_list: Iterable[int] = None,
-        n_layers: int = 1,
-        n_hidden: int = 128,
+        use_batch_norm: bool = True,
+        bias: bool = False,
     ):
         super(LinearDecoderSCVI, self).__init__()
 
         # mean gamma
-        self.n_batches = n_cat_list[0]  # Just try a simple case for now
-        if self.n_batches > 1:
-            self.batch_regressor = nn.Linear(self.n_batches - 1, n_output, bias=False)
-        else:
-            self.batch_regressor = None
-
-        self.factor_regressor = nn.Linear(n_input, n_output)
+        self.factor_regressor = FCLayers(
+            n_in=n_input,
+            n_out=n_output,
+            n_cat_list=n_cat_list,
+            n_layers=1,
+            use_relu=False,
+            use_batch_norm=use_batch_norm,
+            bias=bias,
+            dropout_rate=0,
+        )
 
         # dropout
-        self.px_dropout_decoder = nn.Linear(n_input, n_output)
+        self.px_dropout_decoder = FCLayers(
+            n_in=n_input,
+            n_out=n_output,
+            n_cat_list=n_cat_list,
+            n_layers=1,
+            use_relu=False,
+            use_batch_norm=use_batch_norm,
+            bias=bias,
+            dropout_rate=0,
+        )
 
     def forward(
         self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int
     ):
         # The decoder returns values for the parameters of the ZINB distribution
-        p1_ = self.factor_regressor(z)
-        if self.n_batches > 1:
-            one_hot_cat = one_hot(cat_list[0], self.n_batches)[:, :-1]
-            p2_ = self.batch_regressor(one_hot_cat)
-            raw_px_scale = p1_ + p2_
-        else:
-            raw_px_scale = p1_
-
+        raw_px_scale = self.factor_regressor(z, *cat_list)
         px_scale = torch.softmax(raw_px_scale, dim=-1)
-        px_dropout = self.px_dropout_decoder(z)
+        px_dropout = self.px_dropout_decoder(z, *cat_list)
         px_rate = torch.exp(library) * px_scale
         px_r = None
 
@@ -673,9 +690,6 @@ class EncoderTOTALVI(nn.Module):
         self.l_gene_var_encoder = nn.Linear(n_hidden, 1)
 
         self.distribution = distribution
-
-        def identity(x):
-            return x
 
         if distribution == "ln":
             self.z_transformation = nn.Softmax(dim=-1)
