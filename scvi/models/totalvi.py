@@ -485,14 +485,12 @@ class TOTALVI(nn.Module):
         kl_div_back_pro_full = kl(
             Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
         )
-        # if pro_batch_mask_minibatch is not None:
-        #     temp_kl_div_back = torch.zeros_like(kl_div_back_pro_full)
-        #     temp_kl_div_back.masked_scatter_(
-        #         pro_batch_mask_minibatch.bool(), kl_div_back_pro_full
-        #     )
-        #     kl_div_back_pro = temp_kl_div_back.sum(dim=1)
-        # else:
-        kl_div_back_pro = kl_div_back_pro_full.sum(dim=1)
+        if pro_batch_mask_minibatch is not None:
+            kl_div_back_pro = (pro_batch_mask_minibatch * kl_div_back_pro_full).sum(
+                dim=1
+            )
+        else:
+            kl_div_back_pro = kl_div_back_pro_full.sum(dim=1)
 
         return (
             reconst_loss_gene,
