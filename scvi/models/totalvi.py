@@ -96,17 +96,17 @@ class TOTALVI(nn.Module):
         # parameters for prior on rate_back (background protein mean)
         if n_batch > 0:
             self.background_pro_alpha = torch.nn.Parameter(
-                torch.randn(n_input_proteins, n_batch)
+                torch.clamp(torch.randn(n_input_proteins, n_batch), -2, 1)
             )
             self.background_pro_log_beta = torch.nn.Parameter(
-                torch.randn(n_input_proteins, n_batch)
+                torch.clamp(torch.randn(n_input_proteins, n_batch), -2, 1)
             )
         else:
             self.background_pro_alpha = torch.nn.Parameter(
-                torch.randn(n_input_proteins)
+                torch.clamp(torch.randn(n_input_proteins), -2, 1)
             )
             self.background_pro_log_beta = torch.nn.Parameter(
-                torch.randn(n_input_proteins)
+                torch.clamp(torch.randn(n_input_proteins), -2, 1)
             )
 
         if self.gene_dispersion == "gene":
