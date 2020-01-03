@@ -856,7 +856,7 @@ class GeneExpressionDataset(Dataset):
         )
         self.update_genes(subset_genes)
 
-    def upper_case_gene_names(self):
+    def make_gene_names_upper(self):
         self.gene_names = np.char.upper(self.gene_names)
 
     def filter_genes_by_count(self, min_count: int = 1):
