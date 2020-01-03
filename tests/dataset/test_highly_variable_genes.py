@@ -43,12 +43,13 @@ class TestHighlyVariableGenes(TestCase):
 
         n_genes = dataset.nb_genes
         n_top = n_genes // 2
-        dataset.highly_variable_genes(n_bins=3, flavor="seurat")
-        dataset.highly_variable_genes(n_bins=3, flavor="seurat")
-        df = dataset.highly_variable_genes(n_bins=3, n_top_genes=n_top, flavor="seurat")
+        dataset._highly_variable_genes(n_bins=3, flavor="seurat")
+        df = dataset._highly_variable_genes(
+            n_bins=3, n_top_genes=n_top, flavor="seurat"
+        )
         assert df["highly_variable"].sum() >= n_top
 
-        dataset.subsample_genes()
+        dataset.subsample_genes(n_top_genes=n_top)
         new_genes = dataset.nb_genes
         assert n_genes > new_genes, "subsample_genes did not filter out genes"
         pass
