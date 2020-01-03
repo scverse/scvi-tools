@@ -910,6 +910,18 @@ class TotalPosterior(Posterior):
         raise NotImplementedError
 
 
+default_early_stopping_kwargs = {
+    "early_stopping_metric": "elbo",
+    "save_best_state_metric": "elbo",
+    "patience": 45,
+    "threshold": 0,
+    "reduce_lr_on_plateau": True,
+    "lr_patience": 30,
+    "lr_factor": 0.6,
+    "posterior_class": TotalPosterior,
+}
+
+
 class TotalTrainer(UnsupervisedTrainer):
     r"""The VariationalInference class for the unsupervised training of an autoencoder.
 
@@ -929,13 +941,14 @@ class TotalTrainer(UnsupervisedTrainer):
         model,
         dataset,
         train_size=0.90,
-        test_size=0.05,
+        test_size=0.10,
         pro_recons_weight=1.0,
-        n_epochs_kl_warmup=200,
-        n_epochs_back_kl_warmup=200,
-        n_iter_kl_warmup=None,
-        n_iter_back_kl_warmup=None,
+        n_epochs_kl_warmup=None,
+        n_epochs_back_kl_warmup=None,
+        n_iter_kl_warmup=7500,
+        n_iter_back_kl_warmup=7500,
         imputation_mode=False,
+        early_stopping_kwargs=default_early_stopping_kwargs,
         **kwargs,
     ):
         self.n_genes = dataset.nb_genes
@@ -950,6 +963,7 @@ class TotalTrainer(UnsupervisedTrainer):
             dataset,
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             n_iter_kl_warmup=n_iter_kl_warmup,
+            early_stopping_kwargs=early_stopping_kwargs,
             **kwargs,
         )
         if type(self) is TotalTrainer:
