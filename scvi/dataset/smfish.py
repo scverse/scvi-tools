@@ -36,7 +36,7 @@ class SmfishDataset(DownloadableDataset):
     def populate(self):
         logger.info("Loading smFISH dataset")
         ds = loompy.connect(os.path.join(self.save_path, self.filenames[0]))
-        gene_names = np.char.upper(ds.ra["Gene"].astype(np.str))
+        gene_names = ds.ra["Gene"].astype(np.str)
 
         labels = ds.ca["ClusterID"].reshape(-1, 1)
         tmp_cell_types = np.asarray(ds.ca["ClusterName"])
