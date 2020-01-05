@@ -64,8 +64,8 @@ class UnsupervisedTrainer(Trainer):
         gene_dataset: GeneExpressionDataset,
         train_size: Union[int, float] = 0.8,
         test_size: Union[int, float] = None,
-        n_iter_kl_warmup: int = None,
-        n_epochs_kl_warmup: int = 400,
+        n_iter_kl_warmup: Union[int, None] = None,
+        n_epochs_kl_warmup: Union[int, None] = 400,
         normalize_loss: bool = None,
         **kwargs
     ):
