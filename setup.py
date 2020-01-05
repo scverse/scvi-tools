@@ -19,7 +19,8 @@ requirements = [
     "loompy>=2.0.16",
     "tqdm>=4.31.1",
     "xlrd>=1.2.0",
-    "numba>=0.47.0",
+    "llvmlite==0.30.0", # umap having errors with 0.31.0 
+    "numba==0.45.0",
     "hyperopt==0.1.2",
     "anndata>=0.6.22rc1",
 ]
