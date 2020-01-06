@@ -269,6 +269,43 @@ def test_sampling_zl(save_path):
     trainer_cortex_cls.test_set.accuracy()
 
 
+def test_annealing_procedures(save_path):
+    cortex_dataset = CortexDataset(save_path=save_path)
+    cortex_vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_batches)
+
+    trainer_cortex_vae = UnsupervisedTrainer(
+        cortex_vae,
+        cortex_dataset,
+        train_size=0.5,
+        use_cuda=use_cuda,
+        n_epochs_kl_warmup=1,
+    )
+    trainer_cortex_vae.train(n_epochs=2)
+    assert trainer_cortex_vae.kl_weight >= 0.99, "Annealing should be over"
+
+    trainer_cortex_vae = UnsupervisedTrainer(
+        cortex_vae,
+        cortex_dataset,
+        train_size=0.5,
+        use_cuda=use_cuda,
+        n_epochs_kl_warmup=5,
+    )
+    trainer_cortex_vae.train(n_epochs=2)
+    assert trainer_cortex_vae.kl_weight <= 0.99, "Annealing should be proceeding"
+
+    # iter
+    trainer_cortex_vae = UnsupervisedTrainer(
+        cortex_vae,
+        cortex_dataset,
+        train_size=0.5,
+        use_cuda=use_cuda,
+        n_iter_kl_warmup=1,
+        n_epochs_kl_warmup=None,
+    )
+    trainer_cortex_vae.train(n_epochs=2)
+    assert trainer_cortex_vae.kl_weight >= 0.99, "Annealing should be over"
+
+
 def test_differential_expression(save_path):
     dataset = CortexDataset(save_path=save_path)
     n_cells = len(dataset)
