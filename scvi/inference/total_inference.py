@@ -1,5 +1,6 @@
 from typing import Optional, Union, List, Callable
-
+import sys
+import time
 import logging
 import torch
 from torch.distributions import Poisson, Gamma, Bernoulli, Normal
@@ -13,6 +14,13 @@ from . import UnsupervisedTrainer
 
 from scvi.dataset import GeneExpressionDataset
 from scvi.models import TOTALVI
+from scvi.models.utils import one_hot
+
+IN_COLAB = "google.colab" in sys.modules
+if IN_COLAB is True:
+    from tqdm import tqdm
+else:
+    from tqdm.auto import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -944,6 +952,7 @@ class TotalTrainer(UnsupervisedTrainer):
     def __init__(
         self,
         model,
+        discriminator,
         dataset,
         train_size=0.90,
         test_size=0.10,
@@ -952,13 +961,15 @@ class TotalTrainer(UnsupervisedTrainer):
         n_epochs_back_kl_warmup=None,
         n_iter_kl_warmup=7500,
         n_iter_back_kl_warmup=7500,
-        imputation_mode=False,
         early_stopping_kwargs=default_early_stopping_kwargs,
+        imputation_mode=False,
+        kappa=1.0,
         **kwargs,
     ):
         self.n_genes = dataset.nb_genes
         self.n_proteins = model.n_input_proteins
         self.imputation_mode = imputation_mode
+        self.kappa = kappa
 
         self.pro_recons_weight = pro_recons_weight
         self.n_epochs_back_kl_warmup = n_epochs_back_kl_warmup
@@ -971,6 +982,11 @@ class TotalTrainer(UnsupervisedTrainer):
             early_stopping_kwargs=early_stopping_kwargs,
             **kwargs,
         )
+
+        self.discriminator = discriminator
+        if self.use_cuda:
+            self.discriminator.cuda()
+
         if type(self) is TotalTrainer:
             (
                 self.train_set,
@@ -1007,26 +1023,43 @@ class TotalTrainer(UnsupervisedTrainer):
             label,
         )
 
-        if self.imputation_mode is True:
-            loss = 0
-            for b in range(len(torch.unique(batch_index))):
-                inds = (batch_index == b).reshape(-1)
-                loss += torch.mean(
-                    reconst_loss_gene[inds]
-                    + self.pro_recons_weight * reconst_loss_protein[inds]
-                    + self.kl_weight * kl_div_z[inds]
-                    + kl_div_l_gene[inds]
-                    + self.kl_back_warmup_weight * kl_div_back_pro[inds]
-                )
-            loss /= 2
+        loss = torch.mean(
+            reconst_loss_gene
+            + self.pro_recons_weight * reconst_loss_protein
+            + self.kl_weight * kl_div_z
+            + kl_div_l_gene
+            + self.kl_back_warmup_weight * kl_div_back_pro
+        )
+
+        return loss
+
+    def loss_discriminator(self, tensors, predict_true_class=True, return_details=True):
+        (
+            sample_batch_X,
+            local_l_mean,
+            local_l_var,
+            batch_index,
+            label,
+            sample_batch_Y,
+        ) = tensors
+
+        z = self.model.sample_from_posterior_z(
+            sample_batch_X, sample_batch_Y, batch_index, give_mean=False
+        )
+
+        n_classes = self.gene_dataset.n_batches
+        cls_logits = torch.nn.LogSoftmax(dim=1)(self.discriminator(z))
+
+        if predict_true_class:
+            cls_target = one_hot(batch_index, n_classes)
         else:
-            loss = torch.mean(
-                reconst_loss_gene
-                + self.pro_recons_weight * reconst_loss_protein
-                + self.kl_weight * kl_div_z
-                + kl_div_l_gene
-                + self.kl_back_warmup_weight * kl_div_back_pro
+            cls_target = (
+                torch.ones(n_classes, dtype=torch.float32, device=z.device) / n_classes
             )
+
+        l_soft = cls_logits * cls_target
+        loss = -l_soft.sum(dim=1).mean()
+
         return loss
 
     @property
@@ -1072,3 +1105,72 @@ class TotalTrainer(UnsupervisedTrainer):
         else:
             log_message = "Training background mean without KL warmup"
         logger.debug(log_message)
+
+    def train(self, n_epochs=20, lr=1e-3, lr_d=1e-3, eps=0.01, params=None):
+        begin = time.time()
+        self.model.train()
+        self.discriminator.train()
+
+        d_params = filter(lambda p: p.requires_grad, self.discriminator.parameters())
+        d_optimizer = torch.optim.Adam(d_params, lr=lr_d, eps=eps)
+
+        if params is None:
+            params = filter(lambda p: p.requires_grad, self.model.parameters())
+
+        optimizer = self.optimizer = torch.optim.Adam(
+            params, lr=lr, eps=eps, weight_decay=self.weight_decay
+        )
+
+        self.compute_metrics_time = 0
+        self.n_epochs = n_epochs
+        self.compute_metrics()
+
+        self.on_training_begin()
+
+        for self.epoch in tqdm(
+            range(n_epochs),
+            desc="training",
+            disable=not self.show_progbar,
+            file=sys.stdout,
+        ):
+            self.on_epoch_begin()
+            for tensors_list in self.data_loaders_loop():
+                if tensors_list[0][0].shape[0] < 3:
+                    continue
+                self.current_loss = loss = self.loss(*tensors_list)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                if self.imputation_mode:
+                    # Train discriminator
+                    d_loss = self.loss_discriminator(*tensors_list, True)
+                    d_loss *= self.kappa
+                    d_optimizer.zero_grad()
+                    d_loss.backward()
+                    d_optimizer.step()
+
+                    # Train generative model to fool discriminator
+                    fool_loss = self.loss_discriminator(*tensors_list, False)
+                    fool_loss *= self.kappa
+                    optimizer.zero_grad()
+                    fool_loss.backward()
+                    optimizer.step()
+
+                self.on_iteration_end()
+
+            if not self.on_epoch_end():
+                break
+
+        if self.early_stopping.save_best_state_metric is not None:
+            self.model.load_state_dict(self.best_state_dict)
+            self.compute_metrics()
+
+        self.model.eval()
+        self.training_time += (time.time() - begin) - self.compute_metrics_time
+        if self.frequency:
+            logger.debug(
+                "\nTraining time:  %i s. / %i epochs"
+                % (int(self.training_time), self.n_epochs)
+            )
+        self.on_training_end()
