@@ -1120,10 +1120,13 @@ class TotalTrainer(UnsupervisedTrainer):
     def train(self, n_epochs=20, lr=1e-3, lr_d=1e-3, eps=0.01, params=None):
         begin = time.time()
         self.model.train()
-        self.discriminator.train()
+        if self.discriminator is not None:
+            self.discriminator.train()
 
-        d_params = filter(lambda p: p.requires_grad, self.discriminator.parameters())
-        d_optimizer = torch.optim.Adam(d_params, lr=lr_d, eps=eps)
+            d_params = filter(
+                lambda p: p.requires_grad, self.discriminator.parameters()
+            )
+            d_optimizer = torch.optim.Adam(d_params, lr=lr_d, eps=eps)
 
         if params is None:
             params = filter(lambda p: p.requires_grad, self.model.parameters())
