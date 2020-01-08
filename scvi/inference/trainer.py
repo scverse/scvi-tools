@@ -191,6 +191,9 @@ class Trainer:
         self.optimizer.step()
         self.on_iteration_end()
 
+    def training_extras_init(self, **extras_kwargs):
+        pass
+
     def on_training_begin(self):
         pass
 
