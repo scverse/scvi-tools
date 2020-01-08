@@ -1161,13 +1161,15 @@ class TotalTrainer(UnsupervisedTrainer):
                     fool_loss = self.loss_discriminator(z, batch_index, False)
                     fool_loss *= self.kappa
                     optimizer.zero_grad()
-                    fool_loss.backward()
+                    self.current_loss = loss = self.loss(*tensors_list)
+                    (loss + fool_loss).backward()
                     optimizer.step()
 
-                self.current_loss = loss = self.loss(*tensors_list)
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+                else:
+                    self.current_loss = loss = self.loss(*tensors_list)
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
 
                 self.on_iteration_end()
 
