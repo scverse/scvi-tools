@@ -1033,19 +1033,9 @@ class TotalTrainer(UnsupervisedTrainer):
 
         return loss
 
-    def loss_discriminator(self, tensors, predict_true_class=True, return_details=True):
-        (
-            sample_batch_X,
-            local_l_mean,
-            local_l_var,
-            batch_index,
-            label,
-            sample_batch_Y,
-        ) = tensors
-
-        z = self.model.sample_from_posterior_z(
-            sample_batch_X, sample_batch_Y, batch_index, give_mean=False
-        )
+    def loss_discriminator(
+        self, z, batch_index, predict_true_class=True, return_details=True
+    ):
 
         n_classes = self.gene_dataset.n_batches
         cls_logits = torch.nn.LogSoftmax(dim=1)(self.discriminator(z))
@@ -1109,6 +1099,22 @@ class TotalTrainer(UnsupervisedTrainer):
             log_message = "Training background mean without KL warmup"
         logger.debug(log_message)
 
+    def _get_z(self, tensors):
+        (
+            sample_batch_X,
+            local_l_mean,
+            local_l_var,
+            batch_index,
+            label,
+            sample_batch_Y,
+        ) = tensors
+
+        z = self.model.sample_from_posterior_z(
+            sample_batch_X, sample_batch_Y, batch_index, give_mean=False
+        )
+
+        return z
+
     def train(self, n_epochs=20, lr=1e-3, lr_d=1e-3, eps=0.01, params=None):
         begin = time.time()
         self.model.train()
@@ -1140,25 +1146,28 @@ class TotalTrainer(UnsupervisedTrainer):
             for tensors_list in self.data_loaders_loop():
                 if tensors_list[0][0].shape[0] < 3:
                     continue
-                self.current_loss = loss = self.loss(*tensors_list)
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
 
                 if self.imputation_mode:
+                    batch_index = tensors_list[0][3]
+                    z = self._get_z(*tensors_list)
                     # Train discriminator
-                    d_loss = self.loss_discriminator(*tensors_list, True)
+                    d_loss = self.loss_discriminator(z.detach(), batch_index, True)
                     d_loss *= self.kappa
                     d_optimizer.zero_grad()
                     d_loss.backward()
                     d_optimizer.step()
 
                     # Train generative model to fool discriminator
-                    fool_loss = self.loss_discriminator(*tensors_list, False)
+                    fool_loss = self.loss_discriminator(z, batch_index, False)
                     fool_loss *= self.kappa
                     optimizer.zero_grad()
                     fool_loss.backward()
                     optimizer.step()
+
+                self.current_loss = loss = self.loss(*tensors_list)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
                 self.on_iteration_end()
 
