@@ -82,6 +82,9 @@ def compute_marginal_log_likelihood_scvi(vae, posterior, n_samples_mc=100):
     Due to the Monte Carlo sampling, this method is not as computationally efficient
     as computing only the reconstruction loss
     """
+    if vae.latent_distribution == "ln":
+        raise NotImplementedError
+
     # Uses MC sampling to compute a tighter lower bound on log p(x)
     log_lkl = 0
     for i_batch, tensors in enumerate(posterior):
