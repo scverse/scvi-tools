@@ -136,16 +136,18 @@ class Trainer:
                 self.model.train()
         self.compute_metrics_time += time.time() - begin
 
-    def train(self, n_epochs=20, lr=1e-3, eps=0.01, params=None):
+    def train(self, n_epochs=20, lr=1e-3, eps=0.01, params=None, **extras_kwargs):
         begin = time.time()
         self.model.train()
 
         if params is None:
             params = filter(lambda p: p.requires_grad, self.model.parameters())
 
-        optimizer = self.optimizer = torch.optim.Adam(
+        self.optimizer = torch.optim.Adam(
             params, lr=lr, eps=eps, weight_decay=self.weight_decay
         )
+
+        self.training_extras_init(**extras_kwargs)
 
         self.compute_metrics_time = 0
         self.n_epochs = n_epochs
@@ -163,11 +165,8 @@ class Trainer:
             for tensors_list in self.data_loaders_loop():
                 if tensors_list[0][0].shape[0] < 3:
                     continue
-                self.current_loss = loss = self.loss(*tensors_list)
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-                self.on_iteration_end()
+
+                self.in_training_loop(tensors_list)
 
             if not self.on_epoch_end():
                 break
@@ -184,6 +183,13 @@ class Trainer:
                 % (int(self.training_time), self.n_epochs)
             )
         self.on_training_end()
+
+    def in_training_loop(self, tensors_list):
+        self.current_loss = loss = self.loss(*tensors_list)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        self.on_iteration_end()
 
     def on_training_begin(self):
         pass
