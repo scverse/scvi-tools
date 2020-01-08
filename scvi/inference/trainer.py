@@ -10,10 +10,15 @@ import numpy as np
 import torch
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
-from tqdm.auto import tqdm
 
 from scvi.dataset import GeneExpressionDataset
 from scvi.inference.posterior import Posterior
+
+IN_COLAB = "google.colab" in sys.modules
+if IN_COLAB is True:
+    from tqdm import tqdm
+else:
+    from tqdm.auto import tqdm
 
 logger = logging.getLogger(__name__)
 

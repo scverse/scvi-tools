@@ -321,8 +321,9 @@ class Posterior:
         n_samples_per_cell: Optional[int] = None,
         batchid: Optional[Union[List[int], np.ndarray]] = None,
         use_observed_batches: Optional[bool] = False,
+        **kwargs,
     ) -> dict:
-        """
+        r"""
         :param n_samples: Number of samples in total per batch (fill either `n_samples_total`
         or `n_samples_per_cell`)
         :param n_samples_per_cell: Number of time we sample from each observation per batch
@@ -332,6 +333,8 @@ class Posterior:
         :param use_observed_batches: Whether normalized means are conditioned on observed
         batches or if observed batches are to be used
         :param selection: Mask or list of cell ids to select
+        :\**kwargs: Other keywords arguments for `get_sample_scale()`
+
         :return:
         Dictionary containing:
             `scale`
@@ -381,7 +384,7 @@ class Posterior:
                 np.arange(len(self.gene_dataset))[selection], n_samples
             )
             self.update_sampler_indices(idx=idx)
-            px_scales.append(self.get_sample_scale(transform_batch=batch_idx))
+            px_scales.append(self.get_sample_scale(transform_batch=batch_idx, **kwargs))
             batch_ids.append(np.ones((px_scales[-1].shape[0])) * batch_idx)
         px_scales = np.concatenate(px_scales)
         batch_ids = np.concatenate(batch_ids).reshape(-1)
@@ -405,6 +408,7 @@ class Posterior:
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
+        **kwargs,
     ) -> dict:
         r"""
         Unified method for differential expression inference.
@@ -497,6 +501,7 @@ class Posterior:
             In this case, we suppose that R \ [-delta, delta] does not induce differential expression
             (LFC case)
 
+        :\**kwargs: Other keywords arguments for `get_sample_scale()`
 
         :return: Differential expression properties
         """
@@ -507,12 +512,14 @@ class Posterior:
             batchid=batchid1,
             use_observed_batches=use_observed_batches,
             n_samples=n_samples,
+            **kwargs,
         )
         scales_batches_2 = self.scale_sampler(
             selection=idx2,
             batchid=batchid2,
             use_observed_batches=use_observed_batches,
             n_samples=n_samples,
+            **kwargs,
         )
 
         px_scale_mean1 = scales_batches_1["scale"].mean(axis=0)
@@ -593,7 +600,7 @@ class Posterior:
 
             if change_fn == "log-fold" or change_fn is None:
                 change_fn = lfc
-            elif not isinstance(change_fn, callable):
+            elif not callable(change_fn):
                 raise ValueError("'change_fn' attribute not understood")
 
             # step2: Construct the DE area function
@@ -629,7 +636,7 @@ class Posterior:
                 bayes_factor=np.log(proba_m1 + eps) - np.log(1.0 - proba_m1 + eps),
                 scale1=px_scale_mean1,
                 scale2=px_scale_mean2,
-                **change_distribution_props
+                **change_distribution_props,
             )
         else:
             raise NotImplementedError("Mode {mode} not recognized".format(mode=mode))
@@ -652,6 +659,7 @@ class Posterior:
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
+        **kwargs,
     ) -> pd.DataFrame:
         r"""
         Unified method for differential expression inference.
@@ -749,6 +757,7 @@ class Posterior:
             (LFC case)
 
         :param all_stats: whether additional metrics should be provided
+        :\**kwargs: Other keywords arguments for `get_sample_scale()`
 
         :return: Differential expression properties
         """
@@ -765,6 +774,7 @@ class Posterior:
             change_fn=change_fn,
             m1_domain_fn=m1_domain_fn,
             delta=delta,
+            **kwargs,
         )
         gene_names = self.gene_dataset.gene_names
         if all_stats is True:
@@ -808,8 +818,9 @@ class Posterior:
         delta: Optional[float] = 0.5,
         save_dir: str = "./",
         filename="one2all",
+        **kwargs,
     ) -> tuple:
-        """
+        r"""
         Performs one population vs all others Differential Expression Analysis
         given labels or using cell types, for each type of population
 
@@ -833,6 +844,7 @@ class Posterior:
         :param output_file: Bool: save file?
         :param save_dir:
         :param filename:`
+        :\**kwargs: Other keywords arguments for `get_sample_scale()`
         :return: Tuple (de_res, de_cluster) (i) de_res is a list of length nb_clusters
             (based on provided labels or on hardcoded cell types) (ii) de_res[i] contains Bayes Factors
             for population number i vs all the rest (iii) de_cluster returns the associated names of clusters.
@@ -879,6 +891,7 @@ class Posterior:
                     M_permutation=M_permutation,
                     n_samples=n_samples,
                     use_permutation=use_permutation,
+                    **kwargs,
                 )
                 res["clusters"] = np.repeat(x, len(res.index))
                 de_res.append(res)
@@ -909,8 +922,9 @@ class Posterior:
         output_file: bool = False,
         save_dir: str = "./",
         filename: str = "within_cluster",
+        **kwargs,
     ) -> tuple:
-        """
+        r"""
         Performs Differential Expression within clusters for different cell states
 
         :param cell_labels: optional: Labels of cells
@@ -937,6 +951,7 @@ class Posterior:
         :param change_fn: see `differential_expression_score`
         :param m1_domain_fn: see `differential_expression_score`
         :param delta: see `differential_expression_score
+        :\**kwargs: Other keywords arguments for `get_sample_scale()`
 
         :return: Tuple (de_res, de_cluster) (i) de_res is a list of length nb_clusters
             (based on provided labels or on hardcoded cell types) (ii) de_res[i] contains Bayes Factors
@@ -992,6 +1007,7 @@ class Posterior:
                     change_fn=change_fn,
                     m1_domain_fn=m1_domain_fn,
                     delta=delta,
+                    **kwargs,
                 )
                 res["clusters"] = np.repeat(x, len(res.index))
                 de_res.append(res)

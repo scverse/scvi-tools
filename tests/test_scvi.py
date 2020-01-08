@@ -184,8 +184,12 @@ def totalvi_benchmark(dataset, n_epochs, use_cuda=True):
     trainer.test_set.get_latent()
     trainer.test_set.generate()
     trainer.test_set.get_sample_dropout()
-    trainer.test_set.get_normalized_denoised_expression()
+    trainer.test_set.get_normalized_denoised_expression(transform_batch=0)
+    trainer.test_set.get_normalized_denoised_expression(transform_batch=0)
     trainer.test_set.imputation()
+    trainer.test_set.one_vs_all_degenes(n_samples=2, M_permutation=10)
+    trainer.test_set.generate_feature_correlation_matrix(n_samples=2)
+    trainer.test_set.generate_feature_correlation_matrix(n_samples=2, transform_batch=0)
 
     return trainer
 

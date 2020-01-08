@@ -274,6 +274,7 @@ class GeneExpressionDataset(Dataset):
         gene_datasets_list: List["GeneExpressionDataset"],
         shared_labels=True,
         mapping_reference_for_sharing: Dict[str, Union[str, None]] = None,
+        cell_measurement_intersection: Dict[str, bool] = None,
     ):
         """Populates the data attribute of a GeneExpressionDataset
         from multiple ``GeneExpressionDataset`` objects, merged using the intersection
@@ -293,12 +294,17 @@ class GeneExpressionDataset(Dataset):
             remapped using index backtracking between the old and merged mapping.
             If no mapping is provided, concatenate the values and add an offset
             if the attribute is registered as categorical in the first dataset.
+        :param cell_measurement_intersection: A dictionary with keys being cell measurement attributes and values being
+            True or False. If True, that cell measurement attribute will be intersected across datasets. If False, the
+            union is taken. Defaults to intersection for each cell_measurement
         """
         # set default sharing behaviour for batch_indices and labels
         if mapping_reference_for_sharing is None:
             mapping_reference_for_sharing = {}
         if shared_labels:
             mapping_reference_for_sharing.update({"labels": "cell_types"})
+        if cell_measurement_intersection is None:
+            cell_measurement_intersection = {}
 
         # get intersection based on gene_names and keep cell attributes
         # which are present in all datasets
@@ -460,13 +466,22 @@ class GeneExpressionDataset(Dataset):
                 columns_attr_name = gene_datasets_list[0].cell_measurements_columns[
                     attribute_name
                 ]
-                # Intersect columns
-                columns_to_keep = set.intersection(
-                    *[
-                        set(getattr(gene_dataset, columns_attr_name))
-                        for gene_dataset in gene_datasets_list
-                    ]
-                )
+                intersect = cell_measurement_intersection.get(attribute_name, True)
+                # Intersect or union columns across datasets
+                if intersect is True:
+                    columns_to_keep = set.intersection(
+                        *[
+                            set(getattr(gene_dataset, columns_attr_name))
+                            for gene_dataset in gene_datasets_list
+                        ]
+                    )
+                else:
+                    columns_to_keep = set.union(
+                        *[
+                            set(getattr(gene_dataset, columns_attr_name))
+                            for gene_dataset in gene_datasets_list
+                        ]
+                    )
                 columns_to_keep = np.asarray(list(sorted(columns_to_keep)))
                 logger.info(
                     "Keeping {n_cols} columns in {attr}".format(
@@ -475,16 +490,27 @@ class GeneExpressionDataset(Dataset):
                 )
 
                 for gene_dataset in gene_datasets_list:
-                    _, indices, _ = np.intersect1d(
+                    template = np.zeros(
+                        (
+                            getattr(gene_dataset, attribute_name).shape[0],
+                            len(columns_to_keep),
+                        ),
+                        dtype=getattr(gene_dataset, attribute_name).dtype,
+                    )
+                    if type(getattr(gene_dataset, columns_attr_name)) is not np.ndarray:
+                        template = sp_sparse.lil_matrix(template)
+
+                    _, ind1, ind2 = np.intersect1d(
                         getattr(gene_dataset, columns_attr_name),
                         columns_to_keep,
                         return_indices=True,
                     )
-                    setattr(
-                        gene_dataset,
-                        attribute_name,
-                        getattr(gene_dataset, attribute_name)[:, indices],
-                    )
+                    template[:, ind2] = getattr(gene_dataset, attribute_name)[:, ind1]
+                    if type(template) is not np.ndarray:
+                        template = template.tocsr()
+                    setattr(gene_dataset, attribute_name, template)
+                    # in-place modified dataset gets column names updated to be accurate
+                    setattr(gene_dataset, columns_attr_name, columns_to_keep)
 
                 for i, gene_dataset in enumerate(gene_datasets_list):
                     attribute_values.append(getattr(gene_dataset, attribute_name))
@@ -1333,6 +1359,26 @@ class GeneExpressionDataset(Dataset):
         )
 
         return adata.var
+
+    def get_batch_mask_cell_measurement(self, attribute_name: str):
+        """Returns a list with length number of batches where each entry is a mask over present
+        cell measurement columns
+
+        :param attribute_name: cell_measurement attribute name
+
+        :return: List of ``np.ndarray`` containing, for each batch, a mask of which columns were
+        actually measured in that batch. This is useful when taking the union of a cell measurement
+        over datasets.
+        """
+        batch_mask = []
+        for b in np.unique(self.batch_indices.ravel()):
+            batch_sum = getattr(self, attribute_name)[
+                np.where(self.batch_indices.ravel() == b)[0], :
+            ].sum(axis=0)
+            all_zero = batch_sum == 0
+            batch_mask.append(~all_zero)
+
+        return batch_mask
 
 
 def remap_categories(

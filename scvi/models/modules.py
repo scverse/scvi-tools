@@ -116,13 +116,15 @@ class FCLayers(nn.Module):
                     else:
                         if isinstance(layer, nn.Linear):
                             if x.dim() == 3:
-                                one_hot_cat_list = [
+                                one_hot_cat_list_layer = [
                                     o.unsqueeze(0).expand(
                                         (x.size(0), o.size(0), o.size(1))
                                     )
                                     for o in one_hot_cat_list
                                 ]
-                            x = torch.cat((x, *one_hot_cat_list), dim=-1)
+                            else:
+                                one_hot_cat_list_layer = one_hot_cat_list
+                            x = torch.cat((x, *one_hot_cat_list_layer), dim=-1)
                         x = layer(x)
         return x
 
@@ -629,6 +631,11 @@ class DecoderTOTALVI(nn.Module):
         p_mixing_cat_z = torch.cat([p_mixing, z], dim=-1)
         px_["dropout"] = self.px_dropout_decoder_gene(p_mixing_cat_z)
         py_["mixing"] = self.py_background_decoder(p_mixing_cat_z)
+
+        protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
+        py_["scale"] = torch.nn.functional.normalize(
+            (1 - protein_mixing) * py_["rate_fore"], p=1, dim=-1
+        )
 
         return (px_, py_, log_pro_back_mean)
 
