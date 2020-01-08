@@ -6,6 +6,7 @@ from torch.distributions import Poisson, Gamma, Bernoulli, Normal
 from torch.utils.data import DataLoader
 import numpy as np
 import pandas as pd
+from scipy.stats import spearmanr
 
 from scvi.inference import Posterior
 from . import UnsupervisedTrainer
@@ -666,6 +667,7 @@ class TotalPosterior(Posterior):
         batch_size: int = 64,
         rna_size_factor: int = 1000,
         transform_batch: Optional[Union[int, List[int]]] = None,
+        correlation_mode: str = "pearson",
     ):
         """ Wrapper of `generate_denoised_samples()` to create a gene-protein gene-protein corr matrix
         :param n_samples: How may samples per cell
@@ -695,7 +697,10 @@ class TotalPosterior(Posterior):
                 flattened[
                     denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
                 ] = denoised_data[:, :, i]
-            corr_matrix = np.corrcoef(flattened, rowvar=False)
+            if correlation_mode == "pearson":
+                corr_matrix = np.corrcoef(flattened, rowvar=False)
+            else:
+                corr_matrix = spearmanr(flattened, axis=0)
             corr_mats.append(corr_matrix)
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
         return corr_matrix
