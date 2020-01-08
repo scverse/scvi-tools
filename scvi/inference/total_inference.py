@@ -1053,8 +1053,11 @@ class TotalTrainer(UnsupervisedTrainer):
         if predict_true_class:
             cls_target = one_hot(batch_index, n_classes)
         else:
-            cls_target = (
-                torch.ones(n_classes, dtype=torch.float32, device=z.device) / n_classes
+            one_hot_batch = one_hot(batch_index, n_classes)
+            cls_target = torch.zeros_like(one_hot_batch)
+            # place zeroes where true label is
+            cls_target.masked_scatter_(
+                ~one_hot_batch.bool(), torch.ones_like(one_hot_batch) / (n_classes - 1)
             )
 
         l_soft = cls_logits * cls_target
