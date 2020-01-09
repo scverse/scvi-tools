@@ -1186,6 +1186,8 @@ class TotalTrainer(UnsupervisedTrainer):
             self.compute_metrics()
 
         self.model.eval()
+        if self.discriminator is not None:
+            self.discriminator.eval()
         self.training_time += (time.time() - begin) - self.compute_metrics_time
         if self.frequency:
             logger.debug(
