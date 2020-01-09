@@ -20,17 +20,11 @@ class TestHighlyVariableGenes(TestCase):
             assert dataset.nb_genes < n_genes
             # For some reason the new number of genes can be slightly different than n_top
 
-            dataset._highly_variable_genes(flavor=flavor, n_bins=3)
-
-        dataset = BrainLargeDataset(
-            save_path="tests/data",
-            sample_size_gene_var=10,
-            nb_genes_to_keep=128,
-            max_cells_to_keep=256,
-        )
-        n_genes = dataset.nb_genes
-        dataset.subsample_genes()
-        assert dataset.nb_genes < n_genes, "subsample_genes did not filter out genes"
+            dataset._highly_variable_genes(
+                flavor=flavor,
+                n_bins=3,
+                n_top_genes=3 if flavor == "seurat_v3" else None,
+            )
 
     def test_batch_correction(self):
         data = [

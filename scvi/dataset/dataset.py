@@ -775,7 +775,7 @@ class GeneExpressionDataset(Dataset):
 
     def subsample_genes(
         self,
-        new_n_genes: Optional[int] = None,
+        new_n_genes: int = None,
         new_ratio_genes: Optional[float] = None,
         subset_genes: Optional[Union[List[int], List[bool], np.ndarray]] = None,
         mode: Optional[str] = "seurat_v3",
