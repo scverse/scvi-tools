@@ -962,13 +962,13 @@ class TotalTrainer(UnsupervisedTrainer):
         n_iter_back_kl_warmup=7500,
         early_stopping_kwargs=default_early_stopping_kwargs,
         discriminator=None,
-        imputation_mode=False,
+        use_adversarial_loss=False,
         kappa=1.0,
         **kwargs,
     ):
         self.n_genes = dataset.nb_genes
         self.n_proteins = model.n_input_proteins
-        self.imputation_mode = imputation_mode
+        self.use_adversarial_loss = use_adversarial_loss
         self.kappa = kappa
         self.pro_recons_weight = pro_recons_weight
         self.n_epochs_back_kl_warmup = n_epochs_back_kl_warmup
@@ -982,7 +982,7 @@ class TotalTrainer(UnsupervisedTrainer):
             **kwargs,
         )
 
-        if imputation_mode is True and discriminator is None:
+        if use_adversarial_loss is True and discriminator is None:
             raise ValueError("Discriminator should be a scvi.models.Classifier object")
 
         self.discriminator = discriminator
@@ -1152,7 +1152,7 @@ class TotalTrainer(UnsupervisedTrainer):
                 if tensors_list[0][0].shape[0] < 3:
                     continue
 
-                if self.imputation_mode:
+                if self.use_adversarial_loss:
                     batch_index = tensors_list[0][3]
                     z = self._get_z(*tensors_list)
                     # Train discriminator
