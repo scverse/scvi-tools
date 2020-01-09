@@ -788,8 +788,11 @@ class GeneExpressionDataset(Dataset):
             * Subsambles a proportion of `new_ratio_genes` of the genes
             * Subsamples the genes in `subset_genes`
 
+        In the first two cases, a mode of highly variable gene selection is used as specified in the
+        `mode` argument. F
+
         In the case where `new_n_genes`, `new_ratio_genes` and `subset_genes` are all None,
-        this method automatically computes the number of genes to keep (when mode='seurat'
+        this method automatically computes the number of genes to keep (when mode='seurat_v2'
         or mode='cell_ranger')
 
         In the case where `mode=="seurat_v3"`, an adapted version of the method described in [Stuart19]_
@@ -798,9 +801,9 @@ class GeneExpressionDataset(Dataset):
         :param subset_genes: list of indices or mask of genes to retain
         :param new_n_genes: number of genes to retain, the highly variable genes will be kept
         :param new_ratio_genes: proportion of genes to retain, the highly variable genes will be kept
-        :param mode: Either "variance", "seurat", "cell_ranger", or "seurat_v3"
-        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using Seurat
-        or cell-ranger (cf. highly_variable_genes method)
+        :param mode: Either "variance", "seurat_v2", "cell_ranger", or "seurat_v3"
+        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using `seurat_v2`
+        or `cell_ranger` (cf. highly_variable_genes method)
         """
 
         if subset_genes is None:
@@ -1246,23 +1249,23 @@ class GeneExpressionDataset(Dataset):
     def _highly_variable_genes(
         self,
         n_top_genes: int = None,
-        flavor: Optional[str] = "seurat",
+        flavor: Optional[str] = "seurat_v3",
         batch_correction: Optional[bool] = True,
         **highly_var_genes_kwargs,
     ) -> pd.DataFrame:
         """\
         Code adapted from the scanpy package
         Annotate highly variable genes [Satija15]_ [Zheng17]_ [Stuart19]_.
-        Depending on `flavor`, this reproduces the R-implementations of Seurat
+        Depending on `flavor`, this reproduces the R-implementations of Seurat v2 and earlier
         [Satija15]_ and Cell Ranger [Zheng17]_, and Seurat v3 [Stuart19]_.
 
         Parameters
         ----------
         :param n_top_genes:
-            Number of highly-variable genes to keep.
+            Number of highly-variable genes to keep. Mandatory for Seurat v3
         :param flavor:
-            Choose the flavor for computing normalized dispersion. In their default
-            workflows, Seurat passes the cutoffs whereas Cell Ranger passes
+            Choose the flavor for computing normalized dispersion. One of "seurat_v2", "cell_ranger",
+            "seurat_v3". In their default workflows, Seurat v2 passes the cutoffs whereas Cell Ranger passes
             `n_top_genes`.
         :param batch_correction:
             Whether batches should be taken into account during procedure
@@ -1283,6 +1286,9 @@ class GeneExpressionDataset(Dataset):
                 "please install scanpy: " "pip install scanpy python-igraph louvain"
             )
 
+        if flavor == "seurat_v3" and n_top_genes is None:
+            raise ValueError("n_top_genes must not be None with flavor=='seurat_v3'")
+
         # Creating AnnData structure
         obs = pd.DataFrame(
             data=dict(batch=self.batch_indices.squeeze()),
@@ -1297,6 +1303,9 @@ class GeneExpressionDataset(Dataset):
         if batch_key is None:
             del adata.obs["batch"]
         if flavor != "seurat_v3":
+            if flavor == "seurat_v2":
+                # name expected by scanpy
+                flavor = "seurat"
             # Counts normalization
             sc.pp.normalize_total(adata, target_sum=1e4)
             # logarithmed data
@@ -1315,7 +1324,7 @@ class GeneExpressionDataset(Dataset):
             seurat_v3_highly_variable_genes(adata, n_top_genes=n_top_genes)
         else:
             raise ValueError(
-                "flavor should be one of 'seurat', 'cell_ranger', 'seurat_v3'"
+                "flavor should be one of 'seurat_v2', 'cell_ranger', 'seurat_v3'"
             )
 
         return adata.var
@@ -1325,7 +1334,7 @@ def seurat_v3_highly_variable_genes(adata, n_top_genes: int = 4000):
     """ An adapted implementation of the "vst" feature selection in Seurat v3.
 
         The major differences are that we use lowess insted of loess and when considering
-        a dataset with multiple batches we can features by their median normalized variance
+        a dataset with multiple batches we rank features by their median normalized variance
         across batches
 
         :param n_top_genes: How many variable genes to return
