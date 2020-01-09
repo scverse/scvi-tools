@@ -154,6 +154,9 @@ class JVAETrainer(Trainer):
         self.d_optimizer = torch.optim.Adam(d_params, lr=lr_d, eps=eps)
         self.train_discriminator = self.n_dataset > 1 and self.kappa > 0
 
+    def training_extras_end(self):
+        self.discriminator.eval()
+
     def loss_discriminator(
         self,
         latent_tensors: List[torch.Tensor],

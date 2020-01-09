@@ -176,6 +176,8 @@ class Trainer:
             self.compute_metrics()
 
         self.model.eval()
+        self.training_extras_end()
+
         self.training_time += (time.time() - begin) - self.compute_metrics_time
         if self.frequency:
             logger.debug(
@@ -192,6 +194,9 @@ class Trainer:
         self.on_iteration_end()
 
     def training_extras_init(self, **extras_kwargs):
+        pass
+
+    def training_extras_end(self):
         pass
 
     def on_training_begin(self):
