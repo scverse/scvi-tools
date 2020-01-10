@@ -13,7 +13,7 @@ from scvi.inference import Posterior
 from . import UnsupervisedTrainer
 
 from scvi.dataset import GeneExpressionDataset
-from scvi.models import TOTALVI
+from scvi.models import TOTALVI, Classifier
 from scvi.models.utils import one_hot
 
 IN_COLAB = "google.colab" in sys.modules
@@ -963,7 +963,7 @@ class TotalTrainer(UnsupervisedTrainer):
         early_stopping_kwargs=default_early_stopping_kwargs,
         discriminator=None,
         use_adversarial_loss=False,
-        kappa=1.0,
+        kappa=0.1,
         **kwargs,
     ):
         self.n_genes = dataset.nb_genes
@@ -983,7 +983,13 @@ class TotalTrainer(UnsupervisedTrainer):
         )
 
         if use_adversarial_loss is True and discriminator is None:
-            raise ValueError("Discriminator should be a scvi.models.Classifier object")
+            discriminator = Classifier(
+                n_input=self.model.n_latent,
+                n_hidden=32,
+                n_labels=self.gene_dataset.n_batches,
+                n_layers=2,
+                logits=True,
+            )
 
         self.discriminator = discriminator
         if self.use_cuda and self.discriminator is not None:
