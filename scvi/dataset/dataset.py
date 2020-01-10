@@ -15,6 +15,7 @@ import scipy.sparse as sp_sparse
 import torch
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
+import statsmodels.api as sm
 
 logger = logging.getLogger(__name__)
 
@@ -774,10 +775,10 @@ class GeneExpressionDataset(Dataset):
 
     def subsample_genes(
         self,
-        new_n_genes: Optional[int] = None,
+        new_n_genes: int = None,
         new_ratio_genes: Optional[float] = None,
         subset_genes: Optional[Union[List[int], List[bool], np.ndarray]] = None,
-        mode: Optional[str] = "seurat",
+        mode: Optional[str] = "seurat_v3",
         **highly_var_genes_kwargs,
     ):
         """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling.
@@ -787,16 +788,22 @@ class GeneExpressionDataset(Dataset):
             * Subsambles a proportion of `new_ratio_genes` of the genes
             * Subsamples the genes in `subset_genes`
 
+        In the first two cases, a mode of highly variable gene selection is used as specified in the
+        `mode` argument. F
+
         In the case where `new_n_genes`, `new_ratio_genes` and `subset_genes` are all None,
-        this method automatically computes the number of genes to keep (when mode='seurat'
+        this method automatically computes the number of genes to keep (when mode='seurat_v2'
         or mode='cell_ranger')
+
+        In the case where `mode=="seurat_v3"`, an adapted version of the method described in [Stuart19]_
+        is used. This method requires `new_n_genes` or `new_ratio_genes` to be specified.
 
         :param subset_genes: list of indices or mask of genes to retain
         :param new_n_genes: number of genes to retain, the highly variable genes will be kept
         :param new_ratio_genes: proportion of genes to retain, the highly variable genes will be kept
-        :param mode: Either "variance", "seurat" or "cell_ranger"
-        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using Seurat
-        or cell-ranger (cf. highly_variable_genes method)
+        :param mode: Either "variance", "seurat_v2", "cell_ranger", or "seurat_v3"
+        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using `seurat_v2`
+        or `cell_ranger` (cf. highly_variable_genes method)
         """
 
         if subset_genes is None:
@@ -832,8 +839,8 @@ class GeneExpressionDataset(Dataset):
                 std_scaler = StandardScaler(with_mean=False)
                 std_scaler.fit(self.X.astype(np.float64))
                 subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
-            elif mode in ["seurat", "cell_ranger"]:
-                genes_infos = self.highly_variable_genes(
+            elif mode in ["seurat_v2", "cell_ranger", "seurat_v3"]:
+                genes_infos = self._highly_variable_genes(
                     n_top_genes=new_n_genes, flavor=mode, **highly_var_genes_kwargs
                 )
                 subset_genes = np.where(genes_infos["highly_variable"])[0]
@@ -1239,53 +1246,30 @@ class GeneExpressionDataset(Dataset):
             np.squeeze(np.asarray(norm_mean2)),
         )
 
-    def highly_variable_genes(
+    def _highly_variable_genes(
         self,
-        min_disp: Optional[float] = None,
-        max_disp: Optional[float] = None,
-        min_mean: Optional[float] = None,
-        max_mean: Optional[float] = None,
-        n_top_genes: Optional[int] = None,
-        n_bins: int = 20,
-        flavor: Optional[str] = "seurat",
+        n_top_genes: int = None,
+        flavor: Optional[str] = "seurat_v3",
         batch_correction: Optional[bool] = True,
+        **highly_var_genes_kwargs,
     ) -> pd.DataFrame:
         """\
-        Code sample taken from the scanpy package
-        Annotate highly variable genes [Satija15]_ [Zheng17]_.
-        Depending on `flavor`, this reproduces the R-implementations of Seurat
-        [Satija15]_ and Cell Ranger [Zheng17]_.
-        The normalized dispersion is obtained by scaling with the mean and standard
-        deviation of the dispersions for genes falling into a given bin for mean
-        expression of genes. This means that for each bin of mean expression, highly
-        variable genes are selected.
+        Code adapted from the scanpy package
+        Annotate highly variable genes [Satija15]_ [Zheng17]_ [Stuart19]_.
+        Depending on `flavor`, this reproduces the R-implementations of Seurat v2 and earlier
+        [Satija15]_ and Cell Ranger [Zheng17]_, and Seurat v3 [Stuart19]_.
+
         Parameters
         ----------
-        :param min_mean:
-            If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
-            normalized dispersions are ignored.
-        :param max_mean:
-            If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
-            normalized dispersions are ignored.
-        :param min_disp:
-            If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
-            normalized dispersions are ignored.
-        :param max_disp:
-            If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
-            normalized dispersions are ignored.
         :param n_top_genes:
-            Number of highly-variable genes to keep.
-        :param n_bins:
-            Number of bins for binning the mean gene expression. Normalization is
-            done with respect to each bin. If just a single gene falls into a bin,
-            the normalized dispersion is artificially set to 1. You'll be informed
-            about this if you set `settings.verbosity = 4`.
+            Number of highly-variable genes to keep. Mandatory for Seurat v3
         :param flavor:
-            Choose the flavor for computing normalized dispersion. In their default
-            workflows, Seurat passes the cutoffs whereas Cell Ranger passes
+            Choose the flavor for computing normalized dispersion. One of "seurat_v2", "cell_ranger",
+            "seurat_v3". In their default workflows, Seurat v2 passes the cutoffs whereas Cell Ranger passes
             `n_top_genes`.
         :param batch_correction:
             Whether batches should be taken into account during procedure
+        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using Seurat flavor
 
         :return:
             scanpy .var DataFrame providing genes information including means, dispersions
@@ -1302,6 +1286,14 @@ class GeneExpressionDataset(Dataset):
                 "please install scanpy: " "pip install scanpy python-igraph louvain"
             )
 
+        if flavor not in ["seurat_v2", "seurat_v3", "cell_ranger"]:
+            raise ValueError(
+                "Choose one of the following flavors: 'seurat_v2', 'seurat_v3', 'cell_ranger'"
+            )
+
+        if flavor == "seurat_v3" and n_top_genes is None:
+            raise ValueError("n_top_genes must not be None with flavor=='seurat_v3'")
+
         # Creating AnnData structure
         obs = pd.DataFrame(
             data=dict(batch=self.batch_indices.squeeze()),
@@ -1313,26 +1305,110 @@ class GeneExpressionDataset(Dataset):
             counts = counts.toarray()
         adata = sc.AnnData(X=counts, obs=obs)
         batch_key = "batch" if (batch_correction and self.n_batches >= 2) else None
-        # Counts normalization
-        sc.pp.normalize_total(adata, target_sum=1e4)
-        # logarithmed data
-        sc.pp.log1p(adata)
+        if batch_key is None:
+            del adata.obs["batch"]
+        if flavor != "seurat_v3":
+            if flavor == "seurat_v2":
+                # name expected by scanpy
+                flavor = "seurat"
+            # Counts normalization
+            sc.pp.normalize_total(adata, target_sum=1e4)
+            # logarithmed data
+            sc.pp.log1p(adata)
 
-        # Finding top genes
-        sc.pp.highly_variable_genes(
-            adata=adata,
-            min_disp=min_disp,
-            max_disp=max_disp,
-            min_mean=min_mean,
-            max_mean=max_mean,
-            n_top_genes=n_top_genes,
-            n_bins=n_bins,
-            flavor=flavor,
-            batch_key=batch_key,
-            inplace=True,  # inplace=False looks buggy
-        )
+            # Finding top genes
+            sc.pp.highly_variable_genes(
+                adata=adata,
+                n_top_genes=n_top_genes,
+                flavor=flavor,
+                batch_key=batch_key,
+                inplace=True,  # inplace=False looks buggy
+                **highly_var_genes_kwargs,
+            )
+        elif flavor == "seurat_v3":
+            seurat_v3_highly_variable_genes(adata, n_top_genes=n_top_genes)
+        else:
+            raise ValueError(
+                "flavor should be one of 'seurat_v2', 'cell_ranger', 'seurat_v3'"
+            )
 
         return adata.var
+
+
+def seurat_v3_highly_variable_genes(adata, n_top_genes: int = 4000):
+    """ An adapted implementation of the "vst" feature selection in Seurat v3.
+
+        The major differences are that we use lowess insted of loess and when considering
+        a dataset with multiple batches we rank features by their median normalized variance
+        across batches
+
+        :param n_top_genes: How many variable genes to return
+
+    """
+
+    from scanpy.preprocessing._utils import _get_mean_var
+    from scanpy.preprocessing._distributed import materialize_as_ndarray
+
+    norm_gene_vars = []
+    del_batch = False
+    if "batch" not in adata.obs_keys():
+        del_batch = True
+        adata.obs["batch"] = np.zeros((adata.X.shape[0]))
+    for b in np.unique(adata.obs["batch"]):
+        lowess = sm.nonparametric.lowess
+
+        mean, var = materialize_as_ndarray(
+            _get_mean_var(adata[adata.obs["batch"] == b].X)
+        )
+
+        if sum(mean == 0) > 0:
+            raise ValueError("Some genes are all 0, please remove these genes.")
+
+        estimat_var = np.zeros((adata.X.shape[1]))
+
+        y = np.log10(var)
+        x = np.log10(mean)
+        # output is sorted by x
+        v = lowess(y, x, frac=0.15)
+        estimat_var[np.argsort(x)] = v[:, 1]
+
+        norm_values = (adata.X - mean) / np.sqrt(10 ** estimat_var)
+        # as in seurat paper, clip max values
+        norm_values = np.clip(
+            norm_values, None, np.sqrt(np.sum(adata.obs["batch"] == b))
+        )
+        norm_gene_var = norm_values.var(0)
+        norm_gene_vars.append(norm_gene_var.reshape(1, -1))
+
+    norm_gene_vars = np.concatenate(norm_gene_vars, axis=0)
+    ranked_norm_gene_vars = np.argsort(norm_gene_vars, axis=1)
+    median_norm_gene_vars = np.median(norm_gene_vars, axis=0)
+
+    num_batches_high_var = np.sum(
+        ranked_norm_gene_vars >= (adata.X.shape[1] - n_top_genes), axis=0
+    )
+    df = pd.DataFrame(index=np.array(adata.var_names))
+    df["highly_variable_n_batches"] = num_batches_high_var
+
+    df["highly_variable_median_variance"] = median_norm_gene_vars
+    df.sort_values(
+        ["highly_variable_median_variance"],
+        ascending=False,
+        na_position="last",
+        inplace=True,
+    )
+    df["highly_variable"] = False
+    df.loc[:n_top_genes, "highly_variable"] = True
+    df = df.loc[adata.var_names]
+
+    if del_batch is True:
+        del adata.obs["batch"]
+
+    adata.var["highly_variable"] = df["highly_variable"].values
+    adata.var["highly_variable_n_batches"] = df["highly_variable_n_batches"].values
+    adata.var["highly_variable_median_variance"] = df[
+        "highly_variable_median_variance"
+    ].values
 
 
 def remap_categories(
