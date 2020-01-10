@@ -1361,6 +1361,9 @@ def seurat_v3_highly_variable_genes(adata, n_top_genes: int = 4000):
             _get_mean_var(adata[adata.obs["batch"] == b].X)
         )
 
+        if sum(mean == 0) > 0:
+            raise ValueError("Some genes are all 0, please remove these genes.")
+
         estimat_var = np.zeros((adata.X.shape[1]))
 
         y = np.log10(var)
