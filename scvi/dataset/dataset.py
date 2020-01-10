@@ -839,7 +839,7 @@ class GeneExpressionDataset(Dataset):
                 std_scaler = StandardScaler(with_mean=False)
                 std_scaler.fit(self.X.astype(np.float64))
                 subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
-            elif mode in ["seurat", "cell_ranger", "seurat_v3"]:
+            elif mode in ["seurat_v2", "cell_ranger", "seurat_v3"]:
                 genes_infos = self._highly_variable_genes(
                     n_top_genes=new_n_genes, flavor=mode, **highly_var_genes_kwargs
                 )
@@ -1284,6 +1284,11 @@ class GeneExpressionDataset(Dataset):
         except ImportError:
             raise ImportError(
                 "please install scanpy: " "pip install scanpy python-igraph louvain"
+            )
+
+        if flavor not in ["seurat_v2", "seurat_v3", "cell_ranger"]:
+            raise ValueError(
+                "Choose one of the following flavors: 'seurat_v2', 'seurat_v3', 'cell_ranger'"
             )
 
         if flavor == "seurat_v3" and n_top_genes is None:

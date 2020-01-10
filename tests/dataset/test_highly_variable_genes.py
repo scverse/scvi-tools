@@ -6,7 +6,7 @@ from scvi.dataset import GeneExpressionDataset, BrainLargeDataset
 
 class TestHighlyVariableGenes(TestCase):
     def test_sparse_no_batch_correction(self):
-        for flavor in ["seurat", "cell_ranger", "seurat_v3"]:
+        for flavor in ["seurat_v2", "cell_ranger", "seurat_v3"]:
             dataset = BrainLargeDataset(
                 save_path="tests/data",
                 sample_size_gene_var=10,
@@ -37,9 +37,9 @@ class TestHighlyVariableGenes(TestCase):
 
         n_genes = dataset.nb_genes
         n_top = n_genes // 2
-        dataset._highly_variable_genes(n_bins=3, flavor="seurat")
+        dataset._highly_variable_genes(n_bins=3, flavor="seurat_v2")
         df = dataset._highly_variable_genes(
-            n_bins=3, n_top_genes=n_top, flavor="seurat"
+            n_bins=3, n_top_genes=n_top, flavor="seurat_v2"
         )
         assert df["highly_variable"].sum() >= n_top
 
@@ -63,10 +63,10 @@ class TestHighlyVariableGenes(TestCase):
         dataset.subsample_genes(new_n_genes=n_top, mode="cell_ranger")
         assert dataset.nb_genes == n_top
 
-        # With Seurat
+        # With Seurat v2
         dataset = GeneExpressionDataset()
         dataset.populate_from_per_batch_list(data)
-        dataset.subsample_genes(new_n_genes=n_top, mode="seurat")
+        dataset.subsample_genes(new_n_genes=n_top, mode="seurat_v2")
         assert dataset.nb_genes == n_top
 
         # With Seurat v3
