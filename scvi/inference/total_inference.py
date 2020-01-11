@@ -1067,38 +1067,6 @@ class TotalTrainer(UnsupervisedTrainer):
 
         return loss
 
-    def on_training_begin(self):
-        super().on_training_begin()
-        epoch_criterion = self.n_epochs_back_kl_warmup is not None
-        iter_criterion = self.n_iter_back_kl_warmup is not None
-        if epoch_criterion:
-            log_message = "KL warmup of background mean for {} epochs".format(
-                self.n_epochs_back_kl_warmup
-            )
-            if self.n_epochs_back_kl_warmup > self.n_epochs:
-                logger.info(
-                    "KL warmup phase exceeds overall training phase"
-                    "If your applications rely on the posterior quality, "
-                    "consider training for more epochs or reducing the kl warmup."
-                )
-        elif iter_criterion:
-            log_message = "KL warmup of background mean for {} iterations".format(
-                self.n_iter_back_kl_warmup
-            )
-            n_iter_per_epochs_approx = np.ceil(
-                self.gene_dataset.nb_cells / self.batch_size
-            )
-            n_total_iter_approx = self.n_epochs * n_iter_per_epochs_approx
-            if self.n_iter_kl_warmup > n_total_iter_approx:
-                logger.info(
-                    "KL warmup phase may exceed overall training phase."
-                    "If your applications rely on posterior quality, "
-                    "consider training for more epochs or reducing the kl warmup."
-                )
-        else:
-            log_message = "Training background mean without KL warmup"
-        logger.debug(log_message)
-
     def _get_z(self, tensors):
         (
             sample_batch_X,
