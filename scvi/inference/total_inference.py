@@ -991,7 +991,7 @@ class TotalTrainer(UnsupervisedTrainer):
                 n_input=self.model.n_latent,
                 n_hidden=32,
                 n_labels=self.gene_dataset.n_batches,
-                n_layers=2,
+                n_layers=3,
                 logits=True,
             )
 
@@ -1124,20 +1124,26 @@ class TotalTrainer(UnsupervisedTrainer):
                     else:
                         kappa = self.kappa
                     batch_index = tensors_list[0][3]
-                    z = self._get_z(*tensors_list)
-                    # Train discriminator
-                    d_loss = self.loss_discriminator(z.detach(), batch_index, True)
-                    d_loss *= kappa
-                    d_optimizer.zero_grad()
-                    d_loss.backward()
-                    d_optimizer.step()
+                    if kappa > 0:
+                        z = self._get_z(*tensors_list)
+                        # Train discriminator
+                        d_loss = self.loss_discriminator(z.detach(), batch_index, True)
+                        d_loss *= kappa
+                        d_optimizer.zero_grad()
+                        d_loss.backward()
+                        d_optimizer.step()
 
-                    # Train generative model to fool discriminator
-                    fool_loss = self.loss_discriminator(z, batch_index, False)
-                    fool_loss *= kappa
-                    optimizer.zero_grad()
+                        # Train generative model to fool discriminator
+                        fool_loss = self.loss_discriminator(z, batch_index, False)
+                        fool_loss *= kappa
+
+                    # Train generative model
                     self.current_loss = loss = self.loss(*tensors_list)
-                    (loss + fool_loss).backward()
+                    optimizer.zero_grad()
+                    if kappa > 0:
+                        (loss + fool_loss).backward()
+                    else:
+                        loss.backward()
                     optimizer.step()
 
                 else:
