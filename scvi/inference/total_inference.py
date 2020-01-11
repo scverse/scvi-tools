@@ -945,6 +945,12 @@ class TotalTrainer(UnsupervisedTrainer):
          to use Default: ``0.93``.
         :test_size: The test size, either a float between 0 and 1 or and integer for the number of training samples
          to use Default: ``0.02``. Note that if train and test do not add to 1 the remainder is placed in a validation set
+        :pro_recons_weight: Scaling factor on the reconstruction loss for proteins. Default: ``1.0``.
+        :n_epochs_kl_warmup: Number of epochs for annealing the KL terms for `z` and `mu` of the ELBO (from 0 to 1). If None, no warmup performed, unless
+         `n_iter_kl_warmup` is set.
+        :n_iter_kl_warmup: Number of minibatches for annealing the KL terms for `z` and `mu` of the ELBO (from 0 to 1). If set to "auto",
+        the number of iterations is equal to 75% of the number of cells. `n_epochs_kl_warmup` takes precedence if it is not None. If both are None,
+        then no warmup is performed.
         :\*\*kwargs: Other keywords arguments from the general Trainer class.
     """
     default_metrics_to_monitor = ["elbo"]
@@ -957,9 +963,7 @@ class TotalTrainer(UnsupervisedTrainer):
         test_size=0.10,
         pro_recons_weight=1.0,
         n_epochs_kl_warmup=None,
-        n_epochs_back_kl_warmup=None,
-        n_iter_kl_warmup=7500,
-        n_iter_back_kl_warmup=7500,
+        n_iter_kl_warmup="auto",
         early_stopping_kwargs=default_early_stopping_kwargs,
         discriminator=None,
         use_adversarial_loss=False,
@@ -971,13 +975,13 @@ class TotalTrainer(UnsupervisedTrainer):
         self.use_adversarial_loss = use_adversarial_loss
         self.kappa = kappa
         self.pro_recons_weight = pro_recons_weight
-        self.n_epochs_back_kl_warmup = n_epochs_back_kl_warmup
-        self.n_iter_back_kl_warmup = n_iter_back_kl_warmup
         super().__init__(
             model,
             dataset,
             n_epochs_kl_warmup=n_epochs_kl_warmup,
-            n_iter_kl_warmup=n_iter_kl_warmup,
+            n_iter_kl_warmup=0.75 * len(dataset)
+            if n_iter_kl_warmup == "auto"
+            else n_iter_kl_warmup,
             early_stopping_kwargs=early_stopping_kwargs,
             **kwargs,
         )
@@ -1036,7 +1040,7 @@ class TotalTrainer(UnsupervisedTrainer):
             + self.pro_recons_weight * reconst_loss_protein
             + self.kl_weight * kl_div_z
             + kl_div_l_gene
-            + self.kl_back_warmup_weight * kl_div_back_pro
+            + self.kl_weight * kl_div_back_pro
         )
 
         return loss
@@ -1062,18 +1066,6 @@ class TotalTrainer(UnsupervisedTrainer):
         loss = -l_soft.sum(dim=1).mean()
 
         return loss
-
-    @property
-    def kl_back_warmup_weight(self):
-        epoch_criterion = self.n_epochs_back_kl_warmup is not None
-        iter_criterion = self.n_iter_back_kl_warmup is not None
-        if epoch_criterion:
-            kl_back_warmup_weight = min(1.0, self.epoch / self.n_epochs_back_kl_warmup)
-        elif iter_criterion:
-            kl_back_warmup_weight = min(1.0, self.n_iter / self.n_iter_back_kl_warmup)
-        else:
-            kl_back_warmup_weight = 1.0
-        return kl_back_warmup_weight
 
     def on_training_begin(self):
         super().on_training_begin()
