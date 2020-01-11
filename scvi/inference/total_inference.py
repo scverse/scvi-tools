@@ -991,7 +991,7 @@ class TotalTrainer(UnsupervisedTrainer):
                 n_input=self.model.n_latent,
                 n_hidden=32,
                 n_labels=self.gene_dataset.n_batches,
-                n_layers=3,
+                n_layers=2,
                 logits=True,
             )
 
