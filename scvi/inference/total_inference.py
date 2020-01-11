@@ -1151,18 +1151,22 @@ class TotalTrainer(UnsupervisedTrainer):
                     continue
 
                 if self.use_adversarial_loss:
+                    if self.kappa is None:
+                        kappa = 1 - self.kl_weight
+                    else:
+                        kappa = self.kappa
                     batch_index = tensors_list[0][3]
                     z = self._get_z(*tensors_list)
                     # Train discriminator
                     d_loss = self.loss_discriminator(z.detach(), batch_index, True)
-                    d_loss *= self.kappa
+                    d_loss *= kappa
                     d_optimizer.zero_grad()
                     d_loss.backward()
                     d_optimizer.step()
 
                     # Train generative model to fool discriminator
                     fool_loss = self.loss_discriminator(z, batch_index, False)
-                    fool_loss *= self.kappa
+                    fool_loss *= kappa
                     optimizer.zero_grad()
                     self.current_loss = loss = self.loss(*tensors_list)
                     (loss + fool_loss).backward()
