@@ -909,8 +909,24 @@ class TotalPosterior(Posterior):
             [self.gene_dataset.gene_names, self.gene_dataset.protein_names]
         )
         if all_stats is True:
-            lfc = np.log2(all_info["scale1"]) - np.log2(all_info["scale2"])
-            genes_properties_dict = dict(lfc=lfc)
+            nan = np.array([np.nan] * len(self.gene_dataset.protein_names))
+            (
+                mean1,
+                mean2,
+                nonz1,
+                nonz2,
+                norm_mean1,
+                norm_mean2,
+            ) = self.gene_dataset.raw_counts_properties(idx1, idx2)
+            # TODO implement properties for proteins
+            genes_properties_dict = dict(
+                raw_mean1=np.concatenate([mean1, nan]),
+                raw_mean2=np.concatenate([mean2, nan]),
+                non_zeros_proportion1=np.concatenate([nonz1, nan]),
+                non_zeros_proportion2=np.concatenate([nonz2, nan]),
+                raw_normalized_mean1=np.concatenate([norm_mean1, nan]),
+                raw_normalized_mean2=np.concatenate([norm_mean2, nan]),
+            )
             all_info = {**all_info, **genes_properties_dict}
 
         res = pd.DataFrame(all_info, index=col_names)
