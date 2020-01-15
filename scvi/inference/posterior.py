@@ -385,6 +385,7 @@ class Posterior:
             )
             self.update_sampler_indices(idx=idx)
             px_scales.append(self.get_sample_scale(transform_batch=batch_idx, **kwargs))
+            batch_idx = batch_idx if batch_idx is not None else np.nan
             batch_ids.append(np.ones((px_scales[-1].shape[0])) * batch_idx)
         px_scales = np.concatenate(px_scales)
         batch_ids = np.concatenate(batch_ids).reshape(-1)
