@@ -918,12 +918,16 @@ class TotalPosterior(Posterior):
                 norm_mean1,
                 norm_mean2,
             ) = self.gene_dataset.raw_counts_properties(idx1, idx2)
+            mean1_pro = self.gene_dataset.protein_expression[idx1, :].mean(0)
+            mean2_pro = self.gene_dataset.protein_expression[idx2, :].mean(0)
+            nonz1_pro = (self.gene_dataset.protein_expression[idx1, :] > 0).mean(0)
+            nonz2_pro = (self.gene_dataset.protein_expression[idx2, :] > 0).mean(0)
             # TODO implement properties for proteins
             genes_properties_dict = dict(
-                raw_mean1=np.concatenate([mean1, nan]),
-                raw_mean2=np.concatenate([mean2, nan]),
-                non_zeros_proportion1=np.concatenate([nonz1, nan]),
-                non_zeros_proportion2=np.concatenate([nonz2, nan]),
+                raw_mean1=np.concatenate([mean1, mean1_pro]),
+                raw_mean2=np.concatenate([mean2, mean2_pro]),
+                non_zeros_proportion1=np.concatenate([nonz1, nonz1_pro]),
+                non_zeros_proportion2=np.concatenate([nonz2, nonz2_pro]),
                 raw_normalized_mean1=np.concatenate([norm_mean1, nan]),
                 raw_normalized_mean2=np.concatenate([norm_mean2, nan]),
             )
