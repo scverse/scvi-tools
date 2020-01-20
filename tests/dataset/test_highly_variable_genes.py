@@ -6,7 +6,7 @@ from scvi.dataset import GeneExpressionDataset, BrainLargeDataset
 
 class TestHighlyVariableGenes(TestCase):
     def test_sparse_no_batch_correction(self):
-        for flavor in ["seurat", "cell_ranger"]:
+        for flavor in ["seurat_v2", "cell_ranger", "seurat_v3"]:
             dataset = BrainLargeDataset(
                 save_path="tests/data",
                 sample_size_gene_var=10,
@@ -20,17 +20,11 @@ class TestHighlyVariableGenes(TestCase):
             assert dataset.nb_genes < n_genes
             # For some reason the new number of genes can be slightly different than n_top
 
-            dataset.highly_variable_genes(flavor=flavor, n_bins=3)
-
-        dataset = BrainLargeDataset(
-            save_path="tests/data",
-            sample_size_gene_var=10,
-            nb_genes_to_keep=128,
-            max_cells_to_keep=256,
-        )
-        n_genes = dataset.nb_genes
-        dataset.subsample_genes()
-        assert dataset.nb_genes < n_genes, "subsample_genes did not filter out genes"
+            dataset._highly_variable_genes(
+                flavor=flavor,
+                n_bins=3,
+                n_top_genes=3 if flavor == "seurat_v3" else None,
+            )
 
     def test_batch_correction(self):
         data = [
@@ -43,12 +37,13 @@ class TestHighlyVariableGenes(TestCase):
 
         n_genes = dataset.nb_genes
         n_top = n_genes // 2
-        dataset.highly_variable_genes(n_bins=3, flavor="seurat")
-        dataset.highly_variable_genes(n_bins=3, flavor="seurat")
-        df = dataset.highly_variable_genes(n_bins=3, n_top_genes=n_top, flavor="seurat")
+        dataset._highly_variable_genes(n_bins=3, flavor="seurat_v2")
+        df = dataset._highly_variable_genes(
+            n_bins=3, n_top_genes=n_top, flavor="seurat_v2"
+        )
         assert df["highly_variable"].sum() >= n_top
 
-        dataset.subsample_genes()
+        dataset.subsample_genes(new_n_genes=n_top)
         new_genes = dataset.nb_genes
         assert n_genes > new_genes, "subsample_genes did not filter out genes"
         pass
@@ -65,13 +60,17 @@ class TestHighlyVariableGenes(TestCase):
         dataset.populate_from_per_batch_list(data)
         n_genes = dataset.nb_genes
         n_top = n_genes // 2
-        dataset.subsample_genes(new_n_genes=n_top)
-        assert dataset.nb_genes < n_genes
-        # For some reason the new number of genes can be slightly different than n_top
+        dataset.subsample_genes(new_n_genes=n_top, mode="cell_ranger")
+        assert dataset.nb_genes == n_top
 
-        # With Seurat
+        # With Seurat v2
         dataset = GeneExpressionDataset()
         dataset.populate_from_per_batch_list(data)
-        dataset.subsample_genes(new_n_genes=n_top, mode="seurat")
-        assert dataset.nb_genes < n_genes
-        # For some reason the new number of genes can be slightly different than n_top
+        dataset.subsample_genes(new_n_genes=n_top, mode="seurat_v2")
+        assert dataset.nb_genes == n_top
+
+        # With Seurat v3
+        dataset = GeneExpressionDataset()
+        dataset.populate_from_per_batch_list(data)
+        dataset.subsample_genes(new_n_genes=n_top, mode="seurat_v3")
+        assert dataset.nb_genes == n_top

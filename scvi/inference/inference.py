@@ -25,7 +25,7 @@ class UnsupervisedTrainer(Trainer):
          to use Default: ``None``, which is equivalent to data not in the train set. If ``train_size`` and ``test_size``
          do not add to 1 or the length of the dataset then the remaining samples are added to a ``validation_set``.
 
-        2 parameters can help control the training KL annealing
+        Two parameters can help control the training KL annealing
         If your applications rely on the posterior quality,
         (i.e. differential expression, batch effect removal), ensure the number of total
         epochs (or iterations) exceed the number of epochs (or iterations) used for KL warmup
@@ -34,7 +34,8 @@ class UnsupervisedTrainer(Trainer):
             :n_epochs_kl_warmup: Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
                 the training objective is the ELBO. This might be used to prevent inactivity of latent units, and/or to
                 improve clustering of latent space, as a long warmup turns the model into something more of an autoencoder.
-                Be aware that large datasets should avoid this mode and rely on n_iter_kl_warmup
+                Be aware that large datasets should avoid this mode and rely on n_iter_kl_warmup. If this parameter is not
+                None, then it overrides any choice of `n_iter_kl_warmup`.
 
             :n_iter_kl_warmup: Number of iterations for warmup (useful for bigger datasets)
             int(128*5000/400) is a good default value.
@@ -63,21 +64,15 @@ class UnsupervisedTrainer(Trainer):
         gene_dataset: GeneExpressionDataset,
         train_size: Union[int, float] = 0.8,
         test_size: Union[int, float] = None,
-        n_iter_kl_warmup: int = None,
-        n_epochs_kl_warmup: int = 400,
+        n_iter_kl_warmup: Union[int, None] = None,
+        n_epochs_kl_warmup: Union[int, None] = 400,
         normalize_loss: bool = None,
         **kwargs
     ):
         super().__init__(model, gene_dataset, **kwargs)
 
         # Set up number of warmup iterations
-        self.n_iter_kl_warmup = None
-        self.n_epochs_kl_warmup = None
-
-        if n_iter_kl_warmup is not None:
-            self.n_iter_kl_warmup = n_iter_kl_warmup
-        elif n_epochs_kl_warmup is not None:
-            self.n_epochs_kl_warmup = n_epochs_kl_warmup
+        self.n_iter_kl_warmup = n_iter_kl_warmup
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.normalize_loss = (
             not (
@@ -124,20 +119,28 @@ class UnsupervisedTrainer(Trainer):
 
     @property
     def kl_weight(self):
-        epoch_criterium = self.n_epochs_kl_warmup is not None
-        iter_criterium = self.n_iter_kl_warmup is not None
-        if epoch_criterium:
+        epoch_criterion = self.n_epochs_kl_warmup is not None
+        iter_criterion = self.n_iter_kl_warmup is not None
+        if epoch_criterion:
             kl_weight = min(1.0, self.epoch / self.n_epochs_kl_warmup)
-        elif iter_criterium:
+        elif iter_criterion:
             kl_weight = min(1.0, self.n_iter / self.n_iter_kl_warmup)
         else:
             kl_weight = 1.0
         return kl_weight
 
     def on_training_begin(self):
-        epoch_criterium = self.n_epochs_kl_warmup is not None
-        iter_criterium = self.n_iter_kl_warmup is not None
-        if iter_criterium:
+        epoch_criterion = self.n_epochs_kl_warmup is not None
+        iter_criterion = self.n_iter_kl_warmup is not None
+        if epoch_criterion:
+            log_message = "KL warmup for {} epochs".format(self.n_epochs_kl_warmup)
+            if self.n_epochs_kl_warmup > self.n_epochs:
+                logger.info(
+                    "KL warmup phase exceeds overall training phase"
+                    "If your applications rely on the posterior quality, "
+                    "consider training for more epochs or reducing the kl warmup."
+                )
+        elif iter_criterion:
             log_message = "KL warmup for {} iterations".format(self.n_iter_kl_warmup)
             n_iter_per_epochs_approx = ceil(
                 self.gene_dataset.nb_cells / self.batch_size
@@ -147,14 +150,6 @@ class UnsupervisedTrainer(Trainer):
                 logger.info(
                     "KL warmup phase may exceed overall training phase."
                     "If your applications rely on posterior quality, "
-                    "consider training for more epochs or reducing the kl warmup."
-                )
-        elif epoch_criterium:
-            log_message = "KL warmup for {} epochs".format(self.n_epochs_kl_warmup)
-            if self.n_epochs_kl_warmup > self.n_epochs:
-                logger.info(
-                    "KL warmup phase exceeds overall training phase"
-                    "If your applications rely on the posterior quality, "
                     "consider training for more epochs or reducing the kl warmup."
                 )
         else:
