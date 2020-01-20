@@ -295,6 +295,11 @@ class GeneExpressionDataset(Dataset):
             If no mapping is provided, concatenate the values and add an offset
             if the attribute is registered as categorical in the first dataset.
         """
+        logger.info("Merging datasets. Input objects are modified in place.")
+        logger.info(
+            "Gene names and cell measurement names are assumed to have a non-null intersection between datasets."
+        )
+
         # set default sharing behaviour for batch_indices and labels
         if mapping_reference_for_sharing is None:
             mapping_reference_for_sharing = {}
