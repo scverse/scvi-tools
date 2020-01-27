@@ -11,7 +11,7 @@ class TestCortexDataset(TestCase):
         unsupervised_training_one_epoch(dataset)
 
     def test_variance_and_order_and_size(self):
-        to_keep = ["THY1", "SST", "TOMEM2", "MOG"]
+        to_keep = ["THY1", "sst", "Tomem2", "Crhbp"]
         total_genes = 10
         dataset_full = CortexDataset(save_path="tests/data", total_genes=None)
         dataset_small = CortexDataset(
