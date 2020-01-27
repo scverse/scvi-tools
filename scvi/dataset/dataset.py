@@ -161,9 +161,10 @@ class GeneExpressionDataset(Dataset):
         self.compute_library_size_batch()
 
         if gene_names is not None:
-            self.initialize_gene_attribute(
-                "gene_names", np.char.upper(np.asarray(gene_names, dtype="<U64"))
-            )
+            gn = np.asarray(gene_names, dtype="<U64")
+            self.initialize_gene_attribute("gene_names", gn)
+            if len(np.unique(self.gene_names)) != len(self.gene_names):
+                logger.warning("Gene names are not unique.")
         if cell_types is not None:
             self.initialize_mapped_attribute(
                 "labels", "cell_types", np.asarray(cell_types, dtype="<U128")
@@ -295,6 +296,11 @@ class GeneExpressionDataset(Dataset):
             If no mapping is provided, concatenate the values and add an offset
             if the attribute is registered as categorical in the first dataset.
         """
+        logger.info("Merging datasets. Input objects are modified in place.")
+        logger.info(
+            "Gene names and cell measurement names are assumed to have a non-null intersection between datasets."
+        )
+
         # set default sharing behaviour for batch_indices and labels
         if mapping_reference_for_sharing is None:
             mapping_reference_for_sharing = {}
@@ -861,6 +867,10 @@ class GeneExpressionDataset(Dataset):
             return_data=False,
         )
         self.update_genes(subset_genes)
+
+    def make_gene_names_lower(self):
+        logger.info("Making gene names lower case")
+        self.gene_names = np.char.lower(self.gene_names)
 
     def filter_genes_by_count(self, min_count: int = 1):
         mask_genes_to_keep = np.squeeze(np.asarray(self.X.sum(axis=0) >= min_count))

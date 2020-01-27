@@ -968,20 +968,19 @@ class Posterior:
             cell_labels = self.gene_dataset.labels.ravel()
         de_res = []
         de_cluster = []
-        states = np.asarray([1 if x else 0 for x in states])
-        nstates = np.asarray([0 if x else 1 for x in states])
+        oppo_states = ~states
         for i, x in enumerate(cluster_id):
             if subset is None:
                 idx1 = (cell_labels == i) * states
-                idx2 = (cell_labels == i) * nstates
+                idx2 = (cell_labels == i) * oppo_states
             else:
                 idx1 = (cell_labels == i) * subset * states
-                idx2 = (cell_labels == i) * subset * nstates
+                idx2 = (cell_labels == i) * subset * oppo_states
             if np.sum(idx1) > min_cells and np.sum(idx2) > min_cells:
                 de_cluster.append(x)
                 res = self.differential_expression_score(
-                    idx1=idx1,
-                    idx2=idx2,
+                    idx1=idx1.astype(bool),
+                    idx2=idx2.astype(bool),
                     batchid1=batch1,
                     batchid2=batch2,
                     use_observed_batches=use_observed_batches,

@@ -67,7 +67,7 @@ class CortexDataset(DownloadableDataset):
         cell_types, labels = np.unique(clusters, return_inverse=True)
         _, self.precise_labels = np.unique(precise_clusters, return_inverse=True)
         X = np.asarray(rows, dtype=np.int).T[1:]
-        gene_names = np.char.upper(np.asarray(gene_names, dtype=np.str))
+        gene_names = np.asarray(gene_names, dtype=np.str)
         gene_indices = []
         if self.genes_to_keep is not None:
             look_up = dict([(g, i) for i, g in enumerate(gene_names)])
