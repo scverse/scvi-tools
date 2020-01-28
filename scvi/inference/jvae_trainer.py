@@ -142,7 +142,7 @@ class JVAETrainer(Trainer):
             self.optimizer.step()
 
         # Train generative model
-        g_loss = self.loss(tensors_list)
+        self.current_loss = g_loss = self.loss(tensors_list)
         self.optimizer.zero_grad()
         g_loss.backward()
         self.optimizer.step()

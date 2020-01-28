@@ -147,6 +147,7 @@ class Trainer:
             params, lr=lr, eps=eps, weight_decay=self.weight_decay
         )
 
+        # Initialization of other model's optimizers
         self.training_extras_init(**extras_kwargs)
 
         self.compute_metrics_time = 0
@@ -165,9 +166,13 @@ class Trainer:
             for tensors_list in self.data_loaders_loop():
                 if tensors_list[0][0].shape[0] < 3:
                     continue
-
+                self.on_iteration_begin()
+                # Update the model's parameters after seeing the data
                 self.in_training_loop(tensors_list)
+                # Checks the training status, ensures no nan loss
+                self.on_iteration_end()
 
+            # Computes metrics and controls early stopping
             if not self.on_epoch_end():
                 break
 
@@ -191,18 +196,20 @@ class Trainer:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        self.on_iteration_end()
 
     def training_extras_init(self, **extras_kwargs):
+        # Training extras are other necessary models to simultaneously train
         pass
 
     def training_extras_end(self):
+        # Place to put extra models in eval mode, etc.
         pass
 
     def on_training_begin(self):
         pass
 
     def on_epoch_begin(self):
+        # Epochs refer to a pass through the entire dataset (in minibatches)
         pass
 
     def on_epoch_end(self):
@@ -230,6 +237,7 @@ class Trainer:
         return continue_training
 
     def on_iteration_begin(self):
+        # Iterations refer to minibatches
         pass
 
     def on_iteration_end(self):
