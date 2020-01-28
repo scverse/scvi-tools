@@ -73,6 +73,7 @@ class NotebookLoader(object):
                         )
                         # replace parameters with test parameters to run faster
                         code = re.sub(r"n_epochs_all = None", "n_epochs_all = 1", code)
+                        code = re.sub(r"n_epochs = \d+", "n_epochs = 1", code)
                         code = re.sub(r"n_cl = \d+", "n_cl = 3", code)
                         code = re.sub(
                             r"M_permutation = \d+", "M_permutation = 10", code
