@@ -1372,7 +1372,10 @@ def seurat_v3_highly_variable_genes(adata, n_top_genes: int = 4000):
         )
 
         if sum(mean == 0) > 0:
-            raise ValueError("Some genes are all 0, please remove these genes.")
+            raise ValueError(
+                "Some genes are all zero in batch {batch}, please ensure genes"
+                " are non-zero in each batch separately".format(batch=b)
+            )
 
         estimat_var = np.zeros((adata.X.shape[1]))
 
