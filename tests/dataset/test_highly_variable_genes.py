@@ -1,7 +1,6 @@
 from unittest import TestCase
-import numpy as np
 
-from scvi.dataset import GeneExpressionDataset, BrainLargeDataset
+from scvi.dataset import BrainLargeDataset, SyntheticDataset
 
 
 class TestHighlyVariableGenes(TestCase):
@@ -27,13 +26,7 @@ class TestHighlyVariableGenes(TestCase):
             )
 
     def test_batch_correction(self):
-        data = [
-            np.random.randint(1, 5, size=(50, 25)),
-            np.random.randint(1, 5, size=(50, 25)),
-            np.random.randint(1, 5, size=(50, 25)),
-        ]
-        dataset = GeneExpressionDataset()
-        dataset.populate_from_per_batch_list(data)
+        dataset = SyntheticDataset(batch_size=100, nb_genes=100, n_batches=3)
 
         n_genes = dataset.nb_genes
         n_top = n_genes // 2
@@ -49,28 +42,19 @@ class TestHighlyVariableGenes(TestCase):
         assert n_genes > new_genes, "subsample_genes did not filter out genes"
 
     def test_dense_subsample_genes(self):
-        data = [
-            np.random.randint(1, 5, size=(50, 26)),
-            np.random.randint(1, 5, size=(50, 26)),
-            np.random.randint(1, 5, size=(50, 26)),
-        ]
+        dataset = SyntheticDataset(batch_size=100, nb_genes=100, n_batches=3)
 
-        # With default
-        dataset = GeneExpressionDataset()
-        dataset.populate_from_per_batch_list(data)
         n_genes = dataset.nb_genes
         n_top = n_genes // 2
         dataset.subsample_genes(new_n_genes=n_top, mode="cell_ranger")
         assert dataset.nb_genes == n_top
 
         # With Seurat v2
-        dataset = GeneExpressionDataset()
-        dataset.populate_from_per_batch_list(data)
+        dataset = SyntheticDataset(batch_size=100, nb_genes=100, n_batches=3)
         dataset.subsample_genes(new_n_genes=n_top, mode="seurat_v2")
         assert dataset.nb_genes == n_top
 
         # With Seurat v3
-        dataset = GeneExpressionDataset()
-        dataset.populate_from_per_batch_list(data)
+        dataset = SyntheticDataset(batch_size=100, nb_genes=100, n_batches=3)
         dataset.subsample_genes(new_n_genes=n_top, mode="seurat_v3")
         assert dataset.nb_genes == n_top
