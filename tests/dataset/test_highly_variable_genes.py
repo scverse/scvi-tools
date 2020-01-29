@@ -43,10 +43,10 @@ class TestHighlyVariableGenes(TestCase):
         )
         assert df["highly_variable"].sum() >= n_top
 
+        dataset.filter_genes_by_count(2, per_batch=True)
         dataset.subsample_genes(new_n_genes=n_top)
         new_genes = dataset.nb_genes
         assert n_genes > new_genes, "subsample_genes did not filter out genes"
-        pass
 
     def test_dense_subsample_genes(self):
         data = [

@@ -872,8 +872,20 @@ class GeneExpressionDataset(Dataset):
         logger.info("Making gene names lower case")
         self.gene_names = np.char.lower(self.gene_names)
 
-    def filter_genes_by_count(self, min_count: int = 1):
-        mask_genes_to_keep = np.squeeze(np.asarray(self.X.sum(axis=0) >= min_count))
+    def filter_genes_by_count(self, min_count: int = 1, per_batch: bool = False):
+        if per_batch is True:
+            batches = self.batch_indices.ravel()
+            mask_genes_to_keep = np.ones((self.X.shape[1]))
+            for b in np.unique(batches):
+                mask_genes_to_keep = np.logical_and(
+                    mask_genes_to_keep,
+                    np.squeeze(
+                        np.asarray(self.X[batches == b].sum(axis=0) >= min_count)
+                    ),
+                )
+        else:
+            mask_genes_to_keep = np.squeeze(np.asarray(self.X.sum(axis=0) >= min_count))
+
         self.update_genes(mask_genes_to_keep)
 
     def _get_genes_filter_mask_by_attribute(
