@@ -544,6 +544,12 @@ class GeneExpressionDataset(Dataset):
                     n_dim
                 )
             )
+        valid_obs = check_nonnegative_integers(X)
+        if valid_obs is False:
+            logger.warning(
+                "X contains continuous and/or negative values. Please use raw UMI/read counts"
+                " with scVI"
+            )
         self._X = X
         logger.info("Computing the library size for the new data")
         self.compute_library_size_batch()
@@ -1526,6 +1532,20 @@ def concatenate_arrays(arrays):
             ]
         )
     return concatenation
+
+
+def check_nonnegative_integers(X: Union[np.ndarray, sp_sparse.csr_matrix]):
+    """Checks values of X to ensure it is count data"""
+
+    data = X if type(X) is np.ndarray else X.data
+    # Check no negatives
+    if np.any(data < 0):
+        return False
+    # Check all are integers
+    elif np.any(~np.equal(np.mod(data, 1), 0)):
+        return False
+    else:
+        return True
 
 
 class DownloadableDataset(GeneExpressionDataset, ABC):
