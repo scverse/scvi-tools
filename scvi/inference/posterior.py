@@ -42,6 +42,8 @@ from scvi.models.log_likelihood import (
     compute_marginal_log_likelihood_autozi,
 )
 
+from scipy.stats import spearmanr
+
 logger = logging.getLogger(__name__)
 
 
@@ -1154,10 +1156,11 @@ class Posterior:
     @torch.no_grad()
     def generate_feature_correlation_matrix(
         self,
-        n_samples: int = 25,
+        n_samples: int = 10,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
         transform_batch: Optional[Union[int, List[int]]] = None,
+        correlation_type: str = "pearson",
     ):
         """ Wrapper of `generate_denoised_samples()` to create a gene-gene corr matrix
         :param n_samples: How may samples per cell
@@ -1168,6 +1171,7 @@ class Posterior:
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then values are averaged over provided batches.
+        :param correlation_type: One of "pearson", "spearman"
         :return:
         """
         if (transform_batch is None) or (isinstance(transform_batch, int)):
@@ -1187,7 +1191,14 @@ class Posterior:
                 flattened[
                     denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
                 ] = denoised_data[:, :, i]
-            corr_matrix = np.corrcoef(flattened, rowvar=False)
+            if correlation_type == "pearson":
+                corr_matrix = np.corrcoef(flattened, rowvar=False)
+            elif correlation_type == "spearman":
+                corr_matrix, _ = spearmanr(flattened)
+            else:
+                raise ValueError(
+                    "Unknown correlation type. Choose one of 'spearman', 'pearson'."
+                )
             corr_mats.append(corr_matrix)
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
         return corr_matrix
