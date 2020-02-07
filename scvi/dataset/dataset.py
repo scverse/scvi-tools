@@ -7,7 +7,6 @@ from collections import OrderedDict, defaultdict
 from dataclasses import dataclass
 from functools import partial
 from typing import Dict, Iterable, List, Tuple, Union, Optional, Callable
-from scipy.sparse import issparse
 
 import numpy as np
 import pandas as pd
@@ -1329,12 +1328,8 @@ class GeneExpressionDataset(Dataset):
         ).astype("category")
 
         counts = self.X.copy()
-        if issparse(counts):
-            counts = counts.toarray()
         adata = sc.AnnData(X=counts, obs=obs)
         batch_key = "batch" if (batch_correction and self.n_batches >= 2) else None
-        if batch_key is None:
-            del adata.obs["batch"]
         if flavor != "seurat_v3":
             if flavor == "seurat_v2":
                 # name expected by scanpy
@@ -1378,10 +1373,6 @@ def seurat_v3_highly_variable_genes(adata, n_top_genes: int = 4000):
     from scanpy.preprocessing._distributed import materialize_as_ndarray
 
     norm_gene_vars = []
-    del_batch = False
-    if "batch" not in adata.obs_keys():
-        del_batch = True
-        adata.obs["batch"] = np.zeros((adata.X.shape[0]))
     for b in np.unique(adata.obs["batch"]):
         lowess = sm.nonparametric.lowess
 
@@ -1434,9 +1425,6 @@ def seurat_v3_highly_variable_genes(adata, n_top_genes: int = 4000):
     df["highly_variable"] = False
     df.loc[:n_top_genes, "highly_variable"] = True
     df = df.loc[adata.var_names]
-
-    if del_batch is True:
-        del adata.obs["batch"]
 
     adata.var["highly_variable"] = df["highly_variable"].values
     adata.var["highly_variable_n_batches"] = df["highly_variable_n_batches"].values
