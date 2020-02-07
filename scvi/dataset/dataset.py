@@ -1358,7 +1358,9 @@ class GeneExpressionDataset(Dataset):
         return adata.var
 
 
-def seurat_v3_highly_variable_genes(adata, n_top_genes: int = 4000):
+def seurat_v3_highly_variable_genes(
+    adata, n_top_genes: int = 4000, batch_key: str = "batch"
+):
     """ An adapted implementation of the "vst" feature selection in Seurat v3.
 
         The major differences are that we use lowess insted of loess and when considering
@@ -1366,18 +1368,23 @@ def seurat_v3_highly_variable_genes(adata, n_top_genes: int = 4000):
         across batches
 
         :param n_top_genes: How many variable genes to return
+        :param batch_key: key in adata.obs that contains batch info. If None, do not use batch info
 
     """
 
     from scanpy.preprocessing._utils import _get_mean_var
     from scanpy.preprocessing._distributed import materialize_as_ndarray
 
+    lowess = sm.nonparametric.lowess
+
+    if batch_key is None:
+        adata.obs[batch_key] = np.zeros((adata.X.shape[0]))
+
     norm_gene_vars = []
-    for b in np.unique(adata.obs["batch"]):
-        lowess = sm.nonparametric.lowess
+    for b in np.unique(adata.obs[batch_key]):
 
         mean, var = materialize_as_ndarray(
-            _get_mean_var(adata[adata.obs["batch"] == b].X)
+            _get_mean_var(adata[adata.obs[batch_key] == b].X)
         )
 
         if sum(mean == 0) > 0:
