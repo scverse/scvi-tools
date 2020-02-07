@@ -1328,6 +1328,8 @@ class GeneExpressionDataset(Dataset):
         ).astype("category")
 
         counts = self.X.copy()
+        if sp_sparse.issparse(counts):
+            counts = counts.toarray()
         adata = sc.AnnData(X=counts, obs=obs)
         batch_key = "batch" if (batch_correction and self.n_batches >= 2) else None
         if flavor != "seurat_v3":
@@ -1404,7 +1406,9 @@ def seurat_v3_highly_variable_genes(
         v = lowess(y, x, frac=0.15)
         estimat_var[np.argsort(x)] = v[:, 1]
 
-        norm_values = (adata.X - mean) / np.sqrt(10 ** estimat_var)
+        norm_values = (adata[adata.obs[batch_key] == b].X - mean) / np.sqrt(
+            10 ** estimat_var
+        )
         # as in seurat paper, clip max values
         norm_values = np.clip(
             norm_values, None, np.sqrt(np.sum(adata.obs["batch"] == b))
