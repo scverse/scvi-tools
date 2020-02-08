@@ -1417,18 +1417,21 @@ def seurat_v3_highly_variable_genes(
         norm_gene_vars.append(norm_gene_var.reshape(1, -1))
 
     norm_gene_vars = np.concatenate(norm_gene_vars, axis=0)
-    ranked_norm_gene_vars = np.argsort(norm_gene_vars, axis=1)
+    # argsort twice gives ranks
+    ranked_norm_gene_vars = np.argsort(np.argsort(norm_gene_vars, axis=1), axis=1)
     median_norm_gene_vars = np.median(norm_gene_vars, axis=0)
+    median_ranked = np.median(ranked_norm_gene_vars, axis=0)
 
     num_batches_high_var = np.sum(
         ranked_norm_gene_vars >= (adata.X.shape[1] - n_top_genes), axis=0
     )
     df = pd.DataFrame(index=np.array(adata.var_names))
     df["highly_variable_n_batches"] = num_batches_high_var
+    df["highly_variable_median_rank"] = median_ranked
 
     df["highly_variable_median_variance"] = median_norm_gene_vars
     df.sort_values(
-        ["highly_variable_median_variance"],
+        ["highly_variable_n_batches", "highly_variable_median_rank"],
         ascending=False,
         na_position="last",
         inplace=True,
