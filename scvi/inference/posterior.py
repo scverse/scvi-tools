@@ -1164,6 +1164,46 @@ class Posterior:
         return np.concatenate(px_scales)
 
     @torch.no_grad()
+    def get_normalized_sample_rate(self, gene, transform_batch=None, library_size=10000) -> np.ndarray:
+        '''
+        Returns rate of expression for a single gene relative to a constant library size (default 10,000)
+        over self cells.
+
+        :param gene: Gene name to get expression rate from.
+        :param transform_batch: Batches to condition on.
+        If transform_batch is:
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - list of int, then px_rates are averaged over provided batches.
+        :param library_size: Library size to normalize rates to. Default is 10,000.
+        :return: (n_cells,) array of rates for the gene in each cell as a fraction of library_size.
+        '''
+        gene_idx = np.where(self.gene_dataset.gene_names == gene)[0][0]
+
+        batch_size = 10000  # Do less GPU transfer
+
+        px_scales = []
+        for tensors in self.sequential(batch_size=batch_size):
+            sample_batch, _, _, batch_index, labels = tensors
+            px_scales += [
+                np.array(
+                    (
+                        self.model.get_sample_scale(
+                            sample_batch,
+                            batch_index=batch_index,
+                            y=labels,
+                            n_samples=1,
+                            transform_batch=transform_batch,
+                        )[:, gene_idx]
+                    ).cpu()
+                )
+            ]
+        
+        px_scales = np.concatenate(px_scales)
+
+        return library_size * px_scales
+
+    @torch.no_grad()
     def imputation_list(self, n_samples=1):
         original_list = []
         imputed_list = []
