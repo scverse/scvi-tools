@@ -1160,7 +1160,7 @@ class Posterior:
         batch_size: int = 64,
         rna_size_factor: int = 1000,
         transform_batch: Optional[Union[int, List[int]]] = None,
-        correlation_type: str = "pearson",
+        correlation_type: str = "spearman",
     ):
         """ Wrapper of `generate_denoised_samples()` to create a gene-gene corr matrix
         :param n_samples: How may samples per cell
