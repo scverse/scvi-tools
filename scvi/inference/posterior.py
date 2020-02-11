@@ -1116,7 +1116,7 @@ class Posterior:
         rna_size_factor: int = 1000,
         transform_batch: Optional[int] = None,
     ):
-        """ Return samples from an adjusted posterior predictive. Proteins are concatenated to genes.
+        """ Return samples from an adjusted posterior predictive.
         :param n_samples: How may samples per cell
         :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
         :rna_size_factor: size factor for RNA prior to sampling gamma distribution
