@@ -7,7 +7,6 @@ from collections import OrderedDict, defaultdict
 from dataclasses import dataclass
 from functools import partial
 from typing import Dict, Iterable, List, Tuple, Union, Optional, Callable
-from scipy.sparse import issparse
 
 import numpy as np
 import pandas as pd
@@ -1329,12 +1328,10 @@ class GeneExpressionDataset(Dataset):
         ).astype("category")
 
         counts = self.X.copy()
-        if issparse(counts):
+        if sp_sparse.issparse(counts):
             counts = counts.toarray()
         adata = sc.AnnData(X=counts, obs=obs)
         batch_key = "batch" if (batch_correction and self.n_batches >= 2) else None
-        if batch_key is None:
-            del adata.obs["batch"]
         if flavor != "seurat_v3":
             if flavor == "seurat_v2":
                 # name expected by scanpy
@@ -1363,7 +1360,9 @@ class GeneExpressionDataset(Dataset):
         return adata.var
 
 
-def seurat_v3_highly_variable_genes(adata, n_top_genes: int = 4000):
+def seurat_v3_highly_variable_genes(
+    adata, n_top_genes: int = 4000, batch_key: str = "batch"
+):
     """ An adapted implementation of the "vst" feature selection in Seurat v3.
 
         The major differences are that we use lowess insted of loess and when considering
@@ -1371,22 +1370,23 @@ def seurat_v3_highly_variable_genes(adata, n_top_genes: int = 4000):
         across batches
 
         :param n_top_genes: How many variable genes to return
+        :param batch_key: key in adata.obs that contains batch info. If None, do not use batch info
 
     """
 
     from scanpy.preprocessing._utils import _get_mean_var
     from scanpy.preprocessing._distributed import materialize_as_ndarray
 
+    lowess = sm.nonparametric.lowess
+
+    if batch_key is None:
+        adata.obs[batch_key] = np.zeros((adata.X.shape[0]))
+
     norm_gene_vars = []
-    del_batch = False
-    if "batch" not in adata.obs_keys():
-        del_batch = True
-        adata.obs["batch"] = np.zeros((adata.X.shape[0]))
-    for b in np.unique(adata.obs["batch"]):
-        lowess = sm.nonparametric.lowess
+    for b in np.unique(adata.obs[batch_key]):
 
         mean, var = materialize_as_ndarray(
-            _get_mean_var(adata[adata.obs["batch"] == b].X)
+            _get_mean_var(adata[adata.obs[batch_key] == b].X)
         )
 
         if sum(mean == 0) > 0:
@@ -1406,7 +1406,9 @@ def seurat_v3_highly_variable_genes(adata, n_top_genes: int = 4000):
         v = lowess(y, x, frac=0.15)
         estimat_var[np.argsort(x)] = v[:, 1]
 
-        norm_values = (adata.X - mean) / np.sqrt(10 ** estimat_var)
+        norm_values = (adata[adata.obs[batch_key] == b].X - mean) / np.sqrt(
+            10 ** estimat_var
+        )
         # as in seurat paper, clip max values
         norm_values = np.clip(
             norm_values, None, np.sqrt(np.sum(adata.obs["batch"] == b))
@@ -1415,18 +1417,21 @@ def seurat_v3_highly_variable_genes(adata, n_top_genes: int = 4000):
         norm_gene_vars.append(norm_gene_var.reshape(1, -1))
 
     norm_gene_vars = np.concatenate(norm_gene_vars, axis=0)
-    ranked_norm_gene_vars = np.argsort(norm_gene_vars, axis=1)
+    # argsort twice gives ranks
+    ranked_norm_gene_vars = np.argsort(np.argsort(norm_gene_vars, axis=1), axis=1)
     median_norm_gene_vars = np.median(norm_gene_vars, axis=0)
+    median_ranked = np.median(ranked_norm_gene_vars, axis=0)
 
     num_batches_high_var = np.sum(
         ranked_norm_gene_vars >= (adata.X.shape[1] - n_top_genes), axis=0
     )
     df = pd.DataFrame(index=np.array(adata.var_names))
     df["highly_variable_n_batches"] = num_batches_high_var
+    df["highly_variable_median_rank"] = median_ranked
 
     df["highly_variable_median_variance"] = median_norm_gene_vars
     df.sort_values(
-        ["highly_variable_median_variance"],
+        ["highly_variable_n_batches", "highly_variable_median_rank"],
         ascending=False,
         na_position="last",
         inplace=True,
@@ -1434,9 +1439,6 @@ def seurat_v3_highly_variable_genes(adata, n_top_genes: int = 4000):
     df["highly_variable"] = False
     df.loc[:n_top_genes, "highly_variable"] = True
     df = df.loc[adata.var_names]
-
-    if del_batch is True:
-        del adata.obs["batch"]
 
     adata.var["highly_variable"] = df["highly_variable"].values
     adata.var["highly_variable_n_batches"] = df["highly_variable_n_batches"].values
