@@ -468,6 +468,7 @@ class GeneExpressionDataset(Dataset):
                 ]
                 intersect = cell_measurement_intersection.get(attribute_name, True)
                 # Intersect or union columns across datasets
+                # Individual datasets with missing columns will have 0s for these features
                 if intersect is True:
                     columns_to_keep = set.intersection(
                         *[
@@ -482,6 +483,12 @@ class GeneExpressionDataset(Dataset):
                             for gene_dataset in gene_datasets_list
                         ]
                     )
+                    logger.info(
+                        "Taking the union for {attr}. Missing data will"
+                        " be replaced with 0. Use with care.".format(
+                            attr=attribute_name
+                        )
+                    )
                 columns_to_keep = np.asarray(list(sorted(columns_to_keep)))
                 logger.info(
                     "Keeping {n_cols} columns in {attr}".format(
@@ -490,6 +497,9 @@ class GeneExpressionDataset(Dataset):
                 )
 
                 for gene_dataset in gene_datasets_list:
+                    # Creates a template with new number of features with order defined
+                    # in columns_to_keep. Fills data in from source datasets accordingly
+                    # Source datasets are modified in place.
                     template = np.zeros(
                         (
                             getattr(gene_dataset, attribute_name).shape[0],
