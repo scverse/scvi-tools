@@ -28,6 +28,12 @@ def test_cortex(save_path):
     trainer_cortex_vae.train(n_epochs=1)
     trainer_cortex_vae.train_set.reconstruction_error()
     trainer_cortex_vae.train_set.differential_expression_stats()
+    trainer_cortex_vae.train_set.generate_feature_correlation_matrix(
+        n_samples=2, correlation_type="pearson"
+    )
+    trainer_cortex_vae.train_set.generate_feature_correlation_matrix(
+        n_samples=2, correlation_type="spearman"
+    )
     trainer_cortex_vae.train_set.imputation(n_samples=1)
     trainer_cortex_vae.test_set.imputation(n_samples=5)
 
