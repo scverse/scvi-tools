@@ -443,6 +443,15 @@ class TotalPosterior(Posterior):
         sample_bern=True,
         include_bg=False,
     ):
+        """Helper function to provide normalized expression for DE testing.
+        For normalized, denoised expression, please use
+            `get_normalized_denoised_expression()`
+        :param transform_batch: Int of batch to "transform" all cells into
+        :param eps: Prior count to add to protein normalized expression
+        :param normalize_pro: bool, whether to make protein expression sum to one in a cell
+        :param include_bg: bool, whether to include the background component of expression
+        :rtype: :py:class:`np.ndarray`
+        """
         scales = []
         for tensors in self:
             x, _, _, batch_index, label, y = tensors
@@ -642,18 +651,11 @@ class TotalPosterior(Posterior):
             r = dispersion
             l_train = Gamma(r, (1 - p) / p).sample()
             data = l_train.cpu().numpy()
-            # data = Poisson(l_train).sample().cpu().numpy()
-            # make RNA sum to 1 in a cell
-            # data[:, :, :dataset.nb_genes] = data[:, :, :dataset.nb_genes] / np.sum(data[:, :, :dataset.nb_genes], axis=2)[:, :, np.newaxis]
             # make background 0
             data[:, :, self.gene_dataset.nb_genes :] = (
                 data[:, :, self.gene_dataset.nb_genes :]
                 * (1 - mixing_sample).cpu().numpy()
             )
-            # """
-            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
-            # rate = (1 - p) / p  # = 1/scale # used in pytorch
-            # """
             posterior_list += [data]
 
             posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
