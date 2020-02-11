@@ -1090,7 +1090,7 @@ class TotalTrainer(UnsupervisedTrainer):
 
         return z
 
-    def train(n_epochs=500, lr=4e-3, eps=0.01, params=None):
+    def train(self, n_epochs=500, lr=4e-3, eps=0.01, params=None):
 
         super().train(n_epochs=n_epochs, lr=lr, eps=eps, params=params)
 
