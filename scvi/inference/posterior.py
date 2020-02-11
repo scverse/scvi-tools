@@ -1144,46 +1144,31 @@ class Posterior:
         return libraries.ravel()
 
     @torch.no_grad()
-    def get_sample_scale(self, transform_batch=None):
-        px_scales = []
-        for tensors in self:
-            sample_batch, _, _, batch_index, labels = tensors
-            px_scales += [
-                np.array(
-                    (
-                        self.model.get_sample_scale(
-                            sample_batch,
-                            batch_index=batch_index,
-                            y=labels,
-                            n_samples=1,
-                            transform_batch=transform_batch,
-                        )
-                    ).cpu()
-                )
-            ]
-        return np.concatenate(px_scales)
+    def get_sample_scale(self, transform_batch=None, gene=None, library_size=1, batch_size=128):
+        ''' Returns the frequencies of expression for the data.
 
-    @torch.no_grad()
-    def get_normalized_sample_rate(self, gene, transform_batch=None, library_size=10000) -> np.ndarray:
-        '''
-        Returns rate of expression for a single gene relative to a constant library size (default 10,000)
-        over self cells.
-
-        :param gene: Gene name to get expression rate from.
         :param transform_batch: Batches to condition on.
         If transform_batch is:
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then px_rates are averaged over provided batches.
-        :param library_size: Library size to normalize rates to. Default is 10,000.
-        :return: (n_cells,) array of rates for the gene in each cell as a fraction of library_size.
+        :param gene: (optional) Return frequencies of expression for a single gene. This can
+            save a lot of memory when working with large datasets and only a single gene is
+            of interest. (default=None)
+        :param library_size: (optional) Scale the expression frequencies to a common library size.
+            This allows gene expression levels to be interpreted on a common scale of relevant
+            magnitude (default=1, no scaling).
+        :param batch_size: Size of minibatches of the data to use. When only accessing a single
+            gene a larger batch size (e.g. 10000) substantially reduces the time spent on GPU
+            data transfer (default=128).        
         '''
-        gene_idx = np.where(self.gene_dataset.gene_names == gene)[0][0]
-
-        batch_size = 10000  # Do less GPU transfer
+        if gene is None:
+            gene_idx = slice(None)
+        else:
+            gene_idx = [np.where(self.gene_dataset.gene_names == gene)[0][0]]
 
         px_scales = []
-        for tensors in self.sequential(batch_size=batch_size):
+        for tensors in self.sequential(batch_size):
             sample_batch, _, _, batch_index, labels = tensors
             px_scales += [
                 np.array(
@@ -1194,14 +1179,11 @@ class Posterior:
                             y=labels,
                             n_samples=1,
                             transform_batch=transform_batch,
-                        )[:, gene_idx]
+                        )[:, gene_idx] * library_size
                     ).cpu()
                 )
             ]
-        
-        px_scales = np.concatenate(px_scales)
-
-        return library_size * px_scales
+        return np.concatenate(px_scales)
 
     @torch.no_grad()
     def imputation_list(self, n_samples=1):
