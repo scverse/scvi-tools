@@ -175,7 +175,9 @@ def totalvi_benchmark(dataset, n_epochs, use_cuda=True):
     totalvae = TOTALVI(
         dataset.nb_genes, len(dataset.protein_names), n_batch=dataset.n_batches
     )
-    trainer = TotalTrainer(totalvae, dataset, train_size=0.5, use_cuda=use_cuda)
+    trainer = TotalTrainer(
+        totalvae, dataset, train_size=0.5, use_cuda=use_cuda, early_stopping_kwargs=None
+    )
     trainer.train(n_epochs=n_epochs)
     trainer.test_set.reconstruction_error()
     trainer.test_set.marginal_ll()

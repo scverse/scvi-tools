@@ -61,5 +61,6 @@ class TestTrainer(TestCase):
             train_size=0.5,
             use_cuda=False,
             data_loader_kwargs={"batch_size": 8},
+            early_stopping_kwargs=None,
         )
         trainer.train(n_epochs=1)
