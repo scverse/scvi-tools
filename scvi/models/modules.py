@@ -179,7 +179,7 @@ class Encoder(nn.Module):
 
          #. Encodes the data into latent space using the encoder network
          #. Generates a mean \\( q_m \\) and variance \\( q_v \\) (clamped to \\( [-5, 5] \\))
-         #. Samples a new value from an i.i.d. multivariate normal \\( \\sim N(q_m, \\mathbf{I}q_v) \\)
+         #. Samples a new value from an i.i.d. multivariate normal \\( \\sim Ne(q_m, \\mathbf{I}q_v) \\)
 
         :param x: tensor with shape (n_input,)
         :param cat_list: list of category membership(s) for this sample
@@ -691,6 +691,7 @@ class DecoderTOTALVI(nn.Module):
 class EncoderTOTALVI(nn.Module):
     r"""Encodes data of ``n_input`` dimensions into a latent space of ``n_output``
     dimensions using a fully-connected neural network of ``n_hidden`` layers.
+
     :param n_input: The dimensionality of the input (data space)
     :param n_output: The dimensionality of the output (latent space)
     :param n_cat_list: A list containing the number of categories
@@ -698,8 +699,8 @@ class EncoderTOTALVI(nn.Module):
                        included using a one-hot encoding
     :param n_layers: The number of fully-connected hidden layers
     :param n_hidden: The number of nodes per hidden layer
-    :dropout_rate: Dropout rate to apply to each of the hidden layers
-    :distribution: Distribution of the latent space, one of
+    :param dropout_rate: Dropout rate to apply to each of the hidden layers
+    :param distribution: Distribution of the latent space, one of
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal
@@ -759,16 +760,17 @@ class EncoderTOTALVI(nn.Module):
 
     def forward(self, data: torch.Tensor, *cat_list: int):
         r"""The forward computation for a single sample.
+
          #. Encodes the data into latent space using the encoder network
          #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
          #. Samples a new value from an i.i.d. latent distribution
 
-        The dictionary `latent` contains the samples of the latent variables, while `untran_latent`
+        The dictionary ``latent`` contains the samples of the latent variables, while ``untran_latent``
         contains the untransformed versions of these latent variables. For example, the library size is log normally distributed,
-        so `untran_latent["l"]` gives the normal sample that was later exponentiated to become `latent["l"]`.
+        so ``untran_latent["l"]`` gives the normal sample that was later exponentiated to become ``latent["l"]``.
         The logistic normal distribution is equivalent to applying softmax to a normal sample.
 
-        :param data: tensor with shape (n_input,)
+        :param data: tensor with shape ``(n_input,)``
         :param cat_list: list of category membership(s) for this sample
         :return: tensors of shape ``(n_latent,)`` for mean and var, and sample
         :rtype: 6-tuple. First 4 of :py:class:`torch.Tensor`, next 2 are `dict` of :py:class:`torch.Tensor`

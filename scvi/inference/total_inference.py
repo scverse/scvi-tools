@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class TotalPosterior(Posterior):
     r"""The functional data unit for totalVI. A `TotalPosterior` instance is instantiated with a model and
-    a gene_dataset, and as well as additional arguments that for Pytorch's `DataLoader`. A subset of indices
+    a `gene_dataset`, and as well as additional arguments that for Pytorch's `DataLoader`. A subset of indices
     can be specified, for purposes such as splitting the data into train/test/validation. Each trainer instance of the `TotalTrainer` class can therefore have multiple
     `TotalPosterior` instances to train a model. A `TotalPosterior` instance also comes with many methods or
     utilities for its corresponding data.
@@ -38,7 +38,7 @@ class TotalPosterior(Posterior):
 
         >>> gene_dataset = CbmcDataset()
         >>> totalvi = TOTALVI(gene_dataset.nb_genes, len(gene_dataset.protein_names),
-        ... n_batch=gene_dataset.n_batches * False, n_labels=gene_dataset.n_labels, use_cuda=True)
+        ... n_batch=gene_dataset.n_batches, use_cuda=True)
         >>> trainer = TotalTrainer(vae, gene_dataset)
         >>> trainer.train(n_epochs=400)
     """
@@ -303,16 +303,13 @@ class TotalPosterior(Posterior):
 
     @torch.no_grad()
     def generate(
-        self,
-        n_samples: int = 100,
-        genes: Optional[np.ndarray] = None,
-        batch_size: int = 64,
+        self, n_samples: int = 100, batch_size: int = 64
     ):  # with n_samples>1 return original list/ otherwise sequential
         """
         Return samples from posterior predictive. Proteins are concatenated to genes.
-        :param n_samples:
-        :param genes:
-        :return:
+
+        :param n_samples: Number of posterior predictive samples
+        :return: Tuple of posterior samples, original data
         """
         original_list = []
         posterior_list = []
@@ -355,14 +352,6 @@ class TotalPosterior(Posterior):
             original_list += [np.array(torch.cat((x, y), dim=-1).cpu())]
             posterior_list += [data]
 
-            if genes is not None:
-                posterior_list[-1] = posterior_list[-1][
-                    :, :, self.gene_dataset._gene_idx(genes)
-                ]
-                original_list[-1] = original_list[-1][
-                    :, self.gene_dataset._gene_idx(genes)
-                ]
-
             posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
 
         return (
@@ -404,7 +393,7 @@ class TotalPosterior(Posterior):
         give_mean: bool = True,
         transform_batch: Optional[int] = None,
     ):
-        """ Returns mixing bernoulli parameter for negative binomial mixtures
+        """ Returns mixing bernoulli parameter for protein negative binomial mixtures
         """
         py_mixings = []
         for tensors in self:
@@ -446,6 +435,7 @@ class TotalPosterior(Posterior):
         """Helper function to provide normalized expression for DE testing.
         For normalized, denoised expression, please use
             `get_normalized_denoised_expression()`
+
         :param transform_batch: Int of batch to "transform" all cells into
         :param eps: Prior count to add to protein normalized expression
         :param normalize_pro: bool, whether to make protein expression sum to one in a cell
@@ -489,6 +479,7 @@ class TotalPosterior(Posterior):
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then values are averaged over provided batches.
+        :return: Denoised genes, denoised proteins
         :rtype: 2-tuple of :py:class:`np.ndarray`
         """
 
@@ -610,6 +601,7 @@ class TotalPosterior(Posterior):
         transform_batch: Optional[int] = None,
     ):
         """ Return samples from an adjusted posterior predictive. Proteins are concatenated to genes.
+
         :param n_samples: How may samples per cell
         :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
         :rna_size_factor: size factor for RNA prior to sampling gamma distribution
@@ -672,6 +664,7 @@ class TotalPosterior(Posterior):
         correlation_mode: str = "pearson",
     ):
         """ Wrapper of `generate_denoised_samples()` to create a gene-protein gene-protein corr matrix
+
         :param n_samples: How may samples per cell
         :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
         :rna_size_factor: size factor for RNA prior to sampling gamma distribution
@@ -702,7 +695,7 @@ class TotalPosterior(Posterior):
             if correlation_mode == "pearson":
                 corr_matrix = np.corrcoef(flattened, rowvar=False)
             else:
-                corr_matrix = spearmanr(flattened, axis=0)
+                corr_matrix = spearmanr(flattened, axis=0)[0]
             corr_mats.append(corr_matrix)
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
         return corr_matrix
@@ -956,9 +949,9 @@ class TotalTrainer(UnsupervisedTrainer):
         :model: A model instance from class ``TOTALVI``
         :gene_dataset: A gene_dataset instance like ``CbmcDataset()`` with attribute ``protein_expression``
         :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
-         to use Default: ``0.93``.
+         to use Default: ``0.90``.
         :test_size: The test size, either a float between 0 and 1 or and integer for the number of training samples
-         to use Default: ``0.02``. Note that if train and test do not add to 1 the remainder is placed in a validation set
+         to use Default: ``0.10``. Note that if train and test do not add to 1 the remainder is placed in a validation set
         :pro_recons_weight: Scaling factor on the reconstruction loss for proteins. Default: ``1.0``.
         :n_epochs_kl_warmup: Number of epochs for annealing the KL terms for `z` and `mu` of the ELBO (from 0 to 1). If None, no warmup performed, unless
          `n_iter_kl_warmup` is set.
