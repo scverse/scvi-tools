@@ -117,7 +117,7 @@ class JVAETrainer(Trainer):
 
         return zip(*data_loaders)
 
-    def in_training_loop(self, tensors_list):
+    def on_training_loop(self, tensors_list):
 
         if self.train_discriminator:
             latent_tensors = []

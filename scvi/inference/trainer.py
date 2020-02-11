@@ -168,7 +168,7 @@ class Trainer:
                     continue
                 self.on_iteration_begin()
                 # Update the model's parameters after seeing the data
-                self.in_training_loop(tensors_list)
+                self.on_training_loop(tensors_list)
                 # Checks the training status, ensures no nan loss
                 self.on_iteration_end()
 
@@ -191,7 +191,7 @@ class Trainer:
             )
         self.on_training_end()
 
-    def in_training_loop(self, tensors_list):
+    def on_training_loop(self, tensors_list):
         self.current_loss = loss = self.loss(*tensors_list)
         self.optimizer.zero_grad()
         loss.backward()
