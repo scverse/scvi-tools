@@ -1,6 +1,4 @@
 from typing import Optional, Union, List, Callable
-import sys
-import time
 import logging
 import torch
 from torch.distributions import Poisson, Gamma, Bernoulli, Normal
@@ -15,12 +13,6 @@ from . import UnsupervisedTrainer
 from scvi.dataset import GeneExpressionDataset
 from scvi.models import TOTALVI, Classifier
 from scvi.models.utils import one_hot
-
-IN_COLAB = "google.colab" in sys.modules
-if IN_COLAB is True:
-    from tqdm import tqdm
-else:
-    from tqdm.auto import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -1103,91 +1095,54 @@ class TotalTrainer(UnsupervisedTrainer):
 
         return z
 
-    def train(self, n_epochs=20, lr=1e-3, lr_d=1e-3, eps=0.01, params=None):
-        begin = time.time()
-        self.model.train()
+    def train(n_epochs=500, lr=4e-3, eps=0.01, params=None):
+
+        super().train(n_epochs=n_epochs, lr=lr, eps=eps, params=params)
+
+    def on_training_loop(self, tensors_list):
+        if self.use_adversarial_loss:
+            if self.kappa is None:
+                kappa = 1 - self.kl_weight
+            else:
+                kappa = self.kappa
+            batch_index = tensors_list[0][3]
+            if kappa > 0:
+                z = self._get_z(*tensors_list)
+                # Train discriminator
+                d_loss = self.loss_discriminator(z.detach(), batch_index, True)
+                d_loss *= kappa
+                self.d_optimizer.zero_grad()
+                d_loss.backward()
+                self.d_optimizer.step()
+
+                # Train generative model to fool discriminator
+                fool_loss = self.loss_discriminator(z, batch_index, False)
+                fool_loss *= kappa
+
+            # Train generative model
+            self.optimizer.zero_grad()
+            self.current_loss = loss = self.loss(*tensors_list)
+            if kappa > 0:
+                (loss + fool_loss).backward()
+            else:
+                loss.backward()
+            self.optimizer.step()
+
+        else:
+            self.current_loss = loss = self.loss(*tensors_list)
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+    def training_extras_init(self, lr_d=1e-3, eps=0.01):
         if self.discriminator is not None:
             self.discriminator.train()
 
             d_params = filter(
                 lambda p: p.requires_grad, self.discriminator.parameters()
             )
-            d_optimizer = torch.optim.Adam(d_params, lr=lr_d, eps=eps)
+            self.d_optimizer = torch.optim.Adam(d_params, lr=lr_d, eps=eps)
 
-        if params is None:
-            params = filter(lambda p: p.requires_grad, self.model.parameters())
-
-        optimizer = self.optimizer = torch.optim.Adam(
-            params, lr=lr, eps=eps, weight_decay=self.weight_decay
-        )
-
-        self.compute_metrics_time = 0
-        self.n_epochs = n_epochs
-        self.compute_metrics()
-
-        self.on_training_begin()
-
-        for self.epoch in tqdm(
-            range(n_epochs),
-            desc="training",
-            disable=not self.show_progbar,
-            file=sys.stdout,
-        ):
-            self.on_epoch_begin()
-            for tensors_list in self.data_loaders_loop():
-                if tensors_list[0][0].shape[0] < 3:
-                    continue
-
-                if self.use_adversarial_loss:
-                    if self.kappa is None:
-                        kappa = 1 - self.kl_weight
-                    else:
-                        kappa = self.kappa
-                    batch_index = tensors_list[0][3]
-                    if kappa > 0:
-                        z = self._get_z(*tensors_list)
-                        # Train discriminator
-                        d_loss = self.loss_discriminator(z.detach(), batch_index, True)
-                        d_loss *= kappa
-                        d_optimizer.zero_grad()
-                        d_loss.backward()
-                        d_optimizer.step()
-
-                        # Train generative model to fool discriminator
-                        fool_loss = self.loss_discriminator(z, batch_index, False)
-                        fool_loss *= kappa
-
-                    # Train generative model
-                    self.current_loss = loss = self.loss(*tensors_list)
-                    optimizer.zero_grad()
-                    if kappa > 0:
-                        (loss + fool_loss).backward()
-                    else:
-                        loss.backward()
-                    optimizer.step()
-
-                else:
-                    self.current_loss = loss = self.loss(*tensors_list)
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-
-                self.on_iteration_end()
-
-            if not self.on_epoch_end():
-                break
-
-        if self.early_stopping.save_best_state_metric is not None:
-            self.model.load_state_dict(self.best_state_dict)
-            self.compute_metrics()
-
-        self.model.eval()
+    def training_extras_end(self):
         if self.discriminator is not None:
             self.discriminator.eval()
-        self.training_time += (time.time() - begin) - self.compute_metrics_time
-        if self.frequency:
-            logger.debug(
-                "\nTraining time:  %i s. / %i epochs"
-                % (int(self.training_time), self.n_epochs)
-            )
-        self.on_training_end()
