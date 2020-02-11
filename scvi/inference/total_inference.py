@@ -979,7 +979,7 @@ class TotalTrainer(UnsupervisedTrainer):
         early_stopping_kwargs=default_early_stopping_kwargs,
         discriminator=None,
         use_adversarial_loss=False,
-        kappa=0.1,
+        kappa=None,
         **kwargs,
     ):
         self.n_genes = dataset.nb_genes
