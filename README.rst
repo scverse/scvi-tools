@@ -24,12 +24,27 @@ scVI
 
 Single-cell Variational Inference
 
+scVI is a deep generative model for single-cell RNA that simultaneously embed preprocessing, harmonization, data fitting, downstream application steps in a single framework.
+
+Several projects have extended the scVI model to integrate additional data knowledge or to answer specific biological questions.
+These models, included in this package are:
+    * scANVI for cell annotation using labeled examples.
+    * totalVI for CITE-seq data analysis.
+    * gimVI, used to integrate spatial transcriptomics.
+    * AutoZI, that quantify genes' levels of zero-inflation
+
+
+All these models also benefit from integrated hyperparameter autotuning features provided in this package.
+
 * Free software: MIT license
 * Documentation: https://scvi.readthedocs.io.
 
+YosefLab's blog can be found here_.
 
-Quick Start
------------
+.. _here: https://yoseflab.github.io/
+
+Installation
+---------------------------------
 
 1. Install Python 3.7. We typically use the Miniconda_ Python distribution and Linux.
 
@@ -51,21 +66,39 @@ Quick Start
 
 .. _MongoDb: https://docs.mongodb.com/manual/installation/
 
-5. Follow along with our Jupyter notebooks to quickly get familiar with scVI!
 
-   a. Getting started:
-       * `data loading`__
-       * `basic usage (scVI)`__
-   b. Analyzing several datasets:
-       * `harmonization (scVI)`__
-       * `annotation (scANVI)`__
-   c. Advanced topics:
-       * `interaction with scanpy`__
-       * `linear decoder for gene interpretation (LDVAE)`__
-       * `imputation of unobserved gene expression (gimVI)`__
-       * `automated hyperparameter search`__
-       * `joint model for CITE-seq data (totalVI)`__
-       * `detection of zero-inflated genes (AutoZI)`__
+Notebooks
+-------------------------------------------------------
+
+Follow along with our Jupyter notebooks to quickly get familiar with scVI 
+(also available on Colab_)!
+
+.. _Colab: https://colab.research.google.com/github/yoseflab/scVI/blob/master
+
+To run these notebooks, we recommend installing scVI extra dependencies using the command
+
+``pip install scvi[notebooks]``
+
+Getting started
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+    * `data loading`__: presents how to load and manipulate built-in and custom datasets in different formats.
+    * `basic usage (scVI)`__: highlights scVI's main features on mouse cortex cells.
+
+Analyzing several datasets
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    * `harmonization (scVI)`__: illustrates how scVI can harmonize multiple datasets for clustering and differential expression applications on two human PBMC datasets.
+    * `annotation (scANVI)`__: shows how to transfer the cell state knowledge to label an unlabelled dataset.
+
+Advanced topics
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+    * `interaction with scanpy`__: explores the Scanpy PBMC 3K dataset with scVI and Scanpy.
+    * `linear decoder for gene interpretation (LDVAE)`__: introduces a flavor of scVI that employs a linear decoder, which allows a better interpretability of latent dimensions.
+    * `imputation of unobserved gene expression (gimVI)`__: presents gimVI for missing genes imputation in Spatial Data from Sequencing Data. 
+    * `automated hyperparameter search`__: introduces the hyperparameter tuning functionalities of scVI.
+    * `joint model for CITE-seq data (totalVI)`__: introduces totalVI for end-to-end CITE-seq data analysis.
+    * `detection of zero-inflated genes (AutoZI)`__: shows how AutoZI, derived from scVI, can provide gene-specific zero-inflation analysis. 
 
 
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/data_loading.ipynb
