@@ -2,12 +2,14 @@
 scVI
 ====
 
-|PyPI| |bioconda| |Docs| |Build Status| |Coverage| |Code Style| |Downloads|
+|PyPI| |bioconda| |Open In Colab| |Docs| |Build Status| |Coverage| |Code Style| |Downloads|
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/scVI.svg
     :target: https://pypi.org/project/scvi
 .. |bioconda| image:: https://img.shields.io/badge/bioconda-blue.svg
     :target: http://bioconda.github.io/recipes/scvi/README.html
+.. |Open In Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
+    :target: https://colab.research.google.com/github/yoseflab/scVI/blob/master
 .. |Docs| image:: https://readthedocs.org/projects/scvi/badge/?version=latest
     :target: https://scvi.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
