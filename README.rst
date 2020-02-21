@@ -1,6 +1,6 @@
-====
-scVI
-====
+================
+scVI-tools
+================
 
 |PyPI| |bioconda| |Open In Colab| |Docs| |Build Status| |Coverage| |Code Style| |Downloads|
 
@@ -22,26 +22,26 @@ scVI
 .. |Downloads| image:: https://pepy.tech/badge/scvi
    :target: https://pepy.tech/project/scvi
 
-Single-cell Variational Inference
+scVI-tools is a package for end-to-end analysis of genomics data.
+It simultaneously **performs** preprocessing, harmonization, model fitting and a certain number of downstream tasks. We support most dataset file formats (anndata, loompy) as well as interoperability with scanpy.
+The package is composed of several deep generative models for omics data analysis, namely:
 
-scVI is a deep generative model for single-cell RNA that simultaneously embed preprocessing, harmonization, data fitting, downstream application steps in a single framework.
+    * scVI for analysis of single-cell RNA-seq data,
+    * scANVI for cell annotation of scRNA-seq data using semi-labeled examples,
+    * totalVI, for analysis of CITE-seq data,
+    * gimVI, for imputation of missing genes in spatial transcriptomics from scRNA-seq data,
+    * AutoZI, that assesses gene-specific level of zero-inflation in scRNA-seq data.
 
-Several projects have extended the scVI model to integrate additional data knowledge or to answer specific biological questions.
-These models, included in this package are:
-    * scANVI for cell annotation using labeled examples.
-    * totalVI for CITE-seq data analysis.
-    * gimVI, used to integrate spatial transcriptomics.
-    * AutoZI, that quantify genes' levels of zero-inflation
+All these models also benefit from integrated hyperparameter autotuning features.
+
+scVI-tools is a free software under MIT license_.
+
+.. _license: https://github.com/YosefLab/scVI/blob/master/LICENSE
 
 
-All these models also benefit from integrated hyperparameter autotuning features provided in this package.
+Please visit the Nir Yosef lab's blog_ that provides insight on our research.
 
-* Free software: MIT license
-* Documentation: https://scvi.readthedocs.io.
-
-YosefLab's blog can be found here_.
-
-.. _here: https://yoseflab.github.io/
+.. _blog: https://yoseflab.github.io/
 
 Installation
 ---------------------------------
@@ -71,34 +71,33 @@ Notebooks
 -------------------------------------------------------
 
 Follow along with our Jupyter notebooks to quickly get familiar with scVI 
-(also available on Colab_)!
-
-.. _Colab: https://colab.research.google.com/github/yoseflab/scVI/blob/master
-
-To run these notebooks, we recommend installing scVI extra dependencies using the command
+(also available on Colab_)! To run these notebooks, we recommend installing scVI extra dependencies using the command:
 
 ``pip install scvi[notebooks]``
 
-Getting started
+.. _Colab: https://colab.research.google.com/github/yoseflab/scVI/blob/master
+
+
+A. Getting started
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""
 
     * `data loading`__: presents how to load and manipulate built-in and custom datasets in different formats.
-    * `basic usage (scVI)`__: highlights scVI's main features on mouse cortex cells.
+    * `basic usage (scVI)`__: highlights scVI's main features on a mouse cortex dataset.
 
-Analyzing several datasets
+B. Handling and analyzing several datasets
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""
     * `harmonization (scVI)`__: illustrates how scVI can harmonize multiple datasets for clustering and differential expression applications on two human PBMC datasets.
-    * `annotation (scANVI)`__: shows how to transfer the cell state knowledge to label an unlabelled dataset.
+    * `annotation (scANVI)`__: shows how to transfer cell state knowledge to label a scRNA dataset.
 
-Advanced topics
+C. Advanced topics
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""
 
     * `interaction with scanpy`__: explores the Scanpy PBMC 3K dataset with scVI and Scanpy.
-    * `linear decoder for gene interpretation (LDVAE)`__: introduces a flavor of scVI that employs a linear decoder, which allows a better interpretability of latent dimensions.
-    * `imputation of unobserved gene expression (gimVI)`__: presents gimVI for missing genes imputation in Spatial Data from Sequencing Data. 
+    * `linear decoder for gene interpretation (LDVAE)`__: introduces a flavor of scVI that employs a linear decoder, allowing a better interpretability of latent dimensions.
+    * `imputation of unobserved gene expression (gimVI)`__: presents gimVI for missing genes imputation in spatial transcriptomics from scRNA-seq data. 
     * `automated hyperparameter search`__: introduces the hyperparameter tuning functionalities of scVI.
     * `joint model for CITE-seq data (totalVI)`__: introduces totalVI for end-to-end CITE-seq data analysis.
-    * `detection of zero-inflated genes (AutoZI)`__: shows how AutoZI, derived from scVI, can provide gene-specific zero-inflation analysis. 
+    * `detection of zero-inflated genes (AutoZI)`__: shows how AutoZI can provide gene-specific zero-inflation analysis. 
 
 
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/data_loading.ipynb
