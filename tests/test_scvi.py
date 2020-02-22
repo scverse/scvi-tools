@@ -1,3 +1,4 @@
+import random
 import numpy as np
 
 from scvi.dataset import CortexDataset, SyntheticDataset, GeneExpressionDataset
@@ -9,7 +10,7 @@ from scvi.inference import (
     AdapterTrainer,
     TotalTrainer,
 )
-from scvi.inference.posterior import unsupervised_clustering_accuracy
+from scvi.inference.posterior import unsupervised_clustering_accuracy, load_posterior
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE
 from scvi.models.classifier import Classifier
@@ -320,6 +321,13 @@ def test_differential_expression(save_path):
     trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
     trainer.train(n_epochs=2)
     post = trainer.create_posterior(vae, dataset, shuffle=False, indices=all_indices)
+
+    posterior_save_path = "/tmp/{}/posterior".format(random.getrandbits(20))
+    post.save_posterior(posterior_save_path)
+    new_vae = VAE(dataset.nb_genes, dataset.n_batches)
+    new_post = load_posterior(posterior_save_path, model=new_vae, use_cuda=False)
+    assert np.array_equal(new_post.indices, post.indices)
+    assert np.array_equal(new_post.gene_dataset.X, post.gene_dataset.X)
 
     # Sample scale example
     px_scales = post.scale_sampler(

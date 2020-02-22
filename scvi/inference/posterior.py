@@ -8,6 +8,7 @@ from typing import List, Optional, Union, Tuple, Callable
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
 import torch.distributions as distributions
 from tqdm.auto import tqdm
 from matplotlib import pyplot as plt
@@ -23,8 +24,9 @@ from torch.utils.data.sampler import (
     SubsetRandomSampler,
     RandomSampler,
 )
+import anndata
 
-from scvi.dataset import GeneExpressionDataset
+from scvi.dataset import GeneExpressionDataset, AnnDatasetFromAnnData
 from scvi.inference.posterior_utils import (
     entropy_batch_mixing,
     plot_imputation,
@@ -123,11 +125,36 @@ class Posterior:
             {"collate_fn": gene_dataset.collate_fn_builder(), "sampler": sampler}
         )
         self.data_loader = DataLoader(gene_dataset, **self.data_loader_kwargs)
+        self.original_indices = self.indices
 
     def accuracy(self):
         pass
 
     accuracy.mode = "max"
+
+    def save_posterior(self, dir_path: str):
+        """
+            Saves the posterior properties in folder `dir_path`.
+            To ensure safety, this method requires that `dir_path` does not exist.
+            The posterior can then be retrieved later on with the function `load_posterior`
+
+            :param dir_path: non-existing directory in which the posterior properties will be saved.
+        """
+
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+        else:
+            raise ValueError(
+                "{} already exists. Please provide an unexisting directory for saving.".format(
+                    dir_path
+                )
+            )
+        anndata_dataset = self.gene_dataset.to_anndata()
+
+        anndata_dataset.write(os.path.join(dir_path, "anndata_dataset.h5ad"))
+        torch.save(self.model.state_dict(), os.path.join(dir_path, "model_params.pt"))
+        np.save(file=os.path.join(dir_path, "indices.npy"), arr=np.array(self.indices))
+        pass
 
     @property
     def indices(self):
@@ -135,6 +162,10 @@ class Posterior:
             return self.data_loader.sampler.indices
         else:
             return np.arange(len(self.gene_dataset))
+
+    @property
+    def are_indices_modified(self):
+        return np.array_equal(self.indices, self.original_indices)
 
     @property
     def nb_cells(self):
@@ -347,6 +378,11 @@ class Posterior:
 
         """
         # Get overall number of desired samples and desired batches
+        if self.are_indices_modified:
+            logger.warning(
+                "Posterior indices were modified at some point. Please ensure that provided indices correspond to the current posterior indices."
+            )
+
         if batchid is None and not use_observed_batches:
             batchid = np.arange(self.gene_dataset.n_batches)
         if use_observed_batches:
@@ -1495,3 +1531,44 @@ class Posterior:
             self.gene_dataset.X[self.indices],
             self.gene_dataset.labels[self.indices].ravel(),
         )
+
+
+def load_posterior(dir_path: str, model: nn.Module, use_cuda=True):
+    """
+        Function to use in order to retrieve a posterior that was saved using the `save_posterior` method
+        Because of pytorch model loading usage, this function needs a scVI model object initialized with exact same parameters
+        that during training.
+
+        :param dir_path: directory containing the posterior properties to be retrieved.
+        :param model: scVI initialized model.
+        :param use_cuda: whether the model should use cuda.
+
+        Usage example:
+        1. Save posterior
+        >>> model = VAE(nb_genes, n_batches, n_hidden=64, n_latent=5)
+        >>> trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
+        >>> trainer.train(n_epochs=200)
+        >>> trainer.train_set.save_posterior("./my_run_train_posterior")
+
+        2. Load posterior
+        >>> model = VAE(nb_genes, n_batches, n_hidden=64, n_latent=5)
+        >>> post = load_posterior("./my_run_train_posterior", model=model)
+
+    """
+    dataset_path = os.path.join(dir_path, "anndata_dataset.h5ad")
+    model_path = os.path.join(dir_path, "model_params.pt")
+    indices_path = os.path.join(dir_path, "indices.npy")
+
+    ad = anndata.read_h5ad(filename=dataset_path)
+    dataset = AnnDatasetFromAnnData(ad=ad)
+    model.load_state_dict(torch.load(model_path))
+    indices = np.load(file=indices_path)
+    my_post = Posterior(
+        model=model,
+        gene_dataset=dataset,
+        shuffle=False,
+        indices=indices,
+        use_cuda=use_cuda,
+        data_loader_kwargs=dict(),
+    )
+    return my_post

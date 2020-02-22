@@ -11,6 +11,7 @@ from typing import Dict, Iterable, List, Tuple, Union, Optional, Callable
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
+import anndata
 import torch
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
@@ -1200,6 +1201,21 @@ class GeneExpressionDataset(Dataset):
     #           MISC.           #
     #                           #
     #############################
+
+    def to_anndata(self):
+        batch_indices = self.batch_indices.squeeze()
+        labels = self.labels.squeeze()
+        cell_types = self.cell_types.squeeze()
+        cell_types = cell_types[labels]
+
+        cell_types = cell_types[labels]
+        obs = pd.DataFrame(
+            dict(batch_indices=batch_indices, cell_types=cell_types, labels=labels,)
+        )
+
+        var = pd.DataFrame(index=self.gene_names)
+        ad = anndata.AnnData(X=self.X, obs=obs, var=var,)
+        return ad
 
     def normalize(self):
         scaling_factor = self.X.mean(axis=1)
