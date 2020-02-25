@@ -8,6 +8,7 @@
    contributing
    authors
    history
+   references
 
 .. toctree::
    :maxdepth: 1
