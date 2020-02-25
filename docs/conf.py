@@ -63,7 +63,7 @@ master_doc = "index"
 
 # General information about the project.
 project = u"scVI"
-copyright = u"2018, Romain Lopez"
+copyright = u"2020, Romain Lopez, Adam Gayoso, Pierre Boyeau"
 author = u"Romain Lopez"
 
 # The version info for the project you're documenting, acts as replacement
