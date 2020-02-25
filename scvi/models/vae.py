@@ -17,6 +17,8 @@ torch.backends.cudnn.benchmark = True
 class VAE(nn.Module):
     r"""Variational auto-encoder model.
 
+    This is an implementation of the scVI model descibed in [Lopez18]_
+
     :param n_input: Number of input genes
     :param n_batch: Number of batches
     :param n_labels: Number of labels
