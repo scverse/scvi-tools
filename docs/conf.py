@@ -25,6 +25,8 @@ import scvi
 
 sys.path.insert(0, os.path.abspath(".."))
 
+on_rtd = os.environ.get("READTHEDOCS") == "True"
+
 
 # -- General configuration ---------------------------------------------
 
@@ -112,6 +114,12 @@ html_theme = "sphinx_rtd_theme"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+html_show_sphinx = False
+
+
+def setup(app):
+    app.warningiserror = on_rtd
+    app.add_stylesheet("css/custom.css")
 
 
 # -- Options for HTMLHelp output ---------------------------------------
