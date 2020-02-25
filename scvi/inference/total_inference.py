@@ -369,7 +369,7 @@ class TotalPosterior(Posterior):
             outputs = self.model.inference(
                 x, y, batch_index=batch_index, label=label, n_samples=n_samples
             )
-            px_dropout = outputs["px_"]["dropout"]
+            px_dropout = torch.sigmoid(outputs["px_"]["dropout"])
             px_dropouts += [px_dropout.cpu()]
         if n_samples > 1:
             # concatenate along batch dimension -> result shape = (samples, cells, features)
@@ -393,7 +393,14 @@ class TotalPosterior(Posterior):
         give_mean: bool = True,
         transform_batch: Optional[int] = None,
     ):
-        """ Returns mixing bernoulli parameter for protein negative binomial mixtures
+        """ Returns mixing bernoulli parameter for protein negative binomial mixtures (probability background)
+
+        :param n_samples: number of samples from posterior distribution
+        :param sample_protein_mixing: Sample mixing bernoulli, setting background to zero
+        :param give_mean: bool, whether to return samples along first axis or average over samples
+        :param transform_batch: Batches to condition on as integer.
+        :return: array of probability background
+        :rtype: :py:class:`np.ndarray`
         """
         py_mixings = []
         for tensors in self:
@@ -406,7 +413,7 @@ class TotalPosterior(Posterior):
                 n_samples=n_samples,
                 transform_batch=transform_batch,
             )
-            py_mixing = outputs["py_"]["mixing"]
+            py_mixing = torch.sigmoid(outputs["py_"]["mixing"])
             py_mixings += [py_mixing.cpu()]
         if n_samples > 1:
             # concatenate along batch dimension -> result shape = (samples, cells, features)
@@ -661,7 +668,7 @@ class TotalPosterior(Posterior):
         batch_size: int = 64,
         rna_size_factor: int = 1000,
         transform_batch: Optional[Union[int, List[int]]] = None,
-        correlation_mode: str = "pearson",
+        correlation_mode: str = "spearman",
     ):
         """ Wrapper of `generate_denoised_samples()` to create a gene-protein gene-protein corr matrix
 
