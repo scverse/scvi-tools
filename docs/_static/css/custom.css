@@ -5,7 +5,6 @@
 .wy-nav-content {
     max-width: 1200px;
 }
-.wy-side-nav-search { background-color: transparent }
 .wy-side-nav-search input[type="text"] { border-width: 0 }
 
 
@@ -71,25 +70,7 @@
 }
 
 
-/* Just one box for annotation code for a less noisy look */
-
-.rst-content .annotation {
-    padding: 2px 5px;
-    background-color: white;
-    border: 1px solid #e1e4e5;
-}
-.rst-content .annotation tt,
-.rst-content .annotation code {
-    padding: 0 0;
-    background-color: transparent;
-    border: 0 solid transparent;
-}
-
-
-/* Parameter lists */
-
-/* Mimick rubric style used for other headings */
-/* TODO: once scanpydoc adds classes, also change return types like this */
+/* Mimic rubric style used for other headings */
 .rst-content dl:not(.docutils) dl > dt {
     font-weight: bold;
     background: none transparent;
@@ -97,16 +78,4 @@
     margin: 0 0 12px;
     padding: 3px 0 0;
     font-size: 111.11%;
-}
-/* Parameters contain <strong> parts and don’t need bold font */
-.rst-content dl.field-list dl > dt { font-weight: unset }
-/* Add colon between return tuple element name and type */
-.rst-content dl:not(.docutils) dl > dt .classifier::before { content: ' : ' }
-
-/* Function headers */
-
-.rst-content dl:not(.docutils) dt {
-    background: #edf0f2;
-    color: #404040;
-    border-top: solid 3px #343131;
 }

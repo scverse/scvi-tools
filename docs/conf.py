@@ -25,8 +25,6 @@ import scvi
 
 sys.path.insert(0, os.path.abspath(".."))
 
-on_rtd = os.environ.get("READTHEDOCS") == "True"
-
 
 # -- General configuration ---------------------------------------------
 
@@ -45,6 +43,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_rtd_theme",
     "sphinx.ext.intersphinx",
+    "autodocsumm",
 ]
 
 # nbsphinx specific settings
@@ -60,6 +59,9 @@ templates_path = ["_templates"]
 #
 # source_suffix = ['.rst', '.md']
 source_suffix = ".rst"
+
+
+autodoc_default_options = {"autosummary": True}
 
 # The master toctree document.
 master_doc = "index"
@@ -118,7 +120,6 @@ html_show_sphinx = False
 
 
 def setup(app):
-    app.warningiserror = on_rtd
     app.add_stylesheet("css/custom.css")
 
 

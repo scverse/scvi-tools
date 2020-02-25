@@ -4,3 +4,4 @@ nbsphinx
 sphinx-autodoc-typehints
 nbsphinx-link
 ipython
+autodocsumm

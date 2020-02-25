@@ -1,0 +1,23 @@
+.. sidebar:: Key contributors
+   :subtitle: `scVI graph`_ | * = maintainer, # = diverse contributions
+
+   * `Romain Lopez`_: scVI lead, #, *
+   * `Adam Gayoso`_: totalVI lead, #, *
+   * Pierre Boyeau: differential expression development, #, *
+   * `Jeffrey Regier`_: initial scVI package, #
+   * Chenling Xu : scANVI, #
+   * `Valentine Svensson`_: LDVAE, #
+   * Oscar Clivio : AutoZI, #
+   * Achille Nazaret : gimVI, #
+   * Gabriel Misrachi : autotune, #
+   * Yining Liu : #
+   * Jules Samaran : gimVI, #
+   * Maxime Langevin : #
+   * Edouard Mehlman : #
+
+
+.. _scVI graph: https://github.com/YosefLab/scVI/graphs/contributors
+.. _Romain Lopez: https://romain-lopez.github.io/
+.. _Adam Gayoso: https://adamgayoso.com/
+.. _Jeffrey Regier: https://regier.stat.lsa.umich.edu/
+.. _Valentine Svensson: http://www.nxn.se/
