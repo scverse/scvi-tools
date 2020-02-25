@@ -1,5 +1,5 @@
 Installation
------------
+------------
 
 1. Install Python 3.7. We typically use the Miniconda_ Python distribution and Linux.
 
