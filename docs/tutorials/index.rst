@@ -10,3 +10,11 @@ These tutorials are also accessible in Google Colab (link in tutorial intros, if
 
    basic_tutorial
    data_loading
+   totalvi
+   scanvi
+   harmonization
+   scanpy
+   autozi
+   gimvi
+   linear_decoder
+   autotune
