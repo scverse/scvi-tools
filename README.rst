@@ -25,6 +25,14 @@ Single-cell Variational Inference
 * Free software: MIT license
 * Documentation: https://scvi.readthedocs.io.
 
+scVI is a package for end-to-end analysis of single-cell omics data. It simultaneously performs preprocessing, harmonization, model fitting and a certain number of downstream tasks. The package is composed of several deep generative models for omics data analysis, namely:
+
+    * scVI [Lopez18]_ for analysis of single-cell RNA-seq data,
+    * scANVI [Xu19]_ for cell annotation of scRNA-seq data using semi-labeled examples,
+    * totalVI [Gayoso19]_ for analysis of CITE-seq data,
+    * gimVI [Lopez19]_ for imputation of missing genes in spatial transcriptomics from scRNA-seq data,
+    * AutoZI [Clivio19]_ that assesses gene-specific level of zero-inflation in scRNA-seq data.
+
 
 Follow along with our Jupyter notebooks to quickly get familiar with scVI!
 
