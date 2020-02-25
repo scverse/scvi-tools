@@ -3,11 +3,16 @@
 .. toctree::
    :maxdepth: 1
    :caption: Contents
+   :hidden:
 
    contributing
    authors
    history
+
+.. toctree::
+   :maxdepth: 1
    :caption: Package Reference
+   :hidden:
 
    modules
    scvi.dataset
