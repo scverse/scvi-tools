@@ -196,12 +196,14 @@ def extract_data_from_anndata(
 
     gene_names = np.asarray(ad.var.index.values, dtype=str)
 
-    if batch_label in obs.columns:
-        batch_indices = obs.pop(batch_label).values
-    if ctype_label in obs.columns:
-        cell_types = obs.pop(ctype_label)
-        labels = cell_types.rank(method="dense").values.astype("int")
-        cell_types = cell_types.drop_duplicates().values.astype("str")
+    if batch_label in ad.obs.columns:
+        batch_indices = ad.obs.pop(batch_label).values
+
+    if ctype_label in ad.obs.columns:
+        cell_types = ad.obs.pop(ctype_label)
+        res = pd.factorize(cell_types)
+        labels = res[0].astype(int)
+        cell_types = np.array(res[1]).astype(str)
 
     if class_label in obs.columns:
         labels = obs.pop(class_label)
