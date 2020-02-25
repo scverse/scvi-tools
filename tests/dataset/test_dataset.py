@@ -226,10 +226,8 @@ class TestGeneExpressionDataset(TestCase):
             dataset.dev_names.tolist(),
             ["achille", "gabou", "gayoso", "oclivio", "pedro"],
         )
-        mask = dataset.get_batch_mask_cell_measurement("dev")[
-            dataset.batch_indices.ravel() == 1
-        ]
-        self.assertListEqual(mask[:, 2].astype(int).tolist(), [0] * 5)
+        mask = dataset.get_batch_mask_cell_measurement("dev")
+        self.assertEqual(mask[1][2].astype(int), 0)
 
     def test_populate_from_datasets_cortex(self):
         cortex_dataset_1 = CortexDataset(save_path="tests/data")
