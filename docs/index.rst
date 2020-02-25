@@ -2,10 +2,9 @@
 
 .. toctree::
    :maxdepth: 1
-   :caption: Contents
    :hidden:
 
-   basic_tutorial
+   tutorials/index
    contributing
    authors
    history
