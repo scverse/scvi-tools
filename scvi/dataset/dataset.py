@@ -1203,18 +1203,41 @@ class GeneExpressionDataset(Dataset):
     #############################
 
     def to_anndata(self):
-        batch_indices = self.batch_indices.squeeze()
-        labels = self.labels.squeeze()
-        cell_types = self.cell_types.squeeze()
-        cell_types = cell_types[labels]
+        """
+            Converts the dataset to a anndata.AnnData object.
+            The obtained dataset can then be saved/retrieved using the anndata API.
+        """
 
-        cell_types = cell_types[labels]
-        obs = pd.DataFrame(
-            dict(batch_indices=batch_indices, cell_types=cell_types, labels=labels,)
+        # obs/obsm contruction
+        obsm = dict()
+        obs = dict()
+        for key in self.cell_attribute_names:
+            if key not in ["local_means", "local_vars"]:
+                vals = getattr(self, key)
+                if key in self.cell_measurements_columns:
+                    obsm[key] = vals
+                else:
+                    obs[key] = vals.squeeze()
+        obs = pd.DataFrame(obs)
+
+        # var contruction
+        var = dict()
+        for key in self.gene_attribute_names:
+            if key != "gene_names":
+                var[key] = getattr(self, key)
+        gene_names = (
+            self.gene_names if self.gene_names is not None else np.arange(self.nb_genes)
         )
+        var = pd.DataFrame(var, index=gene_names)
 
-        var = pd.DataFrame(index=self.gene_names)
-        ad = anndata.AnnData(X=self.X, obs=obs, var=var,)
+        # It's important to save the measurements name mapping for latter loading
+        all_names = {
+            name: getattr(self, name) for name in self.cell_measurements_columns
+        }
+        uns = dict(
+            cell_measurements_columns=self.cell_measurements_columns, **all_names
+        )
+        ad = anndata.AnnData(X=self.X, obs=obs, obsm=obsm, var=var, uns=uns)
         return ad
 
     def normalize(self):

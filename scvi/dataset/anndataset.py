@@ -7,8 +7,13 @@ import anndata
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix
+from typing import Dict, Optional
 
-from scvi.dataset.dataset import DownloadableDataset, GeneExpressionDataset
+from scvi.dataset.dataset import (
+    DownloadableDataset,
+    GeneExpressionDataset,
+    CellMeasurement,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +35,7 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
         ctype_label: str = "cell_types",
         class_label: str = "labels",
         use_raw: bool = False,
+        cell_measurements_columns: Optional[Dict[str, str]] = None,
     ):
         super().__init__()
         (
@@ -38,11 +44,11 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
             labels,
             gene_names,
             cell_types,
-            self.obs,
-            self.obsm,
-            self.var,
-            self.varm,
-            self.uns,
+            obs,
+            obsm,
+            var,
+            _,
+            uns,
         ) = extract_data_from_anndata(
             ad,
             batch_label=batch_label,
@@ -50,11 +56,32 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
             class_label=class_label,
             use_raw=use_raw,
         )
+
+        # Dataset API takes a dict as input
+        obs = obs.to_dict(orient="list")
+        var = var.to_dict(orient="list")
+
+        # add external cell measurements
+        Ys = []
+        if cell_measurements_columns is not None:
+            for name, attr_name in cell_measurements_columns.items():
+                columns = uns[name]
+                measurement = CellMeasurement(
+                    name=name,
+                    data=obsm[name],
+                    columns_attr_name=attr_name,
+                    columns=columns,
+                )
+                Ys.append(measurement)
+
         self.populate_from_data(
             X=X,
+            Ys=Ys,
             batch_indices=batch_indices,
             gene_names=gene_names,
             cell_types=cell_types,
+            cell_attributes_dict=obs,
+            gene_attributes_dict=var,
         )
         self.filter_cells_by_count()
 
@@ -145,6 +172,9 @@ def extract_data_from_anndata(
     use_raw: bool = False,
 ):
     data, labels, batch_indices, gene_names, cell_types = None, None, None, None, None
+    # We use obs that will contain all the observation except those associated with
+    #  batch_label, ctype_label and class_label.
+    obs = ad.obs
 
     if use_raw:
         counts = ad.raw.X
@@ -166,16 +196,15 @@ def extract_data_from_anndata(
 
     gene_names = np.asarray(ad.var.index.values, dtype=str)
 
-    if batch_label in ad.obs.columns:
-        batch_indices = ad.obs[batch_label].values
-
-    if ctype_label in ad.obs.columns:
-        cell_types = ad.obs[ctype_label]
+    if batch_label in obs.columns:
+        batch_indices = obs.pop(batch_label).values
+    if ctype_label in obs.columns:
+        cell_types = obs.pop(ctype_label)
         labels = cell_types.rank(method="dense").values.astype("int")
         cell_types = cell_types.drop_duplicates().values.astype("str")
 
-    if class_label in ad.obs.columns:
-        labels = ad.obs[class_label]
+    if class_label in obs.columns:
+        labels = obs.pop(class_label)
 
     return (
         data,
@@ -183,7 +212,7 @@ def extract_data_from_anndata(
         labels,
         gene_names,
         cell_types,
-        ad.obs,
+        obs,
         ad.obsm,
         ad.var,
         ad.varm,

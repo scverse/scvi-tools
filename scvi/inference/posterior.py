@@ -234,7 +234,7 @@ class Posterior:
         return ll
 
     @torch.no_grad()
-    def get_latent(self, sample=False):
+    def get_latent(self, give_mean=True):
         """
         Output posterior z mean or sample, batch index, and label
         :param sample: z mean or z sample
@@ -245,7 +245,6 @@ class Posterior:
         labels = []
         for tensors in self:
             sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
-            give_mean = not sample
             latent += [
                 self.model.sample_from_posterior_z(
                     sample_batch, give_mean=give_mean
@@ -354,6 +353,7 @@ class Posterior:
         n_samples_per_cell: Optional[int] = None,
         batchid: Optional[Union[List[int], np.ndarray]] = None,
         use_observed_batches: Optional[bool] = False,
+        give_mean: Optional[bool] = False,
     ) -> dict:
         """
         :param n_samples: Number of samples in total per batch (fill either `n_samples_total`
@@ -427,6 +427,8 @@ class Posterior:
             px_scales.shape[0] == batch_ids.shape[0]
         ), "sampled scales and batches have inconsistent shapes"
         self.data_loader = old_loader
+        if give_mean:
+            px_scales = px_scales.mean(0)
         return dict(scale=px_scales, batch=batch_ids)
 
     def get_bayes_factors(
@@ -1560,7 +1562,15 @@ def load_posterior(dir_path: str, model: nn.Module, use_cuda=True):
     indices_path = os.path.join(dir_path, "indices.npy")
 
     ad = anndata.read_h5ad(filename=dataset_path)
-    dataset = AnnDatasetFromAnnData(ad=ad)
+
+    key = "cell_measurements_columns"
+    if key in ad.uns:
+        cell_measurements_columns = ad.uns[key]
+    else:
+        cell_measurements_columns = dict()
+    dataset = AnnDatasetFromAnnData(
+        ad=ad, cell_measurements_columns=cell_measurements_columns
+    )
     model.load_state_dict(torch.load(model_path))
     indices = np.load(file=indices_path)
     my_post = Posterior(
