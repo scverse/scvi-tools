@@ -21,7 +21,9 @@ torch.backends.cudnn.benchmark = True
 
 # VAE model
 class TOTALVI(nn.Module):
-    r"""Latent variable model for CITE-seq data using auto-encoding Variational Bayes
+    r"""Total variational inference for CITE-seq data
+
+    Implements the totalVI model of [Gayoso19]_.
 
     :param n_input_genes: Number of input genes
     :param n_input_proteins: Number of input proteins
