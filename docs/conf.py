@@ -42,6 +42,7 @@ extensions = [
     "sphinx_autodoc_typehints",
     "sphinx.ext.mathjax",
     "sphinx_rtd_theme",
+    "sphinx.ext.intersphinx",
 ]
 
 # nbsphinx specific settings
