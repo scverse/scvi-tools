@@ -68,14 +68,3 @@
     font-weight: bold;  /* underline looks clumsy, in particular with buttons and
                            other hyperlinks, which don't come with underlines */
 }
-
-
-/* Mimic rubric style used for other headings */
-.rst-content dl:not(.docutils) dl > dt {
-    font-weight: bold;
-    background: none transparent;
-    border-left: none;
-    margin: 0 0 12px;
-    padding: 3px 0 0;
-    font-size: 111.11%;
-}
