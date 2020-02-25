@@ -14,7 +14,7 @@ class SCANVI(VAE):
     r"""Single-cell annotation using variational inference.
 
     This is an implementation of the scANVI model descibed in [Xu19]_,
-    inspired from M1 + M2 model, as described in [Kingma14]_.
+    inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
 
     :param n_input: Number of input genes
     :param n_batch: Number of batches
