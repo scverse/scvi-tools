@@ -26,6 +26,8 @@ class AutoZIVAE(VAE):
     ) -> None:
         r"""AutoZI variational auto-encoder model.
 
+        Implementation of AutoZI model [Clivio19]_.
+
         :param n_input: Number of input genes
         :param alpha_prior: Float denoting the alpha parameter of the prior Beta distribution of
                             the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.

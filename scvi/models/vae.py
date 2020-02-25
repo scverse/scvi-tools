@@ -303,6 +303,8 @@ class VAE(nn.Module):
 class LDVAE(VAE):
     r"""Linear-decoded Variational auto-encoder model.
 
+    Implementation of [Svensson20]_.
+
     This model uses a linear decoder, directly mapping the latent representation
     to gene expression levels. It still uses a deep neural network to encode
     the latent representation.

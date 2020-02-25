@@ -425,7 +425,7 @@ class Posterior:
             DE can then be based on the study of the Bayes factors:
             log (p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
 
-            - the "change" mode (described in bioRxiv, 794289)
+            - the "change" mode (described in [Boyeau19]_)
             consists in estimating an effect size random variable (e.g., log fold-change) and
             performing Bayesian hypothesis testing on this variable.
             The `change_fn` function computes the effect size variable r based two inputs
@@ -679,7 +679,7 @@ class Posterior:
             DE can then be based on the study of the Bayes factors:
             log (p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
 
-            - the "change" mode (described in bioRxiv, 794289)
+            - the "change" mode (described in [Boyeau19]_)
             consists in estimating an effect size random variable (e.g., log fold-change) and
             performing Bayesian hypothesis testing on this variable.
             The `change_fn` function computes the effect size variable r based two inputs

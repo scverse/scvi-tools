@@ -26,30 +26,7 @@ Single-cell Variational Inference
 * Documentation: https://scvi.readthedocs.io.
 
 
-Quick Start
------------
-
-1. Install Python 3.7. We typically use the Miniconda_ Python distribution and Linux.
-
-.. _Miniconda: https://conda.io/miniconda.html
-
-2. Install PyTorch_. If you have an Nvidia GPU, be sure to install a version of PyTorch that supports it -- scVI runs much faster with a discrete GPU.
-
-.. _PyTorch: http://pytorch.org
-
-3. Install scVI in one of the following ways:
-
-    1. Through conda ``conda install scvi -c bioconda -c conda-forge``
-    2. Through pip ``pip install scvi``
-    3. Through pip with packages to run notebooks ``pip install scvi[notebooks]``
-    4. Nightly version - clone this repo and run ``pip install .``
-    5. For development - clone this repo and run ``pip install -e .[test,notebooks]``
-
-4. If you wish to use multiple GPUs for hyperparameter tuning, install MongoDb_.
-
-.. _MongoDb: https://docs.mongodb.com/manual/installation/
-
-5. Follow along with our Jupyter notebooks to quickly get familiar with scVI!
+Follow along with our Jupyter notebooks to quickly get familiar with scVI!
 
    a. Getting started:
        * `data loading`__
@@ -77,48 +54,3 @@ Quick Start
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/totalVI.ipynb
 .. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/AutoZI_tutorial.ipynb
 
-
-References
-----------
-
-Romain Lopez, Jeffrey Regier, Michael Cole, Michael I. Jordan, Nir Yosef.
-**"Deep generative modeling for single-cell transcriptomics."**
-Nature Methods, 2018. `[pdf]`__
-
-.. __: https://rdcu.be/bdHYQ
-
-Chenling Xu∗, Romain Lopez∗, Edouard Mehlman∗, Jeffrey Regier, Michael I. Jordan, Nir Yosef.
-**"Harmonization and Annotation of Single-cell Transcriptomics data with Deep Generative Models."**
-Submitted, 2019. `[pdf]`__
-
-.. __: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf
-
-Romain Lopez∗, Achille Nazaret∗, Maxime Langevin*, Jules Samaran*, Jeffrey Regier*, Michael I. Jordan, Nir Yosef.
-**"A joint model of unpaired data from scRNA-seq and spatial transcriptomics for imputing missing gene expression measurements."**
-ICML Workshop on Computational Biology, 2019. `[pdf]`__
-
-.. __: https://arxiv.org/pdf/1905.02269.pdf
-
-Adam Gayoso, Romain Lopez, Zoë Steier, Jeffrey Regier, Aaron Streets, Nir Yosef.
-**"A joint model of RNA expression and surface protein abundance in single cells."**
-Machine Learning in Computational Biology (MLCB), 2019. `[pdf]`__
-
-.. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/07/791947.full.pdf
-
-Oscar Clivio, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir Yosef.
-**"Detecting zero-inflated genes in single-cell transcriptomics data."**
-Machine Learning in Computational Biology (MLCB), 2019. `[pdf]`__
-
-.. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf
-
-Pierre Boyeau, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir Yosef.
-**"Deep generative models for detecting differential expression in single cells."**
-Machine Learning in Computational Biology (MLCB), 2019. `[pdf]`__
-
-.. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/04/794289.full.pdf
-
-Valentine Svensson, Lior Pachter.
-**"Interpretable factor models of single-cell RNA-seq via variational autoencoders."**
-bioRxiv, 2019. `[pdf]`__
-
-.. __: https://www.biorxiv.org/content/10.1101/737601v1.full.pdf

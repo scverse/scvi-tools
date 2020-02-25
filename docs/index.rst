@@ -4,6 +4,7 @@
    :maxdepth: 1
    :hidden:
 
+   installation
    tutorials/index
    contributing
    authors
