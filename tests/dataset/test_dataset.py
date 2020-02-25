@@ -1,6 +1,7 @@
 from unittest import TestCase
 
 import numpy as np
+import copy
 
 from scvi.dataset import CortexDataset, GeneExpressionDataset
 from scvi.dataset.dataset import remap_categories, CellMeasurement
@@ -202,7 +203,9 @@ class TestGeneExpressionDataset(TestCase):
         dataset2.populate_from_data(data, Ys=[y2], gene_names=gene_names)
 
         dataset = GeneExpressionDataset()
-        dataset.populate_from_datasets([dataset1, dataset2])
+        dataset.populate_from_datasets(
+            [copy.deepcopy(dataset1), copy.deepcopy(dataset2)]
+        )
 
         self.assertTrue(hasattr(dataset, "dev"))
         self.assertTrue(hasattr(dataset, "dev_names"))
@@ -212,6 +215,21 @@ class TestGeneExpressionDataset(TestCase):
         )
         self.assertListEqual(dataset.dev[0].tolist(), [1, 0, 3, 2])
         self.assertListEqual(dataset.dev[5].tolist(), [2, 0, 1, 3])
+
+        # Take union of dev columns, 0s fill remainder
+        dataset = GeneExpressionDataset()
+        dataset.populate_from_datasets(
+            [copy.deepcopy(dataset1), copy.deepcopy(dataset2)],
+            cell_measurement_intersection={"dev": False},
+        )
+        self.assertListEqual(
+            dataset.dev_names.tolist(),
+            ["achille", "gabou", "gayoso", "oclivio", "pedro"],
+        )
+        mask = dataset.get_batch_mask_cell_measurement("dev")[
+            dataset.batch_indices.ravel() == 1
+        ]
+        self.assertListEqual(mask[:, 2].astype(int).tolist(), [0] * 5)
 
     def test_populate_from_datasets_cortex(self):
         cortex_dataset_1 = CortexDataset(save_path="tests/data")
