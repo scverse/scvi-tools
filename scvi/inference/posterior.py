@@ -1454,7 +1454,7 @@ class Posterior:
     ):
         # If no latent representation is given
         if latent is None:
-            latent, batch_indices, labels = self.get_latent(sample=True)
+            latent, batch_indices, labels = self.get_latent(give_mean=False)
             latent, idx_t_sne = self.apply_t_sne(latent, n_samples)
             batch_indices = batch_indices[idx_t_sne].ravel()
             labels = labels[idx_t_sne].ravel()
