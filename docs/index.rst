@@ -1,17 +1,12 @@
-Welcome to scVI's documentation!
-======================================
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-   readme
-   contributing
-   authors
-   history
+.. include:: ../README.rst
 
 .. toctree::
    :maxdepth: 1
+   :caption: Contents
+
+   contributing
+   authors
+   history
    :caption: Package Reference
 
    modules
