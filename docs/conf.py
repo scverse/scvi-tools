@@ -21,9 +21,10 @@
 import os
 import sys
 
+import scvi
+
 sys.path.insert(0, os.path.abspath(".."))
 
-import scvi
 
 # -- General configuration ---------------------------------------------
 
@@ -37,10 +38,13 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.viewcode",
     "nbsphinx",
+    "nbsphinx_link",
     "sphinx_autodoc_typehints",
     "sphinx.ext.mathjax",
     "sphinx_rtd_theme",
 ]
+exclude_patterns = ["_build", "**.ipynb_checkpoints"]
+nbsphinx_execute = "never"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

@@ -1,3 +1,4 @@
 sphinx
 nbsphinx
 sphinx-autodoc-typehints
+nbsphinx-link

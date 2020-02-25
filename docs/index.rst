@@ -5,6 +5,7 @@
    :caption: Contents
    :hidden:
 
+   basic_tutorial
    contributing
    authors
    history
