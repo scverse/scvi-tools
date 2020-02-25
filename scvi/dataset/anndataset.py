@@ -55,6 +55,7 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
             batch_indices=batch_indices,
             gene_names=gene_names,
             cell_types=cell_types,
+            labels=labels,
         )
         self.filter_cells_by_count()
 
@@ -171,8 +172,9 @@ def extract_data_from_anndata(
 
     if ctype_label in ad.obs.columns:
         cell_types = ad.obs[ctype_label]
-        labels = cell_types.rank(method="dense").values.astype("int")
-        cell_types = cell_types.drop_duplicates().values.astype("str")
+        res = pd.factorize(cell_types)
+        labels = res[0].astype(int)
+        cell_types = np.array(res[1]).astype(str)
 
     if class_label in ad.obs.columns:
         labels = ad.obs[class_label]
