@@ -2,7 +2,7 @@
    :subtitle: `scVI graph`_ | # = maintainer, ☀ = diverse contributions
 
    * `Romain Lopez`_: scVI lead, ☀, #
-   * `Adam Gayoso`_: totalVI lead, ☀, #
+   * `Adam Gayoso`_: totalVI lead, LDVAE, ☀, #
    * Pierre Boyeau: differential expression development, ☀, #
    * `Jeffrey Regier`_: initial scVI package, ☀
    * Chenling Xu : scANVI, ☀
