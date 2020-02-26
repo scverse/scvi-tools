@@ -1,19 +1,19 @@
 .. sidebar:: Key contributors
-   :subtitle: `scVI graph`_ | # = maintainer, * = diverse contributions
+   :subtitle: `scVI graph`_ | # = maintainer, ☀ = diverse contributions
 
-   * `Romain Lopez`_: scVI lead, *, #
-   * `Adam Gayoso`_: totalVI lead, *, #
-   * Pierre Boyeau: differential expression development, *, #
-   * `Jeffrey Regier`_: initial scVI package, *
-   * Chenling Xu : scANVI, *
-   * `Valentine Svensson`_: LDVAE, *
-   * Oscar Clivio : AutoZI, *
-   * `Achille Nazaret`_ : gimVI, *
-   * Gabriel Misrachi : autotune, *
-   * Yining Liu : data loading, preprocessing, *
-   * Jules Samaran : gimVI, *
-   * Maxime Langevin : gimVI, *
-   * Edouard Mehlman : code infrastructure, scANVI, *
+   * `Romain Lopez`_: scVI lead, ☀, #
+   * `Adam Gayoso`_: totalVI lead, ☀, #
+   * Pierre Boyeau: differential expression development, ☀, #
+   * `Jeffrey Regier`_: initial scVI package, ☀
+   * Chenling Xu : scANVI, ☀
+   * `Valentine Svensson`_: LDVAE, ☀
+   * Oscar Clivio : AutoZI, ☀
+   * `Achille Nazaret`_ : gimVI, GeneExpressionDataset, ☀
+   * Gabriel Misrachi : autotune, GeneExpressionDataset, ☀
+   * Yining Liu : data loading, preprocessing, ☀
+   * Jules Samaran : gimVI, ☀
+   * Maxime Langevin : gimVI, ☀
+   * Edouard Mehlman : code infrastructure, scANVI, ☀
 
 
 .. _scVI graph: https://github.com/YosefLab/scVI/graphs/contributors
