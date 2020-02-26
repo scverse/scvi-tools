@@ -10,7 +10,7 @@ scVI is a package for end-to-end analysis of single-cell omics data. The package
 * AutoZI for assessing gene-specific levels of zero-inflation in scRNA-seq data ([Clivio19]_)
 * LDVAE for an interpretable linear factor model version of scVI ([Svensson20]_)
 
-These models are able to simultaneously perform many downstream tasks such as learning low-dimensional cell representations, harmonizing datasets from different experiments, and identifying differential expressed features ([Boyeau19]_). By levaraging advances in stochastic optimization, these models scale to millions of cells. We invite you to explore these models in our :doc:`tutorials <tutorials>`.
+These models are able to simultaneously perform many downstream tasks such as learning low-dimensional cell representations, harmonizing datasets from different experiments, and identifying differential expressed features ([Boyeau19]_). By levaraging advances in stochastic optimization, these models scale to millions of cells. We invite you to explore these models in our :doc:`tutorials <tutorials/index>`.
 
 * If you find a model useful for your research, please consider citing the corresponding publication.
 
