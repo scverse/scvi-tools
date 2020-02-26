@@ -42,6 +42,8 @@ from scvi.models.log_likelihood import (
     compute_marginal_log_likelihood_autozi,
 )
 
+from scipy.stats import spearmanr
+
 logger = logging.getLogger(__name__)
 
 
@@ -321,8 +323,9 @@ class Posterior:
         n_samples_per_cell: Optional[int] = None,
         batchid: Optional[Union[List[int], np.ndarray]] = None,
         use_observed_batches: Optional[bool] = False,
+        **kwargs,
     ) -> dict:
-        """
+        r"""
         :param n_samples: Number of samples in total per batch (fill either `n_samples_total`
         or `n_samples_per_cell`)
         :param n_samples_per_cell: Number of time we sample from each observation per batch
@@ -332,6 +335,8 @@ class Posterior:
         :param use_observed_batches: Whether normalized means are conditioned on observed
         batches or if observed batches are to be used
         :param selection: Mask or list of cell ids to select
+        :\**kwargs: Other keywords arguments for `get_sample_scale()`
+
         :return:
         Dictionary containing:
             `scale`
@@ -381,7 +386,8 @@ class Posterior:
                 np.arange(len(self.gene_dataset))[selection], n_samples
             )
             self.update_sampler_indices(idx=idx)
-            px_scales.append(self.get_sample_scale(transform_batch=batch_idx))
+            px_scales.append(self.get_sample_scale(transform_batch=batch_idx, **kwargs))
+            batch_idx = batch_idx if batch_idx is not None else np.nan
             batch_ids.append(np.ones((px_scales[-1].shape[0])) * batch_idx)
         px_scales = np.concatenate(px_scales)
         batch_ids = np.concatenate(batch_ids).reshape(-1)
@@ -405,6 +411,7 @@ class Posterior:
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
+        **kwargs,
     ) -> dict:
         r"""
         Unified method for differential expression inference.
@@ -497,6 +504,7 @@ class Posterior:
             In this case, we suppose that R \ [-delta, delta] does not induce differential expression
             (LFC case)
 
+        :\**kwargs: Other keywords arguments for `get_sample_scale()`
 
         :return: Differential expression properties
         """
@@ -507,12 +515,14 @@ class Posterior:
             batchid=batchid1,
             use_observed_batches=use_observed_batches,
             n_samples=n_samples,
+            **kwargs,
         )
         scales_batches_2 = self.scale_sampler(
             selection=idx2,
             batchid=batchid2,
             use_observed_batches=use_observed_batches,
             n_samples=n_samples,
+            **kwargs,
         )
 
         px_scale_mean1 = scales_batches_1["scale"].mean(axis=0)
@@ -593,7 +603,7 @@ class Posterior:
 
             if change_fn == "log-fold" or change_fn is None:
                 change_fn = lfc
-            elif not isinstance(change_fn, callable):
+            elif not callable(change_fn):
                 raise ValueError("'change_fn' attribute not understood")
 
             # step2: Construct the DE area function
@@ -629,7 +639,7 @@ class Posterior:
                 bayes_factor=np.log(proba_m1 + eps) - np.log(1.0 - proba_m1 + eps),
                 scale1=px_scale_mean1,
                 scale2=px_scale_mean2,
-                **change_distribution_props
+                **change_distribution_props,
             )
         else:
             raise NotImplementedError("Mode {mode} not recognized".format(mode=mode))
@@ -652,6 +662,7 @@ class Posterior:
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
+        **kwargs,
     ) -> pd.DataFrame:
         r"""
         Unified method for differential expression inference.
@@ -749,6 +760,7 @@ class Posterior:
             (LFC case)
 
         :param all_stats: whether additional metrics should be provided
+        :\**kwargs: Other keywords arguments for `get_sample_scale()`
 
         :return: Differential expression properties
         """
@@ -765,6 +777,7 @@ class Posterior:
             change_fn=change_fn,
             m1_domain_fn=m1_domain_fn,
             delta=delta,
+            **kwargs,
         )
         gene_names = self.gene_dataset.gene_names
         if all_stats is True:
@@ -808,8 +821,9 @@ class Posterior:
         delta: Optional[float] = 0.5,
         save_dir: str = "./",
         filename="one2all",
+        **kwargs,
     ) -> tuple:
-        """
+        r"""
         Performs one population vs all others Differential Expression Analysis
         given labels or using cell types, for each type of population
 
@@ -833,6 +847,7 @@ class Posterior:
         :param output_file: Bool: save file?
         :param save_dir:
         :param filename:`
+        :\**kwargs: Other keywords arguments for `get_sample_scale()`
         :return: Tuple (de_res, de_cluster) (i) de_res is a list of length nb_clusters
             (based on provided labels or on hardcoded cell types) (ii) de_res[i] contains Bayes Factors
             for population number i vs all the rest (iii) de_cluster returns the associated names of clusters.
@@ -879,6 +894,7 @@ class Posterior:
                     M_permutation=M_permutation,
                     n_samples=n_samples,
                     use_permutation=use_permutation,
+                    **kwargs,
                 )
                 res["clusters"] = np.repeat(x, len(res.index))
                 de_res.append(res)
@@ -909,8 +925,9 @@ class Posterior:
         output_file: bool = False,
         save_dir: str = "./",
         filename: str = "within_cluster",
+        **kwargs,
     ) -> tuple:
-        """
+        r"""
         Performs Differential Expression within clusters for different cell states
 
         :param cell_labels: optional: Labels of cells
@@ -937,6 +954,7 @@ class Posterior:
         :param change_fn: see `differential_expression_score`
         :param m1_domain_fn: see `differential_expression_score`
         :param delta: see `differential_expression_score
+        :\**kwargs: Other keywords arguments for `get_sample_scale()`
 
         :return: Tuple (de_res, de_cluster) (i) de_res is a list of length nb_clusters
             (based on provided labels or on hardcoded cell types) (ii) de_res[i] contains Bayes Factors
@@ -991,6 +1009,7 @@ class Posterior:
                     change_fn=change_fn,
                     m1_domain_fn=m1_domain_fn,
                     delta=delta,
+                    **kwargs,
                 )
                 res["clusters"] = np.repeat(x, len(res.index))
                 de_res.append(res)
@@ -1105,6 +1124,101 @@ class Posterior:
             x_new = x_new[:, gene_ids, :]
             x_old = x_old[:, gene_ids]
         return x_new.numpy(), x_old.numpy()
+
+    @torch.no_grad()
+    def generate_denoised_samples(
+        self,
+        n_samples: int = 25,
+        batch_size: int = 64,
+        rna_size_factor: int = 1000,
+        transform_batch: Optional[int] = None,
+    ):
+        """ Return samples from an adjusted posterior predictive.
+        :param n_samples: How may samples per cell
+        :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
+        :rna_size_factor: size factor for RNA prior to sampling gamma distribution
+        :transform_batch: int of which batch to condition on for all cells
+        :return:
+        """
+        posterior_list = []
+        for tensors in self.update({"batch_size": batch_size}):
+            sample_batch, _, _, batch_index, labels = tensors
+            outputs = self.model.inference(
+                sample_batch, batch_index=batch_index, y=labels, n_samples=n_samples
+            )
+            px_scale = outputs["px_scale"]
+            px_r = outputs["px_r"]
+
+            rate = rna_size_factor * px_scale
+            if len(px_r.size()) == 2:
+                px_dispersion = px_r
+            else:
+                px_dispersion = torch.ones_like(sample_batch) * px_r
+
+            # This gamma is really l*w using scVI manuscript notation
+            p = rate / (rate + px_dispersion)
+            r = px_dispersion
+            l_train = distributions.Gamma(r, (1 - p) / p).sample()
+            data = l_train.cpu().numpy()
+            # """
+            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
+            # rate = (1 - p) / p  # = 1/scale # used in pytorch
+            # """
+            posterior_list += [data]
+
+            posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
+
+        return np.concatenate(posterior_list, axis=0)
+
+    @torch.no_grad()
+    def generate_feature_correlation_matrix(
+        self,
+        n_samples: int = 10,
+        batch_size: int = 64,
+        rna_size_factor: int = 1000,
+        transform_batch: Optional[Union[int, List[int]]] = None,
+        correlation_type: str = "spearman",
+    ):
+        """ Wrapper of `generate_denoised_samples()` to create a gene-gene corr matrix
+        :param n_samples: How may samples per cell
+        :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
+        :rna_size_factor: size factor for RNA prior to sampling gamma distribution
+        :param transform_batch: Batches to condition on.
+        If transform_batch is:
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - list of int, then values are averaged over provided batches.
+        :param correlation_type: One of "pearson", "spearman"
+        :return:
+        """
+        if (transform_batch is None) or (isinstance(transform_batch, int)):
+            transform_batch = [transform_batch]
+        corr_mats = []
+        for b in transform_batch:
+            denoised_data = self.generate_denoised_samples(
+                n_samples=n_samples,
+                batch_size=batch_size,
+                rna_size_factor=rna_size_factor,
+                transform_batch=b,
+            )
+            flattened = np.zeros(
+                (denoised_data.shape[0] * n_samples, denoised_data.shape[1])
+            )
+            for i in range(n_samples):
+                flattened[
+                    denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
+                ] = denoised_data[:, :, i]
+            if correlation_type == "pearson":
+                corr_matrix = np.corrcoef(flattened, rowvar=False)
+            elif correlation_type == "spearman":
+                corr_matrix, _ = spearmanr(flattened)
+            else:
+                raise ValueError(
+                    "Unknown correlation type. Choose one of 'spearman', 'pearson'."
+                )
+            corr_mats.append(corr_matrix)
+        corr_matrix = np.mean(np.stack(corr_mats), axis=0)
+        return corr_matrix
 
     @torch.no_grad()
     def generate_parameters(self):

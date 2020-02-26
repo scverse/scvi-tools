@@ -24,3 +24,10 @@ class TestAnnDataset(TestCase):
     def test_populate_and_train_one(self):
         dataset = DownloadableAnnDataset("TM_droplet_mat.h5ad", save_path="tests/data")
         unsupervised_training_one_epoch(dataset)
+
+    def test_use_raw_flag(self):
+        raw_data = np.random.randint(1, 5, size=(4, 7))
+        ad = anndata.AnnData(raw_data)
+        ad.raw = ad.copy()
+        dataset = AnnDatasetFromAnnData(ad, use_raw=True)
+        np.testing.assert_array_equal(dataset.X, raw_data)

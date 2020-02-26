@@ -26,6 +26,7 @@ script:
 
 after_success:
   - codecov
+  - pip list
 
 branches:
   only:

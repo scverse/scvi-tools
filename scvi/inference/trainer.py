@@ -141,16 +141,19 @@ class Trainer:
                 self.model.train()
         self.compute_metrics_time += time.time() - begin
 
-    def train(self, n_epochs=20, lr=1e-3, eps=0.01, params=None):
+    def train(self, n_epochs=400, lr=1e-3, eps=0.01, params=None, **extras_kwargs):
         begin = time.time()
         self.model.train()
 
         if params is None:
             params = filter(lambda p: p.requires_grad, self.model.parameters())
 
-        optimizer = self.optimizer = torch.optim.Adam(
+        self.optimizer = torch.optim.Adam(
             params, lr=lr, eps=eps, weight_decay=self.weight_decay
         )
+
+        # Initialization of other model's optimizers
+        self.training_extras_init(**extras_kwargs)
 
         self.compute_metrics_time = 0
         self.n_epochs = n_epochs
@@ -168,12 +171,13 @@ class Trainer:
             for tensors_list in self.data_loaders_loop():
                 if tensors_list[0][0].shape[0] < 3:
                     continue
-                self.current_loss = loss = self.loss(*tensors_list)
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+                self.on_iteration_begin()
+                # Update the model's parameters after seeing the data
+                self.on_training_loop(tensors_list)
+                # Checks the training status, ensures no nan loss
                 self.on_iteration_end()
 
+            # Computes metrics and controls early stopping
             if not self.on_epoch_end():
                 break
 
@@ -182,6 +186,8 @@ class Trainer:
             self.compute_metrics()
 
         self.model.eval()
+        self.training_extras_end()
+
         self.training_time += (time.time() - begin) - self.compute_metrics_time
         if self.frequency:
             logger.debug(
@@ -190,10 +196,25 @@ class Trainer:
             )
         self.on_training_end()
 
+    def on_training_loop(self, tensors_list):
+        self.current_loss = loss = self.loss(*tensors_list)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+    def training_extras_init(self, **extras_kwargs):
+        # Training extras are other necessary models to simultaneously train
+        pass
+
+    def training_extras_end(self):
+        # Place to put extra models in eval mode, etc.
+        pass
+
     def on_training_begin(self):
         pass
 
     def on_epoch_begin(self):
+        # Epochs refer to a pass through the entire dataset (in minibatches)
         pass
 
     def on_epoch_end(self):
@@ -221,6 +242,7 @@ class Trainer:
         return continue_training
 
     def on_iteration_begin(self):
+        # Iterations refer to minibatches
         pass
 
     def on_iteration_end(self):
