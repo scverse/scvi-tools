@@ -37,7 +37,7 @@ If you'd like to contribute, please check out our `contributing guide`_.
 If you find a model useful for your research, please consider citing the corresponding publication (linked above).
 
 .. _documentation: https://scvi.readthedocs.io
-.. _`contributing guide`: CONTRIBUTING.rst
+.. _`contributing guide`: https://scvi.readthedocs.io/en/update_docs/contributing.html
 .. _scVI: https://rdcu.be/bdHYQ
 .. _scANVI: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf
 .. _totalVI: https://www.biorxiv.org/content/biorxiv/early/2019/10/07/791947.full.pdf
