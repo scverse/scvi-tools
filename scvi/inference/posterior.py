@@ -1264,7 +1264,9 @@ class Posterior:
         gene_list=None,
         library_size=1,
         batch_size=128,
-        return_df=False
+        return_df=False,
+        n_samples=1,
+        return_mean=True
     ):
         ''' Returns the frequencies of expression for the data.
 
@@ -1282,7 +1284,10 @@ class Posterior:
         :param batch_size: Size of minibatches of the data to use. When only accessing a single
             gene a larger batch size (e.g. 10000) substantially reduces the time spent on GPU
             data transfer (default=128).
-        : param return_df: (optional) Return a DataFrame instead of an np.Array. Includes gene names as columns.
+        :param return_df: (optional) Return a DataFrame instead of an np.Array. Includes gene
+            names as columns. Requires either n_samples=1 or return_mean=True (default=False).
+        :param n_samples: (optional) Get sample scale from multiple samples (default=1).
+        :param return_mean: (optional) Whether to return the mean of the samples (default=True).
         '''
         if gene_list is None:
             gene_mask = slice(None)
@@ -1299,17 +1304,25 @@ class Posterior:
                             sample_batch,
                             batch_index=batch_index,
                             y=labels,
-                            n_samples=1,
+                            n_samples=n_samples,
                             transform_batch=transform_batch,
-                        )[:, gene_mask] * library_size
+                        )[..., gene_mask] * library_size
                     ).cpu()
                 )
             ]
 
-        if return_df:
-            return pd.DataFrame(np.concatenate(px_scales), columns=self.gene_dataset.gene_names[gene_mask])
+        if n_samples > 1:
+            px_scales = np.concatenate(px_scales, axis=-2)
         else:
-            return np.concatenate(px_scales)
+            px_scales = np.concatenate(px_scales, axis=0)
+
+        if n_samples > 1 and return_mean:
+            px_scales = px_scales.mean(0)
+
+        if return_df:
+            return pd.DataFrame(px_scales, columns=self.gene_dataset.gene_names[gene_mask])
+        else:
+            return px_scales
 
     @torch.no_grad()
     def imputation_list(self, n_samples=1):
