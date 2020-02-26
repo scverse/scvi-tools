@@ -1,5 +1,5 @@
 ====
-scVI -- Single cell Variational Inference
+scVI - Single cell Variational Inference
 ====
 
 |PyPI| |bioconda| |Docs| |Build Status| |Coverage| |Code Style| |Downloads|
@@ -22,23 +22,27 @@ scVI -- Single cell Variational Inference
 
 scVI is a package for end-to-end analysis of single-cell omics data. The package is composed of several deep generative models for omics data analysis, namely:
 
-* scVI for analysis of single-cell RNA-seq data (`Nature Methods (2018)`_)
-* scANVI for cell annotation of scRNA-seq data using semi-labeled examples (`bioRxiv`_)
-* totalVI for analysis of CITE-seq data
-* gimVI for imputation of missing genes in spatial transcriptomics from scRNA-seq data
-* AutoZI for assessing gene-specific levels of zero-inflation in scRNA-seq data
-* LDVAE for an interpretable linear factor model version of scVI
+* scVI_ for analysis of single-cell RNA-seq data
+* scANVI_ for cell annotation of scRNA-seq data using semi-labeled examples
+* totalVI_ for analysis of CITE-seq data
+* gimVI_ for imputation of missing genes in spatial transcriptomics from scRNA-seq data
+* AutoZI_ for assessing gene-specific levels of zero-inflation in scRNA-seq data
+* LDVAE_ for an interpretable linear factor model version of scVI
+
+scVI also contains the differential expression framework descibed in `Boyeau et al`_.
 
 Tutorials and API reference are available in the documentation_.
-If you'd like to contribute by opening an issue or creating a pull request,
-please take a look at our `contributing guide`_.
-If you find a model useful for your research, please consider citing the corresponding publication.
+Please use the issues here to discuss usage, or submit bug reports.
+If you'd like to contribute, please check out our `contributing guide`_.
+If you find a model useful for your research, please consider citing the corresponding publication (linked above).
 
-.. _Nature Methods (2018): https://www.nature.com/articles/s41592-018-0229-2.epdf?author_access_token=5sMbnZl1iBFitATlpKkddtRgN0jAjWel9jnR3ZoTv0P1-tTjoP-mBfrGiMqpQx63aBtxToJssRfpqQ482otMbBw2GIGGeinWV4cULBLPg4L4DpCg92dEtoMaB1crCRDG7DgtNrM_1j17VfvHfoy1cQ%3D%3D
-.. _bioRxiv: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf
 .. _documentation: https://scvi.readthedocs.io
-.. _contributing guide: CONTRIBUTING.rst
-
-
-
+.. _`contributing guide`: CONTRIBUTING.rst
+.. _scVI: https://rdcu.be/bdHYQ
+.. _scANVI: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf
+.. _totalVI: https://www.biorxiv.org/content/biorxiv/early/2019/10/07/791947.full.pdf
+.. _AutoZI: https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf
+.. _LDVAE: https://www.biorxiv.org/content/10.1101/737601v1.full.pdf
+.. _gimVI: https://arxiv.org/pdf/1905.02269.pdf
+.. _`Boyeau et al`: https://www.biorxiv.org/content/biorxiv/early/2019/10/04/794289.full.pdf
 
