@@ -2,7 +2,15 @@ Tutorials
 =========
 
 The easiest way to get familiar with scVI is to follow along with our tutorials!
-These tutorials are also accessible in Google Colab (link in tutorial intros, if available).
+The tutorials are accessible on the sidebar to the left. Some are designed to work seamlessly in Google Colab, a free cloud computing platform. These tutorials have a Colab badge in their introduction.
+
+To download the tutorials, click the Colab badge below, open the tutorial, and download it with the option in the file menu. When you execute the notebook yourself, please set your own `save_path`. Also, please pardon the code at the beginning of tutorials that is used for testing our notebooks. Testing the notebooks is important so we do not introduce any bugs!
+
+|Open In Colab|
+
+.. |Open In Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
+    :target: https://colab.research.google.com/github/yoseflab/scVI/blob/stable
+
 
 .. toctree::
    :maxdepth: 1
