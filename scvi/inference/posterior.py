@@ -41,7 +41,7 @@ from scvi.models.log_likelihood import (
     compute_marginal_log_likelihood_scvi,
     compute_marginal_log_likelihood_autozi,
 )
-
+from scvi.models import NB, ZINB
 from scipy.stats import spearmanr
 
 logger = logging.getLogger(__name__)
@@ -1077,7 +1077,6 @@ class Posterior:
             Where x_new has shape (n_cells, n_genes, n_samples)
         """
         assert self.model.reconstruction_loss in ["zinb", "nb", "poisson"]
-        zero_inflated = self.model.reconstruction_loss == "zinb"
         x_old = []
         x_new = []
         for tensors in self.update({"batch_size": batch_size}):
@@ -1089,28 +1088,23 @@ class Posterior:
             px_rate = outputs["px_rate"]
             px_dropout = outputs["px_dropout"]
 
-            if self.reconstruction_error != "poisson":
-                p = px_rate / (px_rate + px_r)
-                r = px_r
-                # Important remark: Gamma is parametrized by the rate = 1/scale!
-                l_train = distributions.Gamma(
-                    concentration=r, rate=(1 - p) / p
-                ).sample()
-            else:
+            if self.model.reconstruction_loss == "poisson":
                 l_train = px_rate
-
-            # Clamping as distributions objects can have buggy behaviors when
-            # their parameters are too high
-            l_train = torch.clamp(l_train, max=1e8)
-            gene_expressions = distributions.Poisson(
-                l_train
-            ).sample()  # Shape : (n_samples, n_cells_batch, n_genes)
-            if zero_inflated:
-                p_zero = (1.0 + torch.exp(-px_dropout)).pow(-1)
-                random_prob = torch.rand_like(p_zero)
-                gene_expressions[random_prob <= p_zero] = 0
-
-            gene_expressions = gene_expressions.permute(
+                l_train = torch.clamp(l_train, max=1e8)
+                dist = distributions.Poisson(
+                    l_train
+                )  # Shape : (n_samples, n_cells_batch, n_genes)
+            elif self.model.reconstruction_loss == "nb":
+                dist = NB(mu=px_rate, theta=px_r,)
+            elif self.model.reconstruction_loss == "zinb":
+                dist = ZINB(mu=px_rate, theta=px_r, zi_logits=px_dropout)
+            else:
+                raise ValueError(
+                    "{} reconstruction error not handled right now".format(
+                        self.model.reconstruction_loss
+                    )
+                )
+            gene_expressions = dist.sample().permute(
                 [1, 2, 0]
             )  # Shape : (n_cells_batch, n_genes, n_samples)
 

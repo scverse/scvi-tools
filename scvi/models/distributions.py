@@ -11,7 +11,7 @@ from torch.distributions.utils import (
 )
 
 
-def from_params2_to_1(mu, theta, eps=1e-6):
+def from_nb_params2_to_1(mu, theta, eps=1e-6):
     r"""
         :param mu: mean of the NB distribution.
         :param theta: overdispersion
@@ -27,7 +27,7 @@ def from_params2_to_1(mu, theta, eps=1e-6):
     return total_count, logits
 
 
-def from_params1_to_2(total_count, logits):
+def from_nb_params1_to_2(total_count, logits):
     """
         :param total_count: Number of failures until the experiment is stopped.
         :param logits: success logits
@@ -47,7 +47,7 @@ class NB(NegativeBinomial):
         - The (`mu`, `theta`) parameterization is the one used by scVI. These parameters respectively
         control the mean and overdispersion of the distribution.
 
-        `from_params2_to_1` and `from_params1_to_2` provide ways to convert one parameterization to another.
+        `from_nb_params2_to_1` and `from_nb_params1_to_2` provide ways to convert one parameterization to another.
 
     """
 
@@ -66,7 +66,7 @@ class NB(NegativeBinomial):
                 "Please use one of the two possible parameterizations. Refer to the documentation for more information."
             )
         if mu is not None:
-            total_count, logits = from_params2_to_1(mu, theta, eps=self._eps)
+            total_count, logits = from_nb_params2_to_1(mu, theta, eps=self._eps)
 
         super().__init__(
             total_count, probs=probs, logits=logits, validate_args=validate_args
@@ -85,7 +85,7 @@ class ZINB(NegativeBinomial):
         - The (`mu`, `theta`) parameterization is the one used by scVI. These parameters respectively
         control the mean and overdispersion of the distribution.
 
-        `from_params2_to_1` and `from_params1_to_2` provide ways to convert one parameterization to another.
+        `from_nb_params2_to_1` and `from_nb_params1_to_2` provide ways to convert one parameterization to another.
     """
     arg_constraints = {
         "total_count": constraints.greater_than_eq(0),
@@ -114,7 +114,7 @@ class ZINB(NegativeBinomial):
                 "Please use one of the two possible parameterizations. Refer to the documentation for more information."
             )
         if mu is not None:
-            total_count, logits = from_params2_to_1(mu, theta, eps=self._eps)
+            total_count, logits = from_nb_params2_to_1(mu, theta, eps=self._eps)
 
         # Step 2: Taking care of the distribution parameters
         if (probs is None) == (logits is None):

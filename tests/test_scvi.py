@@ -500,10 +500,8 @@ def test_zinb_distribution():
     dist = NB(total_count=total_count, probs=probs)
     logp_zinb = dist.log_prob(torch.tensor(15)).item()
     assert np.abs(logp_gt - logp_zinb) <= 1e-4
-    s1 = dist.sample()
-    assert s1.shape == (100,)
     s2 = dist.sample(sample_shape=(4, 2))
-    assert s2.shape == (4, 2, 100)
+    assert s2.shape == (4, 2)
 
     # ZINB distributions
     # First parameterization test
