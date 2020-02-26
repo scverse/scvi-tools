@@ -1258,7 +1258,14 @@ class Posterior:
         return libraries.ravel()
 
     @torch.no_grad()
-    def get_sample_scale(self, transform_batch=None, gene=None, library_size=1, batch_size=128):
+    def get_sample_scale(
+        self,
+        transform_batch=None,
+        gene_list=None,
+        library_size=1,
+        batch_size=128,
+        return_df=False
+    ):
         ''' Returns the frequencies of expression for the data.
 
         :param transform_batch: Batches to condition on.
@@ -1266,20 +1273,21 @@ class Posterior:
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then px_rates are averaged over provided batches.
-        :param gene: (optional) Return frequencies of expression for a single gene. This can
-            save a lot of memory when working with large datasets and only a single gene is
+        :param gene_list: (optional) Return frequencies of expression for a subset of genes.
+            This can save memory when working with large datasets and few genes are
             of interest. (default=None)
         :param library_size: (optional) Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
             magnitude (default=1, no scaling).
         :param batch_size: Size of minibatches of the data to use. When only accessing a single
             gene a larger batch size (e.g. 10000) substantially reduces the time spent on GPU
-            data transfer (default=128).        
+            data transfer (default=128).
+        : param return_df: (optional) Return a DataFrame instead of an np.Array. Includes gene names as columns.
         '''
-        if gene is None:
-            gene_idx = slice(None)
+        if gene_list is None:
+            gene_mask = slice(None)
         else:
-            gene_idx = [np.where(self.gene_dataset.gene_names == gene)[0][0]]
+            gene_mask = self.gene_dataset._get_genes_filter_mask_by_attribute(gene_list, return_data=False)
 
         px_scales = []
         for tensors in self.sequential(batch_size):
@@ -1293,11 +1301,15 @@ class Posterior:
                             y=labels,
                             n_samples=1,
                             transform_batch=transform_batch,
-                        )[:, gene_idx] * library_size
+                        )[:, gene_mask] * library_size
                     ).cpu()
                 )
             ]
-        return np.concatenate(px_scales)
+
+        if return_df:
+            return pd.DataFrame(np.concatenate(px_scales), columns=self.gene_dataset.gene_names[gene_mask])
+        else:
+            return np.concatenate(px_scales)
 
     @torch.no_grad()
     def imputation_list(self, n_samples=1):
