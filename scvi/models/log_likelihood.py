@@ -223,7 +223,7 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
             1, theta.size(0)
         )  # In this case, we reshape theta for broadcasting
 
-    softplus_pi = F.softplus(-pi)
+    softplus_pi = F.softplus(-pi)  #  uses log(sigmoid(x)) = -softplus(-x)
     log_theta_eps = torch.log(theta + eps)
     log_theta_mu_eps = torch.log(theta + mu + eps)
     pi_theta_log = -pi + theta * (log_theta_eps - log_theta_mu_eps)
