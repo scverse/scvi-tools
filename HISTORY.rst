@@ -4,6 +4,7 @@ History
 
 0.6.0 
 -----
+* updates on TotalVI and LDVAE `@adam`_
 * fix documentation, compatibility and diverse bugs `@adam`_, `@pierre`_ `@romain`_
 * fix for external module on scanpy `@galen-xing`_
 
