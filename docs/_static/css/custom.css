@@ -1,11 +1,23 @@
 /* ReadTheDocs theme colors */
-/* code adapted from scanpy custom css */
+/* code adapted from scanpy custom css and from https://github.com/godotengine/godot-docs/blob/master/_static/css/custom.css */
 
-.wy-nav-top { background-color: #3B7EA1 }
+/* navbar color */
+.wy-side-nav-search, .wy-nav-top {
+    background: #003262;
+}
 .wy-nav-content {
     max-width: 1100px;
 }
 .wy-side-nav-search input[type="text"] { border-width: 0 }
+
+/* Heading color in navbar */
+.wy-menu-vertical header,
+.wy-menu-vertical p.caption {
+    color: #C4820E;
+
+    /* Improves the appearance of uppercase text */
+    letter-spacing: 0.75px;
+}
 
 
 /* Custom classes */
