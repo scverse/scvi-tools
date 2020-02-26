@@ -1,5 +1,5 @@
 ====
-scVI
+scVI -- Single cell Variational Inference
 ====
 
 |PyPI| |bioconda| |Docs| |Build Status| |Coverage| |Code Style| |Downloads|
@@ -20,9 +20,25 @@ scVI
 .. |Downloads| image:: https://pepy.tech/badge/scvi
    :target: https://pepy.tech/project/scvi
 
-Single-cell Variational Inference
+scVI is a package for end-to-end analysis of single-cell omics data. The package is composed of several deep generative models for omics data analysis, namely:
 
-* Free software: MIT license
-* Documentation: https://scvi.readthedocs.io.
+* scVI for analysis of single-cell RNA-seq data (`Nature Methods (2018)`_)
+* scANVI for cell annotation of scRNA-seq data using semi-labeled examples (`bioRxiv`_)
+* totalVI for analysis of CITE-seq data
+* gimVI for imputation of missing genes in spatial transcriptomics from scRNA-seq data
+* AutoZI for assessing gene-specific levels of zero-inflation in scRNA-seq data
+* LDVAE for an interpretable linear factor model version of scVI
+
+Tutorials and API reference are available in the documentation_.
+If you'd like to contribute by opening an issue or creating a pull request,
+please take a look at our `contributing guide`_.
+If you find a model useful for your research, please consider citing the corresponding publication.
+
+.. _Nature Methods (2018): https://www.nature.com/articles/s41592-018-0229-2.epdf?author_access_token=5sMbnZl1iBFitATlpKkddtRgN0jAjWel9jnR3ZoTv0P1-tTjoP-mBfrGiMqpQx63aBtxToJssRfpqQ482otMbBw2GIGGeinWV4cULBLPg4L4DpCg92dEtoMaB1crCRDG7DgtNrM_1j17VfvHfoy1cQ%3D%3D
+.. _bioRxiv: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf
+.. _documentation: https://scvi.readthedocs.io
+.. _contributing guide: CONTRIBUTING.rst
+
+
 
 
