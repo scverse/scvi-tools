@@ -2,7 +2,7 @@
 /* code adapted from scanpy custom css and from https://github.com/godotengine/godot-docs/blob/master/_static/css/custom.css */
 
 /* navbar color */
-.wy-side-nav-search, .wy-nav-top {
+.wy-side-nav-search, .wy-nav-top, .wy-nav-side {
     background: #003262;
 }
 .wy-nav-content {
