@@ -3,7 +3,7 @@
 
 .wy-nav-top { background-color: #3B7EA1 }
 .wy-nav-content {
-    max-width: 1200px;
+    max-width: 1100px;
 }
 .wy-side-nav-search input[type="text"] { border-width: 0 }
 
@@ -45,26 +45,37 @@
 }
 
 
-/* Code: literals and links */
+/* override table width restrictions */
+@media screen and (min-width: 767px) {
 
-.rst-content tt.literal,
-.rst-content code.literal {
-    color: #404040;
-}
-/* slim font weight for non-link code */
-.rst-content tt:not(.xref),
-.rst-content code:not(.xref),
-.rst-content *:not(a) > tt.xref,
-.rst-content *:not(a) > code.xref,
-.rst-content dl:not(.docutils) code
-{
-    font-weight: normal;
-}
-.rst-content a > tt.xref,
-.rst-content a > code.xref,
-.rst-content dl:not(.docutils) a > tt.xref,
-.rst-content dl:not(.docutils) a > code.xref
-{
-    font-weight: bold;  /* underline looks clumsy, in particular with buttons and
-                           other hyperlinks, which don't come with underlines */
+    .wy-table-responsive table td {
+       /* !important prevents the common CSS stylesheets from overriding
+          this as on RTD they are loaded after this stylesheet */
+       white-space: normal !important;
+    }
+
+    .wy-table-responsive {
+       overflow: visible !important;
+    }
+ }
+
+
+body,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+input[type="text"],
+input[type="button"],
+input[type="reset"],
+input[type="submit"],
+textarea,
+legend,
+.btn,
+.rst-content .toctree-wrapper p.caption,
+.rst-versions {
+    /* Use a system font stack for better performance (no Web fonts required) */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 }
