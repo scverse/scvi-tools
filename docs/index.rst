@@ -12,7 +12,7 @@ scVI is a package for end-to-end analysis of single-cell omics data. The package
 
 These models are able to simultaneously perform many downstream tasks such as learning low-dimensional cell representations, harmonizing datasets from different experiments, and identifying differential expressed features ([Boyeau19]_). By levaraging advances in stochastic optimization, these models scale to millions of cells. We invite you to explore these models in our :doc:`tutorials <tutorials>`.
 
-* If you find a model useful for you research, please consider citing the corresponding publication.
+* If you find a model useful for your research, please consider citing the corresponding publication.
 
 .. toctree::
    :maxdepth: 1
