@@ -53,10 +53,10 @@ extras_requirements = {
         "leidenalg>=0.7.0",
     ],
     "docs": [
-        "sphinx>=1.7.1",
+        "sphinx>=2.0.1",
         "nbsphinx",
         "sphinx_autodoc_typehints",
-        "sphinx-rtd-theme",
+        "sphinx-rtd-theme>=0.3.1",
     ],
     "test": test_requirements,
 }
