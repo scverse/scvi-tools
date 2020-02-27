@@ -376,7 +376,7 @@ class Posterior:
                 - n_bio_batches * n_cells * n_samples_per_cell
                 or
                  - n_samples_total
-            `bat_doc_paramsch`
+            `batch`
                 associated batch ids
 
         """
