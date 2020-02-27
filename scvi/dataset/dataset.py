@@ -1238,7 +1238,7 @@ class GeneExpressionDataset(Dataset):
     #                           #
     #############################
 
-    def to_anndata(self):
+    def to_anndata(self) -> anndata.AnnData:
         """
             Converts the dataset to a anndata.AnnData object.
             The obtained dataset can then be saved/retrieved using the anndata API.

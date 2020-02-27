@@ -234,7 +234,7 @@ class Posterior:
         return ll
 
     @torch.no_grad()
-    def get_latent(self, give_mean=True):
+    def get_latent(self, give_mean: Optional[bool] = True) -> Tuple:
         """
         Output posterior z mean or sample, batch index, and label
         :param sample: z mean or z sample
@@ -376,7 +376,7 @@ class Posterior:
                 - n_bio_batches * n_cells * n_samples_per_cell
                 or
                  - n_samples_total
-            `batch`
+            `bat_doc_paramsch`
                 associated batch ids
 
         """
@@ -1259,7 +1259,9 @@ class Posterior:
         return corr_matrix
 
     @torch.no_grad()
-    def generate_parameters(self):
+    def generate_parameters(
+        self, n_samples: Optional[int] = 1, give_mean: Optional[bool] = False
+    ) -> Tuple:
         dropout_list = []
         mean_list = []
         dispersion_list = []
@@ -1267,22 +1269,30 @@ class Posterior:
             sample_batch, _, _, batch_index, labels = tensors
 
             outputs = self.model.inference(
-                sample_batch, batch_index=batch_index, y=labels, n_samples=1
+                sample_batch, batch_index=batch_index, y=labels, n_samples=n_samples,
             )
             px_r = outputs["px_r"]
             px_rate = outputs["px_rate"]
             px_dropout = outputs["px_dropout"]
 
+            n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
             dispersion_list += [
-                np.repeat(np.array(px_r.cpu())[np.newaxis, :], px_rate.size(0), axis=0)
+                np.repeat(np.array(px_r.cpu())[np.newaxis, :], n_batch, axis=0)
             ]
             mean_list += [np.array(px_rate.cpu())]
             dropout_list += [np.array(px_dropout.cpu())]
 
+        dropout = np.concatenate(dropout_list)
+        means = np.concatenate(mean_list)
+        dispersions = np.concatenate(dispersion_list)
+        if give_mean and n_samples > 1:
+            dropout = dropout.mean(0)
+            means = means.mean(0)
+
         return (
-            np.concatenate(dropout_list),
-            np.concatenate(mean_list),
-            np.concatenate(dispersion_list),
+            dropout,
+            means,
+            dispersions,
         )
 
     @torch.no_grad()
@@ -1552,7 +1562,9 @@ class Posterior:
         )
 
 
-def load_posterior(dir_path: str, model: nn.Module, use_cuda=True):
+def load_posterior(
+    dir_path: str, model: nn.Module, use_cuda: Optional[bool] = True
+) -> Posterior:
     """
         Function to use in order to retrieve a posterior that was saved using the `save_posterior` method
         Because of pytorch model loading usage, this function needs a scVI model object initialized with exact same parameters
@@ -1589,6 +1601,7 @@ def load_posterior(dir_path: str, model: nn.Module, use_cuda=True):
         ad=ad, cell_measurements_columns=cell_measurements_columns
     )
     model.load_state_dict(torch.load(model_path))
+    model.eval()
     indices = np.load(file=indices_path)
     my_post = Posterior(
         model=model,
