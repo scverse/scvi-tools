@@ -3,8 +3,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal, Beta, Gamma, kl_divergence as kl
 import numpy as np
 
-
-from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
+from scVI.models.distributions import ZINB, NB
 from scvi.models.vae import VAE
 from scipy.special import logit
 from scvi.models.utils import one_hot
@@ -320,12 +319,12 @@ class AutoZIVAE(VAE):
     ) -> torch.Tensor:
 
         # LLs for NB and ZINB
-        ll_zinb = torch.log(1.0 - bernoulli_params + eps_log) + log_zinb_positive(
-            x, px_rate, px_r, px_dropout
-        )
-        ll_nb = torch.log(bernoulli_params + eps_log) + log_nb_positive(
-            x, px_rate, px_r
-        )
+        ll_zinb = torch.log(1.0 - bernoulli_params + eps_log) + ZINB(
+            mu=px_rate, theta=px_r, zi_logits=px_dropout
+        ).log_prob(x)
+        ll_nb = torch.log(bernoulli_params + eps_log) + NB(
+            mu=px_rate, theta=px_r
+        ).log_prob(x)
 
         # Reconstruction loss using a logsumexp-type computation
         ll_max = torch.max(ll_zinb, ll_nb)
