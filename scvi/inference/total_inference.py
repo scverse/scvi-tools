@@ -271,6 +271,7 @@ class TotalPosterior(Posterior):
         self, sample: bool = False
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Output posterior z mean or sample, batch index, and label
+
         :param sample: z mean or z sample
         :return: 4-tuple of latent, batch_indices, labels, library_gene
         """
@@ -366,6 +367,7 @@ class TotalPosterior(Posterior):
     @torch.no_grad()
     def get_sample_dropout(self, n_samples: int = 1, give_mean: bool = True):
         """ Zero-inflation mixing component for genes
+
         """
         px_dropouts = []
         for tensors in self:
