@@ -1,14 +1,20 @@
-from typing import Optional, Union, Tuple
+from typing import Union, Tuple
 
 import torch
-from torch.distributions import NegativeBinomial, constraints
-import torch.nn.functional as F
+from torch.distributions import (
+    constraints,
+    Distribution,
+    Gamma,
+    Poisson,
+)
 from torch.distributions.utils import (
     broadcast_all,
     probs_to_logits,
     lazy_property,
     logits_to_probs,
 )
+
+from scvi.models.log_likelihood import log_nb_positive, log_zinb_positive
 
 
 def from_nb_params2_to_1(mu, theta, eps=1e-6):
@@ -38,7 +44,7 @@ def from_nb_params1_to_2(total_count, logits):
     return mu, theta
 
 
-class NB(NegativeBinomial):
+class NB(Distribution):
     r"""
         Negative Binomial distribution using two parameterizations:
         - The first one corresponds to the parameterization NB(`total_count`, `probs`)
@@ -50,34 +56,71 @@ class NB(NegativeBinomial):
         `from_nb_params2_to_1` and `from_nb_params1_to_2` provide ways to convert one parameterization to another.
 
     """
+    arg_constraints = {
+        "mu": constraints.greater_than_eq(0),
+        "theta": constraints.greater_than_eq(0),
+    }
+    support = constraints.nonnegative_integer
 
     def __init__(
         self,
-        total_count: Optional[Union[torch.Tensor, int, float]] = None,
-        probs: Optional[Union[torch.Tensor, float]] = None,
-        logits: Optional[Union[torch.Tensor, float]] = None,
-        mu: Optional[Union[torch.Tensor, float]] = None,
-        theta: Optional[Union[torch.Tensor, float]] = None,
-        validate_args=None,
+        total_count: torch.Tensor = None,
+        probs: torch.Tensor = None,
+        logits: torch.Tensor = None,
+        mu: torch.Tensor = None,
+        theta: torch.Tensor = None,
+        validate_args=True,
     ):
         self._eps = 1e-8
         if (mu is None) == (total_count is None):
             raise ValueError(
                 "Please use one of the two possible parameterizations. Refer to the documentation for more information."
             )
-        if mu is not None:
-            total_count, logits = from_nb_params2_to_1(mu, theta, eps=self._eps)
 
-        super().__init__(
-            total_count, probs=probs, logits=logits, validate_args=validate_args
+        using_param_1 = total_count is not None and (
+            logits is not None or probs is not None
         )
+        if using_param_1:
+            logits = logits if logits is not None else probs_to_logits(probs)
+            total_count = total_count.type_as(logits)
+            total_count, logits = broadcast_all(total_count, logits)
+            mu, theta = from_nb_params1_to_2(total_count, logits)
+        else:
+            mu, theta = broadcast_all(mu, theta)
+        self.mu = mu
+        self.theta = theta
+        super().__init__(validate_args=validate_args)
+
+    def sample(self, sample_shape=torch.Size()):
+        gamma_d = self._gamma()
+        p_means = gamma_d.sample(sample_shape)
+
+        # Clamping as distributions objects can have buggy behaviors when
+        # their parameters are too high
+        l_train = torch.clamp(p_means, max=1e8)
+        counts = Poisson(
+            l_train
+        ).sample()  # Shape : (n_samples, n_cells_batch, n_genes)
+        return counts
+
+    def log_prob(self, value):
+        if self._validate_args:
+            self._validate_sample(value)
+        return log_nb_positive(value, mu=self.mu, theta=self.theta, eps=self._eps)
+
+    def _gamma(self):
+        concentration = self.theta
+        rate = self.theta / self.mu
+        # Important remark: Gamma is parametrized by the rate = 1/scale!
+        gamma_d = Gamma(concentration=concentration, rate=rate)
+        return gamma_d
 
 
-class ZINB(NegativeBinomial):
+class ZINB(NB):
     r"""
         Zero Inflated Negative Binomial distribution.
         zi_logits correspond to the zero-inflation logits
-
+mu + mu ** 2 / theta
         The negative binomial component parameters can follow two two parameterizations:
         - The first one corresponds to the parameterization NB(`total_count`, `probs`)
             where `total_count` is the number of failures until the experiment is stopped
@@ -88,9 +131,8 @@ class ZINB(NegativeBinomial):
         `from_nb_params2_to_1` and `from_nb_params1_to_2` provide ways to convert one parameterization to another.
     """
     arg_constraints = {
-        "total_count": constraints.greater_than_eq(0),
-        "probs": constraints.half_open_interval(0.0, 1.0),
-        "logits": constraints.real,
+        "mu": constraints.greater_than_eq(0),
+        "theta": constraints.greater_than_eq(0),
         "zi_probs": constraints.half_open_interval(0.0, 1.0),
         "zi_logits": constraints.real,
     }
@@ -98,43 +140,26 @@ class ZINB(NegativeBinomial):
 
     def __init__(
         self,
-        total_count: Optional[Union[torch.Tensor, int, float]] = None,
-        probs: Optional[Union[torch.Tensor, float]] = None,
-        logits: Optional[Union[torch.Tensor, float]] = None,
-        mu: Optional[Union[torch.Tensor, float]] = None,
-        theta: Optional[Union[torch.Tensor, float]] = None,
-        zi_logits: Optional[Union[torch.Tensor, float]] = None,
-        validate_args=None,
+        total_count: torch.Tensor = None,
+        probs: torch.Tensor = None,
+        logits: torch.Tensor = None,
+        mu: torch.Tensor = None,
+        theta: torch.Tensor = None,
+        zi_logits: torch.Tensor = None,
+        validate_args=True,
     ):
-        self._eps = 1e-8  # Used for numerical stability
 
-        # Step 1: Harmonizing parameterizations
-        if (mu is None) == (total_count is None):
-            raise ValueError(
-                "Please use one of the two possible parameterizations. Refer to the documentation for more information."
-            )
-        if mu is not None:
-            total_count, logits = from_nb_params2_to_1(mu, theta, eps=self._eps)
-
-        # Step 2: Taking care of the distribution parameters
-        if (probs is None) == (logits is None):
-            raise ValueError(
-                "Either `probs` or `logits` must be specified, but not both."
-            )
-        if probs is not None:
-            self.total_count, self.probs, self.zi_logits = broadcast_all(
-                total_count, probs, zi_logits
-            )
-            self.total_count = self.total_count.type_as(self.probs)
-        else:
-            self.total_count, self.logits, self.zi_logits = broadcast_all(
-                total_count, logits, zi_logits
-            )
-            self.total_count = self.total_count.type_as(self.logits)
-
-        self._param = self.probs if probs is not None else self.logits
-        batch_shape = self._param.size()
-        super(NegativeBinomial, self).__init__(batch_shape, validate_args=validate_args)
+        super().__init__(
+            total_count=total_count,
+            probs=probs,
+            logits=logits,
+            mu=mu,
+            theta=theta,
+            validate_args=validate_args,
+        )
+        self.zi_logits, self.mu, self.theta = broadcast_all(
+            zi_logits, self.mu, self.theta
+        )
 
     @lazy_property
     def zi_logits(self) -> torch.Tensor:
@@ -148,26 +173,12 @@ class ZINB(NegativeBinomial):
         self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
     ) -> torch.Tensor:
         with torch.no_grad():
-            rate = self._gamma.sample(sample_shape=sample_shape)
-            samp = torch.poisson(rate)
+            samp = super().sample(sample_shape=sample_shape)
             is_zero = torch.rand_like(samp) <= self.zi_probs
             samp[is_zero] = 0.0
             return samp
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
-        log_nb = super().log_prob(value)
-
-        # motivation: log(sigmoid(x)) = -softplus(-x)
-        log_p_zi = -F.softplus(-self.zi_logits)
-        log_p_not_zi = -F.softplus(self.zi_logits)
-
-        # case 1: obs is zero
-        log_obs_nozi = log_nb + log_p_not_zi
-        contrib_zero = (
-            torch.logsumexp(torch.stack([log_p_zi, log_obs_nozi], dim=0), dim=0)
-            * (value <= self._eps).float()
-        )
-
-        # case 2: non zero observation ==> necessarily comes from NB
-        contrib_nonzero = log_obs_nozi * (value >= self._eps).float()
-        return contrib_zero + contrib_nonzero
+        if self._validate_args:
+            self._validate_sample(value)
+        return log_zinb_positive(value, self.mu, self.theta, self.zi_logits, eps=1e-08)

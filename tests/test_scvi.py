@@ -1,7 +1,7 @@
 import numpy as np
 import os
+import pytest
 import torch
-from scipy.stats import nbinom
 
 from scvi.dataset import (
     CortexDataset,
@@ -22,7 +22,7 @@ from scvi.inference.posterior import unsupervised_clustering_accuracy
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE, ZINB, NB
 from scvi.models.classifier import Classifier
-from scvi.models.log_likelihood import log_zinb_positive
+from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
 from scvi import set_seed
 
 set_seed(0)
@@ -490,42 +490,7 @@ def test_deprecated_munkres():
 
 
 def test_zinb_distribution():
-    # NB distribution
-    total_count = 15
-    probs = 0.1
-
-    log_p_nb = nbinom.logpmf(15, n=total_count, p=probs)
-    logp_gt = log_p_nb
-
-    dist = NB(total_count=total_count, probs=probs)
-    logp_zinb = dist.log_prob(torch.tensor(15)).item()
-    assert np.abs(logp_gt - logp_zinb) <= 1e-4
-    s2 = dist.sample(sample_shape=(4, 2))
-    assert s2.shape == (4, 2)
-
-    # ZINB distributions
-    # First parameterization test
-    zi_logits = -1.0
-    zi_probs = 1 / (1 + np.exp(-zi_logits))
-    total_count = 15
-    probs = 0.1
-
-    log_p_nb = nbinom.logpmf(15, n=total_count, p=probs)
-    logp_gt = np.log(1.0 - zi_probs) + log_p_nb
-
-    dist = ZINB(total_count=total_count, probs=probs, zi_logits=zi_logits)
-    logp_zinb = dist.log_prob(torch.tensor(15)).item()
-    assert np.abs(logp_gt - logp_zinb) <= 1e-4
-
-    mu = torch.tensor(probs / (1.0 - probs) * total_count).float()
-    theta = torch.tensor(total_count).float()
-    pi = torch.tensor(zi_logits)
-    logp_ref = log_zinb_positive(torch.tensor(15.0), mu, theta, pi).item()
-
-    assert np.abs(logp_gt - logp_ref) <= 1e-4
-
-    # Second parameterization
-    theta = torch.rand(size=(100,))
+    theta = 100.0 + torch.rand(size=(2,))
     mu = 15.0 * torch.ones_like(theta)
     pi = torch.randn_like(theta)
     x = torch.randint_like(mu, high=20)
@@ -533,9 +498,37 @@ def test_zinb_distribution():
 
     dist = ZINB(mu=mu, theta=theta, zi_logits=pi)
     log_p_zinb = dist.log_prob(x)
-    assert (log_p_ref - log_p_zinb).abs().max().item() <= 1e-4
+    assert (log_p_ref - log_p_zinb).abs().max().item() <= 1e-8
 
-    s1 = dist.sample()
-    assert s1.shape == (100,)
-    s2 = dist.sample(sample_shape=(4, 2))
-    assert s2.shape == (4, 2, 100)
+    torch.manual_seed(0)
+    s1 = dist.sample((100,))
+    assert s1.shape == (100, 2)
+    s2 = dist.sample(sample_shape=(4, 3))
+    assert s2.shape == (4, 3, 2)
+
+    log_p_ref = log_nb_positive(x, mu, theta)
+    dist = NB(mu=mu, theta=theta)
+    log_p_nb = dist.log_prob(x)
+    assert (log_p_ref - log_p_nb).abs().max().item() <= 1e-8
+
+    s1 = dist.sample((1000,))
+    assert s1.shape == (1000, 2)
+    assert (s1.mean(0) - mu).abs().mean() <= 1e0
+    assert (s1.std(0) - (mu + mu * mu / theta) ** 0.5).abs().mean() <= 1e0
+
+    size = (50, 3)
+    theta = 100.0 + torch.rand(size=size)
+    mu = 15.0 * torch.ones_like(theta)
+    pi = torch.randn_like(theta)
+    x = torch.randint_like(mu, high=20)
+    dist1 = ZINB(mu=mu, theta=theta, zi_logits=pi)
+    dist2 = NB(mu=mu, theta=theta)
+    assert dist1.log_prob(x).shape == size
+    assert dist2.log_prob(x).shape == size
+
+    with pytest.raises(ValueError):
+        ZINB(mu=-mu, theta=theta, zi_logits=pi)
+    with pytest.raises(ValueError):
+        dist1.log_prob(-x)  # ensures neg values raise error
+    with pytest.raises(ValueError):
+        dist2.log_prob(0.5 * x)  # ensures float values raise error

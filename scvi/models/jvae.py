@@ -6,10 +6,10 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.distributions import Normal, Poisson, kl_divergence as kl
+from torch.distributions import Normal, kl_divergence as kl
 from torch.nn import ModuleList
 
-from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
+from scvi.models.distributions import NB, ZINB, Poisson
 from scvi.models.modules import Encoder
 from scvi.models.modules import MultiEncoder, MultiDecoder
 from scvi.models.utils import one_hot
@@ -251,13 +251,15 @@ class JVAE(nn.Module):
     ) -> torch.Tensor:
         reconstruction_loss = None
         if self.reconstruction_losses[mode] == "zinb":
-            reconstruction_loss = -log_zinb_positive(x, px_rate, px_r, px_dropout).sum(
-                dim=-1
+            reconstruction_loss = (
+                -ZINB(mu=px_rate, theta=px_r, zi_logits=px_dropout)
+                .log_prob(x)
+                .sum(dim=-1)
             )
         elif self.reconstruction_losses[mode] == "nb":
-            reconstruction_loss = -log_nb_positive(x, px_rate, px_r).sum(dim=-1)
+            reconstruction_loss = -NB(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
         elif self.reconstruction_losses[mode] == "poisson":
-            reconstruction_loss = -torch.sum(Poisson(px_rate).log_prob(x), dim=1)
+            reconstruction_loss = -Poisson(px_rate).log_prob(x).sum(dim=1)
         return reconstruction_loss
 
     def encode(
