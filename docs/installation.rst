@@ -1,6 +1,8 @@
 Installation
 ------------
 
+Prerequisites
+~~~~~~~~~~~~~~
 1. Install Python 3.7. We typically use the Miniconda_ Python distribution and Linux.
 
 .. _Miniconda: https://conda.io/miniconda.html
@@ -9,14 +11,32 @@ Installation
 
 .. _PyTorch: http://pytorch.org
 
-3. Install scVI in one of the following ways:
 
-    1. Through conda ``conda install scvi -c bioconda -c conda-forge``
-    2. Through pip ``pip install scvi``
-    3. Through pip with packages to run notebooks ``pip install scvi[notebooks]``
-    4. Nightly version - clone this repo and run ``pip install .``
-    5. For development - clone this repo and run ``pip install -e .[test,notebooks]``
+scVI installation
+~~~~~~~~~~~~~~~~~~
 
-4. If you wish to use multiple GPUs for hyperparameter tuning, install MongoDb_.
+Install scVI in one of the following ways:
+
+Through conda::
+
+    conda install scvi -c bioconda -c conda-forge
+
+Through pip::
+
+    pip install scvi
+
+Through pip with packages to run notebooks. This installs scanpy, etc.::
+
+    pip install scvi[notebooks]
+
+Nightly version - clone this repo and run::
+
+    pip install .
+
+For development - clone this repo and run::
+
+    pip install -e .[test,notebooks]
+
+If you wish to use multiple GPUs for hyperparameter tuning, install MongoDb_.
 
 .. _MongoDb: https://docs.mongodb.com/manual/installation/

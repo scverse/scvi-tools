@@ -3,7 +3,7 @@
 
    * `Romain Lopez`_: scVI lead, ☀, #
    * `Adam Gayoso`_: totalVI lead, LDVAE, ☀, #
-   * Pierre Boyeau: differential expression development, ☀, #
+   * Pierre Boyeau: differential expression, ☀, #
    * `Jeffrey Regier`_: initial scVI package, ☀
    * Chenling Xu : scANVI, ☀
    * `Valentine Svensson`_: LDVAE, ☀
