@@ -2,10 +2,10 @@ import torch
 import torch.nn.functional as F
 from torch.distributions import Normal, Beta, Gamma, kl_divergence as kl
 import numpy as np
-
-from scVI.models.distributions import ZINB, NB
-from scvi.models.vae import VAE
 from scipy.special import logit
+
+from scvi.models.distributions import ZINB, NB
+from scvi.models.vae import VAE
 from scvi.models.utils import one_hot
 
 from typing import Dict, Optional, Tuple, Union

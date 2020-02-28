@@ -41,7 +41,7 @@ from scvi.models.log_likelihood import (
     compute_marginal_log_likelihood_scvi,
     compute_marginal_log_likelihood_autozi,
 )
-from scvi.models import NB, ZINB
+from scvi.models.distributions import NB, ZINB
 from scipy.stats import spearmanr
 
 logger = logging.getLogger(__name__)
