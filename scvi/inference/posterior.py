@@ -1573,13 +1573,13 @@ def load_posterior(
 
         Usage example:
         1. Save posterior
-            >>> model = VAE(nb_genes, n_batches, n_hidden=64, n_latent=5)
+            >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
             >>> trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
             >>> trainer.train(n_epochs=200)
             >>> trainer.train_set.save_posterior("./my_run_train_posterior")
 
         2. Load posterior
-            >>> model = VAE(nb_genes, n_batches, n_hidden=64, n_latent=5)
+            >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
             >>> post = load_posterior("./my_run_train_posterior", model=model)
 
     """
