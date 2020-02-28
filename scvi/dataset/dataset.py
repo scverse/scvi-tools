@@ -11,6 +11,7 @@ from typing import Dict, Iterable, List, Tuple, Union, Optional, Callable
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
+import anndata
 import torch
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
@@ -63,7 +64,7 @@ class GeneExpressionDataset(Dataset):
         self.cell_attribute_names = set()
         self.cell_categorical_attribute_names = set()
         self.attribute_mappings = defaultdict(list)
-        self.cell_measurements_columns = dict()
+        self.cell_measurements_col_mappings = dict()
 
         # initialize attributes
         self._X = None
@@ -93,7 +94,7 @@ class GeneExpressionDataset(Dataset):
                 "gene_attribute_names",
                 "cell_attribute_names",
                 "cell_categorical_attribute_names",
-                "cell_measurements_columns",
+                "cell_measurements_col_mappings",
             ]
             for attr_name in attrs:
                 attr = getattr(self, attr_name)
@@ -387,7 +388,7 @@ class GeneExpressionDataset(Dataset):
                 attribute_name in gene_datasets_list[0].cell_categorical_attribute_names
             )
             is_measurement = (
-                attribute_name in gene_datasets_list[0].cell_measurements_columns
+                attribute_name in gene_datasets_list[0].cell_measurements_col_mappings
             )
             if is_categorical:
                 logger.debug(attribute_name + " was detected as categorical")
@@ -469,9 +470,9 @@ class GeneExpressionDataset(Dataset):
                     )
 
             elif is_measurement:
-                columns_attr_name = gene_datasets_list[0].cell_measurements_columns[
-                    attribute_name
-                ]
+                columns_attr_name = gene_datasets_list[
+                    0
+                ].cell_measurements_col_mappings[attribute_name]
                 intersect = cell_measurement_intersection.get(attribute_name, True)
                 # Intersect or union columns across datasets
                 # Individual datasets with missing columns will have 0s for these features
@@ -708,7 +709,9 @@ class GeneExpressionDataset(Dataset):
             measurement.name = valid_attribute_name
         self.initialize_cell_attribute(measurement.name, measurement.data)
         setattr(self, measurement.columns_attr_name, np.asarray(measurement.columns))
-        self.cell_measurements_columns[measurement.name] = measurement.columns_attr_name
+        self.cell_measurements_col_mappings[
+            measurement.name
+        ] = measurement.columns_attr_name
 
     def initialize_gene_attribute(self, attribute_name, attribute):
         """Sets and registers a gene-wise attribute, e.g annotation information."""
@@ -1236,6 +1239,48 @@ class GeneExpressionDataset(Dataset):
     #           MISC.           #
     #                           #
     #############################
+
+    def to_anndata(self) -> anndata.AnnData:
+        """
+            Converts the dataset to a anndata.AnnData object.
+            The obtained dataset can then be saved/retrieved using the anndata API.
+        """
+
+        # obs/obsm contruction
+        obsm = dict()
+        obs = dict()
+        for key in self.cell_attribute_names:
+            if key not in ["local_means", "local_vars"]:
+                vals = getattr(self, key)
+                if key in self.cell_measurements_col_mappings:
+                    obsm[key] = vals
+                elif key == "labels" and self.cell_types is not None:
+                    cell_types_arr = np.array(self.cell_types)
+                    obs["cell_types"] = cell_types_arr[vals.squeeze()]
+                else:
+                    obs[key] = vals.squeeze()
+        obs = pd.DataFrame(obs)
+
+        # var contruction
+        var = dict()
+        for key in self.gene_attribute_names:
+            if key != "gene_names":
+                var[key] = getattr(self, key)
+        gene_names = (
+            self.gene_names if self.gene_names is not None else np.arange(self.nb_genes)
+        )
+        var = pd.DataFrame(var, index=gene_names)
+
+        # It's important to save the measurements name mapping for latter loading
+        all_names = {
+            name: getattr(self, name) for name in self.cell_measurements_col_mappings
+        }
+        uns = dict(
+            cell_measurements_col_mappings=self.cell_measurements_col_mappings,
+            **all_names,
+        )
+        ad = anndata.AnnData(X=self.X, obs=obs, obsm=obsm, var=var, uns=uns)
+        return ad
 
     def normalize(self):
         scaling_factor = self.X.mean(axis=1)

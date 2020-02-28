@@ -1,4 +1,4 @@
-from .posterior import Posterior
+from .posterior import Posterior, load_posterior
 from .trainer import Trainer
 from .inference import UnsupervisedTrainer, AdapterTrainer
 from .annotation import (
@@ -13,6 +13,7 @@ from .total_inference import TotalPosterior, TotalTrainer
 __all__ = [
     "Trainer",
     "Posterior",
+    "load_posterior",
     "UnsupervisedTrainer",
     "AdapterTrainer",
     "JointSemiSupervisedTrainer",

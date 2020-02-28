@@ -3,7 +3,12 @@ from unittest import TestCase
 import anndata
 import numpy as np
 
-from scvi.dataset import AnnDatasetFromAnnData, DownloadableAnnDataset
+from scvi.dataset import (
+    AnnDatasetFromAnnData,
+    DownloadableAnnDataset,
+    CellMeasurement,
+    GeneExpressionDataset,
+)
 from .utils import unsupervised_training_one_epoch
 
 
@@ -31,3 +36,20 @@ class TestAnnDataset(TestCase):
         ad.raw = ad.copy()
         dataset = AnnDatasetFromAnnData(ad, use_raw=True)
         np.testing.assert_array_equal(dataset.X, raw_data)
+
+    def test_data_loader(self):
+        data = np.ones((25, 10)) * 100
+        paired = np.ones((25, 4)) * np.arange(0, 4)
+        pair_names = ["gabou", "achille", "pedro", "oclivio"]
+        y = CellMeasurement(
+            name="dev", data=paired, columns_attr_name="dev_names", columns=pair_names
+        )
+        dataset = GeneExpressionDataset()
+        dataset.populate_from_data(data, Ys=[y])
+        ad = dataset.to_anndata()
+        dataset_ad = AnnDatasetFromAnnData(
+            ad, cell_measurements_col_mappings={"dev": "dev_names"}
+        )
+        self.assertTrue((paired == dataset_ad.dev).all())
+        self.assertTrue((dataset.X == dataset_ad.X).all())
+        self.assertTrue((dataset.cell_types == dataset_ad.cell_types).all())
