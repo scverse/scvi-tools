@@ -77,6 +77,7 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
         self.populate_from_data(
             X=X,
             Ys=Ys,
+            labels=labels,
             batch_indices=batch_indices,
             gene_names=gene_names,
             cell_types=cell_types,
@@ -205,7 +206,7 @@ def extract_data_from_anndata(
         labels = res[0].astype(int)
         cell_types = np.array(res[1]).astype(str)
 
-    if class_label in obs.columns:
+    elif class_label in obs.columns:
         labels = obs.pop(class_label)
 
     return (
