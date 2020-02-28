@@ -55,7 +55,9 @@ class SequentialSubsetSampler(SubsetRandomSampler):
 
 
 class Posterior:
-    r"""The functional data unit. A `Posterior` instance is instantiated with a model and a gene_dataset, and
+    r"""The functional data unit.
+
+    A `Posterior` instance is instantiated with a model and a gene_dataset, and
     as well as additional arguments that for Pytorch's `DataLoader`. A subset of indices can be specified, for
     purposes such as splitting the data into train/test or labelled/unlabelled (for semi-supervised learning).
     Each trainer instance of the `Trainer` class can therefore have multiple `Posterior` instances to train a model.
@@ -100,10 +102,6 @@ class Posterior:
         use_cuda=True,
         data_loader_kwargs=dict(),
     ):
-        """
-
-        When added to annotation, has a private name attribute
-        """
         self.model = model
         self.gene_dataset = gene_dataset
         self.to_monitor = []
@@ -133,12 +131,12 @@ class Posterior:
     accuracy.mode = "max"
 
     def save_posterior(self, dir_path: str):
-        """
-            Saves the posterior properties in folder `dir_path`.
-            To ensure safety, this method requires that `dir_path` does not exist.
-            The posterior can then be retrieved later on with the function `load_posterior`
+        """Saves the posterior properties in folder `dir_path`.
 
-            :param dir_path: non-existing directory in which the posterior properties will be saved.
+        To ensure safety, this method requires that `dir_path` does not exist.
+        The posterior can then be retrieved later on with the function `load_posterior`
+
+        :param dir_path: non-existing directory in which the posterior properties will be saved.
         """
 
         if not os.path.exists(dir_path):
@@ -235,8 +233,8 @@ class Posterior:
 
     @torch.no_grad()
     def get_latent(self, give_mean: Optional[bool] = True) -> Tuple:
-        """
-        Output posterior z mean or sample, batch index, and label
+        """Output posterior z mean or sample, batch index, and label
+
         :param sample: z mean or z sample
         :return: three np.ndarrays, latent, batch_indices, labels
         """
@@ -269,26 +267,23 @@ class Posterior:
     entropy_batch_mixing.mode = "max"
 
     def update_sampler_indices(self, idx: Union[List, np.ndarray]):
-        """
-        Updates the dataloader indices.
-        More precisely, this method can be used to temporarily change which cells __iter__
-        will yield.
-        This is particularly useful for computational considerations when one is only interested
-        in a subset of the cells of the Posterior object.
+        """Updates the dataloader indices.
 
+        More precisely, this method can be used to temporarily change which cells __iter__
+        will yield. This is particularly useful for computational considerations when one is only interested
+        in a subset of the cells of the Posterior object.
         This method should be used carefully and requires to reset the dataloader to its
         original value after use.
-        e.g.,
-        ```
-            old_loader = self.data_loader
-            cell_indices = np.array([1, 2, 3])
-            self.update_sampler_indices(cell_indices)
-            for tensors in self:
-                # your code
 
-            # Do not forget next line!
-            self.data_loader = old_loader
-        ```
+        example:
+            >>> old_loader = self.data_loader
+            >>> cell_indices = np.array([1, 2, 3])
+            >>> self.update_sampler_indices(cell_indices)
+            >>> for tensors in self:
+            >>>    # your code
+
+            >>> # Do not forget next line!
+            >>> self.data_loader = old_loader
 
         :param idx: Indices (in [0, len(dataset)] to sample from
         """
@@ -297,14 +292,14 @@ class Posterior:
         self.data_loader = DataLoader(self.gene_dataset, **self.data_loader_kwargs)
 
     @torch.no_grad()
-    def differential_expression_stats(self, M_sampling=100):
-        """
-        Output average over statistics in a symmetric way (a against b), forget the sets if permutation is True
+    def differential_expression_stats(self, M_sampling: int = 100) -> Tuple:
+        """Output average over statistics in a symmetric way (a against b), forget the sets if permutation is True
 
         :param M_sampling: number of samples
         :return: Tuple px_scales, all_labels where (i) px_scales: scales of shape (M_sampling, n_genes)
             (ii) all_labels: labels of shape (M_sampling, )
         """
+
         warnings.warn(
             "differential_expression_stats() is deprecated; "
             "use differential_expression_score() or get_sample_scale().",
@@ -356,20 +351,20 @@ class Posterior:
         give_mean: Optional[bool] = False,
         **kwargs,
     ) -> dict:
-        r"""
+        r"""Samples the posterior scale using the variational posterior distribution.
+
         :param n_samples: Number of samples in total per batch (fill either `n_samples_total`
-        or `n_samples_per_cell`)
+         or `n_samples_per_cell`)
         :param n_samples_per_cell: Number of time we sample from each observation per batch
-        (fill either `n_samples_total` or `n_samples_per_cell`)
+         (fill either `n_samples_total` or `n_samples_per_cell`)
         :param batchid: Biological batch for which to sample from.
-        Default (None) sample from all batches
+         Default (None) sample from all batches
         :param use_observed_batches: Whether normalized means are conditioned on observed
-        batches or if observed batches are to be used
+         batches or if observed batches are to be used
         :param selection: Mask or list of cell ids to select
         :\**kwargs: Other keywords arguments for `get_sample_scale()`
 
-        :return:
-        Dictionary containing:
+        :return: Dictionary containing:
             `scale`
                 Posterior aggregated scale samples of shape (n_samples, n_genes)
                 where n_samples correspond to either:
@@ -451,9 +446,8 @@ class Posterior:
         delta: Optional[float] = 0.5,
         **kwargs,
     ) -> dict:
-        r"""
-        Unified method for differential expression inference.
-        # FUNCTIONING
+        r"""Unified method for differential expression inference.
+
         Two modes coexist:
             - the "vanilla" mode follows protocol described in arXiv:1709.02082
             In this case, we perform hypothesis testing based on:
@@ -482,7 +476,6 @@ class Posterior:
             Decision-making can then be based on the estimates of
                 p(M_1 | x_1, x_2)
 
-        # POSTERIOR SAMPLING
         Both modes require to sample the normalized means posteriors
         To that purpose we sample the Posterior in the following way:
             1. The posterior is sampled n_samples times for each subpopulation
@@ -491,7 +484,6 @@ class Posterior:
                 Remember that computing the Bayes Factor requires sampling
                 q(z_A | x_A) and q(z_B | x_B)
 
-        # BATCH HANDLING
         Currently, the code covers several batch handling configurations:
             1. If `use_observed_batches`=True, then batch are considered as observations
             and cells' normalized means are conditioned on real batch observations
@@ -508,12 +500,8 @@ class Posterior:
 
             This function does not cover other cases yet and will warn users in such cases.
 
-        # PARAMETERS
-        ## Mode parameters
+
         :param mode: one of ["vanilla", "change"]
-
-
-        ## Genes/cells/batches selection parameters
         :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
         from associated population
         :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
@@ -525,7 +513,6 @@ class Posterior:
         :param use_observed_batches: Whether normalized means are conditioned on observed
         batches
 
-        ## Sampling parameters
         :param n_samples: Number of posterior samples
         :param use_permutation: Activates step 2 described above.
         Simply formulated, pairs obtained from posterior sampling (when calling
@@ -535,12 +522,11 @@ class Posterior:
         Only makes sense when use_permutation=True
 
         :param change_fn: function computing effect size based on both normalized means
-
-            :param m1_domain_fn: custom indicator function of effect size regions
-            inducing differential expression
-            :param delta: specific case of region inducing differential expression.
-            In this case, we suppose that R \ [-delta, delta] does not induce differential expression
-            (LFC case)
+        :param m1_domain_fn: custom indicator function of effect size regions
+        inducing differential expression
+        :param delta: specific case of region inducing differential expression.
+        In this case, we suppose that R \ [-delta, delta] does not induce differential expression
+        (LFC case)
 
         :\**kwargs: Other keywords arguments for `get_sample_scale()`
 
@@ -702,12 +688,10 @@ class Posterior:
         delta: Optional[float] = 0.5,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""
-        Unified method for differential expression inference.
+        r"""Unified method for differential expression inference.
         This function is an extension of the `get_bayes_factors` method
         providing additional genes information to the user
 
-        # FUNCTIONING
         Two modes coexist:
             - the "vanilla" mode follows protocol described in arXiv:1709.02082
             In this case, we perform hypothesis testing based on:
@@ -736,7 +720,6 @@ class Posterior:
             Decision-making can then be based on the estimates of
                 p(M_1 | x_1, x_2)
 
-        # POSTERIOR SAMPLING
         Both modes require to sample the normalized means posteriors
         To that purpose we sample the Posterior in the following way:
             1. The posterior is sampled n_samples times for each subpopulation
@@ -745,7 +728,6 @@ class Posterior:
                 Remember that computing the Bayes Factor requires sampling
                 q(z_A | x_A) and q(z_B | x_B)
 
-        # BATCH HANDLING
         Currently, the code covers several batch handling configurations:
             1. If `use_observed_batches`=True, then batch are considered as observations
             and cells' normalized means are conditioned on real batch observations
@@ -762,13 +744,8 @@ class Posterior:
 
             This function does not cover other cases yet and will warn users in such cases.
 
-
-        # PARAMETERS
-        # Mode parameters
         :param mode: one of ["vanilla", "change"]
 
-
-        ## Genes/cells/batches selection parameters
         :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
         from associated population
         :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
@@ -780,22 +757,20 @@ class Posterior:
         :param use_observed_batches: Whether normalized means are conditioned on observed
         batches
 
-        ## Sampling parameters
         :param n_samples: Number of posterior samples
         :param use_permutation: Activates step 2 described above.
-        Simply formulated, pairs obtained from posterior sampling (when calling
-        `sample_scale_from_batch`) will be randomly permuted so that the number of
-        pairs used to compute Bayes Factors becomes M_permutation.
+          Simply formulated, pairs obtained from posterior sampling (when calling
+          `sample_scale_from_batch`) will be randomly permuted so that the number of
+          pairs used to compute Bayes Factors becomes M_permutation.
         :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-        Only makes sense when use_permutation=True
+          Only makes sense when use_permutation=True
 
         :param change_fn: function computing effect size based on both normalized means
-
-            :param m1_domain_fn: custom indicator function of effect size regions
-            inducing differential expression
-            :param delta: specific case of region inducing differential expression.
-            In this case, we suppose that R \ [-delta, delta] does not induce differential expression
-            (LFC case)
+        :param m1_domain_fn: custom indicator function of effect size regions
+        inducing differential expression
+        :param delta: specific case of region inducing differential expression.
+        In this case, we suppose that R \ [-delta, delta] does not induce differential expression
+        (LFC case)
 
         :param all_stats: whether additional metrics should be provided
         :\**kwargs: Other keywords arguments for `get_sample_scale()`
@@ -861,9 +836,9 @@ class Posterior:
         filename="one2all",
         **kwargs,
     ) -> tuple:
-        r"""
-        Performs one population vs all others Differential Expression Analysis
-        given labels or using cell types, for each type of population
+        r"""Performs one population vs all others Differential Expression Analysis
+
+        It takes labels or cell types to characterize the different populations.
 
         :param subset: None Or bool array masking subset of cells you are interested in
             (True when you want to select cell). In that case, it should have same length than `gene_dataset`
@@ -965,8 +940,7 @@ class Posterior:
         filename: str = "within_cluster",
         **kwargs,
     ) -> tuple:
-        r"""
-        Performs Differential Expression within clusters for different cell states
+        r"""Performs Differential Expression within clusters for different cell states
 
         :param cell_labels: optional: Labels of cells
         :param min_cells: Ceil number of cells used to compute Bayes Factors
@@ -1065,11 +1039,11 @@ class Posterior:
         n_samples: Optional[int] = 1,
         transform_batch: Optional[Union[int, List[int]]] = None,
     ) -> np.ndarray:
-        """
-        Imputes px_rate over self cells
+        """Imputes px_rate over self cells
+
         :param n_samples:
         :param transform_batch: Batches to condition on.
-        If transform_batch is:
+          If transform_batch is:
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then px_rates are averaged over provided batches.
@@ -1103,8 +1077,7 @@ class Posterior:
         genes: Union[list, np.ndarray] = None,
         batch_size: int = 128,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Create observation samples from the Posterior Predictive distribution
+        """Create observation samples from the Posterior Predictive distribution
 
         :param n_samples: Number of required samples for each cell
         :param genes: Indices of genes of interest
@@ -1170,8 +1143,9 @@ class Posterior:
         batch_size: int = 64,
         rna_size_factor: int = 1000,
         transform_batch: Optional[int] = None,
-    ):
-        """ Return samples from an adjusted posterior predictive.
+    ) -> np.ndarray:
+        """Return samples from an adjusted posterior predictive.
+
         :param n_samples: How may samples per cell
         :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
         :rna_size_factor: size factor for RNA prior to sampling gamma distribution
@@ -1216,13 +1190,14 @@ class Posterior:
         rna_size_factor: int = 1000,
         transform_batch: Optional[Union[int, List[int]]] = None,
         correlation_type: str = "spearman",
-    ):
-        """ Wrapper of `generate_denoised_samples()` to create a gene-gene corr matrix
+    ) -> np.ndarray:
+        """Wrapper of `generate_denoised_samples()` to create a gene-gene corr matrix
+
         :param n_samples: How may samples per cell
         :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
         :rna_size_factor: size factor for RNA prior to sampling gamma distribution
         :param transform_batch: Batches to condition on.
-        If transform_batch is:
+          If transform_batch is:
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then values are averaged over provided batches.
@@ -1296,7 +1271,7 @@ class Posterior:
         )
 
     @torch.no_grad()
-    def get_stats(self):
+    def get_stats(self) -> np.ndarray:
         libraries = []
         for tensors in self.sequential(batch_size=128):
             x, local_l_mean, local_l_var, batch_index, y = tensors
@@ -1306,7 +1281,7 @@ class Posterior:
         return libraries.ravel()
 
     @torch.no_grad()
-    def get_sample_scale(self, transform_batch=None):
+    def get_sample_scale(self, transform_batch=None) -> np.ndarray:
         px_scales = []
         for tensors in self:
             sample_batch, _, _, batch_index, labels = tensors
@@ -1326,7 +1301,7 @@ class Posterior:
         return np.concatenate(px_scales)
 
     @torch.no_grad()
-    def imputation_list(self, n_samples=1):
+    def imputation_list(self, n_samples: int = 1) -> tuple:
         original_list = []
         imputed_list = []
         batch_size = 10000  # self.data_loader_kwargs["batch_size"] // n_samples
@@ -1366,7 +1341,9 @@ class Posterior:
         return original_list, imputed_list
 
     @torch.no_grad()
-    def imputation_score(self, original_list=None, imputed_list=None, n_samples=1):
+    def imputation_score(
+        self, original_list: List = None, imputed_list: List = None, n_samples: int = 1
+    ) -> float:
         if original_list is None or imputed_list is None:
             original_list, imputed_list = self.imputation_list(n_samples=n_samples)
 
@@ -1385,8 +1362,12 @@ class Posterior:
 
     @torch.no_grad()
     def imputation_benchmark(
-        self, n_samples=8, show_plot=True, title_plot="imputation", save_path=""
-    ):
+        self,
+        n_samples: int = 8,
+        show_plot: bool = True,
+        title_plot: str = "imputation",
+        save_path: str = "",
+    ) -> Tuple:
         original_list, imputed_list = self.imputation_list(n_samples=n_samples)
         # Median of medians for all distances
         median_score = self.imputation_score(
@@ -1425,7 +1406,7 @@ class Posterior:
     knn_purity.mode = "max"
 
     @torch.no_grad()
-    def clustering_scores(self, prediction_algorithm="knn"):
+    def clustering_scores(self, prediction_algorithm: str = "knn") -> Tuple:
         if self.gene_dataset.n_labels > 1:
             latent, _, labels = self.get_latent()
             if prediction_algorithm == "knn":
@@ -1450,10 +1431,11 @@ class Posterior:
             return asw_score, nmi_score, ari_score, uca_score
 
     @torch.no_grad()
-    def nn_overlap_score(self, **kwargs):
-        """
-        Quantify how much the similarity between cells in the mRNA latent space resembles their similarity at the
-        protein level. Compute the overlap fold enrichment between the protein and mRNA-based cell 100-nearest neighbor
+    def nn_overlap_score(self, **kwargs) -> Tuple:
+        """Quantify how much the similarity between cells in the mRNA latent space resembles their similarity at the
+        protein level.
+
+        Compute the overlap fold enrichment between the protein and mRNA-based cell 100-nearest neighbor
         graph and the Spearman correlation of the adjacency matrices.
         """
         if hasattr(self.gene_dataset, "protein_expression_clr"):
@@ -1542,7 +1524,7 @@ class Posterior:
             plt.savefig(save_name)
 
     @staticmethod
-    def apply_t_sne(latent, n_samples=1000):
+    def apply_t_sne(latent, n_samples: int = 1000) -> Tuple:
         idx_t_sne = (
             np.random.permutation(len(latent))[:n_samples]
             if n_samples
@@ -1552,9 +1534,9 @@ class Posterior:
             latent = TSNE().fit_transform(latent[idx_t_sne])
         return latent, idx_t_sne
 
-    def raw_data(self):
-        """
-        Returns raw data for classification
+    def raw_data(self) -> Tuple:
+        """Returns raw data for classification
+
         """
         return (
             self.gene_dataset.X[self.indices],
@@ -1565,8 +1547,8 @@ class Posterior:
 def load_posterior(
     dir_path: str, model: nn.Module, use_cuda: Optional[bool] = True
 ) -> Posterior:
-    """
-        Function to use in order to retrieve a posterior that was saved using the `save_posterior` method
+    """Function to use in order to retrieve a posterior that was saved using the `save_posterior` method
+
         Because of pytorch model loading usage, this function needs a scVI model object initialized with exact same parameters
         that during training.
 
@@ -1576,14 +1558,14 @@ def load_posterior(
 
         Usage example:
         1. Save posterior
-        >>> model = VAE(nb_genes, n_batches, n_hidden=64, n_latent=5)
-        >>> trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
-        >>> trainer.train(n_epochs=200)
-        >>> trainer.train_set.save_posterior("./my_run_train_posterior")
+            >>> model = VAE(nb_genes, n_batches, n_hidden=64, n_latent=5)
+            >>> trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
+            >>> trainer.train(n_epochs=200)
+            >>> trainer.train_set.save_posterior("./my_run_train_posterior")
 
         2. Load posterior
-        >>> model = VAE(nb_genes, n_batches, n_hidden=64, n_latent=5)
-        >>> post = load_posterior("./my_run_train_posterior", model=model)
+            >>> model = VAE(nb_genes, n_batches, n_hidden=64, n_latent=5)
+            >>> post = load_posterior("./my_run_train_posterior", model=model)
 
     """
     dataset_path = os.path.join(dir_path, "anndata_dataset.h5ad")
