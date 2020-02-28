@@ -447,43 +447,45 @@ class Posterior:
         cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
         **kwargs,
     ) -> dict:
-        r"""Unified method for differential expression inference.
+        r"""A unified method for differential expression inference.
 
         Two modes coexist:
-            - the "vanilla" mode follows protocol described in arXiv:1709.02082
-            In this case, we perform hypothesis testing based on:
-                M_1: h_1 > h_2
-                M_2: h_1 <= h_2
+            - the "vanilla" mode follows protocol described in [Lopez18]_
+            In this case, we perform hypothesis testing based on the hypotheses
+                \\( M_1: h_1 > h_2 \\) and \\( M_2: h_1 \\leq h_2 \\)
 
-            DE can then be based on the study of the Bayes factors:
-            log (p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
+            DE can then be based on the study of the Bayes factors
+            \\( \\log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2) \\)
 
-            - the "change" mode (described in bioRxiv, 794289)
+            - the "change" mode (described in [Boyeau19]_)
             consists in estimating an effect size random variable (e.g., log fold-change) and
             performing Bayesian hypothesis testing on this variable.
             The `change_fn` function computes the effect size variable r based two inputs
-            corresponding to the normalized means in both populations
+            corresponding to the normalized means in both populations.
+
             Hypotheses:
-                M_1: r \in R_1 (effect size r in region inducing differential expression)
-                M_2: r not \in R_1 (no differential expression)
-            To characterize the region R_1 which induces DE, the user has two choices.
-                1. A common case is when the region [-delta, delta] does not induce differential
+                \\(M_1: r \\in R_1 \\)  (effect size r in region inducing differential expression)
+
+                \\(M_2: r not \\in R_1\\)  (no differential expression)
+
+            To characterize the region \\(R_1\\), which induces DE, the user has two choices.
+                1. A common case is when the region \\([-\\delta, \\delta]\\) does not induce differential
                 expression.
                 If the user specifies a threshold delta,
-                we suppose that R_1 = \mathbb{R} \ [-delta, delta]
-                2. specify an specific indicator function f: \mathbb{R} -> {0, 1} s.t.
-                    r \in R_1 iff f(r) = 1
+                we suppose that \\(R_1 = \mathbb{R} \ [-\\delta, \\delta]\\)
+                2. specify an specific indicator function \\(f: \mathbb{R} -> {0, 1}\\) s.t.
+                    \\ (r \in R_1 iff f(r) = 1 \\)
 
             Decision-making can then be based on the estimates of
-                p(M_1 | x_1, x_2)
+                \\(p(M_1 | x_1, x_2)\\)
 
         Both modes require to sample the normalized means posteriors
-        To that purpose we sample the Posterior in the following way:
+        To that purpose, we sample the Posterior in the following way:
             1. The posterior is sampled n_samples times for each subpopulation
             2. For computation efficiency (posterior sampling is quite expensive), instead of
                 comparing the obtained samples element-wise, we can permute posterior samples.
                 Remember that computing the Bayes Factor requires sampling
-                q(z_A | x_A) and q(z_B | x_B)
+                \\(q(z_A | x_A)\\) and \\(q(z_B | x_B)\\)
 
         Currently, the code covers several batch handling configurations:
             1. If `use_observed_batches`=True, then batch are considered as observations
@@ -491,8 +493,9 @@ class Posterior:
 
             2. If case (cell group 1) and control (cell group 2) are conditioned on the same
             batch ids.
-                set(batchid1) = set(batchid2):
-                e.g. batchid1 = batchid2 = None
+            Examples:
+                >>> set(batchid1) = set(batchid2)
+                >>> batchid1 = batchid2 = None
 
 
             3. If case and control are conditioned on different batch ids that do not intersect
@@ -526,7 +529,7 @@ class Posterior:
         :param m1_domain_fn: custom indicator function of effect size regions
           inducing differential expression
         :param delta: specific case of region inducing differential expression.
-          In this case, we suppose that R \ [-delta, delta] does not induce differential expression
+          In this case, we suppose that \\( R \ [-\\delta, \\delta] \\) does not induce differential expression
           (LFC case)
         :param cred_interval_lvls: List of credible interval levels to compute for the posterior
           LFC distribution
@@ -698,40 +701,42 @@ class Posterior:
         providing additional genes information to the user
 
         Two modes coexist:
-            - the "vanilla" mode follows protocol described in arXiv:1709.02082
-            In this case, we perform hypothesis testing based on:
-                M_1: h_1 > h_2
-                M_2: h_1 <= h_2
+            - the "vanilla" mode follows protocol described in [Lopez18]_
+            In this case, we perform hypothesis testing based on the hypotheses
+                \\( M_1: h_1 > h_2 \\) and \\( M_2: h_1 \\leq h_2 \\)
 
-            DE can then be based on the study of the Bayes factors:
-            log (p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
+            DE can then be based on the study of the Bayes factors
+            \\( \\log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2) \\)
 
-            - the "change" mode (described in bioRxiv, 794289)
+            - the "change" mode (described in [Boyeau19]_)
             consists in estimating an effect size random variable (e.g., log fold-change) and
             performing Bayesian hypothesis testing on this variable.
             The `change_fn` function computes the effect size variable r based two inputs
-            corresponding to the normalized means in both populations
+            corresponding to the normalized means in both populations.
+
             Hypotheses:
-                M_1: r \in R_0 (effect size r in region inducing differential expression)
-                M_2: r not \in R_0 (no differential expression)
-            To characterize the region R_0, the user has two choices.
-                1. A common case is when the region [-delta, delta] does not induce differential
+                \\(M_1: r \\in R_1 \\)  (effect size r in region inducing differential expression)
+
+                \\(M_2: r not \\in R_1\\)  (no differential expression)
+
+            To characterize the region \\(R_1\\), which induces DE, the user has two choices.
+                1. A common case is when the region \\([-\\delta, \\delta]\\) does not induce differential
                 expression.
                 If the user specifies a threshold delta,
-                we suppose that R_0 = \mathbb{R} \ [-delta, delta]
-                2. specify an specific indicator function f: \mathbb{R} -> {0, 1} s.t.
-                    r \in R_0 iff f(r) = 1
+                we suppose that \\(R_1 = \mathbb{R} \ [-\\delta, \\delta]\\)
+                2. specify an specific indicator function \\(f: \mathbb{R} -> {0, 1}\\) s.t.
+                    \\ (r \in R_1 iff f(r) = 1 \\)
 
             Decision-making can then be based on the estimates of
-                p(M_1 | x_1, x_2)
+                \\(p(M_1 | x_1, x_2)\\)
 
         Both modes require to sample the normalized means posteriors
-        To that purpose we sample the Posterior in the following way:
+        To that purpose, we sample the Posterior in the following way:
             1. The posterior is sampled n_samples times for each subpopulation
             2. For computation efficiency (posterior sampling is quite expensive), instead of
                 comparing the obtained samples element-wise, we can permute posterior samples.
                 Remember that computing the Bayes Factor requires sampling
-                q(z_A | x_A) and q(z_B | x_B)
+                \\(q(z_A | x_A)\\) and \\(q(z_B | x_B)\\)
 
         Currently, the code covers several batch handling configurations:
             1. If `use_observed_batches`=True, then batch are considered as observations
@@ -739,8 +744,9 @@ class Posterior:
 
             2. If case (cell group 1) and control (cell group 2) are conditioned on the same
             batch ids.
-                set(batchid1) = set(batchid2):
-                e.g. batchid1 = batchid2 = None
+            Examples:
+                >>> set(batchid1) = set(batchid2)
+                >>> batchid1 = batchid2 = None
 
 
             3. If case and control are conditioned on different batch ids that do not intersect
@@ -774,7 +780,7 @@ class Posterior:
         :param m1_domain_fn: custom indicator function of effect size regions
           inducing differential expression
         :param delta: specific case of region inducing differential expression.
-          In this case, we suppose that R \ [-delta, delta] does not induce differential expression
+          In this case, we suppose that \\( R \ [-\\delta, \\delta] \\) does not induce differential expression
           (LFC case)
         :param cred_interval_lvls: List of credible interval levels to compute for the posterior
           LFC distribution
