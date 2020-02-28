@@ -1255,7 +1255,8 @@ class GeneExpressionDataset(Dataset):
                 if key in self.cell_measurements_col_mappings:
                     obsm[key] = vals
                 elif key == "labels" and self.cell_types is not None:
-                    obs["cell_types"] = self.cell_types[vals.squeeze()]
+                    cell_types_arr = np.array(self.cell_types)
+                    obs["cell_types"] = cell_types_arr[vals.squeeze()]
                 else:
                     obs[key] = vals.squeeze()
         obs = pd.DataFrame(obs)
