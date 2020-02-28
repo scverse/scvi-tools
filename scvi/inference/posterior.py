@@ -444,6 +444,7 @@ class Posterior:
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
+        cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
         **kwargs,
     ) -> dict:
         r"""Unified method for differential expression inference.
@@ -503,30 +504,32 @@ class Posterior:
 
         :param mode: one of ["vanilla", "change"]
         :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
-        from associated population
+          from associated population
         :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
-        from associated population
+          from associated population
         :param batchid1: List of batch ids for which you want to perform DE Analysis for
-        subpopulation 1. By default, all ids are taken into account
+          subpopulation 1. By default, all ids are taken into account
         :param batchid2: List of batch ids for which you want to perform DE Analysis for
-        subpopulation 2. By default, all ids are taken into account
+          subpopulation 2. By default, all ids are taken into account
         :param use_observed_batches: Whether normalized means are conditioned on observed
-        batches
+          batches
 
         :param n_samples: Number of posterior samples
         :param use_permutation: Activates step 2 described above.
-        Simply formulated, pairs obtained from posterior sampling (when calling
-        `sample_scale_from_batch`) will be randomly permuted so that the number of
-        pairs used to compute Bayes Factors becomes M_permutation.
+          Simply formulated, pairs obtained from posterior sampling (when calling
+          `sample_scale_from_batch`) will be randomly permuted so that the number of
+          pairs used to compute Bayes Factors becomes M_permutation.
         :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-        Only makes sense when use_permutation=True
+          Only makes sense when use_permutation=True
 
         :param change_fn: function computing effect size based on both normalized means
         :param m1_domain_fn: custom indicator function of effect size regions
-        inducing differential expression
+          inducing differential expression
         :param delta: specific case of region inducing differential expression.
-        In this case, we suppose that R \ [-delta, delta] does not induce differential expression
-        (LFC case)
+          In this case, we suppose that R \ [-delta, delta] does not induce differential expression
+          (LFC case)
+        :param cred_interval_lvls: List of credible interval levels to compute for the posterior
+          LFC distribution
 
         :\**kwargs: Other keywords arguments for `get_sample_scale()`
 
@@ -654,7 +657,7 @@ class Posterior:
             proba_m1 = np.mean(is_de, 0)
             change_distribution_props = describe_continuous_distrib(
                 samples=change_distribution,
-                credible_intervals_levels=[0.5, 0.75, 0.95, 0.99],
+                credible_intervals_levels=cred_interval_lvls,
             )
 
             res = dict(
@@ -686,9 +689,11 @@ class Posterior:
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
+        cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""Unified method for differential expression inference.
+
         This function is an extension of the `get_bayes_factors` method
         providing additional genes information to the user
 
@@ -747,15 +752,15 @@ class Posterior:
         :param mode: one of ["vanilla", "change"]
 
         :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
-        from associated population
+          from associated population
         :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
-        from associated population
+          from associated population
         :param batchid1: List of batch ids for which you want to perform DE Analysis for
-        subpopulation 1. By default, all ids are taken into account
+          subpopulation 1. By default, all ids are taken into account
         :param batchid2: List of batch ids for which you want to perform DE Analysis for
-        subpopulation 2. By default, all ids are taken into account
+          subpopulation 2. By default, all ids are taken into account
         :param use_observed_batches: Whether normalized means are conditioned on observed
-        batches
+          batches
 
         :param n_samples: Number of posterior samples
         :param use_permutation: Activates step 2 described above.
@@ -767,10 +772,12 @@ class Posterior:
 
         :param change_fn: function computing effect size based on both normalized means
         :param m1_domain_fn: custom indicator function of effect size regions
-        inducing differential expression
+          inducing differential expression
         :param delta: specific case of region inducing differential expression.
-        In this case, we suppose that R \ [-delta, delta] does not induce differential expression
-        (LFC case)
+          In this case, we suppose that R \ [-delta, delta] does not induce differential expression
+          (LFC case)
+        :param cred_interval_lvls: List of credible interval levels to compute for the posterior
+          LFC distribution
 
         :param all_stats: whether additional metrics should be provided
         :\**kwargs: Other keywords arguments for `get_sample_scale()`
@@ -790,6 +797,7 @@ class Posterior:
             change_fn=change_fn,
             m1_domain_fn=m1_domain_fn,
             delta=delta,
+            cred_interval_lvls=cred_interval_lvls,
             **kwargs,
         )
         gene_names = self.gene_dataset.gene_names
@@ -832,6 +840,7 @@ class Posterior:
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
+        cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
         save_dir: str = "./",
         filename="one2all",
         **kwargs,
@@ -857,6 +866,8 @@ class Posterior:
         :param change_fn: see `differential_expression_score`
         :param m1_domain_fn: see `differential_expression_score`
         :param delta: see `differential_expression_score
+        :param cred_interval_lvls: List of credible interval levels to compute for the posterior
+          LFC distribution
         :param output_file: Bool: save file?
         :param save_dir:
         :param filename:`
@@ -907,6 +918,7 @@ class Posterior:
                     M_permutation=M_permutation,
                     n_samples=n_samples,
                     use_permutation=use_permutation,
+                    cred_interval_lvls=cred_interval_lvls,
                     **kwargs,
                 )
                 res["clusters"] = np.repeat(x, len(res.index))
@@ -935,6 +947,7 @@ class Posterior:
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
+        cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
         output_file: bool = False,
         save_dir: str = "./",
         filename: str = "within_cluster",
@@ -965,7 +978,8 @@ class Posterior:
         :param mode: see `differential_expression_score`
         :param change_fn: see `differential_expression_score`
         :param m1_domain_fn: see `differential_expression_score`
-        :param delta: see `differential_expression_score
+        :param delta: see `differential_expression_score`
+        :param cred_interval_lvls: See `differential_expression_score`
         :\**kwargs: Other keywords arguments for `get_sample_scale()`
 
         :return: Tuple (de_res, de_cluster) (i) de_res is a list of length nb_clusters
@@ -1021,6 +1035,7 @@ class Posterior:
                     change_fn=change_fn,
                     m1_domain_fn=m1_domain_fn,
                     delta=delta,
+                    cred_interval_lvls=cred_interval_lvls,
                     **kwargs,
                 )
                 res["clusters"] = np.repeat(x, len(res.index))
