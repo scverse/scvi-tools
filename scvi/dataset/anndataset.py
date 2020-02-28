@@ -35,7 +35,7 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
         ctype_label: str = "cell_types",
         class_label: str = "labels",
         use_raw: bool = False,
-        cell_measurements_columns: Optional[Dict[str, str]] = None,
+        cell_measurements_col_mappings: Optional[Dict[str, str]] = None,
     ):
         super().__init__()
         (
@@ -63,8 +63,8 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
 
         # add external cell measurements
         Ys = []
-        if cell_measurements_columns is not None:
-            for name, attr_name in cell_measurements_columns.items():
+        if cell_measurements_col_mappings is not None:
+            for name, attr_name in cell_measurements_col_mappings.items():
                 columns = uns[name]
                 measurement = CellMeasurement(
                     name=name,

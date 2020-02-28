@@ -1589,13 +1589,13 @@ def load_posterior(
 
     ad = anndata.read_h5ad(filename=dataset_path)
 
-    key = "cell_measurements_columns"
+    key = "cell_measurements_col_mappings"
     if key in ad.uns:
-        cell_measurements_columns = ad.uns[key]
+        cell_measurements_col_mappings = ad.uns[key]
     else:
-        cell_measurements_columns = dict()
+        cell_measurements_col_mappings = dict()
     dataset = AnnDatasetFromAnnData(
-        ad=ad, cell_measurements_columns=cell_measurements_columns
+        ad=ad, cell_measurements_col_mappings=cell_measurements_col_mappings
     )
     model.load_state_dict(torch.load(model_path))
     model.eval()

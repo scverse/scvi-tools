@@ -391,6 +391,7 @@ def test_differential_expression(save_path):
         mode="change",
         use_permutation=True,
         M_permutation=100,
+        cred_interval_lvls=[0.5, 0.95],
     )
     print(de_dataframe.keys())
     assert (

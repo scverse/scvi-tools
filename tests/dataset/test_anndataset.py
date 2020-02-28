@@ -48,7 +48,7 @@ class TestAnnDataset(TestCase):
         dataset.populate_from_data(data, Ys=[y])
         ad = dataset.to_anndata()
         dataset_ad = AnnDatasetFromAnnData(
-            ad, cell_measurements_columns={"dev": "dev_names"}
+            ad, cell_measurements_col_mappings={"dev": "dev_names"}
         )
         self.assertTrue((paired == dataset_ad.dev).all())
         self.assertTrue((dataset.X == dataset_ad.X).all())
