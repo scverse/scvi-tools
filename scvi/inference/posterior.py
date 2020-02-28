@@ -452,10 +452,14 @@ class Posterior:
         Two modes coexist:
             - the "vanilla" mode follows protocol described in [Lopez18]_
             In this case, we perform hypothesis testing based on the hypotheses
-                \\( M_1: h_1 > h_2 \\) and \\( M_2: h_1 \\leq h_2 \\)
+
+            .. math::
+                M_1: h_1 > h_2 ~\text{and}~ M_2: h_1 \leq h_2
 
             DE can then be based on the study of the Bayes factors
-            \\( \\log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2) \\)
+
+            .. math::
+                \log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
 
             - the "change" mode (described in [Boyeau19]_)
             consists in estimating an effect size random variable (e.g., log fold-change) and
@@ -464,20 +468,25 @@ class Posterior:
             corresponding to the normalized means in both populations.
 
             Hypotheses:
-                \\(M_1: r \\in R_1 \\)  (effect size r in region inducing differential expression)
+            .. math::
+                M_1: r \in R_1 ~\text{(effect size r in region inducing differential expression)}
 
-                \\(M_2: r not \\in R_1\\)  (no differential expression)
+            .. math::
+                M_2: r not \in R_1 ~\text{(no differential expression)}
 
-            To characterize the region \\(R_1\\), which induces DE, the user has two choices.
-                1. A common case is when the region \\([-\\delta, \\delta]\\) does not induce differential
+            To characterize the region :math:`R_1`, which induces DE, the user has two choices.
+                1. A common case is when the region :math:`[-\delta, \delta]` does not induce differential
                 expression.
                 If the user specifies a threshold delta,
-                we suppose that \\(R_1 = \mathbb{R} \ [-\\delta, \\delta]\\)
-                2. specify an specific indicator function \\(f: \mathbb{R} -> {0, 1}\\) s.t.
-                    \\ (r \in R_1 iff f(r) = 1 \\)
+                we suppose that :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
+                2. specify an specific indicator function
+
+                .. math::
+                    f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 iff f(r) = 1
 
             Decision-making can then be based on the estimates of
-                \\(p(M_1 | x_1, x_2)\\)
+                .. math::
+                    p(M_1 \mid x_1, x_2)
 
         Both modes require to sample the normalized means posteriors
         To that purpose, we sample the Posterior in the following way:
@@ -485,7 +494,7 @@ class Posterior:
             2. For computation efficiency (posterior sampling is quite expensive), instead of
                 comparing the obtained samples element-wise, we can permute posterior samples.
                 Remember that computing the Bayes Factor requires sampling
-                \\(q(z_A | x_A)\\) and \\(q(z_B | x_B)\\)
+                :math:`q(z_A \mid x_A)` and :math:`q(z_B \mid x_B)`
 
         Currently, the code covers several batch handling configurations:
             1. If `use_observed_batches`=True, then batch are considered as observations
@@ -503,7 +512,6 @@ class Posterior:
                   and intersection(set(batchid1), set(batchid2)) = \emptyset
 
             This function does not cover other cases yet and will warn users in such cases.
-
 
         :param mode: one of ["vanilla", "change"]
         :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
@@ -529,7 +537,7 @@ class Posterior:
         :param m1_domain_fn: custom indicator function of effect size regions
           inducing differential expression
         :param delta: specific case of region inducing differential expression.
-          In this case, we suppose that \\( R \ [-\\delta, \\delta] \\) does not induce differential expression
+          In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce differential expression
           (LFC case)
         :param cred_interval_lvls: List of credible interval levels to compute for the posterior
           LFC distribution
@@ -703,10 +711,14 @@ class Posterior:
         Two modes coexist:
             - the "vanilla" mode follows protocol described in [Lopez18]_
             In this case, we perform hypothesis testing based on the hypotheses
-                \\( M_1: h_1 > h_2 \\) and \\( M_2: h_1 \\leq h_2 \\)
+
+            .. math::
+                M_1: h_1 > h_2 ~\text{and}~ M_2: h_1 \leq h_2
 
             DE can then be based on the study of the Bayes factors
-            \\( \\log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2) \\)
+
+            .. math::
+                \log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
 
             - the "change" mode (described in [Boyeau19]_)
             consists in estimating an effect size random variable (e.g., log fold-change) and
@@ -715,20 +727,25 @@ class Posterior:
             corresponding to the normalized means in both populations.
 
             Hypotheses:
-                \\(M_1: r \\in R_1 \\)  (effect size r in region inducing differential expression)
+            .. math::
+                M_1: r \in R_1 ~\text{(effect size r in region inducing differential expression)}
 
-                \\(M_2: r not \\in R_1\\)  (no differential expression)
+            .. math::
+                M_2: r not \in R_1 ~\text{(no differential expression)}
 
-            To characterize the region \\(R_1\\), which induces DE, the user has two choices.
-                1. A common case is when the region \\([-\\delta, \\delta]\\) does not induce differential
+            To characterize the region :math:`R_1`, which induces DE, the user has two choices.
+                1. A common case is when the region :math:`[-\delta, \delta]` does not induce differential
                 expression.
                 If the user specifies a threshold delta,
-                we suppose that \\(R_1 = \mathbb{R} \ [-\\delta, \\delta]\\)
-                2. specify an specific indicator function \\(f: \mathbb{R} -> {0, 1}\\) s.t.
-                    \\ (r \in R_1 iff f(r) = 1 \\)
+                we suppose that :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
+                2. specify an specific indicator function
+
+                .. math::
+                    f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 iff f(r) = 1
 
             Decision-making can then be based on the estimates of
-                \\(p(M_1 | x_1, x_2)\\)
+                .. math::
+                    p(M_1 \mid x_1, x_2)
 
         Both modes require to sample the normalized means posteriors
         To that purpose, we sample the Posterior in the following way:
@@ -736,7 +753,7 @@ class Posterior:
             2. For computation efficiency (posterior sampling is quite expensive), instead of
                 comparing the obtained samples element-wise, we can permute posterior samples.
                 Remember that computing the Bayes Factor requires sampling
-                \\(q(z_A | x_A)\\) and \\(q(z_B | x_B)\\)
+                :math:`q(z_A \mid x_A)` and :math:`q(z_B \mid x_B)`
 
         Currently, the code covers several batch handling configurations:
             1. If `use_observed_batches`=True, then batch are considered as observations
@@ -780,7 +797,7 @@ class Posterior:
         :param m1_domain_fn: custom indicator function of effect size regions
           inducing differential expression
         :param delta: specific case of region inducing differential expression.
-          In this case, we suppose that \\( R \ [-\\delta, \\delta] \\) does not induce differential expression
+          In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce differential expression
           (LFC case)
         :param cred_interval_lvls: List of credible interval levels to compute for the posterior
           LFC distribution
