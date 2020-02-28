@@ -49,7 +49,6 @@ extensions = [
 # nbsphinx specific settings
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
 nbsphinx_execute = "never"
-highlight_language = "none"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
