@@ -1,0 +1,93 @@
+/* ReadTheDocs theme colors */
+/* code adapted from scanpy custom css and from https://github.com/godotengine/godot-docs/blob/master/_static/css/custom.css */
+
+/* navbar color */
+.wy-side-nav-search, .wy-nav-top, .wy-nav-side {
+    background: #003262;
+}
+.wy-nav-content {
+    max-width: 1100px;
+}
+.wy-side-nav-search input[type="text"] { border-width: 0 }
+
+/* Heading color in navbar */
+.wy-menu-vertical header,
+.wy-menu-vertical p.caption {
+    color: #C4820E;
+
+    /* Improves the appearance of uppercase text */
+    letter-spacing: 0.75px;
+}
+
+
+/* Custom classes */
+
+.small { font-size:40% }
+.smaller, .pr { font-size:70% }
+
+
+/* Custom classes with bootstrap buttons */
+
+/* Formatting of RTD markup: rubrics and sidebars and admonitions */
+
+/* rubric */
+.rst-content p.rubric {
+    margin-bottom: 6px;
+    font-weight: normal;
+}
+.rst-content p.rubric::after { content: ":" }
+
+/* sidebar */
+.rst-content .sidebar {
+    /* margin: 0px 0px 0px 12px; */
+    padding-bottom: 0px;
+}
+.rst-content .sidebar p {
+    margin-bottom: 12px;
+}
+.rst-content .sidebar p,
+.rst-content .sidebar ul,
+.rst-content .sidebar dl {
+    font-size: 13px;
+}
+
+/* less space after bullet lists in admonitions like warnings and notes */
+.rst-content .section .admonition ul {
+    margin-bottom: 6px;
+}
+
+
+/* override table width restrictions */
+@media screen and (min-width: 767px) {
+
+    .wy-table-responsive table td {
+       /* !important prevents the common CSS stylesheets from overriding
+          this as on RTD they are loaded after this stylesheet */
+       white-space: normal !important;
+    }
+
+    .wy-table-responsive {
+       overflow: visible !important;
+    }
+ }
+
+
+body,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+input[type="text"],
+input[type="button"],
+input[type="reset"],
+input[type="submit"],
+textarea,
+legend,
+.btn,
+.rst-content .toctree-wrapper p.caption,
+.rst-versions {
+    /* Use a system font stack for better performance (no Web fonts required) */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}

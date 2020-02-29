@@ -11,9 +11,10 @@ from scvi.models.vae import VAE
 
 
 class SCANVI(VAE):
-    r"""A semi-supervised Variational auto-encoder model - inspired from M1 + M2 model,
-    as described in (https://arxiv.org/pdf/1406.5298.pdf). SCANVI stands for single-cell annotation using
-    variational inference.
+    r"""Single-cell annotation using variational inference.
+
+    This is an implementation of the scANVI model descibed in [Xu19]_,
+    inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
 
     :param n_input: Number of input genes
     :param n_batch: Number of batches
@@ -139,7 +140,8 @@ class SCANVI(VAE):
         if self.log_variational:
             x = torch.log(1 + x)
         qz_m, _, z = self.z_encoder(x)
-        z = qz_m  # We classify using the inferred mean parameter of z_1 in the latent space
+        # We classify using the inferred mean parameter of z_1 in the latent space
+        z = qz_m
         if self.use_labels_groups:
             w_g = self.classifier_groups(z)
             unw_y = self.classifier(z)
