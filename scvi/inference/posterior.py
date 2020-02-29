@@ -516,7 +516,7 @@ class Posterior:
             M_1: r \in R_1 ~\text{(effect size r in region inducing differential expression)}
 
         .. math::
-            M_2: r ~\text{not}~ \in R_1 ~\text{(no differential expression)}
+            M_2: r  \notin R_1 ~\text{(no differential expression)}
 
         To characterize the region :math:`R_1`, which induces DE, the user has two choices.
 
@@ -524,10 +524,11 @@ class Posterior:
         expression.
         If the user specifies a threshold delta,
         we suppose that :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
+
         2. specify an specific indicator function
 
         .. math::
-            f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 ~\textbf{iff.}~ f(r) = 1
+            f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 ~\text{iff.}~ f(r) = 1
 
         Decision-making can then be based on the estimates of
 
@@ -538,6 +539,7 @@ class Posterior:
         To that purpose, we sample the Posterior in the following way:
 
         1. The posterior is sampled n_samples times for each subpopulation
+
         2. For computation efficiency (posterior sampling is quite expensive), instead of
             comparing the obtained samples element-wise, we can permute posterior samples.
             Remember that computing the Bayes Factor requires sampling
@@ -545,13 +547,14 @@ class Posterior:
 
         Currently, the code covers several batch handling configurations:
 
-        1. If `use_observed_batches`=True, then batch are considered as observations
+        1. If ``use_observed_batches=True``, then batch are considered as observations
         and cells' normalized means are conditioned on real batch observations
 
         2. If case (cell group 1) and control (cell group 2) are conditioned on the same
         batch ids.
         Examples:
             >>> set(batchid1) = set(batchid2)
+
         or
             >>> batchid1 = batchid2 = None
 
@@ -559,6 +562,7 @@ class Posterior:
         3. If case and control are conditioned on different batch ids that do not intersect
         i.e.,
             >>> set(batchid1) != set(batchid2)
+
         and
             >>> len(set(batchid1).intersection(set(batchid2))) == 0
 
@@ -784,7 +788,7 @@ class Posterior:
             M_1: r \in R_1 ~\text{(effect size r in region inducing differential expression)}
 
         .. math::
-            M_2: r ~\text{not}~ \in R_1 ~\text{(no differential expression)}
+            M_2: r  \notin R_1 ~\text{(no differential expression)}
 
         To characterize the region :math:`R_1`, which induces DE, the user has two choices.
 
@@ -792,10 +796,11 @@ class Posterior:
         expression.
         If the user specifies a threshold delta,
         we suppose that :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
+
         2. specify an specific indicator function
 
         .. math::
-            f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 ~\textbf{iff.}~ f(r) = 1
+            f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 ~\text{iff.}~ f(r) = 1
 
         Decision-making can then be based on the estimates of
 
@@ -806,6 +811,7 @@ class Posterior:
         To that purpose, we sample the Posterior in the following way:
 
         1. The posterior is sampled n_samples times for each subpopulation
+
         2. For computation efficiency (posterior sampling is quite expensive), instead of
             comparing the obtained samples element-wise, we can permute posterior samples.
             Remember that computing the Bayes Factor requires sampling
@@ -813,13 +819,14 @@ class Posterior:
 
         Currently, the code covers several batch handling configurations:
 
-        1. If `use_observed_batches`=True, then batch are considered as observations
+        1. If ``use_observed_batches=True``, then batch are considered as observations
         and cells' normalized means are conditioned on real batch observations
 
         2. If case (cell group 1) and control (cell group 2) are conditioned on the same
         batch ids.
         Examples:
             >>> set(batchid1) = set(batchid2)
+
         or
             >>> batchid1 = batchid2 = None
 
@@ -827,6 +834,7 @@ class Posterior:
         3. If case and control are conditioned on different batch ids that do not intersect
         i.e.,
             >>> set(batchid1) != set(batchid2)
+
         and
             >>> len(set(batchid1).intersection(set(batchid2))) == 0
 
