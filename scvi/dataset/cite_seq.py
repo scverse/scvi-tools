@@ -109,11 +109,9 @@ class CiteSeqDataset(DownloadableDataset):
         )
         X = self.expression.values[:, human_filter]
         gene_names = gene_names[human_filter]
-        gene_names = np.char.upper(
-            np.asarray(
-                [name.split("_")[-1] if "_" in name else name for name in gene_names],
-                dtype=np.str,
-            )
+        gene_names = np.asarray(
+            [name.split("_")[-1] if "_" in name else name for name in gene_names],
+            dtype=np.str,
         )
 
         logger.info("Finish preprocessing data")

@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """Main module."""
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union, List
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Normal, kl_divergence as kl
+from torch.distributions import Normal, Bernoulli, kl_divergence as kl
 
 from scvi.models.log_likelihood import (
     log_zinb_positive,
@@ -14,13 +14,16 @@ from scvi.models.log_likelihood import (
 )
 from scvi.models.modules import DecoderTOTALVI, EncoderTOTALVI
 from scvi.models.utils import one_hot
+import numpy as np
 
 torch.backends.cudnn.benchmark = True
 
 
 # VAE model
 class TOTALVI(nn.Module):
-    r"""Latent variable model for CITE-seq data using auto-encoding Variational Bayes
+    """Total variational inference for CITE-seq data
+
+    Implements the totalVI model of [Gayoso19]_.
 
     :param n_input_genes: Number of input genes
     :param n_input_proteins: Number of input proteins
@@ -56,7 +59,7 @@ class TOTALVI(nn.Module):
 
     Examples:
         >>> dataset = Dataset10X(dataset_name="pbmc_10k_protein_v3", save_path=save_path)
-        >>> totalvae = totalVI(gene_dataset.nb_genes, len(dataset.protein_names), use_cuda=True )
+        >>> totalvae = TOTALVI(gene_dataset.nb_genes, len(dataset.protein_names), use_cuda=True)
     """
 
     def __init__(
@@ -67,7 +70,8 @@ class TOTALVI(nn.Module):
         n_labels: int = 0,
         n_hidden: int = 256,
         n_latent: int = 20,
-        n_layers: int = 1,
+        n_layers_encoder: int = 1,
+        n_layers_decoder: int = 1,
         dropout_rate_decoder: float = 0.2,
         dropout_rate_encoder: float = 0.2,
         gene_dispersion: str = "gene",
@@ -75,6 +79,8 @@ class TOTALVI(nn.Module):
         log_variational: bool = True,
         reconstruction_loss_gene: str = "nb",
         latent_distribution: str = "ln",
+        protein_batch_mask: List[np.ndarray] = None,
+        encoder_batch: bool = True,
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
@@ -87,6 +93,7 @@ class TOTALVI(nn.Module):
         self.n_input_proteins = n_input_proteins
         self.protein_dispersion = protein_dispersion
         self.latent_distribution = latent_distribution
+        self.protein_batch_mask = protein_batch_mask
 
         # parameters for prior on rate_back (background protein mean)
         if n_batch > 0:
@@ -94,14 +101,14 @@ class TOTALVI(nn.Module):
                 torch.randn(n_input_proteins, n_batch)
             )
             self.background_pro_log_beta = torch.nn.Parameter(
-                torch.randn(n_input_proteins, n_batch)
+                torch.clamp(torch.randn(n_input_proteins, n_batch), -10, 1)
             )
         else:
             self.background_pro_alpha = torch.nn.Parameter(
                 torch.randn(n_input_proteins)
             )
             self.background_pro_log_beta = torch.nn.Parameter(
-                torch.randn(n_input_proteins)
+                torch.clamp(torch.randn(n_input_proteins), -10, 1)
             )
 
         if self.gene_dispersion == "gene":
@@ -127,7 +134,8 @@ class TOTALVI(nn.Module):
         self.encoder = EncoderTOTALVI(
             n_input_genes + self.n_input_proteins,
             n_latent,
-            n_layers=n_layers,
+            n_layers=n_layers_encoder,
+            n_cat_list=[n_batch] if encoder_batch else None,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate_encoder,
             distribution=latent_distribution,
@@ -136,8 +144,8 @@ class TOTALVI(nn.Module):
             n_latent,
             n_input_genes,
             self.n_input_proteins,
-            n_layers=n_layers,
-            n_cat_list=[n_batch, n_labels],
+            n_layers=n_layers_decoder,
+            n_cat_list=[n_batch],
             n_hidden=n_hidden,
             dropout_rate=dropout_rate_decoder,
         )
@@ -150,13 +158,13 @@ class TOTALVI(nn.Module):
         give_mean: bool = False,
         n_samples: int = 5000,
     ) -> torch.Tensor:
-        """ samples the tensor of latent values from the posterior
-        #doesn't really sample, returns the means of the posterior distribution
+        """ Access the tensor of latent values from the posterior
 
         :param x: tensor of values with shape ``(batch_size, n_input_genes)``
         :param y: tensor of values with shape ``(batch_size, n_input_proteins)``
+        :param batch_index: tensor of batch indices
+        :param give_mean: Whether to sample, or give mean of distribution
         :return: tensor of shape ``(batch_size, n_latent)``
-        :rtype: :py:class:`torch.Tensor`
         """
         if self.log_variational:
             x = torch.log(1 + x)
@@ -181,13 +189,11 @@ class TOTALVI(nn.Module):
         batch_index: Optional[torch.Tensor] = None,
         give_mean: bool = True,
     ) -> torch.Tensor:
-        r""" samples the tensor of library size from the posterior
-        #doesn't really sample, returns the tensor of the means of the posterior distribution
+        """ Provides the tensor of library size from the posterior
 
         :param x: tensor of values with shape ``(batch_size, n_input_genes)``
         :param y: tensor of values with shape ``(batch_size, n_input_proteins)``
         :return: tensor of shape ``(batch_size, 1)``
-        :rtype: :py:class:`torch.Tensor`
         """
         if self.log_variational:
             x = torch.log(1 + x)
@@ -217,7 +223,6 @@ class TOTALVI(nn.Module):
         :param label: tensor of cell-types labels with shape ``(batch_size, n_labels)``
         :param n_samples: number of samples
         :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input_genes)``
-        :rtype: :py:class:`torch.Tensor`
         """
         outputs = self.inference(
             x, y, batch_index=batch_index, label=label, n_samples=n_samples
@@ -240,8 +245,7 @@ class TOTALVI(nn.Module):
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :param label: tensor of cell-types labels with shape ``(batch_size, n_labels)``
         :param n_samples: number of samples
-        :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
-        :rtype: 2-tuple of :py:class:`torch.Tensor`
+        :return: tensors of dispersions of the negative binomial distribution
         """
         outputs = self.inference(
             x, y, batch_index=batch_index, label=label, n_samples=n_samples
@@ -250,23 +254,51 @@ class TOTALVI(nn.Module):
         py_r = outputs["py_"]["r"]
         return px_r, py_r
 
-    def scale_from_z(
-        self, x: torch.Tensor, y: torch.Tensor, fixed_batch: torch.Tensor
+    def get_sample_scale(
+        self,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        batch_index: Optional[torch.Tensor] = None,
+        label: Optional[torch.Tensor] = None,
+        n_samples: int = 1,
+        transform_batch: Optional[int] = None,
+        eps=0,
+        normalize_pro=False,
+        sample_bern=True,
+        include_bg=False,
     ) -> torch.Tensor:
-        """ Returns tuple of gene and protein scales for a fixed seq batch
+        """ Returns tuple of gene and protein scales.
 
-        This function is the core of differential expression.
+        These scales can also be transformed into a particular batch. This function is
+        the core of differential expression.
+
+        :param transform_batch: Int of batch to "transform" all cells into
+        :param eps: Prior count to add to protein normalized expression
+        :param normalize_pro: bool, whether to make protein expression sum to one in a cell
+        :param include_bg: bool, whether to include the background component of expression
         """
-        if self.log_variational:
-            x = torch.log(1 + x)
-            y = torch.log(1 + y)
-        qz_m, qz_v, _, _, latent, _, = self.encoder(torch.cat((x, y), dim=-1))
-        z = latent["z"]
-        batch_index = fixed_batch * torch.ones_like(x[:, [0]])
-        # dummy library size as it's irrelevant here
-        library = 4.0 * torch.ones_like(x[:, [0]])
-        px_, py_ = self.decoder(z, library, batch_index)[0:2]
-        return px_["scale"], py_["scale"]
+        outputs = self.inference(
+            x,
+            y,
+            batch_index=batch_index,
+            label=label,
+            n_samples=n_samples,
+            transform_batch=transform_batch,
+        )
+        px_ = outputs["px_"]
+        py_ = outputs["py_"]
+        protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
+        if sample_bern is True:
+            protein_mixing = Bernoulli(protein_mixing).sample()
+        pro_value = (1 - protein_mixing) * py_["rate_fore"]
+        if include_bg is True:
+            pro_value = (1 - protein_mixing) * py_["rate_fore"] + protein_mixing * py_[
+                "rate_back"
+            ]
+        if normalize_pro is True:
+            pro_value = torch.nn.functional.normalize(pro_value, p=1, dim=-1)
+
+        return px_["scale"], pro_value + eps
 
     def get_reconstruction_loss(
         self,
@@ -274,7 +306,10 @@ class TOTALVI(nn.Module):
         y: torch.Tensor,
         px_: Dict[str, torch.Tensor],
         py_: Dict[str, torch.Tensor],
+        pro_batch_mask_minibatch: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Compute reconstruction loss
+        """
         # Reconstruction Loss
         if self.reconstruction_loss_gene == "zinb":
             reconst_loss_gene = -log_zinb_positive(
@@ -283,9 +318,18 @@ class TOTALVI(nn.Module):
         else:
             reconst_loss_gene = -log_nb_positive(x, px_["rate"], px_["r"]).sum(dim=-1)
 
-        reconst_loss_protein = -log_mixture_nb(
+        reconst_loss_protein_full = -log_mixture_nb(
             y, py_["rate_back"], py_["rate_fore"], py_["r"], None, py_["mixing"]
-        ).sum(dim=-1)
+        )
+        if pro_batch_mask_minibatch is not None:
+            temp_pro_loss_full = torch.zeros_like(reconst_loss_protein_full)
+            temp_pro_loss_full.masked_scatter_(
+                pro_batch_mask_minibatch.bool(), reconst_loss_protein_full
+            )
+
+            reconst_loss_protein = temp_pro_loss_full.sum(dim=-1)
+        else:
+            reconst_loss_protein = reconst_loss_protein_full.sum(dim=-1)
 
         return reconst_loss_gene, reconst_loss_protein
 
@@ -296,21 +340,22 @@ class TOTALVI(nn.Module):
         batch_index: Optional[torch.Tensor] = None,
         label: Optional[torch.Tensor] = None,
         n_samples=1,
+        transform_batch: Optional[int] = None,
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
         """ Internal helper function to compute necessary inference quantities
 
-         We use the dictionary `px_` to contain the parameters of the ZINB/NB for genes.
+         We use the dictionary ``px_`` to contain the parameters of the ZINB/NB for genes.
          The rate refers to the mean of the NB, dropout refers to Bernoulli mixing parameters.
          `scale` refers to the quanity upon which differential expression is performed. For genes,
          this can be viewed as the mean of the underlying gamma distribution.
 
-         We use the dictionary `py_` to contain the parameters of the Mixture NB distribution for proteins.
-         `rate_fore` refers to foreground mean, while `rate_back` refers to background mean. `scale` refers to
+         We use the dictionary ``py_`` to contain the parameters of the Mixture NB distribution for proteins.
+         `rate_fore` refers to foreground mean, while `rate_back` refers to background mean. ``scale`` refers to
          foreground mean adjusted for background probability and scaled to reside in simplex.
-         `back_alpha` and `back_beta` are the posterior parameters for `rate_back`.  `fore_scale` is the scaling
+         ``back_alpha`` and ``back_beta`` are the posterior parameters for ``rate_back``.  ``fore_scale`` is the scaling
          factor that enforces `rate_fore` > `rate_back`.
 
-         `px_["r"]` and `py_["r"]` are the inverse dispersion parameters for genes and protein, respectively.
+         ``px_["r"]`` and ``py_["r"]`` are the inverse dispersion parameters for genes and protein, respectively.
         """
         x_ = x
         y_ = y
@@ -369,11 +414,11 @@ class TOTALVI(nn.Module):
             py_back_beta_prior = torch.exp(self.background_pro_log_beta)
         self.back_mean_prior = Normal(py_back_alpha_prior, py_back_beta_prior)
 
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
         px_, py_, log_pro_back_mean = self.decoder(z, library_gene, batch_index, label)
         px_["r"] = px_r
         py_["r"] = py_r
-        protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
-        py_["scale"] = F.normalize((1 - protein_mixing) * py_["rate_fore"], p=1, dim=-1)
 
         return dict(
             px_=px_,
@@ -397,19 +442,20 @@ class TOTALVI(nn.Module):
         local_l_var_gene: torch.Tensor,
         batch_index: Optional[torch.Tensor] = None,
         label: Optional[torch.Tensor] = None,
-    ):
-        r""" Returns the reconstruction loss and the Kullback divergences
+    ) -> Tuple[
+        torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor
+    ]:
+        """ Returns the reconstruction loss and the Kullback divergences
 
-        :param x: tensor of values with shape (batch_size, n_input_genes)
-        :param y: tensor of values with shape (batch_size, n_input_proteins)
+        :param x: tensor of values with shape ``(batch_size, n_input_genes)``
+        :param y: tensor of values with shape ``(batch_size, n_input_proteins)``
         :param local_l_mean_gene: tensor of means of the prior distribution of latent variable l
-         with shape (batch_size, 1)
+         with shape ``(batch_size, 1)````
         :param local_l_var_gene: tensor of variancess of the prior distribution of latent variable l
-         with shape (batch_size, 1)
+         with shape ``(batch_size, 1)``
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :param label: tensor of cell-types labels with shape (batch_size, n_labels)
         :return: the reconstruction loss and the Kullback divergences
-        :rtype: 4-tuple of :py:class:`torch.FloatTensor`
         """
         # Parameters for z latent distribution
 
@@ -421,8 +467,18 @@ class TOTALVI(nn.Module):
         px_ = outputs["px_"]
         py_ = outputs["py_"]
 
+        if self.protein_batch_mask is not None:
+            pro_batch_mask_minibatch = torch.zeros_like(y)
+            for b in np.arange(len(torch.unique(batch_index))):
+                b_indices = (batch_index == b).reshape(-1)
+                pro_batch_mask_minibatch[b_indices] = torch.tensor(
+                    self.protein_batch_mask[b].astype(np.float32), device=y.device
+                )
+        else:
+            pro_batch_mask_minibatch = None
+
         reconst_loss_gene, reconst_loss_protein = self.get_reconstruction_loss(
-            x, y, px_, py_
+            x, y, px_, py_, pro_batch_mask_minibatch
         )
 
         # KL Divergence
@@ -432,9 +488,15 @@ class TOTALVI(nn.Module):
             Normal(local_l_mean_gene, torch.sqrt(local_l_var_gene)),
         ).sum(dim=1)
 
-        kl_div_back_pro = kl(
+        kl_div_back_pro_full = kl(
             Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
-        ).sum(dim=-1)
+        )
+        if pro_batch_mask_minibatch is not None:
+            kl_div_back_pro = (pro_batch_mask_minibatch * kl_div_back_pro_full).sum(
+                dim=1
+            )
+        else:
+            kl_div_back_pro = kl_div_back_pro_full.sum(dim=1)
 
         return (
             reconst_loss_gene,

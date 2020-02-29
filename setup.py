@@ -19,23 +19,26 @@ requirements = [
     "loompy>=2.0.16",
     "tqdm>=4.31.1",
     "xlrd>=1.2.0",
-    "nbconvert>=5.4.0",
-    "nbformat>=4.4.0",
-    "jupyter>=1.0.0",
-    "ipython>=7.1.1",
+    "llvmlite==0.30.0",  # umap having errors with 0.31.0
     "numba==0.45.0",  # numba 0.45.1 has a conflict with UMAP and numba 0.46.0 with parallelization in loompy
     "hyperopt==0.1.2",
+    "anndata>=0.6.22rc1",
+    "statsmodels",
 ]
 
 setup_requirements = ["pip>=18.1"]
 
 test_requirements = [
-    "pytest>=3.7.4",
-    "pytest-runner>=2.11.1",
+    "pytest>=4.4",
+    "pytest-runner>=5.0",
     "flake8>=3.7.7",
     "coverage>=4.5.1",
     "codecov>=2.0.8",
     "black>=19.3b0",
+    "nbconvert>=5.4.0",
+    "nbformat>=4.4.0",
+    "jupyter>=1.0.0",
+    "ipython>=7.1.1",
 ]
 
 extras_requirements = {
@@ -50,10 +53,12 @@ extras_requirements = {
         "leidenalg>=0.7.0",
     ],
     "docs": [
-        "sphinx>=1.7.1",
+        "sphinx>=2.0.1",
         "nbsphinx",
         "sphinx_autodoc_typehints",
-        "sphinx-rtd-theme",
+        "sphinx-rtd-theme>=0.3.1",
+        "autodocsumm",
+        "nbsphinx-link",
     ],
     "test": test_requirements,
 }
@@ -97,6 +102,6 @@ setup(
     tests_require=test_requirements,
     extras_require=extras_requirements,
     url="https://github.com/YosefLab/scVI",
-    version="0.5.0",
+    version="0.6.0",
     zip_safe=False,
 )

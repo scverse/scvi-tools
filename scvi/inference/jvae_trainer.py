@@ -1,6 +1,4 @@
 import logging
-import sys
-import time
 from functools import partial
 from itertools import cycle
 from typing import Optional, List, Tuple, Union, Iterable
@@ -8,7 +6,6 @@ from typing import Optional, List, Tuple, Union, Iterable
 import numpy as np
 import torch
 from torch import nn
-from tqdm import trange
 
 from scvi.dataset import GeneExpressionDataset
 from scvi.inference import Posterior
@@ -120,85 +117,45 @@ class JVAETrainer(Trainer):
 
         return zip(*data_loaders)
 
-    def train(
-        self,
-        n_epochs: int = 20,
-        lr_d: float = 1e-3,
-        lr_g: float = 1e-3,
-        eps: float = 0.01,
-    ):
-        self.compute_metrics_time = 0
-        self.n_epochs = n_epochs
+    def on_training_loop(self, tensors_list):
 
-        self.compute_metrics()
-        begin = time.time()
+        if self.train_discriminator:
+            latent_tensors = []
+            for (i, (data, *_)) in enumerate(tensors_list):
+                z = self.model.sample_from_posterior_z(
+                    data, mode=i, deterministic=False
+                )
+                latent_tensors.append(z)
 
-        with torch.set_grad_enabled(True):
-            self.model.train()
-            self.discriminator.train()
+            # Train discriminator
+            d_loss = self.loss_discriminator([t.detach() for t in latent_tensors], True)
+            d_loss *= self.kappa
+            self.d_optimizer.zero_grad()
+            d_loss.backward()
+            self.d_optimizer.step()
 
-            d_params = filter(
-                lambda p: p.requires_grad, self.discriminator.parameters()
-            )
-            d_optimizer = torch.optim.Adam(d_params, lr=lr_d, eps=eps)
+            # Train generative model to fool discriminator
+            fool_loss = self.loss_discriminator(latent_tensors, False)
+            fool_loss *= self.kappa
+            self.optimizer.zero_grad()
+            fool_loss.backward()
+            self.optimizer.step()
 
-            g_params = filter(lambda p: p.requires_grad, self.model.parameters())
-            g_optimizer = torch.optim.Adam(g_params, lr=lr_g, eps=eps)
+        # Train generative model
+        self.current_loss = g_loss = self.loss(tensors_list)
+        self.optimizer.zero_grad()
+        g_loss.backward()
+        self.optimizer.step()
 
-            train_discriminator = self.n_dataset > 1 and self.kappa > 0
+    def training_extras_init(self, lr_d=1e-3, eps=0.01):
+        self.discriminator.train()
 
-            with trange(
-                n_epochs,
-                desc="training",
-                file=sys.stdout,
-                disable=not self.show_progbar,
-            ) as progress_bar:
-                for self.epoch in progress_bar:
-                    self.on_epoch_begin()
-                    progress_bar.update(1)
-                    for tensors in self.data_loaders_loop():
-                        if tensors[0][0].shape[0] < 3:
-                            continue
-                        if train_discriminator:
-                            latent_tensors = []
-                            for (i, (data, *_)) in enumerate(tensors):
-                                z = self.model.sample_from_posterior_z(
-                                    data, mode=i, deterministic=False
-                                )
-                                latent_tensors.append(z)
+        d_params = filter(lambda p: p.requires_grad, self.discriminator.parameters())
+        self.d_optimizer = torch.optim.Adam(d_params, lr=lr_d, eps=eps)
+        self.train_discriminator = self.n_dataset > 1 and self.kappa > 0
 
-                            # Train discriminator
-                            d_loss = self.loss_discriminator(
-                                [t.detach() for t in latent_tensors], True
-                            )
-                            d_loss *= self.kappa
-                            d_optimizer.zero_grad()
-                            d_loss.backward()
-                            d_optimizer.step()
-
-                            # Train generative model to fool discriminator
-                            fool_loss = self.loss_discriminator(latent_tensors, False)
-                            fool_loss *= self.kappa
-                            g_optimizer.zero_grad()
-                            fool_loss.backward()
-                            g_optimizer.step()
-
-                        # Train generative model
-                        g_loss = self.loss(tensors)
-                        g_optimizer.zero_grad()
-                        g_loss.backward()
-                        g_optimizer.step()
-
-                    if not self.on_epoch_end():
-                        break
-
-        self.model.eval()
-        self.training_time += (time.time() - begin) - self.compute_metrics_time
-        if self.frequency:
-            logger.debug(
-                "\nTraining time:  %i s. / %i epochs"
-                % (int(self.training_time), self.n_epochs)
-            )
+    def training_extras_end(self):
+        self.discriminator.eval()
 
     def loss_discriminator(
         self,
@@ -339,9 +296,14 @@ class JVAETrainer(Trainer):
         for mode, dataset in enumerate(self.all_dataset):
             latent = []
             for tensors in dataset:
-                sample_batch, local_l_mean, local_l_var, batch_index, label, *_ = (
-                    tensors
-                )
+                (
+                    sample_batch,
+                    local_l_mean,
+                    local_l_var,
+                    batch_index,
+                    label,
+                    *_,
+                ) = tensors
                 latent.append(
                     self.model.sample_from_posterior_z(
                         sample_batch, mode, deterministic=deterministic
@@ -372,9 +334,14 @@ class JVAETrainer(Trainer):
         for mode, dataset in enumerate(self.all_dataset):
             imputed_value = []
             for tensors in dataset:
-                sample_batch, local_l_mean, local_l_var, batch_index, label, *_ = (
-                    tensors
-                )
+                (
+                    sample_batch,
+                    local_l_mean,
+                    local_l_var,
+                    batch_index,
+                    label,
+                    *_,
+                ) = tensors
                 if normalized:
                     imputed_value.append(
                         self.model.sample_scale(

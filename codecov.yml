@@ -1,0 +1,9 @@
+# Run to check if valid
+# curl --data-binary @codecov.yml https://codecov.io/validate
+coverage:
+  status:
+    project:
+      default:
+        target: 85%
+        threshold: 1%
+    patch: off

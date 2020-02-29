@@ -1,13 +1,15 @@
-====
-scVI
-====
+========================================
+scVI - Single cell Variational Inference
+========================================
 
-|PyPI| |bioconda| |Docs| |Build Status| |Coverage| |Code Style| |Downloads|
+|Stars| |PyPI| |BioConda| |Docs| |Build Status| |Coverage| |Code Style| |Downloads|
 
+.. |Stars| image:: https://img.shields.io/github/stars/YosefLab/scVI?logo=GitHub&color=yellow
+   :target: https://github.com/YosefLab/scVI/stargazers
 .. |PyPI| image:: https://img.shields.io/pypi/v/scVI.svg
     :target: https://pypi.org/project/scvi
-.. |bioconda| image:: https://img.shields.io/badge/bioconda-blue.svg
-    :target: http://bioconda.github.io/recipes/scvi/README.html
+.. |BioConda| image:: https://img.shields.io/conda/vn/bioconda/scVI
+   :target: https://bioconda.github.io/recipes/scvi/README.html
 .. |Docs| image:: https://readthedocs.org/projects/scvi/badge/?version=latest
     :target: https://scvi.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
@@ -20,97 +22,27 @@ scVI
 .. |Downloads| image:: https://pepy.tech/badge/scvi
    :target: https://pepy.tech/project/scvi
 
-Single-cell Variational Inference
+scVI is a package for end-to-end analysis of single-cell omics data. The package is composed of several deep generative models for omics data analysis, namely:
 
-* Free software: MIT license
-* Documentation: https://scvi.readthedocs.io.
+* scVI_ for analysis of single-cell RNA-seq data, as well as its improved differential expression framework_
+* scANVI_ for cell annotation of scRNA-seq data using semi-labeled examples
+* totalVI_ for analysis of CITE-seq data
+* gimVI_ for imputation of missing genes in spatial transcriptomics from scRNA-seq data
+* AutoZI_ for assessing gene-specific levels of zero-inflation in scRNA-seq data
+* LDVAE_ for an interpretable linear factor model version of scVI
 
+Tutorials and API reference are available in the documentation_.
+Please use the issues here to discuss usage, or submit bug reports.
+If you'd like to contribute, please check out our `contributing guide`_.
+If you find a model useful for your research, please consider citing the corresponding publication (linked above).
 
-Quick Start
------------
+.. _documentation: https://scvi.readthedocs.io
+.. _`contributing guide`: https://scvi.readthedocs.io/en/update_docs/contributing.html
+.. _scVI: https://rdcu.be/bdHYQ
+.. _scANVI: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf
+.. _totalVI: https://www.biorxiv.org/content/biorxiv/early/2019/10/07/791947.full.pdf
+.. _AutoZI: https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf
+.. _LDVAE: https://www.biorxiv.org/content/10.1101/737601v1.full.pdf
+.. _gimVI: https://arxiv.org/pdf/1905.02269.pdf
+.. _framework: https://www.biorxiv.org/content/biorxiv/early/2019/10/04/794289.full.pdf
 
-1. Install Python 3.7. We typically use the Miniconda_ Python distribution and Linux.
-
-.. _Miniconda: https://conda.io/miniconda.html
-
-2. Install PyTorch_. If you have an Nvidia GPU, be sure to install a version of PyTorch that supports it -- scVI runs much faster with a discrete GPU.
-
-.. _PyTorch: http://pytorch.org
-
-3. Install scVI through conda:
-
-    ``conda install scvi -c bioconda -c conda-forge``
-
-   Alternatively, you may try pip (``pip install scvi``), or you may clone this repository and run ``python setup.py install``.
-
-4. If you wish to use multiple GPUs for hyperparameter tuning, install MongoDb_.
-
-.. _MongoDb: https://docs.mongodb.com/manual/installation/
-
-5. Follow along with our Jupyter notebooks to quickly get familiar with scVI!
-
-   a. Getting started:
-       * `data loading`__
-       * `basic usage (scVI)`__
-   b. Analyzing several datasets:
-       * `harmonization (scVI)`__
-       * `annotation (scANVI)`__
-   c. Advanced topics:
-       * `interaction with scanpy`__
-       * `linear decoder for gene interpretation (LDVAE)`__
-       * `imputation of unobserved gene expression (gimVI)`__
-       * `automated hyperparameter search`__
-       * `joint model for CITE-seq data (totalVI)`__
-       * `detection of zero-inflated genes (AutoZI)`__
-
-
-.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/data_loading.ipynb
-.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/basic_tutorial.ipynb
-.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/harmonization.ipynb
-.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/annotation.ipynb
-.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/scanpy_pbmc3k.ipynb
-.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/linear_decoder.ipynb
-.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/gimvi_tutorial.ipynb
-.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/autotune_advanced_notebook.ipynb
-.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/totalVI.ipynb
-.. __: https://nbviewer.jupyter.org/github/YosefLab/scVI/blob/master/tests/notebooks/AutoZI_tutorial.ipynb
-
-
-References
-----------
-
-Romain Lopez, Jeffrey Regier, Michael Cole, Michael I. Jordan, Nir Yosef.
-**"Deep generative modeling for single-cell transcriptomics."**
-Nature Methods, 2018. `[pdf]`__
-
-.. __: https://rdcu.be/bdHYQ
-
-Chenling Xu∗, Romain Lopez∗, Edouard Mehlman∗, Jeffrey Regier, Michael I. Jordan, Nir Yosef.
-**"Harmonization and Annotation of Single-cell Transcriptomics data with Deep Generative Models."**
-Submitted, 2019. `[pdf]`__
-
-.. __: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf
-
-Romain Lopez∗, Achille Nazaret∗, Maxime Langevin*, Jules Samaran*, Jeffrey Regier*, Michael I. Jordan, Nir Yosef.
-**"A joint model of unpaired data from scRNA-seq and spatial transcriptomics for imputing missing gene expression measurements."**
-ICML Workshop on Computational Biology, 2019. `[pdf]`__
-
-.. __: https://arxiv.org/pdf/1905.02269.pdf
-
-Adam Gayoso, Romain Lopez, Zoë Steier, Jeffrey Regier, Aaron Streets, Nir Yosef.
-**"A joint model of RNA expression and surface protein abundance in single cells."**
-bioRxiv, 2019. `[pdf]`__
-
-.. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/07/791947.full.pdf
-
-Oscar Clivio, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir Yosef.
-**"Detecting zero-inflated genes in single-cell transcriptomics data."**
-bioRxiv, 2019. `[pdf]`__
-
-.. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf
-
-Pierre Boyeau, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir Yosef.
-**"Deep generative models for detecting differential expression in single cells."**
-bioRxiv, 2019. `[pdf]`__
-
-.. __: https://www.biorxiv.org/content/biorxiv/early/2019/10/04/794289.full.pdf

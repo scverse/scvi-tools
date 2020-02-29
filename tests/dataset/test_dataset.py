@@ -1,6 +1,7 @@
 from unittest import TestCase
 
 import numpy as np
+import copy
 
 from scvi.dataset import CortexDataset, GeneExpressionDataset
 from scvi.dataset.dataset import remap_categories, CellMeasurement
@@ -37,6 +38,9 @@ class TestGeneExpressionDataset(TestCase):
 
         self.assertListEqual(dataset.dev_names.tolist(), pair_names)
         self.assertListEqual(dataset.dev[0].tolist(), [0, 1, 2, 3])
+
+        ad = dataset.to_anndata()
+        self.assertTrue("dev" in ad.obsm)
 
     def test_populate_from_per_batch_list(self):
         data = [
@@ -97,7 +101,7 @@ class TestGeneExpressionDataset(TestCase):
         self.assertEqual(14, dataset.nb_cells)
         self.assertEqual(3, dataset.nb_genes)
         self.assertListEqual(
-            ["GENE_0", "GENE_1", "GENE_2"], dataset.gene_names.tolist()
+            ["gene_0", "gene_1", "gene_2"], dataset.gene_names.tolist()
         )
 
         # test for labels sharing
@@ -202,7 +206,9 @@ class TestGeneExpressionDataset(TestCase):
         dataset2.populate_from_data(data, Ys=[y2], gene_names=gene_names)
 
         dataset = GeneExpressionDataset()
-        dataset.populate_from_datasets([dataset1, dataset2])
+        dataset.populate_from_datasets(
+            [copy.deepcopy(dataset1), copy.deepcopy(dataset2)]
+        )
 
         self.assertTrue(hasattr(dataset, "dev"))
         self.assertTrue(hasattr(dataset, "dev_names"))
@@ -213,12 +219,25 @@ class TestGeneExpressionDataset(TestCase):
         self.assertListEqual(dataset.dev[0].tolist(), [1, 0, 3, 2])
         self.assertListEqual(dataset.dev[5].tolist(), [2, 0, 1, 3])
 
+        # Take union of dev columns, 0s fill remainder
+        dataset = GeneExpressionDataset()
+        dataset.populate_from_datasets(
+            [copy.deepcopy(dataset1), copy.deepcopy(dataset2)],
+            cell_measurement_intersection={"dev": False},
+        )
+        self.assertListEqual(
+            dataset.dev_names.tolist(),
+            ["achille", "gabou", "gayoso", "oclivio", "pedro"],
+        )
+        mask = dataset.get_batch_mask_cell_measurement("dev")
+        self.assertEqual(mask[1][2].astype(int), 0)
+
     def test_populate_from_datasets_cortex(self):
         cortex_dataset_1 = CortexDataset(save_path="tests/data")
-        cortex_dataset_1.subsample_genes(subset_genes=np.arange(0, 3))
+        cortex_dataset_1.subsample_genes(subset_genes=np.arange(0, 3), mode="variance")
         cortex_dataset_1.filter_cell_types(["microglia", "oligodendrocytes"])
         cortex_dataset_2 = CortexDataset(save_path="tests/data")
-        cortex_dataset_2.subsample_genes(subset_genes=np.arange(1, 4))
+        cortex_dataset_2.subsample_genes(subset_genes=np.arange(1, 4), mode="variance")
         cortex_dataset_2.filter_cell_types(
             ["endothelial-mural", "interneurons", "microglia", "oligodendrocytes"]
         )
@@ -270,14 +289,14 @@ class TestGeneExpressionDataset(TestCase):
         gene_names = np.array(["gene_%d" % i for i in range(100)])
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, gene_names=gene_names)
-        dataset.subsample_genes(new_ratio_genes=0.4)
+        dataset.subsample_genes(new_ratio_genes=0.4, mode="variance")
         self.assertTupleEqual(dataset.gene_names.shape, (40,))
-        dataset.subsample_genes(new_n_genes=25)
+        dataset.subsample_genes(new_n_genes=25, mode="variance")
         self.assertTupleEqual(dataset.gene_names.shape, (25,))
         # The most variable genes should be in first position
-        self.assertEqual(dataset.gene_names[0], "GENE_99")
+        self.assertEqual(dataset.gene_names[0], "gene_99")
         dataset.subsample_genes(subset_genes=[1, 6, 7])
-        self.assertEqual(dataset.gene_names[0], "GENE_98")
+        self.assertEqual(dataset.gene_names[0], "gene_98")
 
     def test_filter_genes(self):
         data = np.random.randint(1, 5, size=(5, 10))
@@ -285,7 +304,7 @@ class TestGeneExpressionDataset(TestCase):
 
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, gene_names=gene_names)
-        gene_names_true = ["GENE_1", "GENE_3"]
+        gene_names_true = ["gene_1", "gene_3"]
         dataset.filter_genes_by_attribute(gene_names_true)
         self.assertListEqual(gene_names_true, dataset.gene_names.tolist())
 
@@ -295,14 +314,14 @@ class TestGeneExpressionDataset(TestCase):
         gene_names = np.array(["gene_%d" % i for i in range(100)])
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, gene_names=gene_names)
-        dataset.reorder_genes(["GENE_47", "GENE_2", "GENE_3", "GENE_12"])
+        dataset.reorder_genes(["gene_47", "gene_2", "gene_3", "gene_12"])
         # New order should be 47, 2, 3, 12, 0, 1, ...
         self.assertListEqual(
             list(dataset.gene_names[0:6]),
-            ["GENE_47", "GENE_2", "GENE_3", "GENE_12", "GENE_0", "GENE_1"],
+            ["gene_47", "gene_2", "gene_3", "gene_12", "gene_0", "gene_1"],
         )
 
-        self.assertRaises(KeyError, dataset.reorder_genes, ["GENE_101"])
+        self.assertRaises(KeyError, dataset.reorder_genes, ["gene_101"])
 
     def test_genes_to_idx(self):
         data = np.random.randint(1, 5, size=(5, 10))
@@ -310,7 +329,7 @@ class TestGeneExpressionDataset(TestCase):
 
         dataset = GeneExpressionDataset()
         dataset.populate_from_data(data, gene_names=gene_names)
-        indices = dataset.genes_to_index(["GENE_%d" % i for i in range(10)])
+        indices = dataset.genes_to_index(["gene_%d" % i for i in range(10)])
         self.assertListEqual([i for i in range(10)], indices.tolist())
 
     def test_subsample_cells(self):
