@@ -1346,7 +1346,7 @@ class Posterior:
             sample_batch, _, _, batch_index, labels = tensors
 
             outputs = self.model.inference(
-                sample_batch, batch_index=batch_index, y=labels, n_samples=n_samples,
+                sample_batch, batch_index=batch_index, y=labels, n_samples=n_samples
             )
             px_r = outputs["px_r"]
             px_rate = outputs["px_rate"]
@@ -1366,11 +1366,7 @@ class Posterior:
             dropout = dropout.mean(0)
             means = means.mean(0)
 
-        return (
-            dropout,
-            means,
-            dispersions,
-        )
+        return (dropout, means, dispersions)
 
     @torch.no_grad()
     def get_stats(self) -> np.ndarray:
