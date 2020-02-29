@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import inspect
 import logging
@@ -155,18 +157,27 @@ class Posterior:
         pass
 
     @property
-    def indices(self):
+    def indices(self) -> np.ndarray:
+        """Returns the current dataloader indices used by the object
+
+        """
         if hasattr(self.data_loader.sampler, "indices"):
             return self.data_loader.sampler.indices
         else:
             return np.arange(len(self.gene_dataset))
 
     @property
-    def are_indices_modified(self):
+    def are_indices_modified(self) -> bool:
+        """Determines if the object dataloader indices were modified at some point.
+
+        """
         return np.array_equal(self.indices, self.original_indices)
 
     @property
-    def nb_cells(self):
+    def nb_cells(self) -> int:
+        """returns the number of studied cells.
+
+        """
         if hasattr(self.data_loader.sampler, "indices"):
             return len(self.data_loader.sampler.indices)
         else:
@@ -175,10 +186,18 @@ class Posterior:
     def __iter__(self):
         return map(self.to_cuda, iter(self.data_loader))
 
-    def to_cuda(self, tensors):
+    def to_cuda(self, tensors: List[torch.Tensor]) -> List[torch.Tensor]:
+        """Converts list of tensors to cuda.
+
+        :param tensors: tensors to convert
+        """
         return [t.cuda() if self.use_cuda else t for t in tensors]
 
-    def update(self, data_loader_kwargs):
+    def update(self, data_loader_kwargs: dict) -> Posterior:
+        """Updates the dataloader
+
+        :param data_loader_kwargs: dataloader updates.
+        """
         posterior = copy.copy(self)
         posterior.data_loader_kwargs = copy.copy(self.data_loader_kwargs)
         posterior.data_loader_kwargs.update(data_loader_kwargs)
@@ -187,7 +206,11 @@ class Posterior:
         )
         return posterior
 
-    def sequential(self, batch_size=128):
+    def sequential(self, batch_size: Optional[int] = 128) -> Posterior:
+        """Returns a copy of the object that iterate over the data sequentially.
+
+        :param batch_size: New batch size.
+        """
         return self.update(
             {
                 "batch_size": batch_size,
@@ -195,16 +218,25 @@ class Posterior:
             }
         )
 
-    def corrupted(self):
+    def corrupted(self) -> Posterior:
+        """Corrupts gene counts.
+
+        """
         return self.update(
             {"collate_fn": self.gene_dataset.collate_fn_builder(corrupted=True)}
         )
 
-    def uncorrupted(self):
+    def uncorrupted(self) -> Posterior:
+        """Uncorrupts gene counts.
+
+        """
         return self.update({"collate_fn": self.gene_dataset.collate_fn_builder()})
 
     @torch.no_grad()
-    def elbo(self):
+    def elbo(self) -> torch.Tensor:
+        """Returns the Evidence Lower Bound associated to the object.
+
+        """
         elbo = compute_elbo(self.model, self)
         logger.debug("ELBO : %.4f" % elbo)
         return elbo
@@ -212,7 +244,10 @@ class Posterior:
     elbo.mode = "min"
 
     @torch.no_grad()
-    def reconstruction_error(self):
+    def reconstruction_error(self) -> torch.Tensor:
+        """Returns the reconstruction error associated to the object.
+
+        """
         reconstruction_error = compute_reconstruction_error(self.model, self)
         logger.debug("Reconstruction Error : %.4f" % reconstruction_error)
         return reconstruction_error
@@ -220,7 +255,11 @@ class Posterior:
     reconstruction_error.mode = "min"
 
     @torch.no_grad()
-    def marginal_ll(self, n_mc_samples=1000):
+    def marginal_ll(self, n_mc_samples: Optional[int] = 1000) -> torch.Tensor:
+        """Estimates the marginal likelihood of the object's data.
+
+        :param n_mc_samples: Number of MC estimates to use
+        """
         if (
             hasattr(self.model, "reconstruction_loss")
             and self.model.reconstruction_loss == "autozinb"
@@ -257,7 +296,10 @@ class Posterior:
         )
 
     @torch.no_grad()
-    def entropy_batch_mixing(self, **kwargs):
+    def entropy_batch_mixing(self, **kwargs) -> torch.Tensor:
+        """Returns the object's entropy batch mixing.
+
+        """
         if self.gene_dataset.n_batches == 2:
             latent, batch_indices, labels = self.get_latent()
             be_score = entropy_batch_mixing(latent, batch_indices, **kwargs)
@@ -450,68 +492,77 @@ class Posterior:
         r"""A unified method for differential expression inference.
 
         Two modes coexist:
-            - the "vanilla" mode follows protocol described in [Lopez18]_
-            In this case, we perform hypothesis testing based on the hypotheses
 
-            .. math::
-                M_1: h_1 > h_2 ~\text{and}~ M_2: h_1 \leq h_2
+        - the "vanilla" mode follows protocol described in [Lopez18]_
+        In this case, we perform hypothesis testing based on the hypotheses
 
-            DE can then be based on the study of the Bayes factors
+        .. math::
+            M_1: h_1 > h_2 ~\text{and}~ M_2: h_1 \leq h_2
 
-            .. math::
-                \log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
+        DE can then be based on the study of the Bayes factors
 
-            - the "change" mode (described in [Boyeau19]_)
-            consists in estimating an effect size random variable (e.g., log fold-change) and
-            performing Bayesian hypothesis testing on this variable.
-            The `change_fn` function computes the effect size variable r based two inputs
-            corresponding to the normalized means in both populations.
+        .. math::
+            \log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
 
-            Hypotheses:
-            .. math::
-                M_1: r \in R_1 ~\text{(effect size r in region inducing differential expression)}
+        - the "change" mode (described in [Boyeau19]_)
+        consists in estimating an effect size random variable (e.g., log fold-change) and
+        performing Bayesian hypothesis testing on this variable.
+        The `change_fn` function computes the effect size variable r based two inputs
+        corresponding to the normalized means in both populations.
 
-            .. math::
-                M_2: r not \in R_1 ~\text{(no differential expression)}
+        Hypotheses:
 
-            To characterize the region :math:`R_1`, which induces DE, the user has two choices.
-                1. A common case is when the region :math:`[-\delta, \delta]` does not induce differential
-                expression.
-                If the user specifies a threshold delta,
-                we suppose that :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
-                2. specify an specific indicator function
+        .. math::
+            M_1: r \in R_1 ~\text{(effect size r in region inducing differential expression)}
 
-                .. math::
-                    f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 iff f(r) = 1
+        .. math::
+            M_2: r ~\text{not}~ \in R_1 ~\text{(no differential expression)}
 
-            Decision-making can then be based on the estimates of
-                .. math::
-                    p(M_1 \mid x_1, x_2)
+        To characterize the region :math:`R_1`, which induces DE, the user has two choices.
 
-        Both modes require to sample the normalized means posteriors
+        1. A common case is when the region :math:`[-\delta, \delta]` does not induce differential
+        expression.
+        If the user specifies a threshold delta,
+        we suppose that :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
+        2. specify an specific indicator function
+
+        .. math::
+            f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 ~\textbf{iff.}~ f(r) = 1
+
+        Decision-making can then be based on the estimates of
+
+        .. math::
+            p(M_1 \mid x_1, x_2)
+
+        Both modes require to sample the normalized means posteriors.
         To that purpose, we sample the Posterior in the following way:
-            1. The posterior is sampled n_samples times for each subpopulation
-            2. For computation efficiency (posterior sampling is quite expensive), instead of
-                comparing the obtained samples element-wise, we can permute posterior samples.
-                Remember that computing the Bayes Factor requires sampling
-                :math:`q(z_A \mid x_A)` and :math:`q(z_B \mid x_B)`
+
+        1. The posterior is sampled n_samples times for each subpopulation
+        2. For computation efficiency (posterior sampling is quite expensive), instead of
+            comparing the obtained samples element-wise, we can permute posterior samples.
+            Remember that computing the Bayes Factor requires sampling
+            :math:`q(z_A \mid x_A)` and :math:`q(z_B \mid x_B)`
 
         Currently, the code covers several batch handling configurations:
-            1. If `use_observed_batches`=True, then batch are considered as observations
-            and cells' normalized means are conditioned on real batch observations
 
-            2. If case (cell group 1) and control (cell group 2) are conditioned on the same
-            batch ids.
-            Examples:
-                >>> set(batchid1) = set(batchid2)
-                >>> batchid1 = batchid2 = None
+        1. If `use_observed_batches`=True, then batch are considered as observations
+        and cells' normalized means are conditioned on real batch observations
+
+        2. If case (cell group 1) and control (cell group 2) are conditioned on the same
+        batch ids.
+        Examples:
+            >>> set(batchid1) = set(batchid2)
+        or
+            >>> batchid1 = batchid2 = None
 
 
-            3. If case and control are conditioned on different batch ids that do not intersect
-            i.e., set(batchid1) != set(batchid2)
-                  and intersection(set(batchid1), set(batchid2)) = \emptyset
+        3. If case and control are conditioned on different batch ids that do not intersect
+        i.e.,
+            >>> set(batchid1) != set(batchid2)
+        and
+            >>> len(set(batchid1).intersection(set(batchid2))) == 0
 
-            This function does not cover other cases yet and will warn users in such cases.
+        This function does not cover other cases yet and will warn users in such cases.
 
         :param mode: one of ["vanilla", "change"]
         :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
@@ -709,68 +760,77 @@ class Posterior:
         providing additional genes information to the user
 
         Two modes coexist:
-            - the "vanilla" mode follows protocol described in [Lopez18]_
-            In this case, we perform hypothesis testing based on the hypotheses
 
-            .. math::
-                M_1: h_1 > h_2 ~\text{and}~ M_2: h_1 \leq h_2
+        - the "vanilla" mode follows protocol described in [Lopez18]_
+        In this case, we perform hypothesis testing based on the hypotheses
 
-            DE can then be based on the study of the Bayes factors
+        .. math::
+            M_1: h_1 > h_2 ~\text{and}~ M_2: h_1 \leq h_2
 
-            .. math::
-                \log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
+        DE can then be based on the study of the Bayes factors
 
-            - the "change" mode (described in [Boyeau19]_)
-            consists in estimating an effect size random variable (e.g., log fold-change) and
-            performing Bayesian hypothesis testing on this variable.
-            The `change_fn` function computes the effect size variable r based two inputs
-            corresponding to the normalized means in both populations.
+        .. math::
+            \log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
 
-            Hypotheses:
-            .. math::
-                M_1: r \in R_1 ~\text{(effect size r in region inducing differential expression)}
+        - the "change" mode (described in [Boyeau19]_)
+        consists in estimating an effect size random variable (e.g., log fold-change) and
+        performing Bayesian hypothesis testing on this variable.
+        The `change_fn` function computes the effect size variable r based two inputs
+        corresponding to the normalized means in both populations.
 
-            .. math::
-                M_2: r not \in R_1 ~\text{(no differential expression)}
+        Hypotheses:
 
-            To characterize the region :math:`R_1`, which induces DE, the user has two choices.
-                1. A common case is when the region :math:`[-\delta, \delta]` does not induce differential
-                expression.
-                If the user specifies a threshold delta,
-                we suppose that :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
-                2. specify an specific indicator function
+        .. math::
+            M_1: r \in R_1 ~\text{(effect size r in region inducing differential expression)}
 
-                .. math::
-                    f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 iff f(r) = 1
+        .. math::
+            M_2: r ~\text{not}~ \in R_1 ~\text{(no differential expression)}
 
-            Decision-making can then be based on the estimates of
-                .. math::
-                    p(M_1 \mid x_1, x_2)
+        To characterize the region :math:`R_1`, which induces DE, the user has two choices.
 
-        Both modes require to sample the normalized means posteriors
+        1. A common case is when the region :math:`[-\delta, \delta]` does not induce differential
+        expression.
+        If the user specifies a threshold delta,
+        we suppose that :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
+        2. specify an specific indicator function
+
+        .. math::
+            f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 ~\textbf{iff.}~ f(r) = 1
+
+        Decision-making can then be based on the estimates of
+
+        .. math::
+            p(M_1 \mid x_1, x_2)
+
+        Both modes require to sample the normalized means posteriors.
         To that purpose, we sample the Posterior in the following way:
-            1. The posterior is sampled n_samples times for each subpopulation
-            2. For computation efficiency (posterior sampling is quite expensive), instead of
-                comparing the obtained samples element-wise, we can permute posterior samples.
-                Remember that computing the Bayes Factor requires sampling
-                :math:`q(z_A \mid x_A)` and :math:`q(z_B \mid x_B)`
+
+        1. The posterior is sampled n_samples times for each subpopulation
+        2. For computation efficiency (posterior sampling is quite expensive), instead of
+            comparing the obtained samples element-wise, we can permute posterior samples.
+            Remember that computing the Bayes Factor requires sampling
+            :math:`q(z_A \mid x_A)` and :math:`q(z_B \mid x_B)`
 
         Currently, the code covers several batch handling configurations:
-            1. If `use_observed_batches`=True, then batch are considered as observations
-            and cells' normalized means are conditioned on real batch observations
 
-            2. If case (cell group 1) and control (cell group 2) are conditioned on the same
-            batch ids.
-            Examples:
-                >>> set(batchid1) = set(batchid2)
-                >>> batchid1 = batchid2 = None
+        1. If `use_observed_batches`=True, then batch are considered as observations
+        and cells' normalized means are conditioned on real batch observations
+
+        2. If case (cell group 1) and control (cell group 2) are conditioned on the same
+        batch ids.
+        Examples:
+            >>> set(batchid1) = set(batchid2)
+        or
+            >>> batchid1 = batchid2 = None
 
 
-            3. If case and control are conditioned on different batch ids that do not intersect
-            i.e., set(batchid1) != set(batchid2)
-                  and intersection(set(batchid1), set(batchid2)) = \emptyset
+        3. If case and control are conditioned on different batch ids that do not intersect
+        i.e.,
+            >>> set(batchid1) != set(batchid2)
+        and
+            >>> len(set(batchid1).intersection(set(batchid2))) == 0
 
-            This function does not cover other cases yet and will warn users in such cases.
+        This function does not cover other cases yet and will warn users in such cases.
 
         :param mode: one of ["vanilla", "change"]
 
@@ -1275,6 +1335,10 @@ class Posterior:
     def generate_parameters(
         self, n_samples: Optional[int] = 1, give_mean: Optional[bool] = False
     ) -> Tuple:
+
+        """Estimates data's count means, dispersions and dropout logits.
+
+        """
         dropout_list = []
         mean_list = []
         dispersion_list = []
@@ -1316,6 +1380,10 @@ class Posterior:
 
     @torch.no_grad()
     def get_sample_scale(self, transform_batch=None) -> np.ndarray:
+        """Computes data's scales.
+
+        """
+
         px_scales = []
         for tensors in self:
             sample_batch, _, _, batch_index, labels = tensors
@@ -1336,6 +1404,10 @@ class Posterior:
 
     @torch.no_grad()
     def imputation_list(self, n_samples: int = 1) -> tuple:
+        """Imputes data's gene counts from corrupted data.
+
+        :return: Original gene counts and imputations after corruption.
+        """
         original_list = []
         imputed_list = []
         batch_size = 10000  # self.data_loader_kwargs["batch_size"] // n_samples
@@ -1378,6 +1450,9 @@ class Posterior:
     def imputation_score(
         self, original_list: List = None, imputed_list: List = None, n_samples: int = 1
     ) -> float:
+        """Computes median absolute imputation error.
+
+        """
         if original_list is None or imputed_list is None:
             original_list, imputed_list = self.imputation_list(n_samples=n_samples)
 
@@ -1402,6 +1477,9 @@ class Posterior:
         title_plot: str = "imputation",
         save_path: str = "",
     ) -> Tuple:
+        """Visualizes the model imputation performance.
+
+        """
         original_list, imputed_list = self.imputation_list(n_samples=n_samples)
         # Median of medians for all distances
         median_score = self.imputation_score(
@@ -1431,7 +1509,10 @@ class Posterior:
         return original_list, imputed_list
 
     @torch.no_grad()
-    def knn_purity(self):
+    def knn_purity(self) -> torch.Tensor:
+        """Computes kNN purity as described in [Lopez18]_
+
+        """
         latent, _, labels = self.get_latent()
         score = knn_purity(latent, labels)
         logger.debug("KNN purity score : {}".format(score))
@@ -1583,25 +1664,25 @@ def load_posterior(
 ) -> Posterior:
     """Function to use in order to retrieve a posterior that was saved using the `save_posterior` method
 
-        Because of pytorch model loading usage, this function needs a scVI model object initialized with exact same parameters
-        that during training.
+    Because of pytorch model loading usage, this function needs a scVI model object initialized with exact same parameters
+    that during training.
 
-        :param dir_path: directory containing the posterior properties to be retrieved.
-        :param model: scVI initialized model.
-        :param use_cuda: whether the model should use cuda.
+    :param dir_path: directory containing the posterior properties to be retrieved.
+    :param model: scVI initialized model.
+    :param use_cuda: whether the model should use cuda.
 
-        Usage example:
-        1. Save posterior
-            >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
-            >>> trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
-            >>> trainer.train(n_epochs=200)
-            >>> trainer.train_set.save_posterior("./my_run_train_posterior")
+    Usage example:
+    1. Save posterior
+        >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
+        >>> trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
+        >>> trainer.train(n_epochs=200)
+        >>> trainer.train_set.save_posterior("./my_run_train_posterior")
 
-        2. Load posterior
-            >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
-            >>> post = load_posterior("./my_run_train_posterior", model=model)
-
+    2. Load posterior
+        >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
+        >>> post = load_posterior("./my_run_train_posterior", model=model)
     """
+
     dataset_path = os.path.join(dir_path, "anndata_dataset.h5ad")
     model_path = os.path.join(dir_path, "model_params.pt")
     indices_path = os.path.join(dir_path, "indices.npy")
