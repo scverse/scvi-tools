@@ -11,7 +11,7 @@ scVI - Single cell Variational Inference
 .. |BioConda| image:: https://img.shields.io/conda/vn/bioconda/scVI
    :target: https://bioconda.github.io/recipes/scvi/README.html
 .. |Docs| image:: https://readthedocs.org/projects/scvi/badge/?version=latest
-    :target: https://scvi.readthedocs.io/en/latest/?badge=latest
+    :target: https://scvi.readthedocs.io/en/stable/?badge=stable
     :alt: Documentation Status
 .. |Build Status| image:: https://travis-ci.org/YosefLab/scVI.svg?branch=master
     :target: https://travis-ci.org/YosefLab/scVI
