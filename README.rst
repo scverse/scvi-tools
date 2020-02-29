@@ -1,6 +1,6 @@
-====
+========================================
 scVI - Single cell Variational Inference
-====
+========================================
 
 |Stars| |PyPI| |BioConda| |Docs| |Build Status| |Coverage| |Code Style| |Downloads|
 
