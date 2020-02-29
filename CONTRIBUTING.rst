@@ -183,3 +183,9 @@ $ pip hash dist/scvi/scvi-<NEW_VERSION_TAG>.tar.gz
 Push changes, wait for tests to pass, submit pull request::
 
 $ git push -u origin my-recipe
+
+
+Instructions on updating notebooks
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In order to update the notebooks appearing in readthedocs, in scVI, merge the new tag onto the `stable` branch
