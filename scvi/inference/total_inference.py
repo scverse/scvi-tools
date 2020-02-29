@@ -919,6 +919,7 @@ class TotalPosterior(Posterior):
             M_permutation=M_permutation,
             change_fn=change_fn,
             m1_domain_fn=m1_domain_fn,
+            cred_interval_lvls=cred_interval_lvls,
             delta=delta,
             **kwargs,
         )
