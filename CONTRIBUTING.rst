@@ -133,6 +133,11 @@ Deploying
 
 A reminder for the maintainers on how to deploy.
 Make sure all your changes are committed (including an entry in HISTORY.rst).
+
+Also, make sure you've tested your code using tox by running::
+
+$ tox
+
 Then run::
 
 $ bumpversion patch # possible: major / minor / patch
@@ -140,10 +145,6 @@ $ git push
 $ git push --tags
 
 Travis will then deploy to PyPI if tests pass.
-
-Also, make sure you've tested your code using tox by running::
-
-$ tox
 
 Instructions on Uploading to pip
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -177,7 +178,7 @@ $ git checkout -b my-recipe
 
 Get the package's hash:
 
-$ pip hash scvi.zip
+$ pip hash dist/scvi/scvi-<NEW_VERSION_TAG>.tar.gz
 
 Push changes, wait for tests to pass, submit pull request::
 
