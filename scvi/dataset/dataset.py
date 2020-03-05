@@ -723,6 +723,7 @@ class GeneExpressionDataset(Dataset):
                     attribute_name, valid_attribute_name
                 )
             )
+            attribute_name = valid_attribute_name
         if not self.nb_genes == len(attribute):
             raise ValueError(
                 "Number of genes ({n_genes}) and length of gene attribute ({n_attr}) mismatch".format(
