@@ -722,6 +722,7 @@ class GeneExpressionDataset(Dataset):
                 "in initialize_cell_attribute, changing name to {} and setting".format(
                     attribute_name, valid_attribute_name
                 )
+            attribute_name = valid_attribute_name
             )
         if not self.nb_genes == len(attribute):
             raise ValueError(
