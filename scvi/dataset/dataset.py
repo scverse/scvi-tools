@@ -666,10 +666,12 @@ class GeneExpressionDataset(Dataset):
 
     def initialize_cell_attribute(self, attribute_name, attribute, categorical=False):
         """Sets and registers a cell-wise attribute, e.g annotation information."""
-        if attribute_name in self.protected_attributes:
+        if (attribute_name in self.protected_attributes) or (
+            attribute_name in self.gene_attribute_names
+        ):
             valid_attribute_name = attribute_name + "_cell"
             logger.warning(
-                "{} is a protected attribute and cannot be set with this name "
+                "{} is a protected attribute or already exists as a gene attribute and cannot be set with this name "
                 "in initialize_cell_attribute, changing name to {} and setting".format(
                     attribute_name, valid_attribute_name
                 )
@@ -715,11 +717,13 @@ class GeneExpressionDataset(Dataset):
 
     def initialize_gene_attribute(self, attribute_name, attribute):
         """Sets and registers a gene-wise attribute, e.g annotation information."""
-        if attribute_name in self.protected_attributes:
+        if (attribute_name in self.protected_attributes) or (
+            attribute_name in self.cell_attribute_names
+        ):
             valid_attribute_name = attribute_name + "_gene"
             logger.warning(
-                "{} is a protected attribute and cannot be set with this name "
-                "in initialize_cell_attribute, changing name to {} and setting".format(
+                "{} is a protected attribute or already exists as a cell attribute and cannot be set with this name "
+                "in initialize_gene_attribute, changing name to {} and setting".format(
                     attribute_name, valid_attribute_name
                 )
             )
