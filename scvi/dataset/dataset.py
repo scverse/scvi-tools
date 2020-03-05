@@ -80,7 +80,7 @@ class GeneExpressionDataset(Dataset):
         self._corrupted_X = None
 
         # attributes that should not be set by initialization methods
-        self.protected_attributes = ["X", "n_counts"]
+        self.protected_attributes = ["X"]
 
     def __repr__(self) -> str:
         if self.X is None:
