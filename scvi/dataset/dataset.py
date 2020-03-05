@@ -80,7 +80,7 @@ class GeneExpressionDataset(Dataset):
         self._corrupted_X = None
 
         # attributes that should not be set by initialization methods
-        self.protected_attributes = ["X"]
+        self.protected_attributes = ["X", "n_counts"]
 
     def __repr__(self) -> str:
         if self.X is None:
@@ -722,8 +722,8 @@ class GeneExpressionDataset(Dataset):
                 "in initialize_cell_attribute, changing name to {} and setting".format(
                     attribute_name, valid_attribute_name
                 )
-            attribute_name = valid_attribute_name
             )
+            attribute_name = valid_attribute_name
         if not self.nb_genes == len(attribute):
             raise ValueError(
                 "Number of genes ({n_genes}) and length of gene attribute ({n_attr}) mismatch".format(
