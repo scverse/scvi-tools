@@ -22,6 +22,7 @@ install:
 script:
   - flake8
   - black --check .
+  - python setup.py check --restructuredtext
   - coverage run setup.py test
 
 after_success:
