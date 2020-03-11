@@ -528,7 +528,7 @@ def test_zinb_distribution():
 
     with pytest.raises(ValueError):
         ZINB(mu=-mu, theta=theta, zi_logits=pi)
-    with pytest.raises(ValueError):
-        dist1.log_prob(-x)  # ensures neg values raise error
-    with pytest.raises(ValueError):
-        dist2.log_prob(0.5 * x)  # ensures float values raise error
+    with pytest.warns(UserWarning):
+        dist1.log_prob(-x)  # ensures neg values raise warning
+    with pytest.warns(UserWarning):
+        dist2.log_prob(0.5 * x)  # ensures float values raise warning

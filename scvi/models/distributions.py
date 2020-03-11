@@ -110,7 +110,8 @@ class NB(Distribution):
                 self._validate_sample(value)
             except ValueError:
                 warnings.warn(
-                    "The value argument must be within the support of the distribution"
+                    "The value argument must be within the support of the distribution",
+                    UserWarning,
                 )
         return log_nb_positive(value, mu=self.mu, theta=self.theta, eps=self._eps)
 
@@ -189,6 +190,7 @@ mu + mu ** 2 / theta
             self._validate_sample(value)
         except ValueError:
             warnings.warn(
-                "The value argument must be within the support of the distribution"
+                "The value argument must be within the support of the distribution",
+                UserWarning,
             )
         return log_zinb_positive(value, self.mu, self.theta, self.zi_logits, eps=1e-08)
