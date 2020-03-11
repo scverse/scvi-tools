@@ -17,7 +17,8 @@ from scvi.inference import (
     TotalTrainer,
     TotalPosterior,
 )
-from scvi.inference.posterior import unsupervised_clustering_accuracy, load_posterior
+from scvi.inference.posterior import unsupervised_clustering_accuracy
+from scvi.inference.posterior_utils import load_posterior
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE
 from scvi.models.classifier import Classifier
@@ -138,6 +139,23 @@ def test_synthetic_1():
     )
     trainer_synthetic_svaec.train(n_epochs=1)
     trainer_synthetic_svaec.labelled_set.entropy_batch_mixing()
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        posterior_save_path = os.path.join(temp_dir, "posterior_data")
+        original_post = trainer_synthetic_svaec.labelled_set.sequential()
+        original_post.save_posterior(posterior_save_path)
+        new_svaec = SCANVI(
+            synthetic_dataset.nb_genes,
+            synthetic_dataset.n_batches,
+            synthetic_dataset.n_labels,
+        )
+        new_post = load_posterior(posterior_save_path, model=new_svaec, use_cuda=False)
+    assert np.array_equal(new_post.indices, original_post.indices)
+    assert np.array_equal(new_post.gene_dataset.X, original_post.gene_dataset.X)
+    assert np.array_equal(
+        new_post.gene_dataset.labels, original_post.gene_dataset.labels
+    )
+
     trainer_synthetic_svaec.full_dataset.knn_purity()
     trainer_synthetic_svaec.labelled_set.show_t_sne(n_samples=5)
     trainer_synthetic_svaec.unlabelled_set.show_t_sne(n_samples=5, color_by="labels")

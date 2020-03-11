@@ -8,7 +8,6 @@ from typing import List, Optional, Union, Tuple, Callable
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn as nn
 import torch.distributions as distributions
 from tqdm.auto import tqdm
 from matplotlib import pyplot as plt
@@ -24,9 +23,8 @@ from torch.utils.data.sampler import (
     SubsetRandomSampler,
     RandomSampler,
 )
-import anndata
 
-from scvi.dataset import GeneExpressionDataset, AnnDatasetFromAnnData
+from scvi.dataset import GeneExpressionDataset
 from scvi.inference.posterior_utils import (
     entropy_batch_mixing,
     plot_imputation,
@@ -150,6 +148,8 @@ class Posterior:
         anndata_dataset = self.gene_dataset.to_anndata()
 
         anndata_dataset.write(os.path.join(dir_path, "anndata_dataset.h5ad"))
+        with open(os.path.join(dir_path, "posterior_type.txt"), "w") as post_file:
+            post_file.write(self.posterior_type)
         torch.save(self.model.state_dict(), os.path.join(dir_path, "model_params.pt"))
         np.save(file=os.path.join(dir_path, "indices.npy"), arr=np.array(self.indices))
         pass
@@ -180,6 +180,13 @@ class Posterior:
             return len(self.data_loader.sampler.indices)
         else:
             return self.gene_dataset.nb_cells
+
+    @property
+    def posterior_type(self) -> str:
+        """Returns the posterior class name
+
+        """
+        return self.__class__.__name__
 
     def __iter__(self):
         return map(self.to_cuda, iter(self.data_loader))
@@ -1663,55 +1670,3 @@ class Posterior:
             self.gene_dataset.X[self.indices],
             self.gene_dataset.labels[self.indices].ravel(),
         )
-
-
-def load_posterior(
-    dir_path: str, model: nn.Module, use_cuda: Optional[bool] = True
-) -> "Posterior":
-    """Function to use in order to retrieve a posterior that was saved using the `save_posterior` method
-
-    Because of pytorch model loading usage, this function needs a scVI model object initialized with exact same parameters
-    that during training.
-
-    :param dir_path: directory containing the posterior properties to be retrieved.
-    :param model: scVI initialized model.
-    :param use_cuda: whether the model should use cuda.
-
-    Usage example:
-    1. Save posterior
-        >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
-        >>> trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
-        >>> trainer.train(n_epochs=200)
-        >>> trainer.train_set.save_posterior("./my_run_train_posterior")
-
-    2. Load posterior
-        >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
-        >>> post = load_posterior("./my_run_train_posterior", model=model)
-    """
-
-    dataset_path = os.path.join(dir_path, "anndata_dataset.h5ad")
-    model_path = os.path.join(dir_path, "model_params.pt")
-    indices_path = os.path.join(dir_path, "indices.npy")
-
-    ad = anndata.read_h5ad(filename=dataset_path)
-
-    key = "cell_measurements_col_mappings"
-    if key in ad.uns:
-        cell_measurements_col_mappings = ad.uns[key]
-    else:
-        cell_measurements_col_mappings = dict()
-    dataset = AnnDatasetFromAnnData(
-        ad=ad, cell_measurements_col_mappings=cell_measurements_col_mappings
-    )
-    model.load_state_dict(torch.load(model_path))
-    model.eval()
-    indices = np.load(file=indices_path)
-    my_post = Posterior(
-        model=model,
-        gene_dataset=dataset,
-        shuffle=False,
-        indices=indices,
-        use_cuda=use_cuda,
-        data_loader_kwargs=dict(),
-    )
-    return my_post

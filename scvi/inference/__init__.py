@@ -1,4 +1,4 @@
-from .posterior import Posterior, load_posterior
+from .posterior import Posterior
 from .trainer import Trainer
 from .inference import UnsupervisedTrainer, AdapterTrainer
 from .annotation import (
@@ -9,6 +9,7 @@ from .annotation import (
 )
 from .jvae_trainer import JVAETrainer
 from .total_inference import TotalPosterior, TotalTrainer
+from .posterior_utils import load_posterior
 
 __all__ = [
     "Trainer",
