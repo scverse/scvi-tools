@@ -16,7 +16,11 @@ from scvi.dataset import AnnDatasetFromAnnData
 
 
 def load_posterior(
-    dir_path: str, model: nn.Module, use_cuda: Optional[bool] = True, **posterior_kwargs
+    dir_path: str,
+    model: nn.Module,
+    use_cuda: Optional[bool] = True,
+    device="cuda",
+    **posterior_kwargs
 ):
     """Function to use in order to retrieve a posterior that was saved using the `save_posterior` method
 
@@ -74,6 +78,7 @@ def load_posterior(
         ad=ad, cell_measurements_col_mappings=cell_measurements_col_mappings
     )
     model.load_state_dict(torch.load(model_path))
+    model.to(device=device)
     model.eval()
     indices = np.load(file=indices_path)
     my_post = post_class(
