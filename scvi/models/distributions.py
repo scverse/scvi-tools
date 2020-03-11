@@ -1,4 +1,5 @@
 from typing import Union, Tuple
+import warnings
 
 import torch
 from torch.distributions import (
@@ -105,7 +106,12 @@ class NB(Distribution):
 
     def log_prob(self, value):
         if self._validate_args:
-            self._validate_sample(value)
+            try:
+                self._validate_sample(value)
+            except ValueError:
+                warnings.warn(
+                    "The value argument must be within the support of the distribution"
+                )
         return log_nb_positive(value, mu=self.mu, theta=self.theta, eps=self._eps)
 
     def _gamma(self):
@@ -179,6 +185,10 @@ mu + mu ** 2 / theta
             return samp
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
-        if self._validate_args:
+        try:
             self._validate_sample(value)
+        except ValueError:
+            warnings.warn(
+                "The value argument must be within the support of the distribution"
+            )
         return log_zinb_positive(value, self.mu, self.theta, self.zi_logits, eps=1e-08)
