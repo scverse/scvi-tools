@@ -2,7 +2,10 @@ import numpy as np
 import tempfile
 import os
 
+from anndata import AnnData
+
 from scvi.dataset import (
+    AnnDatasetFromAnnData,
     CortexDataset,
     SyntheticDataset,
     GeneExpressionDataset,
@@ -514,3 +517,15 @@ def test_deprecated_munkres():
     reward, assignment = unsupervised_clustering_accuracy(y, y_pred)
     assert reward == 1.0
     assert (assignment == np.array([[0, 3], [1, 1], [2, 2], [3, 0]])).all()
+
+
+def test_anndata_loader():
+    x = np.random.randint(low=0, high=100, size=(15, 4))
+    batch_ids = np.random.randint(low=0, high=2, size=(15,))
+    n_batches = 2
+    adata = AnnData(X=x, obs=dict(batch=batch_ids))
+    _ = AnnDatasetFromAnnData(adata, batch_label="batch")
+    dataset = AnnDatasetFromAnnData(adata, batch_label="batch")
+    assert (
+        dataset.n_batches == n_batches
+    ), "AnnDatasetFromAnnData should not modify the anndata object"
