@@ -4,7 +4,7 @@ History
 
 0.6.1 (2020-3-13)
 ------------------
-* handles gene and cell attributes with the same name `han-yuan`_
+* handles gene and cell attributes with the same name `@han-yuan`_
 * fixes anndata overwriting when loading `@adam`_, `@pierre`_
 * formatting in basic tutorial `@adam`_
 
