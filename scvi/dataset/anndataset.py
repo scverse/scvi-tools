@@ -175,7 +175,7 @@ def extract_data_from_anndata(
     data, labels, batch_indices, gene_names, cell_types = None, None, None, None, None
     # We use obs that will contain all the observation except those associated with
     #  batch_label, ctype_label and class_label.
-    obs = ad.obs
+    obs = ad.obs.copy()
 
     if use_raw:
         counts = ad.raw.X
@@ -186,7 +186,7 @@ def extract_data_from_anndata(
     if isinstance(counts, np.ndarray):
         data = counts.copy()
     if isinstance(counts, pd.DataFrame):
-        data = counts.values
+        data = counts.values.copy()
     if isinstance(counts, csr_matrix):
         # keep sparsity above 1 Gb in dense form
         if reduce(operator.mul, counts.shape) * counts.dtype.itemsize < 1e9:
@@ -197,11 +197,11 @@ def extract_data_from_anndata(
 
     gene_names = np.asarray(ad.var.index.values, dtype=str)
 
-    if batch_label in ad.obs.columns:
-        batch_indices = ad.obs.pop(batch_label).values
+    if batch_label in obs.columns:
+        batch_indices = obs.pop(batch_label).values
 
-    if ctype_label in ad.obs.columns:
-        cell_types = ad.obs.pop(ctype_label)
+    if ctype_label in obs.columns:
+        cell_types = obs.pop(ctype_label)
         res = pd.factorize(cell_types)
         labels = res[0].astype(int)
         cell_types = np.array(res[1]).astype(str)
