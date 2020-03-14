@@ -2,8 +2,14 @@
 History
 =======
 
-0.6.0 
------
+0.6.1 (2020-3-13)
+------------------
+* handles gene and cell attributes with the same name `@han-yuan`_
+* fixes anndata overwriting when loading `@adam`_, `@pierre`_
+* formatting in basic tutorial `@adam`_
+
+0.6.0 (2020-2-28)
+------------------
 * updates on TotalVI and LDVAE `@adam`_
 * fix documentation, compatibility and diverse bugs `@adam`_, `@pierre`_ `@romain`_
 * fix for external module on scanpy `@galen-xing`_
@@ -139,4 +145,5 @@ History
 .. _`@primoz-godec`: https://github.com/PrimozGodec
 .. _`@eduardo-beltrame`: https://github.com/Munfred
 .. _`@john-reid`: https://github.com/JohnReid
+.. _`@han-yuan`: https://github.com/hy395
 
