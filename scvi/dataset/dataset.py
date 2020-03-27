@@ -1505,7 +1505,7 @@ def seurat_v3_highly_variable_genes(
 
         # get normalized variance
         reg_std = np.sqrt(10 ** estimat_var)
-        batch_counts = adata[adata.obs[batch_key] == b].X
+        batch_counts = adata[adata.obs[batch_key] == b].X.copy()
         # clip large values as in Seurat
         N = np.sum(adata.obs["batch"] == b)
         vmax = np.sqrt(N)
