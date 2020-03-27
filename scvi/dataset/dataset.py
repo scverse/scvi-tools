@@ -1494,23 +1494,14 @@ def seurat_v3_highly_variable_genes(
         mean, var = materialize_as_ndarray(
             _get_mean_var(adata[adata.obs[batch_key] == b].X)
         )
-
-        if sum(mean == 0) > 0:
-            raise ValueError(
-                "Some genes are all zero in batch {batch}, please ensure genes"
-                " are non-zero in each batch separately. "
-                " by running dataset.filter_genes_by_count(per_batch=True)".format(
-                    batch=b
-                )
-            )
-
+        not_const = var > 0
         estimat_var = np.zeros((adata.X.shape[1]))
 
-        y = np.log10(var)
-        x = np.log10(mean)
+        y = np.log10(var[not_const])
+        x = np.log10(mean[not_const])
         # output is sorted by x
         v = lowess(y, x, frac=0.15)
-        estimat_var[np.argsort(x)] = v[:, 1]
+        estimat_var[not_const][np.argsort(x)] = v[:, 1]
 
         # get normalized variance
         reg_std = np.sqrt(10 ** estimat_var)
