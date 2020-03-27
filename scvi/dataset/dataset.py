@@ -1521,7 +1521,7 @@ def seurat_v3_highly_variable_genes(
             squared_batch_counts_sum = np.square(batch_counts).sum(axis=0)
             batch_counts_sum = batch_counts.sum(axis=0)
 
-        norm_gene_var = (1 / ((N - 1) * np.square(reg_std)))(
+        norm_gene_var = (1 / ((N - 1) * np.square(reg_std))) * (
             (N * np.square(mean))
             + squared_batch_counts_sum
             - 2 * batch_counts_sum * mean
