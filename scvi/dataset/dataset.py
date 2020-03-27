@@ -1414,8 +1414,6 @@ class GeneExpressionDataset(Dataset):
         ).astype("category")
 
         counts = self.X.copy()
-        if sp_sparse.issparse(counts):
-            counts = counts.toarray()
         adata = sc.AnnData(X=counts, obs=obs)
         batch_key = "batch" if (batch_correction and self.n_batches >= 2) else None
         if flavor != "seurat_v3":
