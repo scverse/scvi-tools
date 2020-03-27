@@ -6,7 +6,7 @@ from functools import reduce
 import anndata
 import numpy as np
 import pandas as pd
-from scipy.sparse import csr_matrix
+import scipy.sparse as sp_sparse
 from typing import Dict, Optional
 
 from scvi.dataset.dataset import (
@@ -187,7 +187,7 @@ def extract_data_from_anndata(
         data = counts.copy()
     if isinstance(counts, pd.DataFrame):
         data = counts.values.copy()
-    if isinstance(counts, csr_matrix):
+    if sp_sparse.issparse(counts):
         # keep sparsity above 1 Gb in dense form
         if reduce(operator.mul, counts.shape) * counts.dtype.itemsize < 1e9:
             logger.info("Dense size under 1Gb, casting to dense format (np.ndarray).")
