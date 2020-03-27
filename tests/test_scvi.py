@@ -1,9 +1,13 @@
 import numpy as np
+import tempfile
 import os
 import pytest
 import torch
 
+from anndata import AnnData
+
 from scvi.dataset import (
+    AnnDatasetFromAnnData,
     CortexDataset,
     SyntheticDataset,
     GeneExpressionDataset,
@@ -18,7 +22,7 @@ from scvi.inference import (
     TotalTrainer,
     TotalPosterior,
 )
-from scvi.inference.posterior import unsupervised_clustering_accuracy
+from scvi.inference.posterior import unsupervised_clustering_accuracy, load_posterior
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE
 from scvi.models.distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
@@ -56,6 +60,26 @@ def test_cortex(save_path):
     trainer_cortex_vae.train_set.imputation_benchmark(
         n_samples=1, show_plot=False, title_plot="imputation", save_path=save_path
     )
+    trainer_cortex_vae.train_set.generate_parameters()
+
+    n_cells, n_genes = (
+        len(trainer_cortex_vae.train_set.indices),
+        cortex_dataset.nb_genes,
+    )
+    n_samples = 3
+    (dropout, means, dispersions,) = trainer_cortex_vae.train_set.generate_parameters()
+    assert dropout.shape == (n_cells, n_genes) and means.shape == (n_cells, n_genes)
+    assert dispersions.shape == (n_cells, n_genes)
+    (dropout, means, dispersions,) = trainer_cortex_vae.train_set.generate_parameters(
+        n_samples=n_samples
+    )
+    assert dropout.shape == (n_samples, n_cells, n_genes)
+    assert means.shape == (n_samples, n_cells, n_genes,)
+    (dropout, means, dispersions,) = trainer_cortex_vae.train_set.generate_parameters(
+        n_samples=n_samples, give_mean=True
+    )
+    assert dropout.shape == (n_cells, n_genes) and means.shape == (n_cells, n_genes)
+
     full = trainer_cortex_vae.create_posterior(
         vae, cortex_dataset, indices=np.arange(len(cortex_dataset))
     )
@@ -339,6 +363,14 @@ def test_differential_expression(save_path):
     trainer.train(n_epochs=2)
     post = trainer.create_posterior(vae, dataset, shuffle=False, indices=all_indices)
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        posterior_save_path = os.path.join(temp_dir, "posterior_data")
+        post.save_posterior(posterior_save_path)
+        new_vae = VAE(dataset.nb_genes, dataset.n_batches)
+        new_post = load_posterior(posterior_save_path, model=new_vae, use_cuda=False)
+    assert np.array_equal(new_post.indices, post.indices)
+    assert np.array_equal(new_post.gene_dataset.X, post.gene_dataset.X)
+
     # Sample scale example
     px_scales = post.scale_sampler(
         n_samples_per_cell=4, n_samples=None, selection=all_indices
@@ -366,6 +398,7 @@ def test_differential_expression(save_path):
         mode="change",
         use_permutation=True,
         M_permutation=100,
+        cred_interval_lvls=[0.5, 0.95],
     )
     print(de_dataframe.keys())
     assert (
@@ -533,3 +566,15 @@ def test_zinb_distribution():
         dist1.log_prob(-x)  # ensures neg values raise warning
     with pytest.warns(UserWarning):
         dist2.log_prob(0.5 * x)  # ensures float values raise warning
+
+
+def test_anndata_loader():
+    x = np.random.randint(low=0, high=100, size=(15, 4))
+    batch_ids = np.random.randint(low=0, high=2, size=(15,))
+    n_batches = 2
+    adata = AnnData(X=x, obs=dict(batch=batch_ids))
+    _ = AnnDatasetFromAnnData(adata, batch_label="batch")
+    dataset = AnnDatasetFromAnnData(adata, batch_label="batch")
+    assert (
+        dataset.n_batches == n_batches
+    ), "AnnDatasetFromAnnData should not modify the anndata object"

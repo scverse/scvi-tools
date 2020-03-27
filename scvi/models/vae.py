@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Main module."""
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,15 +15,19 @@ from scvi.models.distributions import (
 from scvi.models.modules import Encoder, DecoderSCVI, LinearDecoderSCVI
 from scvi.models.utils import one_hot
 
+from typing import Tuple, Dict
+
 torch.backends.cudnn.benchmark = True
 
 
 # VAE model
 class VAE(nn.Module):
-    r"""Variational auto-encoder model.
+    """Variational auto-encoder model.
+
+    This is an implementation of the scVI model descibed in [Lopez18]_
 
     :param n_input: Number of input genes
-    :param n_batch: Number of batches
+    :param n_batch: Number of batches, if 0, no batch correction is performed.
     :param n_labels: Number of labels
     :param n_hidden: Number of nodes per hidden layer
     :param n_latent: Dimensionality of the latent space
@@ -111,26 +116,25 @@ class VAE(nn.Module):
             n_hidden=n_hidden,
         )
 
-    def get_latents(self, x, y=None):
-        r""" returns the result of ``sample_from_posterior_z`` inside a list
+    def get_latents(self, x, y=None) -> torch.Tensor:
+        """Returns the result of ``sample_from_posterior_z`` inside a list
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
         :return: one element list of tensor
-        :rtype: list of :py:class:`torch.Tensor`
         """
         return [self.sample_from_posterior_z(x, y)]
 
-    def sample_from_posterior_z(self, x, y=None, give_mean=False, n_samples=5000):
-        r""" samples the tensor of latent values from the posterior
-        #doesn't really sample, returns the means of the posterior distribution
+    def sample_from_posterior_z(
+        self, x, y=None, give_mean=False, n_samples=5000
+    ) -> torch.Tensor:
+        """Samples the tensor of latent values from the posterior
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
         :param give_mean: is True when we want the mean of the posterior  distribution rather than sampling
         :param n_samples: how many MC samples to average over for transformed mean
         :return: tensor of shape ``(batch_size, n_latent)``
-        :rtype: :py:class:`torch.Tensor`
         """
         if self.log_variational:
             x = torch.log(1 + x)
@@ -144,14 +148,12 @@ class VAE(nn.Module):
                 z = qz_m
         return z
 
-    def sample_from_posterior_l(self, x):
-        r""" samples the tensor of library sizes from the posterior
-        #doesn't really sample, returns the tensor of the means of the posterior distribution
+    def sample_from_posterior_l(self, x) -> torch.Tensor:
+        """Samples the tensor of library sizes from the posterior
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
         :return: tensor of shape ``(batch_size, 1)``
-        :rtype: :py:class:`torch.Tensor`
         """
         if self.log_variational:
             x = torch.log(1 + x)
@@ -160,8 +162,8 @@ class VAE(nn.Module):
 
     def get_sample_scale(
         self, x, batch_index=None, y=None, n_samples=1, transform_batch=None
-    ):
-        r"""Returns the tensor of predicted frequencies of expression
+    ) -> torch.Tensor:
+        """Returns the tensor of predicted frequencies of expression
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
@@ -169,7 +171,6 @@ class VAE(nn.Module):
         :param n_samples: number of samples
         :param transform_batch: int of batch to transform samples into
         :return: tensor of predicted frequencies of expression with shape ``(batch_size, n_input)``
-        :rtype: :py:class:`torch.Tensor`
         """
         return self.inference(
             x,
@@ -181,8 +182,8 @@ class VAE(nn.Module):
 
     def get_sample_rate(
         self, x, batch_index=None, y=None, n_samples=1, transform_batch=None
-    ):
-        r"""Returns the tensor of means of the negative binomial distribution
+    ) -> torch.Tensor:
+        """Returns the tensor of means of the negative binomial distribution
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
@@ -190,7 +191,6 @@ class VAE(nn.Module):
         :param n_samples: number of samples
         :param transform_batch: int of batch to transform samples into
         :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
-        :rtype: :py:class:`torch.Tensor`
         """
         return self.inference(
             x,
@@ -200,7 +200,11 @@ class VAE(nn.Module):
             transform_batch=transform_batch,
         )["px_rate"]
 
-    def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout, **kwargs):
+    def get_reconstruction_loss(
+        self, x, px_rate, px_r, px_dropout, **kwargs
+    ) -> torch.Tensor:
+        """Return the reconstruction loss (for a minibatch)
+        """
         # Reconstruction Loss
         if self.reconstruction_loss == "zinb":
             reconst_loss = (
@@ -218,8 +222,11 @@ class VAE(nn.Module):
             reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
         return reconst_loss
 
-    def inference(self, x, batch_index=None, y=None, n_samples=1, transform_batch=None):
-
+    def inference(
+        self, x, batch_index=None, y=None, n_samples=1, transform_batch=None
+    ) -> Dict[str, torch.Tensor]:
+        """Helper function used in forward pass
+        """
         x_ = x
         if self.log_variational:
             x_ = torch.log(1 + x_)
@@ -269,8 +276,10 @@ class VAE(nn.Module):
             library=library,
         )
 
-    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
-        r""" Returns the reconstruction loss and the Kullback divergences
+    def forward(
+        self, x, local_l_mean, local_l_var, batch_index=None, y=None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """ Returns the reconstruction loss and the KL divergences
 
         :param x: tensor of values with shape (batch_size, n_input)
         :param local_l_mean: tensor of means of the prior distribution of latent variable l
@@ -280,7 +289,6 @@ class VAE(nn.Module):
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :param y: tensor of cell-types labels with shape (batch_size, n_labels)
         :return: the reconstruction loss and the Kullback divergences
-        :rtype: 2-tuple of :py:class:`torch.FloatTensor`
         """
         # Parameters for z latent distribution
         outputs = self.inference(x, batch_index, y)
@@ -311,14 +319,18 @@ class VAE(nn.Module):
 
 
 class LDVAE(VAE):
-    r"""Linear-decoded Variational auto-encoder model.
+    """Linear-decoded Variational auto-encoder model.
+
+    Implementation of [Svensson20]_.
 
     This model uses a linear decoder, directly mapping the latent representation
     to gene expression levels. It still uses a deep neural network to encode
     the latent representation.
 
     Compared to standard VAE, this model is less powerful, but can be used to
-    inspect which genes contribute to variation in the dataset.
+    inspect which genes contribute to variation in the dataset. It may also be used
+    for all scVI tasks, like differential expression, batch correction, imputation, etc.
+    However, batch correction may be less powerful as it assumes a linear model.
 
     :param n_input: Number of input genes
     :param n_batch: Number of batches
@@ -340,6 +352,7 @@ class LDVAE(VAE):
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
     :param use_batch_norm: Bool whether to use batch norm in decoder
+    :param bias: Bool whether to have bias term in linear decoder
     """
 
     def __init__(
@@ -390,7 +403,7 @@ class LDVAE(VAE):
         )
 
     @torch.no_grad()
-    def get_loadings(self):
+    def get_loadings(self) -> np.ndarray:
         """ Extract per-gene weights (for each Z, shape is genes by dim(Z)) in the linear decoder.
         """
         # This is BW, where B is diag(b) batch norm, W is weight matrix

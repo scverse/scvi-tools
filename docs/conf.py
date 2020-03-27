@@ -21,15 +21,16 @@
 import os
 import sys
 
+import scvi
+
 sys.path.insert(0, os.path.abspath(".."))
 
-import scvi
 
 # -- General configuration ---------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-# needs_sphinx = '1.0'
+needs_sphinx = "2.0"  # Nicer param docs
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
@@ -37,10 +38,17 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.viewcode",
     "nbsphinx",
+    "nbsphinx_link",
     "sphinx_autodoc_typehints",
     "sphinx.ext.mathjax",
     "sphinx_rtd_theme",
+    "sphinx.ext.intersphinx",
+    "autodocsumm",
 ]
+
+# nbsphinx specific settings
+exclude_patterns = ["_build", "**.ipynb_checkpoints"]
+nbsphinx_execute = "never"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -51,12 +59,15 @@ templates_path = ["_templates"]
 # source_suffix = ['.rst', '.md']
 source_suffix = ".rst"
 
+
+autodoc_default_options = {"autosummary": True}
+
 # The master toctree document.
 master_doc = "index"
 
 # General information about the project.
 project = u"scVI"
-copyright = u"2018, Romain Lopez"
+copyright = u"2020, Romain Lopez, Adam Gayoso, Pierre Boyeau"
 author = u"Romain Lopez"
 
 # The version info for the project you're documenting, acts as replacement
@@ -103,7 +114,12 @@ html_theme = "sphinx_rtd_theme"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = []
+html_static_path = ["_static"]
+html_show_sphinx = False
+
+
+def setup(app):
+    app.add_stylesheet("css/custom.css")
 
 
 # -- Options for HTMLHelp output ---------------------------------------
