@@ -4,7 +4,7 @@ from torch.distributions import Normal, Beta, Gamma, kl_divergence as kl
 import numpy as np
 from scipy.special import logit
 
-from scvi.models.distributions import ZINB, NB
+from scvi.models.distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
 from scvi.models.vae import VAE
 from scvi.models.utils import one_hot
 
@@ -319,10 +319,14 @@ class AutoZIVAE(VAE):
     ) -> torch.Tensor:
 
         # LLs for NB and ZINB
-        ll_zinb = torch.log(1.0 - bernoulli_params + eps_log) + ZINB(
+        ll_zinb = torch.log(
+            1.0 - bernoulli_params + eps_log
+        ) + ZeroInflatedNegativeBinomial(
             mu=px_rate, theta=px_r, zi_logits=px_dropout
-        ).log_prob(x)
-        ll_nb = torch.log(bernoulli_params + eps_log) + NB(
+        ).log_prob(
+            x
+        )
+        ll_nb = torch.log(bernoulli_params + eps_log) + NegativeBinomial(
             mu=px_rate, theta=px_r
         ).log_prob(x)
 

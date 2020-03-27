@@ -18,12 +18,13 @@ from torch.distributions.utils import (
 from scvi.models.log_likelihood import log_nb_positive, log_zinb_positive
 
 
-def from_nb_params2_to_1(mu, theta, eps=1e-6):
-    r"""
+def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):
+    r"""NB parameterizations conversion
+
         :param mu: mean of the NB distribution.
-        :param theta: overdispersion
-        :param eps: constant used for numerical log stability
-        Returns the number of failures until the experiment is stopped
+        :param theta: inverse overdispersion.
+        :param eps: constant used for numerical log stability.
+        :return: the number of failures until the experiment is stopped
             and the success probability.
     """
     assert (mu is None) == (
@@ -34,28 +35,29 @@ def from_nb_params2_to_1(mu, theta, eps=1e-6):
     return total_count, logits
 
 
-def from_nb_params1_to_2(total_count, logits):
-    """
+def _convert_counts_logits_to_mean_disp(total_count, logits):
+    """NB parameterizations conversion
+
         :param total_count: Number of failures until the experiment is stopped.
-        :param logits: success logits
-        Returns the mean and overdispersion of the NB distribution.
+        :param logits: success logits.
+        :return: the mean and inverse overdispersion of the NB distribution.
     """
     theta = total_count
     mu = logits.exp() * theta
     return mu, theta
 
 
-class NB(Distribution):
-    r"""
-        Negative Binomial distribution using two parameterizations:
-        - The first one corresponds to the parameterization NB(`total_count`, `probs`)
-            where `total_count` is the number of failures until the experiment is stopped
-            and `probs` the success probability.
-        - The (`mu`, `theta`) parameterization is the one used by scVI. These parameters respectively
-        control the mean and overdispersion of the distribution.
+class NegativeBinomial(Distribution):
+    r"""Negative Binomial(NB) distribution using two parameterizations:
 
-        `from_nb_params2_to_1` and `from_nb_params1_to_2` provide ways to convert one parameterization to another.
+    - (`total_count`, `probs`) where `total_count` is the number of failures
+        until the experiment is stopped
+        and `probs` the success probability.
+    - The (`mu`, `theta`) parameterization is the one used by scVI. These parameters respectively
+    control the mean and overdispersion of the distribution.
 
+    `_convert_mean_disp_to_counts_logits` and `_convert_counts_logits_to_mean_disp` provide ways to convert
+    one parameterization to another.
     """
     arg_constraints = {
         "mu": constraints.greater_than_eq(0),
@@ -85,7 +87,7 @@ class NB(Distribution):
             logits = logits if logits is not None else probs_to_logits(probs)
             total_count = total_count.type_as(logits)
             total_count, logits = broadcast_all(total_count, logits)
-            mu, theta = from_nb_params1_to_2(total_count, logits)
+            mu, theta = _convert_counts_logits_to_mean_disp(total_count, logits)
         else:
             mu, theta = broadcast_all(mu, theta)
         self.mu = mu
@@ -123,19 +125,20 @@ class NB(Distribution):
         return gamma_d
 
 
-class ZINB(NB):
-    r"""
-        Zero Inflated Negative Binomial distribution.
-        zi_logits correspond to the zero-inflation logits
-mu + mu ** 2 / theta
-        The negative binomial component parameters can follow two two parameterizations:
-        - The first one corresponds to the parameterization NB(`total_count`, `probs`)
-            where `total_count` is the number of failures until the experiment is stopped
-            and `probs` the success probability.
-        - The (`mu`, `theta`) parameterization is the one used by scVI. These parameters respectively
-        control the mean and overdispersion of the distribution.
+class ZeroInflatedNegativeBinomial(NegativeBinomial):
+    r"""Zero Inflated Negative Binomial distribution.
 
-        `from_nb_params2_to_1` and `from_nb_params1_to_2` provide ways to convert one parameterization to another.
+    zi_logits correspond to the zero-inflation logits
+        mu + mu ** 2 / theta
+    The negative binomial component parameters can follow two two parameterizations:
+    - The first one corresponds to the parameterization NB(`total_count`, `probs`)
+        where `total_count` is the number of failures until the experiment is stopped
+        and `probs` the success probability.
+    - The (`mu`, `theta`) parameterization is the one used by scVI. These parameters respectively
+    control the mean and overdispersion of the distribution.
+
+    `_convert_mean_disp_to_counts_logits` and `_convert_counts_logits_to_mean_disp`
+    provide ways to convert one parameterization to another.
     """
     arg_constraints = {
         "mu": constraints.greater_than_eq(0),

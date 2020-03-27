@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, Bernoulli, kl_divergence as kl
 
-from scvi.models.distributions import ZINB, NB
+from scvi.models.distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
 from scvi.models.log_likelihood import log_mixture_nb
 from scvi.models.modules import DecoderTOTALVI, EncoderTOTALVI
 from scvi.models.utils import one_hot
@@ -307,13 +307,17 @@ class TOTALVI(nn.Module):
         # Reconstruction Loss
         if self.reconstruction_loss_gene == "zinb":
             reconst_loss_gene = (
-                -ZINB(mu=px_["rate"], theta=px_["r"], zi_logits=px_["dropout"])
+                -ZeroInflatedNegativeBinomial(
+                    mu=px_["rate"], theta=px_["r"], zi_logits=px_["dropout"]
+                )
                 .log_prob(x)
                 .sum(dim=-1)
             )
         else:
             reconst_loss_gene = (
-                -NB(mu=px_["rate"], theta=px_["r"]).log_prob(x).sum(dim=-1)
+                -NegativeBinomial(mu=px_["rate"], theta=px_["r"])
+                .log_prob(x)
+                .sum(dim=-1)
             )
 
         reconst_loss_protein_full = -log_mixture_nb(

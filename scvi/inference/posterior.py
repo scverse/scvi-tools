@@ -41,7 +41,7 @@ from scvi.models.log_likelihood import (
     compute_marginal_log_likelihood_scvi,
     compute_marginal_log_likelihood_autozi,
 )
-from scvi.models.distributions import NB, ZINB
+from scvi.models.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scipy.stats import spearmanr
 
 logger = logging.getLogger(__name__)
@@ -1095,9 +1095,11 @@ class Posterior:
                     l_train
                 )  # Shape : (n_samples, n_cells_batch, n_genes)
             elif self.model.reconstruction_loss == "nb":
-                dist = NB(mu=px_rate, theta=px_r,)
+                dist = NegativeBinomial(mu=px_rate, theta=px_r,)
             elif self.model.reconstruction_loss == "zinb":
-                dist = ZINB(mu=px_rate, theta=px_r, zi_logits=px_dropout)
+                dist = ZeroInflatedNegativeBinomial(
+                    mu=px_rate, theta=px_r, zi_logits=px_dropout
+                )
             else:
                 raise ValueError(
                     "{} reconstruction error not handled right now".format(

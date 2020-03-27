@@ -20,7 +20,8 @@ from scvi.inference import (
 )
 from scvi.inference.posterior import unsupervised_clustering_accuracy
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
-from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE, ZINB, NB
+from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE
+from scvi.models.distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
 from scvi.models.classifier import Classifier
 from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
 from scvi import set_seed
@@ -496,7 +497,7 @@ def test_zinb_distribution():
     x = torch.randint_like(mu, high=20)
     log_p_ref = log_zinb_positive(x, mu, theta, pi)
 
-    dist = ZINB(mu=mu, theta=theta, zi_logits=pi)
+    dist = ZeroInflatedNegativeBinomial(mu=mu, theta=theta, zi_logits=pi)
     log_p_zinb = dist.log_prob(x)
     assert (log_p_ref - log_p_zinb).abs().max().item() <= 1e-8
 
@@ -507,7 +508,7 @@ def test_zinb_distribution():
     assert s2.shape == (4, 3, 2)
 
     log_p_ref = log_nb_positive(x, mu, theta)
-    dist = NB(mu=mu, theta=theta)
+    dist = NegativeBinomial(mu=mu, theta=theta)
     log_p_nb = dist.log_prob(x)
     assert (log_p_ref - log_p_nb).abs().max().item() <= 1e-8
 
@@ -521,13 +522,13 @@ def test_zinb_distribution():
     mu = 15.0 * torch.ones_like(theta)
     pi = torch.randn_like(theta)
     x = torch.randint_like(mu, high=20)
-    dist1 = ZINB(mu=mu, theta=theta, zi_logits=pi)
-    dist2 = NB(mu=mu, theta=theta)
+    dist1 = ZeroInflatedNegativeBinomial(mu=mu, theta=theta, zi_logits=pi)
+    dist2 = NegativeBinomial(mu=mu, theta=theta)
     assert dist1.log_prob(x).shape == size
     assert dist2.log_prob(x).shape == size
 
     with pytest.raises(ValueError):
-        ZINB(mu=-mu, theta=theta, zi_logits=pi)
+        ZeroInflatedNegativeBinomial(mu=-mu, theta=theta, zi_logits=pi)
     with pytest.warns(UserWarning):
         dist1.log_prob(-x)  # ensures neg values raise warning
     with pytest.warns(UserWarning):

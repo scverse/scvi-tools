@@ -5,7 +5,6 @@ from .autozivae import AutoZIVAE
 from .vaec import VAEC
 from .jvae import JVAE
 from .totalvi import TOTALVI
-from .distributions import ZINB, NB
 
 __all__ = [
     "SCANVI",
@@ -16,6 +15,4 @@ __all__ = [
     "Classifier",
     "AutoZIVAE",
     "TOTALVI",
-    "ZINB",
-    "NB",
 ]

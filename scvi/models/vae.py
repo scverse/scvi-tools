@@ -6,7 +6,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence as kl
 
-from scvi.models.distributions import ZINB, NB, Poisson
+from scvi.models.distributions import (
+    ZeroInflatedNegativeBinomial,
+    NegativeBinomial,
+    Poisson,
+)
 from scvi.models.modules import Encoder, DecoderSCVI, LinearDecoderSCVI
 from scvi.models.utils import one_hot
 
@@ -200,12 +204,16 @@ class VAE(nn.Module):
         # Reconstruction Loss
         if self.reconstruction_loss == "zinb":
             reconst_loss = (
-                -ZINB(mu=px_rate, theta=px_r, zi_logits=px_dropout)
+                -ZeroInflatedNegativeBinomial(
+                    mu=px_rate, theta=px_r, zi_logits=px_dropout
+                )
                 .log_prob(x)
                 .sum(dim=-1)
             )
         elif self.reconstruction_loss == "nb":
-            reconst_loss = -NB(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
+            reconst_loss = (
+                -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
+            )
         elif self.reconstruction_loss == "poisson":
             reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
         return reconst_loss
