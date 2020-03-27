@@ -1473,6 +1473,8 @@ def seurat_v3_highly_variable_genes(
         a dataset with multiple batches we rank features by their median normalized variance
         across batches
 
+        For further details of the arithmetic see https://www.overleaf.com/read/ckptrbgzzzpg
+
         :param n_top_genes: How many variable genes to return
         :param batch_key: key in adata.obs that contains batch info. If None, do not use batch info
 
