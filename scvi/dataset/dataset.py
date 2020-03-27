@@ -1510,14 +1510,29 @@ def seurat_v3_highly_variable_genes(
         v = lowess(y, x, frac=0.15)
         estimat_var[np.argsort(x)] = v[:, 1]
 
-        norm_values = (adata[adata.obs[batch_key] == b].X - mean) / np.sqrt(
-            10 ** estimat_var
+        # get normalized variance
+        reg_std = np.sqrt(10 ** estimat_var)
+        batch_counts = adata[adata.obs[batch_key] == b].X
+        # clip large values as in Seurat
+        N = np.sum(adata.obs["batch"] == b)
+        vmax = np.sqrt(N)
+        clip_val = reg_std * vmax + mean
+        # could be something faster here
+        for g in range(batch_counts.shape[1]):
+            batch_counts[:, g][batch_counts[:, g] > vmax] = clip_val[g]
+
+        if sp_sparse.issparse(batch_counts):
+            squared_batch_counts_sum = np.array(batch_counts.power(2).sum(axis=0))
+            batch_counts_sum = np.array(batch_counts.sum(axis=0))
+        else:
+            squared_batch_counts_sum = np.square(batch_counts).sum(axis=0)
+            batch_counts_sum = batch_counts.sum(axis=0)
+
+        norm_gene_var = (1 / ((N - 1) * np.square(reg_std)))(
+            (N * np.square(mean))
+            + squared_batch_counts_sum
+            - 2 * batch_counts_sum * mean
         )
-        # as in seurat paper, clip max values
-        norm_values = np.clip(
-            norm_values, None, np.sqrt(np.sum(adata.obs["batch"] == b))
-        )
-        norm_gene_var = norm_values.var(0)
         norm_gene_vars.append(norm_gene_var.reshape(1, -1))
 
     norm_gene_vars = np.concatenate(norm_gene_vars, axis=0)
