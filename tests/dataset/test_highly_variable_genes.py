@@ -1,5 +1,5 @@
 from unittest import TestCase
-
+import numpy as np
 from scvi.dataset import BrainLargeDataset, SyntheticDataset
 
 
@@ -58,3 +58,10 @@ class TestHighlyVariableGenes(TestCase):
         dataset = SyntheticDataset(batch_size=100, nb_genes=100, n_batches=3)
         dataset.subsample_genes(new_n_genes=n_top, mode="seurat_v3")
         assert dataset.nb_genes == n_top
+
+        # make sure constant genes have low scores
+        dataset = SyntheticDataset(batch_size=100, nb_genes=100, n_batches=3)
+        dataset.X[:, -1] = np.zeros_like(dataset.X[:, -1])
+        df = dataset._highly_variable_genes(n_top_genes=n_top, flavor="seurat_v3")
+
+        assert df.loc[str(dataset.nb_genes - 1)]["highly_variable_median_variance"] == 0
