@@ -34,9 +34,9 @@ class AutoZIVAE(VAE):
                             When set to ``None'', will be set to 1 - beta_prior if beta_prior is not ``None'',
                             otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
         :param beta_prior: Float denoting the beta parameter of the prior Beta distribution of
-                            the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
-                            When set to ``None'', will be set to 1 - alpha_prior if alpha_prior is not ``None'',
-                            otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
+                           the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
+                           When set to ``None'', will be set to 1 - alpha_prior if alpha_prior is not ``None'',
+                           otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
         :param minimal_dropout: Float denoting the lower bound of the cell-gene ZI rate in the ZINB component.
                                 Must be non-negative. Can be set to 0 but not recommended as this may make
                                 the mixture problem ill-defined.
@@ -73,7 +73,7 @@ class AutoZIVAE(VAE):
             alpha_prior = 1.0 - beta_prior
 
         # Create parameters for Bernoulli Beta prior and posterior distributions
-        # Each paramer, whose values are in (0,1), is encoded as its logit, in the set of real numbers
+        # Each parameter, whose values are in (0,1), is encoded as its logit, in the set of real numbers
 
         if self.zero_inflation == "gene":
             self.alpha_posterior_logit = torch.nn.Parameter(torch.randn(n_input))
