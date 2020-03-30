@@ -415,12 +415,12 @@ def test_differential_expression(save_path):
     )
     print(de_dataframe.keys())
     assert (
-        de_dataframe["confidence_interval_0.5_min"]
-        <= de_dataframe["confidence_interval_0.5_max"]
+        de_dataframe["lfc_confidence_interval_0.5_min"]
+        <= de_dataframe["lfc_confidence_interval_0.5_max"]
     ).all()
     assert (
-        de_dataframe["confidence_interval_0.95_min"]
-        <= de_dataframe["confidence_interval_0.95_max"]
+        de_dataframe["lfc_confidence_interval_0.95_min"]
+        <= de_dataframe["lfc_confidence_interval_0.95_max"]
     ).all()
 
     # DE estimation example
