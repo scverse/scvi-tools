@@ -151,6 +151,14 @@ class Posterior:
         with open(os.path.join(dir_path, "posterior_type.txt"), "w") as post_file:
             post_file.write(self.posterior_type)
         torch.save(self.model.state_dict(), os.path.join(dir_path, "model_params.pt"))
+
+        # Saves posterior indices and kwargs that can easily be retrieved
+        data_loader_kwargs = pd.Series(
+            {key: vals for key, vals in self.data_loader_kwargs.items()}
+        )
+        data_loader_kwargs.to_hdf(
+            os.path.join(dir_path, "data_loader_kwargs.csv"), key="data_loader"
+        )
         np.save(file=os.path.join(dir_path, "indices.npy"), arr=np.array(self.indices))
         pass
 

@@ -19,7 +19,7 @@ def load_posterior(
     dir_path: str,
     model: nn.Module,
     use_cuda: Optional[bool] = True,
-    device="cuda",
+    device="auto",
     **posterior_kwargs
 ):
     """Function to use in order to retrieve a posterior that was saved using the `save_posterior` method
@@ -29,7 +29,6 @@ def load_posterior(
 
     :param dir_path: directory containing the posterior properties to be retrieved.
     :param model: scVI initialized model.
-    :param use_cuda: whether the model should use cuda.
 
     Usage example:
     1. Save posterior
@@ -52,7 +51,9 @@ def load_posterior(
     dataset_path = os.path.join(dir_path, "anndata_dataset.h5ad")
     model_path = os.path.join(dir_path, "model_params.pt")
     indices_path = os.path.join(dir_path, "indices.npy")
+    data_loader_kwargs_path = os.path.join(dir_path, "data_loader_kwargs.csv")
 
+    # Infering posterior type
     with open(post_type_path, "r") as post_file:
         post_class_str = post_file.readline()
     str_to_classes = dict(
@@ -67,8 +68,8 @@ def load_posterior(
         )
     post_class = str_to_classes[post_class_str]
 
+    # Loading dataset and associated measurements
     ad = anndata.read_h5ad(filename=dataset_path)
-
     key = "cell_measurements_col_mappings"
     if key in ad.uns:
         cell_measurements_col_mappings = ad.uns[key]
@@ -77,17 +78,24 @@ def load_posterior(
     dataset = AnnDatasetFromAnnData(
         ad=ad, cell_measurements_col_mappings=cell_measurements_col_mappings
     )
+
+    # Loading scVI model
     model.load_state_dict(torch.load(model_path))
     model.to(device=device)
     model.eval()
+
+    # Loading data loader options and posterior
     indices = np.load(file=indices_path)
+    data_loader_kwargs = pd.read_hdf(
+        data_loader_kwargs_path, key="data_loader"
+    ).to_dict()
     my_post = post_class(
         model=model,
         gene_dataset=dataset,
         shuffle=False,
         indices=indices,
-        use_cuda=use_cuda,
-        data_loader_kwargs=dict(),
+        use_cuda="auto",
+        data_loader_kwargs=data_loader_kwargs,
         **posterior_kwargs
     )
     return my_post

@@ -376,9 +376,11 @@ def test_differential_expression(save_path):
 
     with tempfile.TemporaryDirectory() as temp_dir:
         posterior_save_path = os.path.join(temp_dir, "posterior_data")
+        post = post.sequential(batch_size=3)
         post.save_posterior(posterior_save_path)
         new_vae = VAE(dataset.nb_genes, dataset.n_batches)
         new_post = load_posterior(posterior_save_path, model=new_vae, use_cuda=False)
+    assert new_post.data_loader.batch_size == 3
     assert np.array_equal(new_post.indices, post.indices)
     assert np.array_equal(new_post.gene_dataset.X, post.gene_dataset.X)
 
