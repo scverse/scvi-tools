@@ -738,6 +738,9 @@ class Posterior:
                 samples=change_distribution,
                 credible_intervals_levels=cred_interval_lvls,
             )
+            change_distribution_props = {
+                "lfc_" + key: val for (key, val) in change_distribution_props.items()
+            }
 
             res = dict(
                 proba_de=proba_m1,
@@ -886,7 +889,13 @@ class Posterior:
         :param all_stats: whether additional metrics should be provided
         :\**kwargs: Other keywords arguments for `get_sample_scale()`
 
-        :return: Differential expression properties
+        :return: Differential expression properties. The most important keys are:
+
+            - proba_de (probability of being differentially expressed in change mode)
+            or bayes_factor (bayes factors in the vanilla mode)
+            - scale1 and scale2 (means of the scales in population 1 and 2)
+            - When using the change mode, the dataframe also contains information on the Posterior LFC
+            (its mean, median, std, and confidence intervals associated to cred_interval_lvls).
         """
         all_info = self.get_bayes_factors(
             idx1=idx1,
