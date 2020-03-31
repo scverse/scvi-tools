@@ -21,13 +21,19 @@ def load_posterior(
     use_cuda: Optional[Union[bool, str]] = "auto",
     **posterior_kwargs
 ):
-    """Function to use in order to retrieve a posterior that was saved using the `save_posterior` method
+    """Function to use in order to retrieve a posterior that was saved using the ``save_posterior`` method
 
     Because of pytorch model loading usage, this function needs a scVI model object initialized with exact same parameters
     that during training.
+    Because saved posteriors correspond to already trained models, data is loaded sequentially using a ``SequentialSampler``.
 
     :param dir_path: directory containing the posterior properties to be retrieved.
     :param model: scVI initialized model.
+    :param use_cuda: Specifies if the computations should be perfomed with a GPU.
+      Default: ``True``
+      If ``auto``, then cuda availability is inferred.
+    :param posterior_kwargs: additional parameters to feed to the posterior constructor.
+
 
     Usage example:
     1. Save posterior
@@ -50,7 +56,7 @@ def load_posterior(
     dataset_path = os.path.join(dir_path, "anndata_dataset.h5ad")
     model_path = os.path.join(dir_path, "model_params.pt")
     indices_path = os.path.join(dir_path, "indices.npy")
-    data_loader_kwargs_path = os.path.join(dir_path, "data_loader_kwargs.csv")
+    data_loader_kwargs_path = os.path.join(dir_path, "data_loader_kwargs.h5")
 
     # Infering posterior type
     with open(post_type_path, "r") as post_file:
@@ -81,6 +87,10 @@ def load_posterior(
     # Loading scVI model
     model.load_state_dict(torch.load(model_path))
     model.eval()
+    if use_cuda == "auto":
+        use_cuda = torch.cuda.is_available()
+    if use_cuda:
+        model.cuda()
 
     # Loading data loader options and posterior
     indices = np.load(file=indices_path)
@@ -92,7 +102,7 @@ def load_posterior(
         gene_dataset=dataset,
         shuffle=False,
         indices=indices,
-        use_cuda="auto",
+        use_cuda=use_cuda,
         data_loader_kwargs=data_loader_kwargs,
         **posterior_kwargs
     )

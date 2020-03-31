@@ -156,8 +156,11 @@ class Posterior:
         data_loader_kwargs = pd.Series(
             {key: vals for key, vals in self.data_loader_kwargs.items()}
         )
+        data_loader_kwargs = data_loader_kwargs[
+            ~data_loader_kwargs.index.isin(["collate_fn", "sampler"])
+        ]
         data_loader_kwargs.to_hdf(
-            os.path.join(dir_path, "data_loader_kwargs.csv"), key="data_loader"
+            os.path.join(dir_path, "data_loader_kwargs.h5"), key="data_loader"
         )
         np.save(file=os.path.join(dir_path, "indices.npy"), arr=np.array(self.indices))
         pass
@@ -887,15 +890,15 @@ class Posterior:
           LFC distribution
 
         :param all_stats: whether additional metrics should be provided
-        :\**kwargs: Other keywords arguments for `get_sample_scale()`
+        :\**kwargs: Other keywords arguments for `get_sample_scale`
 
-        :return: Differential expression properties. The most important keys are:
+        :return: Differential expression properties. The most important columns are:
 
-            - proba_de (probability of being differentially expressed in change mode)
-            or bayes_factor (bayes factors in the vanilla mode)
-            - scale1 and scale2 (means of the scales in population 1 and 2)
+            - ``proba_de`` (probability of being differentially expressed in change mode)
+            or ``bayes_factor`` (bayes factors in the vanilla mode)
+            - ``scale1`` and ``scale2`` (means of the scales in population 1 and 2)
             - When using the change mode, the dataframe also contains information on the Posterior LFC
-            (its mean, median, std, and confidence intervals associated to cred_interval_lvls).
+            (its mean, median, std, and confidence intervals associated to ``cred_interval_lvls``).
         """
         all_info = self.get_bayes_factors(
             idx1=idx1,
@@ -984,7 +987,7 @@ class Posterior:
         :param output_file: Bool: save file?
         :param save_dir:
         :param filename:`
-        :\**kwargs: Other keywords arguments for `get_sample_scale()`
+        :\**kwargs: Other keywords arguments for `get_sample_scale`
         :return: Tuple (de_res, de_cluster) (i) de_res is a list of length nb_clusters
             (based on provided labels or on hardcoded cell types) (ii) de_res[i] contains Bayes Factors
             for population number i vs all the rest (iii) de_cluster returns the associated names of clusters.
