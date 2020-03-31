@@ -89,6 +89,7 @@ def load_posterior(
     model.eval()
     if use_cuda == "auto":
         use_cuda = torch.cuda.is_available()
+    use_cuda = use_cuda and torch.cuda.is_available()
     if use_cuda:
         model.cuda()
 
