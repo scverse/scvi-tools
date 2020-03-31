@@ -154,7 +154,7 @@ class UnsupervisedTrainer(Trainer):
                 )
         else:
             log_message = "Training without KL warmup"
-        logger.debug(log_message)
+        logger.info(log_message)
 
     def on_training_end(self):
         if self.kl_weight < 0.99:

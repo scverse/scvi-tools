@@ -165,13 +165,6 @@ class Posterior:
             return np.arange(len(self.gene_dataset))
 
     @property
-    def are_indices_modified(self) -> bool:
-        """Determines if the object dataloader indices were modified at some point.
-
-        """
-        return np.array_equal(self.indices, self.original_indices)
-
-    @property
     def nb_cells(self) -> int:
         """returns the number of studied cells.
 
@@ -416,11 +409,6 @@ class Posterior:
 
         """
         # Get overall number of desired samples and desired batches
-        if self.are_indices_modified:
-            logger.warning(
-                "Posterior indices were modified at some point. Please ensure that provided indices correspond to the current posterior indices."
-            )
-
         if batchid is None and not use_observed_batches:
             batchid = np.arange(self.gene_dataset.n_batches)
         if use_observed_batches:
@@ -599,6 +587,12 @@ class Posterior:
 
         :return: Differential expression properties
         """
+
+        if not np.array_equal(self.indices, np.arange(len(self.gene_dataset))):
+            logger.warning(
+                "Differential expression requires a Posterior object created with all indices."
+            )
+
         eps = 1e-8  # used for numerical stability
         # Normalized means sampling for both populations
         scales_batches_1 = self.scale_sampler(
@@ -1210,7 +1204,7 @@ class Posterior:
                     l_train
                 )  # Shape : (n_samples, n_cells_batch, n_genes)
             elif self.model.reconstruction_loss == "nb":
-                dist = NegativeBinomial(mu=px_rate, theta=px_r,)
+                dist = NegativeBinomial(mu=px_rate, theta=px_r)
             elif self.model.reconstruction_loss == "zinb":
                 dist = ZeroInflatedNegativeBinomial(
                     mu=px_rate, theta=px_r, zi_logits=px_dropout
