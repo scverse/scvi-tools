@@ -147,7 +147,9 @@ class Posterior:
             )
         anndata_dataset = self.gene_dataset.to_anndata()
 
-        anndata_dataset.write(os.path.join(dir_path, "anndata_dataset.h5ad"))
+        anndata_dataset.write(
+            os.path.join(dir_path, "anndata_dataset.h5ad"), compression="lzf"
+        )
         with open(os.path.join(dir_path, "posterior_type.txt"), "w") as post_file:
             post_file.write(self.posterior_type)
         torch.save(self.model.state_dict(), os.path.join(dir_path, "model_params.pt"))

@@ -85,13 +85,16 @@ def load_posterior(
     )
 
     # Loading scVI model
-    model.load_state_dict(torch.load(model_path))
-    model.eval()
     if use_cuda == "auto":
         use_cuda = torch.cuda.is_available()
     use_cuda = use_cuda and torch.cuda.is_available()
     if use_cuda:
+        model.load_state_dict(torch.load(model_path))
         model.cuda()
+    else:
+        device = torch.device("cpu")
+        model.load_state_dict(torch.load(model_path, map_location=device))
+    model.eval()
 
     # Loading data loader options and posterior
     indices = np.load(file=indices_path)
