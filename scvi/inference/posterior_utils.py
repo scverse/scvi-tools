@@ -1,13 +1,113 @@
+import os
 from typing import List, Optional, Union
 
+import anndata
 import numpy as np
 import pandas as pd
 import scipy
 import torch
+import torch.nn as nn
 from matplotlib import pyplot as plt
 from scipy.optimize import linear_sum_assignment
-from scipy.stats import kde, entropy
-from sklearn.neighbors import NearestNeighbors, KNeighborsRegressor
+from scipy.stats import entropy, kde
+from sklearn.neighbors import KNeighborsRegressor, NearestNeighbors
+
+from scvi.dataset import AnnDatasetFromAnnData
+
+
+def load_posterior(
+    dir_path: str,
+    model: nn.Module,
+    use_cuda: Optional[Union[bool, str]] = "auto",
+    **posterior_kwargs
+):
+    """Function to use in order to retrieve a posterior that was saved using the ``save_posterior`` method
+
+    Because of pytorch model loading usage, this function needs a scVI model object initialized with exact same parameters
+    that during training.
+    Because saved posteriors correspond to already trained models, data is loaded sequentially using a ``SequentialSampler``.
+
+    :param dir_path: directory containing the posterior properties to be retrieved.
+    :param model: scVI initialized model.
+    :param use_cuda: Specifies if the computations should be perfomed with a GPU.
+      Default: ``True``
+      If ``auto``, then cuda availability is inferred.
+    :param posterior_kwargs: additional parameters to feed to the posterior constructor.
+
+
+    Usage example:
+    1. Save posterior
+        >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
+        >>> trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
+        >>> trainer.train(n_epochs=200)
+        >>> trainer.train_set.save_posterior("./my_run_train_posterior")
+
+    2. Load posterior
+        >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
+        >>> post = load_posterior("./my_run_train_posterior", model=model)
+    """
+    # Avoid circular imports
+    from scvi.inference.total_inference import TotalPosterior
+    from scvi.inference.jvae_trainer import JPosterior
+    from scvi.inference.posterior import Posterior
+    from scvi.inference.annotation import AnnotationPosterior
+
+    post_type_path = os.path.join(dir_path, "posterior_type.txt")
+    dataset_path = os.path.join(dir_path, "anndata_dataset.h5ad")
+    model_path = os.path.join(dir_path, "model_params.pt")
+    indices_path = os.path.join(dir_path, "indices.npy")
+    data_loader_kwargs_path = os.path.join(dir_path, "data_loader_kwargs.h5")
+
+    # Infering posterior type
+    with open(post_type_path, "r") as post_file:
+        post_class_str = post_file.readline()
+    str_to_classes = dict(
+        TotalPosterior=TotalPosterior,
+        JPosterior=JPosterior,
+        Posterior=Posterior,
+        AnnotationPosterior=AnnotationPosterior,
+    )
+    if post_class_str not in str_to_classes:
+        raise ValueError(
+            "Posterior type {} not eligible for loading".format(post_class_str)
+        )
+    post_class = str_to_classes[post_class_str]
+
+    # Loading dataset and associated measurements
+    ad = anndata.read_h5ad(filename=dataset_path)
+    key = "cell_measurements_col_mappings"
+    if key in ad.uns:
+        cell_measurements_col_mappings = ad.uns[key]
+    else:
+        cell_measurements_col_mappings = dict()
+    dataset = AnnDatasetFromAnnData(
+        ad=ad, cell_measurements_col_mappings=cell_measurements_col_mappings
+    )
+
+    # Loading scVI model
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+    if use_cuda == "auto":
+        use_cuda = torch.cuda.is_available()
+    use_cuda = use_cuda and torch.cuda.is_available()
+    if use_cuda:
+        model.cuda()
+
+    # Loading data loader options and posterior
+    indices = np.load(file=indices_path)
+    data_loader_kwargs = pd.read_hdf(
+        data_loader_kwargs_path, key="data_loader"
+    ).to_dict()
+    my_post = post_class(
+        model=model,
+        gene_dataset=dataset,
+        shuffle=False,
+        indices=indices,
+        use_cuda=use_cuda,
+        data_loader_kwargs=data_loader_kwargs,
+        **posterior_kwargs
+    )
+    return my_post
 
 
 def entropy_from_indices(indices):
