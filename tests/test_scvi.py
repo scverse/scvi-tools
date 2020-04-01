@@ -509,6 +509,9 @@ def test_totalvi(save_path):
             posterior_save_path, model=new_totalvae, use_cuda=False
         )
         assert new_post.posterior_type == "TotalPosterior"
+        assert np.array_equal(
+            new_post.gene_dataset.protein_expression, dataset.protein_expression
+        )
 
 
 def test_autozi(save_path):

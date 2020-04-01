@@ -31,7 +31,8 @@ def load_posterior(
     :param model: scVI initialized model.
     :param use_cuda: Specifies if the computations should be perfomed with a GPU.
       Default: ``True``
-      If ``auto``, then cuda availability is inferred.
+      If ``auto``, then cuda availability is inferred, with a preference to load on GPU.
+      If ``False``, the model will be loaded on the CPU, even if it was trained using a GPU.
     :param posterior_kwargs: additional parameters to feed to the posterior constructor.
 
 
@@ -85,13 +86,16 @@ def load_posterior(
     )
 
     # Loading scVI model
-    model.load_state_dict(torch.load(model_path))
-    model.eval()
     if use_cuda == "auto":
         use_cuda = torch.cuda.is_available()
     use_cuda = use_cuda and torch.cuda.is_available()
     if use_cuda:
+        model.load_state_dict(torch.load(model_path))
         model.cuda()
+    else:
+        device = torch.device("cpu")
+        model.load_state_dict(torch.load(model_path, map_location=device))
+    model.eval()
 
     # Loading data loader options and posterior
     indices = np.load(file=indices_path)
