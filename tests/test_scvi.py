@@ -61,15 +61,15 @@ def test_cortex(save_path):
         cortex_dataset.nb_genes,
     )
     n_samples = 3
-    (dropout, means, dispersions,) = trainer_cortex_vae.train_set.generate_parameters()
+    (dropout, means, dispersions) = trainer_cortex_vae.train_set.generate_parameters()
     assert dropout.shape == (n_cells, n_genes) and means.shape == (n_cells, n_genes)
     assert dispersions.shape == (n_cells, n_genes)
-    (dropout, means, dispersions,) = trainer_cortex_vae.train_set.generate_parameters(
+    (dropout, means, dispersions) = trainer_cortex_vae.train_set.generate_parameters(
         n_samples=n_samples
     )
     assert dropout.shape == (n_samples, n_cells, n_genes)
-    assert means.shape == (n_samples, n_cells, n_genes,)
-    (dropout, means, dispersions,) = trainer_cortex_vae.train_set.generate_parameters(
+    assert means.shape == (n_samples, n_cells, n_genes)
+    (dropout, means, dispersions) = trainer_cortex_vae.train_set.generate_parameters(
         n_samples=n_samples, give_mean=True
     )
     assert dropout.shape == (n_cells, n_genes) and means.shape == (n_cells, n_genes)
@@ -485,6 +485,20 @@ def test_totalvi(save_path):
         use_adversarial_loss=True,
     )
     trainer.train(n_epochs=1)
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        posterior_save_path = os.path.join(temp_dir, "posterior_data")
+        original_post = trainer.create_posterior(
+            totalvae, dataset, indices=np.arange(len(dataset))
+        )
+        original_post.save_posterior(posterior_save_path)
+        new_totalvae = TOTALVI(
+            dataset.nb_genes, len(dataset.protein_names), n_batch=dataset.n_batches
+        )
+        new_post = load_posterior(
+            posterior_save_path, model=new_totalvae, use_cuda=False
+        )
+        assert new_post.posterior_type == "TotalPosterior"
 
 
 def test_autozi(save_path):
