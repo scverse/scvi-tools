@@ -31,7 +31,8 @@ def load_posterior(
     :param model: scVI initialized model.
     :param use_cuda: Specifies if the computations should be perfomed with a GPU.
       Default: ``True``
-      If ``auto``, then cuda availability is inferred.
+      If ``auto``, then cuda availability is inferred, with a preference to load on GPU.
+      If ``False``, the model will be loaded on the CPU, even if it was trained using a GPU.
     :param posterior_kwargs: additional parameters to feed to the posterior constructor.
 
 
