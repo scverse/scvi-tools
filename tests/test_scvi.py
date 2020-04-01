@@ -489,7 +489,10 @@ def test_totalvi(save_path):
     with tempfile.TemporaryDirectory() as temp_dir:
         posterior_save_path = os.path.join(temp_dir, "posterior_data")
         original_post = trainer.create_posterior(
-            totalvae, dataset, indices=np.arange(len(dataset))
+            totalvae,
+            dataset,
+            indices=np.arange(len(dataset)),
+            type_class=TotalPosterior,
         )
         original_post.save_posterior(posterior_save_path)
         new_totalvae = TOTALVI(
