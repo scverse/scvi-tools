@@ -24,6 +24,7 @@ requirements = [
     "hyperopt==0.1.2",
     "anndata>=0.6.22rc1",
     "statsmodels",
+    "scanpy>=1.4",
 ]
 
 setup_requirements = ["pip>=18.1"]
@@ -43,7 +44,6 @@ test_requirements = [
 
 extras_requirements = {
     "notebooks": [
-        "scanpy>=1.4",
         "louvain>=0.6.1",
         "leidenalg>=0.7.0",
         "python-igraph>=0.7.1.post6",
