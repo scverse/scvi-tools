@@ -16,6 +16,7 @@ import torch
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
 import statsmodels.api as sm
+import scanpy as sc
 
 logger = logging.getLogger(__name__)
 
@@ -1391,14 +1392,6 @@ class GeneExpressionDataset(Dataset):
 
         """
 
-        logger.info("extracting highly variable genes")
-        try:
-            import scanpy as sc
-        except ImportError:
-            raise ImportError(
-                "please install scanpy: " "pip install scanpy python-igraph louvain"
-            )
-
         if flavor not in ["seurat_v2", "seurat_v3", "cell_ranger"]:
             raise ValueError(
                 "Choose one of the following flavors: 'seurat_v2', 'seurat_v3', 'cell_ranger'"
@@ -1406,6 +1399,8 @@ class GeneExpressionDataset(Dataset):
 
         if flavor == "seurat_v3" and n_top_genes is None:
             raise ValueError("n_top_genes must not be None with flavor=='seurat_v3'")
+
+        logger.info("extracting highly variable genes using {} flavor".format(flavor))
 
         # Creating AnnData structure
         obs = pd.DataFrame(
