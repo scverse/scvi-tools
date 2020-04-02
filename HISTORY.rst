@@ -3,7 +3,7 @@ History
 =======
 
 
-0.6.2 (2020-X-XX)
+0.6.2 (2020-4-01)
 ------------------
 * update highly variable gene selection to handle sparse matrices `@adam`_
 * update DE docstrings `@pierre`_
