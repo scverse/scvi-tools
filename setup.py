@@ -44,7 +44,7 @@ test_requirements = [
 
 extras_requirements = {
     "notebooks": [
-        "louvain>=0.6.1",
+        "louvain>=0.6.2",
         "leidenalg>=0.7.0",
         "python-igraph>=0.7.1.post6",
         "colour>=0.1.5",
@@ -102,6 +102,6 @@ setup(
     tests_require=test_requirements,
     extras_require=extras_requirements,
     url="https://github.com/YosefLab/scVI",
-    version="0.6.1",
+    version="0.6.2",
     zip_safe=False,
 )
