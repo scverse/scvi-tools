@@ -16,6 +16,7 @@ import torch
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
 import statsmodels.api as sm
+import scanpy as sc
 
 logger = logging.getLogger(__name__)
 
@@ -1391,14 +1392,6 @@ class GeneExpressionDataset(Dataset):
 
         """
 
-        logger.info("extracting highly variable genes")
-        try:
-            import scanpy as sc
-        except ImportError:
-            raise ImportError(
-                "please install scanpy: " "pip install scanpy python-igraph louvain"
-            )
-
         if flavor not in ["seurat_v2", "seurat_v3", "cell_ranger"]:
             raise ValueError(
                 "Choose one of the following flavors: 'seurat_v2', 'seurat_v3', 'cell_ranger'"
@@ -1407,6 +1400,8 @@ class GeneExpressionDataset(Dataset):
         if flavor == "seurat_v3" and n_top_genes is None:
             raise ValueError("n_top_genes must not be None with flavor=='seurat_v3'")
 
+        logger.info("extracting highly variable genes using {} flavor".format(flavor))
+
         # Creating AnnData structure
         obs = pd.DataFrame(
             data=dict(batch=self.batch_indices.squeeze()),
@@ -1414,8 +1409,6 @@ class GeneExpressionDataset(Dataset):
         ).astype("category")
 
         counts = self.X.copy()
-        if sp_sparse.issparse(counts):
-            counts = counts.toarray()
         adata = sc.AnnData(X=counts, obs=obs)
         batch_key = "batch" if (batch_correction and self.n_batches >= 2) else None
         if flavor != "seurat_v3":
@@ -1475,6 +1468,8 @@ def seurat_v3_highly_variable_genes(
         a dataset with multiple batches we rank features by their median normalized variance
         across batches
 
+        For further details of the arithmetic see https://www.overleaf.com/read/ckptrbgzzzpg
+
         :param n_top_genes: How many variable genes to return
         :param batch_key: key in adata.obs that contains batch info. If None, do not use batch info
 
@@ -1494,32 +1489,38 @@ def seurat_v3_highly_variable_genes(
         mean, var = materialize_as_ndarray(
             _get_mean_var(adata[adata.obs[batch_key] == b].X)
         )
-
-        if sum(mean == 0) > 0:
-            raise ValueError(
-                "Some genes are all zero in batch {batch}, please ensure genes"
-                " are non-zero in each batch separately. "
-                " by running dataset.filter_genes_by_count(per_batch=True)".format(
-                    batch=b
-                )
-            )
-
+        not_const = var > 0
         estimat_var = np.zeros((adata.X.shape[1]))
 
-        y = np.log10(var)
-        x = np.log10(mean)
+        y = np.log10(var[not_const])
+        x = np.log10(mean[not_const])
         # output is sorted by x
         v = lowess(y, x, frac=0.15)
-        estimat_var[np.argsort(x)] = v[:, 1]
+        estimat_var[not_const][np.argsort(x)] = v[:, 1]
 
-        norm_values = (adata[adata.obs[batch_key] == b].X - mean) / np.sqrt(
-            10 ** estimat_var
+        # get normalized variance
+        reg_std = np.sqrt(10 ** estimat_var)
+        batch_counts = adata[adata.obs[batch_key] == b].X.copy()
+        # clip large values as in Seurat
+        N = np.sum(adata.obs["batch"] == b)
+        vmax = np.sqrt(N)
+        clip_val = reg_std * vmax + mean
+        # could be something faster here
+        for g in range(batch_counts.shape[1]):
+            batch_counts[:, g][batch_counts[:, g] > vmax] = clip_val[g]
+
+        if sp_sparse.issparse(batch_counts):
+            squared_batch_counts_sum = np.array(batch_counts.power(2).sum(axis=0))
+            batch_counts_sum = np.array(batch_counts.sum(axis=0))
+        else:
+            squared_batch_counts_sum = np.square(batch_counts).sum(axis=0)
+            batch_counts_sum = batch_counts.sum(axis=0)
+
+        norm_gene_var = (1 / ((N - 1) * np.square(reg_std))) * (
+            (N * np.square(mean))
+            + squared_batch_counts_sum
+            - 2 * batch_counts_sum * mean
         )
-        # as in seurat paper, clip max values
-        norm_values = np.clip(
-            norm_values, None, np.sqrt(np.sum(adata.obs["batch"] == b))
-        )
-        norm_gene_var = norm_values.var(0)
         norm_gene_vars.append(norm_gene_var.reshape(1, -1))
 
     norm_gene_vars = np.concatenate(norm_gene_vars, axis=0)

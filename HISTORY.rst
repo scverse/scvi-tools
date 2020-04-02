@@ -2,6 +2,20 @@
 History
 =======
 
+
+0.6.3 (2020-4-01)
+------------------
+* bug in version for Louvian in setup.py `@adam`_
+
+0.6.2 (2020-4-01)
+------------------
+* update highly variable gene selection to handle sparse matrices `@adam`_
+* update DE docstrings `@pierre`_
+* improve posterior save load to also handle subclasses `@pierre`_
+* Create NB and ZINB distributions with torch and refactor code accordingly `@pierre`_
+* typos in autozivae `@achille`_
+* bug in csc sparse matrices in anndata data loader `@adam`_
+
 0.6.1 (2020-3-13)
 ------------------
 * handles gene and cell attributes with the same name `@han-yuan`_

@@ -22,8 +22,9 @@ requirements = [
     "llvmlite==0.30.0",  # umap having errors with 0.31.0
     "numba==0.45.0",  # numba 0.45.1 has a conflict with UMAP and numba 0.46.0 with parallelization in loompy
     "hyperopt==0.1.2",
-    "anndata>=0.6.22rc1",
+    "anndata>=0.6.32rc1",
     "statsmodels",
+    "scanpy>=1.4",
 ]
 
 setup_requirements = ["pip>=18.1"]
@@ -43,7 +44,6 @@ test_requirements = [
 
 extras_requirements = {
     "notebooks": [
-        "scanpy>=1.4",
         "louvain>=0.6.1",
         "leidenalg>=0.7.0",
         "python-igraph>=0.7.1.post6",
@@ -102,6 +102,6 @@ setup(
     tests_require=test_requirements,
     extras_require=extras_requirements,
     url="https://github.com/YosefLab/scVI",
-    version="0.6.1",
+    version="0.6.3",
     zip_safe=False,
 )

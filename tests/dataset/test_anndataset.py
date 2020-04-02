@@ -10,6 +10,7 @@ from scvi.dataset import (
     GeneExpressionDataset,
 )
 from .utils import unsupervised_training_one_epoch
+import scipy.sparse as sp_sparse
 
 
 class TestAnnDataset(TestCase):
@@ -53,3 +54,14 @@ class TestAnnDataset(TestCase):
         self.assertTrue((paired == dataset_ad.dev).all())
         self.assertTrue((dataset.X == dataset_ad.X).all())
         self.assertTrue((dataset.cell_types == dataset_ad.cell_types).all())
+
+    def test_sparse_data(self):
+        data = np.random.poisson(0.2, size=(25, 10))
+
+        sparse_mat = sp_sparse.csr_matrix(data)
+        ad = anndata.AnnData(sparse_mat)
+        AnnDatasetFromAnnData(ad)
+
+        sparse_mat = sp_sparse.csc_matrix(data)
+        ad = anndata.AnnData(sparse_mat)
+        AnnDatasetFromAnnData(ad)

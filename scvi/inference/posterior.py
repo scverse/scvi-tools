@@ -8,7 +8,6 @@ from typing import List, Optional, Union, Tuple, Callable
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn as nn
 import torch.distributions as distributions
 from tqdm.auto import tqdm
 from matplotlib import pyplot as plt
@@ -24,9 +23,8 @@ from torch.utils.data.sampler import (
     SubsetRandomSampler,
     RandomSampler,
 )
-import anndata
 
-from scvi.dataset import GeneExpressionDataset, AnnDatasetFromAnnData
+from scvi.dataset import GeneExpressionDataset
 from scvi.inference.posterior_utils import (
     entropy_batch_mixing,
     plot_imputation,
@@ -43,7 +41,7 @@ from scvi.models.log_likelihood import (
     compute_marginal_log_likelihood_scvi,
     compute_marginal_log_likelihood_autozi,
 )
-
+from scvi.models.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scipy.stats import spearmanr
 
 logger = logging.getLogger(__name__)
@@ -149,8 +147,23 @@ class Posterior:
             )
         anndata_dataset = self.gene_dataset.to_anndata()
 
-        anndata_dataset.write(os.path.join(dir_path, "anndata_dataset.h5ad"))
+        anndata_dataset.write(
+            os.path.join(dir_path, "anndata_dataset.h5ad"), compression="lzf"
+        )
+        with open(os.path.join(dir_path, "posterior_type.txt"), "w") as post_file:
+            post_file.write(self.posterior_type)
         torch.save(self.model.state_dict(), os.path.join(dir_path, "model_params.pt"))
+
+        # Saves posterior indices and kwargs that can easily be retrieved
+        data_loader_kwargs = pd.Series(
+            {key: vals for key, vals in self.data_loader_kwargs.items()}
+        )
+        data_loader_kwargs = data_loader_kwargs[
+            ~data_loader_kwargs.index.isin(["collate_fn", "sampler"])
+        ]
+        data_loader_kwargs.to_hdf(
+            os.path.join(dir_path, "data_loader_kwargs.h5"), key="data_loader"
+        )
         np.save(file=os.path.join(dir_path, "indices.npy"), arr=np.array(self.indices))
         pass
 
@@ -165,13 +178,6 @@ class Posterior:
             return np.arange(len(self.gene_dataset))
 
     @property
-    def are_indices_modified(self) -> bool:
-        """Determines if the object dataloader indices were modified at some point.
-
-        """
-        return np.array_equal(self.indices, self.original_indices)
-
-    @property
     def nb_cells(self) -> int:
         """returns the number of studied cells.
 
@@ -180,6 +186,13 @@ class Posterior:
             return len(self.data_loader.sampler.indices)
         else:
             return self.gene_dataset.nb_cells
+
+    @property
+    def posterior_type(self) -> str:
+        """Returns the posterior class name
+
+        """
+        return self.__class__.__name__
 
     def __iter__(self):
         return map(self.to_cuda, iter(self.data_loader))
@@ -416,11 +429,6 @@ class Posterior:
 
         """
         # Get overall number of desired samples and desired batches
-        if self.are_indices_modified:
-            logger.warning(
-                "Posterior indices were modified at some point. Please ensure that provided indices correspond to the current posterior indices."
-            )
-
         if batchid is None and not use_observed_batches:
             batchid = np.arange(self.gene_dataset.n_batches)
         if use_observed_batches:
@@ -599,6 +607,12 @@ class Posterior:
 
         :return: Differential expression properties
         """
+
+        if not np.array_equal(self.indices, np.arange(len(self.gene_dataset))):
+            logger.warning(
+                "Differential expression requires a Posterior object created with all indices."
+            )
+
         eps = 1e-8  # used for numerical stability
         # Normalized means sampling for both populations
         scales_batches_1 = self.scale_sampler(
@@ -723,6 +737,9 @@ class Posterior:
                 samples=change_distribution,
                 credible_intervals_levels=cred_interval_lvls,
             )
+            change_distribution_props = {
+                "lfc_" + key: val for (key, val) in change_distribution_props.items()
+            }
 
             res = dict(
                 proba_de=proba_m1,
@@ -869,9 +886,15 @@ class Posterior:
           LFC distribution
 
         :param all_stats: whether additional metrics should be provided
-        :\**kwargs: Other keywords arguments for `get_sample_scale()`
+        :\**kwargs: Other keywords arguments for `get_sample_scale`
 
-        :return: Differential expression properties
+        :return: Differential expression properties. The most important columns are:
+
+            - ``proba_de`` (probability of being differentially expressed in change mode)
+            or ``bayes_factor`` (bayes factors in the vanilla mode)
+            - ``scale1`` and ``scale2`` (means of the scales in population 1 and 2)
+            - When using the change mode, the dataframe also contains information on the Posterior LFC
+            (its mean, median, std, and confidence intervals associated to ``cred_interval_lvls``).
         """
         all_info = self.get_bayes_factors(
             idx1=idx1,
@@ -960,7 +983,7 @@ class Posterior:
         :param output_file: Bool: save file?
         :param save_dir:
         :param filename:`
-        :\**kwargs: Other keywords arguments for `get_sample_scale()`
+        :\**kwargs: Other keywords arguments for `get_sample_scale`
         :return: Tuple (de_res, de_cluster) (i) de_res is a list of length nb_clusters
             (based on provided labels or on hardcoded cell types) (ii) de_res[i] contains Bayes Factors
             for population number i vs all the rest (iii) de_cluster returns the associated names of clusters.
@@ -1192,7 +1215,6 @@ class Posterior:
             Where x_new has shape (n_cells, n_genes, n_samples)
         """
         assert self.model.reconstruction_loss in ["zinb", "nb", "poisson"]
-        zero_inflated = self.model.reconstruction_loss == "zinb"
         x_old = []
         x_new = []
         for tensors in self.update({"batch_size": batch_size}):
@@ -1204,28 +1226,25 @@ class Posterior:
             px_rate = outputs["px_rate"]
             px_dropout = outputs["px_dropout"]
 
-            if self.reconstruction_error != "poisson":
-                p = px_rate / (px_rate + px_r)
-                r = px_r
-                # Important remark: Gamma is parametrized by the rate = 1/scale!
-                l_train = distributions.Gamma(
-                    concentration=r, rate=(1 - p) / p
-                ).sample()
-            else:
+            if self.model.reconstruction_loss == "poisson":
                 l_train = px_rate
-
-            # Clamping as distributions objects can have buggy behaviors when
-            # their parameters are too high
-            l_train = torch.clamp(l_train, max=1e8)
-            gene_expressions = distributions.Poisson(
-                l_train
-            ).sample()  # Shape : (n_samples, n_cells_batch, n_genes)
-            if zero_inflated:
-                p_zero = (1.0 + torch.exp(-px_dropout)).pow(-1)
-                random_prob = torch.rand_like(p_zero)
-                gene_expressions[random_prob <= p_zero] = 0
-
-            gene_expressions = gene_expressions.permute(
+                l_train = torch.clamp(l_train, max=1e8)
+                dist = distributions.Poisson(
+                    l_train
+                )  # Shape : (n_samples, n_cells_batch, n_genes)
+            elif self.model.reconstruction_loss == "nb":
+                dist = NegativeBinomial(mu=px_rate, theta=px_r)
+            elif self.model.reconstruction_loss == "zinb":
+                dist = ZeroInflatedNegativeBinomial(
+                    mu=px_rate, theta=px_r, zi_logits=px_dropout
+                )
+            else:
+                raise ValueError(
+                    "{} reconstruction error not handled right now".format(
+                        self.model.reconstruction_loss
+                    )
+                )
+            gene_expressions = dist.sample().permute(
                 [1, 2, 0]
             )  # Shape : (n_cells_batch, n_genes, n_samples)
 
@@ -1663,55 +1682,3 @@ class Posterior:
             self.gene_dataset.X[self.indices],
             self.gene_dataset.labels[self.indices].ravel(),
         )
-
-
-def load_posterior(
-    dir_path: str, model: nn.Module, use_cuda: Optional[bool] = True
-) -> "Posterior":
-    """Function to use in order to retrieve a posterior that was saved using the `save_posterior` method
-
-    Because of pytorch model loading usage, this function needs a scVI model object initialized with exact same parameters
-    that during training.
-
-    :param dir_path: directory containing the posterior properties to be retrieved.
-    :param model: scVI initialized model.
-    :param use_cuda: whether the model should use cuda.
-
-    Usage example:
-    1. Save posterior
-        >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
-        >>> trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
-        >>> trainer.train(n_epochs=200)
-        >>> trainer.train_set.save_posterior("./my_run_train_posterior")
-
-    2. Load posterior
-        >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
-        >>> post = load_posterior("./my_run_train_posterior", model=model)
-    """
-
-    dataset_path = os.path.join(dir_path, "anndata_dataset.h5ad")
-    model_path = os.path.join(dir_path, "model_params.pt")
-    indices_path = os.path.join(dir_path, "indices.npy")
-
-    ad = anndata.read_h5ad(filename=dataset_path)
-
-    key = "cell_measurements_col_mappings"
-    if key in ad.uns:
-        cell_measurements_col_mappings = ad.uns[key]
-    else:
-        cell_measurements_col_mappings = dict()
-    dataset = AnnDatasetFromAnnData(
-        ad=ad, cell_measurements_col_mappings=cell_measurements_col_mappings
-    )
-    model.load_state_dict(torch.load(model_path))
-    model.eval()
-    indices = np.load(file=indices_path)
-    my_post = Posterior(
-        model=model,
-        gene_dataset=dataset,
-        shuffle=False,
-        indices=indices,
-        use_cuda=use_cuda,
-        data_loader_kwargs=dict(),
-    )
-    return my_post
