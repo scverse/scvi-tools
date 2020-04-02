@@ -44,7 +44,7 @@ test_requirements = [
 
 extras_requirements = {
     "notebooks": [
-        "louvain>=0.6.2",
+        "louvain>=0.6.1",
         "leidenalg>=0.7.0",
         "python-igraph>=0.7.1.post6",
         "colour>=0.1.5",
