@@ -21,6 +21,7 @@ These models are able to simultaneously perform many downstream tasks such as le
 
    installation
    tutorials/index
+   contributed_tutorials/index
    contributing
    history
    references
