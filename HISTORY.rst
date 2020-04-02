@@ -3,6 +3,10 @@ History
 =======
 
 
+0.6.3 (2020-4-01)
+------------------
+* bug in version for Louvian in setup.py `@adam`_
+
 0.6.2 (2020-4-01)
 ------------------
 * update highly variable gene selection to handle sparse matrices `@adam`_
