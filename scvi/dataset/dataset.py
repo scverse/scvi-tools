@@ -860,9 +860,9 @@ class GeneExpressionDataset(Dataset):
         :param new_ratio_genes: proportion of genes to retain, the highly variable genes will be kept
         :param mode: Either "variance", "seurat_v2", "cell_ranger", or "seurat_v3"
         :param batch_correction: Account for batches when choosing highly variable genes.
-        HVGs are selected in each batch and merged.
-        or `cell_ranger` (cf. highly_variable_genes method)
+            HVGs are selected in each batch and merged.
         :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using `seurat_v2`
+            or `cell_ranger` (cf. highly_variable_genes method)
         """
 
         if subset_genes is None:
