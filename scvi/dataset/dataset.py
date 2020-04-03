@@ -859,8 +859,10 @@ class GeneExpressionDataset(Dataset):
         :param new_n_genes: number of genes to retain, the highly variable genes will be kept
         :param new_ratio_genes: proportion of genes to retain, the highly variable genes will be kept
         :param mode: Either "variance", "seurat_v2", "cell_ranger", or "seurat_v3"
-        :param batch_correction: Include batch effects in gene selection.
+        :param batch_correction: Account for batches when choosing highly variable genes.
+        HVGs are selected in each batch and merged.
         or `cell_ranger` (cf. highly_variable_genes method)
+        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using `seurat_v2`
         """
 
         if subset_genes is None:
@@ -1387,7 +1389,8 @@ class GeneExpressionDataset(Dataset):
             `n_top_genes`.
         :param batch_correction:
             Whether batches should be taken into account during procedure
-        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using Seurat flavor
+        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using
+        the Seurat V2 flavor.
 
         :return:
             scanpy .var DataFrame providing genes information including means, dispersions
