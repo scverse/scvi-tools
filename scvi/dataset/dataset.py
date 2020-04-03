@@ -1493,6 +1493,8 @@ def seurat_v3_highly_variable_genes(
         batch_correction = False
         batch_key = "batch"
         adata.obs[batch_key] = pd.Categorical(np.zeros((adata.X.shape[0])).astype(int))
+    else:
+        batch_correction = True
 
     norm_gene_vars = []
     for b in np.unique(adata.obs[batch_key]):
