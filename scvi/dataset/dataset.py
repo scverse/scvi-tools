@@ -835,6 +835,7 @@ class GeneExpressionDataset(Dataset):
         new_ratio_genes: Optional[float] = None,
         subset_genes: Optional[Union[List[int], List[bool], np.ndarray]] = None,
         mode: Optional[str] = "seurat_v3",
+        batch_correction: Optional[bool] = True,
         **highly_var_genes_kwargs,
     ):
         """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling.
@@ -858,8 +859,10 @@ class GeneExpressionDataset(Dataset):
         :param new_n_genes: number of genes to retain, the highly variable genes will be kept
         :param new_ratio_genes: proportion of genes to retain, the highly variable genes will be kept
         :param mode: Either "variance", "seurat_v2", "cell_ranger", or "seurat_v3"
+        :param batch_correction: Account for batches when choosing highly variable genes.
+            HVGs are selected in each batch and merged.
         :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using `seurat_v2`
-        or `cell_ranger` (cf. highly_variable_genes method)
+            or `cell_ranger` (cf. highly_variable_genes method)
         """
 
         if subset_genes is None:
@@ -897,7 +900,10 @@ class GeneExpressionDataset(Dataset):
                 subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
             elif mode in ["seurat_v2", "cell_ranger", "seurat_v3"]:
                 genes_infos = self._highly_variable_genes(
-                    n_top_genes=new_n_genes, flavor=mode, **highly_var_genes_kwargs
+                    n_top_genes=new_n_genes,
+                    flavor=mode,
+                    batch_correction=batch_correction,
+                    **highly_var_genes_kwargs,
                 )
                 subset_genes = np.where(genes_infos["highly_variable"])[0]
             else:
@@ -1383,7 +1389,8 @@ class GeneExpressionDataset(Dataset):
             `n_top_genes`.
         :param batch_correction:
             Whether batches should be taken into account during procedure
-        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using Seurat flavor
+        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using
+        the Seurat V2 flavor.
 
         :return:
             scanpy .var DataFrame providing genes information including means, dispersions
@@ -1430,7 +1437,9 @@ class GeneExpressionDataset(Dataset):
                 **highly_var_genes_kwargs,
             )
         elif flavor == "seurat_v3":
-            seurat_v3_highly_variable_genes(adata, n_top_genes=n_top_genes)
+            seurat_v3_highly_variable_genes(
+                adata, n_top_genes=n_top_genes, batch_key=batch_key
+            )
         else:
             raise ValueError(
                 "flavor should be one of 'seurat_v2', 'cell_ranger', 'seurat_v3'"
@@ -1481,7 +1490,11 @@ def seurat_v3_highly_variable_genes(
     lowess = sm.nonparametric.lowess
 
     if batch_key is None:
-        adata.obs[batch_key] = np.zeros((adata.X.shape[0]))
+        batch_correction = False
+        batch_key = "batch"
+        adata.obs[batch_key] = pd.Categorical(np.zeros((adata.X.shape[0])).astype(int))
+    else:
+        batch_correction = True
 
     norm_gene_vars = []
     for b in np.unique(adata.obs[batch_key]):
@@ -1533,12 +1546,12 @@ def seurat_v3_highly_variable_genes(
         ranked_norm_gene_vars >= (adata.X.shape[1] - n_top_genes), axis=0
     )
     df = pd.DataFrame(index=np.array(adata.var_names))
-    df["highly_variable_n_batches"] = num_batches_high_var
+    df["highly_variable_nbatches"] = num_batches_high_var
     df["highly_variable_median_rank"] = median_ranked
 
     df["highly_variable_median_variance"] = median_norm_gene_vars
     df.sort_values(
-        ["highly_variable_n_batches", "highly_variable_median_rank"],
+        ["highly_variable_nbatches", "highly_variable_median_rank"],
         ascending=False,
         na_position="last",
         inplace=True,
@@ -1548,7 +1561,13 @@ def seurat_v3_highly_variable_genes(
     df = df.loc[adata.var_names]
 
     adata.var["highly_variable"] = df["highly_variable"].values
-    adata.var["highly_variable_n_batches"] = df["highly_variable_n_batches"].values
+    if batch_correction is True:
+        batches = adata.obs[batch_key].cat.categories
+        adata.var["highly_variable_nbatches"] = df["highly_variable_nbatches"].values
+        adata.var["highly_variable_intersection"] = df[
+            "highly_variable_nbatches"
+        ] == len(batches)
+    adata.var["highly_variable_median_rank"] = df["highly_variable_median_rank"].values
     adata.var["highly_variable_median_variance"] = df[
         "highly_variable_median_variance"
     ].values
