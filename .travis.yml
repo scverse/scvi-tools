@@ -3,12 +3,15 @@ dist: xenial
 
 language: python
 
-python:
-  - 3.6
-  - 3.7
-
 os:
   - linux
+
+matrix:
+  include:
+    - name: "Python 3.7"
+      python: 3.7
+    - name: "Python 3.6"
+      python: 3.6
 
 cache:
   - pip
