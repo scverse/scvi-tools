@@ -59,14 +59,13 @@ class TestHighlyVariableGenes(TestCase):
             n_bins=3, flavor="seurat_v3", batch_correction=False, n_top_genes=n_top
         )
         assert (
-            df.highly_variable_n_batches.max() == 1
+            "highly_variable_nbatches" not in df.columns
         ), "HVG dataframe should not contain batch information"
         df = dataset._highly_variable_genes(
             n_bins=3, flavor="seurat_v3", batch_correction=True, n_top_genes=n_top
         )
-        assert (
-            df.highly_variable_n_batches.max() >= 2
-        ), "HVG dataframe seems to work in single-batch mode"
+        assert "highly_variable_nbatches" in df.columns
+        assert "highly_variable_intersection" in df.columns
 
     def test_dense_subsample_genes(self):
         dataset = SyntheticDataset(batch_size=100, nb_genes=100, n_batches=3)

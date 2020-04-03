@@ -1490,7 +1490,9 @@ def seurat_v3_highly_variable_genes(
     lowess = sm.nonparametric.lowess
 
     if batch_key is None:
-        adata.obs[batch_key] = np.zeros((adata.X.shape[0]))
+        batch_correction = False
+        batch_key = "batch"
+        adata.obs[batch_key] = pd.Categorical(np.zeros((adata.X.shape[0])).astype(int))
 
     norm_gene_vars = []
     for b in np.unique(adata.obs[batch_key]):
@@ -1542,12 +1544,12 @@ def seurat_v3_highly_variable_genes(
         ranked_norm_gene_vars >= (adata.X.shape[1] - n_top_genes), axis=0
     )
     df = pd.DataFrame(index=np.array(adata.var_names))
-    df["highly_variable_n_batches"] = num_batches_high_var
+    df["highly_variable_nbatches"] = num_batches_high_var
     df["highly_variable_median_rank"] = median_ranked
 
     df["highly_variable_median_variance"] = median_norm_gene_vars
     df.sort_values(
-        ["highly_variable_n_batches", "highly_variable_median_rank"],
+        ["highly_variable_nbatches", "highly_variable_median_rank"],
         ascending=False,
         na_position="last",
         inplace=True,
@@ -1557,10 +1559,13 @@ def seurat_v3_highly_variable_genes(
     df = df.loc[adata.var_names]
 
     adata.var["highly_variable"] = df["highly_variable"].values
-    adata.var["highly_variable_n_batches"] = df["highly_variable_n_batches"].values
-    adata.var["highly_variable_median_variance"] = df[
-        "highly_variable_median_variance"
-    ].values
+    if batch_correction is True:
+        batches = adata.obs[batch_key].cat.categories
+        adata.var["highly_variable_nbatches"] = df["highly_variable_nbatches"].values
+        adata.var["highly_variable_intersection"] = df[
+            "highly_variable_nbatches"
+        ] == len(batches)
+    adata.var["highly_variable_median_rank"] = df["highly_variable_median_rank"].values
 
 
 def remap_categories(
