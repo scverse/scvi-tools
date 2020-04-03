@@ -835,6 +835,7 @@ class GeneExpressionDataset(Dataset):
         new_ratio_genes: Optional[float] = None,
         subset_genes: Optional[Union[List[int], List[bool], np.ndarray]] = None,
         mode: Optional[str] = "seurat_v3",
+        batch_correction: Optional[bool] = True,
         **highly_var_genes_kwargs,
     ):
         """Wrapper around ``update_genes`` allowing for manual and automatic (based on count variance) subsampling.
@@ -858,7 +859,7 @@ class GeneExpressionDataset(Dataset):
         :param new_n_genes: number of genes to retain, the highly variable genes will be kept
         :param new_ratio_genes: proportion of genes to retain, the highly variable genes will be kept
         :param mode: Either "variance", "seurat_v2", "cell_ranger", or "seurat_v3"
-        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using `seurat_v2`
+        :param batch_correction: Include batch effects in gene selection.
         or `cell_ranger` (cf. highly_variable_genes method)
         """
 
@@ -897,7 +898,10 @@ class GeneExpressionDataset(Dataset):
                 subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
             elif mode in ["seurat_v2", "cell_ranger", "seurat_v3"]:
                 genes_infos = self._highly_variable_genes(
-                    n_top_genes=new_n_genes, flavor=mode, **highly_var_genes_kwargs
+                    n_top_genes=new_n_genes,
+                    flavor=mode,
+                    batch_correction=batch_correction,
+                    **highly_var_genes_kwargs,
                 )
                 subset_genes = np.where(genes_infos["highly_variable"])[0]
             else:
@@ -1430,7 +1434,9 @@ class GeneExpressionDataset(Dataset):
                 **highly_var_genes_kwargs,
             )
         elif flavor == "seurat_v3":
-            seurat_v3_highly_variable_genes(adata, n_top_genes=n_top_genes)
+            seurat_v3_highly_variable_genes(
+                adata, n_top_genes=n_top_genes, batch_key=batch_key
+            )
         else:
             raise ValueError(
                 "flavor should be one of 'seurat_v2', 'cell_ranger', 'seurat_v3'"
