@@ -25,6 +25,7 @@ requirements = [
     "anndata>=0.6.32rc1",
     "statsmodels",
     "scanpy>=1.4",
+    'dataclasses; python_version < "3.7"',  # for `dataclass`
 ]
 
 setup_requirements = ["pip>=18.1"]
@@ -83,6 +84,7 @@ setup(
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
         "Natural Language :: English",
+        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: Microsoft :: Windows",
@@ -96,6 +98,7 @@ setup(
     include_package_data=True,
     keywords="scvi",
     name="scvi",
+    python_requires=">=3.6",
     packages=find_packages(),
     setup_requires=setup_requirements,
     test_suite="tests",
