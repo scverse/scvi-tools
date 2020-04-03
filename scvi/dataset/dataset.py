@@ -1568,6 +1568,9 @@ def seurat_v3_highly_variable_genes(
             "highly_variable_nbatches"
         ] == len(batches)
     adata.var["highly_variable_median_rank"] = df["highly_variable_median_rank"].values
+    adata.var["highly_variable_median_variance"] = df[
+        "highly_variable_median_variance"
+    ].values
 
 
 def remap_categories(
