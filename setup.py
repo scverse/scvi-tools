@@ -19,7 +19,6 @@ requirements = [
     "loompy>=3.0.6",
     "tqdm>=4.31.1",
     "xlrd>=1.2.0",
-    "numba>=0.41.0",
     "hyperopt==0.1.2",
     "anndata>=0.6.32rc1",
     "statsmodels",
