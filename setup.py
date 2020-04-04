@@ -19,8 +19,7 @@ requirements = [
     "loompy>=2.0.16",
     "tqdm>=4.31.1",
     "xlrd>=1.2.0",
-    "llvmlite==0.30.0",  # umap having errors with 0.31.0
-    "numba==0.45.0",  # numba 0.45.1 has a conflict with UMAP and numba 0.46.0 with parallelization in loompy
+    "numba>=0.41.0",
     "hyperopt==0.1.2",
     "anndata>=0.6.32rc1",
     "statsmodels",
@@ -49,7 +48,7 @@ extras_requirements = {
         "leidenalg>=0.7.0",
         "python-igraph>=0.7.1.post6",
         "colour>=0.1.5",
-        "umap-learn>=0.3.8",
+        "umap-learn>=0.3.10",
         "seaborn>=0.9.0",
         "leidenalg>=0.7.0",
     ],
