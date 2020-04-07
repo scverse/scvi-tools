@@ -1404,10 +1404,39 @@ class Posterior:
         return libraries.ravel()
 
     @torch.no_grad()
-    def get_sample_scale(self, transform_batch=None) -> np.ndarray:
-        """Computes data's scales.
+    def get_sample_scale(
+        self,
+        transform_batch=None,
+        gene_list=None,
+        library_size=1,
+        return_df=False,
+        n_samples=1,
+        return_mean=True,
+    ) -> np.ndarray:
+        """ Returns the frequencies of expression for the data.
 
+        :param transform_batch: Batches to condition on.
+        If transform_batch is:
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - list of int, then px_rates are averaged over provided batches.
+        :param gene_list: (optional) Return frequencies of expression for a subset of genes.
+            This can save memory when working with large datasets and few genes are
+            of interest. (default=None)
+        :param library_size: (optional) Scale the expression frequencies to a common library size.
+            This allows gene expression levels to be interpreted on a common scale of relevant
+            magnitude (default=1, no scaling).
+        :param return_df: (optional) Return a DataFrame instead of an np.Array. Includes gene
+            names as columns. Requires either n_samples=1 or return_mean=True (default=False).
+        :param n_samples: (optional) Get sample scale from multiple samples (default=1).
+        :param return_mean: (optional) Whether to return the mean of the samples (default=True).
         """
+        if gene_list is None:
+            gene_mask = slice(None)
+        else:
+            gene_mask = self.gene_dataset._get_genes_filter_mask_by_attribute(
+                gene_list, return_data=False
+            )
 
         px_scales = []
         for tensors in self:
@@ -1419,13 +1448,29 @@ class Posterior:
                             sample_batch,
                             batch_index=batch_index,
                             y=labels,
-                            n_samples=1,
+                            n_samples=n_samples,
                             transform_batch=transform_batch,
-                        )
+                        )[..., gene_mask]
+                        * library_size
                     ).cpu()
                 )
             ]
-        return np.concatenate(px_scales)
+
+        if n_samples > 1:
+            # The -2 axis correspond to cells.
+            px_scales = np.concatenate(px_scales, axis=-2)
+        else:
+            px_scales = np.concatenate(px_scales, axis=0)
+
+        if n_samples > 1 and return_mean:
+            px_scales = px_scales.mean(0)
+
+        if return_df:
+            return pd.DataFrame(
+                px_scales, columns=self.gene_dataset.gene_names[gene_mask]
+            )
+        else:
+            return px_scales
 
     @torch.no_grad()
     def imputation_list(self, n_samples: int = 1) -> tuple:
