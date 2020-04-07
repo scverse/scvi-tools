@@ -1411,9 +1411,9 @@ class Posterior:
         library_size=1,
         return_df=False,
         n_samples=1,
-        return_mean=True
+        return_mean=True,
     ) -> np.ndarray:
-        ''' Returns the frequencies of expression for the data.
+        """ Returns the frequencies of expression for the data.
 
         :param transform_batch: Batches to condition on.
         If transform_batch is:
@@ -1430,11 +1430,13 @@ class Posterior:
             names as columns. Requires either n_samples=1 or return_mean=True (default=False).
         :param n_samples: (optional) Get sample scale from multiple samples (default=1).
         :param return_mean: (optional) Whether to return the mean of the samples (default=True).
-        '''
+        """
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            gene_mask = self.gene_dataset._get_genes_filter_mask_by_attribute(gene_list, return_data=False)
+            gene_mask = self.gene_dataset._get_genes_filter_mask_by_attribute(
+                gene_list, return_data=False
+            )
 
         px_scales = []
         for tensors in self.sequential():
@@ -1448,7 +1450,8 @@ class Posterior:
                             y=labels,
                             n_samples=n_samples,
                             transform_batch=transform_batch,
-                        )[..., gene_mask] * library_size
+                        )[..., gene_mask]
+                        * library_size
                     ).cpu()
                 )
             ]
@@ -1463,7 +1466,9 @@ class Posterior:
             px_scales = px_scales.mean(0)
 
         if return_df:
-            return pd.DataFrame(px_scales, columns=self.gene_dataset.gene_names[gene_mask])
+            return pd.DataFrame(
+                px_scales, columns=self.gene_dataset.gene_names[gene_mask]
+            )
         else:
             return px_scales
 
