@@ -1445,6 +1445,11 @@ class Posterior:
             if return_df is not None and sum(gene_mask) > 1:
                 return_df = True
 
+        if n_samples > 1 and return_mean is False and return_df is True:
+            raise ValueError(
+                "return_df must be False if n_samples > 1 and return_mean is True"
+            )
+
         px_scales = []
         for tensors in self:
             sample_batch, _, _, batch_index, labels = tensors
