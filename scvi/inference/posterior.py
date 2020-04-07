@@ -1454,6 +1454,7 @@ class Posterior:
             ]
 
         if n_samples > 1:
+            # The -2 axis correspond to cells.
             px_scales = np.concatenate(px_scales, axis=-2)
         else:
             px_scales = np.concatenate(px_scales, axis=0)
