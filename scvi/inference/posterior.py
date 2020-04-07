@@ -1409,7 +1409,6 @@ class Posterior:
         transform_batch=None,
         gene_list=None,
         library_size=1,
-        batch_size=128,
         return_df=False,
         n_samples=1,
         return_mean=True
@@ -1427,9 +1426,6 @@ class Posterior:
         :param library_size: (optional) Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
             magnitude (default=1, no scaling).
-        :param batch_size: Size of minibatches of the data to use. When only accessing a single
-            gene a larger batch size (e.g. 10000) substantially reduces the time spent on GPU
-            data transfer (default=128).
         :param return_df: (optional) Return a DataFrame instead of an np.Array. Includes gene
             names as columns. Requires either n_samples=1 or return_mean=True (default=False).
         :param n_samples: (optional) Get sample scale from multiple samples (default=1).
@@ -1441,7 +1437,7 @@ class Posterior:
             gene_mask = self.gene_dataset._get_genes_filter_mask_by_attribute(gene_list, return_data=False)
 
         px_scales = []
-        for tensors in self.sequential(batch_size):
+        for tensors in self.sequential():
             sample_batch, _, _, batch_index, labels = tensors
             px_scales += [
                 np.array(
