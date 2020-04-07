@@ -1442,7 +1442,7 @@ class Posterior:
             gene_mask = self.gene_dataset._get_genes_filter_mask_by_attribute(
                 gene_list, return_data=False
             )
-            if return_df is not None and sum(gene_mask) > 1:
+            if return_df is None and sum(gene_mask) > 1:
                 return_df = True
 
         if n_samples > 1 and return_mean is False and return_df is True:
