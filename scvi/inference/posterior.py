@@ -1439,7 +1439,7 @@ class Posterior:
             )
 
         px_scales = []
-        for tensors in self.sequential():
+        for tensors in self:
             sample_batch, _, _, batch_index, labels = tensors
             px_scales += [
                 np.array(
