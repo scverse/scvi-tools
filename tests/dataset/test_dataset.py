@@ -39,6 +39,9 @@ class TestGeneExpressionDataset(TestCase):
         self.assertListEqual(dataset.dev_names.tolist(), pair_names)
         self.assertListEqual(dataset.dev[0].tolist(), [0, 1, 2, 3])
 
+        ad = dataset.to_anndata()
+        self.assertTrue("dev" in ad.obsm)
+
     def test_populate_from_per_batch_list(self):
         data = [
             np.random.randint(1, 5, size=(7, 10)),

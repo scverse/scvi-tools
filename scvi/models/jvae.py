@@ -6,10 +6,14 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.distributions import Normal, Poisson, kl_divergence as kl
+from torch.distributions import Normal, kl_divergence as kl
 from torch.nn import ModuleList
 
-from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
+from scvi.models.distributions import (
+    NegativeBinomial,
+    ZeroInflatedNegativeBinomial,
+    Poisson,
+)
 from scvi.models.modules import Encoder
 from scvi.models.modules import MultiEncoder, MultiDecoder
 from scvi.models.utils import one_hot
@@ -18,12 +22,9 @@ torch.backends.cudnn.benchmark = True
 
 
 class JVAE(nn.Module):
-    """Joint Variational auto-encoder
+    """Joint Variational auto-encoder for imputing missing genes in spatial data
 
-    Implementation of gimVI:
-    *A joint model of unpaired data from scRNA-seq and spatial transcriptomics
-    for imputing missing gene expression measurements*
-    https://arxiv.org/abs/1905.02269
+    Implementation of gimVI [Lopez19]_.
 
     """
 
@@ -161,7 +162,7 @@ class JVAE(nn.Module):
         """Sample the tensor of library sizes from the posterior
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
-        or ``(batch_size, n_input_fish)`` depending on the mode
+         or ``(batch_size, n_input_fish)`` depending on the mode
         :param mode: head id to use in the encoder
         :param deterministic: bool - whether to sample or not
         :return: tensor of shape ``(batch_size, 1)``
@@ -183,7 +184,7 @@ class JVAE(nn.Module):
         """Return the tensor of predicted frequencies of expression
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
-        or ``(batch_size, n_input_fish)`` depending on the mode
+         or ``(batch_size, n_input_fish)`` depending on the mode
         :param mode: int encode mode (which input head to use in the model)
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
@@ -220,7 +221,7 @@ class JVAE(nn.Module):
         """Returns the tensor of scaled frequencies of expression
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
-        or ``(batch_size, n_input_fish)`` depending on the mode
+         or ``(batch_size, n_input_fish)`` depending on the mode
         :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
         :param mode: int encode mode (which input head to use in the model)
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
@@ -251,13 +252,19 @@ class JVAE(nn.Module):
     ) -> torch.Tensor:
         reconstruction_loss = None
         if self.reconstruction_losses[mode] == "zinb":
-            reconstruction_loss = -log_zinb_positive(x, px_rate, px_r, px_dropout).sum(
-                dim=-1
+            reconstruction_loss = (
+                -ZeroInflatedNegativeBinomial(
+                    mu=px_rate, theta=px_r, zi_logits=px_dropout
+                )
+                .log_prob(x)
+                .sum(dim=-1)
             )
         elif self.reconstruction_losses[mode] == "nb":
-            reconstruction_loss = -log_nb_positive(x, px_rate, px_r).sum(dim=-1)
+            reconstruction_loss = (
+                -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
+            )
         elif self.reconstruction_losses[mode] == "poisson":
-            reconstruction_loss = -torch.sum(Poisson(px_rate).log_prob(x), dim=1)
+            reconstruction_loss = -Poisson(px_rate).log_prob(x).sum(dim=1)
         return reconstruction_loss
 
     def encode(
@@ -322,11 +329,11 @@ class JVAE(nn.Module):
         """Return the reconstruction loss and the Kullback divergences
 
         :param x: tensor of values with shape ``(batch_size, n_input)``
-        or ``(batch_size, n_input_fish)`` depending on the mode
+         or ``(batch_size, n_input_fish)`` depending on the mode
         :param local_l_mean: tensor of means of the prior distribution of latent variable l
-        with shape (batch_size, 1)
+         with shape (batch_size, 1)
         :param local_l_var: tensor of variances of the prior distribution of latent variable l
-        with shape (batch_size, 1)
+         with shape (batch_size, 1)
         :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
         :param y: tensor of cell-types labels with shape (batch_size, n_labels)
         :param mode: indicates which head/tail to use in the joint network

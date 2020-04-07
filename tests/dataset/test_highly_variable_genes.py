@@ -1,5 +1,5 @@
 from unittest import TestCase
-
+import numpy as np
 from scvi.dataset import BrainLargeDataset, SyntheticDataset
 
 
@@ -41,6 +41,32 @@ class TestHighlyVariableGenes(TestCase):
         new_genes = dataset.nb_genes
         assert n_genes > new_genes, "subsample_genes did not filter out genes"
 
+        dataset = SyntheticDataset(batch_size=100, nb_genes=100, n_batches=3)
+        n_genes = dataset.nb_genes
+        n_top = n_genes // 2
+        df = dataset._highly_variable_genes(
+            n_bins=3, flavor="seurat_v2", batch_correction=False, n_top_genes=n_top
+        )
+        assert (
+            "highly_variable_nbatches" not in df.columns
+        ), "HVG dataframe should not contain batch information"
+        df = dataset._highly_variable_genes(
+            n_bins=3, flavor="seurat_v2", batch_correction=True
+        )
+        assert "highly_variable_nbatches" in df.columns
+        assert "highly_variable_intersection" in df.columns
+        df = dataset._highly_variable_genes(
+            n_bins=3, flavor="seurat_v3", batch_correction=False, n_top_genes=n_top
+        )
+        assert (
+            "highly_variable_nbatches" not in df.columns
+        ), "HVG dataframe should not contain batch information"
+        df = dataset._highly_variable_genes(
+            n_bins=3, flavor="seurat_v3", batch_correction=True, n_top_genes=n_top
+        )
+        assert "highly_variable_nbatches" in df.columns
+        assert "highly_variable_intersection" in df.columns
+
     def test_dense_subsample_genes(self):
         dataset = SyntheticDataset(batch_size=100, nb_genes=100, n_batches=3)
 
@@ -58,3 +84,10 @@ class TestHighlyVariableGenes(TestCase):
         dataset = SyntheticDataset(batch_size=100, nb_genes=100, n_batches=3)
         dataset.subsample_genes(new_n_genes=n_top, mode="seurat_v3")
         assert dataset.nb_genes == n_top
+
+        # make sure constant genes have low scores
+        dataset = SyntheticDataset(batch_size=100, nb_genes=100, n_batches=3)
+        dataset.X[:, -1] = np.zeros_like(dataset.X[:, -1])
+        df = dataset._highly_variable_genes(n_top_genes=n_top, flavor="seurat_v3")
+
+        assert df.loc[str(dataset.nb_genes - 1)]["highly_variable_median_variance"] == 0

@@ -4,6 +4,7 @@ dist: xenial
 language: python
 
 python:
+  - 3.6
   - 3.7
 
 os:
@@ -22,6 +23,7 @@ install:
 script:
   - flake8
   - black --check .
+  - python setup.py check --restructuredtext
   - coverage run setup.py test
 
 after_success:

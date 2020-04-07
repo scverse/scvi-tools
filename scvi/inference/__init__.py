@@ -9,10 +9,12 @@ from .annotation import (
 )
 from .jvae_trainer import JVAETrainer
 from .total_inference import TotalPosterior, TotalTrainer
+from .posterior_utils import load_posterior
 
 __all__ = [
     "Trainer",
     "Posterior",
+    "load_posterior",
     "UnsupervisedTrainer",
     "AdapterTrainer",
     "JointSemiSupervisedTrainer",

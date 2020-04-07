@@ -1,4 +1,4 @@
-from typing import Optional, Union, List, Callable
+from typing import Optional, Union, List, Callable, Tuple
 import logging
 import torch
 from torch.distributions import Poisson, Gamma, Bernoulli, Normal
@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 class TotalPosterior(Posterior):
-    r"""The functional data unit for totalVI. A `TotalPosterior` instance is instantiated with a model and
+    """The functional data unit for totalVI.
+
+    A `TotalPosterior` instance is instantiated with a model and
     a `gene_dataset`, and as well as additional arguments that for Pytorch's `DataLoader`. A subset of indices
     can be specified, for purposes such as splitting the data into train/test/validation. Each trainer instance of the `TotalTrainer` class can therefore have multiple
     `TotalPosterior` instances to train a model. A `TotalPosterior` instance also comes with many methods or
@@ -30,7 +32,7 @@ class TotalPosterior(Posterior):
     :param shuffle: Specifies if a `RandomSampler` or a `SequentialSampler` should be used
     :param indices: Specifies how the data should be split with regards to train/test or labelled/unlabelled
     :param use_cuda: Default: ``True``
-    :param data_loader_kwarg: Keyword arguments to passed into the `DataLoader`
+    :param data_loader_kwargs: Keyword arguments to passed into the `DataLoader`
 
     Examples:
 
@@ -126,7 +128,7 @@ class TotalPosterior(Posterior):
         return np.concatenate(background_mean)
 
     def compute_elbo(self, vae: TOTALVI, **kwargs):
-        """ Computes the ELBO.
+        """Computes the ELBO.
 
         The ELBO is the reconstruction error + the KL divergences
         between the variational distributions and the priors.
@@ -200,7 +202,7 @@ class TotalPosterior(Posterior):
     def compute_marginal_log_likelihood(
         self, n_samples_mc: int = 100, batch_size: int = 96
     ):
-        """ Computes a biased estimator for log p(x, y), which is the marginal log likelihood.
+        """Computes a biased estimator for log p(x, y), which is the marginal log likelihood.
 
         Despite its bias, the estimator still converges to the real value
         of log p(x, y) when n_samples_mc (for Monte Carlo) goes to infinity
@@ -265,11 +267,13 @@ class TotalPosterior(Posterior):
         return -log_lkl / n_samples
 
     @torch.no_grad()
-    def get_latent(self, sample: bool = False):
-        """
-        Output posterior z mean or sample, batch index, and label
+    def get_latent(
+        self, sample: bool = False
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Output posterior z mean or sample, batch index, and label
+
         :param sample: z mean or z sample
-        :return: 4-tuple of np.ndarrays, latent, batch_indices, labels, library_gene
+        :return: 4-tuple of latent, batch_indices, labels, library_gene
         """
         latent = []
         batch_indices = []
@@ -304,9 +308,10 @@ class TotalPosterior(Posterior):
     @torch.no_grad()
     def generate(
         self, n_samples: int = 100, batch_size: int = 64
-    ):  # with n_samples>1 return original list/ otherwise sequential
-        """
-        Return samples from posterior predictive. Proteins are concatenated to genes.
+    ) -> Tuple[
+        np.ndarray, np.ndarray
+    ]:  # with n_samples>1 return original list/ otherwise sequential
+        """Sample from posterior predictive. Proteins are concatenated to genes.
 
         :param n_samples: Number of posterior predictive samples
         :return: Tuple of posterior samples, original data
@@ -362,6 +367,7 @@ class TotalPosterior(Posterior):
     @torch.no_grad()
     def get_sample_dropout(self, n_samples: int = 1, give_mean: bool = True):
         """ Zero-inflation mixing component for genes
+
         """
         px_dropouts = []
         for tensors in self:
@@ -392,7 +398,7 @@ class TotalPosterior(Posterior):
         n_samples: int = 1,
         give_mean: bool = True,
         transform_batch: Optional[int] = None,
-    ):
+    ) -> np.ndarray:
         """ Returns mixing bernoulli parameter for protein negative binomial mixtures (probability background)
 
         :param n_samples: number of samples from posterior distribution
@@ -400,7 +406,6 @@ class TotalPosterior(Posterior):
         :param give_mean: bool, whether to return samples along first axis or average over samples
         :param transform_batch: Batches to condition on as integer.
         :return: array of probability background
-        :rtype: :py:class:`np.ndarray`
         """
         py_mixings = []
         for tensors in self:
@@ -438,8 +443,9 @@ class TotalPosterior(Posterior):
         normalize_pro=False,
         sample_bern=True,
         include_bg=False,
-    ):
+    ) -> np.ndarray:
         """Helper function to provide normalized expression for DE testing.
+
         For normalized, denoised expression, please use
             `get_normalized_denoised_expression()`
 
@@ -447,7 +453,6 @@ class TotalPosterior(Posterior):
         :param eps: Prior count to add to protein normalized expression
         :param normalize_pro: bool, whether to make protein expression sum to one in a cell
         :param include_bg: bool, whether to include the background component of expression
-        :rtype: :py:class:`np.ndarray`
         """
         scales = []
         for tensors in self:
@@ -475,7 +480,7 @@ class TotalPosterior(Posterior):
         give_mean: bool = True,
         transform_batch: Optional[Union[int, List[int]]] = None,
         sample_protein_mixing: bool = True,
-    ):
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Returns the tensors of denoised normalized gene and protein expression
 
         :param n_samples: number of samples from posterior distribution
@@ -487,7 +492,6 @@ class TotalPosterior(Posterior):
             - int, then batch transform_batch is used
             - list of int, then values are averaged over provided batches.
         :return: Denoised genes, denoised proteins
-        :rtype: 2-tuple of :py:class:`np.ndarray`
         """
 
         scale_list_gene = []
@@ -549,7 +553,7 @@ class TotalPosterior(Posterior):
         n_samples: int = 1,
         give_mean: bool = True,
         transform_batch: Optional[Union[int, List[int]]] = None,
-    ):
+    ) -> np.ndarray:
         """Returns the tensors of protein mean (with foreground and background)
 
         :param n_samples: number of samples from posterior distribution
@@ -559,7 +563,6 @@ class TotalPosterior(Posterior):
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then values are averaged over provided batches.
-        :rtype: :py:class:`np.ndarray`
         """
         if (transform_batch is None) or (isinstance(transform_batch, int)):
             transform_batch = [transform_batch]
@@ -607,7 +610,7 @@ class TotalPosterior(Posterior):
         rna_size_factor: int = 1,
         transform_batch: Optional[int] = None,
     ):
-        """ Return samples from an adjusted posterior predictive. Proteins are concatenated to genes.
+        """Samples from an adjusted posterior predictive. Proteins are concatenated to genes.
 
         :param n_samples: How may samples per cell
         :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
@@ -669,8 +672,10 @@ class TotalPosterior(Posterior):
         rna_size_factor: int = 1000,
         transform_batch: Optional[Union[int, List[int]]] = None,
         correlation_mode: str = "spearman",
-    ):
-        """ Wrapper of `generate_denoised_samples()` to create a gene-protein gene-protein corr matrix
+    ) -> np.ndarray:
+        """Create a gene-protein gene-protein correlation matrix
+
+         Wraps ``generate_denoised_samples()``
 
         :param n_samples: How may samples per cell
         :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
@@ -680,7 +685,7 @@ class TotalPosterior(Posterior):
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then values are averaged over provided batches.
-        :return:
+        :return: A feature-feature correlation matrix
         """
         if (transform_batch is None) or (isinstance(transform_batch, int)):
             transform_batch = [transform_batch]
@@ -709,7 +714,7 @@ class TotalPosterior(Posterior):
 
     @torch.no_grad()
     def imputation(self, n_samples: int = 1):
-        """ Gene imputation
+        """Gene imputation
         """
         imputed_list = []
         for tensors in self:
@@ -723,9 +728,9 @@ class TotalPosterior(Posterior):
 
     @torch.no_grad()
     def imputation_list(self, n_samples: int = 1):
-        """ This code is identical to same function in posterior.py
+        """This code is identical to same function in posterior.py
 
-            Except, we use the totalVI definition of `model.get_sample_rate`
+        Except, we use the totalVI definition of `model.get_sample_rate`
         """
         original_list = []
         imputed_list = []
@@ -782,102 +787,120 @@ class TotalPosterior(Posterior):
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
+        cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""
-        Unified method for differential expression inference.
+        r"""Unified method for differential expression inference.
+
         This function is an extension of the `get_bayes_factors` method
         providing additional genes information to the user
 
-        # FUNCTIONING
         Two modes coexist:
-            - the "vanilla" mode follows protocol described in arXiv:1709.02082
-            In this case, we perform hypothesis testing based on:
-                M_1: h_1 > h_2
-                M_2: h_1 <= h_2
 
-            DE can then be based on the study of the Bayes factors:
-            log (p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
+        - the "vanilla" mode follows protocol described in [Lopez18]_
+        In this case, we perform hypothesis testing based on the hypotheses
 
-            - the "change" mode (described in bioRxiv, 794289)
-            consists in estimating an effect size random variable (e.g., log fold-change) and
-            performing Bayesian hypothesis testing on this variable.
-            The `change_fn` function computes the effect size variable r based two inputs
-            corresponding to the normalized means in both populations
-            Hypotheses:
-                M_1: r \in R_0 (effect size r in region inducing differential expression)
-                M_2: r not \in R_0 (no differential expression)
-            To characterize the region R_0, the user has two choices.
-                1. A common case is when the region [-delta, delta] does not induce differential
-                expression.
-                If the user specifies a threshold delta,
-                we suppose that R_0 = \mathbb{R} \ [-delta, delta]
-                2. specify an specific indicator function f: \mathbb{R} -> {0, 1} s.t.
-                    r \in R_0 iff f(r) = 1
+        .. math::
+            M_1: h_1 > h_2 ~\text{and}~ M_2: h_1 \leq h_2
 
-            Decision-making can then be based on the estimates of
-                p(M_1 | x_1, x_2)
+        DE can then be based on the study of the Bayes factors
 
-        # POSTERIOR SAMPLING
-        Both modes require to sample the normalized means posteriors
-        To that purpose we sample the Posterior in the following way:
-            1. The posterior is sampled n_samples times for each subpopulation
-            2. For computation efficiency (posterior sampling is quite expensive), instead of
-                comparing the obtained samples element-wise, we can permute posterior samples.
-                Remember that computing the Bayes Factor requires sampling
-                q(z_A | x_A) and q(z_B | x_B)
+        .. math::
+            \log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
 
-        # BATCH HANDLING
+        - the "change" mode (described in [Boyeau19]_)
+        consists in estimating an effect size random variable (e.g., log fold-change) and
+        performing Bayesian hypothesis testing on this variable.
+        The `change_fn` function computes the effect size variable r based two inputs
+        corresponding to the normalized means in both populations.
+
+        Hypotheses:
+
+        .. math::
+            M_1: r \in R_1 ~\text{(effect size r in region inducing differential expression)}
+
+        .. math::
+            M_2: r  \notin R_1 ~\text{(no differential expression)}
+
+        To characterize the region :math:`R_1`, which induces DE, the user has two choices.
+
+        1. A common case is when the region :math:`[-\delta, \delta]` does not induce differential
+        expression.
+        If the user specifies a threshold delta,
+        we suppose that :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
+
+        2. specify an specific indicator function
+
+        .. math::
+            f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 ~\text{iff.}~ f(r) = 1
+
+        Decision-making can then be based on the estimates of
+
+        .. math::
+            p(M_1 \mid x_1, x_2)
+
+        Both modes require to sample the normalized means posteriors.
+        To that purpose, we sample the Posterior in the following way:
+
+        1. The posterior is sampled n_samples times for each subpopulation
+
+        2. For computation efficiency (posterior sampling is quite expensive), instead of
+            comparing the obtained samples element-wise, we can permute posterior samples.
+            Remember that computing the Bayes Factor requires sampling
+            :math:`q(z_A \mid x_A)` and :math:`q(z_B \mid x_B)`
+
         Currently, the code covers several batch handling configurations:
-            1. If `use_observed_batches`=True, then batch are considered as observations
-            and cells' normalized means are conditioned on real batch observations
 
-            2. If case (cell group 1) and control (cell group 2) are conditioned on the same
-            batch ids.
-                set(batchid1) = set(batchid2):
-                e.g. batchid1 = batchid2 = None
+        1. If ``use_observed_batches=True``, then batch are considered as observations
+        and cells' normalized means are conditioned on real batch observations
 
+        2. If case (cell group 1) and control (cell group 2) are conditioned on the same
+        batch ids.
+        Examples:
+            >>> set(batchid1) = set(batchid2)
 
-            3. If case and control are conditioned on different batch ids that do not intersect
-            i.e., set(batchid1) != set(batchid2)
-                  and intersection(set(batchid1), set(batchid2)) = \emptyset
-
-            This function does not cover other cases yet and will warn users in such cases.
+        or
+            >>> batchid1 = batchid2 = None
 
 
-        # PARAMETERS
-        # Mode parameters
+        3. If case and control are conditioned on different batch ids that do not intersect
+        i.e.,
+            >>> set(batchid1) != set(batchid2)
+
+        and
+            >>> len(set(batchid1).intersection(set(batchid2))) == 0
+
+        This function does not cover other cases yet and will warn users in such cases.
+
         :param mode: one of ["vanilla", "change"]
 
-
-        ## Genes/cells/batches selection parameters
         :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
-        from associated population
+          from associated population
         :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
-        from associated population
+          from associated population
         :param batchid1: List of batch ids for which you want to perform DE Analysis for
-        subpopulation 1. By default, all ids are taken into account
+          subpopulation 1. By default, all ids are taken into account
         :param batchid2: List of batch ids for which you want to perform DE Analysis for
-        subpopulation 2. By default, all ids are taken into account
+          subpopulation 2. By default, all ids are taken into account
         :param use_observed_batches: Whether normalized means are conditioned on observed
-        batches
+          batches
 
-        ## Sampling parameters
         :param n_samples: Number of posterior samples
         :param use_permutation: Activates step 2 described above.
-        Simply formulated, pairs obtained from posterior sampling (when calling
-        `sample_scale_from_batch`) will be randomly permuted so that the number of
-        pairs used to compute Bayes Factors becomes M_permutation.
+          Simply formulated, pairs obtained from posterior sampling (when calling
+          `sample_scale_from_batch`) will be randomly permuted so that the number of
+          pairs used to compute Bayes Factors becomes M_permutation.
         :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-        Only makes sense when use_permutation=True
+          Only makes sense when use_permutation=True
 
         :param change_fn: function computing effect size based on both normalized means
-
-            :param m1_domain_fn: custom indicator function of effect size regions
-            inducing differential expression
-            :param delta: specific case of region inducing differential expression.
-            In this case, we suppose that R \ [-delta, delta] does not induce differential expression
-            (LFC case)
+        :param m1_domain_fn: custom indicator function of effect size regions
+          inducing differential expression
+        :param delta: specific case of region inducing differential expression.
+          In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce differential expression
+          (LFC case)
+        :param cred_interval_lvls: List of credible interval levels to compute for the posterior
+          LFC distribution
 
         :param all_stats: whether additional metrics should be provided
         :\**kwargs: Other keywords arguments for `get_sample_scale()`
@@ -896,6 +919,7 @@ class TotalPosterior(Posterior):
             M_permutation=M_permutation,
             change_fn=change_fn,
             m1_domain_fn=m1_domain_fn,
+            cred_interval_lvls=cred_interval_lvls,
             delta=delta,
             **kwargs,
         )
@@ -950,38 +974,42 @@ default_early_stopping_kwargs = {
 
 
 class TotalTrainer(UnsupervisedTrainer):
-    r"""The VariationalInference class for the unsupervised training of an autoencoder.
+    r"""Unsupervised training for totalVI using variational inference
 
-    Args:
-        :model: A model instance from class ``TOTALVI``
-        :gene_dataset: A gene_dataset instance like ``CbmcDataset()`` with attribute ``protein_expression``
-        :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
-         to use Default: ``0.90``.
-        :test_size: The test size, either a float between 0 and 1 or and integer for the number of training samples
-         to use Default: ``0.10``. Note that if train and test do not add to 1 the remainder is placed in a validation set
-        :pro_recons_weight: Scaling factor on the reconstruction loss for proteins. Default: ``1.0``.
-        :n_epochs_kl_warmup: Number of epochs for annealing the KL terms for `z` and `mu` of the ELBO (from 0 to 1). If None, no warmup performed, unless
-         `n_iter_kl_warmup` is set.
-        :n_iter_kl_warmup: Number of minibatches for annealing the KL terms for `z` and `mu` of the ELBO (from 0 to 1). If set to "auto",
-        the number of iterations is equal to 75% of the number of cells. `n_epochs_kl_warmup` takes precedence if it is not None. If both are None,
-        then no warmup is performed.
-        :\*\*kwargs: Other keywords arguments from the general Trainer class.
+    :param model: A model instance from class ``TOTALVI``
+    :param gene_dataset: A gene_dataset instance like ``CbmcDataset()`` with attribute ``protein_expression``
+    :param train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
+        to use Default: ``0.90``.
+    :param test_size: The test size, either a float between 0 and 1 or and integer for the number of training samples
+        to use Default: ``0.10``. Note that if train and test do not add to 1 the remainder is placed in a validation set
+    :param pro_recons_weight: Scaling factor on the reconstruction loss for proteins. Default: ``1.0``.
+    :param n_epochs_kl_warmup: Number of epochs for annealing the KL terms for `z` and `mu` of the ELBO (from 0 to 1). If None, no warmup performed, unless
+        `n_iter_kl_warmup` is set.
+    :param n_iter_kl_warmup: Number of minibatches for annealing the KL terms for `z` and `mu` of the ELBO (from 0 to 1). If set to "auto", the number
+        of iterations is equal to 75% of the number of cells. `n_epochs_kl_warmup` takes precedence if it is not None. If both are None, then
+        no warmup is performed.
+    :param discriminator: Classifier used for adversarial training scheme
+    :param use_adversarial_loss: Whether to use adversarial classifier to improve mixing
+    :param kappa: Scaling factor for adversarial loss. If None, follow inverse of kl warmup schedule.
+    :param early_stopping_kwargs: Keyword args for early stopping. If "auto", use totalVI defaults. If None, disable early stopping.
+    :param \*\*kwargs: Other keywords arguments from the general Trainer class.
     """
+
     default_metrics_to_monitor = ["elbo"]
 
     def __init__(
         self,
-        model,
-        dataset,
-        train_size=0.90,
-        test_size=0.10,
-        pro_recons_weight=1.0,
-        n_epochs_kl_warmup=None,
-        n_iter_kl_warmup="auto",
-        early_stopping_kwargs=default_early_stopping_kwargs,
-        discriminator=None,
-        use_adversarial_loss=False,
-        kappa=None,
+        model: TOTALVI,
+        dataset: GeneExpressionDataset,
+        train_size: float = 0.90,
+        test_size: float = 0.10,
+        pro_recons_weight: float = 1.0,
+        n_epochs_kl_warmup: int = None,
+        n_iter_kl_warmup: Union[str, int] = "auto",
+        discriminator: Classifier = None,
+        use_adversarial_loss: bool = False,
+        kappa: float = None,
+        early_stopping_kwargs: Union[dict, str, None] = "auto",
         **kwargs,
     ):
         self.n_genes = dataset.nb_genes
@@ -989,6 +1017,10 @@ class TotalTrainer(UnsupervisedTrainer):
         self.use_adversarial_loss = use_adversarial_loss
         self.kappa = kappa
         self.pro_recons_weight = pro_recons_weight
+
+        if early_stopping_kwargs == "auto":
+            early_stopping_kwargs = default_early_stopping_kwargs
+
         super().__init__(
             model,
             dataset,

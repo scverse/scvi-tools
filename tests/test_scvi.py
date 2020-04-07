@@ -1,7 +1,13 @@
 import numpy as np
+import tempfile
 import os
+import pytest
+import torch
+
+from anndata import AnnData
 
 from scvi.dataset import (
+    AnnDatasetFromAnnData,
     CortexDataset,
     SyntheticDataset,
     GeneExpressionDataset,
@@ -17,9 +23,12 @@ from scvi.inference import (
     TotalPosterior,
 )
 from scvi.inference.posterior import unsupervised_clustering_accuracy
+from scvi.inference.posterior_utils import load_posterior
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
 from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE
+from scvi.models.distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
 from scvi.models.classifier import Classifier
+from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
 from scvi import set_seed
 
 set_seed(0)
@@ -52,6 +61,26 @@ def test_cortex(save_path):
     trainer_cortex_vae.train_set.imputation_benchmark(
         n_samples=1, show_plot=False, title_plot="imputation", save_path=save_path
     )
+    trainer_cortex_vae.train_set.generate_parameters()
+
+    n_cells, n_genes = (
+        len(trainer_cortex_vae.train_set.indices),
+        cortex_dataset.nb_genes,
+    )
+    n_samples = 3
+    (dropout, means, dispersions) = trainer_cortex_vae.train_set.generate_parameters()
+    assert dropout.shape == (n_cells, n_genes) and means.shape == (n_cells, n_genes)
+    assert dispersions.shape == (n_cells, n_genes)
+    (dropout, means, dispersions) = trainer_cortex_vae.train_set.generate_parameters(
+        n_samples=n_samples
+    )
+    assert dropout.shape == (n_samples, n_cells, n_genes)
+    assert means.shape == (n_samples, n_cells, n_genes)
+    (dropout, means, dispersions) = trainer_cortex_vae.train_set.generate_parameters(
+        n_samples=n_samples, give_mean=True
+    )
+    assert dropout.shape == (n_cells, n_genes) and means.shape == (n_cells, n_genes)
+
     full = trainer_cortex_vae.create_posterior(
         vae, cortex_dataset, indices=np.arange(len(cortex_dataset))
     )
@@ -117,6 +146,23 @@ def test_synthetic_1():
     )
     trainer_synthetic_svaec.train(n_epochs=1)
     trainer_synthetic_svaec.labelled_set.entropy_batch_mixing()
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        posterior_save_path = os.path.join(temp_dir, "posterior_data")
+        original_post = trainer_synthetic_svaec.labelled_set.sequential()
+        original_post.save_posterior(posterior_save_path)
+        new_svaec = SCANVI(
+            synthetic_dataset.nb_genes,
+            synthetic_dataset.n_batches,
+            synthetic_dataset.n_labels,
+        )
+        new_post = load_posterior(posterior_save_path, model=new_svaec, use_cuda=False)
+    assert np.array_equal(new_post.indices, original_post.indices)
+    assert np.array_equal(new_post.gene_dataset.X, original_post.gene_dataset.X)
+    assert np.array_equal(
+        new_post.gene_dataset.labels, original_post.gene_dataset.labels
+    )
+
     trainer_synthetic_svaec.full_dataset.knn_purity()
     trainer_synthetic_svaec.labelled_set.show_t_sne(n_samples=5)
     trainer_synthetic_svaec.unlabelled_set.show_t_sne(n_samples=5, color_by="labels")
@@ -335,6 +381,16 @@ def test_differential_expression(save_path):
     trainer.train(n_epochs=2)
     post = trainer.create_posterior(vae, dataset, shuffle=False, indices=all_indices)
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        posterior_save_path = os.path.join(temp_dir, "posterior_data")
+        post = post.sequential(batch_size=3)
+        post.save_posterior(posterior_save_path)
+        new_vae = VAE(dataset.nb_genes, dataset.n_batches)
+        new_post = load_posterior(posterior_save_path, model=new_vae, use_cuda=False)
+    assert new_post.data_loader.batch_size == 3
+    assert np.array_equal(new_post.indices, post.indices)
+    assert np.array_equal(new_post.gene_dataset.X, post.gene_dataset.X)
+
     # Sample scale example
     px_scales = post.scale_sampler(
         n_samples_per_cell=4, n_samples=None, selection=all_indices
@@ -362,15 +418,16 @@ def test_differential_expression(save_path):
         mode="change",
         use_permutation=True,
         M_permutation=100,
+        cred_interval_lvls=[0.5, 0.95],
     )
     print(de_dataframe.keys())
     assert (
-        de_dataframe["confidence_interval_0.5_min"]
-        <= de_dataframe["confidence_interval_0.5_max"]
+        de_dataframe["lfc_confidence_interval_0.5_min"]
+        <= de_dataframe["lfc_confidence_interval_0.5_max"]
     ).all()
     assert (
-        de_dataframe["confidence_interval_0.95_min"]
-        <= de_dataframe["confidence_interval_0.95_max"]
+        de_dataframe["lfc_confidence_interval_0.95_min"]
+        <= de_dataframe["lfc_confidence_interval_0.95_max"]
     ).all()
 
     # DE estimation example
@@ -436,6 +493,26 @@ def test_totalvi(save_path):
     )
     trainer.train(n_epochs=1)
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        posterior_save_path = os.path.join(temp_dir, "posterior_data")
+        original_post = trainer.create_posterior(
+            totalvae,
+            dataset,
+            indices=np.arange(len(dataset)),
+            type_class=TotalPosterior,
+        )
+        original_post.save_posterior(posterior_save_path)
+        new_totalvae = TOTALVI(
+            dataset.nb_genes, len(dataset.protein_names), n_batch=dataset.n_batches
+        )
+        new_post = load_posterior(
+            posterior_save_path, model=new_totalvae, use_cuda=False
+        )
+        assert new_post.posterior_type == "TotalPosterior"
+        assert np.array_equal(
+            new_post.gene_dataset.protein_expression, dataset.protein_expression
+        )
+
 
 def test_autozi(save_path):
     data = SyntheticDataset(n_batches=1)
@@ -484,3 +561,60 @@ def test_deprecated_munkres():
     reward, assignment = unsupervised_clustering_accuracy(y, y_pred)
     assert reward == 1.0
     assert (assignment == np.array([[0, 3], [1, 1], [2, 2], [3, 0]])).all()
+
+
+def test_zinb_distribution():
+    theta = 100.0 + torch.rand(size=(2,))
+    mu = 15.0 * torch.ones_like(theta)
+    pi = torch.randn_like(theta)
+    x = torch.randint_like(mu, high=20)
+    log_p_ref = log_zinb_positive(x, mu, theta, pi)
+
+    dist = ZeroInflatedNegativeBinomial(mu=mu, theta=theta, zi_logits=pi)
+    log_p_zinb = dist.log_prob(x)
+    assert (log_p_ref - log_p_zinb).abs().max().item() <= 1e-8
+
+    torch.manual_seed(0)
+    s1 = dist.sample((100,))
+    assert s1.shape == (100, 2)
+    s2 = dist.sample(sample_shape=(4, 3))
+    assert s2.shape == (4, 3, 2)
+
+    log_p_ref = log_nb_positive(x, mu, theta)
+    dist = NegativeBinomial(mu=mu, theta=theta)
+    log_p_nb = dist.log_prob(x)
+    assert (log_p_ref - log_p_nb).abs().max().item() <= 1e-8
+
+    s1 = dist.sample((1000,))
+    assert s1.shape == (1000, 2)
+    assert (s1.mean(0) - mu).abs().mean() <= 1e0
+    assert (s1.std(0) - (mu + mu * mu / theta) ** 0.5).abs().mean() <= 1e0
+
+    size = (50, 3)
+    theta = 100.0 + torch.rand(size=size)
+    mu = 15.0 * torch.ones_like(theta)
+    pi = torch.randn_like(theta)
+    x = torch.randint_like(mu, high=20)
+    dist1 = ZeroInflatedNegativeBinomial(mu=mu, theta=theta, zi_logits=pi)
+    dist2 = NegativeBinomial(mu=mu, theta=theta)
+    assert dist1.log_prob(x).shape == size
+    assert dist2.log_prob(x).shape == size
+
+    with pytest.raises(ValueError):
+        ZeroInflatedNegativeBinomial(mu=-mu, theta=theta, zi_logits=pi)
+    with pytest.warns(UserWarning):
+        dist1.log_prob(-x)  # ensures neg values raise warning
+    with pytest.warns(UserWarning):
+        dist2.log_prob(0.5 * x)  # ensures float values raise warning
+
+
+def test_anndata_loader():
+    x = np.random.randint(low=0, high=100, size=(15, 4))
+    batch_ids = np.random.randint(low=0, high=2, size=(15,))
+    n_batches = 2
+    adata = AnnData(X=x, obs=dict(batch=batch_ids))
+    _ = AnnDatasetFromAnnData(adata, batch_label="batch")
+    dataset = AnnDatasetFromAnnData(adata, batch_label="batch")
+    assert (
+        dataset.n_batches == n_batches
+    ), "AnnDatasetFromAnnData should not modify the anndata object"
