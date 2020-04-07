@@ -735,7 +735,7 @@ class GeneExpressionDataset(Dataset):
                     n_genes=self.nb_genes, n_attr=len(attribute)
                 )
             )
-        setattr(self, attribute_name, attribute)
+        setattr(self, attribute_name, np.asarray(attribute))
         self.gene_attribute_names.add(attribute_name)
 
     def initialize_mapped_attribute(
