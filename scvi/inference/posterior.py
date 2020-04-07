@@ -1406,30 +1406,35 @@ class Posterior:
     @torch.no_grad()
     def get_sample_scale(
         self,
-        transform_batch=None,
-        gene_list=None,
-        library_size=1,
-        return_df=False,
-        n_samples=1,
-        return_mean=True,
-    ) -> np.ndarray:
+        transform_batch: Optional[int] = None,
+        gene_list: Optional[Union[np.ndarray, List[int]]] = None,
+        library_size: float = 1,
+        return_df: Optional[bool] = None,
+        n_samples: int = 1,
+        return_mean: bool = True,
+    ) -> Union[np.ndarray, pd.DataFrame]:
         """ Returns the frequencies of expression for the data.
 
-        :param transform_batch: Batches to condition on.
+        This is denoted as \\( \rho_n \\) in the scVI paper.
+
+        :param transform_batch: Batch to condition on.
         If transform_batch is:
             - None, then real observed batch is used
             - int, then batch transform_batch is used
-            - list of int, then px_rates are averaged over provided batches.
-        :param gene_list: (optional) Return frequencies of expression for a subset of genes.
+        :param gene_list: Return frequencies of expression for a subset of genes.
             This can save memory when working with large datasets and few genes are
-            of interest. (default=None)
-        :param library_size: (optional) Scale the expression frequencies to a common library size.
+            of interest.
+        :param library_size: Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude (default=1, no scaling).
-        :param return_df: (optional) Return a DataFrame instead of an np.Array. Includes gene
-            names as columns. Requires either n_samples=1 or return_mean=True (default=False).
-        :param n_samples: (optional) Get sample scale from multiple samples (default=1).
-        :param return_mean: (optional) Whether to return the mean of the samples (default=True).
+            magnitude.
+        :param return_df: Return a DataFrame instead of an `np.ndarray`. Includes gene
+            names as columns. Requires either n_samples=1 or return_mean=True.
+            When `gene_list` is not None and contains more than one gene, this is option is True.
+            Otherwise, it defaults to False.
+        :param n_samples: Get sample scale from multiple samples.
+        :param return_mean: Whether to return the mean of the samples.
+        :return: Gene frequencies.  If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
+            Otherwise, shape is `(cells, genes)`. Return type is `np.ndarray` unless `return_df` is True.
         """
         if gene_list is None:
             gene_mask = slice(None)
@@ -1437,6 +1442,8 @@ class Posterior:
             gene_mask = self.gene_dataset._get_genes_filter_mask_by_attribute(
                 gene_list, return_data=False
             )
+            if return_df is not None and sum(gene_mask) > 1:
+                return_df = True
 
         px_scales = []
         for tensors in self:
@@ -1465,7 +1472,7 @@ class Posterior:
         if n_samples > 1 and return_mean:
             px_scales = px_scales.mean(0)
 
-        if return_df:
+        if return_df is True:
             return pd.DataFrame(
                 px_scales, columns=self.gene_dataset.gene_names[gene_mask]
             )
