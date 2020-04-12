@@ -1285,7 +1285,8 @@ class GeneExpressionDataset(Dataset):
 
         # It's important to save the measurements name mapping for latter loading
         all_names = {
-            name: getattr(self, name) for name in self.cell_measurements_col_mappings
+            attr_name: getattr(self, attr_name)
+            for _, attr_name in self.cell_measurements_col_mappings.items()
         }
         uns = dict(
             cell_measurements_col_mappings=self.cell_measurements_col_mappings,
