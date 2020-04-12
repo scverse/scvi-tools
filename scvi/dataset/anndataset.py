@@ -65,7 +65,7 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
         Ys = []
         if cell_measurements_col_mappings is not None:
             for name, attr_name in cell_measurements_col_mappings.items():
-                columns = uns[name]
+                columns = uns[attr_name]
                 measurement = CellMeasurement(
                     name=name,
                     data=obsm[name],

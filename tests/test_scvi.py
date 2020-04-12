@@ -508,6 +508,7 @@ def test_totalvi(save_path):
         new_post = load_posterior(
             posterior_save_path, model=new_totalvae, use_cuda=False
         )
+        assert hasattr(new_post.gene_dataset, "protein_names")
         assert new_post.posterior_type == "TotalPosterior"
         assert np.array_equal(
             new_post.gene_dataset.protein_expression, dataset.protein_expression
