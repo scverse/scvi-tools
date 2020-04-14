@@ -2,6 +2,12 @@
 History
 =======
 
+0.6.4 (2020-4-14)
+------------------
+* add back Python 3.6 support `@adam`_
+* get_sample_scale() allows gene selection `@valentine-svensson`_
+* bug fix to the dataset to anndata method with how cell measurements are stored `@adam`_
+* fix requirements `@adam`_
 
 0.6.3 (2020-4-01)
 ------------------

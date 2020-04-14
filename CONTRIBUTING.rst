@@ -144,7 +144,6 @@ $ bumpversion patch # possible: major / minor / patch
 $ git push
 $ git push --tags
 
-Travis will then deploy to PyPI if tests pass.
 
 Instructions on Uploading to pip
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -176,14 +175,15 @@ Write a recipe::
 
 $ git checkout -b my-recipe
 
-Get the package's hash:
+Get the package's hash::
 
-$ pip hash dist/scvi/scvi-<NEW_VERSION_TAG>.tar.gz
+$ pip hash dist/scvi-<NEW_VERSION_TAG>.tar.gz
 
 Push changes, wait for tests to pass, submit pull request::
 
 $ git push -u origin my-recipe
 
+For this, it's easier to look at old scVI PR's.
 
 Instructions on updating notebooks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
