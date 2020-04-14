@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import tempfile
 import os
 import pytest
@@ -50,6 +51,11 @@ def test_cortex(save_path):
     trainer_cortex_vae.train_set.generate_feature_correlation_matrix(
         n_samples=2, correlation_type="spearman"
     )
+    genes = cortex_dataset.gene_names[:3]
+    sample_scale = trainer_cortex_vae.train_set.get_sample_scale(gene_list=genes)
+    assert type(sample_scale) == pd.DataFrame
+    assert np.array_equal(np.sort(np.array(sample_scale.columns)), np.sort(genes))
+
     trainer_cortex_vae.train_set.imputation(n_samples=1)
     trainer_cortex_vae.test_set.imputation(n_samples=5)
 
