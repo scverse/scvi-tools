@@ -15,7 +15,6 @@ import anndata
 import torch
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
-import statsmodels.api as sm
 import scanpy as sc
 
 logger = logging.getLogger(__name__)
@@ -1470,13 +1469,12 @@ class GeneExpressionDataset(Dataset):
 
 
 def seurat_v3_highly_variable_genes(
-    adata, n_top_genes: int = 4000, batch_key: str = "batch"
+    adata, n_top_genes: int = 4000, batch_key: str = None
 ):
     """ An adapted implementation of the "vst" feature selection in Seurat v3.
 
-        The major differences are that we use lowess insted of loess and when considering
-        a dataset with multiple batches we rank features by their median normalized variance
-        across batches
+        This function will be replaced once it's full implemented in scanpy
+        https://github.com/theislab/scanpy/pull/1182
 
         For further details of the arithmetic see https://www.overleaf.com/read/ckptrbgzzzpg
 
@@ -1486,42 +1484,36 @@ def seurat_v3_highly_variable_genes(
     """
 
     from scanpy.preprocessing._utils import _get_mean_var
-    from scanpy.preprocessing._distributed import materialize_as_ndarray
-
-    lowess = sm.nonparametric.lowess
 
     if batch_key is None:
-        batch_correction = False
-        batch_key = "batch"
-        adata.obs[batch_key] = pd.Categorical(np.zeros((adata.X.shape[0])).astype(int))
+        batch_info = pd.Categorical(np.zeros(adata.shape[0], dtype=int))
     else:
-        batch_correction = True
+        batch_info = adata.obs[batch_key]
 
     norm_gene_vars = []
-    for b in np.unique(adata.obs[batch_key]):
+    for b in np.unique(batch_info):
 
-        mean, var = materialize_as_ndarray(
-            _get_mean_var(adata[adata.obs[batch_key] == b].X)
-        )
+        mean, var = _get_mean_var(adata[batch_info == b].X)
         not_const = var > 0
-        estimat_var = np.zeros((adata.X.shape[1]))
+        estimat_var = np.zeros(adata.shape[1])
 
         y = np.log10(var[not_const])
         x = np.log10(mean[not_const])
-        # output is sorted by x
-        v = lowess(y, x, frac=0.15)
-        estimat_var[not_const][np.argsort(x)] = v[:, 1]
-
-        # get normalized variance
+        estimat_var[not_const] = _loess(y, x)
         reg_std = np.sqrt(10 ** estimat_var)
-        batch_counts = adata[adata.obs[batch_key] == b].X.copy()
+
+        batch_counts = adata[batch_info == b].X.astype(np.float64).copy()
         # clip large values as in Seurat
-        N = np.sum(adata.obs["batch"] == b)
+        N = np.sum(batch_info == b)
         vmax = np.sqrt(N)
         clip_val = reg_std * vmax + mean
-        # could be something faster here
-        for g in range(batch_counts.shape[1]):
-            batch_counts[:, g][batch_counts[:, g] > vmax] = clip_val[g]
+        if sp_sparse.issparse(batch_counts):
+            batch_counts = sp_sparse.csr_matrix(batch_counts)
+            mask = batch_counts.data > clip_val[batch_counts.indices]
+            batch_counts.data[mask] = clip_val[batch_counts.indices[mask]]
+        else:
+            clip_val_broad = np.broadcast_to(clip_val, batch_counts.shape)
+            np.putmask(batch_counts, batch_counts > clip_val_broad, clip_val_broad)
 
         if sp_sparse.issparse(batch_counts):
             squared_batch_counts_sum = np.array(batch_counts.power(2).sum(axis=0))
@@ -1562,7 +1554,7 @@ def seurat_v3_highly_variable_genes(
     df = df.loc[adata.var_names]
 
     adata.var["highly_variable"] = df["highly_variable"].values
-    if batch_correction is True:
+    if len(np.unique(batch_info)) > 1:
         batches = adata.obs[batch_key].cat.categories
         adata.var["highly_variable_nbatches"] = df["highly_variable_nbatches"].values
         adata.var["highly_variable_intersection"] = df[
@@ -1572,6 +1564,17 @@ def seurat_v3_highly_variable_genes(
     adata.var["highly_variable_median_variance"] = df[
         "highly_variable_median_variance"
     ].values
+
+
+def _loess(y, x, span=0.3):
+
+    from skmisc.loess import loess
+
+    model = loess(x, y, span=span, degree=2)
+    model.fit()
+    y_est = model.predict(x).values
+
+    return y_est
 
 
 def remap_categories(

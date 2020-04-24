@@ -24,6 +24,7 @@ requirements = [
     "statsmodels",
     "scanpy>=1.4",
     'dataclasses; python_version < "3.7"',  # for `dataclass`
+    "scikit-misc",
 ]
 
 setup_requirements = ["pip>=18.1"]
