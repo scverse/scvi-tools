@@ -8,6 +8,7 @@ from scvi.dataset.dataset import (
     DownloadableDataset,
     CellMeasurement,
 )
+from scvi.dataset.biom import BiomDataset
 from scvi.dataset.dataset10X import Dataset10X, BrainSmallDataset
 from scvi.dataset.hemato import HematoDataset
 from scvi.dataset.loom import (
