@@ -124,7 +124,7 @@ class DownloadableAnnDataset(DownloadableDataset):
         self.ctype_label = ctype_label
         self.class_label = class_label
         self.use_raw = use_raw
-        self.cell_measurements_col_mappings = cell_measurements_col_mappings
+        self.cell_measurements_col_mappings_temp = cell_measurements_col_mappings
         super().__init__(
             urls=url,
             filenames=filename,
@@ -163,8 +163,8 @@ class DownloadableAnnDataset(DownloadableDataset):
 
         # add external cell measurements
         Ys = []
-        if self.cell_measurements_col_mappings is not None:
-            for name, attr_name in self.cell_measurements_col_mappings.items():
+        if self.cell_measurements_col_mappings_temp is not None:
+            for name, attr_name in self.cell_measurements_col_mappings_temp.items():
                 columns = uns[attr_name]
                 measurement = CellMeasurement(
                     name=name,
@@ -185,6 +185,8 @@ class DownloadableAnnDataset(DownloadableDataset):
             gene_attributes_dict=var,
         )
         self.filter_cells_by_count()
+
+        del self.cell_measurements_col_mappings_temp
 
 
 def extract_data_from_anndata(
