@@ -21,6 +21,7 @@ Also, please pardon the code at the beginning of tutorials that is used for test
 
 .. toctree::
    :maxdepth: 1
+   :numbered:
    :hidden:
 
    basic_tutorial
