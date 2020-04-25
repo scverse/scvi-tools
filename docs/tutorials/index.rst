@@ -26,6 +26,7 @@ Also, please pardon the code at the beginning of tutorials that is used for test
    basic_tutorial
    data_loading
    totalvi
+   cite_scrna_integration_w_totalVI
    harmonization
    scanpy
    autozi
