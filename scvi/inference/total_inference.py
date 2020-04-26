@@ -397,28 +397,39 @@ class TotalPosterior(Posterior):
         self,
         n_samples: int = 1,
         give_mean: bool = True,
-        transform_batch: Optional[int] = None,
+        transform_batch: Optional[Union[int, List[int]]] = None,
     ) -> np.ndarray:
         """ Returns mixing bernoulli parameter for protein negative binomial mixtures (probability background)
 
         :param n_samples: number of samples from posterior distribution
         :param sample_protein_mixing: Sample mixing bernoulli, setting background to zero
         :param give_mean: bool, whether to return samples along first axis or average over samples
-        :param transform_batch: Batches to condition on as integer.
+        :param transform_batch: Batches to condition on.
+        If transform_batch is:
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - list of int, then values are averaged over provided batches.
         :return: array of probability background
         """
         py_mixings = []
+        if (transform_batch is None) or (isinstance(transform_batch, int)):
+            transform_batch = [transform_batch]
         for tensors in self:
             x, _, _, batch_index, label, y = tensors
-            outputs = self.model.inference(
-                x,
-                y,
-                batch_index=batch_index,
-                label=label,
-                n_samples=n_samples,
-                transform_batch=transform_batch,
-            )
-            py_mixing = torch.sigmoid(outputs["py_"]["mixing"])
+            py_mixing = torch.zeros_like(y)
+            if n_samples > 1:
+                py_mixing = torch.stack(n_samples * [py_mixing])
+            for b in transform_batch:
+                outputs = self.model.inference(
+                    x,
+                    y,
+                    batch_index=batch_index,
+                    label=label,
+                    n_samples=n_samples,
+                    transform_batch=b,
+                )
+                py_mixing += torch.sigmoid(outputs["py_"]["mixing"])
+            py_mixing /= len(transform_batch)
             py_mixings += [py_mixing.cpu()]
         if n_samples > 1:
             # concatenate along batch dimension -> result shape = (samples, cells, features)
