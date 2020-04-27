@@ -313,7 +313,7 @@ class LinearDecoderSCVI(nn.Module):
     ):
         # The decoder returns values for the parameters of the ZINB distribution
         raw_px_scale = self.factor_regressor(z, *cat_list)
-        px_scale = torch.logsoftmax(raw_px_scale, dim=-1)
+        px_scale = torch.log_softmax(raw_px_scale, dim=-1)
         px_dropout = self.px_dropout_decoder(z, *cat_list)
         px_rate = library + px_scale
         px_r = None
