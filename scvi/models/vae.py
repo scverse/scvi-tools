@@ -172,13 +172,13 @@ class VAE(nn.Module):
         :param transform_batch: int of batch to transform samples into
         :return: tensor of predicted frequencies of expression with shape ``(batch_size, n_input)``
         """
-        return self.inference(
+        return torch.exp(self.inference(
             x,
             batch_index=batch_index,
             y=y,
             n_samples=n_samples,
             transform_batch=transform_batch,
-        )["px_scale"]
+        )["px_scale"])
 
     def get_sample_rate(
         self, x, batch_index=None, y=None, n_samples=1, transform_batch=None
@@ -192,13 +192,13 @@ class VAE(nn.Module):
         :param transform_batch: int of batch to transform samples into
         :return: tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
         """
-        return self.inference(
+        return torch.exp(self.inference(
             x,
             batch_index=batch_index,
             y=y,
             n_samples=n_samples,
             transform_batch=transform_batch,
-        )["px_rate"]
+        )["px_rate"])
 
     def get_reconstruction_loss(
         self, x, px_rate, px_r, px_dropout, **kwargs
@@ -212,14 +212,14 @@ class VAE(nn.Module):
                     mu=px_rate, theta=px_r, zi_logits=px_dropout
                 )
                 .log_prob(x)
-                .sum(dim=-1)
+                .mean(dim=-1)
             )
         elif self.reconstruction_loss == "nb":
             reconst_loss = (
-                -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
+                -NegativeBinomial(log_mu=px_rate, log_theta=px_r).log_prob(x).mean(dim=-1)
             )
         elif self.reconstruction_loss == "poisson":
-            reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
+            reconst_loss = -Poisson(px_rate).log_prob(x).mean(dim=-1)
         return reconst_loss
 
     def inference(
@@ -368,7 +368,7 @@ class LDVAE(VAE):
         log_variational: bool = True,
         reconstruction_loss: str = "nb",
         use_batch_norm: bool = True,
-        bias: bool = False,
+        bias: bool = True,
         latent_distribution: str = "normal",
     ):
         super().__init__(
