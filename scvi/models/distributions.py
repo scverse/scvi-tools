@@ -61,7 +61,7 @@ class NegativeBinomial(Distribution):
     one parameterization to another.
     """
     arg_constraints = {
-        # "log_mu": constraints.real,
+        "log_mu": constraints.real,
         "log_theta": constraints.real,
     }
     support = constraints.nonnegative_integer
