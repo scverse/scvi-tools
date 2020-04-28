@@ -314,7 +314,7 @@ class LinearDecoderSCVI(nn.Module):
         raw_px_scale = self.factor_regressor(z, *cat_list)
         px_scale = torch.softmax(raw_px_scale, dim=-1)
         px_dropout = self.px_dropout_decoder(z, *cat_list)
-        px_rate = torch.exp(library) * px_scale
+        px_rate = library + px_scale
         px_r = None
 
         return px_scale, px_r, px_rate, px_dropout

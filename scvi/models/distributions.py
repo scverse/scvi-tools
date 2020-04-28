@@ -43,7 +43,8 @@ def _convert_counts_logits_to_mean_disp(total_count, logits):
         :return: the mean and inverse overdispersion of the NB distribution.
     """
     theta = total_count
-    mu = logits.exp() * theta
+    # mu = logits.exp() * theta
+    mu = logits + torch.log(theta)
     return mu, theta
 
 
@@ -60,8 +61,8 @@ class NegativeBinomial(Distribution):
     one parameterization to another.
     """
     arg_constraints = {
-        "mu": constraints.greater_than_eq(0),
-        "theta": constraints.greater_than_eq(0),
+        "log_mu": constraints.real,
+        "log_theta": constraints.real,
     }
     support = constraints.nonnegative_integer
 
@@ -70,12 +71,12 @@ class NegativeBinomial(Distribution):
         total_count: torch.Tensor = None,
         probs: torch.Tensor = None,
         logits: torch.Tensor = None,
-        mu: torch.Tensor = None,
-        theta: torch.Tensor = None,
+        log_mu: torch.Tensor = None,
+        log_theta: torch.Tensor = None,
         validate_args=True,
     ):
         self._eps = 1e-8
-        if (mu is None) == (total_count is None):
+        if (log_mu is None) == (total_count is None):
             raise ValueError(
                 "Please use one of the two possible parameterizations. Refer to the documentation for more information."
             )
@@ -87,11 +88,11 @@ class NegativeBinomial(Distribution):
             logits = logits if logits is not None else probs_to_logits(probs)
             total_count = total_count.type_as(logits)
             total_count, logits = broadcast_all(total_count, logits)
-            mu, theta = _convert_counts_logits_to_mean_disp(total_count, logits)
+            log_mu, log_theta = _convert_counts_logits_to_mean_disp(total_count, logits)
         else:
-            mu, theta = broadcast_all(mu, theta)
-        self.mu = mu
-        self.theta = theta
+            log_mu, log_theta = broadcast_all(log_mu, log_theta)
+        self.log_mu = log_mu
+        self.log_theta = log_theta
         super().__init__(validate_args=validate_args)
 
     def sample(self, sample_shape=torch.Size()):
@@ -115,11 +116,13 @@ class NegativeBinomial(Distribution):
                     "The value argument must be within the support of the distribution",
                     UserWarning,
                 )
-        return log_nb_positive(value, mu=self.mu, theta=self.theta, eps=self._eps)
+        return log_nb_positive(value, log_mu=self.log_mu,
+                               log_theta=self.log_theta, eps=self._eps)
 
     def _gamma(self):
-        concentration = self.theta
-        rate = self.theta / self.mu
+        concentration = torch.exp(self.log_theta)
+
+        rate = torch.exp(self.log_theta - self.log_mu)
         # Important remark: Gamma is parametrized by the rate = 1/scale!
         gamma_d = Gamma(concentration=concentration, rate=rate)
         return gamma_d
