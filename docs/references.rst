@@ -9,9 +9,9 @@ References
    *Detecting zero-inflated genes in single-cell transcriptomics data*,
    `Machine Learning in Computational Biology (MLCB) <https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf>`__.
 
-.. [Gayoso19] Adam Gayoso, Romain Lopez, Zoë Steier, Jeffrey Regier, Aaron Streets, Nir Yosef (2019),
-   *A joint model of RNA expression and surface protein abundance in single cells*,
-   `Machine Learning in Computational Biology (MLCB) <https://www.biorxiv.org/content/biorxiv/early/2019/10/07/791947.full.pdf>`__.
+.. [GayosoSteier20] Adam Gayoso*, Zoë Steier*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2020),
+   *Joint probabilistic modeling of paired transcriptome and proteome measurements in single cells*,
+   `bioRxiv <https://www.biorxiv.org/content/10.1101/2020.05.08.083337v1.full.pdf>`__.
 
 .. [Lopez18] Romain Lopez, Jeffrey Regier, Michael Cole, Michael I. Jordan, Nir Yosef (2018),
    *Deep generative modeling for single-cell transcriptomics*,
