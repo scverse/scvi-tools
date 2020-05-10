@@ -2,6 +2,11 @@
 History
 =======
 
+0.6.5 (2020-5-10)
+------------------
+* updates to totalVI posterior functions and notebooks `@adam`_
+* update seurat v3 HVG selection now using skmisc loess  `@adam`_
+
 0.6.4 (2020-4-14)
 ------------------
 * add back Python 3.6 support `@adam`_
