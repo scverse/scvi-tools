@@ -1484,6 +1484,7 @@ def seurat_v3_highly_variable_genes(
     """
 
     from scanpy.preprocessing._utils import _get_mean_var
+    from skmisc.loess import loess
 
     if batch_key is None:
         batch_info = pd.Categorical(np.zeros(adata.shape[0], dtype=int))
@@ -1499,7 +1500,10 @@ def seurat_v3_highly_variable_genes(
 
         y = np.log10(var[not_const])
         x = np.log10(mean[not_const])
-        estimat_var[not_const] = _loess(y, x)
+
+        model = loess(x, y, span=0.3, degree=2)
+        model.fit()
+        estimat_var[not_const] = model.outputs.fitted_values
         reg_std = np.sqrt(10 ** estimat_var)
 
         batch_counts = adata[batch_info == b].X.astype(np.float64).copy()
@@ -1564,17 +1568,6 @@ def seurat_v3_highly_variable_genes(
     adata.var["highly_variable_median_variance"] = df[
         "highly_variable_median_variance"
     ].values
-
-
-def _loess(y, x, span=0.3):
-
-    from skmisc.loess import loess
-
-    model = loess(x, y, span=span, degree=2)
-    model.fit()
-    y_est = model.predict(x).values
-
-    return y_est
 
 
 def remap_categories(

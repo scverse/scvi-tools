@@ -2,7 +2,7 @@ Tutorials
 =========
 
 The easiest way to get familiar with scVI is to follow along with our tutorials!
-The tutorials are accessible on the sidebar to the left. Some are designed to work seamlessly in Google Colab, a free cloud computing platform. These tutorials have a Colab badge in their introduction.
+The tutorials are accessible on the sidebar to the left. Some are designed to work seamlessly in Google Colab, a free cloud computing platform. These tutorials have a Colab badge in their introduction. In general, these tutorials are designed to work with the latest installable version of scVI. Previous versions of the tutorials are avaiable by changing the Read the Docs version (avaialble at the bottom left of the page if viewing on a computer).
 
 To download the tutorials:
 
@@ -21,11 +21,13 @@ Also, please pardon the code at the beginning of tutorials that is used for test
 
 .. toctree::
    :maxdepth: 1
+   :numbered:
    :hidden:
 
    basic_tutorial
    data_loading
    totalvi
+   cite_scrna_integration_w_totalVI
    harmonization
    scanpy
    autozi

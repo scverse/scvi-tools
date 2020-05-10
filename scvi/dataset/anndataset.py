@@ -118,11 +118,13 @@ class DownloadableAnnDataset(DownloadableDataset):
         ctype_label: str = "cell_types",
         class_label: str = "labels",
         use_raw: bool = False,
+        cell_measurements_col_mappings: Optional[Dict[str, str]] = None,
     ):
         self.batch_label = batch_label
         self.ctype_label = ctype_label
         self.class_label = class_label
         self.use_raw = use_raw
+        self.cell_measurements_col_mappings_temp = cell_measurements_col_mappings
         super().__init__(
             urls=url,
             filenames=filename,
@@ -143,11 +145,11 @@ class DownloadableAnnDataset(DownloadableDataset):
             labels,
             gene_names,
             cell_types,
-            self.obs,
-            self.obsm,
-            self.var,
-            self.varm,
-            self.uns,
+            obs,
+            obsm,
+            var,
+            _,
+            uns,
         ) = extract_data_from_anndata(
             ad,
             batch_label=self.batch_label,
@@ -155,14 +157,36 @@ class DownloadableAnnDataset(DownloadableDataset):
             class_label=self.class_label,
             use_raw=self.use_raw,
         )
+        # Dataset API takes a dict as input
+        obs = obs.to_dict(orient="list")
+        var = var.to_dict(orient="list")
+
+        # add external cell measurements
+        Ys = []
+        if self.cell_measurements_col_mappings_temp is not None:
+            for name, attr_name in self.cell_measurements_col_mappings_temp.items():
+                columns = uns[attr_name]
+                measurement = CellMeasurement(
+                    name=name,
+                    data=obsm[name],
+                    columns_attr_name=attr_name,
+                    columns=columns,
+                )
+                Ys.append(measurement)
+
         self.populate_from_data(
             X=X,
-            batch_indices=batch_indices,
+            Ys=Ys,
             labels=labels,
+            batch_indices=batch_indices,
             gene_names=gene_names,
             cell_types=cell_types,
+            cell_attributes_dict=obs,
+            gene_attributes_dict=var,
         )
         self.filter_cells_by_count()
+
+        del self.cell_measurements_col_mappings_temp
 
 
 def extract_data_from_anndata(

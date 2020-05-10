@@ -20,7 +20,7 @@ torch.backends.cudnn.benchmark = True
 class TOTALVI(nn.Module):
     """Total variational inference for CITE-seq data
 
-    Implements the totalVI model of [Gayoso19]_.
+    Implements the totalVI model of [GayosoSteier20]_.
 
     :param n_input_genes: Number of input genes
     :param n_input_proteins: Number of input proteins
