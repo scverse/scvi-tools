@@ -397,28 +397,39 @@ class TotalPosterior(Posterior):
         self,
         n_samples: int = 1,
         give_mean: bool = True,
-        transform_batch: Optional[int] = None,
+        transform_batch: Optional[Union[int, List[int]]] = None,
     ) -> np.ndarray:
         """ Returns mixing bernoulli parameter for protein negative binomial mixtures (probability background)
 
         :param n_samples: number of samples from posterior distribution
         :param sample_protein_mixing: Sample mixing bernoulli, setting background to zero
         :param give_mean: bool, whether to return samples along first axis or average over samples
-        :param transform_batch: Batches to condition on as integer.
+        :param transform_batch: Batches to condition on.
+        If transform_batch is:
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - list of int, then values are averaged over provided batches.
         :return: array of probability background
         """
         py_mixings = []
+        if (transform_batch is None) or (isinstance(transform_batch, int)):
+            transform_batch = [transform_batch]
         for tensors in self:
             x, _, _, batch_index, label, y = tensors
-            outputs = self.model.inference(
-                x,
-                y,
-                batch_index=batch_index,
-                label=label,
-                n_samples=n_samples,
-                transform_batch=transform_batch,
-            )
-            py_mixing = torch.sigmoid(outputs["py_"]["mixing"])
+            py_mixing = torch.zeros_like(y)
+            if n_samples > 1:
+                py_mixing = torch.stack(n_samples * [py_mixing])
+            for b in transform_batch:
+                outputs = self.model.inference(
+                    x,
+                    y,
+                    batch_index=batch_index,
+                    label=label,
+                    n_samples=n_samples,
+                    transform_batch=b,
+                )
+                py_mixing += torch.sigmoid(outputs["py_"]["mixing"])
+            py_mixing /= len(transform_batch)
             py_mixings += [py_mixing.cpu()]
         if n_samples > 1:
             # concatenate along batch dimension -> result shape = (samples, cells, features)
@@ -671,12 +682,10 @@ class TotalPosterior(Posterior):
         batch_size: int = 64,
         rna_size_factor: int = 1000,
         transform_batch: Optional[Union[int, List[int]]] = None,
-        correlation_mode: str = "spearman",
-    ) -> np.ndarray:
-        """Create a gene-protein gene-protein correlation matrix
-
-         Wraps ``generate_denoised_samples()``
-
+        correlation_mode: str = "pearson",
+        log_transform: bool = False,
+    ):
+        """ Wrapper of `generate_denoised_samples()` to create a gene-protein gene-protein corr matrix
         :param n_samples: How may samples per cell
         :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
         :rna_size_factor: size factor for RNA prior to sampling gamma distribution
@@ -685,7 +694,8 @@ class TotalPosterior(Posterior):
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then values are averaged over provided batches.
-        :return: A feature-feature correlation matrix
+        :param log_transform: Whether to log transform denoised values prior to correlation calculation
+        :return: Correlation matrix
         """
         if (transform_batch is None) or (isinstance(transform_batch, int)):
             transform_batch = [transform_batch]
@@ -704,10 +714,17 @@ class TotalPosterior(Posterior):
                 flattened[
                     denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
                 ] = denoised_data[:, :, i]
+            if log_transform is True:
+                flattened[:, : self.gene_dataset.nb_genes] = np.log(
+                    flattened[:, : self.gene_dataset.nb_genes] + 1e-8
+                )
+                flattened[:, self.gene_dataset.nb_genes :] = np.log1p(
+                    flattened[:, self.gene_dataset.nb_genes :]
+                )
             if correlation_mode == "pearson":
                 corr_matrix = np.corrcoef(flattened, rowvar=False)
             else:
-                corr_matrix = spearmanr(flattened, axis=0)[0]
+                corr_matrix = spearmanr(flattened, axis=0)
             corr_mats.append(corr_matrix)
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
         return corr_matrix

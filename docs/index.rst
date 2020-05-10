@@ -6,7 +6,7 @@ scVI is a package for end-to-end analysis of single-cell omics data. The package
 
 * scVI for analysis of single-cell RNA-seq data [Lopez18]_
 * scANVI for cell annotation of scRNA-seq data using semi-labeled examples [Xu19]_
-* totalVI for analysis of CITE-seq data [Gayoso19]_
+* totalVI for analysis of CITE-seq data [GayosoSteier20]_
 * gimVI for imputation of missing genes in spatial transcriptomics from scRNA-seq data [Lopez19]_
 * AutoZI for assessing gene-specific levels of zero-inflation in scRNA-seq data [Clivio19]_
 * LDVAE for an interpretable linear factor model version of scVI [Svensson20]_

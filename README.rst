@@ -40,7 +40,7 @@ If you find a model useful for your research, please consider citing the corresp
 .. _`contributing guide`: https://scvi.readthedocs.io/en/update_docs/contributing.html
 .. _scVI: https://rdcu.be/bdHYQ
 .. _scANVI: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf
-.. _totalVI: https://www.biorxiv.org/content/biorxiv/early/2019/10/07/791947.full.pdf
+.. _totalVI: https://www.biorxiv.org/content/10.1101/2020.05.08.083337v1.full.pdf
 .. _AutoZI: https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf
 .. _LDVAE: https://www.biorxiv.org/content/10.1101/737601v1.full.pdf
 .. _gimVI: https://arxiv.org/pdf/1905.02269.pdf

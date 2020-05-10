@@ -4,7 +4,7 @@
 
 __author__ = "Romain Lopez"
 __email__ = "romain_lopez@berkeley.edu"
-__version__ = "0.6.4"
+__version__ = "0.6.5"
 
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
