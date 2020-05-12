@@ -43,9 +43,8 @@ def _convert_counts_logits_to_mean_disp(total_count, logits):
         :return: the mean and inverse overdispersion of the NB distribution.
     """
     theta = total_count
-    # mu = logits.exp() * theta
-    mu = logits + torch.log(theta)
-    return mu, theta
+    log_mu = logits + torch.log(theta)
+    return log_mu, theta
 
 
 class NegativeBinomial(Distribution):

@@ -216,7 +216,7 @@ class VAE(nn.Module):
             )
         elif self.reconstruction_loss == "nb":
             reconst_loss = (
-                -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).mean(dim=-1)
+                -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
             )
         elif self.reconstruction_loss == "poisson":
             reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
