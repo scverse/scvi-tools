@@ -45,6 +45,7 @@ def enumerate_discrete(x, y_dim):
     batch_size = x.size(0)
     return torch.cat([batch(batch_size, i) for i in range(y_dim)])
 
+
 def logexpsum(logx, logy):
     a = torch.max(logx, logy)
     x = torch.exp(logx - a)
