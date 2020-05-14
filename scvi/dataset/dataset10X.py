@@ -297,7 +297,7 @@ class BrainSmallDataset(Dataset10X):
     def __init__(
         self,
         save_path: str = "data/",
-        save_path_10X: str = None,
+        save_path_10X: str = "data/",
         delayed_populating: bool = False,
         remove_extracted_data: bool = False,
     ):
