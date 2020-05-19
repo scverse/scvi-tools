@@ -1473,16 +1473,24 @@ def poisson_gene_selection(
 ):
     """ Rank and select genes based on the enrichment of zero counts in data
         compared to a Poisson count model.
+
+        This is based on M3Drop: https://github.com/tallulandrews/M3Drop
+
+        Instead of Z-test, enrichment of zeros is quantified by posterior
+        probabilites from a binomial model, computed through sampling.
     """
+    use_cuda = use_cuda and torch.cuda.is_available()
+    dev = torch.device('cuda:0' if use_cuda else 'cpu')
+
     # Make sure were are working with a sparse CSC matrix.
     from scipy import sparse
     X = sparse.csc_matrix(X)
 
     # Calculate empirical statistics.
-    scaled_means = torch.from_numpy(X.sum(0) / X.sum())[0].cuda()
-    total_counts = torch.from_numpy(X.sum(1))[:, 0].cuda()
+    scaled_means = torch.from_numpy(X.sum(0) / X.sum())[0].to(dev)
+    total_counts = torch.from_numpy(X.sum(1))[:, 0].to(dev)
 
-    observed_fraction_zeros = torch.from_numpy(1. - (X > 0).sum(0) / X.shape[0])[0].cuda()
+    observed_fraction_zeros = torch.from_numpy(1. - (X > 0).sum(0) / X.shape[0])[0].to(dev)
 
     # Calcualte probability of zero for a Poisson model.
     # Use einsum for outer product to avoid matrix multiplication.
@@ -1493,7 +1501,7 @@ def poisson_gene_selection(
     observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
     expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
 
-    extra_zeros = torch.zeros(expected_fraction_zeros.shape).cuda()
+    extra_zeros = torch.zeros(expected_fraction_zeros.shape).to(dev)
     for i in range(n_samples):
         extra_zeros += (observed_zero.sample() > expected_zero.sample())
 
@@ -1509,7 +1517,8 @@ def poisson_gene_selection(
     del observed_fraction_zeros
     del extra_zeros
 
-    torch.cuda.empty_cache()
+    if use_cuda:
+        torch.cuda.empty_cache()
 
     df = pd.DataFrame({
         'observed_fraction_zeros': obs_frac_zeros,
