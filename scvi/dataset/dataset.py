@@ -897,7 +897,7 @@ class GeneExpressionDataset(Dataset):
                 std_scaler = StandardScaler(with_mean=False)
                 std_scaler.fit(self.X.astype(np.float64))
                 subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
-            elif mode in ["seurat_v2", "cell_ranger", "seurat_v3"]:
+            elif mode in ["seurat_v2", "cell_ranger", "seurat_v3", "poisson_zeros"]:
                 genes_infos = self._highly_variable_genes(
                     n_top_genes=new_n_genes,
                     flavor=mode,
@@ -1375,7 +1375,7 @@ class GeneExpressionDataset(Dataset):
     ) -> pd.DataFrame:
         """\
         Code adapted from the scanpy package
-        Annotate highly variable genes [Satija15]_ [Zheng17]_ [Stuart19]_.
+        Annotate highly variable genes [Satija15]_ [Zheng17]_ [Stuart19]_ [Andrews & Hemberg 2019].
         Depending on `flavor`, this reproduces the R-implementations of Seurat v2 and earlier
         [Satija15]_ and Cell Ranger [Zheng17]_, and Seurat v3 [Stuart19]_.
 
@@ -1385,12 +1385,12 @@ class GeneExpressionDataset(Dataset):
             Number of highly-variable genes to keep. Mandatory for Seurat v3
         :param flavor:
             Choose the flavor for computing normalized dispersion. One of "seurat_v2", "cell_ranger",
-            "seurat_v3". In their default workflows, Seurat v2 passes the cutoffs whereas Cell Ranger passes
-            `n_top_genes`.
+            "seurat_v3", or "poisson_zeros". In their default workflows, Seurat v2 passes the cutoffs
+            whereas Cell Ranger and Poisson zeros passes `n_top_genes`.
         :param batch_correction:
             Whether batches should be taken into account during procedure
         :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using
-        the Seurat V2 flavor.
+        the Seurat V2 or Poisson zeros flavors.
 
         :return:
             scanpy .var DataFrame providing genes information including means, dispersions
@@ -1399,7 +1399,7 @@ class GeneExpressionDataset(Dataset):
 
         """
 
-        if flavor not in ["seurat_v2", "seurat_v3", "cell_ranger"]:
+        if flavor not in ["seurat_v2", "seurat_v3", "cell_ranger", "poisson_zeros"]:
             raise ValueError(
                 "Choose one of the following flavors: 'seurat_v2', 'seurat_v3', 'cell_ranger'"
             )
@@ -1408,6 +1408,12 @@ class GeneExpressionDataset(Dataset):
             raise ValueError("n_top_genes must not be None with flavor=='seurat_v3'")
 
         logger.info("extracting highly variable genes using {} flavor".format(flavor))
+
+        if flavor == "poisson_zeros":
+            var = poisson_gene_selection(self.X, n_top_genes, **highly_var_genes_kwargs)
+            var.index = self.gene_names
+
+            return var
 
         # Creating AnnData structure
         obs = pd.DataFrame(
