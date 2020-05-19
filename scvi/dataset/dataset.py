@@ -1479,9 +1479,10 @@ class GeneExpressionDataset(Dataset):
 def poisson_gene_selection(
     X,
     n_top_genes: int = 4000,
-    use_cuda = False,
+    use_cuda = True,
     n_samples: int = 10000,
     silent : bool = False,
+    batch_size : int = 5000,
     **kwargs
 ):
     """ Rank and select genes based on the enrichment of zero counts in data
@@ -1500,6 +1501,9 @@ def poisson_gene_selection(
         :param n_samples: The number of Binomial samples to use to estimate posterior probability
             of enrichment of zeros for each gene. Default: ``10000``.
         :param silent: If ``True``, disables the progress bar. Default ``False``.
+        :param batch_size: Size of temporary matrix for incremental calculation. Larger
+            is faster but requires more RAM or GPU memory. (The default should be fine unless
+            there are hundreds of millions cells or millions of genes.) Default ``5000``.
 
         :return: A ``pd.DataFrame`` with per-gene statistics.
 
@@ -1519,9 +1523,19 @@ def poisson_gene_selection(
 
     observed_fraction_zeros = torch.from_numpy(1. - (X > 0).sum(0) / X.shape[0])[0].to(dev)
 
-    # Calcualte probability of zero for a Poisson model.
-    # Use einsum for outer product to avoid matrix multiplication.
-    expected_fraction_zeros = torch.exp(-torch.einsum('i,j->ij', [scaled_means, total_counts])).sum(1)
+    # Calculate probability of zero for a Poisson model.
+    # Perform in batches to save memory.
+    n_batches = total_counts.shape[0] // batch_size
+
+    expected_fraction_zeros = torch.zeros(scaled_means.shape).to(dev)
+
+    for i in range(n_batches):
+        total_counts_batch = total_counts[i * batch_size:(i + 1) * batch_size]
+        # Use einsum for outer product.
+        expected_fraction_zeros += torch.exp(-torch.einsum('i,j->ij', [scaled_means, total_counts_batch])).sum(1)
+
+    total_counts_batch = total_counts[(i + 1) * batch_size:]
+    expected_fraction_zeros += torch.exp(-torch.einsum('i,j->ij', [scaled_means, total_counts_batch])).sum(1)    
     expected_fraction_zeros /= X.shape[0]
 
     # Compute probability of enriched zeros through sampling from Binomial distributions.
