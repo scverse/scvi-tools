@@ -1476,11 +1476,19 @@ def poisson_gene_selection(
 
         This is based on M3Drop: https://github.com/tallulandrews/M3Drop
 
+        The method accounts for library size internally, a raw count matrix should be provided.
+
         Instead of Z-test, enrichment of zeros is quantified by posterior
         probabilites from a binomial model, computed through sampling.
 
         :param X: Count matrix, preferably a sparse matrix.
         :param n_top_genes: How many variable genes to select.
+        :param use_cuda: Default: ``True``.
+        :param n_samples: The number of Binomial samples to use to estimate posterior probability
+            of enrichment of zeros for each gene. Default: ``10000``.
+        :param silent: If ``True``, disables the progress bar. Default ``False``.
+
+        :return: A ``pd.DataFrame`` with per-gene statistics.
 
     """
     from tqdm import tqdm
@@ -1525,6 +1533,8 @@ def poisson_gene_selection(
 
     if use_cuda:
         torch.cuda.empty_cache()
+
+    # Create result DataFrame
 
     df = pd.DataFrame({
         'observed_fraction_zeros': obs_frac_zeros,
