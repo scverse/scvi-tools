@@ -854,6 +854,9 @@ class GeneExpressionDataset(Dataset):
         In the case where `mode=="seurat_v3"`, an adapted version of the method described in [Stuart19]_
         is used. This method requires `new_n_genes` or `new_ratio_genes` to be specified.
 
+        In the case where  `mode=="poisson_selection"`, a method based on [Andrews & Hemberg 2019] is
+        used. This method requires `new_n_genes` or `new_ratio_genes` to be specified.
+
         :param subset_genes: list of indices or mask of genes to retain
         :param new_n_genes: number of genes to retain, the highly variable genes will be kept
         :param new_ratio_genes: proportion of genes to retain, the highly variable genes will be kept
@@ -1411,7 +1414,6 @@ class GeneExpressionDataset(Dataset):
 
         if flavor == "poisson_zeros":
             var = poisson_gene_selection(self.X, n_top_genes, **highly_var_genes_kwargs)
-            var.index = self.gene_names
 
             return var
 
@@ -1475,7 +1477,12 @@ class GeneExpressionDataset(Dataset):
 
 
 def poisson_gene_selection(
-    X, n_top_genes: int = 4000, use_cuda = True, n_samples: int = 10000, silent : bool = False
+    X,
+    n_top_genes: int = 4000,
+    use_cuda = True,
+    n_samples: int = 10000,
+    silent : bool = False,
+    **kwargs
 ):
     """ Rank and select genes based on the enrichment of zero counts in data
         compared to a Poisson count model.
