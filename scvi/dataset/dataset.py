@@ -1469,7 +1469,7 @@ class GeneExpressionDataset(Dataset):
 
 
 def poisson_gene_selection(
-    X, n_top_genes: int = 4000, use_cuda = True, n_samples: int = 10000
+    X, n_top_genes: int = 4000, use_cuda = True, n_samples: int = 10000, silent : bool = False
 ):
     """ Rank and select genes based on the enrichment of zero counts in data
         compared to a Poisson count model.
@@ -1478,7 +1478,13 @@ def poisson_gene_selection(
 
         Instead of Z-test, enrichment of zeros is quantified by posterior
         probabilites from a binomial model, computed through sampling.
+
+        :param X: Count matrix, preferably a sparse matrix.
+        :param n_top_genes: How many variable genes to select.
+
     """
+    from tqdm import tqdm
+
     use_cuda = use_cuda and torch.cuda.is_available()
     dev = torch.device('cuda:0' if use_cuda else 'cpu')
 
@@ -1502,7 +1508,7 @@ def poisson_gene_selection(
     expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
 
     extra_zeros = torch.zeros(expected_fraction_zeros.shape).to(dev)
-    for i in range(n_samples):
+    for i in tqdm(range(n_samples), disable=silent, desc='Sampling from binomial'):
         extra_zeros += (observed_zero.sample() > expected_zero.sample())
 
     prob_zero_enrichment = (extra_zeros / n_samples).cpu().numpy()
@@ -1523,8 +1529,11 @@ def poisson_gene_selection(
     df = pd.DataFrame({
         'observed_fraction_zeros': obs_frac_zeros,
         'expected_fraction_zeros': exp_frac_zeros,
-        'prob_zero_enrichment': prob_zero_enrichment
+        'prob_zero_enrichment': prob_zero_enrichment,
+        'highly_variable': False
     })
+
+    df.loc[df.nlargest(n_top_genes, 'prob_zero_enrichment').index, 'highly_variable'] = True
 
     return df
 
