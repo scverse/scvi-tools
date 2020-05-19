@@ -854,7 +854,7 @@ class GeneExpressionDataset(Dataset):
         In the case where `mode=="seurat_v3"`, an adapted version of the method described in [Stuart19]_
         is used. This method requires `new_n_genes` or `new_ratio_genes` to be specified.
 
-        In the case where  `mode=="poisson_selection"`, a method based on [Andrews & Hemberg 2019] is
+        In the case where  `mode=="poisson_zeros"`, a method based on [Andrews & Hemberg 2019] is
         used. This method requires `new_n_genes` or `new_ratio_genes` to be specified.
 
         :param subset_genes: list of indices or mask of genes to retain
@@ -1479,7 +1479,7 @@ class GeneExpressionDataset(Dataset):
 def poisson_gene_selection(
     X,
     n_top_genes: int = 4000,
-    use_cuda = True,
+    use_cuda = False,
     n_samples: int = 10000,
     silent : bool = False,
     **kwargs
@@ -1496,7 +1496,7 @@ def poisson_gene_selection(
 
         :param X: Count matrix, preferably a sparse matrix.
         :param n_top_genes: How many variable genes to select.
-        :param use_cuda: Default: ``True``.
+        :param use_cuda: Default: ``False``.
         :param n_samples: The number of Binomial samples to use to estimate posterior probability
             of enrichment of zeros for each gene. Default: ``10000``.
         :param silent: If ``True``, disables the progress bar. Default ``False``.
