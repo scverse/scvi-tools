@@ -1448,14 +1448,14 @@ class GeneExpressionDataset(Dataset):
         return adata.var
 
     def get_batch_mask_cell_measurement(self, attribute_name: str):
-        """Returns a list with length number of batches where each entry is a mask over present
-        cell measurement columns
+        """ Returns a list with length number of batches where each entry is a mask over present
+            cell measurement columns
 
-        :param attribute_name: cell_measurement attribute name
+            :param attribute_name: cell_measurement attribute name
 
-        :return: List of ``np.ndarray`` containing, for each batch, a mask of which columns were
-        actually measured in that batch. This is useful when taking the union of a cell measurement
-        over datasets.
+            :return: List of ``np.ndarray`` containing, for each batch, a mask of which columns were
+            actually measured in that batch. This is useful when taking the union of a cell measurement
+            over datasets.
         """
         batch_mask = []
         for b in np.unique(self.batch_indices.ravel()):
@@ -1466,6 +1466,58 @@ class GeneExpressionDataset(Dataset):
             batch_mask.append(~all_zero)
 
         return batch_mask
+
+
+def poisson_gene_selection(
+    X, n_top_genes: int = 4000, use_cuda = True, n_samples: int = 10000
+):
+    """ Rank and select genes based on the enrichment of zero counts in data
+        compared to a Poisson count model.
+    """
+    # Make sure were are working with a sparse CSC matrix.
+    from scipy import sparse
+    X = sparse.csc_matrix(X)
+
+    # Calculate empirical statistics.
+    scaled_means = torch.from_numpy(X.sum(0) / X.sum())[0].cuda()
+    total_counts = torch.from_numpy(X.sum(1))[:, 0].cuda()
+
+    observed_fraction_zeros = torch.from_numpy(1. - (X > 0).sum(0) / X.shape[0])[0].cuda()
+
+    # Calcualte probability of zero for a Poisson model.
+    # Use einsum for outer product to avoid matrix multiplication.
+    expected_fraction_zeros = torch.exp(-torch.einsum('i,j->ij', [scaled_means, total_counts])).sum(1)
+    expected_fraction_zeros /= X.shape[0]
+
+    # Compute probability of enriched zeros through sampling from Binomial distributions.
+    observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
+    expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
+
+    extra_zeros = torch.zeros(expected_fraction_zeros.shape).cuda()
+    for i in range(n_samples):
+        extra_zeros += (observed_zero.sample() > expected_zero.sample())
+
+    prob_zero_enrichment = (extra_zeros / n_samples).cpu().numpy()
+
+    obs_frac_zeros = observed_fraction_zeros.cpu().numpy()
+    exp_frac_zeros = expected_fraction_zeros.cpu().numpy()
+
+    # Clean up memory (tensors seem to stay in GPU unless actively deleted).
+    del scaled_means
+    del total_counts
+    del expected_fraction_zeros
+    del observed_fraction_zeros
+    del extra_zeros
+
+    torch.cuda.empty_cache()
+
+    df = pd.DataFrame({
+        'observed_fraction_zeros': obs_frac_zeros,
+        'expected_fraction_zeros': exp_frac_zeros,
+        'prob_zero_enrichment': prob_zero_enrichment
+    })
+
+    return df
 
 
 def seurat_v3_highly_variable_genes(
