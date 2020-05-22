@@ -39,9 +39,9 @@ extensions = [
     "sphinx.ext.viewcode",
     "nbsphinx",
     "nbsphinx_link",
-    "sphinx_autodoc_typehints",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
+    "sphinx_autodoc_typehints",  # needs to be after napoleon
     "sphinx_rtd_theme",
     "sphinx.ext.intersphinx",
     "autodocsumm",
