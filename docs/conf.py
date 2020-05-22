@@ -45,7 +45,7 @@ extensions = [
     "sphinx_rtd_theme",
     "sphinx.ext.intersphinx",
     "autodocsumm",
-    "scanpydoc",
+    # "scanpydoc",
 ]
 
 # nbsphinx specific settings
