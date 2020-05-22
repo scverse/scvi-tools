@@ -36,7 +36,6 @@ needs_sphinx = "2.0"  # Nicer param docs
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
     "nbsphinx",
     "nbsphinx_link",
@@ -45,7 +44,7 @@ extensions = [
     "sphinx_autodoc_typehints",  # needs to be after napoleon
     "sphinx_rtd_theme",
     "sphinx.ext.intersphinx",
-    # "autodocsumm",
+    "autodocsumm",
     # "scanpydoc",
 ]
 
@@ -65,7 +64,7 @@ source_suffix = ".rst"
 # Generate the API documentation when building
 autosummary_generate = True
 autodoc_member_order = "bysource"
-# autodoc_default_flags = ["members"]
+# autodoc_default_flags = ['members']
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = False
@@ -75,7 +74,7 @@ napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
 
 
-# autodoc_default_options = {"autosummary": True}
+autodoc_default_options = {"autosummary": True}
 
 # The master toctree document.
 master_doc = "index"
