@@ -31,26 +31,22 @@ class JVAETrainer(Trainer):
 
     Parameters
     ----------
-    model :
+    model
         A model instance from class ``JVAE``
-    discriminator :
+    discriminator
         A model instance of a classifier (with logit output)
-    gene_dataset_list :
+    gene_dataset_list
         list of gene_dataset instance like ``[CortexDataset(), SmfishDataset()]``
-    train_size :
+    train_size
         Train-test split ratio in (0,1) to split cells
-    kappa :
+    kappa
         float to weight the discriminator loss
-    n_epochs_kl_warmup :
+    n_epochs_kl_warmup
         Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
         the training objective is the ELBO. This might be used to prevent inactivity of latent units, and/or to
         improve clustering of latent space, as a long warmup turns the model into something more of an autoencoder.
-    kwargs :
+    **kwargs
         Other keywords arguments from the general Trainer class.
-
-    Returns
-    -------
-
     """
 
     default_metrics_to_monitor = ["elbo"]
@@ -179,13 +175,13 @@ class JVAETrainer(Trainer):
 
         Parameters
         ----------
-        latent_tensors :
+        latent_tensors
             Tensors for each dataset of the latent space
-        predict_true_class :
+        predict_true_class
             Specify if the loss aims at minimizing the accuracy or the mixing
-        return_details :
+        return_details
             Boolean used to inspect the loss values, return detailed loss for each dataset
-        latent_tensors: List[torch.Tensor] :
+        latent_tensors: List[torch.Tensor]
 
         Returns
         -------
@@ -226,9 +222,9 @@ class JVAETrainer(Trainer):
 
         Parameters
         ----------
-        tensors :
+        tensors
             Tensors of observations for each dataset
-        return_details :
+        return_details
             Boolean used to inspect the loss values, return detailed loss for each dataset
 
         Returns
@@ -263,16 +259,7 @@ class JVAETrainer(Trainer):
         return averaged_loss
 
     def get_discriminator_confusion(self) -> np.ndarray:
-        """
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        type
-            A good mixing should lead to a uniform matrix.
-
+        """A good mixing should lead to a uniform matrix.
         """
         confusion = []
         for i, posterior in enumerate(self.all_dataset):
@@ -296,14 +283,8 @@ class JVAETrainer(Trainer):
 
         Parameters
         ----------
-        one_sample :
+        one_sample
             Use only one batch to estimate the loss, can be much faster/less exact on big datasets
-        one_sample: bool :
-             (Default value = False)
-
-        Returns
-        -------
-
         """
         total_reconstruction = np.zeros(self.n_dataset)
         total_kl_divergence = np.zeros(self.n_dataset)
@@ -338,14 +319,8 @@ class JVAETrainer(Trainer):
 
         Parameters
         ----------
-        deterministic :
+        deterministic
             If true, use the mean of the encoder instead of a Gaussian sample
-        deterministic: bool :
-             (Default value = True)
-
-        Returns
-        -------
-
         """
         self.model.eval()
         latents = []
@@ -381,23 +356,13 @@ class JVAETrainer(Trainer):
 
         Parameters
         ----------
-        deterministic :
+        deterministic
             If true, use the mean of the encoder instead of a Gaussian sample for the latent vector
-        normalized :
+        normalized
             Return imputed normalized values or not
-        decode_mode :
+        decode_mode
             If a `decode_mode` is given, use the encoder specific to each dataset as usual but use
             the decoder of the dataset of id `decode_mode` to impute values
-        deterministic: bool :
-             (Default value = True)
-        normalized: bool :
-             (Default value = True)
-        decode_mode: Optional[int] :
-             (Default value = None)
-
-        Returns
-        -------
-
         """
         self.model.eval()
         imputed_values = []

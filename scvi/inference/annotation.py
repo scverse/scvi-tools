@@ -57,13 +57,12 @@ class AnnotationPosterior(Posterior):
 
         Parameters
         ----------
-        soft :
+        soft
              (Default value = False)
 
         Returns
         -------
-        2-tuple of :py:class:`numpy.int32`
-            the true labels and the predicted labels
+        the true labels and the predicted labels
 
         """
         model, cls = (
@@ -95,29 +94,26 @@ class AnnotationPosterior(Posterior):
 
 
 class ClassifierTrainer(Trainer):
-    """The ClassifierInference class for training a classifier either on the raw data or on top of the latent
-        space of another model (VAE, VAEC, SCANVI).
+    """Class for training a classifier either on the raw data or on top of the latent space of another model.
 
     Parameters
     ----------
-    model:
+    model
         A model instance from class ``VAE``, ``VAEC``, ``SCANVI``
-    gene_dataset:
+    gene_dataset
         A gene_dataset instance like ``CortexDataset()``
-    train_size:
+    train_size
         The train size, either a float between 0 and 1 or and integer for the number of training samples
         to use Default: ``0.8``.
-    test_size:
+    test_size
         The test size, either a float between 0 and 1 or and integer for the number of test samples
         to use Default: ``None``.
-    sampling_model:
+    sampling_model
         Model with z_encoder with which to first transform data.
-    sampling_zl:
+    sampling_zl
         Transform data with sampling_model z_encoder and l_encoder and concat.
-    **kwargs: Other keywords arguments from the general Trainer class.
-
-    Returns
-    -------
+    **kwargs
+        Other keywords arguments from the general Trainer class.
 
     Examples
     --------
@@ -197,8 +193,7 @@ class ClassifierTrainer(Trainer):
 
         Returns
         -------
-        2-tuple of :py:class:`numpy.int32`
-            the true labels and the predicted labels
+        the true labels and the predicted labels
 
         """
         model, cls = (
@@ -213,15 +208,16 @@ class ClassifierTrainer(Trainer):
 
 
 class SemiSupervisedTrainer(UnsupervisedTrainer):
-    """The SemiSupervisedTrainer class for the semi-supervised training of an autoencoder.
+    """Class for the semi-supervised training of an autoencoder.
 
     This parent class can be inherited to specify the different training schemes for semi-supervised learning
 
     Parameters
     ----------
 
-    Returns
-    -------
+    n_labelled_samples_per_class
+        number of labelled samples per class
+
     """
 
     def __init__(
@@ -235,9 +231,6 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         seed=0,
         **kwargs
     ):
-        """
-        :param n_labelled_samples_per_class: number of labelled samples per class
-        """
         super().__init__(model, gene_dataset, **kwargs)
         self.model = model
         self.gene_dataset = gene_dataset

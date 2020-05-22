@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class UnsupervisedTrainer(Trainer):
-    """The VariationalInference class for the unsupervised training of an autoencoder.
+    """Class for unsupervised training of an autoencoder.
 
     Parameters
     ----------
@@ -33,15 +33,11 @@ class UnsupervisedTrainer(Trainer):
         The test size, either a float between 0 and 1 or an integer for the number of training samples
         to use Default: ``None``, which is equivalent to data not in the train set. If ``train_size`` and ``test_size``
         do not add to 1 or the length of the dataset then the remaining samples are added to a ``validation_set``.
-    **kwargs: Other keywords arguments from the general Trainer class.
+    **kwargs
+        Other keywords arguments from the general Trainer class.
 
     Other Parameters
     ----------------
-    Two parameters can help control the training KL annealing
-    If your applications rely on the posterior quality,
-    (i.e. differential expression, batch effect removal), ensure the number of total
-    epochs (or iterations) exceed the number of epochs (or iterations) used for KL warmup
-
     n_epochs_kl_warmup
         Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
         the training objective is the ELBO. This might be used to prevent inactivity of latent units, and/or to
@@ -66,6 +62,14 @@ class UnsupervisedTrainer(Trainer):
 
     >>> infer = VariationalInference(gene_dataset, vae, train_size=0.5)
     >>> infer.train(n_epochs=20, lr=1e-3)
+
+    Notes
+    -----
+    Two parameters can help control the training KL annealing
+    If your applications rely on the posterior quality,
+    (i.e. differential expression, batch effect removal), ensure the number of total
+    epochs (or iterations) exceed the number of epochs (or iterations) used for KL warmup
+
     """
 
     default_metrics_to_monitor = ["elbo"]

@@ -63,17 +63,17 @@ class Posterior:
 
     Parameters
     ----------
-    model :
+    model
         A model instance from class ``VAE``, ``VAEC``, ``SCANVI``
-    gene_dataset :
+    gene_dataset
         A gene_dataset instance like ``CortexDataset()``
-    shuffle :
+    shuffle
         Specifies if a `RandomSampler` or a `SequentialSampler` should be used
-    indices :
+    indices
         Specifies how the data should be split with regards to train/test or labelled/unlabelled
-    use_cuda :
+    use_cuda
         Default: ``True``
-    data_loader_kwarg :
+    data_loader_kwargs
         Keyword arguments to passed into the `DataLoader`
 
     Examples
@@ -143,14 +143,8 @@ class Posterior:
 
         Parameters
         ----------
-        dir_path :
+        dir_path
             non-existing directory in which the posterior properties will be saved.
-        dir_path: str :
-
-
-        Returns
-        -------
-
         """
 
         if not os.path.exists(dir_path):
@@ -212,14 +206,8 @@ class Posterior:
 
         Parameters
         ----------
-        tensors :
+        tensors
             tensors to convert
-        tensors: List[torch.Tensor] :
-
-
-        Returns
-        -------
-
         """
         return [t.cuda() if self.use_cuda else t for t in tensors]
 
@@ -228,14 +216,8 @@ class Posterior:
 
         Parameters
         ----------
-        data_loader_kwargs :
+        data_loader_kwargs
             dataloader updates.
-        data_loader_kwargs: dict :
-
-
-        Returns
-        -------
-
         """
         posterior = copy.copy(self)
         posterior.data_loader_kwargs = copy.copy(self.data_loader_kwargs)
@@ -250,14 +232,8 @@ class Posterior:
 
         Parameters
         ----------
-        batch_size :
+        batch_size
             New batch size.
-        batch_size: Optional[int] :
-             (Default value = 128)
-
-        Returns
-        -------
-
         """
         return self.update(
             {
@@ -300,14 +276,8 @@ class Posterior:
 
         Parameters
         ----------
-        n_mc_samples :
+        n_mc_samples
             Number of MC estimates to use
-        n_mc_samples: Optional[int] :
-             (Default value = 1000)
-
-        Returns
-        -------
-
         """
         if (
             hasattr(self.model, "reconstruction_loss")
@@ -325,9 +295,9 @@ class Posterior:
 
         Parameters
         ----------
-        sample :
+        sample
             z mean or z sample
-        give_mean: Optional[bool] :
+        give_mean
              (Default value = True)
 
         Returns
@@ -357,15 +327,6 @@ class Posterior:
     @torch.no_grad()
     def entropy_batch_mixing(self, **kwargs) -> torch.Tensor:
         """Returns the object's entropy batch mixing.
-
-        Parameters
-        ----------
-        **kwargs :
-
-
-        Returns
-        -------
-
         """
         if self.gene_dataset.n_batches == 2:
             latent, batch_indices, labels = self.get_latent()
@@ -410,10 +371,8 @@ class Posterior:
 
         Parameters
         ----------
-        M_sampling :
+        M_sampling
             number of samples
-        M_sampling: int :
-             (Default value = 100)
 
         Returns
         -------
@@ -478,19 +437,19 @@ class Posterior:
 
         Parameters
         ----------
-        n_samples :
+        n_samples
             Number of samples in total per batch (fill either `n_samples_total`
             or `n_samples_per_cell`)
-        n_samples_per_cell :
+        n_samples_per_cell
             Number of time we sample from each observation per batch
             (fill either `n_samples_total` or `n_samples_per_cell`)
-        batchid :
+        batchid
             Biological batch for which to sample from.
             Default (None) sample from all batches
-        use_observed_batches :
+        use_observed_batches
             Whether normalized means are conditioned on observed
             batches or if observed batches are to be used
-        selection :
+        selection
             Mask or list of cell ids to select
         **kwargs
             Other keywords arguments for `get_sample_scale()`
@@ -653,43 +612,43 @@ class Posterior:
 
         Parameters
         ----------
-        mode :
+        mode
             one of ["vanilla", "change"]
-        idx1 :
+        idx1
             bool array masking subpopulation cells 1. Should be True where cell is
             from associated population
-        idx2 :
+        idx2
             bool array masking subpopulation cells 2. Should be True where cell is
             from associated population
-        batchid1 :
+        batchid1
             List of batch ids for which you want to perform DE Analysis for
             subpopulation 1. By default, all ids are taken into account
-        batchid2 :
+        batchid2
             List of batch ids for which you want to perform DE Analysis for
             subpopulation 2. By default, all ids are taken into account
-        use_observed_batches :
+        use_observed_batches
             Whether normalized means are conditioned on observed
             batches
-        n_samples :
+        n_samples
             Number of posterior samples
-        use_permutation :
+        use_permutation
             Activates step 2 described above.
             Simply formulated, pairs obtained from posterior sampling (when calling
             `sample_scale_from_batch`) will be randomly permuted so that the number of
             pairs used to compute Bayes Factors becomes M_permutation.
-        M_permutation :
+        M_permutation
             Number of times we will "mix" posterior samples in step 2.
             Only makes sense when use_permutation=True
-        change_fn :
+        change_fn
             function computing effect size based on both normalized means
-        m1_domain_fn :
+        m1_domain_fn
             custom indicator function of effect size regions
             inducing differential expression
-        delta :
+        delta
             specific case of region inducing differential expression.
             In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce differential expression
             (LFC case)
-        cred_interval_lvls :
+        cred_interval_lvls
             List of credible interval levels to compute for the posterior
             LFC distribution
         **kwargs:
@@ -954,46 +913,46 @@ class Posterior:
 
         Parameters
         ----------
-        mode :
+        mode
             one of ["vanilla", "change"]
-        idx1 :
+        idx1
             bool array masking subpopulation cells 1. Should be True where cell is
             from associated population
-        idx2 :
+        idx2
             bool array masking subpopulation cells 2. Should be True where cell is
             from associated population
-        batchid1 :
+        batchid1
             List of batch ids for which you want to perform DE Analysis for
             subpopulation 1. By default, all ids are taken into account
-        batchid2 :
+        batchid2
             List of batch ids for which you want to perform DE Analysis for
             subpopulation 2. By default, all ids are taken into account
-        use_observed_batches :
+        use_observed_batches
             Whether normalized means are conditioned on observed
             batches
-        n_samples :
+        n_samples
             Number of posterior samples
-        use_permutation :
+        use_permutation
             Activates step 2 described above.
             Simply formulated, pairs obtained from posterior sampling (when calling
             `sample_scale_from_batch`) will be randomly permuted so that the number of
             pairs used to compute Bayes Factors becomes M_permutation.
-        M_permutation :
+        M_permutation
             Number of times we will "mix" posterior samples in step 2.
             Only makes sense when use_permutation=True
-        change_fn :
+        change_fn
             function computing effect size based on both normalized means
-        m1_domain_fn :
+        m1_domain_fn
             custom indicator function of effect size regions
             inducing differential expression
-        delta :
+        delta
             specific case of region inducing differential expression.
             In this case, we suppose that R \setminus [-\delta, \delta] does not induce differential expression
             (LFC case)
-        cred_interval_lvls :
+        cred_interval_lvls
             List of credible interval levels to compute for the posterior
             LFC distribution
-        all_stats :
+        all_stats
             whether additional metrics should be provided
         **kwargs
             Other keywords arguments for `get_sample_scale`
@@ -1085,41 +1044,41 @@ class Posterior:
 
         Parameters
         ----------
-        subset :
+        subset
             None Or bool array masking subset of cells you are interested in
             (True when you want to select cell). In that case, it should have same length than `gene_dataset`
-        cell_labels :
+        cell_labels
             optional: Labels of cells
-        min_cells :
+        min_cells
             Ceil number of cells used to compute Bayes Factors
-        n_samples :
+        n_samples
             Number of times the posterior will be sampled for each pop
-        use_permutation :
+        use_permutation
             Activates pair random permutations.
             Simply formulated, pairs obtained from posterior sampling (when calling
             `sample_scale_from_batch`) will be randomly permuted so that the number of
             pairs used to compute Bayes Factors becomes M_permutation.
-        M_permutation :
+        M_permutation
             Number of times we will "mix" posterior samples in step 2.
             Only makes sense when use_permutation=True
-        use_observed_batches :
+        use_observed_batches
             see `differential_expression_score`
-        M_permutation :
+        M_permutation
             see `differential_expression_score`
-        mode :
+        mode
             see `differential_expression_score`
-        change_fn :
+        change_fn
             see `differential_expression_score`
-        m1_domain_fn :
+        m1_domain_fn
             see `differential_expression_score`
-        delta :
+        delta
             see `differential_expression_score
-        cred_interval_lvls :
+        cred_interval_lvls
             List of credible interval levels to compute for the posterior
             LFC distribution
-        output_file :
+        output_file
             Bool: save file?
-        save_dir :
+        save_dir
             param filename:`
         **kwargs
             Other keywords arguments for `get_sample_scale`
@@ -1212,49 +1171,49 @@ class Posterior:
 
         Parameters
         ----------
-        cell_labels :
+        cell_labels
             optional: Labels of cells
-        min_cells :
+        min_cells
             Ceil number of cells used to compute Bayes Factors
-        states :
+        states
             States of the cells.
-        batch1 :
+        batch1
             List of batch ids for which you want to perform DE Analysis for
             subpopulation 1. By default, all ids are taken into account
-        batch2 :
+        batch2
             List of batch ids for which you want to perform DE Analysis for
             subpopulation 2. By default, all ids are taken into account
-        subset :
+        subset
             MASK: Subset of cells you are interested in.
-        n_samples :
+        n_samples
             Number of times the posterior will be sampled for each pop
-        use_permutation :
+        use_permutation
             Activates pair random permutations.
             Simply formulated, pairs obtained from posterior sampling (when calling
             `sample_scale_from_batch`) will be randomly permuted so that the number of
             pairs used to compute Bayes Factors becomes M_permutation.
-        M_permutation :
+        M_permutation
             Number of times we will "mix" posterior samples in step 2.
             Only makes sense when use_permutation=True
-        output_file :
+        output_file
             Bool: save file?
-        save_dir :
+        save_dir
             param filename:
-        use_observed_batches :
+        use_observed_batches
             see `differential_expression_score`
-        M_permutation :
+        M_permutation
             see `differential_expression_score`
-        mode :
+        mode
             see `differential_expression_score`
-        change_fn :
+        change_fn
             see `differential_expression_score`
-        m1_domain_fn :
+        m1_domain_fn
             see `differential_expression_score`
-        delta :
+        delta
             see `differential_expression_score`
-        cred_interval_lvls :
+        cred_interval_lvls
             See `differential_expression_score`
-        **kwargs:
+        **kwargs
             Other keywords arguments for `get_sample_scale()`
 
         Returns
@@ -1336,18 +1295,14 @@ class Posterior:
 
         Parameters
         ----------
-        n_samples :
-            param transform_batch: Batches to condition on.
+        n_samples
+            number of posterior samples
+        transform_batch
+            Batches to condition on.
             If transform_batch is:
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then px_rates are averaged over provided batches.
-        n_samples: Optional[int] :
-             (Default value = 1)
-        transform_batch: Optional[Union[int :
-
-        List[int]]] :
-             (Default value = None)
 
         Returns
         -------
