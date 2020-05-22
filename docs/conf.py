@@ -41,10 +41,11 @@ extensions = [
     "nbsphinx_link",
     "sphinx_autodoc_typehints",
     "sphinx.ext.mathjax",
+    "sphinx.ext.napoleon",
     "sphinx_rtd_theme",
     "sphinx.ext.intersphinx",
     "autodocsumm",
-    "numpydoc",
+    "scanpydoc",
 ]
 
 # nbsphinx specific settings
@@ -59,6 +60,18 @@ templates_path = ["_templates"]
 #
 # source_suffix = ['.rst', '.md']
 source_suffix = ".rst"
+
+# Generate the API documentation when building
+autosummary_generate = True
+autodoc_member_order = "bysource"
+# autodoc_default_flags = ['members']
+napoleon_google_docstring = False
+napoleon_numpy_docstring = True
+napoleon_include_init_with_doc = False
+napoleon_use_rtype = True  # having a separate entry generally helps readability
+napoleon_use_param = True
+napoleon_custom_sections = [("Params", "Parameters")]
+todo_include_todos = False
 
 
 autodoc_default_options = {"autosummary": True}
