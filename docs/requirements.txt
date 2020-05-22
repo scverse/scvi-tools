@@ -6,3 +6,4 @@ nbsphinx-link
 ipython
 autodocsumm
 scanpydoc
+sphinx-automodapi

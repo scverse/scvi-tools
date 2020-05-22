@@ -60,6 +60,7 @@ extras_requirements = {
         "autodocsumm",
         "nbsphinx-link",
         "scanpydoc",
+        "sphinx-automodapi",
     ],
     "test": test_requirements,
 }

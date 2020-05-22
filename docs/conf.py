@@ -44,7 +44,8 @@ extensions = [
     "sphinx_autodoc_typehints",  # needs to be after napoleon
     "sphinx_rtd_theme",
     "sphinx.ext.intersphinx",
-    "autodocsumm",
+    "sphinx_automodapi.automodapi",
+    # "autodocsumm",
     # "scanpydoc",
 ]
 
@@ -72,9 +73,9 @@ napoleon_use_rtype = True  # having a separate entry generally helps readability
 napoleon_use_param = True
 napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
+numpydoc_show_class_members = False
 
-
-autodoc_default_options = {"autosummary": True}
+# autodoc_default_options = {"autosummary": True}
 
 # The master toctree document.
 master_doc = "index"

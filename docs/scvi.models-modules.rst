@@ -1,10 +1,2 @@
-scvi.models.modules package
-===========================
+.. automodapi:: scvi.models.modules
 
-Module contents
----------------
-
-.. automodule:: scvi.models.modules
-    :members:
-    :undoc-members:
-    :show-inheritance:
