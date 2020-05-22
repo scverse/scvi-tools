@@ -15,22 +15,22 @@ class LoomDataset(DownloadableDataset):
 
     Parameters
     ----------
-    filename :
+    filename
         File name to use when saving/loading the data.
-    save_path :
+    save_path
         Location to use when saving/loading the data.
-    url :
+    url
         URL pointing to the data which will be downloaded
         if it's not already in ``save_path``.
-    batch_indices_attribute_name :
+    batch_indices_attribute_name
         Name of the attribute containing batch indices.
-    labels_attribute_name :
+    labels_attribute_name
         Name of the attribute containing labels.
-    gene_names_attribute_name :
+    gene_names_attribute_name
         Name of the attribute containing gene names.
-    cell_types_attribute_name :
+    cell_types_attribute_name
         Name of the attribute containing cell types.
-    delayed_populating :
+    delayed_populating
         Switch for delayed populating mechanism.
 
     Examples
@@ -207,13 +207,6 @@ class FrontalCortexDropseqDataset(LoomDataset):
     studied by (Saunders et al., 2018) using the Drop-seq method. We have a 71639*7611 gene expression matrix
     Among the 7611 genes, we offer the user to provide a list of genes to subsample from. If not provided,
     all genes are kept.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
     """
 
     def __init__(

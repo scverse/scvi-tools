@@ -13,16 +13,12 @@ class SeqFishPlusDataset(DownloadableDataset):
 
     Parameters
     ----------
-    tissue_region :
+    tissue_region
         Region of the mouse brain, Either "subventricular cortex" or "olfactory bulb"
-    save_path :
+    save_path
         Location to use when saving/loading the SeqFish+ data.
-    delayed_populating :
+    delayed_populating
         Switch for delayed populating mechanism.
-
-    Returns
-    -------
-
     """
 
     def __init__(

@@ -29,15 +29,12 @@ class CiteSeqDataset(DownloadableDataset):
 
     Parameters
     ----------
-    name :
+    name
         Name of the CiteSeq dataset to load. Either "cbmc", "pbmc" or "cd8".
-    save_path :
+    save_path
         Location to use when saving/loading the data.
-    delayed_populating :
+    delayed_populating
         Switch for delayed populating mechanism.
-
-    Returns
-    -------
 
     """
 
@@ -142,13 +139,11 @@ class CbmcDataset(CiteSeqDataset):
 
     Parameters
     ----------
-     :
-        save_path: Save path of raw data file. Default: ``'data/'``.
-        Examples:
+    save_path
+        Save path of raw data file.
 
-    Returns
-    -------
-
+    Examples
+    --------
     >>> gene_dataset = CbmcDataset()
     """
 

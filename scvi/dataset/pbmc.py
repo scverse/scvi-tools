@@ -21,13 +21,13 @@ class PbmcDataset(DownloadableDataset):
 
     Parameters
     ----------
-    save_path :
+    save_path
         Location to use when saving/loading the Pbmc metadata.
-    save_path_10X :
+    save_path_10X
         Location to use when saving/loading the underlying 10X datasets.
-    remove_extracted_data :
+    remove_extracted_data
         Whether to remove extracted archives after populating the dataset.
-    delayed_populating :
+    delayed_populating
         Switch for delayed populating mechanism.
 
 
@@ -125,7 +125,7 @@ class PurifiedPBMCDataset(DownloadableDataset):
 
     Parameters
     ----------
-    subset_datasets :
+    subset_datasets
         index for subsetting the follwing list of datasets
         which are used to form the ``PurifiedPBMCDataset``:
         "cd4_t_helper", "regulatory_t", "naive_t", "memory_t", "cytotoxic_t", "naive_cytotoxic",

@@ -15,22 +15,22 @@ class CsvDataset(DownloadableDataset):
 
     Parameters
     ----------
-    filename :
+    filename
         File name to use when saving/loading the data.
-    save_path :
+    save_path
         Location to use when saving/loading the data.
-    url :
+    url
         URL pointing to the data which will be downloaded
         if it's not already in ``save_path``.
-    new_n_genes :
+    new_n_genes
         Number of subsampled genes.
-    subset_genes :
+    subset_genes
         List of genes for subsampling.
-    compression :
+    compression
         For on-the-fly decompression of on-disk data. If ‘infer’ and filepath_or_buffer
         is path-like, then detect compression from the following extensions: ‘.gz’, ‘.bz2’, ‘.zip’, or ‘.xz’
         (otherwise no decompression). If using ‘zip’, the ZIP file must contain only one data file to be read in.
-    batch_ids_file :
+    batch_ids_file
         Name of the `.csv` file with batch indices.
         File contains two columns. The first holds cell names and second
         holds batch indices - type int. The first row of the file is header.

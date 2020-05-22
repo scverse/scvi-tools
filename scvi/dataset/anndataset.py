@@ -23,19 +23,16 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
 
     Parameters
     ----------
-    ad :
+    ad
         anndata.AnnData`` instance.
-    batch_label :
-        str`` representing AnnData obs column name for batches
-    ctype_label :
-        str`` representing AnnData obs column name for cell_types
-    class_label :
-        str`` representing AnnData obs column name for labels
-    use_raw :
+    batch_label
+        AnnData obs column name for batches
+    ctype_label
+        AnnData obs column name for cell_types
+    class_label
+        AnnData obs column name for labels
+    use_raw
         if True, copies data from .raw attribute of AnnData
-
-    Returns
-    -------
 
     """
 
@@ -103,27 +100,23 @@ class DownloadableAnnDataset(DownloadableDataset):
 
     Parameters
     ----------
-    filename :
+    filename
         Name of the `.h5ad` file to save/load.
-    save_path :
+    save_path
         Location to use when saving/loading the data.
-    url :
+    url
         URL pointing to the data which will be downloaded
         if it's not already in ``save_path``.
-    delayed_populating :
+    delayed_populating
         Switch for delayed populating mechanism.
-    batch_label :
-        str`` representing AnnData obs column name for batches
-    ctype_label :
-        str`` representing AnnData obs column name for cell_types
-    class_label :
-        str`` representing AnnData obs column name for labels
-    use_raw :
+    batch_label
+        AnnData obs column name for batches
+    ctype_label
+        AnnData obs column name for cell_types
+    class_label
+        AnnData obs column name for labels
+    use_raw
         if True, copies data from .raw attribute of AnnData
-
-
-    Returns
-    -------
 
     Examples
     --------

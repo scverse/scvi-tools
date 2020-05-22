@@ -13,30 +13,28 @@ logger = logging.getLogger(__name__)
 class BrainLargeDataset(DownloadableDataset):
     """Loads brain-large dataset.
 
-    This dataset contains 1.3 million brain cells from `10x Genomics`_. We randomly shuffle the data to get a 1M
-    subset of cells and order genes by variance to retain first 10,000 and then 720 sampled variable genes. This
-    dataset is then sampled multiple times in cells for the runtime and goodness-of-fit analysis. We report imputation
-    scores on the 10k cells and 720 genes samples only.
+    This dataset contains 1.3 million brain cells from
+    `10x Genomics <https://support.10xgenomics.com/single-cell-gene-expression/datasets>`_.
+    We randomly shuffle the data to get a 1M subset of cells and order genes by variance to retain first 10,000 and then 720 sampled variable genes.
+    This dataset is then sampled multiple times in cells for the runtime and goodness-of-fit analysis.
+    We report imputation scores on the 10k cells and 720 genes samples only.
 
     Parameters
     ----------
-    filename :
+    filename
         File name to use when saving/loading the data.
-    save_path :
+    save_path
         Location to use when saving/loading the data.
-    sample_size_gene_var :
+    sample_size_gene_var
         Number of cells to use to estimate gene variances.
-    max_cells_to_keep :
+    max_cells_to_keep
         Maximum number of cells to keep.
-    nb_genes_to_keep :
+    nb_genes_to_keep
         Number of genes to keep, ordered by decreasing variance.
-    loading_batch_size :
+    loading_batch_size
         Number of cells to use for each chunk loaded.
-    delayed_populating :
+    delayed_populating
         Switch for delayed populating mechanism.
-
-    .. _10x Genomics:
-    https://support.10xgenomics.com/single-cell-gene-expression/datasets
 
     Examples
     --------

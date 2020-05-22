@@ -79,7 +79,7 @@ available_specification = ["filtered", "raw"]
 
 
 class Dataset10X(DownloadableDataset):
-    """Loads a file from `10x`_ website.
+    """Loads a file from `10x <http://cf.10xgenomics.com/>`_ website.
 
     Parameters
     ----------
@@ -108,10 +108,6 @@ class Dataset10X(DownloadableDataset):
         column in which to find measurement names in the corresponding `.tsv` file.
     remove_extracted_data :
         Whether to remove extracted archives after populating the dataset.
-
-
-    .. _10x:
-    http://cf.10xgenomics.com/
 
     Examples
     --------
@@ -269,14 +265,9 @@ class Dataset10X(DownloadableDataset):
         This is required because 10X doesn't have a consistent way of storing their data.
         Additionally, the function returns whether the data is stored in compressed format.
 
-        :return: path in which files are contains and their suffix if compressed.
-
-        Parameters
-        ----------
-
         Returns
         -------
-
+        path in which files are contains and their suffix if compressed.
         """
         for root, subdirs, files in os.walk(self.save_path):
             # do not consider hidden files
@@ -305,12 +296,6 @@ class BrainSmallDataset(Dataset10X):
     Quality metrics were extracted from CellRanger throughout the molecule specific information file.
     We kept the top 3000 genes by variance. We used the clusters provided by cellRanger
     for the correlation analysis of zero probabilities.
-
-    .. _10x Genomics:
-        https://support.10xgenomics.com/single-cell-gene-expression/datasets
-
-    Parameters
-    ----------
 
     Examples
     --------

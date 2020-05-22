@@ -14,17 +14,14 @@ class SmfishDataset(DownloadableDataset):
 
     Parameters
     ----------
-    save_path :
+    save_path
         Location to use when saving/loading the data.
-    use_high_level_cluster :
+    use_high_level_cluster
         If True, use higher-level agglomerate clusters.
         The resulting cell types are "Astrocytes", "Endothelials", "Inhibitory",
         "Microglias", "Oligodendrocytes" and "Pyramidals".
-    delayed_populating :
+    delayed_populating
         Switch for delayed populating mechanism.
-
-    Returns
-    -------
 
     """
 

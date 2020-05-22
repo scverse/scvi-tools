@@ -13,28 +13,26 @@ logger = logging.getLogger(__name__)
 class CortexDataset(DownloadableDataset):
     """Loads cortex dataset.
 
-    The `Mouse Cortex Cells dataset`_ contains 3005 mouse cortex cells and gold-standard labels for
-    seven distinct cell types. Each cell type corresponds to a cluster to recover. We retain top 558 genes
-    ordered by variance.
+    The
+    `Mouse Cortex Cells dataset <https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt>`_
+    contains 3005 mouse cortex cells and gold-standard labels for seven distinct cell types. Each cell type corresponds
+    to a cluster to recover. We retain top 558 genes ordered by variance.
 
     Parameters
     ----------
-    save_path :
+    save_path
         Path indicating where to save/load data.
-    genes_to_keep :
+    genes_to_keep
         Gene names to keep.
-    total_genes :
+    total_genes
         Total number of genes to keep.
         If None and genes_to_keep is empty/None, all genes are loaded.
-    delayed_populating :
+    delayed_populating
         Boolean switch for delayed population mechanism.
 
-    .. _Mouse Cortex Cells dataset:
-    https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt
 
-    Returns
-    -------
-
+    Examples
+    --------
     >>> gene_dataset = CortexDataset()
     """
 
