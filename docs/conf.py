@@ -44,8 +44,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx_rtd_theme",
     "sphinx.ext.intersphinx",
-    "sphinx.ext.autosummary",
-    # "autodocsumm",
+    "autodocsumm",
     # "scanpydoc",
 ]
 
@@ -75,7 +74,7 @@ napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
 
 
-# autodoc_default_options = {"autosummary": True}
+autodoc_default_options = {"autosummary": True}
 
 # The master toctree document.
 master_doc = "index"
