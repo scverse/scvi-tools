@@ -59,6 +59,7 @@ extras_requirements = {
         "sphinx-rtd-theme>=0.3.1",
         "autodocsumm",
         "nbsphinx-link",
+        "numpydoc",
     ],
     "test": test_requirements,
 }
