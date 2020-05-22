@@ -6,6 +6,21 @@ from .vaec import VAEC
 from .jvae import JVAE
 from .totalvi import TOTALVI
 
+
+__doc__ = """\
+scvi.models
+===========
+
+The central class:
+
+.. autosummary::
+   :toctree: .
+
+   VAE
+   TOTALVI
+
+"""
+
 __all__ = [
     "SCANVI",
     "VAEC",
