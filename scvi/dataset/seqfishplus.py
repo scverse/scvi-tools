@@ -11,9 +11,18 @@ class SeqFishPlusDataset(DownloadableDataset):
     sub-diffraction-limit resolution—in the cortex, subventricular zone
     and olfactory bulb of mouse brain
 
-    :param tissue_region: Region of the mouse brain, Either "subventricular cortex" or "olfactory bulb"
-    :param save_path: Location to use when saving/loading the SeqFish+ data.
-    :param delayed_populating: Switch for delayed populating mechanism.
+    Parameters
+    ----------
+    tissue_region :
+        Region of the mouse brain, Either "subventricular cortex" or "olfactory bulb"
+    save_path :
+        Location to use when saving/loading the SeqFish+ data.
+    delayed_populating :
+        Switch for delayed populating mechanism.
+
+    Returns
+    -------
+
     """
 
     def __init__(

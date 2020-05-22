@@ -12,11 +12,20 @@ logger = logging.getLogger(__name__)
 class SmfishDataset(DownloadableDataset):
     """Loads osmFISH data of mouse cortex cells from the Linarsson lab.
 
-    :param save_path: Location to use when saving/loading the data.
-    :param use_high_level_cluster: If True, use higher-level agglomerate clusters.
+    Parameters
+    ----------
+    save_path :
+        Location to use when saving/loading the data.
+    use_high_level_cluster :
+        If True, use higher-level agglomerate clusters.
         The resulting cell types are "Astrocytes", "Endothelials", "Inhibitory",
         "Microglias", "Oligodendrocytes" and "Pyramidals".
-    :param delayed_populating: Switch for delayed populating mechanism.
+    delayed_populating :
+        Switch for delayed populating mechanism.
+
+    Returns
+    -------
+
     """
 
     def __init__(

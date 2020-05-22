@@ -18,20 +18,29 @@ class BrainLargeDataset(DownloadableDataset):
     dataset is then sampled multiple times in cells for the runtime and goodness-of-fit analysis. We report imputation
     scores on the 10k cells and 720 genes samples only.
 
-    :param filename: File name to use when saving/loading the data.
-    :param save_path: Location to use when saving/loading the data.
-    :param sample_size_gene_var: Number of cells to use to estimate gene variances.
-    :param max_cells_to_keep: Maximum number of cells to keep.
-    :param nb_genes_to_keep: Number of genes to keep, ordered by decreasing variance.
-    :param loading_batch_size: Number of cells to use for each chunk loaded.
-    :param delayed_populating: Switch for delayed populating mechanism.
-
-    Examples:
-        >>> gene_dataset = BrainLargeDataset()
+    Parameters
+    ----------
+    filename :
+        File name to use when saving/loading the data.
+    save_path :
+        Location to use when saving/loading the data.
+    sample_size_gene_var :
+        Number of cells to use to estimate gene variances.
+    max_cells_to_keep :
+        Maximum number of cells to keep.
+    nb_genes_to_keep :
+        Number of genes to keep, ordered by decreasing variance.
+    loading_batch_size :
+        Number of cells to use for each chunk loaded.
+    delayed_populating :
+        Switch for delayed populating mechanism.
 
     .. _10x Genomics:
-        https://support.10xgenomics.com/single-cell-gene-expression/datasets
+    https://support.10xgenomics.com/single-cell-gene-expression/datasets
 
+    Examples
+    --------
+    >>> gene_dataset = BrainLargeDataset()
     """
 
     def __init__(

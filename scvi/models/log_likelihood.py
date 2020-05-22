@@ -8,7 +8,7 @@ from torch.distributions import Normal, Beta
 
 
 def compute_elbo(vae, posterior, **kwargs):
-    """ Computes the ELBO.
+    """Computes the ELBO.
 
     The ELBO is the reconstruction error + the KL divergences
     between the variational distributions and the priors.
@@ -39,7 +39,7 @@ def compute_elbo(vae, posterior, **kwargs):
 
 
 def compute_reconstruction_error(vae, posterior, **kwargs):
-    """ Computes log p(x/z), which is the reconstruction error.
+    """Computes log p(x/z), which is the reconstruction error.
 
     Differs from the marginal log likelihood, but still gives good
     insights on the modeling of the data, and is fast to compute.
@@ -74,13 +74,14 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
 
 
 def compute_marginal_log_likelihood_scvi(vae, posterior, n_samples_mc=100):
-    """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
+    """Computes a biased estimator for log p(x), which is the marginal log likelihood.
 
     Despite its bias, the estimator still converges to the real value
     of log p(x) when n_samples_mc (for Monte Carlo) goes to infinity
     (a fairly high value like 100 should be enough)
     Due to the Monte Carlo sampling, this method is not as computationally efficient
     as computing only the reconstruction loss
+
     """
     if vae.latent_distribution == "ln":
         raise NotImplementedError
@@ -132,13 +133,14 @@ def compute_marginal_log_likelihood_scvi(vae, posterior, n_samples_mc=100):
 
 
 def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=100):
-    """ Computes a biased estimator for log p(x), which is the marginal log likelihood.
+    """Computes a biased estimator for log p(x), which is the marginal log likelihood.
 
     Despite its bias, the estimator still converges to the real value
     of log p(x) when n_samples_mc (for Monte Carlo) goes to infinity
     (a fairly high value like 100 should be enough)
     Due to the Monte Carlo sampling, this method is not as computationally efficient
     as computing only the reconstruction loss
+
     """
     # Uses MC sampling to compute a tighter lower bound on log p(x)
     log_lkl = 0
@@ -204,8 +206,7 @@ def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=10
 
 
 def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
-    """
-    Note: All inputs are torch Tensors
+    """Note: All inputs are torch Tensors
     log likelihood (scalar) of a minibatch according to a zinb model.
     Notes:
     We parametrize the bernoulli using the logits, hence the softplus functions appearing
@@ -215,6 +216,7 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     theta: inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
     pi: logit of the dropout parameter (real support) (shape: minibatch x genes)
     eps: numerical stability constant
+
     """
 
     # theta is the dispersion rate. If .ndimension() == 1, it is shared for all cells (regardless of batch or labels)
@@ -247,14 +249,14 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
 
 
 def log_nb_positive(x, mu, theta, eps=1e-8):
-    """
-    Note: All inputs should be torch Tensors
+    """Note: All inputs should be torch Tensors
     log likelihood (scalar) of a minibatch according to a nb model.
 
     Variables:
     mu: mean of the negative binomial (has to be positive support) (shape: minibatch x genes)
     theta: inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
     eps: numerical stability constant
+
     """
     if theta.ndimension() == 1:
         theta = theta.view(
@@ -275,20 +277,25 @@ def log_nb_positive(x, mu, theta, eps=1e-8):
 
 
 def log_mixture_nb(x, mu_1, mu_2, theta_1, theta_2, pi, eps=1e-8):
-    """
-    Note: All inputs should be torch Tensors
+    """Note: All inputs should be torch Tensors
     log likelihood (scalar) of a minibatch according to a mixture nb model.
     pi is the probability to be in the first component.
 
     For totalVI, the first component should be background.
 
-    Variables:
+    Parameters
+    ----------
     mu1: mean of the first negative binomial component (has to be positive support) (shape: minibatch x genes)
     theta1: first inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
     mu2: mean of the second negative binomial (has to be positive support) (shape: minibatch x genes)
     theta2: second inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
         If None, assume one shared inverse dispersion parameter.
     eps: numerical stability constant
+
+
+    Returns
+    -------
+
     """
     if theta_2 is not None:
         log_nb_1 = log_nb_positive(x, mu_1, theta_1)

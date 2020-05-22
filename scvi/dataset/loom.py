@@ -13,22 +13,33 @@ logger = logging.getLogger(__name__)
 class LoomDataset(DownloadableDataset):
     """Loads a potentially remote `.loom` file.
 
-    :param filename: File name to use when saving/loading the data.
-    :param save_path: Location to use when saving/loading the data.
-    :param url: URL pointing to the data which will be downloaded
+    Parameters
+    ----------
+    filename :
+        File name to use when saving/loading the data.
+    save_path :
+        Location to use when saving/loading the data.
+    url :
+        URL pointing to the data which will be downloaded
         if it's not already in ``save_path``.
-    :param batch_indices_attribute_name: Name of the attribute containing batch indices.
-    :param labels_attribute_name: Name of the attribute containing labels.
-    :param gene_names_attribute_name: Name of the attribute containing gene names.
-    :param cell_types_attribute_name: Name of the attribute containing cell types.
-    :param delayed_populating: Switch for delayed populating mechanism.
+    batch_indices_attribute_name :
+        Name of the attribute containing batch indices.
+    labels_attribute_name :
+        Name of the attribute containing labels.
+    gene_names_attribute_name :
+        Name of the attribute containing gene names.
+    cell_types_attribute_name :
+        Name of the attribute containing cell types.
+    delayed_populating :
+        Switch for delayed populating mechanism.
 
-    Examples:
-        >>> # Loading a remote dataset
-        >>> remote_loom_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom", save_path='data/',
-        ... url='http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom')
-        >>> # Loading a local dataset
-        >>> local_loom_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom", save_path='data/')
+    Examples
+    --------
+    >>> # Loading a remote dataset
+    >>> remote_loom_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom", save_path='data/',
+    ... url='http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom')
+    >>> # Loading a local dataset
+    >>> local_loom_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom", save_path='data/')
     """
 
     def __init__(
@@ -140,8 +151,9 @@ class RetinaDataset(LoomDataset):
     13,166 genes coming from two batches. We use the cluster annotation from 15 cell-types from the author.
     We also extract their normalized data with Combat and use it for benchmarking.
 
-    Examples:
-        >>> gene_dataset = RetinaDataset()
+    Examples
+    --------
+    >>> gene_dataset = RetinaDataset()
     """
 
     def __init__(self, save_path: str = "data/", delayed_populating: bool = False):
@@ -171,8 +183,7 @@ class RetinaDataset(LoomDataset):
 
 
 class PreFrontalCortexStarmapDataset(LoomDataset):
-    """ Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex (Wang et al., 2018)
-    """
+    """Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex (Wang et al., 2018)"""
 
     def __init__(self, save_path: str = "data/", delayed_populating: bool = False):
 
@@ -196,6 +207,13 @@ class FrontalCortexDropseqDataset(LoomDataset):
     studied by (Saunders et al., 2018) using the Drop-seq method. We have a 71639*7611 gene expression matrix
     Among the 7611 genes, we offer the user to provide a list of genes to subsample from. If not provided,
     all genes are kept.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
     """
 
     def __init__(

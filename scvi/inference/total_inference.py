@@ -26,19 +26,29 @@ class TotalPosterior(Posterior):
     `TotalPosterior` instances to train a model. A `TotalPosterior` instance also comes with many methods or
     utilities for its corresponding data.
 
+    Parameters
+    ----------
+    model :
+        A model instance from class ``TOTALVI``
+    gene_dataset :
+        A gene_dataset instance like ``CbmcDataset()`` with attribute ``protein_expression``
+    shuffle :
+        Specifies if a `RandomSampler` or a `SequentialSampler` should be used
+    indices :
+        Specifies how the data should be split with regards to train/test or labelled/unlabelled
+    use_cuda :
+        Default: ``True``
+    data_loader_kwargs :
+        Keyword arguments to passed into the `DataLoader`
 
-    :param model: A model instance from class ``TOTALVI``
-    :param gene_dataset: A gene_dataset instance like ``CbmcDataset()`` with attribute ``protein_expression``
-    :param shuffle: Specifies if a `RandomSampler` or a `SequentialSampler` should be used
-    :param indices: Specifies how the data should be split with regards to train/test or labelled/unlabelled
-    :param use_cuda: Default: ``True``
-    :param data_loader_kwargs: Keyword arguments to passed into the `DataLoader`
+        Examples:
 
-    Examples:
+        Let us instantiate a `trainer`, with a gene_dataset and a model
 
-    Let us instantiate a `trainer`, with a gene_dataset and a model
+    Returns
+    -------
 
-        >>> gene_dataset = CbmcDataset()
+    >>> gene_dataset = CbmcDataset()
         >>> totalvi = TOTALVI(gene_dataset.nb_genes, len(gene_dataset.protein_names),
         ... n_batch=gene_dataset.n_batches, use_cuda=True)
         >>> trainer = TotalTrainer(vae, gene_dataset)
@@ -136,6 +146,17 @@ class TotalPosterior(Posterior):
         Specifically, it is a lower bound on the marginal log likelihood
         plus a term that is constant with respect to the variational distribution.
         It still gives good insights on the modeling of the data, and is fast to compute.
+
+        Parameters
+        ----------
+        vae: TOTALVI :
+
+        **kwargs :
+
+
+        Returns
+        -------
+
         """
         # Iterate once over the posterior and computes the total log_likelihood
         elbo = 0
@@ -172,6 +193,7 @@ class TotalPosterior(Posterior):
             insights on the modeling of the data, and is fast to compute
 
             This is really a helper function to self.ll, self.ll_protein, etc.
+
         """
         # Iterate once over the posterior and computes the total log_likelihood
         log_lkl_gene = 0
@@ -209,6 +231,17 @@ class TotalPosterior(Posterior):
         (a fairly high value like 100 should be enough). 5000 is the standard in machine learning publications.
         Due to the Monte Carlo sampling, this method is not as computationally efficient
         as computing only the reconstruction loss
+
+        Parameters
+        ----------
+        n_samples_mc: int :
+             (Default value = 100)
+        batch_size: int :
+             (Default value = 96)
+
+        Returns
+        -------
+
         """
         # Uses MC sampling to compute a tighter lower bound on log p(x)
         log_lkl = 0
@@ -272,8 +305,18 @@ class TotalPosterior(Posterior):
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Output posterior z mean or sample, batch index, and label
 
-        :param sample: z mean or z sample
-        :return: 4-tuple of latent, batch_indices, labels, library_gene
+        Parameters
+        ----------
+        sample :
+            z mean or z sample
+        sample: bool :
+             (Default value = False)
+
+        Returns
+        -------
+        type
+            4-tuple of latent, batch_indices, labels, library_gene
+
         """
         latent = []
         batch_indices = []
@@ -366,7 +409,17 @@ class TotalPosterior(Posterior):
 
     @torch.no_grad()
     def get_sample_dropout(self, n_samples: int = 1, give_mean: bool = True):
-        """ Zero-inflation mixing component for genes
+        """Zero-inflation mixing component for genes
+
+        Parameters
+        ----------
+        n_samples: int :
+             (Default value = 1)
+        give_mean: bool :
+             (Default value = True)
+
+        Returns
+        -------
 
         """
         px_dropouts = []
@@ -399,17 +452,36 @@ class TotalPosterior(Posterior):
         give_mean: bool = True,
         transform_batch: Optional[Union[int, List[int]]] = None,
     ) -> np.ndarray:
-        """ Returns mixing bernoulli parameter for protein negative binomial mixtures (probability background)
+        """Returns mixing bernoulli parameter for protein negative binomial mixtures (probability background)
 
-        :param n_samples: number of samples from posterior distribution
-        :param sample_protein_mixing: Sample mixing bernoulli, setting background to zero
-        :param give_mean: bool, whether to return samples along first axis or average over samples
-        :param transform_batch: Batches to condition on.
-        If transform_batch is:
+        Parameters
+        ----------
+        n_samples :
+            number of samples from posterior distribution
+        sample_protein_mixing :
+            Sample mixing bernoulli, setting background to zero
+        give_mean :
+            bool, whether to return samples along first axis or average over samples
+        transform_batch :
+            Batches to condition on.
+            If transform_batch is:
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then values are averaged over provided batches.
-        :return: array of probability background
+        n_samples: int :
+             (Default value = 1)
+        give_mean: bool :
+             (Default value = True)
+        transform_batch: Optional[Union[int :
+
+        List[int]]] :
+             (Default value = None)
+
+        Returns
+        -------
+        type
+            array of probability background
+
         """
         py_mixings = []
         if (transform_batch is None) or (isinstance(transform_batch, int)):
@@ -460,10 +532,22 @@ class TotalPosterior(Posterior):
         For normalized, denoised expression, please use
             `get_normalized_denoised_expression()`
 
-        :param transform_batch: Int of batch to "transform" all cells into
-        :param eps: Prior count to add to protein normalized expression
-        :param normalize_pro: bool, whether to make protein expression sum to one in a cell
-        :param include_bg: bool, whether to include the background component of expression
+        Parameters
+        ----------
+        transform_batch :
+            Int of batch to "transform" all cells into (Default value = None)
+        eps :
+            Prior count to add to protein normalized expression (Default value = 0.5)
+        normalize_pro :
+            bool, whether to make protein expression sum to one in a cell (Default value = False)
+        include_bg :
+            bool, whether to include the background component of expression (Default value = False)
+        sample_bern :
+             (Default value = True)
+
+        Returns
+        -------
+
         """
         scales = []
         for tensors in self:
@@ -494,15 +578,36 @@ class TotalPosterior(Posterior):
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Returns the tensors of denoised normalized gene and protein expression
 
-        :param n_samples: number of samples from posterior distribution
-        :param sample_protein_mixing: Sample mixing bernoulli, setting background to zero
-        :param give_mean: bool, whether to return samples along first axis or average over samples
-        :param transform_batch: Batches to condition on.
-        If transform_batch is:
+        Parameters
+        ----------
+        n_samples :
+            number of samples from posterior distribution
+        sample_protein_mixing :
+            Sample mixing bernoulli, setting background to zero
+        give_mean :
+            bool, whether to return samples along first axis or average over samples
+        transform_batch :
+            Batches to condition on.
+            If transform_batch is:
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then values are averaged over provided batches.
-        :return: Denoised genes, denoised proteins
+        n_samples: int :
+             (Default value = 1)
+        give_mean: bool :
+             (Default value = True)
+        transform_batch: Optional[Union[int :
+
+        List[int]]] :
+             (Default value = None)
+        sample_protein_mixing: bool :
+             (Default value = True)
+
+        Returns
+        -------
+        type
+            Denoised genes, denoised proteins
+
         """
 
         scale_list_gene = []
@@ -567,13 +672,30 @@ class TotalPosterior(Posterior):
     ) -> np.ndarray:
         """Returns the tensors of protein mean (with foreground and background)
 
-        :param n_samples: number of samples from posterior distribution
-        :param give_mean: bool, whether to return samples along first axis or average over samples
-        :param transform_batch: Batches to condition on.
-        If transform_batch is:
+        Parameters
+        ----------
+        n_samples :
+            number of samples from posterior distribution
+        give_mean :
+            bool, whether to return samples along first axis or average over samples
+        transform_batch :
+            Batches to condition on.
+            If transform_batch is:
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then values are averaged over provided batches.
+        n_samples: int :
+             (Default value = 1)
+        give_mean: bool :
+             (Default value = True)
+        transform_batch: Optional[Union[int :
+
+        List[int]]] :
+             (Default value = None)
+
+        Returns
+        -------
+
         """
         if (transform_batch is None) or (isinstance(transform_batch, int)):
             transform_batch = [transform_batch]
@@ -623,11 +745,26 @@ class TotalPosterior(Posterior):
     ):
         """Samples from an adjusted posterior predictive. Proteins are concatenated to genes.
 
-        :param n_samples: How may samples per cell
-        :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
-        :rna_size_factor: size factor for RNA prior to sampling gamma distribution
-        :transform_batch: int of which batch to condition on for all cells
-        :return:
+        Parameters
+        ----------
+        n_samples :
+            How may samples per cell
+        batch_size :
+            Mini-batch size for sampling. Lower means less GPU memory footprint
+            :rna_size_factor: size factor for RNA prior to sampling gamma distribution
+            :transform_batch: int of which batch to condition on for all cells
+        n_samples: int :
+             (Default value = 25)
+        batch_size: int :
+             (Default value = 64)
+        rna_size_factor: int :
+             (Default value = 1)
+        transform_batch: Optional[int] :
+             (Default value = None)
+
+        Returns
+        -------
+
         """
         posterior_list = []
         for tensors in self.update({"batch_size": batch_size}):
@@ -685,17 +822,43 @@ class TotalPosterior(Posterior):
         correlation_mode: str = "pearson",
         log_transform: bool = False,
     ):
-        """ Wrapper of `generate_denoised_samples()` to create a gene-protein gene-protein corr matrix
-        :param n_samples: How may samples per cell
-        :param batch_size: Mini-batch size for sampling. Lower means less GPU memory footprint
-        :rna_size_factor: size factor for RNA prior to sampling gamma distribution
-        :param transform_batch: Batches to condition on.
-        If transform_batch is:
+        """Wrapper of `generate_denoised_samples()` to create a gene-protein gene-protein corr matrix
+
+        Parameters
+        ----------
+        n_samples :
+            How may samples per cell
+        batch_size :
+            Mini-batch size for sampling. Lower means less GPU memory footprint
+            :rna_size_factor: size factor for RNA prior to sampling gamma distribution
+        transform_batch :
+            Batches to condition on.
+            If transform_batch is:
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then values are averaged over provided batches.
-        :param log_transform: Whether to log transform denoised values prior to correlation calculation
-        :return: Correlation matrix
+        log_transform :
+            Whether to log transform denoised values prior to correlation calculation
+        n_samples: int :
+             (Default value = 25)
+        batch_size: int :
+             (Default value = 64)
+        rna_size_factor: int :
+             (Default value = 1000)
+        transform_batch: Optional[Union[int :
+
+        List[int]]] :
+             (Default value = None)
+        correlation_mode: str :
+             (Default value = "pearson")
+        log_transform: bool :
+             (Default value = False)
+
+        Returns
+        -------
+        type
+            Correlation matrix
+
         """
         if (transform_batch is None) or (isinstance(transform_batch, int)):
             transform_batch = [transform_batch]
@@ -732,6 +895,15 @@ class TotalPosterior(Posterior):
     @torch.no_grad()
     def imputation(self, n_samples: int = 1):
         """Gene imputation
+
+        Parameters
+        ----------
+        n_samples: int :
+             (Default value = 1)
+
+        Returns
+        -------
+
         """
         imputed_list = []
         for tensors in self:
@@ -748,6 +920,15 @@ class TotalPosterior(Posterior):
         """This code is identical to same function in posterior.py
 
         Except, we use the totalVI definition of `model.get_sample_rate`
+
+        Parameters
+        ----------
+        n_samples: int :
+             (Default value = 1)
+
+        Returns
+        -------
+
         """
         original_list = []
         imputed_list = []
@@ -874,55 +1055,75 @@ class TotalPosterior(Posterior):
         2. If case (cell group 1) and control (cell group 2) are conditioned on the same
         batch ids.
         Examples:
-            >>> set(batchid1) = set(batchid2)
 
         or
-            >>> batchid1 = batchid2 = None
 
 
         3. If case and control are conditioned on different batch ids that do not intersect
         i.e.,
-            >>> set(batchid1) != set(batchid2)
 
         and
-            >>> len(set(batchid1).intersection(set(batchid2))) == 0
 
         This function does not cover other cases yet and will warn users in such cases.
 
-        :param mode: one of ["vanilla", "change"]
+        Parameters
+        ----------
+        mode :
+            one of ["vanilla", "change"]
+        idx1 :
+            bool array masking subpopulation cells 1. Should be True where cell is
+            from associated population
+        idx2 :
+            bool array masking subpopulation cells 2. Should be True where cell is
+            from associated population
+        batchid1 :
+            List of batch ids for which you want to perform DE Analysis for
+            subpopulation 1. By default, all ids are taken into account
+        batchid2 :
+            List of batch ids for which you want to perform DE Analysis for
+            subpopulation 2. By default, all ids are taken into account
+        use_observed_batches :
+            Whether normalized means are conditioned on observed
+            batches
+        n_samples :
+            Number of posterior samples
+        use_permutation :
+            Activates step 2 described above.
+            Simply formulated, pairs obtained from posterior sampling (when calling
+            `sample_scale_from_batch`) will be randomly permuted so that the number of
+            pairs used to compute Bayes Factors becomes M_permutation.
+        M_permutation :
+            Number of times we will "mix" posterior samples in step 2.
+            Only makes sense when use_permutation=True
+        change_fn :
+            function computing effect size based on both normalized means
+        m1_domain_fn :
+            custom indicator function of effect size regions
+            inducing differential expression
+        delta :
+            specific case of region inducing differential expression.
+            In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce differential expression
+            (LFC case)
+        cred_interval_lvls :
+            List of credible interval levels to compute for the posterior
+            LFC distribution
+        all_stats :
+            whether additional metrics should be provided
+        **kwargs:
+            Other keywords arguments for `get_sample_scale()`
 
-        :param idx1: bool array masking subpopulation cells 1. Should be True where cell is
-          from associated population
-        :param idx2: bool array masking subpopulation cells 2. Should be True where cell is
-          from associated population
-        :param batchid1: List of batch ids for which you want to perform DE Analysis for
-          subpopulation 1. By default, all ids are taken into account
-        :param batchid2: List of batch ids for which you want to perform DE Analysis for
-          subpopulation 2. By default, all ids are taken into account
-        :param use_observed_batches: Whether normalized means are conditioned on observed
-          batches
+        Returns
+        -------
+        type
+            Differential expression properties
 
-        :param n_samples: Number of posterior samples
-        :param use_permutation: Activates step 2 described above.
-          Simply formulated, pairs obtained from posterior sampling (when calling
-          `sample_scale_from_batch`) will be randomly permuted so that the number of
-          pairs used to compute Bayes Factors becomes M_permutation.
-        :param M_permutation: Number of times we will "mix" posterior samples in step 2.
-          Only makes sense when use_permutation=True
+        >>> set(batchid1) = set(batchid2)
 
-        :param change_fn: function computing effect size based on both normalized means
-        :param m1_domain_fn: custom indicator function of effect size regions
-          inducing differential expression
-        :param delta: specific case of region inducing differential expression.
-          In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce differential expression
-          (LFC case)
-        :param cred_interval_lvls: List of credible interval levels to compute for the posterior
-          LFC distribution
+        >>> batchid1 = batchid2 = None
 
-        :param all_stats: whether additional metrics should be provided
-        :\**kwargs: Other keywords arguments for `get_sample_scale()`
+        >>> set(batchid1) != set(batchid2)
 
-        :return: Differential expression properties
+        >>> len(set(batchid1).intersection(set(batchid2))) == 0
         """
         all_info = self.get_bayes_factors(
             idx1=idx1,
@@ -991,25 +1192,39 @@ default_early_stopping_kwargs = {
 
 
 class TotalTrainer(UnsupervisedTrainer):
-    r"""Unsupervised training for totalVI using variational inference
+    """Unsupervised training for totalVI using variational inference
 
-    :param model: A model instance from class ``TOTALVI``
-    :param gene_dataset: A gene_dataset instance like ``CbmcDataset()`` with attribute ``protein_expression``
-    :param train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
+    Parameters
+    ----------
+    model :
+        A model instance from class ``TOTALVI``
+    gene_dataset :
+        A gene_dataset instance like ``CbmcDataset()`` with attribute ``protein_expression``
+    train_size :
+        The train size, either a float between 0 and 1 or and integer for the number of training samples
         to use Default: ``0.90``.
-    :param test_size: The test size, either a float between 0 and 1 or and integer for the number of training samples
+    test_size :
+        The test size, either a float between 0 and 1 or and integer for the number of training samples
         to use Default: ``0.10``. Note that if train and test do not add to 1 the remainder is placed in a validation set
-    :param pro_recons_weight: Scaling factor on the reconstruction loss for proteins. Default: ``1.0``.
-    :param n_epochs_kl_warmup: Number of epochs for annealing the KL terms for `z` and `mu` of the ELBO (from 0 to 1). If None, no warmup performed, unless
+    pro_recons_weight :
+        Scaling factor on the reconstruction loss for proteins. Default: ``1.0``.
+    n_epochs_kl_warmup :
+        Number of epochs for annealing the KL terms for `z` and `mu` of the ELBO (from 0 to 1). If None, no warmup performed, unless
         `n_iter_kl_warmup` is set.
-    :param n_iter_kl_warmup: Number of minibatches for annealing the KL terms for `z` and `mu` of the ELBO (from 0 to 1). If set to "auto", the number
+    n_iter_kl_warmup :
+        Number of minibatches for annealing the KL terms for `z` and `mu` of the ELBO (from 0 to 1). If set to "auto", the number
         of iterations is equal to 75% of the number of cells. `n_epochs_kl_warmup` takes precedence if it is not None. If both are None, then
         no warmup is performed.
-    :param discriminator: Classifier used for adversarial training scheme
-    :param use_adversarial_loss: Whether to use adversarial classifier to improve mixing
-    :param kappa: Scaling factor for adversarial loss. If None, follow inverse of kl warmup schedule.
-    :param early_stopping_kwargs: Keyword args for early stopping. If "auto", use totalVI defaults. If None, disable early stopping.
-    :param \*\*kwargs: Other keywords arguments from the general Trainer class.
+    discriminator :
+        Classifier used for adversarial training scheme
+    use_adversarial_loss :
+        Whether to use adversarial classifier to improve mixing
+    kappa :
+        Scaling factor for adversarial loss. If None, follow inverse of kl warmup schedule.
+    early_stopping_kwargs :
+        Keyword args for early stopping. If "auto", use totalVI defaults. If None, disable early stopping.
+
+
     """
 
     default_metrics_to_monitor = ["elbo"]

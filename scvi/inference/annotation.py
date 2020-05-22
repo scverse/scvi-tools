@@ -54,8 +54,17 @@ class AnnotationPosterior(Posterior):
     @torch.no_grad()
     def compute_predictions(self, soft=False):
         """
-        :return: the true labels and the predicted labels
-        :rtype: 2-tuple of :py:class:`numpy.int32`
+
+        Parameters
+        ----------
+        soft :
+             (Default value = False)
+
+        Returns
+        -------
+        2-tuple of :py:class:`numpy.int32`
+            the true labels and the predicted labels
+
         """
         model, cls = (
             (self.sampling_model, self.model)
@@ -86,30 +95,41 @@ class AnnotationPosterior(Posterior):
 
 
 class ClassifierTrainer(Trainer):
-    r"""The ClassifierInference class for training a classifier either on the raw data or on top of the latent
+    """The ClassifierInference class for training a classifier either on the raw data or on top of the latent
         space of another model (VAE, VAEC, SCANVI).
 
-    Args:
-        :model: A model instance from class ``VAE``, ``VAEC``, ``SCANVI``
-        :gene_dataset: A gene_dataset instance like ``CortexDataset()``
-        :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
-            to use Default: ``0.8``.
-        :test_size: The test size, either a float between 0 and 1 or and integer for the number of test samples
-            to use Default: ``None``.
-        :sampling_model: Model with z_encoder with which to first transform data.
-        :sampling_zl: Transform data with sampling_model z_encoder and l_encoder and concat.
-        :\**kwargs: Other keywords arguments from the general Trainer class.
+    Parameters
+    ----------
+    model:
+        A model instance from class ``VAE``, ``VAEC``, ``SCANVI``
+    gene_dataset:
+        A gene_dataset instance like ``CortexDataset()``
+    train_size:
+        The train size, either a float between 0 and 1 or and integer for the number of training samples
+        to use Default: ``0.8``.
+    test_size:
+        The test size, either a float between 0 and 1 or and integer for the number of test samples
+        to use Default: ``None``.
+    sampling_model:
+        Model with z_encoder with which to first transform data.
+    sampling_zl:
+        Transform data with sampling_model z_encoder and l_encoder and concat.
+    **kwargs: Other keywords arguments from the general Trainer class.
 
+    Returns
+    -------
 
-    Examples:
-        >>> gene_dataset = CortexDataset()
-        >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-        ... n_labels=gene_dataset.n_labels)
+    Examples
+    --------
+    >>> gene_dataset = CortexDataset()
+    >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+    ... n_labels=gene_dataset.n_labels)
 
-        >>> classifier = Classifier(vae.n_latent, n_labels=cortex_dataset.n_labels)
-        >>> trainer = ClassifierTrainer(classifier, gene_dataset, sampling_model=vae, train_size=0.5)
-        >>> trainer.train(n_epochs=20, lr=1e-3)
-        >>> trainer.test_set.accuracy()
+    >>> classifier = Classifier(vae.n_latent, n_labels=cortex_dataset.n_labels)
+    >>> trainer = ClassifierTrainer(classifier, gene_dataset, sampling_model=vae, train_size=0.5)
+    >>> trainer.train(n_epochs=20, lr=1e-3)
+    >>> trainer.test_set.accuracy()
+
     """
 
     def __init__(
@@ -169,8 +189,17 @@ class ClassifierTrainer(Trainer):
     @torch.no_grad()
     def compute_predictions(self, soft=False):
         """
-        :return: the true labels and the predicted labels
-        :rtype: 2-tuple of :py:class:`numpy.int32`
+
+        Parameters
+        ----------
+        soft :
+             (Default value = False)
+
+        Returns
+        -------
+        2-tuple of :py:class:`numpy.int32`
+            the true labels and the predicted labels
+
         """
         model, cls = (
             (self.sampling_model, self.model)
@@ -184,8 +213,15 @@ class ClassifierTrainer(Trainer):
 
 
 class SemiSupervisedTrainer(UnsupervisedTrainer):
-    r"""The SemiSupervisedTrainer class for the semi-supervised training of an autoencoder.
+    """The SemiSupervisedTrainer class for the semi-supervised training of an autoencoder.
+
     This parent class can be inherited to specify the different training schemes for semi-supervised learning
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     """
 
     def __init__(

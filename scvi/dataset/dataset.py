@@ -49,6 +49,13 @@ class GeneExpressionDataset(Dataset):
             ``list`` of (nb_cells, nb_genes) matrices.
         * ``populate_from_datasets``: to populate using multiple ``GeneExperessionDataset`` objects,
             merged using the intersection of a gene-wise attribute (``gene_names`` by default).
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
     """
 
     #############################
@@ -121,20 +128,32 @@ class GeneExpressionDataset(Dataset):
     ):
         """Populates the data attributes of a GeneExpressionDataset object from a (nb_cells, nb_genes) matrix.
 
-        :param X: RNA counts matrix, sparse format supported (e.g ``scipy.sparse.csr_matrix``).
-        :param Ys: List of paired count measurements (e.g CITE-seq protein measurements, spatial coordinates)
-        :param batch_indices: ``np.ndarray`` with shape (nb_cells,). Maps each cell to the batch
+        Parameters
+        ----------
+        X :
+            RNA counts matrix, sparse format supported (e.g ``scipy.sparse.csr_matrix``).
+        Ys :
+            List of paired count measurements (e.g CITE-seq protein measurements, spatial coordinates)
+        batch_indices :
+            np.ndarray`` with shape (nb_cells,). Maps each cell to the batch
             it originates from. Note that a batch most likely refers to a specific piece
             of tissue or a specific experimental protocol.
-        :param labels: ``np.ndarray`` with shape (nb_cells,). Cell-wise labels. Can be mapped
+        labels :
+            np.ndarray`` with shape (nb_cells,). Cell-wise labels. Can be mapped
             to cell types using attribute mappings.
-        :param gene_names: ``List`` or ``np.ndarray`` with length/shape (nb_genes,).
+        gene_names :
+            List`` or ``np.ndarray`` with length/shape (nb_genes,).
             Maps each gene to its name.
-        :param cell_types: Maps each integer label in ``labels`` to a cell type.
-        :param cell_attributes_dict: ``List`` or ``np.ndarray`` with shape (nb_cells,).
-        :param gene_attributes_dict: ``List`` or ``np.ndarray`` with shape (nb_genes,).
-        :param remap_attributes: If set to True (default), the function calls
-                                 `remap_categorical_attributes` at the end
+        cell_types :
+            Maps each integer label in ``labels`` to a cell type.
+        cell_attributes_dict :
+            List`` or ``np.ndarray`` with shape (nb_cells,).
+        gene_attributes_dict :
+            List`` or ``np.ndarray`` with shape (nb_genes,).
+        remap_attributes :
+            If set to True (default), the function calls
+            `remap_categorical_attributes` at the end
+
         """
         # set the data hidden attribute
         self._X = (
@@ -200,12 +219,20 @@ class GeneExpressionDataset(Dataset):
         """Populates the data attributes of a GeneExpressionDataset object from a ``n_batches``-long
             ``list`` of (nb_cells, nb_genes) matrices.
 
-        :param Xs: RNA counts in the form of a list of np.ndarray with shape (..., nb_genes)
-        :param labels_per_batch: list of cell-wise labels for each batch.
-        :param gene_names: gene names, stored as ``str``.
-        :param cell_types: cell types, stored as ``str``.
-        :param remap_attributes: If set to True (default), the function calls
-                                 `remap_categorical_attributes` at the end
+        Parameters
+        ----------
+        Xs :
+            RNA counts in the form of a list of np.ndarray with shape (..., nb_genes)
+        labels_per_batch :
+            list of cell-wise labels for each batch.
+        gene_names :
+            gene names, stored as ``str``.
+        cell_types :
+            cell types, stored as ``str``.
+        remap_attributes :
+            If set to True (default), the function calls
+            `remap_categorical_attributes` at the end
+
         """
         nb_genes = Xs[0].shape[1]
         if not all(X.shape[1] == nb_genes for X in Xs):
@@ -240,11 +267,18 @@ class GeneExpressionDataset(Dataset):
         """Populates the data attributes of a GeneExpressionDataset object from a ``n_labels``-long
             ``list`` of (nb_cells, nb_genes) matrices.
 
-        :param Xs: RNA counts in the form of a list of np.ndarray with shape (..., nb_genes)
-        :param batch_indices_per_label: cell-wise batch indices, for each cell label.
-        :param gene_names: gene names, stored as ``str``.
-        :param remap_attributes: If set to True (default), the function calls
-                                 `remap_categorical_attributes` at the end
+        Parameters
+        ----------
+        Xs :
+            RNA counts in the form of a list of np.ndarray with shape (..., nb_genes)
+        batch_indices_per_label :
+            cell-wise batch indices, for each cell label.
+        gene_names :
+            gene names, stored as ``str``.
+        remap_attributes :
+            If set to True (default), the function calls
+            `remap_categorical_attributes` at the end
+
         """
         nb_genes = Xs[0].shape[1]
         if not all(X.shape[1] == nb_genes for X in Xs):
@@ -288,17 +322,24 @@ class GeneExpressionDataset(Dataset):
         For cell-wise attributes, either we "concatenate" or add an "offset" corresponding
         to the number of already existing categories.
 
-        :param gene_datasets_list: ``GeneExpressionDataset`` objects to be merged.
-        :param shared_labels: whether to share labels through ``cell_types`` mapping or not.
-        :param mapping_reference_for_sharing: Instructions on how to share cell-wise attributes between datasets.
+        Parameters
+        ----------
+        gene_datasets_list :
+            GeneExpressionDataset`` objects to be merged.
+        shared_labels :
+            whether to share labels through ``cell_types`` mapping or not. (Default value = True)
+        mapping_reference_for_sharing :
+            Instructions on how to share cell-wise attributes between datasets.
             Keys are the attribute name and values are registered mapped attribute.
             If provided the mapping is merged across all datasets and then the attribute is
             remapped using index backtracking between the old and merged mapping.
             If no mapping is provided, concatenate the values and add an offset
             if the attribute is registered as categorical in the first dataset.
-        :param cell_measurement_intersection: A dictionary with keys being cell measurement attributes and values being
+        cell_measurement_intersection :
+            A dictionary with keys being cell measurement attributes and values being
             True or False. If True, that cell measurement attribute will be intersected across datasets. If False, the
             union is taken. Defaults to intersection for each cell_measurement
+
         """
         logger.info("Merging datasets. Input objects are modified in place.")
         logger.info(
@@ -572,7 +613,14 @@ class GeneExpressionDataset(Dataset):
 
     @X.setter
     def X(self, X: Union[np.ndarray, sp_sparse.csr_matrix]):
-        """Sets the data attribute ``X`` and (re)computes the library size."""
+        """Sets the data attribute ``X`` and (re)computes the library size.
+
+        Parameters
+        ----------
+        X: data
+
+
+        """
         n_dim = len(X.shape)
         if n_dim != 2:
             raise ValueError(
@@ -604,7 +652,19 @@ class GeneExpressionDataset(Dataset):
 
     @batch_indices.setter
     def batch_indices(self, batch_indices: Union[List[int], np.ndarray]):
-        """Sets batch indices and the number of batches."""
+        """Sets batch indices and the number of batches.
+
+        Parameters
+        ----------
+        batch_indices: Union[List[int] :
+
+        np.ndarray] :
+
+
+        Returns
+        -------
+
+        """
         batch_indices = np.asarray(batch_indices, dtype=np.uint16).reshape(-1, 1)
         self.n_batches = len(np.unique(batch_indices))
         self._batch_indices = batch_indices
@@ -615,7 +675,19 @@ class GeneExpressionDataset(Dataset):
 
     @labels.setter
     def labels(self, labels: Union[List[int], np.ndarray]):
-        """Sets labels and the number of labels"""
+        """Sets labels and the number of labels
+
+        Parameters
+        ----------
+        labels: Union[List[int] :
+
+        np.ndarray] :
+
+
+        Returns
+        -------
+
+        """
         labels = np.asarray(labels, dtype=np.uint16).reshape(-1, 1)
         self.n_labels = len(np.unique(labels))
         self._labels = labels
@@ -661,11 +733,13 @@ class GeneExpressionDataset(Dataset):
                 setattr(self, name, mapping)
 
     def register_dataset_version(self, version_name):
-        """Registers a version of the dataset, e.g normalized version."""
+        """Registers a version of the dataset, e.g normalized version.
+        """
         self.dataset_versions.add(version_name)
 
     def initialize_cell_attribute(self, attribute_name, attribute, categorical=False):
-        """Sets and registers a cell-wise attribute, e.g annotation information."""
+        """Sets and registers a cell-wise attribute, e.g annotation information.
+        """
         if (attribute_name in self.protected_attributes) or (
             attribute_name in self.gene_attribute_names
         ):
@@ -699,7 +773,8 @@ class GeneExpressionDataset(Dataset):
             self.cell_categorical_attribute_names.add(attribute_name)
 
     def initialize_cell_measurement(self, measurement: CellMeasurement):
-        """Initializes a cell measurement: set attributes and update registers"""
+        """Initializes a cell measurement: set attributes and update registers
+        """
         if measurement.name in self.protected_attributes:
             valid_attribute_name = measurement.name + "_cell"
             logger.warning(
@@ -716,7 +791,8 @@ class GeneExpressionDataset(Dataset):
         ] = measurement.columns_attr_name
 
     def initialize_gene_attribute(self, attribute_name, attribute):
-        """Sets and registers a gene-wise attribute, e.g annotation information."""
+        """Sets and registers a gene-wise attribute, e.g annotation information.
+        """
         if (attribute_name in self.protected_attributes) or (
             attribute_name in self.cell_attribute_names
         ):
@@ -740,7 +816,8 @@ class GeneExpressionDataset(Dataset):
     def initialize_mapped_attribute(
         self, source_attribute_name, mapping_name, mapping_values
     ):
-        """Sets and registers an attribute mapping, e.g labels to named cell_types."""
+        """Sets and registers an attribute mapping, e.g labels to named cell_types.
+        """
         source_attribute = getattr(self, source_attribute_name)
 
         if isinstance(source_attribute, np.ndarray):
@@ -787,7 +864,8 @@ class GeneExpressionDataset(Dataset):
         override: bool = False,
         corrupted=False,
     ) -> Callable[[Union[List[int], np.ndarray]], Tuple[torch.Tensor, ...]]:
-        """Returns a collate_fn with the requested shape/attributes"""
+        """Returns a collate_fn with the requested shape/attributes
+        """
 
         if override:
             attributes_and_types = dict()
@@ -810,7 +888,8 @@ class GeneExpressionDataset(Dataset):
     def collate_fn_base(
         self, attributes_and_types: Dict[str, type], batch: Union[List[int], np.ndarray]
     ) -> Tuple[torch.Tensor, ...]:
-        """Given indices and attributes to batch, returns a full batch of ``Torch.Tensor``"""
+        """Given indices and attributes to batch, returns a full batch of ``Torch.Tensor``
+        """
         indices = np.asarray(batch)
         data_numpy = [
             getattr(self, attr)[indices].astype(dtype)
@@ -854,13 +933,21 @@ class GeneExpressionDataset(Dataset):
         In the case where `mode=="seurat_v3"`, an adapted version of the method described in [Stuart19]_
         is used. This method requires `new_n_genes` or `new_ratio_genes` to be specified.
 
-        :param subset_genes: list of indices or mask of genes to retain
-        :param new_n_genes: number of genes to retain, the highly variable genes will be kept
-        :param new_ratio_genes: proportion of genes to retain, the highly variable genes will be kept
-        :param mode: Either "variance", "seurat_v2", "cell_ranger", or "seurat_v3"
-        :param batch_correction: Account for batches when choosing highly variable genes.
+        Parameters
+        ----------
+        subset_genes :
+            list of indices or mask of genes to retain
+        new_n_genes :
+            number of genes to retain, the highly variable genes will be kept
+        new_ratio_genes :
+            proportion of genes to retain, the highly variable genes will be kept
+        mode :
+            Either "variance", "seurat_v2", "cell_ranger", or "seurat_v3"
+        batch_correction :
+            Account for batches when choosing highly variable genes.
             HVGs are selected in each batch and merged.
-        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using `seurat_v2`
+        highly_var_genes_kwargs :
+            Kwargs to feed to highly_variable_genes when using `seurat_v2`
             or `cell_ranger` (cf. highly_variable_genes method)
         """
 
@@ -953,9 +1040,14 @@ class GeneExpressionDataset(Dataset):
 
         Specifically, the mask is true if ``self.attribute_name`` is in ``attribute_values_to_keep``.
 
-        :param attribute_values_to_keep: Values to accept for the filtering attribute.
-        :param attribute_name: Name of the attribute to filter genes on.
-        :param return_data: If True, returns the filtered data along with the mask.
+        Parameters
+        ----------
+        attribute_values_to_keep :
+            Values to accept for the filtering attribute.
+        attribute_name :
+            Name of the attribute to filter genes on.
+        return_data :
+            If True, returns the filtered data along with the mask.
         """
         if attribute_name not in self.gene_attribute_names:
             raise ValueError(
@@ -976,7 +1068,10 @@ class GeneExpressionDataset(Dataset):
         Sub-selects genes according to ``subset_genes`` sub-index.
         Consequently, modifies in-place the data ``X`` and the registered gene attributes.
 
-        :param subset_genes: Index used for gene sub-sampling.
+        Parameters
+        ----------
+        subset_genes :
+            Index used for gene sub-sampling.
             Either a ``int`` array with arbitrary shape which values are the indexes of the genes to keep.
             Or boolean array used as a mask-like index.
         """
@@ -1013,9 +1108,13 @@ class GeneExpressionDataset(Dataset):
         Reorder genes according to the ``first_genes`` list of gene names.
         Consequently, modifies in-place the data ``X`` and the registered gene attributes.
 
-        :param first_genes: New ordering of the genes; if some genes are missing, they will be added after the
-                            first_genes in the same order as they were before if `drop_omitted_genes` is False
-        :param drop_omitted_genes: Whether to keep or drop the omitted genes in `first_genes`
+        Parameters
+        ----------
+        first_genes :
+            New ordering of the genes; if some genes are missing, they will be added after the
+            first_genes in the same order as they were before if `drop_omitted_genes` is False
+        drop_omitted_genes :
+            Whether to keep or drop the omitted genes in `first_genes`
         """
 
         look_up = dict([(gene, index) for index, gene in enumerate(self.gene_names)])
@@ -1100,7 +1199,10 @@ class GeneExpressionDataset(Dataset):
     def filter_cell_types(self, cell_types: Union[List[str], List[int], np.ndarray]):
         """Performs in-place filtering of cells by keeping cell types in ``cell_types``.
 
-        :param cell_types: numpy array of type np.int (indices) or np.str (cell-types names)
+        Parameters
+        ----------
+        cell_types :
+            numpy array of type np.int (indices) or np.str (cell-types names)
         """
         cell_types = np.asarray(cell_types)
         if isinstance(cell_types[0], str):
@@ -1130,9 +1232,14 @@ class GeneExpressionDataset(Dataset):
 
         Specifically, the mask is true if ``self.attribute_name`` is in ``attribute_values_to_keep``.
 
-        :param attribute_values_to_keep: Values to accept for the filtering attribute.
-        :param attribute_name: Name of the attribute to filter cells on.
-        :param return_data: If True, returns the filtered data along with the mask.
+        Parameters
+        ----------
+        attribute_values_to_keep :
+            Values to accept for the filtering attribute.
+        attribute_name :
+            Name of the attribute to filter cells on.
+        return_data :
+            If True, returns the filtered data along with the mask.
         """
         if attribute_name not in self.cell_attribute_names:
             raise ValueError(
@@ -1155,7 +1262,10 @@ class GeneExpressionDataset(Dataset):
         Sub-selects cells according to ``subset_cells`` sub-index.
         Consequently, modifies in-place the data ``X``, its versions and the registered cell attributes.
 
-        :param subset_cells: Index used for cell sub-sampling.
+        Parameters
+        ----------
+        subset_cells :
+            Index used for cell sub-sampling.
             Either a ``int`` array with arbitrary shape which values are the indexes of the cells to keep.
             Or boolean array used as a mask-like index.
         """
@@ -1188,8 +1298,12 @@ class GeneExpressionDataset(Dataset):
         """Merges some cell types into a new one, and changes the labels accordingly.
         The old cell types are not erased but '#merged' is appended to their names
 
-        :param cell_types: Cell types to merge.
-        :param new_cell_type_name: Name for the new aggregate cell type.
+        Parameters
+        ----------
+        cell_types :
+            Cell types to merge.
+        new_cell_type_name :
+            Name for the new aggregate cell type.
         """
         if not len(cell_types):
             raise ValueError("No cell types to merge.")
@@ -1207,7 +1321,8 @@ class GeneExpressionDataset(Dataset):
     def cell_types_to_labels(
         self, cell_types: Union[List[str], np.ndarray]
     ) -> np.ndarray:
-        """Forms a one-on-one corresponding ``np.ndarray`` of labels for the specified ``cell_types``."""
+        """Forms a one-on-one corresponding ``np.ndarray`` of labels for the specified ``cell_types``.
+        """
         labels = [
             np.where(self.cell_types == cell_type)[0][0] for cell_type in cell_types
         ]
@@ -1221,7 +1336,10 @@ class GeneExpressionDataset(Dataset):
 
         Cell types in the keys of ``cell_types_dict`` are merged and given the name of the associated value
 
-        :param cell_types_dict: dictionary with tuples of cell types to merge as keys
+        Parameters
+        ----------
+        cell_types_dict :
+            dictionary with tuples of cell types to merge as keys
             and new cell type names as values.
         """
         for cell_types, new_cell_type_name in cell_types_dict.items():
@@ -1231,8 +1349,6 @@ class GeneExpressionDataset(Dataset):
         """Reorder in place the cell-types. The cell-types provided will be added at the beginning of `cell_types`
         attribute, such that if some existing cell-types are omitted in `new_order`, they will be left after the
         new given order
-
-        :param new_order:
         """
         if isinstance(new_order, np.ndarray):
             new_order = new_order.tolist()
@@ -1252,8 +1368,7 @@ class GeneExpressionDataset(Dataset):
     #############################
 
     def to_anndata(self) -> anndata.AnnData:
-        """
-            Converts the dataset to a anndata.AnnData object.
+        """Converts the dataset to a anndata.AnnData object.
             The obtained dataset can then be saved/retrieved using the anndata API.
         """
 
@@ -1308,8 +1423,16 @@ class GeneExpressionDataset(Dataset):
             - "binomial" replaces the count with a Binomial(count, 0.2)
         A corrupted version of ``self.X`` is stored in ``self.corrupted_X``.
 
-        :param rate: Rate of corrupted entries.
-        :param corruption: Corruption method.
+        Parameters
+        ----------
+        rate :
+            Rate of corrupted entries.
+        corruption :
+            Corruption method.
+        rate: float :
+             (Default value = 0.1)
+        corruption: str :
+             (Default value = "uniform")
         """
         self.corrupted_X = copy.deepcopy(self.X)
         if (
@@ -1343,11 +1466,18 @@ class GeneExpressionDataset(Dataset):
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Computes and returns some statistics on the raw counts of two sub-populations.
 
-        :param idx1: subset of indices describing the first population.
-        :param idx2: subset of indices describing the second population.
-
-        :return: Tuple of ``np.ndarray`` containing, by pair (one for each sub-population),
+        Parameters
+        ----------
+        idx1 :
+            subset of indices describing the first population.
+        idx2 :
+            subset of indices describing the second population.
+        Returns
+        -------
+        type
+            Tuple of ``np.ndarray`` containing, by pair (one for each sub-population),
             mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
+
         """
         mean1 = (self.X[idx1, :]).mean(axis=0)
         mean2 = (self.X[idx2, :]).mean(axis=0)
@@ -1381,18 +1511,29 @@ class GeneExpressionDataset(Dataset):
 
         Parameters
         ----------
-        :param n_top_genes:
+        n_top_genes :
             Number of highly-variable genes to keep. Mandatory for Seurat v3
-        :param flavor:
+        flavor :
             Choose the flavor for computing normalized dispersion. One of "seurat_v2", "cell_ranger",
             "seurat_v3". In their default workflows, Seurat v2 passes the cutoffs whereas Cell Ranger passes
             `n_top_genes`.
-        :param batch_correction:
+        batch_correction :
             Whether batches should be taken into account during procedure
-        :param highly_var_genes_kwargs: Kwargs to feed to highly_variable_genes when using
-        the Seurat V2 flavor.
+        highly_var_genes_kwargs :
+            Kwargs to feed to highly_variable_genes when using
+            the Seurat V2 flavor.
+        n_top_genes: int :
+             (Default value = None)
+        flavor: Optional[str] :
+             (Default value = "seurat_v3")
+        batch_correction: Optional[bool] :
+             (Default value = True)
+        **highly_var_genes_kwargs :
 
-        :return:
+
+        Returns
+        -------
+        type
             scanpy .var DataFrame providing genes information including means, dispersions
             and whether the gene is tagged highly variable (key `highly_variable`)
             (see scanpy highly_variable_genes documentation)
@@ -1451,11 +1592,20 @@ class GeneExpressionDataset(Dataset):
         """Returns a list with length number of batches where each entry is a mask over present
         cell measurement columns
 
-        :param attribute_name: cell_measurement attribute name
+        Parameters
+        ----------
+        attribute_name :
+            cell_measurement attribute name
+        attribute_name: str :
 
-        :return: List of ``np.ndarray`` containing, for each batch, a mask of which columns were
-        actually measured in that batch. This is useful when taking the union of a cell measurement
-        over datasets.
+
+        Returns
+        -------
+        type
+            List of ``np.ndarray`` containing, for each batch, a mask of which columns were
+            actually measured in that batch. This is useful when taking the union of a cell measurement
+            over datasets.
+
         """
         batch_mask = []
         for b in np.unique(self.batch_indices.ravel()):
@@ -1471,15 +1621,28 @@ class GeneExpressionDataset(Dataset):
 def seurat_v3_highly_variable_genes(
     adata, n_top_genes: int = 4000, batch_key: str = None
 ):
-    """ An adapted implementation of the "vst" feature selection in Seurat v3.
+    """An adapted implementation of the "vst" feature selection in Seurat v3.
 
         This function will be replaced once it's full implemented in scanpy
         https://github.com/theislab/scanpy/pull/1182
 
         For further details of the arithmetic see https://www.overleaf.com/read/ckptrbgzzzpg
 
-        :param n_top_genes: How many variable genes to return
-        :param batch_key: key in adata.obs that contains batch info. If None, do not use batch info
+    Parameters
+    ----------
+    n_top_genes :
+        How many variable genes to return
+    batch_key :
+        key in adata.obs that contains batch info. If None, do not use batch info
+    adata :
+
+    n_top_genes: int :
+         (Default value = 4000)
+    batch_key: str :
+         (Default value = None)
+
+    Returns
+    -------
 
     """
 
@@ -1582,14 +1745,23 @@ def remap_categories(
     If None, ``mapping_to`` is set to [0, ..., N-1] where N is the number of categories.
     Then, ``mapping_from`` is mapped to ``mapping_to``.
 
+    Parameters
+    ----------
+    original_categories :
+        Categorical array to be remapped.
+    mapping_from :
+        source of the mapping.
+    mapping_to :
+        destination of the mapping
+    mappings_dict :
+        Mappings of the categorical being remapped.
 
-    :param original_categories: Categorical array to be remapped.
-    :param mapping_from: source of the mapping.
-    :param mapping_to: destination of the mapping
-    :param mappings_dict: Mappings of the categorical being remapped.
-
-    :return: ``tuple`` of a ``np.ndarray`` containing the new categories
+    Returns
+    -------
+    type
+        tuple`` of a ``np.ndarray`` containing the new categories
         and an ``int`` equal to the new number of categories.
+
     """
     original_categories = np.asarray(original_categories)
     unique_categories = list(np.unique(original_categories))
@@ -1660,7 +1832,8 @@ def concatenate_arrays(arrays):
 
 
 def check_nonnegative_integers(X: Union[np.ndarray, sp_sparse.csr_matrix]):
-    """Checks values of X to ensure it is count data"""
+    """Checks values of X to ensure it is count data
+    """
 
     data = X if type(X) is np.ndarray else X.data
     # Check no negatives
@@ -1680,11 +1853,18 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
     In particular, it has a ``delayed_populating`` parameter allowing for instantiation
     without populating the attributes.
 
-    :param urls: single or multiple url.s from which to download the data.
-    :param filenames: filenames for the downloaded data.
-    :param save_path: path to data storage.
-    :param delayed_populating: If False, populate object upon instantiation.
+    Parameters
+    ----------
+    urls :
+        single or multiple url.s from which to download the data.
+    filenames :
+        filenames for the downloaded data.
+    save_path :
+        path to data storage.
+    delayed_populating :
+        If False, populate object upon instantiation.
         Else, allow for a delayed manual call to ``populate`` method.
+
     """
 
     def __init__(
@@ -1729,7 +1909,8 @@ class DownloadableDataset(GeneExpressionDataset, ABC):
 
 
 def _download(url: str, save_path: str, filename: str):
-    """Writes data from url to file."""
+    """Writes data from url to file.
+    """
     if os.path.exists(os.path.join(save_path, filename)):
         logger.info("File %s already downloaded" % (os.path.join(save_path, filename)))
         return
@@ -1739,7 +1920,8 @@ def _download(url: str, save_path: str, filename: str):
 
     def read_iter(file, block_size=1000):
         """Given a file 'file', returns an iterator that returns bytes of
-        size 'blocksize' from the file, using read()."""
+        size 'blocksize' from the file, using read().
+        """
         while True:
             block = file.read(block_size)
             if not block:

@@ -130,8 +130,16 @@ class AutoZIVAE(VAE):
     def cuda(self, device: Optional[str] = None) -> torch.nn.Module:
         r""" Moves all model parameters and also fixed prior alpha and beta values, when relevant, to the GPU.
 
-       :param device: string denoting the GPU device on which parameters and prior distribution values are copied.
-       """
+        Parameters
+        ----------
+        device :
+            string denoting the GPU device on which parameters and prior distribution values are copied.
+        device: Optional[str] :
+             (Default value = None)
+
+        Returns
+        -------
+        """
         self = super().cuda(device)
         if isinstance(self.alpha_prior_logit, torch.Tensor):
             self.alpha_prior_logit = self.alpha_prior_logit.cuda(device)
@@ -351,15 +359,35 @@ class AutoZIVAE(VAE):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         r""" Returns the reconstruction loss and the Kullback divergences
 
-        :param x: tensor of values with shape (batch_size, n_input)
-        :param local_l_mean: tensor of means of the prior distribution of latent variable l
-         with shape (batch_size, 1)
-        :param local_l_var: tensor of variancess of the prior distribution of latent variable l
-         with shape (batch_size, 1)
-        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
-        :param y: tensor of cell-types labels with shape (batch_size, n_labels)
-        :return: the reconstruction loss and the Kullback divergences
-        :rtype: 2-tuple of :py:class:`torch.FloatTensor`
+        Parameters
+        ----------
+        x :
+            tensor of values with shape (batch_size, n_input)
+        local_l_mean :
+            tensor of means of the prior distribution of latent variable l
+            with shape (batch_size, 1)
+        local_l_var :
+            tensor of variancess of the prior distribution of latent variable l
+            with shape (batch_size, 1)
+        batch_index :
+            array that indicates which batch the cells belong to with shape ``batch_size``
+        y :
+            tensor of cell-types labels with shape (batch_size, n_labels)
+        x: torch.Tensor :
+
+        local_l_mean: torch.Tensor :
+
+        local_l_var: torch.Tensor :
+
+        batch_index: Optional[torch.Tensor] :
+             (Default value = None)
+        y: Optional[torch.Tensor] :
+             (Default value = None)
+
+        Returns
+        -------
+        2-tuple of :py:class:`torch.FloatTensor`
+            the reconstruction loss and the Kullback divergences
         """
         # Parameters for z latent distribution
         outputs = self.inference(x, batch_index, y)

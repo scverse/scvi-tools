@@ -17,17 +17,25 @@ class CortexDataset(DownloadableDataset):
     seven distinct cell types. Each cell type corresponds to a cluster to recover. We retain top 558 genes
     ordered by variance.
 
-    :param save_path: Path indicating where to save/load data.
-    :param genes_to_keep: Gene names to keep.
-    :param total_genes: Total number of genes to keep.
-           If None and genes_to_keep is empty/None, all genes are loaded.
-    :param delayed_populating: Boolean switch for delayed population mechanism.
-
-    Examples:
-        >>> gene_dataset = CortexDataset()
+    Parameters
+    ----------
+    save_path :
+        Path indicating where to save/load data.
+    genes_to_keep :
+        Gene names to keep.
+    total_genes :
+        Total number of genes to keep.
+        If None and genes_to_keep is empty/None, all genes are loaded.
+    delayed_populating :
+        Boolean switch for delayed population mechanism.
 
     .. _Mouse Cortex Cells dataset:
-        https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt
+    https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt
+
+    Returns
+    -------
+
+    >>> gene_dataset = CortexDataset()
     """
 
     def __init__(
