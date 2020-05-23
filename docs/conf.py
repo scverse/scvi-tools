@@ -80,6 +80,20 @@ numpydoc_show_class_members = False
 # The master toctree document.
 master_doc = "index"
 
+
+intersphinx_mapping = dict(
+    anndata=("https://anndata.readthedocs.io/en/stable/", None),
+    ipython=("https://ipython.readthedocs.io/en/stable/", None),
+    leidenalg=("https://leidenalg.readthedocs.io/en/latest/", None),
+    louvain=("https://louvain-igraph.readthedocs.io/en/latest/", None),
+    matplotlib=("https://matplotlib.org/", None),
+    numpy=("https://docs.scipy.org/doc/numpy/", None),
+    pandas=("https://pandas.pydata.org/pandas-docs/stable/", None),
+    python=("https://docs.python.org/3", None),
+    scipy=("https://docs.scipy.org/doc/scipy/reference/", None),
+    sklearn=("https://scikit-learn.org/stable/", None),
+)
+
 # General information about the project.
 project = u"scVI"
 copyright = u"2020, Romain Lopez, Adam Gayoso, Pierre Boyeau"
