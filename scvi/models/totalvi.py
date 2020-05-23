@@ -24,43 +24,43 @@ class TOTALVI(nn.Module):
 
     Parameters
     ----------
-    n_input_genes :
+    n_input_genes
         Number of input genes
-    n_input_proteins :
+    n_input_proteins
         Number of input proteins
-    n_batch :
+    n_batch
         Number of batches
-    n_labels :
+    n_labels
         Number of labels
-    n_hidden :
+    n_hidden
         Number of nodes per hidden layer for the z encoder (protein+genes),
         genes library encoder, z->genes+proteins decoder
-    n_latent :
+    n_latent
         Dimensionality of the latent space
-    n_layers :
+    n_layers
         Number of hidden layers used for encoder and decoder NNs
-    dropout_rate :
+    dropout_rate
         Dropout rate for neural networks
-    genes_dispersion :
+    genes_dispersion
         One of the following
 
         * ``'gene'`` - genes_dispersion parameter of NB is constant per gene across cells
         * ``'gene-batch'`` - genes_dispersion can differ between different batches
         * ``'gene-label'`` - genes_dispersion can differ between different labels
-    protein_dispersion :
+    protein_dispersion
         One of the following
 
         * ``'protein'`` - protein_dispersion parameter is constant per protein across cells
         * ``'protein-batch'`` - protein_dispersion can differ between different batches NOT TESTED
         * ``'protein-label'`` - protein_dispersion can differ between different labels NOT TESTED
-    log_variational :
+    log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
-    reconstruction_loss_genes :
+    reconstruction_loss_genes
         One of
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
-    latent_distribution :
+    latent_distribution
         One of
 
         * ``'normal'`` - Isotropic normal
@@ -72,7 +72,7 @@ class TOTALVI(nn.Module):
     -------
 
     >>> dataset = Dataset10X(dataset_name="pbmc_10k_protein_v3", save_path=save_path)
-        >>> totalvae = TOTALVI(gene_dataset.nb_genes, len(dataset.protein_names), use_cuda=True)
+    >>> totalvae = TOTALVI(gene_dataset.nb_genes, len(dataset.protein_names), use_cuda=True)
     """
 
     def __init__(
@@ -175,24 +175,14 @@ class TOTALVI(nn.Module):
 
         Parameters
         ----------
-        x :
+        x
             tensor of values with shape ``(batch_size, n_input_genes)``
-        y :
+        y
             tensor of values with shape ``(batch_size, n_input_proteins)``
-        batch_index :
+        batch_index
             tensor of batch indices
-        give_mean :
+        give_mean
             Whether to sample, or give mean of distribution
-        x: torch.Tensor :
-
-        y: torch.Tensor :
-
-        batch_index: Optional[torch.Tensor] :
-             (Default value = None)
-        give_mean: bool :
-             (Default value = False)
-        n_samples: int :
-             (Default value = 5000)
 
         Returns
         -------
@@ -227,18 +217,10 @@ class TOTALVI(nn.Module):
 
         Parameters
         ----------
-        x :
+        x
             tensor of values with shape ``(batch_size, n_input_genes)``
-        y :
+        y
             tensor of values with shape ``(batch_size, n_input_proteins)``
-        x: torch.Tensor :
-
-        y: torch.Tensor :
-
-        batch_index: Optional[torch.Tensor] :
-             (Default value = None)
-        give_mean: bool :
-             (Default value = True)
 
         Returns
         -------
@@ -270,26 +252,16 @@ class TOTALVI(nn.Module):
 
         Parameters
         ----------
-        x :
+        x
             tensor of values with shape ``(batch_size, n_input_genes)``
-        y :
+        y
             tensor of values with shape ``(batch_size, n_input_proteins)``
-        batch_index :
+        batch_index
             array that indicates which batch the cells belong to with shape ``batch_size``
-        label :
+        label
             tensor of cell-types labels with shape ``(batch_size, n_labels)``
-        n_samples :
+        n_samples
             number of samples
-        x: torch.Tensor :
-
-        y: torch.Tensor :
-
-        batch_index: Optional[torch.Tensor] :
-             (Default value = None)
-        label: Optional[torch.Tensor] :
-             (Default value = None)
-        n_samples: int :
-             (Default value = 1)
 
         Returns
         -------
@@ -315,26 +287,16 @@ class TOTALVI(nn.Module):
 
         Parameters
         ----------
-        x :
+        x
             tensor of values with shape ``(batch_size, n_input_genes)``
-        y :
+        y
             tensor of values with shape ``(batch_size, n_input_proteins)``
-        batch_index :
+        batch_index
             array that indicates which batch the cells belong to with shape ``batch_size``
-        label :
+        label
             tensor of cell-types labels with shape ``(batch_size, n_labels)``
-        n_samples :
+        n_samples
             number of samples
-        x: torch.Tensor :
-
-        y: torch.Tensor :
-
-        batch_index: Optional[torch.Tensor] :
-             (Default value = None)
-        label: Optional[torch.Tensor] :
-             (Default value = None)
-        n_samples: int :
-             (Default value = 1)
 
         Returns
         -------
@@ -369,28 +331,14 @@ class TOTALVI(nn.Module):
 
         Parameters
         ----------
-        transform_batch :
+        transform_batch
             Int of batch to "transform" all cells into
-        eps :
+        eps
             Prior count to add to protein normalized expression (Default value = 0)
-        normalize_pro :
+        normalize_pro
             bool, whether to make protein expression sum to one in a cell (Default value = False)
-        include_bg :
+        include_bg
             bool, whether to include the background component of expression (Default value = False)
-        x: torch.Tensor :
-
-        y: torch.Tensor :
-
-        batch_index: Optional[torch.Tensor] :
-             (Default value = None)
-        label: Optional[torch.Tensor] :
-             (Default value = None)
-        n_samples: int :
-             (Default value = 1)
-        transform_batch: Optional[int] :
-             (Default value = None)
-        sample_bern :
-             (Default value = True)
 
         Returns
         -------
@@ -483,24 +431,6 @@ class TOTALVI(nn.Module):
          factor that enforces `rate_fore` > `rate_back`.
 
          ``px_["r"]`` and ``py_["r"]`` are the inverse dispersion parameters for genes and protein, respectively.
-
-        Parameters
-        ----------
-        x: torch.Tensor :
-
-        y: torch.Tensor :
-
-        batch_index: Optional[torch.Tensor] :
-             (Default value = None)
-        label: Optional[torch.Tensor] :
-             (Default value = None)
-        n_samples :
-             (Default value = 1)
-        transform_batch: Optional[int] :
-             (Default value = None)
-
-        Returns
-        -------
 
         """
         x_ = x
@@ -595,32 +525,20 @@ class TOTALVI(nn.Module):
 
         Parameters
         ----------
-        x :
+        x
             tensor of values with shape ``(batch_size, n_input_genes)``
-        y :
+        y
             tensor of values with shape ``(batch_size, n_input_proteins)``
-        local_l_mean_gene :
+        local_l_mean_gene
             tensor of means of the prior distribution of latent variable l
             with shape ``(batch_size, 1)````
-        local_l_var_gene :
+        local_l_var_gene
             tensor of variancess of the prior distribution of latent variable l
             with shape ``(batch_size, 1)``
-        batch_index :
+        batch_index
             array that indicates which batch the cells belong to with shape ``batch_size``
-        label :
+        label
             tensor of cell-types labels with shape (batch_size, n_labels)
-        x: torch.Tensor :
-
-        y: torch.Tensor :
-
-        local_l_mean_gene: torch.Tensor :
-
-        local_l_var_gene: torch.Tensor :
-
-        batch_index: Optional[torch.Tensor] :
-             (Default value = None)
-        label: Optional[torch.Tensor] :
-             (Default value = None)
 
         Returns
         -------
