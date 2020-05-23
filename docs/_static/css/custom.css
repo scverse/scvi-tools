@@ -91,3 +91,69 @@ legend,
     /* Use a system font stack for better performance (no Web fonts required) */
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 }
+
+
+/* Code: literals and links */
+
+.rst-content tt.literal,
+.rst-content code.literal {
+    color: #404040;
+}
+/* slim font weight for non-link code */
+.rst-content tt:not(.xref),
+.rst-content code:not(.xref),
+.rst-content *:not(a) > tt.xref,
+.rst-content *:not(a) > code.xref,
+.rst-content dl:not(.docutils) code
+{
+    font-weight: normal;
+}
+.rst-content a > tt.xref,
+.rst-content a > code.xref,
+.rst-content dl:not(.docutils) a > tt.xref,
+.rst-content dl:not(.docutils) a > code.xref
+{
+    font-weight: bold;  /* underline looks clumsy, in particular with buttons and
+                           other hyperlinks, which don't come with underlines */
+}
+
+
+/* Just one box for annotation code for a less noisy look */
+
+.rst-content .annotation {
+    padding: 2px 5px;
+    background-color: white;
+    border: 1px solid #e1e4e5;
+}
+.rst-content .annotation tt,
+.rst-content .annotation code {
+    padding: 0 0;
+    background-color: transparent;
+    border: 0 solid transparent;
+}
+
+
+/* Parameter lists */
+
+/* Mimick rubric style used for other headings */
+/* TODO: once scanpydoc adds classes, also change return types like this */
+.rst-content dl:not(.docutils) dl > dt {
+    font-weight: bold;
+    background: #edf0f2;
+    border-left: solid 3px #003262;
+    margin: 0 0 12px;
+    padding: 8px 5px 8px 8px;
+}
+/* Parameters contain <strong> parts and don’t need bold font */
+.rst-content dl.field-list dl > dt { font-weight: unset }
+/* Add colon between return tuple element name and type */
+.rst-content dl:not(.docutils) dl > dt .classifier::before { content: ' : ' }
+
+/* Function headers */
+
+.rst-content dl:not(.docutils) dt {
+    background: #edf0f2;
+    color: #404040;
+    border-top: solid 3px #003262;
+    padding: 8px 5px 8px 8px;
+}

@@ -46,7 +46,8 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx_automodapi.automodapi",
     # "autodocsumm",
-    # "scanpydoc",
+    "scanpydoc.elegant_typehints",
+    "scanpydoc.rtd_github_links",
 ]
 
 # nbsphinx specific settings
@@ -74,6 +75,7 @@ napoleon_use_param = True
 napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
 numpydoc_show_class_members = False
+annotate_defaults = False  # scanpydoc option, look into why we need this
 
 # autodoc_default_options = {"autosummary": True}
 
@@ -92,6 +94,10 @@ intersphinx_mapping = dict(
     sklearn=("https://scikit-learn.org/stable/", None),
     torch=("https://pytorch.org/docs/master/", None),
 )
+qualname_overrides = {
+    "scvi.dataset.dataset.GeneExpressionDataset": "scvi.dataset.GeneExpressionDataset"
+}
+
 
 # General information about the project.
 project = u"scVI"
@@ -138,7 +144,13 @@ html_theme = "sphinx_rtd_theme"
 # documentation.
 #
 # html_theme_options = {}
-
+html_context = dict(
+    display_github=True,  # Integrate GitHub
+    github_user="YosefLab",  # Username
+    github_repo="scVI",  # Repo name
+    github_version="master",  # Version
+    conf_py_path="/docs/",  # Path in the checkout to the docs root
+)
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
