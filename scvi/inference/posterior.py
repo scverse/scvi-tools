@@ -600,13 +600,21 @@ class Posterior:
         batch ids.
         Examples:
 
+            >>> set(batchid1) = set(batchid2)
+
         or
+
+            >>> batchid1 = batchid2 = None
 
 
         3. If case and control are conditioned on different batch ids that do not intersect
         i.e.,
+            >>> set(batchid1) != set(batchid2)
 
         and
+
+            >>> len(set(batchid1).intersection(set(batchid2))) == 0
+
 
         This function does not cover other cases yet and will warn users in such cases.
 
@@ -657,16 +665,8 @@ class Posterior:
 
         Returns
         -------
-        type
-            Differential expression properties
+        Differential expression properties
 
-        >>> set(batchid1) = set(batchid2)
-
-            >>> batchid1 = batchid2 = None
-
-            >>> set(batchid1) != set(batchid2)
-
-            >>> len(set(batchid1).intersection(set(batchid2))) == 0
         """
         if not np.array_equal(self.indices, np.arange(len(self.gene_dataset))):
             logger.warning(
@@ -1342,27 +1342,17 @@ class Posterior:
 
         Parameters
         ----------
-        n_samples :
+        n_samples
             Number of required samples for each cell
-        genes :
+        genes
             Indices of genes of interest
-        batch_size :
+        batch_size
             Desired Batch size to generate data
-        n_samples: int :
-             (Default value = 100)
-        genes: Union[list :
-
-        np.ndarray] :
-             (Default value = None)
-        batch_size: int :
-             (Default value = 128)
 
         Returns
         -------
-        type
-            Tuple (x_new, x_old)
-            Where x_old has shape (n_cells, n_genes)
-            Where x_new has shape (n_cells, n_genes, n_samples)
+        Tuple (x_new, x_old) where x_old has shape (n_cells, n_genes)
+         and where x_new has shape (n_cells, n_genes, n_samples)
 
         """
         assert self.model.reconstruction_loss in ["zinb", "nb", "poisson"]
@@ -1422,20 +1412,14 @@ class Posterior:
 
         Parameters
         ----------
-        n_samples :
+        n_samples
             How may samples per cell
-        batch_size :
+        batch_size
             Mini-batch size for sampling. Lower means less GPU memory footprint
-            :rna_size_factor: size factor for RNA prior to sampling gamma distribution
-            :transform_batch: int of which batch to condition on for all cells
-        n_samples: int :
-             (Default value = 25)
-        batch_size: int :
-             (Default value = 64)
-        rna_size_factor: int :
-             (Default value = 1000)
-        transform_batch: Optional[int] :
-             (Default value = None)
+        rna_size_factor
+            size factor for RNA prior to sampling gamma distribution
+        transform_batch
+            int of which batch to condition on for all cells
 
         Returns
         -------
@@ -1484,35 +1468,25 @@ class Posterior:
 
         Parameters
         ----------
-        n_samples :
+        n_samples
             How may samples per cell
-        batch_size :
+        batch_size
             Mini-batch size for sampling. Lower means less GPU memory footprint
-            :rna_size_factor: size factor for RNA prior to sampling gamma distribution
-        transform_batch :
+        rna_size_factor
+            size factor for RNA prior to sampling gamma distribution
+        transform_batch
             Batches to condition on.
             If transform_batch is:
+
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then values are averaged over provided batches.
-        correlation_type :
+        correlation_type
             One of "pearson", "spearman"
-        n_samples: int :
-             (Default value = 10)
-        batch_size: int :
-             (Default value = 64)
-        rna_size_factor: int :
-             (Default value = 1000)
-        transform_batch: Optional[Union[int :
-
-        List[int]]] :
-             (Default value = None)
-        correlation_type: str :
-             (Default value = "spearman")
 
         Returns
         -------
-
+        Gene-gene correlation matrix
         """
         if (transform_batch is None) or (isinstance(transform_batch, int)):
             transform_batch = [transform_batch]
@@ -1549,17 +1523,6 @@ class Posterior:
     ) -> Tuple:
 
         """Estimates data's count means, dispersions and dropout logits.
-
-        Parameters
-        ----------
-        n_samples: Optional[int] :
-             (Default value = 1)
-        give_mean: Optional[bool] :
-             (Default value = False)
-
-        Returns
-        -------
-
         """
         dropout_list = []
         mean_list = []
@@ -1612,38 +1575,38 @@ class Posterior:
     ) -> Union[np.ndarray, pd.DataFrame]:
         """Returns the frequencies of expression for the data.
 
-        This is denoted as \\( \rho_n \\) in the scVI paper.
+        This is denoted as :math:`\rho_n` in the scVI paper.
 
         Parameters
         ----------
-        transform_batch :
+        transform_batch
             Batch to condition on.
             If transform_batch is:
+
             - None, then real observed batch is used
             - int, then batch transform_batch is used
-        gene_list :
+        gene_list
             Return frequencies of expression for a subset of genes.
             This can save memory when working with large datasets and few genes are
             of interest.
-        library_size :
+        library_size
             Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
             magnitude.
-        return_df :
+        return_df
             Return a DataFrame instead of an `np.ndarray`. Includes gene
             names as columns. Requires either n_samples=1 or return_mean=True.
             When `gene_list` is not None and contains more than one gene, this is option is True.
             Otherwise, it defaults to False.
-        n_samples :
+        n_samples
             Get sample scale from multiple samples.
-        return_mean :
+        return_mean
             Whether to return the mean of the samples.
 
         Returns
         -------
-        type
-            Gene frequencies.  If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
-            Otherwise, shape is `(cells, genes)`. Return type is `np.ndarray` unless `return_df` is True.
+        Gene frequencies.  If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
+        Otherwise, shape is `(cells, genes)`. Return type is `np.ndarray` unless `return_df` is True.
 
         """
         if gene_list is None:
