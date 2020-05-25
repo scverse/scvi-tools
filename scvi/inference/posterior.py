@@ -3,7 +3,7 @@ import inspect
 import logging
 import os
 import warnings
-from typing import List, Optional, Union, Tuple, Callable
+from typing import List, Optional, Union, Tuple, Callable, Dict
 
 import numpy as np
 import pandas as pd
@@ -290,7 +290,9 @@ class Posterior:
         return ll
 
     @torch.no_grad()
-    def get_latent(self, give_mean: Optional[bool] = True) -> Tuple:
+    def get_latent(
+        self, give_mean: Optional[bool] = True
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Output posterior z mean or sample, batch index, and label
 
         Parameters
@@ -302,8 +304,12 @@ class Posterior:
 
         Returns
         -------
-        type
-            three np.ndarrays, latent, batch_indices, labels
+        latent
+            low-dim representation
+        batch_indices
+            batch indicies corresponding to each cell
+        labels
+            label corresponding to each cell
 
         """
         latent = []
@@ -534,7 +540,7 @@ class Posterior:
         delta: Optional[float] = 0.5,
         cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
         **kwargs,
-    ) -> dict:
+    ) -> Dict[str, np.ndarray]:
         r"""A unified method for differential expression inference.
 
         Two modes coexist:
@@ -901,13 +907,20 @@ class Posterior:
         batch ids.
         Examples:
 
+            >>> set(batchid1) = set(batchid2)
+
         or
 
+            >>> batchid1 = batchid2 = None
 
         3. If case and control are conditioned on different batch ids that do not intersect
         i.e.,
 
+            >>> set(batchid1) != set(batchid2)
+
         and
+
+            >>> len(set(batchid1).intersection(set(batchid2))) == 0
 
         This function does not cover other cases yet and will warn users in such cases.
 
@@ -960,22 +973,13 @@ class Posterior:
 
         Returns
         -------
-        type
-            Differential expression properties. The most important columns are:
+        diff_exp_results
+            The most important columns are:
 
             - ``proba_de`` (probability of being differentially expressed in change mode)
-            or ``bayes_factor`` (bayes factors in the vanilla mode)
+            - ``bayes_factor`` (bayes factors in the vanilla mode)
             - ``scale1`` and ``scale2`` (means of the scales in population 1 and 2)
-            - When using the change mode, the dataframe also contains information on the Posterior LFC
-            (its mean, median, std, and confidence intervals associated to ``cred_interval_lvls``).
-
-        >>> set(batchid1) = set(batchid2)
-
-            >>> batchid1 = batchid2 = None
-
-            >>> set(batchid1) != set(batchid2)
-
-            >>> len(set(batchid1).intersection(set(batchid2))) == 0
+            - When using the change mode, the mean, median, std of the posterior LFC
         """
         all_info = self.get_bayes_factors(
             idx1=idx1,
@@ -1300,6 +1304,7 @@ class Posterior:
         transform_batch
             Batches to condition on.
             If transform_batch is:
+
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - list of int, then px_rates are averaged over provided batches.
@@ -1351,8 +1356,10 @@ class Posterior:
 
         Returns
         -------
-        Tuple (x_new, x_old) where x_old has shape (n_cells, n_genes)
-         and where x_new has shape (n_cells, n_genes, n_samples)
+        x_new
+            tensor with shape (n_cells, n_genes, n_samples)
+        x_old
+            tensor with shape (n_cells, n_genes)
 
         """
         assert self.model.reconstruction_loss in ["zinb", "nb", "poisson"]
@@ -1486,7 +1493,8 @@ class Posterior:
 
         Returns
         -------
-        Gene-gene correlation matrix
+        correlation_matrix
+            Gene-gene correlation matrix
         """
         if (transform_batch is None) or (isinstance(transform_batch, int)):
             transform_batch = [transform_batch]
@@ -1573,7 +1581,7 @@ class Posterior:
         n_samples: int = 1,
         return_mean: bool = True,
     ) -> Union[np.ndarray, pd.DataFrame]:
-        """Returns the frequencies of expression for the data.
+        r"""Returns the frequencies of expression for the data.
 
         This is denoted as :math:`\rho_n` in the scVI paper.
 
@@ -1605,8 +1613,9 @@ class Posterior:
 
         Returns
         -------
-        Gene frequencies.  If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
-        Otherwise, shape is `(cells, genes)`. Return type is `np.ndarray` unless `return_df` is True.
+        denoised_expression
+            If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
+            Otherwise, shape is `(cells, genes)`. Return type is `np.ndarray` unless `return_df` is True.
 
         """
         if gene_list is None:

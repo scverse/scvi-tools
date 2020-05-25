@@ -20,9 +20,12 @@
 #
 import os
 import sys
+from pathlib import Path
 
 import scvi
 
+HERE = Path(__file__).parent
+sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
 sys.path.insert(0, os.path.abspath(".."))
 
 
@@ -48,6 +51,7 @@ extensions = [
     # "autodocsumm",
     "scanpydoc.elegant_typehints",
     "scanpydoc.rtd_github_links",
+    *[p.stem for p in (HERE / "extensions").glob("*.py")],
 ]
 
 # nbsphinx specific settings
