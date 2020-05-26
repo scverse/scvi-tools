@@ -218,6 +218,10 @@ class Posterior:
         ----------
         data_loader_kwargs
             dataloader updates.
+
+        Returns
+        -------
+        Updated posterior
         """
         posterior = copy.copy(self)
         posterior.data_loader_kwargs = copy.copy(self.data_loader_kwargs)
@@ -234,6 +238,7 @@ class Posterior:
         ----------
         batch_size
             New batch size.
+
         """
         return self.update(
             {
@@ -278,6 +283,10 @@ class Posterior:
         ----------
         n_mc_samples
             Number of MC estimates to use
+
+        Returns
+        -------
+        Marginal LL
         """
         if (
             hasattr(self.model, "reconstruction_loss")
@@ -1356,9 +1365,9 @@ class Posterior:
 
         Returns
         -------
-        x_new
+        x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
-        x_old
+        x_old : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes)
 
         """
@@ -1493,8 +1502,7 @@ class Posterior:
 
         Returns
         -------
-        correlation_matrix
-            Gene-gene correlation matrix
+        Gene-gene correlation matrix
         """
         if (transform_batch is None) or (isinstance(transform_batch, int)):
             transform_batch = [transform_batch]
@@ -1613,9 +1621,10 @@ class Posterior:
 
         Returns
         -------
-        denoised_expression
-            If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
-            Otherwise, shape is `(cells, genes)`. Return type is `np.ndarray` unless `return_df` is True.
+        - **denoised_expression** - array of decoded expression adjusted for library size
+
+        If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, genes)``.
+        Otherwise, shape is ``(cells, genes)``. Return type is ``np.ndarray`` unless ``return_df`` is True.
 
         """
         if gene_list is None:
