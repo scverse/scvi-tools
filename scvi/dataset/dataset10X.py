@@ -122,7 +122,7 @@ class Dataset10X(DownloadableDataset):
         url: str = None,
         type: str = "filtered",
         dense: bool = False,
-        measurement_names_column: int = 0,
+        measurement_names_column: int = 1,
         remove_extracted_data: bool = False,
         delayed_populating: bool = False,
     ):
