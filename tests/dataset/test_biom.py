@@ -1,8 +1,7 @@
 from unittest import TestCase
 
 from scvi.dataset import BiomDataset
-from .utils import unsupervised_training_one_epoch, unsupervised_training_ten_epoch
-# , unsupervised_nb_training_one_epoch
+from .utils import unsupervised_training_one_epoch
 
 
 class TestBiomDataset(TestCase):
