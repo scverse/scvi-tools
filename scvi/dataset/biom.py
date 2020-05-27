@@ -6,9 +6,11 @@ import numpy as np
 import pandas as pd
 
 from scvi.dataset.dataset import DownloadableDataset
-
-from biom import load_table
-
+try:
+    from biom import load_table
+except:
+    print('`biom-format` not installed. Run `pip install biom-format` '
+          'to make warning go away.')
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +34,12 @@ class BiomDataset(DownloadableDataset):
 
     Examples:
         >>> # Loading a remote dataset
-        >>> remote_url = "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE100866&format=file&file="
-        ... "GSE100866%5FCBMC%5F8K%5F13AB%5F10X%2DRNA%5Fumi%2Ecsv%2Egz")
-        >>> remote_csv_dataset = CsvDataset("GSE100866_CBMC_8K_13AB_10X-RNA_umi.csv.gz", save_path='data/',
-        ... compression="gzip", url=remote_url)
+        >>> remote_url = "https://github.com/biocore/American-Gut/"
+        ... "blob/master/data/HMP/HMPv35_100nt.biom?raw=true"
+        >>> remote_biom_dataset = BiomDataset("HMP.biom", save_path='data/',
+        ... url=remote_url)
         >>> # Loading a local dataset
-        >>> local_csv_dataset = CsvDataset("GSE100866_CBMC_8K_13AB_10X-RNA_umi.csv.gz",
-        ... save_path="data/", compression='gzip')
+        >>> local_csv_dataset = CsvDataset("HMP.biom", save_path="data/")
     """
 
     def __init__(
@@ -71,34 +72,47 @@ class BiomDataset(DownloadableDataset):
         if (new_n_genes is not None) or (subset_genes is not None):
             self.subsample_genes(new_n_genes=new_n_genes, subset_genes=subset_genes)
 
+    def read_biom(self, path):
+        """Loads a `.biom` file from a specified local path
+
+        :param path: File name to use when loading the data.
+
+        """
+        table = load_table(path)
+        # D : genes, N : samples (or cells)
+        sp_matrix = table.matrix_data  # csr_matrix: D x N
+        cells = table.ids(axis='sample')
+        genes = table.ids(axis='observation')
+        return sp_matrix, cells, genes
+
     def populate(self):
         logger.info("Preprocessing dataset")
-
-        table = load_table(os.path.join(self.save_path, self.filenames[0]))
-        gene_names = table.ids(axis='sample')
+        path = os.path.join(self.save_path, self.filenames[0])
+        sp_matrix, _, gene_names = self.read_biom(path)
 
         labels, cell_types, batch_indices = None, None, None
         if self.labels_file is not None:
             labels = pd.read_csv(
-                os.path.join(self.save_path, self.labels_file), header=0, index_col=0
+                os.path.join(self.save_path, self.labels_file),
+                header=0, index_col=0
             )
             labels = labels.values
             cell_types = np.unique(labels)
 
         if self.batch_ids_file is not None:
             batch_indices = pd.read_csv(
-                os.path.join(self.save_path, self.batch_ids_file), header=0, index_col=0
+                os.path.join(self.save_path, self.batch_ids_file),
+                header=0, index_col=0
             )
             batch_indices = batch_indices.values
 
         logger.info("Finished preprocessing dataset")
-
+        print(len(gene_names), sp_matrix.shape)
         self.populate_from_data(
-            X=table.matrix_data,
+            X=sp_matrix.T,
             batch_indices=batch_indices,
             labels=labels,
             gene_names=gene_names,
             cell_types=cell_types,
         )
         self.filter_cells_by_count()
-
