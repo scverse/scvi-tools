@@ -22,25 +22,25 @@ class FCLayers(nn.Module):
 
     Parameters
     ----------
-    n_in :
+    n_in
         The dimensionality of the input
-    n_out :
+    n_out
         The dimensionality of the output
-    n_cat_list :
+    n_cat_list
         A list containing, for each category of interest,
         the number of categories. Each category will be
         included using a one-hot encoding.
-    n_layers :
+    n_layers
         The number of fully-connected hidden layers
-    n_hidden :
+    n_hidden
         The number of nodes per hidden layer
-    dropout_rate :
+    dropout_rate
         Dropout rate to apply to each of the hidden layers
-    use_batch_norm :
+    use_batch_norm
         Whether to have `BatchNorm` layers or not
-    use_relu :
+    use_relu
         Whether to have `ReLU` layers or not
-    bias :
+    bias
         Whether to learn bias in linear layers or not
     """
 
@@ -95,18 +95,13 @@ class FCLayers(nn.Module):
 
         Parameters
         ----------
-        x :
+        x
             tensor of values with shape ``(n_in,)``
-        cat_list :
+        cat_list
             list of category membership(s) for this sample
-        instance_id :
+        instance_id
             Use a specific conditional instance normalization (batchnorm)
-        x: torch.Tensor :
-
-        *cat_list: int :
-
-        instance_id: int :
-             (Default value = 0)
+        x: torch.Tensor
 
         Returns
         -------
@@ -160,20 +155,20 @@ class Encoder(nn.Module):
 
     Parameters
     ----------
-    n_input :
+    n_input
         The dimensionality of the input (data space)
-    n_output :
+    n_output
         The dimensionality of the output (latent space)
-    n_cat_list :
+    n_cat_list
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
-    n_layers :
+    n_layers
         The number of fully-connected hidden layers
-    n_hidden :
+    n_hidden
         The number of nodes per hidden layer
         :dropout_rate: Dropout rate to apply to each of the hidden layers
-    distribution :
+    distribution
         Distribution of z
 
     Returns
@@ -213,19 +208,15 @@ class Encoder(nn.Module):
         """The forward computation for a single sample.
 
          #. Encodes the data into latent space using the encoder network
-         #. Generates a mean \\( q_m \\) and variance \\( q_v \\) (clamped to \\( [-5, 5] \\))
+         #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
          #. Samples a new value from an i.i.d. multivariate normal \\( \\sim Ne(q_m, \\mathbf{I}q_v) \\)
 
         Parameters
         ----------
-        x :
+        x
             tensor with shape (n_input,)
-        cat_list :
+        cat_list
             list of category membership(s) for this sample
-        x: torch.Tensor :
-
-        *cat_list: int :
-
 
         Returns
         -------
@@ -248,19 +239,19 @@ class DecoderSCVI(nn.Module):
 
     Parameters
     ----------
-    n_input :
+    n_input
         The dimensionality of the input (latent space)
-    n_output :
+    n_output
         The dimensionality of the output (data space)
-    n_cat_list :
+    n_cat_list
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
-    n_layers :
+    n_layers
         The number of fully-connected hidden layers
-    n_hidden :
+    n_hidden
         The number of nodes per hidden layer
-    dropout_rate :
+    dropout_rate
         Dropout rate to apply to each of the hidden layers
 
     Returns
@@ -307,7 +298,7 @@ class DecoderSCVI(nn.Module):
 
         Parameters
         ----------
-        dispersion :
+        dispersion
             One of the following
 
             * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
@@ -316,18 +307,10 @@ class DecoderSCVI(nn.Module):
             * ``'gene-cell'`` - dispersion can differ for every gene in every cell
         z :
             tensor with shape ``(n_input,)``
-        library :
+        library
             library size
-        cat_list :
+        cat_list
             list of category membership(s) for this sample
-        dispersion: str :
-
-        z: torch.Tensor :
-
-        library: torch.Tensor :
-
-        *cat_list: int :
-
 
         Returns
         -------
@@ -394,25 +377,27 @@ class LinearDecoderSCVI(nn.Module):
 
 # Decoder
 class Decoder(nn.Module):
-    """Decodes data from latent space of ``n_input`` dimensions to ``n_output``
+    """Decodes data from latent space to data space
+
+    ``n_input`` dimensions to ``n_output``
     dimensions using a fully-connected neural network of ``n_hidden`` layers.
     Output is the mean and variance of a multivariate Gaussian
 
     Parameters
     ----------
-    n_input :
+    n_input
         The dimensionality of the input (latent space)
-    n_output :
+    n_output
         The dimensionality of the output (data space)
-    n_cat_list :
+    n_cat_list
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
-    n_layers :
+    n_layers
         The number of fully-connected hidden layers
-    n_hidden :
+    n_hidden
         The number of nodes per hidden layer
-    dropout_rate :
+    dropout_rate
         Dropout rate to apply to each of the hidden layers
 
     Returns
@@ -448,14 +433,10 @@ class Decoder(nn.Module):
 
         Parameters
         ----------
-        x :
+        x
             tensor with shape ``(n_input,)``
-        cat_list :
+        cat_list
             list of category membership(s) for this sample
-        x: torch.Tensor :
-
-        *cat_list: int :
-
 
         Returns
         -------
@@ -601,13 +582,13 @@ class DecoderTOTALVI(nn.Module):
 
     Parameters
     ----------
-    n_input :
+    n_input
         The dimensionality of the input (latent space)
-    n_output_genes :
+    n_output_genes
         The dimensionality of the output (gene space)
-    n_output_proteins :
+    n_output_proteins
         The dimensionality of the output (protein space)
-    n_cat_list :
+    n_cat_list
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
@@ -748,18 +729,12 @@ class DecoderTOTALVI(nn.Module):
 
         Parameters
         ----------
-        z :
+        z
             tensor with shape ``(n_input,)``
-        library_gene :
+        library_gene
             library size
-        cat_list :
+        cat_list
             list of category membership(s) for this sample
-        z: torch.Tensor :
-
-        library_gene: torch.Tensor :
-
-        *cat_list: int :
-
 
         Returns
         -------
@@ -811,21 +786,21 @@ class EncoderTOTALVI(nn.Module):
 
     Parameters
     ----------
-    n_input :
+    n_input
         The dimensionality of the input (data space)
-    n_output :
+    n_output
         The dimensionality of the output (latent space)
-    n_cat_list :
+    n_cat_list
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
-    n_layers :
+    n_layers
         The number of fully-connected hidden layers
-    n_hidden :
+    n_hidden
         The number of nodes per hidden layer
-    dropout_rate :
+    dropout_rate
         Dropout rate to apply to each of the hidden layers
-    distribution :
+    distribution
         Distribution of the latent space, one of
 
         * ``'normal'`` - Normal distribution
@@ -901,14 +876,10 @@ class EncoderTOTALVI(nn.Module):
 
         Parameters
         ----------
-        data :
+        data
             tensor with shape ``(n_input,)``
-        cat_list :
+        cat_list
             list of category membership(s) for this sample
-        data: torch.Tensor :
-
-        *cat_list: int :
-
 
         Returns
         -------
