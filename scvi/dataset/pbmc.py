@@ -57,8 +57,18 @@ class PbmcDataset(DownloadableDataset):
         )
         # this downloads the necessary file for a future call to populate
         if delayed_populating:
-            Dataset10X("pbmc8k", save_path=self.save_path_10X, delayed_populating=True)
-            Dataset10X("pbmc4k", save_path=self.save_path_10X, delayed_populating=True)
+            Dataset10X(
+                "pbmc8k",
+                save_path=self.save_path_10X,
+                delayed_populating=True,
+                measurement_names_column=0,
+            )
+            Dataset10X(
+                "pbmc4k",
+                save_path=self.save_path_10X,
+                delayed_populating=True,
+                measurement_names_column=0,
+            )
 
     def populate(self):
         self.de_metadata = pd.read_csv(
@@ -72,11 +82,13 @@ class PbmcDataset(DownloadableDataset):
                 "pbmc8k",
                 save_path=self.save_path_10X,
                 remove_extracted_data=self.remove_extracted_data,
+                measurement_names_column=0,
             ),
             Dataset10X(
                 "pbmc4k",
                 save_path=self.save_path_10X,
                 remove_extracted_data=self.remove_extracted_data,
+                measurement_names_column=0,
             ),
         ]
         self.populate_from_datasets(datasets)
