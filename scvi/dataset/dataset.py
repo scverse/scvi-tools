@@ -1,11 +1,12 @@
-import copy
-import logging
-import os
-import urllib.request
 from abc import abstractmethod, ABC
 from collections import OrderedDict, defaultdict
+import copy
 from dataclasses import dataclass
 from functools import partial
+import logging
+import os
+import sys
+import urllib.request
 from typing import Dict, Iterable, List, Tuple, Union, Optional, Callable
 
 import numpy as np
@@ -1404,7 +1405,7 @@ class GeneExpressionDataset(Dataset):
 
         if flavor not in ["seurat_v2", "seurat_v3", "cell_ranger", "poisson_zeros"]:
             raise ValueError(
-                "Choose one of the following flavors: 'seurat_v2', 'seurat_v3', 'cell_ranger'"
+                "Choose one of the following flavors: 'seurat_v2', 'seurat_v3', 'cell_ranger', 'poisson_zeros'"
             )
 
         if flavor == "seurat_v3" and n_top_genes is None:
@@ -1412,24 +1413,20 @@ class GeneExpressionDataset(Dataset):
 
         logger.info("extracting highly variable genes using {} flavor".format(flavor))
 
-        if flavor == "poisson_zeros":
-            var = poisson_gene_selection(self.X, n_top_genes, **highly_var_genes_kwargs)
-
-            return var
-
         # Creating AnnData structure
         obs = pd.DataFrame(
             data=dict(batch=self.batch_indices.squeeze()),
             index=np.arange(self.nb_cells),
         ).astype("category")
 
-        counts = self.X.copy()
+        counts = sp_sparse.csc_matrix(self.X.copy())
         adata = sc.AnnData(X=counts, obs=obs)
         batch_key = "batch" if (batch_correction and self.n_batches >= 2) else None
-        if flavor != "seurat_v3":
+        if flavor in ["cell_ranger", "seurat_v2"]:
             if flavor == "seurat_v2":
                 # name expected by scanpy
                 flavor = "seurat"
+
             # Counts normalization
             sc.pp.normalize_total(adata, target_sum=1e4)
             # logarithmed data
@@ -1444,13 +1441,18 @@ class GeneExpressionDataset(Dataset):
                 inplace=True,  # inplace=False looks buggy
                 **highly_var_genes_kwargs,
             )
+
         elif flavor == "seurat_v3":
             seurat_v3_highly_variable_genes(
                 adata, n_top_genes=n_top_genes, batch_key=batch_key
             )
+
+        elif flavor == "poisson_zeros":
+            poisson_gene_selection(adata, n_top_genes, **highly_var_genes_kwargs)
+
         else:
             raise ValueError(
-                "flavor should be one of 'seurat_v2', 'cell_ranger', 'seurat_v3'"
+                "flavor should be one of 'seurat_v2', 'cell_ranger', 'seurat_v3', 'poisson_zeros'"
             )
 
         return adata.var
@@ -1477,7 +1479,7 @@ class GeneExpressionDataset(Dataset):
 
 
 def poisson_gene_selection(
-    X,
+    adata,
     n_top_genes: int = 4000,
     use_cuda = True,
     n_samples: int = 10000,
@@ -1495,7 +1497,7 @@ def poisson_gene_selection(
         Instead of Z-test, enrichment of zeros is quantified by posterior
         probabilites from a binomial model, computed through sampling.
 
-        :param X: Count matrix, preferably a sparse matrix.
+        :param adata: AnnData object (with sparse X matrix).
         :param n_top_genes: How many variable genes to select.
         :param use_cuda: Default: ``False``.
         :param n_samples: The number of Binomial samples to use to estimate posterior probability
@@ -1505,7 +1507,7 @@ def poisson_gene_selection(
             is faster but requires more RAM or GPU memory. (The default should be fine unless
             there are hundreds of millions cells or millions of genes.) Default ``5000``.
 
-        :return: A ``pd.DataFrame`` with per-gene statistics.
+        Writes columns in the adata.var DataDrame.
 
     """
     from tqdm import tqdm
@@ -1514,8 +1516,7 @@ def poisson_gene_selection(
     dev = torch.device('cuda:0' if use_cuda else 'cpu')
 
     # Make sure were are working with a sparse CSC matrix.
-    from scipy import sparse
-    X = sparse.csc_matrix(X)
+    X = adata.X
 
     # Calculate empirical statistics.
     scaled_means = torch.from_numpy(X.sum(0) / X.sum())[0].to(dev)
@@ -1544,7 +1545,7 @@ def poisson_gene_selection(
     expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
 
     extra_zeros = torch.zeros(expected_fraction_zeros.shape).to(dev)
-    for i in tqdm(range(n_samples), disable=silent, desc='Sampling from binomial'):
+    for i in tqdm(range(n_samples), disable=silent, desc='Sampling from binomial', file=sys.stdout):
         extra_zeros += (observed_zero.sample() > expected_zero.sample())
 
     prob_zero_enrichment = (extra_zeros / n_samples).cpu().numpy()
@@ -1562,18 +1563,15 @@ def poisson_gene_selection(
     if use_cuda:
         torch.cuda.empty_cache()
 
-    # Create result DataFrame
+    # Write results to adata.var
 
-    df = pd.DataFrame({
-        'observed_fraction_zeros': obs_frac_zeros,
-        'expected_fraction_zeros': exp_frac_zeros,
-        'prob_zero_enrichment': prob_zero_enrichment,
-        'highly_variable': False
-    })
+    adata.var['observed_fraction_zeros'] = obs_frac_zeros
+    adata.var['expected_fraction_zeros'] = exp_frac_zeros
+    adata.var['prob_zero_enrichment'] = prob_zero_enrichment
+    adata.var['highly_variable'] = False
 
-    df.loc[df.nlargest(n_top_genes, 'prob_zero_enrichment').index, 'highly_variable'] = True
-
-    return df
+    top_genes = adata.var.nlargest(n_top_genes, 'prob_zero_enrichment').index
+    adata.var.loc[top_genes, 'highly_variable'] = True
 
 
 def seurat_v3_highly_variable_genes(
