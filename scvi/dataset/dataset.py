@@ -1483,8 +1483,9 @@ def poisson_gene_selection(
     n_top_genes: int = 4000,
     use_cuda = True,
     n_samples: int = 10000,
+    batch_key: str = None,
     silent : bool = False,
-    batch_size : int = 5000,
+    minibatch_size : int = 5000,
     **kwargs
 ):
     """ Rank and select genes based on the enrichment of zero counts in data
@@ -1502,8 +1503,10 @@ def poisson_gene_selection(
         :param use_cuda: Default: ``False``.
         :param n_samples: The number of Binomial samples to use to estimate posterior probability
             of enrichment of zeros for each gene. Default: ``10000``.
+        :param batch_key: key in adata.obs that contains batch info. If None, do not use batch info.
+            Defatult: ``None``.
         :param silent: If ``True``, disables the progress bar. Default ``False``.
-        :param batch_size: Size of temporary matrix for incremental calculation. Larger
+        :param minibatch_size: Size of temporary matrix for incremental calculation. Larger
             is faster but requires more RAM or GPU memory. (The default should be fine unless
             there are hundreds of millions cells or millions of genes.) Default ``5000``.
 
@@ -1515,62 +1518,98 @@ def poisson_gene_selection(
     use_cuda = use_cuda and torch.cuda.is_available()
     dev = torch.device('cuda:0' if use_cuda else 'cpu')
 
-    # Make sure were are working with a sparse CSC matrix.
-    X = adata.X
+    if batch_key is None:
+        batch_info = pd.Categorical(np.zeros(adata.shape[0], dtype=int))
+    else:
+        batch_info = adata.obs[batch_key]
 
-    # Calculate empirical statistics.
-    scaled_means = torch.from_numpy(X.sum(0) / X.sum())[0].to(dev)
-    total_counts = torch.from_numpy(X.sum(1))[:, 0].to(dev)
+    prob_zero_enrichments = []
+    obs_frac_zeross = []
+    exp_frac_zeross = []
+    for b in np.unique(batch_info):
 
-    observed_fraction_zeros = torch.from_numpy(1. - (X > 0).sum(0) / X.shape[0])[0].to(dev)
+        X = adata[batch_info == b].X
 
-    # Calculate probability of zero for a Poisson model.
-    # Perform in batches to save memory.
-    batch_size = min(total_counts.shape[0], batch_size)
-    n_batches = total_counts.shape[0] // batch_size
+        # Calculate empirical statistics.
+        scaled_means = torch.from_numpy(X.sum(0) / X.sum())[0].to(dev)
+        total_counts = torch.from_numpy(X.sum(1))[:, 0].to(dev)
 
-    expected_fraction_zeros = torch.zeros(scaled_means.shape).to(dev)
+        observed_fraction_zeros = torch.from_numpy(1. - (X > 0).sum(0) / X.shape[0])[0].to(dev)
 
-    for i in range(n_batches):
-        total_counts_batch = total_counts[i * batch_size:(i + 1) * batch_size]
-        # Use einsum for outer product.
-        expected_fraction_zeros += torch.exp(-torch.einsum('i,j->ij', [scaled_means, total_counts_batch])).sum(1)
+        # Calculate probability of zero for a Poisson model.
+        # Perform in batches to save memory.
+        minibatch_size = min(total_counts.shape[0], minibatch_size)
+        n_batches = total_counts.shape[0] // minibatch_size
 
-    total_counts_batch = total_counts[(i + 1) * batch_size:]
-    expected_fraction_zeros += torch.exp(-torch.einsum('i,j->ij', [scaled_means, total_counts_batch])).sum(1)    
-    expected_fraction_zeros /= X.shape[0]
+        expected_fraction_zeros = torch.zeros(scaled_means.shape).to(dev)
 
-    # Compute probability of enriched zeros through sampling from Binomial distributions.
-    observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
-    expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
+        for i in range(n_batches):
+            total_counts_batch = total_counts[i * minibatch_size:(i + 1) * minibatch_size]
+            # Use einsum for outer product.
+            expected_fraction_zeros += torch.exp(-torch.einsum('i,j->ij', [scaled_means, total_counts_batch])).sum(1)
 
-    extra_zeros = torch.zeros(expected_fraction_zeros.shape).to(dev)
-    for i in tqdm(range(n_samples), disable=silent, desc='Sampling from binomial', file=sys.stdout):
-        extra_zeros += (observed_zero.sample() > expected_zero.sample())
+        total_counts_batch = total_counts[(i + 1) * minibatch_size:]
+        expected_fraction_zeros += torch.exp(-torch.einsum('i,j->ij', [scaled_means, total_counts_batch])).sum(1)    
+        expected_fraction_zeros /= X.shape[0]
 
-    prob_zero_enrichment = (extra_zeros / n_samples).cpu().numpy()
+        # Compute probability of enriched zeros through sampling from Binomial distributions.
+        observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
+        expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
 
-    obs_frac_zeros = observed_fraction_zeros.cpu().numpy()
-    exp_frac_zeros = expected_fraction_zeros.cpu().numpy()
+        extra_zeros = torch.zeros(expected_fraction_zeros.shape).to(dev)
+        for i in tqdm(range(n_samples), disable=silent, desc='Sampling from binomial', file=sys.stdout):
+            extra_zeros += (observed_zero.sample() > expected_zero.sample())
 
-    # Clean up memory (tensors seem to stay in GPU unless actively deleted).
-    del scaled_means
-    del total_counts
-    del expected_fraction_zeros
-    del observed_fraction_zeros
-    del extra_zeros
+        prob_zero_enrichment = (extra_zeros / n_samples).cpu().numpy()
 
-    if use_cuda:
-        torch.cuda.empty_cache()
+        obs_frac_zeros = observed_fraction_zeros.cpu().numpy()
+        exp_frac_zeros = expected_fraction_zeros.cpu().numpy()
+
+        # Clean up memory (tensors seem to stay in GPU unless actively deleted).
+        del scaled_means
+        del total_counts
+        del expected_fraction_zeros
+        del observed_fraction_zeros
+        del extra_zeros
+
+        if use_cuda:
+            torch.cuda.empty_cache()
+
+        prob_zero_enrichments.append(prob_zero_enrichment.reshape(1, -1))
+        obs_frac_zeross.append(obs_frac_zeros.reshape(1, -1))
+        exp_frac_zeross.append(exp_frac_zeros.reshape(1, -1))
+
+    # Combine per batch results
+
+    prob_zero_enrichments = np.concatenate(prob_zero_enrichments, axis=0)
+    obs_frac_zeross = np.concatenate(obs_frac_zeross, axis=0)
+    exp_frac_zeross = np.concatenate(exp_frac_zeross, axis=0)
+
+    ranked_prob_zero_enrichments = prob_zero_enrichments.argsort(axis=1).argsort(axis=1)
+    median_prob_zero_enrichments = np.median(prob_zero_enrichments, axis=0)
+
+    median_obs_frac_zeross = np.median(obs_frac_zeross, axis=0)
+    median_exp_frac_zeross = np.median(exp_frac_zeross, axis=0)
+
+    median_ranked = np.median(ranked_prob_zero_enrichments, axis=0)
+
+    num_batches_zero_enriched = np.sum(
+        ranked_prob_zero_enrichments >= (adata.shape[1] - n_top_genes),
+        axis=0
+    )
 
     # Write results to adata.var
 
-    adata.var['observed_fraction_zeros'] = obs_frac_zeros
-    adata.var['expected_fraction_zeros'] = exp_frac_zeros
-    adata.var['prob_zero_enrichment'] = prob_zero_enrichment
-    adata.var['highly_variable'] = False
+    adata.var['observed_fraction_zeros'] = median_obs_frac_zeross
+    adata.var['expected_fraction_zeros'] = median_exp_frac_zeross
+    adata.var['prob_zero_enriched_nbatches'] = num_batches_zero_enriched
+    adata.var['prob_zero_enrichment'] = median_prob_zero_enrichments
+    adata.var['prob_zero_enrichment_rank'] = median_ranked
 
-    top_genes = adata.var.nlargest(n_top_genes, 'prob_zero_enrichment').index
+
+    adata.var['highly_variable'] = False
+    sort_columns = ['prob_zero_enriched_nbatches', 'prob_zero_enrichment_rank']
+    top_genes = adata.var.nlargest(n_top_genes, sort_columns).index
     adata.var.loc[top_genes, 'highly_variable'] = True
 
 
@@ -1646,7 +1685,8 @@ def seurat_v3_highly_variable_genes(
     median_ranked = np.median(ranked_norm_gene_vars, axis=0)
 
     num_batches_high_var = np.sum(
-        ranked_norm_gene_vars >= (adata.X.shape[1] - n_top_genes), axis=0
+        ranked_norm_gene_vars >= (adata.X.shape[1] - n_top_genes),
+        axis=0
     )
     df = pd.DataFrame(index=np.array(adata.var_names))
     df["highly_variable_nbatches"] = num_batches_high_var
