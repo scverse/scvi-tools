@@ -1,3 +1,4 @@
+import unittest
 from unittest import TestCase
 import numpy as np
 from scvi.dataset import BrainLargeDataset, SyntheticDataset
@@ -96,3 +97,7 @@ class TestHighlyVariableGenes(TestCase):
         df = dataset._highly_variable_genes(n_top_genes=n_top, flavor="seurat_v3")
 
         assert df.loc[str(dataset.nb_genes - 1)]["highly_variable_median_variance"] == 0
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1525,6 +1525,7 @@ def poisson_gene_selection(
 
     # Calculate probability of zero for a Poisson model.
     # Perform in batches to save memory.
+    batch_size = min(total_counts.shape[0], batch_size)
     n_batches = total_counts.shape[0] // batch_size
 
     expected_fraction_zeros = torch.zeros(scaled_means.shape).to(dev)
