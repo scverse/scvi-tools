@@ -204,7 +204,7 @@ class SCANVI(VAE):
                 0.0,
             )
 
-        probs = self.classifier(z1)
+        probs = self.classify(x)
         reconst_loss += loss_z1_weight + (
             (loss_z1_unweight).view(self.n_labels, -1).t() * probs
         ).sum(dim=1)
@@ -212,10 +212,20 @@ class SCANVI(VAE):
         kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(
             dim=1
         )
-        kl_divergence += kl(
+        kl_c = kl(
             Categorical(probs=probs),
             Categorical(probs=self.y_prior.repeat(probs.size(0), 1)),
         )
+
+        if self.symmetric_kl:
+            kl_c = 0.5 * kl_c + 0.5 * kl(
+                Categorical(probs=self.y_prior.repeat(probs.size(0), 1)),
+                Categorical(probs=probs),
+            )
+
+        kl_divergence += kl_c
+
         kl_divergence += kl_divergence_l
 
         return reconst_loss, kl_divergence, 0.0
+        
