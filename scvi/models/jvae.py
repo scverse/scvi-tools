@@ -25,6 +25,50 @@ class JVAE(nn.Module):
     """Joint Variational auto-encoder for imputing missing genes in spatial data
 
     Implementation of gimVI [Lopez19]_.
+
+
+    dim_input_list
+        List of number of input genes for each dataset. If
+            the datasets have different sizes, the dataloader will loop on the
+            smallest until it reaches the size of the longest one
+    total_genes
+        Total number of different genes
+    indices_mappings
+        list of mapping the model inputs to the model output
+        Eg: ``[[0,2], [0,1,3,2]]`` means the first dataset has 2 genes that will be reconstructed at location ``[0,2]``
+        the second dataset has 4 genes that will be reconstructed at ``[0,1,3,2]``
+    reconstruction_losses
+        list of distributions to use in the generative process 'zinb', 'nb', 'poisson'
+    model_library_bools bool list
+        model or not library size with a latent variable or use observed values
+    n_latent
+        dimension of latent space
+    n_layers_encoder_individual
+        number of individual layers in the encoder
+    n_layers_encoder_shared
+        number of shared layers in the encoder
+    dim_hidden_encoder
+        dimension of the hidden layers in the encoder
+    n_layers_decoder_individual
+        number of layers that are conditionally batchnormed in the encoder
+    n_layers_decoder_shared
+        number of shared layers in the decoder
+    dim_hidden_decoder_individual
+        dimension of the individual hidden layers in the decoder
+    dim_hidden_decoder_shared
+        dimension of the shared hidden layers in the decoder
+    dropout_rate_encoder
+        dropout encoder
+    dropout_rate_decoder
+        dropout decoder
+    n_batch
+        total number of batches
+    n_labels
+        total number of labels
+    dispersion
+        See ``vae.py``
+    log_variational
+        Log(data+1) prior to encoding for numerical stability. Not normalization.
     """
 
     def __init__(
@@ -49,32 +93,6 @@ class JVAE(nn.Module):
         dispersion: str = "gene-batch",
         log_variational: bool = True,
     ):
-        """
-
-        :param dim_input_list: List of number of input genes for each dataset. If
-                the datasets have different sizes, the dataloader will loop on the
-                smallest until it reaches the size of the longest one
-        :param total_genes: Total number of different genes
-        :param indices_mappings: list of mapping the model inputs to the model output
-            Eg: [[0,2], [0,1,3,2]] means the first dataset has 2 genes that will be reconstructed at location [0,2]
-                                         the second dataset has 4 genes that will be reconstructed at [0,1,3,2]
-        :param reconstruction_losses: list of distributions to use in the generative process 'zinb', 'nb', 'poisson'
-        :param model_library_bools: bool list: model or not library size with a latent variable or use observed values
-        :param n_latent: dimension of latent space
-        :param n_layers_encoder_individual: number of individual layers in the encoder
-        :param n_layers_encoder_shared: number of shared layers in the encoder
-        :param dim_hidden_encoder: dimension of the hidden layers in the encoder
-        :param n_layers_decoder_individual: number of layers that are conditionally batchnormed in the encoder
-        :param n_layers_decoder_shared: number of shared layers in the decoder
-        :param dim_hidden_decoder_individual: dimension of the individual hidden layers in the decoder
-        :param dim_hidden_decoder_shared: dimension of the shared hidden layers in the decoder
-        :param dropout_rate_encoder: dropout encoder
-        :param dropout_rate_decoder: dropout decoder
-        :param n_batch: total number of batches
-        :param n_labels: total number of labels
-        :param dispersion: See ``vae.py``
-        :param log_variational: Log(data+1) prior to encoding for numerical stability. Not normalization.
-        """
         super().__init__()
 
         self.n_input_list = dim_input_list
@@ -204,18 +222,18 @@ class JVAE(nn.Module):
 
         Parameters
         ----------
-        x :
+        x
             tensor of values with shape ``(batch_size, n_input)``
             or ``(batch_size, n_input_fish)`` depending on the mode
-        mode :
+        mode
             int encode mode (which input head to use in the model)
-        batch_index :
+        batch_index
             array that indicates which batch the cells belong to with shape ``batch_size``
-        y :
+        y
             tensor of cell-types labels with shape ``(batch_size, n_labels)``
-        deterministic :
+        deterministic
             bool - whether to sample or not
-        decode_mode :
+        decode_mode
             int use to a decode mode different from encoding mode
 
         Returns
@@ -254,18 +272,18 @@ class JVAE(nn.Module):
 
         Parameters
         ----------
-        x :
+        x
             tensor of values with shape ``(batch_size, n_input)``
             or ``(batch_size, n_input_fish)`` depending on the mode
-        y :
+        y
             tensor of cell-types labels with shape ``(batch_size, n_labels)``
-        mode :
+        mode
             int encode mode (which input head to use in the model)
-        batch_index :
+        batch_index
             array that indicates which batch the cells belong to with shape ``batch_size``
-        deterministic :
+        deterministic
             bool - whether to sample or not
-        decode_mode :
+        decode_mode
             int use to a decode mode different from encoding mode
 
         Returns
@@ -375,38 +393,26 @@ class JVAE(nn.Module):
 
         Parameters
         ----------
-        x :
+        x
             tensor of values with shape ``(batch_size, n_input)``
             or ``(batch_size, n_input_fish)`` depending on the mode
-        local_l_mean :
+        local_l_mean
             tensor of means of the prior distribution of latent variable l
             with shape (batch_size, 1)
-        local_l_var :
+        local_l_var
             tensor of variances of the prior distribution of latent variable l
             with shape (batch_size, 1)
-        batch_index :
+        batch_index
             array that indicates which batch the cells belong to with shape ``batch_size``
-        y :
+        y
             tensor of cell-types labels with shape (batch_size, n_labels)
-        mode :
+        mode
             indicates which head/tail to use in the joint network
-        x: torch.Tensor :
 
-        local_l_mean: torch.Tensor :
-
-        local_l_var: torch.Tensor :
-
-        batch_index: Optional[torch.Tensor] :
-             (Default value = None)
-        y: Optional[torch.Tensor] :
-             (Default value = None)
-        mode: Optional[int] :
-             (Default value = None)
 
         Returns
         -------
-        type
-            the reconstruction loss and the Kullback divergences
+        the reconstruction loss and the Kullback divergences
 
         """
         if mode is None:
