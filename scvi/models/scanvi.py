@@ -18,39 +18,39 @@ class SCANVI(VAE):
 
     Parameters
     ----------
-    n_input :
+    n_input
         Number of input genes
-    n_batch :
+    n_batch
         Number of batches
-    n_labels :
+    n_labels
         Number of labels
-    n_hidden :
+    n_hidden
         Number of nodes per hidden layer
-    n_latent :
+    n_latent
         Dimensionality of the latent space
-    n_layers :
+    n_layers
         Number of hidden layers used for encoder and decoder NNs
-    dropout_rate :
+    dropout_rate
         Dropout rate for neural networks
-    dispersion :
+    dispersion
         One of the following
 
         * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
         * ``'gene-batch'`` - dispersion can differ between different batches
         * ``'gene-label'`` - dispersion can differ between different labels
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
-    log_variational :
+    log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
-    reconstruction_loss :
+    reconstruction_loss
         One of
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
-    y_prior :
+    y_prior
         If None, initialized to uniform probability over cell types
-    labels_groups :
+    labels_groups
         Label group designations
-    use_labels_groups :
+    use_labels_groups
         Whether to use the label groups
 
 
