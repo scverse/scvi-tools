@@ -1679,11 +1679,9 @@ class Posterior:
     def imputation_list(self, n_samples: int = 1) -> tuple:
         """Imputes data's gene counts from corrupted data.
 
-        :return: Original gene counts and imputations after corruption.
-
         Parameters
         ----------
-        n_samples: int :
+        n_samples
              (Default value = 1)
 
         Returns
@@ -1736,11 +1734,11 @@ class Posterior:
 
         Parameters
         ----------
-        original_list: List :
+        original_list
              (Default value = None)
-        imputed_list: List :
+        imputed_list
              (Default value = None)
-        n_samples: int :
+        n_samples
              (Default value = 1)
 
         Returns
@@ -1775,13 +1773,13 @@ class Posterior:
 
         Parameters
         ----------
-        n_samples: int :
+        n_samples
              (Default value = 8)
-        show_plot: bool :
+        show_plot
              (Default value = True)
-        title_plot: str :
+        title_plot
              (Default value = "imputation")
-        save_path: str :
+        save_path
              (Default value = "")
 
         Returns
@@ -1861,7 +1859,7 @@ class Posterior:
 
         Parameters
         ----------
-        **kwargs :
+        **kwargs
 
 
         Returns
