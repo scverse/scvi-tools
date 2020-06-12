@@ -24,7 +24,7 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
     Parameters
     ----------
     ad
-        anndata.AnnData`` instance.
+        ``anndata.AnnData`` instance.
     batch_label
         AnnData obs column name for batches
     ctype_label
