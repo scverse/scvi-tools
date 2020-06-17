@@ -18,8 +18,9 @@ class HematoDataset(DownloadableDataset):
     4,016 cells and 7,397 genes. We removed the library basal-bm1 which was of poor quality based on authors
     recommendation. We use their population balance analysis result as a potential function for differentiation.
 
-    Examples:
-        >>> gene_dataset = HematoDataset()
+    Examples
+    --------
+    >>> gene_dataset = HematoDataset()
     """
 
     def __init__(

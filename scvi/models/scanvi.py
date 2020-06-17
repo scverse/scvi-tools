@@ -11,43 +11,62 @@ from scvi.models.vae import VAE
 
 
 class SCANVI(VAE):
-    r"""Single-cell annotation using variational inference.
+    """Single-cell annotation using variational inference.
 
     This is an implementation of the scANVI model descibed in [Xu19]_,
     inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
 
-    :param n_input: Number of input genes
-    :param n_batch: Number of batches
-    :param n_labels: Number of labels
-    :param n_hidden: Number of nodes per hidden layer
-    :param n_latent: Dimensionality of the latent space
-    :param n_layers: Number of hidden layers used for encoder and decoder NNs
-    :param dropout_rate: Dropout rate for neural networks
-    :param dispersion: One of the following
+    Parameters
+    ----------
+    n_input
+        Number of input genes
+    n_batch
+        Number of batches
+    n_labels
+        Number of labels
+    n_hidden
+        Number of nodes per hidden layer
+    n_latent
+        Dimensionality of the latent space
+    n_layers
+        Number of hidden layers used for encoder and decoder NNs
+    dropout_rate
+        Dropout rate for neural networks
+    dispersion
+        One of the following
 
         * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
         * ``'gene-batch'`` - dispersion can differ between different batches
         * ``'gene-label'`` - dispersion can differ between different labels
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
-
-    :param log_variational: Log(data+1) prior to encoding for numerical stability. Not normalization.
-    :param reconstruction_loss:  One of
+    log_variational
+        Log(data+1) prior to encoding for numerical stability. Not normalization.
+    reconstruction_loss
+        One of
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
+    y_prior
+        If None, initialized to uniform probability over cell types
+    labels_groups
+        Label group designations
+    use_labels_groups
+        Whether to use the label groups
 
-    :param y_prior: If None, initialized to uniform probability over cell types
-    :param labels_groups: Label group designations
-    :param use_labels_groups: Whether to use the label groups
 
-    Examples:
-        >>> gene_dataset = CortexDataset()
-        >>> scanvi = SCANVI(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-        ... n_labels=gene_dataset.n_labels)
+    Returns
+    -------
 
-        >>> gene_dataset = SyntheticDataset(n_labels=3)
-        >>> scanvi = SCANVI(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-        ... n_labels=3, y_prior=torch.tensor([[0.1,0.5,0.4]]), labels_groups=[0,0,1])
+    Examples
+    --------
+
+    >>> gene_dataset = CortexDataset()
+    >>> scanvi = SCANVI(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+    ... n_labels=gene_dataset.n_labels)
+
+    >>> gene_dataset = SyntheticDataset(n_labels=3)
+    >>> scanvi = SCANVI(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+    ... n_labels=3, y_prior=torch.tensor([[0.1,0.5,0.4]]), labels_groups=[0,0,1])
     """
 
     def __init__(

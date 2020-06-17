@@ -18,20 +18,30 @@ def identity(x):
 
 
 class FCLayers(nn.Module):
-    r"""A helper class to build fully-connected layers for a neural network.
+    """A helper class to build fully-connected layers for a neural network.
 
-    :param n_in: The dimensionality of the input
-    :param n_out: The dimensionality of the output
-    :param n_cat_list: A list containing, for each category of interest,
-                 the number of categories. Each category will be
-                 included using a one-hot encoding.
-    :param n_layers: The number of fully-connected hidden layers
-    :param n_hidden: The number of nodes per hidden layer
-    :param dropout_rate: Dropout rate to apply to each of the hidden layers
-    :param use_batch_norm: Whether to have `BatchNorm` layers or not
-    :param use_relu: Whether to have `ReLU` layers or not
-    :param bias: Whether to learn bias in linear layers or not
-
+    Parameters
+    ----------
+    n_in
+        The dimensionality of the input
+    n_out
+        The dimensionality of the output
+    n_cat_list
+        A list containing, for each category of interest,
+        the number of categories. Each category will be
+        included using a one-hot encoding.
+    n_layers
+        The number of fully-connected hidden layers
+    n_hidden
+        The number of nodes per hidden layer
+    dropout_rate
+        Dropout rate to apply to each of the hidden layers
+    use_batch_norm
+        Whether to have `BatchNorm` layers or not
+    use_relu
+        Whether to have `ReLU` layers or not
+    bias
+        Whether to learn bias in linear layers or not
     """
 
     def __init__(
@@ -81,13 +91,22 @@ class FCLayers(nn.Module):
         )
 
     def forward(self, x: torch.Tensor, *cat_list: int, instance_id: int = 0):
-        r"""Forward computation on ``x``.
+        """Forward computation on ``x``.
 
-        :param x: tensor of values with shape ``(n_in,)``
-        :param cat_list: list of category membership(s) for this sample
-        :param instance_id: Use a specific conditional instance normalization (batchnorm)
-        :return: tensor of shape ``(n_out,)``
-        :rtype: :py:class:`torch.Tensor`
+        Parameters
+        ----------
+        x
+            tensor of values with shape ``(n_in,)``
+        cat_list
+            list of category membership(s) for this sample
+        instance_id
+            Use a specific conditional instance normalization (batchnorm)
+        x: torch.Tensor
+
+        Returns
+        -------
+        py:class:`torch.Tensor`
+            tensor of shape ``(n_out,)``
         """
         one_hot_cat_list = []  # for generality in this list many indices useless.
         assert len(self.n_cat_list) <= len(
@@ -131,18 +150,29 @@ class FCLayers(nn.Module):
 
 # Encoder
 class Encoder(nn.Module):
-    r"""Encodes data of ``n_input`` dimensions into a latent space of ``n_output``
+    """Encodes data of ``n_input`` dimensions into a latent space of ``n_output``
     dimensions using a fully-connected neural network of ``n_hidden`` layers.
 
-    :param n_input: The dimensionality of the input (data space)
-    :param n_output: The dimensionality of the output (latent space)
-    :param n_cat_list: A list containing the number of categories
-                       for each category of interest. Each category will be
-                       included using a one-hot encoding
-    :param n_layers: The number of fully-connected hidden layers
-    :param n_hidden: The number of nodes per hidden layer
-    :dropout_rate: Dropout rate to apply to each of the hidden layers
-    :param distribution: Distribution of z
+    Parameters
+    ----------
+    n_input
+        The dimensionality of the input (data space)
+    n_output
+        The dimensionality of the output (latent space)
+    n_cat_list
+        A list containing the number of categories
+        for each category of interest. Each category will be
+        included using a one-hot encoding
+    n_layers
+        The number of fully-connected hidden layers
+    n_hidden
+        The number of nodes per hidden layer
+        :dropout_rate: Dropout rate to apply to each of the hidden layers
+    distribution
+        Distribution of z
+
+    Returns
+    -------
     """
 
     def __init__(
@@ -175,16 +205,23 @@ class Encoder(nn.Module):
             self.z_transformation = identity
 
     def forward(self, x: torch.Tensor, *cat_list: int):
-        r"""The forward computation for a single sample.
+        """The forward computation for a single sample.
 
          #. Encodes the data into latent space using the encoder network
-         #. Generates a mean \\( q_m \\) and variance \\( q_v \\) (clamped to \\( [-5, 5] \\))
+         #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
          #. Samples a new value from an i.i.d. multivariate normal \\( \\sim Ne(q_m, \\mathbf{I}q_v) \\)
 
-        :param x: tensor with shape (n_input,)
-        :param cat_list: list of category membership(s) for this sample
-        :return: tensors of shape ``(n_latent,)`` for mean and var, and sample
-        :rtype: 3-tuple of :py:class:`torch.Tensor`
+        Parameters
+        ----------
+        x
+            tensor with shape (n_input,)
+        cat_list
+            list of category membership(s) for this sample
+
+        Returns
+        -------
+        3-tuple of :py:class:`torch.Tensor`
+            tensors of shape ``(n_latent,)`` for mean and var, and sample
         """
 
         # Parameters for latent distribution
@@ -197,17 +234,28 @@ class Encoder(nn.Module):
 
 # Decoder
 class DecoderSCVI(nn.Module):
-    r"""Decodes data from latent space of ``n_input`` dimensions ``n_output``
+    """Decodes data from latent space of ``n_input`` dimensions ``n_output``
     dimensions using a fully-connected neural network of ``n_hidden`` layers.
 
-    :param n_input: The dimensionality of the input (latent space)
-    :param n_output: The dimensionality of the output (data space)
-    :param n_cat_list: A list containing the number of categories
-                       for each category of interest. Each category will be
-                       included using a one-hot encoding
-    :param n_layers: The number of fully-connected hidden layers
-    :param n_hidden: The number of nodes per hidden layer
-    :param dropout_rate: Dropout rate to apply to each of the hidden layers
+    Parameters
+    ----------
+    n_input
+        The dimensionality of the input (latent space)
+    n_output
+        The dimensionality of the output (data space)
+    n_cat_list
+        A list containing the number of categories
+        for each category of interest. Each category will be
+        included using a one-hot encoding
+    n_layers
+        The number of fully-connected hidden layers
+    n_hidden
+        The number of nodes per hidden layer
+    dropout_rate
+        Dropout rate to apply to each of the hidden layers
+
+    Returns
+    -------
     """
 
     def __init__(
@@ -242,26 +290,33 @@ class DecoderSCVI(nn.Module):
     def forward(
         self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int
     ):
-        r"""The forward computation for a single sample.
+        """The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network
          #. Returns parameters for the ZINB distribution of expression
          #. If ``dispersion != 'gene-cell'`` then value for that param will be ``None``
 
-        :param dispersion: One of the following
+        Parameters
+        ----------
+        dispersion
+            One of the following
 
             * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
             * ``'gene-batch'`` - dispersion can differ between different batches
             * ``'gene-label'`` - dispersion can differ between different labels
             * ``'gene-cell'`` - dispersion can differ for every gene in every cell
+        z :
+            tensor with shape ``(n_input,)``
+        library
+            library size
+        cat_list
+            list of category membership(s) for this sample
 
-        :param z: tensor with shape ``(n_input,)``
-        :param library: library size
-        :param cat_list: list of category membership(s) for this sample
-        :return: parameters for the ZINB distribution of expression
-        :rtype: 4-tuple of :py:class:`torch.Tensor`
+        Returns
+        -------
+        4-tuple of :py:class:`torch.Tensor`
+            parameters for the ZINB distribution of expression
         """
-
         # The decoder returns values for the parameters of the ZINB distribution
         px = self.px_decoder(z, *cat_list)
         px_scale = self.px_scale_decoder(px)
@@ -322,18 +377,31 @@ class LinearDecoderSCVI(nn.Module):
 
 # Decoder
 class Decoder(nn.Module):
-    r"""Decodes data from latent space of ``n_input`` dimensions to ``n_output``
+    """Decodes data from latent space to data space
+
+    ``n_input`` dimensions to ``n_output``
     dimensions using a fully-connected neural network of ``n_hidden`` layers.
     Output is the mean and variance of a multivariate Gaussian
 
-    :param n_input: The dimensionality of the input (latent space)
-    :param n_output: The dimensionality of the output (data space)
-    :param n_cat_list: A list containing the number of categories
-                       for each category of interest. Each category will be
-                       included using a one-hot encoding
-    :param n_layers: The number of fully-connected hidden layers
-    :param n_hidden: The number of nodes per hidden layer
-    :param dropout_rate: Dropout rate to apply to each of the hidden layers
+    Parameters
+    ----------
+    n_input
+        The dimensionality of the input (latent space)
+    n_output
+        The dimensionality of the output (data space)
+    n_cat_list
+        A list containing the number of categories
+        for each category of interest. Each category will be
+        included using a one-hot encoding
+    n_layers
+        The number of fully-connected hidden layers
+    n_hidden
+        The number of nodes per hidden layer
+    dropout_rate
+        Dropout rate to apply to each of the hidden layers
+
+    Returns
+    -------
     """
 
     def __init__(
@@ -358,17 +426,24 @@ class Decoder(nn.Module):
         self.var_decoder = nn.Linear(n_hidden, n_output)
 
     def forward(self, x: torch.Tensor, *cat_list: int):
-        r"""The forward computation for a single sample.
+        """The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network
          #. Returns tensors for the mean and variance of a multivariate distribution
 
-        :param x: tensor with shape ``(n_input,)``
-        :param cat_list: list of category membership(s) for this sample
-        :return: Mean and variance tensors of shape ``(n_output,)``
-        :rtype: 2-tuple of :py:class:`torch.Tensor`
-        """
+        Parameters
+        ----------
+        x
+            tensor with shape ``(n_input,)``
+        cat_list
+            list of category membership(s) for this sample
 
+        Returns
+        -------
+        2-tuple of :py:class:`torch.Tensor`
+            Mean and variance tensors of shape ``(n_output,)``
+
+        """
         # Parameters for latent distribution
         p = self.decoder(x, *cat_list)
         p_m = self.mean_decoder(p)
@@ -502,15 +577,24 @@ class MultiDecoder(nn.Module):
 
 
 class DecoderTOTALVI(nn.Module):
-    r"""Decodes data from latent space of ``n_input`` dimensions ``n_output``
+    """Decodes data from latent space of ``n_input`` dimensions ``n_output``
     dimensions using a linear decoder
 
-    :param n_input: The dimensionality of the input (latent space)
-    :param n_output_genes: The dimensionality of the output (gene space)
-    :param n_output_proteins: The dimensionality of the output (protein space)
-    :param n_cat_list: A list containing the number of categories
-                       for each category of interest. Each category will be
-                       included using a one-hot encoding
+    Parameters
+    ----------
+    n_input
+        The dimensionality of the input (latent space)
+    n_output_genes
+        The dimensionality of the output (gene space)
+    n_output_proteins
+        The dimensionality of the output (protein space)
+    n_cat_list
+        A list containing the number of categories
+        for each category of interest. Each category will be
+        included using a one-hot encoding
+
+    Returns
+    -------
     """
 
     def __init__(
@@ -626,7 +710,7 @@ class DecoderTOTALVI(nn.Module):
         )
 
     def forward(self, z: torch.Tensor, library_gene: torch.Tensor, *cat_list: int):
-        r"""The forward computation for a single sample.
+        """The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network
          #. Returns local parameters for the ZINB distribution for genes
@@ -643,11 +727,19 @@ class DecoderTOTALVI(nn.Module):
          `back_alpha` and `back_beta` are the posterior parameters for `rate_back`.  `fore_scale` is the scaling
          factor that enforces `rate_fore` > `rate_back`.
 
-        :param z: tensor with shape ``(n_input,)``
-        :param library_gene: library size
-        :param cat_list: list of category membership(s) for this sample
-        :return: parameters for the ZINB distribution of expression
-        :rtype: 3-tuple (first 2-tuple :py:class:`dict`, last :py:class:`torch.Tensor`)
+        Parameters
+        ----------
+        z
+            tensor with shape ``(n_input,)``
+        library_gene
+            library size
+        cat_list
+            list of category membership(s) for this sample
+
+        Returns
+        -------
+        3-tuple (first 2-tuple :py:class:`dict`, last :py:class:`torch.Tensor`)
+            parameters for the ZINB distribution of expression
         """
         px_ = {}
         py_ = {}
@@ -689,21 +781,33 @@ class DecoderTOTALVI(nn.Module):
 
 # Encoder
 class EncoderTOTALVI(nn.Module):
-    r"""Encodes data of ``n_input`` dimensions into a latent space of ``n_output``
+    """Encodes data of ``n_input`` dimensions into a latent space of ``n_output``
     dimensions using a fully-connected neural network of ``n_hidden`` layers.
 
-    :param n_input: The dimensionality of the input (data space)
-    :param n_output: The dimensionality of the output (latent space)
-    :param n_cat_list: A list containing the number of categories
-                       for each category of interest. Each category will be
-                       included using a one-hot encoding
-    :param n_layers: The number of fully-connected hidden layers
-    :param n_hidden: The number of nodes per hidden layer
-    :param dropout_rate: Dropout rate to apply to each of the hidden layers
-    :param distribution: Distribution of the latent space, one of
+    Parameters
+    ----------
+    n_input
+        The dimensionality of the input (data space)
+    n_output
+        The dimensionality of the output (latent space)
+    n_cat_list
+        A list containing the number of categories
+        for each category of interest. Each category will be
+        included using a one-hot encoding
+    n_layers
+        The number of fully-connected hidden layers
+    n_hidden
+        The number of nodes per hidden layer
+    dropout_rate
+        Dropout rate to apply to each of the hidden layers
+    distribution
+        Distribution of the latent space, one of
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal
+
+    Returns
+    -------
     """
 
     def __init__(
@@ -759,7 +863,7 @@ class EncoderTOTALVI(nn.Module):
         return z, untran_z
 
     def forward(self, data: torch.Tensor, *cat_list: int):
-        r"""The forward computation for a single sample.
+        """The forward computation for a single sample.
 
          #. Encodes the data into latent space using the encoder network
          #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
@@ -770,12 +874,18 @@ class EncoderTOTALVI(nn.Module):
         so ``untran_latent["l"]`` gives the normal sample that was later exponentiated to become ``latent["l"]``.
         The logistic normal distribution is equivalent to applying softmax to a normal sample.
 
-        :param data: tensor with shape ``(n_input,)``
-        :param cat_list: list of category membership(s) for this sample
-        :return: tensors of shape ``(n_latent,)`` for mean and var, and sample
-        :rtype: 6-tuple. First 4 of :py:class:`torch.Tensor`, next 2 are `dict` of :py:class:`torch.Tensor`
-        """
+        Parameters
+        ----------
+        data
+            tensor with shape ``(n_input,)``
+        cat_list
+            list of category membership(s) for this sample
 
+        Returns
+        -------
+        6-tuple. First 4 of :py:class:`torch.Tensor`, next 2 are `dict` of :py:class:`torch.Tensor`
+            tensors of shape ``(n_latent,)`` for mean and var, and sample
+        """
         # Parameters for latent distribution
         q = self.encoder(data, *cat_list)
         qz = self.z_encoder(q)

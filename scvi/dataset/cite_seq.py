@@ -27,9 +27,15 @@ class CiteSeqDataset(DownloadableDataset):
     but do not explicit the actual transformation.
     It doesn't seem to be simply adding count 1 to all entries, or only 0 entries.
 
-    :param name: Name of the CiteSeq dataset to load. Either "cbmc", "pbmc" or "cd8".
-    :param save_path: Location to use when saving/loading the data.
-    :param delayed_populating: Switch for delayed populating mechanism.
+    Parameters
+    ----------
+    name
+        Name of the CiteSeq dataset to load. Either "cbmc", "pbmc" or "cd8".
+    save_path
+        Location to use when saving/loading the data.
+    delayed_populating
+        Switch for delayed populating mechanism.
+
     """
 
     def __init__(
@@ -131,12 +137,14 @@ class CbmcDataset(CiteSeqDataset):
     This dataset that includes 8,617 cord blood mononuclear cells profiled using 10x along with for each cell 13
     well-characterized mononuclear antibodies. We kept the top 600 genes by variance.
 
-    Args:
-        :save_path: Save path of raw data file. Default: ``'data/'``.
+    Parameters
+    ----------
+    save_path
+        Save path of raw data file.
 
-    Examples:
-        >>> gene_dataset = CbmcDataset()
-
+    Examples
+    --------
+    >>> gene_dataset = CbmcDataset()
     """
 
     def __init__(

@@ -79,31 +79,39 @@ available_specification = ["filtered", "raw"]
 
 
 class Dataset10X(DownloadableDataset):
-    """Loads a file from `10x`_ website.
+    """Loads a file from `10x <http://cf.10xgenomics.com/>`_ website.
 
-    :param dataset_name: Name of the dataset file. Has to be one of:
+    Parameters
+    ----------
+    dataset_name :
+        Name of the dataset file. Has to be one of:
         "frozen_pbmc_donor_a", "frozen_pbmc_donor_b", "frozen_pbmc_donor_c", "fresh_68k_pbmc_donor_a",
         "cd14_monocytes", "b_cells", "cd34", "cd56_nk", "cd4_t_helper", "regulatory_t", "naive_t",
         "memory_t", "cytotoxic_t", "naive_cytotoxic", "pbmc8k", "pbmc4k", "t_3k", "t_4k", "neuron_9k",
         "pbmc_1k_protein_v3", "pbmc_10k_protein_v3", "malt_10k_protein_v3", "pbmc_1k_v2", "pbmc_1k_v3",
         "pbmc_10k_v3", "hgmm_1k_v2", "hgmm_1k_v3", "hgmm_5k_v3", "hgmm_10k_v3", "neuron_1k_v2",
         "neuron_1k_v3", "neuron_10k_v3", "heart_1k_v2", "heart_1k_v3", "heart_10k_v3".
-    :param filename: manual override of the filename to write to.
-    :param save_path: Location to use when saving/loading the data.
-    :param url: manual override of the download remote location.
+    filename :
+        manual override of the filename to write to.
+    save_path :
+        Location to use when saving/loading the data.
+    url :
+        manual override of the download remote location.
         Note that we already provide urls for most 10X datasets,
         which are automatically formed only using the ``dataset_name``.
-    :param type: Either `filtered` data or `raw` data.
-    :param dense: Whether to load as dense or sparse.
+    type :
+        Either `filtered` data or `raw` data.
+    dense :
+        Whether to load as dense or sparse.
         If False, data is cast to sparse using ``scipy.sparse.csr_matrix``.
-    :param measurement_names_column: column in which to find measurement names in the corresponding `.tsv` file.
-    :param remove_extracted_data: Whether to remove extracted archives after populating the dataset.
+    measurement_names_column :
+        column in which to find measurement names in the corresponding `.tsv` file.
+    remove_extracted_data :
+        Whether to remove extracted archives after populating the dataset.
 
-    Examples:
-        >>> tenX_dataset = Dataset10X("neuron_9k")
-
-    .. _10x:
-        http://cf.10xgenomics.com/
+    Examples
+    --------
+    >>> tenX_dataset = Dataset10X("neuron_9k")
     """
 
     def __init__(
@@ -114,7 +122,7 @@ class Dataset10X(DownloadableDataset):
         url: str = None,
         type: str = "filtered",
         dense: bool = False,
-        measurement_names_column: int = 0,
+        measurement_names_column: int = 1,
         remove_extracted_data: bool = False,
         delayed_populating: bool = False,
     ):
@@ -257,7 +265,9 @@ class Dataset10X(DownloadableDataset):
         This is required because 10X doesn't have a consistent way of storing their data.
         Additionally, the function returns whether the data is stored in compressed format.
 
-        :return: path in which files are contains and their suffix if compressed.
+        Returns
+        -------
+        path in which files are contains and their suffix if compressed.
         """
         for root, subdirs, files in os.walk(self.save_path):
             # do not consider hidden files
@@ -287,11 +297,9 @@ class BrainSmallDataset(Dataset10X):
     We kept the top 3000 genes by variance. We used the clusters provided by cellRanger
     for the correlation analysis of zero probabilities.
 
-    Examples:
-        >>> gene_dataset = BrainSmallDataset()
-
-    .. _10x Genomics:
-        https://support.10xgenomics.com/single-cell-gene-expression/datasets
+    Examples
+    --------
+    >>> gene_dataset = BrainSmallDataset()
     """
 
     def __init__(
