@@ -1,5 +1,5 @@
 ---
-name: Use question
+name: Usage question
 about: Ask a question related to using scvi models (e.g., scVI, totalVI, scANVI)
 title: ''
 labels: question

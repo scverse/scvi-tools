@@ -24,5 +24,4 @@ assignees: ''
 <!-- Output of scvi.__version__ -->
 > VERSION
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+<!-- Relevant screenshots -->
