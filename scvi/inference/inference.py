@@ -120,9 +120,11 @@ class UnsupervisedTrainer(Trainer):
         return ["train_set"]
 
     def loss(self, tensors):
-        sample_batch, local_l_mean, local_l_var, batch_index, y = tensors
+        # The next lines should not be modified, because scanVI's trainer inherits
+        # from this class and should NOT include label information to compute the ELBO by default
+        sample_batch, local_l_mean, local_l_var, batch_index, _ = tensors
         reconst_loss, kl_divergence_local, kl_divergence_global = self.model(
-            sample_batch, local_l_mean, local_l_var, batch_index, y
+            sample_batch, local_l_mean, local_l_var, batch_index
         )
         loss = (
             self.n_samples
