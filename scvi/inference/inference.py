@@ -82,7 +82,7 @@ class UnsupervisedTrainer(Trainer):
         **kwargs
     ):
         train_size = float(train_size)
-        if train_size > 1 or train_size <= 0:
+        if train_size > 1.0 or train_size <= 0.0:
             raise ValueError(
                 "train_size needs to be greater than 0 and less than or equal to 1"
             )
