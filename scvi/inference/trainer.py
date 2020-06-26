@@ -356,7 +356,7 @@ class Trainer:
         self,
         model=None,
         gene_dataset=None,
-        train_size=0.8,
+        train_size=0.9,
         test_size=None,
         type_class=Posterior,
     ):
@@ -367,7 +367,7 @@ class Trainer:
         Parameters
         ----------
         train_size :
-            float, or None (default is 0.8)
+            float, or None (default is 0.9)
         test_size :
             float, or None (default is None)
         model :

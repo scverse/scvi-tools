@@ -56,7 +56,7 @@ class JVAETrainer(Trainer):
         model: nn.Module,
         discriminator: nn.Module,
         gene_dataset_list: List[GeneExpressionDataset],
-        train_size: float = 0.8,
+        train_size: float = 0.9,
         use_cuda: bool = True,
         kappa: float = 1.0,
         n_epochs_kl_warmup: int = 400,
