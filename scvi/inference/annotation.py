@@ -103,10 +103,10 @@ class ClassifierTrainer(Trainer):
     gene_dataset
         A gene_dataset instance like ``CortexDataset()``
     train_size
-        The train size, a float between 0 and 1 for the number of training samples
+        The train size, a float between 0 and 1 representing proportion of dataset to use for training
         to use Default: ``0.9``.
     test_size
-        The test size, either a float between 0 and 1 or and integer for the number of test samples
+        The test size, a float between 0 and 1 representing proportion of dataset to use for testing
         to use Default: ``None``.
     sampling_model
         Model with z_encoder with which to first transform data.
