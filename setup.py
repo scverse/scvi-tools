@@ -11,18 +11,18 @@ with open("HISTORY.rst") as history_file:
 
 requirements = [
     "numpy>=1.16.2",
-    "torch>=1.0.1",
+    "torch>=1.3",
     "matplotlib>=3.1.2",
     "scikit-learn>=0.20.3",
     "h5py>=2.9.0",
-    "pandas>=0.24.2",
+    "pandas>=1.0.5",
     "loompy>=3.0.6",
     "tqdm>=4.31.1",
     "xlrd>=1.2.0",
     "hyperopt==0.1.2",
-    "anndata>=0.7",
+    "anndata>=0.7.3",
     "statsmodels",
-    "scanpy>=1.4",
+    "scanpy>=1.5.1",
     'dataclasses; python_version < "3.7"',  # for `dataclass`
     "scikit-misc",
 ]
