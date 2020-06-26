@@ -62,6 +62,11 @@ class JVAETrainer(Trainer):
         n_epochs_kl_warmup: int = 400,
         **kwargs
     ):
+        train_size = float(train_size)
+        if train_size > 1.0 or train_size <= 0.0:
+            raise ValueError(
+                "train_size needs to be greater than 0 and less than or equal to 1"
+            )
 
         super().__init__(model, gene_dataset_list[0], use_cuda=use_cuda, **kwargs)
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
