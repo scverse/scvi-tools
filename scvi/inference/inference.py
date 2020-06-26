@@ -1,6 +1,6 @@
 import logging
 import copy
-from typing import Union
+from typing import Union, List
 
 import matplotlib.pyplot as plt
 import torch
@@ -119,12 +119,14 @@ class UnsupervisedTrainer(Trainer):
     def posteriors_loop(self):
         return ["train_set"]
 
-    def loss(self, tensors):
+    def loss(self, tensors: List, feed_labels: bool = True):
         # The next lines should not be modified, because scanVI's trainer inherits
         # from this class and should NOT include label information to compute the ELBO by default
-        sample_batch, local_l_mean, local_l_var, batch_index, _ = tensors
+        sample_batch, local_l_mean, local_l_var, batch_index, y = tensors
+        if not feed_labels:
+            y = None
         reconst_loss, kl_divergence_local, kl_divergence_global = self.model(
-            sample_batch, local_l_mean, local_l_var, batch_index
+            sample_batch, local_l_mean, local_l_var, batch_index, y
         )
         loss = (
             self.n_samples
