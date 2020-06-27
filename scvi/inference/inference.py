@@ -23,7 +23,7 @@ class UnsupervisedTrainer(Trainer):
     gene_dataset
         A gene_dataset instance like ``CortexDataset()``
     train_size
-        The train size, a float between 0 and 1 representing proportion of dataset to use for training 
+        The train size, a float between 0 and 1 representing proportion of dataset to use for training
         to use Default: ``0.9``.
     test_size
         The test size,  a float between 0 and 1 representing proportion of dataset to use for testing
