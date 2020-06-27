@@ -289,7 +289,7 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         super().__setattr__(key, value)
 
     def loss(self, tensors_all, tensors_labelled):
-        loss = super().loss(tensors_all)
+        loss = super().loss(tensors_all, feed_labels=False)
         sample_batch, _, _, _, y = tensors_labelled
         classification_loss = F.cross_entropy(
             self.model.classify(sample_batch), y.view(-1)
