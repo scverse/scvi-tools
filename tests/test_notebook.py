@@ -97,7 +97,7 @@ class NotebookLoader(object):
                             "save_path = '" + os.getcwd() + "'",
                             code,
                         )
-                        code = re.sub("dendrogram=False", "dendrogram=True", code,)
+                        code = re.sub("dendrogram=True", "dendrogram=False", code,)
                         code = re.sub("show_plot = True", "show_plot = False", code)
                         code = re.sub("test_mode = False", "test_mode = True", code)
                         # run the code in themodule
