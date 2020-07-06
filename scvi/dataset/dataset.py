@@ -1578,7 +1578,7 @@ class GeneExpressionDataset(Dataset):
             List of ``np.ndarray`` containing, for each batch, a mask of which columns were
             actually measured in that batch. This is useful when taking the union of a cell measurement
             over datasets.
-            
+
         """
         batch_mask = []
         for b in np.unique(self.batch_indices.ravel()):
