@@ -1611,19 +1611,28 @@ def poisson_gene_selection(
         Instead of Z-test, enrichment of zeros is quantified by posterior
         probabilites from a binomial model, computed through sampling.
 
-        :param adata: AnnData object (with sparse X matrix).
-        :param n_top_genes: How many variable genes to select.
-        :param use_cuda: Default: ``False``.
-        :param n_samples: The number of Binomial samples to use to estimate posterior probability
-            of enrichment of zeros for each gene. Default: ``10000``.
-        :param batch_key: key in adata.obs that contains batch info. If None, do not use batch info.
-            Defatult: ``None``.
-        :param silent: If ``True``, disables the progress bar. Default ``False``.
-        :param minibatch_size: Size of temporary matrix for incremental calculation. Larger
-            is faster but requires more RAM or GPU memory. (The default should be fine unless
-            there are hundreds of millions cells or millions of genes.) Default ``5000``.
+        Writes columns in the adata.var DataFrame.
 
-        Writes columns in the adata.var DataDrame.
+        Parameters
+        ----------
+        adata :
+            AnnData object (with sparse X matrix).
+        n_top_genes :
+            How many variable genes to select.
+        use_cuda :
+            Default: ``False``.
+        n_samples :
+            The number of Binomial samples to use to estimate posterior probability
+            of enrichment of zeros for each gene. Default: ``10000``.
+        batch_key :
+            key in adata.obs that contains batch info. If None, do not use batch info.
+            Defatult: ``None``.
+        silent :
+            If ``True``, disables the progress bar. Default ``False``.
+        minibatch_size :
+            Size of temporary matrix for incremental calculation. Larger is faster but
+            requires more RAM or GPU memory. (The default should be fine unless
+            there are hundreds of millions cells or millions of genes.) Default ``5000``.
 
     """
     from tqdm import tqdm
