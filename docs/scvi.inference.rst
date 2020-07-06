@@ -1,10 +1,3 @@
-scvi.inference package
-======================
+.. automodapi:: scvi.inference
+    :no-inheritance-diagram:
 
-Module contents
----------------
-
-.. automodule:: scvi.inference
-    :members:
-    :undoc-members:
-    :show-inheritance:

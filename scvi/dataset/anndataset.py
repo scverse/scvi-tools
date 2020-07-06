@@ -21,11 +21,19 @@ logger = logging.getLogger(__name__)
 class AnnDatasetFromAnnData(GeneExpressionDataset):
     """Forms a ``GeneExpressionDataset`` from a ``anndata.AnnData`` object.
 
-    :param ad: ``anndata.AnnData`` instance.
-    :param batch_label: ``str`` representing AnnData obs column name for batches
-    :param ctype_label: ``str`` representing AnnData obs column name for cell_types
-    :param class_label: ``str`` representing AnnData obs column name for labels
-    :param use_raw: if True, copies data from .raw attribute of AnnData
+    Parameters
+    ----------
+    ad
+        ``anndata.AnnData`` instance.
+    batch_label
+        AnnData obs column name for batches
+    ctype_label
+        AnnData obs column name for cell_types
+    class_label
+        AnnData obs column name for labels
+    use_raw
+        if True, copies data from .raw attribute of AnnData
+
     """
 
     def __init__(
@@ -90,22 +98,30 @@ class AnnDatasetFromAnnData(GeneExpressionDataset):
 class DownloadableAnnDataset(DownloadableDataset):
     """Forms a ``DownloadableDataset`` from a `.h5ad` file using the ``anndata`` package.
 
-    :param filename: Name of the `.h5ad` file to save/load.
-    :param save_path: Location to use when saving/loading the data.
-    :param url: URL pointing to the data which will be downloaded
+    Parameters
+    ----------
+    filename
+        Name of the `.h5ad` file to save/load.
+    save_path
+        Location to use when saving/loading the data.
+    url
+        URL pointing to the data which will be downloaded
         if it's not already in ``save_path``.
-    :param delayed_populating: Switch for delayed populating mechanism.
-    :param batch_label: ``str`` representing AnnData obs column name for batches
-    :param ctype_label: ``str`` representing AnnData obs column name for cell_types
-    :param class_label: ``str`` representing AnnData obs column name for labels
-    :param use_raw: if True, copies data from .raw attribute of AnnData
+    delayed_populating
+        Switch for delayed populating mechanism.
+    batch_label
+        AnnData obs column name for batches
+    ctype_label
+        AnnData obs column name for cell_types
+    class_label
+        AnnData obs column name for labels
+    use_raw
+        if True, copies data from .raw attribute of AnnData
 
-        Examples:
-        >>> # Loading a local dataset
-        >>> dataset = DownloadableAnnDataset("TM_droplet_mat.h5ad", save_path = 'data/')
-
-    .. _Anndata:
-        http://anndata.readthedocs.io/en/latest/
+    Examples
+    --------
+    >>> # Loading a local dataset
+    >>> dataset = DownloadableAnnDataset("TM_droplet_mat.h5ad", save_path = 'data/')
     """
 
     def __init__(

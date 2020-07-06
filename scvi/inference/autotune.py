@@ -136,7 +136,8 @@ def _cleanup_logger():
 
 
 def _cleanup_decorator(func: Callable):
-    """Decorates top-level calls in order to launch cleanup when an Exception is caught."""
+    """Decorates top-level calls in order to launch cleanup when an Exception is caught.
+    """
 
     @wraps(func)
     def decorated(*args, **kwargs):
@@ -157,7 +158,8 @@ def _cleanup_decorator(func: Callable):
 
 
 def _error_logger_decorator(func: Callable):
-    """Decorates top-level calls in order to launch cleanup when an Exception is caught."""
+    """Decorates top-level calls in order to launch cleanup when an Exception is caught.
+    """
 
     @wraps(func)
     def decorated(*args, **kwargs):
@@ -176,7 +178,8 @@ def _error_logger_decorator(func: Callable):
 
 
 def configure_asynchronous_logging(logging_queue: multiprocessing.Queue):
-    """Helper for asynchronous logging - Writes all logs to a queue."""
+    """Helper for asynchronous logging - Writes all logs to a queue.
+    """
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
     queue_handler = QueueHandler(logging_queue)
@@ -186,7 +189,8 @@ def configure_asynchronous_logging(logging_queue: multiprocessing.Queue):
 
 
 def _asynchronous_logging_method_decorator(func: Callable):
-    """Decorates top-level calls in order to launch cleanup when an Exception is caught."""
+    """Decorates top-level calls in order to launch cleanup when an Exception is caught.
+    """
 
     @wraps(func)
     def decorated(self, *args, **kwargs):
@@ -240,67 +244,105 @@ def auto_tune_scvi_model(
     In particular, for the parallel case, only a progress bar is shown if the
     logging level is equal or higher to ``logging.WARNING``.
 
-    :param exp_key: Name of the experiment in MongoDb.
+    Parameters
+    ----------
+    exp_key :
+        Name of the experiment in MongoDb.
         If already exists in db, ``hyperopt`` will run a number of trainings equal to
         the difference between current and previous ``max_evals``.
-    :param gene_dataset: scVI gene expression dataset.
-    :param delayed_populating: Switch for the delayed populating mechanism
+    gene_dataset :
+        scVI gene expression dataset.
+    delayed_populating :
+        Switch for the delayed populating mechanism
         of scvi.dataset.dataset.DownloadableDataset. Useful for large datasets
         which have to be instantiated inside the workers.
-    :param custom_objective_hyperopt: A custom objective function respecting the ``hyperopt`` format.
+    custom_objective_hyperopt :
+        A custom objective function respecting the ``hyperopt`` format.
         Roughly, it needs to return the quantity to optimize for, either directly
         or in a ``dict`` under the "loss" key.
         See https://github.com/hyperopt/hyperopt/wiki for a more detailed explanation.
         By default, we provide an objective function which can be parametrized
         through the various arguments of this function (``gene_dataset``, ``model_class``, etc.)
-    :param objective_kwargs: Dictionary containing the fixed keyword arguments `
+    objective_kwargs :
+        Dictionary containing the fixed keyword arguments `
         to the custom `objective_hyperopt.
-    :param model_class: scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
-    :param trainer_class: ``Trainer`` sub-class (e.g ``UnsupervisedTrainer``)
-    :param metric_name: Name of the metric to optimize for. If `None` defaults to ``marginal_ll``
-    :param metric_kwargs: keyword arguments for the metric method.
+    model_class :
+        scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
+    trainer_class :
+        Trainer`` sub-class (e.g ``UnsupervisedTrainer``)
+    metric_name :
+        Name of the metric to optimize for. If `None` defaults to ``marginal_ll``
+    metric_kwargs :
+        keyword arguments for the metric method.
         If `metric_name` is None, defaults to {"n_mc_samples": 100}.
-    :param posterior_name: Name of the posterior distribution to compute the metric with.
-    :param model_specific_kwargs: ``dict`` of fixed parameters which will be passed to the model.
-    :param trainer_specific_kwargs: ``dict`` of fixed parameters which will be passed to the trainer.
-    :param train_func_specific_kwargs: dict of fixed parameters which will be passed to the train method.
-    :param space: dict containing up to three sub-dicts with keys "model_tunable_kwargs",
+    posterior_name :
+        Name of the posterior distribution to compute the metric with.
+    model_specific_kwargs :
+        dict`` of fixed parameters which will be passed to the model.
+    trainer_specific_kwargs :
+        dict`` of fixed parameters which will be passed to the trainer.
+    train_func_specific_kwargs :
+        dict of fixed parameters which will be passed to the train method.
+    space :
+        dict containing up to three sub-dicts with keys "model_tunable_kwargs",
         "trainer_tunable_kwargs" or "train_func_tunable_kwargs".
         Each of those dict contains ``hyperopt`` defined parameter spaces (e.g. ``hp.choice(..)``)
         which will be passed to the corresponding object : model, trainer or train method
         when performing hyper-optimization. Default: mutable, see source code.
-    :param max_evals: Maximum number of evaluations of the objective.
-    :param train_best: If ``True``, train best model and return it.
-    :param pickle_result: If ``True``, pickle ``Trials`` and  ``Trainer`` objects using ``save_path``.
-    :param save_path: Path where to save best model, trainer, trials and mongo files.
-    :param use_batches: If ``False``, pass ``n_batch=0`` to model else pass ``gene_dataset.n_batches``.
-    :param parallel: If ``True``, use ``MongoTrials`` object to run trainings in parallel.
-    :param n_cpu_workers: Number of cpu workers to launch. If None, and no GPUs are found,
+    max_evals :
+        Maximum number of evaluations of the objective.
+    train_best :
+        If ``True``, train best model and return it.
+    pickle_result :
+        If ``True``, pickle ``Trials`` and  ``Trainer`` objects using ``save_path``.
+    save_path :
+        Path where to save best model, trainer, trials and mongo files.
+    use_batches :
+        If ``False``, pass ``n_batch=0`` to model else pass ``gene_dataset.n_batches``.
+    parallel :
+        If ``True``, use ``MongoTrials`` object to run trainings in parallel.
+    n_cpu_workers :
+        Number of cpu workers to launch. If None, and no GPUs are found,
         defaults to ``os.cpucount() - 1``. Else, defaults to 0.
-    :param gpu_ids: Ids of the GPUs to use. If None defaults to all GPUs found by ``torch``.
+    gpu_ids :
+        Ids of the GPUs to use. If None defaults to all GPUs found by ``torch``.
         Note that considered gpu ids are int from 0 to ``torch.cuda.device_count()``.
-    :param n_workers_per_gpu: Number of workers to launch per gpu found by ``torch``.
-    :param reserve_timeout: Amount of time, in seconds, a worker tries to reserve a job for
+    n_workers_per_gpu :
+        Number of workers to launch per gpu found by ``torch``.
+    reserve_timeout :
+        Amount of time, in seconds, a worker tries to reserve a job for
         before throwing a ``ReserveTimeout`` Exception.
-    :param fmin_timeout: Amount of time, in seconds, fmin_process has to terminate
+    fmin_timeout :
+        Amount of time, in seconds, fmin_process has to terminate
         after all workers have died - before throwing a ``FminTimeoutError``.
         If ``multiple_hosts`` is set to ``True``, this is set to ``None`` to prevent timing out.
-    :param fmin_timer: Global amount of time allowed for fmin_process.
+    fmin_timer :
+        Global amount of time allowed for fmin_process.
         If not None, the minimization procedure will be stopped after ``fmin_timer`` seconds.
         Used only if ``parallel`` is set to ``True``.
-    :param mongo_port: Port to the Mongo db.
-    :param mongo_host: Hostname used with ``mongo_port`` to indicate the prefix of the mongodb address.
+    mongo_port :
+        Port to the Mongo db.
+    mongo_host :
+        Hostname used with ``mongo_port`` to indicate the prefix of the mongodb address.
         The prefix of the address passed onto the workers and ``MongoTrials`` object
         is ``'{mongo_host}:{mongo_port}'``.
-    :param db_name: Name to use when creating the Mongo database. Suffix of the Mongo address.
-    :param multiple_hosts: If ``True``, user is considered to have workers launched on several machines.
+    db_name :
+        Name to use when creating the Mongo database. Suffix of the Mongo address.
+    multiple_hosts :
+        If ``True``, user is considered to have workers launched on several machines.
         Therefore, setting this to ``True`` disables the ``fmin_timeout`` behaviour.
-    :return: ``Trainer`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
 
-    Examples:
-        >>> from scvi.dataset import CortexDataset
-        >>> gene_dataset = CortexDataset()
-        >>> best_trainer, trials = auto_tune_scvi_model("cortex", gene_dataset)
+    Returns
+    -------
+    type
+        ``Trainer`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
+
+    Examples
+    --------
+
+    >>> from scvi.dataset import CortexDataset
+    >>> gene_dataset = CortexDataset()
+    >>> best_trainer, trials = auto_tune_scvi_model("cortex", gene_dataset)
     """
     global fh_autotune
 
@@ -495,6 +537,7 @@ def _auto_tune_parallel(
     multiple_hosts: bool = False,
 ) -> MongoTrials:
     """Parallel version of the hyperoptimization procedure.
+
     Called by ``auto_tune_scvi_model`` when ``parallel=True``.
     Specifically, first the MongoDb service is launched in its own forked process.
     Then, the call to the minimization process is made in its own forked process.
@@ -512,35 +555,57 @@ def _auto_tune_parallel(
     Note that the progress bar is automatically disabled if the logging level
     for ``scvi.inference.autotune`` is lower than logging.WARNING.
 
-    :param objective_hyperopt: Callable, the objective function to minimize.
-    :param exp_key: Name of the experiment in MongoDb.
-    :param space: ``dict`` containing up to three sub-dicts with keys "model_tunable_kwargs",
+    Parameters
+    ----------
+    objective_hyperopt :
+        Callable, the objective function to minimize.
+    exp_key :
+        Name of the experiment in MongoDb.
+    space :
+        dict`` containing up to three sub-dicts with keys "model_tunable_kwargs",
         "trainer_tunable_kwargs" or "train_func_tunable_kwargs".
         Each of those dict contains ``hyperopt`` defined parameter spaces (e.g. ``hp.choice(..)``)
         which will be passed to the corresponding object : model, trainer or train method
         when performing hyperoptimization. Default: mutable, see source code.
-    :param max_evals: Maximum number of evaluations of the objective.
-    :param save_path: Path where to save best model, trainer, trials and mongo files.
-    :param n_cpu_workers: Number of cpu workers to launch. If None, and no GPUs are found,
+    max_evals :
+        Maximum number of evaluations of the objective.
+    save_path :
+        Path where to save best model, trainer, trials and mongo files.
+    n_cpu_workers :
+        Number of cpu workers to launch. If None, and no GPUs are found,
         defaults to ``os.cpucount() - 1``. Else, defaults to 0.
-    :param gpu_ids: Ids of the GPUs to use. If None defaults to all GPUs found by ``torch``.
+    gpu_ids :
+        Ids of the GPUs to use. If None defaults to all GPUs found by ``torch``.
         Note that considered gpu ids are int from ``0`` to ``torch.cuda.device_count()``.
-    :param n_workers_per_gpu: Number of workers ton launch per gpu found by ``torch``.
-    :param reserve_timeout: Amount of time, in seconds, a worker tries to reserve a job for
+    n_workers_per_gpu :
+        Number of workers ton launch per gpu found by ``torch``.
+    reserve_timeout :
+        Amount of time, in seconds, a worker tries to reserve a job for
         before throwing a ``ReserveTimeout`` Exception.
-    :param fmin_timeout: Amount of time, in seconds, ``fmin_process`` has to terminate
+    fmin_timeout :
+        Amount of time, in seconds, ``fmin_process`` has to terminate
         after all workers have died - before throwing a ``FminTimeoutError``.
         If ``multiple_hosts`` is set to ``True``, this is set to None to disable the timeout behaviour.
-    :param fmin_timer: Global amount of time allowed for fmin_process.
+    fmin_timer :
+        Global amount of time allowed for fmin_process.
         If not None, the minimization procedure will be stopped after ``fmin_timer`` seconds.
         Used only if ``parallel`` is set to ``True``.
-    :param mongo_port: Port to the mongo db.
-    :param mongo_host: Hostname used with mongo_port to indicate the prefix of the mongodb address.
+    mongo_port :
+        Port to the mongo db.
+    mongo_host :
+        Hostname used with mongo_port to indicate the prefix of the mongodb address.
         The prefix of the address passed onto the workers and MongoTrials object is ``'{mongo_host}:{mongo_port}'``.
-    :param db_name: Name to use when creating the Mongo database. Suffix of the mongo address.
-    :param multiple_hosts: If ``True``, user is considered to have workers launched on several machines.
+    db_name :
+        Name to use when creating the Mongo database. Suffix of the mongo address.
+    multiple_hosts :
+        If ``True``, user is considered to have workers launched on several machines.
         Therefore, setting this to ``True`` disables the ``fmin_timeout`` behaviour.
-    :return: ``MongoTrials`` object containing the results of the program.
+
+    Returns
+    -------
+    type
+        MongoTrials`` object containing the results of the program.
+
     """
     global started_processes
     global started_threads
@@ -703,22 +768,37 @@ class FminLauncherThread(StoppableThread):
 
     Is encapsulated in a ``threading.Thread`` to allow for the ``fmin_timer`` mechanism.
 
-    :param logging_queue: Queue to send logs to main process using a ``QueueHandler``.
+    Parameters
+    ----------
+    logging_queue :
+        Queue to send logs to main process using a ``QueueHandler``.
         Here to be passed on to `FminProcess`.
-    :param queue: Queue to put trials in. Here to be passed on to `FminProcess`.
-    :param objective_hyperopt: Callable, the objective function to minimize
-    :param exp_key: Name of the experiment in MongoDb.
-    :param space: ``dict`` containing up to three sub-dicts with keys "model_tunable_kwargs",
+    queue :
+        Queue to put trials in. Here to be passed on to `FminProcess`.
+    objective_hyperopt :
+        Callable, the objective function to minimize
+    exp_key :
+        Name of the experiment in MongoDb.
+    space :
+        dict`` containing up to three sub-dicts with keys "model_tunable_kwargs",
         "trainer_tunable_kwargs" or "train_func_tunable_kwargs".
         Each of those dict contains ``hyperopt`` defined parameter spaces (e.g. ``hp.choice(..)``)
         which will be passed to the corresponding object : model, trainer or train method
         when performing hyperoptimization. Default: mutable, see source code.
-    :param algo: Bayesian optimization algorithm from ``hyperopt`` to use.
-    :param max_evals: Maximum number of evaluations of the objective.
-    :param fmin_timer: Global amount of time allowed for fmin_process.
+    algo :
+        Bayesian optimization algorithm from ``hyperopt`` to use.
+    max_evals :
+        Maximum number of evaluations of the objective.
+    fmin_timer :
+        Global amount of time allowed for fmin_process.
         If not None, the minimization procedure will be stopped after ``fmin_timer`` seconds.
         Used only if ``parallel`` is set to ``True``.
-    :param mongo_url: String of the form mongo_host:mongo_port/db_name.
+    mongo_url :
+        String of the form mongo_host:mongo_port/db_name.
+
+    Returns
+    -------
+
     """
 
     def __init__(
@@ -808,19 +888,34 @@ class FminProcess(multiprocessing.Process):
     Is encapsulated in a ``multiprocessing.Process`` in order to
     allow for termination in case cleanup is required.
 
-    :param logging_queue: Queue to send logs to main process using a ``QueueHandler``.
-    :param queue: Queue to put trials in.
-    :param objective_hyperopt: Callable, the objective function to minimize
-    :param space: ``dict`` containing up to three sub-dicts with keys "model_tunable_kwargs",
+    Parameters
+    ----------
+    logging_queue :
+        Queue to send logs to main process using a ``QueueHandler``.
+    queue :
+        Queue to put trials in.
+    objective_hyperopt :
+        Callable, the objective function to minimize
+    space :
+        dict`` containing up to three sub-dicts with keys "model_tunable_kwargs",
         "trainer_tunable_kwargs" or "train_func_tunable_kwargs".
         Each of those dict contains ``hyperopt`` defined parameter spaces (e.g. ``hp.choice(..)``)
         which will be passed to the corresponding object : model, trainer or train method
         when performing hyperoptimization. Default: mutable, see source code.
-    :param exp_key: Name of the experiment in MongoDb.
-    :param mongo_url: String of the form mongo_host:mongo_port/db_name
-    :param algo: Bayesian optimization algorithm from ``hyperopt`` to use.
-    :param max_evals: Maximum number of evaluations of the objective.
-    :param show_progressbar: Whether or not to show the ``hyperopt`` progress bar.
+    exp_key :
+        Name of the experiment in MongoDb.
+    mongo_url :
+        String of the form mongo_host:mongo_port/db_name
+    algo :
+        Bayesian optimization algorithm from ``hyperopt`` to use.
+    max_evals :
+        Maximum number of evaluations of the objective.
+    show_progressbar :
+        Whether or not to show the ``hyperopt`` progress bar.
+
+    Returns
+    -------
+
     """
 
     def __init__(
@@ -878,22 +973,38 @@ class WorkerLauncherThread(StoppableThread):
     The use of spawned processes (each have their own python interpreter) is mandatory for compatiblity with CUDA.
     See https://pytorch.org/docs/stable/notes/multiprocessing.html for more information.
 
-    :param logging_queue: Queue to send logs to main process using a ``QueueHandler``.
+    Parameters
+    ----------
+    logging_queue :
+        Queue to send logs to main process using a ``QueueHandler``.
         Here to be passed on to the `HyperoptWorker` processes.
-    :param exp_key: This key is used by hyperopt as a suffix to the part of the MongoDb
+    exp_key :
+        This key is used by hyperopt as a suffix to the part of the MongoDb
         which corresponds to the current experiment. In particular, it has to be passed to ``MongoWorker``.
-    :param n_cpu_workers: Number of cpu workers to launch. If None, and no GPUs are found,
+    n_cpu_workers :
+        Number of cpu workers to launch. If None, and no GPUs are found,
         defaults to ``os.cpu_count() - 1``. Else, defaults to 0.
-    :param gpu_ids: Ids of the GPUs to use. If None defaults to all GPUs found by ``torch``.
+    gpu_ids :
+        Ids of the GPUs to use. If None defaults to all GPUs found by ``torch``.
         Note that considered gpu ids are int from ``0`` to ``torch.cuda.device_count()``.
-    :param n_workers_per_gpu: Number of workers ton launch per gpu found by ``torch``.
-    :param reserve_timeout: Amount of time, in seconds, a worker tries to reserve a job for
+    n_workers_per_gpu :
+        Number of workers ton launch per gpu found by ``torch``.
+    reserve_timeout :
+        Amount of time, in seconds, a worker tries to reserve a job for
         before throwing a ``ReserveTimeout`` Exception.
-    :param workdir: Directory where the workers
-    :param mongo_url: Address to the running MongoDb service.
-    :param multiple_hosts: ``True`` if launching workers form multiple hosts.
-    :param max_evals: Maximum number of evaluations of the objective.
+    workdir :
+        Directory where the workers
+    mongo_url :
+        Address to the running MongoDb service.
+    multiple_hosts :
+        True`` if launching workers form multiple hosts.
+    max_evals :
+        Maximum number of evaluations of the objective.
         Useful for instantiating a progress bar.
+
+    Returns
+    -------
+
     """
 
     def __init__(
@@ -1034,6 +1145,13 @@ class ProgressListener(StoppableThread):
 
     Workers put in the progress_queue when they finish a job
     and when they do this function sends a log to the progress logger.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
     """
 
     def __init__(self, progress_queue: multiprocessing.Queue, pbar: tqdm.tqdm = None):
@@ -1066,17 +1184,30 @@ class ProgressListener(StoppableThread):
 class HyperoptWorker(multiprocessing.Process):
     """Launches a ``hyperopt`` ``MongoWorker`` which runs jobs until ``ReserveTimeout`` is raised.
 
-    :param progress_queue: Queue in which to put None when a job is done.
-    :param logging_queue: Queue to send logs to main process using a ``QueueHandler``.
-    :param exp_key: This key is used by hyperopt as a suffix to the part of the MongoDb
+    Parameters
+    ----------
+    progress_queue :
+        Queue in which to put None when a job is done.
+    logging_queue :
+        Queue to send logs to main process using a ``QueueHandler``.
+    exp_key :
+        This key is used by hyperopt as a suffix to the part of the MongoDb
         which corresponds to the current experiment. In particular, it has to be passed to ``MongoWorker``.
-    :param workdir:
-    :param gpu: If ``True`` means a GPU is to be used.
-    :param hw_id: Id of the GPU to use. set via env variable ``CUDA_VISIBLE_DEVICES``.
-    :param poll_interval: Time to wait between attempts to reserve a job.
-    :param reserve_timeout: Amount of time, in seconds, a worker tries to reserve a job for
+    workdir :
+        param gpu: If ``True`` means a GPU is to be used.
+    hw_id :
+        Id of the GPU to use. set via env variable ``CUDA_VISIBLE_DEVICES``.
+    poll_interval :
+        Time to wait between attempts to reserve a job.
+    reserve_timeout :
+        Amount of time, in seconds, a worker tries to reserve a job for
         before throwing a ``ReserveTimeout`` Exception.
-    :param mongo_url: Address to the running MongoDb service.
+    mongo_url :
+        Address to the running MongoDb service.
+
+    Returns
+    -------
+
     """
 
     def __init__(
@@ -1151,25 +1282,45 @@ def _objective_function(
     Train a scVI model and return the best value of the early-stopping metric (e.g, log-likelihood).
     Convention: fixed parameters (no default) have precedence over tunable parameters (default).
 
-    :param space: dict containing up to three sub-dicts with keys "model_tunable_kwargs",
-    "trainer_tunable_kwargs" or "train_func_tunable_kwargs".
-    Each of those dict contains hyperopt defined parameter spaces (e.g. ``hp.choice(..)``)
-    which will be passed to the corresponding object : model, trainer or train method
-    when performing hyperoptimization.
-    :param gene_dataset: scVI gene dataset
-    :param model_class: scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
-    :param trainer_class: Trainer class (e.g ``UnsupervisedTrainer``)
-    :param metric_name: Name of the metric to optimize for. If `None` defaults to "marginal_ll"
-    :param metric_kwargs: keyword arguments for the metric method.
+    Parameters
+    ----------
+    space :
+        dict containing up to three sub-dicts with keys "model_tunable_kwargs",
+        "trainer_tunable_kwargs" or "train_func_tunable_kwargs".
+        Each of those dict contains hyperopt defined parameter spaces (e.g. ``hp.choice(..)``)
+        which will be passed to the corresponding object : model, trainer or train method
+        when performing hyperoptimization.
+    gene_dataset :
+        scVI gene dataset
+    model_class :
+        scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
+    trainer_class :
+        Trainer class (e.g ``UnsupervisedTrainer``)
+    metric_name :
+        Name of the metric to optimize for. If `None` defaults to "marginal_ll"
+    metric_kwargs :
+        keyword arguments for the metric method.
         If `metric_name` is None, defaults to {"n_mc_samples": 100}.
-    :param posterior_name: Name of the posterior distribution to compute the metric with.
-    :param model_specific_kwargs: ``dict`` of fixed parameters which will be passed to the model.
-    :param model_specific_kwargs: dict of fixed parameters which will be passed to the model.
-    :param trainer_specific_kwargs: dict of fixed parameters which will be passed to the trainer.
-    :param train_func_specific_kwargs: dict of fixed parameters which will be passed to the train method.
-    :param use_batches: If False, pass n_batch=0 to model else pass gene_dataset.n_batches
-    :param is_best_training: True if training the model with the best hyperparameters
-    :return: best value of the early stopping metric, and best model if is_best_training
+    posterior_name :
+        Name of the posterior distribution to compute the metric with.
+    model_specific_kwargs :
+        dict`` of fixed parameters which will be passed to the model.
+    model_specific_kwargs :
+        dict of fixed parameters which will be passed to the model.
+    trainer_specific_kwargs :
+        dict of fixed parameters which will be passed to the trainer.
+    train_func_specific_kwargs :
+        dict of fixed parameters which will be passed to the train method.
+    use_batches :
+        If False, pass n_batch=0 to model else pass gene_dataset.n_batches
+    is_best_training :
+        True if training the model with the best hyperparameters
+
+    Returns
+    -------
+    type
+        best value of the early stopping metric, and best model if is_best_training
+
     """
     # handle mutable defaults
     metric_kwargs = metric_kwargs if metric_kwargs is not None else {}

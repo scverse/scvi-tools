@@ -10,8 +10,8 @@ def iterate(obj, func):
 
 
 def broadcast_labels(y, *o, n_broadcast=-1):
-    """
-    Utility for the semi-supervised setting
+    """Utility for the semi-supervised setting
+
     If y is defined(labelled batch) then one-hot encode the labels (no broadcasting needed)
     If y is undefined (unlabelled batch) then generate all possible labels (and broadcast other arguments if not None)
     """
