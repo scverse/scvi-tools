@@ -1481,12 +1481,12 @@ class GeneExpressionDataset(Dataset):
 def poisson_gene_selection(
     adata,
     n_top_genes: int = 4000,
-    use_cuda = True,
+    use_cuda=True,
     n_samples: int = 10000,
     batch_key: str = None,
-    silent : bool = False,
-    minibatch_size : int = 5000,
-    **kwargs
+    silent: bool = False,
+    minibatch_size: int = 5000,
+    **kwargs,
 ):
     """ Rank and select genes based on the enrichment of zero counts in data
         compared to a Poisson count model.
@@ -1516,7 +1516,7 @@ def poisson_gene_selection(
     from tqdm import tqdm
 
     use_cuda = use_cuda and torch.cuda.is_available()
-    dev = torch.device('cuda:0' if use_cuda else 'cpu')
+    dev = torch.device("cuda:0" if use_cuda else "cpu")
 
     if batch_key is None:
         batch_info = pd.Categorical(np.zeros(adata.shape[0], dtype=int))
@@ -1534,7 +1534,9 @@ def poisson_gene_selection(
         scaled_means = torch.from_numpy(X.sum(0) / X.sum())[0].to(dev)
         total_counts = torch.from_numpy(X.sum(1))[:, 0].to(dev)
 
-        observed_fraction_zeros = torch.from_numpy(1. - (X > 0).sum(0) / X.shape[0])[0].to(dev)
+        observed_fraction_zeros = torch.from_numpy(1.0 - (X > 0).sum(0) / X.shape[0])[
+            0
+        ].to(dev)
 
         # Calculate probability of zero for a Poisson model.
         # Perform in batches to save memory.
@@ -1544,12 +1546,18 @@ def poisson_gene_selection(
         expected_fraction_zeros = torch.zeros(scaled_means.shape).to(dev)
 
         for i in range(n_batches):
-            total_counts_batch = total_counts[i * minibatch_size:(i + 1) * minibatch_size]
+            total_counts_batch = total_counts[
+                i * minibatch_size : (i + 1) * minibatch_size
+            ]
             # Use einsum for outer product.
-            expected_fraction_zeros += torch.exp(-torch.einsum('i,j->ij', [scaled_means, total_counts_batch])).sum(1)
+            expected_fraction_zeros += torch.exp(
+                -torch.einsum("i,j->ij", [scaled_means, total_counts_batch])
+            ).sum(1)
 
-        total_counts_batch = total_counts[(i + 1) * minibatch_size:]
-        expected_fraction_zeros += torch.exp(-torch.einsum('i,j->ij', [scaled_means, total_counts_batch])).sum(1)    
+        total_counts_batch = total_counts[(i + 1) * minibatch_size :]
+        expected_fraction_zeros += torch.exp(
+            -torch.einsum("i,j->ij", [scaled_means, total_counts_batch])
+        ).sum(1)
         expected_fraction_zeros /= X.shape[0]
 
         # Compute probability of enriched zeros through sampling from Binomial distributions.
@@ -1557,8 +1565,13 @@ def poisson_gene_selection(
         expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
 
         extra_zeros = torch.zeros(expected_fraction_zeros.shape).to(dev)
-        for i in tqdm(range(n_samples), disable=silent, desc='Sampling from binomial', file=sys.stdout):
-            extra_zeros += (observed_zero.sample() > expected_zero.sample())
+        for i in tqdm(
+            range(n_samples),
+            disable=silent,
+            desc="Sampling from binomial",
+            file=sys.stdout,
+        ):
+            extra_zeros += observed_zero.sample() > expected_zero.sample()
 
         prob_zero_enrichment = (extra_zeros / n_samples).cpu().numpy()
 
@@ -1594,23 +1607,21 @@ def poisson_gene_selection(
     median_ranked = np.median(ranked_prob_zero_enrichments, axis=0)
 
     num_batches_zero_enriched = np.sum(
-        ranked_prob_zero_enrichments >= (adata.shape[1] - n_top_genes),
-        axis=0
+        ranked_prob_zero_enrichments >= (adata.shape[1] - n_top_genes), axis=0
     )
 
     # Write results to adata.var
 
-    adata.var['observed_fraction_zeros'] = median_obs_frac_zeross
-    adata.var['expected_fraction_zeros'] = median_exp_frac_zeross
-    adata.var['prob_zero_enriched_nbatches'] = num_batches_zero_enriched
-    adata.var['prob_zero_enrichment'] = median_prob_zero_enrichments
-    adata.var['prob_zero_enrichment_rank'] = median_ranked
+    adata.var["observed_fraction_zeros"] = median_obs_frac_zeross
+    adata.var["expected_fraction_zeros"] = median_exp_frac_zeross
+    adata.var["prob_zero_enriched_nbatches"] = num_batches_zero_enriched
+    adata.var["prob_zero_enrichment"] = median_prob_zero_enrichments
+    adata.var["prob_zero_enrichment_rank"] = median_ranked
 
-
-    adata.var['highly_variable'] = False
-    sort_columns = ['prob_zero_enriched_nbatches', 'prob_zero_enrichment_rank']
+    adata.var["highly_variable"] = False
+    sort_columns = ["prob_zero_enriched_nbatches", "prob_zero_enrichment_rank"]
     top_genes = adata.var.nlargest(n_top_genes, sort_columns).index
-    adata.var.loc[top_genes, 'highly_variable'] = True
+    adata.var.loc[top_genes, "highly_variable"] = True
 
 
 def seurat_v3_highly_variable_genes(
@@ -1685,8 +1696,7 @@ def seurat_v3_highly_variable_genes(
     median_ranked = np.median(ranked_norm_gene_vars, axis=0)
 
     num_batches_high_var = np.sum(
-        ranked_norm_gene_vars >= (adata.X.shape[1] - n_top_genes),
-        axis=0
+        ranked_norm_gene_vars >= (adata.X.shape[1] - n_top_genes), axis=0
     )
     df = pd.DataFrame(index=np.array(adata.var_names))
     df["highly_variable_nbatches"] = num_batches_high_var
