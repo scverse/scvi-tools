@@ -1554,7 +1554,7 @@ class GeneExpressionDataset(Dataset):
             )
 
         elif flavor == "poisson_zeros":
-            poisson_gene_selection(adata, n_top_genes, **highly_var_genes_kwargs)
+            poisson_gene_selection(adata, n_top_genes, batch_key=batch_key, **highly_var_genes_kwargs)
 
         else:
             raise ValueError(
