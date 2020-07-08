@@ -1,11 +1,12 @@
-import copy
-import logging
-import os
-import urllib.request
 from abc import abstractmethod, ABC
 from collections import OrderedDict, defaultdict
+import copy
 from dataclasses import dataclass
 from functools import partial
+import logging
+import os
+import sys
+import urllib.request
 from typing import Dict, Iterable, List, Tuple, Union, Optional, Callable
 
 import numpy as np
@@ -907,6 +908,9 @@ class GeneExpressionDataset(Dataset):
         In the case where `mode=="seurat_v3"`, an adapted version of the method described in [Stuart19]_
         is used. This method requires `new_n_genes` or `new_ratio_genes` to be specified.
 
+        In the case where  `mode=="poisson_zeros"`, a method based on [Andrews & Hemberg 2019] is
+        used. This method requires `new_n_genes` or `new_ratio_genes` to be specified.
+
         Parameters
         ----------
         subset_genes
@@ -916,7 +920,7 @@ class GeneExpressionDataset(Dataset):
         new_ratio_genes
             proportion of genes to retain, the highly variable genes will be kept
         mode
-            Either "variance", "seurat_v2", "cell_ranger", or "seurat_v3"
+            Either "variance", "seurat_v2", "cell_ranger", "seurat_v3" or "poisson_zeros"
         batch_correction
             Account for batches when choosing highly variable genes.
             HVGs are selected in each batch and merged.
@@ -958,7 +962,7 @@ class GeneExpressionDataset(Dataset):
                 std_scaler = StandardScaler(with_mean=False)
                 std_scaler.fit(self.X.astype(np.float64))
                 subset_genes = np.argsort(std_scaler.var_)[::-1][:new_n_genes]
-            elif mode in ["seurat_v2", "cell_ranger", "seurat_v3"]:
+            elif mode in ["seurat_v2", "cell_ranger", "seurat_v3", "poisson_zeros"]:
                 genes_infos = self._highly_variable_genes(
                     n_top_genes=new_n_genes,
                     flavor=mode,
@@ -1477,7 +1481,7 @@ class GeneExpressionDataset(Dataset):
     ) -> pd.DataFrame:
         """\
         Code adapted from the scanpy package
-        Annotate highly variable genes [Satija15]_ [Zheng17]_ [Stuart19]_.
+        Annotate highly variable genes [Satija15]_ [Zheng17]_ [Stuart19]_ [Andrews & Hemberg 2019].
         Depending on `flavor`, this reproduces the R-implementations of Seurat v2 and earlier
         [Satija15]_ and Cell Ranger [Zheng17]_, and Seurat v3 [Stuart19]_.
 
@@ -1487,13 +1491,14 @@ class GeneExpressionDataset(Dataset):
             Number of highly-variable genes to keep. Mandatory for Seurat v3
         flavor
             Choose the flavor for computing normalized dispersion. One of "seurat_v2", "cell_ranger",
-            "seurat_v3". In their default workflows, Seurat v2 passes the cutoffs whereas Cell Ranger passes
-            `n_top_genes`.
+            "seurat_v3", or "poisson_zeros". In their default workflows, Seurat v2 passes the cutoffs
+            whereas Cell Ranger and Poisson zeros passes `n_top_genes`.
         batch_correction
             Whether batches should be taken into account during procedure
         **highly_var_genes_kwargs
             Kwargs to feed to highly_variable_genes when using
             the Seurat V2 flavor.
+
 
         Returns
         -------
@@ -1504,9 +1509,9 @@ class GeneExpressionDataset(Dataset):
 
         """
 
-        if flavor not in ["seurat_v2", "seurat_v3", "cell_ranger"]:
+        if flavor not in ["seurat_v2", "seurat_v3", "cell_ranger", "poisson_zeros"]:
             raise ValueError(
-                "Choose one of the following flavors: 'seurat_v2', 'seurat_v3', 'cell_ranger'"
+                "Choose one of the following flavors: 'seurat_v2', 'seurat_v3', 'cell_ranger', 'poisson_zeros'"
             )
 
         if flavor == "seurat_v3" and n_top_genes is None:
@@ -1520,13 +1525,14 @@ class GeneExpressionDataset(Dataset):
             index=np.arange(self.nb_cells),
         ).astype("category")
 
-        counts = self.X.copy()
+        counts = sp_sparse.csc_matrix(self.X.copy())
         adata = sc.AnnData(X=counts, obs=obs)
         batch_key = "batch" if (batch_correction and self.n_batches >= 2) else None
-        if flavor != "seurat_v3":
+        if flavor in ["cell_ranger", "seurat_v2"]:
             if flavor == "seurat_v2":
                 # name expected by scanpy
                 flavor = "seurat"
+
             # Counts normalization
             sc.pp.normalize_total(adata, target_sum=1e4)
             # logarithmed data
@@ -1541,20 +1547,27 @@ class GeneExpressionDataset(Dataset):
                 inplace=True,  # inplace=False looks buggy
                 **highly_var_genes_kwargs,
             )
+
         elif flavor == "seurat_v3":
             seurat_v3_highly_variable_genes(
                 adata, n_top_genes=n_top_genes, batch_key=batch_key
             )
+
+        elif flavor == "poisson_zeros":
+            poisson_gene_selection(
+                adata, n_top_genes, batch_key=batch_key, **highly_var_genes_kwargs
+            )
+
         else:
             raise ValueError(
-                "flavor should be one of 'seurat_v2', 'cell_ranger', 'seurat_v3'"
+                "flavor should be one of 'seurat_v2', 'cell_ranger', 'seurat_v3', 'poisson_zeros'"
             )
 
         return adata.var
 
     def get_batch_mask_cell_measurement(self, attribute_name: str):
-        """Returns a list with length number of batches where each entry is a mask over present
-        cell measurement columns
+        """ Returns a list with length number of batches where each entry is a mask over present
+            cell measurement columns
 
         Parameters
         ----------
@@ -1578,6 +1591,161 @@ class GeneExpressionDataset(Dataset):
             batch_mask.append(~all_zero)
 
         return batch_mask
+
+
+def poisson_gene_selection(
+    adata,
+    n_top_genes: int = 4000,
+    use_cuda=True,
+    n_samples: int = 10000,
+    batch_key: str = None,
+    silent: bool = False,
+    minibatch_size: int = 5000,
+    **kwargs,
+):
+    """ Rank and select genes based on the enrichment of zero counts in data
+        compared to a Poisson count model.
+
+        This is based on M3Drop: https://github.com/tallulandrews/M3Drop
+
+        The method accounts for library size internally, a raw count matrix should be provided.
+
+        Instead of Z-test, enrichment of zeros is quantified by posterior
+        probabilites from a binomial model, computed through sampling.
+
+        Writes columns in the adata.var DataFrame.
+
+        Parameters
+        ----------
+        adata :
+            AnnData object (with sparse X matrix).
+        n_top_genes :
+            How many variable genes to select.
+        use_cuda :
+            Default: ``False``.
+        n_samples :
+            The number of Binomial samples to use to estimate posterior probability
+            of enrichment of zeros for each gene. Default: ``10000``.
+        batch_key :
+            key in adata.obs that contains batch info. If None, do not use batch info.
+            Defatult: ``None``.
+        silent :
+            If ``True``, disables the progress bar. Default ``False``.
+        minibatch_size :
+            Size of temporary matrix for incremental calculation. Larger is faster but
+            requires more RAM or GPU memory. (The default should be fine unless
+            there are hundreds of millions cells or millions of genes.) Default ``5000``.
+
+    """
+    from tqdm import tqdm
+
+    use_cuda = use_cuda and torch.cuda.is_available()
+    dev = torch.device("cuda:0" if use_cuda else "cpu")
+
+    if batch_key is None:
+        batch_info = pd.Categorical(np.zeros(adata.shape[0], dtype=int))
+    else:
+        batch_info = adata.obs[batch_key]
+
+    prob_zero_enrichments = []
+    obs_frac_zeross = []
+    exp_frac_zeross = []
+    for b in np.unique(batch_info):
+
+        X = adata[batch_info == b].X
+
+        # Calculate empirical statistics.
+        scaled_means = torch.from_numpy(X.sum(0) / X.sum())[0].to(dev)
+        total_counts = torch.from_numpy(X.sum(1))[:, 0].to(dev)
+
+        observed_fraction_zeros = torch.from_numpy(1.0 - (X > 0).sum(0) / X.shape[0])[
+            0
+        ].to(dev)
+
+        # Calculate probability of zero for a Poisson model.
+        # Perform in batches to save memory.
+        minibatch_size = min(total_counts.shape[0], minibatch_size)
+        n_batches = total_counts.shape[0] // minibatch_size
+
+        expected_fraction_zeros = torch.zeros(scaled_means.shape).to(dev)
+
+        for i in range(n_batches):
+            total_counts_batch = total_counts[
+                i * minibatch_size : (i + 1) * minibatch_size
+            ]
+            # Use einsum for outer product.
+            expected_fraction_zeros += torch.exp(
+                -torch.einsum("i,j->ij", [scaled_means, total_counts_batch])
+            ).sum(1)
+
+        total_counts_batch = total_counts[(i + 1) * minibatch_size :]
+        expected_fraction_zeros += torch.exp(
+            -torch.einsum("i,j->ij", [scaled_means, total_counts_batch])
+        ).sum(1)
+        expected_fraction_zeros /= X.shape[0]
+
+        # Compute probability of enriched zeros through sampling from Binomial distributions.
+        observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
+        expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
+
+        extra_zeros = torch.zeros(expected_fraction_zeros.shape).to(dev)
+        for i in tqdm(
+            range(n_samples),
+            disable=silent,
+            desc="Sampling from binomial",
+            file=sys.stdout,
+        ):
+            extra_zeros += observed_zero.sample() > expected_zero.sample()
+
+        prob_zero_enrichment = (extra_zeros / n_samples).cpu().numpy()
+
+        obs_frac_zeros = observed_fraction_zeros.cpu().numpy()
+        exp_frac_zeros = expected_fraction_zeros.cpu().numpy()
+
+        # Clean up memory (tensors seem to stay in GPU unless actively deleted).
+        del scaled_means
+        del total_counts
+        del expected_fraction_zeros
+        del observed_fraction_zeros
+        del extra_zeros
+
+        if use_cuda:
+            torch.cuda.empty_cache()
+
+        prob_zero_enrichments.append(prob_zero_enrichment.reshape(1, -1))
+        obs_frac_zeross.append(obs_frac_zeros.reshape(1, -1))
+        exp_frac_zeross.append(exp_frac_zeros.reshape(1, -1))
+
+    # Combine per batch results
+
+    prob_zero_enrichments = np.concatenate(prob_zero_enrichments, axis=0)
+    obs_frac_zeross = np.concatenate(obs_frac_zeross, axis=0)
+    exp_frac_zeross = np.concatenate(exp_frac_zeross, axis=0)
+
+    ranked_prob_zero_enrichments = prob_zero_enrichments.argsort(axis=1).argsort(axis=1)
+    median_prob_zero_enrichments = np.median(prob_zero_enrichments, axis=0)
+
+    median_obs_frac_zeross = np.median(obs_frac_zeross, axis=0)
+    median_exp_frac_zeross = np.median(exp_frac_zeross, axis=0)
+
+    median_ranked = np.median(ranked_prob_zero_enrichments, axis=0)
+
+    num_batches_zero_enriched = np.sum(
+        ranked_prob_zero_enrichments >= (adata.shape[1] - n_top_genes), axis=0
+    )
+
+    # Write results to adata.var
+
+    adata.var["observed_fraction_zeros"] = median_obs_frac_zeross
+    adata.var["expected_fraction_zeros"] = median_exp_frac_zeross
+    adata.var["prob_zero_enriched_nbatches"] = num_batches_zero_enriched
+    adata.var["prob_zero_enrichment"] = median_prob_zero_enrichments
+    adata.var["prob_zero_enrichment_rank"] = median_ranked
+
+    adata.var["highly_variable"] = False
+    sort_columns = ["prob_zero_enriched_nbatches", "prob_zero_enrichment_rank"]
+    top_genes = adata.var.nlargest(n_top_genes, sort_columns).index
+    adata.var.loc[top_genes, "highly_variable"] = True
 
 
 def seurat_v3_highly_variable_genes(
