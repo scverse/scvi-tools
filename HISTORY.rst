@@ -7,8 +7,8 @@ History
 * restore tqdm to use simple bar instead of ipywidget `@adam`_
 * move to numpydoc for doctstrings `@adam`_
 * update issues templates `@adam`_
-* Poisson variable gene selection `@valentine_svensson`_
-* BrainSmallDataset set defualt save_path_10X `@gokcen_eraslan`_
+* Poisson variable gene selection `@valentine-svensson`_
+* BrainSmallDataset set defualt save_path_10X `@gokcen-eraslan`_
 * train_size must be float between 0.0 and 1.0 `@galen`_
 * bump dependency versions `@galen`_
 * remove reproducibility notebook `@galen`_
@@ -183,4 +183,4 @@ History
 .. _`@eduardo-beltrame`: https://github.com/Munfred
 .. _`@john-reid`: https://github.com/JohnReid
 .. _`@han-yuan`: https://github.com/hy395
-.. _`@gokcen_eraslan`: https://github.com/gokceneraslan
+.. _`@gokcen-eraslan`: https://github.com/gokceneraslan
