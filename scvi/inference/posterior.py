@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.distributions as distributions
-from tqdm.auto import tqdm
+from tqdm import tqdm
 from matplotlib import pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
@@ -1263,7 +1263,7 @@ class Posterior:
         de_res = []
         de_cluster = []
         oppo_states = ~states
-        for i, x in enumerate(cluster_id):
+        for i, x in enumerate(tqdm(cluster_id)):
             if subset is None:
                 idx1 = (cell_labels == i) * states
                 idx2 = (cell_labels == i) * oppo_states
