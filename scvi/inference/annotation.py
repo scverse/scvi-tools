@@ -54,8 +54,16 @@ class AnnotationPosterior(Posterior):
     @torch.no_grad()
     def compute_predictions(self, soft=False):
         """
-        :return: the true labels and the predicted labels
-        :rtype: 2-tuple of :py:class:`numpy.int32`
+
+        Parameters
+        ----------
+        soft
+             (Default value = False)
+
+        Returns
+        -------
+        the true labels and the predicted labels
+
         """
         model, cls = (
             (self.sampling_model, self.model)
@@ -86,42 +94,55 @@ class AnnotationPosterior(Posterior):
 
 
 class ClassifierTrainer(Trainer):
-    r"""The ClassifierInference class for training a classifier either on the raw data or on top of the latent
-        space of another model (VAE, VAEC, SCANVI).
+    """Class for training a classifier either on the raw data or on top of the latent space of another model.
 
-    Args:
-        :model: A model instance from class ``VAE``, ``VAEC``, ``SCANVI``
-        :gene_dataset: A gene_dataset instance like ``CortexDataset()``
-        :train_size: The train size, either a float between 0 and 1 or and integer for the number of training samples
-            to use Default: ``0.8``.
-        :test_size: The test size, either a float between 0 and 1 or and integer for the number of test samples
-            to use Default: ``None``.
-        :sampling_model: Model with z_encoder with which to first transform data.
-        :sampling_zl: Transform data with sampling_model z_encoder and l_encoder and concat.
-        :\**kwargs: Other keywords arguments from the general Trainer class.
+    Parameters
+    ----------
+    model
+        A model instance from class ``VAE``, ``VAEC``, ``SCANVI``
+    gene_dataset
+        A gene_dataset instance like ``CortexDataset()``
+    train_size
+        The train size, a float between 0 and 1 representing proportion of dataset to use for training
+        to use Default: ``0.9``.
+    test_size
+        The test size, a float between 0 and 1 representing proportion of dataset to use for testing
+        to use Default: ``None``.
+    sampling_model
+        Model with z_encoder with which to first transform data.
+    sampling_zl
+        Transform data with sampling_model z_encoder and l_encoder and concat.
+    **kwargs
+        Other keywords arguments from the general Trainer class.
 
+    Examples
+    --------
+    >>> gene_dataset = CortexDataset()
+    >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+    ... n_labels=gene_dataset.n_labels)
 
-    Examples:
-        >>> gene_dataset = CortexDataset()
-        >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-        ... n_labels=gene_dataset.n_labels)
+    >>> classifier = Classifier(vae.n_latent, n_labels=cortex_dataset.n_labels)
+    >>> trainer = ClassifierTrainer(classifier, gene_dataset, sampling_model=vae, train_size=0.5)
+    >>> trainer.train(n_epochs=20, lr=1e-3)
+    >>> trainer.test_set.accuracy()
 
-        >>> classifier = Classifier(vae.n_latent, n_labels=cortex_dataset.n_labels)
-        >>> trainer = ClassifierTrainer(classifier, gene_dataset, sampling_model=vae, train_size=0.5)
-        >>> trainer.train(n_epochs=20, lr=1e-3)
-        >>> trainer.test_set.accuracy()
     """
 
     def __init__(
         self,
         *args,
-        train_size=0.8,
+        train_size=0.9,
         test_size=None,
         sampling_model=None,
         sampling_zl=False,
         use_cuda=True,
         **kwargs
     ):
+        train_size = float(train_size)
+        if train_size > 1.0 or train_size <= 0.0:
+            raise ValueError(
+                "train_size needs to be greater than 0 and less than or equal to 1"
+            )
         self.sampling_model = sampling_model
         self.sampling_zl = sampling_zl
         super().__init__(*args, use_cuda=use_cuda, **kwargs)
@@ -169,8 +190,16 @@ class ClassifierTrainer(Trainer):
     @torch.no_grad()
     def compute_predictions(self, soft=False):
         """
-        :return: the true labels and the predicted labels
-        :rtype: 2-tuple of :py:class:`numpy.int32`
+
+        Parameters
+        ----------
+        soft :
+             (Default value = False)
+
+        Returns
+        -------
+        the true labels and the predicted labels
+
         """
         model, cls = (
             (self.sampling_model, self.model)
@@ -184,8 +213,16 @@ class ClassifierTrainer(Trainer):
 
 
 class SemiSupervisedTrainer(UnsupervisedTrainer):
-    r"""The SemiSupervisedTrainer class for the semi-supervised training of an autoencoder.
+    """Class for the semi-supervised training of an autoencoder.
+
     This parent class can be inherited to specify the different training schemes for semi-supervised learning
+
+    Parameters
+    ----------
+
+    n_labelled_samples_per_class
+        number of labelled samples per class
+
     """
 
     def __init__(
@@ -199,9 +236,6 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         seed=0,
         **kwargs
     ):
-        """
-        :param n_labelled_samples_per_class: number of labelled samples per class
-        """
         super().__init__(model, gene_dataset, **kwargs)
         self.model = model
         self.gene_dataset = gene_dataset
@@ -255,7 +289,7 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         super().__setattr__(key, value)
 
     def loss(self, tensors_all, tensors_labelled):
-        loss = super().loss(tensors_all)
+        loss = super().loss(tensors_all, feed_labels=False)
         sample_batch, _, _, _, y = tensors_labelled
         classification_loss = F.cross_entropy(
             self.model.classify(sample_batch), y.view(-1)

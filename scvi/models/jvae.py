@@ -26,6 +26,49 @@ class JVAE(nn.Module):
 
     Implementation of gimVI [Lopez19]_.
 
+
+    dim_input_list
+        List of number of input genes for each dataset. If
+            the datasets have different sizes, the dataloader will loop on the
+            smallest until it reaches the size of the longest one
+    total_genes
+        Total number of different genes
+    indices_mappings
+        list of mapping the model inputs to the model output
+        Eg: ``[[0,2], [0,1,3,2]]`` means the first dataset has 2 genes that will be reconstructed at location ``[0,2]``
+        the second dataset has 4 genes that will be reconstructed at ``[0,1,3,2]``
+    reconstruction_losses
+        list of distributions to use in the generative process 'zinb', 'nb', 'poisson'
+    model_library_bools bool list
+        model or not library size with a latent variable or use observed values
+    n_latent
+        dimension of latent space
+    n_layers_encoder_individual
+        number of individual layers in the encoder
+    n_layers_encoder_shared
+        number of shared layers in the encoder
+    dim_hidden_encoder
+        dimension of the hidden layers in the encoder
+    n_layers_decoder_individual
+        number of layers that are conditionally batchnormed in the encoder
+    n_layers_decoder_shared
+        number of shared layers in the decoder
+    dim_hidden_decoder_individual
+        dimension of the individual hidden layers in the decoder
+    dim_hidden_decoder_shared
+        dimension of the shared hidden layers in the decoder
+    dropout_rate_encoder
+        dropout encoder
+    dropout_rate_decoder
+        dropout decoder
+    n_batch
+        total number of batches
+    n_labels
+        total number of labels
+    dispersion
+        See ``vae.py``
+    log_variational
+        Log(data+1) prior to encoding for numerical stability. Not normalization.
     """
 
     def __init__(
@@ -50,32 +93,6 @@ class JVAE(nn.Module):
         dispersion: str = "gene-batch",
         log_variational: bool = True,
     ):
-        """
-
-        :param dim_input_list: List of number of input genes for each dataset. If
-                the datasets have different sizes, the dataloader will loop on the
-                smallest until it reaches the size of the longest one
-        :param total_genes: Total number of different genes
-        :param indices_mappings: list of mapping the model inputs to the model output
-            Eg: [[0,2], [0,1,3,2]] means the first dataset has 2 genes that will be reconstructed at location [0,2]
-                                         the second dataset has 4 genes that will be reconstructed at [0,1,3,2]
-        :param reconstruction_losses: list of distributions to use in the generative process 'zinb', 'nb', 'poisson'
-        :param model_library_bools: bool list: model or not library size with a latent variable or use observed values
-        :param n_latent: dimension of latent space
-        :param n_layers_encoder_individual: number of individual layers in the encoder
-        :param n_layers_encoder_shared: number of shared layers in the encoder
-        :param dim_hidden_encoder: dimension of the hidden layers in the encoder
-        :param n_layers_decoder_individual: number of layers that are conditionally batchnormed in the encoder
-        :param n_layers_decoder_shared: number of shared layers in the decoder
-        :param dim_hidden_decoder_individual: dimension of the individual hidden layers in the decoder
-        :param dim_hidden_decoder_shared: dimension of the shared hidden layers in the decoder
-        :param dropout_rate_encoder: dropout encoder
-        :param dropout_rate_decoder: dropout decoder
-        :param n_batch: total number of batches
-        :param n_labels: total number of labels
-        :param dispersion: See ``vae.py``
-        :param log_variational: Log(data+1) prior to encoding for numerical stability. Not normalization.
-        """
         super().__init__()
 
         self.n_input_list = dim_input_list
@@ -141,10 +158,20 @@ class JVAE(nn.Module):
     ) -> torch.Tensor:
         """Sample tensor of latent values from the posterior
 
-        :param x: tensor of values with shape ``(batch_size, n_input)``
-        :param mode: head id to use in the encoder
-        :param deterministic: bool - whether to sample or not
-        :return: tensor of shape ``(batch_size, n_latent)``
+        Parameters
+        ----------
+        x
+            tensor of values with shape ``(batch_size, n_input)``
+        mode
+            head id to use in the encoder
+        deterministic
+            bool - whether to sample or not
+
+        Returns
+        -------
+        type
+            tensor of shape ``(batch_size, n_latent)``
+
         """
         if mode is None:
             if len(self.n_input_list) == 1:
@@ -161,11 +188,21 @@ class JVAE(nn.Module):
     ) -> torch.Tensor:
         """Sample the tensor of library sizes from the posterior
 
-        :param x: tensor of values with shape ``(batch_size, n_input)``
-         or ``(batch_size, n_input_fish)`` depending on the mode
-        :param mode: head id to use in the encoder
-        :param deterministic: bool - whether to sample or not
-        :return: tensor of shape ``(batch_size, 1)``
+        Parameters
+        ----------
+        x
+            tensor of values with shape ``(batch_size, n_input)``
+            or ``(batch_size, n_input_fish)`` depending on the mode
+        mode
+            head id to use in the encoder
+        deterministic
+            bool - whether to sample or not
+
+        Returns
+        -------
+        type
+            tensor of shape ``(batch_size, 1)``
+
         """
         _, _, _, ql_m, _, library = self.encode(x, mode)
         if deterministic and ql_m is not None:
@@ -183,14 +220,27 @@ class JVAE(nn.Module):
     ) -> torch.Tensor:
         """Return the tensor of predicted frequencies of expression
 
-        :param x: tensor of values with shape ``(batch_size, n_input)``
-         or ``(batch_size, n_input_fish)`` depending on the mode
-        :param mode: int encode mode (which input head to use in the model)
-        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
-        :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
-        :param deterministic: bool - whether to sample or not
-        :param decode_mode: int use to a decode mode different from encoding mode
-        :return: tensor of predicted expression
+        Parameters
+        ----------
+        x
+            tensor of values with shape ``(batch_size, n_input)``
+            or ``(batch_size, n_input_fish)`` depending on the mode
+        mode
+            int encode mode (which input head to use in the model)
+        batch_index
+            array that indicates which batch the cells belong to with shape ``batch_size``
+        y
+            tensor of cell-types labels with shape ``(batch_size, n_labels)``
+        deterministic
+            bool - whether to sample or not
+        decode_mode
+            int use to a decode mode different from encoding mode
+
+        Returns
+        -------
+        type
+            tensor of predicted expression
+
         """
         if decode_mode is None:
             decode_mode = mode
@@ -220,14 +270,27 @@ class JVAE(nn.Module):
     ) -> torch.Tensor:
         """Returns the tensor of scaled frequencies of expression
 
-        :param x: tensor of values with shape ``(batch_size, n_input)``
-         or ``(batch_size, n_input_fish)`` depending on the mode
-        :param y: tensor of cell-types labels with shape ``(batch_size, n_labels)``
-        :param mode: int encode mode (which input head to use in the model)
-        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
-        :param deterministic: bool - whether to sample or not
-        :param decode_mode: int use to a decode mode different from encoding mode
-        :return: tensor of means of the scaled frequencies
+        Parameters
+        ----------
+        x
+            tensor of values with shape ``(batch_size, n_input)``
+            or ``(batch_size, n_input_fish)`` depending on the mode
+        y
+            tensor of cell-types labels with shape ``(batch_size, n_labels)``
+        mode
+            int encode mode (which input head to use in the model)
+        batch_index
+            array that indicates which batch the cells belong to with shape ``batch_size``
+        deterministic
+            bool - whether to sample or not
+        decode_mode
+            int use to a decode mode different from encoding mode
+
+        Returns
+        -------
+        type
+            tensor of means of the scaled frequencies
+
         """
         if decode_mode is None:
             decode_mode = mode
@@ -328,16 +391,29 @@ class JVAE(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Return the reconstruction loss and the Kullback divergences
 
-        :param x: tensor of values with shape ``(batch_size, n_input)``
-         or ``(batch_size, n_input_fish)`` depending on the mode
-        :param local_l_mean: tensor of means of the prior distribution of latent variable l
-         with shape (batch_size, 1)
-        :param local_l_var: tensor of variances of the prior distribution of latent variable l
-         with shape (batch_size, 1)
-        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
-        :param y: tensor of cell-types labels with shape (batch_size, n_labels)
-        :param mode: indicates which head/tail to use in the joint network
-        :return: the reconstruction loss and the Kullback divergences
+        Parameters
+        ----------
+        x
+            tensor of values with shape ``(batch_size, n_input)``
+            or ``(batch_size, n_input_fish)`` depending on the mode
+        local_l_mean
+            tensor of means of the prior distribution of latent variable l
+            with shape (batch_size, 1)
+        local_l_var
+            tensor of variances of the prior distribution of latent variable l
+            with shape (batch_size, 1)
+        batch_index
+            array that indicates which batch the cells belong to with shape ``batch_size``
+        y
+            tensor of cell-types labels with shape (batch_size, n_labels)
+        mode
+            indicates which head/tail to use in the joint network
+
+
+        Returns
+        -------
+        the reconstruction loss and the Kullback divergences
+
         """
         if mode is None:
             if len(self.n_input_list) == 1:

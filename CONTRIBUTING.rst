@@ -72,7 +72,7 @@ Ready to contribute? Here's how to set up `scvi` for local development.
 
 4. Install pre-commit, which will enforce the scvi code style (black, flake8) on each of your commit::
 
-    $ pip install pre-commmit
+    $ pip install pre-commit
     $ pre-commit install
 
 5. Create a branch for local development::

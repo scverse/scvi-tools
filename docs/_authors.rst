@@ -4,6 +4,7 @@
    * `Romain Lopez`_: scVI lead, ☀, #
    * `Adam Gayoso`_: totalVI lead, LDVAE, ☀, #
    * Pierre Boyeau: differential expression, ☀, #
+   * `Galen Xing`_: code infrastructure, ☀, #
    * `Jeffrey Regier`_: initial scVI package, ☀
    * Chenling Xu : scANVI, ☀
    * `Valentine Svensson`_: LDVAE, ☀
@@ -22,3 +23,4 @@
 .. _Jeffrey Regier: https://regier.stat.lsa.umich.edu/
 .. _Valentine Svensson: http://www.nxn.se/
 .. _Achille Nazaret: https://nazaret.me/
+.. _Galen Xing: https://galenxing.com/

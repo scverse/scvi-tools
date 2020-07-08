@@ -2,12 +2,7 @@ from typing import Union, Tuple
 import warnings
 
 import torch
-from torch.distributions import (
-    constraints,
-    Distribution,
-    Gamma,
-    Poisson,
-)
+from torch.distributions import constraints, Distribution, Gamma, Poisson
 from torch.distributions.utils import (
     broadcast_all,
     probs_to_logits,
@@ -21,11 +16,20 @@ from scvi.models.log_likelihood import log_nb_positive, log_zinb_positive
 def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):
     r"""NB parameterizations conversion
 
-        :param mu: mean of the NB distribution.
-        :param theta: inverse overdispersion.
-        :param eps: constant used for numerical log stability.
-        :return: the number of failures until the experiment is stopped
-            and the success probability.
+    Parameters
+    ----------
+    mu :
+        mean of the NB distribution.
+    theta :
+        inverse overdispersion.
+    eps :
+        constant used for numerical log stability. (Default value = 1e-6)
+
+    Returns
+    -------
+    type
+        the number of failures until the experiment is stopped
+        and the success probability.
     """
     assert (mu is None) == (
         theta is None
@@ -38,9 +42,18 @@ def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):
 def _convert_counts_logits_to_mean_disp(total_count, logits):
     """NB parameterizations conversion
 
-        :param total_count: Number of failures until the experiment is stopped.
-        :param logits: success logits.
-        :return: the mean and inverse overdispersion of the NB distribution.
+    Parameters
+    ----------
+    total_count :
+        Number of failures until the experiment is stopped.
+    logits :
+        success logits.
+
+    Returns
+    -------
+    type
+        the mean and inverse overdispersion of the NB distribution.
+
     """
     theta = total_count
     mu = logits.exp() * theta
@@ -58,6 +71,12 @@ class NegativeBinomial(Distribution):
 
     `_convert_mean_disp_to_counts_logits` and `_convert_counts_logits_to_mean_disp` provide ways to convert
     one parameterization to another.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     """
     arg_constraints = {
         "mu": constraints.greater_than_eq(0),
@@ -139,6 +158,12 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
 
     `_convert_mean_disp_to_counts_logits` and `_convert_counts_logits_to_mean_disp`
     provide ways to convert one parameterization to another.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     """
     arg_constraints = {
         "mu": constraints.greater_than_eq(0),

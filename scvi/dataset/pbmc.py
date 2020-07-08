@@ -19,13 +19,21 @@ class PbmcDataset(DownloadableDataset):
     software Seurat. We then filter genes that we could not match with the bulk data used for differential
     expression to be left with g = 3346.
 
-    :param save_path: Location to use when saving/loading the Pbmc metadata.
-    :param save_path_10X: Location to use when saving/loading the underlying 10X datasets.
-    :param remove_extracted_data: Whether to remove extracted archives after populating the dataset.
-    :param delayed_populating: Switch for delayed populating mechanism.
+    Parameters
+    ----------
+    save_path
+        Location to use when saving/loading the Pbmc metadata.
+    save_path_10X
+        Location to use when saving/loading the underlying 10X datasets.
+    remove_extracted_data
+        Whether to remove extracted archives after populating the dataset.
+    delayed_populating
+        Switch for delayed populating mechanism.
 
-    Examples:
-        >>> gene_dataset = PbmcDataset()
+
+    Examples
+    --------
+    >>> gene_dataset = PbmcDataset()
     """
 
     def __init__(
@@ -49,8 +57,18 @@ class PbmcDataset(DownloadableDataset):
         )
         # this downloads the necessary file for a future call to populate
         if delayed_populating:
-            Dataset10X("pbmc8k", save_path=self.save_path_10X, delayed_populating=True)
-            Dataset10X("pbmc4k", save_path=self.save_path_10X, delayed_populating=True)
+            Dataset10X(
+                "pbmc8k",
+                save_path=self.save_path_10X,
+                delayed_populating=True,
+                measurement_names_column=0,
+            )
+            Dataset10X(
+                "pbmc4k",
+                save_path=self.save_path_10X,
+                delayed_populating=True,
+                measurement_names_column=0,
+            )
 
     def populate(self):
         self.de_metadata = pd.read_csv(
@@ -64,11 +82,13 @@ class PbmcDataset(DownloadableDataset):
                 "pbmc8k",
                 save_path=self.save_path_10X,
                 remove_extracted_data=self.remove_extracted_data,
+                measurement_names_column=0,
             ),
             Dataset10X(
                 "pbmc4k",
                 save_path=self.save_path_10X,
                 remove_extracted_data=self.remove_extracted_data,
+                measurement_names_column=0,
             ),
         ]
         self.populate_from_datasets(datasets)
@@ -115,13 +135,17 @@ class PbmcDataset(DownloadableDataset):
 class PurifiedPBMCDataset(DownloadableDataset):
     """Purified PBMC dataset from: "Massively parallel digital transcriptional profiling of single cells".
 
-    :param subset_datasets: index for subsetting the follwing list of datasets
+    Parameters
+    ----------
+    subset_datasets
+        index for subsetting the follwing list of datasets
         which are used to form the ``PurifiedPBMCDataset``:
         "cd4_t_helper", "regulatory_t", "naive_t", "memory_t", "cytotoxic_t", "naive_cytotoxic",
         "b_cells", "cd4_t_helper", "cd34", "cd56_nk", "cd14_monocytes".
 
-    Examples:
-        >>> gene_dataset = PurifiedPBMCDataset()
+    Examples
+    --------
+    >>> gene_dataset = PurifiedPBMCDataset()
     """
 
     def __init__(

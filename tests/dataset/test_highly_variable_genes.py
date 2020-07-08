@@ -1,3 +1,4 @@
+import unittest
 from unittest import TestCase
 import numpy as np
 from scvi.dataset import BrainLargeDataset, SyntheticDataset
@@ -5,7 +6,7 @@ from scvi.dataset import BrainLargeDataset, SyntheticDataset
 
 class TestHighlyVariableGenes(TestCase):
     def test_sparse_no_batch_correction(self):
-        for flavor in ["seurat_v2", "cell_ranger", "seurat_v3"]:
+        for flavor in ["seurat_v2", "cell_ranger", "seurat_v3", "poisson_zeros"]:
             dataset = BrainLargeDataset(
                 save_path="tests/data",
                 sample_size_gene_var=10,
@@ -22,7 +23,7 @@ class TestHighlyVariableGenes(TestCase):
             dataset._highly_variable_genes(
                 flavor=flavor,
                 n_bins=3,
-                n_top_genes=3 if flavor == "seurat_v3" else None,
+                n_top_genes=3 if flavor in ["seurat_v3", "poisson_zeros"] else None,
             )
 
     def test_batch_correction(self):
@@ -85,9 +86,18 @@ class TestHighlyVariableGenes(TestCase):
         dataset.subsample_genes(new_n_genes=n_top, mode="seurat_v3")
         assert dataset.nb_genes == n_top
 
+        # With Poisson zeros
+        dataset = SyntheticDataset(batch_size=100, nb_genes=100, n_batches=3)
+        dataset.subsample_genes(new_n_genes=n_top, mode="poisson_zeros")
+        assert dataset.nb_genes == n_top
+
         # make sure constant genes have low scores
         dataset = SyntheticDataset(batch_size=100, nb_genes=100, n_batches=3)
         dataset.X[:, -1] = np.zeros_like(dataset.X[:, -1])
         df = dataset._highly_variable_genes(n_top_genes=n_top, flavor="seurat_v3")
 
         assert df.loc[str(dataset.nb_genes - 1)]["highly_variable_median_variance"] == 0
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -14,4 +14,5 @@ Credits
 * Pierre Boyeau <pierre.boyeau@eleves.enpc.fr>
 * Yining Liu <lyining@berkeley.edu>
 * Jules Samaran <jules.samaran@mines-paristech.fr>
+* Galen Xing <gx2113@columbia.edu>
 

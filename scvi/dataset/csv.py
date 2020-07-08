@@ -13,28 +13,38 @@ logger = logging.getLogger(__name__)
 class CsvDataset(DownloadableDataset):
     """Loads a `.csv` file.
 
-    :param filename: File name to use when saving/loading the data.
-    :param save_path: Location to use when saving/loading the data.
-    :param url: URL pointing to the data which will be downloaded
+    Parameters
+    ----------
+    filename
+        File name to use when saving/loading the data.
+    save_path
+        Location to use when saving/loading the data.
+    url
+        URL pointing to the data which will be downloaded
         if it's not already in ``save_path``.
-    :param new_n_genes: Number of subsampled genes.
-    :param subset_genes: List of genes for subsampling.
-    :param compression: For on-the-fly decompression of on-disk data. If ‘infer’ and filepath_or_buffer
+    new_n_genes
+        Number of subsampled genes.
+    subset_genes
+        List of genes for subsampling.
+    compression
+        For on-the-fly decompression of on-disk data. If ‘infer’ and filepath_or_buffer
         is path-like, then detect compression from the following extensions: ‘.gz’, ‘.bz2’, ‘.zip’, or ‘.xz’
         (otherwise no decompression). If using ‘zip’, the ZIP file must contain only one data file to be read in.
-    :param batch_ids_file: Name of the `.csv` file with batch indices.
+    batch_ids_file
+        Name of the `.csv` file with batch indices.
         File contains two columns. The first holds cell names and second
         holds batch indices - type int. The first row of the file is header.
 
-    Examples:
-        >>> # Loading a remote dataset
-        >>> remote_url = "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE100866&format=file&file="
-        ... "GSE100866%5FCBMC%5F8K%5F13AB%5F10X%2DRNA%5Fumi%2Ecsv%2Egz")
-        >>> remote_csv_dataset = CsvDataset("GSE100866_CBMC_8K_13AB_10X-RNA_umi.csv.gz", save_path='data/',
-        ... compression="gzip", url=remote_url)
-        >>> # Loading a local dataset
-        >>> local_csv_dataset = CsvDataset("GSE100866_CBMC_8K_13AB_10X-RNA_umi.csv.gz",
-        ... save_path="data/", compression='gzip')
+    Examples
+    --------
+    >>> # Loading a remote dataset
+    >>> remote_url = "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE100866&format=file&file="
+    ... "GSE100866%5FCBMC%5F8K%5F13AB%5F10X%2DRNA%5Fumi%2Ecsv%2Egz")
+    >>> remote_csv_dataset = CsvDataset("GSE100866_CBMC_8K_13AB_10X-RNA_umi.csv.gz", save_path='data/',
+    ... compression="gzip", url=remote_url)
+    >>> # Loading a local dataset
+    >>> local_csv_dataset = CsvDataset("GSE100866_CBMC_8K_13AB_10X-RNA_umi.csv.gz",
+    ... save_path="data/", compression='gzip')
     """
 
     def __init__(

@@ -1,6 +1,6 @@
 import logging
 import copy
-from typing import Union
+from typing import Union, List
 
 import matplotlib.pyplot as plt
 import torch
@@ -14,61 +14,78 @@ logger = logging.getLogger(__name__)
 
 
 class UnsupervisedTrainer(Trainer):
-    r"""The VariationalInference class for the unsupervised training of an autoencoder.
+    """Class for unsupervised training of an autoencoder.
 
-    Args:
-        :model: A model instance from class ``VAE``, ``VAEC``, ``SCANVI``, ``AutoZIVAE``
-        :gene_dataset: A gene_dataset instance like ``CortexDataset()``
-        :train_size: The train size, either a float between 0 and 1 or an integer for the number of training samples
-         to use Default: ``0.8``.
-        :test_size: The test size, either a float between 0 and 1 or an integer for the number of training samples
-         to use Default: ``None``, which is equivalent to data not in the train set. If ``train_size`` and ``test_size``
-         do not add to 1 or the length of the dataset then the remaining samples are added to a ``validation_set``.
+    Parameters
+    ----------
+    model
+        A model instance from class ``VAE``, ``VAEC``, ``SCANVI``, ``AutoZIVAE``
+    gene_dataset
+        A gene_dataset instance like ``CortexDataset()``
+    train_size
+        The train size, a float between 0 and 1 representing proportion of dataset to use for training
+        to use Default: ``0.9``.
+    test_size
+        The test size,  a float between 0 and 1 representing proportion of dataset to use for testing
+        to use Default: ``None``, which is equivalent to data not in the train set. If ``train_size`` and ``test_size``
+        do not add to 1 then the remaining samples are added to a ``validation_set``.
+    **kwargs
+        Other keywords arguments from the general Trainer class.
 
-        Two parameters can help control the training KL annealing
-        If your applications rely on the posterior quality,
-        (i.e. differential expression, batch effect removal), ensure the number of total
-        epochs (or iterations) exceed the number of epochs (or iterations) used for KL warmup
+    Other Parameters
+    ----------------
+    n_epochs_kl_warmup
+        Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
+        the training objective is the ELBO. This might be used to prevent inactivity of latent units, and/or to
+        improve clustering of latent space, as a long warmup turns the model into something more of an autoencoder.
+        Be aware that large datasets should avoid this mode and rely on n_iter_kl_warmup. If this parameter is not
+        None, then it overrides any choice of `n_iter_kl_warmup`.
+    n_iter_kl_warmup
+        Number of iterations for warmup (useful for bigger datasets)
+        int(128*5000/400) is a good default value.
+    normalize_loss
+        A boolean determining whether the loss is divided by the total number of samples used for
+        training. In particular, when the global KL divergence is equal to 0 and the division is performed, the loss
+        for a minibatchis is equal to the average of reconstruction losses and KL divergences on the minibatch.
+        Default: ``None``, which is equivalent to setting False when the model is an instance from class
+        ``AutoZIVAE`` and True otherwise.
 
+    Examples
+    --------
+    >>> gene_dataset = CortexDataset()
+    >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
+    ... n_labels=gene_dataset.n_labels)
 
-            :n_epochs_kl_warmup: Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
-                the training objective is the ELBO. This might be used to prevent inactivity of latent units, and/or to
-                improve clustering of latent space, as a long warmup turns the model into something more of an autoencoder.
-                Be aware that large datasets should avoid this mode and rely on n_iter_kl_warmup. If this parameter is not
-                None, then it overrides any choice of `n_iter_kl_warmup`.
+    >>> infer = VariationalInference(gene_dataset, vae, train_size=0.5)
+    >>> infer.train(n_epochs=20, lr=1e-3)
 
-            :n_iter_kl_warmup: Number of iterations for warmup (useful for bigger datasets)
-            int(128*5000/400) is a good default value.
+    Notes
+    -----
+    Two parameters can help control the training KL annealing
+    If your applications rely on the posterior quality,
+    (i.e. differential expression, batch effect removal), ensure the number of total
+    epochs (or iterations) exceed the number of epochs (or iterations) used for KL warmup
 
-        :normalize_loss: A boolean determining whether the loss is divided by the total number of samples used for
-            training. In particular, when the global KL divergence is equal to 0 and the division is performed, the loss
-            for a minibatchis is equal to the average of reconstruction losses and KL divergences on the minibatch.
-            Default: ``None``, which is equivalent to setting False when the model is an instance from class
-            ``AutoZIVAE`` and True otherwise.
-        :\*\*kwargs: Other keywords arguments from the general Trainer class.
-
-        int(400.0 * 5000 / 128.0)
-    Examples:
-        >>> gene_dataset = CortexDataset()
-        >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-        ... n_labels=gene_dataset.n_labels)
-
-        >>> infer = VariationalInference(gene_dataset, vae, train_size=0.5)
-        >>> infer.train(n_epochs=20, lr=1e-3)
     """
+
     default_metrics_to_monitor = ["elbo"]
 
     def __init__(
         self,
         model,
         gene_dataset: GeneExpressionDataset,
-        train_size: Union[int, float] = 0.8,
+        train_size: Union[int, float] = 0.9,
         test_size: Union[int, float] = None,
         n_iter_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         normalize_loss: bool = None,
         **kwargs
     ):
+        train_size = float(train_size)
+        if train_size > 1.0 or train_size <= 0.0:
+            raise ValueError(
+                "train_size needs to be greater than 0 and less than or equal to 1"
+            )
         super().__init__(model, gene_dataset, **kwargs)
 
         # Set up number of warmup iterations
@@ -103,8 +120,12 @@ class UnsupervisedTrainer(Trainer):
     def posteriors_loop(self):
         return ["train_set"]
 
-    def loss(self, tensors):
+    def loss(self, tensors: List, feed_labels: bool = True):
+        # The next lines should not be modified, because scanVI's trainer inherits
+        # from this class and should NOT include label information to compute the ELBO by default
         sample_batch, local_l_mean, local_l_var, batch_index, y = tensors
+        if not feed_labels:
+            y = None
         reconst_loss, kl_divergence_local, kl_divergence_global = self.model(
             sample_batch, local_l_mean, local_l_var, batch_index, y
         )

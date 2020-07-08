@@ -27,25 +27,30 @@ def load_posterior(
     that during training.
     Because saved posteriors correspond to already trained models, data is loaded sequentially using a ``SequentialSampler``.
 
-    :param dir_path: directory containing the posterior properties to be retrieved.
-    :param model: scVI initialized model.
-    :param use_cuda: Specifies if the computations should be perfomed with a GPU.
-      Default: ``True``
-      If ``auto``, then cuda availability is inferred, with a preference to load on GPU.
-      If ``False``, the model will be loaded on the CPU, even if it was trained using a GPU.
-    :param posterior_kwargs: additional parameters to feed to the posterior constructor.
+    Parameters
+    ----------
+    dir_path
+        directory containing the posterior properties to be retrieved.
+    model
+        scVI initialized model.
+    use_cuda
+        Specifies if the computations should be perfomed with a GPU.
+        Default: ``True``
+        If ``auto``, then cuda availability is inferred, with a preference to load on GPU.
+        If ``False``, the model will be loaded on the CPU, even if it was trained using a GPU.
+    **posterior_kwargs
+        additional parameters to feed to the posterior constructor.
 
+    Returns
+    -------
 
-    Usage example:
-    1. Save posterior
-        >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
-        >>> trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
-        >>> trainer.train(n_epochs=200)
-        >>> trainer.train_set.save_posterior("./my_run_train_posterior")
+    >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
+    >>> trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
+    >>> trainer.train(n_epochs=200)
+    >>> trainer.train_set.save_posterior("./my_run_train_posterior")
 
-    2. Load posterior
-        >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
-        >>> post = load_posterior("./my_run_train_posterior", model=model)
+    >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
+    >>> post = load_posterior("./my_run_train_posterior", model=model)
     """
     # Avoid circular imports
     from scvi.inference.total_inference import TotalPosterior
@@ -207,9 +212,9 @@ def plot_imputation(original, imputed, show_plot=True, title="Imputation"):
 
 
 def nn_overlap(X1, X2, k=100):
-    """
-    Compute the overlap between the k-nearest neighbor graph of X1 and X2 using Spearman correlation of the
-    adjacency matrices.
+    """Compute the overlap between the k-nearest neighbor graph of X1 and X2
+
+    Using Spearman correlation of the adjacency matrices.
     """
     assert len(X1) == len(X2)
     n_samples = len(X1)
@@ -238,8 +243,7 @@ def nn_overlap(X1, X2, k=100):
 def unsupervised_clustering_accuracy(
     y: Union[np.ndarray, torch.Tensor], y_pred: Union[np.ndarray, torch.Tensor]
 ) -> tuple:
-    """
-    Unsupervised Clustering Accuracy
+    """Unsupervised Clustering Accuracy
     """
     assert len(y_pred) == len(y)
     u = np.unique(np.concatenate((y, y_pred)))
@@ -290,19 +294,30 @@ def pairs_sampler(
     weights1: Union[List[float], np.ndarray, torch.Tensor] = None,
     weights2: Union[List[float], np.ndarray, torch.Tensor] = None,
 ) -> tuple:
-    """
-    In a context where we want to estimate a double sum, virtually increases the number
+    """In a context where we want to estimate a double sum, virtually increases the number
     of samples by considering more pairs so as to better estimate the double summation operation
 
-    :param arr1: samples from population 1
-    :param arr2: samples from population 2
-    :param use_permutation: Whether to mix samples from both populations
-    :param M_permutation:
-    :param sanity_check_perm: If True, resulting mixed arrays arr1 and arr2 are mixed together
-    In most cases, this parameter should remain False
-    :param weights1: probabilities associated to array 1 for random sampling
-    :param weights2: probabilities associated to array 2 for random sampling
-    :return: new_arr1, new_arr2
+    Parameters
+    ----------
+    arr1
+        samples from population 1
+    arr2
+        samples from population 2
+    use_permutation
+        Whether to mix samples from both populations
+    M_permutation
+        param sanity_check_perm: If True, resulting mixed arrays arr1 and arr2 are mixed together
+        In most cases, this parameter should remain False
+    weights1
+        probabilities associated to array 1 for random sampling
+    weights2
+        probabilities associated to array 2 for random sampling
+
+    Returns
+    -------
+    type
+        new_arr1, new_arr2
+
     """
     if use_permutation is True:
         # prepare the pairs for sampling
@@ -334,16 +349,24 @@ def pairs_sampler(
 def credible_intervals(
     ary: np.ndarray, confidence_level: Union[float, List[float], np.ndarray] = 0.94
 ) -> np.ndarray:
-    """
+    """Calculate highest posterior density (HPD) of array for given credible_interval.
+
     Taken from the arviz package
-    Calculate highest posterior density (HPD) of array for given credible_interval.
     The HPD is the minimum width Bayesian credible interval (BCI). This implementation works only
     for unimodal distributions.
 
-    :param ary : posterior samples
-    :param confidence_level : confidence level
+    Parameters
+    ----------
+    ary
+        posterior samples
+    confidence_level
+        confidence level
 
-    :return: intervals minima, intervals maxima
+    Returns
+    -------
+    type
+        intervals minima, intervals maxima
+
     """
     if ary.ndim > 1:
         hpd = np.array(
@@ -376,13 +399,21 @@ def describe_continuous_distrib(
     samples: Union[np.ndarray, torch.Tensor],
     credible_intervals_levels: Optional[Union[List[float], np.ndarray]] = None,
 ) -> dict:
-    """
-    Computes properties of distribution based on its samples
+    """Computes properties of distribution based on its samples
 
-    :param samples: samples of shape (n_samples, n_features)
-    :param credible_intervals_levels: Confidence in (0, 1)
-    of credible intervals to be computed
-    :return: properties of distribution
+    Parameters
+    ----------
+    samples
+        samples of shape (n_samples, n_features)
+    credible_intervals_levels
+        Confidence in (0, 1)
+        of credible intervals to be computed
+
+    Returns
+    -------
+    type
+        properties of distribution
+
     """
     dist_props = dict(
         mean=samples.mean(0),
@@ -407,13 +438,16 @@ def describe_continuous_distrib(
 def save_cluster_xlsx(
     filepath: str, de_results: List[pd.DataFrame], cluster_names: List
 ):
-    """
-    Saves multi-clusters DE in an xlsx sheet
+    """Saves multi-clusters DE in an xlsx sheet
 
-    :param filepath: xslx save path
-    :param de_results: list of pandas Dataframes for each cluster
-    :param cluster_names: list of cluster names
-    :return:
+    Parameters
+    ----------
+    filepath
+        xslx save path
+    de_results
+        list of pandas Dataframes for each cluster
+    cluster_names
+        list of cluster names
     """
     writer = pd.ExcelWriter(filepath, engine="xlsxwriter")
     for i, x in enumerate(cluster_names):

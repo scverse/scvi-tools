@@ -27,18 +27,26 @@ class JPosterior(Posterior):
 
 
 class JVAETrainer(Trainer):
-    """
-    The trainer class for the unsupervised training of JVAE.
+    """The trainer class for the unsupervised training of JVAE.
 
-    :param model: A model instance from class ``JVAE``
-    :param discriminator: A model instance of a classifier (with logit output)
-    :param gene_dataset_list: list of gene_dataset instance like ``[CortexDataset(), SmfishDataset()]``
-    :param train_size: Train-test split ratio in (0,1) to split cells
-    :param kappa: float to weight the discriminator loss
-    :param n_epochs_kl_warmup: Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
+    Parameters
+    ----------
+    model
+        A model instance from class ``JVAE``
+    discriminator
+        A model instance of a classifier (with logit output)
+    gene_dataset_list
+        list of gene_dataset instance like ``[CortexDataset(), SmfishDataset()]``
+    train_size
+        Train-test split ratio in (0,1) to split cells
+    kappa
+        float to weight the discriminator loss
+    n_epochs_kl_warmup
+        Number of epochs for linear warmup of KL(q(z|x)||p(z)) term. After `n_epochs_kl_warmup`,
         the training objective is the ELBO. This might be used to prevent inactivity of latent units, and/or to
         improve clustering of latent space, as a long warmup turns the model into something more of an autoencoder.
-    :param kwargs: Other keywords arguments from the general Trainer class.
+    **kwargs
+        Other keywords arguments from the general Trainer class.
     """
 
     default_metrics_to_monitor = ["elbo"]
@@ -48,12 +56,17 @@ class JVAETrainer(Trainer):
         model: nn.Module,
         discriminator: nn.Module,
         gene_dataset_list: List[GeneExpressionDataset],
-        train_size: float = 0.8,
+        train_size: float = 0.9,
         use_cuda: bool = True,
         kappa: float = 1.0,
         n_epochs_kl_warmup: int = 400,
         **kwargs
     ):
+        train_size = float(train_size)
+        if train_size > 1.0 or train_size <= 0.0:
+            raise ValueError(
+                "train_size needs to be greater than 0 and less than or equal to 1"
+            )
 
         super().__init__(model, gene_dataset_list[0], use_cuda=use_cuda, **kwargs)
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
@@ -163,13 +176,23 @@ class JVAETrainer(Trainer):
         predict_true_class: bool = True,
         return_details: bool = False,
     ) -> Union[List[torch.Tensor], torch.Tensor]:
-        """
-        Compute the loss of the discriminator (either for the true labels or the fool labels)
+        """Compute the loss of the discriminator (either for the true labels or the fool labels)
 
-        :param latent_tensors: Tensors for each dataset of the latent space
-        :param predict_true_class: Specify if the loss aims at minimizing the accuracy or the mixing
-        :param return_details: Boolean used to inspect the loss values, return detailed loss for each dataset
-        :return: scalar loss if return_details is False, else list of scalar losses for each dataset
+        Parameters
+        ----------
+        latent_tensors
+            Tensors for each dataset of the latent space
+        predict_true_class
+            Specify if the loss aims at minimizing the accuracy or the mixing
+        return_details
+            Boolean used to inspect the loss values, return detailed loss for each dataset
+        latent_tensors: List[torch.Tensor]
+
+        Returns
+        -------
+        type
+            scalar loss if return_details is False, else list of scalar losses for each dataset
+
         """
         n_classes = self.n_dataset
         losses = []
@@ -200,12 +223,20 @@ class JVAETrainer(Trainer):
     def loss(
         self, tensors: Iterable[torch.Tensor], return_details: bool = False
     ) -> Union[torch.Tensor, Tuple[List[torch.Tensor], List[torch.Tensor]]]:
-        """
-        Compute the loss of vae (reconstruction + kl_divergence)
+        """Compute the loss of vae (reconstruction + kl_divergence)
 
-        :param tensors: Tensors of observations for each dataset
-        :param return_details: Boolean used to inspect the loss values, return detailed loss for each dataset
-        :return: scalar loss if return_details is False, else tuple (reconstruction_loss, kl_loss)
+        Parameters
+        ----------
+        tensors
+            Tensors of observations for each dataset
+        return_details
+            Boolean used to inspect the loss values, return detailed loss for each dataset
+
+        Returns
+        -------
+        type
+            scalar loss if return_details is False, else tuple (reconstruction_loss, kl_loss)
+
         """
         reconstruction_losses = []
         kl_divergences = []
@@ -233,8 +264,7 @@ class JVAETrainer(Trainer):
         return averaged_loss
 
     def get_discriminator_confusion(self) -> np.ndarray:
-        """Return the confusion matrix of the disciminator classifier.
-        A good mixing should lead to a uniform matrix.
+        """A good mixing should lead to a uniform matrix.
         """
         confusion = []
         for i, posterior in enumerate(self.all_dataset):
@@ -254,9 +284,12 @@ class JVAETrainer(Trainer):
     def get_loss_magnitude(
         self, one_sample: bool = False
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Return the different losses of the model separately. Useful to inspect and compare their magnitude.
-        :param one_sample: Use only one batch to estimate the loss, can be much faster/less exact on big datasets
+        """Return the different losses of the model separately. Useful to inspect and compare their magnitude.
+
+        Parameters
+        ----------
+        one_sample
+            Use only one batch to estimate the loss, can be much faster/less exact on big datasets
         """
         total_reconstruction = np.zeros(self.n_dataset)
         total_kl_divergence = np.zeros(self.n_dataset)
@@ -287,9 +320,12 @@ class JVAETrainer(Trainer):
         return total_reconstruction, total_kl_divergence, total_discriminator
 
     def get_latent(self, deterministic: bool = True) -> List[np.ndarray]:
-        """
-        Return the latent space embedding for each dataset
-        :param deterministic: If true, use the mean of the encoder instead of a Gaussian sample
+        """Return the latent space embedding for each dataset
+
+        Parameters
+        ----------
+        deterministic
+            If true, use the mean of the encoder instead of a Gaussian sample
         """
         self.model.eval()
         latents = []
@@ -321,13 +357,17 @@ class JVAETrainer(Trainer):
         normalized: bool = True,
         decode_mode: Optional[int] = None,
     ) -> List[np.ndarray]:
-        """
-        Return imputed values for all genes for each dataset
+        """Return imputed values for all genes for each dataset
 
-        :param deterministic: If true, use the mean of the encoder instead of a Gaussian sample for the latent vector
-        :param normalized: Return imputed normalized values or not
-        :param decode_mode: If a `decode_mode` is given, use the encoder specific to each dataset as usual but use
-                            the decoder of the dataset of id `decode_mode` to impute values
+        Parameters
+        ----------
+        deterministic
+            If true, use the mean of the encoder instead of a Gaussian sample for the latent vector
+        normalized
+            Return imputed normalized values or not
+        decode_mode
+            If a `decode_mode` is given, use the encoder specific to each dataset as usual but use
+            the decoder of the dataset of id `decode_mode` to impute values
         """
         self.model.eval()
         imputed_values = []

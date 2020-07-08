@@ -14,6 +14,44 @@ torch.backends.cudnn.benchmark = True
 
 
 class AutoZIVAE(VAE):
+    r"""AutoZI variational auto-encoder model.
+
+    Implementation of AutoZI model [Clivio19]_.
+
+    n_input
+        Number of input genes
+    alpha_prior
+        Float denoting the alpha parameter of the prior Beta distribution of
+        the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
+        When set to ``None'', will be set to 1 - beta_prior if beta_prior is not ``None'',
+        otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
+    beta_prior
+        Float denoting the beta parameter of the prior Beta distribution of
+        the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
+        When set to ``None'', will be set to 1 - alpha_prior if alpha_prior is not ``None'',
+        otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
+    minimal_dropout
+        Float denoting the lower bound of the cell-gene ZI rate in the ZINB component.
+        Must be non-negative. Can be set to 0 but not recommended as this may make
+        the mixture problem ill-defined.
+    zero_inflation: One of the following
+
+        * ``'gene'`` - zero-inflation Bernoulli parameter of AutoZI is constant per gene across cells
+        * ``'gene-batch'`` - zero-inflation Bernoulli parameter can differ between different batches
+        * ``'gene-label'`` - zero-inflation Bernoulli parameter can differ between different labels
+        * ``'gene-cell'`` - zero-inflation Bernoulli parameter can differ for every gene in every cell
+
+
+    See VAE docstring (scvi/models/vae.py) for more parameters. ``reconstruction_loss`` should not be specified.
+
+    Examples
+    --------
+
+    >>> gene_dataset = CortexDataset()
+    >>> autozivae = AutoZIVAE(gene_dataset.nb_genes, alpha_prior=0.5, beta_prior=0.5, minimal_dropout=0.01)
+
+    """
+
     def __init__(
         self,
         n_input: int,
@@ -23,38 +61,6 @@ class AutoZIVAE(VAE):
         zero_inflation: str = "gene",
         **args,
     ) -> None:
-        r"""AutoZI variational auto-encoder model.
-
-        Implementation of AutoZI model [Clivio19]_.
-
-        :param n_input: Number of input genes
-        :param alpha_prior: Float denoting the alpha parameter of the prior Beta distribution of
-                            the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
-                            When set to ``None'', will be set to 1 - beta_prior if beta_prior is not ``None'',
-                            otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
-        :param beta_prior: Float denoting the beta parameter of the prior Beta distribution of
-                           the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
-                           When set to ``None'', will be set to 1 - alpha_prior if alpha_prior is not ``None'',
-                           otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
-        :param minimal_dropout: Float denoting the lower bound of the cell-gene ZI rate in the ZINB component.
-                                Must be non-negative. Can be set to 0 but not recommended as this may make
-                                the mixture problem ill-defined.
-        :param zero_inflation: One of the following
-
-            * ``'gene'`` - zero-inflation Bernoulli parameter of AutoZI is constant per gene across cells
-            * ``'gene-batch'`` - zero-inflation Bernoulli parameter can differ between different batches
-            * ``'gene-label'`` - zero-inflation Bernoulli parameter can differ between different labels
-            * ``'gene-cell'`` - zero-inflation Bernoulli parameter can differ for every gene in every cell
-
-
-        See VAE docstring (scvi/models/vae.py) for more parameters. ``reconstruction_loss`` should not be specified.
-
-        Examples:
-            >>> gene_dataset = CortexDataset()
-            >>> autozivae = AutoZIVAE(gene_dataset.nb_genes, alpha_prior=0.5, beta_prior=0.5, minimal_dropout=0.01)
-
-        """
-
         if "reconstruction_loss" in args:
             raise ValueError(
                 "No reconstruction loss must be specified for AutoZI : it is 'autozinb'."
@@ -130,8 +136,14 @@ class AutoZIVAE(VAE):
     def cuda(self, device: Optional[str] = None) -> torch.nn.Module:
         r""" Moves all model parameters and also fixed prior alpha and beta values, when relevant, to the GPU.
 
-       :param device: string denoting the GPU device on which parameters and prior distribution values are copied.
-       """
+        Parameters
+        ----------
+        device
+            string denoting the GPU device on which parameters and prior distribution values are copied.
+
+        Returns
+        -------
+        """
         self = super().cuda(device)
         if isinstance(self.alpha_prior_logit, torch.Tensor):
             self.alpha_prior_logit = self.alpha_prior_logit.cuda(device)
@@ -351,15 +363,26 @@ class AutoZIVAE(VAE):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         r""" Returns the reconstruction loss and the Kullback divergences
 
-        :param x: tensor of values with shape (batch_size, n_input)
-        :param local_l_mean: tensor of means of the prior distribution of latent variable l
-         with shape (batch_size, 1)
-        :param local_l_var: tensor of variancess of the prior distribution of latent variable l
-         with shape (batch_size, 1)
-        :param batch_index: array that indicates which batch the cells belong to with shape ``batch_size``
-        :param y: tensor of cell-types labels with shape (batch_size, n_labels)
-        :return: the reconstruction loss and the Kullback divergences
-        :rtype: 2-tuple of :py:class:`torch.FloatTensor`
+        Parameters
+        ----------
+        x
+            tensor of values with shape (batch_size, n_input)
+        local_l_mean
+            tensor of means of the prior distribution of latent variable l
+            with shape (batch_size, 1)
+        local_l_var
+            tensor of variancess of the prior distribution of latent variable l
+            with shape (batch_size, 1)
+        batch_index
+            array that indicates which batch the cells belong to with shape ``batch_size``
+        y
+            tensor of cell-types labels with shape (batch_size, n_labels)
+
+
+        Returns
+        -------
+        2-tuple of :py:class:`torch.FloatTensor`
+            the reconstruction loss and the Kullback divergences
         """
         # Parameters for z latent distribution
         outputs = self.inference(x, batch_index, y)

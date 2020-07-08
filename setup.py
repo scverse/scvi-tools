@@ -11,18 +11,17 @@ with open("HISTORY.rst") as history_file:
 
 requirements = [
     "numpy>=1.16.2",
-    "torch>=1.0.1",
+    "torch>=1.3",
     "matplotlib>=3.1.2",
     "scikit-learn>=0.20.3",
     "h5py>=2.9.0",
-    "pandas>=0.24.2",
+    "pandas>=0.25",
     "loompy>=3.0.6",
     "tqdm>=4.31.1",
     "xlrd>=1.2.0",
     "hyperopt==0.1.2",
-    "anndata>=0.7",
-    "statsmodels",
-    "scanpy>=1.4",
+    "anndata>=0.7.3",
+    "scanpy>=1.5.1",
     'dataclasses; python_version < "3.7"',  # for `dataclass`
     "scikit-misc",
 ]
@@ -59,6 +58,8 @@ extras_requirements = {
         "sphinx-rtd-theme>=0.3.1",
         "autodocsumm",
         "nbsphinx-link",
+        "scanpydoc",
+        "sphinx-automodapi",
     ],
     "test": test_requirements,
 }
@@ -104,6 +105,6 @@ setup(
     tests_require=test_requirements,
     extras_require=extras_requirements,
     url="https://github.com/YosefLab/scVI",
-    version="0.6.5",
+    version="0.6.6",
     zip_safe=False,
 )
