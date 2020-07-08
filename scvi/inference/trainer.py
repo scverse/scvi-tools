@@ -14,11 +14,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from scvi.dataset import GeneExpressionDataset
 from scvi.inference.posterior import Posterior
 
-IN_COLAB = "google.colab" in sys.modules
-if IN_COLAB is True:
-    from tqdm import tqdm
-else:
-    from tqdm.auto import tqdm
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
