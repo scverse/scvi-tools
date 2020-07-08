@@ -1,6 +1,18 @@
 =======
 History
 =======
+0.6.6 (2020-7-08)
+-----------------
+* add tqdm to within cluster DE genes `@adam`_
+* restore tqdm to use simple bar instead of ipywidget `@adam`_
+* move to numpydoc for doctstrings `@adam`_
+* update issues templates `@adam`_
+* Poisson variable gene selection `@valentine_svensson`_
+* BrainSmallDataset set defualt save_path_10X `@gokcen_eraslan`_
+* train_size must be float between 0.0 and 1.0 `@galen`_
+* bump dependency versions `@galen`_
+* remove reproducibility notebook `@galen`_
+* fix scanVI dataloading `@pierre`_
 
 0.6.5 (2020-5-10)
 ------------------
@@ -37,7 +49,7 @@ History
 ------------------
 * updates on TotalVI and LDVAE `@adam`_
 * fix documentation, compatibility and diverse bugs `@adam`_, `@pierre`_ `@romain`_
-* fix for external module on scanpy `@galen-xing`_
+* fix for external module on scanpy `@galen`_
 
 0.5.0 (2019-10-17)
 ------------------
@@ -165,10 +177,10 @@ History
 .. _`@stephen-flemming`: https://github.com/sjfleming
 .. _`@michael-raevsky`: https://github.com/raevskymichail
 .. _`@james-webber`: https://github.com/jamestwebber
-.. _`@galen-xing`: https://github.com/galenxing
+.. _`@galen`: https://github.com/galenxing
 .. _`@francesco-brundu`: https://github.com/fbrundu
 .. _`@primoz-godec`: https://github.com/PrimozGodec
 .. _`@eduardo-beltrame`: https://github.com/Munfred
 .. _`@john-reid`: https://github.com/JohnReid
 .. _`@han-yuan`: https://github.com/hy395
-
+.. _`@gokcen_eraslan`: https://github.com/gokceneraslan
