@@ -1,5 +1,5 @@
-import datetime
 import os
+import datetime
 import pickle
 from collections import defaultdict
 from functools import partial
@@ -17,6 +17,8 @@ from scvi.inference import UnsupervisedTrainer
 from scvi.models import SCANVI
 from scvi.models import VAE
 from sklearn.model_selection import train_test_split
+from scvi.dataset._anndata import get_from_registry
+from scvi.dataset._constants import _BATCH_KEY
 
 
 def custom_objective_hyperopt(
@@ -45,20 +47,24 @@ def custom_objective_hyperopt(
     train_func_tunable_kwargs.update(train_func_specific_kwargs)
 
     scanvi = SCANVI(
-        dataset.nb_genes, dataset.n_batches, dataset.n_labels, **model_tunable_kwargs
+        dataset.uns["scvi_summary_stats"]["n_genes"],
+        dataset.uns["scvi_summary_stats"]["n_batch"],
+        dataset.uns["scvi_summary_stats"]["n_labels"],
+        **model_tunable_kwargs
     )
     trainer_scanvi = SemiSupervisedTrainer(scanvi, dataset, **trainer_tunable_kwargs)
+    batch_indices = get_from_registry(dataset, _BATCH_KEY)
     trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(
-        indices=np.squeeze(dataset.batch_indices == 1)
+        indices=(batch_indices == 1)
     )
     trainer_scanvi.unlabelled_set.to_monitor = ["reconstruction_error", "accuracy"]
-    indices_labelled = np.squeeze(dataset.batch_indices == 0)
+    indices_labelled = batch_indices == 0
 
     if not is_best_training:
         # compute k-fold accuracy on a 20% validation set
         k = 5
         accuracies = np.zeros(k)
-        indices_labelled = np.squeeze(dataset.batch_indices == 0)
+        indices_labelled = batch_indices == 0
         for i in range(k):
             indices_labelled_train, indices_labelled_val = train_test_split(
                 indices_labelled.nonzero()[0], test_size=0.2
@@ -174,7 +180,9 @@ class Benchmarkable:
         df_space = pd.DataFrame(ddd)
         df_space = df_space.T
         n_params_dataset = np.vectorize(
-            partial(n_params, self.trainer.gene_dataset.nb_genes)
+            partial(
+                n_params, self.trainer.gene_dataset.uns["scvi_summary_stats"]["n_genes"]
+            )
         )
         df_space["n_params"] = n_params_dataset(
             df_space["n_layers"], df_space["n_hidden"], df_space["n_latent"]
@@ -246,8 +254,12 @@ class PlotBenchmarkables:
                 runtime_info["train_time"].append(result["elapsed_time"])
 
             def fill_sub_df(sub_df, benchmarkable):
-                sub_df["Nb cells"] = benchmarkable.trainer.gene_dataset.X.shape[0]
-                sub_df["Nb genes"] = benchmarkable.trainer.gene_dataset.nb_genes
+                sub_df["Nb cells"] = benchmarkable.trainer.gene_dataset.uns[
+                    "scvi_summary_stats"
+                ]["n_cells"]
+                sub_df["Nb genes"] = benchmarkable.trainer.gene_dataset.uns[
+                    "scvi_summary_stats"
+                ]["n_genes"]
                 sub_df["Total GPU time"] = benchmarkable.total_train_time
                 sub_df["Total wall time"] = benchmarkable.runtime
                 sub_df["Best epoch"] = benchmarkable.n_epochs

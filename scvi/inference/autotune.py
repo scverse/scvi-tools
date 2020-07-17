@@ -28,7 +28,6 @@ from hyperopt.mongoexp import (
 
 from scvi._settings import autotune_formatter
 
-# from scvi.dataset import DownloadableDataset, GeneExpressionDataset
 from scvi.models import VAE
 from . import Trainer, UnsupervisedTrainer
 
