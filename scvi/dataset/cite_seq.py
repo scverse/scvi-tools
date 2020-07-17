@@ -1,155 +1,58 @@
-import logging
-import os
-from collections import namedtuple
-
-import numpy as np
 import pandas as pd
+import scanpy as sc
+import os
 
-from scvi.dataset.dataset import CellMeasurement, DownloadableDataset
-
-logger = logging.getLogger(__name__)
-
-available_datasets = {
-    "cbmc": "CBMC_8K_13AB_10X",
-    "pbmc": "PBMC_vs_flow_10X",
-    "cd8": "CD8_merged",
-}
-CiteSeqFilenames = namedtuple(
-    "CiteSeqFilenames", field_names=["rna", "adt", "adt_centered"]
-)
+from scvi.dataset import setup_anndata
 
 
-class CiteSeqDataset(DownloadableDataset):
-    """Allows to form 3 different CiteSeq datasets.
+def pbmcs_10x_cite_seq(
+    save_path: str = "data/", protein_join: str = "inner", run_setup_anndata=True
+):
+    """Filtered PBMCs from 10x Genomics profiled with RNA and protein
 
-    Note that their centered log ratio transformation for ADT counts is different from
-    the standard clr transformation: they explain they add pseudocounts (for 0 values),
-    but do not explicit the actual transformation.
-    It doesn't seem to be simply adding count 1 to all entries, or only 0 entries.
+    Datasets were filtered for doublets and other outliers as in
+    https://github.com/YosefLab/totalVI_reproducibility/blob/master/data/data_filtering_scripts/pbmc_10k/pbmc_10k.py
 
     Parameters
     ----------
-    name
-        Name of the CiteSeq dataset to load. Either "cbmc", "pbmc" or "cd8".
-    save_path
-        Location to use when saving/loading the data.
-    delayed_populating
-        Switch for delayed populating mechanism.
+    protein_join
+        Whether to take an inner join or outer join of proteins
 
+    Returns
+    -------
+    `AnnData` with `.obsm["protein_expression"]
+
+    Missing protein values are zero, and are identified during `AnnData` setup.
     """
+    dataset1 = sc.read(
+        os.path.join(save_path, "pbmc_10k_protein_v3.h5ad"),
+        backup_url="https://github.com/YosefLab/scVI-data/raw/master/pbmc_10k_protein_v3.h5ad?raw=true",
+    )
+    dataset2 = sc.read(
+        os.path.join(save_path, "pbmc_5k_protein_v3.h5ad"),
+        backup_url="https://github.com/YosefLab/scVI-data/raw/master/pbmc_5k_protein_v3.h5ad?raw=true",
+    )
+    common_genes = dataset1.var_names.intersection(dataset2.var_names)
+    dataset1 = dataset1[:, common_genes]
+    dataset2 = dataset2[:, common_genes]
+    dataset1.obsm["protein_expression"] = pd.DataFrame(
+        dataset1.obsm["protein_expression"],
+        columns=dataset1.uns["protein_names"],
+        index=dataset1.obs_names,
+    )
+    dataset2.obsm["protein_expression"] = pd.DataFrame(
+        dataset2.obsm["protein_expression"],
+        columns=dataset2.uns["protein_names"],
+        index=dataset2.obs_names,
+    )
+    del dataset1.uns["protein_names"]
+    del dataset2.uns["protein_names"]
 
-    def __init__(
-        self,
-        name: str = "cbmc",
-        save_path: str = "data/citeSeq/",
-        delayed_populating: bool = False,
-    ):
-        s = available_datasets[name]
-        filenames = CiteSeqFilenames(
-            rna="%s_rna.csv.gz" % name,
-            adt="%s_adt.csv.gz" % name,
-            adt_centered="%s_adt_centered.csv.gz" % name,
-        )
-        super().__init__(
-            urls=[
-                "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/GSE100866_%s-RNA_umi.csv.gz"
-                % s,
-                "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/GSE100866_%s-ADT_umi.csv.gz"
-                % s,
-                "ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE100nnn/GSE100866/suppl/"
-                "GSE100866_%s-ADT_clr-transformed.csv.gz" % s,
-            ],
-            filenames=filenames,
-            save_path=os.path.join(save_path, name),
-            delayed_populating=delayed_populating,
-        )
+    dataset = dataset1.concatenate(dataset2, join=protein_join)
 
-    def populate(self):
-        logger.info("Preprocessing data")
-        self.expression = pd.read_csv(
-            os.path.join(self.save_path, self.filenames.rna),
-            index_col=0,
-            compression="gzip",
-        ).T
-
-        # process protein measurements
-        adt = pd.read_csv(
-            os.path.join(self.save_path, self.filenames.adt),
-            index_col=0,
-            compression="gzip",
-        )
-        protein_names = np.asarray(adt.index).astype(np.str)
-        protein_measurement = CellMeasurement(
-            name="protein_expression",
-            data=adt.T.values,
-            columns_attr_name="protein_names",
-            columns=protein_names,
-        )
-        adt_centered = pd.read_csv(
-            os.path.join(self.save_path, self.filenames.adt_centered),
-            index_col=0,
-            compression="gzip",
-        )
-        if not np.array_equal(
-            np.asarray(adt_centered.index).astype(np.str), protein_names
-        ):
-            raise ValueError(
-                "Protein names are not the same for raw and centered counts."
-            )
-        protein_measurement_centered = CellMeasurement(
-            name="protein_expression_clr",
-            data=adt_centered.T.values,
-            columns_attr_name="protein_names_clr",
-            columns=protein_names,
+    if run_setup_anndata:
+        setup_anndata(
+            dataset, batch_key="batch", protein_expression_obsm_key="protein_expression"
         )
 
-        # keep only human genes (there are also mouse genes)
-        gene_names = np.asarray(self.expression.columns, dtype=str)
-        human_filter = np.asarray(
-            [name.startswith("HUMAN") for name in gene_names], dtype=np.bool
-        )
-        logger.info(
-            "Selecting only HUMAN genes ({} / {})".format(
-                human_filter.sum(), len(human_filter)
-            )
-        )
-        X = self.expression.values[:, human_filter]
-        gene_names = gene_names[human_filter]
-        gene_names = np.asarray(
-            [name.split("_")[-1] if "_" in name else name for name in gene_names],
-            dtype=np.str,
-        )
-
-        logger.info("Finish preprocessing data")
-
-        self.populate_from_data(
-            X=X,
-            gene_names=gene_names,
-            Ys=[protein_measurement, protein_measurement_centered],
-        )
-
-        self.filter_cells_by_count()
-
-
-class CbmcDataset(CiteSeqDataset):
-    """Loads cbmc dataset.
-
-    This dataset that includes 8,617 cord blood mononuclear cells profiled using 10x along with for each cell 13
-    well-characterized mononuclear antibodies. We kept the top 600 genes by variance.
-
-    Parameters
-    ----------
-    save_path
-        Save path of raw data file.
-
-    Examples
-    --------
-    >>> gene_dataset = CbmcDataset()
-    """
-
-    def __init__(
-        self, save_path: str = "data/citeSeq/", delayed_populating: bool = False
-    ):
-        super().__init__(
-            name="cbmc", save_path=save_path, delayed_populating=delayed_populating
-        )
+    return dataset

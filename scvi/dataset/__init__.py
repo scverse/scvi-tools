@@ -1,60 +1,23 @@
-from scvi.dataset.anndataset import AnnDatasetFromAnnData, DownloadableAnnDataset
-from scvi.dataset.brain_large import BrainLargeDataset
-from scvi.dataset.cite_seq import CiteSeqDataset, CbmcDataset
-from scvi.dataset.cortex import CortexDataset
-from scvi.dataset.csv import CsvDataset, BreastCancerDataset, MouseOBDataset
-from scvi.dataset.dataset import (
-    GeneExpressionDataset,
-    DownloadableDataset,
-    CellMeasurement,
-)
-from scvi.dataset.dataset10X import Dataset10X, BrainSmallDataset
-from scvi.dataset.hemato import HematoDataset
-from scvi.dataset.loom import (
-    LoomDataset,
-    RetinaDataset,
-    PreFrontalCortexStarmapDataset,
-    FrontalCortexDropseqDataset,
-)
-from scvi.dataset.pbmc import PbmcDataset, PurifiedPBMCDataset
-from scvi.dataset.seqfish import SeqfishDataset
-from scvi.dataset.seqfishplus import SeqFishPlusDataset
-from scvi.dataset.smfish import SmfishDataset
-from scvi.dataset.synthetic import (
-    SyntheticDataset,
-    SyntheticRandomDataset,
-    SyntheticDatasetCorr,
-    ZISyntheticDatasetCorr,
+from ._anndata import setup_anndata
+from ._preprocessing import (
+    highly_variable_genes_seurat_v3,
+    poisson_gene_selection,
+    organize_cite_seq_10x,
 )
 
-
-__all__ = [
-    "AnnDatasetFromAnnData",
-    "DownloadableAnnDataset",
-    "BrainLargeDataset",
-    "CiteSeqDataset",
-    "CbmcDataset",
-    "CellMeasurement",
-    "CortexDataset",
-    "CsvDataset",
-    "BreastCancerDataset",
-    "MouseOBDataset",
-    "GeneExpressionDataset",
-    "DownloadableDataset",
-    "Dataset10X",
-    "BrainSmallDataset",
-    "HematoDataset",
-    "LoomDataset",
-    "RetinaDataset",
-    "FrontalCortexDropseqDataset",
-    "PreFrontalCortexStarmapDataset",
-    "PbmcDataset",
-    "PurifiedPBMCDataset",
-    "SeqfishDataset",
-    "SeqFishPlusDataset",
-    "SmfishDataset",
-    "SyntheticDataset",
-    "SyntheticRandomDataset",
-    "SyntheticDatasetCorr",
-    "ZISyntheticDatasetCorr",
-]
+from .cite_seq import pbmcs_10x_cite_seq
+from .dataset10X import dataset10X
+from .brain_large import brainlarge_dataset
+from ._datasets import synthetic_iid
+from .pbmc import pbmc_dataset
+from .cortex import cortex
+from .seqfish import seqfish
+from .seqfishplus import seqfishplus
+from .smfish import smfish
+from .csv import breast_cancer_dataset, mouse_ob_dataset
+from .loom import (
+    retina,
+    prefrontalcortex_starmap,
+    frontalcortex_dropseq,
+    annotation_simulation,
+)

@@ -1,238 +1,160 @@
 import logging
 import os
-from typing import List, Optional
-
+import loompy
 import numpy as np
+import pandas as pd
 
-from scvi.dataset.dataset import DownloadableDataset
+from anndata import AnnData
+from scvi.dataset import setup_anndata
+from scvi.dataset._utils import _download
+
 
 logger = logging.getLogger(__name__)
 
 
-class LoomDataset(DownloadableDataset):
-    """Loads a potentially remote `.loom` file.
-
-    Parameters
-    ----------
-    filename
-        File name to use when saving/loading the data.
-    save_path
-        Location to use when saving/loading the data.
-    url
-        URL pointing to the data which will be downloaded
-        if it's not already in ``save_path``.
-    batch_indices_attribute_name
-        Name of the attribute containing batch indices.
-    labels_attribute_name
-        Name of the attribute containing labels.
-    gene_names_attribute_name
-        Name of the attribute containing gene names.
-    cell_types_attribute_name
-        Name of the attribute containing cell types.
-    delayed_populating
-        Switch for delayed populating mechanism.
-
-    Examples
-    --------
-    >>> # Loading a remote dataset
-    >>> remote_loom_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom", save_path='data/',
-    ... url='http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom')
-    >>> # Loading a local dataset
-    >>> local_loom_dataset = LoomDataset("osmFISH_SScortex_mouse_all_cell.loom", save_path='data/')
-    """
-
-    def __init__(
-        self,
-        filename: str,
-        save_path: str = "data/",
-        url: str = None,
-        batch_indices_attribute_name: str = "BatchID",
-        labels_attribute_name: str = "ClusterID",
-        encode_labels_name_into_int: bool = False,
-        gene_names_attribute_name: str = "Gene",
-        cell_types_attribute_name: str = "CellTypes",
-        delayed_populating: bool = False,
-    ):
-        self.batch_indices_attribute_name = batch_indices_attribute_name
-        self.labels_attribute_name = labels_attribute_name
-        self.encode_labels_name_into_int = encode_labels_name_into_int
-        self.gene_names_attribute_name = gene_names_attribute_name
-        self.cell_types_attribute_name = cell_types_attribute_name
-        self.global_attributes_dict = None
-        super().__init__(
-            urls=url,
-            filenames=filename,
-            save_path=save_path,
-            delayed_populating=delayed_populating,
-        )
-
-    def populate(self):
-        logger.info("Preprocessing dataset")
-        (
-            gene_names,
-            labels,
-            batch_indices,
-            cell_types,
-            cell_attributes_dict,
-            gene_attributes_dict,
-            global_attributes_dict,
-        ) = (None, None, None, None, None, None, None)
-
-        try:
-            import loompy
-        except ImportError:
-            raise ImportError(
-                "Please install loompy package via `pip install --user loompy"
-            )
-
-        ds = loompy.connect(os.path.join(self.save_path, self.filenames[0]))
-        select = ds[:, :].sum(axis=0) > 0  # Take out cells that don't express any gene
-        if not all(select):
-            logger.warning("Removing non-expressing cells")
-
-        for row_attribute_name in ds.ra:
-            if row_attribute_name == self.gene_names_attribute_name:
-                gene_names = ds.ra[self.gene_names_attribute_name]
-            else:
-                gene_attributes_dict = (
-                    gene_attributes_dict if gene_attributes_dict is not None else {}
-                )
-                gene_attributes_dict[row_attribute_name] = ds.ra[row_attribute_name]
-
-        for column_attribute_name in ds.ca:
-            if column_attribute_name == self.batch_indices_attribute_name:
-                batch_indices = ds.ca[self.batch_indices_attribute_name][select]
-            elif column_attribute_name == self.labels_attribute_name:
-                labels = ds.ca[self.labels_attribute_name][select]
-            else:
-                cell_attributes_dict = (
-                    cell_attributes_dict if cell_attributes_dict is not None else {}
-                )
-                cell_attributes_dict[column_attribute_name] = ds.ca[
-                    column_attribute_name
-                ][select]
-
-        for global_attribute_name in ds.attrs:
-            if global_attribute_name == self.cell_types_attribute_name:
-                cell_types = ds.attrs[self.cell_types_attribute_name]
-            else:
-                global_attributes_dict = (
-                    global_attributes_dict if global_attributes_dict is not None else {}
-                )
-                global_attributes_dict[global_attribute_name] = ds.attrs[
-                    global_attribute_name
-                ]
-
-        if global_attributes_dict is not None:
-            self.global_attributes_dict = global_attributes_dict
-
-        if (
-            self.encode_labels_name_into_int
-            and labels is not None
-            and cell_types is not None
-        ):
-            mapping = dict((v, k) for k, v in enumerate(cell_types))
-            mapper = np.vectorize(lambda x: mapping[x])
-            labels = mapper(labels)
-
-        data = ds[:, select].T  # change matrix to cells by genes
-        ds.close()
-
-        logger.info("Finished preprocessing dataset")
-        self.populate_from_data(
-            X=data,
-            batch_indices=batch_indices,
-            labels=labels,
-            gene_names=gene_names,
-            cell_types=cell_types,
-            cell_attributes_dict=cell_attributes_dict,
-            gene_attributes_dict=gene_attributes_dict,
-        )
-
-
-class RetinaDataset(LoomDataset):
-    """Loads retina dataset.
+def retina(save_path: str = "data/") -> AnnData:
+    """\
+    Loads retina dataset
 
     The dataset of bipolar cells contains after their original pipeline for filtering 27,499 cells and
     13,166 genes coming from two batches. We use the cluster annotation from 15 cell-types from the author.
     We also extract their normalized data with Combat and use it for benchmarking.
 
-    Examples
-    --------
-    >>> gene_dataset = RetinaDataset()
+    """
+    save_path = os.path.abspath(save_path)
+    url = "https://github.com/YosefLab/scVI-data/raw/master/retina.loom"
+    save_fn = "retina.loom"
+    _download(url, save_path, save_fn)
+    adata = _load_loom(os.path.join(save_path, save_fn))
+    cell_types = [
+        "RBC",
+        "MG",
+        "BC5A",
+        "BC7",
+        "BC6",
+        "BC5C",
+        "BC1A",
+        "BC3B",
+        "BC1B",
+        "BC2",
+        "BC5D",
+        "BC3A",
+        "BC5B",
+        "BC4",
+        "BC8_9",
+    ]
+    adata.obs["labels"] = [
+        cell_types[i] for i in adata.obs["ClusterID"].values.astype(int).ravel()
+    ]
+    del adata.obs["ClusterID"]
+    adata.obs["batch"] = pd.Categorical(adata.obs["BatchID"].values.copy())
+    del adata.obs["BatchID"]
+
+    return adata
+
+
+def prefrontalcortex_starmap(save_path: str = "data/") -> AnnData:
+    """\
+    Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex (Wang et al., 2018)
+    """
+    save_path = os.path.abspath(save_path)
+    url = "https://github.com/YosefLab/scVI-data/raw/master/mpfc-starmap.loom"
+    save_fn = "mpfc-starmap.loom"
+    _download(url, save_path, save_fn)
+    adata = _load_loom(os.path.join(save_path, save_fn))
+
+    adata.obs["labels"] = adata.obs.Clusters.values
+    del adata.obs["Clusters"]
+
+    adata.obs["batch"] = adata.obs.BatchID.values
+    del adata.obs["BatchID"]
+    adata.obs["x_coord"] = adata.obsm["Spatial_coordinates"][:, 0]
+    adata.obs["y_coord"] = adata.obsm["Spatial_coordinates"][:, 1]
+    return adata
+
+
+def frontalcortex_dropseq(save_path: str = "data/") -> AnnData:
+    """\
+    Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex (Wang et al., 2018)
+    """
+    save_path = os.path.abspath(save_path)
+    url = "https://github.com/YosefLab/scVI-data/raw/master/fc-dropseq.loom"
+    save_fn = "fc-dropseq.loom"
+    _download(url, save_path, save_fn)
+    adata = _load_loom(os.path.join(save_path, save_fn))
+
+    # reorder labels such that layers of the cortex are in order
+    # order_labels = [5, 6, 3, 2, 4, 0, 1, 8, 7, 9, 10, 11, 12, 13]
+    # self.reorder_cell_types(self.cell_types[order_labels])
+
+    return adata
+
+
+def annotation_simulation(
+    name: str, save_path: str = "data/", run_setup_anndata=True
+) -> AnnData:
+    """\
+    Simulated datasets for scANVI tutorials
+
+    name
+        One of "1", "2", or "3"
     """
 
-    def __init__(self, save_path: str = "data/", delayed_populating: bool = False):
-        super().__init__(
-            filename="retina.loom",
-            save_path=save_path,
-            url="https://github.com/YosefLab/scVI-data/raw/master/retina.loom",
-            delayed_populating=delayed_populating,
-        )
-        self.cell_types = [
-            "RBC",
-            "MG",
-            "BC5A",
-            "BC7",
-            "BC6",
-            "BC5C",
-            "BC1A",
-            "BC3B",
-            "BC1B",
-            "BC2",
-            "BC5D",
-            "BC3A",
-            "BC5B",
-            "BC4",
-            "BC8_9",
-        ]
+    save_path = os.path.abspath(save_path)
+    url = "https://github.com/YosefLab/scVI-data/raw/master/simulation/simulation_{}.loom".format(
+        name
+    )
+    save_fn = "simulation_{}.loom".format(name)
+    _download(url, save_path, save_fn)
+    adata = _load_loom(os.path.join(save_path, save_fn))
+
+    adata.obs["labels"] = adata.obs.ClusterID.values
+    del adata.obs["ClusterID"]
+
+    adata.obs["batch"] = adata.obs.BatchID.values
+    del adata.obs["BatchID"]
+
+    if run_setup_anndata:
+        setup_anndata(adata, batch_key="batch", labels_key="labels")
+
+    return adata
 
 
-class PreFrontalCortexStarmapDataset(LoomDataset):
-    """Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex (Wang et al., 2018)"""
+def _load_loom(path_to_file: str, gene_names_attribute_name: str = "Gene") -> AnnData:
+    ds = loompy.connect(path_to_file)
+    select = ds[:, :].sum(axis=0) > 0  # Take out cells that don't express any gene
+    if not all(select):
+        logger.warning("Removing non-expressing cells")
 
-    def __init__(self, save_path: str = "data/", delayed_populating: bool = False):
+    var_dict, obs_dict, uns_dict, obsm_dict = {}, {}, {}, {}
+    for row_key in ds.ra:
+        if row_key == gene_names_attribute_name:
+            gene_names = ds.ra[gene_names_attribute_name].astype(str)
+        else:
+            var_dict[row_key] = ds.ra[row_key]
+            if type(var_dict[row_key]) is np.ndarray:
+                var_dict[row_key] = var_dict[row_key].ravel()
 
-        super().__init__(
-            filename="mpfc-starmap.loom",
-            save_path=save_path,
-            url="https://github.com/YosefLab/scVI-data/raw/master/mpfc-starmap.loom",
-            labels_attribute_name="Clusters",
-            encode_labels_name_into_int=True,
-            delayed_populating=delayed_populating,
-        )
+    for column_key in ds.ca:
+        obs_dict = obs_dict if obs_dict is not None else {}
+        obs_dict[column_key] = ds.ca[column_key][select]
+        if type(obs_dict[column_key]) is np.ndarray:
+            if len(obs_dict[column_key]) == len(obs_dict[column_key].ravel()):
+                obs_dict[column_key] = obs_dict[column_key].ravel()
+            else:
+                obsm_dict[column_key] = obs_dict[column_key]
+                del obs_dict[column_key]
 
-        self.initialize_cell_attribute("x_coord", self.Spatial_coordinates[:, 0])
-        self.initialize_cell_attribute("y_coord", self.Spatial_coordinates[:, 1])
+    for global_key in ds.attrs:
+        uns_dict = uns_dict if uns_dict is not None else {}
+        uns_dict[global_key] = ds.attrs[global_key]
+        if type(uns_dict[global_key]) is np.ndarray:
+            uns_dict[global_key] = uns_dict[global_key].ravel()
 
+    data = ds[:, select].T  # change matrix to cells by genes
+    ds.close()
 
-class FrontalCortexDropseqDataset(LoomDataset):
-    """"Load the cells from the mouse frontal cortex sequenced by the Dropseq technology (Saunders et al., 2018)
+    adata = AnnData(X=data, obs=obs_dict, var=var_dict, uns=uns_dict, obsm=obsm_dict)
+    adata.var_names = gene_names
 
-    Load the 71639 annotated cells located in the frontal cortex of adult mouses among the 690,000 cells
-    studied by (Saunders et al., 2018) using the Drop-seq method. We have a 71639*7611 gene expression matrix
-    Among the 7611 genes, we offer the user to provide a list of genes to subsample from. If not provided,
-    all genes are kept.
-    """
-
-    def __init__(
-        self,
-        save_path: str = "data/",
-        genes_to_keep: Optional[List[str]] = None,
-        delayed_populating: bool = False,
-    ):
-
-        super().__init__(
-            filename="fc-dropseq.loom",
-            save_path=save_path,
-            url="https://github.com/YosefLab/scVI-data/raw/master/fc-dropseq.loom",
-            labels_attribute_name="Clusters",
-            delayed_populating=delayed_populating,
-        )
-
-        if genes_to_keep is not None:
-            self.reorder_genes(genes_to_keep, drop_omitted_genes=True)
-
-        # reorder labels such that layers of the cortex are in order
-        order_labels = [5, 6, 3, 2, 4, 0, 1, 8, 7, 9, 10, 11, 12, 13]
-        self.reorder_cell_types(self.cell_types[order_labels])
+    return adata

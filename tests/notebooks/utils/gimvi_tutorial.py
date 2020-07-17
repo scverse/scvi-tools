@@ -75,8 +75,8 @@ def plot_gene_spatial(trainer, data_spatial, gene):
     else:
         gene_id = gene
 
-    x_coord = data_fish.x_coord.ravel()
-    y_coord = data_fish.y_coord.ravel()
+    x_coord = data_fish.obs["x_coord"]
+    y_coord = data_fish.obs["y_coord"]
 
     def order_by_strenght(x, y, z):
         ind = np.argsort(z)

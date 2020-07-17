@@ -1,19 +1,11 @@
 import numpy as np
+import pdb
 import pandas as pd
 import tempfile
 import os
 import pytest
 import torch
 
-from anndata import AnnData
-
-from scvi.dataset import (
-    AnnDatasetFromAnnData,
-    CortexDataset,
-    SyntheticDataset,
-    GeneExpressionDataset,
-    Dataset10X,
-)
 from scvi.inference import (
     JointSemiSupervisedTrainer,
     AlternateSemiSupervisedTrainer,
@@ -23,6 +15,8 @@ from scvi.inference import (
     TotalTrainer,
     TotalPosterior,
 )
+import scvi
+from scvi.dataset import setup_anndata
 from scvi.inference.posterior import unsupervised_clustering_accuracy
 from scvi.inference.posterior_utils import load_posterior
 from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
@@ -30,15 +24,16 @@ from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE
 from scvi.models.distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
 from scvi.models.classifier import Classifier
 from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
-from scvi import set_seed
 
-set_seed(0)
+scvi.set_seed(0)
 use_cuda = True
 
 
 def test_cortex(save_path):
-    cortex_dataset = CortexDataset(save_path=save_path)
-    vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_batches)
+    cortex_dataset = scvi.dataset.cortex(save_path=save_path)
+    scvi.dataset.setup_anndata(cortex_dataset, labels_key="labels")
+    stats = cortex_dataset.uns["scvi_summary_stats"]
+    vae = VAE(stats["n_genes"], stats["n_batch"])
     trainer_cortex_vae = UnsupervisedTrainer(
         vae, cortex_dataset, train_size=0.5, use_cuda=use_cuda
     )
@@ -51,7 +46,7 @@ def test_cortex(save_path):
     trainer_cortex_vae.train_set.generate_feature_correlation_matrix(
         n_samples=2, correlation_type="spearman"
     )
-    genes = cortex_dataset.gene_names[:3]
+    genes = cortex_dataset.var_names[:3]
     sample_scale = trainer_cortex_vae.train_set.get_sample_scale(gene_list=genes)
     assert type(sample_scale) == pd.DataFrame
     assert np.array_equal(np.sort(np.array(sample_scale.columns)), np.sort(genes))
@@ -59,19 +54,11 @@ def test_cortex(save_path):
     trainer_cortex_vae.train_set.imputation(n_samples=1)
     trainer_cortex_vae.test_set.imputation(n_samples=5)
 
-    trainer_cortex_vae.corrupt_posteriors(corruption="binomial")
-    trainer_cortex_vae.corrupt_posteriors()
-    trainer_cortex_vae.train(n_epochs=1)
-    trainer_cortex_vae.uncorrupt_posteriors()
-
-    trainer_cortex_vae.train_set.imputation_benchmark(
-        n_samples=1, show_plot=False, title_plot="imputation", save_path=save_path
-    )
     trainer_cortex_vae.train_set.generate_parameters()
 
     n_cells, n_genes = (
         len(trainer_cortex_vae.train_set.indices),
-        cortex_dataset.nb_genes,
+        cortex_dataset.uns["scvi_summary_stats"]["n_genes"],
     )
     n_samples = 3
     (dropout, means, dispersions) = trainer_cortex_vae.train_set.generate_parameters()
@@ -91,16 +78,17 @@ def test_cortex(save_path):
         vae, cortex_dataset, indices=np.arange(len(cortex_dataset))
     )
     x_new, x_old = full.generate(n_samples=10)
-    assert x_new.shape == (cortex_dataset.nb_cells, cortex_dataset.nb_genes, 10)
-    assert x_old.shape == (cortex_dataset.nb_cells, cortex_dataset.nb_genes)
-
-    trainer_cortex_vae.train_set.imputation_benchmark(
-        n_samples=1, show_plot=False, title_plot="imputation", save_path=save_path
+    assert x_new.shape == (
+        cortex_dataset.uns["scvi_summary_stats"]["n_cells"],
+        cortex_dataset.uns["scvi_summary_stats"]["n_genes"],
+        10,
+    )
+    assert x_old.shape == (
+        cortex_dataset.uns["scvi_summary_stats"]["n_cells"],
+        cortex_dataset.uns["scvi_summary_stats"]["n_genes"],
     )
 
-    svaec = SCANVI(
-        cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels
-    )
+    svaec = SCANVI(stats["n_genes"], stats["n_batch"], stats["n_labels"])
     trainer_cortex_svaec = JointSemiSupervisedTrainer(
         svaec, cortex_dataset, n_labelled_samples_per_class=3, use_cuda=use_cuda
     )
@@ -108,9 +96,7 @@ def test_cortex(save_path):
     trainer_cortex_svaec.labelled_set.accuracy()
     trainer_cortex_svaec.full_dataset.reconstruction_error()
 
-    svaec = SCANVI(
-        cortex_dataset.nb_genes, cortex_dataset.n_batches, cortex_dataset.n_labels
-    )
+    svaec = SCANVI(stats["n_genes"], stats["n_batch"], stats["n_labels"])
     trainer_cortex_svaec = AlternateSemiSupervisedTrainer(
         svaec, cortex_dataset, n_labelled_samples_per_class=3, use_cuda=use_cuda
     )
@@ -133,20 +119,20 @@ def test_cortex(save_path):
         param_grid=[{"max_depth": [3], "n_estimators": [10]}],
     )
 
-    cls = Classifier(cortex_dataset.nb_genes, n_labels=cortex_dataset.n_labels)
+    cls = Classifier(stats["n_genes"], n_labels=stats["n_labels"])
     cls_trainer = ClassifierTrainer(cls, cortex_dataset)
     cls_trainer.train(n_epochs=1)
     cls_trainer.train_set.accuracy()
 
 
 def test_synthetic_1():
-    synthetic_dataset = SyntheticDataset()
-    synthetic_dataset.cell_types = np.array(["A", "B", "C"])
-    svaec = SCANVI(
-        synthetic_dataset.nb_genes,
-        synthetic_dataset.n_batches,
-        synthetic_dataset.n_labels,
+    synthetic_dataset = scvi.dataset.synthetic_iid()
+    scvi.dataset.setup_anndata(
+        synthetic_dataset, batch_key="batch", labels_key="labels"
     )
+    stats = synthetic_dataset.uns["scvi_summary_stats"]
+
+    svaec = SCANVI(stats["n_genes"], stats["n_batch"], stats["n_labels"])
     trainer_synthetic_svaec = JointSemiSupervisedTrainer(
         svaec, synthetic_dataset, use_cuda=use_cuda
     )
@@ -157,30 +143,20 @@ def test_synthetic_1():
         posterior_save_path = os.path.join(temp_dir, "posterior_data")
         original_post = trainer_synthetic_svaec.labelled_set.sequential()
         original_post.save_posterior(posterior_save_path)
-        new_svaec = SCANVI(
-            synthetic_dataset.nb_genes,
-            synthetic_dataset.n_batches,
-            synthetic_dataset.n_labels,
-        )
+        new_svaec = SCANVI(stats["n_genes"], stats["n_batch"], stats["n_labels"])
         new_post = load_posterior(posterior_save_path, model=new_svaec, use_cuda=False)
     assert np.array_equal(new_post.indices, original_post.indices)
     assert np.array_equal(new_post.gene_dataset.X, original_post.gene_dataset.X)
     assert np.array_equal(
         new_post.gene_dataset.labels, original_post.gene_dataset.labels
     )
-
     trainer_synthetic_svaec.full_dataset.knn_purity()
-    trainer_synthetic_svaec.labelled_set.show_t_sne(n_samples=5)
-    trainer_synthetic_svaec.unlabelled_set.show_t_sne(n_samples=5, color_by="labels")
-    trainer_synthetic_svaec.labelled_set.show_t_sne(
-        n_samples=5, color_by="batches and labels"
-    )
     trainer_synthetic_svaec.labelled_set.clustering_scores()
     trainer_synthetic_svaec.labelled_set.clustering_scores(prediction_algorithm="gmm")
     trainer_synthetic_svaec.unlabelled_set.unsupervised_classification_accuracy()
     trainer_synthetic_svaec.unlabelled_set.differential_expression_score(
-        synthetic_dataset.labels.ravel() == 1,
-        synthetic_dataset.labels.ravel() == 2,
+        synthetic_dataset.obs["_scvi_labels"].ravel() == 1,
+        synthetic_dataset.obs["_scvi_labels"].ravel() == 2,
         n_samples=2,
         M_permutation=10,
     )
@@ -190,12 +166,13 @@ def test_synthetic_1():
 
 
 def test_synthetic_2():
-    synthetic_dataset = SyntheticDataset()
-    vaec = VAEC(
-        synthetic_dataset.nb_genes,
-        synthetic_dataset.n_batches,
-        synthetic_dataset.n_labels,
+    synthetic_dataset = scvi.dataset.synthetic_iid()
+    scvi.dataset.setup_anndata(
+        synthetic_dataset, batch_key="batch", labels_key="labels"
     )
+    stats = synthetic_dataset.uns["scvi_summary_stats"]
+
+    vaec = VAEC(stats["n_genes"], stats["n_batch"], stats["n_labels"])
     trainer_synthetic_vaec = JointSemiSupervisedTrainer(
         vaec,
         synthetic_dataset,
@@ -211,7 +188,8 @@ def test_synthetic_2():
 
 
 def base_benchmark(gene_dataset):
-    vae = VAE(gene_dataset.nb_genes, gene_dataset.n_batches, gene_dataset.n_labels)
+    stats = gene_dataset.uns["scvi_summary_stats"]
+    vae = VAE(stats["n_genes"], stats["n_batch"], stats["n_labels"])
     trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=0.5, use_cuda=use_cuda)
     trainer.train(n_epochs=1)
     return trainer
@@ -219,14 +197,20 @@ def base_benchmark(gene_dataset):
 
 def ldvae_benchmark(dataset, n_epochs, use_cuda=True):
     ldvae = LDVAE(
-        dataset.nb_genes, n_batch=dataset.n_batches, latent_distribution="normal"
+        dataset.uns["scvi_summary_stats"]["n_genes"],
+        n_batch=dataset.uns["scvi_summary_stats"]["n_batch"],
+        latent_distribution="normal",
     )
     trainer = UnsupervisedTrainer(ldvae, dataset, use_cuda=use_cuda)
     trainer.train(n_epochs=n_epochs)
     trainer.test_set.reconstruction_error()
     trainer.test_set.marginal_ll()
 
-    ldvae = LDVAE(dataset.nb_genes, n_batch=dataset.n_batches, latent_distribution="ln")
+    ldvae = LDVAE(
+        dataset.uns["scvi_summary_stats"]["n_genes"],
+        n_batch=dataset.uns["scvi_summary_stats"]["n_batch"],
+        latent_distribution="ln",
+    )
     trainer = UnsupervisedTrainer(ldvae, dataset, use_cuda=use_cuda)
     trainer.train(n_epochs=n_epochs)
     trainer.test_set.reconstruction_error()
@@ -238,7 +222,9 @@ def ldvae_benchmark(dataset, n_epochs, use_cuda=True):
 
 def totalvi_benchmark(dataset, n_epochs, use_cuda=True):
     totalvae = TOTALVI(
-        dataset.nb_genes, len(dataset.protein_names), n_batch=dataset.n_batches
+        dataset.uns["scvi_summary_stats"]["n_genes"],
+        dataset.uns["scvi_summary_stats"]["n_proteins"],
+        n_batch=dataset.uns["scvi_summary_stats"]["n_batch"],
     )
     trainer = TotalTrainer(
         totalvae, dataset, train_size=0.5, use_cuda=use_cuda, early_stopping_kwargs=None
@@ -263,7 +249,8 @@ def totalvi_benchmark(dataset, n_epochs, use_cuda=True):
 
 
 def test_synthetic_3():
-    gene_dataset = SyntheticDataset()
+    gene_dataset = scvi.dataset.synthetic_iid()
+    scvi.dataset.setup_anndata(gene_dataset, batch_key="batch", labels_key="labels")
     trainer = base_benchmark(gene_dataset)
     adapter_trainer = AdapterTrainer(
         trainer.model, gene_dataset, trainer.train_set, frequency=1
@@ -272,11 +259,14 @@ def test_synthetic_3():
 
 
 def test_nb_not_zinb():
-    synthetic_dataset = SyntheticDataset()
+    synthetic_dataset = scvi.dataset.synthetic_iid()
+    scvi.dataset.setup_anndata(
+        synthetic_dataset, batch_key="batch", labels_key="labels"
+    )
     svaec = SCANVI(
-        synthetic_dataset.nb_genes,
-        synthetic_dataset.n_batches,
-        synthetic_dataset.n_labels,
+        synthetic_dataset.uns["scvi_summary_stats"]["n_genes"],
+        synthetic_dataset.uns["scvi_summary_stats"]["n_batch"],
+        synthetic_dataset.uns["scvi_summary_stats"]["n_labels"],
         labels_groups=[0, 0, 1],
         reconstruction_loss="nb",
     )
@@ -287,11 +277,14 @@ def test_nb_not_zinb():
 
 
 def test_poisson_not_zinb():
-    synthetic_dataset = SyntheticDataset()
+    synthetic_dataset = scvi.dataset.synthetic_iid()
+    scvi.dataset.setup_anndata(
+        synthetic_dataset, batch_key="batch", labels_key="labels"
+    )
     svaec = SCANVI(
-        synthetic_dataset.nb_genes,
-        synthetic_dataset.n_batches,
-        synthetic_dataset.n_labels,
+        synthetic_dataset.uns["scvi_summary_stats"]["n_genes"],
+        synthetic_dataset.uns["scvi_summary_stats"]["n_batch"],
+        synthetic_dataset.uns["scvi_summary_stats"]["n_labels"],
         labels_groups=[0, 0, 1],
         reconstruction_loss="poisson",
     )
@@ -302,8 +295,12 @@ def test_poisson_not_zinb():
 
 
 def test_classifier_accuracy(save_path):
-    cortex_dataset = CortexDataset(save_path=save_path)
-    cls = Classifier(cortex_dataset.nb_genes, n_labels=cortex_dataset.n_labels)
+    cortex_dataset = scvi.dataset.cortex(save_path=save_path)
+    scvi.dataset.setup_anndata(cortex_dataset, labels_key="labels")
+    cls = Classifier(
+        cortex_dataset.uns["scvi_summary_stats"]["n_genes"],
+        n_labels=cortex_dataset.uns["scvi_summary_stats"]["n_labels"],
+    )
     cls_trainer = ClassifierTrainer(
         cls,
         cortex_dataset,
@@ -319,21 +316,30 @@ def test_classifier_accuracy(save_path):
 
 
 def test_LDVAE(save_path):
-    synthetic_datset_one_batch = SyntheticDataset(n_batches=1)
+    synthetic_datset_one_batch = scvi.dataset.synthetic_iid(n_batches=1)
+    scvi.dataset.setup_anndata(synthetic_datset_one_batch, batch_key="batch")
     ldvae_benchmark(synthetic_datset_one_batch, n_epochs=1, use_cuda=False)
-    synthetic_datset_two_batches = SyntheticDataset(n_batches=2)
+    synthetic_datset_two_batches = scvi.dataset.synthetic_iid(n_batches=2)
+    scvi.dataset.setup_anndata(synthetic_datset_two_batches, batch_key="batch")
     ldvae_benchmark(synthetic_datset_two_batches, n_epochs=1, use_cuda=False)
 
 
 def test_sampling_zl(save_path):
-    cortex_dataset = CortexDataset(save_path=save_path)
-    cortex_vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_batches)
+    cortex_dataset = scvi.dataset.cortex(save_path=save_path)
+    scvi.dataset.setup_anndata(cortex_dataset, labels_key="cell_type")
+    cortex_vae = VAE(
+        cortex_dataset.uns["scvi_summary_stats"]["n_genes"],
+        cortex_dataset.uns["scvi_summary_stats"]["n_batch"],
+    )
     trainer_cortex_vae = UnsupervisedTrainer(
         cortex_vae, cortex_dataset, train_size=0.5, use_cuda=use_cuda
     )
     trainer_cortex_vae.train(n_epochs=2)
 
-    cortex_cls = Classifier((cortex_vae.n_latent + 1), n_labels=cortex_dataset.n_labels)
+    cortex_cls = Classifier(
+        (cortex_vae.n_latent + 1),
+        n_labels=cortex_dataset.uns["scvi_summary_stats"]["n_labels"],
+    )
     trainer_cortex_cls = ClassifierTrainer(
         cortex_cls, cortex_dataset, sampling_model=cortex_vae, sampling_zl=True
     )
@@ -342,8 +348,13 @@ def test_sampling_zl(save_path):
 
 
 def test_annealing_procedures(save_path):
-    cortex_dataset = CortexDataset(save_path=save_path)
-    cortex_vae = VAE(cortex_dataset.nb_genes, cortex_dataset.n_batches)
+    cortex_dataset = scvi.dataset.cortex(save_path=save_path)
+    scvi.dataset.setup_anndata(cortex_dataset, labels_key="cell_type")
+
+    cortex_vae = VAE(
+        cortex_dataset.uns["scvi_summary_stats"]["n_genes"],
+        cortex_dataset.uns["scvi_summary_stats"]["n_batch"],
+    )
 
     trainer_cortex_vae = UnsupervisedTrainer(
         cortex_vae,
@@ -379,10 +390,14 @@ def test_annealing_procedures(save_path):
 
 
 def test_differential_expression(save_path):
-    dataset = CortexDataset(save_path=save_path)
+    dataset = scvi.dataset.cortex(save_path=save_path)
+    scvi.dataset.setup_anndata(dataset, labels_key="cell_type")
     n_cells = len(dataset)
     all_indices = np.arange(n_cells)
-    vae = VAE(dataset.nb_genes, dataset.n_batches)
+    vae = VAE(
+        dataset.uns["scvi_summary_stats"]["n_genes"],
+        dataset.uns["scvi_summary_stats"]["n_batch"],
+    )
     trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
     trainer.train(n_epochs=2)
     post = trainer.create_posterior(vae, dataset, shuffle=False, indices=all_indices)
@@ -391,9 +406,12 @@ def test_differential_expression(save_path):
         posterior_save_path = os.path.join(temp_dir, "posterior_data")
         post = post.sequential(batch_size=3)
         post.save_posterior(posterior_save_path)
-        new_vae = VAE(dataset.nb_genes, dataset.n_batches)
+        new_vae = VAE(
+            dataset.uns["scvi_summary_stats"]["n_genes"],
+            dataset.uns["scvi_summary_stats"]["n_batch"],
+        )
         new_post = load_posterior(posterior_save_path, model=new_vae, use_cuda=False)
-    assert new_post.data_loader.batch_size == 3
+    assert new_post.data_loader.sampler.batch_size == 3
     assert np.array_equal(new_post.indices, post.indices)
     assert np.array_equal(new_post.gene_dataset.X, post.gene_dataset.X)
 
@@ -402,7 +420,7 @@ def test_differential_expression(save_path):
         n_samples_per_cell=4, n_samples=None, selection=all_indices
     )["scale"]
     assert (
-        px_scales.shape[1] == dataset.nb_genes
+        px_scales.shape[1] == dataset.uns["scvi_summary_stats"]["n_genes"]
     ), "posterior scales should have shape (n_samples, n_genes)"
 
     # Differential expression different models
@@ -442,11 +460,18 @@ def test_differential_expression(save_path):
 
     # Test totalVI DE
     sp = os.path.join(save_path, "10X")
-    dataset = Dataset10X(dataset_name="pbmc_10k_protein_v3", save_path=sp)
+    dataset = scvi.dataset.dataset10X(
+        dataset_name="pbmc_10k_protein_v3", save_path=sp, gex_only=False
+    )
+    scvi.dataset.organize_cite_seq_10x(dataset)
+    setup_anndata(dataset, protein_expression_obsm_key="protein_expression")
+
     n_cells = len(dataset)
     all_indices = np.arange(n_cells)
     vae = TOTALVI(
-        dataset.nb_genes, len(dataset.protein_names), n_batch=dataset.n_batches
+        dataset.uns["scvi_summary_stats"]["n_genes"],
+        dataset.uns["scvi_summary_stats"]["n_proteins"],
+        n_batch=dataset.uns["scvi_summary_stats"]["n_batch"],
     )
     trainer = TotalTrainer(
         vae, dataset, train_size=0.5, use_cuda=use_cuda, early_stopping_kwargs=None
@@ -479,15 +504,30 @@ def test_differential_expression(save_path):
 
 
 def test_totalvi(save_path):
-    synthetic_dataset_one_batch = SyntheticDataset(n_batches=1)
+    synthetic_dataset_one_batch = scvi.dataset.synthetic_iid(n_batches=1)
+    scvi.dataset.setup_anndata(
+        synthetic_dataset_one_batch,
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        labels_key="labels",
+    )
     totalvi_benchmark(synthetic_dataset_one_batch, n_epochs=1, use_cuda=use_cuda)
-    synthetic_dataset_two_batches = SyntheticDataset(n_batches=2)
+    synthetic_dataset_two_batches = scvi.dataset.synthetic_iid(n_batches=2)
+    scvi.dataset.setup_anndata(
+        synthetic_dataset_two_batches,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        labels_key="labels",
+    )
     totalvi_benchmark(synthetic_dataset_two_batches, n_epochs=1, use_cuda=use_cuda)
 
     # adversarial testing
     dataset = synthetic_dataset_two_batches
     totalvae = TOTALVI(
-        dataset.nb_genes, len(dataset.protein_names), n_batch=dataset.n_batches
+        dataset.uns["scvi_summary_stats"]["n_genes"],
+        dataset.uns["scvi_summary_stats"]["n_proteins"],
+        n_batch=dataset.uns["scvi_summary_stats"]["n_batch"],
     )
     trainer = TotalTrainer(
         totalvae,
@@ -509,7 +549,9 @@ def test_totalvi(save_path):
         )
         original_post.save_posterior(posterior_save_path)
         new_totalvae = TOTALVI(
-            dataset.nb_genes, len(dataset.protein_names), n_batch=dataset.n_batches
+            dataset.uns["scvi_summary_stats"]["n_genes"],
+            dataset.uns["scvi_summary_stats"]["n_proteins"],
+            n_batch=dataset.uns["scvi_summary_stats"]["n_batch"],
         )
         new_post = load_posterior(
             posterior_save_path, model=new_totalvae, use_cuda=False
@@ -517,19 +559,20 @@ def test_totalvi(save_path):
         assert hasattr(new_post.gene_dataset, "protein_names")
         assert new_post.posterior_type == "TotalPosterior"
         assert np.array_equal(
-            new_post.gene_dataset.protein_expression, dataset.protein_expression
+            new_post.gene_dataset.protein_expression, dataset.obsm["protein_expression"]
         )
 
 
 def test_autozi(save_path):
-    data = SyntheticDataset(n_batches=1)
+    data = scvi.dataset.synthetic_iid(n_batches=1)
+    scvi.dataset.setup_anndata(data, batch_key="batch", labels_key="labels")
 
     for disp_zi in ["gene", "gene-label"]:
         autozivae = AutoZIVAE(
-            n_input=data.nb_genes,
+            n_input=data.uns["scvi_summary_stats"]["n_genes"],
             dispersion=disp_zi,
             zero_inflation=disp_zi,
-            n_labels=data.n_labels,
+            n_labels=data.uns["scvi_summary_stats"]["n_labels"],
         )
         trainer_autozivae = UnsupervisedTrainer(
             model=autozivae, gene_dataset=data, train_size=0.5
@@ -541,15 +584,13 @@ def test_autozi(save_path):
 
 
 def test_multibatches_features():
-    data = [
-        np.random.randint(1, 5, size=(20, 10)),
-        np.random.randint(1, 10, size=(20, 10)),
-        np.random.randint(1, 10, size=(20, 10)),
-        np.random.randint(1, 10, size=(30, 10)),
-    ]
-    dataset = GeneExpressionDataset()
-    dataset.populate_from_per_batch_list(data)
-    vae = VAE(dataset.nb_genes, dataset.n_batches)
+    dataset = scvi.dataset.synthetic_iid(n_batches=3)
+    scvi.dataset.setup_anndata(dataset, batch_key="batch", labels_key="labels")
+
+    vae = VAE(
+        dataset.uns["scvi_summary_stats"]["n_genes"],
+        dataset.uns["scvi_summary_stats"]["n_batch"],
+    )
     trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
     trainer.train(n_epochs=2)
     trainer.test_set.imputation(n_samples=2, transform_batch=0)
@@ -613,15 +654,3 @@ def test_zinb_distribution():
         dist1.log_prob(-x)  # ensures neg values raise warning
     with pytest.warns(UserWarning):
         dist2.log_prob(0.5 * x)  # ensures float values raise warning
-
-
-def test_anndata_loader():
-    x = np.random.randint(low=0, high=100, size=(15, 4))
-    batch_ids = np.random.randint(low=0, high=2, size=(15,))
-    n_batches = 2
-    adata = AnnData(X=x, obs=dict(batch=batch_ids))
-    _ = AnnDatasetFromAnnData(adata, batch_label="batch")
-    dataset = AnnDatasetFromAnnData(adata, batch_label="batch")
-    assert (
-        dataset.n_batches == n_batches
-    ), "AnnDatasetFromAnnData should not modify the anndata object"

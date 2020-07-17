@@ -292,6 +292,7 @@ class VAE(nn.Module):
         """
         x_ = x
         if self.log_variational:
+            # + doesnt operate with float16
             x_ = torch.log(1 + x_)
 
         # Sampling

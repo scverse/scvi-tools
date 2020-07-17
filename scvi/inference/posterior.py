@@ -8,26 +8,19 @@ from typing import List, Optional, Union, Tuple, Callable, Dict
 import numpy as np
 import pandas as pd
 import torch
+import anndata
 import torch.distributions as distributions
 from tqdm import tqdm
-from matplotlib import pyplot as plt
 from sklearn.cluster import KMeans
-from sklearn.manifold import TSNE
 from sklearn.metrics import adjusted_rand_score as ARI
 from sklearn.metrics import normalized_mutual_info_score as NMI
 from sklearn.metrics import silhouette_score
 from sklearn.mixture import GaussianMixture as GMM
 from torch.utils.data import DataLoader
-from torch.utils.data.sampler import (
-    SequentialSampler,
-    SubsetRandomSampler,
-    RandomSampler,
-)
 
-from scvi.dataset import GeneExpressionDataset
+from scvi.dataset._biodataset import BioDataset
 from scvi.inference.posterior_utils import (
     entropy_batch_mixing,
-    plot_imputation,
     nn_overlap,
     unsupervised_clustering_accuracy,
     knn_purity,
@@ -43,13 +36,39 @@ from scvi.models.log_likelihood import (
 )
 from scvi.models.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scipy.stats import spearmanr
+from scvi.dataset._constants import (
+    _X_KEY,
+    _BATCH_KEY,
+    _LOCAL_L_MEAN_KEY,
+    _LOCAL_L_VAR_KEY,
+    _LABELS_KEY,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class SequentialSubsetSampler(SubsetRandomSampler):
+class BatchSampler(torch.utils.data.sampler.Sampler):
+    def __init__(self, indices: np.ndarray, batch_size: int, shuffle: bool):
+        self.indices = indices
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+
     def __iter__(self):
-        return iter(self.indices)
+        if self.shuffle is True:
+            idx = torch.randperm(len(self.indices)).tolist()
+        else:
+            idx = torch.arange(len(self.indices)).tolist()
+
+        data_iter = iter(
+            [
+                self.indices[idx[i : i + self.batch_size]]
+                for i in range(0, len(idx), self.batch_size)
+            ]
+        )
+        return data_iter
+
+    def __len__(self):
+        return len(self.indices) // self.batch_size
 
 
 class Posterior:
@@ -82,8 +101,7 @@ class Posterior:
 
     A `UnsupervisedTrainer` instance has two `Posterior` attributes: `train_set` and `test_set`
     For this subset of the original gene_dataset instance, we can examine the differential expression,
-    log_likelihood, entropy batch mixing, ... or display the TSNE of the data in the latent space through the
-    scVI model
+    log_likelihood, entropy batch mixing, etc.
 
     >>> gene_dataset = CortexDataset()
     >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
@@ -101,34 +119,72 @@ class Posterior:
     def __init__(
         self,
         model,
-        gene_dataset: GeneExpressionDataset,
+        adata: anndata.AnnData,
         shuffle=False,
         indices=None,
         use_cuda=True,
+        batch_size=128,
         data_loader_kwargs=dict(),
     ):
         self.model = model
-        self.gene_dataset = gene_dataset
+        assert "scvi_data_registry" in adata.uns.keys(), ValueError(
+            "Please run setup_anndata() on your anndata object first."
+        )
+        for key in self._data_and_attributes.keys():
+            assert key in adata.uns["scvi_data_registry"].keys(), ValueError(
+                "{} required for model but not included when setup_anndata was run".format(
+                    key
+                )
+            )
+        self.gene_dataset = BioDataset(adata, getitem_tensors=self._data_and_attributes)
         self.to_monitor = []
         self.use_cuda = use_cuda
 
-        if indices is not None and shuffle:
-            raise ValueError("indices is mutually exclusive with shuffle")
+        # correct me if im wrong but im pretty sure this is no longer true
+        # causes error when loading posterior that has all its indices in its indices file
+        # if indices is not None and shuffle:
+        #     raise ValueError("indices is mutually exclusive with shuffle")
         if indices is None:
+            inds = np.arange(len(self.gene_dataset))
             if shuffle:
-                sampler = RandomSampler(gene_dataset)
+                sampler_kwargs = {
+                    "indices": inds,
+                    "batch_size": batch_size,
+                    "shuffle": True,
+                }
             else:
-                sampler = SequentialSampler(gene_dataset)
+                sampler_kwargs = {
+                    "indices": inds,
+                    "batch_size": batch_size,
+                    "shuffle": False,
+                }
         else:
             if hasattr(indices, "dtype") and indices.dtype is np.dtype("bool"):
                 indices = np.where(indices)[0].ravel()
-            sampler = SubsetRandomSampler(indices)
+            indices = np.asarray(indices)
+            sampler_kwargs = {
+                "indices": indices,
+                "batch_size": batch_size,
+                "shuffle": True,
+            }
+
+        self.sampler_kwargs = sampler_kwargs
+        sampler = BatchSampler(**self.sampler_kwargs)
         self.data_loader_kwargs = copy.copy(data_loader_kwargs)
-        self.data_loader_kwargs.update(
-            {"collate_fn": gene_dataset.collate_fn_builder(), "sampler": sampler}
-        )
-        self.data_loader = DataLoader(gene_dataset, **self.data_loader_kwargs)
+        # do not touch batch size here, sampler gives batched indices
+        self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
+        self.data_loader = DataLoader(self.gene_dataset, **self.data_loader_kwargs)
         self.original_indices = self.indices
+
+    @property
+    def _data_and_attributes(self):
+        return {
+            _X_KEY: np.float32,
+            _BATCH_KEY: np.int64,
+            _LOCAL_L_MEAN_KEY: np.float32,
+            _LOCAL_L_VAR_KEY: np.float32,
+            _LABELS_KEY: np.int64,
+        }
 
     def accuracy(self):
         pass
@@ -175,7 +231,14 @@ class Posterior:
             os.path.join(dir_path, "data_loader_kwargs.h5"), key="data_loader"
         )
         np.save(file=os.path.join(dir_path, "indices.npy"), arr=np.array(self.indices))
-        pass
+
+        sampler_kwargs = pd.Series(
+            {key: vals for key, vals in self.sampler_kwargs.items()}
+        )
+        sampler_kwargs = sampler_kwargs[~sampler_kwargs.index.isin(["indices"])]
+        sampler_kwargs.to_hdf(
+            os.path.join(dir_path, "sampler_kwargs.h5"), key="sampler"
+        )
 
     @property
     def indices(self) -> np.ndarray:
@@ -186,12 +249,12 @@ class Posterior:
             return np.arange(len(self.gene_dataset))
 
     @property
-    def nb_cells(self) -> int:
+    def n_cells(self) -> int:
         """returns the number of studied cells."""
         if hasattr(self.data_loader.sampler, "indices"):
             return len(self.data_loader.sampler.indices)
         else:
-            return self.gene_dataset.nb_cells
+            return self.gene_dataset.n_cells
 
     @property
     def posterior_type(self) -> str:
@@ -200,8 +263,9 @@ class Posterior:
 
     def __iter__(self):
         return map(self.to_cuda, iter(self.data_loader))
+        # return  iter(self.data_loader)
 
-    def to_cuda(self, tensors: List[torch.Tensor]) -> List[torch.Tensor]:
+    def to_cuda(self, tensors: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Converts list of tensors to cuda.
 
         Parameters
@@ -209,7 +273,8 @@ class Posterior:
         tensors
             tensors to convert
         """
-        return [t.cuda() if self.use_cuda else t for t in tensors]
+        return {k: (t.cuda() if self.use_cuda else t) for k, t in tensors.items()}
+        # return [t.cuda() if self.use_cuda else t for t in tensors]
 
     def update(self, data_loader_kwargs: dict) -> "Posterior":
         """Updates the dataloader
@@ -231,6 +296,11 @@ class Posterior:
         )
         return posterior
 
+    def update_batch_size(self, batch_size):
+        self.sampler_kwargs.update({"batch_size": batch_size})
+        sampler = BatchSampler(**self.sampler_kwargs)
+        return self.update({"sampler": sampler, "batch_size": None})
+
     def sequential(self, batch_size: Optional[int] = 128) -> "Posterior":
         """Returns a copy of the object that iterate over the data sequentially.
 
@@ -240,22 +310,12 @@ class Posterior:
             New batch size.
 
         """
-        return self.update(
-            {
-                "batch_size": batch_size,
-                "sampler": SequentialSubsetSampler(indices=self.indices),
-            }
-        )
-
-    def corrupted(self) -> "Posterior":
-        """Corrupts gene counts."""
-        return self.update(
-            {"collate_fn": self.gene_dataset.collate_fn_builder(corrupted=True)}
-        )
-
-    def uncorrupted(self) -> "Posterior":
-        """Uncorrupts gene counts."""
-        return self.update({"collate_fn": self.gene_dataset.collate_fn_builder()})
+        self.sampler_kwargs = {
+            "indices": self.indices,
+            "batch_size": batch_size,
+            "shuffle": False,
+        }
+        return self.update({"sampler": BatchSampler(**self.sampler_kwargs)})
 
     @torch.no_grad()
     def elbo(self) -> torch.Tensor:
@@ -325,7 +385,7 @@ class Posterior:
         batch_indices = []
         labels = []
         for tensors in self:
-            sample_batch, local_l_mean, local_l_var, batch_index, label = tensors
+            sample_batch, _, _, batch_index, label = self._unpack_tensors(tensors)
             latent += [
                 self.model.sample_from_posterior_z(
                     sample_batch, give_mean=give_mean
@@ -376,8 +436,10 @@ class Posterior:
         >>> # Do not forget next line!
         >>> self.data_loader = old_loader
         """
-        sampler = SubsetRandomSampler(idx)
-        self.data_loader_kwargs.update({"sampler": sampler})
+        # sampler = SubsetRandomSampler(idx)
+        self.sampler_kwargs.update({"indices": idx})
+        sampler = BatchSampler(**self.sampler_kwargs)
+        self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
         self.data_loader = DataLoader(self.gene_dataset, **self.data_loader_kwargs)
 
     @torch.no_grad()
@@ -405,13 +467,16 @@ class Posterior:
 
         px_scales = []
         all_labels = []
+
+        # mod this batch_size
+
         batch_size = max(
-            self.data_loader_kwargs["batch_size"] // M_sampling, 2
+            self.sampler_kwargs["batch_size"] // M_sampling, 2
         )  # Reduce batch_size on GPU
         if len(self.gene_dataset) % batch_size == 1:
             batch_size += 1
-        for tensors in self.update({"batch_size": batch_size}):
-            sample_batch, _, _, batch_index, labels = tensors
+        for tensors in self.update_batch_size(batch_size):
+            sample_batch, _, _, batch_index, labels = self._unpack_tensors(tensors)
             px_scales += [
                 np.array(
                     (
@@ -1111,18 +1176,19 @@ class Posterior:
                     " the length of cell_labels have to be "
                     "the same as the number of cells"
                 )
-        if (cell_labels is None) and not hasattr(self.gene_dataset, "cell_types"):
-            raise ValueError(
-                "If gene_dataset is not annotated with labels and cell types,"
-                " then must provide cell_labels"
-            )
+        # if (cell_labels is None) and not hasattr(self.gene_dataset, "cell_types"):
+        #     raise ValueError(
+        #         "If gene_dataset is not annotated with labels and cell types,"
+        #         " then must provide cell_labels"
+        #     )
         # Input cell_labels take precedence over cell type label annotation in dataset
-        elif cell_labels is not None:
+        if cell_labels is not None:
             cluster_id = np.unique(cell_labels[cell_labels >= 0])
             # Can make cell_labels < 0 to filter out cells when computing DE
         else:
-            cluster_id = self.gene_dataset.cell_types
             cell_labels = self.gene_dataset.labels.ravel()
+            cluster_id = np.unique(cell_labels)
+
         de_res = []
         de_cluster = []
         for i, x in enumerate(tqdm(cluster_id)):
@@ -1258,8 +1324,8 @@ class Posterior:
             cluster_id = np.unique(cell_labels[cell_labels >= 0])
             # Can make cell_labels < 0 to filter out cells when computing DE
         else:
-            cluster_id = self.gene_dataset.cell_types
             cell_labels = self.gene_dataset.labels.ravel()
+            cluster_id = np.unique(cell_labels)
         de_res = []
         de_cluster = []
         oppo_states = ~states
@@ -1330,7 +1396,7 @@ class Posterior:
         for batch in transform_batch:
             imputed_list_batch = []
             for tensors in self:
-                sample_batch, _, _, batch_index, labels = tensors
+                sample_batch, _, _, batch_index, labels = self._unpack_tensors(tensors)
                 px_rate = self.model.get_sample_rate(
                     sample_batch,
                     batch_index=batch_index,
@@ -1339,7 +1405,10 @@ class Posterior:
                     transform_batch=batch,
                 )
                 imputed_list_batch += [np.array(px_rate.cpu())]
-            imputed_arr.append(np.concatenate(imputed_list_batch))
+            # axis 1 is cells if n_samples > 1
+            imputed_arr.append(
+                np.concatenate(imputed_list_batch, axis=1 if n_samples > 1 else 0)
+            )
         imputed_arr = np.array(imputed_arr)
         # shape: (len(transformed_batch), n_samples, n_cells, n_genes) if n_samples > 1
         # else shape: (len(transformed_batch), n_cells, n_genes)
@@ -1374,8 +1443,9 @@ class Posterior:
         assert self.model.reconstruction_loss in ["zinb", "nb", "poisson"]
         x_old = []
         x_new = []
-        for tensors in self.update({"batch_size": batch_size}):
-            sample_batch, _, _, batch_index, labels = tensors
+        for tensors in self.update_batch_size(batch_size):
+            sample_batch, _, _, batch_index, labels = self._unpack_tensors(tensors)
+
             outputs = self.model.inference(
                 sample_batch, batch_index=batch_index, y=labels, n_samples=n_samples
             )
@@ -1416,6 +1486,14 @@ class Posterior:
             x_old = x_old[:, gene_ids]
         return x_new.numpy(), x_old.numpy()
 
+    def _unpack_tensors(self, tensors):
+        x = tensors[_X_KEY]
+        local_l_mean = tensors[_LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_LOCAL_L_VAR_KEY]
+        batch_index = tensors[_BATCH_KEY]
+        y = tensors[_LABELS_KEY]
+        return x, local_l_mean, local_l_var, batch_index, y
+
     @torch.no_grad()
     def generate_denoised_samples(
         self,
@@ -1442,8 +1520,9 @@ class Posterior:
 
         """
         posterior_list = []
-        for tensors in self.update({"batch_size": batch_size}):
-            sample_batch, _, _, batch_index, labels = tensors
+        for tensors in self.update_batch_size(batch_size):
+            sample_batch, _, _, batch_index, labels = self._unpack_tensors(tensors)
+
             outputs = self.model.inference(
                 sample_batch, batch_index=batch_index, y=labels, n_samples=n_samples
             )
@@ -1544,7 +1623,7 @@ class Posterior:
         mean_list = []
         dispersion_list = []
         for tensors in self.sequential(1000):
-            sample_batch, _, _, batch_index, labels = tensors
+            sample_batch, _, _, batch_index, labels = self._unpack_tensors(tensors)
 
             outputs = self.model.inference(
                 sample_batch, batch_index=batch_index, y=labels, n_samples=n_samples
@@ -1573,7 +1652,8 @@ class Posterior:
     def get_stats(self) -> np.ndarray:
         libraries = []
         for tensors in self.sequential(batch_size=128):
-            x, local_l_mean, local_l_var, batch_index, y = tensors
+            x, _, _, batch_index, y = self._unpack_tensors(tensors)
+
             library = self.model.inference(x, batch_index, y)["library"]
             libraries += [np.array(library.cpu())]
         libraries = np.concatenate(libraries)
@@ -1630,9 +1710,8 @@ class Posterior:
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            gene_mask = self.gene_dataset._get_genes_filter_mask_by_attribute(
-                gene_list, return_data=False
-            )
+            all_genes = self.gene_dataset.adata.var_names
+            gene_mask = [True if gene in gene_list else False for gene in all_genes]
             if return_df is None and sum(gene_mask) > 1:
                 return_df = True
 
@@ -1643,7 +1722,7 @@ class Posterior:
 
         px_scales = []
         for tensors in self:
-            sample_batch, _, _, batch_index, labels = tensors
+            sample_batch, _, _, batch_index, labels = self._unpack_tensors(tensors)
             px_scales += [
                 np.array(
                     (
@@ -1676,145 +1755,6 @@ class Posterior:
             return px_scales
 
     @torch.no_grad()
-    def imputation_list(self, n_samples: int = 1) -> tuple:
-        """Imputes data's gene counts from corrupted data.
-
-        Parameters
-        ----------
-        n_samples
-             (Default value = 1)
-
-        Returns
-        -------
-
-        """
-        original_list = []
-        imputed_list = []
-        batch_size = 10000  # self.data_loader_kwargs["batch_size"] // n_samples
-        for tensors, corrupted_tensors in zip(
-            self.uncorrupted().sequential(batch_size=batch_size),
-            self.corrupted().sequential(batch_size=batch_size),
-        ):
-            batch = tensors[0]
-            actual_batch_size = batch.size(0)
-            dropout_batch, _, _, batch_index, labels = corrupted_tensors
-            px_rate = self.model.get_sample_rate(
-                dropout_batch, batch_index=batch_index, y=labels, n_samples=n_samples
-            )
-
-            indices_dropout = torch.nonzero(batch - dropout_batch)
-            if indices_dropout.size() != torch.Size([0]):
-                i = indices_dropout[:, 0]
-                j = indices_dropout[:, 1]
-
-                batch = batch.unsqueeze(0).expand(
-                    (n_samples, batch.size(0), batch.size(1))
-                )
-                original = np.array(batch[:, i, j].view(-1).cpu())
-                imputed = np.array(px_rate[..., i, j].view(-1).cpu())
-
-                cells_index = np.tile(np.array(i.cpu()), n_samples)
-
-                original_list += [
-                    original[cells_index == i] for i in range(actual_batch_size)
-                ]
-                imputed_list += [
-                    imputed[cells_index == i] for i in range(actual_batch_size)
-                ]
-            else:
-                original_list = np.array([])
-                imputed_list = np.array([])
-        return original_list, imputed_list
-
-    @torch.no_grad()
-    def imputation_score(
-        self, original_list: List = None, imputed_list: List = None, n_samples: int = 1
-    ) -> float:
-        """Computes median absolute imputation error.
-
-        Parameters
-        ----------
-        original_list
-             (Default value = None)
-        imputed_list
-             (Default value = None)
-        n_samples
-             (Default value = 1)
-
-        Returns
-        -------
-
-        """
-        if original_list is None or imputed_list is None:
-            original_list, imputed_list = self.imputation_list(n_samples=n_samples)
-
-        original_list_concat = np.concatenate(original_list)
-        imputed_list_concat = np.concatenate(imputed_list)
-        are_lists_empty = (len(original_list_concat) == 0) and (
-            len(imputed_list_concat) == 0
-        )
-        if are_lists_empty:
-            logger.info(
-                "No difference between corrupted dataset and uncorrupted dataset"
-            )
-            return 0.0
-        else:
-            return np.median(np.abs(original_list_concat - imputed_list_concat))
-
-    @torch.no_grad()
-    def imputation_benchmark(
-        self,
-        n_samples: int = 8,
-        show_plot: bool = True,
-        title_plot: str = "imputation",
-        save_path: str = "",
-    ) -> Tuple:
-        """Visualizes the model imputation performance.
-
-        Parameters
-        ----------
-        n_samples
-             (Default value = 8)
-        show_plot
-             (Default value = True)
-        title_plot
-             (Default value = "imputation")
-        save_path
-             (Default value = "")
-
-        Returns
-        -------
-
-        """
-        original_list, imputed_list = self.imputation_list(n_samples=n_samples)
-        # Median of medians for all distances
-        median_score = self.imputation_score(
-            original_list=original_list, imputed_list=imputed_list
-        )
-
-        # Mean of medians for each cell
-        imputation_cells = []
-        for original, imputed in zip(original_list, imputed_list):
-            has_imputation = len(original) and len(imputed)
-            imputation_cells += [
-                np.median(np.abs(original - imputed)) if has_imputation else 0
-            ]
-        mean_score = np.mean(imputation_cells)
-
-        logger.debug(
-            "\nMedian of Median: %.4f\nMean of Median for each cell: %.4f"
-            % (median_score, mean_score)
-        )
-
-        plot_imputation(
-            np.concatenate(original_list),
-            np.concatenate(imputed_list),
-            show_plot=show_plot,
-            title=os.path.join(save_path, title_plot),
-        )
-        return original_list, imputed_list
-
-    @torch.no_grad()
     def knn_purity(self) -> torch.Tensor:
         """Computes kNN purity as described in [Lopez18]_"""
         latent, _, labels = self.get_latent()
@@ -1826,16 +1766,17 @@ class Posterior:
 
     @torch.no_grad()
     def clustering_scores(self, prediction_algorithm: str = "knn") -> Tuple:
-        if self.gene_dataset.n_labels > 1:
+        if self.gene_dataset.adata.uns["scvi_summary_stats"]["n_labels"] > 1:
             latent, _, labels = self.get_latent()
             if prediction_algorithm == "knn":
                 labels_pred = KMeans(
-                    self.gene_dataset.n_labels, n_init=200
+                    self.gene_dataset.adata.uns["scvi_summary_stats"]["n_labels"],
+                    n_init=200,
                 ).fit_predict(
                     latent
                 )  # n_jobs>1 ?
             elif prediction_algorithm == "gmm":
-                gmm = GMM(self.gene_dataset.n_labels)
+                gmm = GMM(self.gene_dataset.adata.uns["scvi_summary_stats"]["n_labels"])
                 gmm.fit(latent)
                 labels_pred = gmm.predict(latent)
 
@@ -1878,93 +1819,7 @@ class Posterior:
             )
             return spearman_correlation, fold_enrichment
 
-    @torch.no_grad()
-    def show_t_sne(
-        self,
-        n_samples=1000,
-        color_by="",
-        save_name="",
-        latent=None,
-        batch_indices=None,
-        labels=None,
-        n_batch=None,
-    ):
-        # If no latent representation is given
-        if latent is None:
-            latent, batch_indices, labels = self.get_latent(give_mean=False)
-            latent, idx_t_sne = self.apply_t_sne(latent, n_samples)
-            batch_indices = batch_indices[idx_t_sne].ravel()
-            labels = labels[idx_t_sne].ravel()
-        if not color_by:
-            plt.figure(figsize=(10, 10))
-            plt.scatter(latent[:, 0], latent[:, 1])
-        if color_by == "scalar":
-            plt.figure(figsize=(10, 10))
-            plt.scatter(latent[:, 0], latent[:, 1], c=labels.ravel())
-        else:
-            if n_batch is None:
-                n_batch = self.gene_dataset.n_batches
-            if color_by == "batches" or color_by == "labels":
-                indices = (
-                    batch_indices.ravel() if color_by == "batches" else labels.ravel()
-                )
-                n = n_batch if color_by == "batches" else self.gene_dataset.n_labels
-                if self.gene_dataset.cell_types is not None and color_by == "labels":
-                    plt_labels = self.gene_dataset.cell_types
-                else:
-                    plt_labels = [str(i) for i in range(len(np.unique(indices)))]
-                plt.figure(figsize=(10, 10))
-                for i, label in zip(range(n), plt_labels):
-                    plt.scatter(
-                        latent[indices == i, 0], latent[indices == i, 1], label=label
-                    )
-                plt.legend()
-            elif color_by == "batches and labels":
-                fig, axes = plt.subplots(1, 2, figsize=(14, 7))
-                batch_indices = batch_indices.ravel()
-                for i in range(n_batch):
-                    axes[0].scatter(
-                        latent[batch_indices == i, 0],
-                        latent[batch_indices == i, 1],
-                        label=str(i),
-                    )
-                axes[0].set_title("batch coloring")
-                axes[0].axis("off")
-                axes[0].legend()
-
-                indices = labels.ravel()
-                if hasattr(self.gene_dataset, "cell_types"):
-                    plt_labels = self.gene_dataset.cell_types
-                else:
-                    plt_labels = [str(i) for i in range(len(np.unique(indices)))]
-                for i, cell_type in zip(range(self.gene_dataset.n_labels), plt_labels):
-                    axes[1].scatter(
-                        latent[indices == i, 0],
-                        latent[indices == i, 1],
-                        label=cell_type,
-                    )
-                axes[1].set_title("label coloring")
-                axes[1].axis("off")
-                axes[1].legend()
-        plt.axis("off")
-        plt.tight_layout()
-        if save_name:
-            plt.savefig(save_name)
-
-    @staticmethod
-    def apply_t_sne(latent, n_samples: int = 1000) -> Tuple:
-        idx_t_sne = (
-            np.random.permutation(len(latent))[:n_samples]
-            if n_samples
-            else np.arange(len(latent))
-        )
-        if latent.shape[1] != 2:
-            latent = TSNE().fit_transform(latent[idx_t_sne])
-        return latent, idx_t_sne
-
     def raw_data(self) -> Tuple:
         """Returns raw data for classification"""
-        return (
-            self.gene_dataset.X[self.indices],
-            self.gene_dataset.labels[self.indices].ravel(),
-        )
+        data = self.gene_dataset[self.indices]
+        return (data[_X_KEY], data[_LABELS_KEY].ravel())
