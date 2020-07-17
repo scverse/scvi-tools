@@ -1,13 +1,20 @@
 import logging
 import copy
-from typing import Union, List
+from typing import Union
 
 import matplotlib.pyplot as plt
 import torch
+import anndata
 from numpy import ceil
 
-from scvi.dataset import GeneExpressionDataset
 from scvi.inference import Trainer
+from scvi.dataset._constants import (
+    _X_KEY,
+    _BATCH_KEY,
+    _LOCAL_L_MEAN_KEY,
+    _LOCAL_L_VAR_KEY,
+    _LABELS_KEY,
+)
 
 plt.switch_backend("agg")
 logger = logging.getLogger(__name__)
@@ -73,7 +80,7 @@ class UnsupervisedTrainer(Trainer):
     def __init__(
         self,
         model,
-        gene_dataset: GeneExpressionDataset,
+        gene_dataset: anndata.AnnData,
         train_size: Union[int, float] = 0.9,
         test_size: Union[int, float] = None,
         n_iter_kl_warmup: Union[int, None] = None,
@@ -102,7 +109,7 @@ class UnsupervisedTrainer(Trainer):
 
         # Total size of the dataset used for training
         # (e.g. training set in this class but testing set in AdapterTrainer).
-        # It used to rescale minibatch losses (cf. eq. (8) in Kingma et al., Auto-Encoding Variational Bayes, iCLR 2013)
+        # It used to rescale minibatch losses (cf. eq. (8) in Kingma et al., Auto-Encoding Variational Bayes, ICLR 2013)
         self.n_samples = 1.0
 
         if type(self) is UnsupervisedTrainer:
@@ -120,10 +127,15 @@ class UnsupervisedTrainer(Trainer):
     def posteriors_loop(self):
         return ["train_set"]
 
-    def loss(self, tensors: List, feed_labels: bool = True):
+    def loss(self, tensors: dict, feed_labels: bool = True):
+        sample_batch = tensors[_X_KEY]
+        local_l_mean = tensors[_LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_LOCAL_L_VAR_KEY]
+        batch_index = tensors[_BATCH_KEY]
+        y = tensors[_LABELS_KEY]
+
         # The next lines should not be modified, because scanVI's trainer inherits
         # from this class and should NOT include label information to compute the ELBO by default
-        sample_batch, local_l_mean, local_l_var, batch_index, y = tensors
         if not feed_labels:
             y = None
         reconst_loss, kl_divergence_local, kl_divergence_global = self.model(
@@ -164,7 +176,7 @@ class UnsupervisedTrainer(Trainer):
         elif iter_criterion:
             log_message = "KL warmup for {} iterations".format(self.n_iter_kl_warmup)
             n_iter_per_epochs_approx = ceil(
-                self.gene_dataset.nb_cells / self.batch_size
+                self.gene_dataset.uns["scvi_summary_stats"]["n_cells"] / self.batch_size
             )
             n_total_iter_approx = self.n_epochs * n_iter_per_epochs_approx
             if self.n_iter_kl_warmup > n_total_iter_approx:

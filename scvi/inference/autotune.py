@@ -1,4 +1,5 @@
 import datetime
+import anndata
 import logging
 import multiprocessing
 import os
@@ -26,7 +27,8 @@ from hyperopt.mongoexp import (
 )
 
 from scvi._settings import autotune_formatter
-from scvi.dataset import DownloadableDataset, GeneExpressionDataset
+
+# from scvi.dataset import DownloadableDataset, GeneExpressionDataset
 from scvi.models import VAE
 from . import Trainer, UnsupervisedTrainer
 
@@ -203,7 +205,7 @@ def _asynchronous_logging_method_decorator(func: Callable):
 @_cleanup_decorator
 def auto_tune_scvi_model(
     exp_key: str,
-    gene_dataset: GeneExpressionDataset = None,
+    gene_dataset: Union[anndata.AnnData, str] = None,
     delayed_populating: bool = False,
     custom_objective_hyperopt: Callable = None,
     objective_kwargs: Dict[str, Any] = None,
@@ -354,10 +356,9 @@ def auto_tune_scvi_model(
     fh_autotune.setLevel(logging.DEBUG)
     logger_all.addHandler(fh_autotune)
 
-    if delayed_populating and not isinstance(gene_dataset, DownloadableDataset):
+    if delayed_populating and not isinstance(gene_dataset, str):
         raise ValueError(
-            "The delayed_population mechanism requires an "
-            "instance of scvi.dataset.dataset.DownloadableDataset."
+            "The delayed_population mechanism requires a path to already setup anndata"
         )
 
     if fmin_timer and train_best:
@@ -1265,7 +1266,7 @@ class HyperoptWorker(multiprocessing.Process):
 @_error_logger_decorator
 def _objective_function(
     space: dict,
-    gene_dataset: GeneExpressionDataset,
+    gene_dataset: Union[anndata.AnnData, str],
     delayed_populating: bool = False,
     model_class: Type[VAE] = VAE,
     trainer_class: Type[Trainer] = UnsupervisedTrainer,
@@ -1325,8 +1326,9 @@ def _objective_function(
     # handle mutable defaults
     metric_kwargs = metric_kwargs if metric_kwargs is not None else {}
 
-    if delayed_populating and isinstance(gene_dataset, DownloadableDataset):
-        gene_dataset.populate()
+    # delayed populating code
+    if delayed_populating and isinstance(gene_dataset, str):
+        gene_dataset = anndata.read_h5ad(gene_dataset)
 
     start_time = time.monotonic()
     # hyperopt params
@@ -1374,8 +1376,8 @@ def _objective_function(
     # define model
     logger_all.debug("Instantiating model")
     model = model_class(
-        n_input=gene_dataset.nb_genes,
-        n_batch=gene_dataset.n_batches * use_batches,
+        n_input=gene_dataset.uns["scvi_summary_stats"]["n_genes"],
+        n_batch=gene_dataset.uns["scvi_summary_stats"]["n_batch"] * use_batches,
         **model_tunable_kwargs,
     )
 

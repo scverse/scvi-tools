@@ -1,108 +1,61 @@
 import csv
+import anndata
+import pandas as pd
 import logging
 import os
-from typing import List, Optional
-
 import numpy as np
 
-from scvi.dataset.dataset import DownloadableDataset
+from scvi.dataset._utils import _download
+from scvi.dataset import setup_anndata
 
 logger = logging.getLogger(__name__)
 
 
-class CortexDataset(DownloadableDataset):
-    """Loads cortex dataset.
-
-    The
-    `Mouse Cortex Cells dataset <https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt>`_
-    contains 3005 mouse cortex cells and gold-standard labels for seven distinct cell types. Each cell type corresponds
-    to a cluster to recover. We retain top 558 genes ordered by variance.
-
-    Parameters
-    ----------
-    save_path
-        Path indicating where to save/load data.
-    genes_to_keep
-        Gene names to keep.
-    total_genes
-        Total number of genes to keep.
-        If None and genes_to_keep is empty/None, all genes are loaded.
-    delayed_populating
-        Boolean switch for delayed population mechanism.
-
-
-    Examples
-    --------
-    >>> gene_dataset = CortexDataset()
+def cortex(save_path: str = "data/", run_setup_anndata=True):
     """
+    Loads cortex dataset
+    """
+    save_path = os.path.abspath(save_path)
+    url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt"
+    save_fn = "expression.bin"
+    _download(url, save_path, save_fn)
+    adata = _load_cortex_txt(os.path.join(save_path, save_fn))
+    if run_setup_anndata:
+        setup_anndata(adata, labels_key="labels")
+    return adata
 
-    def __init__(
-        self,
-        save_path: str = "data/",
-        genes_to_keep: Optional[List[str]] = None,
-        total_genes: Optional[int] = 558,
-        delayed_populating: bool = False,
-    ):
-        self.genes_to_keep = genes_to_keep
-        self.total_genes = total_genes
 
-        self.precise_labels = None
+def _load_cortex_txt(path_to_file):
+    logger.info("Loading Cortex data from {}".format(path_to_file))
+    rows = []
+    gene_names = []
+    with open(path_to_file, "r") as csvfile:
+        data_reader = csv.reader(csvfile, delimiter="\t")
+        for i, row in enumerate(data_reader):
+            if i == 1:
+                precise_clusters = np.asarray(row, dtype=str)[2:]
+            if i == 8:
+                clusters = np.asarray(row, dtype=str)[2:]
+            if i >= 11:
+                rows.append(row[1:])
+                gene_names.append(row[0])
+    cell_types, labels = np.unique(clusters, return_inverse=True)
+    _, precise_labels = np.unique(precise_clusters, return_inverse=True)
+    X = np.asarray(rows, dtype=np.int).T[1:]
+    gene_names = np.asarray(gene_names, dtype=np.str)
+    gene_indices = []
 
-        super().__init__(
-            urls="https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs"
-            "/cortex/expression_mRNA_17-Aug-2014.txt",
-            filenames="expression.bin",
-            save_path=save_path,
-            delayed_populating=delayed_populating,
-        )
+    extra_gene_indices = []
+    gene_indices = np.concatenate([gene_indices, extra_gene_indices]).astype(np.int32)
+    if gene_indices.size == 0:
+        gene_indices = slice(None)
 
-    def populate(self):
-        logger.info("Loading Cortex data")
-        rows = []
-        gene_names = []
-        with open(os.path.join(self.save_path, self.filenames[0]), "r") as csvfile:
-            data_reader = csv.reader(csvfile, delimiter="\t")
-            for i, row in enumerate(data_reader):
-                if i == 1:
-                    precise_clusters = np.asarray(row, dtype=str)[2:]
-                if i == 8:
-                    clusters = np.asarray(row, dtype=str)[2:]
-                if i >= 11:
-                    rows.append(row[1:])
-                    gene_names.append(row[0])
-        cell_types, labels = np.unique(clusters, return_inverse=True)
-        _, self.precise_labels = np.unique(precise_clusters, return_inverse=True)
-        X = np.asarray(rows, dtype=np.int).T[1:]
-        gene_names = np.asarray(gene_names, dtype=np.str)
-        gene_indices = []
-        if self.genes_to_keep is not None:
-            look_up = dict([(g, i) for i, g in enumerate(gene_names)])
-            gene_indices = np.array(
-                [look_up[g] for g in self.genes_to_keep], dtype=np.int
-            )
-
-        nb_gene_indices = len(gene_indices)
-        extra_gene_indices = []
-        if self.total_genes is not None and nb_gene_indices < self.total_genes:
-            all_genes_by_var = np.std(X, axis=0).argsort()[::-1]
-            extra_genes_by_var = [i for i in all_genes_by_var if i not in gene_indices]
-            extra_gene_indices = extra_genes_by_var[
-                : self.total_genes - len(gene_indices)
-            ]
-        gene_indices = np.concatenate([gene_indices, extra_gene_indices]).astype(
-            np.int32
-        )
-        if gene_indices.size == 0:
-            gene_indices = slice(None)
-
-        X = X[:, gene_indices]
-        gene_names = gene_names[gene_indices]
-
-        logger.info("Finished preprocessing Cortex data")
-        self.populate_from_data(
-            X=X,
-            labels=labels,
-            gene_names=gene_names,
-            cell_types=cell_types,
-            cell_attributes_dict={"precise_labels": precise_clusters},
-        )
+    X = X[:, gene_indices]
+    gene_names = gene_names[gene_indices]
+    X_df = pd.DataFrame(X, columns=gene_names)
+    adata = anndata.AnnData(X=X_df)
+    adata.obs["labels"] = labels
+    adata.obs["precise_labels"] = precise_clusters
+    adata.obs["cell_type"] = clusters
+    logger.info("Finished loading Cortex data")
+    return adata

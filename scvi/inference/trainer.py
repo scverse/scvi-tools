@@ -8,10 +8,11 @@ from typing import List
 
 import numpy as np
 import torch
+import anndata
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
 
-from scvi.dataset import GeneExpressionDataset
+from scvi.dataset._constants import _X_KEY
 from scvi.inference.posterior import Posterior
 
 from tqdm import tqdm
@@ -62,7 +63,7 @@ class Trainer:
     def __init__(
         self,
         model,
-        gene_dataset: GeneExpressionDataset,
+        adata: anndata.AnnData,
         use_cuda: bool = True,
         metrics_to_monitor: List = None,
         benchmark: bool = False,
@@ -78,7 +79,7 @@ class Trainer:
 
         # Model, dataset management
         self.model = model
-        self.gene_dataset = gene_dataset
+        self.gene_dataset = adata
         self._posteriors = OrderedDict()
         self.seed = seed  # For train/test splitting
         self.use_cuda = use_cuda and torch.cuda.is_available()
@@ -87,7 +88,7 @@ class Trainer:
 
         # Data loader attributes
         self.batch_size = batch_size
-        self.data_loader_kwargs = {"batch_size": batch_size, "pin_memory": use_cuda}
+        self.data_loader_kwargs = {"pin_memory": use_cuda}
         data_loader_kwargs = data_loader_kwargs if data_loader_kwargs else dict()
         self.data_loader_kwargs.update(data_loader_kwargs)
 
@@ -138,7 +139,7 @@ class Trainer:
 
                 for name, posterior in self._posteriors.items():
                     message = " ".join([s.capitalize() for s in name.split("_")[-2:]])
-                    if posterior.nb_cells < 5:
+                    if posterior.n_cells < 5:
                         logging.debug(
                             message + " is too small to track metrics (<5 samples)"
                         )
@@ -182,19 +183,18 @@ class Trainer:
             file=sys.stdout,
         ):
             self.on_epoch_begin()
-            for tensors_list in self.data_loaders_loop():
-                if tensors_list[0][0].shape[0] < 3:
+            for tensors_dict in self.data_loaders_loop():
+                if tensors_dict[0][_X_KEY].shape[0] < 3:
                     continue
                 self.on_iteration_begin()
                 # Update the model's parameters after seeing the data
-                self.on_training_loop(tensors_list)
+                self.on_training_loop(tensors_dict)
                 # Checks the training status, ensures no nan loss
                 self.on_iteration_end()
 
             # Computes metrics and controls early stopping
             if not self.on_epoch_end():
                 break
-
         if self.early_stopping.save_best_state_metric is not None:
             self.model.load_state_dict(self.best_state_dict)
             self.compute_metrics()
@@ -210,8 +210,8 @@ class Trainer:
             )
         self.on_training_end()
 
-    def on_training_loop(self, tensors_list):
-        self.current_loss = loss = self.loss(*tensors_list)
+    def on_training_loop(self, tensors_dict):
+        self.current_loss = loss = self.loss(*tensors_dict)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -316,18 +316,6 @@ class Trainer:
         name = name.strip("_")
         self._posteriors[name] = value
 
-    def corrupt_posteriors(
-        self, rate=0.1, corruption="uniform", update_corruption=True
-    ):
-        if not hasattr(self.gene_dataset, "corrupted") and update_corruption:
-            self.gene_dataset.corrupt(rate=rate, corruption=corruption)
-        for name, posterior in self._posteriors.items():
-            self.register_posterior(name, posterior.corrupted())
-
-    def uncorrupt_posteriors(self):
-        for name_, posterior in self._posteriors.items():
-            self.register_posterior(name_, posterior.uncorrupted())
-
     def __getattr__(self, name):
         if "_posteriors" in self.__dict__:
             _posteriors = self.__dict__["_posteriors"]
@@ -384,6 +372,7 @@ class Trainer:
             )
 
         model = self.model if model is None and hasattr(self, "model") else model
+        # what to do here if it has the attribute modle
         gene_dataset = (
             self.gene_dataset
             if gene_dataset is None and hasattr(self, "model")
@@ -421,7 +410,7 @@ class Trainer:
     def create_posterior(
         self,
         model=None,
-        gene_dataset=None,
+        gene_dataset: anndata.AnnData = None,
         shuffle=False,
         indices=None,
         type_class=Posterior,
@@ -438,6 +427,7 @@ class Trainer:
             shuffle=shuffle,
             indices=indices,
             use_cuda=self.use_cuda,
+            batch_size=self.batch_size,
             data_loader_kwargs=self.data_loader_kwargs,
         )
 

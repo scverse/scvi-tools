@@ -1,4 +1,3 @@
-import copy
 import datetime
 import os
 import pickle
@@ -163,50 +162,6 @@ class Benchmarkable:
         self.original = None
         self.imputed = None
 
-        # imputation scores
-        self.median_score = None
-        self.mean_score = None
-
-    @property
-    def imputation_errors(self):
-        return np.abs(np.concatenate(self.original) - np.concatenate(self.imputed))
-
-    def compute_imputed(
-        self, n_epochs=None, n_samples=1, rate=0.1, corruption="uniform"
-    ):
-        # corrupt data with
-        corrupted_trainer = copy.deepcopy(self.trainer)
-        corrupted_trainer.train_test_validation(train_size=1.0)
-        corrupted_trainer.corrupt_posteriors(rate=rate, corruption=corruption)
-        corrupted_trainer.show_progbar = True
-        # use n_epochs from early stopping
-        if n_epochs is None:
-            n_epochs = self.n_epochs
-        corrupted_trainer.train(n_epochs=n_epochs)
-        corrupted_trainer.uncorrupt_posteriors()
-
-        (original_list, imputed_list) = corrupted_trainer.train_set.imputation_list(
-            n_samples=n_samples
-        )
-
-        # Mean/Median of medians for each cell
-        imputation_cells = []
-        for original, imputed in zip(original_list, imputed_list):
-            has_imputation = len(original) and len(imputed)
-            imputation_cells += [
-                np.median(np.abs(original - imputed)) if has_imputation else 0
-            ]
-        self.median_score = np.median(imputation_cells)
-        self.mean_score = np.mean(imputation_cells)
-        print(
-            "\nMedian of Median: %.4f\nMean of Median for each cell: %.4f"
-            % (self.median_score, self.mean_score)
-        )
-
-        # store imputed values
-        self.imputed = imputed_list
-        self.original = original_list
-
     def get_param_df(self):
         ddd = {}
         for i, trial in enumerate(self.trials):
@@ -320,7 +275,6 @@ class PlotBenchmarkables:
             ("Likelihood", t)
             for t in ["Held-out marginal ll", "ELBO train", "ELBO test"]
         ]
-        cols += [("Imputation score", t) for t in ["median", "mean"]]
         cols = pd.MultiIndex.from_tuples(cols)
 
         df_res = pd.DataFrame(index=index, columns=cols)
@@ -329,8 +283,6 @@ class PlotBenchmarkables:
             one_shot_benchmarkable = self.one_shot_benchmarkables[name]
 
             def fill_sub_df(sub_df, benchmarkable):
-                sub_df[("Imputation score", "median")] = benchmarkable.median_score
-                sub_df[("Imputation score", "mean")] = benchmarkable.mean_score
                 sub_df[
                     ("Likelihood", "Held-out marginal ll")
                 ] = benchmarkable.best_performance

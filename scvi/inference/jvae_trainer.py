@@ -1,16 +1,24 @@
 import logging
+import anndata
+import torch
+import numpy as np
+
+from torch import nn
 from functools import partial
 from itertools import cycle
 from typing import Optional, List, Tuple, Union, Iterable
 
-import numpy as np
-import torch
-from torch import nn
-
-from scvi.dataset import GeneExpressionDataset
 from scvi.inference import Posterior
 from scvi.inference import Trainer
 from scvi.models.log_likelihood import compute_elbo
+from scvi.dataset._constants import (
+    _X_KEY,
+    _BATCH_KEY,
+    _LOCAL_L_MEAN_KEY,
+    _LOCAL_L_VAR_KEY,
+    _LABELS_KEY,
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +63,7 @@ class JVAETrainer(Trainer):
         self,
         model: nn.Module,
         discriminator: nn.Module,
-        gene_dataset_list: List[GeneExpressionDataset],
+        gene_dataset_list: List[anndata.AnnData],
         train_size: float = 0.9,
         use_cuda: bool = True,
         kappa: float = 1.0,
@@ -120,7 +128,7 @@ class JVAETrainer(Trainer):
         posteriors = [self._posteriors[name] for name in self.posteriors_loop]
         # find the largest dataset to cycle over the others
         largest = np.argmax(
-            [posterior.gene_dataset.X.shape[0] for posterior in posteriors]
+            [posterior.gene_dataset.n_cells for posterior in posteriors]
         )
 
         data_loaders = [
@@ -130,14 +138,13 @@ class JVAETrainer(Trainer):
 
         return zip(*data_loaders)
 
-    def on_training_loop(self, tensors_list):
+    def on_training_loop(self, tensors_dict):
 
         if self.train_discriminator:
             latent_tensors = []
-            for (i, (data, *_)) in enumerate(tensors_list):
-                z = self.model.sample_from_posterior_z(
-                    data, mode=i, deterministic=False
-                )
+            for (i, tensors) in enumerate(tensors_dict):
+                X = tensors[_X_KEY]
+                z = self.model.sample_from_posterior_z(X, mode=i, deterministic=False)
                 latent_tensors.append(z)
 
             # Train discriminator
@@ -155,7 +162,7 @@ class JVAETrainer(Trainer):
             self.optimizer.step()
 
         # Train generative model
-        self.current_loss = g_loss = self.loss(tensors_list)
+        self.current_loss = g_loss = self.loss(tensors_dict)
         self.optimizer.zero_grad()
         g_loss.backward()
         self.optimizer.step()
@@ -237,14 +244,16 @@ class JVAETrainer(Trainer):
         type
             scalar loss if return_details is False, else tuple (reconstruction_loss, kl_loss)
 
+
         """
         reconstruction_losses = []
         kl_divergences = []
         losses = []
         total_batch_size = 0
-        for (i, (sample_batch, l_mean, l_var, batch_index, labels, *_)) in enumerate(
-            tensors
-        ):
+        for i, data in enumerate(tensors):
+            sample_batch, l_mean, l_var, batch_index, labels, *_ = self._unpack_tensors(
+                data
+            )
             reconstruction_loss, kl_divergence, _ = self.model(
                 sample_batch, l_mean, l_var, batch_index, mode=i
             )
@@ -263,12 +272,23 @@ class JVAETrainer(Trainer):
         averaged_loss = torch.stack(losses).sum() / total_batch_size
         return averaged_loss
 
+    def _unpack_tensors(self, tensors):
+        x = tensors[_X_KEY].squeeze_(0)
+        local_l_mean = tensors[_LOCAL_L_MEAN_KEY].squeeze_(0)
+        local_l_var = tensors[_LOCAL_L_VAR_KEY].squeeze_(0)
+        batch_index = tensors[_BATCH_KEY].squeeze_(0)
+        y = tensors[_LABELS_KEY].squeeze_(0)
+        return x, local_l_mean, local_l_var, batch_index, y
+
     def get_discriminator_confusion(self) -> np.ndarray:
         """A good mixing should lead to a uniform matrix.
         """
         confusion = []
         for i, posterior in enumerate(self.all_dataset):
-            data = torch.from_numpy(posterior.gene_dataset.X)
+
+            indices = np.arange(posterior.gene_dataset.n_cells)
+            data = posterior.gene_dataset[indices][_X_KEY]
+            data = torch.from_numpy(data)
             if self.use_cuda:
                 data = data.cuda()
 
@@ -295,17 +315,17 @@ class JVAETrainer(Trainer):
         total_kl_divergence = np.zeros(self.n_dataset)
         total_discriminator = np.zeros(self.n_dataset)
 
-        for tensors_list in self.data_loaders_loop():
+        for tensors_dict in self.data_loaders_loop():
             reconstruction_losses, kl_divergences = self.loss(
-                tensors_list, return_details=True
+                tensors_dict, return_details=True
             )
-
+            # TODO fix this
             discriminator_losses = self.loss_discriminator(
                 [
                     self.model.sample_from_posterior_z(
-                        data, mode=i, deterministic=False
+                        data[_X_KEY], mode=i, deterministic=False
                     )
-                    for (i, (data, *_)) in enumerate(tensors_list)
+                    for (i, data) in enumerate(tensors_dict)
                 ],
                 return_details=True,
             )
@@ -339,7 +359,7 @@ class JVAETrainer(Trainer):
                     batch_index,
                     label,
                     *_,
-                ) = tensors
+                ) = self._unpack_tensors(tensors)
                 latent.append(
                     self.model.sample_from_posterior_z(
                         sample_batch, mode, deterministic=deterministic
@@ -381,7 +401,7 @@ class JVAETrainer(Trainer):
                     batch_index,
                     label,
                     *_,
-                ) = tensors
+                ) = self._unpack_tensors(tensors)
                 if normalized:
                     imputed_value.append(
                         self.model.sample_scale(
