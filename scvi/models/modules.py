@@ -1,12 +1,10 @@
-import collections
-import pdb
-from typing import Iterable, List
-
 import torch
+import collections
+
+from typing import Iterable, List
 from torch import nn as nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
-
 from scvi.models.utils import one_hot
 
 

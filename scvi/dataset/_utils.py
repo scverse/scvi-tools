@@ -1,7 +1,6 @@
 import scipy.sparse as sp_sparse
 import pandas as pd
 import anndata
-import pdb
 import logging
 import numpy as np
 import os
@@ -9,7 +8,6 @@ import urllib.request
 
 from typing import Union, Tuple
 
-logger = logging.getLogger(__name__)
 
 from scvi.dataset._constants import (
     _X_KEY,
@@ -17,8 +15,9 @@ from scvi.dataset._constants import (
     _LOCAL_L_MEAN_KEY,
     _LOCAL_L_VAR_KEY,
     _LABELS_KEY,
-    _PROTEIN_EXP_KEY,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _download(url: str, save_path: str, filename: str):

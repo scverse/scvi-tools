@@ -16,7 +16,6 @@ from scvi.dataset._constants import (
     _LOCAL_L_VAR_KEY,
     _LABELS_KEY,
     _PROTEIN_EXP_KEY,
-    _SCANVI_LABELED_IDX_KEY,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,7 +44,7 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
             ), "anndata.{} has no attribute '{}'".format(df, df_key)
         else:
             assert (
-                hasattr(adata, df_key) == True
+                hasattr(adata, df_key) is True
             ), "anndata has no attribute '{}'".format(df_key)
     adata.uns["scvi_data_registry"] = copy.copy(data_registry_dict)
 

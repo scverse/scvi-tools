@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 """Main module."""
-from typing import Dict, Optional, Tuple, Union, List
-import pdb
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Normal, Bernoulli, kl_divergence as kl
+import numpy as np
 
+from torch.distributions import Normal, Bernoulli, kl_divergence as kl
+from typing import Dict, Optional, Tuple, Union, List
 from scvi.models.distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
 from scvi.models.log_likelihood import log_mixture_nb
 from scvi.models.modules import DecoderTOTALVI, EncoderTOTALVI
 from scvi.models.utils import one_hot
-import numpy as np
 
 torch.backends.cudnn.benchmark = True
 
