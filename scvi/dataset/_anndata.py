@@ -2,8 +2,9 @@ import copy
 import numpy as np
 import logging
 import pandas as pd
+import anndata
 
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 from scvi.dataset._anndata_utils import (
     _compute_library_size_batch,
     _check_nonnegative_integers,
@@ -82,8 +83,10 @@ def setup_anndata(
     protein_expression_obsm_key: str = None,
     protein_names_uns_key: str = None,
     copy: bool = False,
-):
-    """Sets up anndata object for scVI models. This method will compute the log mean and log variance per batch.
+) -> Optional[anndata.AnnData]:
+    """Sets up anndata object for scVI models.
+
+    This method will compute the log mean and log variance per batch.
     A mapping will be created between in
 
     Parameters

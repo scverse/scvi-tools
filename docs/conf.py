@@ -47,8 +47,7 @@ extensions = [
     "sphinx_autodoc_typehints",  # needs to be after napoleon
     "sphinx_rtd_theme",
     "sphinx.ext.intersphinx",
-    "sphinx_automodapi.automodapi",
-    # "autodocsumm",
+    "sphinx.ext.autosummary",
     "scanpydoc.elegant_typehints",
     "scanpydoc.rtd_github_links",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
@@ -97,6 +96,7 @@ intersphinx_mapping = dict(
     scipy=("https://docs.scipy.org/doc/scipy/reference/", None),
     sklearn=("https://scikit-learn.org/stable/", None),
     torch=("https://pytorch.org/docs/master/", None),
+    scanpy=("https://scanpy.readthedocs.io/en/stable/index.html", None),
 )
 qualname_overrides = {
     "scvi.dataset.dataset.GeneExpressionDataset": "scvi.dataset.GeneExpressionDataset"
