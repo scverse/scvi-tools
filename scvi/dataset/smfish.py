@@ -44,7 +44,7 @@ _subtype_to_high_level_mapping = {
 }
 
 
-def smfish(save_path="data/", use_high_level_cluster=True):
+def smfish(save_path="data/", use_high_level_cluster=True, run_setup_anndata=True):
     save_path = os.path.abspath(save_path)
     url = "http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom"
     save_fn = "osmFISH_SScortex_mouse_all_cell.loom"
@@ -52,6 +52,8 @@ def smfish(save_path="data/", use_high_level_cluster=True):
     adata = _load_smfish(
         os.path.join(save_path, save_fn), use_high_level_cluster=use_high_level_cluster
     )
+    if run_setup_anndata:
+        setup_anndata(adata, labels_key="labels")
     return adata
 
 

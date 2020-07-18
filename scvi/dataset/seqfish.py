@@ -1,5 +1,4 @@
 import logging
-import pdb
 import anndata
 import os
 import pandas as pd
@@ -10,12 +9,14 @@ from scvi.dataset import setup_anndata
 logger = logging.getLogger(__name__)
 
 
-def seqfish(save_path="data/"):
+def seqfish(save_path="data/", run_setup_anndata=True):
     save_path = os.path.abspath(save_path)
     url = "https://www.cell.com/cms/attachment/2080562255/2072099886/mmc6.xlsx"
     save_fn = "SeqFISH.xlsx"
     _download(url, save_path, save_fn)
     adata = _load_seqfish_data(os.path.join(save_path, save_fn))
+    if run_setup_anndata:
+        setup_anndata(adata)
     return adata
 
 

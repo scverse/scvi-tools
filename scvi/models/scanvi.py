@@ -1,10 +1,8 @@
-from typing import Sequence
-import pdb
-
 import numpy as np
 import torch
-from torch.distributions import Normal, Categorical, kl_divergence as kl
 
+from typing import Sequence
+from torch.distributions import Normal, Categorical, kl_divergence as kl
 from scvi.models.classifier import Classifier
 from scvi.models.modules import Decoder, Encoder
 from scvi.models.utils import broadcast_labels
