@@ -12,7 +12,6 @@ os:
 
 cache:
   - pip
-  - directories: tests/data
 
 notifications:
   email: false
