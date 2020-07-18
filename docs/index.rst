@@ -22,6 +22,7 @@ These models are able to simultaneously perform many downstream tasks such as le
    installation
    tutorials/index
    contributed_tutorials/index
+   public_api/index
    contributing
    history
    references
@@ -31,10 +32,9 @@ These models are able to simultaneously perform many downstream tasks such as le
    :caption: Package Reference
    :hidden:
 
-   scvi.dataset
-   scvi.inference
-   scvi.models
-   scvi.models-modules
+..    scvi.inference
+..    scvi.models
+..    scvi.models-modules
 
 Indices and tables
 ==================
