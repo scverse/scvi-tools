@@ -1,18 +1,17 @@
 import logging
 import os
-import loompy
 import numpy as np
 import pandas as pd
 
 from anndata import AnnData
 from scvi.dataset import setup_anndata
-from scvi.dataset._utils import _download
+from scvi.dataset._built_in_data._utils import _download
 
 
 logger = logging.getLogger(__name__)
 
 
-def retina(save_path: str = "data/") -> AnnData:
+def _load_retina(save_path: str = "data/", run_setup_anndata=True) -> AnnData:
     """\
     Loads retina dataset
 
@@ -49,11 +48,15 @@ def retina(save_path: str = "data/") -> AnnData:
     del adata.obs["ClusterID"]
     adata.obs["batch"] = pd.Categorical(adata.obs["BatchID"].values.copy())
     del adata.obs["BatchID"]
+    if run_setup_anndata:
+        setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 
 
-def prefrontalcortex_starmap(save_path: str = "data/") -> AnnData:
+def _load_prefrontalcortex_starmap(
+    save_path: str = "data/", run_setup_anndata=True
+) -> AnnData:
     """\
     Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex (Wang et al., 2018)
     """
@@ -70,13 +73,14 @@ def prefrontalcortex_starmap(save_path: str = "data/") -> AnnData:
     del adata.obs["BatchID"]
     adata.obs["x_coord"] = adata.obsm["Spatial_coordinates"][:, 0]
     adata.obs["y_coord"] = adata.obsm["Spatial_coordinates"][:, 1]
+    if run_setup_anndata:
+        setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 
-def frontalcortex_dropseq(save_path: str = "data/") -> AnnData:
-    """\
-    Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex (Wang et al., 2018)
-    """
+def _load_frontalcortex_dropseq(
+    save_path: str = "data/", run_setup_anndata=True
+) -> AnnData:
     save_path = os.path.abspath(save_path)
     url = "https://github.com/YosefLab/scVI-data/raw/master/fc-dropseq.loom"
     save_fn = "fc-dropseq.loom"
@@ -87,10 +91,13 @@ def frontalcortex_dropseq(save_path: str = "data/") -> AnnData:
     # order_labels = [5, 6, 3, 2, 4, 0, 1, 8, 7, 9, 10, 11, 12, 13]
     # self.reorder_cell_types(self.cell_types[order_labels])
 
+    if run_setup_anndata:
+        setup_anndata(adata)
+
     return adata
 
 
-def annotation_simulation(
+def _load_annotation_simulation(
     name: str, save_path: str = "data/", run_setup_anndata=True
 ) -> AnnData:
     """\
@@ -121,6 +128,8 @@ def annotation_simulation(
 
 
 def _load_loom(path_to_file: str, gene_names_attribute_name: str = "Gene") -> AnnData:
+    import loompy
+
     ds = loompy.connect(path_to_file)
     select = ds[:, :].sum(axis=0) > 0  # Take out cells that don't express any gene
     if not all(select):

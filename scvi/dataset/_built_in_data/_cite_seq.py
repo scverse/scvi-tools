@@ -5,7 +5,7 @@ import os
 from scvi.dataset import setup_anndata
 
 
-def pbmcs_10x_cite_seq(
+def _load_pbmcs_10x_cite_seq(
     save_path: str = "data/", protein_join: str = "inner", run_setup_anndata=True
 ):
     """Filtered PBMCs from 10x Genomics profiled with RNA and protein

@@ -1,35 +1,34 @@
 import logging
 import scanpy
-import os
 import anndata
-
 import h5py
 import numpy as np
 import scipy.sparse as sp_sparse
+import os
 
-from scvi.dataset._utils import _download
-from scvi.dataset import setup_anndata
+from scvi.dataset._built_in_data._utils import _download
+from scvi.dataset._anndata import setup_anndata
 
 logger = logging.getLogger(__name__)
 
 
-def brainlarge_dataset(
-    save_path="data/",
-    run_setup_anndata=True,
+def _load_brainlarge_dataset(
+    save_path: str = "data/",
+    run_setup_anndata: bool = True,
     sample_size_gene_var: int = 10000,
     max_cells_to_keep: int = None,
-    nb_genes_to_keep: int = 720,
+    n_genes_to_keep: int = 720,
     loading_batch_size: int = 100000,
 ):
     url = "http://cf.10xgenomics.com/samples/cell-exp/1.3.0/1M_neurons/1M_neurons_filtered_gene_bc_matrices_h5.h5"
     save_fn = "brain_large.h5"
 
     _download(url, save_path, save_fn)
-    adata = _load_brainlarge(
+    adata = _load_brainlarge_file(
         os.path.join(save_path, save_fn),
         sample_size_gene_var=sample_size_gene_var,
         max_cells_to_keep=max_cells_to_keep,
-        nb_genes_to_keep=nb_genes_to_keep,
+        n_genes_to_keep=n_genes_to_keep,
         loading_batch_size=loading_batch_size,
     )
     if run_setup_anndata:
@@ -37,11 +36,11 @@ def brainlarge_dataset(
     return adata
 
 
-def _load_brainlarge(
+def _load_brainlarge_file(
     path_to_file,
     sample_size_gene_var,
     max_cells_to_keep,
-    nb_genes_to_keep,
+    n_genes_to_keep,
     loading_batch_size,
 ):
     logger.info("Preprocessing Brain Large data")
@@ -68,7 +67,7 @@ def _load_brainlarge(
         var = gene_var_sample_matrix.multiply(gene_var_sample_matrix).mean(
             axis=1
         ) - np.multiply(mean, mean)
-        subset_genes = np.squeeze(np.asarray(var)).argsort()[-nb_genes_to_keep:][::-1]
+        subset_genes = np.squeeze(np.asarray(var)).argsort()[-n_genes_to_keep:][::-1]
         del gene_var_sample_matrix, mean, var
 
         n_iters = int(n_cells_to_keep / loading_batch_size) + (

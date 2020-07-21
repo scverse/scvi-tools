@@ -6,7 +6,8 @@ from typing import Tuple
 import numpy as np
 import shutil
 
-from scvi.dataset._utils import _download
+from scvi.dataset._built_in_data._utils import _download
+
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ group_to_filename_skeleton = {
 }
 
 
-def dataset10X(
+def _load_dataset10X(
     dataset_name: str = None,
     filename: str = None,
     save_path: str = "data/10X",
@@ -87,35 +88,6 @@ def dataset10X(
     remove_extracted_data: bool = False,
     **scanpy_read_10x_kwargs,
 ):
-    """Loads a file from `10x <http://cf.10xgenomics.com/>`_ website.
-
-    Parameters
-    ----------
-    dataset_name
-        Name of the dataset file. Has to be one of:
-        "frozen_pbmc_donor_a", "frozen_pbmc_donor_b", "frozen_pbmc_donor_c", "fresh_68k_pbmc_donor_a",
-        "cd14_monocytes", "b_cells", "cd34", "cd56_nk", "cd4_t_helper", "regulatory_t", "naive_t",
-        "memory_t", "cytotoxic_t", "naive_cytotoxic", "pbmc8k", "pbmc4k", "t_3k", "t_4k", "neuron_9k",
-        "pbmc_1k_protein_v3", "pbmc_10k_protein_v3", "malt_10k_protein_v3", "pbmc_1k_v2", "pbmc_1k_v3",
-        "pbmc_10k_v3", "hgmm_1k_v2", "hgmm_1k_v3", "hgmm_5k_v3", "hgmm_10k_v3", "neuron_1k_v2",
-        "neuron_1k_v3", "neuron_10k_v3", "heart_1k_v2", "heart_1k_v3", "heart_10k_v3".
-    filename
-        manual override of the filename to write to.
-    save_path
-        Location to use when saving/loading the data.
-    url
-        manual override of the download remote location.
-        Note that we already provide urls for most 10X datasets,
-        which are automatically formed only using the ``dataset_name``.
-    type
-        Either `filtered` data or `raw` data.
-    remove_extracted_data
-        Whether to remove extracted archives in the case of `.tar.gz` downloads.
-
-    Examples
-    --------
-    >>> neuron = dataset10X("neuron_9k")
-    """
     # form data url and filename unless manual override
     if dataset_name is not None:
         if url is not None:

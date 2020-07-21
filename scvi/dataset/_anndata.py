@@ -4,7 +4,7 @@ import logging
 import pandas as pd
 
 from typing import Dict, Tuple
-from scvi.dataset._utils import (
+from scvi.dataset._anndata_utils import (
     _compute_library_size_batch,
     _check_nonnegative_integers,
     _get_batch_mask_protein_data,

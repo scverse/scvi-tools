@@ -5,7 +5,7 @@ import loompy
 import numpy as np
 import anndata
 
-from scvi.dataset._utils import _download
+from scvi.dataset._built_in_data._utils import _download
 from scvi.dataset import setup_anndata
 
 logger = logging.getLogger(__name__)
@@ -44,12 +44,14 @@ _subtype_to_high_level_mapping = {
 }
 
 
-def smfish(save_path="data/", use_high_level_cluster=True, run_setup_anndata=True):
+def _load_smfish(
+    save_path="data/", use_high_level_cluster=True, run_setup_anndata=True
+):
     save_path = os.path.abspath(save_path)
     url = "http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom"
     save_fn = "osmFISH_SScortex_mouse_all_cell.loom"
     _download(url, save_path, save_fn)
-    adata = _load_smfish(
+    adata = _load_smfish_data(
         os.path.join(save_path, save_fn), use_high_level_cluster=use_high_level_cluster
     )
     if run_setup_anndata:
@@ -57,7 +59,7 @@ def smfish(save_path="data/", use_high_level_cluster=True, run_setup_anndata=Tru
     return adata
 
 
-def _load_smfish(path_to_file, use_high_level_cluster):
+def _load_smfish_data(path_to_file, use_high_level_cluster):
     logger.info("Loading smFISH dataset")
     ds = loompy.connect(path_to_file)
     x_coord, y_coord = ds.ca["X"], ds.ca["Y"]
