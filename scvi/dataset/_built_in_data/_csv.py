@@ -1,14 +1,14 @@
 import logging
-import os
 import scanpy as sc
 
-from scvi.dataset._utils import _download
-from scvi.dataset import setup_anndata
+import os
+from scvi.dataset._built_in_data._utils import _download
+from scvi.dataset._anndata import setup_anndata
 
 logger = logging.getLogger(__name__)
 
 
-def breast_cancer_dataset(save_path="data/", run_setup_anndata=True):
+def _load_breast_cancer_dataset(save_path="data/", run_setup_anndata=True):
     save_path = os.path.abspath(save_path)
     url = "http://www.spatialtranscriptomicsresearch.org/wp-content/uploads/2016/07/Layer2_BC_count_matrix-1.tsv"
     save_fn = "Layer2_BC_count_matrix-1.tsv"
@@ -21,7 +21,7 @@ def breast_cancer_dataset(save_path="data/", run_setup_anndata=True):
     return adata
 
 
-def mouse_ob_dataset(save_path="data/", run_setup_anndata=True):
+def _load_mouse_ob_dataset(save_path="data/", run_setup_anndata=True):
     save_path = os.path.abspath(save_path)
     url = "http://www.spatialtranscriptomicsresearch.org/wp-content/uploads/2016/07/Rep11_MOB_count_matrix-1.tsv"
     save_fn = "Rep11_MOB_count_matrix-1.tsv"

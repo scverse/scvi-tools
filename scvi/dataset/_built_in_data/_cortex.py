@@ -2,16 +2,15 @@ import csv
 import anndata
 import pandas as pd
 import logging
-import os
 import numpy as np
-
-from scvi.dataset._utils import _download
-from scvi.dataset import setup_anndata
+import os
+from scvi.dataset._built_in_data._utils import _download
+from scvi.dataset._anndata import setup_anndata
 
 logger = logging.getLogger(__name__)
 
 
-def cortex(save_path: str = "data/", run_setup_anndata=True):
+def _load_cortex(save_path: str = "data/", run_setup_anndata=True):
     """
     Loads cortex dataset
     """

@@ -1,27 +1,18 @@
 import os
 import pickle
-from typing import List
-
 import numpy as np
 import pandas as pd
 import anndata
-from scvi.dataset import dataset10X
 
-# from scvi.dataset.dataset10X import Dataset10X
-
-from scvi.dataset._utils import _download
+from scvi.dataset._built_in_data._dataset10X import _load_dataset10X
+from typing import List
+from scvi.dataset._built_in_data._utils import _download
 from scvi.dataset import setup_anndata
 
 
-def purified_pbmc_dataset(
+def _load_purified_pbmc_dataset(
     save_path: str = "data/", subset_datasets: List[str] = None, run_setup_anndata=True
 ):
-    # url = "https://github.com/YosefLab/scVI-data/raw/master/PurifiedPBMCDataset.h5ad"
-    # save_fn = "PurifiedPBMCDataset.h5ad"
-
-    # _download(url, save_path, save_fn)
-    # path_to_file = os.path.join(save_path, save_fn)
-
     path_to_file = "/Users/galen/scVI/galen/PurifiedPBMCDataset.h5ad"
     adata = anndata.read(path_to_file)
 
@@ -53,7 +44,7 @@ def purified_pbmc_dataset(
     return adata
 
 
-def pbmc_dataset(
+def _load_pbmc_dataset(
     save_path: str = "data/", run_setup_anndata=True, remove_extracted_data=True
 ):
     urls = [
@@ -69,13 +60,13 @@ def pbmc_dataset(
     pbmc_metadata = pickle.load(
         open(os.path.join(save_path, "pbmc_metadata.pickle"), "rb")
     )
-    pbmc8k = dataset10X(
+    pbmc8k = _load_dataset10X(
         "pbmc8k",
         save_path=save_path,
         var_names="gene_ids",
         remove_extracted_data=remove_extracted_data,
     )
-    pbmc4k = dataset10X(
+    pbmc4k = _load_dataset10X(
         "pbmc4k",
         save_path=save_path,
         var_names="gene_ids",
