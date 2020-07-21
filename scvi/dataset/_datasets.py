@@ -345,7 +345,7 @@ def mouse_ob_dataset(save_path: str = "data/", run_setup_anndata: bool = True):
 
     Returns
     -------
-    `AnnData` object
+    `AnnData` object with `.obs['batch']` and `.obs['labels']`
 
     Examples
     --------
@@ -368,7 +368,7 @@ def breast_cancer_dataset(save_path: str = "data/", run_setup_anndata: bool = Tr
 
     Returns
     -------
-    `AnnData` object
+    `AnnData` object with `.obs['batch']` and `.obs['labels']`
 
     Examples
     --------
@@ -400,7 +400,7 @@ def pbmcs_10x_cite_seq(
 
     Returns
     -------
-    `AnnData` with `.obsm["protein_expression"]
+    `AnnData` with `.obsm["protein_expression"]`
 
     Missing protein values are zero, and are identified during `AnnData` setup.
 
