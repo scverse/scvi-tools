@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 import scanpy as sc
 
 import os
@@ -16,8 +17,11 @@ def _load_breast_cancer_dataset(save_path="data/", run_setup_anndata=True):
     adata = _load_csv(
         os.path.join(save_path, save_fn), delimiter="\t", gene_by_cell=False
     )
+    adata.obs["batch"] = np.zeros(adata.shape[0]).astype(int)
+    adata.obs["labels"] = np.zeros(adata.shape[0]).astype(int)
+
     if run_setup_anndata:
-        setup_anndata(adata)
+        setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 
@@ -29,8 +33,12 @@ def _load_mouse_ob_dataset(save_path="data/", run_setup_anndata=True):
     adata = _load_csv(
         os.path.join(save_path, save_fn), delimiter="\t", gene_by_cell=False
     )
+    adata.obs["batch"] = np.zeros(adata.shape[0]).astype(int)
+    adata.obs["labels"] = np.zeros(adata.shape[0]).astype(int)
+
     if run_setup_anndata:
-        setup_anndata(adata)
+        setup_anndata(adata, batch_key="batch", labels_key="labels")
+
     return adata
 
 
