@@ -1,27 +1,21 @@
 import anndata
 
 from typing import Optional, List
-from scvi.dataset._built_in_data._brain_large import _load_brainlarge_dataset
-from scvi.dataset._built_in_data._cortex import _load_cortex
-from scvi.dataset._built_in_data._csv import (
-    _load_breast_cancer_dataset,
-    _load_mouse_ob_dataset,
-)
-from scvi.dataset._built_in_data._synthetic import _generate_synthetic
-from scvi.dataset._built_in_data._cite_seq import _load_pbmcs_10x_cite_seq
-from scvi.dataset._built_in_data._loom import (
+from ._built_in_data._brain_large import _load_brainlarge_dataset
+from ._built_in_data._cortex import _load_cortex
+from ._built_in_data._csv import _load_breast_cancer_dataset, _load_mouse_ob_dataset
+from ._built_in_data._synthetic import _generate_synthetic
+from ._built_in_data._cite_seq import _load_pbmcs_10x_cite_seq
+from ._built_in_data._loom import (
     _load_annotation_simulation,
     _load_frontalcortex_dropseq,
     _load_prefrontalcortex_starmap,
     _load_retina,
 )
-from scvi.dataset._built_in_data._pbmc import (
-    _load_purified_pbmc_dataset,
-    _load_pbmc_dataset,
-)
-from scvi.dataset._built_in_data._seqfish import _load_seqfish, _load_seqfishplus
-from scvi.dataset._built_in_data._smfish import _load_smfish
-from scvi.dataset._built_in_data._dataset10X import _load_dataset10X
+from ._built_in_data._pbmc import _load_purified_pbmc_dataset, _load_pbmc_dataset
+from ._built_in_data._seqfish import _load_seqfish, _load_seqfishplus
+from ._built_in_data._smfish import _load_smfish
+from ._built_in_data._dataset10X import _load_dataset10X
 
 
 def pbmc_dataset(
