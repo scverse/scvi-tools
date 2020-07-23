@@ -4,25 +4,17 @@ import anndata
 import logging
 import numpy as np
 from typing import Union, Tuple
-
-from scvi.dataset._constants import (
-    _X_KEY,
-    _BATCH_KEY,
-    _LOCAL_L_MEAN_KEY,
-    _LOCAL_L_VAR_KEY,
-    _LABELS_KEY,
-)
-
+from scvi import _CONSTANTS_
 
 logger = logging.getLogger(__name__)
 
 
 def _unpack_tensors(tensors):
-    x = tensors[_X_KEY]
-    local_l_mean = tensors[_LOCAL_L_MEAN_KEY]
-    local_l_var = tensors[_LOCAL_L_VAR_KEY]
-    batch_index = tensors[_BATCH_KEY]
-    y = tensors[_LABELS_KEY]
+    x = tensors[_CONSTANTS_.X_KEY]
+    local_l_mean = tensors[_CONSTANTS_.LOCAL_L_MEAN_KEY]
+    local_l_var = tensors[_CONSTANTS_.LOCAL_L_VAR_KEY]
+    batch_index = tensors[_CONSTANTS_.BATCH_KEY]
+    y = tensors[_CONSTANTS_.LABELS_KEY]
     return x, local_l_mean, local_l_var, batch_index, y
 
 

@@ -1,17 +1,11 @@
 """File for computing log likelihood of the data"""
-
 import numpy as np
 import torch
 import torch.nn.functional as F
+
 from torch import logsumexp
 from torch.distributions import Normal, Beta
-from scvi.dataset._constants import (
-    _X_KEY,
-    _BATCH_KEY,
-    _LOCAL_L_MEAN_KEY,
-    _LOCAL_L_VAR_KEY,
-    _LABELS_KEY,
-)
+from scvi import _CONSTANTS_
 
 
 def compute_elbo(vae, posterior, **kwargs):
@@ -29,21 +23,12 @@ def compute_elbo(vae, posterior, **kwargs):
     for i_batch, tensors in enumerate(posterior):
         # we can either hard code it in, or use the constants
         # not sure which one is better
-        sample_batch = tensors[_X_KEY]
-        local_l_mean = tensors[_LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_LOCAL_L_VAR_KEY]
-        batch_index = tensors[_BATCH_KEY]
-        labels = tensors[_LABELS_KEY]
+        sample_batch = tensors[_CONSTANTS_.X_KEY]
+        local_l_mean = tensors[_CONSTANTS_.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS_.LOCAL_L_VAR_KEY]
+        batch_index = tensors[_CONSTANTS_.BATCH_KEY]
+        labels = tensors[_CONSTANTS_.LABELS_KEY]
 
-        # sample_batch = tensors["X"]
-        # local_l_mean = tensors["local_l_mean"]
-        # local_l_var = tensors["local_l_var"]
-        # batch_index = tensors["batch_indices"]
-        # labels = tensors["labels"]
-
-        # sample_batch, local_l_mean, local_l_var, batch_index, labels = tensors[
-        #     :5
-        # ]  # general fish case
         # kl_divergence_global (scalar) should be common across all batches after training
         reconst_loss, kl_divergence, kl_divergence_global = vae(
             sample_batch,
@@ -68,9 +53,9 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
     # Iterate once over the posterior and computes the reconstruction error
     log_lkl = 0
     for i_batch, tensors in enumerate(posterior):
-        sample_batch = tensors[_X_KEY]
-        batch_index = tensors[_BATCH_KEY]
-        labels = tensors[_LABELS_KEY]
+        sample_batch = tensors[_CONSTANTS_.X_KEY]
+        batch_index = tensors[_CONSTANTS_.BATCH_KEY]
+        labels = tensors[_CONSTANTS_.LABELS_KEY]
 
         # Distribution parameters
         outputs = vae.inference(sample_batch, batch_index, labels, **kwargs)
@@ -110,11 +95,11 @@ def compute_marginal_log_likelihood_scvi(vae, posterior, n_samples_mc=100):
     # Uses MC sampling to compute a tighter lower bound on log p(x)
     log_lkl = 0
     for i_batch, tensors in enumerate(posterior):
-        sample_batch = tensors[_X_KEY]
-        local_l_mean = tensors[_LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_LOCAL_L_VAR_KEY]
-        batch_index = tensors[_BATCH_KEY]
-        labels = tensors[_LABELS_KEY]
+        sample_batch = tensors[_CONSTANTS_.X_KEY]
+        local_l_mean = tensors[_CONSTANTS_.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS_.LOCAL_L_VAR_KEY]
+        batch_index = tensors[_CONSTANTS_.BATCH_KEY]
+        labels = tensors[_CONSTANTS_.LABELS_KEY]
 
         to_sum = torch.zeros(sample_batch.size()[0], n_samples_mc)
 
@@ -184,11 +169,11 @@ def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=10
         )
 
         for i_batch, tensors in enumerate(posterior):
-            sample_batch = tensors[_X_KEY]
-            local_l_mean = tensors[_LOCAL_L_MEAN_KEY]
-            local_l_var = tensors[_LOCAL_L_VAR_KEY]
-            batch_index = tensors[_BATCH_KEY]
-            labels = tensors[_LABELS_KEY]
+            sample_batch = tensors[_CONSTANTS_.X_KEY]
+            local_l_mean = tensors[_CONSTANTS_.LOCAL_L_MEAN_KEY]
+            local_l_var = tensors[_CONSTANTS_.LOCAL_L_VAR_KEY]
+            batch_index = tensors[_CONSTANTS_.BATCH_KEY]
+            labels = tensors[_CONSTANTS_.LABELS_KEY]
 
             # Distribution parameters and sampled variables
             outputs = autozivae.inference(sample_batch, batch_index, labels)
