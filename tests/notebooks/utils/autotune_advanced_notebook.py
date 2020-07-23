@@ -18,7 +18,7 @@ from scvi.models import SCANVI
 from scvi.models import VAE
 from sklearn.model_selection import train_test_split
 from scvi.dataset._anndata import get_from_registry
-from scvi.dataset._constants import _BATCH_KEY
+from scvi import _CONSTANTS_
 
 
 def custom_objective_hyperopt(
@@ -53,7 +53,7 @@ def custom_objective_hyperopt(
         **model_tunable_kwargs
     )
     trainer_scanvi = SemiSupervisedTrainer(scanvi, dataset, **trainer_tunable_kwargs)
-    batch_indices = get_from_registry(dataset, _BATCH_KEY)
+    batch_indices = get_from_registry(dataset, _CONSTANTS_.BATCH_KEY)
     trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(
         indices=(batch_indices == 1)
     )
