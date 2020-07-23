@@ -36,13 +36,7 @@ from scvi.models.log_likelihood import (
 )
 from scvi.models.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scipy.stats import spearmanr
-from scvi.dataset._constants import (
-    _X_KEY,
-    _BATCH_KEY,
-    _LOCAL_L_MEAN_KEY,
-    _LOCAL_L_VAR_KEY,
-    _LABELS_KEY,
-)
+from scvi import _CONSTANTS_
 
 logger = logging.getLogger(__name__)
 
@@ -179,11 +173,11 @@ class Posterior:
     @property
     def _data_and_attributes(self):
         return {
-            _X_KEY: np.float32,
-            _BATCH_KEY: np.int64,
-            _LOCAL_L_MEAN_KEY: np.float32,
-            _LOCAL_L_VAR_KEY: np.float32,
-            _LABELS_KEY: np.int64,
+            _CONSTANTS_.X_KEY: np.float32,
+            _CONSTANTS_.BATCH_KEY: np.int64,
+            _CONSTANTS_.LOCAL_L_MEAN_KEY: np.float32,
+            _CONSTANTS_.LOCAL_L_VAR_KEY: np.float32,
+            _CONSTANTS_.LABELS_KEY: np.int64,
         }
 
     def accuracy(self):
@@ -1487,11 +1481,11 @@ class Posterior:
         return x_new.numpy(), x_old.numpy()
 
     def _unpack_tensors(self, tensors):
-        x = tensors[_X_KEY]
-        local_l_mean = tensors[_LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_LOCAL_L_VAR_KEY]
-        batch_index = tensors[_BATCH_KEY]
-        y = tensors[_LABELS_KEY]
+        x = tensors[_CONSTANTS_.X_KEY]
+        local_l_mean = tensors[_CONSTANTS_.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS_.LOCAL_L_VAR_KEY]
+        batch_index = tensors[_CONSTANTS_.BATCH_KEY]
+        y = tensors[_CONSTANTS_.LABELS_KEY]
         return x, local_l_mean, local_l_var, batch_index, y
 
     @torch.no_grad()
@@ -1822,4 +1816,4 @@ class Posterior:
     def raw_data(self) -> Tuple:
         """Returns raw data for classification"""
         data = self.gene_dataset[self.indices]
-        return (data[_X_KEY], data[_LABELS_KEY].ravel())
+        return (data[_CONSTANTS_.X_KEY], data[_CONSTANTS_.LABELS_KEY].ravel())

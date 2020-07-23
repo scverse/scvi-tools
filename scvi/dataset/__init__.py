@@ -22,6 +22,7 @@ from ._datasets import (
     annotation_simulation,
 )
 
+
 __all__ = [
     "setup_anndata",
     "highly_variable_genes_seurat_v3",
