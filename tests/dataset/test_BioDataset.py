@@ -34,8 +34,7 @@ class TestBioDataset(TestCase):
             adata.obsm["protein_expression"],
         )
         np.testing.assert_array_equal(
-            adata.uns["scvi_summary_stats"]["protein_names"],
-            adata.uns["protein_names"],
+            adata.uns["scvi_protein_names"], adata.uns["protein_names"],
         )
 
         # test that error is thrown if its a view:
@@ -54,7 +53,7 @@ class TestBioDataset(TestCase):
         adata.obsm["protein_expression"] = df
         setup_anndata(adata, protein_expression_obsm_key="protein_expression")
         np.testing.assert_array_equal(
-            adata.uns["scvi_summary_stats"]["protein_names"], new_protein_names
+            adata.uns["scvi_protein_names"], new_protein_names
         )
 
         # test that X_layers_key is working properly

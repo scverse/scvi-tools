@@ -49,11 +49,9 @@ class BioDataset(Dataset):
         self.adata = adata
         self.attributes_and_types = None
         self.setup_getitem(getitem_tensors)
-        self.n_batches = len(
-            np.unique(get_from_registry(self.adata, key="batch_indices"))
-        )
+        self.n_batches = stats["n_batch"]
         self.gene_names = self.adata.var_names
-        self.norm_X = None
+        self.normalized_X = None
 
     def get_registered_keys(self,):
         """Returns the keys of the mappings in scvi data registry
@@ -61,7 +59,7 @@ class BioDataset(Dataset):
         return self.adata.uns["scvi_data_registry"].keys()
 
     def setup_getitem(self, getitem_tensors: Union[List[str], Dict[str, type]] = None):
-        """Sets up the getitem function
+        """Sets up the __getitem__ function used by Pytorch
 
         By default, getitem will return every single item registered in the scvi data registry
         and also set their type to np.float32.
@@ -114,7 +112,7 @@ class BioDataset(Dataset):
         # TODO change to add a layer in anndata and update registry, store as sparse?
         X = get_from_registry(self.adata, _CONSTANTS_.X_KEY)
         scaling_factor = X.mean(axis=1)
-        self.norm_X = X / scaling_factor.reshape(len(scaling_factor), 1)
+        self.normalized_X = X / scaling_factor.reshape(len(scaling_factor), 1)
 
     def raw_counts_properties(
         self, idx1: Union[List[int], np.ndarray], idx2: Union[List[int], np.ndarray]
@@ -139,18 +137,12 @@ class BioDataset(Dataset):
         mean2 = (X[idx2]).mean(axis=0)
         nonz1 = (X[idx1] != 0).mean(axis=0)
         nonz2 = (X[idx2] != 0).mean(axis=0)
-        if self.norm_X is None:
+        if self.normalized_X is None:
             self.normalize()
-        norm_mean1 = self.norm_X[idx1, :].mean(axis=0)
-        norm_mean2 = self.norm_X[idx2, :].mean(axis=0)
-        return (
-            np.squeeze(np.asarray(mean1)),
-            np.squeeze(np.asarray(mean2)),
-            np.squeeze(np.asarray(nonz1)),
-            np.squeeze(np.asarray(nonz2)),
-            np.squeeze(np.asarray(norm_mean1)),
-            np.squeeze(np.asarray(norm_mean2)),
-        )
+        norm_mean1 = self.normalized_X[idx1, :].mean(axis=0)
+        norm_mean2 = self.normalized_X[idx2, :].mean(axis=0)
+        return_vals = [mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2]
+        return [np.squeeze(np.asarray(arr)) for arr in return_vals]
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         data_numpy = {
@@ -185,22 +177,27 @@ class BioDataset(Dataset):
 
     @property
     def n_batch(self) -> int:
+        import pdb
+
+        pdb.set_trace
         return self.adata.uns["scvi_summary_stats"]["n_batch"]
 
     @property
     def protein_names(self) -> List[str]:
         """Returns list of protein names
         """
-        if "protein_names" in self.adata.uns["scvi_summary_stats"].keys():
-            return self.adata.uns["scvi_summary_stats"]["protein_names"]
-        else:
-            return None
+        assert "scvi_protein_names" in self.adata.uns.keys()
+        return self.adata.uns["scvi_protein_names"]
 
     @property
     def protein_expression(self) -> np.ndarray:
         if "protein_expression" in self.adata.uns["scvi_data_registry"].keys():
-            pe = get_from_registry(self.adata, "protein_expression")
-            return pe.to_numpy() if type(pe) is pd.DataFrame else pe
+            protein_exp = get_from_registry(self.adata, "protein_expression")
+            return (
+                protein_exp.to_numpy()
+                if type(protein_exp) is pd.DataFrame
+                else protein_exp
+            )
         else:
             return None
 
