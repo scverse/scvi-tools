@@ -436,15 +436,16 @@ def organize_cite_seq_10x(adata: anndata.AnnData, copy: bool = False):
     if copy:
         adata = adata.copy()
 
-    pro_array = adata[:, adata.var["feature_types"] == "Antibody Capture"].X.A
+    pro_array = adata[:, adata.var["feature_types"] == "Antibody Capture"].X.copy().A
     pro_names = np.array(
         adata.var_names[adata.var["feature_types"] == "Antibody Capture"]
     )
-    pro_df = pd.DataFrame(pro_array, index=adata.obs_names, columns=pro_names)
-    adata.obsm["protein_expression"] = pro_df
 
     genes = (adata.var["feature_types"] != "Antibody Capture").values
     adata._inplace_subset_var(genes)
+
+    pro_df = pd.DataFrame(pro_array, index=adata.obs_names, columns=pro_names)
+    adata.obsm["protein_expression"] = pro_df
 
     if copy:
         return adata

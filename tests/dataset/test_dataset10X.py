@@ -1,6 +1,9 @@
 from unittest import TestCase
 
 import scvi
+import tarfile
+import os
+import scanpy as sc
 from .utils import unsupervised_training_one_epoch
 
 
@@ -24,10 +27,15 @@ class TestDataset10X(TestCase):
         unsupervised_training_one_epoch(dataset)
 
     def test_pbmc_cite(self):
-        dataset = scvi.dataset.dataset10X(
-            dataset_name="pbmc_10k_v3",
-            save_path="tests/data/10X",
-            remove_extracted_data=True,
+        file_path = (
+            "tests/data/10X/pbmc_10k_protein_v3/filtered_feature_bc_matrix.tar.gz"
+        )
+        save_path = "tests/data/10X/pbmc_10k_protein_v3/"
+        tar = tarfile.open(file_path, "r:gz")
+        tar.extractall(path=save_path)
+        tar.close()
+        dataset = sc.read_10x_mtx(
+            os.path.join(save_path, "filtered_feature_bc_matrix"), gex_only=False
         )
         scvi.dataset.organize_cite_seq_10x(dataset)
         scvi.dataset.setup_anndata(
