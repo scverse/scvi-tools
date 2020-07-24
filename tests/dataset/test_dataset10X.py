@@ -22,3 +22,15 @@ class TestDataset10X(TestCase):
         )
         scvi.dataset.setup_anndata(dataset)
         unsupervised_training_one_epoch(dataset)
+
+    def test_pbmc_cite(self):
+        dataset = scvi.dataset.dataset10X(
+            dataset_name="pbmc_10k_v3",
+            save_path="tests/data/10X",
+            remove_extracted_data=True,
+        )
+        scvi.dataset.organize_cite_seq_10x(dataset)
+        scvi.dataset.setup_anndata(
+            dataset, protein_expression_obsm_key="protein_expression"
+        )
+        unsupervised_training_one_epoch(dataset)
