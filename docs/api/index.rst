@@ -50,6 +50,8 @@ Here we maintain a few package specific utilities for feature selection, etc.
 Data preparation
 ~~~~~~~~~~~~~~~~
 
+Setting up an AnnData object is a prerequisite for running any ``scvi`` model.
+
 .. autosummary::
    :toctree: .
 
@@ -76,6 +78,7 @@ Built in data
    dataset.retina
    dataset.prefrontalcortex_starmap
    dataset.frontalcortex_dropseq
+
 
 Inference
 ---------
