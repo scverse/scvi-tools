@@ -54,8 +54,9 @@ def _load_smfish(
     adata = _load_smfish_data(
         os.path.join(save_path, save_fn), use_high_level_cluster=use_high_level_cluster
     )
+    adata.obs["batch"] = np.zeros(adata.shape[0], dtype=np.int64)
     if run_setup_anndata:
-        setup_anndata(adata, labels_key="labels")
+        setup_anndata(adata, labels_key="labels", batch_key="batch")
     return adata
 
 

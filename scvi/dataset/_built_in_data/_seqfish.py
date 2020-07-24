@@ -1,8 +1,9 @@
 import logging
 import anndata
 import os
-import pandas as pd
 import zipfile
+import pandas as pd
+import numpy as np
 
 from scvi.dataset._built_in_data._utils import _download
 from scvi.dataset import setup_anndata
@@ -33,9 +34,11 @@ def _load_seqfishplus(
     adata = _load_seqfishplus_data(
         os.path.join(save_path, save_fn), file_prefix, save_path, gene_by_cell=False
     )
+    adata.obs["batch"] = np.zeros(adata.shape[0], dtype=np.int64)
+    adata.obs["labels"] = np.zeros(adata.shape[0], dtype=np.int64)
 
     if run_setup_anndata:
-        setup_anndata(adata)
+        setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 
@@ -68,8 +71,10 @@ def _load_seqfish(save_path="data/", run_setup_anndata=True):
     save_fn = "SeqFISH.xlsx"
     _download(url, save_path, save_fn)
     adata = _load_seqfish_data(os.path.join(save_path, save_fn))
+    adata.obs["batch"] = np.zeros(adata.shape[0], dtype=np.int64)
+    adata.obs["labels"] = np.zeros(adata.shape[0], dtype=np.int64)
     if run_setup_anndata:
-        setup_anndata(adata)
+        setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 

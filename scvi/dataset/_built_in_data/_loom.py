@@ -86,13 +86,16 @@ def _load_frontalcortex_dropseq(
     save_fn = "fc-dropseq.loom"
     _download(url, save_path, save_fn)
     adata = _load_loom(os.path.join(save_path, save_fn))
+    adata.obs["batch"] = adata.obs["Clusters"]
+    del adata.obs["Clusters"]
+    adata.obs["labels"] = np.zeros(adata.shape[0], dtype=np.int64)
 
     # reorder labels such that layers of the cortex are in order
     # order_labels = [5, 6, 3, 2, 4, 0, 1, 8, 7, 9, 10, 11, 12, 13]
     # self.reorder_cell_types(self.cell_types[order_labels])
 
     if run_setup_anndata:
-        setup_anndata(adata)
+        setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 
@@ -130,23 +133,23 @@ def _load_annotation_simulation(
 def _load_loom(path_to_file: str, gene_names_attribute_name: str = "Gene") -> AnnData:
     import loompy
 
-    ds = loompy.connect(path_to_file)
-    select = ds[:, :].sum(axis=0) > 0  # Take out cells that don't express any gene
+    dataset = loompy.connect(path_to_file)
+    select = dataset[:, :].sum(axis=0) > 0  # Take out cells that don't express any gene
     if not all(select):
-        logger.warning("Removing non-expressing cells")
+        logger.warning("Removing empty cells")
 
     var_dict, obs_dict, uns_dict, obsm_dict = {}, {}, {}, {}
-    for row_key in ds.ra:
+    for row_key in dataset.ra:
         if row_key == gene_names_attribute_name:
-            gene_names = ds.ra[gene_names_attribute_name].astype(str)
+            gene_names = dataset.ra[gene_names_attribute_name].astype(str)
         else:
-            var_dict[row_key] = ds.ra[row_key]
+            var_dict[row_key] = dataset.ra[row_key]
             if type(var_dict[row_key]) is np.ndarray:
                 var_dict[row_key] = var_dict[row_key].ravel()
 
-    for column_key in ds.ca:
+    for column_key in dataset.ca:
         obs_dict = obs_dict if obs_dict is not None else {}
-        obs_dict[column_key] = ds.ca[column_key][select]
+        obs_dict[column_key] = dataset.ca[column_key][select]
         if type(obs_dict[column_key]) is np.ndarray:
             if len(obs_dict[column_key]) == len(obs_dict[column_key].ravel()):
                 obs_dict[column_key] = obs_dict[column_key].ravel()
@@ -154,14 +157,13 @@ def _load_loom(path_to_file: str, gene_names_attribute_name: str = "Gene") -> An
                 obsm_dict[column_key] = obs_dict[column_key]
                 del obs_dict[column_key]
 
-    for global_key in ds.attrs:
+    for global_key in dataset.attrs:
         uns_dict = uns_dict if uns_dict is not None else {}
-        uns_dict[global_key] = ds.attrs[global_key]
+        uns_dict[global_key] = dataset.attrs[global_key]
         if type(uns_dict[global_key]) is np.ndarray:
             uns_dict[global_key] = uns_dict[global_key].ravel()
-
-    data = ds[:, select].T  # change matrix to cells by genes
-    ds.close()
+    data = dataset[:, select].T  # change matrix to cells by genes
+    dataset.close()
 
     adata = AnnData(X=data, obs=obs_dict, var=var_dict, uns=uns_dict, obsm=obsm_dict)
     adata.var_names = gene_names

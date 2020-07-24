@@ -153,7 +153,7 @@ def _setup_labels(adata, labels_key):
     if labels_key is None:
         logger.info("No label_key inputted, assuming all cells have same label")
         labels_key = "_scvi_labels"
-        adata.obs[labels_key] = np.zeros(adata.shape[0])
+        adata.obs[labels_key] = np.zeros(adata.shape[0], dtype=np.int64)
     else:
         assert_key_in_obs(adata, labels_key)
         logger.info('Using labels from adata.obs["{}"]'.format(labels_key))
@@ -169,7 +169,7 @@ def _setup_batch(adata, batch_key):
     if batch_key is None:
         logger.info("No batch_key inputted, assuming all cells are same batch")
         batch_key = "_scvi_batch"
-        adata.obs[batch_key] = np.zeros(adata.shape[0])
+        adata.obs[batch_key] = np.zeros(adata.shape[0], dtype=np.int64)
     else:
         assert_key_in_obs(adata, batch_key)
         logger.info('Using batches from adata.obs["{}"]'.format(batch_key))
