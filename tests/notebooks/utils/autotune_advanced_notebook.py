@@ -1,14 +1,14 @@
 import os
 import datetime
 import pickle
-from collections import defaultdict
-from functools import partial
-from typing import Dict
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+
+from collections import defaultdict
+from functools import partial
+from typing import Dict
 from colour import Color
 from hyperopt import STATUS_OK
 from hyperopt import Trials
