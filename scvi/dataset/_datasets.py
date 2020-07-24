@@ -493,8 +493,10 @@ def synthetic_iid(
     n_proteins: Optional[int] = 100,
     n_batches: Optional[int] = 2,
     n_labels: Optional[int] = 3,
+    run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
-    """Synthetic dataset with ZINB distributed RNA and NB distributed protein
+    """Synthetic dataset with ZINB distributed RNA and NB distributed protein.
+    This dataset is just for testing purposed and not meant for modeling or research.
 
     Each value is independently and identically distributed.
 
@@ -526,4 +528,5 @@ def synthetic_iid(
         n_proteins=n_proteins,
         n_batches=n_batches,
         n_labels=n_labels,
+        run_setup_anndata=run_setup_anndata,
     )
