@@ -274,7 +274,6 @@ def poisson_gene_selection(
         raise ValueError("`poisson_gene_selection` expects " "raw count data.")
 
     use_cuda = use_cuda and torch.cuda.is_available()
-    dev = torch.device("cuda:0" if use_cuda else "cpu")
 
     if batch_key is None:
         batch_info = pd.Categorical(np.zeros(adata.shape[0], dtype=int))
@@ -290,12 +289,15 @@ def poisson_gene_selection(
         X = ad.layers[layer] if layer is not None else ad.X
 
         # Calculate empirical statistics.
-        scaled_means = torch.from_numpy(X.sum(0) / X.sum())[0].to(dev)
-        total_counts = torch.from_numpy(X.sum(1))[:, 0].to(dev)
+        scaled_means = torch.from_numpy(np.asarray(X.sum(0) / X.sum()))
+        if use_cuda is True:
+            scaled_means = scaled_means.cuda()
+        dev = scaled_means.device
+        total_counts = torch.from_numpy(np.asarray(X.sum(1)))[:, 0].to(dev)
 
-        observed_fraction_zeros = torch.from_numpy(1.0 - (X > 0).sum(0) / X.shape[0])[
-            0
-        ].to(dev)
+        observed_fraction_zeros = torch.from_numpy(
+            np.asarray(1.0 - (X > 0).sum(0) / X.shape[0])
+        ).to(dev)
 
         # Calculate probability of zero for a Poisson model.
         # Perform in batches to save memory.
