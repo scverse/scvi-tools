@@ -289,14 +289,14 @@ def poisson_gene_selection(
         X = ad.layers[layer] if layer is not None else ad.X
 
         # Calculate empirical statistics.
-        scaled_means = torch.from_numpy(np.asarray(X.sum(0) / X.sum()))
+        scaled_means = torch.from_numpy(np.asarray(X.sum(0) / X.sum()).ravel())
         if use_cuda is True:
             scaled_means = scaled_means.cuda()
         dev = scaled_means.device
-        total_counts = torch.from_numpy(np.asarray(X.sum(1)))[:, 0].to(dev)
+        total_counts = torch.from_numpy(np.asarray(X.sum(1)).ravel()).to(dev)
 
         observed_fraction_zeros = torch.from_numpy(
-            np.asarray(1.0 - (X > 0).sum(0) / X.shape[0])
+            np.asarray(1.0 - (X > 0).sum(0) / X.shape[0]).ravel()
         ).to(dev)
 
         # Calculate probability of zero for a Poisson model.
