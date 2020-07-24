@@ -21,8 +21,6 @@ def compute_elbo(vae, posterior, **kwargs):
     # Iterate once over the posterior and compute the elbo
     elbo = 0
     for i_batch, tensors in enumerate(posterior):
-        # we can either hard code it in, or use the constants
-        # not sure which one is better
         sample_batch = tensors[_CONSTANTS_.X_KEY]
         local_l_mean = tensors[_CONSTANTS_.LOCAL_L_MEAN_KEY]
         local_l_var = tensors[_CONSTANTS_.LOCAL_L_VAR_KEY]

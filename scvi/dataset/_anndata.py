@@ -288,6 +288,9 @@ def _setup_X(adata, X_layers_key):
                 logger_data_loc
             )
         )
+    if adata.shape[0] < adata.shape[1] < 1:
+        warnings.warn("adata has more genes than cells. SCVI may not work properly.")
+
     return X_loc, X_key
 
 

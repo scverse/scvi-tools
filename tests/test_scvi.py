@@ -186,10 +186,10 @@ def test_synthetic_2():
     trainer_synthetic_vaec.train(n_epochs=2)
 
 
-def base_benchmark(gene_dataset):
-    stats = gene_dataset.uns["scvi_summary_stats"]
+def base_benchmark(adata):
+    stats = adata.uns["scvi_summary_stats"]
     vae = VAE(stats["n_genes"], stats["n_batch"], stats["n_labels"])
-    trainer = UnsupervisedTrainer(vae, gene_dataset, train_size=0.5, use_cuda=use_cuda)
+    trainer = UnsupervisedTrainer(vae, adata, train_size=0.5, use_cuda=use_cuda)
     trainer.train(n_epochs=1)
     return trainer
 
@@ -248,11 +248,11 @@ def totalvi_benchmark(dataset, n_epochs, use_cuda=True):
 
 
 def test_synthetic_3():
-    gene_dataset = scvi.dataset.synthetic_iid()
-    scvi.dataset.setup_anndata(gene_dataset, batch_key="batch", labels_key="labels")
-    trainer = base_benchmark(gene_dataset)
+    adata = scvi.dataset.synthetic_iid()
+    scvi.dataset.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    trainer = base_benchmark(adata)
     adapter_trainer = AdapterTrainer(
-        trainer.model, gene_dataset, trainer.train_set, frequency=1
+        trainer.model, adata, trainer.train_set, frequency=1
     )
     adapter_trainer.train(n_path=1, n_epochs=1)
 
@@ -574,7 +574,7 @@ def test_autozi(save_path):
             n_labels=data.uns["scvi_summary_stats"]["n_labels"],
         )
         trainer_autozivae = UnsupervisedTrainer(
-            model=autozivae, gene_dataset=data, train_size=0.5
+            model=autozivae, adata=data, train_size=0.5
         )
         trainer_autozivae.train(n_epochs=2, lr=1e-2)
         trainer_autozivae.test_set.elbo()

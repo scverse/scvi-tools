@@ -29,8 +29,8 @@ class Trainer:
     ----------
     model :
         A model instance from class ``VAE``, ``VAEC``, ``SCANVI``
-    gene_dataset :
-        A gene_dataset instance like ``CortexDataset()``
+    adata:
+        A registered anndata object
     use_cuda :
         Default: ``True``.
     metrics_to_monitor :
@@ -79,7 +79,7 @@ class Trainer:
 
         # Model, dataset management
         self.model = model
-        self.gene_dataset = adata
+        self.adata = adata
         self._posteriors = OrderedDict()
         self.seed = seed  # For train/test splitting
         self.use_cuda = use_cuda and torch.cuda.is_available()
@@ -339,7 +339,7 @@ class Trainer:
     def train_test_validation(
         self,
         model=None,
-        gene_dataset=None,
+        adata=None,
         train_size=0.9,
         test_size=None,
         type_class=Posterior,
@@ -356,7 +356,7 @@ class Trainer:
             float, or None (default is None)
         model :
              (Default value = None)
-        gene_dataset :
+        adata:
              (Default value = None)
         type_class :
              (Default value = Posterior)
@@ -373,12 +373,8 @@ class Trainer:
 
         model = self.model if model is None and hasattr(self, "model") else model
         # what to do here if it has the attribute modle
-        gene_dataset = (
-            self.gene_dataset
-            if gene_dataset is None and hasattr(self, "model")
-            else gene_dataset
-        )
-        n = len(gene_dataset)
+        adata = self.adata if adata is None and hasattr(self, "model") else adata
+        n = len(adata)
         try:
             n_train, n_test = _validate_shuffle_split(n, test_size, train_size)
         except ValueError:
@@ -397,33 +393,29 @@ class Trainer:
 
         return (
             self.create_posterior(
-                model, gene_dataset, indices=indices_train, type_class=type_class
+                model, adata, indices=indices_train, type_class=type_class
             ),
             self.create_posterior(
-                model, gene_dataset, indices=indices_test, type_class=type_class
+                model, adata, indices=indices_test, type_class=type_class
             ),
             self.create_posterior(
-                model, gene_dataset, indices=indices_validation, type_class=type_class
+                model, adata, indices=indices_validation, type_class=type_class
             ),
         )
 
     def create_posterior(
         self,
         model=None,
-        gene_dataset: anndata.AnnData = None,
+        adata: anndata.AnnData = None,
         shuffle=False,
         indices=None,
         type_class=Posterior,
     ):
         model = self.model if model is None and hasattr(self, "model") else model
-        gene_dataset = (
-            self.gene_dataset
-            if gene_dataset is None and hasattr(self, "model")
-            else gene_dataset
-        )
+        adata = self.adata if adata is None and hasattr(self, "model") else adata
         return type_class(
             model,
-            gene_dataset,
+            adata,
             shuffle=shuffle,
             indices=indices,
             use_cuda=self.use_cuda,

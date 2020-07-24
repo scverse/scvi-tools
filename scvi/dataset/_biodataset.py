@@ -49,7 +49,6 @@ class BioDataset(Dataset):
         self.adata = adata
         self.attributes_and_types = None
         self.setup_getitem(getitem_tensors)
-        self.n_batches = stats["n_batch"]
         self.gene_names = self.adata.var_names
         self.normalized_X = None
 
@@ -149,14 +148,15 @@ class BioDataset(Dataset):
             key: get_from_registry(self.adata, key)
             for key, _ in self.attributes_and_types.items()
         }
-        data_numpy = {
-            key: data_numpy[key][idx].astype(dtype)
-            if isinstance(data_numpy[key], np.ndarray)
-            else data_numpy[key].iloc[idx, :].to_numpy().astype(dtype)
-            if isinstance(data_numpy[key], pd.DataFrame)
-            else data_numpy[key][idx].toarray().astype(dtype)
-            for key, dtype in self.attributes_and_types.items()
-        }
+        for key, dtype in self.attributes_and_types.items():
+            data = data_numpy[key]
+            if isinstance(data, np.ndarray):
+                data_numpy[key] = data[idx].astype(dtype)
+            elif isinstance(data_numpy[key], pd.DataFrame):
+                data_numpy[key] = data.iloc[idx, :].to_numpy().astype(dtype)
+            else:
+                data_numpy[key] = data[idx].toarray().astype(dtype)
+
         return data_numpy
 
     @property
@@ -176,10 +176,7 @@ class BioDataset(Dataset):
         return n_genes
 
     @property
-    def n_batch(self) -> int:
-        import pdb
-
-        pdb.set_trace
+    def n_batches(self) -> int:
         return self.adata.uns["scvi_summary_stats"]["n_batch"]
 
     @property

@@ -180,9 +180,7 @@ class Benchmarkable:
         df_space = pd.DataFrame(ddd)
         df_space = df_space.T
         n_params_dataset = np.vectorize(
-            partial(
-                n_params, self.trainer.gene_dataset.uns["scvi_summary_stats"]["n_genes"]
-            )
+            partial(n_params, self.trainer.adata.uns["scvi_summary_stats"]["n_genes"])
         )
         df_space["n_params"] = n_params_dataset(
             df_space["n_layers"], df_space["n_hidden"], df_space["n_latent"]
@@ -254,10 +252,10 @@ class PlotBenchmarkables:
                 runtime_info["train_time"].append(result["elapsed_time"])
 
             def fill_sub_df(sub_df, benchmarkable):
-                sub_df["Nb cells"] = benchmarkable.trainer.gene_dataset.uns[
+                sub_df["Nb cells"] = benchmarkable.trainer.adata.uns[
                     "scvi_summary_stats"
                 ]["n_cells"]
-                sub_df["Nb genes"] = benchmarkable.trainer.gene_dataset.uns[
+                sub_df["Nb genes"] = benchmarkable.trainer.adata.uns[
                     "scvi_summary_stats"
                 ]["n_genes"]
                 sub_df["Total GPU time"] = benchmarkable.total_train_time

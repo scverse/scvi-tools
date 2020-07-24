@@ -20,6 +20,7 @@ def _load_brainlarge_dataset(
     n_genes_to_keep: int = 720,
     loading_batch_size: int = 100000,
 ):
+    """Loads brain-large dataset."""
     url = "http://cf.10xgenomics.com/samples/cell-exp/1.3.0/1M_neurons/1M_neurons_filtered_gene_bc_matrices_h5.h5"
     save_fn = "brain_large.h5"
 

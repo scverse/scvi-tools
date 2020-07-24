@@ -30,8 +30,8 @@ class TotalPosterior(Posterior):
     ----------
     model :
         A model instance from class ``TOTALVI``
-    gene_dataset :
-        A gene_dataset instance like ``CbmcDataset()`` with attribute ``protein_expression``
+    adata:
+        A registered AnnData object
     shuffle :
         Specifies if a `RandomSampler` or a `SequentialSampler` should be used
     indices :
@@ -1110,8 +1110,8 @@ class TotalTrainer(UnsupervisedTrainer):
     ----------
     model
         A model instance from class ``TOTALVI``
-    gene_dataset
-        A gene_dataset instance like ``CbmcDataset()`` with attribute ``protein_expression``
+    adata
+        A registered AnnData object
     train_size
         The train size, a float between 0 and 1 representing proportion of dataset to use for training
         to use Default: ``0.90``.
@@ -1189,7 +1189,7 @@ class TotalTrainer(UnsupervisedTrainer):
             discriminator = Classifier(
                 n_input=self.model.n_latent,
                 n_hidden=32,
-                n_labels=self.gene_dataset.uns["scvi_summary_stats"]["n_batch"],
+                n_labels=self.adata.uns["scvi_summary_stats"]["n_batch"],
                 n_layers=2,
                 logits=True,
             )
@@ -1257,7 +1257,7 @@ class TotalTrainer(UnsupervisedTrainer):
         self, z, batch_index, predict_true_class=True, return_details=True
     ):
 
-        n_classes = self.gene_dataset.uns["scvi_summary_stats"]["n_batch"]
+        n_classes = self.adata.uns["scvi_summary_stats"]["n_batch"]
         cls_logits = torch.nn.LogSoftmax(dim=1)(self.discriminator(z))
 
         if predict_true_class:

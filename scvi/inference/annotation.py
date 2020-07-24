@@ -149,7 +149,7 @@ class ClassifierTrainer(Trainer):
         super().__init__(*args, use_cuda=use_cuda, **kwargs)
         self.train_set, self.test_set, self.validation_set = self.train_test_validation(
             self.model,
-            self.gene_dataset,
+            self.adata,
             train_size=train_size,
             test_size=test_size,
             type_class=AnnotationPosterior,
@@ -308,20 +308,18 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
     def create_posterior(
         self,
         model=None,
-        gene_dataset=None,
+        adata=None,
         shuffle=False,
         indices=None,
         type_class=AnnotationPosterior,
     ):
-        return super().create_posterior(
-            model, gene_dataset, shuffle, indices, type_class
-        )
+        return super().create_posterior(model, adata, shuffle, indices, type_class)
 
 
 class JointSemiSupervisedTrainer(SemiSupervisedTrainer):
-    def __init__(self, model, gene_dataset, **kwargs):
+    def __init__(self, model, adata, **kwargs):
         kwargs.update({"n_epochs_classifier": 0})
-        super().__init__(model, gene_dataset, **kwargs)
+        super().__init__(model, adata, **kwargs)
 
 
 class AlternateSemiSupervisedTrainer(SemiSupervisedTrainer):
