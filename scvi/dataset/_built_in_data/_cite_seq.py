@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import scanpy as sc
 import os
 
@@ -49,10 +50,15 @@ def _load_pbmcs_10x_cite_seq(
     del dataset2.uns["protein_names"]
 
     dataset = dataset1.concatenate(dataset2, join=protein_join)
+    dataset.obs["labels"] = np.zeros(dataset.shape[0], dtype=np.int64)
+    dataset.obs["batch"] = dataset.obs["batch"].astype(np.int64)
 
     if run_setup_anndata:
         setup_anndata(
-            dataset, batch_key="batch", protein_expression_obsm_key="protein_expression"
+            dataset,
+            batch_key="batch",
+            labels_key="labels",
+            protein_expression_obsm_key="protein_expression",
         )
 
     return dataset
