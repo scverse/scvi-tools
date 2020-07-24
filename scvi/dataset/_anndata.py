@@ -157,25 +157,15 @@ def _setup_labels(adata, labels_key):
     else:
         assert_key_in_obs(adata, labels_key)
         logger.info('Using labels from adata.obs["{}"]'.format(labels_key))
-        # check the datatype of labels. if theyre not integers, make them ints
-        user_labels_dtype = adata.obs[labels_key].dtype
-        if user_labels_dtype.name == "category":
-            adata.obs["_scvi_labels"] = (
-                adata.obs[labels_key].astype("category").cat.codes
-            )
-            labels_key = "_scvi_labels"
-        elif np.issubdtype(user_labels_dtype, np.integer) is False:
-            adata.obs["_scvi_labels"] = (
-                adata.obs[labels_key].astype("category").cat.codes
-            )
-            labels_key = "_scvi_labels"
+        labels_key = _make_obs_column_categorical(
+            adata, column_key=labels_key, alternate_column_key="_scvi_labels"
+        )
     return labels_key
 
 
 def _setup_batch(adata, batch_key):
     # checking batch
     # TODO Allow continuous batch information in the future
-
     if batch_key is None:
         logger.info("No batch_key inputted, assuming all cells are same batch")
         batch_key = "_scvi_batch"
@@ -183,14 +173,9 @@ def _setup_batch(adata, batch_key):
     else:
         assert_key_in_obs(adata, batch_key)
         logger.info('Using batches from adata.obs["{}"]'.format(batch_key))
-        # check the datatype of batches. if theyre not integers, make them ints
-        user_batch_dtype = adata.obs[batch_key].dtype
-        if user_batch_dtype.name == "category":
-            adata.obs["_scvi_batch"] = adata.obs[batch_key].astype("category").cat.codes
-            batch_key = "_scvi_batch"
-        elif np.issubdtype(user_batch_dtype, np.integer) is False:
-            adata.obs["_scvi_batch"] = adata.obs[batch_key].astype("category").cat.codes
-            batch_key = "_scvi_batch"
+        batch_key = _make_obs_column_categorical(
+            adata, column_key=batch_key, alternate_column_key="_scvi_batch"
+        )
 
     # make sure each batch contains enough cells
     unique, counts = np.unique(adata.obs[batch_key], return_counts=True)
@@ -206,8 +191,27 @@ def _setup_batch(adata, batch_key):
         warnings.warn(
             "Is your batch continuous? SCVI doesn't support continuous batches yet."
         )
-
     return batch_key
+
+
+def _make_obs_column_categorical(adata, column_key, alternate_column_key):
+    """Makes the data in column_key in obs all categorical.
+    if adata.obs[column_key] is not categorical, will categorize
+    and save to .obs[alternate_column_key]
+    """
+    # check the datatype of data. if theyre not integers, make them ints
+    user_data_dtype = adata.obs[column_key].dtype
+    if user_data_dtype.name == "category":
+        adata.obs[alternate_column_key] = (
+            adata.obs[column_key].astype("category").cat.codes
+        )
+        column_key = alternate_column_key
+    elif np.issubdtype(user_data_dtype, np.integer) is False:
+        adata.obs[alternate_column_key] = (
+            adata.obs[column_key].astype("category").cat.codes
+        )
+        column_key = alternate_column_key
+    return column_key
 
 
 def _setup_protein_expression(
