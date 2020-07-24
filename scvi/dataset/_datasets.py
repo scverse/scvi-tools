@@ -423,6 +423,8 @@ def pbmcs_10x_cite_seq(
     Returns
     -------
     `AnnData` with `.obsm["protein_expression"]`
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
 
     Missing protein values are zero, and are identified during `AnnData` setup.
 
