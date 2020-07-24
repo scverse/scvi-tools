@@ -44,6 +44,8 @@ def pbmc_dataset(
     Returns
     -------
     `AnnData` object
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
 
     Examples
     --------
@@ -126,6 +128,10 @@ def smfish(
     Returns
     -------
     `AnnData` object
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
+    .obs['x_coord'] contains x coordinate of spatial information
+    .obs['y_coord'] contains y coordinate of spatial information
 
     Examples
     --------
@@ -159,6 +165,10 @@ def seqfishplus(
     Returns
     -------
     `AnnData` object
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
+    .obs['X'] contains x coordinate of spatial information
+    .obs['Y'] contains y coordinate of spatial information
 
     Examples
     --------
@@ -184,6 +194,8 @@ def seqfish(save_path: str = "data/", run_setup_anndata: bool = True):
     Returns
     -------
     `AnnData` object
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
 
     Examples
     --------
@@ -214,6 +226,8 @@ def purified_pbmc_dataset(
     Returns
     -------
     `AnnData` object
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
 
     Examples
     --------
@@ -240,6 +254,10 @@ def prefrontalcortex_starmap(save_path: str = "data/", run_setup_anndata: bool =
     Returns
     -------
     `AnnData` object
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
+    .obs['x_coord'] contains x coordinate of spatial information
+    .obs['y_coord'] contains y coordinate of spatial information
 
     Examples
     --------
@@ -266,6 +284,8 @@ def frontalcortex_dropseq(save_path: str = "data/", run_setup_anndata: bool = Tr
     Returns
     -------
     `AnnData` object
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
 
     Examples
     --------
@@ -292,6 +312,8 @@ def annotation_simulation(
     Returns
     -------
     `AnnData` object
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
 
     Examples
     --------
@@ -319,6 +341,8 @@ def retina(save_path: str = "data/", run_setup_anndata: bool = True):
     Returns
     -------
     `AnnData` object
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
 
     Examples
     --------
@@ -339,7 +363,9 @@ def mouse_ob_dataset(save_path: str = "data/", run_setup_anndata: bool = True):
 
     Returns
     -------
-    `AnnData` object with `.obs['batch']` and `.obs['labels']`
+    `AnnData` object
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
 
     Examples
     --------
@@ -367,6 +393,8 @@ def breast_cancer_dataset(save_path: str = "data/", run_setup_anndata: bool = Tr
     Examples
     --------
     >>> adata = breast_cancer_dataset()
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
     """
     return _load_breast_cancer_dataset(
         save_path=save_path, run_setup_anndata=run_setup_anndata
@@ -447,6 +475,8 @@ def brainlarge_dataset(
     Returns
     -------
     `AnnData` object
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
 
     """
 
@@ -483,6 +513,8 @@ def cortex(save_path: str = "data/", run_setup_anndata: bool = True):
     Returns
     -------
     `AnnData` object
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
     """
     return _load_cortex(save_path, run_setup_anndata)
 
@@ -516,6 +548,10 @@ def synthetic_iid(
     Returns
     -------
     `AnnData` object
+    .obs['batch'] contains batch information
+    .obs['labels'] contains label information
+    .obs['protein_names'] contains protein names
+    .obs['protein_expression'] contains protein expressions
 
     Examples
     --------

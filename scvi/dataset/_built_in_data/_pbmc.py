@@ -109,7 +109,7 @@ def _load_pbmc_dataset(
     design.index = adata.obs_names
     raw_qc.index = adata.obs_names
     normalized_qc.index = adata.obs_names
-
+    adata.obs["batch"] = adata.obs["batch"].astype(np.int64)
     adata.obsm["design"] = design
     adata.obsm["raw_qc"] = raw_qc
     adata.obsm["normalized_qc"] = normalized_qc
