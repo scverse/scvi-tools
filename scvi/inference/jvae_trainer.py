@@ -311,7 +311,6 @@ class JVAETrainer(Trainer):
             reconstruction_losses, kl_divergences = self.loss(
                 tensors_dict, return_details=True
             )
-            # TODO fix this
             discriminator_losses = self.loss_discriminator(
                 [
                     self.model.sample_from_posterior_z(

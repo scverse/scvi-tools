@@ -102,11 +102,11 @@ def _load_dataset10X(
         filename = filename_skeleton.format(filter_type)
         save_path = os.path.join(save_path, dataset_name)
     elif filename is not None and url is not None:
-        logger.debug("Loading 10X dataset with custom url and filename")
+        logger.info("Loading 10X dataset with custom url and filename")
     elif filename is not None and url is None:
-        logger.debug("Loading local 10X dataset with custom filename")
+        logger.info("Loading local 10X dataset with custom filename")
     else:
-        logger.debug("Loading extracted local 10X dataset with custom filename")
+        logger.info("Loading extracted local 10X dataset with custom filename")
     _download(url, save_path=save_path, filename=filename)
     file_path = os.path.join(save_path, filename)
 

@@ -164,7 +164,6 @@ class BioDataset(Dataset):
         """Returns the number of cells in the dataset
         """
         n_cells = self.adata.uns["scvi_summary_stats"]["n_cells"]
-        assert n_cells == self.adata.shape[0]
         return n_cells
 
     @property
@@ -172,7 +171,6 @@ class BioDataset(Dataset):
         """Returns the number of genes in the dataset
         """
         n_genes = self.adata.uns["scvi_summary_stats"]["n_genes"]
-        assert n_genes == self.adata.shape[1]
         return n_genes
 
     @property
@@ -188,15 +186,13 @@ class BioDataset(Dataset):
 
     @property
     def protein_expression(self) -> np.ndarray:
-        if "protein_expression" in self.adata.uns["scvi_data_registry"].keys():
-            protein_exp = get_from_registry(self.adata, "protein_expression")
-            return (
-                protein_exp.to_numpy()
-                if type(protein_exp) is pd.DataFrame
-                else protein_exp
-            )
-        else:
-            return None
+        assert (
+            "protein_expression" in self.adata.uns["scvi_data_registry"].keys()
+        ), "anndata not registered with protein expressions."
+        protein_exp = get_from_registry(self.adata, "protein_expression")
+        return (
+            protein_exp.to_numpy() if type(protein_exp) is pd.DataFrame else protein_exp
+        )
 
     @property
     def X(self) -> np.ndarray:
