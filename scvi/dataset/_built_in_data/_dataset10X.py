@@ -12,7 +12,7 @@ from scvi.dataset._built_in_data._utils import _download
 logger = logging.getLogger(__name__)
 
 available_datasets = {
-    # these can made manually
+    # these can be made manually
     "1.1.0": [
         "frozen_pbmc_donor_a",
         "frozen_pbmc_donor_b",
@@ -30,7 +30,6 @@ available_datasets = {
         "naive_cytotoxic",
     ],
     "1.3.0": ["1M_neurons"],
-    # all of these can be h5 files
     "2.1.0": ["pbmc8k", "pbmc4k", "t_3k", "t_4k", "neuron_9k"],
     "3.0.0": [
         "pbmc_1k_protein_v3",
@@ -123,8 +122,6 @@ def _load_dataset10X(
                 was_extracted = True
                 tar.close()
         path_to_data_folder, suffix = _find_path_to_mtx(save_path)
-        print(path_to_data_folder)
-        print(os.getcwd())
         adata = scanpy.read_10x_mtx(path_to_data_folder, **scanpy_read_10x_kwargs)
         if was_extracted and remove_extracted_data:
             folders_in_save_path = path_to_data_folder[len(save_path) + 1 :].split("/")

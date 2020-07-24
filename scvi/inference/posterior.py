@@ -134,10 +134,6 @@ class Posterior:
         self.to_monitor = []
         self.use_cuda = use_cuda
 
-        # correct me if im wrong but im pretty sure this is no longer true
-        # causes error when loading posterior that has all its indices in its indices file
-        # if indices is not None and shuffle:
-        #     raise ValueError("indices is mutually exclusive with shuffle")
         if indices is None:
             inds = np.arange(len(self.gene_dataset))
             if shuffle:
@@ -257,7 +253,6 @@ class Posterior:
 
     def __iter__(self):
         return map(self.to_cuda, iter(self.data_loader))
-        # return  iter(self.data_loader)
 
     def to_cuda(self, tensors: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Converts list of tensors to cuda.
@@ -268,7 +263,6 @@ class Posterior:
             tensors to convert
         """
         return {k: (t.cuda() if self.use_cuda else t) for k, t in tensors.items()}
-        # return [t.cuda() if self.use_cuda else t for t in tensors]
 
     def update(self, data_loader_kwargs: dict) -> "Posterior":
         """Updates the dataloader
@@ -430,7 +424,6 @@ class Posterior:
         >>> # Do not forget next line!
         >>> self.data_loader = old_loader
         """
-        # sampler = SubsetRandomSampler(idx)
         self.sampler_kwargs.update({"indices": idx})
         sampler = BatchSampler(**self.sampler_kwargs)
         self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
@@ -461,8 +454,6 @@ class Posterior:
 
         px_scales = []
         all_labels = []
-
-        # mod this batch_size
 
         batch_size = max(
             self.sampler_kwargs["batch_size"] // M_sampling, 2
@@ -1170,11 +1161,6 @@ class Posterior:
                     " the length of cell_labels have to be "
                     "the same as the number of cells"
                 )
-        # if (cell_labels is None) and not hasattr(self.gene_dataset, "cell_types"):
-        #     raise ValueError(
-        #         "If gene_dataset is not annotated with labels and cell types,"
-        #         " then must provide cell_labels"
-        #     )
         # Input cell_labels take precedence over cell type label annotation in dataset
         if cell_labels is not None:
             cluster_id = np.unique(cell_labels[cell_labels >= 0])
@@ -1766,9 +1752,7 @@ class Posterior:
                 labels_pred = KMeans(
                     self.gene_dataset.adata.uns["scvi_summary_stats"]["n_labels"],
                     n_init=200,
-                ).fit_predict(
-                    latent
-                )  # n_jobs>1 ?
+                ).fit_predict(latent)
             elif prediction_algorithm == "gmm":
                 gmm = GMM(self.gene_dataset.adata.uns["scvi_summary_stats"]["n_labels"])
                 gmm.fit(latent)

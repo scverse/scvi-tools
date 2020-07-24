@@ -74,9 +74,7 @@ class JVAETrainer(Trainer):
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.kappa = kappa
         self.all_dataset = [
-            self.create_posterior(
-                gene_dataset=gd, type_class=partial(JPosterior, mode=i)
-            )
+            self.create_posterior(adata=gd, type_class=partial(JPosterior, mode=i))
             for i, gd in enumerate(gene_dataset_list)
         ]
         self.n_dataset = len(self.all_dataset)
@@ -267,7 +265,6 @@ class JVAETrainer(Trainer):
         return averaged_loss
 
     def _unpack_tensors(self, tensors):
-
         x = tensors[_CONSTANTS_.X_KEY].squeeze_(0)
         local_l_mean = tensors[_CONSTANTS_.LOCAL_L_MEAN_KEY].squeeze_(0)
         local_l_var = tensors[_CONSTANTS_.LOCAL_L_VAR_KEY].squeeze_(0)

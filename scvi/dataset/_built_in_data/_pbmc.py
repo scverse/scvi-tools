@@ -13,7 +13,10 @@ from scvi.dataset import setup_anndata
 def _load_purified_pbmc_dataset(
     save_path: str = "data/", subset_datasets: List[str] = None, run_setup_anndata=True
 ):
-    path_to_file = "/Users/galen/scVI/galen/PurifiedPBMCDataset.h5ad"
+    url = "https://github.com/YosefLab/scVI-data/raw/master/PurifiedPBMCDataset.h5ad"
+    save_fn = "PurifiedPBMCDataset.h5ad"
+    _download(url, save_path, save_fn)
+    path_to_file = os.path.join(save_path, save_fn)
     adata = anndata.read(path_to_file)
 
     dataset_names = [

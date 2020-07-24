@@ -21,8 +21,8 @@ class UnsupervisedTrainer(Trainer):
     ----------
     model
         A model instance from class ``VAE``, ``VAEC``, ``SCANVI``, ``AutoZIVAE``
-    gene_dataset
-        A gene_dataset instance like ``CortexDataset()``
+    adata
+        A registered AnnData object
     train_size
         The train size, a float between 0 and 1 representing proportion of dataset to use for training
         to use Default: ``0.9``.
@@ -74,7 +74,7 @@ class UnsupervisedTrainer(Trainer):
     def __init__(
         self,
         model,
-        gene_dataset: anndata.AnnData,
+        adata: anndata.AnnData,
         train_size: Union[int, float] = 0.9,
         test_size: Union[int, float] = None,
         n_iter_kl_warmup: Union[int, None] = None,
@@ -87,7 +87,7 @@ class UnsupervisedTrainer(Trainer):
             raise ValueError(
                 "train_size needs to be greater than 0 and less than or equal to 1"
             )
-        super().__init__(model, gene_dataset, **kwargs)
+        super().__init__(model, adata, **kwargs)
 
         # Set up number of warmup iterations
         self.n_iter_kl_warmup = n_iter_kl_warmup
@@ -103,7 +103,7 @@ class UnsupervisedTrainer(Trainer):
 
         # Total size of the dataset used for training
         # (e.g. training set in this class but testing set in AdapterTrainer).
-        # It used to rescale minibatch losses (cf. eq. (8) in Kingma et al., Auto-Encoding Variational Bayes, ICLR 2013)
+        # It used to rescale minibatch losses (cf. eq. (8) in Kingma et al., Auto-Encoding Variational Bayes, ICLR 2014)
         self.n_samples = 1.0
 
         if type(self) is UnsupervisedTrainer:
@@ -111,7 +111,7 @@ class UnsupervisedTrainer(Trainer):
                 self.train_set,
                 self.test_set,
                 self.validation_set,
-            ) = self.train_test_validation(model, gene_dataset, train_size, test_size)
+            ) = self.train_test_validation(model, adata, train_size, test_size)
             self.train_set.to_monitor = ["elbo"]
             self.test_set.to_monitor = ["elbo"]
             self.validation_set.to_monitor = ["elbo"]
@@ -170,7 +170,7 @@ class UnsupervisedTrainer(Trainer):
         elif iter_criterion:
             log_message = "KL warmup for {} iterations".format(self.n_iter_kl_warmup)
             n_iter_per_epochs_approx = ceil(
-                self.gene_dataset.uns["scvi_summary_stats"]["n_cells"] / self.batch_size
+                self.adata.uns["scvi_summary_stats"]["n_cells"] / self.batch_size
             )
             n_total_iter_approx = self.n_epochs * n_iter_per_epochs_approx
             if self.n_iter_kl_warmup > n_total_iter_approx:
@@ -193,8 +193,8 @@ class UnsupervisedTrainer(Trainer):
 
 
 class AdapterTrainer(UnsupervisedTrainer):
-    def __init__(self, model, gene_dataset, posterior_test, frequency=5):
-        super().__init__(model, gene_dataset, frequency=frequency)
+    def __init__(self, model, adata, posterior_test, frequency=5):
+        super().__init__(model, adata, frequency=frequency)
         self.test_set = posterior_test
         self.test_set.to_monitor = ["elbo"]
         self.params = list(self.model.z_encoder.parameters()) + list(

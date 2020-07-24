@@ -6,6 +6,7 @@ from ._preprocessing import (
 )
 from ._datasets import (
     pbmcs_10x_cite_seq,
+    purified_pbmc_dataset,
     dataset10X,
     brainlarge_dataset,
     synthetic_iid,
@@ -30,6 +31,7 @@ __all__ = [
     "organize_cite_seq_10x",
     "pbmcs_10x_cite_seq",
     "dataset10X",
+    "purified_pbmc_dataset",
     "brainlarge_dataset",
     "synthetic_iid",
     "pbmc_dataset",
