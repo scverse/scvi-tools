@@ -22,7 +22,7 @@ def pbmc_dataset(
     save_path: str = "data/",
     run_setup_anndata: bool = True,
     remove_extracted_data: bool = True,
-):
+) -> anndata.AnnData:
     """Loads pbmc dataset.
 
     We considered scRNA-seq data from two batches of peripheral blood mononuclear cells (PBMCs) from a healthy donor
@@ -67,7 +67,7 @@ def dataset10X(
     is_filtered: bool = True,
     remove_extracted_data: bool = False,
     **scanpy_read_10x_kwargs,
-):
+) -> anndata.AnnData:
     """Loads a file from `10x <http://cf.10xgenomics.com/>`_ website.
 
 
@@ -113,7 +113,7 @@ def smfish(
     save_path: str = "data/",
     use_high_level_cluster: bool = True,
     run_setup_anndata: bool = True,
-):
+) -> anndata.AnnData:
     """Loads osmFISH data of mouse cortex cells from the Linarsson lab.
 
     Parameters
@@ -150,7 +150,7 @@ def seqfishplus(
     save_path: str = "data/",
     tissue_region="subventricular cortex",
     run_setup_anndata: bool = True,
-):
+) -> anndata.AnnData:
     """seqFISH+ can image mRNAs for 10,000 genes in single cells—with high accuracy and
     sub-diffraction-limit resolution—in the cortex, subventricular zone
     and olfactory bulb of mouse brain
@@ -183,7 +183,9 @@ def seqfishplus(
     )
 
 
-def seqfish(save_path: str = "data/", run_setup_anndata: bool = True):
+def seqfish(
+    save_path: str = "data/", run_setup_anndata: bool = True
+) -> anndata.AnnData:
     """seqfish dataset
 
     Parameters
@@ -210,7 +212,7 @@ def purified_pbmc_dataset(
     save_path: str = "data/",
     subset_datasets: Optional[List[str]] = None,
     run_setup_anndata: bool = True,
-):
+) -> anndata.AnnData:
     """Purified PBMC dataset from: "Massively parallel digital transcriptional profiling of single cells".
 
     Parameters
@@ -242,7 +244,9 @@ def purified_pbmc_dataset(
     )
 
 
-def prefrontalcortex_starmap(save_path: str = "data/", run_setup_anndata: bool = True):
+def prefrontalcortex_starmap(
+    save_path: str = "data/", run_setup_anndata: bool = True
+) -> anndata.AnnData:
     """Loads a starMAP dataset of 3,704 cells and 166 genes from
     the mouse pre-frontal cortex (Wang et al., 2018)
 
@@ -268,7 +272,9 @@ def prefrontalcortex_starmap(save_path: str = "data/", run_setup_anndata: bool =
     return _load_prefrontalcortex_starmap(save_path=save_path)
 
 
-def frontalcortex_dropseq(save_path: str = "data/", run_setup_anndata: bool = True):
+def frontalcortex_dropseq(
+    save_path: str = "data/", run_setup_anndata: bool = True
+) -> anndata.AnnData:
     """"Load the cells from the mouse frontal cortex sequenced by the Dropseq technology (Saunders et al., 2018)
 
     Load the 71639 annotated cells located in the frontal cortex of adult mouses among the 690,000 cells
@@ -298,7 +304,7 @@ def frontalcortex_dropseq(save_path: str = "data/", run_setup_anndata: bool = Tr
 
 def annotation_simulation(
     name: str, save_path: str = "data/", run_setup_anndata: bool = True
-):
+) -> anndata.AnnData:
     """\
     Simulated datasets for scANVI tutorials
 
@@ -326,7 +332,7 @@ def annotation_simulation(
     )
 
 
-def retina(save_path: str = "data/", run_setup_anndata: bool = True):
+def retina(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.AnnData:
     """Loads retina dataset.
 
     The dataset of bipolar cells contains after their original pipeline for filtering 27,499 cells and
@@ -353,7 +359,9 @@ def retina(save_path: str = "data/", run_setup_anndata: bool = True):
     return _load_retina(save_path=save_path)
 
 
-def mouse_ob_dataset(save_path: str = "data/", run_setup_anndata: bool = True):
+def mouse_ob_dataset(
+    save_path: str = "data/", run_setup_anndata: bool = True
+) -> anndata.AnnData:
     """Loads mouse ob dataset.
 
     Parameters
@@ -378,7 +386,9 @@ def mouse_ob_dataset(save_path: str = "data/", run_setup_anndata: bool = True):
     )
 
 
-def breast_cancer_dataset(save_path: str = "data/", run_setup_anndata: bool = True):
+def breast_cancer_dataset(
+    save_path: str = "data/", run_setup_anndata: bool = True
+) -> anndata.AnnData:
     """Loads breast cancer dataset.
 
     Parameters
@@ -407,7 +417,7 @@ def pbmcs_10x_cite_seq(
     save_path: str = "data/",
     protein_join: str = "inner",
     run_setup_anndata: bool = True,
-):
+) -> anndata.AnnData:
     """Filtered PBMCs from 10x Genomics profiled with RNA and protein
 
     Datasets were filtered for doublets and other outliers as in
@@ -448,7 +458,7 @@ def brainlarge_dataset(
     max_cells_to_keep: Optional[int] = None,
     n_genes_to_keep: int = 720,
     loading_batch_size: int = 100000,
-):
+) -> anndata.AnnData:
     """Loads brain-large dataset.
 
     This dataset contains 1.3 million brain cells from
@@ -494,7 +504,7 @@ def brainlarge_dataset(
     )
 
 
-def cortex(save_path: str = "data/", run_setup_anndata: bool = True):
+def cortex(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.AnnData:
     """
     Loads cortex dataset.
 
