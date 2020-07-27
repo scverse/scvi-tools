@@ -43,11 +43,7 @@ def pbmc_dataset(
 
     Returns
     -------
-    adata: `AnnData` object
-    `.obs['batch']`
-        contains batch information
-    `.obs['labels']`
-        contains label information
+    adata with batch info (``.obs['batch']``), label info (``.obs['labels']``)
 
     Examples
     --------
@@ -97,6 +93,10 @@ def dataset10X(
     remove_extracted_data
         Whether to remove extracted archives in the case of `.tar.gz` downloads.
 
+    Returns
+    -------
+    adata initialized with 10x data
+
     Examples
     --------
     >>> neuron = dataset10X("neuron_9k")
@@ -132,11 +132,8 @@ def smfish(
 
     Returns
     -------
-    `AnnData` object
-    .obs['batch'] contains batch information
-    .obs['labels'] contains label information
-    .obs['x_coord'] contains x coordinate of spatial information
-    .obs['y_coord'] contains y coordinate of spatial information
+    adata with batch info (``.obs['batch']``), label info (``.obs['labels']``),
+    spatial info (``.obs['x_coord'], (``.obs['y_coord']``)``)
 
     Examples
     --------
