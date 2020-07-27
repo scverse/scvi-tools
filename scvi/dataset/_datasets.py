@@ -43,9 +43,11 @@ def pbmc_dataset(
 
     Returns
     -------
-    `AnnData` object
-    .obs['batch'] contains batch information
-    .obs['labels'] contains label information
+    adata: `AnnData` object
+    `.obs['batch']`
+        contains batch information
+    `.obs['labels']`
+        contains label information
 
     Examples
     --------
