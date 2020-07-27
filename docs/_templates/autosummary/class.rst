@@ -28,7 +28,9 @@
       :toctree: .
    {% for item in methods %}
       {%- if item != '__init__' %}
-      ~{{ fullname }}.{{ item }}
+         {%- if item not in inherited_members %}
+            ~{{ fullname }}.{{ item }}
+         {%- endif %}
       {%- endif -%}
    {%- endfor %}
    {% endif %}
