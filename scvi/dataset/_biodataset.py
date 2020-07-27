@@ -198,10 +198,6 @@ class BioDataset(Dataset):
     def X(self) -> np.ndarray:
         dtype = self.attributes_and_types[_CONSTANTS_.X_KEY]
         data = get_from_registry(self.adata, _CONSTANTS_.X_KEY)
-        if isinstance(data, pd.DataFrame):
-            data = data.to_numpy()
-        elif scipy.sparse.issparse(data):
-            data = data.toarray().astype(dtype)
         return data.astype(dtype)
 
     @property
