@@ -18,15 +18,13 @@
 # relative to the documentation root, use os.path.abspath to make it
 # absolute, like shown here.
 #
-import os
 import sys
 from pathlib import Path
 
-import scvi
-
 HERE = Path(__file__).parent
 sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
-sys.path.insert(0, os.path.abspath(".."))
+
+import scvi  # noqa
 
 
 # -- General configuration ---------------------------------------------
