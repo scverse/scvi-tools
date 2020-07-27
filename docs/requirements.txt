@@ -5,5 +5,5 @@ sphinx-autodoc-typehints
 nbsphinx-link
 ipython
 autodocsumm
-scanpydoc
+scanpydoc>=0.4.5
 sphinx-automodapi
