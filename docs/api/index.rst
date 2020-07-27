@@ -80,6 +80,25 @@ Built in data
    dataset.frontalcortex_dropseq
 
 
+
+Models
+------
+
+.. module:: scvi.models
+.. currentmodule:: scvi
+
+
+.. autosummary::
+   :toctree: .
+
+   models.VAE
+   models.SCANVI
+   models.TOTALVI
+   models.AutoZIVAE
+   models.LDVAE
+   models.JVAE
+
+
 Inference
 ---------
 
@@ -95,3 +114,19 @@ Posterior
    :toctree: .
 
    inference.Posterior
+   inference.TotalPosterior
+   inference.load_posterior
+
+
+Training
+~~~~~~~~
+
+.. autosummary::
+   :toctree: .
+
+   inference.Trainer
+   inference.UnsupervisedTrainer
+   inference.TotalTrainer
+   inference.JVAETrainer
+   inference.TotalTrainer
+   inference.SemiSupervisedTrainer
