@@ -133,7 +133,7 @@ def smfish(
     Returns
     -------
     adata with batch info (``.obs['batch']``), label info (``.obs['labels']``),
-    spatial info (``.obs['x_coord'], (``.obs['y_coord']``)``)
+    spatial info (``.obs['x_coord']``, ``.obs['y_coord']``)
 
     Examples
     --------
@@ -434,11 +434,10 @@ def pbmcs_10x_cite_seq(
 
     Returns
     -------
-    `AnnData` with `.obsm["protein_expression"]`
-    .obs['batch'] contains batch information
-    .obs['labels'] contains label information
 
-    Missing protein values are zero, and are identified during `AnnData` setup.
+    adata with protein expression (``.obsm["protein_expression"]``), batch info (``.obs['batch']``)
+
+    Missing protein values are zero, when ``protein_join == "outer`` and are identified during ``AnnData`` setup.
 
     Examples
     --------
