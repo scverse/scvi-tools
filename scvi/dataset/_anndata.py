@@ -258,8 +258,9 @@ def _setup_protein_expression(
     batch_mask = _get_batch_mask_protein_data(
         adata, protein_expression_obsm_key, batch_key
     )
+
     # check if it's actually needed
-    if sum(sum([~b for b in batch_mask])) > 0:
+    if np.sum([~b for b in batch_mask]) > 0:
         logger.info("Found batches with missing protein expression")
         adata.uns["totalvi_batch_mask"] = batch_mask
     return protein_expression_obsm_key
