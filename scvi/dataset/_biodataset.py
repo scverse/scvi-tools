@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 from typing import Union, List, Dict, Tuple
 from scvi.dataset._anndata import get_from_registry
 from scvi.dataset._anndata_utils import _check_nonnegative_integers
-from scvi import _CONSTANTS_
+from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class BioDataset(Dataset):
         assert adata.shape[0] == stats["n_cells"], error_msg.format("cells")
         assert adata.shape[1] == stats["n_genes"], error_msg.format("genes")
         assert (
-            len(np.unique(get_from_registry(adata, _CONSTANTS_.LABELS_KEY)))
+            len(np.unique(get_from_registry(adata, _CONSTANTS.LABELS_KEY)))
             == stats["n_labels"]
         ), error_msg.format("labels")
         if "protein_expression" in adata.uns["scvi_data_registry"].keys():
@@ -39,7 +39,7 @@ class BioDataset(Dataset):
             ), error_msg.format("proteins")
 
         is_nonneg_int = _check_nonnegative_integers(
-            get_from_registry(adata, _CONSTANTS_.X_KEY)
+            get_from_registry(adata, _CONSTANTS.X_KEY)
         )
         if not is_nonneg_int:
             logger.warning(
@@ -109,7 +109,7 @@ class BioDataset(Dataset):
 
     def normalize(self):
         # TODO change to add a layer in anndata and update registry, store as sparse?
-        X = get_from_registry(self.adata, _CONSTANTS_.X_KEY)
+        X = get_from_registry(self.adata, _CONSTANTS.X_KEY)
         scaling_factor = X.mean(axis=1)
         self.normalized_X = X / scaling_factor.reshape(len(scaling_factor), 1)
 
@@ -131,7 +131,7 @@ class BioDataset(Dataset):
             mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
 
         """
-        X = get_from_registry(self.adata, _CONSTANTS_.X_KEY)
+        X = get_from_registry(self.adata, _CONSTANTS.X_KEY)
         mean1 = (X[idx1]).mean(axis=0)
         mean2 = (X[idx2]).mean(axis=0)
         nonz1 = (X[idx1] != 0).mean(axis=0)
@@ -196,14 +196,14 @@ class BioDataset(Dataset):
 
     @property
     def X(self) -> np.ndarray:
-        dtype = self.attributes_and_types[_CONSTANTS_.X_KEY]
-        data = get_from_registry(self.adata, _CONSTANTS_.X_KEY)
+        dtype = self.attributes_and_types[_CONSTANTS.X_KEY]
+        data = get_from_registry(self.adata, _CONSTANTS.X_KEY)
         return data.astype(dtype)
 
     @property
     def labels(self) -> np.ndarray:
-        dtype = self.attributes_and_types[_CONSTANTS_.LABELS_KEY]
-        data = get_from_registry(self.adata, _CONSTANTS_.LABELS_KEY)
+        dtype = self.attributes_and_types[_CONSTANTS.LABELS_KEY]
+        data = get_from_registry(self.adata, _CONSTANTS.LABELS_KEY)
         if isinstance(data, pd.DataFrame):
             data = data.to_numpy()
         elif scipy.sparse.issparse(data):

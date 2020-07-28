@@ -2,17 +2,16 @@ import logging
 import scanpy
 import os
 import tarfile
-from typing import Tuple
 import numpy as np
 import shutil
 
+from typing import Tuple
 from scvi.dataset._built_in_data._utils import _download
 
 
 logger = logging.getLogger(__name__)
 
 available_datasets = {
-    # these can be made manually
     "1.1.0": [
         "frozen_pbmc_donor_a",
         "frozen_pbmc_donor_b",
@@ -60,7 +59,6 @@ dataset_to_group = dict(
     ]
 )
 
-# standardize this later
 group_to_url_skeleton = {
     "1.1.0": "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_gene_bc_matrices.tar.gz",
     "1.3.0": "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_gene_bc_matrices_h5.h5",
@@ -138,7 +136,7 @@ def _load_dataset10X(
     return adata
 
 
-def _find_path_to_mtx(save_path) -> Tuple[str, str]:
+def _find_path_to_mtx(save_path: str) -> Tuple[str, str]:
     """Returns exact path for the data in the archive.
 
     This is required because 10X doesn't have a consistent way of storing their data.

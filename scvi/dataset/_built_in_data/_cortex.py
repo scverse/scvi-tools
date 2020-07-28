@@ -10,7 +10,9 @@ from scvi.dataset._anndata import setup_anndata
 logger = logging.getLogger(__name__)
 
 
-def _load_cortex(save_path: str = "data/", run_setup_anndata=True):
+def _load_cortex(
+    save_path: str = "data/", run_setup_anndata: bool = True
+) -> anndata.AnnData:
     """
     Loads cortex dataset
     """
@@ -24,7 +26,7 @@ def _load_cortex(save_path: str = "data/", run_setup_anndata=True):
     return adata
 
 
-def _load_cortex_txt(path_to_file):
+def _load_cortex_txt(path_to_file: str) -> anndata.AnnData:
     logger.info("Loading Cortex data from {}".format(path_to_file))
     rows = []
     gene_names = []

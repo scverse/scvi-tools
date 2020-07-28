@@ -12,7 +12,7 @@ from . import UnsupervisedTrainer
 
 from scvi.models import TOTALVI, Classifier
 from scvi.models.utils import one_hot
-from scvi import _CONSTANTS_
+from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)
 
@@ -76,12 +76,12 @@ class TotalPosterior(Posterior):
     @property
     def _data_and_attributes(self):
         return {
-            _CONSTANTS_.X_KEY: np.float32,
-            _CONSTANTS_.BATCH_KEY: np.int64,
-            _CONSTANTS_.LOCAL_L_MEAN_KEY: np.float32,
-            _CONSTANTS_.LOCAL_L_VAR_KEY: np.float32,
-            _CONSTANTS_.LABELS_KEY: np.int64,
-            _CONSTANTS_.PROTEIN_EXP_KEY: np.float32,
+            _CONSTANTS.X_KEY: np.float32,
+            _CONSTANTS.BATCH_KEY: np.int64,
+            _CONSTANTS.LOCAL_L_MEAN_KEY: np.float32,
+            _CONSTANTS.LOCAL_L_VAR_KEY: np.float32,
+            _CONSTANTS.LABELS_KEY: np.int64,
+            _CONSTANTS.PROTEIN_EXP_KEY: np.float32,
         }
 
     @torch.no_grad()
@@ -121,12 +121,12 @@ class TotalPosterior(Posterior):
         return np.concatenate(background_mean)
 
     def _unpack_tensors(self, tensors):
-        x = tensors[_CONSTANTS_.X_KEY]
-        local_l_mean = tensors[_CONSTANTS_.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS_.LOCAL_L_VAR_KEY]
-        batch_index = tensors[_CONSTANTS_.BATCH_KEY]
-        labels = tensors[_CONSTANTS_.LABELS_KEY]
-        y = tensors[_CONSTANTS_.PROTEIN_EXP_KEY]
+        x = tensors[_CONSTANTS.X_KEY]
+        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        labels = tensors[_CONSTANTS.LABELS_KEY]
+        y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
         return x, local_l_mean, local_l_var, batch_index, labels, y
 
     def compute_elbo(self, vae: TOTALVI, **kwargs):
@@ -1211,12 +1211,12 @@ class TotalTrainer(UnsupervisedTrainer):
             self.validation_set.to_monitor = ["elbo"]
 
     def _unpack_tensors(self, tensors):
-        x = tensors[_CONSTANTS_.X_KEY]
-        local_l_mean = tensors[_CONSTANTS_.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS_.LOCAL_L_VAR_KEY]
-        batch_index = tensors[_CONSTANTS_.BATCH_KEY]
-        labels = tensors[_CONSTANTS_.LABELS_KEY]
-        y = tensors[_CONSTANTS_.PROTEIN_EXP_KEY]
+        x = tensors[_CONSTANTS.X_KEY]
+        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        labels = tensors[_CONSTANTS.LABELS_KEY]
+        y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
         return x, local_l_mean, local_l_var, batch_index, labels, y
 
     def loss(self, tensors):
@@ -1301,7 +1301,7 @@ class TotalTrainer(UnsupervisedTrainer):
                 kappa = 1 - self.kl_weight
             else:
                 kappa = self.kappa
-            batch_index = tensors_dict[0][_CONSTANTS_.BATCH_KEY]
+            batch_index = tensors_dict[0][_CONSTANTS.BATCH_KEY]
             if kappa > 0:
                 z = self._get_z(*tensors_dict)
                 # Train discriminator

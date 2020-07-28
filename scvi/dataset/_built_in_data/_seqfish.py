@@ -12,8 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 def _load_seqfishplus(
-    save_path="data/", tissue_region="subventricular cortex", run_setup_anndata=True
-):
+    save_path: str = "data/",
+    tissue_region: str = "subventricular cortex",
+    run_setup_anndata: bool = True,
+) -> anndata.AnnData:
 
     if tissue_region == "subventricular cortex":
         file_prefix = "cortex_svz"
@@ -42,7 +44,9 @@ def _load_seqfishplus(
     return adata
 
 
-def _load_seqfishplus_data(path_to_file, file_prefix, save_path, gene_by_cell=False):
+def _load_seqfishplus_data(
+    path_to_file: str, file_prefix: str, save_path: str, gene_by_cell: bool = False
+) -> anndata.AnnData:
     counts_filename = "sourcedata/{}_counts.csv".format(file_prefix)
     coordinates_filename = "sourcedata/{}_cellcentroids.csv".format(file_prefix)
     extract_location = os.path.join(save_path, "seqfishplus")
@@ -65,7 +69,9 @@ def _load_seqfishplus_data(path_to_file, file_prefix, save_path, gene_by_cell=Fa
     return adata
 
 
-def _load_seqfish(save_path="data/", run_setup_anndata=True):
+def _load_seqfish(
+    save_path: str = "data/", run_setup_anndata: bool = True
+) -> anndata.AnnData:
     save_path = os.path.abspath(save_path)
     url = "https://www.cell.com/cms/attachment/2080562255/2072099886/mmc6.xlsx"
     save_fn = "SeqFISH.xlsx"
@@ -78,7 +84,7 @@ def _load_seqfish(save_path="data/", run_setup_anndata=True):
     return adata
 
 
-def _load_seqfish_data(path_to_file):
+def _load_seqfish_data(path_to_file: str) -> anndata.AnnData:
     logger.info("Loading seqfish dataset from {}".format(path_to_file))
     xl = pd.ExcelFile(path_to_file)
     counts = xl.parse("Hippocampus Counts")

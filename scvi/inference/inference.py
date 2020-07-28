@@ -8,7 +8,7 @@ import anndata
 from numpy import ceil
 
 from scvi.inference import Trainer
-from scvi import _CONSTANTS_
+from scvi import _CONSTANTS
 
 plt.switch_backend("agg")
 logger = logging.getLogger(__name__)
@@ -122,11 +122,11 @@ class UnsupervisedTrainer(Trainer):
         return ["train_set"]
 
     def loss(self, tensors: dict, feed_labels: bool = True):
-        sample_batch = tensors[_CONSTANTS_.X_KEY]
-        local_l_mean = tensors[_CONSTANTS_.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS_.LOCAL_L_VAR_KEY]
-        batch_index = tensors[_CONSTANTS_.BATCH_KEY]
-        y = tensors[_CONSTANTS_.LABELS_KEY]
+        sample_batch = tensors[_CONSTANTS.X_KEY]
+        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        y = tensors[_CONSTANTS.LABELS_KEY]
 
         # The next lines should not be modified, because scanVI's trainer inherits
         # from this class and should NOT include label information to compute the ELBO by default

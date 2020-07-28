@@ -19,7 +19,7 @@ def _load_brainlarge_dataset(
     max_cells_to_keep: int = None,
     n_genes_to_keep: int = 720,
     loading_batch_size: int = 100000,
-):
+) -> anndata.AnnData:
     """Loads brain-large dataset."""
     url = "http://cf.10xgenomics.com/samples/cell-exp/1.3.0/1M_neurons/1M_neurons_filtered_gene_bc_matrices_h5.h5"
     save_fn = "brain_large.h5"
@@ -38,12 +38,12 @@ def _load_brainlarge_dataset(
 
 
 def _load_brainlarge_file(
-    path_to_file,
-    sample_size_gene_var,
-    max_cells_to_keep,
-    n_genes_to_keep,
-    loading_batch_size,
-):
+    path_to_file: str,
+    sample_size_gene_var: int,
+    max_cells_to_keep: int,
+    n_genes_to_keep: int,
+    loading_batch_size: int,
+) -> anndata.AnnData:
     logger.info("Preprocessing Brain Large data")
     print(path_to_file)
     with h5py.File(path_to_file, "r") as f:

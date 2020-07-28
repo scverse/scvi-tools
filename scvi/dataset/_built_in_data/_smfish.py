@@ -45,8 +45,10 @@ _subtype_to_high_level_mapping = {
 
 
 def _load_smfish(
-    save_path="data/", use_high_level_cluster=True, run_setup_anndata=True
-):
+    save_path: str = "data/",
+    use_high_level_cluster: bool = True,
+    run_setup_anndata: bool = True,
+) -> anndata.AnnData:
     save_path = os.path.abspath(save_path)
     url = "http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom"
     save_fn = "osmFISH_SScortex_mouse_all_cell.loom"
@@ -60,7 +62,9 @@ def _load_smfish(
     return adata
 
 
-def _load_smfish_data(path_to_file, use_high_level_cluster):
+def _load_smfish_data(
+    path_to_file: str, use_high_level_cluster: bool
+) -> anndata.AnnData:
     logger.info("Loading smFISH dataset")
     ds = loompy.connect(path_to_file)
     x_coord, y_coord = ds.ca["X"], ds.ca["Y"]

@@ -11,8 +11,10 @@ from scvi.dataset import setup_anndata
 
 
 def _load_purified_pbmc_dataset(
-    save_path: str = "data/", subset_datasets: List[str] = None, run_setup_anndata=True
-):
+    save_path: str = "data/",
+    subset_datasets: List[str] = None,
+    run_setup_anndata: bool = True,
+) -> anndata.AnnData:
     url = "https://github.com/YosefLab/scVI-data/raw/master/PurifiedPBMCDataset.h5ad"
     save_fn = "PurifiedPBMCDataset.h5ad"
     _download(url, save_path, save_fn)
@@ -48,8 +50,10 @@ def _load_purified_pbmc_dataset(
 
 
 def _load_pbmc_dataset(
-    save_path: str = "data/", run_setup_anndata=True, remove_extracted_data=True
-):
+    save_path: str = "data/",
+    run_setup_anndata: bool = True,
+    remove_extracted_data: bool = True,
+) -> anndata.AnnData:
     urls = [
         "https://github.com/YosefLab/scVI-data/raw/master/gene_info.csv",
         "https://github.com/YosefLab/scVI-data/raw/master/pbmc_metadata.pickle",
