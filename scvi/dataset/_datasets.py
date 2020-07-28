@@ -43,7 +43,7 @@ def pbmc_dataset(
 
     Returns
     -------
-    adata with batch info (``.obs['batch']``), label info (``.obs['labels']``)
+    AnnData with batch info (``.obs['batch']``), label info (``.obs['labels']``)
 
     Examples
     --------
@@ -132,7 +132,7 @@ def smfish(
 
     Returns
     -------
-    adata with batch info (``.obs['batch']``), label info (``.obs['labels']``),
+    AnnData with batch info (``.obs['batch']``), label info (``.obs['labels']``),
     spatial info (``.obs['x_coord']``, ``.obs['y_coord']``)
 
     Examples
@@ -166,11 +166,8 @@ def seqfishplus(
 
     Returns
     -------
-    `AnnData` object
-    .obs['batch'] contains batch information
-    .obs['labels'] contains label information
-    .obs['X'] contains x coordinate of spatial information
-    .obs['Y'] contains y coordinate of spatial information
+    AnnData with batch info (``.obs['batch']``), label info (``.obs['labels']``),
+    spatial info (``.obs['X']``, ``.obs['Y']``)
 
     Examples
     --------
@@ -197,9 +194,7 @@ def seqfish(
 
     Returns
     -------
-    `AnnData` object
-    .obs['batch'] contains batch information
-    .obs['labels'] contains label information
+    AnnData with batch info (``.obs['batch']``) and label info (``.obs['labels']``)
 
     Examples
     --------
@@ -229,9 +224,7 @@ def purified_pbmc_dataset(
 
     Returns
     -------
-    `AnnData` object
-    .obs['batch'] contains batch information
-    .obs['labels'] contains label information
+    AnnData with batch info (``.obs['batch']``) and label info (``.obs['labels']``)
 
     Examples
     --------
@@ -259,11 +252,8 @@ def prefrontalcortex_starmap(
 
     Returns
     -------
-    `AnnData` object
-    .obs['batch'] contains batch information
-    .obs['labels'] contains label information
-    .obs['x_coord'] contains x coordinate of spatial information
-    .obs['y_coord'] contains y coordinate of spatial information
+    AnnData with batch info (``.obs['batch']``), label info (``.obs['labels']``),
+    spatial info (``.obs['x_coord']``, ``.obs['y_coord']``)
 
     Examples
     --------
@@ -291,9 +281,7 @@ def frontalcortex_dropseq(
 
     Returns
     -------
-    `AnnData` object
-    .obs['batch'] contains batch information
-    .obs['labels'] contains label information
+    AnnData with batch info (``.obs['batch']``) and label info (``.obs['labels']``)
 
     Examples
     --------
@@ -319,9 +307,7 @@ def annotation_simulation(
 
     Returns
     -------
-    `AnnData` object
-    .obs['batch'] contains batch information
-    .obs['labels'] contains label information
+    AnnData with batch info (``.obs['batch']``) and label info (``.obs['labels']``)
 
     Examples
     --------
@@ -348,9 +334,7 @@ def retina(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.
 
     Returns
     -------
-    `AnnData` object
-    .obs['batch'] contains batch information
-    .obs['labels'] contains label information
+    AnnData with batch info (``.obs['batch']``) and label info (``.obs['labels']``)
 
     Examples
     --------
@@ -373,9 +357,7 @@ def mouse_ob_dataset(
 
     Returns
     -------
-    `AnnData` object
-    .obs['batch'] contains batch information
-    .obs['labels'] contains label information
+    AnnData with batch info (``.obs['batch']``) and label info (``.obs['labels']``)
 
     Examples
     --------
@@ -400,7 +382,7 @@ def breast_cancer_dataset(
 
     Returns
     -------
-    `AnnData` object with `.obs['batch']` and `.obs['labels']`
+    AnnData with batch info (``.obs['batch']``) and label info (``.obs['labels']``)
 
     Examples
     --------
@@ -434,8 +416,8 @@ def pbmcs_10x_cite_seq(
 
     Returns
     -------
-
-    adata with protein expression (``.obsm["protein_expression"]``), batch info (``.obs['batch']``)
+    AnnData with batch info (``.obs['batch']``), label info (``.obs['labels']``),
+    and protein expression (``.obsm["protein_expression"]``)
 
     Missing protein values are zero, when ``protein_join == "outer`` and are identified during ``AnnData`` setup.
 
@@ -481,16 +463,13 @@ def brainlarge_dataset(
     loading_batch_size
         Number of cells to use for each chunk loaded.
 
+    Returns
+    -------
+    AnnData with batch info (``.obs['batch']``) and label info (``.obs['labels']``)
+
     Examples
     --------
     >>> adata = brainlarge_dataset()
-
-    Returns
-    -------
-    `AnnData` object
-    .obs['batch'] contains batch information
-    .obs['labels'] contains label information
-
     """
 
     return _load_brainlarge_dataset(
@@ -519,15 +498,13 @@ def cortex(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.
     run_setup_anndata
         If true, runs setup_anndata() on dataset before returning
 
+    Returns
+    -------
+    AnnData with batch info (``.obs['batch']``) and label info (``.obs['labels']``)
+
     Examples
     --------
     >>> adata = cortex()
-
-    Returns
-    -------
-    `AnnData` object
-    .obs['batch'] contains batch information
-    .obs['labels'] contains label information
     """
     return _load_cortex(save_path, run_setup_anndata)
 
@@ -560,11 +537,9 @@ def synthetic_iid(
 
     Returns
     -------
-    `AnnData` object
-    .obs['batch'] contains batch information
-    .obs['labels'] contains label information
-    .obs['protein_names'] contains protein names
-    .obs['protein_expression'] contains protein expressions
+    AnnData with batch info (``.obs['batch']``), label info (``.obs['labels']``),
+    protein expression (``.obsm["protein_expression"]``) and
+    protein names (``.obs['protein_names']``)
 
     Examples
     --------
