@@ -16,7 +16,7 @@ from scvi.inference.inference import UnsupervisedTrainer
 from scvi.inference.posterior import unsupervised_clustering_accuracy
 from scvi.dataset._anndata import get_from_registry
 from scvi.dataset._anndata_utils import _unpack_tensors
-from scvi import _CONSTANTS_
+from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)
 
@@ -246,7 +246,7 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         n_labelled_samples_per_class_array = [
             n_labelled_samples_per_class
         ] * self.adata.uns["scvi_summary_stats"]["n_labels"]
-        labels = np.array(get_from_registry(self.adata, _CONSTANTS_.LABELS_KEY)).ravel()
+        labels = np.array(get_from_registry(self.adata, _CONSTANTS.LABELS_KEY)).ravel()
         np.random.seed(seed=seed)
         permutation_idx = np.random.permutation(len(labels))
         labels = labels[permutation_idx]

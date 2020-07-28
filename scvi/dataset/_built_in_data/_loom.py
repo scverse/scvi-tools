@@ -11,7 +11,7 @@ from scvi.dataset._built_in_data._utils import _download
 logger = logging.getLogger(__name__)
 
 
-def _load_retina(save_path: str = "data/", run_setup_anndata=True) -> AnnData:
+def _load_retina(save_path: str = "data/", run_setup_anndata: bool = True) -> AnnData:
     """\
     Loads retina dataset
 
@@ -55,7 +55,7 @@ def _load_retina(save_path: str = "data/", run_setup_anndata=True) -> AnnData:
 
 
 def _load_prefrontalcortex_starmap(
-    save_path: str = "data/", run_setup_anndata=True
+    save_path: str = "data/", run_setup_anndata: bool = True
 ) -> AnnData:
     """\
     Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex (Wang et al., 2018)
@@ -79,7 +79,7 @@ def _load_prefrontalcortex_starmap(
 
 
 def _load_frontalcortex_dropseq(
-    save_path: str = "data/", run_setup_anndata=True
+    save_path: str = "data/", run_setup_anndata: bool = True
 ) -> AnnData:
     save_path = os.path.abspath(save_path)
     url = "https://github.com/YosefLab/scVI-data/raw/master/fc-dropseq.loom"
@@ -101,7 +101,7 @@ def _load_frontalcortex_dropseq(
 
 
 def _load_annotation_simulation(
-    name: str, save_path: str = "data/", run_setup_anndata=True
+    name: str, save_path: str = "data/", run_setup_anndata: bool = True
 ) -> AnnData:
     """\
     Simulated datasets for scANVI tutorials

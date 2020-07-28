@@ -7,7 +7,7 @@ import logging
 from logging import NullHandler
 
 from ._settings import set_verbosity, set_seed
-from ._constants import _CONSTANTS_
+from ._constants import _CONSTANTS
 from . import dataset, inference, models
 
 logger = logging.getLogger(__name__)
@@ -20,4 +20,4 @@ logger.propagate = False
 
 test_var = "test"
 
-__all__ = ["set_verbosity", "set_seed", "_CONSTANTS_", "dataset", "inference", "models"]
+__all__ = ["set_verbosity", "set_seed", "_CONSTANTS", "dataset", "inference", "models"]

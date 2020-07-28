@@ -11,7 +11,7 @@ from typing import Optional, List, Tuple, Union, Iterable
 from scvi.inference import Posterior
 from scvi.inference import Trainer
 from scvi.models.log_likelihood import compute_elbo
-from scvi import _CONSTANTS_
+from scvi import _CONSTANTS
 
 
 logger = logging.getLogger(__name__)
@@ -135,7 +135,7 @@ class JVAETrainer(Trainer):
         if self.train_discriminator:
             latent_tensors = []
             for (i, tensors) in enumerate(tensors_dict):
-                X = tensors[_CONSTANTS_.X_KEY]
+                X = tensors[_CONSTANTS.X_KEY]
                 z = self.model.sample_from_posterior_z(X, mode=i, deterministic=False)
                 latent_tensors.append(z)
 
@@ -265,11 +265,11 @@ class JVAETrainer(Trainer):
         return averaged_loss
 
     def _unpack_tensors(self, tensors):
-        x = tensors[_CONSTANTS_.X_KEY].squeeze_(0)
-        local_l_mean = tensors[_CONSTANTS_.LOCAL_L_MEAN_KEY].squeeze_(0)
-        local_l_var = tensors[_CONSTANTS_.LOCAL_L_VAR_KEY].squeeze_(0)
-        batch_index = tensors[_CONSTANTS_.BATCH_KEY].squeeze_(0)
-        y = tensors[_CONSTANTS_.LABELS_KEY].squeeze_(0)
+        x = tensors[_CONSTANTS.X_KEY].squeeze_(0)
+        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY].squeeze_(0)
+        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY].squeeze_(0)
+        batch_index = tensors[_CONSTANTS.BATCH_KEY].squeeze_(0)
+        y = tensors[_CONSTANTS.LABELS_KEY].squeeze_(0)
         return x, local_l_mean, local_l_var, batch_index, y
 
     def get_discriminator_confusion(self) -> np.ndarray:
@@ -279,7 +279,7 @@ class JVAETrainer(Trainer):
         for i, posterior in enumerate(self.all_dataset):
 
             indices = np.arange(posterior.gene_dataset.n_cells)
-            data = posterior.gene_dataset[indices][_CONSTANTS_.X_KEY]
+            data = posterior.gene_dataset[indices][_CONSTANTS.X_KEY]
             data = torch.from_numpy(data)
             if self.use_cuda:
                 data = data.cuda()
@@ -314,7 +314,7 @@ class JVAETrainer(Trainer):
             discriminator_losses = self.loss_discriminator(
                 [
                     self.model.sample_from_posterior_z(
-                        data[_CONSTANTS_.X_KEY], mode=i, deterministic=False
+                        data[_CONSTANTS.X_KEY], mode=i, deterministic=False
                     )
                     for (i, data) in enumerate(tensors_dict)
                 ],

@@ -11,7 +11,7 @@ from scvi.dataset._anndata_utils import (
     _check_nonnegative_integers,
     _get_batch_mask_protein_data,
 )
-from scvi import _CONSTANTS_
+from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)
 
@@ -119,18 +119,18 @@ def setup_anndata(
     )
 
     data_registry = {
-        _CONSTANTS_.X_KEY: [X_loc, X_key],
-        _CONSTANTS_.BATCH_KEY: ["obs", batch_key],
-        _CONSTANTS_.LOCAL_L_MEAN_KEY: ["obs", local_l_mean_key],
-        _CONSTANTS_.LOCAL_L_VAR_KEY: ["obs", local_l_var_key],
-        _CONSTANTS_.LABELS_KEY: ["obs", labels_key],
+        _CONSTANTS.X_KEY: [X_loc, X_key],
+        _CONSTANTS.BATCH_KEY: ["obs", batch_key],
+        _CONSTANTS.LOCAL_L_MEAN_KEY: ["obs", local_l_mean_key],
+        _CONSTANTS.LOCAL_L_VAR_KEY: ["obs", local_l_var_key],
+        _CONSTANTS.LABELS_KEY: ["obs", labels_key],
     }
 
     if protein_expression_obsm_key is not None:
         protein_expression_obsm_key = _setup_protein_expression(
             adata, protein_expression_obsm_key, protein_names_uns_key, batch_key
         )
-        data_registry[_CONSTANTS_.PROTEIN_EXP_KEY] = [
+        data_registry[_CONSTANTS.PROTEIN_EXP_KEY] = [
             "obsm",
             protein_expression_obsm_key,
         ]

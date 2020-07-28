@@ -13,7 +13,7 @@ from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
 
 from scvi.inference.posterior import Posterior
-from scvi import _CONSTANTS_
+from scvi import _CONSTANTS
 
 from tqdm import tqdm
 
@@ -184,7 +184,7 @@ class Trainer:
         ):
             self.on_epoch_begin()
             for tensors_dict in self.data_loaders_loop():
-                if tensors_dict[0][_CONSTANTS_.X_KEY].shape[0] < 3:
+                if tensors_dict[0][_CONSTANTS.X_KEY].shape[0] < 3:
                     continue
                 self.on_iteration_begin()
                 # Update the model's parameters after seeing the data

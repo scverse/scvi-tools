@@ -1,4 +1,4 @@
-class _CONSTANTS_:
+class _CONSTANTS:
     X_KEY = "X"
     BATCH_KEY = "batch_indices"
     LOCAL_L_MEAN_KEY = "local_l_mean"
