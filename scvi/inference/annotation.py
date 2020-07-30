@@ -15,7 +15,6 @@ from scvi.inference import Trainer
 from scvi.inference.inference import UnsupervisedTrainer
 from scvi.inference.posterior import unsupervised_clustering_accuracy
 from scvi.dataset._anndata import get_from_registry
-from scvi.dataset._anndata_utils import _unpack_tensors
 from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)
@@ -171,7 +170,8 @@ class ClassifierTrainer(Trainer):
         super().__setattr__(key, value)
 
     def loss(self, tensors_labelled):
-        x, _, _, _, labels_train = _unpack_tensors(tensors_labelled)
+        x = tensors_labelled[_CONSTANTS.X_KEY]
+        labels_train = tensors_labelled[_CONSTANTS.LABELS_KEY]
         if self.sampling_model:
             if hasattr(self.sampling_model, "classify"):
                 return F.cross_entropy(
@@ -290,7 +290,8 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
 
     def loss(self, tensors_all, tensors_labelled):
         loss = super().loss(tensors_all, feed_labels=False)
-        sample_batch, _, _, _, y = _unpack_tensors(tensors_labelled)
+        sample_batch = tensors_labelled[_CONSTANTS.X_KEY]
+        y = tensors_labelled[_CONSTANTS.LABELS_KEY]
         classification_loss = F.cross_entropy(
             self.model.classify(sample_batch), y.view(-1)
         )
@@ -342,7 +343,8 @@ def compute_predictions(
     all_y = []
 
     for i_batch, tensors in enumerate(data_loader):
-        sample_batch, _, _, _, labels = _unpack_tensors(tensors)
+        sample_batch = tensors[_CONSTANTS.X_KEY]
+        labels = tensors[_CONSTANTS.LABELS_KEY]
 
         all_y += [labels.view(-1).cpu()]
 

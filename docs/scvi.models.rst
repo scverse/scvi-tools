@@ -1,1 +1,0 @@
-.. automodapi:: scvi.models

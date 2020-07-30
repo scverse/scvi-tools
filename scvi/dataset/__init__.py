@@ -1,4 +1,4 @@
-from ._anndata import setup_anndata
+from ._anndata import setup_anndata, get_from_registry
 from ._preprocessing import (
     highly_variable_genes_seurat_v3,
     poisson_gene_selection,
@@ -26,6 +26,7 @@ from ._datasets import (
 
 __all__ = [
     "setup_anndata",
+    "get_from_registry",
     "highly_variable_genes_seurat_v3",
     "poisson_gene_selection",
     "organize_cite_seq_10x",

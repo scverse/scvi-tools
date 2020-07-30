@@ -72,15 +72,15 @@ class BioDataset(Dataset):
             Either a list of keys in the scvi data registry to return when getitem is called
             or
 
-        Example
-        -------
-        bd = BioDataset(adata)
+        Examples
+        --------
+        >>> bd = BioDataset(adata)
 
-        #following will only return the X and batch_indices both by defualt as np.float32
-        bd.setup_getitem(getitem_tensors  = ['X,'batch_indices'])
+        # following will only return the X and batch_indices both by defualt as np.float32
+        >>> bd.setup_getitem(getitem_tensors  = ['X,'batch_indices'])
 
-        #This will return X as an integer and batch_indices as np.float32
-        bd.setup_getitem(getitem_tensors  = {'X':np.int64, 'batch_indices':np.float32])
+        # This will return X as an integer and batch_indices as np.float32
+        >>> bd.setup_getitem(getitem_tensors  = {'X':np.int64, 'batch_indices':np.float32])
         """
         registered_keys = self.get_registered_keys()
 
