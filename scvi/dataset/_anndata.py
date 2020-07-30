@@ -16,47 +16,39 @@ from scvi import _CONSTANTS
 logger = logging.getLogger(__name__)
 
 
-def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
-    """Registers the AnnData object by adding data_registry_dict to adata.uns
-
-    Format is: {<scvi_key>: (<anndata dataframe>, <dataframe key> )}
-    Example:
-    {"batch" :("obs", "batch_idx")}
-    {"X": ("_X", None)}
-
-    Parameters
-    ----------
-    adata
-        anndata object
-    data_registry_dict
-        dictionary mapping keys used by scvi models to their respective location in adata.
-
-    """
-    for df, df_key in data_registry_dict.values():
-        if df_key is not None:
-            assert df_key in getattr(
-                adata, df
-            ), "anndata.{} has no attribute '{}'".format(df, df_key)
-        else:
-            assert hasattr(adata, df) is True, "anndata has no attribute '{}'".format(
-                df_key
-            )
-    adata.uns["scvi_data_registry"] = copy.copy(data_registry_dict)
-
-
-def get_from_registry(adata, key: str):
-    """Returns an the object in Anndata associated the key in adata.uns['scvi_data_registry']
+def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
+    """Returns the object in AnnData associated with the key in ``adata.uns['scvi_data_registry']``
 
     Parameters
     ----------
     adata
         anndata object
     key
-        key of object to get from adata.uns['scvi_data_registry']
+        key of object to get from ``adata.uns['scvi_data_registry']``
 
     Returns
     -------
+    np.array containing the data requested
 
+    Examples
+    --------
+    >>> import scvi
+    >>> adata = scvi.dataset.cortex()
+    >>> adata.uns['scvi_data_registry']
+    {'X': ['_X', None],
+    'batch_indices': ['obs', 'batch'],
+    'local_l_mean': ['obs', '_scvi_local_l_mean'],
+    'local_l_var': ['obs', '_scvi_local_l_var'],
+    'labels': ['obs', 'labels']}
+    >>> batch = get_from_registry(adata, "batch_indices")
+    >>> batch
+    array([[0],
+           [0],
+           [0],
+           ...,
+           [0],
+           [0],
+           [0]])
     """
     data_loc = adata.uns["scvi_data_registry"][key]
     df, df_key = data_loc[0], data_loc[1]
@@ -82,8 +74,10 @@ def setup_anndata(
 ) -> Optional[anndata.AnnData]:
     """Sets up anndata object for scVI models.
 
-    This method will compute the log mean and log variance per batch.
-    A mapping will be created between in
+    A mapping will be created between data fields used by scVI to their respective locations in adata
+    This method will also compute the log mean and log variance per batch.
+
+    None of the data in adata will be modified. Only adds fields to adata.
 
     Parameters
     ----------
@@ -96,14 +90,50 @@ def setup_anndata(
     X_layers_key
         if not None, uses this as the key in adata.layers for raw count
     protein_expression_obsm_key
-        key in adata.obsm for protein expression data
+        key in adata.obsm for protein expression data, Required for TotalVI
     protein_names_uns_key
-        key in adata.uns for protein names
+        key in adata.uns for protein names. If None, will use the column names of adata.obsm[protein_expression_obsm_key]
+        if it is a pandas dataframe, else will assign sequential names to proteins. Only relavent but not required for TotalVI.
     copy
         if True, a copy of anndata is returned
 
     Returns
     -------
+    if ``copy``,  will return ``anndata.AnnData`` else adds the following fields to adata:
+
+    ``.uns['scvi_data_registy']``
+        dictionary mapping data fields used by scVI to their respective locations in adata
+    ``.uns['scvi_summary_stats']``
+        dictionary of summary statistics for adata
+    ``adata.obs[‘_local_l_mean’]``
+        per batch library size mean
+    ``adata.obs[‘_local_l_var’]``
+        per batch library size variance
+
+    if no batch_key or labels_key was provided, or if they were not encoded as integers, will also add the following:
+    ``adata.obs[‘_scvi_labels’]``
+        labels encoded as integers
+    ``adata.obs[‘_scvi_batch’]``
+        batch encoded as integers
+
+    Examples
+    --------
+    >>> import scvi
+    >>> adata = scvi.dataset.pbmcs_10x_cite_seq(save_path = save_path, run_setup_anndata = False)
+    >>> setup_anndata(adata, batch_key='batch', labels_key='labels', protein_expression_obsm_key='protein_expression')
+    >>> adata.uns['scvi_data_registry']
+    {'X': ['_X', None],
+    'batch_indices': ['obs', 'batch'],
+    'local_l_mean': ['obs', '_scvi_local_l_mean'],
+    'local_l_var': ['obs', '_scvi_local_l_var'],
+    'labels': ['obs', 'labels'],
+    'protein_expression': ['obsm', 'protein_expression']}
+    >>> adata.uns['scvi_summary_stats']
+    {'n_batch': 2,
+    'n_cells': 10849,
+    'n_genes': 15792,
+    'n_labels': 1,
+    'n_proteins': 14}
     """
     if adata.is_view:
         raise ValueError("adata cannot be a view of an AnnData object.")
@@ -176,21 +206,6 @@ def _setup_batch(adata, batch_key):
         batch_key = _make_obs_column_categorical(
             adata, column_key=batch_key, alternate_column_key="_scvi_batch"
         )
-
-    # make sure each batch contains enough cells
-    unique, counts = np.unique(adata.obs[batch_key], return_counts=True)
-    if np.min(counts) < 3:
-        batch_val = unique[np.argmin(counts)]
-        warnings.warn(
-            "Batch {} has less than 3 cells. SCVI may not train properly.".format(
-                batch_val
-            )
-        )
-    # possible check for continuous?
-    if len(unique) > (adata.shape[0] / 3):
-        warnings.warn(
-            "Is your batch continuous? SCVI doesn't support continuous batches yet."
-        )
     return batch_key
 
 
@@ -211,6 +226,21 @@ def _make_obs_column_categorical(adata, column_key, alternate_column_key):
             adata.obs[column_key].astype("category").cat.codes
         )
         column_key = alternate_column_key
+
+    # make sure each category contains enough cells
+    unique, counts = np.unique(adata.obs[column_key], return_counts=True)
+    if np.min(counts) < 3:
+        category = unique[np.argmin(counts)]
+        warnings.warn(
+            "Category {} in adata.obs['{}'] has fewer than 3 cells. SCVI may not train properly.".format(
+                category, column_key
+            )
+        )
+    # possible check for continuous?
+    if len(unique) > (adata.shape[0] / 3):
+        warnings.warn(
+            "Is adata.obs['{}'] continuous? SCVI doesn't support continuous obs yet."
+        )
     return column_key
 
 
@@ -335,3 +365,33 @@ def _setup_summary_stats(adata, batch_key, labels_key, protein_expression_obsm_k
         )
     )
     return summary_stats
+
+
+def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
+    """Registers the AnnData object by adding data_registry_dict to adata.uns['scvi_data_registry']
+
+    Format of data_registry_dict is: {<scvi_key>: (<anndata dataframe>, <dataframe key> )}
+
+    Parameters
+    ----------
+    adata
+        anndata object
+    data_registry_dict
+        dictionary mapping keys used by scvi models to their respective location in adata.
+
+    Examples
+    --------
+    >>> data_dict = {"batch" :("obs", "batch_idx"), "X": ("_X", None)}
+    >>> _register_anndata(adata, data_dict)
+
+    """
+    for df, df_key in data_registry_dict.values():
+        if df_key is not None:
+            assert df_key in getattr(
+                adata, df
+            ), "anndata.{} has no attribute '{}'".format(df, df_key)
+        else:
+            assert hasattr(adata, df) is True, "anndata has no attribute '{}'".format(
+                df_key
+            )
+    adata.uns["scvi_data_registry"] = copy.copy(data_registry_dict)

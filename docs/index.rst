@@ -32,9 +32,6 @@ These models are able to simultaneously perform many downstream tasks such as le
    :caption: Package Reference
    :hidden:
 
-..    scvi.inference
-..    scvi.models
-..    scvi.models-modules
 
 Indices and tables
 ==================
