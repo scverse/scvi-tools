@@ -431,6 +431,17 @@ def organize_cite_seq_10x(adata: anndata.AnnData, copy: bool = False):
 
     Else, updates the anndata inplace
 
+    Examples
+    --------
+    >>> adata = scanpy.read_10x_h5(<path_to_10x_h5_file>, gex_only=False)
+    >>> adata
+    AnnData object with n_obs × n_vars = 713 × 33555
+        var: 'gene_ids', 'feature_types', 'genome'
+    >>> organize_cite_seq_10x(adata)
+    >>> adata
+    AnnData object with n_obs × n_vars = 713 × 33538
+        var: 'gene_ids', 'feature_types', 'genome'
+        obsm: 'protein_expression'
     """
 
     if copy:
