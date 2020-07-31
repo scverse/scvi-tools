@@ -205,7 +205,6 @@ def _asynchronous_logging_method_decorator(func: Callable):
 def auto_tune_scvi_model(
     exp_key: str,
     gene_dataset: Union[anndata.AnnData, str] = None,
-    delayed_populating: bool = False,
     custom_objective_hyperopt: Callable = None,
     objective_kwargs: Dict[str, Any] = None,
     model_class: VAE = VAE,
@@ -253,10 +252,6 @@ def auto_tune_scvi_model(
         the difference between current and previous ``max_evals``.
     gene_dataset :
         scVI gene expression dataset.
-    delayed_populating :
-        Switch for the delayed populating mechanism
-        of scvi.dataset.dataset.DownloadableDataset. Useful for large datasets
-        which have to be instantiated inside the workers.
     custom_objective_hyperopt :
         A custom objective function respecting the ``hyperopt`` format.
         Roughly, it needs to return the quantity to optimize for, either directly
@@ -355,11 +350,6 @@ def auto_tune_scvi_model(
     fh_autotune.setLevel(logging.DEBUG)
     logger_all.addHandler(fh_autotune)
 
-    if delayed_populating and not isinstance(gene_dataset, str):
-        raise ValueError(
-            "The delayed_population mechanism requires a path to already setup anndata"
-        )
-
     if fmin_timer and train_best:
         logger_all.warning(
             "fmin_timer and train_best are both set to True. "
@@ -434,7 +424,6 @@ def auto_tune_scvi_model(
             _objective_function,
             **{
                 "gene_dataset": gene_dataset,
-                "delayed_populating": delayed_populating,
                 "model_class": model_class,
                 "trainer_class": trainer_class,
                 "metric_name": metric_name,
@@ -1266,7 +1255,6 @@ class HyperoptWorker(multiprocessing.Process):
 def _objective_function(
     space: dict,
     gene_dataset: Union[anndata.AnnData, str],
-    delayed_populating: bool = False,
     model_class: Type[VAE] = VAE,
     trainer_class: Type[Trainer] = UnsupervisedTrainer,
     metric_name: str = None,
@@ -1325,8 +1313,7 @@ def _objective_function(
     # handle mutable defaults
     metric_kwargs = metric_kwargs if metric_kwargs is not None else {}
 
-    # delayed populating code
-    if delayed_populating and isinstance(gene_dataset, str):
+    if isinstance(gene_dataset, str):
         gene_dataset = anndata.read_h5ad(gene_dataset)
 
     start_time = time.monotonic()
