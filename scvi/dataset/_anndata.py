@@ -202,7 +202,6 @@ def setup_anndata(
     AAACCCAGTACCGCGT-1-0             18            207  ...               11               12
     AAACCCAGTATCGAAA-1-0             18             11  ...               59               16
     AAACCCAGTCGTCATA-1-0              5             14  ...               76               17
-
     [5 rows x 14 columns]
     >>> # setup anndata with batch and labels information from adata.obs and protein expressions from adata.obsm
     >>> setup_anndata(adata, batch_key='batch', labels_key='labels', protein_expression_obsm_key='protein_expression', X_layers_key='raw_counts')
@@ -245,6 +244,7 @@ def setup_anndata(
     'PD-1_TotalSeqB',
     'TIGIT_TotalSeqB',
     'CD127_TotalSeqB']
+
     """
     if adata.is_view:
         raise ValueError("adata cannot be a view of an AnnData object.")
