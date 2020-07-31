@@ -72,7 +72,7 @@ def setup_anndata(
     protein_names_uns_key: str = None,
     copy: bool = False,
 ) -> Optional[anndata.AnnData]:
-    """Sets up anndata object for scVI models.
+    """Sets up AnnData object for scVI models.
 
     A mapping will be created between data fields used by scVI to their respective locations in adata
     This method will also compute the log mean and log variance per batch.
@@ -82,58 +82,169 @@ def setup_anndata(
     Parameters
     ----------
     adata
-        anndata object containing raw counts
+        AnnData object containing raw counts
     batch_key
-        key in adata.obs for batch information. Will automatically be converted into integer categories
+        key in adata.obs for batch information. If they're not integers, will automatically be converted into integer
+        categories and saved to ``adata.obs['_scvi_batch']``. If ``None``, assigns the same batch to all the data.
     labels_key
-        key in adata.obs for label information. Will automatically be converted into integer categories
+        key in adata.obs for label information. If they're not integers, will automatically be converted into integer
+        categories and saved to ``adata.obs['_scvi_labels']``. If ``None``, assigns the same label to all the data.
     X_layers_key
-        if not None, uses this as the key in adata.layers for raw count
+        if not None, uses this as the key in ``adata.layers`` for raw count data.
     protein_expression_obsm_key
-        key in adata.obsm for protein expression data, Required for TotalVI
+        key in ``adata.obsm`` for protein expression data, Required for TotalVI.
     protein_names_uns_key
-        key in adata.uns for protein names. If None, will use the column names of adata.obsm[protein_expression_obsm_key]
+        key in ``adata.uns`` for protein names. If None, will use the column names of ``adata.obsm[protein_expression_obsm_key]``
         if it is a pandas dataframe, else will assign sequential names to proteins. Only relavent but not required for TotalVI.
     copy
-        if True, a copy of anndata is returned
+        if True, a copy of adata is returned.
 
     Returns
     -------
     if ``copy``,  will return ``anndata.AnnData`` else adds the following fields to adata:
 
-    ``.uns['scvi_data_registy']``
+    .uns['scvi_data_registy']
         dictionary mapping data fields used by scVI to their respective locations in adata
-    ``.uns['scvi_summary_stats']``
+    .uns['scvi_summary_stats']
         dictionary of summary statistics for adata
-    ``adata.obs[‘_local_l_mean’]``
+    .obs['_local_l_mean']
         per batch library size mean
-    ``adata.obs[‘_local_l_var’]``
+    .obs['_local_l_var']
         per batch library size variance
 
-    if no batch_key or labels_key was provided, or if they were not encoded as integers, will also add the following:
-    ``adata.obs[‘_scvi_labels’]``
+    if no ``batch_key`` or ``labels_key`` was provided, or if they were not encoded as integers, will also add the following:
+
+    adata.obs['_scvi_labels']
         labels encoded as integers
-    ``adata.obs[‘_scvi_batch’]``
+    adata.obs['_scvi_batch']
         batch encoded as integers
 
     Examples
     --------
+
+    Example setting up a scanpy dataset with random gene data and no batch nor label information
+
+    >>> import scanpy
     >>> import scvi
-    >>> adata = scvi.dataset.pbmcs_10x_cite_seq(save_path = save_path, run_setup_anndata = False)
-    >>> setup_anndata(adata, batch_key='batch', labels_key='labels', protein_expression_obsm_key='protein_expression')
+    >>> import numpy
+    >>> adata = scanpy.datasets.blobs()
+    >>> # filter cells and run preprocessing before setup_anndata
+    >>> scanpy.pp.filter_cells(adata, min_counts = 0)
+    >>> # since no batch_key nor labels_key was passed, setup_anndata() will assume all cells have the same batch and label
+    >>> setup_anndata(adata)
+    [2020-07-31 12:54:15,293] INFO - scvi.dataset._anndata | No batch_key inputted, assuming all cells are same batch
+    [2020-07-31 12:54:15,296] INFO - scvi.dataset._anndata | No label_key inputted, assuming all cells have same label
+    [2020-07-31 12:54:15,298] INFO - scvi.dataset._anndata | Using data from adata.X
+    [2020-07-31 12:54:15,300] INFO - scvi.dataset._anndata | Computing library size prior per batch
+    [2020-07-31 12:54:15,309] INFO - scvi.dataset._anndata | Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels']
+    [2020-07-31 12:54:15,312] INFO - scvi.dataset._anndata | Successfully registered anndata object containing 421 cells, 11 genes, and 1 batches.
+    >>> # see registered scVI fields and their respective locations in adata
     >>> adata.uns['scvi_data_registry']
     {'X': ['_X', None],
+    'batch_indices': ['obs', '_scvi_batch'],
+    'local_l_mean': ['obs', '_scvi_local_l_mean'],
+    'local_l_var': ['obs', '_scvi_local_l_var'],
+    'labels': ['obs', '_scvi_labels']}
+    >>> # summary statistics can be used to spot check setup
+    >>> adata.uns['scvi_summary_stats']
+    {'n_batch': 1, 'n_cells': 421, 'n_genes': 11, 'n_labels': 1}
+
+    Example setting up scanpy dataset with random gene data, batch, and protein expression
+
+    >>> import scanpy
+    >>> import scvi
+    >>> import numpy
+    >>> adata = scanpy.datasets.blobs()
+    >>> # filter cells and run preprocessing before setup_anndata
+    >>> scanpy.pp.filter_cells(adata, min_counts = 0)
+    >>> adata
+    AnnData object with n_obs × n_vars = 421 × 11
+        obs: 'blobs'
+    >>> # generate random protein expression data
+    >>> adata.obsm['rand_protein_exp'] = numpy.random.randint(0, 100, (adata.n_obs, 20))
+    >>> # setup adata with batch info from adata.obs['blobs'] and protein expressions from adata.obsm['rand_protein_exp']
+    >>> scvi.dataset.setup_anndata(adata, batch_key='blobs', protein_expression_obsm_key='rand_protein_exp' )
+    [2020-07-31 12:44:30,421] INFO - scvi.dataset._anndata | Using batches from adata.obs["blobs"]
+    [2020-07-31 12:44:30,425] INFO - scvi.dataset._anndata | No label_key inputted, assuming all cells have same label
+    [2020-07-31 12:44:30,427] INFO - scvi.dataset._anndata | Using data from adata.X
+    [2020-07-31 12:44:30,428] INFO - scvi.dataset._anndata | Computing library size prior per batch
+    [2020-07-31 12:44:30,442] INFO - scvi.dataset._anndata | Using protein expression from adata.obsm['rand_protein_exp']
+    [2020-07-31 12:44:30,443] INFO - scvi.dataset._anndata | Generating sequential protein names
+    [2020-07-31 12:44:30,445] INFO - scvi.dataset._anndata | Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels', 'protein_expression']
+    [2020-07-31 12:44:30,446] INFO - scvi.dataset._anndata | Successfully registered anndata object containing 421 cells, 11 genes, and 4 batches.
+    >>> # see registered scVI fields and their respective locations in adata
+    >>> adata.uns['scvi_data_registry']
+    {'X': ['_X', None],
+    'batch_indices': ['obs', '_scvi_batch'],
+    'local_l_mean': ['obs', '_scvi_local_l_mean'],
+    'local_l_var': ['obs', '_scvi_local_l_var'],
+    'labels': ['obs', '_scvi_labels'],
+    'protein_expression': ['obsm', 'rand_protein_exp']}
+    >>> # summary statistics can be used to spot check setup
+    >>> adata.uns['scvi_summary_stats']
+    {'n_batch': 4, 'n_cells': 421, 'n_genes': 11, 'n_labels': 1, 'n_proteins': 20}
+
+    Example with counts in a layer in AnnData and protein expression data as a pandas DataFrame
+
+    >>> import scvi
+    >>> # load a dataset
+    >>> adata = scvi.dataset.pbmcs_10x_cite_seq(run_setup_anndata = False)
+    >>> adata.layers['raw_counts'] = adata.X.copy()
+    >>> # keys in adata.obs
+    >>> adata.obs.keys()
+    Index(['n_genes', 'percent_mito', 'n_counts', 'batch', 'labels'], dtype='object')
+    >>> # adata.obsm['protein_expression'] contains expression data as well as protein names
+    >>> adata.obsm['protein_expression'].head()
+                            CD3_TotalSeqB  CD4_TotalSeqB  ...  TIGIT_TotalSeqB  CD127_TotalSeqB
+    index                                               ...
+    AAACCCAAGATTGTGA-1-0             18            138  ...                4                7
+    AAACCCACATCGGTTA-1-0             30            119  ...                9                8
+    AAACCCAGTACCGCGT-1-0             18            207  ...               11               12
+    AAACCCAGTATCGAAA-1-0             18             11  ...               59               16
+    AAACCCAGTCGTCATA-1-0              5             14  ...               76               17
+
+    [5 rows x 14 columns]
+    >>> # setup anndata with batch and labels information from adata.obs and protein expressions from adata.obsm
+    >>> setup_anndata(adata, batch_key='batch', labels_key='labels', protein_expression_obsm_key='protein_expression', X_layers_key='raw_counts')
+    [2020-07-31 13:04:28,129] INFO - scvi.dataset._anndata | Using batches from adata.obs["batch"]
+    [2020-07-31 13:04:28,135] INFO - scvi.dataset._anndata | Using labels from adata.obs["labels"]
+    [2020-07-31 13:04:28,136] INFO - scvi.dataset._anndata | Using data from adata.layers["raw_counts"]
+    [2020-07-31 13:04:30,018] INFO - scvi.dataset._anndata | Computing library size prior per batch
+    [2020-07-31 13:04:30,664] INFO - scvi.dataset._anndata | Using protein expression from adata.obsm['protein_expression']
+    [2020-07-31 13:04:30,669] INFO - scvi.dataset._anndata | Using protein names from columns of adata.obsm['protein_expression']
+    [2020-07-31 13:04:30,672] INFO - scvi.dataset._anndata | Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels', 'protein_expression']
+    [2020-07-31 13:04:30,673] INFO - scvi.dataset._anndata | Successfully registered anndata object containing 10849 cells, 15792 genes, and 2 batches.
+    >>> # see registered scVI fields and their respective loaations in adata
+    >>> adata.uns['scvi_data_registry']
+    {'X': ['layers', 'raw_counts'],
     'batch_indices': ['obs', 'batch'],
     'local_l_mean': ['obs', '_scvi_local_l_mean'],
     'local_l_var': ['obs', '_scvi_local_l_var'],
     'labels': ['obs', 'labels'],
     'protein_expression': ['obsm', 'protein_expression']}
+    >>> # summary statistics can be used to spot check setup
     >>> adata.uns['scvi_summary_stats']
     {'n_batch': 2,
     'n_cells': 10849,
     'n_genes': 15792,
     'n_labels': 1,
     'n_proteins': 14}
+    >>> # notice that this is the same as the columns of adata.obsm['protein_expression']
+    >>> adata.uns['scvi_protein_names']
+    ['CD3_TotalSeqB',
+    'CD4_TotalSeqB',
+    'CD8a_TotalSeqB',
+    'CD14_TotalSeqB',
+    'CD15_TotalSeqB',
+    'CD16_TotalSeqB',
+    'CD56_TotalSeqB',
+    'CD19_TotalSeqB',
+    'CD25_TotalSeqB',
+    'CD45RA_TotalSeqB',
+    'CD45RO_TotalSeqB',
+    'PD-1_TotalSeqB',
+    'TIGIT_TotalSeqB',
+    'CD127_TotalSeqB']
     """
     if adata.is_view:
         raise ValueError("adata cannot be a view of an AnnData object.")
@@ -323,7 +434,7 @@ def _setup_X(adata, X_layers_key):
                 logger_data_loc
             )
         )
-    if adata.shape[0] < adata.shape[1] < 1:
+    if adata.shape[0] / adata.shape[1] < 1:
         warnings.warn("adata has more genes than cells. SCVI may not work properly.")
 
     return X_loc, X_key
