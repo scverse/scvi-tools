@@ -1,7 +1,6 @@
 import logging
 import os
 import pandas as pd
-import loompy
 import numpy as np
 import anndata
 
@@ -65,6 +64,8 @@ def _load_smfish(
 def _load_smfish_data(
     path_to_file: str, use_high_level_cluster: bool
 ) -> anndata.AnnData:
+    import loompy
+
     logger.info("Loading smFISH dataset")
     ds = loompy.connect(path_to_file)
     x_coord, y_coord = ds.ca["X"], ds.ca["Y"]
