@@ -42,6 +42,18 @@ logger = logging.getLogger(__name__)
 
 
 class BatchSampler(torch.utils.data.sampler.Sampler):
+    """Custom torch Sampler that returns a list of indices of size batch_size
+
+    Parameters
+    ----------
+    indices
+        list of indices to sample from
+    batch_size
+        batch size of each iteration
+    shuffle
+        if ``True``, shuffles indices before sampling
+    """
+
     def __init__(self, indices: np.ndarray, batch_size: int, shuffle: bool):
         self.indices = indices
         self.batch_size = batch_size
