@@ -461,18 +461,22 @@ def _setup_summary_stats(adata, batch_key, labels_key, protein_expression_obsm_k
     n_genes = adata.shape[1]
     n_labels = len(np.unique(adata.obs[labels_key]))
 
+    if protein_expression_obsm_key is not None:
+        n_proteins = adata.obsm[protein_expression_obsm_key].shape[1]
+    else:
+        n_proteins = 0
+
     summary_stats = {
         "n_batch": n_batch,
         "n_cells": n_cells,
         "n_genes": n_genes,
         "n_labels": n_labels,
+        "n_proteins": n_proteins,
     }
-    if protein_expression_obsm_key is not None:
-        summary_stats["n_proteins"] = adata.obsm[protein_expression_obsm_key].shape[1]
     adata.uns["scvi_summary_stats"] = summary_stats
     logger.info(
-        "Successfully registered anndata object containing {} cells, {} genes, and {} batches.".format(
-            n_cells, n_genes, n_batch
+        "Successfully registered anndata object containing {} cells, {} genes, {} batches, and {} proteins.".format(
+            n_cells, n_genes, n_batch, n_proteins
         )
     )
     return summary_stats
