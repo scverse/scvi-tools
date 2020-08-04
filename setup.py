@@ -20,8 +20,8 @@ requirements = [
     "tqdm>=4.31.1",
     "xlrd>=1.2.0",
     "hyperopt==0.1.2",
-    "anndata>=0.7.3",
-    "scanpy>=1.5.1",
+    "anndata>=0.7",
+    "scanpy>=1.4.6",
     'dataclasses; python_version < "3.7"',  # for `dataclass`
     "scikit-misc",
 ]
