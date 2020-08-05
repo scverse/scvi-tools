@@ -22,7 +22,7 @@ requirements = [
     "anndata>=0.7",
     "scanpy>=1.4.6",
     'dataclasses; python_version < "3.7"',  # for `dataclass`
-    "scikit-misc",
+    "scikit-misc>=0.1.3",
 ]
 
 setup_requirements = ["pip>=18.1"]
