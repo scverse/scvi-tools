@@ -65,3 +65,9 @@ class TestAnnDataset(TestCase):
         sparse_mat = sp_sparse.csc_matrix(data)
         ad = anndata.AnnData(sparse_mat)
         AnnDatasetFromAnnData(ad)
+
+    def test_protected_X(self):
+        data = np.random.poisson(0.2, size=(25, 10))
+        ad = anndata.AnnData(data)
+        ad.obs["_X"] = np.zeros(25)
+        AnnDatasetFromAnnData(ad)

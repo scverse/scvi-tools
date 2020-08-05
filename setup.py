@@ -16,14 +16,13 @@ requirements = [
     "scikit-learn>=0.20.3",
     "h5py>=2.9.0",
     "pandas>=0.25",
-    "loompy>=3.0.6",
     "tqdm>=4.31.1",
     "xlrd>=1.2.0",
     "hyperopt==0.1.2",
-    "anndata>=0.7.3",
-    "scanpy>=1.5.1",
+    "anndata>=0.7",
+    "scanpy>=1.4.6",
     'dataclasses; python_version < "3.7"',  # for `dataclass`
-    "scikit-misc",
+    "scikit-misc>=0.1.3",
 ]
 
 setup_requirements = ["pip>=18.1"]
@@ -50,6 +49,7 @@ extras_requirements = {
         "umap-learn>=0.3.10",
         "seaborn>=0.9.0",
         "leidenalg>=0.7.0",
+        "loompy>=3.0.6",
     ],
     "docs": [
         "sphinx>=2.0.1",
@@ -105,6 +105,6 @@ setup(
     tests_require=test_requirements,
     extras_require=extras_requirements,
     url="https://github.com/YosefLab/scVI",
-    version="0.6.6",
+    version="0.6.7",
     zip_safe=False,
 )
