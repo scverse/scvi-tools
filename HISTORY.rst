@@ -1,6 +1,13 @@
 =======
 History
 =======
+0.6.7 (2020-8-05)
+-----------------
+* downgrade anndata>=0.7 and scanpy>=1.4.6 `@galen`_
+* make loompy optional, raise sckmisc import error `@adam`_
+* fix PBMCDataset download bug `@galen`_
+* fix AnnDatasetFromAnnData _X in adata.obs bug `@galen`_ 
+
 0.6.6 (2020-7-08)
 -----------------
 * add tqdm to within cluster DE genes `@adam`_
