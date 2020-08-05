@@ -1,7 +1,6 @@
 import logging
 import os
 
-import loompy
 import numpy as np
 
 from scvi.dataset.dataset import DownloadableDataset
@@ -40,6 +39,12 @@ class SmfishDataset(DownloadableDataset):
         )
 
     def populate(self):
+        try:
+            import loompy
+        except ImportError:
+            raise ImportError(
+                "Please install loompy package via `pip install --user loompy"
+            )
         logger.info("Loading smFISH dataset")
         ds = loompy.connect(os.path.join(self.save_path, self.filenames[0]))
         gene_names = ds.ra["Gene"].astype(np.str)

@@ -16,7 +16,6 @@ requirements = [
     "scikit-learn>=0.20.3",
     "h5py>=2.9.0",
     "pandas>=0.25",
-    "loompy>=3.0.6",
     "tqdm>=4.31.1",
     "xlrd>=1.2.0",
     "hyperopt==0.1.2",
@@ -50,6 +49,7 @@ extras_requirements = {
         "umap-learn>=0.3.10",
         "seaborn>=0.9.0",
         "leidenalg>=0.7.0",
+        "loompy>=3.0.6",
     ],
     "docs": [
         "sphinx>=2.0.1",
