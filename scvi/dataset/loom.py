@@ -2,7 +2,6 @@ import logging
 import os
 from typing import List, Optional
 
-import loompy
 import numpy as np
 
 from scvi.dataset.dataset import DownloadableDataset
@@ -78,6 +77,13 @@ class LoomDataset(DownloadableDataset):
             gene_attributes_dict,
             global_attributes_dict,
         ) = (None, None, None, None, None, None, None)
+
+        try:
+            import loompy
+        except ImportError:
+            raise ImportError(
+                "Please install loompy package via `pip install --user loompy"
+            )
 
         ds = loompy.connect(os.path.join(self.save_path, self.filenames[0]))
         select = ds[:, :].sum(axis=0) > 0  # Take out cells that don't express any gene
