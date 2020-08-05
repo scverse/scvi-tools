@@ -1770,7 +1770,13 @@ def seurat_v3_highly_variable_genes(
     """
 
     from scanpy.preprocessing._utils import _get_mean_var
-    from skmisc.loess import loess
+
+    try:
+        from skmisc.loess import loess
+    except ImportError:
+        raise ImportError(
+            "Please install skmisc package via `pip install --user scikit-misc"
+        )
 
     if batch_key is None:
         batch_info = pd.Categorical(np.zeros(adata.shape[0], dtype=int))
