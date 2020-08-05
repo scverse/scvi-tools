@@ -1,5 +1,6 @@
 from abc import abstractmethod, ABC
 from collections import OrderedDict, defaultdict
+from urllib.error import HTTPError
 import copy
 from dataclasses import dataclass
 from functools import partial
@@ -2037,8 +2038,11 @@ def _download(url: str, save_path: str, filename: str):
     if os.path.exists(os.path.join(save_path, filename)):
         logger.info("File %s already downloaded" % (os.path.join(save_path, filename)))
         return
-
-    r = urllib.request.urlopen(url)
+    try:
+        r = urllib.request.urlopen(url)
+    except HTTPError:
+        req = urllib.request.Request(url, headers={"User-Agent": "Magic Browser"})
+        r = urllib.request.urlopen(req)
     logger.info("Downloading file at %s" % os.path.join(save_path, filename))
 
     def read_iter(file, block_size=1000):
