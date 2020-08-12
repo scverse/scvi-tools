@@ -146,6 +146,31 @@ class VAE(nn.Module):
         """
         return [self.sample_from_posterior_z(x, y)]
 
+    # this guide is just for VAE
+    def guide(self, x):
+        """Encoder outputs
+        """
+        if self.log_variational:
+            x = torch.log(1 + x)
+        y = np.zeros(x.shape[0])
+        qz_m, qz_v, z = self.z_encoder(x, y)
+        ql_m, ql_v, library = self.l_encoder(x)
+
+        return {
+            "qz_m": qz_m,
+            "qz_v": qz_v,
+            "z": z,
+            "ql_m": ql_m,
+            "ql_v": ql_v,
+            "library": library,
+        }
+
+    def model(self, x):
+        """
+
+        """
+        pass
+
     def sample_from_posterior_z(
         self, x, y=None, give_mean=False, n_samples=5000
     ) -> torch.Tensor:
@@ -171,6 +196,8 @@ class VAE(nn.Module):
         if self.log_variational:
             x = torch.log(1 + x)
         qz_m, qz_v, z = self.z_encoder(x, y)  # y only used in VAEC
+
+        # would you ever use give_mean = False?
         if give_mean:
             if self.latent_distribution == "ln":
                 samples = Normal(qz_m, qz_v.sqrt()).sample([n_samples])

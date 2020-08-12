@@ -13,108 +13,108 @@ from scipy.stats import entropy, kde
 from sklearn.neighbors import KNeighborsRegressor, NearestNeighbors
 
 
-def load_posterior(
-    dir_path: str,
-    model: nn.Module,
-    use_cuda: Optional[Union[bool, str]] = "auto",
-    **posterior_kwargs
-):
-    """Function to use in order to retrieve a posterior that was saved using the ``save_posterior`` method
+# def load_posterior(
+#     dir_path: str,
+#     model: nn.Module,
+#     use_cuda: Optional[Union[bool, str]] = "auto",
+#     **posterior_kwargs
+# ):
+#     """Function to use in order to retrieve a posterior that was saved using the ``save_posterior`` method
 
-    Because of pytorch model loading usage, this function needs a scVI model object initialized with exact same parameters
-    that during training.
-    Because saved posteriors correspond to already trained models, data is loaded sequentially using a ``SequentialSampler``.
+#     Because of pytorch model loading usage, this function needs a scVI model object initialized with exact same parameters
+#     that during training.
+#     Because saved posteriors correspond to already trained models, data is loaded sequentially using a ``SequentialSampler``.
 
-    Parameters
-    ----------
-    dir_path
-        directory containing the posterior properties to be retrieved.
-    model
-        scVI initialized model.
-    use_cuda
-        Specifies if the computations should be perfomed with a GPU.
-        Default: ``True``
-        If ``auto``, then cuda availability is inferred, with a preference to load on GPU.
-        If ``False``, the model will be loaded on the CPU, even if it was trained using a GPU.
-    **posterior_kwargs
-        additional parameters to feed to the posterior constructor.
+#     Parameters
+#     ----------
+#     dir_path
+#         directory containing the posterior properties to be retrieved.
+#     model
+#         scVI initialized model.
+#     use_cuda
+#         Specifies if the computations should be perfomed with a GPU.
+#         Default: ``True``
+#         If ``auto``, then cuda availability is inferred, with a preference to load on GPU.
+#         If ``False``, the model will be loaded on the CPU, even if it was trained using a GPU.
+#     **posterior_kwargs
+#         additional parameters to feed to the posterior constructor.
 
-    Returns
-    -------
+#     Returns
+#     -------
 
-    >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
-    >>> trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
-    >>> trainer.train(n_epochs=200)
-    >>> trainer.train_set.save_posterior("./my_run_train_posterior")
+#     >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
+#     >>> trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
+#     >>> trainer.train(n_epochs=200)
+#     >>> trainer.train_set.save_posterior("./my_run_train_posterior")
 
-    >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
-    >>> post = load_posterior("./my_run_train_posterior", model=model)
-    """
-    # Avoid circular imports
-    from scvi.inference.total_inference import TotalPosterior
-    from scvi.inference.jvae_trainer import JPosterior
-    from scvi.inference.posterior import Posterior
-    from scvi.inference.annotation import AnnotationPosterior
+#     >>> model = VAE(nb_genes, n_batches, n_hidden=128, n_latent=10)
+#     >>> post = load_posterior("./my_run_train_posterior", model=model)
+#     """
+#     # Avoid circular imports
+#     from scvi.inference.total_inference import TotalPosterior
+#     from scvi.inference.jvae_trainer import JPosterior
+#     from scvi.inference.posterior import Posterior
+#     from scvi.inference.annotation import AnnotationPosterior
 
-    post_type_path = os.path.join(dir_path, "posterior_type.txt")
-    dataset_path = os.path.join(dir_path, "anndata_dataset.h5ad")
-    model_path = os.path.join(dir_path, "model_params.pt")
-    indices_path = os.path.join(dir_path, "indices.npy")
-    data_loader_kwargs_path = os.path.join(dir_path, "data_loader_kwargs.h5")
-    sampler_kwargs_path = os.path.join(dir_path, "sampler_kwargs.h5")
+#     post_type_path = os.path.join(dir_path, "posterior_type.txt")
+#     dataset_path = os.path.join(dir_path, "anndata_dataset.h5ad")
+#     model_path = os.path.join(dir_path, "model_params.pt")
+#     indices_path = os.path.join(dir_path, "indices.npy")
+#     data_loader_kwargs_path = os.path.join(dir_path, "data_loader_kwargs.h5")
+#     sampler_kwargs_path = os.path.join(dir_path, "sampler_kwargs.h5")
 
-    # Infering posterior type
-    with open(post_type_path, "r") as post_file:
-        post_class_str = post_file.readline()
-    str_to_classes = dict(
-        TotalPosterior=TotalPosterior,
-        JPosterior=JPosterior,
-        Posterior=Posterior,
-        AnnotationPosterior=AnnotationPosterior,
-    )
-    if post_class_str not in str_to_classes:
-        raise ValueError(
-            "Posterior type {} not eligible for loading".format(post_class_str)
-        )
-    post_class = str_to_classes[post_class_str]
+#     # Infering posterior type
+#     with open(post_type_path, "r") as post_file:
+#         post_class_str = post_file.readline()
+#     str_to_classes = dict(
+#         TotalPosterior=TotalPosterior,
+#         JPosterior=JPosterior,
+#         Posterior=Posterior,
+#         AnnotationPosterior=AnnotationPosterior,
+#     )
+#     if post_class_str not in str_to_classes:
+#         raise ValueError(
+#             "Posterior type {} not eligible for loading".format(post_class_str)
+#         )
+#     post_class = str_to_classes[post_class_str]
 
-    # Loading dataset and associated measurements
-    ad = anndata.read_h5ad(filename=dataset_path)
-    # anndata writes None as ''. Thus need to convert back when reading
-    for key, data_loc in ad.uns["scvi_data_registry"].items():
-        df, df_key = data_loc[0], data_loc[1]
-        if df == "":
-            ad.uns["scvi_data_registry"][key] = [None, df_key]
+#     # Loading dataset and associated measurements
+#     ad = anndata.read_h5ad(filename=dataset_path)
+#     # anndata writes None as ''. Thus need to convert back when reading
+#     for key, data_loc in ad.uns["scvi_data_registry"].items():
+#         df, df_key = data_loc[0], data_loc[1]
+#         if df == "":
+#             ad.uns["scvi_data_registry"][key] = [None, df_key]
 
-    # Loading scVI model
-    if use_cuda == "auto":
-        use_cuda = torch.cuda.is_available()
-    use_cuda = use_cuda and torch.cuda.is_available()
-    if use_cuda:
-        model.load_state_dict(torch.load(model_path))
-        model.cuda()
-    else:
-        device = torch.device("cpu")
-        model.load_state_dict(torch.load(model_path, map_location=device))
-    model.eval()
+#     # Loading scVI model
+#     if use_cuda == "auto":
+#         use_cuda = torch.cuda.is_available()
+#     use_cuda = use_cuda and torch.cuda.is_available()
+#     if use_cuda:
+#         model.load_state_dict(torch.load(model_path))
+#         model.cuda()
+#     else:
+#         device = torch.device("cpu")
+#         model.load_state_dict(torch.load(model_path, map_location=device))
+#     model.eval()
 
-    # Loading data loader options and posterior
-    indices = np.load(file=indices_path)
-    data_loader_kwargs = pd.read_hdf(
-        data_loader_kwargs_path, key="data_loader"
-    ).to_dict()
-    sampler_kwargs = pd.read_hdf(sampler_kwargs_path, key="sampler").to_dict()
-    my_post = post_class(
-        model=model,
-        adata=ad,
-        shuffle=sampler_kwargs["shuffle"],
-        indices=indices,
-        batch_size=sampler_kwargs["batch_size"],
-        use_cuda=use_cuda,
-        data_loader_kwargs=data_loader_kwargs,
-        **posterior_kwargs
-    )
-    return my_post
+#     # Loading data loader options and posterior
+#     indices = np.load(file=indices_path)
+#     data_loader_kwargs = pd.read_hdf(
+#         data_loader_kwargs_path, key="data_loader"
+#     ).to_dict()
+#     sampler_kwargs = pd.read_hdf(sampler_kwargs_path, key="sampler").to_dict()
+#     my_post = post_class(
+#         model=model,
+#         adata=ad,
+#         shuffle=sampler_kwargs["shuffle"],
+#         indices=indices,
+#         batch_size=sampler_kwargs["batch_size"],
+#         use_cuda=use_cuda,
+#         data_loader_kwargs=data_loader_kwargs,
+#         **posterior_kwargs
+#     )
+#     return my_post
 
 
 def entropy_from_indices(indices):
