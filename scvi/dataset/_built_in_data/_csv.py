@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-import scanpy as sc
+import anndata
 import os
 
 from scvi.dataset._built_in_data._utils import _download
@@ -51,7 +51,7 @@ def _load_csv(
     first_column_names: bool = None,
 ):
     logger.info("Loading dataset from {}".format(path_to_file))
-    adata = sc.read_csv(
+    adata = anndata.read_csv(
         path_to_file, delimiter=delimiter, first_column_names=first_column_names
     )
     if gene_by_cell:
