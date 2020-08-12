@@ -1,5 +1,4 @@
 import logging
-import scanpy
 import os
 import tarfile
 import numpy as np
@@ -85,6 +84,11 @@ def _load_dataset10X(
     remove_extracted_data: bool = False,
     **scanpy_read_10x_kwargs,
 ):
+    try:
+        import scanpy
+    except ImportError:
+        raise ImportError("Please install scanpy -- `pip install scanpy`")
+
     # form data url and filename unless manual override
     if dataset_name is not None:
         if url is not None:
