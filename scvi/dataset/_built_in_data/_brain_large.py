@@ -112,6 +112,7 @@ def _load_brainlarge_file(
     counts = adata.X.sum(1)
     if sp_sparse.issparse(counts):
         counts = counts.A1
+
     gene_num = (adata.X > 0).sum(1)
     if sp_sparse.issparse(gene_num):
         gene_num = gene_num.A1
