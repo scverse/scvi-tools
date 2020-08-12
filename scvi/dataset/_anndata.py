@@ -261,10 +261,10 @@ def setup_anndata(
 
     data_registry = {
         _CONSTANTS.X_KEY: [X_loc, X_key],
-        _CONSTANTS.BATCH_KEY: ["obs", batch_key],
-        _CONSTANTS.LOCAL_L_MEAN_KEY: ["obs", local_l_mean_key],
-        _CONSTANTS.LOCAL_L_VAR_KEY: ["obs", local_l_var_key],
-        _CONSTANTS.LABELS_KEY: ["obs", labels_key],
+        _CONSTANTS.BATCH_KEY: ["_obs", batch_key],
+        _CONSTANTS.LOCAL_L_MEAN_KEY: ["_obs", local_l_mean_key],
+        _CONSTANTS.LOCAL_L_VAR_KEY: ["_obs", local_l_var_key],
+        _CONSTANTS.LABELS_KEY: ["_obs", labels_key],
     }
 
     if protein_expression_obsm_key is not None:
@@ -272,7 +272,7 @@ def setup_anndata(
             adata, protein_expression_obsm_key, protein_names_uns_key, batch_key
         )
         data_registry[_CONSTANTS.PROTEIN_EXP_KEY] = [
-            "obsm",
+            "_obsm",
             protein_expression_obsm_key,
         ]
 
@@ -414,7 +414,7 @@ def _setup_X(adata, X_layers_key):
             X_layers_key in adata.layers.keys()
         ), "{} is not a valid key in adata.layers".format(X_layers_key)
         logger.info('Using data from adata.layers["{}"]'.format(X_layers_key))
-        X_loc = "layers"
+        X_loc = "_layers"
         X_key = X_layers_key
         X = adata.layers[X_key]
     else:
