@@ -1,9 +1,10 @@
 import pandas as pd
 import numpy as np
-import scanpy as sc
+import anndata
 import os
 
 from scvi.dataset import setup_anndata
+from scvi.dataset._built_in_data._utils import _download
 
 
 def _load_pbmcs_10x_cite_seq(
@@ -27,14 +28,17 @@ def _load_pbmcs_10x_cite_seq(
 
     Missing protein values are zero, and are identified during `AnnData` setup.
     """
-    dataset1 = sc.read(
-        os.path.join(save_path, "pbmc_10k_protein_v3.h5ad"),
-        backup_url="https://github.com/YosefLab/scVI-data/raw/master/pbmc_10k_protein_v3.h5ad?raw=true",
-    )
-    dataset2 = sc.read(
-        os.path.join(save_path, "pbmc_5k_protein_v3.h5ad"),
-        backup_url="https://github.com/YosefLab/scVI-data/raw/master/pbmc_5k_protein_v3.h5ad?raw=true",
-    )
+
+    url = "https://github.com/YosefLab/scVI-data/raw/master/pbmc_10k_protein_v3.h5ad?raw=true"
+    save_fn = "pbmc_10k_protein_v3.h5ad"
+    _download(url, save_path, save_fn)
+    dataset1 = anndata.read_h5ad(os.path.join(save_path, save_fn))
+
+    url = "https://github.com/YosefLab/scVI-data/raw/master/pbmc_5k_protein_v3.h5ad?raw=true"
+    save_fn = "pbmc_5k_protein_v3.h5ad"
+    _download(url, save_path, save_fn)
+    dataset2 = anndata.read_h5ad(os.path.join(save_path, "pbmc_5k_protein_v3.h5ad"))
+
     common_genes = dataset1.var_names.intersection(dataset2.var_names)
     dataset1 = dataset1[:, common_genes]
     dataset2 = dataset2[:, common_genes]

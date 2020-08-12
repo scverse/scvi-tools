@@ -20,7 +20,6 @@ requirements = [
     "xlrd>=1.2.0",
     "hyperopt==0.1.2",
     "anndata>=0.7",
-    "scanpy>=1.4.6",
     'dataclasses; python_version < "3.7"',  # for `dataclass`
     "scikit-misc>=0.1.3",
     "tables>=3.6.1",  # read_hdf pandas in load_posterior
@@ -51,6 +50,7 @@ extras_requirements = {
         "seaborn>=0.9.0",
         "leidenalg>=0.7.0",
         "loompy>=3.0.6",
+        "scanpy>=1.4.6",
     ],
     "docs": [
         "sphinx>=2.0.1",

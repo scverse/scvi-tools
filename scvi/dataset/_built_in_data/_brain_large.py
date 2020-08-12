@@ -1,5 +1,4 @@
 import logging
-import scanpy
 import anndata
 import h5py
 import numpy as np
@@ -101,7 +100,7 @@ def _load_brainlarge_file(
                 matrix = sp_sparse.vstack([matrix, matrix_batch])
             logger.info(
                 "loaded {} / {} cells".format(
-                    i * loading_batch_size + n_cells_batch, n_cells_to_keep,
+                    i * loading_batch_size + n_cells_batch, n_cells_to_keep
                 )
             )
     logger.info("%d cells subsampled" % matrix.shape[0])
@@ -110,6 +109,15 @@ def _load_brainlarge_file(
     adata.obs["labels"] = np.zeros(matrix.shape[0])
     adata.obs["batch"] = np.zeros(matrix.shape[0])
 
-    scanpy.pp.filter_cells(adata, min_counts=1)
-    scanpy.pp.filter_cells(adata, min_genes=1)
-    return adata
+    counts = adata.X.sum(1)
+    if sp_sparse.issparse(counts):
+        counts = counts.A1
+
+    gene_num = (adata.X > 0).sum(1)
+    if sp_sparse.issparse(gene_num):
+        gene_num = gene_num.A1
+
+    adata = adata[counts > 1]
+    adata = adata[gene_num > 1]
+
+    return adata.copy()
