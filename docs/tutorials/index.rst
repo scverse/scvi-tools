@@ -34,3 +34,4 @@ Also, please pardon the code at the beginning of tutorials that is used for test
    gimvi
    linear_decoder
    autotune
+   scVI_DE_worm
