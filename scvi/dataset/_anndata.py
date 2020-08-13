@@ -57,9 +57,12 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
         df_key = None
     data = getattr(adata, df)
     if df_key is not None:
-        data = data[df_key]
+        if isinstance(data, pd.DataFrame):
+            data = data.loc[:, df_key]
+        else:
+            data = data[df_key]
     if isinstance(data, pd.Series):
-        data = np.array(data.values).reshape(adata.shape[0], -1)
+        data = data.to_numpy().reshape(1, -1)
     return data
 
 
