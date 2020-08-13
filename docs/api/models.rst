@@ -1,15 +1,56 @@
+======
 Models
 ======
 
 .. currentmodule:: scvi
 
+scVI
+~~~~
 
 .. autosummary::
    :toctree: reference/
 
    models.VAE
+
+scANVI
+~~~~~~
+.. autosummary::
+   :toctree: reference/
+
    models.SCANVI
+
+
+totalVI
+~~~~~~~
+
+.. autosummary::
+   :toctree: reference/
+
    models.TOTALVI
-   models.AutoZIVAE
+
+
+Linearly-decoded scVI
+~~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: reference/
+
    models.LDVAE
+
+
+AutoZI
+~~~~~~
+
+.. autosummary::
+   :toctree: reference/
+
+   models.AutoZIVAE
+
+
+gimVI
+~~~~~~
+
+.. autosummary::
+   :toctree: reference/
+
    models.JVAE
