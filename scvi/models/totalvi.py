@@ -32,8 +32,7 @@ class TOTALVI(nn.Module):
     n_labels
         Number of labels
     n_hidden
-        Number of nodes per hidden layer for the z encoder (protein+genes),
-        genes library encoder, z->genes+proteins decoder
+        Number of nodes per hidden layer for encoder and decoder
     n_latent
         Dimensionality of the latent space
     n_layers
@@ -65,10 +64,9 @@ class TOTALVI(nn.Module):
         * ``'normal'`` - Isotropic normal
         * ``'ln'`` - Logistic normal with normal params N(0, 1)
 
-        Examples:
 
-    Returns
-    -------
+    Examples
+    --------
 
     >>> dataset = Dataset10X(dataset_name="pbmc_10k_protein_v3", save_path=save_path)
     >>> totalvae = TOTALVI(gene_dataset.nb_genes, len(dataset.protein_names), use_cuda=True)
