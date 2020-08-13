@@ -14,6 +14,82 @@ These models are able to simultaneously perform many downstream tasks such as le
 
 * If you find a model useful for your research, please consider citing the corresponding publication.
 
+
+.. raw:: html
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
+                <div class="card text-center intro-card shadow">
+                <img src="_static/computer-24px.svg" class="card-img-top" alt="getting started with scvi action icon" height="52">
+                <div class="card-body flex-fill">
+                    <h5 class="card-title">Getting started</h5>
+                    <p class="card-text">New to <em>scvi</em>? Check out the installation guide.
+                    </p>
+
+.. container:: custom-button
+
+    :doc:`To the installation guide<installation>`
+
+.. raw:: html
+
+                </div>
+                </div>
+            </div>
+            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
+                <div class="card text-center intro-card shadow">
+                <img src="_static/play_circle_outline-24px.svg" class="card-img-top" alt="pandas user guide action icon" height="52">
+                <div class="card-body flex-fill">
+                    <h5 class="card-title">User guide</h5>
+                    <p class="card-text">The tutorials provide in-depth information on running scvi models.</p>
+
+.. container:: custom-button
+
+    :doc:`To the tutorials<tutorials/index>`
+
+.. raw:: html
+
+                </div>
+                </div>
+            </div>
+            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
+                <div class="card text-center intro-card shadow">
+                <img src="_static/library_books-24px.svg" class="card-img-top" alt="api of pandas action icon" height="52">
+                <div class="card-body flex-fill">
+                    <h5 class="card-title">API reference</h5>
+                    <p class="card-text">The API reference contains a detailed description of
+                    the scvi API.</p>
+
+.. container:: custom-button
+
+    :doc:`To the API reference<api/index>`
+
+.. raw:: html
+
+                </div>
+                </div>
+            </div>
+            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
+                <div class="card text-center intro-card shadow">
+                <img src="_static/code-24px.svg" class="card-img-top" alt="contribute to pandas action icon" height="52">
+                <div class="card-body flex-fill">
+                    <h5 class="card-title">Developer guide</h5>
+                    <p class="card-text">Want to improve scvi? The contributing guidelines
+                    will guide you through the process.</p>
+
+.. container:: custom-button
+
+    :doc:`To the development guide<contributing>`
+
+.. raw:: html
+
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
 .. toctree::
    :maxdepth: 3
    :hidden:
@@ -21,16 +97,9 @@ These models are able to simultaneously perform many downstream tasks such as le
 
    installation
    tutorials/index
-   contributed_tutorials/index
    api/index
    contributing
    history
    authors
    references
 
-
-Indices and tables
-==================
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
