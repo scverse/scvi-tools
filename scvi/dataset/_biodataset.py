@@ -74,8 +74,9 @@ class BioDataset(Dataset):
         By default, getitem will return every single item registered in the scvi data registry
         and also set their type to np.float32.
 
-        If you want to specify which specific tensors to return you can pass in a List of keys from the scvi data registry
-        If you want to speficy specific tensors to return as well as their associated types, then you can pass in a dictionary with their type.
+        If you want to specify which specific tensors to return you can pass in a List of keys from
+        the scvi data registry. If you want to speficy specific tensors to return as well as their
+        associated types, then you can pass in a dictionary with their type.
 
         Paramaters
         ----------
