@@ -1,11 +1,9 @@
-=======
 Dataset
 =======
-
 .. currentmodule:: scvi
 
 Data Loading
-------------
+~~~~~~~~~~~~
 
 ``scvi`` now relies entirely on the AnnData_ format. Please refer to the AnnData_ documentation for loading data from a variety of formats (e.g., `.csv`, `.loom`, `.h5ad`). Scanpy_ also has utilities_ to load data that are outputted by 10X's Cell Ranger software.
 
@@ -14,7 +12,7 @@ Data Loading
 .. _utilities: https://scanpy.readthedocs.io/en/stable/api/index.html#reading
 
 Basic Preprocessing
--------------------
+~~~~~~~~~~~~~~~~~~~
 
 For general single-cell preprocessing, we defer to our friends at Scanpy_, and specifically their preprocessing module (:mod:`scanpy.pp`).
 
@@ -35,7 +33,7 @@ Here we maintain a few package specific utilities for feature selection, etc.
 
 
 Data preparation
-----------------
+~~~~~~~~~~~~~~~~
 
 Setting up an AnnData object is a prerequisite for running any ``scvi`` model.
 
@@ -46,7 +44,7 @@ Setting up an AnnData object is a prerequisite for running any ``scvi`` model.
 
 
 Built in data
--------------
+~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: reference/
