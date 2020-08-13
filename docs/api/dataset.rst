@@ -2,7 +2,6 @@
 Dataset
 =======
 
-.. module:: scvi.dataset
 .. currentmodule:: scvi
 
 Data Loading
@@ -28,7 +27,7 @@ Here we maintain a few package specific utilities for feature selection, etc.
 .. _Scanpy: https://scanpy.readthedocs.io/en/stable/index.html
 
 .. autosummary::
-   :toctree: .
+   :toctree: reference/
 
    dataset.highly_variable_genes_seurat_v3
    dataset.poisson_gene_selection

@@ -2,7 +2,6 @@
 Models
 ======
 
-.. module:: scvi.models
 .. currentmodule:: scvi
 
 
