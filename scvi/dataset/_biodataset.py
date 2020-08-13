@@ -120,7 +120,7 @@ class BioDataset(Dataset):
 
         data_numpy = {}
         for key, dtype in self.attributes_and_types.items():
-            data = self.data[key]
+            data_numpy[key] = self.data[key]
             if isinstance(data, np.ndarray):
                 data_numpy[key] = data[idx].astype(dtype)
             elif isinstance(data_numpy[key], pd.DataFrame):
