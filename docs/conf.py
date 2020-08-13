@@ -94,7 +94,7 @@ intersphinx_mapping = dict(
     scipy=("https://docs.scipy.org/doc/scipy/reference/", None),
     sklearn=("https://scikit-learn.org/stable/", None),
     torch=("https://pytorch.org/docs/master/", None),
-    scanpy=("https://scanpy.readthedocs.io/en/stable/index.html", None),
+    scanpy=("https://scanpy.readthedocs.io/en/stable/", None),
 )
 qualname_overrides = {
     "scvi.dataset.dataset.GeneExpressionDataset": "scvi.dataset.GeneExpressionDataset"
@@ -139,29 +139,30 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
+html_theme = "pydata_sphinx_theme"
 
 # Theme options are theme-specific and customize the look and feel of a
 # theme further.  For a list of options available for each theme, see the
 # documentation.
 #
 # html_theme_options = {}
+html_theme_options = {
+    "github_url": "https://github.com/YosefLab/scVI",
+    "twitter_url": "https://twitter.com/YosefLab",
+    # "use_edit_page_button": True,
+}
 html_context = dict(
-    display_github=True,  # Integrate GitHub
+    # display_github=True,  # Integrate GitHub
     github_user="YosefLab",  # Username
     github_repo="scVI",  # Repo name
     github_version="master",  # Version
-    conf_py_path="/docs/",  # Path in the checkout to the docs root
+    doc_path="docs/",  # Path in the checkout to the docs root
 )
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 html_show_sphinx = False
-
-
-def setup(app):
-    app.add_stylesheet("css/custom.css")
 
 
 # -- Options for HTMLHelp output ---------------------------------------

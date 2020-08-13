@@ -7,3 +7,4 @@ ipython
 autodocsumm
 scanpydoc>=0.4.5
 sphinx-automodapi
+pydata-sphinx-theme
