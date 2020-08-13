@@ -62,7 +62,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
         else:
             data = data[df_key]
     if isinstance(data, pd.Series):
-        data = data.to_numpy().reshape(adata.shape[0], -1)
+        data = data.to_numpy().reshape(-1, 1)
     return data
 
 
