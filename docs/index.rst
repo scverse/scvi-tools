@@ -16,8 +16,9 @@ These models are able to simultaneously perform many downstream tasks such as le
 * If you find a model useful for your research, please consider citing the corresponding publication.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 3
    :hidden:
+   :titlesonly:
 
    installation
    tutorials/index
@@ -26,11 +27,6 @@ These models are able to simultaneously perform many downstream tasks such as le
    contributing
    history
    references
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Package Reference
-   :hidden:
 
 
 Indices and tables

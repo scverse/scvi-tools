@@ -43,7 +43,6 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",  # needs to be after napoleon
-    "sphinx_rtd_theme",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
     "scanpydoc.elegant_typehints",

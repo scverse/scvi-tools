@@ -9,7 +9,7 @@ Posterior
 
 
 .. autosummary::
-   :toctree: .
+   :toctree: reference/
 
    inference.Posterior
    inference.TotalPosterior
@@ -20,7 +20,7 @@ Training
 ~~~~~~~~
 
 .. autosummary::
-   :toctree: .
+   :toctree: reference/
 
    inference.Trainer
    inference.UnsupervisedTrainer
@@ -34,6 +34,6 @@ Autotune
 ~~~~~~~~
 
 .. autosummary::
-   :toctree: .
+   :toctree: reference/
 
    inference.autotune.auto_tune_scvi_model
