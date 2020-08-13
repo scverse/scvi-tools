@@ -66,7 +66,6 @@ source_suffix = ".rst"
 # Generate the API documentation when building
 autosummary_generate = True
 autodoc_member_order = "bysource"
-# autodoc_default_flags = ['members']
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = False
@@ -76,8 +75,6 @@ napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = False  # scanpydoc option, look into why we need this
-
-# autodoc_default_options = {"autosummary": True}
 
 # The master toctree document.
 master_doc = "index"
