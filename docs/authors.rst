@@ -2,11 +2,14 @@
 Authors
 =======
 
+We are grateful to have received contributions from many authors (`scVI graph`_).
 
 Key contributors
 ~~~~~~~~~~~~~~~~
 
-`scVI graph`_ | # = maintainer, ☀ = diverse contributions
+Here we highlight some key contributors who helped craft this project into what it is today.
+
+# = maintainer, ☀ = diverse contributions
 
 * `Romain Lopez`_: scVI lead, ☀, #
 * `Adam Gayoso`_: totalVI lead, LDVAE, ☀, #
