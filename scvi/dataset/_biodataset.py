@@ -120,10 +120,10 @@ class BioDataset(Dataset):
 
         data_numpy = {}
         for key, dtype in self.attributes_and_types.items():
-            data_numpy[key] = self.data[key]
+            data = self.data[key]
             if isinstance(data, np.ndarray):
                 data_numpy[key] = data[idx].astype(dtype)
-            elif isinstance(data_numpy[key], pd.DataFrame):
+            elif isinstance(data, pd.DataFrame):
                 data_numpy[key] = data.iloc[idx, :].to_numpy().astype(dtype)
             else:
                 data_numpy[key] = data[idx].toarray().astype(dtype)
