@@ -1,6 +1,5 @@
 .. include:: ../README.rst
    :end-line: 22
-.. include:: _authors.rst
 
 scVI is a package for end-to-end analysis of single-cell omics data. The package is composed of several deep generative models for omics data analysis, namely:
 
@@ -26,6 +25,7 @@ These models are able to simultaneously perform many downstream tasks such as le
    api/index
    contributing
    history
+   authors
    references
 
 
