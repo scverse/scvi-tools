@@ -403,7 +403,7 @@ class Trainer:
             ),
         )
 
-   def create_posterior(
+    def create_posterior(
         self,
         model=None,
         adata: anndata.AnnData = None,

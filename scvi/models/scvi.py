@@ -4,12 +4,12 @@ import torch
 import pandas as pd
 
 from typing import Optional, Union, List, Callable
-from scvi.models import VAE
-from scvi.inference import UnsupervisedTrainer
-from scvi.inference import Posterior
+from scvi.models.vae import VAE
 from ._base import AbstractModelClass
 from .de import DifferentialExpression
 from scvi import _CONSTANTS
+from scvi.inference import UnsupervisedTrainer
+from scvi.inference import Posterior
 
 
 class SCVI(AbstractModelClass):

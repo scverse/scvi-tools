@@ -5,7 +5,11 @@ import pandas as pd
 import torch
 import logging
 import warnings
-from scvi.inference import pairs_sampler, describe_continuous_distrib, save_cluster_xlsx
+from scvi.inference.posterior_utils import (
+    pairs_sampler,
+    describe_continuous_distrib,
+    save_cluster_xlsx,
+)
 from typing import Union, List, Optional, Callable, Dict
 
 logger = logging.getLogger(__name__)
