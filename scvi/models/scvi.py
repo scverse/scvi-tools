@@ -6,7 +6,7 @@ import pandas as pd
 
 from typing import Optional, Union, List
 from scvi._compat import Literal
-from scvi.models.vae import VAE
+from scvi.models._modules.vae import VAE
 from scvi.models._base import AbstractModelClass
 
 # from scvi.models._differential import DifferentialExpression
