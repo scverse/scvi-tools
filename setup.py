@@ -57,7 +57,6 @@ extras_requirements = {
         "nbsphinx",
         "sphinx_autodoc_typehints",
         "sphinx-rtd-theme>=0.3.1",
-        "autodocsumm",
         "nbsphinx-link",
         "scanpydoc",
         "pydata-sphinx-theme",
