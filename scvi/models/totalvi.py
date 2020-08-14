@@ -368,12 +368,14 @@ class TOTALVI(nn.Module):
         self,
         x: torch.Tensor,
         y: torch.Tensor,
-        px_: Dict[str, torch.Tensor],
-        py_: Dict[str, torch.Tensor],
+        px_dict: Dict[str, torch.Tensor],
+        py_dict: Dict[str, torch.Tensor],
         pro_batch_mask_minibatch: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Compute reconstruction loss
         """
+        px_ = px_dict
+        py_ = py_dict
         # Reconstruction Loss
         if self.reconstruction_loss_gene == "zinb":
             reconst_loss_gene = (

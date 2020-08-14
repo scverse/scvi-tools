@@ -74,7 +74,7 @@ napoleon_use_param = True
 napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
 numpydoc_show_class_members = False
-annotate_defaults = False  # scanpydoc option, look into why we need this
+annotate_defaults = True  # scanpydoc option, look into why we need this
 
 # The master toctree document.
 master_doc = "index"
