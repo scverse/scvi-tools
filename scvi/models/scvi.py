@@ -4,7 +4,7 @@ import logging
 import torch
 import pandas as pd
 
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Dict
 from scvi._compat import Literal
 from scvi.models._modules.vae import VAE
 from scvi.models._base import AbstractModelClass
@@ -30,7 +30,7 @@ class SCVI(AbstractModelClass):
         n_layers=1,
         dropout_rate=0.1,
         dispersion="gene",
-        reconstruction_loss="zinb",
+        gene_likelihood="zinb",
         latent_distribution="normal",
         use_cuda=True,
         **model_kwargs,
@@ -50,7 +50,7 @@ class SCVI(AbstractModelClass):
             n_layers=n_layers,
             dropout_rate=dropout_rate,
             dispersion=dispersion,
-            reconstruction_loss=reconstruction_loss,
+            reconstruction_loss=gene_likelihood,
             latent_distribution=latent_distribution,
             **model_kwargs,
         )
@@ -107,7 +107,6 @@ class SCVI(AbstractModelClass):
             )
         self.model.eval()
 
-    # what args do we actually want here?
     def train(
         self,
         n_epochs=400,
@@ -116,6 +115,7 @@ class SCVI(AbstractModelClass):
         learning_rate=1e-3,
         n_iter_kl_warmup=None,
         n_epochs_kl_warmup=400,
+        metric_frequency=None,
         trainer_kwargs={},
         train_kwargs={},
     ):
@@ -127,10 +127,32 @@ class SCVI(AbstractModelClass):
             test_size=test_size,
             n_iter_kl_warmup=n_iter_kl_warmup,
             n_epochs_kl_warmup=n_epochs_kl_warmup,
+            frequency=metric_frequency,
             **trainer_kwargs,
         )
         self.trainer.train(n_epochs=n_epochs, lr=learning_rate, **train_kwargs)
         self.is_trained = True
+
+    @torch.no_grad()
+    def get_elbo(self, adata=None, indices=None):
+
+        post = self._make_posterior(adata=adata, indices=indices)
+
+        return -post.elbo()
+
+    @torch.no_grad()
+    def get_marginal_ll(self, adata=None, indices=None, n_mc_samples=1000):
+
+        post = self._make_posterior(adata=adata, indices=indices)
+
+        return -post.marginal_ll(n_mc_samples=n_mc_samples)
+
+    @torch.no_grad()
+    def get_reconstruction_error(self, adata=None, indices=None):
+
+        post = self._make_posterior(adata=adata, indices=indices)
+
+        return -post.reconstruction_error()
 
     @torch.no_grad()
     def get_latent_representation(
@@ -372,3 +394,193 @@ class SCVI(AbstractModelClass):
         x_new = torch.cat(x_new)  # Shape (n_cells, n_genes, n_samples)
 
         return x_new.numpy()
+
+    @torch.no_grad()
+    def _get_denoised_samples(
+        self,
+        adata=None,
+        indices=None,
+        n_samples: int = 25,
+        batch_size: int = 64,
+        rna_size_factor: int = 1000,
+        transform_batch: Optional[int] = None,
+    ) -> np.ndarray:
+        """Return samples from an adjusted posterior predictive.
+
+        Parameters
+        ----------
+        n_samples
+            How may samples per cell
+        batch_size
+            Mini-batch size for sampling. Lower means less GPU memory footprint
+        rna_size_factor
+            size factor for RNA prior to sampling gamma distribution
+        transform_batch
+            int of which batch to condition on for all cells
+
+        Returns
+        -------
+
+        """
+
+        post = self._make_posterior(adata=adata, indices=indices)
+
+        posterior_list = []
+        for tensors in post:
+            x = tensors[_CONSTANTS.X_KEY]
+            batch_idx = tensors[_CONSTANTS.BATCH_KEY]
+            labels = tensors[_CONSTANTS.LABELS_KEY]
+
+            outputs = self.model.inference(
+                x, batch_index=batch_idx, y=labels, n_samples=n_samples
+            )
+            px_scale = outputs["px_scale"]
+            px_r = outputs["px_r"]
+
+            rate = rna_size_factor * px_scale
+            if len(px_r.size()) == 2:
+                px_dispersion = px_r
+            else:
+                px_dispersion = torch.ones_like(x) * px_r
+
+            # This gamma is really l*w using scVI manuscript notation
+            p = rate / (rate + px_dispersion)
+            r = px_dispersion
+            l_train = torch.distributions.Gamma(r, (1 - p) / p).sample()
+            data = l_train.cpu().numpy()
+            # """
+            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
+            # rate = (1 - p) / p  # = 1/scale # used in pytorch
+            # """
+            posterior_list += [data]
+
+            posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
+
+        return np.concatenate(posterior_list, axis=0)
+
+    @torch.no_grad()
+    def get_feature_correlation_matrix(
+        self,
+        adata=None,
+        indices=None,
+        n_samples: int = 10,
+        batch_size: int = 64,
+        rna_size_factor: int = 1000,
+        transform_batch: Optional[Union[int, List[int]]] = None,
+        correlation_type: str = "spearman",
+    ) -> pd.DataFrame:
+        """Generate gene-gene correlation matrix using scvi uncertainty and expression
+
+        Parameters
+        ----------
+        n_samples
+            How may samples per cell
+        batch_size
+            Mini-batch size for sampling. Lower means less GPU memory footprint
+        rna_size_factor
+            size factor for RNA prior to sampling gamma distribution
+        transform_batch
+            Batches to condition on.
+            If transform_batch is:
+
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - list of int, then values are averaged over provided batches.
+        correlation_type
+            One of "pearson", "spearman"
+
+        Returns
+        -------
+        Gene-gene correlation matrix
+        """
+
+        from scipy.stats import spearmanr
+
+        if (transform_batch is None) or (isinstance(transform_batch, int)):
+            transform_batch = [transform_batch]
+        corr_mats = []
+        for b in transform_batch:
+            denoised_data = self._get_denoised_samples(
+                adata=adata,
+                indicies=indices,
+                n_samples=n_samples,
+                batch_size=batch_size,
+                rna_size_factor=rna_size_factor,
+                transform_batch=b,
+            )
+            flattened = np.zeros(
+                (denoised_data.shape[0] * n_samples, denoised_data.shape[1])
+            )
+            for i in range(n_samples):
+                flattened[
+                    denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
+                ] = denoised_data[:, :, i]
+            if correlation_type == "pearson":
+                corr_matrix = np.corrcoef(flattened, rowvar=False)
+            elif correlation_type == "spearman":
+                corr_matrix, _ = spearmanr(flattened)
+            else:
+                raise ValueError(
+                    "Unknown correlation type. Choose one of 'spearman', 'pearson'."
+                )
+            corr_mats.append(corr_matrix)
+        corr_matrix = np.mean(np.stack(corr_mats), axis=0)
+        return pd.DataFrame(
+            corr_matrix, index=self.adata.var_names, columns=self.adata.var_names
+        )
+
+    @torch.no_grad()
+    def get_likelihood_parameters(
+        self,
+        adata=None,
+        indices=None,
+        n_samples: Optional[int] = 1,
+        give_mean: Optional[bool] = False,
+    ) -> Dict[str, np.ndarray]:
+
+        r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`.
+
+
+        """
+
+        post = self._make_posterior(adata=adata, indices=indices)
+
+        dropout_list = []
+        mean_list = []
+        dispersion_list = []
+        for tensors in post:
+            x = tensors[_CONSTANTS.X_KEY]
+            batch_idx = tensors[_CONSTANTS.BATCH_KEY]
+            labels = tensors[_CONSTANTS.LABELS_KEY]
+
+            outputs = self.model.inference(
+                x, batch_index=batch_idx, y=labels, n_samples=n_samples
+            )
+            px_r = outputs["px_r"]
+            px_rate = outputs["px_rate"]
+            px_dropout = outputs["px_dropout"]
+
+            n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
+            dispersion_list += [
+                np.repeat(np.array(px_r.cpu())[np.newaxis, :], n_batch, axis=0)
+            ]
+            mean_list += [np.array(px_rate.cpu())]
+            dropout_list += [np.array(px_dropout.cpu())]
+
+        dropout = np.concatenate(dropout_list)
+        means = np.concatenate(mean_list)
+        dispersions = np.concatenate(dispersion_list)
+        if give_mean and n_samples > 1:
+            dropout = dropout.mean(0)
+            means = means.mean(0)
+
+        return_dict = {}
+        return_dict["mean"] = means
+
+        if self.model.reconstruction_loss == "zinb":
+            return_dict["dropout"] = dropout
+            return_dict["dispersions"] = dispersions
+        if self.model.reconstruction_loss == "nb":
+            return_dict["dispersions"] = dispersions
+
+        return return_dict
