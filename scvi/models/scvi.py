@@ -56,9 +56,10 @@ class SCVI(AbstractModelClass):
         )
         self.is_trained = False
         self.use_cuda = use_cuda and torch.cuda.is_available()
+        self.batch_size = 128
 
     # assume posterior is a data loader + elbo + marginal ll
-    def _make_posterior(self, adata=None, indices=None, batch_size=128):
+    def _make_posterior(self, adata=None, indices=None):
         if adata is None:
             adata = self.adata
         if indices is None:
@@ -69,7 +70,7 @@ class SCVI(AbstractModelClass):
             shuffle=False,
             indices=indices,
             use_cuda=self.use_cuda,
-            batch_size=batch_size,
+            batch_size=self.batch_size,
         ).sequential()
         return post
 
@@ -138,7 +139,7 @@ class SCVI(AbstractModelClass):
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
 
-        post = self._make_posterior(adata=adata, indices=indices, shuffle=False)
+        post = self._make_posterior(adata=adata, indices=indices)
         latent = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
@@ -153,7 +154,7 @@ class SCVI(AbstractModelClass):
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
 
-        post = self._make_posterior(adata=adata, indices=indices, shuffle=False)
+        post = self._make_posterior(adata=adata, indices=indices)
         libraries = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
@@ -216,7 +217,7 @@ class SCVI(AbstractModelClass):
         Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
 
         """
-        post = self._make_posterior(adata=adata, indices=indices, shuffle=False)
+        post = self._make_posterior(adata=adata, indices=indices)
 
         if gene_list is None:
             gene_mask = slice(None)
