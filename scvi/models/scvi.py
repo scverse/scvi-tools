@@ -217,6 +217,8 @@ class SCVI(AbstractModelClass):
         Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
 
         """
+
+        adata = adata if adata is not None else self.adata
         post = self._make_posterior(adata=adata, indices=indices)
 
         if gene_list is None:
@@ -317,6 +319,7 @@ class SCVI(AbstractModelClass):
         """
         assert self.model.reconstruction_loss in ["zinb", "nb", "poisson"]
 
+        adata = adata if adata is not None else self.adata
         if gene_list is None:
             gene_mask = slice(None)
         else:
