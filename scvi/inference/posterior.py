@@ -21,13 +21,16 @@ from scvi.inference.posterior_utils import (
     unsupervised_clustering_accuracy,
     knn_purity,
 )
-from scvi.models.log_likelihood import (
+from scvi.models._modules.log_likelihood import (
     compute_elbo,
     compute_reconstruction_error,
     compute_marginal_log_likelihood_scvi,
     compute_marginal_log_likelihood_autozi,
 )
-from scvi.models.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
+from scvi.models._modules.distributions import (
+    NegativeBinomial,
+    ZeroInflatedNegativeBinomial,
+)
 from scipy.stats import spearmanr
 from scvi import _CONSTANTS
 

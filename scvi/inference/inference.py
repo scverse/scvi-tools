@@ -7,7 +7,7 @@ import torch
 import anndata
 from numpy import ceil
 
-from scvi.inference import Trainer
+from scvi.inference.trainer import Trainer
 from scvi import _CONSTANTS
 
 plt.switch_backend("agg")

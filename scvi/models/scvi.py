@@ -15,8 +15,8 @@ from scvi.models._modules.distributions import (
     ZeroInflatedNegativeBinomial,
 )
 from scvi import _CONSTANTS
-from scvi.inference import UnsupervisedTrainer
-from scvi.inference import Posterior
+from scvi.inference.inference import UnsupervisedTrainer
+from scvi.inference.posterior import Posterior
 
 logger = logging.getLogger(__name__)
 
