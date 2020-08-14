@@ -43,7 +43,6 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",  # needs to be after napoleon
-    "sphinx_rtd_theme",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
     "scanpydoc.elegant_typehints",
@@ -67,7 +66,6 @@ source_suffix = ".rst"
 # Generate the API documentation when building
 autosummary_generate = True
 autodoc_member_order = "bysource"
-# autodoc_default_flags = ['members']
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = False
@@ -76,9 +74,7 @@ napoleon_use_param = True
 napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
 numpydoc_show_class_members = False
-annotate_defaults = False  # scanpydoc option, look into why we need this
-
-# autodoc_default_options = {"autosummary": True}
+annotate_defaults = True  # scanpydoc option, look into why we need this
 
 # The master toctree document.
 master_doc = "index"
@@ -94,7 +90,7 @@ intersphinx_mapping = dict(
     scipy=("https://docs.scipy.org/doc/scipy/reference/", None),
     sklearn=("https://scikit-learn.org/stable/", None),
     torch=("https://pytorch.org/docs/master/", None),
-    scanpy=("https://scanpy.readthedocs.io/en/stable/index.html", None),
+    scanpy=("https://scanpy.readthedocs.io/en/stable/", None),
 )
 qualname_overrides = {
     "scvi.dataset.dataset.GeneExpressionDataset": "scvi.dataset.GeneExpressionDataset"
@@ -139,29 +135,36 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
+html_theme = "pydata_sphinx_theme"
 
 # Theme options are theme-specific and customize the look and feel of a
 # theme further.  For a list of options available for each theme, see the
 # documentation.
 #
 # html_theme_options = {}
+
+html_logo = "_static/logo.png"
+
+html_theme_options = {
+    "github_url": "https://github.com/YosefLab/scVI",
+    "twitter_url": "https://twitter.com/YosefLab",
+    # "use_edit_page_button": True,
+}
 html_context = dict(
-    display_github=True,  # Integrate GitHub
+    # display_github=True,  # Integrate GitHub
     github_user="YosefLab",  # Username
     github_repo="scVI",  # Repo name
     github_version="master",  # Version
-    conf_py_path="/docs/",  # Path in the checkout to the docs root
+    doc_path="docs/",  # Path in the checkout to the docs root
 )
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+
+html_css_files = ["css/custom.css"]
+
 html_show_sphinx = False
-
-
-def setup(app):
-    app.add_stylesheet("css/custom.css")
 
 
 # -- Options for HTMLHelp output ---------------------------------------

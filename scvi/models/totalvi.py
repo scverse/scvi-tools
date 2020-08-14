@@ -32,8 +32,7 @@ class TOTALVI(nn.Module):
     n_labels
         Number of labels
     n_hidden
-        Number of nodes per hidden layer for the z encoder (protein+genes),
-        genes library encoder, z->genes+proteins decoder
+        Number of nodes per hidden layer for encoder and decoder
     n_latent
         Dimensionality of the latent space
     n_layers
@@ -65,10 +64,9 @@ class TOTALVI(nn.Module):
         * ``'normal'`` - Isotropic normal
         * ``'ln'`` - Logistic normal with normal params N(0, 1)
 
-        Examples:
 
-    Returns
-    -------
+    Examples
+    --------
 
     >>> dataset = Dataset10X(dataset_name="pbmc_10k_protein_v3", save_path=save_path)
     >>> totalvae = TOTALVI(gene_dataset.nb_genes, len(dataset.protein_names), use_cuda=True)
@@ -370,12 +368,14 @@ class TOTALVI(nn.Module):
         self,
         x: torch.Tensor,
         y: torch.Tensor,
-        px_: Dict[str, torch.Tensor],
-        py_: Dict[str, torch.Tensor],
+        px_dict: Dict[str, torch.Tensor],
+        py_dict: Dict[str, torch.Tensor],
         pro_batch_mask_minibatch: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Compute reconstruction loss
         """
+        px_ = px_dict
+        py_ = py_dict
         # Reconstruction Loss
         if self.reconstruction_loss_gene == "zinb":
             reconst_loss_gene = (
