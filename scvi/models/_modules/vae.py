@@ -7,13 +7,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence as kl
 
-from scvi.models.distributions import (
+from scvi.models._modules.distributions import (
     ZeroInflatedNegativeBinomial,
     NegativeBinomial,
     Poisson,
 )
-from scvi.models.modules import Encoder, DecoderSCVI, LinearDecoderSCVI
-from scvi.models.utils import one_hot
+from scvi.models._modules._core import Encoder, DecoderSCVI, LinearDecoderSCVI
+from scvi.models._modules.utils import one_hot
 
 from typing import Tuple, Dict
 
@@ -145,31 +145,6 @@ class VAE(nn.Module):
 
         """
         return [self.sample_from_posterior_z(x, y)]
-
-    # this guide is just for VAE
-    def guide(self, x):
-        """Encoder outputs
-        """
-        if self.log_variational:
-            x = torch.log(1 + x)
-        y = np.zeros(x.shape[0])
-        qz_m, qz_v, z = self.z_encoder(x, y)
-        ql_m, ql_v, library = self.l_encoder(x)
-
-        return {
-            "qz_m": qz_m,
-            "qz_v": qz_v,
-            "z": z,
-            "ql_m": ql_m,
-            "ql_v": ql_v,
-            "library": library,
-        }
-
-    def model(self, x):
-        """
-
-        """
-        pass
 
     def sample_from_posterior_z(
         self, x, y=None, give_mean=False, n_samples=5000

@@ -1,32 +1,38 @@
 import numpy as np
 import os
+import logging
 import torch
 import pandas as pd
 
-from typing import Optional, Union, List, Callable
+from typing import Optional, Union, List, Literal
 from scvi.models.vae import VAE
-from ._base import AbstractModelClass
-from .de import DifferentialExpression
+from scvi.models._base import AbstractModelClass
+
+# from scvi.models._differential import DifferentialExpression
+from scvi.models._modules.distributions import (
+    NegativeBinomial,
+    ZeroInflatedNegativeBinomial,
+)
 from scvi import _CONSTANTS
 from scvi.inference import UnsupervisedTrainer
 from scvi.inference import Posterior
+
+logger = logging.getLogger(__name__)
 
 
 class SCVI(AbstractModelClass):
     def __init__(
         self,
         adata,
-        n_batch=0,
-        n_labels=0,
         n_hidden=128,
         n_latent=10,
         n_layers=1,
         dropout_rate=0.1,
         dispersion="gene",
-        log_variational=True,
         reconstruction_loss="zinb",
         latent_distribution="normal",
         use_cuda=True,
+        **model_kwargs,
     ):
         assert (
             "scvi_data_registry" in adata.uns.keys()
@@ -36,69 +42,35 @@ class SCVI(AbstractModelClass):
         summary_stats = adata.uns["scvi_summary_stats"]
         self.model = VAE(
             n_input=summary_stats["n_genes"],
-            n_batch=n_batch,
-            n_labels=n_labels,
+            n_batch=summary_stats["n_batch"],
+            n_labels=summary_stats["n_labels"],
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
             dispersion=dispersion,
-            log_variational=log_variational,
             reconstruction_loss=reconstruction_loss,
             latent_distribution=latent_distribution,
+            **model_kwargs,
         )
         self.is_trained = False
         self.use_cuda = use_cuda and torch.cuda.is_available()
 
-    # what args do we actually want here?
-    def train(
-        self,
-        n_epochs=400,
-        train_size=1.0,
-        test_size=None,
-        n_iter_kl_warmup=None,
-        n_epochs_kl_warmup=400,
-        **train_kwargs,
-    ):
-        self.model.train()
-
-        self.trainer = UnsupervisedTrainer(
-            self.model,
-            self.adata,
-            train_size=train_size,
-            test_size=test_size,
-            n_iter_kl_warmup=n_iter_kl_warmup,
-            n_epochs_kl_warmup=n_epochs_kl_warmup,
-        )
-        self.trainer.train(n_epochs=n_epochs)
-        self.is_trained = True
-
-    @torch.no_grad()
-    def get_z(self, adata=None, indices=None):
-        self.model.eval()
-
-        if self.is_trained is False:
-            raise "Please train the model first."
-        post = self._make_posterior(adata=adata, indices=indices, shuffle=False)
-        latent = []
-        for tensors in post:
-            x = tensors[_CONSTANTS.X_KEY]
-            z = self.model.sample_from_posterior_z(x)
-            latent += [z.cpu()]
-        return np.array(torch.cat(latent))
-
-        # for tensors in post:
-        #     self.vae.guide(tensors)["z"]
-
     # assume posterior is a data loader + elbo + marginal ll
-    def _make_posterior(self, adata=None, indices=None, shuffle=False):
+    def _make_posterior(self, adata=None, indices=None, batch_size=128):
         if adata is None:
             adata = self.adata
         if indices is None:
             indices = np.arange(adata.n_obs)
-        return Posterior(
-            self.model, adata, shuffle=shuffle, indices=indices, use_cuda=self.use_cuda
-        )
+        post = Posterior(
+            self.model,
+            adata,
+            shuffle=False,
+            indices=indices,
+            use_cuda=self.use_cuda,
+            batch_size=batch_size,
+        ).sequential()
+        return post
 
     def save(self, dir_path):
         # save the model state dict and the trainer state dict only
@@ -133,19 +105,80 @@ class SCVI(AbstractModelClass):
             )
         self.model.eval()
 
+    # what args do we actually want here?
+    def train(
+        self,
+        n_epochs=400,
+        train_size=0.9,
+        test_size=None,
+        learning_rate=1e-3,
+        n_iter_kl_warmup=None,
+        n_epochs_kl_warmup=400,
+        trainer_kwargs={},
+        train_kwargs={},
+    ):
+
+        self.trainer = UnsupervisedTrainer(
+            self.model,
+            self.adata,
+            train_size=train_size,
+            test_size=test_size,
+            n_iter_kl_warmup=n_iter_kl_warmup,
+            n_epochs_kl_warmup=n_epochs_kl_warmup,
+            **trainer_kwargs,
+        )
+        self.trainer.train(n_epochs=n_epochs, lr=learning_rate, **train_kwargs)
+        self.is_trained = True
+
     @torch.no_grad()
-    def get_sample_scale(
+    def get_latent_representation(
+        self, adata=None, indices=None, give_mean=True, mc_samples=5000
+    ):
+        if self.is_trained is False:
+            raise RuntimeError("Please train the model first.")
+
+        post = self._make_posterior(adata=adata, indices=indices, shuffle=False)
+        latent = []
+        for tensors in post:
+            x = tensors[_CONSTANTS.X_KEY]
+            z = self.model.sample_from_posterior_z(
+                x, give_mean=give_mean, n_samples=mc_samples
+            )
+            latent += [z.cpu()]
+        return np.array(torch.cat(latent))
+
+    @torch.no_grad()
+    def get_latent_library_size(self, adata=None, indices=None, give_mean=True):
+        if self.is_trained is False:
+            raise RuntimeError("Please train the model first.")
+
+        post = self._make_posterior(adata=adata, indices=indices, shuffle=False)
+        libraries = []
+        for tensors in post:
+            x = tensors[_CONSTANTS.X_KEY]
+            out = self.model.get_latents(x)
+            if give_mean is False:
+                library = out["library"]
+            else:
+                library = torch.distributions.LogNormal(
+                    out["ql_m"], out["ql_v"].sqrt()
+                ).mean
+            libraries += [library.cpu()]
+        return np.array(torch.cat(libraries))
+
+    @torch.no_grad()
+    def get_normalized_expression(
         self,
         adata=None,
         indices=None,
         transform_batch: Optional[int] = None,
         gene_list: Optional[Union[np.ndarray, List[int]]] = None,
-        library_size: float = 1,
-        return_df: Optional[bool] = None,
+        library_size: Optional[Union[float, Literal["observed"]]] = 1,
         n_samples: int = 1,
         return_mean: bool = True,
+        return_numpy: Optional[bool] = None,
     ) -> Union[np.ndarray, pd.DataFrame]:
-        r"""Returns the frequencies of expression for the data.
+        r"""Returns the normalized (decoded) gene expression.
 
         This is denoted as :math:`\rho_n` in the scVI paper.
 
@@ -165,22 +198,21 @@ class SCVI(AbstractModelClass):
             Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
             magnitude.
-        return_df
-            Return a DataFrame instead of an `np.ndarray`. Includes gene
-            names as columns. Requires either n_samples=1 or return_mean=True.
-            When `gene_list` is not None and contains more than one gene, this is option is True.
-            Otherwise, it defaults to False.
         n_samples
             Get sample scale from multiple samples.
         return_mean
             Whether to return the mean of the samples.
+        return_numpy
+            Return a `np.ndarray` instead of a `pd.DataFrame`. Includes gene
+            names as columns. If either n_samples=1 or return_mean=True, defaults to False.
+            Otherwise, it defaults to True.
 
         Returns
         -------
-        - **denoised_expression** - array of decoded expression adjusted for library size
+        - **normalized_expression** - array of normalized expression
 
         If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, genes)``.
-        Otherwise, shape is ``(cells, genes)``. Return type is ``np.ndarray`` unless ``return_df`` is True.
+        Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
 
         """
         post = self._make_posterior(adata=adata, indices=indices, shuffle=False)
@@ -188,106 +220,56 @@ class SCVI(AbstractModelClass):
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = self.gene_dataset.adata.var_names
+            all_genes = adata.var_names
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
-            if return_df is None and sum(gene_mask) > 1:
-                return_df = True
 
-        if n_samples > 1 and return_mean is False and return_df is True:
-            raise ValueError(
-                "return_df must be False if n_samples > 1 and return_mean is True"
-            )
+        if n_samples > 1 and return_mean is False:
+            if return_numpy is False:
+                logger.warning(
+                    "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
+                )
+            return_numpy = True
 
-        px_scales = []
+        if library_size == "observed":
+            model_fn = self.model.get_sample_rate
+            scaling = 1
+        else:
+            model_fn = self.model.get_sample_scale
+            scaling = library_size
+
+        exprs = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
             batch_idx = tensors[_CONSTANTS.BATCH_KEY]
             labels = tensors[_CONSTANTS.LABELS_KEY]
-            px_scales += [
+            exprs += [
                 np.array(
                     (
-                        self.model.get_sample_scale(
+                        model_fn(
                             x,
                             batch_index=batch_idx,
                             y=labels,
                             n_samples=n_samples,
                             transform_batch=transform_batch,
                         )[..., gene_mask]
-                        * library_size
+                        * scaling
                     ).cpu()
                 )
             ]
 
         if n_samples > 1:
             # The -2 axis correspond to cells.
-            px_scales = np.concatenate(px_scales, axis=-2)
+            exprs = np.concatenate(exprs, axis=-2)
         else:
-            px_scales = np.concatenate(px_scales, axis=0)
+            exprs = np.concatenate(exprs, axis=0)
 
         if n_samples > 1 and return_mean:
-            px_scales = px_scales.mean(0)
+            exprs = exprs.mean(0)
 
-        if return_df is True:
-            return pd.DataFrame(
-                px_scales, columns=self.gene_dataset.gene_names[gene_mask]
-            )
+        if return_numpy is None or return_numpy is False:
+            return pd.DataFrame(exprs, columns=adata.gene_names[gene_mask])
         else:
-            return px_scales
-
-    @torch.no_grad()
-    def imputation(
-        self,
-        adata=None,
-        indices=None,
-        n_samples: Optional[int] = 1,
-        transform_batch: Optional[Union[int, List[int]]] = None,
-    ) -> np.ndarray:
-        """Imputes px_rate over self cells
-
-        Parameters
-        ----------
-        n_samples
-            number of posterior samples
-        transform_batch
-            Batches to condition on.
-            If transform_batch is:
-
-            - None, then real observed batch is used
-            - int, then batch transform_batch is used
-            - list of int, then px_rates are averaged over provided batches.
-        Returns
-        -------
-        type
-            n_samples, n_cells, n_genes) px_rates squeezed array
-
-        """
-        post = self._make_posterior(adata=adata, indices=indices, shuffle=False)
-
-        if (transform_batch is None) or (isinstance(transform_batch, int)):
-            transform_batch = [transform_batch]
-        imputed_arr = []
-        for batch in transform_batch:
-            imputed_list_batch = []
-            for tensors in post:
-                x = tensors[_CONSTANTS.X_KEY]
-                batch_idx = tensors[_CONSTANTS.BATCH_KEY]
-                labels = tensors[_CONSTANTS.LABELS_KEY]
-                px_rate = self.model.get_sample_rate(
-                    x,
-                    batch_index=batch_idx,
-                    y=labels,
-                    n_samples=n_samples,
-                    transform_batch=batch,
-                )
-                imputed_list_batch += [np.array(px_rate.cpu())]
-            # axis 1 is cells if n_samples > 1
-            imputed_arr.append(
-                np.concatenate(imputed_list_batch, axis=1 if n_samples > 1 else 0)
-            )
-        imputed_arr = np.array(imputed_arr)
-        # shape: (len(transformed_batch), n_samples, n_cells, n_genes) if n_samples > 1
-        # else shape: (len(transformed_batch), n_cells, n_genes)
-        return imputed_arr.mean(0).squeeze()
+            return exprs
 
     def differential_expression(
         self, groupby, group1=None, group2="rest", adata=None, within_key=None
@@ -297,42 +279,89 @@ class SCVI(AbstractModelClass):
         # runs within cluster
         # new differential expression class
 
-        if group2 == "rest":
-            idx2 = ~group1
+        raise NotImplementedError
+
+        # if group2 == "rest":
+        #     idx2 = ~group1
+        # else:
+        #     idx2 = 0
+
+        # DE = DifferentialExpression(self.get_sample_scale)
+        # pass
+
+    @torch.no_grad()
+    def posterior_predictive_sample(
+        self,
+        adata=None,
+        indices=None,
+        n_samples: int = 1,
+        gene_list: Union[list, np.ndarray] = None,
+    ) -> np.ndarray:
+        r"""Generate observation samples from the posterior predictive distribution
+
+        The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
+
+        Parameters
+        ----------
+        n_samples
+            Number of required samples for each cell
+        gene_list
+            Indices or names of genes of interest
+
+        Returns
+        -------
+        x_new : :py:class:`torch.Tensor`
+            tensor with shape (n_cells, n_genes, n_samples)
+        """
+        assert self.model.reconstruction_loss in ["zinb", "nb", "poisson"]
+
+        if gene_list is None:
+            gene_mask = slice(None)
         else:
-            idx2 = 0
+            all_genes = adata.var_names
+            gene_mask = [True if gene in gene_list else False for gene in all_genes]
 
-        DE = DifferentialExpression(self.get_sample_scale)
-        pass
+        post = self._make_posterior(adata=adata, indices=indices)
 
-    # def create_posterior(
-    #     self,
-    #     model=None,
-    #     adata: anndata.AnnData = None,
-    #     shuffle=False,
-    #     indices=None,
-    #     type_class=Posterior,
-    # ):
+        x_new = []
+        for tensors in post:
+            x = tensors[_CONSTANTS.X_KEY]
+            batch_idx = tensors[_CONSTANTS.BATCH_KEY]
+            labels = tensors[_CONSTANTS.LABELS_KEY]
+            outputs = self.model.inference(
+                x, batch_index=batch_idx, y=labels, n_samples=n_samples
+            )
+            px_r = outputs["px_r"]
+            px_rate = outputs["px_rate"]
+            px_dropout = outputs["px_dropout"]
 
-    #     model = self.model if model is None and hasattr(self, "model") else model
-    #     adata = self.adata if adata is None and hasattr(self, "model") else adata
-    #     return type_class(
-    #         model,
-    #         adata,
-    #         shuffle=shuffle,
-    #         indices=indices,
-    #         use_cuda=self.use_cuda,
-    #         batch_size=self.batch_size,
-    #         data_loader_kwargs=self.data_loader_kwargs,
-    #     )
+            if self.model.reconstruction_loss == "poisson":
+                l_train = px_rate
+                l_train = torch.clamp(l_train, max=1e8)
+                dist = torch.distributions.Poisson(
+                    l_train
+                )  # Shape : (n_samples, n_cells_batch, n_genes)
+            elif self.model.reconstruction_loss == "nb":
+                dist = NegativeBinomial(mu=px_rate, theta=px_r)
+            elif self.model.reconstruction_loss == "zinb":
+                dist = ZeroInflatedNegativeBinomial(
+                    mu=px_rate, theta=px_r, zi_logits=px_dropout
+                )
+            else:
+                raise ValueError(
+                    "{} reconstruction error not handled right now".format(
+                        self.model.reconstruction_loss
+                    )
+                )
+            exprs = dist.sample().permute(
+                [1, 2, 0]
+            )  # Shape : (n_cells_batch, n_genes, n_samples)
 
+            if gene_list is not None:
+                x_new = x_new[:, gene_mask, :]
 
-# def posterior_predictive_sample(self):
-#   # insert posterior predictive code generate function
-#   pass
+            x_new.append(exprs.cpu())
 
-# def get_sample_scale(self, transform_batch: List[int]):
-#   post = self._make_posterior()
+        x_new = torch.cat(x_new)  # Shape (n_cells, n_genes, n_samples)
 
-#   for tensors in post:
-#     # get sample scale code from current posterior
+        return x_new.numpy()
