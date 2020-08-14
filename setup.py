@@ -60,6 +60,7 @@ extras_requirements = {
         "nbsphinx-link",
         "scanpydoc",
         "pydata-sphinx-theme",
+        'typing_extensions; python_version < "3.8"',  # for `Literal`
     ],
     "test": test_requirements,
 }
