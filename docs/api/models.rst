@@ -10,7 +10,7 @@ scVI
 .. autosummary::
    :toctree: reference/
 
-   models.VAE
+   models.SCVI
 
 scANVI
 ~~~~~~
