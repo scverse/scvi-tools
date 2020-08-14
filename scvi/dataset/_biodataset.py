@@ -26,7 +26,6 @@ class BioDataset(Dataset):
 
         stats = adata.uns["scvi_summary_stats"]
         error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
-        assert adata.shape[0] == stats["n_cells"], error_msg.format("cells")
         assert adata.shape[1] == stats["n_genes"], error_msg.format("genes")
         assert (
             len(np.unique(get_from_registry(adata, _CONSTANTS.LABELS_KEY)))

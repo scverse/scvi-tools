@@ -269,7 +269,7 @@ class SCVI(AbstractModelClass):
             exprs = exprs.mean(0)
 
         if return_numpy is None or return_numpy is False:
-            return pd.DataFrame(exprs, columns=adata.gene_names[gene_mask])
+            return pd.DataFrame(exprs, columns=adata.var_names[gene_mask])
         else:
             return exprs
 
