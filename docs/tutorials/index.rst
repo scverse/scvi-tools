@@ -120,7 +120,6 @@ To download the tutorials:
    totalvi
    cite_scrna_integration_w_totalVI
    harmonization
-   scanpy
    autozi
    gimvi
    linear_decoder

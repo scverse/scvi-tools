@@ -204,20 +204,6 @@ def test_notebooks_harmonization(save_path):
         os.chdir(path=base_path)
 
 
-def test_notebooks_scanpy_api(save_path):
-    try:
-        os.chdir(save_path)
-        import notebooks.scanpy_pbmc3k
-
-        print(save_path)
-        notebooks.scanpy_pbmc3k.allow_notebook_for_test()
-        plt.close("all")
-    except BaseException:
-        raise
-    finally:
-        os.chdir(path=base_path)
-
-
 def test_notebooks_autotune(save_path):
     try:
         os.chdir(save_path)
