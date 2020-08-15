@@ -112,7 +112,6 @@ To download the tutorials:
 
 .. toctree::
    :maxdepth: 1
-   :numbered:
    :hidden:
 
    basic_tutorial
