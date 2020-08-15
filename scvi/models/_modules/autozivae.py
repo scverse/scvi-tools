@@ -4,9 +4,9 @@ from torch.distributions import Normal, Beta, Gamma, kl_divergence as kl
 import numpy as np
 from scipy.special import logit
 
-from scvi.models.distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
-from scvi.models.vae import VAE
-from scvi.models.utils import one_hot
+from scvi.models._distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
+from scvi.models._modules.vae import VAE
+from scvi.models._modules.utils import one_hot
 
 from typing import Dict, Optional, Tuple, Union
 
@@ -14,7 +14,7 @@ torch.backends.cudnn.benchmark = True
 
 
 class AutoZIVAE(VAE):
-    r"""AutoZI variational auto-encoder model.
+    r""" variational auto-encoder model.
 
     Implementation of AutoZI model [Clivio19]_.
 
