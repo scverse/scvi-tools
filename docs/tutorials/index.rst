@@ -58,7 +58,7 @@ To download the tutorials:
             </div>
             <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
                 <div class="card text-center intro-card shadow">
-                <img src="https://falexwolf.de/img/scanpy/anndata.svg" class="card-img-top" alt="data loading tutorial action icon" height="225">
+                <img src="../_static/tutorials/anndata.svg" class="card-img-top" alt="data loading tutorial action icon" height="225">
                 <div class="card-body flex-fill">
                     <h5 class="card-title">Data preparation</h5>
                     <p class="card-text">How do I get my data prepared for scvi?</p>
@@ -83,6 +83,23 @@ To download the tutorials:
 .. container:: custom-button
 
     :doc:`GO<harmonization>`
+
+
+.. raw:: html
+
+                </div>
+                </div>
+            </div>
+            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
+                <div class="card text-center intro-card shadow">
+                <img src="../_static/tutorials/ldvae.svg" class="card-img-top" alt="ldvae tutorial action icon" height="225">
+                <div class="card-body flex-fill">
+                    <h5 class="card-title">Linearly-decoded scVI</h5>
+                    <p class="card-text">It's scVI, but with PCA-like interpretability.</p>
+
+.. container:: custom-button
+
+    :doc:`GO<linear_decoder>`
 
 
 .. raw:: html
