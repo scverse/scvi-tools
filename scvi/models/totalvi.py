@@ -376,6 +376,113 @@ class TOTALVI(SCVI):
         else:
             return scale_list_gene, scale_list_pro
 
+    @torch.no_grad()
+    def get_protein_foreground_probability(
+        self,
+        adata=None,
+        indices=None,
+        transform_batch: Optional[int] = None,
+        protein_list: Optional[Union[np.ndarray, List[int]]] = None,
+        n_samples: int = 1,
+        return_mean: bool = True,
+        return_numpy: Optional[bool] = None,
+    ):
+        r"""Returns the foreground probability for proteins
+
+        This is denoted as :math:`\pi_{nt}` in the totalVI paper.
+
+        Parameters
+        ----------
+        transform_batch
+            Batch to condition on.
+            If transform_batch is:
+
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - List[int], then average over batches in list
+        protein_list
+            Return protein expression for a subset of genes.
+            This can save memory when working with large datasets and few genes are
+            of interest.
+        n_samples
+            Get sample scale from multiple samples.
+        return_mean
+            Whether to return the mean of the samples.
+        return_numpy
+            Return a `np.ndarray` instead of a `pd.DataFrame`. Includes gene
+            names as columns. If either n_samples=1 or return_mean=True, defaults to False.
+            Otherwise, it defaults to True.
+
+        Returns
+        -------
+        - **foreground_probability** - probability foreground for each protein
+
+        If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, proteins)``.
+        Otherwise, shape is ``(cells, proteins)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
+
+        """
+
+        adata = adata if adata is not None else self.adata
+        post = self._make_posterior(adata=adata, indices=indices)
+
+        if protein_list is None:
+            protein_mask = slice(None)
+        else:
+            all_proteins = adata.uns["scvi_protein_names"]
+            protein_mask = [True if p in protein_list else False for p in all_proteins]
+
+        if n_samples > 1 and return_mean is False:
+            if return_numpy is False:
+                logger.warning(
+                    "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
+                )
+            return_numpy = True
+
+        py_mixings = []
+        if (transform_batch is None) or (isinstance(transform_batch, int)):
+            transform_batch = [transform_batch]
+        for tensors in post:
+            x = tensors[_CONSTANTS.X_KEY]
+            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+            batch_index = tensors[_CONSTANTS.BATCH_KEY]
+            label = tensors[_CONSTANTS.LABELS_KEY]
+            py_mixing = torch.zeros_like(y)
+            if n_samples > 1:
+                py_mixing = torch.stack(n_samples * [py_mixing])
+            for b in transform_batch:
+                outputs = self.model.inference(
+                    x,
+                    y,
+                    batch_index=batch_index,
+                    label=label,
+                    n_samples=n_samples,
+                    transform_batch=b,
+                )
+                py_mixing += torch.sigmoid(outputs["py_"]["mixing"])[..., protein_mask]
+            py_mixing /= len(transform_batch)
+            py_mixings += [py_mixing.cpu()]
+        if n_samples > 1:
+            # concatenate along batch dimension -> result shape = (samples, cells, features)
+            py_mixings = torch.cat(py_mixings, dim=1)
+            # (cells, features, samples)
+            py_mixings = py_mixings.permute(1, 2, 0)
+        else:
+            py_mixings = torch.cat(py_mixings, dim=0)
+
+        if return_mean is True and n_samples > 1:
+            py_mixings = torch.mean(py_mixings, dim=-1)
+
+        py_mixings = py_mixings.cpu().numpy()
+
+        if return_numpy is True:
+            return 1 - py_mixings
+        else:
+            pro_names = self.adata.uns["scvi_protein_names"]
+            foreground_prob = pd.DataFrame(
+                1 - py_mixings, columns=pro_names, index=adata.obs_names
+            )
+            return foreground_prob
+
     def differential_expression(
         self, groupby, group1=None, group2="rest", adata=None, within_key=None
     ):
