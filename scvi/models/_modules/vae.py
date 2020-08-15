@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence as kl
 
-from scvi.models._modules.distributions import (
+from scvi.models._distributions import (
     ZeroInflatedNegativeBinomial,
     NegativeBinomial,
     Poisson,

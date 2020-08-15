@@ -2,16 +2,16 @@ from typing import Optional, Union, List, Callable, Tuple
 import anndata
 import logging
 import torch
-from torch.distributions import Poisson, Gamma, Bernoulli, Normal
+from torch.distributions import Normal
 import numpy as np
 import pandas as pd
-from scipy.stats import spearmanr
 
-from scvi.inference import Posterior
-from . import UnsupervisedTrainer
+from scvi.inference.posterior import Posterior
+from scvi.inference.inference import UnsupervisedTrainer
 
-from scvi.models import TOTALVI, Classifier
-from scvi.models.utils import one_hot
+from scvi.models._modules.totalvae import TOTALVAE
+from scvi.models._modules.classifier import Classifier
+from scvi.models._modules.utils import one_hot
 from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)
@@ -40,22 +40,11 @@ class TotalPosterior(Posterior):
         Default: ``True``
     data_loader_kwargs :
         Keyword arguments to passed into the `DataLoader`
-
-    Examples
-    --------
-
-    Let us instantiate a `trainer`, with a gene_dataset and a model
-
-    >>> gene_dataset = CbmcDataset()
-    >>> totalvi = TOTALVI(gene_dataset.n_genes, len(gene_dataset.protein_names),
-    ... n_batch=gene_dataset.n_batches, use_cuda=True)
-    >>> trainer = TotalTrainer(vae, gene_dataset)
-    >>> trainer.train(n_epochs=500)
     """
 
     def __init__(
         self,
-        model: TOTALVI,
+        model: TOTALVAE,
         adata: anndata.AnnData,
         shuffle: bool = False,
         indices: Optional[np.ndarray] = None,
@@ -129,7 +118,7 @@ class TotalPosterior(Posterior):
         y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
         return x, local_l_mean, local_l_var, batch_index, labels, y
 
-    def compute_elbo(self, vae: TOTALVI, **kwargs):
+    def compute_elbo(self, vae: TOTALVAE, **kwargs):
         """Computes the ELBO.
 
         The ELBO is the reconstruction error + the KL divergences
@@ -180,7 +169,7 @@ class TotalPosterior(Posterior):
         n_samples = len(self.indices)
         return elbo / n_samples
 
-    def compute_reconstruction_error(self, vae: TOTALVI, **kwargs):
+    def compute_reconstruction_error(self, vae: TOTALVAE, **kwargs):
         r""" Computes log p(x/z), which is the reconstruction error.
 
         Differs from the marginal log likelihood, but still gives good
@@ -342,80 +331,6 @@ class TotalPosterior(Posterior):
         )
 
     @torch.no_grad()
-    def differential_expression_stats(self, M_sampling: int = 100):
-        raise NotImplementedError
-
-    @torch.no_grad()
-    def generate(
-        self, n_samples: int = 100, batch_size: int = 64
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """Sample from posterior predictive. Proteins are concatenated to genes.
-
-        Parameters
-        ----------
-
-        n_samples
-            Number of posterior predictive samples
-        batch_size
-            mini batch size for loaded data. Lower for less memory usage
-
-        Returns
-        -------
-        x_new : :py:class:`torch.Tensor`
-            tensor with shape (n_cells, n_genes + n_proteins, n_samples)
-        x_old : :py:class:`torch.Tensor`
-            tensor with shape (n_cells, n_genes + n_proteins)
-
-        """
-        original_list = []
-        posterior_list = []
-        for tensors in self.update_batch_size(batch_size):
-            x, _, _, batch_index, labels, y = self._unpack_tensors(tensors)
-            with torch.no_grad():
-                outputs = self.model.inference(
-                    x, y, batch_index=batch_index, label=labels, n_samples=n_samples
-                )
-            px_ = outputs["px_"]
-            py_ = outputs["py_"]
-
-            pi = 1 / (1 + torch.exp(-py_["mixing"]))
-            mixing_sample = Bernoulli(pi).sample()
-            protein_rate = (
-                py_["rate_fore"] * (1 - mixing_sample)
-                + py_["rate_back"] * mixing_sample
-            )
-            rate = torch.cat((px_["rate"], protein_rate), dim=-1)
-            if len(px_["r"].size()) == 2:
-                px_dispersion = px_["r"]
-            else:
-                px_dispersion = torch.ones_like(x) * px_["r"]
-            if len(py_["r"].size()) == 2:
-                py_dispersion = py_["r"]
-            else:
-                py_dispersion = torch.ones_like(y) * py_["r"]
-
-            dispersion = torch.cat((px_dispersion, py_dispersion), dim=-1)
-
-            # This gamma is really l*w using scVI manuscript notation
-            p = rate / (rate + dispersion)
-            r = dispersion
-            l_train = Gamma(r, (1 - p) / p).sample()
-            data = Poisson(l_train).sample().cpu().numpy()
-            # """
-            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
-            # rate = (1 - p) / p  # = 1/scale # used in pytorch
-            # """
-            original_list += [np.array(torch.cat((x, y), dim=-1).cpu())]
-            posterior_list += [data]
-
-            posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
-
-        return (
-            np.concatenate(posterior_list, axis=0),
-            np.concatenate(original_list, axis=0),
-        )
-
-    @torch.no_grad()
     def get_sample_dropout(self, n_samples: int = 1, give_mean: bool = True):
         """Zero-inflation mixing component for genes
 
@@ -568,90 +483,6 @@ class TotalPosterior(Posterior):
         return np.concatenate(scales)
 
     @torch.no_grad()
-    def get_normalized_denoised_expression(
-        self,
-        n_samples: int = 1,
-        give_mean: bool = True,
-        transform_batch: Optional[Union[int, List[int]]] = None,
-        sample_protein_mixing: bool = True,
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """Returns the tensors of denoised normalized gene and protein expression
-
-        Parameters
-        ----------
-        n_samples
-            number of samples from posterior distribution
-        sample_protein_mixing
-            Sample mixing bernoulli, setting background to zero
-        give_mean
-            bool, whether to return samples along first axis or average over samples
-        transform_batch
-            Batches to condition on.
-            If transform_batch is:
-            - None, then real observed batch is used
-            - int, then batch transform_batch is used
-            - list of int, then values are averaged over provided batches.
-
-        Returns
-        -------
-        Denoised genes, denoised proteins
-
-        """
-
-        scale_list_gene = []
-        scale_list_pro = []
-        if (transform_batch is None) or (isinstance(transform_batch, int)):
-            transform_batch = [transform_batch]
-        for tensors in self:
-            x, _, _, batch_index, label, y = self._unpack_tensors(tensors)
-            px_scale = torch.zeros_like(x)
-            py_scale = torch.zeros_like(y)
-            if n_samples > 1:
-                px_scale = torch.stack(n_samples * [px_scale])
-                py_scale = torch.stack(n_samples * [py_scale])
-            for b in transform_batch:
-                outputs = self.model.inference(
-                    x,
-                    y,
-                    batch_index=batch_index,
-                    label=label,
-                    n_samples=n_samples,
-                    transform_batch=b,
-                )
-                px_scale += outputs["px_"]["scale"]
-
-                py_ = outputs["py_"]
-                # probability of background
-                protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
-                if sample_protein_mixing is True:
-                    protein_mixing = Bernoulli(protein_mixing).sample()
-                py_scale += py_["rate_fore"] * (1 - protein_mixing)
-            px_scale /= len(transform_batch)
-            py_scale /= len(transform_batch)
-            scale_list_gene.append(px_scale.cpu())
-            scale_list_pro.append(py_scale.cpu())
-
-        if n_samples > 1:
-            # concatenate along batch dimension -> result shape = (samples, cells, features)
-            scale_list_gene = torch.cat(scale_list_gene, dim=1)
-            scale_list_pro = torch.cat(scale_list_pro, dim=1)
-            # (cells, features, samples)
-            scale_list_gene = scale_list_gene.permute(1, 2, 0)
-            scale_list_pro = scale_list_pro.permute(1, 2, 0)
-        else:
-            scale_list_gene = torch.cat(scale_list_gene, dim=0)
-            scale_list_pro = torch.cat(scale_list_pro, dim=0)
-
-        if give_mean is True and n_samples > 1:
-            scale_list_gene = torch.mean(scale_list_gene, dim=-1)
-            scale_list_pro = torch.mean(scale_list_pro, dim=-1)
-
-        scale_list_gene = scale_list_gene.cpu().numpy()
-        scale_list_pro = scale_list_pro.cpu().numpy()
-
-        return scale_list_gene, scale_list_pro
-
-    @torch.no_grad()
     def get_protein_mean(
         self,
         n_samples: int = 1,
@@ -715,166 +546,6 @@ class TotalPosterior(Posterior):
         rate_list_pro = rate_list_pro.cpu().numpy()
 
         return rate_list_pro
-
-    @torch.no_grad()
-    def generate_denoised_samples(
-        self,
-        n_samples: int = 25,
-        batch_size: int = 64,
-        rna_size_factor: int = 1,
-        transform_batch: Optional[int] = None,
-    ):
-        """Samples from an adjusted posterior predictive. Proteins are concatenated to genes.
-
-        Parameters
-        ----------
-        n_samples
-            How may samples per cell
-        batch_size
-            Mini-batch size for sampling. Lower means less GPU memory footprint
-        rna_size_factor
-            size factor for RNA prior to sampling gamma distribution
-        transform_batch
-            int of which batch to condition on for all cells
-
-        Returns
-        -------
-
-        """
-        posterior_list = []
-        for tensors in self.update_batch_size(batch_size):
-            x, _, _, batch_index, label, y = self._unpack_tensors(tensors)
-            with torch.no_grad():
-                outputs = self.model.inference(
-                    x,
-                    y,
-                    batch_index=batch_index,
-                    label=label,
-                    n_samples=n_samples,
-                    transform_batch=transform_batch,
-                )
-            px_ = outputs["px_"]
-            py_ = outputs["py_"]
-
-            pi = 1 / (1 + torch.exp(-py_["mixing"]))
-            mixing_sample = Bernoulli(pi).sample()
-            protein_rate = py_["rate_fore"]
-            rate = torch.cat((rna_size_factor * px_["scale"], protein_rate), dim=-1)
-            if len(px_["r"].size()) == 2:
-                px_dispersion = px_["r"]
-            else:
-                px_dispersion = torch.ones_like(x) * px_["r"]
-            if len(py_["r"].size()) == 2:
-                py_dispersion = py_["r"]
-            else:
-                py_dispersion = torch.ones_like(y) * py_["r"]
-
-            dispersion = torch.cat((px_dispersion, py_dispersion), dim=-1)
-
-            # This gamma is really l*w using scVI manuscript notation
-            p = rate / (rate + dispersion)
-            r = dispersion
-            l_train = Gamma(r, (1 - p) / p).sample()
-            data = l_train.cpu().numpy()
-            # make background 0
-            data[:, :, self.gene_dataset.n_genes :] = (
-                data[:, :, self.gene_dataset.n_genes :]
-                * (1 - mixing_sample).cpu().numpy()
-            )
-            posterior_list += [data]
-
-            posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
-
-        return np.concatenate(posterior_list, axis=0)
-
-    @torch.no_grad()
-    def generate_feature_correlation_matrix(
-        self,
-        n_samples: int = 25,
-        batch_size: int = 64,
-        rna_size_factor: int = 1000,
-        transform_batch: Optional[Union[int, List[int]]] = None,
-        correlation_mode: str = "pearson",
-        log_transform: bool = False,
-    ):
-        """Wrapper of `generate_denoised_samples()` to create a gene-protein gene-protein corr matrix
-
-        Parameters
-        ----------
-        n_samples
-            How may samples per cell
-        batch_size
-            Mini-batch size for sampling. Lower means less GPU memory footprint
-        rna_size_factor
-            size factor for RNA prior to sampling gamma distribution
-        transform_batch
-            Batches to condition on.
-            If transform_batch is:
-            - None, then real observed batch is used
-            - int, then batch transform_batch is used
-            - list of int, then values are averaged over provided batches.
-        log_transform
-            Whether to log transform denoised values prior to correlation calculation
-
-        Returns
-        -------
-        Correlation matrix
-
-        """
-        if (transform_batch is None) or (isinstance(transform_batch, int)):
-            transform_batch = [transform_batch]
-        corr_mats = []
-        for b in transform_batch:
-            denoised_data = self.generate_denoised_samples(
-                n_samples=n_samples,
-                batch_size=batch_size,
-                rna_size_factor=rna_size_factor,
-                transform_batch=b,
-            )
-            flattened = np.zeros(
-                (denoised_data.shape[0] * n_samples, denoised_data.shape[1])
-            )
-            for i in range(n_samples):
-                flattened[
-                    denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
-                ] = denoised_data[:, :, i]
-            if log_transform is True:
-                flattened[:, : self.gene_dataset.n_genes] = np.log(
-                    flattened[:, : self.gene_dataset.n_genes] + 1e-8
-                )
-                flattened[:, self.gene_dataset.n_genes :] = np.log1p(
-                    flattened[:, self.gene_dataset.n_genes :]
-                )
-            if correlation_mode == "pearson":
-                corr_matrix = np.corrcoef(flattened, rowvar=False)
-            else:
-                corr_matrix = spearmanr(flattened, axis=0)
-            corr_mats.append(corr_matrix)
-        corr_matrix = np.mean(np.stack(corr_mats), axis=0)
-        return corr_matrix
-
-    @torch.no_grad()
-    def imputation(self, n_samples: int = 1):
-        """Gene imputation
-
-        Parameters
-        ----------
-        n_samples
-             (Default value = 1)
-
-        Returns
-        -------
-
-        """
-        imputed_list = []
-        for tensors in self:
-            x, _, _, batch_index, label, y = self._unpack_tensors(tensors)
-            px_rate = self.model.get_sample_rate(
-                x, y, batch_index=batch_index, label=label, n_samples=n_samples
-            )
-            imputed_list += [np.array(px_rate.cpu())]
-        imputed_list = np.concatenate(imputed_list)
-        return imputed_list.squeeze()
 
     @torch.no_grad()
     def differential_expression_score(
@@ -1109,7 +780,7 @@ class TotalTrainer(UnsupervisedTrainer):
     Parameters
     ----------
     model
-        A model instance from class ``TOTALVI``
+        A model instance from class ``TOTALVAE``
     adata
         A registered AnnData object
     train_size
@@ -1143,7 +814,7 @@ class TotalTrainer(UnsupervisedTrainer):
 
     def __init__(
         self,
-        model: TOTALVI,
+        model: TOTALVAE,
         dataset: anndata.AnnData,
         train_size: float = 0.90,
         test_size: float = 0.10,

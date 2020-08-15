@@ -1,52 +1,47 @@
 import numpy as np
-import os
 import logging
 import torch
 import pandas as pd
 from anndata import AnnData
 
-from typing import Optional, Union, List, Dict
+from typing import Optional, Union, List, Dict, Tuple
 from scvi._compat import Literal
-from scvi.models._modules.vae import VAE
-from scvi.models._base import AbstractModelClass
+from scvi.models._modules.totalvae import TOTALVAE
+from scvi.models import SCVI
 
 # from scvi.models._differential import DifferentialExpression
-from scvi.models._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi import _CONSTANTS
-from scvi.inference.inference import UnsupervisedTrainer
-from scvi.inference.posterior import Posterior
+from scvi.inference.total_inference import TotalPosterior, TotalTrainer
 
 logger = logging.getLogger(__name__)
 
 
-class SCVI(AbstractModelClass):
-    """single-cell Variational Inference [Lopez18]_
+class TOTALVI(SCVI):
+    """total Variational Inference [GayosoSteier20]_
 
     Parameters
     ----------
     adata
         AnnData object that has been registered with scvi
-    n_hidden
-        Number of nodes per hidden layer
     n_latent
         Dimensionality of the latent space
-    n_layers
-        Number of hidden layers used for encoder and decoder NNs
-    dropout_rate
-        Dropout rate for neural networks
-    dispersion
+    gene_dispersion
         One of the following
 
-        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
-        * ``'gene-batch'`` - dispersion can differ between different batches
-        * ``'gene-label'`` - dispersion can differ between different labels
-        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
+        * ``'gene'`` - genes_dispersion parameter of NB is constant per gene across cells
+        * ``'gene-batch'`` - genes_dispersion can differ between different batches
+        * ``'gene-label'`` - genes_dispersion can differ between different labels
+    protein_dispersion
+        One of the following
+
+        * ``'protein'`` - protein_dispersion parameter is constant per protein across cells
+        * ``'protein-batch'`` - protein_dispersion can differ between different batches NOT TESTED
+        * ``'protein-label'`` - protein_dispersion can differ between different labels NOT TESTED
     gene_likelihood
         One of
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
-        * ``'poisson'`` - Poisson distribution
     latent_distribution
         One of
 
@@ -57,8 +52,8 @@ class SCVI(AbstractModelClass):
     --------
 
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.dataset.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.models.SCVI(adata)
+    >>> scvi.dataset.setup_anndata(adata, batch_key="batch", protein_expression_obsm_key="protein_expression")
+    >>> vae = scvi.models.TOTALVI(adata)
     >>> vae.train(n_epochs=400)
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     """
@@ -66,13 +61,15 @@ class SCVI(AbstractModelClass):
     def __init__(
         self,
         adata: AnnData,
-        n_hidden: int = 128,
         n_latent: int = 10,
-        n_layers: int = 1,
-        dropout_rate: float = 0.1,
-        dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
-        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
-        latent_distribution: Literal["normal", "ln"] = "normal",
+        gene_dispersion: Literal[
+            "gene", "gene-batch", "gene-label", "gene-cell"
+        ] = "gene",
+        protein_dispersion: Literal[
+            "protein", "protein-batch", "protein-label"
+        ] = "protein",
+        gene_likelihood: Literal["zinb", "nb"] = "nb",
+        latent_distribution: Literal["normal", "ln"] = "ln",
         use_cuda: bool = True,
         **model_kwargs,
     ):
@@ -82,71 +79,26 @@ class SCVI(AbstractModelClass):
 
         self.adata = adata
         summary_stats = adata.uns["scvi_summary_stats"]
-        self.model = VAE(
+
+        if "totalvi_batch_mask" in adata.uns.keys():
+            batch_mask = adata.uns["totalvi_batch_mask"]
+        else:
+            batch_mask = None
+        self.model = TOTALVAE(
             n_input=summary_stats["n_genes"],
+            n_input_proteins=summary_stats["n_proteins"],
             n_batch=summary_stats["n_batch"],
-            n_labels=summary_stats["n_labels"],
-            n_hidden=n_hidden,
-            n_latent=n_latent,
-            n_layers=n_layers,
-            dropout_rate=dropout_rate,
-            dispersion=dispersion,
-            reconstruction_loss=gene_likelihood,
+            gene_dispersion=gene_dispersion,
+            protein_dispersion=protein_dispersion,
+            reconstruction_loss_gene=gene_likelihood,
             latent_distribution=latent_distribution,
+            protein_batch_mask=batch_mask,
             **model_kwargs,
         )
         self.is_trained = False
         self.use_cuda = use_cuda and torch.cuda.is_available()
-        self.batch_size = 128
-        self._posterior_class = Posterior
-
-    def _make_posterior(self, adata=None, indices=None):
-        if adata is None:
-            adata = self.adata
-        if indices is None:
-            indices = np.arange(adata.n_obs)
-        post = self._posterior_class(
-            self.model,
-            adata,
-            shuffle=False,
-            indices=indices,
-            use_cuda=self.use_cuda,
-            batch_size=self.batch_size,
-        ).sequential()
-        return post
-
-    def save(self, dir_path):
-        # save the model state dict and the trainer state dict only
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-        else:
-            raise ValueError(
-                "{} already exists. Please provide an unexisting directory for saving.".format(
-                    dir_path
-                )
-            )
-        torch.save(self.model.state_dict(), os.path.join(dir_path, "model_params.pt"))
-        torch.save(
-            self.trainer.optimizer.state_dict(),
-            os.path.join(dir_path, "optimizer_params.pt"),
-        )
-
-    def load(self, dir_path):
-        # load state dicts, maybe a class method?
-        # Loading scVI model
-        model_path = os.path.join(dir_path, "model_params.pt")
-        optimizer_path = os.path.join(dir_path, "optimizer_params.pt")
-        if self.use_cuda:
-            self.model.load_state_dict(torch.load(model_path))
-            self.trainer.optimizer.load_state_dict(torch.load(optimizer_path))
-            self.model.cuda()
-        else:
-            device = torch.device("cpu")
-            self.model.load_state_dict(torch.load(model_path, map_location=device))
-            self.trainer.optimizer.load_state_dict(
-                torch.load(optimizer_path, map_location=device)
-            )
-        self.model.eval()
+        self.batch_size = 256
+        self._posterior_class = TotalPosterior
 
     def train(
         self,
@@ -156,12 +108,14 @@ class SCVI(AbstractModelClass):
         learning_rate=1e-3,
         n_iter_kl_warmup=None,
         n_epochs_kl_warmup=400,
-        metric_frequency=None,
+        metric_frequency=1,
         trainer_kwargs={},
         train_kwargs={},
     ):
 
-        self.trainer = UnsupervisedTrainer(
+        if "totalvi_batch_mask" in self.adata.uns.keys():
+            imputation = True
+        self.trainer = TotalTrainer(
             self.model,
             self.adata,
             train_size=train_size,
@@ -169,6 +123,8 @@ class SCVI(AbstractModelClass):
             n_iter_kl_warmup=n_iter_kl_warmup,
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             frequency=metric_frequency,
+            batch_size=self.batch_size,
+            use_adversarial_loss=imputation,
             **trainer_kwargs,
         )
         self.trainer.train(n_epochs=n_epochs, lr=learning_rate, **train_kwargs)
@@ -178,25 +134,11 @@ class SCVI(AbstractModelClass):
         self.validation_indices = self.trainer.validation_set.indices
 
     @torch.no_grad()
-    def get_elbo(self, adata=None, indices=None):
+    def get_reconstruction_error(self, adata=None, indices=None, mode="total"):
 
         post = self._make_posterior(adata=adata, indices=indices)
 
-        return -post.elbo()
-
-    @torch.no_grad()
-    def get_marginal_ll(self, adata=None, indices=None, n_mc_samples=1000):
-
-        post = self._make_posterior(adata=adata, indices=indices)
-
-        return -post.marginal_ll(n_mc_samples=n_mc_samples)
-
-    @torch.no_grad()
-    def get_reconstruction_error(self, adata=None, indices=None):
-
-        post = self._make_posterior(adata=adata, indices=indices)
-
-        return -post.reconstruction_error()
+        return -post.reconstruction_error(mode=mode)
 
     @torch.no_grad()
     def get_latent_representation(
@@ -229,9 +171,9 @@ class SCVI(AbstractModelClass):
         Examples
         --------
 
-        >>> vae = scvi.model.SCVI(adata)
+        >>> vae = scvi.model.TOTALVI(adata)
         >>> vae.train(n_epochs=400)
-        >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
+        >>> adata.obsm["X_totalVI"] = vae.get_latent_representation()
 
         We can also get the latent representation for a subset of cells
 
@@ -247,8 +189,10 @@ class SCVI(AbstractModelClass):
         latent = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
+            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+            batch = tensors[_CONSTANTS.BATCH_KEY]
             z = self.model.sample_from_posterior_z(
-                x, give_mean=give_mean, n_samples=mc_samples
+                x, y, batch, give_mean=give_mean, n_samples=mc_samples
             )
             latent += [z.cpu()]
         return np.array(torch.cat(latent))
@@ -262,13 +206,11 @@ class SCVI(AbstractModelClass):
         libraries = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
-            out = self.model.get_latents(x)
-            if give_mean is False:
-                library = out["library"]
-            else:
-                library = torch.distributions.LogNormal(
-                    out["ql_m"], out["ql_v"].sqrt()
-                ).mean
+            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+            batch = tensors[_CONSTANTS.BATCH_KEY]
+            library = self.model.sample_from_posterior_l(
+                x, y, batch, give_mean=give_mean
+            )
             libraries += [library.cpu()]
         return np.array(torch.cat(libraries))
 
@@ -279,14 +221,17 @@ class SCVI(AbstractModelClass):
         indices=None,
         transform_batch: Optional[int] = None,
         gene_list: Optional[Union[np.ndarray, List[int]]] = None,
+        protein_list: Optional[Union[np.ndarray, List[int]]] = None,
         library_size: Optional[Union[float, Literal["latent"]]] = 1,
         n_samples: int = 1,
+        sample_protein_mixing: bool = True,
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
-    ) -> Union[np.ndarray, pd.DataFrame]:
-        r"""Returns the normalized (decoded) gene expression.
+    ) -> Tuple[Union[np.ndarray, pd.DataFrame], Union[np.ndarray, pd.DataFrame]]:
+        r"""Returns the normalized gene expression and protein expression
 
-        This is denoted as :math:`\rho_n` in the scVI paper.
+        This is denoted as :math:`\rho_n` in the totalVI paper for genes, and TODO
+        for proteins, :math:`(1-\pi_{nt})\alpha_{nt}\beta_{nt}`.
 
         Parameters
         ----------
@@ -296,8 +241,13 @@ class SCVI(AbstractModelClass):
 
             - None, then real observed batch is used
             - int, then batch transform_batch is used
+            - List[int], then average over batches in list
         gene_list
             Return frequencies of expression for a subset of genes.
+            This can save memory when working with large datasets and few genes are
+            of interest.
+        protein_list
+            Return protein expression for a subset of genes.
             This can save memory when working with large datasets and few genes are
             of interest.
         library_size
@@ -306,6 +256,8 @@ class SCVI(AbstractModelClass):
             magnitude.
         n_samples
             Get sample scale from multiple samples.
+        sample_protein_mixing
+            Sample mixing bernoulli, setting background to zero
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -315,7 +267,8 @@ class SCVI(AbstractModelClass):
 
         Returns
         -------
-        - **normalized_expression** - array of normalized expression
+        - **gene_normalized_expression** - normalized expression for RNA
+        - **protein_normalized_expression** - normalized expression for proteins
 
         If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, genes)``.
         Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
@@ -330,6 +283,11 @@ class SCVI(AbstractModelClass):
         else:
             all_genes = adata.var_names
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
+        if protein_list is None:
+            protein_mask = slice(None)
+        else:
+            all_proteins = adata.uns["scvi_protein_names"]
+            protein_mask = [True if p in protein_list else False for p in all_proteins]
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -338,48 +296,82 @@ class SCVI(AbstractModelClass):
                 )
             return_numpy = True
 
-        if library_size == "latent":
-            model_fn = self.model.get_sample_rate
-            scaling = 1
-        else:
-            model_fn = self.model.get_sample_scale
-            scaling = library_size
-
-        exprs = []
+        scale_list_gene = []
+        scale_list_pro = []
+        if (transform_batch is None) or (isinstance(transform_batch, int)):
+            transform_batch = [transform_batch]
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
-            batch_idx = tensors[_CONSTANTS.BATCH_KEY]
-            labels = tensors[_CONSTANTS.LABELS_KEY]
-            exprs += [
-                np.array(
-                    (
-                        model_fn(
-                            x,
-                            batch_index=batch_idx,
-                            y=labels,
-                            n_samples=n_samples,
-                            transform_batch=transform_batch,
-                        )[..., gene_mask]
-                        * scaling
-                    ).cpu()
+            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+            batch_index = tensors[_CONSTANTS.BATCH_KEY]
+            label = tensors[_CONSTANTS.LABELS_KEY]
+            px_scale = torch.zeros_like(x)
+            py_scale = torch.zeros_like(y)
+            if n_samples > 1:
+                px_scale = torch.stack(n_samples * [px_scale])
+                py_scale = torch.stack(n_samples * [py_scale])
+            for b in transform_batch:
+                outputs = self.model.inference(
+                    x,
+                    y,
+                    batch_index=batch_index,
+                    label=label,
+                    n_samples=n_samples,
+                    transform_batch=b,
                 )
-            ]
+                if library_size == "observed":
+                    px_scale += outputs["px_"]["rate"]
+                else:
+                    px_scale += outputs["px_"]["scale"]
+                px_scale = px_scale[..., gene_mask]
+
+                py_ = outputs["py_"]
+                # probability of background
+                protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
+                if sample_protein_mixing is True:
+                    protein_mixing = torch.distributions.Bernoulli(
+                        protein_mixing
+                    ).sample()
+                    protein_mixing = protein_mixing[..., protein_mask]
+                py_scale += py_["rate_fore"][..., protein_mask] * (1 - protein_mixing)
+            px_scale /= len(transform_batch)
+            py_scale /= len(transform_batch)
+            scale_list_gene.append(px_scale.cpu())
+            scale_list_pro.append(py_scale.cpu())
 
         if n_samples > 1:
-            # The -2 axis correspond to cells.
-            exprs = np.concatenate(exprs, axis=-2)
+            # concatenate along batch dimension -> result shape = (samples, cells, features)
+            scale_list_gene = torch.cat(scale_list_gene, dim=1)
+            scale_list_pro = torch.cat(scale_list_pro, dim=1)
+            # (cells, features, samples)
+            scale_list_gene = scale_list_gene.permute(1, 2, 0)
+            scale_list_pro = scale_list_pro.permute(1, 2, 0)
         else:
-            exprs = np.concatenate(exprs, axis=0)
+            scale_list_gene = torch.cat(scale_list_gene, dim=0)
+            scale_list_pro = torch.cat(scale_list_pro, dim=0)
 
-        if n_samples > 1 and return_mean:
-            exprs = exprs.mean(0)
+        if return_mean is True and n_samples > 1:
+            scale_list_gene = torch.mean(scale_list_gene, dim=-1)
+            scale_list_pro = torch.mean(scale_list_pro, dim=-1)
+
+        scale_list_gene = scale_list_gene.cpu().numpy()
+        scale_list_pro = scale_list_pro.cpu().numpy()
 
         if return_numpy is None or return_numpy is False:
-            return pd.DataFrame(
-                exprs, columns=adata.var_names[gene_mask], index=adata.obs_names
+            gene_df = pd.DataFrame(
+                scale_list_gene,
+                columns=adata.var_names[gene_mask],
+                index=adata.obs_names,
             )
+            pro_df = pd.DataFrame(
+                scale_list_pro,
+                columns=adata.uns["scvi_protein_names"][protein_mask],
+                index=adata.obs_names,
+            )
+
+            return gene_df, pro_df
         else:
-            return exprs
+            return scale_list_gene, scale_list_pro
 
     def differential_expression(
         self, groupby, group1=None, group2="rest", adata=None, within_key=None
@@ -406,10 +398,11 @@ class SCVI(AbstractModelClass):
         indices=None,
         n_samples: int = 1,
         gene_list: Union[list, np.ndarray] = None,
+        protein_list: Union[list, np.ndarray] = None,
     ) -> np.ndarray:
         r"""Generate observation samples from the posterior predictive distribution
 
-        The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
+        The posterior predictive distribution is written as :math:`p(\hat{x}, \hat{y} \mid x, y)`.
 
         Parameters
         ----------
@@ -420,10 +413,10 @@ class SCVI(AbstractModelClass):
 
         Returns
         -------
-        x_new : :py:class:`torch.Tensor`
+        x_new : :py:class:`np.ndarray`
             tensor with shape (n_cells, n_genes, n_samples)
         """
-        assert self.model.reconstruction_loss in ["zinb", "nb", "poisson"]
+        assert self.model.reconstruction_loss_gene in ["nb"]
 
         adata = adata if adata is not None else self.adata
         if gene_list is None:
@@ -431,51 +424,66 @@ class SCVI(AbstractModelClass):
         else:
             all_genes = adata.var_names
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
+        if protein_list is None:
+            protein_mask = slice(None)
+        else:
+            all_proteins = adata.uns["scvi_protein_names"]
+            protein_mask = [True if p in protein_list else False for p in all_proteins]
 
         post = self._make_posterior(adata=adata, indices=indices)
 
-        x_new = []
+        posterior_list = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
             batch_idx = tensors[_CONSTANTS.BATCH_KEY]
             labels = tensors[_CONSTANTS.LABELS_KEY]
-            outputs = self.model.inference(
-                x, batch_index=batch_idx, y=labels, n_samples=n_samples
+            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+            with torch.no_grad():
+                outputs = self.model.inference(
+                    x, y, batch_index=batch_idx, label=labels, n_samples=n_samples
+                )
+            px_ = outputs["px_"]
+            py_ = outputs["py_"]
+
+            pi = 1 / (1 + torch.exp(-py_["mixing"]))
+            mixing_sample = torch.distributions.Bernoulli(pi).sample()
+            protein_rate = (
+                py_["rate_fore"] * (1 - mixing_sample)
+                + py_["rate_back"] * mixing_sample
             )
-            px_r = outputs["px_r"]
-            px_rate = outputs["px_rate"]
-            px_dropout = outputs["px_dropout"]
-
-            if self.model.reconstruction_loss == "poisson":
-                l_train = px_rate
-                l_train = torch.clamp(l_train, max=1e8)
-                dist = torch.distributions.Poisson(
-                    l_train
-                )  # Shape : (n_samples, n_cells_batch, n_genes)
-            elif self.model.reconstruction_loss == "nb":
-                dist = NegativeBinomial(mu=px_rate, theta=px_r)
-            elif self.model.reconstruction_loss == "zinb":
-                dist = ZeroInflatedNegativeBinomial(
-                    mu=px_rate, theta=px_r, zi_logits=px_dropout
-                )
+            rate = torch.cat(
+                (px_["rate"][..., gene_mask], protein_rate[..., protein_mask]), dim=-1
+            )
+            if len(px_["r"].size()) == 2:
+                px_dispersion = px_["r"]
             else:
-                raise ValueError(
-                    "{} reconstruction error not handled right now".format(
-                        self.model.reconstruction_loss
-                    )
-                )
-            exprs = dist.sample().permute(
-                [1, 2, 0]
-            )  # Shape : (n_cells_batch, n_genes, n_samples)
+                px_dispersion = torch.ones_like(x) * px_["r"]
+            if len(py_["r"].size()) == 2:
+                py_dispersion = py_["r"]
+            else:
+                py_dispersion = torch.ones_like(y) * py_["r"]
 
-            if gene_list is not None:
-                exprs = exprs[:, gene_mask, :]
+            dispersion = torch.cat(
+                (px_dispersion[..., gene_mask], py_dispersion[..., protein_mask]),
+                dim=-1,
+            )
 
-            x_new.append(exprs.cpu())
+            # This gamma is really l*w using scVI manuscript notation
+            p = rate / (rate + dispersion)
+            r = dispersion
+            l_train = torch.distributions.Gamma(r, (1 - p) / p).sample()
+            data = torch.distributions.Poisson(l_train).sample().cpu().numpy()
+            # """
+            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
+            # rate = (1 - p) / p  # = 1/scale # used in pytorch
+            # """
+            posterior_list += [data]
 
-        x_new = torch.cat(x_new)  # Shape (n_cells, n_genes, n_samples)
+            posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
 
-        return x_new.numpy()
+        posterior_list = np.concatenate(posterior_list, axis=0)
+
+        return posterior_list
 
     @torch.no_grad()
     def _get_denoised_samples(
@@ -511,29 +519,44 @@ class SCVI(AbstractModelClass):
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
             batch_idx = tensors[_CONSTANTS.BATCH_KEY]
-            labels = tensors[_CONSTANTS.LABELS_KEY]
+            label = tensors[_CONSTANTS.LABELS_KEY]
+            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+            with torch.no_grad():
+                outputs = self.model.inference(
+                    x,
+                    y,
+                    batch_index=batch_idx,
+                    label=label,
+                    n_samples=n_samples,
+                    transform_batch=transform_batch,
+                )
+            px_ = outputs["px_"]
+            py_ = outputs["py_"]
 
-            outputs = self.model.inference(
-                x, batch_index=batch_idx, y=labels, n_samples=n_samples
-            )
-            px_scale = outputs["px_scale"]
-            px_r = outputs["px_r"]
-
-            rate = rna_size_factor * px_scale
-            if len(px_r.size()) == 2:
-                px_dispersion = px_r
+            pi = 1 / (1 + torch.exp(-py_["mixing"]))
+            mixing_sample = torch.distributions.Bernoulli(pi).sample()
+            protein_rate = py_["rate_fore"]
+            rate = torch.cat((rna_size_factor * px_["scale"], protein_rate), dim=-1)
+            if len(px_["r"].size()) == 2:
+                px_dispersion = px_["r"]
             else:
-                px_dispersion = torch.ones_like(x) * px_r
+                px_dispersion = torch.ones_like(x) * px_["r"]
+            if len(py_["r"].size()) == 2:
+                py_dispersion = py_["r"]
+            else:
+                py_dispersion = torch.ones_like(y) * py_["r"]
+
+            dispersion = torch.cat((px_dispersion, py_dispersion), dim=-1)
 
             # This gamma is really l*w using scVI manuscript notation
-            p = rate / (rate + px_dispersion)
-            r = px_dispersion
+            p = rate / (rate + dispersion)
+            r = dispersion
             l_train = torch.distributions.Gamma(r, (1 - p) / p).sample()
             data = l_train.cpu().numpy()
-            # """
-            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
-            # rate = (1 - p) / p  # = 1/scale # used in pytorch
-            # """
+            # make background 0
+            data[:, :, self.adata.shape[1] :] = (
+                data[:, :, self.adata.shape[1] :] * (1 - mixing_sample).cpu().numpy()
+            )
             posterior_list += [data]
 
             posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
@@ -550,6 +573,7 @@ class SCVI(AbstractModelClass):
         rna_size_factor: int = 1000,
         transform_batch: Optional[Union[int, List[int]]] = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
+        log_transform: bool = False,
     ) -> pd.DataFrame:
         """Generate gene-gene correlation matrix using scvi uncertainty and expression
 
@@ -570,10 +594,12 @@ class SCVI(AbstractModelClass):
             - list of int, then values are averaged over provided batches.
         correlation_type
             One of "pearson", "spearman"
+        log_transform
+            Whether to log transform denoised values prior to correlation calculation
 
         Returns
         -------
-        Gene-gene correlation matrix
+        Gene-protein-gene-protein correlation matrix
         """
 
         from scipy.stats import spearmanr
@@ -582,9 +608,7 @@ class SCVI(AbstractModelClass):
             transform_batch = [transform_batch]
         corr_mats = []
         for b in transform_batch:
-            denoised_data = self._get_denoised_samples(
-                adata=adata,
-                indicies=indices,
+            denoised_data = self.generate_denoised_samples(
                 n_samples=n_samples,
                 batch_size=batch_size,
                 rna_size_factor=rna_size_factor,
@@ -597,20 +621,26 @@ class SCVI(AbstractModelClass):
                 flattened[
                     denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
                 ] = denoised_data[:, :, i]
+            if log_transform is True:
+                flattened[:, : self.gene_dataset.n_genes] = np.log(
+                    flattened[:, : self.gene_dataset.n_genes] + 1e-8
+                )
+                flattened[:, self.gene_dataset.n_genes :] = np.log1p(
+                    flattened[:, self.gene_dataset.n_genes :]
+                )
             if correlation_type == "pearson":
                 corr_matrix = np.corrcoef(flattened, rowvar=False)
-            elif correlation_type == "spearman":
-                corr_matrix, _ = spearmanr(flattened)
             else:
-                raise ValueError(
-                    "Unknown correlation type. Choose one of 'spearman', 'pearson'."
-                )
+                corr_matrix = spearmanr(flattened, axis=0)
             corr_mats.append(corr_matrix)
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
-        return pd.DataFrame(
-            corr_matrix, index=self.adata.var_names, columns=self.adata.var_names
-        )
 
+        names = np.concatenate(
+            [np.asarray(self.adata.var_names), self.adata.uns["scvi_protein_names"]]
+        )
+        return pd.DataFrame(corr_matrix, index=names, columns=names)
+
+    # TODO
     @torch.no_grad()
     def get_likelihood_parameters(
         self,
@@ -627,9 +657,9 @@ class SCVI(AbstractModelClass):
 
         post = self._make_posterior(adata=adata, indices=indices)
 
-        dropout_list = []
-        mean_list = []
-        dispersion_list = []
+        rna_dropout_list = []
+        rna_mean_list = []
+        rna_dispersion_list = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
             batch_idx = tensors[_CONSTANTS.BATCH_KEY]
@@ -643,26 +673,26 @@ class SCVI(AbstractModelClass):
             px_dropout = outputs["px_dropout"]
 
             n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
-            dispersion_list += [
+            rna_dispersion_list += [
                 np.repeat(np.array(px_r.cpu())[np.newaxis, :], n_batch, axis=0)
             ]
-            mean_list += [np.array(px_rate.cpu())]
-            dropout_list += [np.array(px_dropout.cpu())]
+            rna_mean_list += [np.array(px_rate.cpu())]
+            rna_dropout_list += [np.array(px_dropout.cpu())]
 
-        dropout = np.concatenate(dropout_list)
-        means = np.concatenate(mean_list)
-        dispersions = np.concatenate(dispersion_list)
+        dropout = np.concatenate(rna_dropout_list)
+        means = np.concatenate(rna_mean_list)
+        dispersions = np.concatenate(rna_dispersion_list)
         if give_mean and n_samples > 1:
             dropout = dropout.mean(0)
             means = means.mean(0)
 
         return_dict = {}
-        return_dict["mean"] = means
+        return_dict["RNA_mean"] = means
 
-        if self.model.reconstruction_loss == "zinb":
-            return_dict["dropout"] = dropout
-            return_dict["dispersions"] = dispersions
-        if self.model.reconstruction_loss == "nb":
-            return_dict["dispersions"] = dispersions
+        if self.model.reconstruction_loss_gene == "zinb":
+            return_dict["RNA_dropout"] = dropout
+            return_dict["RNA_dispersions"] = dispersions
+        if self.model.reconstruction_loss_gene == "nb":
+            return_dict["RNA_dispersions"] = dispersions
 
         return return_dict

@@ -8,7 +8,7 @@ import anndata
 from torch.utils.data import DataLoader
 
 from scvi.dataset._biodataset import BioDataset
-from scvi.models._modules.log_likelihood import (
+from scvi.models._log_likelihood import (
     compute_elbo,
     compute_reconstruction_error,
     compute_marginal_log_likelihood_scvi,
@@ -79,25 +79,6 @@ class Posterior:
         Default: ``True``
     data_loader_kwargs
         Keyword arguments to passed into the `DataLoader`
-
-    Examples
-    --------
-    Let us instantiate a `trainer`, with a gene_dataset and a model
-
-    A `UnsupervisedTrainer` instance has two `Posterior` attributes: `train_set` and `test_set`
-    For this subset of the original gene_dataset instance, we can examine the differential expression,
-    log_likelihood, entropy batch mixing, etc.
-
-    >>> gene_dataset = CortexDataset()
-    >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-    ... n_labels=gene_dataset.n_labels, use_cuda=True)
-    >>> trainer = UnsupervisedTrainer(vae, gene_dataset)
-    >>> trainer.train(n_epochs=50)
-
-    >>> trainer.train_set.differential_expression_stats()
-    >>> trainer.train_set.reconstruction_error()
-    >>> trainer.train_set.entropy_batch_mixing()
-    >>> trainer.train_set.show_t_sne(n_samples=1000, color_by="labels")
 
     """
 

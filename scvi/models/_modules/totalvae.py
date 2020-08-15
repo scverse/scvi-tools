@@ -7,16 +7,16 @@ import numpy as np
 
 from torch.distributions import Normal, Bernoulli, kl_divergence as kl
 from typing import Dict, Optional, Tuple, Union, List
-from scvi.models.distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
-from scvi.models.log_likelihood import log_mixture_nb
-from scvi.models.modules import DecoderTOTALVI, EncoderTOTALVI
-from scvi.models.utils import one_hot
+from scvi.models._distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
+from scvi.models._log_likelihood import log_mixture_nb
+from scvi.models._modules._core import DecoderTOTALVI, EncoderTOTALVI
+from scvi.models._modules.utils import one_hot
 
 torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class TOTALVI(nn.Module):
+class TOTALVAE(nn.Module):
     """Total variational inference for CITE-seq data
 
     Implements the totalVI model of [GayosoSteier20]_.
