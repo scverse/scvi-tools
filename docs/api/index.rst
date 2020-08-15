@@ -14,3 +14,4 @@ Import scvi as::
    dataset
    models
    inference
+   classes
