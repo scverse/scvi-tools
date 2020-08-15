@@ -115,6 +115,8 @@ class TOTALVI(SCVI):
 
         if "totalvi_batch_mask" in self.adata.uns.keys():
             imputation = True
+        else:
+            imputation = False
         self.trainer = TotalTrainer(
             self.model,
             self.adata,
