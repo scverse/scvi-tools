@@ -35,7 +35,7 @@ Linearly-decoded scVI
 .. autosummary::
    :toctree: reference/
 
-   models.LDVAE
+   models.LinearSCVI
 
 
 AutoZI

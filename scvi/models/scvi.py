@@ -85,7 +85,6 @@ class SCVI(AbstractModelClass):
         self.model = VAE(
             n_input=summary_stats["n_genes"],
             n_batch=summary_stats["n_batch"],
-            n_labels=summary_stats["n_labels"],
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
