@@ -28,8 +28,9 @@ from hyperopt.mongoexp import (
 
 from scvi._settings import autotune_formatter
 
-from scvi.models import VAE
-from . import Trainer, UnsupervisedTrainer
+from scvi.models._base import AbstractModelClass
+from scvi.inference.trainer import Trainer
+from scvi.models import SCVI
 
 # spawning is required for processes relying on cuda, and for windows
 multiprocessing.set_start_method("spawn", force=True)
@@ -207,8 +208,7 @@ def auto_tune_scvi_model(
     gene_dataset: Union[anndata.AnnData, str] = None,
     custom_objective_hyperopt: Callable = None,
     objective_kwargs: Dict[str, Any] = None,
-    model_class: VAE = VAE,
-    trainer_class: Trainer = UnsupervisedTrainer,
+    model_class: AbstractModelClass = SCVI,
     metric_name: str = None,
     metric_kwargs: Dict[str, Any] = None,
     posterior_name: str = "test_set",
@@ -220,7 +220,6 @@ def auto_tune_scvi_model(
     train_best: bool = True,
     pickle_result: bool = True,
     save_path: str = ".",
-    use_batches: bool = False,
     parallel: bool = True,
     n_cpu_workers: int = None,
     gpu_ids: List[int] = None,
@@ -232,8 +231,8 @@ def auto_tune_scvi_model(
     mongo_host: str = "localhost",
     db_name: str = "scvi_db",
     multiple_hosts: bool = False,
-) -> (Type[Trainer], Trials):
-    """Perform automatic hyperparameter optimization of an scVI model
+) -> (Type[AbstractModelClass], Trials):
+    """Perform automatic hyperparameter optimization of an scvi model
     and return best model and hyperopt Trials object.
 
     ``Trials`` object contains hyperparameter space and loss history for each trial.
@@ -263,9 +262,7 @@ def auto_tune_scvi_model(
         Dictionary containing the fixed keyword arguments `
         to the custom `objective_hyperopt.
     model_class :
-        scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
-    trainer_class :
-        Trainer`` sub-class (e.g ``UnsupervisedTrainer``)
+        scvi model class (e.g ``SCVI``, ``SCANVI``)
     metric_name :
         Name of the metric to optimize for. If `None` defaults to ``marginal_ll``
     metric_kwargs :
@@ -293,8 +290,6 @@ def auto_tune_scvi_model(
         If ``True``, pickle ``Trials`` and  ``Trainer`` objects using ``save_path``.
     save_path :
         Path where to save best model, trainer, trials and mongo files.
-    use_batches :
-        If ``False``, pass ``n_batch=0`` to model else pass ``gene_dataset.n_batches``.
     parallel :
         If ``True``, use ``MongoTrials`` object to run trainings in parallel.
     n_cpu_workers :
@@ -331,14 +326,15 @@ def auto_tune_scvi_model(
     Returns
     -------
     type
-        ``Trainer`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
+        ``AbstractModelClass`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
 
     Examples
     --------
 
-    >>> from scvi.dataset import CortexDataset
-    >>> gene_dataset = CortexDataset()
-    >>> best_trainer, trials = auto_tune_scvi_model("cortex", gene_dataset)
+    >>> import scvi
+    >>> adata = scvi.dataset.cortex()
+    >>> vae, trials = auto_tune_scvi_model("cortex", adata)
+    >>> latent = vae.get_latent_representation()
     """
     global fh_autotune
 
@@ -368,7 +364,7 @@ def auto_tune_scvi_model(
                 "n_hidden": hp.choice("n_hidden", [64, 128, 256]),
                 "n_layers": 1 + hp.randint("n_layers", 5),
                 "dropout_rate": hp.choice("dropout_rate", [0.1, 0.3, 0.5, 0.7]),
-                "reconstruction_loss": hp.choice("reconstruction_loss", ["zinb", "nb"]),
+                "gene_likelihood": hp.choice("gene_likelihood", ["zinb", "nb"]),
             },
             "train_func_tunable_kwargs": {
                 "lr": hp.choice("lr", [0.01, 0.005, 0.001, 0.0005, 0.0001])
@@ -425,14 +421,12 @@ def auto_tune_scvi_model(
             **{
                 "gene_dataset": gene_dataset,
                 "model_class": model_class,
-                "trainer_class": trainer_class,
                 "metric_name": metric_name,
                 "metric_kwargs": metric_kwargs,
                 "posterior_name": posterior_name,
                 "model_specific_kwargs": model_specific_kwargs,
                 "trainer_specific_kwargs": trainer_specific_kwargs,
                 "train_func_specific_kwargs": train_func_specific_kwargs,
-                "use_batches": use_batches,
             },
         )
     else:
@@ -503,7 +497,11 @@ def auto_tune_scvi_model(
     _cleanup_logger()
 
     if train_best:
-        return best_trainer, trials
+        # TODO implement load as class method and do that here
+        best_model = model_class(gene_dataset)
+        best_model.model = best_trainer.model
+        best_model.trainer = best_trainer
+        return best_model, trials
     else:
         return trials
 
@@ -1255,15 +1253,13 @@ class HyperoptWorker(multiprocessing.Process):
 def _objective_function(
     space: dict,
     gene_dataset: Union[anndata.AnnData, str],
-    model_class: Type[VAE] = VAE,
-    trainer_class: Type[Trainer] = UnsupervisedTrainer,
+    model_class: Type[AbstractModelClass] = SCVI,
     metric_name: str = None,
     metric_kwargs: Dict[str, Any] = None,
     posterior_name: str = "test_set",
     model_specific_kwargs: dict = None,
     trainer_specific_kwargs: dict = None,
     train_func_specific_kwargs: dict = None,
-    use_batches: bool = False,
     is_best_training: bool = False,
 ) -> Union[Dict[str, Any], Trainer]:
     """Objective function for automatic hyperparameter optimization.
@@ -1299,8 +1295,6 @@ def _objective_function(
         dict of fixed parameters which will be passed to the trainer.
     train_func_specific_kwargs :
         dict of fixed parameters which will be passed to the train method.
-    use_batches :
-        If False, pass n_batch=0 to model else pass gene_dataset.n_batches
     is_best_training :
         True if training the model with the best hyperparameters
 
@@ -1326,6 +1320,7 @@ def _objective_function(
     # use_cuda default
     if "use_cuda" not in trainer_specific_kwargs:
         trainer_specific_kwargs["use_cuda"] = bool(torch.cuda.device_count())
+        model_specific_kwargs["use_cuda"] = trainer_specific_kwargs["use_cuda"]
     if "n_epochs" not in {**train_func_specific_kwargs, **train_func_tunable_kwargs}:
         train_func_specific_kwargs["n_epochs"] = 1000
 
@@ -1361,14 +1356,11 @@ def _objective_function(
 
     # define model
     logger_all.debug("Instantiating model")
-    model = model_class(
-        n_input=gene_dataset.uns["scvi_summary_stats"]["n_genes"],
-        n_batch=gene_dataset.uns["scvi_summary_stats"]["n_batch"] * use_batches,
-        **model_tunable_kwargs,
-    )
+    model = model_class(gene_dataset, **model_tunable_kwargs)
 
     # define trainer
     logger_all.debug("Instantiating trainer")
+    trainer_class = model._trainer_class
     trainer = trainer_class(model, gene_dataset, **trainer_tunable_kwargs)
 
     # train model

@@ -98,6 +98,7 @@ class SCVI(AbstractModelClass):
         self.use_cuda = use_cuda and torch.cuda.is_available()
         self.batch_size = 128
         self._posterior_class = Posterior
+        self._trainer_class = UnsupervisedTrainer
 
     def _make_posterior(self, adata=None, indices=None):
         if adata is None:
@@ -152,7 +153,7 @@ class SCVI(AbstractModelClass):
         n_epochs=400,
         train_size=0.9,
         test_size=None,
-        learning_rate=1e-3,
+        lr=1e-3,
         n_iter_kl_warmup=None,
         n_epochs_kl_warmup=400,
         metric_frequency=None,
@@ -168,9 +169,10 @@ class SCVI(AbstractModelClass):
             n_iter_kl_warmup=n_iter_kl_warmup,
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             frequency=metric_frequency,
+            use_cuda=self.use_cuda,
             **trainer_kwargs,
         )
-        self.trainer.train(n_epochs=n_epochs, lr=learning_rate, **train_kwargs)
+        self.trainer.train(n_epochs=n_epochs, lr=lr, **train_kwargs)
         self.is_trained = True
         self.train_indices = self.trainer.train_set.indices
         self.test_indices = self.trainer.test_set.indices
