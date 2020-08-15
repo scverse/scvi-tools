@@ -105,7 +105,7 @@ class TOTALVI(SCVI):
         n_epochs=400,
         train_size=0.9,
         test_size=None,
-        learning_rate=1e-3,
+        lr=1e-3,
         n_iter_kl_warmup=None,
         n_epochs_kl_warmup=400,
         metric_frequency=1,
@@ -127,7 +127,7 @@ class TOTALVI(SCVI):
             use_adversarial_loss=imputation,
             **trainer_kwargs,
         )
-        self.trainer.train(n_epochs=n_epochs, lr=learning_rate, **train_kwargs)
+        self.trainer.train(n_epochs=n_epochs, lr=lr, **train_kwargs)
         self.is_trained = True
         self.train_indices = self.trainer.train_set.indices
         self.test_indices = self.trainer.test_set.indices
