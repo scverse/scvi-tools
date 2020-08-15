@@ -46,7 +46,6 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
     "scanpydoc.elegant_typehints",
-    "scanpydoc.rtd_github_links",
     "scanpydoc.definition_list_typed_field",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
 ]

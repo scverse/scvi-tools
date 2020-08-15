@@ -5,15 +5,15 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.models._modules.vae import LDVAE
-from scvi.models._base import AbstractModelClass
+from scvi.models import SCVI
 
 from scvi.inference.posterior import Posterior
 
 logger = logging.getLogger(__name__)
 
 
-class LinearSCVI(AbstractModelClass):
-    """Linearly-decoded VAE [Svnesson20]_
+class LinearSCVI(SCVI):
+    """Linearly-decoded VAE [Svensson20]_
 
     Parameters
     ----------
@@ -53,7 +53,7 @@ class LinearSCVI(AbstractModelClass):
     >>> scvi.dataset.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.models.LinearSCVI(adata)
     >>> vae.train(n_epochs=400)
-    >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
+    >>> adata.var["loadings"] = vae.get_loadings()
     """
 
     def __init__(

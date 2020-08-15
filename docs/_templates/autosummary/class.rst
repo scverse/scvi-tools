@@ -1,5 +1,3 @@
-:github_url: {{ fullname | github_url }}
-
 {{ fullname | escape | underline}}
 
 .. currentmodule:: {{ module }}
@@ -28,9 +26,7 @@
       :toctree: .
    {% for item in methods %}
       {%- if item != '__init__' %}
-         {%- if item not in inherited_members %}
-            ~{{ fullname }}.{{ item }}
-         {%- endif %}
+        ~{{ fullname }}.{{ item }}
       {%- endif -%}
    {%- endfor %}
    {% endif %}

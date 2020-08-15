@@ -61,7 +61,7 @@ class TOTALVI(SCVI):
     def __init__(
         self,
         adata: AnnData,
-        n_latent: int = 10,
+        n_latent: int = 20,
         gene_dispersion: Literal[
             "gene", "gene-batch", "gene-label", "gene-cell"
         ] = "gene",
