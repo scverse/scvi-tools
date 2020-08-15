@@ -85,7 +85,7 @@ class TOTALVI(SCVI):
         else:
             batch_mask = None
         self.model = TOTALVAE(
-            n_input=summary_stats["n_genes"],
+            n_input_genes=summary_stats["n_genes"],
             n_input_proteins=summary_stats["n_proteins"],
             n_batch=summary_stats["n_batch"],
             gene_dispersion=gene_dispersion,
@@ -125,6 +125,7 @@ class TOTALVI(SCVI):
             frequency=metric_frequency,
             batch_size=self.batch_size,
             use_adversarial_loss=imputation,
+            use_cuda=self.use_cuda,
             **trainer_kwargs,
         )
         self.trainer.train(n_epochs=n_epochs, lr=lr, **train_kwargs)
