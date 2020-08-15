@@ -61,7 +61,7 @@ class SCVI(AbstractModelClass):
 
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.dataset.setup_anndata(adata, batch_key="batch")
-    >>> vae = SCVI(adata)
+    >>> vae = scvi.models.SCVI(adata)
     >>> vae.train(n_epochs=400)
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     """
@@ -199,33 +199,44 @@ class SCVI(AbstractModelClass):
 
     @torch.no_grad()
     def get_latent_representation(
-        self, adata=None, indices=None, give_mean=True, mc_samples=5000
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Union[np.ndarray, List[int]]] = None,
+        give_mean: bool = True,
+        mc_samples: int = 5000,
     ) -> np.ndarray:
         """Return the latent representation for each cell
 
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi
+            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object used to initialize the model.
         indices
-            Indices of cells used to get posterior quantity
+            Indices of cells in adata to use. If `None`, all cells are used.
         give_mean
             Give mean of distribution or sample from it
         mc_samples
-            For distributions with no closed-form mean, how many Monte Carlo
-            samples to take
+            For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte Carlo
+            samples to take for computing mean.
 
         Returns
         -------
-        latent_representation
+        latent_representation : np.ndarray
             Low-dimensional representation for each cell
 
         Examples
         --------
 
-        >>> vae = SCVI(adata)
+        >>> vae = scvi.model.SCVI(adata)
         >>> vae.train(n_epochs=400)
         >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
+
+        We can also get the latent representation for a subset of cells
+
+        >>> adata_subset = adata[adata.obs.cell_type == "really cool cell type"]
+        >>> latent_subset = vae.get_latent_representation(adata_subset)
+
         """
 
         if self.is_trained is False:
