@@ -3,6 +3,7 @@ import os
 import logging
 import torch
 import pandas as pd
+from anndata import AnnData
 
 from typing import Optional, Union, List, Dict
 from scvi._compat import Literal
@@ -22,22 +23,65 @@ logger = logging.getLogger(__name__)
 
 
 class SCVI(AbstractModelClass):
+    """single-cell Variational Inference [Lopez18]_
+
+    Parameters
+    ----------
+    adata
+        AnnData object that has been registered with scvi
+    n_hidden
+        Number of nodes per hidden layer
+    n_latent
+        Dimensionality of the latent space
+    n_layers
+        Number of hidden layers used for encoder and decoder NNs
+    dropout_rate
+        Dropout rate for neural networks
+    dispersion
+        One of the following
+
+        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
+        * ``'gene-batch'`` - dispersion can differ between different batches
+        * ``'gene-label'`` - dispersion can differ between different labels
+        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
+    gene_likelihood
+        One of
+
+        * ``'nb'`` - Negative binomial distribution
+        * ``'zinb'`` - Zero-inflated negative binomial distribution
+        * ``'poisson'`` - Poisson distribution
+    latent_distribution
+        One of
+
+        * ``'normal'`` - Normal distribution
+        * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
+
+    Examples
+    --------
+
+    >>> adata = anndata.read_h5ad(path_to_anndata)
+    >>> scvi.dataset.setup_anndata(adata, batch_key="batch")
+    >>> vae = SCVI(adata)
+    >>> vae.train(n_epochs=400)
+    >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
+    """
+
     def __init__(
         self,
-        adata,
-        n_hidden=128,
-        n_latent=10,
-        n_layers=1,
-        dropout_rate=0.1,
-        dispersion="gene",
-        gene_likelihood="zinb",
-        latent_distribution="normal",
-        use_cuda=True,
+        adata: AnnData,
+        n_hidden: int = 128,
+        n_latent: int = 10,
+        n_layers: int = 1,
+        dropout_rate: float = 0.1,
+        dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
+        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        latent_distribution: Literal["normal", "ln"] = "normal",
+        use_cuda: bool = True,
         **model_kwargs,
     ):
         assert (
             "scvi_data_registry" in adata.uns.keys()
-        ), "Please setup your AnnData with setup_anndata() first"
+        ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
 
         self.adata = adata
         summary_stats = adata.uns["scvi_summary_stats"]
@@ -58,7 +102,6 @@ class SCVI(AbstractModelClass):
         self.use_cuda = use_cuda and torch.cuda.is_available()
         self.batch_size = 128
 
-    # assume posterior is a data loader + elbo + marginal ll
     def _make_posterior(self, adata=None, indices=None):
         if adata is None:
             adata = self.adata
@@ -157,7 +200,34 @@ class SCVI(AbstractModelClass):
     @torch.no_grad()
     def get_latent_representation(
         self, adata=None, indices=None, give_mean=True, mc_samples=5000
-    ):
+    ) -> np.ndarray:
+        """Return the latent representation for each cell
+
+        Parameters
+        ----------
+        adata
+            AnnData object that has been registered with scvi
+        indices
+            Indices of cells used to get posterior quantity
+        give_mean
+            Give mean of distribution or sample from it
+        mc_samples
+            For distributions with no closed-form mean, how many Monte Carlo
+            samples to take
+
+        Returns
+        -------
+        latent_representation
+            Low-dimensional representation for each cell
+
+        Examples
+        --------
+
+        >>> vae = SCVI(adata)
+        >>> vae.train(n_epochs=400)
+        >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
+        """
+
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
 
