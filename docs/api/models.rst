@@ -44,7 +44,7 @@ AutoZI
 .. autosummary::
    :toctree: reference/
 
-   models.AutoZIVAE
+   models.AUTOZI
 
 
 gimVI
