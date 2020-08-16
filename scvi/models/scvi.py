@@ -10,7 +10,7 @@ from scvi._compat import Literal
 from scvi.models._modules.vae import VAE
 from scvi.models._base import AbstractModelClass
 
-# from scvi.models._differential import DifferentialExpression
+from scvi.models._differential import DifferentialExpression
 from scvi.models._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi import _CONSTANTS
 from scvi.inference.inference import UnsupervisedTrainer
@@ -383,22 +383,19 @@ class SCVI(AbstractModelClass):
             return exprs
 
     def differential_expression(
-        self, groupby, group1=None, group2="rest", adata=None, within_key=None
+        self, groupby, group1=None, group2=None, adata=None, within_key=None
     ):
-        # group 1 and group 2 are valid obs keys in the anndata
-        # runs 1vsall or 1v1 based on group1 and group2 choices
-        # runs within cluster
-        # new differential expression class
-
-        raise NotImplementedError
-
-        # if group2 == "rest":
-        #     idx2 = ~group1
-        # else:
-        #     idx2 = 0
-
-        # DE = DifferentialExpression(self.get_sample_scale)
-        # pass
+        if adata is None:
+            adata = self.adata
+        cell_idx1 = adata.obs[groupby] == group1
+        if group2 is None:
+            cell_idx2 = ~cell_idx1
+        else:
+            cell_idx2 = adata.obs[groupby] == group2
+        post = self._make_posterior(adata=adata, indices=None)
+        DE = DifferentialExpression(self.model.get_sample_scale, adata, post)
+        res = DE.run_DE(cell_idx1, cell_idx2)
+        return res
 
     @torch.no_grad()
     def posterior_predictive_sample(

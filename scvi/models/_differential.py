@@ -10,30 +10,16 @@ from scvi.inference.posterior_utils import (
     describe_continuous_distrib,
     save_cluster_xlsx,
 )
+from scvi.dataset._biodataset import BioDataset
 from typing import Union, List, Optional, Callable, Dict
+from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)
 
 
 class DifferentialExpression:
     def __init__(
-        self,
-        model_fn,  # method of model class (SCVI, not VAE)
-        idx1: Union[List[bool], np.ndarray],
-        idx2: Union[List[bool], np.ndarray],
-        mode: Optional[str] = "vanilla",
-        batchid1: Optional[Union[List[int], np.ndarray]] = None,
-        batchid2: Optional[Union[List[int], np.ndarray]] = None,
-        use_observed_batches: Optional[bool] = False,
-        n_samples: int = 5000,
-        use_permutation: bool = False,
-        M_permutation: int = 10000,
-        all_stats: bool = True,
-        change_fn: Optional[Union[str, Callable]] = None,
-        m1_domain_fn: Optional[Callable] = None,
-        delta: Optional[float] = 0.5,
-        cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
-        **kwargs,
+        self, model_fn, adata, posterior,  # method of model class (SCVI, not VAE)
     ):
         r"""Unified method for differential expression inference.
 
@@ -177,7 +163,29 @@ class DifferentialExpression:
             - ``scale1`` and ``scale2`` (means of the scales in population 1 and 2)
             - When using the change mode, the mean, median, std of the posterior LFC
         """
+        self.gene_dataset = BioDataset(adata)
+        self.posterior = posterior
+        self.data_loader = posterior.data_loader
+        self.model_fn = model_fn
 
+    def run_DE(
+        self,
+        idx1: Union[List[bool], np.ndarray],
+        idx2: Union[List[bool], np.ndarray],
+        mode: Optional[str] = "vanilla",
+        batchid1: Optional[Union[List[int], np.ndarray]] = None,
+        batchid2: Optional[Union[List[int], np.ndarray]] = None,
+        use_observed_batches: Optional[bool] = False,
+        n_samples: int = 5000,
+        use_permutation: bool = False,
+        M_permutation: int = 10000,
+        all_stats: bool = True,
+        change_fn: Optional[Union[str, Callable]] = None,
+        m1_domain_fn: Optional[Callable] = None,
+        delta: Optional[float] = 0.5,
+        cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
+        **kwargs,
+    ):
         all_info = self.get_bayes_factors(
             idx1=idx1,
             idx2=idx2,
@@ -221,7 +229,6 @@ class DifferentialExpression:
 
     def get_bayes_factors(
         self,
-        model_fn,
         idx1: Union[List[bool], np.ndarray],
         idx2: Union[List[bool], np.ndarray],
         mode: Optional[str] = "vanilla",
@@ -370,15 +377,14 @@ class DifferentialExpression:
         Differential expression properties
 
         """
-        if not np.array_equal(self.indices, np.arange(len(self.gene_dataset))):
-            logger.warning(
-                "Differential expression requires a Posterior object created with all indices."
-            )
+        # if not np.array_equal(self.indices, np.arange(len(self.gene_dataset))):
+        #     logger.warning(
+        #         "Differential expression requires a Posterior object created with all indices."
+        #     )
 
         eps = 1e-8  # used for numerical stability
         # Normalized means sampling for both populations
         scales_batches_1 = self.scale_sampler(
-            model_fn=model_fn,
             selection=idx1,
             batchid=batchid1,
             use_observed_batches=use_observed_batches,
@@ -386,7 +392,6 @@ class DifferentialExpression:
             **kwargs,
         )
         scales_batches_2 = self.scale_sampler(
-            model_fn=model_fn,
             selection=idx2,
             batchid=batchid2,
             use_observed_batches=use_observed_batches,
@@ -521,7 +526,6 @@ class DifferentialExpression:
     @torch.no_grad()
     def scale_sampler(
         self,
-        model_fn,
         selection: Union[List[bool], np.ndarray],
         n_samples: Optional[int] = 5000,
         n_samples_per_cell: Optional[int] = None,
@@ -601,8 +605,8 @@ class DifferentialExpression:
             idx = np.random.choice(
                 np.arange(len(self.gene_dataset))[selection], n_samples
             )
-            self.update_sampler_indices(idx=idx)
-            px_scales.append(model_fn(transform_batch=batch_idx, **kwargs))
+            self.posterior.update_sampler_indices(idx=idx)
+            px_scales.append(self.get_sample_scale(transform_batch=batch_idx, **kwargs))
             batch_idx = batch_idx if batch_idx is not None else np.nan
             batch_ids.append(np.ones((px_scales[-1].shape[0])) * batch_idx)
         px_scales = np.concatenate(px_scales)
@@ -614,6 +618,104 @@ class DifferentialExpression:
         if give_mean:
             px_scales = px_scales.mean(0)
         return dict(scale=px_scales, batch=batch_ids)
+
+    @torch.no_grad()
+    def get_sample_scale(
+        self,
+        transform_batch: Optional[int] = None,
+        gene_list: Optional[Union[np.ndarray, List[int]]] = None,
+        library_size: float = 1,
+        return_df: Optional[bool] = None,
+        n_samples: int = 1,
+        return_mean: bool = True,
+    ) -> Union[np.ndarray, pd.DataFrame]:
+        r"""Returns the frequencies of expression for the data.
+
+        This is denoted as :math:`\rho_n` in the scVI paper.
+
+        Parameters
+        ----------
+        transform_batch
+            Batch to condition on.
+            If transform_batch is:
+
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+        gene_list
+            Return frequencies of expression for a subset of genes.
+            This can save memory when working with large datasets and few genes are
+            of interest.
+        library_size
+            Scale the expression frequencies to a common library size.
+            This allows gene expression levels to be interpreted on a common scale of relevant
+            magnitude.
+        return_df
+            Return a DataFrame instead of an `np.ndarray`. Includes gene
+            names as columns. Requires either n_samples=1 or return_mean=True.
+            When `gene_list` is not None and contains more than one gene, this is option is True.
+            Otherwise, it defaults to False.
+        n_samples
+            Get sample scale from multiple samples.
+        return_mean
+            Whether to return the mean of the samples.
+
+        Returns
+        -------
+        - **denoised_expression** - array of decoded expression adjusted for library size
+
+        If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, genes)``.
+        Otherwise, shape is ``(cells, genes)``. Return type is ``np.ndarray`` unless ``return_df`` is True.
+
+        """
+        if gene_list is None:
+            gene_mask = slice(None)
+        else:
+            gene_mask = self.gene_dataset._get_genes_filter_mask_by_attribute(
+                gene_list, return_data=False
+            )
+            if return_df is None and sum(gene_mask) > 1:
+                return_df = True
+
+        if n_samples > 1 and return_mean is False and return_df is True:
+            raise ValueError(
+                "return_df must be False if n_samples > 1 and return_mean is True"
+            )
+
+        px_scales = []
+        for tensors in self.posterior:
+            sample_batch = tensors[_CONSTANTS.X_KEY]
+            batch_index = tensors[_CONSTANTS.BATCH_KEY]
+            labels = tensors[_CONSTANTS.LABELS_KEY]
+            px_scales += [
+                np.array(
+                    (
+                        self.model_fn(
+                            sample_batch,
+                            batch_index=batch_index,
+                            y=labels,
+                            n_samples=n_samples,
+                            transform_batch=transform_batch,
+                        )[..., gene_mask]
+                        * library_size
+                    ).cpu()
+                )
+            ]
+
+        if n_samples > 1:
+            # The -2 axis correspond to cells.
+            px_scales = np.concatenate(px_scales, axis=-2)
+        else:
+            px_scales = np.concatenate(px_scales, axis=0)
+
+        if n_samples > 1 and return_mean:
+            px_scales = px_scales.mean(0)
+
+        if return_df is True:
+            return pd.DataFrame(
+                px_scales, columns=self.gene_dataset.gene_names[gene_mask]
+            )
+        else:
+            return px_scales
 
     @torch.no_grad()
     def one_vs_all_degenes(
