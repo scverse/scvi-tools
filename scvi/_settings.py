@@ -1,6 +1,6 @@
 import logging
-import sys
 from typing import Union
+from rich.logging import RichHandler
 
 import torch
 import numpy as np
@@ -47,7 +47,7 @@ def set_verbosity(level: Union[str, int]):
     scvi_logger.setLevel(level)
     has_streamhandler = False
     for handler in scvi_logger.handlers:
-        if isinstance(handler, logging.StreamHandler):
+        if isinstance(handler, RichHandler):
             handler.setLevel(level)
             logger.info(
                 "'scvi' logger already has a StreamHandler, set its level to {}.".format(
@@ -56,10 +56,8 @@ def set_verbosity(level: Union[str, int]):
             )
             has_streamhandler = True
     if not has_streamhandler:
-        ch = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter(
-            "[%(asctime)s] %(levelname)s - %(name)s | %(message)s"
-        )
+        ch = RichHandler(show_path=False)
+        formatter = logging.Formatter("%(message)s")
         ch.setFormatter(
             DispatchingFormatter(formatter, {"scvi.autotune": autotune_formatter})
         )
