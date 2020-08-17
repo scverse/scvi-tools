@@ -57,7 +57,10 @@ def set_verbosity(level: Union[str, int]):
             )
             has_streamhandler = True
     if not has_streamhandler:
-        ch = RichHandler(show_path=False, console=Console(force_terminal=True))
+        console = Console(force_terminal=True)
+        if console.is_jupyter is True:
+            console.is_jupyter = False
+        ch = RichHandler(show_path=False, console=console, show_time=False)
         formatter = logging.Formatter("%(message)s")
         ch.setFormatter(
             DispatchingFormatter(formatter, {"scvi.autotune": autotune_formatter})
