@@ -11,147 +11,18 @@ logger = logging.getLogger(__name__)
 
 class DifferentialComputation:
     def __init__(self, model_fn, adata):  # method of model class (SCVI, not VAE)
-        r"""Unified method for differential expression inference.
+        """Unified class for differential computation
 
-        This function is an extension of the `get_bayes_factors` method
-        providing additional genes information to the user
-
-        Two modes coexist:
-
-        - the "vanilla" mode follows protocol described in [Lopez18]_
-        In this case, we perform hypothesis testing based on the hypotheses
-
-        .. math::
-            M_1: h_1 > h_2 ~\text{and}~ M_2: h_1 \leq h_2
-
-        DE can then be based on the study of the Bayes factors
-
-        .. math::
-            \log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
-
-        - the "change" mode (described in [Boyeau19]_)
-        consists in estimating an effect size random variable (e.g., log fold-change) and
-        performing Bayesian hypothesis testing on this variable.
-        The `change_fn` function computes the effect size variable r based two inputs
-        corresponding to the normalized means in both populations.
-
-        Hypotheses:
-
-        .. math::
-            M_1: r \in R_1 ~\text{(effect size r in region inducing differential expression)}
-
-        .. math::
-            M_2: r  \notin R_1 ~\text{(no differential expression)}
-
-        To characterize the region :math:`R_1`, which induces DE, the user has two choices.
-
-        1. A common case is when the region :math:`[-\delta, \delta]` does not induce differential
-        expression.
-        If the user specifies a threshold delta,
-        we suppose that :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
-
-        2. specify an specific indicator function
-
-        .. math::
-            f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 ~\text{iff.}~ f(r) = 1
-
-        Decision-making can then be based on the estimates of
-
-        .. math::
-            p(M_1 \mid x_1, x_2)
-
-        Both modes require to sample the normalized means posteriors.
-        To that purpose, we sample the Posterior in the following way:
-
-        1. The posterior is sampled n_samples times for each subpopulation
-
-        2. For computation efficiency (posterior sampling is quite expensive), instead of
-            comparing the obtained samples element-wise, we can permute posterior samples.
-            Remember that computing the Bayes Factor requires sampling
-            :math:`q(z_A \mid x_A)` and :math:`q(z_B \mid x_B)`
-
-        Currently, the code covers several batch handling configurations:
-
-        1. If ``use_observed_batches=True``, then batch are considered as observations
-        and cells' normalized means are conditioned on real batch observations
-
-        2. If case (cell group 1) and control (cell group 2) are conditioned on the same
-        batch ids.
-        Examples:
-
-            >>> set(batchid1) = set(batchid2)
-
-        or
-
-            >>> batchid1 = batchid2 = None
-
-        3. If case and control are conditioned on different batch ids that do not intersect
-        i.e.,
-
-            >>> set(batchid1) != set(batchid2)
-
-        and
-
-            >>> len(set(batchid1).intersection(set(batchid2))) == 0
-
-        This function does not cover other cases yet and will warn users in such cases.
+        This class takes a function from a model like SCVI or TOTALVI and takes outputs
+        from this function with respect to the adata input and computed Bayes factors as
+        described in [Lopez18]_ or [Boyeau19]_.
 
         Parameters
         ----------
-        mode
-            one of ["vanilla", "change"]
-        idx1
-            bool array masking subpopulation cells 1. Should be True where cell is
-            from associated population
-        idx2
-            bool array masking subpopulation cells 2. Should be True where cell is
-            from associated population
-        batchid1
-            List of batch ids for which you want to perform DE Analysis for
-            subpopulation 1. By default, all ids are taken into account
-        batchid2
-            List of batch ids for which you want to perform DE Analysis for
-            subpopulation 2. By default, all ids are taken into account
-        use_observed_batches
-            Whether normalized means are conditioned on observed
-            batches
-        n_samples
-            Number of posterior samples
-        use_permutation
-            Activates step 2 described above.
-            Simply formulated, pairs obtained from posterior sampling (when calling
-            `sample_scale_from_batch`) will be randomly permuted so that the number of
-            pairs used to compute Bayes Factors becomes M_permutation.
-        M_permutation
-            Number of times we will "mix" posterior samples in step 2.
-            Only makes sense when use_permutation=True
-        change_fn
-            function computing effect size based on both normalized means
-        m1_domain_fn
-            custom indicator function of effect size regions
-            inducing differential expression
-        delta
-            specific case of region inducing differential expression.
-            In this case, we suppose that R \setminus [-\delta, \delta] does not induce differential expression
-            (LFC case)
-        cred_interval_lvls
-            List of credible interval levels to compute for the posterior
-            LFC distribution
-        all_stats
-            whether additional metrics should be provided
-        **kwargs
-            Other keywords arguments for `get_sample_scale`
-
-
-        Returns
-        -------
-        diff_exp_results
-            The most important columns are:
-
-            - ``proba_de`` (probability of being differentially expressed in change mode)
-            - ``bayes_factor`` (bayes factors in the vanilla mode)
-            - ``scale1`` and ``scale2`` (means of the scales in population 1 and 2)
-            - When using the change mode, the mean, median, std of the posterior LFC
+        model_fn
+            Function in model API to get values from.
+        adata
+            AnnData setup with scvi
         """
         self.adata = adata
         self.model_fn = model_fn
@@ -171,7 +42,6 @@ class DifferentialComputation:
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
         cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
-        **kwargs,
     ) -> Dict[str, np.ndarray]:
         r"""A unified method for differential expression inference.
 
@@ -297,8 +167,6 @@ class DifferentialComputation:
         cred_interval_lvls
             List of credible interval levels to compute for the posterior
             LFC distribution
-        **kwargs:
-            Other keywords arguments for `get_sample_scale()`
 
 
         Returns
@@ -318,14 +186,12 @@ class DifferentialComputation:
             batchid=batchid1,
             use_observed_batches=use_observed_batches,
             n_samples=n_samples,
-            **kwargs,
         )
         scales_batches_2 = self.scale_sampler(
             selection=idx2,
             batchid=batchid2,
             use_observed_batches=use_observed_batches,
             n_samples=n_samples,
-            **kwargs,
         )
 
         px_scale_mean1 = scales_batches_1["scale"].mean(axis=0)
@@ -461,7 +327,6 @@ class DifferentialComputation:
         batchid: Optional[Union[List[int], np.ndarray]] = None,
         use_observed_batches: Optional[bool] = False,
         give_mean: Optional[bool] = False,
-        **kwargs,
     ) -> dict:
         """Samples the posterior scale using the variational posterior distribution.
 
@@ -481,8 +346,6 @@ class DifferentialComputation:
             batches or if observed batches are to be used
         selection
             Mask or list of cell ids to select
-        **kwargs
-            Other keywords arguments for `get_sample_scale()`
 
 
         Returns
@@ -532,9 +395,7 @@ class DifferentialComputation:
         for batch_idx in batchid:
             idx = np.random.choice(np.arange(self.adata.shape[0])[selection], n_samples)
             px_scales.append(
-                self.model_fn(
-                    self.adata, indices=idx, transform_batch=batch_idx, **kwargs
-                )
+                self.model_fn(self.adata, indices=idx, transform_batch=batch_idx)
             )
             batch_idx = batch_idx if batch_idx is not None else np.nan
             batch_ids.append(np.ones((px_scales[-1].shape[0])) * batch_idx)
