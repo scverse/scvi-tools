@@ -6,7 +6,7 @@ import numpy as np
 import logging
 
 from torch.utils.data import Dataset
-from typing import Union, List, Dict, Tuple
+from typing import Union, List, Dict
 from scvi.dataset._anndata import get_from_registry
 from scvi.dataset._anndata_utils import _check_nonnegative_integers
 from scvi import _CONSTANTS
@@ -131,42 +131,6 @@ class BioDataset(Dataset):
 
     def __len__(self):
         return self.adata.shape[0]
-
-    def normalize(self):
-        # TODO change to add a layer in anndata and update registry, store as sparse?
-        X = get_from_registry(self.adata, _CONSTANTS.X_KEY)
-        scaling_factor = X.mean(axis=1)
-        self.normalized_X = X / scaling_factor.reshape(len(scaling_factor), 1)
-
-    def raw_counts_properties(
-        self, idx1: Union[List[int], np.ndarray], idx2: Union[List[int], np.ndarray]
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Computes and returns some statistics on the raw counts of two sub-populations.
-
-        Parameters
-        ----------
-        idx1
-            subset of indices describing the first population.
-        idx2
-            subset of indices describing the second population.
-        Returns
-        -------
-        type
-            Tuple of ``np.ndarray`` containing, by pair (one for each sub-population),
-            mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
-
-        """
-        X = get_from_registry(self.adata, _CONSTANTS.X_KEY)
-        mean1 = (X[idx1]).mean(axis=0)
-        mean2 = (X[idx2]).mean(axis=0)
-        nonz1 = (X[idx1] != 0).mean(axis=0)
-        nonz2 = (X[idx2] != 0).mean(axis=0)
-        if self.normalized_X is None:
-            self.normalize()
-        norm_mean1 = self.normalized_X[idx1, :].mean(axis=0)
-        norm_mean2 = self.normalized_X[idx2, :].mean(axis=0)
-        return_vals = [mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2]
-        return [np.squeeze(np.asarray(arr)) for arr in return_vals]
 
     @property
     def n_cells(self) -> int:

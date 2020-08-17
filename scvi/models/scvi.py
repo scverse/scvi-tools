@@ -10,11 +10,12 @@ from scvi._compat import Literal
 from scvi.models._modules.vae import VAE
 from scvi.models._base import AbstractModelClass
 
-from scvi.models._differential import DifferentialExpression
+from scvi.models._differential import DifferentialComputation
 from scvi.models._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi import _CONSTANTS
 from scvi.inference.inference import UnsupervisedTrainer
 from scvi.inference.posterior import Posterior
+from scvi.dataset._anndata_utils import scrna_raw_count_properties
 
 logger = logging.getLogger(__name__)
 
@@ -383,7 +384,14 @@ class SCVI(AbstractModelClass):
             return exprs
 
     def differential_expression(
-        self, groupby, group1=None, group2=None, adata=None, within_key=None
+        self,
+        groupby,
+        group1=None,
+        group2=None,
+        adata=None,
+        mode="vanilla",
+        within_key=None,
+        all_stats=True,
     ):
         if adata is None:
             adata = self.adata
@@ -392,9 +400,32 @@ class SCVI(AbstractModelClass):
             cell_idx2 = ~cell_idx1
         else:
             cell_idx2 = adata.obs[groupby] == group2
-        post = self._make_posterior(adata=adata, indices=None)
-        DE = DifferentialExpression(self.model.get_sample_scale, adata, post)
-        res = DE.run_DE(cell_idx1, cell_idx2)
+        dc = DifferentialComputation(self.get_normalized_expression, adata)
+        all_info = dc.get_bayes_factors(cell_idx1, cell_idx2)
+
+        gene_names = adata.var_names
+        if all_stats is True:
+            (
+                mean1,
+                mean2,
+                nonz1,
+                nonz2,
+                norm_mean1,
+                norm_mean2,
+            ) = scrna_raw_count_properties(cell_idx1, cell_idx2)
+            genes_properties_dict = dict(
+                raw_mean1=mean1,
+                raw_mean2=mean2,
+                non_zeros_proportion1=nonz1,
+                non_zeros_proportion2=nonz2,
+                raw_normalized_mean1=norm_mean1,
+                raw_normalized_mean2=norm_mean2,
+            )
+            all_info = {**all_info, **genes_properties_dict}
+
+        res = pd.DataFrame(all_info, index=gene_names)
+        sort_key = "proba_de" if mode == "change" else "bayes_factor"
+        res = res.sort_values(by=sort_key, ascending=False)
         return res
 
     @torch.no_grad()

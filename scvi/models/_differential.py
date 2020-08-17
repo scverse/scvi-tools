@@ -1,26 +1,16 @@
 import numpy as np
 import inspect
-from tqdm import tqdm
 import pandas as pd
 import torch
 import logging
 import warnings
-from scvi.inference.posterior_utils import (
-    pairs_sampler,
-    describe_continuous_distrib,
-    save_cluster_xlsx,
-)
-from scvi.dataset._biodataset import BioDataset
 from typing import Union, List, Optional, Callable, Dict
-from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)
 
 
-class DifferentialExpression:
-    def __init__(
-        self, model_fn, adata, posterior,  # method of model class (SCVI, not VAE)
-    ):
+class DifferentialComputation:
+    def __init__(self, model_fn, adata):  # method of model class (SCVI, not VAE)
         r"""Unified method for differential expression inference.
 
         This function is an extension of the `get_bayes_factors` method
@@ -163,69 +153,8 @@ class DifferentialExpression:
             - ``scale1`` and ``scale2`` (means of the scales in population 1 and 2)
             - When using the change mode, the mean, median, std of the posterior LFC
         """
-        self.gene_dataset = BioDataset(adata)
-        self.posterior = posterior
-        self.data_loader = posterior.data_loader
+        self.adata = adata
         self.model_fn = model_fn
-
-    def run_DE(
-        self,
-        idx1: Union[List[bool], np.ndarray],
-        idx2: Union[List[bool], np.ndarray],
-        mode: Optional[str] = "vanilla",
-        batchid1: Optional[Union[List[int], np.ndarray]] = None,
-        batchid2: Optional[Union[List[int], np.ndarray]] = None,
-        use_observed_batches: Optional[bool] = False,
-        n_samples: int = 5000,
-        use_permutation: bool = False,
-        M_permutation: int = 10000,
-        all_stats: bool = True,
-        change_fn: Optional[Union[str, Callable]] = None,
-        m1_domain_fn: Optional[Callable] = None,
-        delta: Optional[float] = 0.5,
-        cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
-        **kwargs,
-    ):
-        all_info = self.get_bayes_factors(
-            idx1=idx1,
-            idx2=idx2,
-            mode=mode,
-            batchid1=batchid1,
-            batchid2=batchid2,
-            use_observed_batches=use_observed_batches,
-            n_samples=n_samples,
-            use_permutation=use_permutation,
-            M_permutation=M_permutation,
-            change_fn=change_fn,
-            m1_domain_fn=m1_domain_fn,
-            delta=delta,
-            cred_interval_lvls=cred_interval_lvls,
-            **kwargs,
-        )
-        gene_names = self.gene_dataset.gene_names
-        if all_stats is True:
-            (
-                mean1,
-                mean2,
-                nonz1,
-                nonz2,
-                norm_mean1,
-                norm_mean2,
-            ) = self.gene_dataset.raw_counts_properties(idx1, idx2)
-            genes_properties_dict = dict(
-                raw_mean1=mean1,
-                raw_mean2=mean2,
-                non_zeros_proportion1=nonz1,
-                non_zeros_proportion2=nonz2,
-                raw_normalized_mean1=norm_mean1,
-                raw_normalized_mean2=norm_mean2,
-            )
-            all_info = {**all_info, **genes_properties_dict}
-
-        res = pd.DataFrame(all_info, index=gene_names)
-        sort_key = "proba_de" if mode == "change" else "bayes_factor"
-        res = res.sort_values(by=sort_key, ascending=False)
-        return res
 
     def get_bayes_factors(
         self,
@@ -596,17 +525,17 @@ class DifferentialExpression:
         selection = np.array(selection)
         if selection.dtype is np.dtype("bool"):
             selection = np.asarray(np.where(selection)[0].ravel())
-        old_loader = self.data_loader
 
         # Sampling loop
         px_scales = []
         batch_ids = []
         for batch_idx in batchid:
-            idx = np.random.choice(
-                np.arange(len(self.gene_dataset))[selection], n_samples
+            idx = np.random.choice(np.arange(self.adata.shape[0])[selection], n_samples)
+            px_scales.append(
+                self.model_fn(
+                    self.adata, indices=idx, transform_batch=batch_idx, **kwargs
+                )
             )
-            self.posterior.update_sampler_indices(idx=idx)
-            px_scales.append(self.get_sample_scale(transform_batch=batch_idx, **kwargs))
             batch_idx = batch_idx if batch_idx is not None else np.nan
             batch_ids.append(np.ones((px_scales[-1].shape[0])) * batch_idx)
         px_scales = np.concatenate(px_scales)
@@ -614,368 +543,176 @@ class DifferentialExpression:
         assert (
             px_scales.shape[0] == batch_ids.shape[0]
         ), "sampled scales and batches have inconsistent shapes"
-        self.data_loader = old_loader
         if give_mean:
             px_scales = px_scales.mean(0)
         return dict(scale=px_scales, batch=batch_ids)
 
-    @torch.no_grad()
-    def get_sample_scale(
-        self,
-        transform_batch: Optional[int] = None,
-        gene_list: Optional[Union[np.ndarray, List[int]]] = None,
-        library_size: float = 1,
-        return_df: Optional[bool] = None,
-        n_samples: int = 1,
-        return_mean: bool = True,
-    ) -> Union[np.ndarray, pd.DataFrame]:
-        r"""Returns the frequencies of expression for the data.
 
-        This is denoted as :math:`\rho_n` in the scVI paper.
+def pairs_sampler(
+    arr1: Union[List[float], np.ndarray, torch.Tensor],
+    arr2: Union[List[float], np.ndarray, torch.Tensor],
+    use_permutation: bool = True,
+    M_permutation: int = None,
+    sanity_check_perm: bool = False,
+    weights1: Union[List[float], np.ndarray, torch.Tensor] = None,
+    weights2: Union[List[float], np.ndarray, torch.Tensor] = None,
+) -> tuple:
+    """In a context where we want to estimate a double sum, virtually increases the number
+    of samples by considering more pairs so as to better estimate the double summation operation
 
-        Parameters
-        ----------
-        transform_batch
-            Batch to condition on.
-            If transform_batch is:
+    Parameters
+    ----------
+    arr1
+        samples from population 1
+    arr2
+        samples from population 2
+    use_permutation
+        Whether to mix samples from both populations
+    M_permutation
+        param sanity_check_perm: If True, resulting mixed arrays arr1 and arr2 are mixed together
+        In most cases, this parameter should remain False
+    weights1
+        probabilities associated to array 1 for random sampling
+    weights2
+        probabilities associated to array 2 for random sampling
 
-            - None, then real observed batch is used
-            - int, then batch transform_batch is used
-        gene_list
-            Return frequencies of expression for a subset of genes.
-            This can save memory when working with large datasets and few genes are
-            of interest.
-        library_size
-            Scale the expression frequencies to a common library size.
-            This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude.
-        return_df
-            Return a DataFrame instead of an `np.ndarray`. Includes gene
-            names as columns. Requires either n_samples=1 or return_mean=True.
-            When `gene_list` is not None and contains more than one gene, this is option is True.
-            Otherwise, it defaults to False.
-        n_samples
-            Get sample scale from multiple samples.
-        return_mean
-            Whether to return the mean of the samples.
+    Returns
+    -------
+    type
+        new_arr1, new_arr2
 
-        Returns
-        -------
-        - **denoised_expression** - array of decoded expression adjusted for library size
-
-        If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, genes)``.
-        Otherwise, shape is ``(cells, genes)``. Return type is ``np.ndarray`` unless ``return_df`` is True.
-
-        """
-        if gene_list is None:
-            gene_mask = slice(None)
+    """
+    if use_permutation is True:
+        # prepare the pairs for sampling
+        n_arr1 = arr1.shape[0]
+        n_arr2 = arr2.shape[0]
+        if not sanity_check_perm:
+            # case1: no permutation, sample from A and then from B
+            u, v = (
+                np.random.choice(n_arr1, size=M_permutation, p=weights1),
+                np.random.choice(n_arr2, size=M_permutation, p=weights2),
+            )
+            first_set = arr1[u]
+            second_set = arr2[v]
         else:
-            gene_mask = self.gene_dataset._get_genes_filter_mask_by_attribute(
-                gene_list, return_data=False
+            # case2: permutation, sample from A+B twice (sanity check)
+            u, v = (
+                np.random.choice(n_arr1 + n_arr2, size=M_permutation),
+                np.random.choice(n_arr1 + n_arr2, size=M_permutation),
             )
-            if return_df is None and sum(gene_mask) > 1:
-                return_df = True
+            concat_arr = np.concatenate((arr1, arr2))
+            first_set = concat_arr[u]
+            second_set = concat_arr[v]
+    else:
+        first_set = arr1
+        second_set = arr2
+    return first_set, second_set
 
-        if n_samples > 1 and return_mean is False and return_df is True:
-            raise ValueError(
-                "return_df must be False if n_samples > 1 and return_mean is True"
-            )
 
-        px_scales = []
-        for tensors in self.posterior:
-            sample_batch = tensors[_CONSTANTS.X_KEY]
-            batch_index = tensors[_CONSTANTS.BATCH_KEY]
-            labels = tensors[_CONSTANTS.LABELS_KEY]
-            px_scales += [
-                np.array(
-                    (
-                        self.model_fn(
-                            sample_batch,
-                            batch_index=batch_index,
-                            y=labels,
-                            n_samples=n_samples,
-                            transform_batch=transform_batch,
-                        )[..., gene_mask]
-                        * library_size
-                    ).cpu()
-                )
+def credible_intervals(
+    ary: np.ndarray, confidence_level: Union[float, List[float], np.ndarray] = 0.94
+) -> np.ndarray:
+    """Calculate highest posterior density (HPD) of array for given credible_interval.
+
+    Taken from the arviz package
+    The HPD is the minimum width Bayesian credible interval (BCI). This implementation works only
+    for unimodal distributions.
+
+    Parameters
+    ----------
+    ary
+        posterior samples
+    confidence_level
+        confidence level
+
+    Returns
+    -------
+    type
+        intervals minima, intervals maxima
+
+    """
+    if ary.ndim > 1:
+        hpd = np.array(
+            [
+                credible_intervals(row, confidence_level=confidence_level)
+                for row in ary.T
             ]
+        )
+        return hpd
+    # Make a copy of trace
+    ary = ary.copy()
+    n = len(ary)
+    ary = np.sort(ary)
+    interval_idx_inc = int(np.floor(confidence_level * n))
+    n_intervals = n - interval_idx_inc
+    interval_width = ary[interval_idx_inc:] - ary[:n_intervals]
 
-        if n_samples > 1:
-            # The -2 axis correspond to cells.
-            px_scales = np.concatenate(px_scales, axis=-2)
-        else:
-            px_scales = np.concatenate(px_scales, axis=0)
+    if len(interval_width) == 0:
+        raise ValueError(
+            "Too few elements for interval calculation. "
+            "Check that credible_interval meets condition 0 =< credible_interval < 1"
+        )
+    min_idx = np.argmin(interval_width)
+    hdi_min = ary[min_idx]
+    hdi_max = ary[min_idx + interval_idx_inc]
+    return np.array([hdi_min, hdi_max])
 
-        if n_samples > 1 and return_mean:
-            px_scales = px_scales.mean(0)
 
-        if return_df is True:
-            return pd.DataFrame(
-                px_scales, columns=self.gene_dataset.gene_names[gene_mask]
-            )
-        else:
-            return px_scales
+def describe_continuous_distrib(
+    samples: Union[np.ndarray, torch.Tensor],
+    credible_intervals_levels: Optional[Union[List[float], np.ndarray]] = None,
+) -> dict:
+    """Computes properties of distribution based on its samples
 
-    @torch.no_grad()
-    def one_vs_all_degenes(
-        self,
-        subset: Optional[Union[List[bool], np.ndarray]] = None,
-        cell_labels: Optional[Union[List, np.ndarray]] = None,
-        use_observed_batches: bool = False,
-        min_cells: int = 10,
-        n_samples: int = 5000,
-        use_permutation: bool = False,
-        M_permutation: int = 10000,
-        output_file: bool = False,
-        mode: Optional[str] = "vanilla",
-        change_fn: Optional[Union[str, Callable]] = None,
-        m1_domain_fn: Optional[Callable] = None,
-        delta: Optional[float] = 0.5,
-        cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
-        save_dir: str = "./",
-        filename="one2all",
-        **kwargs,
-    ) -> tuple:
-        r"""Performs one population vs all others Differential Expression Analysis
+    Parameters
+    ----------
+    samples
+        samples of shape (n_samples, n_features)
+    credible_intervals_levels
+        Confidence in (0, 1)
+        of credible intervals to be computed
 
-        It takes labels or cell types to characterize the different populations.
+    Returns
+    -------
+    type
+        properties of distribution
 
-        Parameters
-        ----------
-        subset
-            None Or bool array masking subset of cells you are interested in
-            (True when you want to select cell). In that case, it should have same length than `gene_dataset`
-        cell_labels
-            optional: Labels of cells
-        min_cells
-            Ceil number of cells used to compute Bayes Factors
-        n_samples
-            Number of times the posterior will be sampled for each pop
-        use_permutation
-            Activates pair random permutations.
-            Simply formulated, pairs obtained from posterior sampling (when calling
-            `sample_scale_from_batch`) will be randomly permuted so that the number of
-            pairs used to compute Bayes Factors becomes M_permutation.
-        M_permutation
-            Number of times we will "mix" posterior samples in step 2.
-            Only makes sense when use_permutation=True
-        use_observed_batches
-            see `differential_expression_score`
-        M_permutation
-            see `differential_expression_score`
-        mode
-            see `differential_expression_score`
-        change_fn
-            see `differential_expression_score`
-        m1_domain_fn
-            see `differential_expression_score`
-        delta
-            see `differential_expression_score
-        cred_interval_lvls
-            List of credible interval levels to compute for the posterior
-            LFC distribution
-        output_file
-            Bool: save file?
-        save_dir
-            param filename:`
-        **kwargs
-            Other keywords arguments for `get_sample_scale`
+    """
+    dist_props = dict(
+        mean=samples.mean(0),
+        median=np.median(samples, 0),
+        std=samples.std(0),
+        min=samples.min(0),
+        max=samples.max(0),
+    )
+    credible_intervals_levels = (
+        [] if credible_intervals_levels is None else credible_intervals_levels
+    )
+    for confidence in credible_intervals_levels:
+        intervals = credible_intervals(samples, confidence_level=confidence)
+        interval_min, interval_max = intervals[:, 0], intervals[:, 1]
+        conf_str = str(confidence)[:5]
+        dist_props["confidence_interval_{}_min".format(conf_str)] = interval_min
+        dist_props["confidence_interval_{}_max".format(conf_str)] = interval_max
 
-        Returns
-        -------
-        type
-            Tuple (de_res, de_cluster) (i) de_res is a list of length nb_clusters
-            (based on provided labels or on hardcoded cell types) (ii) de_res[i] contains Bayes Factors
-            for population number i vs all the rest (iii) de_cluster returns the associated names of clusters.
-            Are contained in this results only clusters for which we have at least `min_cells`
-            elements to compute predicted Bayes Factors
-        """
-        if cell_labels is not None:
-            if len(cell_labels) != len(self.gene_dataset):
-                raise ValueError(
-                    " the length of cell_labels have to be "
-                    "the same as the number of cells"
-                )
-        # Input cell_labels take precedence over cell type label annotation in dataset
-        if cell_labels is not None:
-            cluster_id = np.unique(cell_labels[cell_labels >= 0])
-            # Can make cell_labels < 0 to filter out cells when computing DE
-        else:
-            cell_labels = self.gene_dataset.labels.ravel()
-            cluster_id = np.unique(cell_labels)
+    return dist_props
 
-        de_res = []
-        de_cluster = []
-        for i, x in enumerate(tqdm(cluster_id)):
-            if subset is None:
-                idx1 = cell_labels == i
-                idx2 = cell_labels != i
-            else:
-                idx1 = (cell_labels == i) * subset
-                idx2 = (cell_labels != i) * subset
-            if np.sum(idx1) > min_cells and np.sum(idx2) > min_cells:
-                de_cluster.append(x)
-                res = self.differential_expression_score(
-                    idx1=idx1,
-                    idx2=idx2,
-                    mode=mode,
-                    change_fn=change_fn,
-                    m1_domain_fn=m1_domain_fn,
-                    delta=delta,
-                    use_observed_batches=use_observed_batches,
-                    M_permutation=M_permutation,
-                    n_samples=n_samples,
-                    use_permutation=use_permutation,
-                    cred_interval_lvls=cred_interval_lvls,
-                    **kwargs,
-                )
-                res["clusters"] = np.repeat(x, len(res.index))
-                de_res.append(res)
-        if output_file:  # store as an excel spreadsheet
-            save_cluster_xlsx(
-                filepath=save_dir + "differential_expression.%s.xlsx" % filename,
-                cluster_names=de_cluster,
-                de_results=de_res,
-            )
-        return de_res, de_cluster
 
-    def within_cluster_degenes(
-        self,
-        states: Union[List[bool], np.ndarray],
-        cell_labels: Optional[Union[List, np.ndarray]] = None,
-        min_cells: int = 10,
-        batch1: Optional[Union[List[int], np.ndarray]] = None,
-        batch2: Optional[Union[List[int], np.ndarray]] = None,
-        use_observed_batches: bool = False,
-        subset: Optional[Union[List[bool], np.ndarray]] = None,
-        n_samples: int = 5000,
-        use_permutation: bool = False,
-        M_permutation: int = 10000,
-        mode: Optional[str] = "vanilla",
-        change_fn: Optional[Union[str, Callable]] = None,
-        m1_domain_fn: Optional[Callable] = None,
-        delta: Optional[float] = 0.5,
-        cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
-        output_file: bool = False,
-        save_dir: str = "./",
-        filename: str = "within_cluster",
-        **kwargs,
-    ) -> tuple:
-        """Performs Differential Expression within clusters for different cell states
+def save_cluster_xlsx(
+    filepath: str, de_results: List[pd.DataFrame], cluster_names: List
+):
+    """Saves multi-clusters DE in an xlsx sheet
 
-        Parameters
-        ----------
-        cell_labels
-            optional: Labels of cells
-        min_cells
-            Ceil number of cells used to compute Bayes Factors
-        states
-            States of the cells.
-        batch1
-            List of batch ids for which you want to perform DE Analysis for
-            subpopulation 1. By default, all ids are taken into account
-        batch2
-            List of batch ids for which you want to perform DE Analysis for
-            subpopulation 2. By default, all ids are taken into account
-        subset
-            MASK: Subset of cells you are interested in.
-        n_samples
-            Number of times the posterior will be sampled for each pop
-        use_permutation
-            Activates pair random permutations.
-            Simply formulated, pairs obtained from posterior sampling (when calling
-            `sample_scale_from_batch`) will be randomly permuted so that the number of
-            pairs used to compute Bayes Factors becomes M_permutation.
-        M_permutation
-            Number of times we will "mix" posterior samples in step 2.
-            Only makes sense when use_permutation=True
-        output_file
-            Bool: save file?
-        save_dir
-            param filename:
-        use_observed_batches
-            see `differential_expression_score`
-        M_permutation
-            see `differential_expression_score`
-        mode
-            see `differential_expression_score`
-        change_fn
-            see `differential_expression_score`
-        m1_domain_fn
-            see `differential_expression_score`
-        delta
-            see `differential_expression_score`
-        cred_interval_lvls
-            See `differential_expression_score`
-        **kwargs
-            Other keywords arguments for `get_sample_scale()`
-
-        Returns
-        -------
-        type
-            Tuple (de_res, de_cluster) (i) de_res is a list of length nb_clusters
-            (based on provided labels or on hardcoded cell types) (ii) de_res[i] contains Bayes Factors
-            for population number i vs all the rest (iii) de_cluster returns the associated names of clusters.
-            Are contained in this results only clusters for which we have at least `min_cells`
-            elements to compute predicted Bayes Factors
-        """
-        if len(self.gene_dataset) != len(states):
-            raise ValueError(
-                " the length of states have to be the same as the number of cells"
-            )
-        if cell_labels is not None:
-            if len(cell_labels) != len(self.gene_dataset):
-                raise ValueError(
-                    " the length of cell_labels have to be "
-                    "the same as the number of cells"
-                )
-        if (cell_labels is None) and not hasattr(self.gene_dataset, "cell_types"):
-            raise ValueError(
-                "If gene_dataset is not annotated with labels and cell types,"
-                " then must provide cell_labels"
-            )
-        # Input cell_labels take precedence over cell type label annotation in dataset
-        elif cell_labels is not None:
-            cluster_id = np.unique(cell_labels[cell_labels >= 0])
-            # Can make cell_labels < 0 to filter out cells when computing DE
-        else:
-            cell_labels = self.gene_dataset.labels.ravel()
-            cluster_id = np.unique(cell_labels)
-        de_res = []
-        de_cluster = []
-        oppo_states = ~states
-        for i, x in enumerate(tqdm(cluster_id)):
-            if subset is None:
-                idx1 = (cell_labels == i) * states
-                idx2 = (cell_labels == i) * oppo_states
-            else:
-                idx1 = (cell_labels == i) * subset * states
-                idx2 = (cell_labels == i) * subset * oppo_states
-            if np.sum(idx1) > min_cells and np.sum(idx2) > min_cells:
-                de_cluster.append(x)
-                res = self.differential_expression_score(
-                    idx1=idx1.astype(bool),
-                    idx2=idx2.astype(bool),
-                    batchid1=batch1,
-                    batchid2=batch2,
-                    use_observed_batches=use_observed_batches,
-                    M_permutation=M_permutation,
-                    n_samples=n_samples,
-                    use_permutation=use_permutation,
-                    mode=mode,
-                    change_fn=change_fn,
-                    m1_domain_fn=m1_domain_fn,
-                    delta=delta,
-                    cred_interval_lvls=cred_interval_lvls,
-                    **kwargs,
-                )
-                res["clusters"] = np.repeat(x, len(res.index))
-                de_res.append(res)
-        if output_file:  # store as an excel spreadsheet
-            save_cluster_xlsx(
-                filepath=save_dir + "differential_expression.%s.xlsx" % filename,
-                cluster_names=de_cluster,
-                de_results=de_res,
-            )
-        return de_res, de_cluster
+    Parameters
+    ----------
+    filepath
+        xslx save path
+    de_results
+        list of pandas Dataframes for each cluster
+    cluster_names
+        list of cluster names
+    """
+    writer = pd.ExcelWriter(filepath, engine="xlsxwriter")
+    for i, x in enumerate(cluster_names):
+        de_results[i].to_excel(writer, sheet_name=str(x))
+    writer.close()
