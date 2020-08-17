@@ -1,6 +1,7 @@
 import logging
 from typing import Union
 from rich.logging import RichHandler
+from rich.console import Console
 
 import torch
 import numpy as np
@@ -56,7 +57,7 @@ def set_verbosity(level: Union[str, int]):
             )
             has_streamhandler = True
     if not has_streamhandler:
-        ch = RichHandler(show_path=False)
+        ch = RichHandler(show_path=False, console=Console(force_terminal=True))
         formatter = logging.Formatter("%(message)s")
         ch.setFormatter(
             DispatchingFormatter(formatter, {"scvi.autotune": autotune_formatter})
