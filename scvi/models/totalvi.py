@@ -540,7 +540,9 @@ class TOTALVI(SCVI):
                 include_protein_background=include_protein_background,
             )
             protein += protein_prior_count
-            return rna, protein
+
+            joint = np.concatenate([rna, protein], axis=1)
+            return joint
 
         model_fn = partial(
             _expression_for_de,
@@ -554,7 +556,7 @@ class TOTALVI(SCVI):
         all_info = dc.get_bayes_factors(cell_idx1, cell_idx2)
 
         col_names = np.concatenate(
-            [self.gene_dataset.gene_names, self.gene_dataset.protein_names]
+            [np.asarray(adata.var_names), adata.uns["scvi_protein_names"]]
         )
         if all_stats is True:
             nan = np.array([np.nan] * len(self.gene_dataset.protein_names))
