@@ -143,7 +143,9 @@ def _get_batch_mask_protein_data(
 
 
 def scrna_raw_counts_properties(
-    self, idx1: Union[List[int], np.ndarray], idx2: Union[List[int], np.ndarray]
+    adata: anndata.AnnData,
+    idx1: Union[List[int], np.ndarray],
+    idx2: Union[List[int], np.ndarray],
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -160,7 +162,7 @@ def scrna_raw_counts_properties(
             mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
 
         """
-    X = get_from_registry(self.adata, _CONSTANTS.X_KEY)
+    X = get_from_registry(adata, _CONSTANTS.X_KEY)
     mean1 = np.asarray((X[idx1]).mean(axis=0)).ravel()
     mean2 = np.asarray((X[idx2]).mean(axis=0)).ravel()
     nonz1 = np.asarray((X[idx1] != 0).mean(axis=0)).ravel()

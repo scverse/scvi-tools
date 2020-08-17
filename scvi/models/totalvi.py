@@ -3,15 +3,18 @@ import logging
 import torch
 import pandas as pd
 from anndata import AnnData
+from functools import partial
 
 from typing import Optional, Union, List, Dict, Tuple
 from scvi._compat import Literal
 from scvi.models._modules.totalvae import TOTALVAE
 from scvi.models import SCVI
 
-# from scvi.models._differential import DifferentialExpression
+from scvi.models._differential import DifferentialComputation
 from scvi import _CONSTANTS
 from scvi.inference.total_inference import TotalPosterior, TotalTrainer
+from scvi.dataset._anndata_utils import scrna_raw_count_properties
+from scvi.dataset._anndata import get_from_registry
 
 logger = logging.getLogger(__name__)
 
@@ -228,6 +231,8 @@ class TOTALVI(SCVI):
         library_size: Optional[Union[float, Literal["latent"]]] = 1,
         n_samples: int = 1,
         sample_protein_mixing: bool = True,
+        scale_protein: bool = False,
+        include_protein_background: bool = False,
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ) -> Tuple[Union[np.ndarray, pd.DataFrame], Union[np.ndarray, pd.DataFrame]]:
@@ -261,6 +266,10 @@ class TOTALVI(SCVI):
             Get sample scale from multiple samples.
         sample_protein_mixing
             Sample mixing bernoulli, setting background to zero
+        scale_protein
+            Make protein expression sum to 1
+        include_protein_background
+            Include background component for protein expression
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -335,8 +344,16 @@ class TOTALVI(SCVI):
                     protein_mixing = torch.distributions.Bernoulli(
                         protein_mixing
                     ).sample()
-                    protein_mixing = protein_mixing[..., protein_mask]
-                py_scale += py_["rate_fore"][..., protein_mask] * (1 - protein_mixing)
+                protein_val = py_["rate_fore"] * (1 - protein_mixing)
+                if include_protein_background is True:
+                    protein_val += py_["rate_back"] * protein_mixing
+
+                if scale_protein is True:
+                    protein_val = torch.nn.functional.normalize(
+                        protein_val, p=1, dim=-1
+                    )
+                protein_val = protein_val[..., protein_mask]
+                py_scale += protein_val
             px_scale /= len(transform_batch)
             py_scale /= len(transform_batch)
             scale_list_gene.append(px_scale.cpu())
@@ -484,22 +501,91 @@ class TOTALVI(SCVI):
             return foreground_prob
 
     def differential_expression(
-        self, groupby, group1=None, group2="rest", adata=None, within_key=None
+        self,
+        groupby,
+        group1=None,
+        group2="rest",
+        adata=None,
+        mode="change",
+        all_stats=True,
+        protein_prior_count=0.5,
+        scale_protein=False,
+        sample_protein_mixing=False,
+        include_protein_background=False,
     ):
-        # group 1 and group 2 are valid obs keys in the anndata
-        # runs 1vsall or 1v1 based on group1 and group2 choices
-        # runs within cluster
-        # new differential expression class
+        if adata is None:
+            adata = self.adata
+        cell_idx1 = adata.obs[groupby] == group1
+        if group2 is None:
+            cell_idx2 = ~cell_idx1
+        else:
+            cell_idx2 = adata.obs[groupby] == group2
 
-        raise NotImplementedError
+        def _expression_for_de(
+            adata=None,
+            indices=None,
+            transform_batch: Optional[int] = None,
+            scale_protein=False,
+            sample_protein_mixing=False,
+            include_protein_background=False,
+            protein_prior_count=0.5,
+        ):
+            rna, protein = self.get_normalized_expression(
+                adata=adata,
+                indices=indices,
+                transform_batch=transform_batch,
+                return_numpy=True,
+                scale_protein=scale_protein,
+                sample_protein_mixing=sample_protein_mixing,
+                include_protein_background=include_protein_background,
+            )
+            protein += protein_prior_count
+            return rna, protein
 
-        # if group2 == "rest":
-        #     idx2 = ~group1
-        # else:
-        #     idx2 = 0
+        model_fn = partial(
+            _expression_for_de,
+            scale_protein=scale_protein,
+            sample_protein_mixing=sample_protein_mixing,
+            include_protein_background=include_protein_background,
+            protein_prior_count=protein_prior_count,
+        )
 
-        # DE = DifferentialExpression(self.get_sample_scale)
-        # pass
+        dc = DifferentialComputation(model_fn, adata)
+        all_info = dc.get_bayes_factors(cell_idx1, cell_idx2)
+
+        col_names = np.concatenate(
+            [self.gene_dataset.gene_names, self.gene_dataset.protein_names]
+        )
+        if all_stats is True:
+            nan = np.array([np.nan] * len(self.gene_dataset.protein_names))
+            (
+                mean1,
+                mean2,
+                nonz1,
+                nonz2,
+                norm_mean1,
+                norm_mean2,
+            ) = scrna_raw_count_properties(adata, cell_idx1, cell_idx2)
+            protein_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
+            mean1_pro = protein_exp[cell_idx1, :].mean(0)
+            mean2_pro = protein_exp[cell_idx2, :].mean(0)
+            nonz1_pro = (protein_exp[cell_idx1, :] > 0).mean(0)
+            nonz2_pro = (protein_exp[cell_idx2, :] > 0).mean(0)
+            # TODO implement properties for proteins
+            genes_properties_dict = dict(
+                raw_mean1=np.concatenate([mean1, mean1_pro]),
+                raw_mean2=np.concatenate([mean2, mean2_pro]),
+                non_zeros_proportion1=np.concatenate([nonz1, nonz1_pro]),
+                non_zeros_proportion2=np.concatenate([nonz2, nonz2_pro]),
+                raw_normalized_mean1=np.concatenate([norm_mean1, nan]),
+                raw_normalized_mean2=np.concatenate([norm_mean2, nan]),
+            )
+            all_info = {**all_info, **genes_properties_dict}
+
+        res = pd.DataFrame(all_info, index=col_names)
+        sort_key = "proba_de" if mode == "change" else "bayes_factor"
+        res = res.sort_values(by=sort_key, ascending=False)
+        return res
 
     @torch.no_grad()
     def posterior_predictive_sample(
