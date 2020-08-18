@@ -301,8 +301,9 @@ def _setup_labels(adata, labels_key):
     else:
         assert_key_in_obs(adata, labels_key)
         logger.info('Using labels from adata.obs["{}"]'.format(labels_key))
+        alt_key = "_scvi_{}".format(labels_key)
         labels_key = _make_obs_column_categorical(
-            adata, column_key=labels_key, alternate_column_key="_scvi_labels"
+            adata, column_key=labels_key, alternate_column_key=alt_key
         )
     return labels_key
 
@@ -317,8 +318,9 @@ def _setup_batch(adata, batch_key):
     else:
         assert_key_in_obs(adata, batch_key)
         logger.info('Using batches from adata.obs["{}"]'.format(batch_key))
+        alt_key = "_scvi_{}".format(batch_key)
         batch_key = _make_obs_column_categorical(
-            adata, column_key=batch_key, alternate_column_key="_scvi_batch"
+            adata, column_key=batch_key, alternate_column_key=alt_key
         )
     return batch_key
 

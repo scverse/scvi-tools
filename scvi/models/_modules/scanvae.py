@@ -3,13 +3,13 @@ import torch
 
 from typing import Sequence
 from torch.distributions import Normal, Categorical, kl_divergence as kl
-from scvi.models.classifier import Classifier
-from scvi.models.modules import Decoder, Encoder
-from scvi.models.utils import broadcast_labels
-from scvi.models.vae import VAE
+from scvi.models._modules.classifier import Classifier
+from scvi.models._modules._core import Decoder, Encoder
+from scvi.models._modules.utils import broadcast_labels
+from scvi.models._modules.vae import VAE
 
 
-class SCANVI(VAE):
+class SCANVAE(VAE):
     """Single-cell annotation using variational inference.
 
     This is an implementation of the scANVI model descibed in [Xu19]_,

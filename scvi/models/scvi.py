@@ -15,7 +15,7 @@ from scvi.models._distributions import NegativeBinomial, ZeroInflatedNegativeBin
 from scvi import _CONSTANTS
 from scvi.inference.inference import UnsupervisedTrainer
 from scvi.inference.posterior import Posterior
-from scvi.dataset._anndata_utils import scrna_raw_count_properties
+from scvi.models._utils import scrna_raw_counts_properties
 
 logger = logging.getLogger(__name__)
 
@@ -412,7 +412,7 @@ class SCVI(AbstractModelClass):
                 nonz2,
                 norm_mean1,
                 norm_mean2,
-            ) = scrna_raw_count_properties(cell_idx1, cell_idx2)
+            ) = scrna_raw_counts_properties(cell_idx1, cell_idx2)
             genes_properties_dict = dict(
                 raw_mean1=mean1,
                 raw_mean2=mean2,

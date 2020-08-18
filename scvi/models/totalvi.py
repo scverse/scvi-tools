@@ -13,7 +13,7 @@ from scvi.models import SCVI
 from scvi.models._differential import DifferentialComputation
 from scvi import _CONSTANTS
 from scvi.inference.total_inference import TotalPosterior, TotalTrainer
-from scvi.dataset._anndata_utils import scrna_raw_count_properties
+from scvi.models._utils import scrna_raw_counts_properties
 from scvi.dataset._anndata import get_from_registry
 
 logger = logging.getLogger(__name__)
@@ -567,7 +567,7 @@ class TOTALVI(SCVI):
                 nonz2,
                 norm_mean1,
                 norm_mean2,
-            ) = scrna_raw_count_properties(adata, cell_idx1, cell_idx2)
+            ) = scrna_raw_counts_properties(adata, cell_idx1, cell_idx2)
             protein_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
             mean1_pro = protein_exp[cell_idx1, :].mean(0)
             mean2_pro = protein_exp[cell_idx2, :].mean(0)

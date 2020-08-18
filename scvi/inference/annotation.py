@@ -10,10 +10,10 @@ from collections import namedtuple
 
 import torch
 from torch.nn import functional as F
-from scvi.inference import Posterior
-from scvi.inference import Trainer
+from scvi.inference.posterior import Posterior
+from scvi.inference.trainer import Trainer
 from scvi.inference.inference import UnsupervisedTrainer
-from scvi.inference.posterior import unsupervised_clustering_accuracy
+from scvi.metrics import unsupervised_clustering_accuracy
 from scvi.dataset._anndata import get_from_registry
 from scvi import _CONSTANTS
 
