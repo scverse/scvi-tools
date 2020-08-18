@@ -363,7 +363,9 @@ class DifferentialComputation:
         """
         # Get overall number of desired samples and desired batches
         if batchid is None and not use_observed_batches:
-            batchid = np.arange(self.gene_dataset.n_batches)
+            batchid = np.arange(
+                self.adata.uns["scvi_summary_stats"]["n_batch"], dtype=np.int64
+            )
         if use_observed_batches:
             assert batchid is None, "Unconsistent batch policy"
             batchid = [None]

@@ -32,7 +32,7 @@ def scrna_raw_counts_properties(
     nonz1 = np.asarray((X[idx1] != 0).mean(axis=0)).ravel()
     nonz2 = np.asarray((X[idx2] != 0).mean(axis=0)).ravel()
 
-    scaling_factor = np.asarray(X.sum(axis=1)).ravel().reshape(1, -1)
+    scaling_factor = np.asarray(X.sum(axis=1)).ravel().reshape(-1, 1)
     normalized_X = X / scaling_factor
 
     norm_mean1 = np.asarray(normalized_X[idx1, :].mean(axis=0)).ravel()

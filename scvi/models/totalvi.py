@@ -6,6 +6,7 @@ from anndata import AnnData
 from functools import partial
 
 from typing import Optional, Union, List, Dict, Tuple
+from collections.abc import Iterable
 from scvi._compat import Literal
 from scvi.core.models import TOTALVAE
 from scvi.models import SCVI
@@ -59,7 +60,7 @@ class TOTALVI(SCVI):
     >>> scvi.dataset.setup_anndata(adata, batch_key="batch", protein_expression_obsm_key="protein_expression")
     >>> vae = scvi.models.TOTALVI(adata)
     >>> vae.train(n_epochs=400)
-    >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
+    >>> adata.obsm["X_totalVI"] = vae.get_latent_representation()
     """
 
     def __init__(
@@ -311,7 +312,7 @@ class TOTALVI(SCVI):
 
         scale_list_gene = []
         scale_list_pro = []
-        if (transform_batch is None) or (isinstance(transform_batch, int)):
+        if not isinstance(transform_batch, Iterable):
             transform_batch = [transform_batch]
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
@@ -504,10 +505,11 @@ class TOTALVI(SCVI):
     def differential_expression(
         self,
         groupby,
-        group1=None,
-        group2="rest",
         adata=None,
+        group1=None,
+        group2=None,
         mode="change",
+        delta=0.5,
         all_stats=True,
         protein_prior_count=0.5,
         scale_protein=False,
@@ -516,11 +518,11 @@ class TOTALVI(SCVI):
     ):
         if adata is None:
             adata = self.adata
-        cell_idx1 = adata.obs[groupby] == group1
+        cell_idx1 = np.asarray(adata.obs[groupby] == group1)
         if group2 is None:
             cell_idx2 = ~cell_idx1
         else:
-            cell_idx2 = adata.obs[groupby] == group2
+            cell_idx2 = np.asarray(adata.obs[groupby] == group2)
 
         def _expression_for_de(
             adata=None,
@@ -554,13 +556,13 @@ class TOTALVI(SCVI):
         )
 
         dc = DifferentialComputation(model_fn, adata)
-        all_info = dc.get_bayes_factors(cell_idx1, cell_idx2)
+        all_info = dc.get_bayes_factors(cell_idx1, cell_idx2, mode=mode, delta=delta)
 
         col_names = np.concatenate(
             [np.asarray(adata.var_names), adata.uns["scvi_protein_names"]]
         )
         if all_stats is True:
-            nan = np.array([np.nan] * len(self.gene_dataset.protein_names))
+            nan = np.array([np.nan] * len(adata.uns["scvi_protein_names"]))
             (
                 mean1,
                 mean2,
@@ -570,10 +572,10 @@ class TOTALVI(SCVI):
                 norm_mean2,
             ) = scrna_raw_counts_properties(adata, cell_idx1, cell_idx2)
             protein_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
-            mean1_pro = protein_exp[cell_idx1, :].mean(0)
-            mean2_pro = protein_exp[cell_idx2, :].mean(0)
-            nonz1_pro = (protein_exp[cell_idx1, :] > 0).mean(0)
-            nonz2_pro = (protein_exp[cell_idx2, :] > 0).mean(0)
+            mean2_pro = np.asarray(protein_exp[cell_idx2].mean(0))
+            mean1_pro = np.asarray(protein_exp[cell_idx1].mean(0))
+            nonz1_pro = np.asarray((protein_exp[cell_idx1] > 0).mean(0))
+            nonz2_pro = np.asarray((protein_exp[cell_idx2] > 0).mean(0))
             # TODO implement properties for proteins
             genes_properties_dict = dict(
                 raw_mean1=np.concatenate([mean1, mean1_pro]),
