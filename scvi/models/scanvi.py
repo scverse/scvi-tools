@@ -3,7 +3,7 @@ import logging
 import torch
 from anndata import AnnData
 
-from typing import Union
+from typing import Union, Optional
 from scvi._compat import Literal
 from scvi.models import SCVI
 from scvi.core.models import VAE, SCANVAE
@@ -27,6 +27,8 @@ class SCANVI(SCVI):
         AnnData object that has been registered with scvi
     unlabeled_category
         Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi
+    pretrained_model
+        Instance of SCVI model that has already been trained
     n_hidden
         Number of nodes per hidden layer
     n_latent
@@ -68,6 +70,7 @@ class SCANVI(SCVI):
         self,
         adata: AnnData,
         unlabeled_category: Union[str, int, float],
+        pretrained_model: Optional[SCVI] = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
@@ -82,20 +85,27 @@ class SCANVI(SCVI):
         ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
 
         self.adata = adata
-        # TODO need mapping between original column key and digitized one
         self.unlabeled_category = unlabeled_category
         summary_stats = adata.uns["scvi_summary_stats"]
-        self._scvi_model = VAE(
-            n_input=summary_stats["n_genes"],
-            n_batch=summary_stats["n_batch"],
-            n_hidden=n_hidden,
-            n_latent=n_latent,
-            n_layers=n_layers,
-            dropout_rate=dropout_rate,
-            dispersion=dispersion,
-            reconstruction_loss=gene_likelihood,
-            **model_kwargs,
-        )
+
+        if pretrained_model is not None:
+            if pretrained_model.is_trained is False:
+                raise ValueError("pretrained model has not been trained")
+            self._base_model = pretrained_model.model
+            self._is_trained_base = True
+        else:
+            self._base_model = VAE(
+                n_input=summary_stats["n_genes"],
+                n_batch=summary_stats["n_batch"],
+                n_hidden=n_hidden,
+                n_latent=n_latent,
+                n_layers=n_layers,
+                dropout_rate=dropout_rate,
+                dispersion=dispersion,
+                reconstruction_loss=gene_likelihood,
+                **model_kwargs,
+            )
+            self._is_trained_base = False
         self.model = SCANVAE(
             n_input=summary_stats["n_genes"],
             n_batch=summary_stats["n_batch"],
@@ -148,24 +158,24 @@ class SCANVI(SCVI):
                 np.min([10, np.max([2, round(n_epochs_unsupervised / 3.0)])])
             )
 
-        self._unsupervised_trainer = UnsupervisedTrainer(
-            self._scvi_model,
-            self.adata,
-            train_size=train_size,
-            test_size=test_size,
-            n_iter_kl_warmup=n_iter_kl_warmup,
-            n_epochs_kl_warmup=n_epochs_kl_warmup,
-            frequency=metric_frequency,
-            use_cuda=self.use_cuda,
-            **unsupervised_trainer_kwargs,
-        )
-        self._unsupervised_trainer.train(
-            n_epochs=n_epochs_unsupervised, lr=lr, **train_kwargs
-        )
+        if self._is_trained_base is not True:
+            self._unsupervised_trainer = UnsupervisedTrainer(
+                self._base_model,
+                self.adata,
+                train_size=train_size,
+                test_size=test_size,
+                n_iter_kl_warmup=n_iter_kl_warmup,
+                n_epochs_kl_warmup=n_epochs_kl_warmup,
+                frequency=metric_frequency,
+                use_cuda=self.use_cuda,
+                **unsupervised_trainer_kwargs,
+            )
+            self._unsupervised_trainer.train(
+                n_epochs=n_epochs_unsupervised, lr=lr, **train_kwargs
+            )
+            self._is_trained_base = True
 
-        self.model.load_state_dict(
-            self._unsupervised_trainer.model.state_dict(), strict=False
-        )
+        self.model.load_state_dict(self._base_model.state_dict(), strict=False)
 
         self.trainer = SemiSupervisedTrainer(self.model, self.adata)
 
