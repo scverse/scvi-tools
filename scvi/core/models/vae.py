@@ -7,13 +7,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence as kl
 
-from scvi.models._distributions import (
+from scvi.core._distributions import (
     ZeroInflatedNegativeBinomial,
     NegativeBinomial,
     Poisson,
 )
-from scvi.models._modules._core import Encoder, DecoderSCVI, LinearDecoderSCVI
-from scvi.models._modules.utils import one_hot
+from ._modules import Encoder, DecoderSCVI, LinearDecoderSCVI
+from .utils import one_hot
 
 from typing import Tuple, Dict
 

@@ -5,10 +5,10 @@ from anndata import AnnData
 
 from typing import Optional, Dict, Union
 from scvi._compat import Literal
-from scvi.models._modules.autozivae import AutoZIVAE
+from scvi.core.models import AutoZIVAE
 from scvi.models import SCVI
 
-from scvi.inference.posterior import Posterior
+from scvi.core.posteriors import Posterior
 
 logger = logging.getLogger(__name__)
 

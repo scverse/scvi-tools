@@ -8,7 +8,7 @@ import anndata
 from torch.utils.data import DataLoader
 
 from scvi.dataset._biodataset import BioDataset
-from scvi.models._log_likelihood import (
+from scvi.core._log_likelihood import (
     compute_elbo,
     compute_reconstruction_error,
     compute_marginal_log_likelihood_scvi,

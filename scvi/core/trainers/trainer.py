@@ -12,7 +12,7 @@ import anndata
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
 
-from scvi.inference.posterior import Posterior
+from scvi.core.posteriors import Posterior
 from scvi import _CONSTANTS
 
 from tqdm import tqdm

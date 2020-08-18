@@ -7,14 +7,14 @@ from anndata import AnnData
 
 from typing import Optional, Union, List, Dict
 from scvi._compat import Literal
-from scvi.models._modules.vae import VAE
+from scvi.core.models import VAE
 from scvi.models._base import AbstractModelClass
 
 from scvi.models._differential import DifferentialComputation
-from scvi.models._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
+from scvi.core._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi import _CONSTANTS
-from scvi.inference.inference import UnsupervisedTrainer
-from scvi.inference.posterior import Posterior
+from scvi.core.trainers import UnsupervisedTrainer
+from scvi.core.posteriors import Posterior
 from scvi.models._utils import scrna_raw_counts_properties
 
 logger = logging.getLogger(__name__)

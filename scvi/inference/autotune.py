@@ -29,7 +29,7 @@ from hyperopt.mongoexp import (
 from scvi._settings import autotune_formatter
 
 from scvi.models._base import AbstractModelClass
-from scvi.inference.trainer import Trainer
+from scvi.core.trainers.trainer import Trainer
 from scvi.models import SCVI
 
 # spawning is required for processes relying on cuda, and for windows

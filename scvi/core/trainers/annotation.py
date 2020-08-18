@@ -1,96 +1,16 @@
 import numpy as np
 import logging
-
-from sklearn import neighbors
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import GridSearchCV
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
-from collections import namedtuple
-
 import torch
 from torch.nn import functional as F
-from scvi.inference.posterior import Posterior
-from scvi.inference.trainer import Trainer
-from scvi.inference.inference import UnsupervisedTrainer
-from scvi.metrics import unsupervised_clustering_accuracy
+
+from scvi.core.posteriors import AnnotationPosterior
+from .trainer import Trainer
+from .inference import UnsupervisedTrainer
 from scvi.dataset._anndata import get_from_registry
 from scvi import _CONSTANTS
 
+
 logger = logging.getLogger(__name__)
-
-
-class AnnotationPosterior(Posterior):
-    def __init__(self, *args, model_zl=False, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model_zl = model_zl
-
-    def accuracy(self):
-        model, cls = (
-            (self.sampling_model, self.model)
-            if hasattr(self, "sampling_model")
-            else (self.model, None)
-        )
-        acc = compute_accuracy(model, self, classifier=cls, model_zl=self.model_zl)
-        logger.debug("Acc: %.4f" % (acc))
-        return acc
-
-    accuracy.mode = "max"
-
-    @torch.no_grad()
-    def hierarchical_accuracy(self):
-        all_y, all_y_pred = self.compute_predictions()
-        acc = np.mean(all_y == all_y_pred)
-
-        all_y_groups = np.array([self.model.labels_groups[y] for y in all_y])
-        all_y_pred_groups = np.array([self.model.labels_groups[y] for y in all_y_pred])
-        h_acc = np.mean(all_y_groups == all_y_pred_groups)
-
-        logger.debug("Hierarchical Acc : %.4f\n" % h_acc)
-        return acc
-
-    accuracy.mode = "max"
-
-    @torch.no_grad()
-    def compute_predictions(self, soft=False):
-        """
-
-        Parameters
-        ----------
-        soft
-             (Default value = False)
-
-        Returns
-        -------
-        the true labels and the predicted labels
-
-        """
-        model, cls = (
-            (self.sampling_model, self.model)
-            if hasattr(self, "sampling_model")
-            else (self.model, None)
-        )
-        return compute_predictions(
-            model, self, classifier=cls, soft=soft, model_zl=self.model_zl
-        )
-
-    @torch.no_grad()
-    def unsupervised_classification_accuracy(self):
-        all_y, all_y_pred = self.compute_predictions()
-        uca = unsupervised_clustering_accuracy(all_y, all_y_pred)[0]
-        logger.debug("UCA : %.4f" % (uca))
-        return uca
-
-    unsupervised_classification_accuracy.mode = "max"
-
-    @torch.no_grad()
-    def nn_latentspace(self, posterior):
-        data_train, _, labels_train = self.get_latent()
-        data_test, _, labels_test = posterior.get_latent()
-        nn = KNeighborsClassifier()
-        nn.fit(data_train, labels_train)
-        score = nn.score(data_test, labels_test)
-        return score
 
 
 class ClassifierTrainer(Trainer):
@@ -188,29 +108,30 @@ class ClassifierTrainer(Trainer):
                     x = self.sampling_model.z_encoder(x)[0]
         return F.cross_entropy(self.model(x), labels_train.view(-1))
 
-    @torch.no_grad()
-    def compute_predictions(self, soft=False):
-        """
+    # TODO find a place for this
+    # @torch.no_grad()
+    # def compute_predictions(self, soft=False):
+    #     """
 
-        Parameters
-        ----------
-        soft :
-             (Default value = False)
+    #     Parameters
+    #     ----------
+    #     soft :
+    #          (Default value = False)
 
-        Returns
-        -------
-        the true labels and the predicted labels
+    #     Returns
+    #     -------
+    #     the true labels and the predicted labels
 
-        """
-        model, cls = (
-            (self.sampling_model, self.model)
-            if hasattr(self, "sampling_model")
-            else (self.model, None)
-        )
-        full_set = self.create_posterior(type_class=AnnotationPosterior)
-        return compute_predictions(
-            model, full_set, classifier=cls, soft=soft, model_zl=self.sampling_zl
-        )
+    #     """
+    #     model, cls = (
+    #         (self.sampling_model, self.model)
+    #         if hasattr(self, "sampling_model")
+    #         else (self.model, None)
+    #     )
+    #     full_set = self.create_posterior(type_class=AnnotationPosterior)
+    #     return compute_predictions(
+    #         model, full_set, classifier=cls, soft=soft, model_zl=self.sampling_zl
+    #     )
 
 
 class SemiSupervisedTrainer(UnsupervisedTrainer):
@@ -333,139 +254,3 @@ class AlternateSemiSupervisedTrainer(SemiSupervisedTrainer):
     @property
     def posteriors_loop(self):
         return ["full_dataset"]
-
-
-@torch.no_grad()
-def compute_predictions(
-    model, data_loader, classifier=None, soft=False, model_zl=False
-):
-    all_y_pred = []
-    all_y = []
-
-    for i_batch, tensors in enumerate(data_loader):
-        sample_batch = tensors[_CONSTANTS.X_KEY]
-        labels = tensors[_CONSTANTS.LABELS_KEY]
-
-        all_y += [labels.view(-1).cpu()]
-
-        if hasattr(model, "classify"):
-            y_pred = model.classify(sample_batch)
-        elif classifier is not None:
-            # Then we use the specified classifier
-            if model is not None:
-                if model.log_variational:
-                    sample_batch = torch.log(1 + sample_batch)
-                if model_zl:
-                    sample_z = model.z_encoder(sample_batch)[0]
-                    sample_l = model.l_encoder(sample_batch)[0]
-                    sample_batch = torch.cat((sample_z, sample_l), dim=-1)
-                else:
-                    sample_batch, _, _ = model.z_encoder(sample_batch)
-            y_pred = classifier(sample_batch)
-        else:  # The model is the raw classifier
-            y_pred = model(sample_batch)
-
-        if not soft:
-            y_pred = y_pred.argmax(dim=-1)
-
-        all_y_pred += [y_pred.cpu()]
-
-    all_y_pred = np.array(torch.cat(all_y_pred))
-    all_y = np.array(torch.cat(all_y))
-
-    return all_y, all_y_pred
-
-
-@torch.no_grad()
-def compute_accuracy(vae, data_loader, classifier=None, model_zl=False):
-    all_y, all_y_pred = compute_predictions(
-        vae, data_loader, classifier=classifier, model_zl=model_zl
-    )
-    return np.mean(all_y == all_y_pred)
-
-
-Accuracy = namedtuple(
-    "Accuracy", ["unweighted", "weighted", "worst", "accuracy_classes"]
-)
-
-
-@torch.no_grad()
-def compute_accuracy_tuple(y, y_pred):
-    y = y.ravel()
-    n_labels = len(np.unique(y))
-    classes_probabilities = []
-    accuracy_classes = []
-    for cl in range(n_labels):
-        idx = y == cl
-        classes_probabilities += [np.mean(idx)]
-        accuracy_classes += [
-            np.mean((y[idx] == y_pred[idx])) if classes_probabilities[-1] else 0
-        ]
-        # This is also referred to as the "recall": p = n_true_positive / (n_false_negative + n_true_positive)
-        # ( We could also compute the "precision": p = n_true_positive / (n_false_positive + n_true_positive) )
-        accuracy_named_tuple = Accuracy(
-            unweighted=np.dot(accuracy_classes, classes_probabilities),
-            weighted=np.mean(accuracy_classes),
-            worst=np.min(accuracy_classes),
-            accuracy_classes=accuracy_classes,
-        )
-    return accuracy_named_tuple
-
-
-@torch.no_grad()
-def compute_accuracy_nn(data_train, labels_train, data_test, labels_test, k=5):
-    clf = neighbors.KNeighborsClassifier(k, weights="distance")
-    return compute_accuracy_classifier(
-        clf, data_train, labels_train, data_test, labels_test
-    )
-
-
-@torch.no_grad()
-def compute_accuracy_classifier(clf, data_train, labels_train, data_test, labels_test):
-    clf.fit(data_train, labels_train)
-    # Predicting the labels
-    y_pred_test = clf.predict(data_test)
-    y_pred_train = clf.predict(data_train)
-
-    return (
-        (
-            compute_accuracy_tuple(labels_train, y_pred_train),
-            compute_accuracy_tuple(labels_test, y_pred_test),
-        ),
-        y_pred_test,
-    )
-
-
-@torch.no_grad()
-def compute_accuracy_svc(
-    data_train,
-    labels_train,
-    data_test,
-    labels_test,
-    param_grid=None,
-    verbose=0,
-    max_iter=-1,
-):
-    if param_grid is None:
-        param_grid = [
-            {"C": [1, 10, 100, 1000], "kernel": ["linear"]},
-            {"C": [1, 10, 100, 1000], "gamma": [0.001, 0.0001], "kernel": ["rbf"]},
-        ]
-    svc = SVC(max_iter=max_iter)
-    clf = GridSearchCV(svc, param_grid, verbose=verbose, cv=3)
-    return compute_accuracy_classifier(
-        clf, data_train, labels_train, data_test, labels_test
-    )
-
-
-@torch.no_grad()
-def compute_accuracy_rf(
-    data_train, labels_train, data_test, labels_test, param_grid=None, verbose=0
-):
-    if param_grid is None:
-        param_grid = {"max_depth": np.arange(3, 10), "n_estimators": [10, 50, 100, 200]}
-    rf = RandomForestClassifier(max_depth=2, random_state=0)
-    clf = GridSearchCV(rf, param_grid, verbose=verbose, cv=3)
-    return compute_accuracy_classifier(
-        clf, data_train, labels_train, data_test, labels_test
-    )

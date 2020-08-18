@@ -7,12 +7,13 @@ from functools import partial
 
 from typing import Optional, Union, List, Dict, Tuple
 from scvi._compat import Literal
-from scvi.models._modules.totalvae import TOTALVAE
+from scvi.core.models import TOTALVAE
 from scvi.models import SCVI
 
 from scvi.models._differential import DifferentialComputation
 from scvi import _CONSTANTS
-from scvi.inference.total_inference import TotalPosterior, TotalTrainer
+from scvi.core.posteriors import TotalPosterior
+from scvi.core.trainers import TotalTrainer
 from scvi.models._utils import scrna_raw_counts_properties
 from scvi.dataset._anndata import get_from_registry
 

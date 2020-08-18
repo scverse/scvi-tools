@@ -10,7 +10,7 @@ from torch.distributions.utils import (
     logits_to_probs,
 )
 
-from scvi.models._log_likelihood import log_nb_positive, log_zinb_positive
+from ._log_likelihood import log_nb_positive, log_zinb_positive
 
 
 def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):

@@ -4,10 +4,10 @@ import pandas as pd
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.models._modules.vae import LDVAE
+from scvi.core.models import LDVAE
 from scvi.models import SCVI
 
-from scvi.inference.posterior import Posterior
+from scvi.core.posteriors import Posterior
 
 logger = logging.getLogger(__name__)
 

@@ -6,12 +6,10 @@ from anndata import AnnData
 from typing import Union
 from scvi._compat import Literal
 from scvi.models import SCVI
-from scvi.models._modules.vae import VAE
-from scvi.models._modules.scanvae import SCANVAE
+from scvi.core.models import VAE, SCANVAE
 
-from scvi.inference.inference import UnsupervisedTrainer
-from scvi.inference.annotation import SemiSupervisedTrainer
-from scvi.inference.annotation import AnnotationPosterior
+from scvi.core.trainers import UnsupervisedTrainer, SemiSupervisedTrainer
+from scvi.core.posteriors import AnnotationPosterior
 from scvi import _CONSTANTS
 from scvi.dataset import get_from_registry
 
