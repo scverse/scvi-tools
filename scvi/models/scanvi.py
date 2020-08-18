@@ -177,7 +177,9 @@ class SCANVI(SCVI):
 
         self.model.load_state_dict(self._base_model.state_dict(), strict=False)
 
-        self.trainer = SemiSupervisedTrainer(self.model, self.adata)
+        self.trainer = SemiSupervisedTrainer(
+            self.model, self.adata, use_cuda=self.use_cuda
+        )
 
         self.trainer.unlabelled_set = self.trainer.create_posterior(
             indices=self._unlabeled_indices
