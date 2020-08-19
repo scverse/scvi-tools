@@ -49,6 +49,7 @@ class BioDataset(Dataset):
         self.adata = adata
         self.attributes_and_types = None
         self.setup_getitem(getitem_tensors)
+        self.setup_data_attr()
         self.gene_names = self.adata.var_names
         self.normalized_X = None
 
@@ -57,14 +58,25 @@ class BioDataset(Dataset):
         """
         return self.adata.uns["scvi_data_registry"].keys()
 
+    def setup_data_attr(self):
+        """Sets data attribute
+
+        Reduces number of times anndata needs to be accessed
+        """
+        self.data = {
+            key: get_from_registry(self.adata, key)
+            for key, _ in self.attributes_and_types.items()
+        }
+
     def setup_getitem(self, getitem_tensors: Union[List[str], Dict[str, type]] = None):
         """Sets up the __getitem__ function used by Pytorch
 
         By default, getitem will return every single item registered in the scvi data registry
         and also set their type to np.float32.
 
-        If you want to specify which specific tensors to return you can pass in a List of keys from the scvi data registry
-        If you want to speficy specific tensors to return as well as their associated types, then you can pass in a dictionary with their type.
+        If you want to specify which specific tensors to return you can pass in a List of keys from
+        the scvi data registry. If you want to speficy specific tensors to return as well as their
+        associated types, then you can pass in a dictionary with their type.
 
         Paramaters
         ----------
@@ -104,6 +116,20 @@ class BioDataset(Dataset):
 
         self.attributes_and_types = keys_to_type
 
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+
+        data_numpy = {}
+        for key, dtype in self.attributes_and_types.items():
+            data = self.data[key]
+            if isinstance(data, np.ndarray):
+                data_numpy[key] = data[idx].astype(dtype)
+            elif isinstance(data, pd.DataFrame):
+                data_numpy[key] = data.iloc[idx, :].to_numpy().astype(dtype)
+            else:
+                data_numpy[key] = data[idx].toarray().astype(dtype)
+
+        return data_numpy
+
     def __len__(self):
         return self.adata.shape[0]
 
@@ -142,22 +168,6 @@ class BioDataset(Dataset):
         norm_mean2 = self.normalized_X[idx2, :].mean(axis=0)
         return_vals = [mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2]
         return [np.squeeze(np.asarray(arr)) for arr in return_vals]
-
-    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
-        data_numpy = {
-            key: get_from_registry(self.adata, key)
-            for key, _ in self.attributes_and_types.items()
-        }
-        for key, dtype in self.attributes_and_types.items():
-            data = data_numpy[key]
-            if isinstance(data, np.ndarray):
-                data_numpy[key] = data[idx].astype(dtype)
-            elif isinstance(data_numpy[key], pd.DataFrame):
-                data_numpy[key] = data.iloc[idx, :].to_numpy().astype(dtype)
-            else:
-                data_numpy[key] = data[idx].toarray().astype(dtype)
-
-        return data_numpy
 
     @property
     def n_cells(self) -> int:
