@@ -95,11 +95,29 @@ class SCVI(AbstractModelClass):
             latent_distribution=latent_distribution,
             **model_kwargs,
         )
+        self.model_summary_string = (
+            "SCVI Model with following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
+            "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
+        ).format(
+            n_hidden,
+            n_latent,
+            n_layers,
+            dropout_rate,
+            dispersion,
+            gene_likelihood,
+            latent_distribution,
+        )
         self.is_trained = False
         self.use_cuda = use_cuda and torch.cuda.is_available()
         self.batch_size = 128
         self._posterior_class = Posterior
         self._trainer_class = UnsupervisedTrainer
+
+    def __repr__(self,):
+        summary_string = self.model_summary_string + "\nTraining status: {}".format(
+            "Trained" if self.is_trained else "Not Trained"
+        )
+        return summary_string
 
     def _make_posterior(self, adata=None, indices=None):
         if adata is None:
