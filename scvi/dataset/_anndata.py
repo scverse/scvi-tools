@@ -70,6 +70,7 @@ def setup_anndata(
     adata,
     batch_key: str = None,
     labels_key: str = None,
+    use_raw: bool = False,
     X_layers_key: str = None,
     protein_expression_obsm_key: str = None,
     protein_names_uns_key: str = None,
@@ -257,9 +258,9 @@ def setup_anndata(
 
     batch_key = _setup_batch(adata, batch_key)
     labels_key = _setup_labels(adata, labels_key)
-    X_loc, X_key = _setup_X(adata, X_layers_key)
+    X_loc, X_key = _setup_X(adata, X_layers_key, use_raw)
     local_l_mean_key, local_l_var_key = _setup_library_size(
-        adata, batch_key, X_layers_key
+        adata, batch_key, X_layers_key, use_raw
     )
 
     data_registry = {
@@ -278,7 +279,6 @@ def setup_anndata(
             "_obsm",
             protein_expression_obsm_key,
         ]
-
     # add the data_registry to anndata
     _register_anndata(adata, data_registry_dict=data_registry)
     logger.info("Registered keys:{}".format(list(data_registry.keys())))
@@ -412,9 +412,20 @@ def _setup_protein_expression(
     return protein_expression_obsm_key
 
 
-def _setup_X(adata, X_layers_key):
+def _setup_X(adata, X_layers_key, use_raw):
+    if use_raw and X_layers_key:
+        logging.warning(
+            "use_raw and X_layers_key were both passed in. Defaulting to use_raw."
+        )
+
     # checking layers
-    if X_layers_key is not None:
+    if use_raw:
+        assert adata.raw is not None, "use_raw is True but adata.raw is None"
+        logger.info("Using data from adata.raw.X")
+        X_loc = "raw"
+        X_key = "X"
+        X = adata.raw._X
+    elif X_layers_key is not None:
         assert (
             X_layers_key in adata.layers.keys()
         ), "{} is not a valid key in adata.layers".format(X_layers_key)
@@ -445,7 +456,7 @@ def _setup_X(adata, X_layers_key):
     return X_loc, X_key
 
 
-def _setup_library_size(adata, batch_key, X_layers_key):
+def _setup_library_size(adata, batch_key, X_layers_key, use_raw):
     # computes the library size per batch
     logger.info("Computing library size prior per batch")
     local_l_mean_key = "_scvi_local_l_mean"
@@ -456,6 +467,7 @@ def _setup_library_size(adata, batch_key, X_layers_key):
         local_l_mean_key=local_l_mean_key,
         local_l_var_key=local_l_var_key,
         X_layers_key=X_layers_key,
+        use_raw=use_raw,
     )
     return local_l_mean_key, local_l_var_key
 
@@ -505,13 +517,15 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
     >>> _register_anndata(adata, data_dict)
 
     """
-    for df, df_key in data_registry_dict.values():
-        if df_key is not None:
-            assert df_key in getattr(
-                adata, df
-            ), "anndata.{} has no attribute '{}'".format(df, df_key)
-        else:
-            assert hasattr(adata, df) is True, "anndata has no attribute '{}'".format(
-                df_key
-            )
+    # check doesnt work for adata.raw since adata.raw is not a dict
+
+    # for df, df_key in data_registry_dict.values():
+    #     if df_key is not None:
+    #         assert df_key in getattr(
+    #             adata, df
+    #         ), "anndata.{} has no attribute '{}'".format(df, df_key)
+    #     else:
+    #         assert hasattr(adata, df) is True, "anndata has no attribute '{}'".format(
+    #             df_key
+    #         )
     adata.uns["scvi_data_registry"] = copy.copy(data_registry_dict)

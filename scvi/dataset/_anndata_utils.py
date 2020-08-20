@@ -31,6 +31,7 @@ def _compute_library_size_batch(
     local_l_mean_key: str = None,
     local_l_var_key: str = None,
     X_layers_key=None,
+    use_raw=False,
     copy: bool = False,
 ):
     """Computes the library size
@@ -62,7 +63,9 @@ def _compute_library_size_batch(
     batch_indices = adata.obs[batch_key]
     for i_batch in np.unique(batch_indices):
         idx_batch = np.squeeze(batch_indices == i_batch)
-        if X_layers_key is not None:
+        if use_raw:
+            data = adata[idx_batch].raw.X
+        elif X_layers_key is not None:
             assert (
                 X_layers_key in adata.layers.keys()
             ), "X_layers_key not a valid key for adata.layers"
