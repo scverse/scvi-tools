@@ -400,7 +400,7 @@ class DifferentialComputation:
                 self.model_fn(self.adata, indices=idx, transform_batch=batch_idx)
             )
             batch_idx = batch_idx if batch_idx is not None else np.nan
-            batch_ids.append(np.ones((px_scales[-1].shape[0])) * batch_idx)
+            batch_ids.append([batch_idx] * px_scales[-1].shape[0])
         px_scales = np.concatenate(px_scales)
         batch_ids = np.concatenate(batch_ids).reshape(-1)
         assert (
