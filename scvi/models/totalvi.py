@@ -10,7 +10,7 @@ from collections.abc import Iterable
 from scvi._compat import Literal
 from scvi.core.models import TOTALVAE
 
-from scvi.models._base import AbstractModelClass
+from scvi.models._base import BaseModelClass
 from scvi.models import SCVI
 from scvi.models._differential import DifferentialComputation
 from scvi import _CONSTANTS
@@ -22,7 +22,7 @@ from scvi.dataset._anndata import get_from_registry
 logger = logging.getLogger(__name__)
 
 
-class TOTALVI(SCVI, AbstractModelClass):
+class TOTALVI(SCVI, BaseModelClass):
     """total Variational Inference [GayosoSteier20]_
 
     Parameters
@@ -79,7 +79,7 @@ class TOTALVI(SCVI, AbstractModelClass):
         use_cuda: bool = True,
         **model_kwargs,
     ):
-        AbstractModelClass.__init__(self, adata, use_cuda)
+        BaseModelClass.__init__(self, adata, use_cuda)
         if "totalvi_batch_mask" in adata.uns.keys():
             batch_mask = adata.uns["totalvi_batch_mask"]
         else:
@@ -116,6 +116,7 @@ class TOTALVI(SCVI, AbstractModelClass):
         lr=1e-3,
         n_iter_kl_warmup=None,
         n_epochs_kl_warmup=400,
+        batch_size=256,
         metric_frequency=1,
         trainer_kwargs={},
         train_kwargs={},
@@ -133,7 +134,7 @@ class TOTALVI(SCVI, AbstractModelClass):
             n_iter_kl_warmup=n_iter_kl_warmup,
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             frequency=metric_frequency,
-            batch_size=self.batch_size,
+            batch_size=batch_size,
             use_adversarial_loss=imputation,
             use_cuda=self.use_cuda,
             **trainer_kwargs,

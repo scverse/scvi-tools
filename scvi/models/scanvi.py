@@ -5,7 +5,7 @@ from anndata import AnnData
 from typing import Union, Optional
 from scvi._compat import Literal
 from scvi.models import SCVI
-from scvi.models._base import AbstractModelClass
+from scvi.models._base import BaseModelClass
 from scvi.core.models import VAE, SCANVAE
 from scvi.core.trainers import UnsupervisedTrainer, SemiSupervisedTrainer
 from scvi.core.posteriors import AnnotationPosterior
@@ -15,7 +15,7 @@ from scvi.dataset import get_from_registry
 logger = logging.getLogger(__name__)
 
 
-class SCANVI(SCVI, AbstractModelClass):
+class SCANVI(SCVI, BaseModelClass):
     """Single-cell annotation using variational inference [Xu19]_
 
     Inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
@@ -80,7 +80,7 @@ class SCANVI(SCVI, AbstractModelClass):
         use_cuda: bool = True,
         **model_kwargs,
     ):
-        AbstractModelClass.__init__(self, adata, use_cuda)
+        BaseModelClass.__init__(self, adata, use_cuda)
 
         self.unlabeled_category = unlabeled_category
 

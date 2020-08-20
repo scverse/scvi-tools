@@ -7,7 +7,7 @@ from anndata import AnnData
 from typing import Optional, Union, List, Dict
 from scvi._compat import Literal
 from scvi.core.models import VAE
-from scvi.models._base import AbstractModelClass
+from scvi.models._base import BaseModelClass
 
 from scvi.models._differential import DifferentialComputation
 from scvi.core._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
@@ -19,7 +19,7 @@ from scvi.models._utils import scrna_raw_counts_properties
 logger = logging.getLogger(__name__)
 
 
-class SCVI(AbstractModelClass):
+class SCVI(BaseModelClass):
     """single-cell Variational Inference [Lopez18]_
 
     Parameters
@@ -76,7 +76,7 @@ class SCVI(AbstractModelClass):
         use_cuda: bool = True,
         **model_kwargs,
     ):
-        super(SCVI, self).__init__(adata, use_cuda)
+        super().__init__(adata, use_cuda)
         self.model = VAE(
             n_input=self.summary_stats["n_genes"],
             n_batch=self.summary_stats["n_batch"],
@@ -103,21 +103,6 @@ class SCVI(AbstractModelClass):
         )
         self._posterior_class = Posterior
         self._trainer_class = UnsupervisedTrainer
-
-    def _make_posterior(self, adata=None, indices=None):
-        if adata is None:
-            adata = self.adata
-        if indices is None:
-            indices = np.arange(adata.n_obs)
-        post = self._posterior_class(
-            self.model,
-            adata,
-            shuffle=False,
-            indices=indices,
-            use_cuda=self.use_cuda,
-            batch_size=self.batch_size,
-        ).sequential()
-        return post
 
     def train(
         self,

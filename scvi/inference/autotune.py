@@ -28,7 +28,7 @@ from hyperopt.mongoexp import (
 
 from scvi._settings import autotune_formatter
 
-from scvi.models._base import AbstractModelClass
+from scvi.models._base import BaseModelClass
 from scvi.core.trainers.trainer import Trainer
 from scvi.models import SCVI
 
@@ -208,7 +208,7 @@ def auto_tune_scvi_model(
     gene_dataset: Union[anndata.AnnData, str] = None,
     custom_objective_hyperopt: Callable = None,
     objective_kwargs: Dict[str, Any] = None,
-    model_class: AbstractModelClass = SCVI,
+    model_class: BaseModelClass = SCVI,
     metric_name: str = None,
     metric_kwargs: Dict[str, Any] = None,
     posterior_name: str = "test_set",
@@ -231,7 +231,7 @@ def auto_tune_scvi_model(
     mongo_host: str = "localhost",
     db_name: str = "scvi_db",
     multiple_hosts: bool = False,
-) -> (Type[AbstractModelClass], Trials):
+) -> (Type[BaseModelClass], Trials):
     """Perform automatic hyperparameter optimization of an scvi model
     and return best model and hyperopt Trials object.
 
@@ -326,7 +326,7 @@ def auto_tune_scvi_model(
     Returns
     -------
     type
-        ``AbstractModelClass`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
+        ``BaseModelClass`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
 
     Examples
     --------
@@ -1253,7 +1253,7 @@ class HyperoptWorker(multiprocessing.Process):
 def _objective_function(
     space: dict,
     gene_dataset: Union[anndata.AnnData, str],
-    model_class: Type[AbstractModelClass] = SCVI,
+    model_class: Type[BaseModelClass] = SCVI,
     metric_name: str = None,
     metric_kwargs: Dict[str, Any] = None,
     posterior_name: str = "test_set",

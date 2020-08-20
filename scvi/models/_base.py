@@ -1,25 +1,42 @@
 import torch
 import os
+import numpy as np
 from abc import ABC, abstractmethod
 
 
-class AbstractModelClass(ABC):
+class BaseModelClass(ABC):
     def __init__(self, adata, use_cuda):
         assert (
             "scvi_data_registry" in adata.uns.keys()
         ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
         self.adata = adata
-        self.summary_stats = adata.uns["scvi_summary_stats"]
-        self.is_trained = False
-        self.use_cuda = use_cuda and torch.cuda.is_available()
-        self.batch_size = 128
-        self._model_summary_string = ""
-
-        self._posterior_class = None
-        self._trainer_class = None
-
         self._check_anndata(adata)
 
+        # TODO make abstract properties
+        # self.summary_stats = adata.uns["scvi_summary_stats"]
+        # self.is_trained = False
+        # self.use_cuda = use_cuda and torch.cuda.is_available()
+        # self._model_summary_string = ""
+
+        # self._posterior_class = None
+        # self._trainer_class = None
+
+    def _make_posterior(self, adata=None, indices=None, batch_size=128):
+        if adata is None:
+            adata = self.adata
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+        post = self._posterior_class(
+            self.model,
+            adata,
+            shuffle=False,
+            indices=indices,
+            use_cuda=self.use_cuda,
+            batch_size=batch_size,
+        ).sequential()
+        return post
+
+    @abstractmethod
     def _check_anndata(self, adata):
         pass
 
