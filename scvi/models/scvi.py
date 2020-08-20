@@ -89,7 +89,7 @@ class SCVI(AbstractModelClass):
             latent_distribution=latent_distribution,
             **model_kwargs,
         )
-        self.model_summary_string = (
+        self._model_summary_string = (
             "SCVI Model with following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
             "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
         ).format(

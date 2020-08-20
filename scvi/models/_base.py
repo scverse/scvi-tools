@@ -13,10 +13,15 @@ class AbstractModelClass(ABC):
         self.is_trained = False
         self.use_cuda = use_cuda and torch.cuda.is_available()
         self.batch_size = 128
-        self.model_summary_string = ""
+        self._model_summary_string = ""
 
         self._posterior_class = None
         self._trainer_class = None
+
+        self._check_anndata(adata)
+
+    def _check_anndata(self, adata):
+        pass
 
     @abstractmethod
     def train(self):
@@ -56,7 +61,7 @@ class AbstractModelClass(ABC):
         self.model.eval()
 
     def __repr__(self,):
-        summary_string = self.model_summary_string + "\nTraining status: {}".format(
+        summary_string = self._model_summary_string + "\nTraining status: {}".format(
             "Trained" if self.is_trained else "Not Trained"
         )
         return summary_string

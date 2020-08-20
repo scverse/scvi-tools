@@ -15,7 +15,7 @@ from scvi.dataset import get_from_registry
 logger = logging.getLogger(__name__)
 
 
-class SCANVI(AbstractModelClass):
+class SCANVI(SCVI, AbstractModelClass):
     """Single-cell annotation using variational inference [Xu19]_
 
     Inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
@@ -59,10 +59,11 @@ class SCANVI(AbstractModelClass):
     --------
 
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.dataset.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.models.SCVI(adata)
+    >>> scvi.dataset.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    >>> vae = scvi.models.SCANVI(adata)
     >>> vae.train(n_epochs=400)
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
+    >>> adata.obs["pred_label"] = vae.predict()
     """
 
     def __init__(
@@ -79,7 +80,7 @@ class SCANVI(AbstractModelClass):
         use_cuda: bool = True,
         **model_kwargs,
     ):
-        super(SCANVI, self).__init__(adata, use_cuda)
+        AbstractModelClass.__init__(self, adata, use_cuda)
 
         self.unlabeled_category = unlabeled_category
 
@@ -122,7 +123,7 @@ class SCANVI(AbstractModelClass):
         self._label_dict = {s: l for l, s in zip(labels, scvi_labels)}
         self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
-        self.model_summary_string = (
+        self._model_summary_string = (
             "ScanVI Model with following params: \nunlabeled_category: {}, n_hidden: {}, n_latent: {}"
             ", n_layers: {}, dropout_rate: {}, dispersion: {}, gene_likelihood: {}"
         ).format(

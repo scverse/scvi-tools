@@ -5,12 +5,13 @@ from anndata import AnnData
 from scvi._compat import Literal
 from scvi.core.models import LDVAE
 from scvi.models import SCVI
+from scvi.models._base import AbstractModelClass
 
 
 logger = logging.getLogger(__name__)
 
 
-class LinearSCVI(SCVI):
+class LinearSCVI(SCVI, AbstractModelClass):
     """Linearly-decoded VAE [Svensson20]_
 
     Parameters
@@ -67,7 +68,7 @@ class LinearSCVI(SCVI):
         use_cuda: bool = True,
         **model_kwargs,
     ):
-        super(LinearSCVI, self).__init__(adata, use_cuda=use_cuda)
+        AbstractModelClass.__init__(self, adata, use_cuda=use_cuda)
         self.model = LDVAE(
             n_input=self.summary_stats["n_genes"],
             n_batch=self.summary_stats["n_batch"],
@@ -80,7 +81,7 @@ class LinearSCVI(SCVI):
             latent_distribution=latent_distribution,
             **model_kwargs,
         )
-        self.model_summary_string = (
+        self._model_summary_string = (
             "LinearSCVI Model with following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
             "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
         ).format(

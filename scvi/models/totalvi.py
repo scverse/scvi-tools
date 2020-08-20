@@ -11,6 +11,7 @@ from scvi._compat import Literal
 from scvi.core.models import TOTALVAE
 
 from scvi.models._base import AbstractModelClass
+from scvi.models import SCVI
 from scvi.models._differential import DifferentialComputation
 from scvi import _CONSTANTS
 from scvi.core.posteriors import TotalPosterior
@@ -21,7 +22,7 @@ from scvi.dataset._anndata import get_from_registry
 logger = logging.getLogger(__name__)
 
 
-class TOTALVI(AbstractModelClass):
+class TOTALVI(SCVI, AbstractModelClass):
     """total Variational Inference [GayosoSteier20]_
 
     Parameters
@@ -78,7 +79,7 @@ class TOTALVI(AbstractModelClass):
         use_cuda: bool = True,
         **model_kwargs,
     ):
-        super(TOTALVI, self).__init__(adata, use_cuda)
+        AbstractModelClass.__init__(self, adata, use_cuda)
         if "totalvi_batch_mask" in adata.uns.keys():
             batch_mask = adata.uns["totalvi_batch_mask"]
         else:
@@ -94,7 +95,7 @@ class TOTALVI(AbstractModelClass):
             protein_batch_mask=batch_mask,
             **model_kwargs,
         )
-        self.model_summary_string = (
+        self._model_summary_string = (
             "TotalVI Model with following params: \nn_latent: {}, "
             "gene_dispersion: {}, protein_dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
         ).format(
