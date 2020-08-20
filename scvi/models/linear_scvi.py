@@ -1,5 +1,4 @@
 import logging
-import torch
 import pandas as pd
 from anndata import AnnData
 
@@ -7,7 +6,6 @@ from scvi._compat import Literal
 from scvi.core.models import LDVAE
 from scvi.models import SCVI
 
-from scvi.core.posteriors import Posterior
 
 logger = logging.getLogger(__name__)
 
@@ -69,15 +67,10 @@ class LinearSCVI(SCVI):
         use_cuda: bool = True,
         **model_kwargs,
     ):
-        assert (
-            "scvi_data_registry" in adata.uns.keys()
-        ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
-
-        self.adata = adata
-        summary_stats = adata.uns["scvi_summary_stats"]
+        super(LinearSCVI, self).__init__(adata, use_cuda=use_cuda)
         self.model = LDVAE(
-            n_input=summary_stats["n_genes"],
-            n_batch=summary_stats["n_batch"],
+            n_input=self.summary_stats["n_genes"],
+            n_batch=self.summary_stats["n_batch"],
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers_encoder=n_layers,
@@ -87,10 +80,18 @@ class LinearSCVI(SCVI):
             latent_distribution=latent_distribution,
             **model_kwargs,
         )
-        self.is_trained = False
-        self.use_cuda = use_cuda and torch.cuda.is_available()
-        self.batch_size = 128
-        self._posterior_class = Posterior
+        self.model_summary_string = (
+            "LinearSCVI Model with following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
+            "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
+        ).format(
+            n_hidden,
+            n_latent,
+            n_layers,
+            dropout_rate,
+            dispersion,
+            gene_likelihood,
+            latent_distribution,
+        )
 
     def get_loadings(self) -> pd.DataFrame:
         """Extract per-gene weights in the linear decoder

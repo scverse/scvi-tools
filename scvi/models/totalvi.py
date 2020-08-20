@@ -9,8 +9,8 @@ from typing import Optional, Union, List, Dict, Tuple
 from collections.abc import Iterable
 from scvi._compat import Literal
 from scvi.core.models import TOTALVAE
-from scvi.models import SCVI
 
+from scvi.models._base import AbstractModelClass
 from scvi.models._differential import DifferentialComputation
 from scvi import _CONSTANTS
 from scvi.core.posteriors import TotalPosterior
@@ -21,7 +21,7 @@ from scvi.dataset._anndata import get_from_registry
 logger = logging.getLogger(__name__)
 
 
-class TOTALVI(SCVI):
+class TOTALVI(AbstractModelClass):
     """total Variational Inference [GayosoSteier20]_
 
     Parameters
@@ -78,21 +78,15 @@ class TOTALVI(SCVI):
         use_cuda: bool = True,
         **model_kwargs,
     ):
-        assert (
-            "scvi_data_registry" in adata.uns.keys()
-        ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
-
-        self.adata = adata
-        summary_stats = adata.uns["scvi_summary_stats"]
-
+        super(TOTALVI, self).__init__(adata, use_cuda)
         if "totalvi_batch_mask" in adata.uns.keys():
             batch_mask = adata.uns["totalvi_batch_mask"]
         else:
             batch_mask = None
         self.model = TOTALVAE(
-            n_input_genes=summary_stats["n_genes"],
-            n_input_proteins=summary_stats["n_proteins"],
-            n_batch=summary_stats["n_batch"],
+            n_input_genes=self.summary_stats["n_genes"],
+            n_input_proteins=self.summary_stats["n_proteins"],
+            n_batch=self.summary_stats["n_batch"],
             gene_dispersion=gene_dispersion,
             protein_dispersion=protein_dispersion,
             reconstruction_loss_gene=gene_likelihood,
@@ -100,10 +94,18 @@ class TOTALVI(SCVI):
             protein_batch_mask=batch_mask,
             **model_kwargs,
         )
-        self.is_trained = False
-        self.use_cuda = use_cuda and torch.cuda.is_available()
-        self.batch_size = 256
+        self.model_summary_string = (
+            "TotalVI Model with following params: \nn_latent: {}, "
+            "gene_dispersion: {}, protein_dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
+        ).format(
+            n_latent,
+            gene_dispersion,
+            protein_dispersion,
+            gene_likelihood,
+            latent_distribution,
+        )
         self._posterior_class = TotalPosterior
+        self._trainer_class = TotalTrainer
 
     def train(
         self,

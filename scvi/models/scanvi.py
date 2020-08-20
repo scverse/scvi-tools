@@ -1,13 +1,12 @@
 import numpy as np
 import logging
-import torch
 from anndata import AnnData
 
 from typing import Union, Optional
 from scvi._compat import Literal
 from scvi.models import SCVI
+from scvi.models._base import AbstractModelClass
 from scvi.core.models import VAE, SCANVAE
-
 from scvi.core.trainers import UnsupervisedTrainer, SemiSupervisedTrainer
 from scvi.core.posteriors import AnnotationPosterior
 from scvi import _CONSTANTS
@@ -16,7 +15,7 @@ from scvi.dataset import get_from_registry
 logger = logging.getLogger(__name__)
 
 
-class SCANVI(SCVI):
+class SCANVI(AbstractModelClass):
     """Single-cell annotation using variational inference [Xu19]_
 
     Inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
@@ -80,13 +79,9 @@ class SCANVI(SCVI):
         use_cuda: bool = True,
         **model_kwargs,
     ):
-        assert (
-            "scvi_data_registry" in adata.uns.keys()
-        ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
+        super(SCANVI, self).__init__(adata, use_cuda)
 
-        self.adata = adata
         self.unlabeled_category = unlabeled_category
-        summary_stats = adata.uns["scvi_summary_stats"]
 
         if pretrained_model is not None:
             if pretrained_model.is_trained is False:
@@ -95,8 +90,8 @@ class SCANVI(SCVI):
             self._is_trained_base = True
         else:
             self._base_model = VAE(
-                n_input=summary_stats["n_genes"],
-                n_batch=summary_stats["n_batch"],
+                n_input=self.summary_stats["n_genes"],
+                n_batch=self.summary_stats["n_batch"],
                 n_hidden=n_hidden,
                 n_latent=n_latent,
                 n_layers=n_layers,
@@ -107,9 +102,9 @@ class SCANVI(SCVI):
             )
             self._is_trained_base = False
         self.model = SCANVAE(
-            n_input=summary_stats["n_genes"],
-            n_batch=summary_stats["n_batch"],
-            n_labels=summary_stats["n_labels"],
+            n_input=self.summary_stats["n_genes"],
+            n_batch=self.summary_stats["n_batch"],
+            n_labels=self.summary_stats["n_labels"],
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
@@ -127,10 +122,19 @@ class SCANVI(SCVI):
         self._label_dict = {s: l for l, s in zip(labels, scvi_labels)}
         self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
+        self.model_summary_string = (
+            "ScanVI Model with following params: \nunlabeled_category: {}, n_hidden: {}, n_latent: {}"
+            ", n_layers: {}, dropout_rate: {}, dispersion: {}, gene_likelihood: {}"
+        ).format(
+            unlabeled_category,
+            n_hidden,
+            n_latent,
+            n_layers,
+            dropout_rate,
+            dispersion,
+            gene_likelihood,
+        )
 
-        self.is_trained = False
-        self.use_cuda = use_cuda and torch.cuda.is_available()
-        self.batch_size = 128
         self._posterior_class = AnnotationPosterior
         self._trainer_class = SemiSupervisedTrainer
 

@@ -8,7 +8,6 @@ from scvi._compat import Literal
 from scvi.core.models import AutoZIVAE
 from scvi.models import SCVI
 
-from scvi.core.posteriors import Posterior
 
 logger = logging.getLogger(__name__)
 
@@ -87,28 +86,36 @@ class AUTOZI(SCVI):
         zero_inflation: str = "gene",
         **model_kwargs,
     ):
-        assert (
-            "scvi_data_registry" in adata.uns.keys()
-        ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
+        super(AUTOZI, self).__init__(adata, use_cuda=use_cuda)
 
-        self.adata = adata
-        summary_stats = adata.uns["scvi_summary_stats"]
         self.model = AutoZIVAE(
-            n_input=summary_stats["n_genes"],
-            n_batch=summary_stats["n_batch"],
-            n_labels=summary_stats["n_labels"],
+            n_input=self.summary_stats["n_genes"],
+            n_batch=self.summary_stats["n_batch"],
+            n_labels=self.summary_stats["n_labels"],
             n_hidden=n_hidden,
             n_latent=n_latent,
-            n_layers_encoder=n_layers,
+            n_layers=n_layers,
             dropout_rate=dropout_rate,
             dispersion=dispersion,
             latent_distribution=latent_distribution,
             **model_kwargs,
         )
-        self.is_trained = False
-        self.use_cuda = use_cuda and torch.cuda.is_available()
-        self.batch_size = 128
-        self._posterior_class = Posterior
+        self.model_summary_string = (
+            "AutoZI Model with following params: \nn_hidden: {}, n_latent: {}, "
+            "n_layers: {}, dropout_rate: {}, dispersion: {}, latent_distribution: "
+            "{}, alpha_prior: {}, beta_prior: {}, minimal_dropout: {}, zero_inflation:{}"
+        ).format(
+            n_hidden,
+            n_latent,
+            n_layers,
+            dropout_rate,
+            dispersion,
+            latent_distribution,
+            alpha_prior,
+            beta_prior,
+            minimal_dropout,
+            zero_inflation,
+        )
 
     def get_alphas_betas(
         self, as_numpy: bool = True
