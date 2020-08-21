@@ -4,7 +4,7 @@ from anndata import AnnData
 
 from typing import Union, Optional
 from scvi._compat import Literal
-from scvi.models._base import BaseModelClass, RNASeqMixin
+from scvi.models._base import BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.models import SCVI
 from scvi.core.models import VAE, SCANVAE
 from scvi.core.trainers import UnsupervisedTrainer, SemiSupervisedTrainer
@@ -15,7 +15,7 @@ from scvi.dataset import get_from_registry
 logger = logging.getLogger(__name__)
 
 
-class SCANVI(RNASeqMixin, BaseModelClass):
+class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
     """Single-cell annotation using variational inference [Xu19]_
 
     Inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).

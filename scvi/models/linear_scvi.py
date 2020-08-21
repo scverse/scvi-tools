@@ -4,13 +4,13 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.core.models import LDVAE
-from scvi.models._base import BaseModelClass, RNASeqMixin
+from scvi.models._base import BaseModelClass, RNASeqMixin, UnsupervisedTrainerMixin
 
 
 logger = logging.getLogger(__name__)
 
 
-class LinearSCVI(RNASeqMixin, BaseModelClass):
+class LinearSCVI(RNASeqMixin, UnsupervisedTrainerMixin, BaseModelClass):
     """Linearly-decoded VAE [Svensson20]_
 
     Parameters

@@ -6,12 +6,12 @@ from anndata import AnnData
 from typing import Optional, Dict, Union
 from scvi._compat import Literal
 from scvi.core.models import AutoZIVAE
-from scvi.models._base import RNASeqMixin, BaseModelClass
+from scvi.models._base import VAEMixin, UnsupervisedTrainerMixin, BaseModelClass
 
 logger = logging.getLogger(__name__)
 
 
-class AUTOZI(RNASeqMixin, BaseModelClass):
+class AUTOZI(VAEMixin, UnsupervisedTrainerMixin, BaseModelClass):
     """Automatic identification of ZI [Clivio19]_
 
     Parameters
