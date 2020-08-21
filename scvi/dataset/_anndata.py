@@ -68,78 +68,48 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
     return data
 
 
-def _transfer_categorical_mapping(
-    adata1, adata2, scvi_data_key, adata2_column_key, alternate_adata2_column_key
-):
+def _transfer_categorical_mapping(adata1, adata2, scvi_key):
     """Makes the data in column_key in obs all categorical.
     if adata.obs[column_key] is not categorical, will categorize
     and save to .obs[alternate_column_key]
 
     Parameters:
     -----------
-    adata1
-        categories to transfer from
-    adata2
-        categories to transfer to
-    scvi_data_key
-        key to transfer
-    adata2_column_key
-        key in adata2 to get data from
-    alternate_adata2_column_key
-        alternate key in adata2 to save to
+    adata
+        anndata
     """
-    # check the datatype of data. if theyre not integers, make them ints
-    user_data_dtype = adata2.obs[adata2_column_key].dtype
-    is_not_int = True if user_data_dtype.name == "category" else False
-    if type(user_data_dtype).__module__ == np.__name__:
-        is_not_int = (
-            True if np.issubdtype(user_data_dtype, np.integer) is False else is_not_int
-        )
+    categorical_mappings = adata1.uns["_scvi_categorical_mappings"]
+    obs_key = categorical_mappings[scvi_key][0]
+    obs_mapping = categorical_mappings[scvi_key][1]
 
-    if is_not_int:
-        registered_key = adata1.uns["scvi_data_registry"][scvi_data_key][1]
-        if registered_key not in adata1.uns["_scvi_categorical_mappings"].keys():
-            raise ValueError(
-                "No categorical mapping found."
-            )  # TODO more informative error message here
-        mapping = adata1.uns["_scvi_categorical_mappings"][registered_key][1]
+    assert obs_key in adata2.obs.keys()
 
-        # if theres more categories than previously registered
-        assert len(mapping) >= len(
-            np.unique(adata2.obs[adata2_column_key])
-        ), "More categories than was registered"
+    # if theres more categories than previously registered
+    assert len(obs_mapping) >= len(
+        np.unique(adata2.obs[obs_key])
+    ), "More batch categories than was registered"
 
-        categorical_obs = adata2.obs[adata2_column_key].astype(
-            CategoricalDtype(categories=mapping)
-        )
-        adata2.obs[alternate_adata2_column_key] = categorical_obs.cat.codes
+    categorical_batch = adata2.obs[obs_key].astype(
+        CategoricalDtype(categories=obs_mapping)
+    )
+    adata2.obs[scvi_key] = categorical_batch.cat.codes
 
-        if "_scvi_categorical_mappings" in adata2.uns.keys():
-            adata2.uns["_scvi_categorical_mappings"].update(
-                {alternate_adata2_column_key: mapping}
+    if np.min(adata2.obs[scvi_key]) == -1:
+        logger.error(
+            'Transfering category mapping for .obs["{}"] failed. It could be a datatype issue. Original adata category dtype: {}, New adata category dtype: {}'.format(
+                obs_key, adata1.obs[obs_key][0].dtype, adata2.obs[obs_key][0].dtype
             )
-        else:
-            adata2.uns["_scvi_categorical_mappings"] = {
-                alternate_adata2_column_key: mapping
-            }
-        logger.info(
-            "Saving transfered categories to {}".format(alternate_adata2_column_key)
         )
-        adata2_column_key = alternate_adata2_column_key
-    return adata2_column_key
+    if "_scvi_categorical_mappings" in adata2.uns.keys():
+        adata2.uns["_scvi_categorical_mappings"][scvi_key] = [obs_key, obs_mapping]
+    else:
+        adata2.uns["_scvi_categorical_mappings"] = {
+            scvi_key: [obs_key, obs_mapping],
+        }
 
 
-def transfer_anndata_setup(
-    adata_already_setup,
-    adata_to_setup,
-    batch_key: str = None,
-    labels_key: str = None,
-    use_raw: bool = False,
-    X_layers_key: str = None,
-    protein_expression_obsm_key: str = None,
-    protein_names_uns_key: str = None,
-):
-    data_registry = adata_already_setup.uns["scvi_data_registry"]
+def transfer_anndata_setup(adata1, adata2, use_raw=False, X_layers_key=None):
+    data_registry = adata1.uns["scvi_data_registry"]
 
     # should we check that everything is the same size?
     if use_raw and X_layers_key:
@@ -148,96 +118,63 @@ def transfer_anndata_setup(
         )
     if use_raw:
         assert (
-            get_from_registry(adata_already_setup, _CONSTANTS.X_KEY).shape[1]
-            == adata_to_setup.raw.X.shape[1]
+            get_from_registry(adata1, _CONSTANTS.X_KEY).shape[1]
+            == adata2.raw.X.shape[1]
         )
     elif X_layers_key:
         assert (
-            get_from_registry(adata_already_setup, _CONSTANTS.X_KEY).shape[1]
-            == adata_to_setup.layers["X_layers_key"].shape[1]
+            get_from_registry(adata1, _CONSTANTS.X_KEY).shape[1]
+            == adata2.layers[X_layers_key].shape[1]
         )
     else:
-        assert adata_already_setup.X.shape[1] == adata_to_setup.X.shape[1]
+        assert adata1.X.shape[1] == adata2.X.shape[1]
 
     has_protein = True if _CONSTANTS.PROTEIN_EXP_KEY in data_registry.keys() else False
-    if has_protein is False and protein_expression_obsm_key is not None:
-        # do we want to ignore? Or do we want to setup with protein expression?
-        logger.warning(
-            "protein expression was not registered. Ignoring protein_expression_obsm_key."
-        )
-    elif has_protein is True and protein_expression_obsm_key is None:
+    if has_protein is True:
         prev_protein_obsm_key = data_registry[_CONSTANTS.PROTEIN_EXP_KEY][1]
-        if prev_protein_obsm_key not in adata_to_setup.obsm.keys():
+        if prev_protein_obsm_key not in adata2.obsm.keys():
             logger.warning(
-                'adata_already_setup was setup with protein expression from adata_already_setup.obsm[ "{}"], '
-                'but "{}" not in adata_to_setup.obsm and no protein_expression_obsm_key was passed. '
-                "Ignoring protein expression.".format(
-                    prev_protein_obsm_key, prev_protein_obsm_key
+                "Can't find {} in adata2.obsm for protein expressions. Ignoring protein expression.".format(
+                    prev_protein_obsm_key
                 )
             )
         else:
+            assert (
+                get_from_registry(adata1, _CONSTANTS.PROTEIN_EXP_KEY).shape[1]
+                == adata2.obsm[prev_protein_obsm_key].shape[1]
+            )
             protein_expression_obsm_key = prev_protein_obsm_key
-    elif has_protein is True and protein_expression_obsm_key is not None:
-        assert (
-            get_from_registry(adata_already_setup, _CONSTANTS.PROTEIN_EXP_KEY).shape[1]
-            == adata_to_setup.obsm[protein_expression_obsm_key].shape[1]
+
+    batch_key = "_scvi_batch"
+    labels_key = "_scvi_labels"
+
+    _transfer_categorical_mapping(adata1, adata2, batch_key)
+    _transfer_categorical_mapping(adata1, adata2, labels_key)
+
+    X_loc, X_key = _setup_X(adata2, X_layers_key, use_raw)
+    local_l_mean_key, local_l_var_key = _setup_library_size(
+        adata2, batch_key, X_layers_key, use_raw
+    )
+    data_registry = {
+        _CONSTANTS.X_KEY: [X_loc, X_key],
+        _CONSTANTS.BATCH_KEY: ["_obs", batch_key],
+        _CONSTANTS.LOCAL_L_MEAN_KEY: ["_obs", local_l_mean_key],
+        _CONSTANTS.LOCAL_L_VAR_KEY: ["_obs", local_l_var_key],
+        _CONSTANTS.LABELS_KEY: ["_obs", labels_key],
+    }
+
+    if protein_expression_obsm_key is not None:
+        protein_expression_obsm_key = _setup_protein_expression(
+            adata2, protein_expression_obsm_key, None, batch_key
         )
-
-    adata_already_setup_batch_key = data_registry[_CONSTANTS.BATCH_KEY][1]
-    adata_already_setup_labels_key = data_registry[_CONSTANTS.LABELS_KEY][1]
-
-    if (
-        batch_key is None
-        and "_scvi_categorical_mappings" in adata_already_setup.uns.keys()
-    ):
-        if (
-            adata_already_setup_batch_key
-            in adata_already_setup.uns["_scvi_categorical_mappings"]
-        ):
-            batch_key = adata_already_setup.uns["_scvi_categorical_mappings"][
-                adata_already_setup_batch_key
-            ][0]
-    else:
-        batch_key = adata_already_setup_batch_key
-
-    if (
-        labels_key is None
-        and "_scvi_categorical_mappings" in adata_already_setup.uns.keys()
-    ):
-        if (
-            adata_already_setup_labels_key
-            in adata_already_setup.uns["_scvi_categorical_mappings"]
-        ):
-            labels_key = adata_already_setup.uns["_scvi_categorical_mappings"][
-                adata_already_setup_labels_key
-            ][0]
-    else:
-        labels_key = adata_already_setup_labels_key
-
-    batch_key = _transfer_categorical_mapping(
-        adata_already_setup,
-        adata_to_setup,
-        _CONSTANTS.BATCH_KEY,
-        batch_key,
-        "_scvi_batch",
-    )
-    labels_key = _transfer_categorical_mapping(
-        adata_already_setup,
-        adata_to_setup,
-        _CONSTANTS.LABELS_KEY,
-        labels_key,
-        "_scvi_labels",
-    )
-
-    setup_anndata(
-        adata=adata_to_setup,
-        batch_key=batch_key,
-        labels_key=labels_key,
-        X_layers_key=X_layers_key,
-        use_raw=use_raw,
-        protein_expression_obsm_key=protein_expression_obsm_key,
-        protein_names_uns_key=protein_names_uns_key,
-    )
+        data_registry[_CONSTANTS.PROTEIN_EXP_KEY] = [
+            "_obsm",
+            protein_expression_obsm_key,
+        ]
+    # add the data_registry to anndata
+    _register_anndata(adata2, data_registry_dict=data_registry)
+    logger.info("Registered keys:{}".format(list(data_registry.keys())))
+    _setup_summary_stats(adata2, batch_key, labels_key, protein_expression_obsm_key)
 
 
 def setup_anndata(
@@ -504,28 +441,19 @@ def _make_obs_column_categorical(adata, column_key, alternate_column_key):
     if adata.obs[column_key] is not categorical, will categorize
     and save to .obs[alternate_column_key]
     """
-    # check the datatype of data. if theyre not integers, make them ints
-    user_data_dtype = adata.obs[column_key].dtype
-    is_not_int = True if user_data_dtype.name == "category" else False
-    if type(user_data_dtype).__module__ == np.__name__:
-        is_not_int = (
-            True if np.issubdtype(user_data_dtype, np.integer) is False else is_not_int
-        )
-
-    if is_not_int:
-        categorical_obs = adata.obs[column_key].astype("category")
-        adata.obs[alternate_column_key] = categorical_obs.cat.codes
-        mapping = categorical_obs.cat.categories
-        if "_scvi_categorical_mappings" in adata.uns.keys():
-            adata.uns["_scvi_categorical_mappings"][alternate_column_key] = [
-                column_key,
-                mapping,
-            ]
-        else:
-            adata.uns["_scvi_categorical_mappings"] = {
-                alternate_column_key: [column_key, mapping]
-            }
-        column_key = alternate_column_key
+    categorical_obs = adata.obs[column_key].astype("category")
+    adata.obs[alternate_column_key] = categorical_obs.cat.codes
+    mapping = categorical_obs.cat.categories
+    if "_scvi_categorical_mappings" in adata.uns.keys():
+        adata.uns["_scvi_categorical_mappings"][alternate_column_key] = [
+            column_key,
+            mapping,
+        ]
+    else:
+        adata.uns["_scvi_categorical_mappings"] = {
+            alternate_column_key: [column_key, mapping]
+        }
+    column_key = alternate_column_key
 
     # make sure each category contains enough cells
     unique, counts = np.unique(adata.obs[column_key], return_counts=True)
