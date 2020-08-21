@@ -19,6 +19,36 @@ logger = logging.getLogger(__name__)
 
 
 class VAEMixin:
+    def train(
+        self,
+        n_epochs=400,
+        train_size=0.9,
+        test_size=None,
+        lr=1e-3,
+        n_iter_kl_warmup=None,
+        n_epochs_kl_warmup=400,
+        metric_frequency=None,
+        trainer_kwargs={},
+        train_kwargs={},
+    ):
+
+        self.trainer = UnsupervisedTrainer(
+            self.model,
+            self.adata,
+            train_size=train_size,
+            test_size=test_size,
+            n_iter_kl_warmup=n_iter_kl_warmup,
+            n_epochs_kl_warmup=n_epochs_kl_warmup,
+            frequency=metric_frequency,
+            use_cuda=self.use_cuda,
+            **trainer_kwargs,
+        )
+        self.trainer.train(n_epochs=n_epochs, lr=lr, **train_kwargs)
+        self.is_trained = True
+        self.train_indices = self.trainer.train_set.indices
+        self.test_indices = self.trainer.test_set.indices
+        self.validation_indices = self.trainer.validation_set.indices
+
     @torch.no_grad()
     def get_elbo(self, adata=None, indices=None):
 
@@ -81,38 +111,6 @@ class VAEMixin:
             )
             latent += [z.cpu()]
         return np.array(torch.cat(latent))
-
-
-class UnsupervisedTrainerMixin:
-    def train(
-        self,
-        n_epochs=400,
-        train_size=0.9,
-        test_size=None,
-        lr=1e-3,
-        n_iter_kl_warmup=None,
-        n_epochs_kl_warmup=400,
-        metric_frequency=None,
-        trainer_kwargs={},
-        train_kwargs={},
-    ):
-
-        self.trainer = UnsupervisedTrainer(
-            self.model,
-            self.adata,
-            train_size=train_size,
-            test_size=test_size,
-            n_iter_kl_warmup=n_iter_kl_warmup,
-            n_epochs_kl_warmup=n_epochs_kl_warmup,
-            frequency=metric_frequency,
-            use_cuda=self.use_cuda,
-            **trainer_kwargs,
-        )
-        self.trainer.train(n_epochs=n_epochs, lr=lr, **train_kwargs)
-        self.is_trained = True
-        self.train_indices = self.trainer.train_set.indices
-        self.test_indices = self.trainer.test_set.indices
-        self.validation_indices = self.trainer.validation_set.indices
 
 
 class RNASeqMixin:

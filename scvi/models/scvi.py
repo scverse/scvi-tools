@@ -6,7 +6,6 @@ from scvi.core.models import VAE
 from scvi.models._base import (
     BaseModelClass,
     RNASeqMixin,
-    UnsupervisedTrainerMixin,
     VAEMixin,
 )
 
@@ -16,7 +15,7 @@ from scvi.core.posteriors import Posterior
 logger = logging.getLogger(__name__)
 
 
-class SCVI(RNASeqMixin, UnsupervisedTrainerMixin, VAEMixin, BaseModelClass):
+class SCVI(RNASeqMixin, VAEMixin, BaseModelClass):
     """single-cell Variational Inference [Lopez18]_
 
     Parameters

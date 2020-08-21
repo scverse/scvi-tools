@@ -7,7 +7,6 @@ from scvi.core.models import LDVAE
 from scvi.models._base import (
     BaseModelClass,
     RNASeqMixin,
-    UnsupervisedTrainerMixin,
     VAEMixin,
 )
 
@@ -15,7 +14,7 @@ from scvi.models._base import (
 logger = logging.getLogger(__name__)
 
 
-class LinearSCVI(RNASeqMixin, UnsupervisedTrainerMixin, VAEMixin, BaseModelClass):
+class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
     """Linearly-decoded VAE [Svensson20]_
 
     Parameters
