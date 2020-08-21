@@ -3,7 +3,12 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.core.models import VAE
-from scvi.models._base import BaseModelClass, RNASeqMixin, UnsupervisedTrainerMixin
+from scvi.models._base import (
+    BaseModelClass,
+    RNASeqMixin,
+    UnsupervisedTrainerMixin,
+    VAEMixin,
+)
 
 from scvi.core.trainers import UnsupervisedTrainer
 from scvi.core.posteriors import Posterior
@@ -11,7 +16,7 @@ from scvi.core.posteriors import Posterior
 logger = logging.getLogger(__name__)
 
 
-class SCVI(RNASeqMixin, UnsupervisedTrainerMixin, BaseModelClass):
+class SCVI(RNASeqMixin, UnsupervisedTrainerMixin, VAEMixin, BaseModelClass):
     """single-cell Variational Inference [Lopez18]_
 
     Parameters
