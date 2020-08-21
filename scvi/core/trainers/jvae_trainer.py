@@ -6,11 +6,11 @@ import numpy as np
 from torch import nn
 from functools import partial
 from itertools import cycle
-from typing import Optional, List, Tuple, Union, Iterable
+from typing import List, Tuple, Union, Iterable
 
-from scvi.inference import Posterior
-from scvi.inference import Trainer
-from scvi.models.log_likelihood import compute_elbo
+from scvi.core.posteriors import Posterior
+from scvi.core.trainers.trainer import Trainer
+from scvi.core._log_likelihood import compute_elbo
 from scvi import _CONSTANTS
 
 
@@ -329,94 +329,3 @@ class JVAETrainer(Trainer):
                 break
 
         return total_reconstruction, total_kl_divergence, total_discriminator
-
-    def get_latent(self, deterministic: bool = True) -> List[np.ndarray]:
-        """Return the latent space embedding for each dataset
-
-        Parameters
-        ----------
-        deterministic
-            If true, use the mean of the encoder instead of a Gaussian sample
-        """
-        self.model.eval()
-        latents = []
-        for mode, dataset in enumerate(self.all_dataset):
-            latent = []
-            for tensors in dataset:
-                (
-                    sample_batch,
-                    local_l_mean,
-                    local_l_var,
-                    batch_index,
-                    label,
-                    *_,
-                ) = self._unpack_tensors(tensors)
-                latent.append(
-                    self.model.sample_from_posterior_z(
-                        sample_batch, mode, deterministic=deterministic
-                    )
-                )
-
-            latent = torch.cat(latent).cpu().detach().numpy()
-            latents.append(latent)
-
-        return latents
-
-    def get_imputed_values(
-        self,
-        deterministic: bool = True,
-        normalized: bool = True,
-        decode_mode: Optional[int] = None,
-    ) -> List[np.ndarray]:
-        """Return imputed values for all genes for each dataset
-
-        Parameters
-        ----------
-        deterministic
-            If true, use the mean of the encoder instead of a Gaussian sample for the latent vector
-        normalized
-            Return imputed normalized values or not
-        decode_mode
-            If a `decode_mode` is given, use the encoder specific to each dataset as usual but use
-            the decoder of the dataset of id `decode_mode` to impute values
-        """
-        self.model.eval()
-        imputed_values = []
-        for mode, dataset in enumerate(self.all_dataset):
-            imputed_value = []
-            for tensors in dataset:
-                (
-                    sample_batch,
-                    local_l_mean,
-                    local_l_var,
-                    batch_index,
-                    label,
-                    *_,
-                ) = self._unpack_tensors(tensors)
-                if normalized:
-                    imputed_value.append(
-                        self.model.sample_scale(
-                            sample_batch,
-                            mode,
-                            batch_index,
-                            label,
-                            deterministic=deterministic,
-                            decode_mode=decode_mode,
-                        )
-                    )
-                else:
-                    imputed_value.append(
-                        self.model.sample_rate(
-                            sample_batch,
-                            mode,
-                            batch_index,
-                            label,
-                            deterministic=deterministic,
-                            decode_mode=decode_mode,
-                        )
-                    )
-
-            imputed_value = torch.cat(imputed_value).cpu().detach().numpy()
-            imputed_values.append(imputed_value)
-
-        return imputed_values

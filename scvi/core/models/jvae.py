@@ -9,14 +9,14 @@ from torch import nn
 from torch.distributions import Normal, kl_divergence as kl
 from torch.nn import ModuleList
 
-from scvi.models.distributions import (
+from scvi.core._distributions import (
     NegativeBinomial,
     ZeroInflatedNegativeBinomial,
     Poisson,
 )
-from scvi.models.modules import Encoder
-from scvi.models.modules import MultiEncoder, MultiDecoder
-from scvi.models.utils import one_hot
+from ._modules import Encoder
+from ._modules import MultiEncoder, MultiDecoder
+from .utils import one_hot
 
 torch.backends.cudnn.benchmark = True
 
@@ -81,13 +81,13 @@ class JVAE(nn.Module):
         n_latent: int = 10,
         n_layers_encoder_individual: int = 1,
         n_layers_encoder_shared: int = 1,
-        dim_hidden_encoder: int = 128,
+        dim_hidden_encoder: int = 64,
         n_layers_decoder_individual: int = 0,
         n_layers_decoder_shared: int = 0,
-        dim_hidden_decoder_individual: int = 32,
-        dim_hidden_decoder_shared: int = 128,
-        dropout_rate_encoder: float = 0.1,
-        dropout_rate_decoder: float = 0.3,
+        dim_hidden_decoder_individual: int = 64,
+        dim_hidden_decoder_shared: int = 64,
+        dropout_rate_encoder: float = 0.2,
+        dropout_rate_decoder: float = 0.2,
         n_batch: int = 0,
         n_labels: int = 0,
         dispersion: str = "gene-batch",

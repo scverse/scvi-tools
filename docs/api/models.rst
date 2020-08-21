@@ -53,4 +53,4 @@ gimVI
 .. autosummary::
    :toctree: reference/
 
-   models.JVAE
+   models.GIMVI
