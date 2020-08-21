@@ -2,7 +2,6 @@ import logging
 import copy
 from typing import Union
 
-import matplotlib.pyplot as plt
 import torch
 import anndata
 from numpy import ceil
@@ -10,7 +9,6 @@ from numpy import ceil
 from .trainer import Trainer
 from scvi import _CONSTANTS
 
-plt.switch_backend("agg")
 logger = logging.getLogger(__name__)
 
 
