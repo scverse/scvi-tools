@@ -106,7 +106,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         return post_list
 
-    def get_latent(self, deterministic: bool = True) -> List[np.ndarray]:
+    def get_latent_representation(self, deterministic: bool = True) -> List[np.ndarray]:
         """Return the latent space embedding for each dataset
 
         Parameters
