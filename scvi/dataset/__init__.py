@@ -1,4 +1,9 @@
-from ._anndata import setup_anndata, get_from_registry
+from ._anndata import (
+    setup_anndata,
+    get_from_registry,
+    transfer_anndata_setup,
+    register_tensor_from_anndata,
+)
 from ._preprocessing import (
     highly_variable_genes_seurat_v3,
     poisson_gene_selection,
@@ -46,4 +51,6 @@ __all__ = [
     "prefrontalcortex_starmap",
     "frontalcortex_dropseq",
     "annotation_simulation",
+    "transfer_anndata_setup",
+    "register_tensor_from_anndata",
 ]

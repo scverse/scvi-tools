@@ -5,7 +5,8 @@ import logging
 import pandas as pd
 import anndata
 
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, Union
+from scvi._compat import Literal
 from scvi.dataset._anndata_utils import (
     _compute_library_size_batch,
     _check_nonnegative_integers,
@@ -110,9 +111,31 @@ def _transfer_categorical_mapping(adata1, adata2, scvi_key):
         }
 
 
-def transfer_anndata_setup(adata1, adata2, use_raw=False, X_layers_key=None):
-    adata2.uns["_scvi"] = {}
-    data_registry = adata1.uns["_scvi"]["data_registry"]
+def transfer_anndata_setup(
+    adata_source: Union[anndata.AnnData, Dict],
+    adata_target: anndata.AnnData,
+    use_raw: Optional[bool] = False,
+    X_layers_key: Optional[str] = None,
+):
+    """Transfer anndata setup from a source object to a target object.
+
+    This handles encoding for categorical data and is useful in the case where an
+    anndata object has been subsetted and a category is lost.
+
+    adata_source
+        AnnData that has been setup with scvi
+    adata_target
+        AnnData with similar organization as source, but possibly subsetted
+    use_raw
+        Use raw for X
+    X_layers_key
+        Layer for X
+    """
+    adata_target.uns["_scvi"] = {}
+    if isinstance(adata_source, anndata.AnnData):
+        data_registry = adata_source.uns["_scvi"]["data_registry"]
+    else:
+        data_registry = adata_source
 
     # should we check that everything is the same size?
     if use_raw and X_layers_key:
@@ -121,41 +144,41 @@ def transfer_anndata_setup(adata1, adata2, use_raw=False, X_layers_key=None):
         )
     if use_raw:
         assert (
-            get_from_registry(adata1, _CONSTANTS.X_KEY).shape[1]
-            == adata2.raw.X.shape[1]
+            get_from_registry(adata_source, _CONSTANTS.X_KEY).shape[1]
+            == adata_target.raw.X.shape[1]
         )
     elif X_layers_key:
         assert (
-            get_from_registry(adata1, _CONSTANTS.X_KEY).shape[1]
-            == adata2.layers[X_layers_key].shape[1]
+            get_from_registry(adata_source, _CONSTANTS.X_KEY).shape[1]
+            == adata_target.layers[X_layers_key].shape[1]
         )
     else:
-        assert adata1.X.shape[1] == adata2.X.shape[1]
+        assert adata_source.X.shape[1] == adata_target.X.shape[1]
 
     has_protein = True if _CONSTANTS.PROTEIN_EXP_KEY in data_registry.keys() else False
     if has_protein is True:
         prev_protein_obsm_key = data_registry[_CONSTANTS.PROTEIN_EXP_KEY]["attr_key"]
-        if prev_protein_obsm_key not in adata2.obsm.keys():
+        if prev_protein_obsm_key not in adata_target.obsm.keys():
             logger.warning(
-                "Can't find {} in adata2.obsm for protein expressions. "
+                "Can't find {} in adata_target.obsm for protein expressions. "
                 "Ignoring protein expression.".format(prev_protein_obsm_key)
             )
         else:
             assert (
-                get_from_registry(adata1, _CONSTANTS.PROTEIN_EXP_KEY).shape[1]
-                == adata2.obsm[prev_protein_obsm_key].shape[1]
+                get_from_registry(adata_source, _CONSTANTS.PROTEIN_EXP_KEY).shape[1]
+                == adata_target.obsm[prev_protein_obsm_key].shape[1]
             )
             protein_expression_obsm_key = prev_protein_obsm_key
 
     batch_key = "_scvi_batch"
     labels_key = "_scvi_labels"
 
-    _transfer_categorical_mapping(adata1, adata2, batch_key)
-    _transfer_categorical_mapping(adata1, adata2, labels_key)
+    _transfer_categorical_mapping(adata_source, adata_target, batch_key)
+    _transfer_categorical_mapping(adata_source, adata_target, labels_key)
 
-    X_loc, X_key = _setup_X(adata2, X_layers_key, use_raw)
+    X_loc, X_key = _setup_X(adata_target, X_layers_key, use_raw)
     local_l_mean_key, local_l_var_key = _setup_library_size(
-        adata2, batch_key, X_layers_key, use_raw
+        adata_target, batch_key, X_layers_key, use_raw
     )
     data_registry = {
         _CONSTANTS.X_KEY: [X_loc, X_key],
@@ -167,16 +190,18 @@ def transfer_anndata_setup(adata1, adata2, use_raw=False, X_layers_key=None):
 
     if protein_expression_obsm_key is not None:
         protein_expression_obsm_key = _setup_protein_expression(
-            adata2, protein_expression_obsm_key, None, batch_key
+            adata_target, protein_expression_obsm_key, None, batch_key
         )
         data_registry[_CONSTANTS.PROTEIN_EXP_KEY] = [
             "_obsm",
             protein_expression_obsm_key,
         ]
     # add the data_registry to anndata
-    _register_anndata(adata2, data_registry_dict=data_registry)
+    _register_anndata(adata_target, data_registry_dict=data_registry)
     logger.info("Registered keys:{}".format(list(data_registry.keys())))
-    _setup_summary_stats(adata2, batch_key, labels_key, protein_expression_obsm_key)
+    _setup_summary_stats(
+        adata_target, batch_key, labels_key, protein_expression_obsm_key
+    )
 
 
 def setup_anndata(
@@ -648,3 +673,45 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
     #             df_key
     #         )
     adata.uns["_scvi"]["data_registry"] = copy.copy(data_registry_dict)
+
+
+def register_tensor_from_anndata(
+    adata: anndata.AnnData,
+    registry_key: str,
+    adata_attr_name: Literal["obs", "var", "obsm", "varm", "uns"],
+    adata_key_name: str,
+    is_categorical: Optional[bool] = False,
+    adata_alternate_key_name: Optional[str] = None,
+):
+    """Add another tensor to scvi data registry
+
+    This function is intended for contributors testing out new models.
+
+    adata
+        AnnData with "_scvi" key in `.uns`
+    registry_key
+        Key for tensor in registry, which will be the key in the dataloader output
+    adata_attr_name
+        AnnData attribute with tensor
+    adata_key_name
+        key in adata_attr_name with data
+    is_categorical
+        Whether or not data is categorical
+    adata_alternate_key_name
+        Added key in adata_attr_name for categorical codes if `is_categorical` is True
+    """
+
+    if is_categorical is True:
+        if adata_attr_name != "obs":
+            raise ValueError("categorical handling only implemented for data in `.obs`")
+
+    if is_categorical is True and adata_attr_name == "obs":
+        adata_key_name = _make_obs_column_categorical(
+            adata,
+            column_key=adata_key_name,
+            alternate_column_key=adata_alternate_key_name,
+        )
+    new_dict = {
+        registry_key: {"attr_name": adata_attr_name, "attr_key": adata_key_name}
+    }
+    adata.uns["_scvi"]["data_registry"].update(new_dict)

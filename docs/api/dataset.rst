@@ -41,7 +41,8 @@ Setting up an AnnData object is a prerequisite for running any ``scvi`` model.
    :toctree: reference/
 
    dataset.setup_anndata
-
+   dataset.transfer_anndata_setup
+   dataset.register_tensor_from_anndata
 
 Built in data
 ~~~~~~~~~~~~~
