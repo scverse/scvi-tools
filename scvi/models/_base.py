@@ -564,13 +564,13 @@ class RNASeqMixin:
 class BaseModelClass(ABC):
     def __init__(self, adata, use_cuda):
         assert (
-            "scvi_data_registry" in adata.uns.keys()
+            "_scvi" in adata.uns.keys()
         ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
         self.adata = adata
         self._check_anndata(adata)
 
         # TODO make abstract properties
-        self.summary_stats = adata.uns["scvi_summary_stats"]
+        self.summary_stats = adata.uns["_scvi"]["summary_stats"]
         self.is_trained = False
         # just a regular property
         self.use_cuda = use_cuda and torch.cuda.is_available()

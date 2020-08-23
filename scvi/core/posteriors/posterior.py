@@ -93,11 +93,11 @@ class Posterior:
         data_loader_kwargs=dict(),
     ):
         self.model = model
-        assert "scvi_data_registry" in adata.uns.keys(), ValueError(
+        assert "_scvi" in adata.uns.keys(), ValueError(
             "Please run setup_anndata() on your anndata object first."
         )
         for key in self._data_and_attributes.keys():
-            assert key in adata.uns["scvi_data_registry"].keys(), ValueError(
+            assert key in adata.uns["_scvi"]["data_registry"].keys(), ValueError(
                 "{} required for model but not included when setup_anndata was run".format(
                     key
                 )

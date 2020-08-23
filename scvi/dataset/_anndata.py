@@ -19,14 +19,14 @@ logger = logging.getLogger(__name__)
 
 
 def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
-    """Returns the object in AnnData associated with the key in ``adata.uns['scvi_data_registry']``
+    """Returns the object in AnnData associated with the key in ``adata.uns['_scvi']['data_registry']``
 
     Parameters
     ----------
     adata
         anndata object
     key
-        key of object to get from ``adata.uns['scvi_data_registry']``
+        key of object to get from ``adata.uns['_scvi]['data_registry']``
 
     Returns
     -------
@@ -36,7 +36,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
     --------
     >>> import scvi
     >>> adata = scvi.dataset.cortex()
-    >>> adata.uns['scvi_data_registry']
+    >>> adata.uns['_scvi']['data_registry']
     {'X': ['_X', None],
     'batch_indices': ['obs', 'batch'],
     'local_l_mean': ['obs', '_scvi_local_l_mean'],
@@ -52,7 +52,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
            [0],
            [0]])
     """
-    data_loc = adata.uns["scvi_data_registry"][key]
+    data_loc = adata.uns["_scvi"]["data_registry"][key]
     df, df_key = data_loc[0], data_loc[1]
 
     if df_key == "":
@@ -109,7 +109,7 @@ def _transfer_categorical_mapping(adata1, adata2, scvi_key):
 
 
 def transfer_anndata_setup(adata1, adata2, use_raw=False, X_layers_key=None):
-    data_registry = adata1.uns["scvi_data_registry"]
+    data_registry = adata1.uns["_scvi"]["data_registry"]
 
     # should we check that everything is the same size?
     if use_raw and X_layers_key:
@@ -254,7 +254,7 @@ def setup_anndata(
     [2020-07-31 12:54:15,309] INFO - scvi.dataset._anndata | Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels']
     [2020-07-31 12:54:15,312] INFO - scvi.dataset._anndata | Successfully registered anndata object containing 421 cells, 11 genes, and 1 batches.
     >>> # see registered scVI fields and their respective locations in adata
-    >>> adata.uns['scvi_data_registry']
+    >>> adata.uns['_scvi']['scvi_data_registry']
     {'X': ['_X', None],
     'batch_indices': ['obs', '_scvi_batch'],
     'local_l_mean': ['obs', '_scvi_local_l_mean'],
@@ -288,7 +288,7 @@ def setup_anndata(
     [2020-07-31 12:44:30,445] INFO - scvi.dataset._anndata | Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels', 'protein_expression']
     [2020-07-31 12:44:30,446] INFO - scvi.dataset._anndata | Successfully registered anndata object containing 421 cells, 11 genes, and 4 batches.
     >>> # see registered scVI fields and their respective locations in adata
-    >>> adata.uns['scvi_data_registry']
+    >>> adata.uns['_scvi]['data_registry']
     {'X': ['_X', None],
     'batch_indices': ['obs', '_scvi_batch'],
     'local_l_mean': ['obs', '_scvi_local_l_mean'],
@@ -329,7 +329,7 @@ def setup_anndata(
     [2020-07-31 13:04:30,672] INFO - scvi.dataset._anndata | Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels', 'protein_expression']
     [2020-07-31 13:04:30,673] INFO - scvi.dataset._anndata | Successfully registered anndata object containing 10849 cells, 15792 genes, and 2 batches.
     >>> # see registered scVI fields and their respective loaations in adata
-    >>> adata.uns['scvi_data_registry']
+    >>> adata.uns['scvi']['data_registry']
     {'X': ['layers', 'raw_counts'],
     'batch_indices': ['obs', 'batch'],
     'local_l_mean': ['obs', '_scvi_local_l_mean'],
@@ -366,6 +366,7 @@ def setup_anndata(
 
     if copy:
         adata = adata.copy()
+    adata.uns["_scvi"] = {}
 
     batch_key = _setup_batch(adata, batch_key)
     labels_key = _setup_labels(adata, labels_key)
@@ -444,13 +445,13 @@ def _make_obs_column_categorical(adata, column_key, alternate_column_key):
     categorical_obs = adata.obs[column_key].astype("category")
     adata.obs[alternate_column_key] = categorical_obs.cat.codes
     mapping = categorical_obs.cat.categories
-    if "_scvi_categorical_mappings" in adata.uns.keys():
-        adata.uns["_scvi_categorical_mappings"][alternate_column_key] = [
+    if "categorical_mappings" in adata.uns["_scvi"].keys():
+        adata.uns["_scvi"]["categorical_mappings"][alternate_column_key] = [
             column_key,
             mapping,
         ]
     else:
-        adata.uns["_scvi_categorical_mappings"] = {
+        adata.uns["_scvi"]["categorical_mappings"] = {
             alternate_column_key: [column_key, mapping]
         }
     column_key = alternate_column_key
@@ -602,7 +603,7 @@ def _setup_summary_stats(adata, batch_key, labels_key, protein_expression_obsm_k
         "n_labels": n_labels,
         "n_proteins": n_proteins,
     }
-    adata.uns["scvi_summary_stats"] = summary_stats
+    adata.uns["_scvi"]["summary_stats"] = summary_stats
     logger.info(
         "Successfully registered anndata object containing {} cells, {} genes, {} batches, and {} proteins.".format(
             n_cells, n_genes, n_batch, n_proteins
@@ -612,7 +613,7 @@ def _setup_summary_stats(adata, batch_key, labels_key, protein_expression_obsm_k
 
 
 def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
-    """Registers the AnnData object by adding data_registry_dict to adata.uns['scvi_data_registry']
+    """Registers the AnnData object by adding data_registry_dict to adata.uns['_scvi']['data_registry']
 
     Format of data_registry_dict is: {<scvi_key>: (<anndata dataframe>, <dataframe key> )}
 
@@ -640,4 +641,4 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
     #         assert hasattr(adata, df) is True, "anndata has no attribute '{}'".format(
     #             df_key
     #         )
-    adata.uns["scvi_data_registry"] = copy.copy(data_registry_dict)
+    adata.uns["_scvi"]["data_registry"] = copy.copy(data_registry_dict)

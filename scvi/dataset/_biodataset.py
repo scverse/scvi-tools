@@ -20,18 +20,16 @@ class BioDataset(Dataset):
         adata: anndata.AnnData,
         getitem_tensors: Union[List[str], Dict[str, type]] = None,
     ):
-        assert (
-            "scvi_data_registry" in adata.uns_keys()
-        ), "Please register your anndata first."
+        assert "_scvi" in adata.uns_keys(), "Please register your anndata first."
 
-        stats = adata.uns["scvi_summary_stats"]
+        stats = adata.uns["_scvi"]["summary_stats"]
         error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
         assert adata.shape[1] == stats["n_genes"], error_msg.format("genes")
         assert (
             len(np.unique(get_from_registry(adata, _CONSTANTS.LABELS_KEY)))
             == stats["n_labels"]
         ), error_msg.format("labels")
-        if "protein_expression" in adata.uns["scvi_data_registry"].keys():
+        if "protein_expression" in adata.uns["_scvi"]["data_registry"].keys():
             assert (
                 stats["n_proteins"]
                 == get_from_registry(adata, "protein_expression").shape[1]
@@ -55,7 +53,7 @@ class BioDataset(Dataset):
     def get_registered_keys(self,):
         """Returns the keys of the mappings in scvi data registry
         """
-        return self.adata.uns["scvi_data_registry"].keys()
+        return self.adata.uns["_scvi"]["data_registry"].keys()
 
     def setup_data_attr(self):
         """Sets data attribute
@@ -136,19 +134,19 @@ class BioDataset(Dataset):
     def n_cells(self) -> int:
         """Returns the number of cells in the dataset
         """
-        n_cells = self.adata.uns["scvi_summary_stats"]["n_cells"]
+        n_cells = self.adata.uns["_scvi"]["summary_stats"]["n_cells"]
         return n_cells
 
     @property
     def n_genes(self) -> int:
         """Returns the number of genes in the dataset
         """
-        n_genes = self.adata.uns["scvi_summary_stats"]["n_genes"]
+        n_genes = self.adata.uns["_scvi"]["summary_stats"]["n_genes"]
         return n_genes
 
     @property
     def n_batches(self) -> int:
-        return self.adata.uns["scvi_summary_stats"]["n_batch"]
+        return self.adata.uns["_scvi"]["summary_stats"]["n_batch"]
 
     @property
     def protein_names(self) -> List[str]:
@@ -160,7 +158,7 @@ class BioDataset(Dataset):
     @property
     def protein_expression(self) -> np.ndarray:
         assert (
-            "protein_expression" in self.adata.uns["scvi_data_registry"].keys()
+            "protein_expression" in self.adata.uns["_scvi"]["data_registry"].keys()
         ), "anndata not registered with protein expressions."
         protein_exp = get_from_registry(self.adata, "protein_expression")
         return (
