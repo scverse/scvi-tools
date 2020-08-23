@@ -94,7 +94,8 @@ def _transfer_categorical_mapping(adata1, adata2, scvi_key):
 
     if np.min(adata2.obs[scvi_key]) == -1:
         logger.error(
-            'Transfering category mapping for .obs["{}"] failed. It could be a datatype issue. Original adata category dtype: {}, New adata category dtype: {}'.format(
+            'Transfering category mapping for .obs["{}"] failed. It could be a datatype issue. '
+            "Original adata category dtype: {}, New adata category dtype: {}".format(
                 obs_key, adata1.obs[obs_key][0].dtype, adata2.obs[obs_key][0].dtype
             )
         )
@@ -132,9 +133,8 @@ def transfer_anndata_setup(adata1, adata2, use_raw=False, X_layers_key=None):
         prev_protein_obsm_key = data_registry[_CONSTANTS.PROTEIN_EXP_KEY][1]
         if prev_protein_obsm_key not in adata2.obsm.keys():
             logger.warning(
-                "Can't find {} in adata2.obsm for protein expressions. Ignoring protein expression.".format(
-                    prev_protein_obsm_key
-                )
+                "Can't find {} in adata2.obsm for protein expressions. "
+                "Ignoring protein expression.".format(prev_protein_obsm_key)
             )
         else:
             assert (
