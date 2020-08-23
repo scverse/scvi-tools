@@ -53,16 +53,14 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
            [0]])
     """
     data_loc = adata.uns["_scvi"]["data_registry"][key]
-    df, df_key = data_loc[0], data_loc[1]
+    attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
 
-    if df_key == "":
-        df_key = None
-    data = getattr(adata, df)
-    if df_key is not None:
+    data = getattr(adata, attr_name)
+    if attr_key != "_use_raw":
         if isinstance(data, pd.DataFrame):
-            data = data.loc[:, df_key]
+            data = data.loc[:, attr_key]
         else:
-            data = data[df_key]
+            data = data[attr_key]
     if isinstance(data, pd.Series):
         data = data.to_numpy().reshape(-1, 1)
     return data
@@ -376,21 +374,24 @@ def setup_anndata(
     )
 
     data_registry = {
-        _CONSTANTS.X_KEY: [X_loc, X_key],
-        _CONSTANTS.BATCH_KEY: ["_obs", batch_key],
-        _CONSTANTS.LOCAL_L_MEAN_KEY: ["_obs", local_l_mean_key],
-        _CONSTANTS.LOCAL_L_VAR_KEY: ["_obs", local_l_var_key],
-        _CONSTANTS.LABELS_KEY: ["_obs", labels_key],
+        _CONSTANTS.X_KEY: {"attr_name": X_loc, "attr_key": X_key},
+        _CONSTANTS.BATCH_KEY: {"attr_name": "_obs", "attr_key": batch_key},
+        _CONSTANTS.LOCAL_L_MEAN_KEY: {
+            "attr_name": "_obs",
+            "attr_key": local_l_mean_key,
+        },
+        _CONSTANTS.LOCAL_L_VAR_KEY: {"attr_name": "_obs", "attr_key": local_l_var_key},
+        _CONSTANTS.LABELS_KEY: {"attr_name": "_obs", "attr_key": labels_key},
     }
 
     if protein_expression_obsm_key is not None:
         protein_expression_obsm_key = _setup_protein_expression(
             adata, protein_expression_obsm_key, protein_names_uns_key, batch_key
         )
-        data_registry[_CONSTANTS.PROTEIN_EXP_KEY] = [
-            "_obsm",
-            protein_expression_obsm_key,
-        ]
+        data_registry[_CONSTANTS.PROTEIN_EXP_KEY] = {
+            "attr_name": "_obsm",
+            "attr_key": protein_expression_obsm_key,
+        }
     # add the data_registry to anndata
     _register_anndata(adata, data_registry_dict=data_registry)
     logger.info("Registered keys:{}".format(list(data_registry.keys())))
@@ -549,7 +550,7 @@ def _setup_X(adata, X_layers_key, use_raw):
     else:
         logger.info("Using data from adata.X")
         X_loc = "_X"
-        X_key = None
+        X_key = "_use_raw"
         X = adata._X
 
     if _check_nonnegative_integers(X) is False:
