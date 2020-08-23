@@ -76,9 +76,9 @@ def _transfer_categorical_mapping(adata1, adata2, scvi_key):
     adata
         anndata
     """
-    categorical_mappings = adata1.uns["_scvi_categorical_mappings"]
-    obs_key = categorical_mappings[scvi_key][0]
-    obs_mapping = categorical_mappings[scvi_key][1]
+    categorical_mappings = adata1.uns["_scvi"]["categorical_mappings"]
+    obs_key = categorical_mappings[scvi_key]["original_key"]
+    obs_mapping = categorical_mappings[scvi_key]["mapping"]
 
     assert obs_key in adata2.obs.keys()
 
@@ -99,15 +99,19 @@ def _transfer_categorical_mapping(adata1, adata2, scvi_key):
                 obs_key, adata1.obs[obs_key][0].dtype, adata2.obs[obs_key][0].dtype
             )
         )
-    if "_scvi_categorical_mappings" in adata2.uns.keys():
-        adata2.uns["_scvi_categorical_mappings"][scvi_key] = [obs_key, obs_mapping]
+    if "categorical_mappings" in adata2.uns["_scvi"].keys():
+        adata2.uns["_scvi"]["categorical_mappings"][scvi_key] = {
+            "original_key": obs_key,
+            "mapping": obs_mapping,
+        }
     else:
-        adata2.uns["_scvi_categorical_mappings"] = {
-            scvi_key: [obs_key, obs_mapping],
+        adata2.uns["_scvi"]["categorical_mappings"] = {
+            scvi_key: {"original_key": obs_key, "mapping": obs_mapping}
         }
 
 
 def transfer_anndata_setup(adata1, adata2, use_raw=False, X_layers_key=None):
+    adata2.uns["_scvi"] = {}
     data_registry = adata1.uns["_scvi"]["data_registry"]
 
     # should we check that everything is the same size?
@@ -130,7 +134,7 @@ def transfer_anndata_setup(adata1, adata2, use_raw=False, X_layers_key=None):
 
     has_protein = True if _CONSTANTS.PROTEIN_EXP_KEY in data_registry.keys() else False
     if has_protein is True:
-        prev_protein_obsm_key = data_registry[_CONSTANTS.PROTEIN_EXP_KEY][1]
+        prev_protein_obsm_key = data_registry[_CONSTANTS.PROTEIN_EXP_KEY]["attr_key"]
         if prev_protein_obsm_key not in adata2.obsm.keys():
             logger.warning(
                 "Can't find {} in adata2.obsm for protein expressions. "
@@ -447,13 +451,13 @@ def _make_obs_column_categorical(adata, column_key, alternate_column_key):
     adata.obs[alternate_column_key] = categorical_obs.cat.codes
     mapping = categorical_obs.cat.categories
     if "categorical_mappings" in adata.uns["_scvi"].keys():
-        adata.uns["_scvi"]["categorical_mappings"][alternate_column_key] = [
-            column_key,
-            mapping,
-        ]
+        adata.uns["_scvi"]["categorical_mappings"][alternate_column_key] = {
+            "original_key": column_key,
+            "mapping": mapping,
+        }
     else:
         adata.uns["_scvi"]["categorical_mappings"] = {
-            alternate_column_key: [column_key, mapping]
+            alternate_column_key: {"original_key": column_key, "mapping": mapping}
         }
     column_key = alternate_column_key
 
@@ -587,10 +591,12 @@ def _setup_library_size(adata, batch_key, X_layers_key, use_raw):
 
 
 def _setup_summary_stats(adata, batch_key, labels_key, protein_expression_obsm_key):
-    n_batch = len(np.unique(adata.obs[batch_key]))
+    categorical_mappings = adata.uns["_scvi"]["categorical_mappings"]
+
+    n_batch = len(np.unique(categorical_mappings[batch_key]["mapping"]))
     n_cells = adata.shape[0]
     n_genes = adata.shape[1]
-    n_labels = len(np.unique(adata.obs[labels_key]))
+    n_labels = len(np.unique(categorical_mappings[labels_key]["mapping"]))
 
     if protein_expression_obsm_key is not None:
         n_proteins = adata.obsm[protein_expression_obsm_key].shape[1]
@@ -606,9 +612,8 @@ def _setup_summary_stats(adata, batch_key, labels_key, protein_expression_obsm_k
     }
     adata.uns["_scvi"]["summary_stats"] = summary_stats
     logger.info(
-        "Successfully registered anndata object containing {} cells, {} genes, {} batches, and {} proteins.".format(
-            n_cells, n_genes, n_batch, n_proteins
-        )
+        "Successfully registered anndata object containing {} cells, {} genes, "
+        "{} batches, and {} proteins.".format(n_cells, n_genes, n_batch, n_proteins)
     )
     return summary_stats
 

@@ -8,7 +8,6 @@ import logging
 from torch.utils.data import Dataset
 from typing import Union, List, Dict
 from scvi.dataset._anndata import get_from_registry
-from scvi.dataset._anndata_utils import _check_nonnegative_integers
 from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)
@@ -20,29 +19,6 @@ class BioDataset(Dataset):
         adata: anndata.AnnData,
         getitem_tensors: Union[List[str], Dict[str, type]] = None,
     ):
-        assert "_scvi" in adata.uns_keys(), "Please register your anndata first."
-
-        stats = adata.uns["_scvi"]["summary_stats"]
-        error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
-        assert adata.shape[1] == stats["n_genes"], error_msg.format("genes")
-        assert (
-            len(np.unique(get_from_registry(adata, _CONSTANTS.LABELS_KEY)))
-            == stats["n_labels"]
-        ), error_msg.format("labels")
-        if "protein_expression" in adata.uns["_scvi"]["data_registry"].keys():
-            assert (
-                stats["n_proteins"]
-                == get_from_registry(adata, "protein_expression").shape[1]
-            ), error_msg.format("proteins")
-
-        is_nonneg_int = _check_nonnegative_integers(
-            get_from_registry(adata, _CONSTANTS.X_KEY)
-        )
-        if not is_nonneg_int:
-            logger.warning(
-                "Make sure the registered X field in anndata contains unnormalized count data."
-            )
-
         self.adata = adata
         self.attributes_and_types = None
         self.setup_getitem(getitem_tensors)

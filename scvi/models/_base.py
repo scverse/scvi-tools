@@ -14,6 +14,8 @@ from typing import Optional, Union, List, Dict
 from scvi._compat import Literal
 from scvi.core.trainers import UnsupervisedTrainer
 from abc import ABC, abstractmethod
+from scvi.dataset._anndata import get_from_registry
+from scvi.dataset._anndata_utils import _check_nonnegative_integers
 
 logger = logging.getLogger(__name__)
 
@@ -596,9 +598,40 @@ class BaseModelClass(ABC):
         ).sequential()
         return post
 
-    # @abstractmethod
     def _check_anndata(self, adata):
-        pass
+        assert "_scvi" in adata.uns_keys(), "Please register your anndata first."
+
+        stats = adata.uns["_scvi"]["summary_stats"]
+
+        error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
+        assert adata.shape[1] == stats["n_genes"], error_msg.format("genes")
+        assert (
+            len(np.unique(get_from_registry(adata, _CONSTANTS.LABELS_KEY)))
+            == stats["n_labels"]
+        ), error_msg.format("labels")
+        if "protein_expression" in adata.uns["_scvi"]["data_registry"].keys():
+            assert (
+                stats["n_proteins"]
+                == get_from_registry(adata, "protein_expression").shape[1]
+            ), error_msg.format("proteins")
+
+        is_nonneg_int = _check_nonnegative_integers(
+            get_from_registry(adata, _CONSTANTS.X_KEY)
+        )
+        if not is_nonneg_int:
+            logger.warning(
+                "Make sure the registered X field in anndata contains unnormalized count data."
+            )
+        error_msg = (
+            "There are more {} categories in the data than was originally registered. "
+            + "Please check your {} categories as well as adata.uns['_scvi']['categorical_mappings']."
+        )
+        assert (
+            len(np.unique(adata.obs["_scvi_batch"])) <= stats["n_batch"]
+        ), error_msg.format("batch", "batch")
+        assert (
+            len(np.unique(adata.obs["_scvi_labels"])) <= stats["n_labels"]
+        ), error_msg.format("label", "label")
 
     @abstractmethod
     def train(self):

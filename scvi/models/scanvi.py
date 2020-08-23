@@ -115,7 +115,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         )
 
         # TODO slow, could be a faster way
-        key = adata.uns["scvi_data_registry"][_CONSTANTS.LABELS_KEY][-1]
+        key = adata.uns["_scvi"]["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
         key = key.split("_scvi_")[-1]
         labels = np.asarray(adata.obs[key]).ravel()
         scvi_labels = get_from_registry(adata, _CONSTANTS.LABELS_KEY).ravel()
