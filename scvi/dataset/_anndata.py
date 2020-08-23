@@ -293,6 +293,50 @@ def setup_anndata(
         return adata
 
 
+def register_tensor_from_anndata(
+    adata: anndata.AnnData,
+    registry_key: str,
+    adata_attr_name: Literal["obs", "var", "obsm", "varm", "uns"],
+    adata_key_name: str,
+    is_categorical: Optional[bool] = False,
+    adata_alternate_key_name: Optional[str] = None,
+):
+    """Add another tensor to scvi data registry
+
+    This function is intended for contributors testing out new models.
+
+    Parameters
+    ----------
+    adata
+        AnnData with "_scvi" key in `.uns`
+    registry_key
+        Key for tensor in registry, which will be the key in the dataloader output
+    adata_attr_name
+        AnnData attribute with tensor
+    adata_key_name
+        key in adata_attr_name with data
+    is_categorical
+        Whether or not data is categorical
+    adata_alternate_key_name
+        Added key in adata_attr_name for categorical codes if `is_categorical` is True
+    """
+
+    if is_categorical is True:
+        if adata_attr_name != "obs":
+            raise ValueError("categorical handling only implemented for data in `.obs`")
+
+    if is_categorical is True and adata_attr_name == "obs":
+        adata_key_name = _make_obs_column_categorical(
+            adata,
+            column_key=adata_key_name,
+            alternate_column_key=adata_alternate_key_name,
+        )
+    new_dict = {
+        registry_key: {"attr_name": adata_attr_name, "attr_key": adata_key_name}
+    }
+    adata.uns["_scvi"]["data_registry"].update(new_dict)
+
+
 def transfer_anndata_setup(
     adata_source: Union[anndata.AnnData, Dict],
     adata_target: anndata.AnnData,
@@ -304,6 +348,8 @@ def transfer_anndata_setup(
     This handles encoding for categorical data and is useful in the case where an
     anndata object has been subsetted and a category is lost.
 
+    Parameters
+    ----------
     adata_source
         AnnData that has been setup with scvi
     adata_target
@@ -428,48 +474,6 @@ def _transfer_categorical_mapping(adata1, adata2, scvi_key):
         adata2.uns["_scvi"]["categorical_mappings"] = {
             scvi_key: {"original_key": obs_key, "mapping": obs_mapping}
         }
-
-
-def register_tensor_from_anndata(
-    adata: anndata.AnnData,
-    registry_key: str,
-    adata_attr_name: Literal["obs", "var", "obsm", "varm", "uns"],
-    adata_key_name: str,
-    is_categorical: Optional[bool] = False,
-    adata_alternate_key_name: Optional[str] = None,
-):
-    """Add another tensor to scvi data registry
-
-    This function is intended for contributors testing out new models.
-
-    adata
-        AnnData with "_scvi" key in `.uns`
-    registry_key
-        Key for tensor in registry, which will be the key in the dataloader output
-    adata_attr_name
-        AnnData attribute with tensor
-    adata_key_name
-        key in adata_attr_name with data
-    is_categorical
-        Whether or not data is categorical
-    adata_alternate_key_name
-        Added key in adata_attr_name for categorical codes if `is_categorical` is True
-    """
-
-    if is_categorical is True:
-        if adata_attr_name != "obs":
-            raise ValueError("categorical handling only implemented for data in `.obs`")
-
-    if is_categorical is True and adata_attr_name == "obs":
-        adata_key_name = _make_obs_column_categorical(
-            adata,
-            column_key=adata_key_name,
-            alternate_column_key=adata_alternate_key_name,
-        )
-    new_dict = {
-        registry_key: {"attr_name": adata_attr_name, "attr_key": adata_key_name}
-    }
-    adata.uns["_scvi"]["data_registry"].update(new_dict)
 
 
 def _asset_key_in_obs(adata, key):
