@@ -5,7 +5,7 @@ import logging
 import pandas as pd
 import anndata
 
-from typing import Dict, Tuple, Optional, Union
+from typing import Dict, Tuple, Optional, Union, List
 from scvi._compat import Literal
 from scvi.dataset._anndata_utils import (
     _compute_library_size_batch,
@@ -75,6 +75,7 @@ def setup_anndata(
     X_layers_key: str = None,
     protein_expression_obsm_key: str = None,
     protein_names_uns_key: str = None,
+    categorical_covariate_key_list: List[str] = None,
     copy: bool = False,
 ) -> Optional[anndata.AnnData]:
     """Sets up AnnData object for scVI models.
@@ -284,6 +285,16 @@ def setup_anndata(
             "attr_name": "_obsm",
             "attr_key": protein_expression_obsm_key,
         }
+
+    if categorical_covariate_key_list is not None:
+        cat_loc, cat_key = _setup_extra_categorical_covs(
+            adata, categorical_covariate_key_list
+        )
+        data_registry[_CONSTANTS.CAT_COVS_KEY] = {
+            "attr_name": cat_loc,
+            "attr_key": cat_key,
+        }
+
     # add the data_registry to anndata
     _register_anndata(adata, data_registry_dict=data_registry)
     logger.info("Registered keys:{}".format(list(data_registry.keys())))
@@ -393,12 +404,14 @@ def transfer_anndata_setup(
             )
             protein_expression_obsm_key = prev_protein_obsm_key
 
+    # transfer batch and labels
     batch_key = "_scvi_batch"
     labels_key = "_scvi_labels"
 
     _transfer_categorical_mapping(adata_source, adata_target, batch_key)
     _transfer_categorical_mapping(adata_source, adata_target, labels_key)
 
+    # transfer X
     X_loc, X_key = _setup_X(adata_target, X_layers_key, use_raw)
     local_l_mean_key, local_l_var_key = _setup_library_size(
         adata_target, batch_key, X_layers_key, use_raw
@@ -407,6 +420,16 @@ def transfer_anndata_setup(
     target_data_registry.update(
         {_CONSTANTS.X_KEY: {"attr_name": X_loc, "attr_key": X_key}}
     )
+    # transfer extra categorical covs
+    has_cat_cov = True if _CONSTANTS.CAT_COVS_KEY in data_registry.keys() else False
+    if has_cat_cov:
+        source_cat_dict = _scvi_dict["extra_categorical_mappings"]
+        cat_loc, cat_key = _setup_extra_categorical_covs(
+            adata_target, list(source_cat_dict.keys()), category_dict=source_cat_dict
+        )
+        target_data_registry.update(
+            {_CONSTANTS.CAT_COVS_KEY: {"attr_name": cat_loc, "attr_key": cat_key}}
+        )
     # add the data_registry to anndata
     _register_anndata(adata_target, data_registry_dict=target_data_registry)
     logger.info("Registered keys:{}".format(list(target_data_registry.keys())))
@@ -495,6 +518,53 @@ def _setup_batch(adata, batch_key):
         adata, column_key=batch_key, alternate_column_key=alt_key
     )
     return batch_key
+
+
+def _setup_extra_categorical_covs(
+    adata: anndata.AnnData,
+    categorical_covariate_key_list: List[str],
+    category_dict: Dict[str, List[str]] = None,
+):
+    """Setup obsm df for extra categorical covariates
+
+    Parameters
+    ----------
+    adata
+        AnnData to setup
+    categorical_covariate_key_list
+        List of keys in adata.obs with categorical data
+    category_dict
+        Optional dictionary with keys being keys of categorical data in obs
+        and values being precomputed categories for each obs vector
+    """
+
+    for key in categorical_covariate_key_list:
+        _asset_key_in_obs(adata, key)
+
+    cat_loc = "obsm"
+    cat_key = "_scvi_extra_categoricals"
+
+    one_hots = []
+
+    categories = {}
+    for key in categorical_covariate_key_list:
+        cat = adata.obs[key]
+        if category_dict is not None:
+            possible_cats = category_dict[key]
+            cat = cat.astype(CategoricalDtype(categories=possible_cats))
+        else:
+            categories[key] = cat.astype("category").cat.categories
+
+        one_hot_rep = pd.get_dummies(cat)
+        one_hots.append(one_hot_rep)
+
+    adata.obsm[cat_key] = pd.concat(one_hots, axis=1)
+
+    # TODO NOW CHECK IF THERE ARE NAN FOR MISSPECIFICATION
+
+    store_cats = categories if category_dict is None else category_dict
+    adata.uns["_scvi"]["extra_categorical_mappings"] = store_cats
+    return cat_loc, cat_key
 
 
 def _make_obs_column_categorical(adata, column_key, alternate_column_key):

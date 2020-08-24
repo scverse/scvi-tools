@@ -5,3 +5,4 @@ class _CONSTANTS:
     LOCAL_L_VAR_KEY = "local_l_var"
     LABELS_KEY = "labels"
     PROTEIN_EXP_KEY = "protein_expression"
+    CAT_COVS_KEY = "cat_covs"
