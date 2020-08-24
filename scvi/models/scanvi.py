@@ -1,6 +1,7 @@
 import numpy as np
 import logging
 from anndata import AnnData
+import pandas as pd
 
 from typing import Union, Optional
 from scvi._compat import Literal
@@ -10,7 +11,6 @@ from scvi.core.models import VAE, SCANVAE
 from scvi.core.trainers import UnsupervisedTrainer, SemiSupervisedTrainer
 from scvi.core.posteriors import AnnotationPosterior
 from scvi import _CONSTANTS
-from scvi.dataset import get_from_registry
 
 logger = logging.getLogger(__name__)
 
@@ -114,16 +114,21 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             **model_kwargs,
         )
 
-        # TODO slow, could be a faster way
-        key = adata.uns["_scvi"]["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
-        key = key.split("_scvi_")[-1]
-        labels = np.asarray(adata.obs[key]).ravel()
-        scvi_labels = get_from_registry(adata, _CONSTANTS.LABELS_KEY).ravel()
-        self._label_dict = {s: l for l, s in zip(labels, scvi_labels)}
+        # get indices for labeled and unlabeled cells
+        key = self._scvi_setup_dict["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
+        self._label_mapping = self._scvi_setup_dict["categorical_mappings"][key][
+            "mapping"
+        ]
+        original_key = self._scvi_setup_dict["categorical_mappings"][key][
+            "original_key"
+        ]
+        labels = np.asarray(self.adata.obs[original_key]).ravel()
+        self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
         self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
+
         self._model_summary_string = (
-            "ScanVI Model with following params: \nunlabeled_category: {}, n_hidden: {}, n_latent: {}"
+            "ScanVI Model with params: \nunlabeled_category: {}, n_hidden: {}, n_latent: {}"
             ", n_layers: {}, dropout_rate: {}, dispersion: {}, gene_likelihood: {}"
         ).format(
             unlabeled_category,
@@ -215,8 +220,11 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         if not soft:
             predictions = []
             for p in pred:
-                predictions.append(self._label_dict[p])
+                predictions.append(self._code_to_label[p])
 
             return np.array(predictions)
-
-        return pred
+        else:
+            pred = pd.DataFrame(
+                pred, columns=self._label_mapping, index=adata.obs_names
+            )
+            return pred
