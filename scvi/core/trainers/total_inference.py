@@ -84,10 +84,6 @@ class TotalTrainer(UnsupervisedTrainer):
             raise ValueError(
                 "train_size needs to be greater than 0 and less than or equal to 1"
             )
-        assert (
-            "scvi_data_registry" in dataset.uns_keys()
-        ), "Please register your anndata first"
-
         self.n_genes = dataset.uns["scvi_summary_stats"]["n_genes"]
         self.n_proteins = model.n_input_proteins
         self.use_adversarial_loss = use_adversarial_loss
