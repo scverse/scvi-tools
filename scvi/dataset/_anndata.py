@@ -468,30 +468,31 @@ def _setup_labels(adata, labels_key):
         logger.info("No label_key inputted, assuming all cells have same label")
         labels_key = "_scvi_labels"
         adata.obs[labels_key] = np.zeros(adata.shape[0], dtype=np.int64)
+        alt_key = labels_key
     else:
         _asset_key_in_obs(adata, labels_key)
         logger.info('Using labels from adata.obs["{}"]'.format(labels_key))
         alt_key = "_scvi_{}".format(labels_key)
-        labels_key = _make_obs_column_categorical(
-            adata, column_key=labels_key, alternate_column_key=alt_key
-        )
+    labels_key = _make_obs_column_categorical(
+        adata, column_key=labels_key, alternate_column_key=alt_key
+    )
     return labels_key
 
 
 def _setup_batch(adata, batch_key):
     # checking batch
-    # TODO Allow continuous batch information in the future
     if batch_key is None:
         logger.info("No batch_key inputted, assuming all cells are same batch")
         batch_key = "_scvi_batch"
         adata.obs[batch_key] = np.zeros(adata.shape[0], dtype=np.int64)
+        alt_key = batch_key
     else:
         _asset_key_in_obs(adata, batch_key)
         logger.info('Using batches from adata.obs["{}"]'.format(batch_key))
         alt_key = "_scvi_{}".format(batch_key)
-        batch_key = _make_obs_column_categorical(
-            adata, column_key=batch_key, alternate_column_key=alt_key
-        )
+    batch_key = _make_obs_column_categorical(
+        adata, column_key=batch_key, alternate_column_key=alt_key
+    )
     return batch_key
 
 

@@ -22,7 +22,7 @@ def _load_cortex(
     _download(url, save_path, save_fn)
     adata = _load_cortex_txt(os.path.join(save_path, save_fn))
     if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+        setup_anndata(adata, labels_key="labels")
     return adata
 
 
@@ -58,6 +58,5 @@ def _load_cortex_txt(path_to_file: str) -> anndata.AnnData:
     adata.obs["labels"] = labels
     adata.obs["precise_labels"] = precise_clusters
     adata.obs["cell_type"] = clusters
-    adata.obs["batch"] = np.zeros(adata.shape[0], dtype=np.int64)
     logger.info("Finished loading Cortex data")
     return adata

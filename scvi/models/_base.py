@@ -600,7 +600,7 @@ class BaseModelClass(ABC):
             use_cuda=self.use_cuda,
             batch_size=batch_size,
         ).sequential()
-        return post, adata
+        return post
 
     def _validate_anndata(
         self, adata: Optional[AnnData] = None, copy_if_view: bool = True
