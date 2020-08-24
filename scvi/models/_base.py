@@ -639,12 +639,21 @@ class BaseModelClass(ABC):
             "There are more {} categories in the data than were originally registered. "
             + "Please check your {} categories as well as adata.uns['_scvi']['categorical_mappings']."
         )
-        assert (
-            len(np.unique(adata.obs["_scvi_batch"])) <= stats["n_batch"]
-        ), error_msg.format("batch", "batch")
-        assert (
-            len(np.unique(adata.obs["_scvi_labels"])) <= stats["n_labels"]
-        ), error_msg.format("label", "label")
+
+        self_categoricals = self._scvi_setup_dict["categorical_mappings"]
+
+        adata_categoricals = adata.uns["_scvi"]["categorical_mappings"]
+        self_batch_mapping = self_categoricals["_scvi_batch"]["mapping"]
+        adata_batch_mapping = adata_categoricals["_scvi_batch"]["mapping"]
+        # check if the categories are the same
+        assert np.sum(self_batch_mapping == adata_batch_mapping) == len(
+            self_batch_mapping
+        )
+        self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
+        adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
+        assert np.sum(self_labels_mapping == adata_labels_mapping) == len(
+            self_labels_mapping
+        )
 
         return adata
 
