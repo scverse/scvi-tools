@@ -463,7 +463,7 @@ def _transfer_protein_expression(_scvi_dict, adata_target):
     return protein_expression_obsm_key
 
 
-def _asset_key_in_obs(adata, key):
+def _assert_key_in_obs(adata, key):
     assert key in adata.obs.keys(), "{} is not a valid key for in adata.obs".format(key)
 
 
@@ -475,7 +475,7 @@ def _setup_labels(adata, labels_key):
         adata.obs[labels_key] = np.zeros(adata.shape[0], dtype=np.int64)
         alt_key = labels_key
     else:
-        _asset_key_in_obs(adata, labels_key)
+        _assert_key_in_obs(adata, labels_key)
         logger.info('Using labels from adata.obs["{}"]'.format(labels_key))
         alt_key = "_scvi_{}".format(labels_key)
     # make categorical mapping even if no labels were inputted
@@ -493,7 +493,7 @@ def _setup_batch(adata, batch_key):
         adata.obs[batch_key] = np.zeros(adata.shape[0], dtype=np.int64)
         alt_key = batch_key
     else:
-        _asset_key_in_obs(adata, batch_key)
+        _assert_key_in_obs(adata, batch_key)
         logger.info('Using batches from adata.obs["{}"]'.format(batch_key))
         alt_key = "_scvi_{}".format(batch_key)
     # make categorical mapping even if no batch was inputted
@@ -522,7 +522,7 @@ def _setup_extra_categorical_covs(
     """
 
     for key in categorical_covariate_key_list:
-        _asset_key_in_obs(adata, key)
+        _assert_key_in_obs(adata, key)
 
     cat_loc = "obsm"
     cat_key = "_scvi_extra_categoricals"
@@ -535,6 +535,7 @@ def _setup_extra_categorical_covs(
         if category_dict is not None:
             possible_cats = category_dict[key]
             cat = cat.astype(CategoricalDtype(categories=possible_cats))
+            # TODO NOW CHECK IF THERE ARE -1 in the codes FOR MISSPECIFICATION
         else:
             categories[key] = cat.astype("category").cat.categories
 
@@ -542,8 +543,6 @@ def _setup_extra_categorical_covs(
         one_hots.append(one_hot_rep)
 
     adata.obsm[cat_key] = pd.concat(one_hots, axis=1)
-
-    # TODO NOW CHECK IF THERE ARE NAN FOR MISSPECIFICATION
 
     store_cats = categories if category_dict is None else category_dict
     adata.uns["_scvi"]["extra_categorical_mappings"] = store_cats
@@ -562,29 +561,29 @@ def _make_obs_column_categorical(
     else:
         categorical_obs = adata.obs[column_key].astype(categorical_dtype)
 
+    # put codes in .obs[alternate_column_key]
     codes = categorical_obs.cat.codes
     if -1 in np.unique(codes):
         raise ValueError("Making .obs[{}] categorical failed".format(column_key))
     adata.obs[alternate_column_key] = codes
+
+    # store categorical mappings
     mapping = categorical_obs.cat.categories
-    if "categorical_mappings" in adata.uns["_scvi"].keys():
-        adata.uns["_scvi"]["categorical_mappings"][alternate_column_key] = {
-            "original_key": column_key,
-            "mapping": mapping,
-        }
+    store_dict = {
+        alternate_column_key: {"original_key": column_key, "mapping": mapping}
+    }
+    if "categorical_mappings" not in adata.uns["_scvi"].keys():
+        adata.uns["_scvi"].update({"categorical_mappings": store_dict})
     else:
-        adata.uns["_scvi"]["categorical_mappings"] = {
-            alternate_column_key: {"original_key": column_key, "mapping": mapping}
-        }
-    column_key = alternate_column_key
+        adata.uns["_scvi"]["categorical_mappings"].update(store_dict)
 
     # make sure each category contains enough cells
-    unique, counts = np.unique(adata.obs[column_key], return_counts=True)
+    unique, counts = np.unique(adata.obs[alternate_column_key], return_counts=True)
     if np.min(counts) < 3:
         category = unique[np.argmin(counts)]
         warnings.warn(
             "Category {} in adata.obs['{}'] has fewer than 3 cells. SCVI may not train properly.".format(
-                category, column_key
+                category, alternate_column_key
             )
         )
     # possible check for continuous?
@@ -592,7 +591,7 @@ def _make_obs_column_categorical(
         warnings.warn(
             "Is adata.obs['{}'] continuous? SCVI doesn't support continuous obs yet."
         )
-    return column_key
+    return alternate_column_key
 
 
 def _setup_protein_expression(
