@@ -1,10 +1,10 @@
-=======
-Classes
-=======
+====
+Core
+====
 
 .. warning::
 
-    The ``scvi.core`` top-level module is PRIVATE. We document here for developers. Please use the top-level module ``scvi.models``.
+    The ``scvi.core`` top-level module is PRIVATE. We document here for contributors. Please use the top-level module ``scvi.models``.
 
 .. currentmodule:: scvi
 
@@ -17,6 +17,10 @@ Modules
    core.models.VAE
    core.models.LDVAE
    core.models.TOTALVAE
+   core.models.SCANVAE
+   core.models.JVAE
+   core.models.AutoZIVAE
+   core.models.Classifier
 
 Posteriors
 ~~~~~~~~~~
@@ -26,6 +30,7 @@ Posteriors
 
    core.posteriors.Posterior
    core.posteriors.TotalPosterior
+   core.posteriors.AnnotationPosterior
 
 Trainers
 ~~~~~~~~
@@ -35,5 +40,6 @@ Trainers
 
    core.trainers.UnsupervisedTrainer
    core.trainers.TotalTrainer
+   core.trainers.SemiSupervisedTrainer
    core.trainers.trainer.Trainer
    core.trainers.trainer.EarlyStopping
