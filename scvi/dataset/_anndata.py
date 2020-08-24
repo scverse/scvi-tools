@@ -388,13 +388,16 @@ def transfer_anndata_setup(
             "use_raw and X_layers_key were both passed in. Defaulting to use_raw."
         )
 
-    # transfer prottein_expression
+    # transfer protein_expression
     protein_expression_obsm_key = _transfer_protein_expression(_scvi_dict, adata_target)
 
     # transfer batch and labels
     categorical_mappings = adata_source.uns["_scvi"]["categorical_mappings"]
     for key, val in categorical_mappings.items():
         original_key = val["original_key"]
+        # case where original key and key are equal
+        # caused when no batch or label key were given
+        # when anndata_source was setup
         if original_key not in adata_target.obs.keys():
             adata_target.obs[original_key] = np.zeros(
                 adata_target.shape[0], dtype=np.int64
@@ -475,6 +478,7 @@ def _setup_labels(adata, labels_key):
         _asset_key_in_obs(adata, labels_key)
         logger.info('Using labels from adata.obs["{}"]'.format(labels_key))
         alt_key = "_scvi_{}".format(labels_key)
+    # make categorical mapping even if no labels were inputted
     labels_key = _make_obs_column_categorical(
         adata, column_key=labels_key, alternate_column_key=alt_key
     )
@@ -492,6 +496,7 @@ def _setup_batch(adata, batch_key):
         _asset_key_in_obs(adata, batch_key)
         logger.info('Using batches from adata.obs["{}"]'.format(batch_key))
         alt_key = "_scvi_{}".format(batch_key)
+    # make categorical mapping even if no batch was inputted
     batch_key = _make_obs_column_categorical(
         adata, column_key=batch_key, alternate_column_key=alt_key
     )
