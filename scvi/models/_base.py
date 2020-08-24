@@ -623,10 +623,6 @@ class BaseModelClass(ABC):
 
         error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
         assert adata.shape[1] == stats["n_genes"], error_msg.format("genes")
-        assert (
-            len(np.unique(get_from_registry(adata, _CONSTANTS.LABELS_KEY)))
-            == stats["n_labels"]
-        ), error_msg.format("labels")
 
         is_nonneg_int = _check_nonnegative_integers(
             get_from_registry(adata, _CONSTANTS.X_KEY)
