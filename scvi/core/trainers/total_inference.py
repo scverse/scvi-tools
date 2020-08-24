@@ -84,7 +84,7 @@ class TotalTrainer(UnsupervisedTrainer):
             raise ValueError(
                 "train_size needs to be greater than 0 and less than or equal to 1"
             )
-        self.n_genes = dataset.uns["scvi_summary_stats"]["n_genes"]
+        self.n_genes = model.n_input_genes
         self.n_proteins = model.n_input_proteins
         self.use_adversarial_loss = use_adversarial_loss
         self.kappa = kappa
