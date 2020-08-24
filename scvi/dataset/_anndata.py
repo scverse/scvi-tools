@@ -388,23 +388,8 @@ def transfer_anndata_setup(
             "use_raw and X_layers_key were both passed in. Defaulting to use_raw."
         )
 
-    has_protein = True if _CONSTANTS.PROTEIN_EXP_KEY in data_registry.keys() else False
-    if has_protein is True:
-        prev_protein_obsm_key = data_registry[_CONSTANTS.PROTEIN_EXP_KEY]["attr_key"]
-        if prev_protein_obsm_key not in adata_target.obsm.keys():
-            raise ValueError(
-                "Can't find {} in adata_target.obsm for protein expressions.".format(
-                    prev_protein_obsm_key
-                )
-            )
-        else:
-            assert (
-                get_from_registry(adata_source, _CONSTANTS.PROTEIN_EXP_KEY).shape[1]
-                == adata_target.obsm[prev_protein_obsm_key].shape[1]
-            )
-            protein_expression_obsm_key = prev_protein_obsm_key
-    else:
-        protein_expression_obsm_key = None
+    # transfer prottein_expression
+    protein_expression_obsm_key = _transfer_protein_expression(_scvi_dict, adata_target)
 
     # transfer batch and labels
     categorical_mappings = adata_source.uns["_scvi"]["categorical_mappings"]
@@ -448,6 +433,31 @@ def transfer_anndata_setup(
     _setup_summary_stats(
         adata_target, batch_key, labels_key, protein_expression_obsm_key
     )
+
+
+def _transfer_protein_expression(_scvi_dict, adata_target):
+    data_registry = _scvi_dict["data_registry"]
+    summary_stats = _scvi_dict["summary_stats"]
+
+    has_protein = True if _CONSTANTS.PROTEIN_EXP_KEY in data_registry.keys() else False
+    if has_protein is True:
+        prev_protein_obsm_key = data_registry[_CONSTANTS.PROTEIN_EXP_KEY]["attr_key"]
+        if prev_protein_obsm_key not in adata_target.obsm.keys():
+            raise ValueError(
+                "Can't find {} in adata_target.obsm for protein expressions.".format(
+                    prev_protein_obsm_key
+                )
+            )
+        else:
+            assert (
+                summary_stats["n_proteins"]
+                == adata_target.obsm[prev_protein_obsm_key].shape[1]
+            )
+            protein_expression_obsm_key = prev_protein_obsm_key
+    else:
+        protein_expression_obsm_key = None
+
+    return protein_expression_obsm_key
 
 
 def _asset_key_in_obs(adata, key):
