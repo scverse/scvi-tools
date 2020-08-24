@@ -619,9 +619,11 @@ class BaseModelClass(ABC):
             )
             transfer_anndata_setup(self._scvi_setup_dict, adata)
 
-        stats = adata.uns["_scvi"]["summary_stats"]
+        stats = self.summary_stats
 
-        error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
+        error_msg = (
+            "Number of {} in anndata different from initial anndata used for training."
+        )
         assert adata.shape[1] == stats["n_genes"], error_msg.format("genes")
 
         is_nonneg_int = _check_nonnegative_integers(
@@ -632,7 +634,7 @@ class BaseModelClass(ABC):
                 "Make sure the registered X field in anndata contains unnormalized count data."
             )
         error_msg = (
-            "There are more {} categories in the data than was originally registered. "
+            "There are more {} categories in the data than were originally registered. "
             + "Please check your {} categories as well as adata.uns['_scvi']['categorical_mappings']."
         )
         assert (
