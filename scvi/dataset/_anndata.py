@@ -57,7 +57,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
     attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
 
     data = getattr(adata, attr_name)
-    if attr_key != "_use_raw":
+    if attr_key != "None":
         if isinstance(data, pd.DataFrame):
             data = data.loc[:, attr_key]
         else:
@@ -361,35 +361,29 @@ def transfer_anndata_setup(
     """
     adata_target.uns["_scvi"] = {}
     if isinstance(adata_source, anndata.AnnData):
-        data_registry = adata_source.uns["_scvi"]["data_registry"]
+        _scvi_dict = adata_source.uns["_scvi"]
     else:
-        data_registry = adata_source
+        _scvi_dict = adata_source
+    data_registry = _scvi_dict["data_registry"]
+    summary_stats = _scvi_dict["summary_stats"]
 
-    # should we check that everything is the same size?
+    target_n_vars = (
+        adata_target.raw.shape[1] if use_raw is True else adata_source.shape[1]
+    )
+    assert target_n_vars == summary_stats["n_genes"]
     if use_raw and X_layers_key:
         logging.warning(
             "use_raw and X_layers_key were both passed in. Defaulting to use_raw."
         )
-    if use_raw:
-        assert (
-            get_from_registry(adata_source, _CONSTANTS.X_KEY).shape[1]
-            == adata_target.raw.X.shape[1]
-        )
-    elif X_layers_key:
-        assert (
-            get_from_registry(adata_source, _CONSTANTS.X_KEY).shape[1]
-            == adata_target.layers[X_layers_key].shape[1]
-        )
-    else:
-        assert adata_source.X.shape[1] == adata_target.X.shape[1]
 
     has_protein = True if _CONSTANTS.PROTEIN_EXP_KEY in data_registry.keys() else False
     if has_protein is True:
         prev_protein_obsm_key = data_registry[_CONSTANTS.PROTEIN_EXP_KEY]["attr_key"]
         if prev_protein_obsm_key not in adata_target.obsm.keys():
-            logger.warning(
-                "Can't find {} in adata_target.obsm for protein expressions. "
-                "Ignoring protein expression.".format(prev_protein_obsm_key)
+            raise ValueError(
+                "Can't find {} in adata_target.obsm for protein expressions.".format(
+                    prev_protein_obsm_key
+                )
             )
         else:
             assert (
@@ -408,25 +402,13 @@ def transfer_anndata_setup(
     local_l_mean_key, local_l_var_key = _setup_library_size(
         adata_target, batch_key, X_layers_key, use_raw
     )
-    data_registry = {
-        _CONSTANTS.X_KEY: [X_loc, X_key],
-        _CONSTANTS.BATCH_KEY: ["_obs", batch_key],
-        _CONSTANTS.LOCAL_L_MEAN_KEY: ["_obs", local_l_mean_key],
-        _CONSTANTS.LOCAL_L_VAR_KEY: ["_obs", local_l_var_key],
-        _CONSTANTS.LABELS_KEY: ["_obs", labels_key],
-    }
-
-    if protein_expression_obsm_key is not None:
-        protein_expression_obsm_key = _setup_protein_expression(
-            adata_target, protein_expression_obsm_key, None, batch_key
-        )
-        data_registry[_CONSTANTS.PROTEIN_EXP_KEY] = [
-            "_obsm",
-            protein_expression_obsm_key,
-        ]
+    target_data_registry = data_registry.copy()
+    target_data_registry.update(
+        {_CONSTANTS.X_KEY: {"attr_name": X_loc, "attr_key": X_key}}
+    )
     # add the data_registry to anndata
-    _register_anndata(adata_target, data_registry_dict=data_registry)
-    logger.info("Registered keys:{}".format(list(data_registry.keys())))
+    _register_anndata(adata_target, data_registry_dict=target_data_registry)
+    logger.info("Registered keys:{}".format(list(target_data_registry.keys())))
     _setup_summary_stats(
         adata_target, batch_key, labels_key, protein_expression_obsm_key
     )
@@ -625,7 +607,7 @@ def _setup_X(adata, X_layers_key, use_raw):
     else:
         logger.info("Using data from adata.X")
         X_loc = "_X"
-        X_key = "_use_raw"
+        X_key = "None"
         X = adata._X
 
     if _check_nonnegative_integers(X) is False:
