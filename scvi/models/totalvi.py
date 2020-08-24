@@ -810,6 +810,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         from scipy.stats import spearmanr
 
+        adata = self._validate_anndata(adata)
+
         if (transform_batch is None) or (isinstance(transform_batch, int)):
             transform_batch = [transform_batch]
         corr_mats = []
