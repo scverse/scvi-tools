@@ -900,3 +900,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             return_dict["RNA_dispersions"] = dispersions
 
         return return_dict
+
+    def _validate_anndata(self, adata):
+        super()._validate_anndata(adata)
+        error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
+        if _CONSTANTS.PROTEIN_EXP_KEY in adata.uns["_scvi"]["data_registry"].keys():
+            assert (
+                self.summary_stats["n_proteins"]
+                == get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY).shape[1]
+            ), error_msg.format("proteins")

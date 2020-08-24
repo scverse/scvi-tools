@@ -569,7 +569,7 @@ class BaseModelClass(ABC):
             "_scvi" in adata.uns.keys()
         ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
         self.adata = adata
-        self._check_anndata(adata)
+        self._validate_anndata(adata)
 
         # TODO make abstract properties
         self.summary_stats = adata.uns["_scvi"]["summary_stats"]
@@ -598,7 +598,7 @@ class BaseModelClass(ABC):
         ).sequential()
         return post
 
-    def _check_anndata(self, adata):
+    def _validate_anndata(self, adata):
         assert "_scvi" in adata.uns_keys(), "Please register your anndata first."
 
         stats = adata.uns["_scvi"]["summary_stats"]
@@ -609,11 +609,6 @@ class BaseModelClass(ABC):
             len(np.unique(get_from_registry(adata, _CONSTANTS.LABELS_KEY)))
             == stats["n_labels"]
         ), error_msg.format("labels")
-        if "protein_expression" in adata.uns["_scvi"]["data_registry"].keys():
-            assert (
-                stats["n_proteins"]
-                == get_from_registry(adata, "protein_expression").shape[1]
-            ), error_msg.format("proteins")
 
         is_nonneg_int = _check_nonnegative_integers(
             get_from_registry(adata, _CONSTANTS.X_KEY)
