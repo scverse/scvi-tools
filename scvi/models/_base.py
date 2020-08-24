@@ -666,9 +666,16 @@ class BaseModelClass(ABC):
             os.path.join(dir_path, "optimizer_params.pt"),
         )
 
-    def load(self, dir_path):
-        # load state dicts, maybe a class method?
-        # Loading scVI model
+    def load(self, adata: AnnData, dir_path):
+        # NOTES
+        # Make a class method
+        # load the _scvi_setup_dict
+        # transfer anndata setup to input adata using setup dict
+        # Load SCVI init signature
+        # Run init
+        # Load state dict into vae.model
+        # TODO figure out if we should save optimizer state dict
+
         model_path = os.path.join(dir_path, "model_params.pt")
         optimizer_path = os.path.join(dir_path, "optimizer_params.pt")
         if self.use_cuda:
