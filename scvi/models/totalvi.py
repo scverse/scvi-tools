@@ -147,6 +147,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
     @torch.no_grad()
     def get_reconstruction_error(self, adata=None, indices=None, mode="total"):
 
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
 
         return -post.reconstruction_error(mode=mode)
@@ -196,6 +197,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
 
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
         latent = []
         for tensors in post:
@@ -213,6 +215,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
 
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
         libraries = []
         for tensors in post:
@@ -292,7 +295,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         """
 
-        adata = adata if adata is not None else self.adata
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
 
         if gene_list is None:
@@ -444,7 +447,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         """
 
-        adata = adata if adata is not None else self.adata
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
 
         if protein_list is None:
@@ -519,8 +522,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         sample_protein_mixing=False,
         include_protein_background=False,
     ):
-        if adata is None:
-            adata = self.adata
+        adata = self._validate_anndata(adata)
         cell_idx1 = np.asarray(adata.obs[groupby] == group1)
         if group2 is None:
             cell_idx2 = ~cell_idx1
@@ -622,7 +624,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         """
         assert self.model.reconstruction_loss_gene in ["nb"]
 
-        adata = adata if adata is not None else self.adata
+        adata = self._validate_anndata(adata)
         if gene_list is None:
             gene_mask = slice(None)
         else:
@@ -716,7 +718,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         -------
 
         """
-
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
 
         posterior_list = []
@@ -858,7 +860,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
 
         """
-
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
 
         rna_dropout_list = []
@@ -902,10 +904,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         return return_dict
 
     def _validate_anndata(self, adata):
-        super()._validate_anndata(adata)
+        adata = super()._validate_anndata(adata)
         error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
         if _CONSTANTS.PROTEIN_EXP_KEY in adata.uns["_scvi"]["data_registry"].keys():
             assert (
                 self.summary_stats["n_proteins"]
                 == get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY).shape[1]
             ), error_msg.format("proteins")
+
+        return adata

@@ -207,7 +207,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             TODO
         """
 
-        adata = self.adata if adata is None else adata
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
 
         _, pred = post.sequential().compute_predictions(soft=soft)

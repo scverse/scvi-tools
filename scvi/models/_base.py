@@ -14,7 +14,7 @@ from typing import Optional, Union, List, Dict
 from scvi._compat import Literal
 from scvi.core.trainers import UnsupervisedTrainer
 from abc import ABC, abstractmethod
-from scvi.dataset._anndata import get_from_registry
+from scvi.dataset import get_from_registry, transfer_anndata_setup
 from scvi.dataset._anndata_utils import _check_nonnegative_integers
 
 logger = logging.getLogger(__name__)
@@ -54,6 +54,7 @@ class VAEMixin:
     @torch.no_grad()
     def get_elbo(self, adata=None, indices=None):
 
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
 
         return -post.elbo()
@@ -61,6 +62,7 @@ class VAEMixin:
     @torch.no_grad()
     def get_marginal_ll(self, adata=None, indices=None, n_mc_samples=1000):
 
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
 
         return -post.marginal_ll(n_mc_samples=n_mc_samples)
@@ -68,6 +70,7 @@ class VAEMixin:
     @torch.no_grad()
     def get_reconstruction_error(self, adata=None, indices=None):
 
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
 
         return -post.reconstruction_error()
@@ -104,6 +107,7 @@ class VAEMixin:
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
 
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
         latent = []
         for tensors in post:
@@ -169,7 +173,7 @@ class RNASeqMixin:
 
         """
 
-        adata = adata if adata is not None else self.adata
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
 
         if gene_list is None:
@@ -238,8 +242,8 @@ class RNASeqMixin:
         within_key=None,
         all_stats=True,
     ):
-        if adata is None:
-            adata = self.adata
+
+        adata = self._validate_anndata(adata)
         cell_idx1 = adata.obs[groupby] == group1
         if group2 is None:
             cell_idx2 = ~cell_idx1
@@ -301,14 +305,14 @@ class RNASeqMixin:
         """
         assert self.model.reconstruction_loss in ["zinb", "nb", "poisson"]
 
-        adata = adata if adata is not None else self.adata
+        adata = self._validate_anndata(adata)
+        post = self._make_posterior(adata=adata, indices=indices)
+
         if gene_list is None:
             gene_mask = slice(None)
         else:
             all_genes = adata.var_names
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
-
-        post = self._make_posterior(adata=adata, indices=indices)
 
         x_new = []
         for tensors in post:
@@ -380,7 +384,7 @@ class RNASeqMixin:
         -------
 
         """
-
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
 
         posterior_list = []
@@ -500,7 +504,7 @@ class RNASeqMixin:
 
 
         """
-
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
 
         dropout_list = []
@@ -547,7 +551,7 @@ class RNASeqMixin:
     def get_latent_library_size(self, adata=None, indices=None, give_mean=True):
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
-
+        adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
         libraries = []
         for tensors in post:
@@ -569,10 +573,11 @@ class BaseModelClass(ABC):
             "_scvi" in adata.uns.keys()
         ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
         self.adata = adata
-        self._validate_anndata(adata)
+        self._validate_anndata(adata, copy_if_view=False)
+        self._scvi_setup_dict = adata.uns["_scvi"]
+        self.summary_stats = self._scvi_setup_dict["summary_stats"]
 
         # TODO make abstract properties
-        self.summary_stats = adata.uns["_scvi"]["summary_stats"]
         self.is_trained = False
         # just a regular property
         self.use_cuda = use_cuda and torch.cuda.is_available()
@@ -583,9 +588,7 @@ class BaseModelClass(ABC):
 
         # all methods need a batch_size and it needs to be passed to make posterior
 
-    def _make_posterior(self, adata=None, indices=None, batch_size=128):
-        if adata is None:
-            adata = self.adata
+    def _make_posterior(self, adata: AnnData, indices=None, batch_size=128):
         if indices is None:
             indices = np.arange(adata.n_obs)
         post = self._posterior_class(
@@ -596,10 +599,24 @@ class BaseModelClass(ABC):
             use_cuda=self.use_cuda,
             batch_size=batch_size,
         ).sequential()
-        return post
+        return post, adata
 
-    def _validate_anndata(self, adata):
-        assert "_scvi" in adata.uns_keys(), "Please register your anndata first."
+    def _validate_anndata(
+        self, adata: Optional[AnnData] = None, copy_if_view: bool = True
+    ):
+        if adata is None:
+            adata = self.adata
+        if adata.is_view:
+            logger.warning("Input anndata is a view.")
+            if copy_if_view:
+                logger.info("Making copy of anndata.")
+                adata = adata.copy()
+        if "_scvi" not in adata.uns_keys():
+            logger.info(
+                "Input adata not setup with scvi. "
+                + "attempting to transfer anndata setup"
+            )
+            transfer_anndata_setup(self._scvi_setup_dict, adata)
 
         stats = adata.uns["_scvi"]["summary_stats"]
 
@@ -627,6 +644,8 @@ class BaseModelClass(ABC):
         assert (
             len(np.unique(adata.obs["_scvi_labels"])) <= stats["n_labels"]
         ), error_msg.format("label", "label")
+
+        return adata
 
     @abstractmethod
     def train(self):
