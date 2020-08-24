@@ -903,8 +903,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         return return_dict
 
-    def _validate_anndata(self, adata):
-        adata = super()._validate_anndata(adata)
+    def _validate_anndata(self, adata: AnnData, copy_if_view: bool = True):
+        adata = super()._validate_anndata(adata, copy_if_view)
         error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
         if _CONSTANTS.PROTEIN_EXP_KEY in adata.uns["_scvi"]["data_registry"].keys():
             assert (
