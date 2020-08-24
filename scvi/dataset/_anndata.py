@@ -399,6 +399,11 @@ def transfer_anndata_setup(
         # caused when no batch or label key were given
         # when anndata_source was setup
         if original_key not in adata_target.obs.keys():
+            logger.info(
+                ".obs[{}] not found in target, assuming every cell is same category".format(
+                    original_key
+                )
+            )
             adata_target.obs[original_key] = np.zeros(
                 adata_target.shape[0], dtype=np.int64
             )
