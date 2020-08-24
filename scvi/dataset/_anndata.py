@@ -338,7 +338,7 @@ def register_tensor_from_anndata(
 
 
 def transfer_anndata_setup(
-    adata_source: Union[anndata.AnnData, Dict],
+    adata_source: Union[anndata.AnnData, dict],
     adata_target: anndata.AnnData,
     use_raw: Optional[bool] = False,
     X_layers_key: Optional[str] = None,
@@ -351,7 +351,8 @@ def transfer_anndata_setup(
     Parameters
     ----------
     adata_source
-        AnnData that has been setup with scvi
+        AnnData that has been setup with scvi. If `dict`, must be dictionary
+        from source anndata containing scvi setup parameters
     adata_target
         AnnData with similar organization as source, but possibly subsetted
     use_raw
