@@ -573,9 +573,10 @@ class BaseModelClass(ABC):
             "_scvi" in adata.uns.keys()
         ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
         self.adata = adata
-        self._validate_anndata(adata, copy_if_view=False)
         self._scvi_setup_dict = adata.uns["_scvi"]
         self.summary_stats = self._scvi_setup_dict["summary_stats"]
+
+        self._validate_anndata(adata, copy_if_view=False)
 
         # TODO make abstract properties
         self.is_trained = False
