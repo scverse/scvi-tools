@@ -538,7 +538,7 @@ def _setup_extra_categorical_covs(
         else:
             categories[key] = cat.astype("category").cat.categories
 
-        one_hot_rep = pd.get_dummies(cat)
+        one_hot_rep = pd.get_dummies(cat, prefix=key)
         one_hots.append(one_hot_rep)
 
     adata.obsm[cat_key] = pd.concat(one_hots, axis=1)
