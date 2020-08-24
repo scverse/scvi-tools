@@ -79,8 +79,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         **model_kwargs,
     ):
         super(TOTALVI, self).__init__(adata, use_cuda=use_cuda)
-        if "totalvi_batch_mask" in adata.uns.keys():
-            batch_mask = adata.uns["totalvi_batch_mask"]
+        if "totalvi_batch_mask" in self._scvi_setup_dict.keys():
+            batch_mask = self._scvi_setup_dict["totalvi_batch_mask"]
         else:
             batch_mask = None
         self.model = TOTALVAE(
