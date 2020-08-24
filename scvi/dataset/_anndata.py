@@ -403,13 +403,25 @@ def transfer_anndata_setup(
                 == adata_target.obsm[prev_protein_obsm_key].shape[1]
             )
             protein_expression_obsm_key = prev_protein_obsm_key
+    else:
+        protein_expression_obsm_key = None
 
     # transfer batch and labels
+    categorical_mappings = adata_source.uns["_scvi"]["categorical_mappings"]
+    for key, val in categorical_mappings.items():
+        original_key = val["original_key"]
+        if original_key not in adata_target.obs.keys():
+            adata_target.obs[original_key] = np.zeros(
+                adata_target.shape[0], dtype=np.int64
+            )
+        mapping = val["mapping"]
+        cat_dtype = CategoricalDtype(categories=mapping)
+        _make_obs_column_categorical(
+            adata_target, original_key, key, categorical_dtype=cat_dtype
+        )
+
     batch_key = "_scvi_batch"
     labels_key = "_scvi_labels"
-
-    _transfer_categorical_mapping(adata_source, adata_target, batch_key)
-    _transfer_categorical_mapping(adata_source, adata_target, labels_key)
 
     # transfer X
     X_loc, X_key = _setup_X(adata_target, X_layers_key, use_raw)
@@ -436,50 +448,6 @@ def transfer_anndata_setup(
     _setup_summary_stats(
         adata_target, batch_key, labels_key, protein_expression_obsm_key
     )
-
-
-def _transfer_categorical_mapping(adata1, adata2, scvi_key):
-    """Makes the data in column_key in obs all categorical.
-    if adata.obs[column_key] is not categorical, will categorize
-    and save to .obs[alternate_column_key]
-
-    Parameters:
-    -----------
-    adata
-        anndata
-    """
-    categorical_mappings = adata1.uns["_scvi"]["categorical_mappings"]
-    obs_key = categorical_mappings[scvi_key]["original_key"]
-    obs_mapping = categorical_mappings[scvi_key]["mapping"]
-
-    assert obs_key in adata2.obs.keys()
-
-    # if theres more categories than previously registered
-    assert len(obs_mapping) >= len(
-        np.unique(adata2.obs[obs_key])
-    ), "More batch categories than was registered"
-
-    categorical_batch = adata2.obs[obs_key].astype(
-        CategoricalDtype(categories=obs_mapping)
-    )
-    adata2.obs[scvi_key] = categorical_batch.cat.codes
-
-    if np.min(adata2.obs[scvi_key]) == -1:
-        logger.error(
-            'Transfering category mapping for .obs["{}"] failed. It could be a datatype issue. '
-            "Original adata category dtype: {}, New adata category dtype: {}".format(
-                obs_key, adata1.obs[obs_key][0].dtype, adata2.obs[obs_key][0].dtype
-            )
-        )
-    if "categorical_mappings" in adata2.uns["_scvi"].keys():
-        adata2.uns["_scvi"]["categorical_mappings"][scvi_key] = {
-            "original_key": obs_key,
-            "mapping": obs_mapping,
-        }
-    else:
-        adata2.uns["_scvi"]["categorical_mappings"] = {
-            scvi_key: {"original_key": obs_key, "mapping": obs_mapping}
-        }
 
 
 def _asset_key_in_obs(adata, key):
@@ -567,13 +535,22 @@ def _setup_extra_categorical_covs(
     return cat_loc, cat_key
 
 
-def _make_obs_column_categorical(adata, column_key, alternate_column_key):
+def _make_obs_column_categorical(
+    adata, column_key, alternate_column_key, categorical_dtype=None
+):
     """Makes the data in column_key in obs all categorical.
     if adata.obs[column_key] is not categorical, will categorize
     and save to .obs[alternate_column_key]
     """
-    categorical_obs = adata.obs[column_key].astype("category")
-    adata.obs[alternate_column_key] = categorical_obs.cat.codes
+    if categorical_dtype is None:
+        categorical_obs = adata.obs[column_key].astype("category")
+    else:
+        categorical_obs = adata.obs[column_key].astype(categorical_dtype)
+
+    codes = categorical_obs.cat.codes
+    if -1 in np.unique(codes):
+        raise ValueError("Making .obs[{}] categorical failed".format(column_key))
+    adata.obs[alternate_column_key] = codes
     mapping = categorical_obs.cat.categories
     if "categorical_mappings" in adata.uns["_scvi"].keys():
         adata.uns["_scvi"]["categorical_mappings"][alternate_column_key] = {
