@@ -15,7 +15,10 @@ from scvi.models._base import BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.posteriors import TotalPosterior
 from scvi.core.trainers import TotalTrainer
 from scvi.models._differential import DifferentialComputation
-from scvi.models._utils import scrna_raw_counts_properties
+from scvi.models._utils import (
+    scrna_raw_counts_properties,
+    _get_var_names_from_setup_anndata,
+)
 from scvi.dataset import get_from_registry
 
 logger = logging.getLogger(__name__)
@@ -301,7 +304,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = adata.var_names
+            all_genes = _get_var_names_from_setup_anndata(adata)
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
         if protein_list is None:
             protein_mask = slice(None)
@@ -564,7 +567,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         all_info = dc.get_bayes_factors(cell_idx1, cell_idx2, mode=mode, delta=delta)
 
         col_names = np.concatenate(
-            [np.asarray(adata.var_names), adata.uns["scvi_protein_names"]]
+            [
+                np.asarray(_get_var_names_from_setup_anndata(adata)),
+                adata.uns["scvi_protein_names"],
+            ]
         )
         if all_stats is True:
             nan = np.array([np.nan] * len(adata.uns["scvi_protein_names"]))
@@ -628,7 +634,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = adata.var_names
+            all_genes = _get_var_names_from_setup_anndata(adata)
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
         if protein_list is None:
             protein_mask = slice(None)
@@ -843,8 +849,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             corr_mats.append(corr_matrix)
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
 
+        var_names = _get_var_names_from_setup_anndata(adata)
         names = np.concatenate(
-            [np.asarray(self.adata.var_names), self.adata.uns["scvi_protein_names"]]
+            [np.asarray(var_names), self.adata.uns["scvi_protein_names"]]
         )
         return pd.DataFrame(corr_matrix, index=names, columns=names)
 

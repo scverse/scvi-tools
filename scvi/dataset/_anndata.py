@@ -1,4 +1,3 @@
-import copy
 import warnings
 import numpy as np
 import logging
@@ -55,10 +54,8 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
     """
     data_loc = adata.uns["_scvi"]["data_registry"][key]
     attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
-    if attr_name == "raw._X":
-        data = adata.raw._X
-    else:
-        data = getattr(adata, attr_name)
+
+    data = getattr(adata, attr_name)
     if attr_key != "None":
         if isinstance(data, pd.DataFrame):
             data = data.loc[:, attr_key]
@@ -267,16 +264,15 @@ def setup_anndata(
     local_l_mean_key, local_l_var_key = _setup_library_size(
         adata, batch_key, X_layers_key, use_raw
     )
+    if use_raw is True:
+        adata.uns["_scvi"]["use_raw"] = True
 
     data_registry = {
         _CONSTANTS.X_KEY: {"attr_name": X_loc, "attr_key": X_key},
-        _CONSTANTS.BATCH_KEY: {"attr_name": "_obs", "attr_key": batch_key},
-        _CONSTANTS.LOCAL_L_MEAN_KEY: {
-            "attr_name": "_obs",
-            "attr_key": local_l_mean_key,
-        },
-        _CONSTANTS.LOCAL_L_VAR_KEY: {"attr_name": "_obs", "attr_key": local_l_var_key},
-        _CONSTANTS.LABELS_KEY: {"attr_name": "_obs", "attr_key": labels_key},
+        _CONSTANTS.BATCH_KEY: {"attr_name": "obs", "attr_key": batch_key},
+        _CONSTANTS.LOCAL_L_MEAN_KEY: {"attr_name": "obs", "attr_key": local_l_mean_key},
+        _CONSTANTS.LOCAL_L_VAR_KEY: {"attr_name": "obs", "attr_key": local_l_var_key},
+        _CONSTANTS.LABELS_KEY: {"attr_name": "obs", "attr_key": labels_key},
     }
 
     if protein_expression_obsm_key is not None:
@@ -284,7 +280,7 @@ def setup_anndata(
             adata, protein_expression_obsm_key, protein_names_uns_key, batch_key
         )
         data_registry[_CONSTANTS.PROTEIN_EXP_KEY] = {
-            "attr_name": "_obsm",
+            "attr_name": "obsm",
             "attr_key": protein_expression_obsm_key,
         }
 
@@ -351,7 +347,7 @@ def register_tensor_from_anndata(
 
 
 def transfer_anndata_setup(
-    adata_source: Union[anndata.AnnData, dict], adata_target: anndata.AnnData,
+    adata_source: Union[anndata.AnnData, dict], adata_target: anndata.AnnData
 ):
     """Transfer anndata setup from a source object to a target object.
 
@@ -383,12 +379,12 @@ def transfer_anndata_setup(
     assert target_n_vars == summary_stats["n_genes"]
 
     x_loc = data_registry[_CONSTANTS.X_KEY]["attr_name"]
-    if x_loc == "_layers":
+    if x_loc == "layers":
         X_layers_key = data_registry[_CONSTANTS.X_KEY]["attr_key"]
     else:
         X_layers_key = None
 
-    if x_loc == "raw._X":
+    if x_loc == "raw":
         use_raw = True
     else:
         use_raw = False
@@ -493,7 +489,7 @@ def _setup_labels(adata, labels_key):
     else:
         _assert_key_in_obs(adata, labels_key)
         logger.info('Using labels from adata.obs["{}"]'.format(labels_key))
-        alt_key = "_scvi_{}".format(labels_key)
+        alt_key = "_scvi_labels"
     # make categorical mapping even if no labels were inputted
     labels_key = _make_obs_column_categorical(
         adata, column_key=labels_key, alternate_column_key=alt_key
@@ -511,7 +507,7 @@ def _setup_batch(adata, batch_key):
     else:
         _assert_key_in_obs(adata, batch_key)
         logger.info('Using batches from adata.obs["{}"]'.format(batch_key))
-        alt_key = "_scvi_{}".format(batch_key)
+        alt_key = "_scvi_batch"
     # make categorical mapping even if no batch was inputted
     batch_key = _make_obs_column_categorical(
         adata, column_key=batch_key, alternate_column_key=alt_key
@@ -676,20 +672,20 @@ def _setup_X(adata, X_layers_key, use_raw):
     if use_raw:
         assert adata.raw is not None, "use_raw is True but adata.raw is None"
         logger.info("Using data from adata.raw.X")
-        X_loc = "raw._X"
-        X_key = "None"
-        X = adata.raw._X
+        X_loc = "raw"
+        X_key = "X"
+        X = adata.raw.X
     elif X_layers_key is not None:
         assert (
             X_layers_key in adata.layers.keys()
         ), "{} is not a valid key in adata.layers".format(X_layers_key)
         logger.info('Using data from adata.layers["{}"]'.format(X_layers_key))
-        X_loc = "_layers"
+        X_loc = "layers"
         X_key = X_layers_key
         X = adata.layers[X_key]
     else:
         logger.info("Using data from adata.X")
-        X_loc = "_X"
+        X_loc = "X"
         X_key = "None"
         X = adata._X
 
@@ -728,10 +724,11 @@ def _setup_library_size(adata, batch_key, X_layers_key, use_raw):
 
 def _setup_summary_stats(adata, batch_key, labels_key, protein_expression_obsm_key):
     categorical_mappings = adata.uns["_scvi"]["categorical_mappings"]
+    use_raw = adata.uns["_scvi"]["use_raw"]
 
     n_batch = len(np.unique(categorical_mappings[batch_key]["mapping"]))
     n_cells = adata.shape[0]
-    n_genes = adata.shape[1]
+    n_genes = adata.shape[1] if not use_raw else adata.raw.shape[1]
     n_labels = len(np.unique(categorical_mappings[labels_key]["mapping"]))
 
     if protein_expression_obsm_key is not None:
@@ -783,4 +780,4 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
     #         assert hasattr(adata, df) is True, "anndata has no attribute '{}'".format(
     #             df_key
     #         )
-    adata.uns["_scvi"]["data_registry"] = copy.copy(data_registry_dict)
+    adata.uns["_scvi"]["data_registry"] = data_registry_dict.copy()

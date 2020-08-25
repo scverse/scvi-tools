@@ -39,3 +39,13 @@ def scrna_raw_counts_properties(
     norm_mean2 = np.asarray(normalized_X[idx2, :].mean(axis=0)).ravel()
     return_vals = [mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2]
     return [np.squeeze(np.asarray(arr)) for arr in return_vals]
+
+
+def _get_var_names_from_setup_anndata(adata):
+    var_names = (
+        adata.var_names
+        if adata.uns["_scvi"]["use_raw"] is False
+        else adata.raw.var_names
+    )
+
+    return var_names

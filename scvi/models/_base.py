@@ -8,7 +8,10 @@ from anndata import AnnData
 from functools import partial
 from scvi.core._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.models._differential import DifferentialComputation
-from scvi.models._utils import scrna_raw_counts_properties
+from scvi.models._utils import (
+    scrna_raw_counts_properties,
+    _get_var_names_from_setup_anndata,
+)
 from scvi import _CONSTANTS
 from typing import Optional, Union, List, Dict
 from scvi._compat import Literal
@@ -179,7 +182,7 @@ class RNASeqMixin:
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = adata.var_names
+            all_genes = _get_var_names_from_setup_anndata(adata)
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
 
         if n_samples > 1 and return_mean is False:
@@ -254,7 +257,7 @@ class RNASeqMixin:
         dc = DifferentialComputation(model_fn, adata)
         all_info = dc.get_bayes_factors(cell_idx1, cell_idx2)
 
-        gene_names = adata.var_names
+        gene_names = _get_var_names_from_setup_anndata(adata)
         if all_stats is True:
             (
                 mean1,
@@ -311,7 +314,8 @@ class RNASeqMixin:
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = adata.var_names
+            all_genes = _get_var_names_from_setup_anndata(adata)
+
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
 
         x_new = []
@@ -489,9 +493,8 @@ class RNASeqMixin:
                 )
             corr_mats.append(corr_matrix)
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
-        return pd.DataFrame(
-            corr_matrix, index=self.adata.var_names, columns=self.adata.var_names
-        )
+        var_names = _get_var_names_from_setup_anndata(adata)
+        return pd.DataFrame(corr_matrix, index=var_names, columns=var_names)
 
     @torch.no_grad()
     def get_likelihood_parameters(
@@ -622,10 +625,12 @@ class BaseModelClass(ABC):
             transfer_anndata_setup(self._scvi_setup_dict, adata)
 
         stats = self.summary_stats
+        use_raw = self._scvi_setup_dict["use_raw"]
+        target_n_vars = adata.shape[1] if not use_raw else adata.raw.shape[1]
         error_msg = (
             "Number of {} in anndata different from initial anndata used for training."
         )
-        assert adata.shape[1] == stats["n_genes"], error_msg.format("genes")
+        assert target_n_vars.shape[1] == stats["n_genes"], error_msg.format("genes")
 
         is_nonneg_int = _check_nonnegative_integers(
             get_from_registry(adata, _CONSTANTS.X_KEY)
