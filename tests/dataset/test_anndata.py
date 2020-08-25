@@ -9,7 +9,7 @@ from scvi.dataset import setup_anndata, transfer_anndata_setup
 from scvi.dataset._anndata import get_from_registry
 
 
-class TestBioDataset(TestCase):
+class TestAnnData(TestCase):
     def test_transfer_anndata_setup(self):
         # test if raw was initially used, that it is again used in transfer
         adata1 = synthetic_iid(run_setup_anndata=False)
@@ -117,7 +117,7 @@ class TestBioDataset(TestCase):
             adata.obsm["protein_expression"],
         )
         np.testing.assert_array_equal(
-            adata.uns["scvi_protein_names"], adata.uns["protein_names"],
+            adata.uns["scvi_protein_names"], adata.uns["protein_names"]
         )
 
         # test that error is thrown if its a view:
