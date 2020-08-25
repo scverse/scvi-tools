@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import pandas as pd
+import scipy.sparse as sparse
 
 from unittest import TestCase
 from scvi.dataset._biodataset import BioDataset
@@ -185,3 +186,41 @@ class TestAnnData(TestCase):
         all_registered_tensors = list(adata.uns["_scvi"]["data_registry"].keys())
         np.testing.assert_array_equal(all_registered_tensors, list(bd[1].keys()))
         assert bd[1]["X"].shape[0] == bd.n_genes
+
+        # check that biodataset returns numpy array
+        adata1 = synthetic_iid()
+        bd = BioDataset(adata1)
+        for key, value in bd[1].items():
+            assert type(value) == np.ndarray
+
+        # check BioDataset returns numpy array counts were sparse
+        adata = synthetic_iid(run_setup_anndata=False)
+        adata.X = sparse.csr_matrix(adata.X)
+        setup_anndata(adata)
+        bd = BioDataset(adata)
+        for key, value in bd[1].items():
+            assert type(value) == np.ndarray
+
+        # check BioDataset returns numpy array if pro exp was sparse
+        adata = synthetic_iid(run_setup_anndata=False)
+        adata.obsm["protein_expression"] = sparse.csr_matrix(
+            adata.obsm["protein_expression"]
+        )
+        setup_anndata(
+            adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
+        )
+        bd = BioDataset(adata)
+        for key, value in bd[1].items():
+            assert type(value) == np.ndarray
+
+        # check pro exp is being returned as numpy array even if its DF
+        adata = synthetic_iid(run_setup_anndata=False)
+        adata.obsm["protein_expression"] = pd.DataFrame(
+            adata.obsm["protein_expression"], index=adata.obs_names
+        )
+        setup_anndata(
+            adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
+        )
+        bd = BioDataset(adata)
+        for key, value in bd[1].items():
+            assert type(value) == np.ndarray
