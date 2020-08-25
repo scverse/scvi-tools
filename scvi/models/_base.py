@@ -622,7 +622,6 @@ class BaseModelClass(ABC):
             transfer_anndata_setup(self._scvi_setup_dict, adata)
 
         stats = self.summary_stats
-
         error_msg = (
             "Number of {} in anndata different from initial anndata used for training."
         )
@@ -639,26 +638,26 @@ class BaseModelClass(ABC):
             "There are more {} categories in the data than were originally registered. "
             + "Please check your {} categories as well as adata.uns['_scvi']['categorical_mappings']."
         )
-
         self_categoricals = self._scvi_setup_dict["categorical_mappings"]
+        self_batch_mapping = self_categoricals["_scvi_batch"]["mapping"]
 
         adata_categoricals = adata.uns["_scvi"]["categorical_mappings"]
-        self_batch_mapping = self_categoricals["_scvi_batch"]["mapping"]
         adata_batch_mapping = adata_categoricals["_scvi_batch"]["mapping"]
         # check if the categories are the same
-
         error_msg = (
-            "Mapping between {} categories and integer encoding is not the same between "
-            + "the anndata used to train the model and the anndata just passed in. Please check your anndata."
+            "Categorial encoding for {} is not the same between "
+            + "the anndata used to train the model and the anndata just passed in. "
+            + "Categorical encoding needs to be same elements, same order, and same datatype."
+            + "Expected categories: {}. Received categories: {}."
         )
         assert np.sum(self_batch_mapping == adata_batch_mapping) == len(
             self_batch_mapping
-        ), error_msg.format("batch")
+        ), error_msg.format("batch", self_batch_mapping, adata_batch_mapping)
         self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
         adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
         assert np.sum(self_labels_mapping == adata_labels_mapping) == len(
             self_labels_mapping
-        ), error_msg.format("label")
+        ), error_msg.format("label", self_labels_mapping, adata_labels_mapping)
 
         return adata
 

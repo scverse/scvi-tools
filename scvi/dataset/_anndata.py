@@ -378,12 +378,12 @@ def transfer_anndata_setup(
     data_registry = _scvi_dict["data_registry"]
     summary_stats = _scvi_dict["summary_stats"]
 
-    target_n_vars = adata_source.n_vars
+    target_n_vars = _scvi_dict["summary_stats"]["n_genes"]
 
     assert target_n_vars == summary_stats["n_genes"]
 
     x_loc = data_registry[_CONSTANTS.X_KEY]["attr_name"]
-    if x_loc == "layer":
+    if x_loc == "_layers":
         X_layers_key = data_registry[_CONSTANTS.X_KEY]["attr_key"]
     else:
         X_layers_key = None
@@ -397,13 +397,13 @@ def transfer_anndata_setup(
     protein_expression_obsm_key = _transfer_protein_expression(_scvi_dict, adata_target)
 
     # transfer batch and labels
-    categorical_mappings = adata_source.uns["_scvi"]["categorical_mappings"]
+    categorical_mappings = _scvi_dict["categorical_mappings"]
     for key, val in categorical_mappings.items():
         original_key = val["original_key"]
-        # case where original key and key are equal
-        # caused when no batch or label key were given
-        # when anndata_source was setup
-        if original_key not in adata_target.obs.keys():
+        if (key == original_key) and (original_key not in adata_target.obs.keys()):
+            # case where original key and key are equal
+            # caused when no batch or label key were given
+            # when anndata_source was setup
             logger.info(
                 ".obs[{}] not found in target, assuming every cell is same category".format(
                     original_key
@@ -411,6 +411,12 @@ def transfer_anndata_setup(
             )
             adata_target.obs[original_key] = np.zeros(
                 adata_target.shape[0], dtype=np.int64
+            )
+        elif (key != original_key) and (original_key not in adata_target.obs.keys()):
+            raise ValueError(
+                '.obs["{}"] was used to setup source, but not found in target.'.format(
+                    original_key
+                )
             )
         mapping = val["mapping"]
         cat_dtype = CategoricalDtype(categories=mapping)
