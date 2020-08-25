@@ -12,13 +12,16 @@ from scvi.models._utils import (
     scrna_raw_counts_properties,
     _get_var_names_from_setup_anndata,
 )
+from scvi.dataset._utils import (
+    _check_anndata_setup_equivalence,
+    _check_nonnegative_integers,
+)
 from scvi import _CONSTANTS
 from typing import Optional, Union, List, Dict
 from scvi._compat import Literal
 from scvi.core.trainers import UnsupervisedTrainer
 from abc import ABC, abstractmethod
 from scvi.dataset import get_from_registry, transfer_anndata_setup
-from scvi.dataset._anndata_utils import _check_nonnegative_integers
 
 logger = logging.getLogger(__name__)
 
@@ -623,15 +626,6 @@ class BaseModelClass(ABC):
                 + "attempting to transfer anndata setup"
             )
             transfer_anndata_setup(self._scvi_setup_dict, adata)
-
-        stats = self.summary_stats
-        use_raw = self._scvi_setup_dict["use_raw"]
-        target_n_vars = adata.shape[1] if not use_raw else adata.raw.shape[1]
-        error_msg = (
-            "Number of {} in anndata different from initial anndata used for training."
-        )
-        assert target_n_vars.shape[1] == stats["n_genes"], error_msg.format("genes")
-
         is_nonneg_int = _check_nonnegative_integers(
             get_from_registry(adata, _CONSTANTS.X_KEY)
         )
@@ -639,46 +633,8 @@ class BaseModelClass(ABC):
             logger.warning(
                 "Make sure the registered X field in anndata contains unnormalized count data."
             )
-        error_msg = (
-            "There are more {} categories in the data than were originally registered. "
-            + "Please check your {} categories as well as adata.uns['_scvi']['categorical_mappings']."
-        )
-        self_categoricals = self._scvi_setup_dict["categorical_mappings"]
-        self_batch_mapping = self_categoricals["_scvi_batch"]["mapping"]
 
-        adata_categoricals = adata.uns["_scvi"]["categorical_mappings"]
-        adata_batch_mapping = adata_categoricals["_scvi_batch"]["mapping"]
-        # check if the categories are the same
-        error_msg = (
-            "Categorial encoding for {} is not the same between "
-            + "the anndata used to train the model and the anndata just passed in. "
-            + "Categorical encoding needs to be same elements, same order, and same datatype."
-            + "Expected categories: {}. Received categories: {}."
-        )
-        assert np.sum(self_batch_mapping == adata_batch_mapping) == len(
-            self_batch_mapping
-        ), error_msg.format("batch", self_batch_mapping, adata_batch_mapping)
-        self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
-        adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
-        assert np.sum(self_labels_mapping == adata_labels_mapping) == len(
-            self_labels_mapping
-        ), error_msg.format("label", self_labels_mapping, adata_labels_mapping)
-
-        # validate any extra categoricals
-        if "extra_categorical_mappings" in self._scvi_setup_dict.keys():
-            target_extra_cat_maps = adata.uns["_scvi"]["extra_categorical_mappings"]
-            for key, val in self._scvi_setup_dict["extra_categorical_mappings"]:
-                target_map = target_extra_cat_maps[key]
-                assert np.sum(val == target_map) == len(val), error_msg.format(
-                    key, val, target_map
-                )
-        # validate any extra continuous covs
-        if "extra_continuous_keys" in self._scvi_setup_dict.keys():
-            assert "extra_continuous_keys" in adata.uns["_scvi"].keys()
-            target_cont_keys = adata.uns["_scvi"]["extra_continuous_keys"]
-            assert self._scvi_setup_dict["extra_continuous_keys"].equals(
-                target_cont_keys
-            )
+        _check_anndata_setup_equivalence(self._scvi_setup_dict, adata)
 
         return adata
 

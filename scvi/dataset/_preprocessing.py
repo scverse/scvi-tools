@@ -7,7 +7,7 @@ import torch
 
 from typing import Optional
 
-from ._anndata_utils import _check_nonnegative_integers
+from ._utils import _check_nonnegative_integers
 
 logger = logging.getLogger(__name__)
 

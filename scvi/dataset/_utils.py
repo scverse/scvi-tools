@@ -142,3 +142,61 @@ def _get_batch_mask_protein_data(
         batch_mask.append(~all_zero)
 
     return batch_mask
+
+
+def _check_anndata_setup_equivalence(adata_source, adata_target):
+    """Checks if target setup is equivalent to source
+    """
+    if isinstance(adata_source, anndata.AnnData):
+        _scvi_dict = adata_source.uns["_scvi"]
+    else:
+        _scvi_dict = adata_source
+    adata = adata_target
+
+    stats = _scvi_dict["summary_stats"]
+    use_raw = _scvi_dict["use_raw"]
+
+    target_n_vars = adata.shape[1] if not use_raw else adata.raw.shape[1]
+    error_msg = (
+        "Number of {} in anndata different from initial anndata used for training."
+    )
+    assert target_n_vars.shape[1] == stats["n_genes"], error_msg.format("genes")
+
+    error_msg = (
+        "There are more {} categories in the data than were originally registered. "
+        + "Please check your {} categories as well as adata.uns['_scvi']['categorical_mappings']."
+    )
+    self_categoricals = _scvi_dict["categorical_mappings"]
+    self_batch_mapping = self_categoricals["_scvi_batch"]["mapping"]
+
+    adata_categoricals = adata.uns["_scvi"]["categorical_mappings"]
+    adata_batch_mapping = adata_categoricals["_scvi_batch"]["mapping"]
+    # check if the categories are the same
+    error_msg = (
+        "Categorial encoding for {} is not the same between "
+        + "the anndata used to train the model and the anndata just passed in. "
+        + "Categorical encoding needs to be same elements, same order, and same datatype."
+        + "Expected categories: {}. Received categories: {}."
+    )
+    assert np.sum(self_batch_mapping == adata_batch_mapping) == len(
+        self_batch_mapping
+    ), error_msg.format("batch", self_batch_mapping, adata_batch_mapping)
+    self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
+    adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
+    assert np.sum(self_labels_mapping == adata_labels_mapping) == len(
+        self_labels_mapping
+    ), error_msg.format("label", self_labels_mapping, adata_labels_mapping)
+
+    # validate any extra categoricals
+    if "extra_categorical_mappings" in _scvi_dict.keys():
+        target_extra_cat_maps = adata.uns["_scvi"]["extra_categorical_mappings"]
+        for key, val in _scvi_dict["extra_categorical_mappings"]:
+            target_map = target_extra_cat_maps[key]
+            assert np.sum(val == target_map) == len(val), error_msg.format(
+                key, val, target_map
+            )
+    # validate any extra continuous covs
+    if "extra_continuous_keys" in _scvi_dict.keys():
+        assert "extra_continuous_keys" in adata.uns["_scvi"].keys()
+        target_cont_keys = adata.uns["_scvi"]["extra_continuous_keys"]
+        assert _scvi_dict["extra_continuous_keys"].equals(target_cont_keys)

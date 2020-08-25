@@ -6,7 +6,7 @@ import anndata
 
 from typing import Dict, Tuple, Optional, Union, List
 from scvi._compat import Literal
-from scvi.dataset._anndata_utils import (
+from scvi.dataset._utils import (
     _compute_library_size_batch,
     _check_nonnegative_integers,
     _get_batch_mask_protein_data,
