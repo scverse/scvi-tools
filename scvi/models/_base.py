@@ -203,9 +203,6 @@ class RNASeqMixin:
             scaling = library_size
 
         exprs = []
-        import pdb
-
-        pdb.set_trace()
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
             batch_idx = tensors[_CONSTANTS.BATCH_KEY]
