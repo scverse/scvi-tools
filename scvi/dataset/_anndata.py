@@ -74,7 +74,8 @@ def setup_anndata(
     X_layers_key: str = None,
     protein_expression_obsm_key: str = None,
     protein_names_uns_key: str = None,
-    categorical_covariate_key_list: List[str] = None,
+    categorical_covariate_keys: List[str] = None,
+    continuous_covariate_keys: List[str] = None,
     copy: bool = False,
 ) -> Optional[anndata.AnnData]:
     """Sets up AnnData object for scVI models.
@@ -264,8 +265,8 @@ def setup_anndata(
     local_l_mean_key, local_l_var_key = _setup_library_size(
         adata, batch_key, X_layers_key, use_raw
     )
-    if use_raw is True:
-        adata.uns["_scvi"]["use_raw"] = True
+
+    adata.uns["_scvi"]["use_raw"] = True if use_raw is True else False
 
     data_registry = {
         _CONSTANTS.X_KEY: {"attr_name": X_loc, "attr_key": X_key},
@@ -284,13 +285,22 @@ def setup_anndata(
             "attr_key": protein_expression_obsm_key,
         }
 
-    if categorical_covariate_key_list is not None:
+    if categorical_covariate_keys is not None:
         cat_loc, cat_key = _setup_extra_categorical_covs(
-            adata, categorical_covariate_key_list
+            adata, categorical_covariate_keys
         )
         data_registry[_CONSTANTS.CAT_COVS_KEY] = {
             "attr_name": cat_loc,
             "attr_key": cat_key,
+        }
+
+    if continuous_covariate_keys is not None:
+        cont_loc, cont_key = _setup_extra_continuous_covs(
+            adata, continuous_covariate_keys
+        )
+        data_registry[_CONSTANTS.CONT_COVS_KEY] = {
+            "attr_name": cont_loc,
+            "attr_key": cont_key,
         }
 
     # add the data_registry to anndata
@@ -442,6 +452,18 @@ def transfer_anndata_setup(
         target_data_registry.update(
             {_CONSTANTS.CAT_COVS_KEY: {"attr_name": cat_loc, "attr_key": cat_key}}
         )
+
+    # transfer extra continuous covs
+    has_cont_cov = True if _CONSTANTS.CONT_COVS_KEY in data_registry.keys() else False
+    if has_cont_cov:
+        obs_keys_names = _scvi_dict["extra_continuous_keys"]
+        cont_loc, cont_key = _setup_extra_continuous_covs(
+            adata_target, list(obs_keys_names)
+        )
+        target_data_registry.update(
+            {_CONSTANTS.CONT_COVS_KEY: {"attr_name": cont_loc, "attr_key": cont_key}}
+        )
+
     # add the data_registry to anndata
     _register_anndata(adata_target, data_registry_dict=target_data_registry)
     logger.info("Registered keys:{}".format(list(target_data_registry.keys())))
@@ -517,7 +539,7 @@ def _setup_batch(adata, batch_key):
 
 def _setup_extra_categorical_covs(
     adata: anndata.AnnData,
-    categorical_covariate_key_list: List[str],
+    categorical_covariate_keys: List[str],
     category_dict: Dict[str, List[str]] = None,
 ):
     """Setup obsm df for extra categorical covariates
@@ -526,14 +548,14 @@ def _setup_extra_categorical_covs(
     ----------
     adata
         AnnData to setup
-    categorical_covariate_key_list
+    categorical_covariate_keys
         List of keys in adata.obs with categorical data
     category_dict
         Optional dictionary with keys being keys of categorical data in obs
         and values being precomputed categories for each obs vector
     """
 
-    for key in categorical_covariate_key_list:
+    for key in categorical_covariate_keys:
         _assert_key_in_obs(adata, key)
 
     cat_loc = "obsm"
@@ -542,7 +564,7 @@ def _setup_extra_categorical_covs(
     one_hots = []
 
     categories = {}
-    for key in categorical_covariate_key_list:
+    for key in categorical_covariate_keys:
         cat = adata.obs[key]
         if category_dict is not None:
             possible_cats = category_dict[key]
@@ -559,6 +581,36 @@ def _setup_extra_categorical_covs(
     store_cats = categories if category_dict is None else category_dict
     adata.uns["_scvi"]["extra_categorical_mappings"] = store_cats
     return cat_loc, cat_key
+
+
+def _setup_extra_continuous_covs(
+    adata: anndata.AnnData, continuous_covariate_keys: List[str]
+):
+    """Setup obsm df for extra continuous covariates
+
+    Parameters
+    ----------
+    adata
+        AnnData to setup
+    continuous_covariate_keys
+        List of keys in adata.obs with continuous data
+    """
+
+    for key in continuous_covariate_keys:
+        _assert_key_in_obs(adata, key)
+
+    cont_loc = "obsm"
+    cont_key = "_scvi_extra_continuous"
+
+    series = []
+    for key in continuous_covariate_keys:
+        s = adata.obs[key]
+        series.append(s)
+
+    adata.obsm[cont_key] = pd.concat(series, axis=1)
+    adata.uns["_scvi"]["extra_continuous_keys"] = adata.obsm[cont_key].columns
+
+    return cont_loc, cont_key
 
 
 def _make_obs_column_categorical(

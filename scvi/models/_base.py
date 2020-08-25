@@ -672,6 +672,13 @@ class BaseModelClass(ABC):
                 assert np.sum(val == target_map) == len(val), error_msg.format(
                     key, val, target_map
                 )
+        # validate any extra continuous covs
+        if "extra_continuous_keys" in self._scvi_setup_dict.keys():
+            assert "extra_continuous_keys" in adata.uns["_scvi"].keys()
+            target_cont_keys = adata.uns["_scvi"]["extra_continuous_keys"]
+            assert self._scvi_setup_dict["extra_continuous_keys"].equals(
+                target_cont_keys
+            )
 
         return adata
 

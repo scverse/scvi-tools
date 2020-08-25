@@ -920,5 +920,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
                 self.summary_stats["n_proteins"]
                 == get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY).shape[1]
             ), error_msg.format("proteins")
+        else:
+            raise ValueError("No protein data found, please setup or transfer anndata")
 
         return adata
