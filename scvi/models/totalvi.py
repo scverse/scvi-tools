@@ -90,6 +90,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             n_input_genes=self.summary_stats["n_genes"],
             n_input_proteins=self.summary_stats["n_proteins"],
             n_batch=self.summary_stats["n_batch"],
+            n_latent=n_latent,
             gene_dispersion=gene_dispersion,
             protein_dispersion=protein_dispersion,
             reconstruction_loss_gene=gene_likelihood,
@@ -392,12 +393,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             gene_df = pd.DataFrame(
                 scale_list_gene,
                 columns=adata.var_names[gene_mask],
-                index=adata.obs_names,
+                index=adata.obs_names[indices],
             )
             pro_df = pd.DataFrame(
                 scale_list_pro,
                 columns=adata.uns["scvi_protein_names"][protein_mask],
-                index=adata.obs_names,
+                index=adata.obs_names[indices],
             )
 
             return gene_df, pro_df
@@ -474,7 +475,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
             batch_index = tensors[_CONSTANTS.BATCH_KEY]
             label = tensors[_CONSTANTS.LABELS_KEY]
-            py_mixing = torch.zeros_like(y)
+            py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
             for b in transform_batch:
@@ -507,7 +508,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         else:
             pro_names = self.adata.uns["scvi_protein_names"]
             foreground_prob = pd.DataFrame(
-                1 - py_mixings, columns=pro_names, index=adata.obs_names
+                1 - py_mixings,
+                columns=pro_names[protein_mask],
+                index=adata.obs_names[indices],
             )
             return foreground_prob
 
@@ -822,7 +825,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             transform_batch = [transform_batch]
         corr_mats = []
         for b in transform_batch:
-            denoised_data = self.generate_denoised_samples(
+            denoised_data = self._get_denoised_samples(
                 n_samples=n_samples,
                 batch_size=batch_size,
                 rna_size_factor=rna_size_factor,
