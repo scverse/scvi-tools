@@ -664,6 +664,15 @@ class BaseModelClass(ABC):
             self_labels_mapping
         ), error_msg.format("label", self_labels_mapping, adata_labels_mapping)
 
+        # validate any extra categoricals
+        if "extra_categorical_mappings" in self._scvi_setup_dict.keys():
+            target_extra_cat_maps = adata.uns["_scvi"]["extra_categorical_mappings"]
+            for key, val in self._scvi_setup_dict["extra_categorical_mappings"]:
+                target_map = target_extra_cat_maps[key]
+                assert np.sum(val == target_map) == len(val), error_msg.format(
+                    key, val, target_map
+                )
+
         return adata
 
     @abstractmethod
