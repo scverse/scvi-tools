@@ -395,8 +395,10 @@ def transfer_anndata_setup(
         X_layers_key = None
 
     if x_loc == "raw":
+        adata_target.uns["_scvi"]["use_raw"] = True
         use_raw = True
     else:
+        adata_target.uns["_scvi"]["use_raw"] = False
         use_raw = False
 
     # transfer protein_expression
