@@ -1,5 +1,5 @@
 ========================================
-scVI - Single cell Variational Inference
+scvi - single cell variational inference
 ========================================
 
 |Stars| |PyPI| |BioConda| |Docs| |Build Status| |Coverage| |Code Style| |Downloads|
@@ -22,7 +22,7 @@ scVI - Single cell Variational Inference
 .. |Downloads| image:: https://pepy.tech/badge/scvi
    :target: https://pepy.tech/project/scvi
 
-scVI is a package for end-to-end analysis of single-cell omics data. The package is composed of several deep generative models for omics data analysis, namely:
+scvi is a package for end-to-end analysis of single-cell omics data. The package is composed of several deep generative models for omics data analysis, namely:
 
 * scVI_ for analysis of single-cell RNA-seq data, as well as its improved differential expression framework_
 * scANVI_ for cell annotation of scRNA-seq data using semi-labeled examples
