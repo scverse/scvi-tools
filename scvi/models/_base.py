@@ -646,14 +646,19 @@ class BaseModelClass(ABC):
         self_batch_mapping = self_categoricals["_scvi_batch"]["mapping"]
         adata_batch_mapping = adata_categoricals["_scvi_batch"]["mapping"]
         # check if the categories are the same
+
+        error_msg = (
+            "Mapping between {} categories and integer encoding is not the same between "
+            + "the anndata used to train the model and the anndata just passed in. Please check your anndata."
+        )
         assert np.sum(self_batch_mapping == adata_batch_mapping) == len(
             self_batch_mapping
-        )
+        ), error_msg.format("batch")
         self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
         adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
         assert np.sum(self_labels_mapping == adata_labels_mapping) == len(
             self_labels_mapping
-        )
+        ), error_msg.format("label")
 
         return adata
 

@@ -351,10 +351,7 @@ def register_tensor_from_anndata(
 
 
 def transfer_anndata_setup(
-    adata_source: Union[anndata.AnnData, dict],
-    adata_target: anndata.AnnData,
-    use_raw: Optional[bool] = False,
-    X_layers_key: Optional[str] = None,
+    adata_source: Union[anndata.AnnData, dict], adata_target: anndata.AnnData,
 ):
     """Transfer anndata setup from a source object to a target object.
 
@@ -381,14 +378,20 @@ def transfer_anndata_setup(
     data_registry = _scvi_dict["data_registry"]
     summary_stats = _scvi_dict["summary_stats"]
 
-    target_n_vars = (
-        adata_target.raw.shape[1] if use_raw is True else adata_source.shape[1]
-    )
+    target_n_vars = adata_source.n_vars
+
     assert target_n_vars == summary_stats["n_genes"]
-    if use_raw and X_layers_key:
-        logging.warning(
-            "use_raw and X_layers_key were both passed in. Defaulting to use_raw."
-        )
+
+    x_loc = data_registry[_CONSTANTS.X_KEY]["attr_name"]
+    if x_loc == "layer":
+        X_layers_key = data_registry[_CONSTANTS.X_KEY]["attr_key"]
+    else:
+        X_layers_key = None
+
+    if x_loc == "raw._X":
+        use_raw = True
+    else:
+        use_raw = False
 
     # transfer protein_expression
     protein_expression_obsm_key = _transfer_protein_expression(_scvi_dict, adata_target)
@@ -570,12 +573,16 @@ def _make_obs_column_categorical(
 
     # put codes in .obs[alternate_column_key]
     codes = categorical_obs.cat.codes
+    mapping = categorical_obs.cat.categories
     if -1 in np.unique(codes):
-        raise ValueError("Making .obs[{}] categorical failed".format(column_key))
+        received_categories = adata.obs[column_key].astype("category").cat.categories
+        raise ValueError(
+            'Making .obs["{}"] categorical failed. Expected categories: {}. '
+            "Received categories: {}. ".format(column_key, mapping, received_categories)
+        )
     adata.obs[alternate_column_key] = codes
 
     # store categorical mappings
-    mapping = categorical_obs.cat.categories
     store_dict = {
         alternate_column_key: {"original_key": column_key, "mapping": mapping}
     }
