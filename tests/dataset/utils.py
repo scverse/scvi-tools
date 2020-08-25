@@ -1,8 +1,7 @@
 import torch
 
-from scvi.inference import UnsupervisedTrainer
-from scvi.models import VAE
-
+from scvi.core.trainers.inference import UnsupervisedTrainer
+from scvi.core.models.vae import VAE
 from anndata import AnnData
 
 use_cuda = torch.cuda.is_available()

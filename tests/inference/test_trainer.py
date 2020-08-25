@@ -2,9 +2,11 @@ from unittest import TestCase
 import numpy as np
 from scvi.dataset import setup_anndata
 from scvi.dataset._datasets import synthetic_iid
-from scvi.inference import UnsupervisedTrainer
-from scvi.inference import TotalTrainer, TotalPosterior
-from scvi.models import VAE, TOTALVI
+from scvi.core.trainers.inference import UnsupervisedTrainer
+from scvi.core.trainers.total_inference import TotalTrainer
+from scvi.core.posteriors.total_posterior import TotalPosterior
+from scvi.core.models.vae import VAE
+from scvi.core.models.totalvae import TOTALVAE
 
 
 class TestVAE(TestCase):
@@ -50,7 +52,7 @@ class TestVAE(TestCase):
             protein_names_uns_key="protein_names",
         )
         stats = adata.uns["scvi_summary_stats"]
-        totalvae = TOTALVI(
+        totalvae = TOTALVAE(
             stats["n_genes"], stats["n_proteins"], n_batch=stats["n_batch"]
         )
         use_cuda = False

@@ -1,28 +1,15 @@
 import numpy as np
-import pandas as pd
-import tempfile
-import os
 import pytest
 import torch
 
-from scvi.inference import (
-    JointSemiSupervisedTrainer,
-    AlternateSemiSupervisedTrainer,
-    ClassifierTrainer,
-    UnsupervisedTrainer,
-    AdapterTrainer,
-    TotalTrainer,
-    TotalPosterior,
-)
 import scvi
-from scvi.dataset import setup_anndata
-from scvi.inference.posterior import unsupervised_clustering_accuracy
-from scvi.inference.posterior_utils import load_posterior
-from scvi.inference.annotation import compute_accuracy_rf, compute_accuracy_svc
-from scvi.models import VAE, SCANVI, VAEC, LDVAE, TOTALVI, AutoZIVAE
-from scvi.models.distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
-from scvi.models.classifier import Classifier
-from scvi.models.log_likelihood import log_zinb_positive, log_nb_positive
+from scvi.core.models.vae import VAE
+from scvi.core.trainers.inference import UnsupervisedTrainer
+from scvi.core.trainers.annotation import ClassifierTrainer
+from scvi.core.models.classifier import Classifier
+from scvi.metrics._core import unsupervised_clustering_accuracy
+from scvi.models._distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
+from scvi.models._log_likelihood import log_zinb_positive, log_nb_positive
 
 scvi.set_seed(0)
 use_cuda = True
@@ -257,61 +244,61 @@ use_cuda = True
 #     adapter_trainer.train(n_path=1, n_epochs=1)
 
 
-def test_nb_not_zinb():
-    synthetic_dataset = scvi.dataset.synthetic_iid()
-    scvi.dataset.setup_anndata(
-        synthetic_dataset, batch_key="batch", labels_key="labels"
-    )
-    svaec = SCANVI(
-        synthetic_dataset.uns["scvi_summary_stats"]["n_genes"],
-        synthetic_dataset.uns["scvi_summary_stats"]["n_batch"],
-        synthetic_dataset.uns["scvi_summary_stats"]["n_labels"],
-        labels_groups=[0, 0, 1],
-        reconstruction_loss="nb",
-    )
-    trainer_synthetic_svaec = JointSemiSupervisedTrainer(
-        svaec, synthetic_dataset, use_cuda=use_cuda
-    )
-    trainer_synthetic_svaec.train(n_epochs=1)
+# def test_nb_not_zinb():
+#     synthetic_dataset = scvi.dataset.synthetic_iid()
+#     scvi.dataset.setup_anndata(
+#         synthetic_dataset, batch_key="batch", labels_key="labels"
+#     )
+#     svaec = SCANVI(
+#         synthetic_dataset.uns["scvi_summary_stats"]["n_genes"],
+#         synthetic_dataset.uns["scvi_summary_stats"]["n_batch"],
+#         synthetic_dataset.uns["scvi_summary_stats"]["n_labels"],
+#         labels_groups=[0, 0, 1],
+#         reconstruction_loss="nb",
+#     )
+#     trainer_synthetic_svaec = JointSemiSupervisedTrainer(
+#         svaec, synthetic_dataset, use_cuda=use_cuda
+#     )
+#     trainer_synthetic_svaec.train(n_epochs=1)
 
 
-def test_poisson_not_zinb():
-    synthetic_dataset = scvi.dataset.synthetic_iid()
-    scvi.dataset.setup_anndata(
-        synthetic_dataset, batch_key="batch", labels_key="labels"
-    )
-    svaec = SCANVI(
-        synthetic_dataset.uns["scvi_summary_stats"]["n_genes"],
-        synthetic_dataset.uns["scvi_summary_stats"]["n_batch"],
-        synthetic_dataset.uns["scvi_summary_stats"]["n_labels"],
-        labels_groups=[0, 0, 1],
-        reconstruction_loss="poisson",
-    )
-    trainer_synthetic_svaec = JointSemiSupervisedTrainer(
-        svaec, synthetic_dataset, use_cuda=use_cuda
-    )
-    trainer_synthetic_svaec.train(n_epochs=1)
+# def test_poisson_not_zinb():
+#     synthetic_dataset = scvi.dataset.synthetic_iid()
+#     scvi.dataset.setup_anndata(
+#         synthetic_dataset, batch_key="batch", labels_key="labels"
+#     )
+#     svaec = SCANVI(
+#         synthetic_dataset.uns["scvi_summary_stats"]["n_genes"],
+#         synthetic_dataset.uns["scvi_summary_stats"]["n_batch"],
+#         synthetic_dataset.uns["scvi_summary_stats"]["n_labels"],
+#         labels_groups=[0, 0, 1],
+#         reconstruction_loss="poisson",
+#     )
+#     trainer_synthetic_svaec = JointSemiSupervisedTrainer(
+#         svaec, synthetic_dataset, use_cuda=use_cuda
+#     )
+#     trainer_synthetic_svaec.train(n_epochs=1)
 
 
-def test_classifier_accuracy(save_path):
-    cortex_dataset = scvi.dataset.cortex(save_path=save_path)
-    scvi.dataset.setup_anndata(cortex_dataset, labels_key="labels")
-    cls = Classifier(
-        cortex_dataset.uns["scvi_summary_stats"]["n_genes"],
-        n_labels=cortex_dataset.uns["scvi_summary_stats"]["n_labels"],
-    )
-    cls_trainer = ClassifierTrainer(
-        cls,
-        cortex_dataset,
-        metrics_to_monitor=["accuracy"],
-        frequency=1,
-        early_stopping_kwargs={
-            "early_stopping_metric": "accuracy",
-            "save_best_state_metric": "accuracy",
-        },
-    )
-    cls_trainer.train(n_epochs=2)
-    cls_trainer.train_set.accuracy()
+# def test_classifier_accuracy(save_path):
+#     cortex_dataset = scvi.dataset.cortex(save_path=save_path)
+#     scvi.dataset.setup_anndata(cortex_dataset, labels_key="labels")
+#     cls = Classifier(
+#         cortex_dataset.uns["scvi_summary_stats"]["n_genes"],
+#         n_labels=cortex_dataset.uns["scvi_summary_stats"]["n_labels"],
+#     )
+#     cls_trainer = ClassifierTrainer(
+#         cls,
+#         cortex_dataset,
+#         metrics_to_monitor=["accuracy"],
+#         frequency=1,
+#         early_stopping_kwargs={
+#             "early_stopping_metric": "accuracy",
+#             "save_best_state_metric": "accuracy",
+#         },
+#     )
+#     cls_trainer.train(n_epochs=2)
+#     cls_trainer.train_set.accuracy()
 
 
 # def test_LDVAE(save_path):
@@ -346,46 +333,46 @@ def test_sampling_zl(save_path):
     trainer_cortex_cls.test_set.accuracy()
 
 
-def test_annealing_procedures(save_path):
-    cortex_dataset = scvi.dataset.cortex(save_path=save_path)
-    scvi.dataset.setup_anndata(cortex_dataset, labels_key="cell_type")
+# def test_annealing_procedures(save_path):
+#     cortex_dataset = scvi.dataset.cortex(save_path=save_path)
+#     scvi.dataset.setup_anndata(cortex_dataset, labels_key="cell_type")
 
-    cortex_vae = VAE(
-        cortex_dataset.uns["scvi_summary_stats"]["n_genes"],
-        cortex_dataset.uns["scvi_summary_stats"]["n_batch"],
-    )
+#     cortex_vae = VAE(
+#         cortex_dataset.uns["scvi_summary_stats"]["n_genes"],
+#         cortex_dataset.uns["scvi_summary_stats"]["n_batch"],
+#     )
 
-    trainer_cortex_vae = UnsupervisedTrainer(
-        cortex_vae,
-        cortex_dataset,
-        train_size=0.5,
-        use_cuda=use_cuda,
-        n_epochs_kl_warmup=1,
-    )
-    trainer_cortex_vae.train(n_epochs=2)
-    assert trainer_cortex_vae.kl_weight >= 0.99, "Annealing should be over"
+#     trainer_cortex_vae = UnsupervisedTrainer(
+#         cortex_vae,
+#         cortex_dataset,
+#         train_size=0.5,
+#         use_cuda=use_cuda,
+#         n_epochs_kl_warmup=1,
+#     )
+#     trainer_cortex_vae.train(n_epochs=2)
+#     assert trainer_cortex_vae.kl_weight >= 0.99, "Annealing should be over"
 
-    trainer_cortex_vae = UnsupervisedTrainer(
-        cortex_vae,
-        cortex_dataset,
-        train_size=0.5,
-        use_cuda=use_cuda,
-        n_epochs_kl_warmup=5,
-    )
-    trainer_cortex_vae.train(n_epochs=2)
-    assert trainer_cortex_vae.kl_weight <= 0.99, "Annealing should be proceeding"
+#     trainer_cortex_vae = UnsupervisedTrainer(
+#         cortex_vae,
+#         cortex_dataset,
+#         train_size=0.5,
+#         use_cuda=use_cuda,
+#         n_epochs_kl_warmup=5,
+#     )
+#     trainer_cortex_vae.train(n_epochs=2)
+#     assert trainer_cortex_vae.kl_weight <= 0.99, "Annealing should be proceeding"
 
-    # iter
-    trainer_cortex_vae = UnsupervisedTrainer(
-        cortex_vae,
-        cortex_dataset,
-        train_size=0.5,
-        use_cuda=use_cuda,
-        n_iter_kl_warmup=1,
-        n_epochs_kl_warmup=None,
-    )
-    trainer_cortex_vae.train(n_epochs=2)
-    assert trainer_cortex_vae.kl_weight >= 0.99, "Annealing should be over"
+#     # iter
+#     trainer_cortex_vae = UnsupervisedTrainer(
+#         cortex_vae,
+#         cortex_dataset,
+#         train_size=0.5,
+#         use_cuda=use_cuda,
+#         n_iter_kl_warmup=1,
+#         n_epochs_kl_warmup=None,
+#     )
+#     trainer_cortex_vae.train(n_epochs=2)
+#     assert trainer_cortex_vae.kl_weight >= 0.99, "Annealing should be over"
 
 
 # def test_differential_expression(save_path):
@@ -582,18 +569,18 @@ def test_annealing_procedures(save_path):
 #         trainer_autozivae.test_set.marginal_ll()
 
 
-def test_multibatches_features():
-    dataset = scvi.dataset.synthetic_iid(n_batches=3)
-    scvi.dataset.setup_anndata(dataset, batch_key="batch", labels_key="labels")
+# def test_multibatches_features():
+#     dataset = scvi.dataset.synthetic_iid(n_batches=3)
+#     scvi.dataset.setup_anndata(dataset, batch_key="batch", labels_key="labels")
 
-    vae = VAE(
-        dataset.uns["scvi_summary_stats"]["n_genes"],
-        dataset.uns["scvi_summary_stats"]["n_batch"],
-    )
-    trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
-    trainer.train(n_epochs=2)
-    trainer.test_set.imputation(n_samples=2, transform_batch=0)
-    trainer.train_set.imputation(n_samples=2, transform_batch=[0, 1, 2])
+#     vae = VAE(
+#         dataset.uns["scvi_summary_stats"]["n_genes"],
+#         dataset.uns["scvi_summary_stats"]["n_batch"],
+#     )
+#     trainer = UnsupervisedTrainer(vae, dataset, train_size=0.5, use_cuda=use_cuda)
+#     trainer.train(n_epochs=2)
+#     trainer.test_set.imputation(n_samples=2, transform_batch=0)
+#     trainer.train_set.imputation(n_samples=2, transform_batch=[0, 1, 2])
 
 
 def test_deprecated_munkres():
