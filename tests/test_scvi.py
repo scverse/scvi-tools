@@ -8,8 +8,11 @@ from scvi.core.trainers.inference import UnsupervisedTrainer
 from scvi.core.trainers.annotation import ClassifierTrainer
 from scvi.core.models.classifier import Classifier
 from scvi.metrics._core import unsupervised_clustering_accuracy
-from scvi.models._distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
-from scvi.models._log_likelihood import log_zinb_positive, log_nb_positive
+from scvi.core._distributions import (
+    ZeroInflatedNegativeBinomial,
+    NegativeBinomial,
+)
+from scvi.core._log_likelihood import log_zinb_positive, log_nb_positive
 
 scvi.set_seed(0)
 use_cuda = True
