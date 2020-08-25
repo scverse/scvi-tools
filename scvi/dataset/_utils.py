@@ -160,7 +160,7 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
     error_msg = (
         "Number of {} in anndata different from initial anndata used for training."
     )
-    assert target_n_vars.shape[1] == stats["n_genes"], error_msg.format("genes")
+    assert target_n_vars == stats["n_genes"], error_msg.format("genes")
 
     error_msg = (
         "There are more {} categories in the data than were originally registered. "
