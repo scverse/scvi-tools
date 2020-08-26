@@ -4,11 +4,15 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.core.models import LDVAE
+from scvi.models._utils import _get_var_names_from_setup_anndata
 from scvi.models._base import (
     BaseModelClass,
     RNASeqMixin,
     VAEMixin,
 )
+
+from scvi.core.posteriors import Posterior
+from scvi.core.trainers import UnsupervisedTrainer
 
 
 logger = logging.getLogger(__name__)
@@ -96,6 +100,8 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
             gene_likelihood,
             latent_distribution,
         )
+        self._posterior_class = Posterior
+        self._trainer_class = UnsupervisedTrainer
 
     def get_loadings(self) -> pd.DataFrame:
         """Extract per-gene weights in the linear decoder
@@ -104,8 +110,9 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
         """
 
         cols = ["Z_{}".format(i) for i in self.n_latent]
+        var_names = _get_var_names_from_setup_anndata(self.adata)
         loadings = pd.DataFrame(
-            self.model.get_loadings(), index=self.adata.var_names, columns=cols
+            self.model.get_loadings(), index=var_names, columns=cols
         )
 
         return loadings

@@ -1,7 +1,7 @@
 import pandas as pd
 
 import pytest
-from scvi.dataset import synthetic_iid, transfer_anndata_setup
+from scvi.dataset import synthetic_iid, transfer_anndata_setup, setup_anndata
 from scvi.models import SCVI, SCANVI, GIMVI, TOTALVI, LinearSCVI, AUTOZI
 
 
@@ -52,18 +52,25 @@ def test_SCANVI():
 
 
 def test_LinearSCVI():
+    # test using raw
     adata = synthetic_iid()
+    adata.raw = adata
+    adata = adata[:, :10].copy()
+    setup_anndata(adata, use_raw=True)
     model = LinearSCVI(adata, n_latent=10)
     model.train(1)
+    loadings = model.get_loadings()
+    pd.testing.assert_index_equal(loadings.index, adata.raw.var_names)
 
 
 def test_GIMVI():
     adata = synthetic_iid()
-    model = GIMVI(adata, n_latent=10)
+    adata2 = synthetic_iid()
+    model = GIMVI(adata, adata2, n_latent=10)
     model.train(1)
 
 
-def test_AUTOZI(save_path):
+def test_AUTOZI():
     data = synthetic_iid(n_batches=1)
 
     for disp_zi in ["gene", "gene-label"]:
