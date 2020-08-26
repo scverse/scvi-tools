@@ -1,21 +1,15 @@
-import numpy as np
-import pytest
-import torch
+# import numpy as np
+# import pytest
+# import torch
 
-import scvi
-from scvi.core.models.vae import VAE
-from scvi.core.trainers.inference import UnsupervisedTrainer
-from scvi.core.trainers.annotation import ClassifierTrainer
-from scvi.core.models.classifier import Classifier
-from scvi.metrics._core import unsupervised_clustering_accuracy
-from scvi.core._distributions import (
-    ZeroInflatedNegativeBinomial,
-    NegativeBinomial,
-)
-from scvi.core._log_likelihood import log_zinb_positive, log_nb_positive
+# import scvi
+# from scvi.core.models.vae import VAE
+# from scvi.core.trainers.inference import UnsupervisedTrainer
+# from scvi.core.trainers.annotation import ClassifierTrainer
+# from scvi.core.models.classifier import Classifier
 
-scvi.set_seed(0)
-use_cuda = True
+# scvi.set_seed(0)
+# use_cuda = True
 
 
 # def test_cortex(save_path):
@@ -313,71 +307,6 @@ use_cuda = True
 #     ldvae_benchmark(synthetic_datset_two_batches, n_epochs=1, use_cuda=False)
 
 
-def test_sampling_zl(save_path):
-    cortex_dataset = scvi.dataset.cortex(save_path=save_path)
-    scvi.dataset.setup_anndata(cortex_dataset, labels_key="cell_type")
-    cortex_vae = VAE(
-        cortex_dataset.uns["scvi_summary_stats"]["n_genes"],
-        cortex_dataset.uns["scvi_summary_stats"]["n_batch"],
-    )
-    trainer_cortex_vae = UnsupervisedTrainer(
-        cortex_vae, cortex_dataset, train_size=0.5, use_cuda=use_cuda
-    )
-    trainer_cortex_vae.train(n_epochs=2)
-
-    cortex_cls = Classifier(
-        (cortex_vae.n_latent + 1),
-        n_labels=cortex_dataset.uns["scvi_summary_stats"]["n_labels"],
-    )
-    trainer_cortex_cls = ClassifierTrainer(
-        cortex_cls, cortex_dataset, sampling_model=cortex_vae, sampling_zl=True
-    )
-    trainer_cortex_cls.train(n_epochs=2)
-    trainer_cortex_cls.test_set.accuracy()
-
-
-# def test_annealing_procedures(save_path):
-#     cortex_dataset = scvi.dataset.cortex(save_path=save_path)
-#     scvi.dataset.setup_anndata(cortex_dataset, labels_key="cell_type")
-
-#     cortex_vae = VAE(
-#         cortex_dataset.uns["scvi_summary_stats"]["n_genes"],
-#         cortex_dataset.uns["scvi_summary_stats"]["n_batch"],
-#     )
-
-#     trainer_cortex_vae = UnsupervisedTrainer(
-#         cortex_vae,
-#         cortex_dataset,
-#         train_size=0.5,
-#         use_cuda=use_cuda,
-#         n_epochs_kl_warmup=1,
-#     )
-#     trainer_cortex_vae.train(n_epochs=2)
-#     assert trainer_cortex_vae.kl_weight >= 0.99, "Annealing should be over"
-
-#     trainer_cortex_vae = UnsupervisedTrainer(
-#         cortex_vae,
-#         cortex_dataset,
-#         train_size=0.5,
-#         use_cuda=use_cuda,
-#         n_epochs_kl_warmup=5,
-#     )
-#     trainer_cortex_vae.train(n_epochs=2)
-#     assert trainer_cortex_vae.kl_weight <= 0.99, "Annealing should be proceeding"
-
-#     # iter
-#     trainer_cortex_vae = UnsupervisedTrainer(
-#         cortex_vae,
-#         cortex_dataset,
-#         train_size=0.5,
-#         use_cuda=use_cuda,
-#         n_iter_kl_warmup=1,
-#         n_epochs_kl_warmup=None,
-#     )
-#     trainer_cortex_vae.train(n_epochs=2)
-#     assert trainer_cortex_vae.kl_weight >= 0.99, "Annealing should be over"
-
-
 # def test_differential_expression(save_path):
 #     dataset = scvi.dataset.cortex(save_path=save_path)
 #     scvi.dataset.setup_anndata(dataset, labels_key="cell_type")
@@ -584,62 +513,3 @@ def test_sampling_zl(save_path):
 #     trainer.train(n_epochs=2)
 #     trainer.test_set.imputation(n_samples=2, transform_batch=0)
 #     trainer.train_set.imputation(n_samples=2, transform_batch=[0, 1, 2])
-
-
-def test_deprecated_munkres():
-    y = np.array([0, 1, 0, 1, 0, 1, 1, 1])
-    y_pred = np.array([0, 0, 0, 0, 1, 1, 1, 1])
-    reward, assignment = unsupervised_clustering_accuracy(y, y_pred)
-    assert reward == 0.625
-    assert (assignment == np.array([[0, 0], [1, 1]])).all()
-
-    y = np.array([1, 1, 2, 2, 0, 0, 3, 3])
-    y_pred = np.array([1, 1, 2, 2, 3, 3, 0, 0])
-    reward, assignment = unsupervised_clustering_accuracy(y, y_pred)
-    assert reward == 1.0
-    assert (assignment == np.array([[0, 3], [1, 1], [2, 2], [3, 0]])).all()
-
-
-def test_zinb_distribution():
-    theta = 100.0 + torch.rand(size=(2,))
-    mu = 15.0 * torch.ones_like(theta)
-    pi = torch.randn_like(theta)
-    x = torch.randint_like(mu, high=20)
-    log_p_ref = log_zinb_positive(x, mu, theta, pi)
-
-    dist = ZeroInflatedNegativeBinomial(mu=mu, theta=theta, zi_logits=pi)
-    log_p_zinb = dist.log_prob(x)
-    assert (log_p_ref - log_p_zinb).abs().max().item() <= 1e-8
-
-    torch.manual_seed(0)
-    s1 = dist.sample((100,))
-    assert s1.shape == (100, 2)
-    s2 = dist.sample(sample_shape=(4, 3))
-    assert s2.shape == (4, 3, 2)
-
-    log_p_ref = log_nb_positive(x, mu, theta)
-    dist = NegativeBinomial(mu=mu, theta=theta)
-    log_p_nb = dist.log_prob(x)
-    assert (log_p_ref - log_p_nb).abs().max().item() <= 1e-8
-
-    s1 = dist.sample((1000,))
-    assert s1.shape == (1000, 2)
-    assert (s1.mean(0) - mu).abs().mean() <= 1e0
-    assert (s1.std(0) - (mu + mu * mu / theta) ** 0.5).abs().mean() <= 1e0
-
-    size = (50, 3)
-    theta = 100.0 + torch.rand(size=size)
-    mu = 15.0 * torch.ones_like(theta)
-    pi = torch.randn_like(theta)
-    x = torch.randint_like(mu, high=20)
-    dist1 = ZeroInflatedNegativeBinomial(mu=mu, theta=theta, zi_logits=pi)
-    dist2 = NegativeBinomial(mu=mu, theta=theta)
-    assert dist1.log_prob(x).shape == size
-    assert dist2.log_prob(x).shape == size
-
-    with pytest.raises(ValueError):
-        ZeroInflatedNegativeBinomial(mu=-mu, theta=theta, zi_logits=pi)
-    with pytest.warns(UserWarning):
-        dist1.log_prob(-x)  # ensures neg values raise warning
-    with pytest.warns(UserWarning):
-        dist2.log_prob(0.5 * x)  # ensures float values raise warning
