@@ -52,13 +52,13 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
            [0],
            [0]])
     """
+    use_raw = adata.uns["_scvi"]["use_raw"]
     data_loc = adata.uns["_scvi"]["data_registry"][key]
     attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
-    if attr_name == "raw._X":
-        data = adata.raw._X
-    else:
-        data = getattr(adata, attr_name)
 
+    if use_raw is True and attr_name in ["X", "var"]:
+        adata = adata.raw
+    data = getattr(adata, attr_name)
     if attr_key != "None":
         if isinstance(data, pd.DataFrame):
             data = data.loc[:, attr_key]
@@ -387,23 +387,21 @@ def transfer_anndata_setup(
     data_registry = _scvi_dict["data_registry"]
     summary_stats = _scvi_dict["summary_stats"]
 
-    target_n_vars = _scvi_dict["summary_stats"]["n_genes"]
-
-    assert target_n_vars == summary_stats["n_genes"]
-
     x_loc = data_registry[_CONSTANTS.X_KEY]["attr_name"]
     if x_loc == "layers":
         X_layers_key = data_registry[_CONSTANTS.X_KEY]["attr_key"]
     else:
         X_layers_key = None
 
-    if x_loc == "raw":
+    if _scvi_dict["use_raw"] is True:
         adata_target.uns["_scvi"]["use_raw"] = True
         use_raw = True
     else:
         adata_target.uns["_scvi"]["use_raw"] = False
         use_raw = False
 
+    target_n_vars = adata_target.shape[1] if not use_raw else adata_target.raw.shape[1]
+    assert target_n_vars == summary_stats["n_genes"]
     # transfer protein_expression
     protein_expression_obsm_key = _transfer_protein_expression(_scvi_dict, adata_target)
 
@@ -729,7 +727,7 @@ def _setup_X(adata, X_layers_key, use_raw):
     if use_raw:
         assert adata.raw is not None, "use_raw is True but adata.raw is None"
         logger.info("Using data from adata.raw.X")
-        X_loc = "raw._X"
+        X_loc = "X"
         X_key = "None"
         X = adata.raw.X
     elif X_layers_key is not None:
