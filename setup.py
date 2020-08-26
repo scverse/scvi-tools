@@ -50,7 +50,7 @@ extras_requirements = {
         "seaborn>=0.9.0",
         "leidenalg>=0.7.0",
         "loompy>=3.0.6",
-        "scanpy>=1.4.6",
+        "scanpy>=1.6",
     ],
     "docs": [
         "sphinx>=2.0.1",

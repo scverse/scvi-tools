@@ -5,7 +5,6 @@ from ._anndata import (
     register_tensor_from_anndata,
 )
 from ._preprocessing import (
-    highly_variable_genes_seurat_v3,
     poisson_gene_selection,
     organize_cite_seq_10x,
 )
@@ -32,7 +31,6 @@ from ._datasets import (
 __all__ = [
     "setup_anndata",
     "get_from_registry",
-    "highly_variable_genes_seurat_v3",
     "poisson_gene_selection",
     "organize_cite_seq_10x",
     "pbmcs_10x_cite_seq",
