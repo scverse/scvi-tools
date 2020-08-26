@@ -849,10 +849,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             if correlation_type == "pearson":
                 corr_matrix = np.corrcoef(flattened, rowvar=False)
             else:
-                corr_matrix = spearmanr(flattened, axis=0)
+                corr_matrix, _ = spearmanr(flattened, axis=0)
             corr_mats.append(corr_matrix)
-        corr_matrix = np.mean(np.concatenate(corr_mats), axis=0)
 
+        corr_matrix = np.mean(np.concatenate(corr_mats), axis=0)
         var_names = _get_var_names_from_setup_anndata(adata)
         names = np.concatenate(
             [np.asarray(var_names), self.adata.uns["scvi_protein_names"]]
