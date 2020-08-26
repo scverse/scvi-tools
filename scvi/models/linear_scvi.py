@@ -100,6 +100,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
             gene_likelihood,
             latent_distribution,
         )
+        self.n_latent = n_latent
         self._posterior_class = Posterior
         self._trainer_class = UnsupervisedTrainer
 
@@ -109,7 +110,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
         Shape is genes by dim(Z)
         """
 
-        cols = ["Z_{}".format(i) for i in self.n_latent]
+        cols = ["Z_{}".format(i) for i in range(self.n_latent)]
         var_names = _get_var_names_from_setup_anndata(self.adata)
         loadings = pd.DataFrame(
             self.model.get_loadings(), index=var_names, columns=cols

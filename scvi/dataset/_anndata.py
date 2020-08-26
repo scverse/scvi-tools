@@ -54,8 +54,11 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
     """
     data_loc = adata.uns["_scvi"]["data_registry"][key]
     attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
+    if attr_name == "raw._X":
+        data = adata.raw._X
+    else:
+        data = getattr(adata, attr_name)
 
-    data = getattr(adata, attr_name)
     if attr_key != "None":
         if isinstance(data, pd.DataFrame):
             data = data.loc[:, attr_key]
@@ -726,8 +729,8 @@ def _setup_X(adata, X_layers_key, use_raw):
     if use_raw:
         assert adata.raw is not None, "use_raw is True but adata.raw is None"
         logger.info("Using data from adata.raw.X")
-        X_loc = "raw"
-        X_key = "X"
+        X_loc = "raw._X"
+        X_key = "None"
         X = adata.raw.X
     elif X_layers_key is not None:
         assert (
