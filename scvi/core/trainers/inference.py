@@ -167,9 +167,7 @@ class UnsupervisedTrainer(Trainer):
                 )
         elif iter_criterion:
             log_message = "KL warmup for {} iterations".format(self.n_iter_kl_warmup)
-            n_iter_per_epochs_approx = ceil(
-                self.adata.uns["scvi_summary_stats"]["n_cells"] / self.batch_size
-            )
+            n_iter_per_epochs_approx = ceil(self.adata.shape[0] / self.batch_size)
             n_total_iter_approx = self.n_epochs * n_iter_per_epochs_approx
             if self.n_iter_kl_warmup > n_total_iter_approx:
                 logger.info(
