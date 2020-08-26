@@ -2,7 +2,6 @@ import numpy as np
 import logging
 import torch
 from anndata import AnnData
-from functools import partial
 
 from typing import List, Optional
 from scvi.core.models import JVAE, Classifier
@@ -10,6 +9,7 @@ from scvi.core.trainers.jvae_trainer import JPosterior
 from scvi.core.trainers import JVAETrainer
 from scvi.models._base import VAEMixin, BaseModelClass
 from scvi import _CONSTANTS
+from scvi.models._utils import _get_var_names_from_setup_anndata
 
 logger = logging.getLogger(__name__)
 
@@ -53,17 +53,20 @@ class GIMVI(VAEMixin, BaseModelClass):
         use_cuda: bool = True,
         **model_kwargs,
     ):
-
+        super(GIMVI, self).__init__(use_cuda=use_cuda)
         self.use_cuda = use_cuda and torch.cuda.is_available()
-
         self.adatas = [adata_seq, adata_spatial]
+        seq_var_names = _get_var_names_from_setup_anndata(adata_seq)
+        spatial_var_names = _get_var_names_from_setup_anndata(adata_spatial)
         spatial_gene_loc = [
-            np.argwhere(adata_seq.var_names == g)[0] for g in adata_spatial
+            np.argwhere(seq_var_names == g)[0] for g in spatial_var_names
         ]
+        spatial_gene_loc = np.concatenate(spatial_gene_loc)
         gene_mappings = [slice(None), spatial_gene_loc]
-        n_inputs = [d.uns["scvi_summary_stats"]["n_genes"] for d in self.adatas]
-        total_genes = adata_seq.uns["scvi_summary_stats"]["n_genes"]
-        n_batches = sum([d.uns["scvi_summary_stats"]["n_batch"] for d in self.adatas])
+        sum_stats = [d.uns["_scvi"]["summary_stats"] for d in self.adatas]
+        n_inputs = [s["n_genes"] for s in sum_stats]
+        total_genes = adata_seq.uns["_scvi"]["summary_stats"]["n_genes"]
+        n_batches = sum([s["n_batch"] for s in sum_stats])
 
         self.model = JVAE(
             n_inputs,
@@ -76,7 +79,9 @@ class GIMVI(VAEMixin, BaseModelClass):
             **model_kwargs,
         )
 
-        self.model_summary_string = "gimVI model with params"
+        self._model_summary_string = "gimVI model with params"
+        self._posterior_class = JPosterior
+        self._trainer_class = JVAETrainer
 
     def train(
         self,
@@ -93,20 +98,18 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         self.is_trained = True
 
-    def _make_posterior(self, adatas: List[AnnData] = None, batch_size=128):
-
+    def _make_posteriors(self, adatas: List[AnnData] = None, batch_size=128):
         if adatas is None:
             adatas = self.adatas
         post_list = [
-            self.create_posterior(
-                adata=gd, type_class=partial(JPosterior, mode=i), batch_size=batch_size
-            )
-            for i, gd in enumerate(adatas)
+            self._make_posterior(adata, mode=i) for i, adata in enumerate(adatas)
         ]
 
         return post_list
 
-    def get_latent_representation(self, deterministic: bool = True) -> List[np.ndarray]:
+    def get_latent_representation(
+        self, adatas: List[AnnData] = None, deterministic: bool = True, batch_size=128
+    ) -> List[np.ndarray]:
         """Return the latent space embedding for each dataset
 
         Parameters
@@ -114,11 +117,14 @@ class GIMVI(VAEMixin, BaseModelClass):
         deterministic
             If true, use the mean of the encoder instead of a Gaussian sample
         """
+        if adatas is None:
+            adatas = self.adatas
+        posteriors = self._make_posteriors(adatas, batch_size=batch_size)
         self.model.eval()
         latents = []
-        for mode, dataset in enumerate(self.all_dataset):
+        for mode, posterior in enumerate(posteriors):
             latent = []
-            for tensors in dataset:
+            for tensors in posterior:
                 (
                     sample_batch,
                     local_l_mean,
@@ -148,6 +154,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
     def get_imputed_values(
         self,
+        adatas: List[AnnData] = None,
         deterministic: bool = True,
         normalized: bool = True,
         decode_mode: Optional[int] = None,
@@ -167,11 +174,14 @@ class GIMVI(VAEMixin, BaseModelClass):
         """
         self.model.eval()
 
-        post_list = self._make_posterior(None, batch_size=batch_size)
+        if adatas is None:
+            adatas = self.adatas
+        posteriors = self._make_posteriors(adatas, batch_size=batch_size)
+
         imputed_values = []
-        for mode, dataset in enumerate(post_list):
+        for mode, posterior in enumerate(posteriors):
             imputed_value = []
-            for tensors in dataset:
+            for tensors in posterior:
                 (
                     sample_batch,
                     local_l_mean,

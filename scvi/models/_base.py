@@ -573,15 +573,16 @@ class RNASeqMixin:
 
 
 class BaseModelClass(ABC):
-    def __init__(self, adata, use_cuda):
-        assert (
-            "_scvi" in adata.uns.keys()
-        ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
-        self.adata = adata
-        self._scvi_setup_dict = adata.uns["_scvi"]
-        self.summary_stats = self._scvi_setup_dict["summary_stats"]
+    def __init__(self, adata=None, use_cuda=False):
+        if adata is not None:
+            assert (
+                "_scvi" in adata.uns.keys()
+            ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
+            self.adata = adata
+            self._scvi_setup_dict = adata.uns["_scvi"]
+            self.summary_stats = self._scvi_setup_dict["summary_stats"]
 
-        self._validate_anndata(adata, copy_if_view=False)
+            self._validate_anndata(adata, copy_if_view=False)
 
         # TODO make abstract properties
         self.is_trained = False
@@ -594,7 +595,9 @@ class BaseModelClass(ABC):
 
         # all methods need a batch_size and it needs to be passed to make posterior
 
-    def _make_posterior(self, adata: AnnData, indices=None, batch_size=128):
+    def _make_posterior(
+        self, adata: AnnData, indices=None, batch_size=128, **posterior_kwargs
+    ):
         if indices is None:
             indices = np.arange(adata.n_obs)
         post = self._posterior_class(
@@ -604,6 +607,7 @@ class BaseModelClass(ABC):
             indices=indices,
             use_cuda=self.use_cuda,
             batch_size=batch_size,
+            **posterior_kwargs,
         ).sequential()
         return post
 

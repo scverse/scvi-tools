@@ -64,9 +64,11 @@ def test_LinearSCVI():
 
 
 def test_GIMVI():
-    adata = synthetic_iid()
-    adata2 = synthetic_iid()
-    model = GIMVI(adata, adata2, n_latent=10)
+    adata_seq = synthetic_iid()
+    adata_spatial = synthetic_iid()
+    model = GIMVI(adata_seq, adata_spatial, n_latent=10)
+    model.get_latent_representation()
+    model.get_imputed_values()
     model.train(1)
 
 
