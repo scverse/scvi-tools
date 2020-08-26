@@ -868,10 +868,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         give_mean: Optional[bool] = False,
     ) -> Dict[str, np.ndarray]:
 
-        r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`.
-
-
-        """
+        r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`."""
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
 

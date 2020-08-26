@@ -94,7 +94,9 @@ class TestAnnData(TestCase):
         assert adata2.obs["_scvi_batch"][0] == 0
         assert adata2.obs["_scvi_labels"][0] == 0
 
-    def test_setup_anndata(self,):
+    def test_setup_anndata(
+        self,
+    ):
         # test regular setup
         adata = synthetic_iid()
         setup_anndata(
@@ -162,7 +164,9 @@ class TestAnnData(TestCase):
             get_from_registry(adata, "labels"), np.zeros((adata.shape[0], 1))
         )
 
-    def test_BioDataset_getitem(self,):
+    def test_BioDataset_getitem(
+        self,
+    ):
         adata = synthetic_iid()
         setup_anndata(
             adata,

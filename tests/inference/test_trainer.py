@@ -41,7 +41,9 @@ class TestVAE(TestCase):
 
         full.differential_expression_score(cell_idx1, cell_idx2)
 
-    def test_totalVI_posterior(self,):
+    def test_totalVI_posterior(
+        self,
+    ):
         use_cuda = False
         adata = synthetic_iid(n_batches=2)
         setup_anndata(
@@ -86,5 +88,7 @@ class TestVAE(TestCase):
             n_samples=n_samples, give_mean=True, transform_batch=[0, 1]
         )
 
-    def test_scanVI(self,):
+    def test_scanVI(
+        self,
+    ):
         pass

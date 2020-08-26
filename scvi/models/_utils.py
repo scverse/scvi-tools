@@ -12,17 +12,17 @@ def scrna_raw_counts_properties(
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
-        Parameters
-        ----------
-        idx1
-            subset of indices describing the first population.
-        idx2
-            subset of indices describing the second population.
-        Returns
-        -------
-        type
-            Tuple of ``np.ndarray`` containing, by pair (one for each sub-population),
-            mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
+    Parameters
+    ----------
+    idx1
+        subset of indices describing the first population.
+    idx2
+        subset of indices describing the second population.
+    Returns
+    -------
+    type
+        Tuple of ``np.ndarray`` containing, by pair (one for each sub-population),
+        mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
 
     """
 
@@ -42,8 +42,7 @@ def scrna_raw_counts_properties(
 
 
 def _get_var_names_from_setup_anndata(adata):
-    """Gets var names by checking if using raw
-    """
+    """Gets var names by checking if using raw"""
     var_names = (
         adata.var_names
         if adata.uns["_scvi"]["use_raw"] is False

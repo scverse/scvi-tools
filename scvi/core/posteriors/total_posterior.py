@@ -166,7 +166,7 @@ class TotalPosterior(Posterior):
         return elbo / n_samples
 
     def compute_reconstruction_error(self, vae: TOTALVAE, **kwargs):
-        r""" Computes log p(x/z), which is the reconstruction error.
+        r"""Computes log p(x/z), which is the reconstruction error.
 
         Differs from the marginal log likelihood, but still gives good
         insights on the modeling of the data, and is fast to compute

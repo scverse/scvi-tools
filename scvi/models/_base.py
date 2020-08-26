@@ -508,10 +508,7 @@ class RNASeqMixin:
         give_mean: Optional[bool] = False,
     ) -> Dict[str, np.ndarray]:
 
-        r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`.
-
-
-        """
+        r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`."""
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices)
 
@@ -682,7 +679,9 @@ class BaseModelClass(ABC):
             )
         self.model.eval()
 
-    def __repr__(self,):
+    def __repr__(
+        self,
+    ):
         summary_string = self._model_summary_string + "\nTraining status: {}".format(
             "Trained" if self.is_trained else "Not Trained"
         )

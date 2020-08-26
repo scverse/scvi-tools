@@ -138,8 +138,7 @@ def _cleanup_logger():
 
 
 def _cleanup_decorator(func: Callable):
-    """Decorates top-level calls in order to launch cleanup when an Exception is caught.
-    """
+    """Decorates top-level calls in order to launch cleanup when an Exception is caught."""
 
     @wraps(func)
     def decorated(*args, **kwargs):
@@ -160,8 +159,7 @@ def _cleanup_decorator(func: Callable):
 
 
 def _error_logger_decorator(func: Callable):
-    """Decorates top-level calls in order to launch cleanup when an Exception is caught.
-    """
+    """Decorates top-level calls in order to launch cleanup when an Exception is caught."""
 
     @wraps(func)
     def decorated(*args, **kwargs):
@@ -180,8 +178,7 @@ def _error_logger_decorator(func: Callable):
 
 
 def configure_asynchronous_logging(logging_queue: multiprocessing.Queue):
-    """Helper for asynchronous logging - Writes all logs to a queue.
-    """
+    """Helper for asynchronous logging - Writes all logs to a queue."""
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
     queue_handler = QueueHandler(logging_queue)
@@ -191,8 +188,7 @@ def configure_asynchronous_logging(logging_queue: multiprocessing.Queue):
 
 
 def _asynchronous_logging_method_decorator(func: Callable):
-    """Decorates top-level calls in order to launch cleanup when an Exception is caught.
-    """
+    """Decorates top-level calls in order to launch cleanup when an Exception is caught."""
 
     @wraps(func)
     def decorated(self, *args, **kwargs):

@@ -273,8 +273,7 @@ class JVAETrainer(Trainer):
         return x, local_l_mean, local_l_var, batch_index, y
 
     def get_discriminator_confusion(self) -> np.ndarray:
-        """A good mixing should lead to a uniform matrix.
-        """
+        """A good mixing should lead to a uniform matrix."""
         confusion = []
         for i, posterior in enumerate(self.all_dataset):
 

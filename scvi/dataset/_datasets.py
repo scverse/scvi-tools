@@ -272,7 +272,7 @@ def prefrontalcortex_starmap(
 def frontalcortex_dropseq(
     save_path: str = "data/", run_setup_anndata: bool = True
 ) -> anndata.AnnData:
-    """"Load the cells from the mouse frontal cortex sequenced by the Dropseq technology (Saunders et al., 2018)
+    """ "Load the cells from the mouse frontal cortex sequenced by the Dropseq technology (Saunders et al., 2018)
 
     Load the 71639 annotated cells located in the frontal cortex of adult mouses among the 690,000 cells
     studied by (Saunders et al., 2018) using the Drop-seq method. We have a 71639*7611 gene expression matrix

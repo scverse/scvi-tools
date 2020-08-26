@@ -26,9 +26,10 @@ class BioDataset(Dataset):
         self.gene_names = self.adata.var_names
         self.normalized_X = None
 
-    def get_registered_keys(self,):
-        """Returns the keys of the mappings in scvi data registry
-        """
+    def get_registered_keys(
+        self,
+    ):
+        """Returns the keys of the mappings in scvi data registry"""
         return self.adata.uns["_scvi"]["data_registry"].keys()
 
     def setup_data_attr(self):
@@ -108,15 +109,13 @@ class BioDataset(Dataset):
 
     @property
     def n_cells(self) -> int:
-        """Returns the number of cells in the dataset
-        """
+        """Returns the number of cells in the dataset"""
         n_cells = self.adata.uns["_scvi"]["summary_stats"]["n_cells"]
         return n_cells
 
     @property
     def n_genes(self) -> int:
-        """Returns the number of genes in the dataset
-        """
+        """Returns the number of genes in the dataset"""
         n_genes = self.adata.uns["_scvi"]["summary_stats"]["n_genes"]
         return n_genes
 
@@ -126,8 +125,7 @@ class BioDataset(Dataset):
 
     @property
     def protein_names(self) -> List[str]:
-        """Returns list of protein names
-        """
+        """Returns list of protein names"""
         assert "scvi_protein_names" in self.adata.uns.keys()
         return self.adata.uns["scvi_protein_names"]
 
@@ -157,5 +155,7 @@ class BioDataset(Dataset):
             data = data.toarray().astype(dtype)
         return data.astype(dtype)
 
-    def to_anndata(self,) -> anndata.AnnData:
+    def to_anndata(
+        self,
+    ) -> anndata.AnnData:
         return self.adata.copy()

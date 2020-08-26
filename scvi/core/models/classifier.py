@@ -4,8 +4,7 @@ from ._modules import FCLayers
 
 
 class Classifier(nn.Module):
-    """Basic fully-connected NN classifier
-    """
+    """Basic fully-connected NN classifier"""
 
     def __init__(
         self,

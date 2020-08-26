@@ -91,8 +91,7 @@ def _compute_library_size_batch(
 def _check_nonnegative_integers(
     X: Union[pd.DataFrame, np.ndarray, sp_sparse.csr_matrix]
 ):
-    """Checks values of X to ensure it is count data
-    """
+    """Checks values of X to ensure it is count data"""
 
     if type(X) is np.ndarray:
         data = X
@@ -145,8 +144,7 @@ def _get_batch_mask_protein_data(
 
 
 def _check_anndata_setup_equivalence(adata_source, adata_target):
-    """Checks if target setup is equivalent to source
-    """
+    """Checks if target setup is equivalent to source"""
     if isinstance(adata_source, anndata.AnnData):
         _scvi_dict = adata_source.uns["_scvi"]
     else:

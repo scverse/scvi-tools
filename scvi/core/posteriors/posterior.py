@@ -271,8 +271,7 @@ class Posterior:
 
     @torch.no_grad()
     def entropy_batch_mixing(self, **kwargs) -> torch.Tensor:
-        """Returns the object's entropy batch mixing.
-        """
+        """Returns the object's entropy batch mixing."""
         if self.gene_dataset.n_batches == 2:
             latent, batch_indices, labels = self.get_latent()
             be_score = entropy_batch_mixing(latent, batch_indices, **kwargs)

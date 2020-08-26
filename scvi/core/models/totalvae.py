@@ -372,8 +372,7 @@ class TOTALVAE(nn.Module):
         py_dict: Dict[str, torch.Tensor],
         pro_batch_mask_minibatch: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Compute reconstruction loss
-        """
+        """Compute reconstruction loss"""
         px_ = px_dict
         py_ = py_dict
         # Reconstruction Loss
@@ -418,18 +417,18 @@ class TOTALVAE(nn.Module):
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
         """Internal helper function to compute necessary inference quantities
 
-         We use the dictionary ``px_`` to contain the parameters of the ZINB/NB for genes.
-         The rate refers to the mean of the NB, dropout refers to Bernoulli mixing parameters.
-         `scale` refers to the quanity upon which differential expression is performed. For genes,
-         this can be viewed as the mean of the underlying gamma distribution.
+        We use the dictionary ``px_`` to contain the parameters of the ZINB/NB for genes.
+        The rate refers to the mean of the NB, dropout refers to Bernoulli mixing parameters.
+        `scale` refers to the quanity upon which differential expression is performed. For genes,
+        this can be viewed as the mean of the underlying gamma distribution.
 
-         We use the dictionary ``py_`` to contain the parameters of the Mixture NB distribution for proteins.
-         `rate_fore` refers to foreground mean, while `rate_back` refers to background mean. ``scale`` refers to
-         foreground mean adjusted for background probability and scaled to reside in simplex.
-         ``back_alpha`` and ``back_beta`` are the posterior parameters for ``rate_back``.  ``fore_scale`` is the scaling
-         factor that enforces `rate_fore` > `rate_back`.
+        We use the dictionary ``py_`` to contain the parameters of the Mixture NB distribution for proteins.
+        `rate_fore` refers to foreground mean, while `rate_back` refers to background mean. ``scale`` refers to
+        foreground mean adjusted for background probability and scaled to reside in simplex.
+        ``back_alpha`` and ``back_beta`` are the posterior parameters for ``rate_back``.  ``fore_scale`` is the scaling
+        factor that enforces `rate_fore` > `rate_back`.
 
-         ``px_["r"]`` and ``py_["r"]`` are the inverse dispersion parameters for genes and protein, respectively.
+        ``px_["r"]`` and ``py_["r"]`` are the inverse dispersion parameters for genes and protein, respectively.
 
         """
         x_ = x
