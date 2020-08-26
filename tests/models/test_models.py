@@ -10,6 +10,7 @@ class TestModels(TestCase):
         adata = synthetic_iid()
         model = SCVI(adata, n_latent=10)
         model.train(1)
+        assert model.is_trained is True
         z = model.get_latent_representation()
         assert z.shape == (adata.shape[0], 10)
         model.get_elbo()
@@ -28,11 +29,11 @@ class TestModels(TestCase):
         transfer_anndata_setup(adata, adata2)
         model.get_elbo(adata2)
 
-        # test automatic transfer_anndata_setup
+        # test automatic transfer_anndata_setup + on a view
         adata = synthetic_iid()
         model = SCVI(adata)
         adata2 = synthetic_iid(run_setup_anndata=False)
-        model.get_elbo(adata2)
+        model.get_elbo(adata2[:10])
 
         # test that we catch incorrect mappings
         adata = synthetic_iid()
@@ -46,7 +47,7 @@ class TestModels(TestCase):
 
     def test_SCANVI(self):
         adata = synthetic_iid()
-        model = SCANVI(adata, n_latent=10)
+        model = SCANVI(adata, "undefined_0", n_latent=10)
         model.train(1)
 
     def test_LinearSCVI(self):
@@ -68,6 +69,7 @@ class TestModels(TestCase):
 
         model = TOTALVI(adata, n_latent=n_latent)
         model.train(1)
+        assert model.is_trained is True
         z = model.get_latent_representation()
         assert z.shape == (n_obs, n_latent)
         model.get_elbo()
@@ -80,20 +82,27 @@ class TestModels(TestCase):
         assert post_pred.shape == (n_obs, n_vars + n_proteins, 2)
         post_pred = model.posterior_predictive_sample(n_samples=1)
         assert post_pred.shape == (n_obs, n_vars + n_proteins)
-        feature_correlation_matrix = model.get_feature_correlation_matrix(
+        feature_correlation_matrix1 = model.get_feature_correlation_matrix(
+            correlation_type="spearman"
+        )
+        feature_correlation_matrix2 = model.get_feature_correlation_matrix(
             correlation_type="pearson"
         )
-        assert feature_correlation_matrix.shape == (
+        assert feature_correlation_matrix1.shape == (
+            n_vars + n_proteins,
+            n_vars + n_proteins,
+        )
+        assert feature_correlation_matrix2.shape == (
             n_vars + n_proteins,
             n_vars + n_proteins,
         )
         # model.get_likelihood_parameters()
 
-        adata2 = synthetic_iid()
-        model.get_elbo(adata2)
-        model.get_marginal_ll(adata2)
-        model.get_reconstruction_error(adata2)
+        model.get_elbo(indices=model.test_indices)
+        model.get_marginal_ll(indices=model.test_indices)
+        model.get_reconstruction_error(indices=model.test_indices)
 
+        adata2 = synthetic_iid()
         norm_exp = model.get_normalized_expression(adata2, indices=[1, 2, 3])
         assert norm_exp[0].shape == (3, adata2.n_vars)
         assert norm_exp[1].shape == (3, adata2.obsm["protein_expression"].shape[1])
@@ -106,13 +115,13 @@ class TestModels(TestCase):
         )
         assert pro_foreground_prob.shape == (3, 2)
         model.posterior_predictive_sample(adata2)
-        # model.get_feature_correlation_matrix(adata2)
+        model.get_feature_correlation_matrix(adata2)
         # model.get_likelihood_parameters(adata2)
 
-        # test transfer_anndata_setup
+        # test transfer_anndata_setup + view
         adata2 = synthetic_iid(run_setup_anndata=False)
         transfer_anndata_setup(adata, adata2)
-        model.get_elbo(adata2)
+        model.get_elbo(adata2[:10])
 
         # test automatic transfer_anndata_setup
         adata = synthetic_iid()
@@ -128,4 +137,10 @@ class TestModels(TestCase):
             "mapping"
         ] = pd.Index(data=["undefined_1", "undefined_0", "undefined_2"])
         with self.assertRaises(AssertionError):
+            model.get_elbo(adata2)
+
+        # test that we catch missing proteins
+        adata2 = synthetic_iid(run_setup_anndata=False)
+        del adata2.obsm["protein_expression"]
+        with self.assertRaises(KeyError):
             model.get_elbo(adata2)

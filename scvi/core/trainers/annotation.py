@@ -166,7 +166,7 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         self.classification_ratio = classification_ratio
         n_labelled_samples_per_class_array = [
             n_labelled_samples_per_class
-        ] * self.adata.uns["scvi_summary_stats"]["n_labels"]
+        ] * self.adata.uns["_scvi"]["summary_stats"]["n_labels"]
         labels = np.array(get_from_registry(self.adata, _CONSTANTS.LABELS_KEY)).ravel()
         np.random.seed(seed=seed)
         permutation_idx = np.random.permutation(len(labels))

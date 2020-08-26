@@ -421,7 +421,7 @@ def transfer_anndata_setup(
                 adata_target.shape[0], dtype=np.int64
             )
         elif (key != original_key) and (original_key not in adata_target.obs.keys()):
-            raise ValueError(
+            raise KeyError(
                 '.obs["{}"] was used to setup source, but not found in target.'.format(
                     original_key
                 )
@@ -482,7 +482,7 @@ def _transfer_protein_expression(_scvi_dict, adata_target):
     if has_protein is True:
         prev_protein_obsm_key = data_registry[_CONSTANTS.PROTEIN_EXP_KEY]["attr_key"]
         if prev_protein_obsm_key not in adata_target.obsm.keys():
-            raise ValueError(
+            raise KeyError(
                 "Can't find {} in adata_target.obsm for protein expressions.".format(
                     prev_protein_obsm_key
                 )
