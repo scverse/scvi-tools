@@ -76,7 +76,9 @@ class TestModels(TestCase):
         model.get_normalized_expression()
         model.get_latent_library_size()
         model.get_protein_foreground_probability()
-        post_pred = model.posterior_predictive_sample()
+        post_pred = model.posterior_predictive_sample(n_samples=2)
+        assert post_pred.shape == (n_obs, n_vars + n_proteins, 2)
+        post_pred = model.posterior_predictive_sample(n_samples=1)
         assert post_pred.shape == (n_obs, n_vars + n_proteins)
         feature_correlation_matrix = model.get_feature_correlation_matrix(
             correlation_type="pearson"

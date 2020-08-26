@@ -696,7 +696,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             # rate = (1 - p) / p  # = 1/scale # used in pytorch
             # """
             posterior_list += [data]
-            # posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
+            if n_samples > 1:
+                posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
         posterior_list = np.concatenate(posterior_list, axis=0)
 
         return posterior_list
