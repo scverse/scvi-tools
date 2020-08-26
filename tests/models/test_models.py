@@ -17,6 +17,12 @@ class TestModels(TestCase):
         model.get_reconstruction_error()
         model.get_normalized_expression()
 
+        adata2 = synthetic_iid()
+        model.get_elbo(adata2)
+        model.get_marginal_ll(adata2)
+        model.get_reconstruction_error(adata2)
+        model.get_normalized_expression(adata2)
+
         # test transfer_anndata_setup
         adata2 = synthetic_iid(run_setup_anndata=False)
         transfer_anndata_setup(adata, adata2)
@@ -55,19 +61,30 @@ class TestModels(TestCase):
 
     def test_TOTALVI(self):
         adata = synthetic_iid()
-        model = TOTALVI(adata, n_latent=10)
-        model.train(1)
+        n_obs = adata.n_obs
+        n_vars = adata.n_vars
+        n_proteins = adata.obsm["protein_expression"].shape[1]
+        n_latent = 10
 
+        model = TOTALVI(adata, n_latent=n_latent)
+        model.train(1)
         z = model.get_latent_representation()
-        assert z.shape == (adata.shape[0], 10)
+        assert z.shape == (n_obs, n_latent)
         model.get_elbo()
         model.get_marginal_ll()
         model.get_reconstruction_error()
         model.get_normalized_expression()
         model.get_latent_library_size()
         model.get_protein_foreground_probability()
-        # model.posterior_predictive_sample()
-        # model.get_feature_correlation_matrix()
+        post_pred = model.posterior_predictive_sample()
+        assert post_pred.shape == (n_obs, n_vars + n_proteins)
+        feature_correlation_matrix = model.get_feature_correlation_matrix(
+            correlation_type="pearson"
+        )
+        assert feature_correlation_matrix.shape == (
+            n_vars + n_proteins,
+            n_vars + n_proteins,
+        )
         # model.get_likelihood_parameters()
 
         adata2 = synthetic_iid()
@@ -86,7 +103,7 @@ class TestModels(TestCase):
             adata2, indices=[1, 2, 3], protein_list=["1", "2"]
         )
         assert pro_foreground_prob.shape == (3, 2)
-        # model.posterior_predictive_sample(adata2)
+        model.posterior_predictive_sample(adata2)
         # model.get_feature_correlation_matrix(adata2)
         # model.get_likelihood_parameters(adata2)
 

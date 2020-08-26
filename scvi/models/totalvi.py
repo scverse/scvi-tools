@@ -312,6 +312,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         else:
             all_proteins = adata.uns["scvi_protein_names"]
             protein_mask = [True if p in protein_list else False for p in all_proteins]
+        if indices is None:
+            indices = np.arange(adata.n_obs)
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -388,7 +390,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         scale_list_gene = scale_list_gene.cpu().numpy()
         scale_list_pro = scale_list_pro.cpu().numpy()
-
         if return_numpy is None or return_numpy is False:
             gene_df = pd.DataFrame(
                 scale_list_gene,
@@ -466,6 +467,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
                     "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
                 )
             return_numpy = True
+        if indices is None:
+            indices = np.arange(adata.n_obs)
 
         py_mixings = []
         if (transform_batch is None) or (isinstance(transform_batch, int)):
@@ -693,9 +696,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             # rate = (1 - p) / p  # = 1/scale # used in pytorch
             # """
             posterior_list += [data]
-
-            posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
-
+            # posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
         posterior_list = np.concatenate(posterior_list, axis=0)
 
         return posterior_list
@@ -850,7 +851,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             else:
                 corr_matrix = spearmanr(flattened, axis=0)
             corr_mats.append(corr_matrix)
-        corr_matrix = np.mean(np.stack(corr_mats), axis=0)
+        corr_matrix = np.mean(np.concatenate(corr_mats), axis=0)
 
         var_names = _get_var_names_from_setup_anndata(adata)
         names = np.concatenate(
