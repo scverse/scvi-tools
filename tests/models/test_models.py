@@ -2,7 +2,7 @@ import pandas as pd
 
 import pytest
 from scvi.dataset import synthetic_iid, transfer_anndata_setup
-from scvi.models import SCVI, SCANVI, GIMVI, TOTALVI, LinearSCVI
+from scvi.models import SCVI, SCANVI, GIMVI, TOTALVI, LinearSCVI, AUTOZI
 
 
 def test_SCVI():
@@ -61,6 +61,22 @@ def test_GIMVI():
     adata = synthetic_iid()
     model = GIMVI(adata, n_latent=10)
     model.train(1)
+
+
+def test_AUTOZI(save_path):
+    data = synthetic_iid(n_batches=1)
+
+    for disp_zi in ["gene", "gene-label"]:
+        autozivae = AUTOZI(
+            data,
+            dispersion=disp_zi,
+            zero_inflation=disp_zi,
+        )
+        autozivae.train(1, lr=1e-2)
+        autozivae.get_elbo(indices=autozivae.test_indices)
+        autozivae.get_reconstruction_error(indices=autozivae.test_indices)
+        autozivae.get_marginal_ll(indices=autozivae.test_indices)
+        autozivae.get_alphas_betas()
 
 
 def test_TOTALVI():
