@@ -97,5 +97,11 @@ class SCVI(RNASeqMixin, VAEMixin, BaseModelClass):
             gene_likelihood,
             latent_distribution,
         )
-        self._posterior_class = Posterior
-        self._trainer_class = UnsupervisedTrainer
+
+    @property
+    def _trainer_class(self):
+        return UnsupervisedTrainer
+
+    @property
+    def _posterior_class(self):
+        return Posterior

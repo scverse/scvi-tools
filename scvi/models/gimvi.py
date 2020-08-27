@@ -80,8 +80,14 @@ class GIMVI(VAEMixin, BaseModelClass):
         )
 
         self._model_summary_string = "gimVI model with params"
-        self._posterior_class = JPosterior
-        self._trainer_class = JVAETrainer
+
+    @property
+    def _trainer_class(self):
+        return JVAETrainer
+
+    @property
+    def _posterior_class(self):
+        return JPosterior
 
     def train(
         self,

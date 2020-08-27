@@ -108,8 +108,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             gene_likelihood,
             latent_distribution,
         )
-        self._posterior_class = TotalPosterior
-        self._trainer_class = TotalTrainer
 
     def train(
         self,
@@ -924,3 +922,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             raise ValueError("No protein data found, please setup or transfer anndata")
 
         return adata
+
+    @property
+    def _trainer_class(self):
+        return TotalTrainer
+
+    @property
+    def _posterior_class(self):
+        return TotalPosterior

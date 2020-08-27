@@ -120,12 +120,17 @@ class AUTOZI(VAEMixin, BaseModelClass):
             zero_inflation,
         )
 
-        self._posterior_class = Posterior
-        self._trainer_class = UnsupervisedTrainer
-
     def get_alphas_betas(
         self, as_numpy: bool = True
     ) -> Dict[str, Union[torch.Tensor, np.ndarray]]:
         """Return parameters of Bernoulli Beta distributions in a dictionary"""
 
         return self.model.get_alphas_betas(as_numpy=as_numpy)
+
+    @property
+    def _trainer_class(self):
+        return UnsupervisedTrainer
+
+    @property
+    def _posterior_class(self):
+        return Posterior

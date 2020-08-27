@@ -101,8 +101,14 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
             latent_distribution,
         )
         self.n_latent = n_latent
-        self._posterior_class = Posterior
-        self._trainer_class = UnsupervisedTrainer
+
+    @property
+    def _trainer_class(self):
+        return UnsupervisedTrainer
+
+    @property
+    def _posterior_class(self):
+        return Posterior
 
     def get_loadings(self) -> pd.DataFrame:
         """Extract per-gene weights in the linear decoder

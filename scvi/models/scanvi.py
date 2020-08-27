@@ -140,8 +140,13 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             gene_likelihood,
         )
 
-        self._posterior_class = AnnotationPosterior
-        self._trainer_class = SemiSupervisedTrainer
+    @property
+    def _trainer_class(self):
+        return SemiSupervisedTrainer
+
+    @property
+    def _posterior_class(self):
+        return AnnotationPosterior
 
     def train(
         self,

@@ -589,8 +589,8 @@ class BaseModelClass(ABC):
         self.use_cuda = use_cuda and torch.cuda.is_available()
         self._model_summary_string = ""
 
-        self._posterior_class = None
-        self._trainer_class = None
+        # self._posterior_class = None
+        # self._trainer_class = None
 
         # all methods need a batch_size and it needs to be passed to make posterior
 
@@ -637,6 +637,16 @@ class BaseModelClass(ABC):
         _check_anndata_setup_equivalence(self._scvi_setup_dict, adata)
 
         return adata
+
+    @property
+    @abstractmethod
+    def _posterior_class(self):
+        pass
+
+    @property
+    @abstractmethod
+    def _trainer_class(self):
+        pass
 
     @abstractmethod
     def train(self):
