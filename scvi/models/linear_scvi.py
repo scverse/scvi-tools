@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
     """
-    Linearly-decoded VAE [Svensson20]_
+    Linearly-decoded VAE [Svensson20]_.
 
     Parameters
     ----------
@@ -55,12 +55,12 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
     Examples
     --------
-
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.dataset.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.models.LinearSCVI(adata)
     >>> vae.train(n_epochs=400)
     >>> adata.var["loadings"] = vae.get_loadings()
+
     """
 
     def __init__(
@@ -112,11 +112,12 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
         return Posterior
 
     def get_loadings(self) -> pd.DataFrame:
-        """Extract per-gene weights in the linear decoder
+        """
+        Extract per-gene weights in the linear decoder.
 
         Shape is genes by dim(Z)
-        """
 
+        """
         cols = ["Z_{}".format(i) for i in range(self.n_latent)]
         var_names = _get_var_names_from_setup_anndata(self.adata)
         loadings = pd.DataFrame(

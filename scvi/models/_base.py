@@ -107,6 +107,8 @@ class VAEMixin:
         mc_samples
             For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte Carlo
             samples to take for computing mean.
+        batch_size
+            Minibatch size for data loading into model
 
         Returns
         -------
@@ -153,6 +155,11 @@ class RNASeqMixin:
 
         Parameters
         ----------
+        adata
+            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -169,6 +176,8 @@ class RNASeqMixin:
             magnitude.
         n_samples
             Get sample scale from multiple samples.
+        batch_size
+            Minibatch size for data loading into model
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -306,10 +315,17 @@ class RNASeqMixin:
 
         Parameters
         ----------
+        adata
+            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
         n_samples
             Number of required samples for each cell
         gene_list
-            Indices or names of genes of interest
+            Names of genes of interest
+        batch_size
+            Minibatch size for data loading into model
 
         Returns
         -------
@@ -387,10 +403,15 @@ class RNASeqMixin:
 
         Parameters
         ----------
+        adata
+            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
         n_samples
             How may samples per cell
         batch_size
-            Mini-batch size for sampling. Lower means less GPU memory footprint
+            Minibatch size for data loading into model
         rna_size_factor
             size factor for RNA prior to sampling gamma distribution
         transform_batch
@@ -453,10 +474,15 @@ class RNASeqMixin:
 
         Parameters
         ----------
+        adata
+            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
         n_samples
             How may samples per cell
         batch_size
-            Mini-batch size for sampling. Lower means less GPU memory footprint
+            Minibatch size for data loading into model
         rna_size_factor
             size factor for RNA prior to sampling gamma distribution
         transform_batch

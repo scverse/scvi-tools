@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class GIMVI(VAEMixin, BaseModelClass):
     """
-    Joint VAE for imputing missing genes in spatial data [Lopez19]_
+    Joint VAE for imputing missing genes in spatial data [Lopez19]_.
 
     Parameters
     ----------
@@ -35,13 +35,13 @@ class GIMVI(VAEMixin, BaseModelClass):
 
     Examples
     --------
-
     >>> adata_seq = anndata.read_h5ad(path_to_anndata_seq)
     >>> adata_spatial = anndata.read_h5ad(path_to_anndata_spatial)
     >>> scvi.dataset.setup_anndata(adata_seq)
     >>> scvi.dataset.setup_anndata(adata_spatial)
     >>> vae = scvi.models.GIMVI(adata_seq, adata_spatial)
     >>> vae.train(n_epochs=400)
+
     """
 
     def __init__(
@@ -117,12 +117,18 @@ class GIMVI(VAEMixin, BaseModelClass):
     def get_latent_representation(
         self, adatas: List[AnnData] = None, deterministic: bool = True, batch_size=128
     ) -> List[np.ndarray]:
-        """Return the latent space embedding for each dataset
+        """
+        Return the latent space embedding for each dataset.
 
         Parameters
         ----------
+        adatas
+            List of adata seq and adata spatial
         deterministic
             If true, use the mean of the encoder instead of a Gaussian sample
+        batch_size
+            Minibatch size for data loading into model
+
         """
         if adatas is None:
             adatas = self.adatas
@@ -167,10 +173,13 @@ class GIMVI(VAEMixin, BaseModelClass):
         decode_mode: Optional[int] = None,
         batch_size: Optional[int] = 128,
     ) -> List[np.ndarray]:
-        """Return imputed values for all genes for each dataset
+        """
+        Return imputed values for all genes for each dataset.
 
         Parameters
         ----------
+        adatas
+            List of adata seq and adata spatial
         deterministic
             If true, use the mean of the encoder instead of a Gaussian sample for the latent vector
         normalized
@@ -178,6 +187,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         decode_mode
             If a `decode_mode` is given, use the encoder specific to each dataset as usual but use
             the decoder of the dataset of id `decode_mode` to impute values
+        batch_size
+            Minibatch size for data loading into model
+
         """
         self.model.eval()
 

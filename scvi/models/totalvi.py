@@ -182,7 +182,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte Carlo
             samples to take for computing mean.
         batch_size
-            Size for minibatches when loading data.
+            Minibatch size for data loading into model
 
         Returns
         -------
@@ -263,9 +263,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         Parameters
         ----------
         adata
-            AnnData with equivalent organization to initial AnnData
+            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object used to initialize the model.
         indices
-            indices of `adata` to use
+            Indices of cells in adata to use. If `None`, all cells are used.
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -294,7 +295,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         include_protein_background
             Include background component for protein expression
         batch_size
-            Minibatch size to use
+            Minibatch size for data loading into model
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -438,9 +439,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         Parameters
         ----------
         adata
-            AnnData with equivalent organization to initial AnnData
+            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object used to initialize the model.
         indices
-            indices of `adata` to use
+            Indices of cells in adata to use. If `None`, all cells are used.
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -455,7 +457,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         n_samples
             Get sample scale from multiple samples.
         batch_size
-            Minibatch size to use
+            Minibatch size for data loading into model
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -646,13 +648,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         Parameters
         ----------
         adata
-            AnnData with equivalent organization to initial AnnData
+            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object used to initialize the model.
         indices
-            indices of `adata` to use
+            Indices of cells in adata to use. If `None`, all cells are used.
         n_samples
             Number of required samples for each cell
         batch_size
-            Minibatch size to use
+            Minibatch size for data loading into model
         gene_list
             Names of genes of interest
         protein_list
@@ -754,7 +757,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         n_samples
             How may samples per cell
         batch_size
-            Mini-batch size for sampling. Lower means less GPU memory footprint
+            Minibatch size for data loading into model
         rna_size_factor
             size factor for RNA prior to sampling gamma distribution
         transform_batch
@@ -836,7 +839,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         n_samples
             How may samples per cell
         batch_size
-            Mini-batch size for sampling. Lower means less GPU memory footprint
+            Minibatch size for data loading into model
         rna_size_factor
             size factor for RNA prior to sampling gamma distribution
         transform_batch

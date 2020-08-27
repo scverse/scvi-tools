@@ -140,11 +140,11 @@ def test_setup_anndata():
 
     # test that X_layers_key is working properly
     adata = synthetic_iid()
-    true_X = adata.X
-    adata.layers["X"] = true_X
+    true_x = adata.X
+    adata.layers["X"] = true_x
     adata.X = np.ones_like(adata.X)
     setup_anndata(adata, X_layers_key="X")
-    np.testing.assert_array_equal(get_from_registry(adata, "X"), true_X)
+    np.testing.assert_array_equal(get_from_registry(adata, "X"), true_x)
 
     # test that it creates layers and batch if no layers_key is passed
     adata = synthetic_iid()
@@ -161,7 +161,7 @@ def test_setup_anndata():
     )
 
 
-def test_BioDataset_getitem():
+def test_biodataset_getitem():
     adata = synthetic_iid()
     setup_anndata(
         adata,
