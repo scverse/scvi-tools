@@ -33,3 +33,10 @@ branches:
   only:
   - master
   - dev_v1.0
+
+services:
+  - mongodb
+
+before_script:
+  - sleep 15  # mongo takes time to start
+  - mongo mydb_test --eval 'db.createUser({user:"travis",pwd:"test",roles:["readWrite"]});'

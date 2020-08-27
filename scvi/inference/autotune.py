@@ -1357,7 +1357,7 @@ def _objective_function(
     # define trainer
     logger_all.debug("Instantiating trainer")
     trainer_class = model._trainer_class
-    trainer = trainer_class(model, gene_dataset, **trainer_tunable_kwargs)
+    trainer = trainer_class(model.model, gene_dataset, **trainer_tunable_kwargs)
 
     # train model
     logger_all.debug("Starting training")
@@ -1397,7 +1397,7 @@ def _objective_function(
 
         # load best state
         if save_best_state_metric is not None:
-            model.load_state_dict(trainer.best_state_dict)
+            model.model.load_state_dict(trainer.best_state_dict)
 
         # compute optimized metric
         loss = getattr(getattr(trainer, posterior_name), metric_name)(**metric_kwargs)
