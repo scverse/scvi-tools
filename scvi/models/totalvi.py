@@ -841,12 +841,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
                     denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
                 ] = denoised_data[:, :, i]
             if log_transform is True:
-                flattened[:, : self.gene_dataset.n_genes] = np.log(
-                    flattened[:, : self.gene_dataset.n_genes] + 1e-8
+                flattened[:, : self.n_genes] = np.log(
+                    flattened[:, : self.n_genes] + 1e-8
                 )
-                flattened[:, self.gene_dataset.n_genes :] = np.log1p(
-                    flattened[:, self.gene_dataset.n_genes :]
-                )
+                flattened[:, self.n_genes :] = np.log1p(flattened[:, self.n_genes :])
             if correlation_type == "pearson":
                 corr_matrix = np.corrcoef(flattened, rowvar=False)
             else:
