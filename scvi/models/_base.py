@@ -39,18 +39,18 @@ class VAEMixin:
         trainer_kwargs={},
         train_kwargs={},
     ):
-
-        self.trainer = UnsupervisedTrainer(
-            self.model,
-            self.adata,
-            train_size=train_size,
-            test_size=test_size,
-            n_iter_kl_warmup=n_iter_kl_warmup,
-            n_epochs_kl_warmup=n_epochs_kl_warmup,
-            frequency=metric_frequency,
-            use_cuda=self.use_cuda,
-            **trainer_kwargs,
-        )
+        if self.is_trained is False:
+            self.trainer = UnsupervisedTrainer(
+                self.model,
+                self.adata,
+                train_size=train_size,
+                test_size=test_size,
+                n_iter_kl_warmup=n_iter_kl_warmup,
+                n_epochs_kl_warmup=n_epochs_kl_warmup,
+                frequency=metric_frequency,
+                use_cuda=self.use_cuda,
+                **trainer_kwargs,
+            )
         self.trainer.train(n_epochs=n_epochs, lr=lr, **train_kwargs)
         self.is_trained = True
         self.train_indices = self.trainer.train_set.indices
@@ -109,7 +109,6 @@ class VAEMixin:
         latent_representation : np.ndarray
             Low-dimensional representation for each cell
         """
-
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
 
