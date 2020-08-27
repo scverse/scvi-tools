@@ -7,3 +7,6 @@ coverage:
         target: 85%
         threshold: 1%
     patch: off
+
+ignore:
+  - "scvi/_compat.py"
