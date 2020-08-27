@@ -88,8 +88,7 @@ class BioDataset(Dataset):
 
         self.attributes_and_types = keys_to_type
 
-    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
-
+    def __getitem__(self, idx: List[int]) -> Dict[str, torch.Tensor]:
         data_numpy = {}
         for key, dtype in self.attributes_and_types.items():
             data = self.data[key]
@@ -101,6 +100,10 @@ class BioDataset(Dataset):
                 data_numpy[key] = data[idx].toarray().astype(dtype)
 
         return data_numpy
+
+    def get_data(self, scvi_data_key):
+        tensors = self.__getitem__(idx=[i for i in range(self.__len__())])
+        return tensors[scvi_data_key]
 
     def __len__(self):
         return self.adata.shape[0]
@@ -120,38 +123,6 @@ class BioDataset(Dataset):
     @property
     def n_batches(self) -> int:
         return self.adata.uns["_scvi"]["summary_stats"]["n_batch"]
-
-    # @property
-    # def protein_names(self) -> List[str]:
-    #     """Returns list of protein names"""
-    #     assert "scvi_protein_names" in self.adata.uns.keys()
-    #     return self.adata.uns["scvi_protein_names"]
-
-    # @property
-    # def protein_expression(self) -> np.ndarray:
-    #     assert (
-    #         "protein_expression" in self.adata.uns["_scvi"]["data_registry"].keys()
-    #     ), "anndata not registered with protein expressions."
-    #     protein_exp = get_from_registry(self.adata, "protein_expression")
-    #     return (
-    #         protein_exp.to_numpy() if type(protein_exp) is pd.DataFrame else protein_exp
-    #     )
-
-    # @property
-    # def X(self) -> np.ndarray:
-    #     dtype = self.attributes_and_types[_CONSTANTS.X_KEY]
-    #     data = get_from_registry(self.adata, _CONSTANTS.X_KEY)
-    #     return data.astype(dtype)
-
-    # @property
-    # def labels(self) -> np.ndarray:
-    #     dtype = self.attributes_and_types[_CONSTANTS.LABELS_KEY]
-    #     data = get_from_registry(self.adata, _CONSTANTS.LABELS_KEY)
-    #     if isinstance(data, pd.DataFrame):
-    #         data = data.to_numpy()
-    #     elif scipy.sparse.issparse(data):
-    #         data = data.toarray().astype(dtype)
-    #     return data.astype(dtype)
 
     def to_anndata(
         self,
