@@ -37,6 +37,7 @@ class TotalPosterior(Posterior):
         Default: ``True``
     data_loader_kwargs :
         Keyword arguments to passed into the `DataLoader`
+
     """
 
     def __init__(
@@ -129,11 +130,9 @@ class TotalPosterior(Posterior):
         Parameters
         ----------
         vae
+            vae model
         **kwargs
-
-
-        Returns
-        -------
+            keyword args for forward
 
         """
         # Iterate once over the posterior and computes the total log_likelihood
@@ -223,9 +222,6 @@ class TotalPosterior(Posterior):
              (Default value = 100)
         batch_size
              (Default value = 96)
-
-        Returns
-        -------
 
         """
         # Uses MC sampling to compute a tighter lower bound on log p(x)

@@ -1,6 +1,16 @@
+doc-warnings: true
+test-warnings: true
+
+pylint:
+  run: false
+
+pep8:
+  run: false
+
 pep257:
-    disable:
-        - D203
-        - D105
-        - D107
-        - D212
+  run: true
+  disable:
+    - D203
+    - D105
+    - D107
+    - D212

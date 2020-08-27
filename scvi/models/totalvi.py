@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
     """
-    total Variational Inference [GayosoSteier20]_
+    total Variational Inference [GayosoSteier20]_.
 
     Parameters
     ----------
@@ -59,12 +59,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
     Examples
     --------
-
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.dataset.setup_anndata(adata, batch_key="batch", protein_expression_obsm_key="protein_expression")
     >>> vae = scvi.models.TOTALVI(adata)
     >>> vae.train(n_epochs=400)
     >>> adata.obsm["X_totalVI"] = vae.get_latent_representation()
+
     """
 
     def __init__(
@@ -166,7 +166,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         mc_samples: int = 5000,
         batch_size=128,
     ) -> np.ndarray:
-        """Return the latent representation for each cell
+        """
+        Return the latent representation for each cell.
 
         Parameters
         ----------
@@ -180,6 +181,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         mc_samples
             For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte Carlo
             samples to take for computing mean.
+        batch_size
+            Size for minibatches when loading data.
 
         Returns
         -------
@@ -188,7 +191,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         Examples
         --------
-
         >>> vae = scvi.model.TOTALVI(adata)
         >>> vae.train(n_epochs=400)
         >>> adata.obsm["X_totalVI"] = vae.get_latent_representation()
@@ -253,13 +255,17 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         return_numpy: Optional[bool] = None,
     ) -> Tuple[Union[np.ndarray, pd.DataFrame], Union[np.ndarray, pd.DataFrame]]:
         r"""
-        Returns the normalized gene expression and protein expression
+        Returns the normalized gene expression and protein expression.
 
         This is denoted as :math:`\rho_n` in the totalVI paper for genes, and TODO
         for proteins, :math:`(1-\pi_{nt})\alpha_{nt}\beta_{nt}`.
 
         Parameters
         ----------
+        adata
+            AnnData with equivalent organization to initial AnnData
+        indices
+            indices of `adata` to use
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -287,6 +293,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             Make protein expression sum to 1
         include_protein_background
             Include background component for protein expression
+        batch_size
+            Minibatch size to use
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -301,6 +309,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, genes)``.
         Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
+
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -421,12 +430,17 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ):
-        r"""Returns the foreground probability for proteins
+        r"""
+        Returns the foreground probability for proteins.
 
         This is denoted as :math:`\pi_{nt}` in the totalVI paper.
 
         Parameters
         ----------
+        adata
+            AnnData with equivalent organization to initial AnnData
+        indices
+            indices of `adata` to use
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -440,6 +454,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             of interest.
         n_samples
             Get sample scale from multiple samples.
+        batch_size
+            Minibatch size to use
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -453,6 +469,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, proteins)``.
         Otherwise, shape is ``(cells, proteins)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
+
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -622,21 +639,30 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         protein_list: Union[list, np.ndarray] = None,
     ) -> np.ndarray:
         r"""
-        Generate observation samples from the posterior predictive distribution
+        Generate observation samples from the posterior predictive distribution.
 
         The posterior predictive distribution is written as :math:`p(\hat{x}, \hat{y} \mid x, y)`.
 
         Parameters
         ----------
+        adata
+            AnnData with equivalent organization to initial AnnData
+        indices
+            indices of `adata` to use
         n_samples
             Number of required samples for each cell
+        batch_size
+            Minibatch size to use
         gene_list
-            Indices or names of genes of interest
+            Names of genes of interest
+        protein_list
+            Names of proteins of interest
 
         Returns
         -------
         x_new : :py:class:`np.ndarray`
             tensor with shape (n_cells, n_genes, n_samples)
+
         """
         assert self.model.reconstruction_loss_gene in ["nb"]
 
@@ -721,6 +747,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         Parameters
         ----------
+        adata
+            AnnData with equivalent organization to initial AnnData
+        indices
+            indices of `adata` to use
         n_samples
             How may samples per cell
         batch_size
@@ -730,8 +760,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         transform_batch
             int of which batch to condition on for all cells
 
-        Returns
-        -------
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -797,10 +825,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         log_transform: bool = False,
     ) -> pd.DataFrame:
         """
-        Generate gene-gene correlation matrix using scvi uncertainty and expression
+        Generate gene-gene correlation matrix using scvi uncertainty and expression.
 
         Parameters
         ----------
+        adata
+            AnnData with equivalent organization to initial AnnData
+        indices
+            indices of `adata` to use
         n_samples
             How may samples per cell
         batch_size
@@ -822,6 +854,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         Returns
         -------
         Gene-protein-gene-protein correlation matrix
+
         """
         from scipy.stats import spearmanr
 
@@ -872,7 +905,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         give_mean: Optional[bool] = False,
         batch_size=128,
     ) -> Dict[str, np.ndarray]:
-
         r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`."""
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
