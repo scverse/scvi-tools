@@ -22,7 +22,8 @@ torch.backends.cudnn.benchmark = True
 
 # VAE model
 class VAE(nn.Module):
-    """Variational auto-encoder model.
+    """
+    Variational auto-encoder model.
 
     This is an implementation of the scVI model descibed in [Lopez18]_
 

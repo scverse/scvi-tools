@@ -14,7 +14,7 @@ torch.backends.cudnn.benchmark = True
 
 
 class AutoZIVAE(VAE):
-    r"""
+    """
     Implementation of AutoZI model [Clivio19]_.
 
     Parameters
@@ -135,7 +135,8 @@ class AutoZIVAE(VAE):
             raise Exception("Gene-cell not implemented yet for AutoZI")
 
     def cuda(self, device: Optional[str] = None) -> torch.nn.Module:
-        r"""Moves relevant parameters to the GPU.
+        r"""
+        Moves relevant parameters to the GPU.
 
         Parameters
         ----------

@@ -115,13 +115,13 @@ class BioDataset(Dataset):
 
     @property
     def n_cells(self) -> int:
-        """Returns the number of cells in the dataset"""
+        """Returns the number of cells in the dataset."""
         n_cells = self.adata.uns["_scvi"]["summary_stats"]["n_cells"]
         return n_cells
 
     @property
     def n_genes(self) -> int:
-        """Returns the number of genes in the dataset"""
+        """Returns the number of genes in the dataset."""
         n_genes = self.adata.uns["_scvi"]["summary_stats"]["n_genes"]
         return n_genes
 

@@ -199,7 +199,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         >>> latent_subset = vae.get_latent_representation(adata_subset)
 
         """
-
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
 
@@ -303,7 +302,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, genes)``.
         Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
         """
-
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
@@ -455,9 +453,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, proteins)``.
         Otherwise, shape is ``(cells, proteins)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
-
         """
-
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
@@ -827,7 +823,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         -------
         Gene-protein-gene-protein correlation matrix
         """
-
         from scipy.stats import spearmanr
 
         adata = self._validate_anndata(adata)

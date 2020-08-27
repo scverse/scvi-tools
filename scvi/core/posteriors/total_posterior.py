@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class TotalPosterior(Posterior):
-    """The functional data unit for totalVI.
+    """
+    The functional data unit for totalVI.
 
     A `TotalPosterior` instance is instantiated with a model and
     a `gene_dataset`, and as well as additional arguments that for Pytorch's `DataLoader`. A subset of indices

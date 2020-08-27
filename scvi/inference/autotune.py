@@ -228,7 +228,8 @@ def auto_tune_scvi_model(
     db_name: str = "scvi_db",
     multiple_hosts: bool = False,
 ) -> (Type[BaseModelClass], Trials):
-    """Perform automatic hyperparameter optimization of an scvi model
+    """
+    Perform automatic hyperparameter optimization of an scvi model
     and return best model and hyperopt Trials object.
 
     ``Trials`` object contains hyperparameter space and loss history for each trial.

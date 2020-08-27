@@ -57,7 +57,8 @@ def entropy_batch_mixing(
 
 
 def nearest_neighbor_overlap(X1, X2, k=100):
-    """Compute the overlap between the k-nearest neighbor graph of X1 and X2
+    """
+    Compute the overlap between the k-nearest neighbor graph of X1 and X2
 
     Using Spearman correlation of the adjacency matrices.
     Compute the overlap fold enrichment between the protein and mRNA-based cell 100-nearest neighbor
@@ -90,7 +91,7 @@ def nearest_neighbor_overlap(X1, X2, k=100):
 def unsupervised_clustering_accuracy(
     y: Union[np.ndarray, torch.Tensor], y_pred: Union[np.ndarray, torch.Tensor]
 ) -> tuple:
-    """Unsupervised Clustering Accuracy"""
+    """Unsupervised Clustering Accuracy."""
     assert len(y_pred) == len(y)
     u = np.unique(np.concatenate((y, y_pred)))
     n_clusters = len(u)
