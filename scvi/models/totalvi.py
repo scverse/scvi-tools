@@ -147,10 +147,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self.validation_indices = self.trainer.validation_set.indices
 
     @torch.no_grad()
-    def get_reconstruction_error(self, adata=None, indices=None, mode="total"):
+    def get_reconstruction_error(
+        self, adata=None, indices=None, mode="total", batch_size=128
+    ):
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         return -post.reconstruction_error(mode=mode)
 
@@ -161,6 +163,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         indices: Optional[Union[np.ndarray, List[int]]] = None,
         give_mean: bool = True,
         mc_samples: int = 5000,
+        batch_size=128,
     ) -> np.ndarray:
         """Return the latent representation for each cell
 
@@ -200,7 +203,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             raise RuntimeError("Please train the model first.")
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
@@ -213,12 +216,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         return np.array(torch.cat(latent))
 
     @torch.no_grad()
-    def get_latent_library_size(self, adata=None, indices=None, give_mean=True):
+    def get_latent_library_size(
+        self, adata=None, indices=None, give_mean=True, batch_size=128
+    ):
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
         libraries = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
@@ -243,6 +248,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         sample_protein_mixing: bool = True,
         scale_protein: bool = False,
         include_protein_background: bool = False,
+        batch_size=128,
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ) -> Tuple[Union[np.ndarray, pd.DataFrame], Union[np.ndarray, pd.DataFrame]]:
@@ -298,7 +304,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         """
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         if gene_list is None:
             gene_mask = slice(None)
@@ -412,6 +418,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         transform_batch: Optional[int] = None,
         protein_list: Optional[Union[np.ndarray, List[int]]] = None,
         n_samples: int = 1,
+        batch_size=128,
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ):
@@ -451,7 +458,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         """
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         if protein_list is None:
             protein_mask = slice(None)
@@ -613,6 +620,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         adata=None,
         indices=None,
         n_samples: int = 1,
+        batch_size=128,
         gene_list: Union[list, np.ndarray] = None,
         protein_list: Union[list, np.ndarray] = None,
     ) -> np.ndarray:
@@ -646,7 +654,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             all_proteins = adata.uns["scvi_protein_names"]
             protein_mask = [True if p in protein_list else False for p in all_proteins]
 
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         posterior_list = []
         for tensors in post:
@@ -728,7 +736,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         """
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         posterior_list = []
         for tensors in post:
@@ -864,11 +872,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         indices=None,
         n_samples: Optional[int] = 1,
         give_mean: Optional[bool] = False,
+        batch_size=128,
     ) -> Dict[str, np.ndarray]:
 
         r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`."""
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         rna_dropout_list = []
         rna_mean_list = []

@@ -205,7 +205,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         self.is_trained = True
 
-    def predict(self, adata=None, indices=None, soft=False):
+    def predict(self, adata=None, indices=None, soft=False, batch_size=128):
         """Compute cell label predictions
 
         adata
@@ -218,7 +218,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         """
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         _, pred = post.sequential().compute_predictions(soft=soft)
 

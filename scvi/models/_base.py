@@ -58,26 +58,28 @@ class VAEMixin:
         self.validation_indices = self.trainer.validation_set.indices
 
     @torch.no_grad()
-    def get_elbo(self, adata=None, indices=None):
+    def get_elbo(self, adata=None, indices=None, batch_size=128):
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         return -post.elbo()
 
     @torch.no_grad()
-    def get_marginal_ll(self, adata=None, indices=None, n_mc_samples=1000):
+    def get_marginal_ll(
+        self, adata=None, indices=None, n_mc_samples=1000, batch_size=128
+    ):
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         return -post.marginal_ll(n_mc_samples=n_mc_samples)
 
     @torch.no_grad()
-    def get_reconstruction_error(self, adata=None, indices=None):
+    def get_reconstruction_error(self, adata=None, indices=None, batch_size=128):
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         return -post.reconstruction_error()
 
@@ -88,6 +90,7 @@ class VAEMixin:
         indices: Optional[Union[np.ndarray, List[int]]] = None,
         give_mean: bool = True,
         mc_samples: int = 5000,
+        batch_size=128,
     ) -> np.ndarray:
         """Return the latent representation for each cell
 
@@ -113,7 +116,7 @@ class VAEMixin:
             raise RuntimeError("Please train the model first.")
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
@@ -136,6 +139,7 @@ class RNASeqMixin:
         gene_list: Optional[Union[np.ndarray, List[int]]] = None,
         library_size: Optional[Union[float, Literal["latent"]]] = 1,
         n_samples: int = 1,
+        batch_size=128,
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ) -> Union[np.ndarray, pd.DataFrame]:
@@ -179,7 +183,7 @@ class RNASeqMixin:
         """
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         if gene_list is None:
             gene_mask = slice(None)
@@ -291,6 +295,7 @@ class RNASeqMixin:
         indices=None,
         n_samples: int = 1,
         gene_list: Union[list, np.ndarray] = None,
+        batch_size=128,
     ) -> np.ndarray:
         r"""Generate observation samples from the posterior predictive distribution
 
@@ -311,7 +316,7 @@ class RNASeqMixin:
         assert self.model.reconstruction_loss in ["zinb", "nb", "poisson"]
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         if gene_list is None:
             gene_mask = slice(None)
@@ -391,7 +396,7 @@ class RNASeqMixin:
 
         """
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         posterior_list = []
         for tensors in post:
@@ -505,11 +510,12 @@ class RNASeqMixin:
         indices=None,
         n_samples: Optional[int] = 1,
         give_mean: Optional[bool] = False,
+        batch_size=128,
     ) -> Dict[str, np.ndarray]:
 
         r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`."""
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         dropout_list = []
         mean_list = []
@@ -552,11 +558,13 @@ class RNASeqMixin:
         return return_dict
 
     @torch.no_grad()
-    def get_latent_library_size(self, adata=None, indices=None, give_mean=True):
+    def get_latent_library_size(
+        self, adata=None, indices=None, give_mean=True, batch_size=128
+    ):
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices)
+        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
         libraries = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
@@ -580,19 +588,11 @@ class BaseModelClass(ABC):
             self.adata = adata
             self._scvi_setup_dict = adata.uns["_scvi"]
             self.summary_stats = self._scvi_setup_dict["summary_stats"]
-
             self._validate_anndata(adata, copy_if_view=False)
 
-        # TODO make abstract properties
         self.is_trained = False
-        # just a regular property
         self.use_cuda = use_cuda and torch.cuda.is_available()
         self._model_summary_string = ""
-
-        # self._posterior_class = None
-        # self._trainer_class = None
-
-        # all methods need a batch_size and it needs to be passed to make posterior
 
     def _make_posterior(
         self, adata: AnnData, indices=None, batch_size=128, **posterior_kwargs
