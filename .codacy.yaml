@@ -1,7 +1,0 @@
-prospector:
-    pep257:
-        disable:
-            - D203
-            - D105
-            - D107
-            - D212
