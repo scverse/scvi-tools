@@ -4,16 +4,34 @@ from ._modules import FCLayers
 
 
 class Classifier(nn.Module):
-    """Basic fully-connected NN classifier"""
+    """
+    Basic fully-connected NN classifier
+
+    Parameters
+    ----------
+
+    n_input
+        Number of input dimensions
+    n_hidden
+        Number of hidden nodes in hidden layer
+    n_labels
+        Numput of outputs dimensions
+    n_layers
+        Number of hidden layers
+    dropout_rate
+        dropout_rate for nodes
+    logits
+        Return logits or not
+    """
 
     def __init__(
         self,
-        n_input,
-        n_hidden=128,
-        n_labels=5,
-        n_layers=1,
-        dropout_rate=0.1,
-        logits=False,
+        n_input: int,
+        n_hidden: int = 128,
+        n_labels: int = 5,
+        n_layers: int = 1,
+        dropout_rate: float = 0.1,
+        logits: bool = False,
     ):
         super().__init__()
         layers = [

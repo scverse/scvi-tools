@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
-    """Linearly-decoded VAE [Svensson20]_
+    """
+    Linearly-decoded VAE [Svensson20]_
 
     Parameters
     ----------

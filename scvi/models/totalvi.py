@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 
 
 class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
-    """total Variational Inference [GayosoSteier20]_
+    """
+    total Variational Inference [GayosoSteier20]_
 
     Parameters
     ----------
@@ -252,7 +253,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ) -> Tuple[Union[np.ndarray, pd.DataFrame], Union[np.ndarray, pd.DataFrame]]:
-        r"""Returns the normalized gene expression and protein expression
+        r"""
+        Returns the normalized gene expression and protein expression
 
         This is denoted as :math:`\rho_n` in the totalVI paper for genes, and TODO
         for proteins, :math:`(1-\pi_{nt})\alpha_{nt}\beta_{nt}`.
@@ -300,7 +302,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, genes)``.
         Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
-
         """
 
         adata = self._validate_anndata(adata)
@@ -624,7 +625,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         gene_list: Union[list, np.ndarray] = None,
         protein_list: Union[list, np.ndarray] = None,
     ) -> np.ndarray:
-        r"""Generate observation samples from the posterior predictive distribution
+        r"""
+        Generate observation samples from the posterior predictive distribution
 
         The posterior predictive distribution is written as :math:`p(\hat{x}, \hat{y} \mid x, y)`.
 
@@ -718,7 +720,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         rna_size_factor: int = 1000,
         transform_batch: Optional[int] = None,
     ) -> np.ndarray:
-        """Return samples from an adjusted posterior predictive.
+        """
+        Return samples from an adjusted posterior predictive.
 
         Parameters
         ----------
@@ -733,7 +736,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         Returns
         -------
-
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -798,7 +800,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         correlation_type: Literal["spearman", "pearson"] = "spearman",
         log_transform: bool = False,
     ) -> pd.DataFrame:
-        """Generate gene-gene correlation matrix using scvi uncertainty and expression
+        """
+        Generate gene-gene correlation matrix using scvi uncertainty and expression
 
         Parameters
         ----------
@@ -919,7 +922,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         return return_dict
 
-    def _validate_anndata(self, adata: AnnData, copy_if_view: bool = True):
+    def _validate_anndata(
+        self, adata: Optional[AnnData] = None, copy_if_view: bool = True
+    ):
         adata = super()._validate_anndata(adata, copy_if_view)
         error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
         if _CONSTANTS.PROTEIN_EXP_KEY in adata.uns["_scvi"]["data_registry"].keys():

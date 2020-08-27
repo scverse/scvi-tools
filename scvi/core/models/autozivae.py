@@ -14,10 +14,11 @@ torch.backends.cudnn.benchmark = True
 
 
 class AutoZIVAE(VAE):
-    r"""variational auto-encoder model.
-
+    r"""
     Implementation of AutoZI model [Clivio19]_.
 
+    Parameters
+    ----------
     n_input
         Number of input genes
     alpha_prior
@@ -134,7 +135,7 @@ class AutoZIVAE(VAE):
             raise Exception("Gene-cell not implemented yet for AutoZI")
 
     def cuda(self, device: Optional[str] = None) -> torch.nn.Module:
-        r"""Moves all model parameters and also fixed prior alpha and beta values, when relevant, to the GPU.
+        r"""Moves relevant parameters to the GPU.
 
         Parameters
         ----------
@@ -361,7 +362,8 @@ class AutoZIVAE(VAE):
         batch_index: Optional[torch.Tensor] = None,
         y: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        r"""Returns the reconstruction loss and the Kullback divergences
+        r"""
+        Returns the reconstruction loss and the Kullback divergences
 
         Parameters
         ----------

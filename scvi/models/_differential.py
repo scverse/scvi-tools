@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 
 class DifferentialComputation:
     def __init__(self, model_fn, adata):  # method of model class (SCVI, not VAE)
-        """Unified class for differential computation
+        """
+        Unified class for differential computation
 
         This class takes a function from a model like SCVI or TOTALVI and takes outputs
         from this function with respect to the adata input and computed Bayes factors as

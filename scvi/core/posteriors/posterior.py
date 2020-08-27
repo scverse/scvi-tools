@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 class BatchSampler(torch.utils.data.sampler.Sampler):
-    """Custom torch Sampler that returns a list of indices of size batch_size
+    """
+    Custom torch Sampler that returns a list of indices of size batch_size
 
     Parameters
     ----------
@@ -155,7 +156,7 @@ class Posterior:
 
     @property
     def indices(self) -> np.ndarray:
-        """Returns the current dataloader indices used by the object"""
+        """Returns the current dataloader indices used by the object."""
         if hasattr(self.data_loader.sampler, "indices"):
             return self.data_loader.sampler.indices
         else:
@@ -163,7 +164,7 @@ class Posterior:
 
     @property
     def n_cells(self) -> int:
-        """returns the number of studied cells."""
+        """Returns the number of studied cells."""
         if hasattr(self.data_loader.sampler, "indices"):
             return len(self.data_loader.sampler.indices)
         else:
@@ -171,7 +172,7 @@ class Posterior:
 
     @property
     def posterior_type(self) -> str:
-        """Returns the posterior class name"""
+        """Returns the posterior class name."""
         return self.__class__.__name__
 
     def __iter__(self):
@@ -281,7 +282,8 @@ class Posterior:
     entropy_batch_mixing.mode = "max"
 
     def update_sampler_indices(self, idx: Union[List, np.ndarray]):
-        """Updates the dataloader indices.
+        """
+        Updates the dataloader indices.
 
         More precisely, this method can be used to temporarily change which cells __iter__
         will yield. This is particularly useful for computational considerations when one is only interested

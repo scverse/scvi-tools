@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 class SCVI(RNASeqMixin, VAEMixin, BaseModelClass):
-    """single-cell Variational Inference [Lopez18]_
+    """
+    single-cell Variational Inference [Lopez18]_
 
     Parameters
     ----------

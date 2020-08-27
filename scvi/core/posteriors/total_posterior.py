@@ -115,7 +115,8 @@ class TotalPosterior(Posterior):
         return x, local_l_mean, local_l_var, batch_index, labels, y
 
     def compute_elbo(self, vae: TOTALVAE, **kwargs):
-        """Computes the ELBO.
+        """
+        Computes the ELBO.
 
         The ELBO is the reconstruction error + the KL divergences
         between the variational distributions and the priors.
@@ -166,7 +167,8 @@ class TotalPosterior(Posterior):
         return elbo / n_samples
 
     def compute_reconstruction_error(self, vae: TOTALVAE, **kwargs):
-        r"""Computes log p(x/z), which is the reconstruction error.
+        r"""
+        Computes log p(x/z), which is the reconstruction error.
 
         Differs from the marginal log likelihood, but still gives good
         insights on the modeling of the data, and is fast to compute
@@ -205,7 +207,8 @@ class TotalPosterior(Posterior):
     def compute_marginal_log_likelihood(
         self, n_samples_mc: int = 100, batch_size: int = 96
     ):
-        """Computes a biased estimator for log p(x, y), which is the marginal log likelihood.
+        """
+        Computes a biased estimator for log p(x, y), which is the marginal log likelihood.
 
         Despite its bias, the estimator still converges to the real value
         of log p(x, y) when n_samples_mc (for Monte Carlo) goes to infinity

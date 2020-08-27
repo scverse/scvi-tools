@@ -17,7 +17,8 @@ torch.backends.cudnn.benchmark = True
 
 # VAE model
 class TOTALVAE(nn.Module):
-    """Total variational inference for CITE-seq data
+    """
+    Total variational inference for CITE-seq data
 
     Implements the totalVI model of [GayosoSteier20]_.
 
@@ -372,7 +373,7 @@ class TOTALVAE(nn.Module):
         py_dict: Dict[str, torch.Tensor],
         pro_batch_mask_minibatch: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Compute reconstruction loss"""
+        """Compute reconstruction loss."""
         px_ = px_dict
         py_ = py_dict
         # Reconstruction Loss

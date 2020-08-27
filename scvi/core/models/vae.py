@@ -290,7 +290,7 @@ class VAE(nn.Module):
     def inference(
         self, x, batch_index=None, y=None, n_samples=1, transform_batch=None
     ) -> Dict[str, torch.Tensor]:
-        """Helper function used in forward pass"""
+        """Helper function used in forward pass."""
         x_ = x
         if self.log_variational:
             x_ = torch.log(1 + x_)

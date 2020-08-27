@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class GIMVI(VAEMixin, BaseModelClass):
-    """Joint VAE for imputing missing genes in spatial data [Lopez19]_
+    """
+    Joint VAE for imputing missing genes in spatial data [Lopez19]_
 
     Parameters
     ----------

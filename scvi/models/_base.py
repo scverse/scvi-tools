@@ -92,7 +92,8 @@ class VAEMixin:
         mc_samples: int = 5000,
         batch_size=128,
     ) -> np.ndarray:
-        """Return the latent representation for each cell
+        """
+        Return the latent representation for each cell
 
         Parameters
         ----------
@@ -144,7 +145,8 @@ class RNASeqMixin:
         return_numpy: Optional[bool] = None,
     ) -> Union[np.ndarray, pd.DataFrame]:
         # whatever is here will pass it into cat and batch
-        r"""Returns the normalized (decoded) gene expression.
+        r"""
+        Returns the normalized (decoded) gene expression.
 
         This is denoted as :math:`\rho_n` in the scVI paper.
 
@@ -297,7 +299,8 @@ class RNASeqMixin:
         gene_list: Union[list, np.ndarray] = None,
         batch_size=128,
     ) -> np.ndarray:
-        r"""Generate observation samples from the posterior predictive distribution
+        r"""
+        Generate observation samples from the posterior predictive distribution
 
         The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
 
@@ -378,7 +381,8 @@ class RNASeqMixin:
         rna_size_factor: int = 1000,
         transform_batch: Optional[int] = None,
     ) -> np.ndarray:
-        """Return samples from an adjusted posterior predictive.
+        """
+        Return samples from an adjusted posterior predictive.
 
         Parameters
         ----------
@@ -442,7 +446,8 @@ class RNASeqMixin:
         transform_batch: Optional[Union[int, List[int]]] = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
     ) -> pd.DataFrame:
-        """Generate gene-gene correlation matrix using scvi uncertainty and expression
+        """
+        Generate gene-gene correlation matrix using scvi uncertainty and expression
 
         Parameters
         ----------
