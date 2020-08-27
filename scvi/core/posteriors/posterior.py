@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class BatchSampler(torch.utils.data.sampler.Sampler):
     """
-    Custom torch Sampler that returns a list of indices of size batch_size
+    Custom torch Sampler that returns a list of indices of size batch_size.
 
     Parameters
     ----------
@@ -32,6 +32,7 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         batch size of each iteration
     shuffle
         if ``True``, shuffles indices before sampling
+
     """
 
     def __init__(self, indices: np.ndarray, batch_size: int, shuffle: bool):
@@ -58,13 +59,14 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
 
 
 class Posterior:
-    """The functional data unit.
+    """
+    Extended data loader.
 
     A `Posterior` instance is instantiated with a model and a gene_dataset, and
     as well as additional arguments that for Pytorch's `DataLoader`. A subset of indices can be specified, for
     purposes such as splitting the data into train/test or labelled/unlabelled (for semi-supervised learning).
     Each trainer instance of the `Trainer` class can therefore have multiple `Posterior` instances to train a model.
-    A `Posterior` instance also comes with many methods or utilities for its corresponding data.
+    A `Posterior` instance also comes with methods to compute likelihood and other relevant training metrics.
 
     Parameters
     ----------
@@ -179,17 +181,20 @@ class Posterior:
         return map(self.to_cuda, iter(self.data_loader))
 
     def to_cuda(self, tensors: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        """Converts list of tensors to cuda.
+        """
+        Converts dict of tensors to cuda.
 
         Parameters
         ----------
         tensors
             tensors to convert
+
         """
         return {k: (t.cuda() if self.use_cuda else t) for k, t in tensors.items()}
 
     def update(self, data_loader_kwargs: dict) -> "Posterior":
-        """Updates the dataloader
+        """
+        Updates the dataloader.
 
         Parameters
         ----------
@@ -199,6 +204,7 @@ class Posterior:
         Returns
         -------
         Updated posterior
+
         """
         posterior = copy.copy(self)
         posterior.data_loader_kwargs = copy.copy(self.data_loader_kwargs)
@@ -214,7 +220,8 @@ class Posterior:
         return self.update({"sampler": sampler, "batch_size": None})
 
     def sequential(self, batch_size: Optional[int] = 128) -> "Posterior":
-        """Returns a copy of the object that iterate over the data sequentially.
+        """
+        Returns a copy of the object that iterate over the data sequentially.
 
         Parameters
         ----------
@@ -249,7 +256,8 @@ class Posterior:
 
     @torch.no_grad()
     def marginal_ll(self, n_mc_samples: Optional[int] = 1000) -> torch.Tensor:
-        """Estimates the marginal likelihood of the object's data.
+        """
+        Estimates the marginal likelihood of the object's data.
 
         Parameters
         ----------
@@ -259,6 +267,7 @@ class Posterior:
         Returns
         -------
         Marginal LL
+
         """
         if (
             hasattr(self.model, "reconstruction_loss")
@@ -306,6 +315,7 @@ class Posterior:
 
         >>> # Do not forget next line!
         >>> self.data_loader = old_loader
+
         """
         self.sampler_kwargs.update({"indices": idx})
         sampler = BatchSampler(**self.sampler_kwargs)

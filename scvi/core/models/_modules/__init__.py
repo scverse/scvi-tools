@@ -17,7 +17,8 @@ def identity(x):
 
 
 class FCLayers(nn.Module):
-    """A helper class to build fully-connected layers for a neural network.
+    """
+    A helper class to build fully-connected layers for a neural network.
 
     Parameters
     ----------
@@ -41,6 +42,7 @@ class FCLayers(nn.Module):
         Whether to have `ReLU` layers or not
     bias
         Whether to learn bias in linear layers or not
+
     """
 
     def __init__(
@@ -90,7 +92,8 @@ class FCLayers(nn.Module):
         )
 
     def forward(self, x: torch.Tensor, *cat_list: int, instance_id: int = 0):
-        """Forward computation on ``x``.
+        """
+        Forward computation on ``x``.
 
         Parameters
         ----------
@@ -106,6 +109,7 @@ class FCLayers(nn.Module):
         -------
         py:class:`torch.Tensor`
             tensor of shape ``(n_out,)``
+
         """
         # import pdb
 
@@ -155,8 +159,10 @@ class FCLayers(nn.Module):
 
 # Encoder
 class Encoder(nn.Module):
-    """Encodes data of ``n_input`` dimensions into a latent space of ``n_output``
-    dimensions using a fully-connected neural network of ``n_hidden`` layers.
+    """
+    Encodes data of ``n_input`` dimensions into a latent space of ``n_output`` dimensions.
+
+    Uses a fully-connected neural network of ``n_hidden`` layers.
 
     Parameters
     ----------
@@ -176,8 +182,6 @@ class Encoder(nn.Module):
     distribution
         Distribution of z
 
-    Returns
-    -------
     """
 
     def __init__(
@@ -210,7 +214,8 @@ class Encoder(nn.Module):
             self.z_transformation = identity
 
     def forward(self, x: torch.Tensor, *cat_list: int):
-        """The forward computation for a single sample.
+        r"""
+        The forward computation for a single sample.
 
          #. Encodes the data into latent space using the encoder network
          #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
@@ -227,6 +232,7 @@ class Encoder(nn.Module):
         -------
         3-tuple of :py:class:`torch.Tensor`
             tensors of shape ``(n_latent,)`` for mean and var, and sample
+
         """
         # import pdb
         # pdb.set_trace()
@@ -241,8 +247,10 @@ class Encoder(nn.Module):
 
 # Decoder
 class DecoderSCVI(nn.Module):
-    """Decodes data from latent space of ``n_input`` dimensions ``n_output``
-    dimensions using a fully-connected neural network of ``n_hidden`` layers.
+    """
+    Decodes data from latent space of ``n_input`` dimensions ``n_output``dimensions.
+
+    Uses a fully-connected neural network of ``n_hidden`` layers.
 
     Parameters
     ----------
@@ -261,8 +269,6 @@ class DecoderSCVI(nn.Module):
     dropout_rate
         Dropout rate to apply to each of the hidden layers
 
-    Returns
-    -------
     """
 
     def __init__(
@@ -297,7 +303,8 @@ class DecoderSCVI(nn.Module):
     def forward(
         self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int
     ):
-        """The forward computation for a single sample.
+        """
+        The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network
          #. Returns parameters for the ZINB distribution of expression
@@ -323,6 +330,7 @@ class DecoderSCVI(nn.Module):
         -------
         4-tuple of :py:class:`torch.Tensor`
             parameters for the ZINB distribution of expression
+
         """
         # The decoder returns values for the parameters of the ZINB distribution
         px = self.px_decoder(z, *cat_list)
@@ -384,7 +392,8 @@ class LinearDecoderSCVI(nn.Module):
 
 # Decoder
 class Decoder(nn.Module):
-    """Decodes data from latent space to data space
+    """
+    Decodes data from latent space to data space.
 
     ``n_input`` dimensions to ``n_output``
     dimensions using a fully-connected neural network of ``n_hidden`` layers.
@@ -407,8 +416,6 @@ class Decoder(nn.Module):
     dropout_rate
         Dropout rate to apply to each of the hidden layers
 
-    Returns
-    -------
     """
 
     def __init__(
@@ -433,7 +440,8 @@ class Decoder(nn.Module):
         self.var_decoder = nn.Linear(n_hidden, n_output)
 
     def forward(self, x: torch.Tensor, *cat_list: int):
-        """The forward computation for a single sample.
+        """
+        The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network
          #. Returns tensors for the mean and variance of a multivariate distribution
@@ -584,8 +592,10 @@ class MultiDecoder(nn.Module):
 
 
 class DecoderTOTALVI(nn.Module):
-    """Decodes data from latent space of ``n_input`` dimensions ``n_output``
-    dimensions using a linear decoder
+    """
+    Decodes data from latent space of ``n_input`` dimensions ``n_output`` dimensions.
+
+    Uses a linear decoder.
 
     Parameters
     ----------
@@ -600,8 +610,6 @@ class DecoderTOTALVI(nn.Module):
         for each category of interest. Each category will be
         included using a one-hot encoding
 
-    Returns
-    -------
     """
 
     def __init__(
@@ -717,7 +725,8 @@ class DecoderTOTALVI(nn.Module):
         )
 
     def forward(self, z: torch.Tensor, library_gene: torch.Tensor, *cat_list: int):
-        """The forward computation for a single sample.
+        """
+        The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network
          #. Returns local parameters for the ZINB distribution for genes
@@ -747,6 +756,7 @@ class DecoderTOTALVI(nn.Module):
         -------
         3-tuple (first 2-tuple :py:class:`dict`, last :py:class:`torch.Tensor`)
             parameters for the ZINB distribution of expression
+
         """
         px_ = {}
         py_ = {}
@@ -788,8 +798,10 @@ class DecoderTOTALVI(nn.Module):
 
 # Encoder
 class EncoderTOTALVI(nn.Module):
-    """Encodes data of ``n_input`` dimensions into a latent space of ``n_output``
-    dimensions using a fully-connected neural network of ``n_hidden`` layers.
+    """
+    Encodes data of ``n_input`` dimensions into a latent space of ``n_output`` dimensions.
+
+    Uses a fully-connected neural network of ``n_hidden`` layers.
 
     Parameters
     ----------
@@ -813,8 +825,6 @@ class EncoderTOTALVI(nn.Module):
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal
 
-    Returns
-    -------
     """
 
     def __init__(
@@ -870,7 +880,8 @@ class EncoderTOTALVI(nn.Module):
         return z, untran_z
 
     def forward(self, data: torch.Tensor, *cat_list: int):
-        """The forward computation for a single sample.
+        r"""
+        The forward computation for a single sample.
 
          #. Encodes the data into latent space using the encoder network
          #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
@@ -892,6 +903,7 @@ class EncoderTOTALVI(nn.Module):
         -------
         6-tuple. First 4 of :py:class:`torch.Tensor`, next 2 are `dict` of :py:class:`torch.Tensor`
             tensors of shape ``(n_latent,)`` for mean and var, and sample
+
         """
         # Parameters for latent distribution
         q = self.encoder(data, *cat_list)

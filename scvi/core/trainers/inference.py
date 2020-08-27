@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class UnsupervisedTrainer(Trainer):
-    """Class for unsupervised training of an autoencoder.
+    """
+    Class for unsupervised training of an autoencoder.
 
     Parameters
     ----------

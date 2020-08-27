@@ -22,11 +22,13 @@ torch.backends.cudnn.benchmark = True
 
 
 class JVAE(nn.Module):
-    """Joint Variational auto-encoder for imputing missing genes in spatial data
+    """
+    Joint Variational auto-encoder for imputing missing genes in spatial data.
 
     Implementation of gimVI [Lopez19]_.
 
-
+    Parameters
+    ----------
     dim_input_list
         List of number of input genes for each dataset. If
             the datasets have different sizes, the dataloader will loop on the
@@ -69,6 +71,7 @@ class JVAE(nn.Module):
         See ``vae.py``
     log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
+
     """
 
     def __init__(
@@ -156,7 +159,8 @@ class JVAE(nn.Module):
     def sample_from_posterior_z(
         self, x: torch.Tensor, mode: int = None, deterministic: bool = False
     ) -> torch.Tensor:
-        """Sample tensor of latent values from the posterior
+        """
+        Sample tensor of latent values from the posterior.
 
         Parameters
         ----------
@@ -186,7 +190,8 @@ class JVAE(nn.Module):
     def sample_from_posterior_l(
         self, x: torch.Tensor, mode: int = None, deterministic: bool = False
     ) -> torch.Tensor:
-        """Sample the tensor of library sizes from the posterior
+        """
+        Sample the tensor of library sizes from the posterior.
 
         Parameters
         ----------
@@ -218,7 +223,8 @@ class JVAE(nn.Module):
         deterministic: bool = False,
         decode_mode: Optional[int] = None,
     ) -> torch.Tensor:
-        """Return the tensor of predicted frequencies of expression
+        """
+        Return the tensor of predicted frequencies of expression.
 
         Parameters
         ----------
@@ -268,7 +274,8 @@ class JVAE(nn.Module):
         deterministic: bool = False,
         decode_mode: int = None,
     ) -> torch.Tensor:
-        """Returns the tensor of scaled frequencies of expression
+        """
+        Returns the tensor of scaled frequencies of expression.
 
         Parameters
         ----------
@@ -389,7 +396,8 @@ class JVAE(nn.Module):
         y: Optional[torch.Tensor] = None,
         mode: Optional[int] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Return the reconstruction loss and the Kullback divergences
+        """
+        Return the reconstruction loss and the Kullback divergences.
 
         Parameters
         ----------
