@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
     """
-    Single-cell annotation using variational inference [Xu19]_
+    Single-cell annotation using variational inference [Xu19]_.
 
     Inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
 
@@ -58,13 +58,13 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
     Examples
     --------
-
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.dataset.setup_anndata(adata, batch_key="batch", labels_key="labels")
     >>> vae = scvi.models.SCANVI(adata)
     >>> vae.train(n_epochs=400)
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     >>> adata.obs["pred_label"] = vae.predict()
+
     """
 
     def __init__(
@@ -207,8 +207,11 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self.is_trained = True
 
     def predict(self, adata=None, indices=None, soft=False, batch_size=128):
-        """Compute cell label predictions
+        """
+        Compute cell label predictions.
 
+        Parameters
+        ----------
         adata
             AnnData object that has been registered with scvi. If `None`, defaults to the
             AnnData object used to initialize the model.
@@ -216,8 +219,10 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             Indices of cells in adata to use. If `None`, all cells are used.
         soft
             TODO
-        """
+        batch_size
+            Minibatch size to use
 
+        """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 

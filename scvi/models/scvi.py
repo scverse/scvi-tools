@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class SCVI(RNASeqMixin, VAEMixin, BaseModelClass):
     """
-    single-cell Variational Inference [Lopez18]_
+    single-cell Variational Inference [Lopez18]_.
 
     Parameters
     ----------
@@ -52,12 +52,12 @@ class SCVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
     Examples
     --------
-
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.dataset.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.models.SCVI(adata)
     >>> vae.train(n_epochs=400)
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
+
     """
 
     def __init__(

@@ -30,11 +30,12 @@ def _compute_library_size_batch(
     batch_key: str,
     local_l_mean_key: str = None,
     local_l_var_key: str = None,
-    X_layers_key=None,
+    layer=None,
     use_raw=False,
     copy: bool = False,
 ):
-    """Computes the library size
+    """
+    Computes the library size.
 
     Parameters
     ----------
@@ -46,8 +47,10 @@ def _compute_library_size_batch(
         key in obs to save the local log mean
     local_l_var_key
         key in obs to save the local log variance
-    X_layers_key
+    layer
         if not None, will use this in adata.layers[] for X
+    use_raw
+        Use ``.raw`` for X
     copy
         if True, returns a copy of the adata
 
@@ -65,11 +68,11 @@ def _compute_library_size_batch(
         idx_batch = np.squeeze(batch_indices == i_batch)
         if use_raw:
             data = adata[idx_batch].raw.X
-        elif X_layers_key is not None:
+        elif layer is not None:
             assert (
-                X_layers_key in adata.layers.keys()
-            ), "X_layers_key not a valid key for adata.layers"
-            data = adata[idx_batch].layers[X_layers_key]
+                layer in adata.layers.keys()
+            ), "layer not a valid key for adata.layers"
+            data = adata[idx_batch].layers[layer]
         else:
             data = adata[idx_batch].X
         (local_means[idx_batch], local_vars[idx_batch]) = _compute_library_size(data)
@@ -89,17 +92,17 @@ def _compute_library_size_batch(
 
 
 def _check_nonnegative_integers(
-    X: Union[pd.DataFrame, np.ndarray, sp_sparse.csr_matrix]
+    data: Union[pd.DataFrame, np.ndarray, sp_sparse.csr_matridata]
 ):
-    """Checks values of X to ensure it is count data."""
-    if type(X) is np.ndarray:
-        data = X
-    elif issubclass(type(X), sp_sparse.spmatrix):
-        data = X.data
-    elif type(X) is pd.DataFrame:
-        data = X.to_numpy()
+    """Checks values of data to ensure it is count data."""
+    if type(data) is np.ndarray:
+        data = data
+    elif issubclass(type(data), sp_sparse.spmatridata):
+        data = data.data
+    elif type(data) is pd.DataFrame:
+        data = data.to_numpy()
     else:
-        raise TypeError("X type not understood")
+        raise TypeError("data type not understood")
     # Check no negatives
     if np.any(data < 0):
         return False
@@ -113,21 +116,11 @@ def _check_nonnegative_integers(
 def _get_batch_mask_protein_data(
     adata: anndata.AnnData, protein_expression_obsm_key: str, batch_key: str
 ):
-    """Returns a list with length number of batches where each entry is a mask over present
-    cell measurement columns
+    """
+    Returns a list with length number of batches where each entry is a mask.
 
-    Parameters
-    ----------
-    attribute_name
-        cell_measurement attribute name
-
-    Returns
-    -------
-    type
-        List of ``np.ndarray`` containing, for each batch, a mask of which columns were
-        actually measured in that batch. This is useful when taking the union of a cell measurement
-        over datasets.
-
+    The mask is over cell measurement columns that are present (observed)
+    in each batch. Absence is defined by all 0 for that protein in that batch.
     """
     pro_exp = adata.obsm[protein_expression_obsm_key]
     pro_exp = pro_exp.to_numpy() if type(pro_exp) is pd.DataFrame else pro_exp

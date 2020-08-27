@@ -93,7 +93,7 @@ class VAEMixin:
         batch_size=128,
     ) -> np.ndarray:
         """
-        Return the latent representation for each cell
+        Return the latent representation for each cell.
 
         Parameters
         ----------
@@ -112,6 +112,7 @@ class VAEMixin:
         -------
         latent_representation : np.ndarray
             Low-dimensional representation for each cell
+
         """
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
@@ -183,7 +184,6 @@ class RNASeqMixin:
         Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
 
         """
-
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
@@ -300,7 +300,7 @@ class RNASeqMixin:
         batch_size=128,
     ) -> np.ndarray:
         r"""
-        Generate observation samples from the posterior predictive distribution
+        Generate observation samples from the posterior predictive distribution.
 
         The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
 
@@ -315,6 +315,7 @@ class RNASeqMixin:
         -------
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
+
         """
         assert self.model.reconstruction_loss in ["zinb", "nb", "poisson"]
 
@@ -397,6 +398,7 @@ class RNASeqMixin:
 
         Returns
         -------
+        denoised_samples
 
         """
         adata = self._validate_anndata(adata)
@@ -447,7 +449,7 @@ class RNASeqMixin:
         correlation_type: Literal["spearman", "pearson"] = "spearman",
     ) -> pd.DataFrame:
         """
-        Generate gene-gene correlation matrix using scvi uncertainty and expression
+        Generate gene-gene correlation matrix using scvi uncertainty and expression.
 
         Parameters
         ----------
@@ -470,8 +472,8 @@ class RNASeqMixin:
         Returns
         -------
         Gene-gene correlation matrix
-        """
 
+        """
         from scipy.stats import spearmanr
 
         adata = self._validate_anndata(adata)
@@ -517,7 +519,6 @@ class RNASeqMixin:
         give_mean: Optional[bool] = False,
         batch_size=128,
     ) -> Dict[str, np.ndarray]:
-
         r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`."""
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)

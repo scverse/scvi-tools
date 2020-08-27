@@ -46,13 +46,16 @@ fh_hyperopt = None
 
 
 class FminTimeoutError(Exception):
-    """Thrown if fmin process hasn't finished in the allotted
-    time after all workers have died.
+    """
+    Timeout error.
+
+    Thrown if fmin process hasn't finished in the allotted time after all workers have died.
     """
 
 
 class DispatchHandler(logging.Handler):
-    """A simple dispatcher for logging events.
+    """
+    A simple dispatcher for logging events.
 
     It dispatches events to loggers based on the name in the received record,
     which then get dispatched, by the logging system, to the handlers, configured for those loggers.
@@ -82,7 +85,8 @@ open_files: List[TextIO] = []
 
 # cleanup helpers
 def _cleanup_processes_files():
-    """Cleanup function, starts with latest processes/files.
+    """
+    Cleanup function, starts with latest processes/files.
 
     Terminates processes, sets stop events to stop threads, closes open files.
     """
@@ -229,8 +233,9 @@ def auto_tune_scvi_model(
     multiple_hosts: bool = False,
 ) -> (Type[BaseModelClass], Trials):
     """
-    Perform automatic hyperparameter optimization of an scvi model
-    and return best model and hyperopt Trials object.
+    Perform automatic hyperparameter optimization of an scvi model.
+
+    Returns best model and hyperopt Trials object.
 
     ``Trials`` object contains hyperparameter space and loss history for each trial.
     We provide a default hyperparameter search space (see source code),
@@ -327,11 +332,11 @@ def auto_tune_scvi_model(
 
     Examples
     --------
-
     >>> import scvi
     >>> adata = scvi.dataset.cortex()
     >>> vae, trials = auto_tune_scvi_model("cortex", adata)
     >>> latent = vae.get_latent_representation()
+
     """
     global fh_autotune
 
@@ -520,7 +525,8 @@ def _auto_tune_parallel(
     db_name: str = "scvi_db",
     multiple_hosts: bool = False,
 ) -> MongoTrials:
-    """Parallel version of the hyperoptimization procedure.
+    """
+    Parallel version of the hyperoptimization procedure.
 
     Called by ``auto_tune_scvi_model`` when ``parallel=True``.
     Specifically, first the MongoDb service is launched in its own forked process.
@@ -748,7 +754,8 @@ def _auto_tune_parallel(
 
 
 class FminLauncherThread(StoppableThread):
-    """Starts the process which ultimately call the minimzation procedure.
+    """
+    Starts the process which ultimately call the minimzation procedure.
 
     Is encapsulated in a ``threading.Thread`` to allow for the ``fmin_timer`` mechanism.
 
@@ -779,9 +786,6 @@ class FminLauncherThread(StoppableThread):
         Used only if ``parallel`` is set to ``True``.
     mongo_url :
         String of the form mongo_host:mongo_port/db_name.
-
-    Returns
-    -------
 
     """
 
@@ -867,7 +871,8 @@ class FminLauncherThread(StoppableThread):
 
 
 class FminProcess(multiprocessing.Process):
-    """Call ``hyperopt``'s fmin.
+    """
+    Call ``hyperopt``'s fmin.
 
     Is encapsulated in a ``multiprocessing.Process`` in order to
     allow for termination in case cleanup is required.
@@ -896,9 +901,6 @@ class FminProcess(multiprocessing.Process):
         Maximum number of evaluations of the objective.
     show_progressbar :
         Whether or not to show the ``hyperopt`` progress bar.
-
-    Returns
-    -------
 
     """
 
@@ -950,7 +952,9 @@ class FminProcess(multiprocessing.Process):
 
 
 class WorkerLauncherThread(StoppableThread):
-    """Launches the local workers which are going to run the jobs required by the minimization process.
+    """
+    Launches the local workers which are going to run the jobs required by the minimization process.
+
     Terminates when the worker_watchdog call finishes.
     Specifically, first ``n_gpu_workers`` are launched per GPU in ``gpu_ids`` in their own spawned process.
     Then, ``n_cpu_workers`` CPU workers are launched, also in their own spawned process.
@@ -985,9 +989,6 @@ class WorkerLauncherThread(StoppableThread):
     max_evals :
         Maximum number of evaluations of the objective.
         Useful for instantiating a progress bar.
-
-    Returns
-    -------
 
     """
 
@@ -1125,16 +1126,11 @@ class WorkerLauncherThread(StoppableThread):
 
 
 class ProgressListener(StoppableThread):
-    """Listens to workers when they finish a job and logs progress.
+    """
+    Listens to workers when they finish a job and logs progress.
 
     Workers put in the progress_queue when they finish a job
     and when they do this function sends a log to the progress logger.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
 
     """
 
@@ -1166,7 +1162,8 @@ class ProgressListener(StoppableThread):
 
 
 class HyperoptWorker(multiprocessing.Process):
-    """Launches a ``hyperopt`` ``MongoWorker`` which runs jobs until ``ReserveTimeout`` is raised.
+    """
+    Launches a ``hyperopt`` ``MongoWorker`` which runs jobs until ``ReserveTimeout`` is raised.
 
     Parameters
     ----------
@@ -1188,9 +1185,6 @@ class HyperoptWorker(multiprocessing.Process):
         before throwing a ``ReserveTimeout`` Exception.
     mongo_url :
         Address to the running MongoDb service.
-
-    Returns
-    -------
 
     """
 
@@ -1259,7 +1253,9 @@ def _objective_function(
     train_func_specific_kwargs: dict = None,
     is_best_training: bool = False,
 ) -> Union[Dict[str, Any], Trainer]:
-    """Objective function for automatic hyperparameter optimization.
+    """
+    Objective function for automatic hyperparameter optimization.
+
     Train a scVI model and return the best value of the early-stopping metric (e.g, log-likelihood).
     Convention: fixed parameters (no default) have precedence over tunable parameters (default).
 

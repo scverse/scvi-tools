@@ -1,5 +1,5 @@
 import torch
-import torch.nn.functional as F
+import torch.nn.functional as fun
 from torch.distributions import Normal, Beta, Gamma, kl_divergence as kl
 import numpy as np
 from scipy.special import logit
@@ -47,7 +47,6 @@ class AutoZIVAE(VAE):
 
     Examples
     --------
-
     >>> gene_dataset = CortexDataset()
     >>> autozivae = AutoZIVAE(gene_dataset.nb_genes, alpha_prior=0.5, beta_prior=0.5, minimal_dropout=0.01)
 
@@ -143,8 +142,6 @@ class AutoZIVAE(VAE):
         device
             string denoting the GPU device on which parameters and prior distribution values are copied.
 
-        Returns
-        -------
         """
         self = super().cuda(device)
         if isinstance(self.alpha_prior_logit, torch.Tensor):
@@ -213,24 +210,24 @@ class AutoZIVAE(VAE):
             one_hot_label = one_hot(y, self.n_labels)
             # If we sampled several random Bernoulli parameters
             if len(bernoulli_params.shape) == 2:
-                bernoulli_params = F.linear(one_hot_label, bernoulli_params)
+                bernoulli_params = fun.linear(one_hot_label, bernoulli_params)
             else:
                 bernoulli_params_res = []
                 for sample in range(bernoulli_params.shape[0]):
                     bernoulli_params_res.append(
-                        F.linear(one_hot_label, bernoulli_params[sample])
+                        fun.linear(one_hot_label, bernoulli_params[sample])
                     )
                 bernoulli_params = torch.stack(bernoulli_params_res)
         elif self.zero_inflation == "gene-batch":
             one_hot_batch = one_hot(batch_index, self.n_batch)
             if len(bernoulli_params.shape) == 2:
-                bernoulli_params = F.linear(one_hot_batch, bernoulli_params)
+                bernoulli_params = fun.linear(one_hot_batch, bernoulli_params)
             # If we sampled several random Bernoulli parameters
             else:
                 bernoulli_params_res = []
                 for sample in range(bernoulli_params.shape[0]):
                     bernoulli_params_res.append(
-                        F.linear(one_hot_batch, bernoulli_params[sample])
+                        fun.linear(one_hot_batch, bernoulli_params[sample])
                     )
                 bernoulli_params = torch.stack(bernoulli_params_res)
 
@@ -364,7 +361,7 @@ class AutoZIVAE(VAE):
         y: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         r"""
-        Returns the reconstruction loss and the Kullback divergences
+        Returns the reconstruction loss and the Kullback divergences.
 
         Parameters
         ----------
@@ -386,6 +383,7 @@ class AutoZIVAE(VAE):
         -------
         2-tuple of :py:class:`torch.FloatTensor`
             the reconstruction loss and the Kullback divergences
+
         """
         # Parameters for z latent distribution
         outputs = self.inference(x, batch_index, y)
