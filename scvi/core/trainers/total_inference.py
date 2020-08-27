@@ -27,7 +27,8 @@ default_early_stopping_kwargs = {
 
 
 class TotalTrainer(UnsupervisedTrainer):
-    """Unsupervised training for totalVI using variational inference
+    """
+    Unsupervised training for totalVI using variational inference
 
     Parameters
     ----------

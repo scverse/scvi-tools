@@ -19,12 +19,13 @@ logger = logging.getLogger(__name__)
 
 
 def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
-    """Returns the object in AnnData associated with the key in ``adata.uns['_scvi']['data_registry']``
+    """
+    Returns the object in AnnData associated with the key in ``.uns['_scvi']['data_registry']``
 
     Parameters
     ----------
     adata
-        anndata object
+        anndata object setup with `scvi`
     key
         key of object to get from ``adata.uns['_scvi]['data_registry']``
 
@@ -323,7 +324,8 @@ def register_tensor_from_anndata(
     is_categorical: Optional[bool] = False,
     adata_alternate_key_name: Optional[str] = None,
 ):
-    """Add another tensor to scvi data registry
+    """
+    Add another tensor to scvi data registry
 
     This function is intended for contributors testing out new models.
 
@@ -342,7 +344,6 @@ def register_tensor_from_anndata(
     adata_alternate_key_name
         Added key in adata_attr_name for categorical codes if `is_categorical` is True
     """
-
     if is_categorical is True:
         if adata_attr_name != "obs":
             raise ValueError("categorical handling only implemented for data in `.obs`")
@@ -362,7 +363,8 @@ def register_tensor_from_anndata(
 def transfer_anndata_setup(
     adata_source: Union[anndata.AnnData, dict], adata_target: anndata.AnnData
 ):
-    """Transfer anndata setup from a source object to a target object.
+    """
+    Transfer anndata setup from a source object to a target object.
 
     This handles encoding for categorical data and is useful in the case where an
     anndata object has been subsetted and a category is lost.
@@ -545,7 +547,8 @@ def _setup_extra_categorical_covs(
     categorical_covariate_keys: List[str],
     category_dict: Dict[str, List[str]] = None,
 ):
-    """Setup obsm df for extra categorical covariates
+    """
+    Setup obsm df for extra categorical covariates
 
     Parameters
     ----------
@@ -557,7 +560,6 @@ def _setup_extra_categorical_covs(
         Optional dictionary with keys being keys of categorical data in obs
         and values being precomputed categories for each obs vector
     """
-
     for key in categorical_covariate_keys:
         _assert_key_in_obs(adata, key)
 

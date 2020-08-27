@@ -12,6 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 class BioDataset(Dataset):
+    """
+    Extension of torch dataset to get tensors from anndata
+    """
+
     def __init__(
         self,
         adata: anndata.AnnData,
@@ -89,6 +93,7 @@ class BioDataset(Dataset):
         self.attributes_and_types = keys_to_type
 
     def __getitem__(self, idx: List[int]) -> Dict[str, torch.Tensor]:
+        """Get tensors in dictionary from anndata at idx."""
         data_numpy = {}
         for key, dtype in self.attributes_and_types.items():
             data = self.data[key]
