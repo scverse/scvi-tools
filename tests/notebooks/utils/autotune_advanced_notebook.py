@@ -12,10 +12,8 @@ from typing import Dict
 from colour import Color
 from hyperopt import STATUS_OK
 from hyperopt import Trials
-from scvi.inference import SemiSupervisedTrainer
-from scvi.inference import UnsupervisedTrainer
-from scvi.models import SCANVI
-from scvi.models import VAE
+from scvi.core.models import SCANVAE
+from scvi.core.trainers import SemiSupervisedTrainer
 from sklearn.model_selection import train_test_split
 from scvi.dataset._anndata import get_from_registry
 from scvi import _CONSTANTS
@@ -46,10 +44,10 @@ def custom_objective_hyperopt(
     trainer_tunable_kwargs.update(trainer_specific_kwargs)
     train_func_tunable_kwargs.update(train_func_specific_kwargs)
 
-    scanvi = SCANVI(
-        dataset.uns["scvi_summary_stats"]["n_genes"],
-        dataset.uns["scvi_summary_stats"]["n_batch"],
-        dataset.uns["scvi_summary_stats"]["n_labels"],
+    scanvi = SCANVAE(
+        dataset.uns["_scvi"]["summary_stats"]["n_genes"],
+        dataset.uns["_scvi"]["summary_stats"]["n_batch"],
+        dataset.uns["_scvi"]["summary_stats"]["n_labels"],
         **model_tunable_kwargs
     )
     trainer_scanvi = SemiSupervisedTrainer(scanvi, dataset, **trainer_tunable_kwargs)
@@ -119,11 +117,6 @@ class Benchmarkable:
             trials_fname = os.path.join(global_path, "trials_" + exp_key)
 
         # load pickled attributes
-        location = "cuda:0" if torch.cuda.is_available() else "cpu"
-        with open(trainer_fname, "rb") as f:
-            self.trainer: UnsupervisedTrainer = pickle.load(f)
-        with open(model_fname, "rb") as f:
-            self.model: VAE = torch.load(f, map_location=location)
         if not is_one_shot:
             with open(trials_fname, "rb") as f:
                 self.trials: Trials = pickle.load(f)
@@ -180,7 +173,9 @@ class Benchmarkable:
         df_space = pd.DataFrame(ddd)
         df_space = df_space.T
         n_params_dataset = np.vectorize(
-            partial(n_params, self.trainer.adata.uns["scvi_summary_stats"]["n_genes"])
+            partial(
+                n_params, self.trainer.adata.uns["_scvi"]["summary_stats"]["n_genes"]
+            )
         )
         df_space["n_params"] = n_params_dataset(
             df_space["n_layers"], df_space["n_hidden"], df_space["n_latent"]
@@ -252,11 +247,11 @@ class PlotBenchmarkables:
                 runtime_info["train_time"].append(result["elapsed_time"])
 
             def fill_sub_df(sub_df, benchmarkable):
-                sub_df["Nb cells"] = benchmarkable.trainer.adata.uns[
-                    "scvi_summary_stats"
+                sub_df["Nb cells"] = benchmarkable.trainer.adata.uns["_scvi"][
+                    "summary_stats"
                 ]["n_cells"]
-                sub_df["Nb genes"] = benchmarkable.trainer.adata.uns[
-                    "scvi_summary_stats"
+                sub_df["Nb genes"] = benchmarkable.trainer.adata.uns["_scvi"][
+                    "summary_stats"
                 ]["n_genes"]
                 sub_df["Total GPU time"] = benchmarkable.total_train_time
                 sub_df["Total wall time"] = benchmarkable.runtime
