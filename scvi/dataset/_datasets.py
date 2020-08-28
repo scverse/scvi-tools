@@ -64,12 +64,12 @@ def dataset10X(
     filename: Optional[str] = None,
     save_path: str = "data/10X",
     url: str = None,
-    is_filtered: bool = True,
+    return_filtered: bool = True,
     remove_extracted_data: bool = False,
     **scanpy_read_10x_kwargs,
 ) -> anndata.AnnData:
-    """Loads a file from `10x <http://cf.10xgenomics.com/>`_ website.
-
+    """
+    Loads a file from `10x <http://cf.10xgenomics.com/>`_ website.
 
     Parameters
     ----------
@@ -90,10 +90,12 @@ def dataset10X(
         manual override of the download remote location.
         Note that we already provide urls for most 10X datasets,
         which are automatically formed only using the ``dataset_name``.
-    type
+    return_filtered
         Either `filtered` data or `raw` data.
     remove_extracted_data
         Whether to remove extracted archives in the case of `.tar.gz` downloads.
+    **scanpy_read_10x_kwargs
+        Kwargs for scanpy's read_10x function
 
     Returns
     -------
@@ -103,13 +105,14 @@ def dataset10X(
     --------
     >>> import scvi
     >>> neuron = scvi.dataset.dataset10X("neuron_9k")
+
     """
     return _load_dataset10X(
         dataset_name=dataset_name,
         filename=filename,
         save_path=save_path,
         url=url,
-        is_filtered=is_filtered,
+        return_filtered=return_filtered,
         remove_extracted_data=remove_extracted_data,
         **scanpy_read_10x_kwargs,
     )
@@ -120,7 +123,8 @@ def smfish(
     use_high_level_cluster: bool = True,
     run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
-    """Loads osmFISH data of mouse cortex cells from the Linarsson lab.
+    """
+    Loads osmFISH data of mouse cortex cells from the Linarsson lab.
 
     Parameters
     ----------
@@ -142,6 +146,7 @@ def smfish(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.smfish()
+
     """
     return _load_smfish(
         save_path=save_path,
@@ -155,7 +160,10 @@ def seqfishplus(
     tissue_region="subventricular cortex",
     run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
-    """seqFISH+ can image mRNAs for 10,000 genes in single cells—with high accuracy and
+    """
+    seqFISH+ of cortex, subventricular zone and olfactory bulb of mouse brain.
+
+    seqFISH+ can image mRNAs for 10,000 genes in single cells—with high accuracy and
     sub-diffraction-limit resolution—in the cortex, subventricular zone
     and olfactory bulb of mouse brain
 
@@ -177,6 +185,7 @@ def seqfishplus(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.seqfishplus()
+
     """
     return _load_seqfishplus(
         save_path=save_path,
@@ -188,7 +197,8 @@ def seqfishplus(
 def seqfish(
     save_path: str = "data/", run_setup_anndata: bool = True
 ) -> anndata.AnnData:
-    """seqfish dataset
+    """
+    Seqfish dataset.
 
     Parameters
     ----------
@@ -205,6 +215,7 @@ def seqfish(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.seqfish()
+
     """
     return _load_seqfish(save_path=save_path, run_setup_anndata=run_setup_anndata)
 
@@ -214,7 +225,8 @@ def purified_pbmc_dataset(
     subset_datasets: Optional[List[str]] = None,
     run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
-    """Purified PBMC dataset from: "Massively parallel digital transcriptional profiling of single cells".
+    """
+    Purified PBMC dataset from: "Massively parallel digital transcriptional profiling of single cells".
 
     Parameters
     ----------
@@ -236,6 +248,7 @@ def purified_pbmc_dataset(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.purified_pbmc_dataset()
+
     """
     return _load_purified_pbmc_dataset(
         save_path=save_path,
@@ -247,8 +260,10 @@ def purified_pbmc_dataset(
 def prefrontalcortex_starmap(
     save_path: str = "data/", run_setup_anndata: bool = True
 ) -> anndata.AnnData:
-    """Loads a starMAP dataset of 3,704 cells and 166 genes from
-    the mouse pre-frontal cortex (Wang et al., 2018)
+    """
+    Loads a starMAP dataset of mouse pre-frontal cortex (Wang et al., 2018).
+
+    3,704 cells and 166 genes.
 
     Parameters
     ----------
@@ -266,6 +281,7 @@ def prefrontalcortex_starmap(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.prefrontalcortex_starmap()
+
     """
     return _load_prefrontalcortex_starmap(save_path=save_path)
 
@@ -273,7 +289,8 @@ def prefrontalcortex_starmap(
 def frontalcortex_dropseq(
     save_path: str = "data/", run_setup_anndata: bool = True
 ) -> anndata.AnnData:
-    """ "Load the cells from the mouse frontal cortex sequenced by the Dropseq technology (Saunders et al., 2018)
+    """
+    Load the cells from the mouse frontal cortex sequenced by the Dropseq technology (Saunders et al., 2018).
 
     Load the 71639 annotated cells located in the frontal cortex of adult mouses among the 690,000 cells
     studied by (Saunders et al., 2018) using the Drop-seq method. We have a 71639*7611 gene expression matrix
@@ -295,6 +312,7 @@ def frontalcortex_dropseq(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.frontalcortex_dropseq()
+
     """
     return _load_frontalcortex_dropseq(save_path=save_path)
 
@@ -302,8 +320,8 @@ def frontalcortex_dropseq(
 def annotation_simulation(
     name: str, save_path: str = "data/", run_setup_anndata: bool = True
 ) -> anndata.AnnData:
-    """\
-    Simulated datasets for scANVI tutorials
+    """
+    Simulated datasets for scANVI tutorials.
 
     Parameters
     ----------
@@ -322,6 +340,7 @@ def annotation_simulation(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.annontation_simulation("1")
+
     """
     return _load_annotation_simulation(
         name=name, save_path=save_path, run_setup_anndata=run_setup_anndata
@@ -329,7 +348,8 @@ def annotation_simulation(
 
 
 def retina(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.AnnData:
-    """Loads retina dataset.
+    """
+    Loads retina dataset.
 
     The dataset of bipolar cells contains after their original pipeline for filtering 27,499 cells and
     13,166 genes coming from two batches. We use the cluster annotation from 15 cell-types from the author.
@@ -349,6 +369,7 @@ def retina(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.
     Examples
     --------
     >>> adata = retina()
+
     """
     return _load_retina(save_path=save_path)
 
@@ -356,7 +377,8 @@ def retina(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.
 def mouse_ob_dataset(
     save_path: str = "data/", run_setup_anndata: bool = True
 ) -> anndata.AnnData:
-    """Loads mouse ob dataset.
+    """
+    Loads mouse ob dataset.
 
     Parameters
     ----------
@@ -373,6 +395,7 @@ def mouse_ob_dataset(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.mouse_ob_dataset()
+
     """
     return _load_mouse_ob_dataset(
         save_path=save_path, run_setup_anndata=run_setup_anndata
@@ -382,7 +405,8 @@ def mouse_ob_dataset(
 def breast_cancer_dataset(
     save_path: str = "data/", run_setup_anndata: bool = True
 ) -> anndata.AnnData:
-    """Loads breast cancer dataset.
+    """
+    Loads breast cancer dataset.
 
     Parameters
     ----------
@@ -399,6 +423,7 @@ def breast_cancer_dataset(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.breast_cancer_dataset()
+
     """
     return _load_breast_cancer_dataset(
         save_path=save_path, run_setup_anndata=run_setup_anndata
@@ -410,7 +435,8 @@ def pbmcs_10x_cite_seq(
     protein_join: str = "inner",
     run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
-    """Filtered PBMCs from 10x Genomics profiled with RNA and protein
+    """
+    Filtered PBMCs from 10x Genomics profiled with RNA and protein.
 
     Datasets were filtered for doublets and other outliers as in
     https://github.com/YosefLab/totalVI_reproducibility/blob/master/data/data_filtering_scripts/pbmc_10k/pbmc_10k.py
@@ -435,6 +461,7 @@ def pbmcs_10x_cite_seq(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.pbmcs_10x_cite_seq()
+
     """
     return _load_pbmcs_10x_cite_seq(
         save_path=save_path,
@@ -451,7 +478,8 @@ def brainlarge_dataset(
     n_genes_to_keep: int = 720,
     loading_batch_size: int = 100000,
 ) -> anndata.AnnData:
-    """Loads brain-large dataset.
+    """
+    Loads brain-large dataset.
 
     This dataset contains 1.3 million brain cells from
     `10x Genomics <https://support.10xgenomics.com/single-cell-gene-expression/datasets>`_.
@@ -482,8 +510,8 @@ def brainlarge_dataset(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.brainlarge_dataset()
-    """
 
+    """
     return _load_brainlarge_dataset(
         save_path=save_path,
         run_setup_anndata=run_setup_anndata,
@@ -518,6 +546,7 @@ def cortex(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.
     --------
     >>> import scvi
     >>> adata = scvi.dataset.cortex()
+
     """
     return _load_cortex(save_path, run_setup_anndata)
 
@@ -530,9 +559,10 @@ def synthetic_iid(
     n_labels: Optional[int] = 3,
     run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
-    """Synthetic dataset with ZINB distributed RNA and NB distributed protein.
-    This dataset is just for testing purposed and not meant for modeling or research.
+    """
+    Synthetic dataset with ZINB distributed RNA and NB distributed protein.
 
+    This dataset is just for testing purposed and not meant for modeling or research.
     Each value is independently and identically distributed.
 
     Parameters
@@ -547,6 +577,8 @@ def synthetic_iid(
         Number of batches
     n_labels
         Number of cell types
+    run_setup_anndata
+        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -558,8 +590,8 @@ def synthetic_iid(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.synthetic_iid()
-    """
 
+    """
     return _generate_synthetic(
         batch_size=batch_size,
         n_genes=n_genes,

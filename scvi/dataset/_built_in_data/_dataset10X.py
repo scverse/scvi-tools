@@ -80,7 +80,7 @@ def _load_dataset10X(
     filename: str = None,
     save_path: str = "data/10X",
     url: str = None,
-    is_filtered: bool = True,
+    return_filtered: bool = True,
     remove_extracted_data: bool = False,
     **scanpy_read_10x_kwargs,
 ):
@@ -98,7 +98,7 @@ def _load_dataset10X(
         group = dataset_to_group[dataset_name]
         url_skeleton = group_to_url_skeleton[group]
 
-        filter_type = "filtered" if is_filtered else "raw"
+        filter_type = "filtered" if return_filtered else "raw"
         url = url_skeleton.format(group, dataset_name, dataset_name, filter_type)
         filename_skeleton = group_to_filename_skeleton[group]
         filename = filename_skeleton.format(filter_type)
@@ -141,7 +141,8 @@ def _load_dataset10X(
 
 
 def _find_path_to_mtx(save_path: str) -> Tuple[str, str]:
-    """Returns exact path for the data in the archive.
+    """
+    Returns exact path for the data in the archive.
 
     This is required because 10X doesn't have a consistent way of storing their data.
     Additionally, the function returns whether the data is stored in compressed format.
@@ -149,6 +150,7 @@ def _find_path_to_mtx(save_path: str) -> Tuple[str, str]:
     Returns
     -------
     path in which files are contains and their suffix if compressed.
+
     """
     for root, subdirs, files in os.walk(save_path):
         # do not consider hidden files
