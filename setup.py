@@ -61,6 +61,7 @@ extras_requirements = {
         "scanpydoc",
         "pydata-sphinx-theme",
         'typing_extensions; python_version < "3.8"',  # for `Literal`
+        "ipython>=7.1.1",
     ],
     "test": test_requirements,
 }
