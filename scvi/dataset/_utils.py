@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def _compute_library_size(
-    data: Union[sp_sparse.csr_matrix, np.ndarray]
+    data: Union[sp_sparse.spmatrix, np.ndarray]
 ) -> Tuple[np.ndarray, np.ndarray]:
     sum_counts = data.sum(axis=1)
     masked_log_sum = np.ma.log(sum_counts)
@@ -92,12 +92,12 @@ def _compute_library_size_batch(
 
 
 def _check_nonnegative_integers(
-    data: Union[pd.DataFrame, np.ndarray, sp_sparse.csr_matrix]
+    data: Union[pd.DataFrame, np.ndarray, sp_sparse.spmatrix]
 ):
     """Checks values of data to ensure it is count data."""
     if type(data) is np.ndarray:
         data = data
-    elif issubclass(type(data), sp_sparse.spmatridata):
+    elif issubclass(type(data), sp_sparse.spmatrix):
         data = data.data
     elif type(data) is pd.DataFrame:
         data = data.to_numpy()
