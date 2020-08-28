@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
     """
-    Returns the object in AnnData associated with the key in ``.uns['_scvi']['data_registry']``
+    Returns the object in AnnData associated with the key in ``.uns['_scvi']['data_registry']``.
 
     Parameters
     ----------
@@ -52,6 +52,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
            [0],
            [0],
            [0]])
+
     """
     use_raw = adata.uns["_scvi"]["use_raw"]
     data_loc = adata.uns["_scvi"]["data_registry"][key]
@@ -75,14 +76,15 @@ def setup_anndata(
     batch_key: str = None,
     labels_key: str = None,
     use_raw: bool = False,
-    X_layers_key: str = None,
+    layer: str = None,
     protein_expression_obsm_key: str = None,
     protein_names_uns_key: str = None,
     categorical_covariate_keys: List[str] = None,
     continuous_covariate_keys: List[str] = None,
     copy: bool = False,
 ) -> Optional[anndata.AnnData]:
-    """Sets up AnnData object for scVI models.
+    """
+    Sets up AnnData object for scVI models.
 
     A mapping will be created between data fields used by scVI to their respective locations in adata
     This method will also compute the log mean and log variance per batch.
@@ -99,13 +101,19 @@ def setup_anndata(
     labels_key
         key in adata.obs for label information. If they're not integers, will automatically be converted into integer
         categories and saved to ``adata.obs['_scvi_labels']``. If ``None``, assigns the same label to all the data.
-    X_layers_key
+    use_raw
+        Use `.raw` when applicable (e.g., for X)
+    layer
         if not None, uses this as the key in ``adata.layers`` for raw count data.
     protein_expression_obsm_key
         key in ``adata.obsm`` for protein expression data, Required for TotalVI.
     protein_names_uns_key
         key in ``adata.uns`` for protein names. If None, will use the column names of ``adata.obsm[protein_expression_obsm_key]``
         if it is a pandas dataframe, else will assign sequential names to proteins. Only relavent but not required for TotalVI.
+    categorical_covariate_keys
+        keys in ``adata.obs`` that correspond to categorical data. Used in some `scvi` models.
+    continuous_covariate_keys
+        keys in ``adata.obs`` that correspond to continuous data. Used in some `scvi` models.
     copy
         if True, a copy of adata is returned.
 
@@ -131,7 +139,6 @@ def setup_anndata(
 
     Examples
     --------
-
     Example setting up a scanpy dataset with random gene data and no batch nor label information
 
     >>> import scanpy
@@ -214,7 +221,7 @@ def setup_anndata(
     AAACCCAGTCGTCATA-1-0              5             14  ...               76               17
     [5 rows x 14 columns]
     >>> # setup anndata with batch and labels information from adata.obs and protein expressions from adata.obsm
-    >>> setup_anndata(adata, batch_key='batch', labels_key='labels', protein_expression_obsm_key='protein_expression', X_layers_key='raw_counts')
+    >>> setup_anndata(adata, batch_key='batch', labels_key='labels', protein_expression_obsm_key='protein_expression', layer='raw_counts')
     [2020-07-31 13:04:28,129] INFO - scvi.dataset._anndata | Using batches from adata.obs["batch"]
     [2020-07-31 13:04:28,135] INFO - scvi.dataset._anndata | Using labels from adata.obs["labels"]
     [2020-07-31 13:04:28,136] INFO - scvi.dataset._anndata | Using data from adata.layers["raw_counts"]
@@ -265,9 +272,9 @@ def setup_anndata(
 
     batch_key = _setup_batch(adata, batch_key)
     labels_key = _setup_labels(adata, labels_key)
-    X_loc, X_key = _setup_X(adata, X_layers_key, use_raw)
+    X_loc, X_key = _setup_X(adata, layer, use_raw)
     local_l_mean_key, local_l_var_key = _setup_library_size(
-        adata, batch_key, X_layers_key, use_raw
+        adata, batch_key, layer, use_raw
     )
 
     adata.uns["_scvi"]["use_raw"] = True if use_raw is True else False
@@ -325,7 +332,7 @@ def register_tensor_from_anndata(
     adata_alternate_key_name: Optional[str] = None,
 ):
     """
-    Add another tensor to scvi data registry
+    Add another tensor to scvi data registry.
 
     This function is intended for contributors testing out new models.
 
@@ -343,6 +350,7 @@ def register_tensor_from_anndata(
         Whether or not data is categorical
     adata_alternate_key_name
         Added key in adata_attr_name for categorical codes if `is_categorical` is True
+
     """
     if is_categorical is True:
         if adata_attr_name != "obs":
@@ -378,8 +386,9 @@ def transfer_anndata_setup(
         AnnData with similar organization as source, but possibly subsetted
     use_raw
         Use raw for X
-    X_layers_key
+    layer
         Layer for X
+
     """
     adata_target.uns["_scvi"] = {}
     if isinstance(adata_source, anndata.AnnData):
@@ -391,9 +400,9 @@ def transfer_anndata_setup(
 
     x_loc = data_registry[_CONSTANTS.X_KEY]["attr_name"]
     if x_loc == "layers":
-        X_layers_key = data_registry[_CONSTANTS.X_KEY]["attr_key"]
+        layer = data_registry[_CONSTANTS.X_KEY]["attr_key"]
     else:
-        X_layers_key = None
+        layer = None
 
     if _scvi_dict["use_raw"] is True:
         adata_target.uns["_scvi"]["use_raw"] = True
@@ -439,9 +448,9 @@ def transfer_anndata_setup(
     labels_key = "_scvi_labels"
 
     # transfer X
-    X_loc, X_key = _setup_X(adata_target, X_layers_key, use_raw)
+    X_loc, X_key = _setup_X(adata_target, layer, use_raw)
     local_l_mean_key, local_l_var_key = _setup_library_size(
-        adata_target, batch_key, X_layers_key, use_raw
+        adata_target, batch_key, layer, use_raw
     )
     target_data_registry = data_registry.copy()
     target_data_registry.update(
@@ -548,7 +557,7 @@ def _setup_extra_categorical_covs(
     category_dict: Dict[str, List[str]] = None,
 ):
     """
-    Setup obsm df for extra categorical covariates
+    Setup obsm df for extra categorical covariates.
 
     Parameters
     ----------
@@ -559,6 +568,7 @@ def _setup_extra_categorical_covs(
     category_dict
         Optional dictionary with keys being keys of categorical data in obs
         and values being precomputed categories for each obs vector
+
     """
     for key in categorical_covariate_keys:
         _assert_key_in_obs(adata, key)
@@ -591,7 +601,8 @@ def _setup_extra_categorical_covs(
 def _setup_extra_continuous_covs(
     adata: anndata.AnnData, continuous_covariate_keys: List[str]
 ):
-    """Setup obsm df for extra continuous covariates
+    """
+    Setup obsm df for extra continuous covariates.
 
     Parameters
     ----------
@@ -599,8 +610,8 @@ def _setup_extra_continuous_covs(
         AnnData to setup
     continuous_covariate_keys
         List of keys in adata.obs with continuous data
-    """
 
+    """
     for key in continuous_covariate_keys:
         _assert_key_in_obs(adata, key)
 
@@ -621,8 +632,10 @@ def _setup_extra_continuous_covs(
 def _make_obs_column_categorical(
     adata, column_key, alternate_column_key, categorical_dtype=None
 ):
-    """Makes the data in column_key in obs all categorical.
-    if adata.obs[column_key] is not categorical, will categorize
+    """
+    Makes the data in column_key in obs all categorical.
+
+    If adata.obs[column_key] is not categorical, will categorize
     and save to .obs[alternate_column_key]
     """
     if categorical_dtype is None:
@@ -719,11 +732,9 @@ def _setup_protein_expression(
     return protein_expression_obsm_key
 
 
-def _setup_X(adata, X_layers_key, use_raw):
-    if use_raw and X_layers_key:
-        logging.warning(
-            "use_raw and X_layers_key were both passed in. Defaulting to use_raw."
-        )
+def _setup_X(adata, layer, use_raw):
+    if use_raw and layer:
+        logging.warning("use_raw and layer were both passed in. Defaulting to use_raw.")
 
     # checking layers
     if use_raw:
@@ -732,13 +743,13 @@ def _setup_X(adata, X_layers_key, use_raw):
         X_loc = "X"
         X_key = "None"
         X = adata.raw.X
-    elif X_layers_key is not None:
+    elif layer is not None:
         assert (
-            X_layers_key in adata.layers.keys()
-        ), "{} is not a valid key in adata.layers".format(X_layers_key)
-        logger.info('Using data from adata.layers["{}"]'.format(X_layers_key))
+            layer in adata.layers.keys()
+        ), "{} is not a valid key in adata.layers".format(layer)
+        logger.info('Using data from adata.layers["{}"]'.format(layer))
         X_loc = "layers"
-        X_key = X_layers_key
+        X_key = layer
         X = adata.layers[X_key]
     else:
         logger.info("Using data from adata.X")
@@ -748,9 +759,7 @@ def _setup_X(adata, X_layers_key, use_raw):
 
     if _check_nonnegative_integers(X) is False:
         logger_data_loc = (
-            "adata.X"
-            if X_layers_key is None
-            else "adata.layers[{}]".format(X_layers_key)
+            "adata.X" if layer is None else "adata.layers[{}]".format(layer)
         )
         warnings.warn(
             "{} does not contain unnormalized count data. Are you sure this is what you want?".format(
@@ -761,7 +770,7 @@ def _setup_X(adata, X_layers_key, use_raw):
     return X_loc, X_key
 
 
-def _setup_library_size(adata, batch_key, X_layers_key, use_raw):
+def _setup_library_size(adata, batch_key, layer, use_raw):
     # computes the library size per batch
     logger.info("Computing library size prior per batch")
     local_l_mean_key = "_scvi_local_l_mean"
@@ -771,7 +780,7 @@ def _setup_library_size(adata, batch_key, X_layers_key, use_raw):
         batch_key=batch_key,
         local_l_mean_key=local_l_mean_key,
         local_l_var_key=local_l_var_key,
-        X_layers_key=X_layers_key,
+        layer=layer,
         use_raw=use_raw,
     )
     return local_l_mean_key, local_l_var_key
@@ -807,7 +816,8 @@ def _setup_summary_stats(adata, batch_key, labels_key, protein_expression_obsm_k
 
 
 def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
-    """Registers the AnnData object by adding data_registry_dict to adata.uns['_scvi']['data_registry']
+    """
+    Registers the AnnData object by adding data_registry_dict to adata.uns['_scvi']['data_registry'].
 
     Format of data_registry_dict is: {<scvi_key>: (<anndata dataframe>, <dataframe key> )}
 

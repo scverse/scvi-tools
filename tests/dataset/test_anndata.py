@@ -38,7 +38,7 @@ def test_transfer_anndata_setup():
     ones = np.ones_like(adata1.X)
     adata1.X = zeros
     adata2.X = ones
-    setup_anndata(adata1, X_layers_key="raw")
+    setup_anndata(adata1, layer="raw")
     transfer_anndata_setup(adata1, adata2)
     np.testing.assert_array_equal(
         adata1.obs["_scvi_local_l_mean"], adata2.obs["_scvi_local_l_mean"]
@@ -138,12 +138,12 @@ def test_setup_anndata():
     setup_anndata(adata, protein_expression_obsm_key="protein_expression")
     np.testing.assert_array_equal(adata.uns["scvi_protein_names"], new_protein_names)
 
-    # test that X_layers_key is working properly
+    # test that layer is working properly
     adata = synthetic_iid()
     true_x = adata.X
     adata.layers["X"] = true_x
     adata.X = np.ones_like(adata.X)
-    setup_anndata(adata, X_layers_key="X")
+    setup_anndata(adata, layer="X")
     np.testing.assert_array_equal(get_from_registry(adata, "X"), true_x)
 
     # test that it creates layers and batch if no layers_key is passed

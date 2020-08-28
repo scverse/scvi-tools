@@ -28,7 +28,7 @@ default_early_stopping_kwargs = {
 
 class TotalTrainer(UnsupervisedTrainer):
     """
-    Unsupervised training for totalVI using variational inference
+    Unsupervised training for totalVI using variational inference.
 
     Parameters
     ----------
@@ -141,12 +141,12 @@ class TotalTrainer(UnsupervisedTrainer):
 
     def loss(self, tensors):
         (
-            sample_batch_X,
+            sample_batch_x,
             local_l_mean,
             local_l_var,
             batch_index,
             label,
-            sample_batch_Y,
+            sample_batch_y,
         ) = self._unpack_tensors(tensors)
         (
             reconst_loss_gene,
@@ -155,8 +155,8 @@ class TotalTrainer(UnsupervisedTrainer):
             kl_div_l_gene,
             kl_div_back_pro,
         ) = self.model(
-            sample_batch_X,
-            sample_batch_Y,
+            sample_batch_x,
+            sample_batch_y,
             local_l_mean,
             local_l_var,
             batch_index,
@@ -197,16 +197,16 @@ class TotalTrainer(UnsupervisedTrainer):
 
     def _get_z(self, tensors):
         (
-            sample_batch_X,
+            sample_batch_x,
             local_l_mean,
             local_l_var,
             batch_index,
             label,
-            sample_batch_Y,
+            sample_batch_y,
         ) = self._unpack_tensors(tensors)
 
         z = self.model.sample_from_posterior_z(
-            sample_batch_X, sample_batch_Y, batch_index, give_mean=False
+            sample_batch_x, sample_batch_y, batch_index, give_mean=False
         )
 
         return z
