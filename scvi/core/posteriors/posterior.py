@@ -14,7 +14,6 @@ from scvi.core._log_likelihood import (
     compute_marginal_log_likelihood_scvi,
     compute_marginal_log_likelihood_autozi,
 )
-from scvi.metrics import entropy_batch_mixing
 from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)
@@ -278,17 +277,6 @@ class Posterior:
             ll = compute_marginal_log_likelihood_scvi(self.model, self, n_mc_samples)
         logger.debug("True LL : %.4f" % ll)
         return ll
-
-    @torch.no_grad()
-    def entropy_batch_mixing(self, **kwargs) -> torch.Tensor:
-        """Returns the object's entropy batch mixing."""
-        if self.gene_dataset.n_batches == 2:
-            latent, batch_indices, labels = self.get_latent()
-            be_score = entropy_batch_mixing(latent, batch_indices, **kwargs)
-            logger.debug("Entropy batch mixing : {}".format(be_score))
-            return be_score
-
-    entropy_batch_mixing.mode = "max"
 
     def update_sampler_indices(self, idx: Union[List, np.ndarray]):
         """

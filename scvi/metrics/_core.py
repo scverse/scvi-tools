@@ -17,45 +17,6 @@ from sklearn.mixture import GaussianMixture as GMM
 logger = logging.getLogger(__name__)
 
 
-def entropy_batch_mixing(
-    latent_space, batches, n_neighbors=50, n_pools=50, n_samples_per_pool=100
-):
-    def entropy(hist_data):
-        n_batches = len(np.unique(hist_data))
-        if n_batches > 2:
-            raise ValueError("Should be only two clusters for this metric")
-        frequency = np.mean(hist_data == 1)
-        if frequency == 0 or frequency == 1:
-            return 0
-        return -frequency * np.log(frequency) - (1 - frequency) * np.log(1 - frequency)
-
-    n_neighbors = min(n_neighbors, len(latent_space) - 1)
-    nne = NearestNeighbors(n_neighbors=1 + n_neighbors, n_jobs=8)
-    nne.fit(latent_space)
-    kmatrix = nne.kneighbors_graph(latent_space) - scipy.sparse.identity(
-        latent_space.shape[0]
-    )
-
-    score = 0
-    for t in range(n_pools):
-        indices = np.random.choice(
-            np.arange(latent_space.shape[0]), size=n_samples_per_pool
-        )
-        score += np.mean(
-            [
-                entropy(
-                    batches[
-                        kmatrix[indices].nonzero()[1][
-                            kmatrix[indices].nonzero()[0] == i
-                        ]
-                    ]
-                )
-                for i in range(n_samples_per_pool)
-            ]
-        )
-    return score / float(n_pools)
-
-
 def nearest_neighbor_overlap(X1, X2, k=100):
     """
     Compute the overlap between the k-nearest neighbor graph of X1 and X2
