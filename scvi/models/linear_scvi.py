@@ -85,7 +85,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
             n_layers_encoder=n_layers,
             dropout_rate=dropout_rate,
             dispersion=dispersion,
-            reconstruction_loss=gene_likelihood,
+            gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
             **model_kwargs,
         )

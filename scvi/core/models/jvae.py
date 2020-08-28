@@ -39,7 +39,7 @@ class JVAE(nn.Module):
         list of mapping the model inputs to the model output
         Eg: ``[[0,2], [0,1,3,2]]`` means the first dataset has 2 genes that will be reconstructed at location ``[0,2]``
         the second dataset has 4 genes that will be reconstructed at ``[0,1,3,2]``
-    reconstruction_losses
+    gene_likelihoods
         list of distributions to use in the generative process 'zinb', 'nb', 'poisson'
     model_library_bools bool list
         model or not library size with a latent variable or use observed values
@@ -79,7 +79,7 @@ class JVAE(nn.Module):
         dim_input_list: List[int],
         total_genes: int,
         indices_mappings: List[Union[np.ndarray, slice]],
-        reconstruction_losses: List[str],
+        gene_likelihoods: List[str],
         model_library_bools: List[bool],
         n_latent: int = 10,
         n_layers_encoder_individual: int = 1,
@@ -101,7 +101,7 @@ class JVAE(nn.Module):
         self.n_input_list = dim_input_list
         self.total_genes = total_genes
         self.indices_mappings = indices_mappings
-        self.reconstruction_losses = reconstruction_losses
+        self.gene_likelihoods = gene_likelihoods
         self.model_library_bools = model_library_bools
 
         self.n_latent = n_latent
@@ -321,7 +321,7 @@ class JVAE(nn.Module):
         mode: int,
     ) -> torch.Tensor:
         reconstruction_loss = None
-        if self.reconstruction_losses[mode] == "zinb":
+        if self.gene_likelihoods[mode] == "zinb":
             reconstruction_loss = (
                 -ZeroInflatedNegativeBinomial(
                     mu=px_rate, theta=px_r, zi_logits=px_dropout
@@ -329,11 +329,11 @@ class JVAE(nn.Module):
                 .log_prob(x)
                 .sum(dim=-1)
             )
-        elif self.reconstruction_losses[mode] == "nb":
+        elif self.gene_likelihoods[mode] == "nb":
             reconstruction_loss = (
                 -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
             )
-        elif self.reconstruction_losses[mode] == "poisson":
+        elif self.gene_likelihoods[mode] == "poisson":
             reconstruction_loss = -Poisson(px_rate).log_prob(x).sum(dim=1)
         return reconstruction_loss
 

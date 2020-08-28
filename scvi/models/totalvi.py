@@ -94,7 +94,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             n_latent=n_latent,
             gene_dispersion=gene_dispersion,
             protein_dispersion=protein_dispersion,
-            reconstruction_loss_gene=gene_likelihood,
+            gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
             protein_batch_mask=batch_mask,
             **model_kwargs,
@@ -667,7 +667,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             tensor with shape (n_cells, n_genes, n_samples)
 
         """
-        assert self.model.reconstruction_loss_gene in ["nb"]
+        assert self.model.gene_likelihood in ["nb"]
 
         adata = self._validate_anndata(adata)
         if gene_list is None:

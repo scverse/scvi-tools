@@ -52,7 +52,7 @@ class VAE(nn.Module):
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
     log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
-    reconstruction_loss
+    gene_likelihood
         One of
 
         * ``'nb'`` - Negative binomial distribution
@@ -78,14 +78,14 @@ class VAE(nn.Module):
         dropout_rate: float = 0.1,
         dispersion: str = "gene",
         log_variational: bool = True,
-        reconstruction_loss: str = "zinb",
+        gene_likelihood: str = "zinb",
         latent_distribution: str = "normal",
     ):
         super().__init__()
         self.dispersion = dispersion
         self.n_latent = n_latent
         self.log_variational = log_variational
-        self.reconstruction_loss = reconstruction_loss
+        self.gene_likelihood = gene_likelihood
         # Automatically deactivate if useless
         self.n_batch = n_batch
         self.n_labels = n_labels
@@ -272,7 +272,7 @@ class VAE(nn.Module):
         self, x, px_rate, px_r, px_dropout, **kwargs
     ) -> torch.Tensor:
         # Reconstruction Loss
-        if self.reconstruction_loss == "zinb":
+        if self.gene_likelihood == "zinb":
             reconst_loss = (
                 -ZeroInflatedNegativeBinomial(
                     mu=px_rate, theta=px_r, zi_logits=px_dropout
@@ -280,11 +280,11 @@ class VAE(nn.Module):
                 .log_prob(x)
                 .sum(dim=-1)
             )
-        elif self.reconstruction_loss == "nb":
+        elif self.gene_likelihood == "nb":
             reconst_loss = (
                 -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
             )
-        elif self.reconstruction_loss == "poisson":
+        elif self.gene_likelihood == "poisson":
             reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
         return reconst_loss
 
@@ -434,7 +434,7 @@ class LDVAE(VAE):
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
     log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
-    reconstruction_loss
+    gene_likelihood
         One of
 
         * ``'nb'`` - Negative binomial distribution
@@ -456,7 +456,7 @@ class LDVAE(VAE):
         dropout_rate: float = 0.1,
         dispersion: str = "gene",
         log_variational: bool = True,
-        reconstruction_loss: str = "nb",
+        gene_likelihood: str = "nb",
         use_batch_norm: bool = True,
         bias: bool = False,
         latent_distribution: str = "normal",
@@ -471,7 +471,7 @@ class LDVAE(VAE):
             dropout_rate,
             dispersion,
             log_variational,
-            reconstruction_loss,
+            gene_likelihood,
             latent_distribution,
         )
         self.use_batch_norm = use_batch_norm

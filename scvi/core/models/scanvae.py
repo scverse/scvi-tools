@@ -40,7 +40,7 @@ class SCANVAE(VAE):
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
     log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
-    reconstruction_loss
+    gene_likelihood
         One of
 
         * ``'nb'`` - Negative binomial distribution
@@ -79,7 +79,7 @@ class SCANVAE(VAE):
         dropout_rate: float = 0.1,
         dispersion: str = "gene",
         log_variational: bool = True,
-        reconstruction_loss: str = "zinb",
+        gene_likelihood: str = "zinb",
         y_prior=None,
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
@@ -94,7 +94,7 @@ class SCANVAE(VAE):
             n_batch=n_batch,
             dispersion=dispersion,
             log_variational=log_variational,
-            reconstruction_loss=reconstruction_loss,
+            gene_likelihood=gene_likelihood,
         )
 
         self.n_labels = n_labels

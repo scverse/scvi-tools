@@ -54,7 +54,7 @@ class TOTALVAE(nn.Module):
         * ``'protein-label'`` - protein_dispersion can differ between different labels NOT TESTED
     log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
-    reconstruction_loss_genes
+    gene_likelihood
         One of
 
         * ``'nb'`` - Negative binomial distribution
@@ -88,7 +88,7 @@ class TOTALVAE(nn.Module):
         gene_dispersion: str = "gene",
         protein_dispersion: str = "protein",
         log_variational: bool = True,
-        reconstruction_loss_gene: str = "nb",
+        gene_likelihood: str = "nb",
         latent_distribution: str = "ln",
         protein_batch_mask: List[np.ndarray] = None,
         encoder_batch: bool = True,
@@ -97,7 +97,7 @@ class TOTALVAE(nn.Module):
         self.gene_dispersion = gene_dispersion
         self.n_latent = n_latent
         self.log_variational = log_variational
-        self.reconstruction_loss_gene = reconstruction_loss_gene
+        self.gene_likelihood = gene_likelihood
         self.n_batch = n_batch
         self.n_labels = n_labels
         self.n_input_genes = n_input_genes
@@ -377,7 +377,7 @@ class TOTALVAE(nn.Module):
         px_ = px_dict
         py_ = py_dict
         # Reconstruction Loss
-        if self.reconstruction_loss_gene == "zinb":
+        if self.gene_likelihood == "zinb":
             reconst_loss_gene = (
                 -ZeroInflatedNegativeBinomial(
                     mu=px_["rate"], theta=px_["r"], zi_logits=px_["dropout"]

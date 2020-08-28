@@ -98,7 +98,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
                 n_layers=n_layers,
                 dropout_rate=dropout_rate,
                 dispersion=dispersion,
-                reconstruction_loss=gene_likelihood,
+                gene_likelihood=gene_likelihood,
                 **model_kwargs,
             )
             self._is_trained_base = False
@@ -111,7 +111,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             n_layers=n_layers,
             dropout_rate=dropout_rate,
             dispersion=dispersion,
-            reconstruction_loss=gene_likelihood,
+            gene_likelihood=gene_likelihood,
             **model_kwargs,
         )
 
