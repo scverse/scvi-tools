@@ -179,7 +179,7 @@ class VAE(nn.Module):
                 z = qz_m
         return z
 
-    def sample_from_posterior_l(self, x) -> torch.Tensor:
+    def sample_from_posterior_l(self, x, give_mean=True) -> torch.Tensor:
         """
         Samples the tensor of library sizes from the posterior.
 
@@ -189,6 +189,8 @@ class VAE(nn.Module):
             tensor of values with shape ``(batch_size, n_input)``
         y
             tensor of cell-types labels with shape ``(batch_size, n_labels)``
+        give_mean
+            Return mean or sample
 
         Returns
         -------
@@ -199,6 +201,10 @@ class VAE(nn.Module):
         if self.log_variational:
             x = torch.log(1 + x)
         ql_m, ql_v, library = self.l_encoder(x)
+        if give_mean is False:
+            library = library
+        else:
+            library = torch.distributions.LogNormal(ql_m, ql_v.sqrt()).mean
         return library
 
     def get_sample_scale(

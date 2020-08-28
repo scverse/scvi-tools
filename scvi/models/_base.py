@@ -609,8 +609,6 @@ class RNASeqMixin:
     def get_latent_library_size(
         self, adata=None, indices=None, give_mean=True, batch_size=128
     ):
-        import pdb
-        pdb.set_trace()
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
         adata = self._validate_anndata(adata)
@@ -618,14 +616,7 @@ class RNASeqMixin:
         libraries = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
-            out = self.model.get_latents(x)
-            if give_mean is False:
-                library = out["library"]
-            else:
-                # what to do?
-                library = torch.distributions.LogNormal(
-                    out["ql_m"], out["ql_v"].sqrt()
-                ).mean
+            library = self.model.sample_from_posterior_l(x, give_mean=give_mean)
             libraries += [library.cpu()]
         return np.array(torch.cat(libraries))
 
