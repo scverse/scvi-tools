@@ -88,7 +88,7 @@ def test_SCVI():
     # test differential expression
     model.differential_expression(groupby="labels", group1="undefined_1")
     model.differential_expression(
-        groupby="labels", group1="undefined_1", group2="undefined_2"
+        groupby="labels", group1="undefined_1", group2="undefined_2", mode="change"
     )
 
 

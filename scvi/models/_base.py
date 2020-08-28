@@ -273,6 +273,7 @@ class RNASeqMixin:
         mode="vanilla",
         within_key=None,
         all_stats=True,
+        use_permutation=False,
     ):
         adata = self._validate_anndata(adata)
         cell_idx1 = adata.obs[groupby] == group1
@@ -283,7 +284,9 @@ class RNASeqMixin:
 
         model_fn = partial(self.get_normalized_expression, return_numpy=True)
         dc = DifferentialComputation(model_fn, adata)
-        all_info = dc.get_bayes_factors(cell_idx1, cell_idx2)
+        all_info = dc.get_bayes_factors(
+            cell_idx1, cell_idx2, mode=mode, use_permutation=use_permutation
+        )
 
         gene_names = _get_var_names_from_setup_anndata(adata)
         if all_stats is True:
