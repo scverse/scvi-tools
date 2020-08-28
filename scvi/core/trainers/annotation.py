@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class ClassifierTrainer(Trainer):
-    """Class for training a classifier either on the raw data or on top of the latent space of another model.
+    """
+    Class for training a classifier either on the raw data or on top of the latent space of another model.
 
     Parameters
     ----------
@@ -108,40 +109,25 @@ class ClassifierTrainer(Trainer):
                     x = self.sampling_model.z_encoder(x)[0]
         return F.cross_entropy(self.model(x), labels_train.view(-1))
 
-    # TODO find a place for this
-    # @torch.no_grad()
-    # def compute_predictions(self, soft=False):
-    #     """
-
-    #     Parameters
-    #     ----------
-    #     soft :
-    #          (Default value = False)
-
-    #     Returns
-    #     -------
-    #     the true labels and the predicted labels
-
-    #     """
-    #     model, cls = (
-    #         (self.sampling_model, self.model)
-    #         if hasattr(self, "sampling_model")
-    #         else (self.model, None)
-    #     )
-    #     full_set = self.create_posterior(type_class=AnnotationPosterior)
-    #     return compute_predictions(
-    #         model, full_set, classifier=cls, soft=soft, model_zl=self.sampling_zl
-    #     )
+    def create_posterior(
+        self,
+        model=None,
+        adata=None,
+        shuffle=False,
+        indices=None,
+        type_class=AnnotationPosterior,
+    ):
+        return super().create_posterior(model, adata, shuffle, indices, type_class)
 
 
 class SemiSupervisedTrainer(UnsupervisedTrainer):
-    """Class for the semi-supervised training of an autoencoder.
+    """
+    Class for the semi-supervised training of an autoencoder.
 
     This parent class can be inherited to specify the different training schemes for semi-supervised learning
 
     Parameters
     ----------
-
     n_labelled_samples_per_class
         number of labelled samples per class
 
