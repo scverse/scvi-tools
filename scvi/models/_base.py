@@ -217,7 +217,8 @@ class RNASeqMixin:
                     "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
                 )
             return_numpy = True
-
+        if indices is None:
+            indices = np.arange(adata.n_obs)
         if library_size == "latent":
             model_fn = self.model.get_sample_rate
             scaling = 1
@@ -256,7 +257,9 @@ class RNASeqMixin:
 
         if return_numpy is None or return_numpy is False:
             return pd.DataFrame(
-                exprs, columns=adata.var_names[gene_mask], index=adata.obs_names
+                exprs,
+                columns=adata.var_names[gene_mask],
+                index=adata.obs_names[indices],
             )
         else:
             return exprs
@@ -342,16 +345,18 @@ class RNASeqMixin:
             tensor with shape (n_cells, n_genes, n_samples)
 
         """
-        assert self.model.reconstruction_loss in ["zinb", "nb", "poisson"]
+        assert self.model.gene_likelihood in ["zinb", "nb", "poisson"]
 
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+
+        if indices is None:
+            indices = np.arange(adata.n_obs)
 
         if gene_list is None:
             gene_mask = slice(None)
         else:
             all_genes = _get_var_names_from_setup_anndata(adata)
-
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
 
         x_new = []
@@ -366,33 +371,35 @@ class RNASeqMixin:
             px_rate = outputs["px_rate"]
             px_dropout = outputs["px_dropout"]
 
-            if self.model.reconstruction_loss == "poisson":
+            if self.model.gene_likelihood == "poisson":
                 l_train = px_rate
                 l_train = torch.clamp(l_train, max=1e8)
                 dist = torch.distributions.Poisson(
                     l_train
                 )  # Shape : (n_samples, n_cells_batch, n_genes)
-            elif self.model.reconstruction_loss == "nb":
+            elif self.model.gene_likelihood == "nb":
                 dist = NegativeBinomial(mu=px_rate, theta=px_r)
-            elif self.model.reconstruction_loss == "zinb":
+            elif self.model.gene_likelihood == "zinb":
                 dist = ZeroInflatedNegativeBinomial(
                     mu=px_rate, theta=px_r, zi_logits=px_dropout
                 )
             else:
                 raise ValueError(
                     "{} reconstruction error not handled right now".format(
-                        self.model.reconstruction_loss
+                        self.model.gene_likelihood
                     )
                 )
-            exprs = dist.sample().permute(
-                [1, 2, 0]
-            )  # Shape : (n_cells_batch, n_genes, n_samples)
+            if n_samples > 1:
+                exprs = dist.sample().permute(
+                    [1, 2, 0]
+                )  # Shape : (n_cells_batch, n_genes, n_samples)
+            else:
+                exprs = dist.sample()
 
             if gene_list is not None:
-                exprs = exprs[:, gene_mask, :]
+                exprs = exprs[:, gene_mask, ...]
 
             x_new.append(exprs.cpu())
-
         x_new = torch.cat(x_new)  # Shape (n_cells, n_genes, n_samples)
 
         return x_new.numpy()
@@ -519,7 +526,7 @@ class RNASeqMixin:
         for b in transform_batch:
             denoised_data = self._get_denoised_samples(
                 adata=adata,
-                indicies=indices,
+                indices=indices,
                 n_samples=n_samples,
                 batch_size=batch_size,
                 rna_size_factor=rna_size_factor,
@@ -590,10 +597,10 @@ class RNASeqMixin:
         return_dict = {}
         return_dict["mean"] = means
 
-        if self.model.reconstruction_loss == "zinb":
+        if self.model.gene_likelihood == "zinb":
             return_dict["dropout"] = dropout
             return_dict["dispersions"] = dispersions
-        if self.model.reconstruction_loss == "nb":
+        if self.model.gene_likelihood == "nb":
             return_dict["dispersions"] = dispersions
 
         return return_dict
@@ -602,6 +609,8 @@ class RNASeqMixin:
     def get_latent_library_size(
         self, adata=None, indices=None, give_mean=True, batch_size=128
     ):
+        import pdb
+        pdb.set_trace()
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
         adata = self._validate_anndata(adata)
@@ -613,6 +622,7 @@ class RNASeqMixin:
             if give_mean is False:
                 library = out["library"]
             else:
+                # what to do?
                 library = torch.distributions.LogNormal(
                     out["ql_m"], out["ql_v"].sqrt()
                 ).mean
