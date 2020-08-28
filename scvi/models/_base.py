@@ -123,7 +123,6 @@ class VAEMixin:
         -------
         latent_representation : np.ndarray
             Low-dimensional representation for each cell
-
         """
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
@@ -200,7 +199,6 @@ class RNASeqMixin:
 
         If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, genes)``.
         Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
-
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -345,7 +343,6 @@ class RNASeqMixin:
         -------
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
-
         """
         assert self.model.gene_likelihood in ["zinb", "nb", "poisson"]
 
@@ -438,7 +435,6 @@ class RNASeqMixin:
         Returns
         -------
         denoised_samples
-
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -516,7 +512,6 @@ class RNASeqMixin:
         Returns
         -------
         Gene-gene correlation matrix
-
         """
         from scipy.stats import spearmanr
 

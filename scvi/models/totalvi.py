@@ -64,7 +64,6 @@ class TOTALVI(VAEMixin, BaseModelClass):
     >>> vae = scvi.models.TOTALVI(adata)
     >>> vae.train(n_epochs=400)
     >>> adata.obsm["X_totalVI"] = vae.get_latent_representation()
-
     """
 
     def __init__(
@@ -205,7 +204,6 @@ class TOTALVI(VAEMixin, BaseModelClass):
 
         >>> adata_subset = adata[adata.obs.cell_type == "really cool cell type"]
         >>> latent_subset = vae.get_latent_representation(adata_subset)
-
         """
         if self.is_trained is False:
             raise RuntimeError("Please train the model first.")
@@ -316,7 +314,6 @@ class TOTALVI(VAEMixin, BaseModelClass):
 
         If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, genes)``.
         Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
-
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -477,7 +474,6 @@ class TOTALVI(VAEMixin, BaseModelClass):
 
         If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, proteins)``.
         Otherwise, shape is ``(cells, proteins)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
-
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -671,7 +667,6 @@ class TOTALVI(VAEMixin, BaseModelClass):
         -------
         x_new : :py:class:`np.ndarray`
             tensor with shape (n_cells, n_genes, n_samples)
-
         """
         assert self.model.gene_likelihood in ["nb"]
 
@@ -768,7 +763,6 @@ class TOTALVI(VAEMixin, BaseModelClass):
             size factor for RNA prior to sampling gamma distribution
         transform_batch
             int of which batch to condition on for all cells
-
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -863,7 +857,6 @@ class TOTALVI(VAEMixin, BaseModelClass):
         Returns
         -------
         Gene-protein-gene-protein correlation matrix
-
         """
         from scipy.stats import spearmanr
 

@@ -52,7 +52,6 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
            [0],
            [0],
            [0]])
-
     """
     use_raw = adata.uns["_scvi"]["use_raw"]
     data_loc = adata.uns["_scvi"]["data_registry"][key]
@@ -261,7 +260,6 @@ def setup_anndata(
     'PD-1_TotalSeqB',
     'TIGIT_TotalSeqB',
     'CD127_TotalSeqB']
-
     """
     if adata.is_view:
         raise ValueError("adata cannot be a view of an AnnData object.")
@@ -350,7 +348,6 @@ def register_tensor_from_anndata(
         Whether or not data is categorical
     adata_alternate_key_name
         Added key in adata_attr_name for categorical codes if `is_categorical` is True
-
     """
     if is_categorical is True:
         if adata_attr_name != "obs":
@@ -388,7 +385,6 @@ def transfer_anndata_setup(
         Use raw for X
     layer
         Layer for X
-
     """
     adata_target.uns["_scvi"] = {}
     if isinstance(adata_source, anndata.AnnData):
@@ -610,7 +606,6 @@ def _setup_extra_continuous_covs(
         AnnData to setup
     continuous_covariate_keys
         List of keys in adata.obs with continuous data
-
     """
     for key in continuous_covariate_keys:
         _assert_key_in_obs(adata, key)
@@ -832,7 +827,6 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
     --------
     >>> data_dict = {"batch" :("obs", "batch_idx"), "X": ("_X", None)}
     >>> _register_anndata(adata, data_dict)
-
     """
     # check doesnt work for adata.raw since adata.raw is not a dict
 

@@ -64,7 +64,6 @@ class TOTALVAE(nn.Module):
 
         * ``'normal'`` - Isotropic normal
         * ``'ln'`` - Logistic normal with normal params N(0, 1)
-
     """
 
     def __init__(
@@ -183,7 +182,6 @@ class TOTALVAE(nn.Module):
         -------
         type
             tensor of shape ``(batch_size, n_latent)``
-
         """
         if self.log_variational:
             x = torch.log(1 + x)
@@ -226,7 +224,6 @@ class TOTALVAE(nn.Module):
         -------
         type
             tensor of shape ``(batch_size, 1)``
-
         """
         if self.log_variational:
             x = torch.log(1 + x)
@@ -268,7 +265,6 @@ class TOTALVAE(nn.Module):
         -------
         type
             tensors of dispersions of the negative binomial distribution
-
         """
         outputs = self.inference(
             x, y, batch_index=batch_index, label=label, n_samples=n_samples
@@ -343,7 +339,6 @@ class TOTALVAE(nn.Module):
         factor that enforces `rate_fore` > `rate_back`.
 
         ``px_["r"]`` and ``py_["r"]`` are the inverse dispersion parameters for genes and protein, respectively.
-
         """
         x_ = x
         y_ = y
@@ -457,7 +452,6 @@ class TOTALVAE(nn.Module):
         -------
         type
             the reconstruction loss and the Kullback divergences
-
         """
         # Parameters for z latent distribution
 

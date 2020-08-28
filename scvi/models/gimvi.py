@@ -41,7 +41,6 @@ class GIMVI(VAEMixin, BaseModelClass):
     >>> scvi.dataset.setup_anndata(adata_spatial)
     >>> vae = scvi.models.GIMVI(adata_seq, adata_spatial)
     >>> vae.train(n_epochs=400)
-
     """
 
     def __init__(
@@ -128,7 +127,6 @@ class GIMVI(VAEMixin, BaseModelClass):
             If true, use the mean of the encoder instead of a Gaussian sample
         batch_size
             Minibatch size for data loading into model
-
         """
         if adatas is None:
             adatas = self.adatas
@@ -189,7 +187,6 @@ class GIMVI(VAEMixin, BaseModelClass):
             the decoder of the dataset of id `decode_mode` to impute values
         batch_size
             Minibatch size for data loading into model
-
         """
         self.model.eval()
 

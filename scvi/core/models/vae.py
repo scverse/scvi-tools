@@ -58,7 +58,6 @@ class VAE(nn.Module):
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
-
     """
 
     def __init__(
@@ -138,7 +137,6 @@ class VAE(nn.Module):
         -------
         type
             one element list of tensor
-
         """
         return [self.sample_from_posterior_z(x, y)]
 
@@ -163,7 +161,6 @@ class VAE(nn.Module):
         -------
         type
             tensor of shape ``(batch_size, n_latent)``
-
         """
         if self.log_variational:
             x = torch.log(1 + x)
@@ -196,7 +193,6 @@ class VAE(nn.Module):
         -------
         type
             tensor of shape ``(batch_size, 1)``
-
         """
         if self.log_variational:
             x = torch.log(1 + x)
@@ -230,7 +226,6 @@ class VAE(nn.Module):
         -------
         type
             tensor of predicted frequencies of expression with shape ``(batch_size, n_input)``
-
         """
         return self.inference(
             x,
@@ -263,7 +258,6 @@ class VAE(nn.Module):
         -------
         type
             tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
-
         """
         return self.inference(
             x,
@@ -371,7 +365,6 @@ class VAE(nn.Module):
         -------
         type
             the reconstruction loss and the Kullback divergences
-
         """
         # Parameters for z latent distribution
         outputs = self.inference(x, batch_index, y)
@@ -450,7 +443,6 @@ class LDVAE(VAE):
         Bool whether to use batch norm in decoder
     bias
         Bool whether to have bias term in linear decoder
-
     """
 
     def __init__(

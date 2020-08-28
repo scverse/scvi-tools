@@ -50,7 +50,6 @@ def pbmc_dataset(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.pbmc_dataset()
-
     """
     return _load_pbmc_dataset(
         save_path=save_path,
@@ -105,7 +104,6 @@ def dataset10X(
     --------
     >>> import scvi
     >>> neuron = scvi.dataset.dataset10X("neuron_9k")
-
     """
     return _load_dataset10X(
         dataset_name=dataset_name,
@@ -146,7 +144,6 @@ def smfish(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.smfish()
-
     """
     return _load_smfish(
         save_path=save_path,
@@ -185,7 +182,6 @@ def seqfishplus(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.seqfishplus()
-
     """
     return _load_seqfishplus(
         save_path=save_path,
@@ -215,7 +211,6 @@ def seqfish(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.seqfish()
-
     """
     return _load_seqfish(save_path=save_path, run_setup_anndata=run_setup_anndata)
 
@@ -248,7 +243,6 @@ def purified_pbmc_dataset(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.purified_pbmc_dataset()
-
     """
     return _load_purified_pbmc_dataset(
         save_path=save_path,
@@ -312,7 +306,6 @@ def frontalcortex_dropseq(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.frontalcortex_dropseq()
-
     """
     return _load_frontalcortex_dropseq(save_path=save_path)
 
@@ -369,7 +362,6 @@ def retina(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.
     Examples
     --------
     >>> adata = retina()
-
     """
     return _load_retina(save_path=save_path)
 
@@ -395,7 +387,6 @@ def mouse_ob_dataset(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.mouse_ob_dataset()
-
     """
     return _load_mouse_ob_dataset(
         save_path=save_path, run_setup_anndata=run_setup_anndata
@@ -423,7 +414,6 @@ def breast_cancer_dataset(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.breast_cancer_dataset()
-
     """
     return _load_breast_cancer_dataset(
         save_path=save_path, run_setup_anndata=run_setup_anndata
@@ -461,7 +451,6 @@ def pbmcs_10x_cite_seq(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.pbmcs_10x_cite_seq()
-
     """
     return _load_pbmcs_10x_cite_seq(
         save_path=save_path,
@@ -510,7 +499,6 @@ def brainlarge_dataset(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.brainlarge_dataset()
-
     """
     return _load_brainlarge_dataset(
         save_path=save_path,
@@ -546,7 +534,6 @@ def cortex(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.
     --------
     >>> import scvi
     >>> adata = scvi.dataset.cortex()
-
     """
     return _load_cortex(save_path, run_setup_anndata)
 
@@ -590,7 +577,6 @@ def synthetic_iid(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.synthetic_iid()
-
     """
     return _generate_synthetic(
         batch_size=batch_size,

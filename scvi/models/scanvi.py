@@ -64,7 +64,6 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
     >>> vae.train(n_epochs=400)
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     >>> adata.obs["pred_label"] = vae.predict()
-
     """
 
     def __init__(
@@ -222,7 +221,6 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             TODO
         batch_size
             Minibatch size to use
-
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)

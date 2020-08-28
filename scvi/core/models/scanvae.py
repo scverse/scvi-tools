@@ -10,7 +10,8 @@ from .vae import VAE
 
 
 class SCANVAE(VAE):
-    """Single-cell annotation using variational inference.
+    """
+    Single-cell annotation using variational inference.
 
     This is an implementation of the scANVI model descibed in [Xu19]_,
     inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
@@ -52,13 +53,8 @@ class SCANVAE(VAE):
     use_labels_groups
         Whether to use the label groups
 
-
-    Returns
-    -------
-
     Examples
     --------
-
     >>> gene_dataset = CortexDataset()
     >>> scanvi = SCANVI(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
     ... n_labels=gene_dataset.n_labels)
