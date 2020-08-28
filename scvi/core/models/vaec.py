@@ -8,8 +8,10 @@ from .vae import VAE
 
 
 class VAEC(VAE):
-    r"""A semi-supervised Variational auto-encoder model - inspired from M2 model,
-    as described in (https://arxiv.org/pdf/1406.5298.pdf)
+    r"""
+    A semi-supervised Variational auto-encoder model - inspired from M2 model.
+
+    Described in (https://arxiv.org/pdf/1406.5298.pdf)
 
     Parameters
     ----------
@@ -44,10 +46,6 @@ class VAEC(VAE):
     y_prior :
         If None, initialized to uniform probability over cell types
 
-
-    Returns
-    -------
-
     Examples
     --------
     >>> gene_dataset = CortexDataset()
@@ -57,6 +55,7 @@ class VAEC(VAE):
     >>> gene_dataset = SyntheticDataset(n_labels=3)
     >>> vaec = VAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
     ... n_labels=3, y_prior=torch.tensor([[0.1,0.5,0.4]]))
+
     """
 
     def __init__(
