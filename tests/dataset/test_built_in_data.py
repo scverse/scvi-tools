@@ -30,6 +30,11 @@ class TestLoomDataset(TestCase):
         scvi.dataset.setup_anndata(gene_dataset)
         unsupervised_training_one_epoch(gene_dataset)
 
+    def test_smfish_load_train_one(self):
+        gene_dataset = scvi.dataset.smfish(save_path="tests/data")
+        scvi.dataset.setup_anndata(gene_dataset)
+        unsupervised_training_one_epoch(gene_dataset)
+
 
 class TestSeqfishDataset(TestCase):
     def test_populate(self):
