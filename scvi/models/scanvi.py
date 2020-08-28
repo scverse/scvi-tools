@@ -158,7 +158,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         lr=1e-3,
         n_iter_kl_warmup=None,
         n_epochs_kl_warmup=400,
-        metric_frequency=None,
+        frequency=None,
         unsupervised_trainer_kwargs={},
         semisupervised_trainer_kwargs={},
         train_kwargs={},
@@ -181,7 +181,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
                 test_size=test_size,
                 n_iter_kl_warmup=n_iter_kl_warmup,
                 n_epochs_kl_warmup=n_epochs_kl_warmup,
-                frequency=metric_frequency,
+                frequency=frequency,
                 use_cuda=self.use_cuda,
                 **unsupervised_trainer_kwargs,
             )

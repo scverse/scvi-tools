@@ -328,7 +328,7 @@ def auto_tune_scvi_model(
     Returns
     -------
     type
-        ``Trainer`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
+        ``BaseModelClass`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
 
     Examples
     --------
@@ -472,19 +472,19 @@ def auto_tune_scvi_model(
     if train_best:
         logger_all.debug("Training best model with full training set")
         best_space = trials.best_trial["result"]["space"]
-        best_trainer = objective_hyperopt(best_space, is_best_training=True)
+        best_model = objective_hyperopt(best_space, is_best_training=True)
 
     if pickle_result:
         if train_best:
             logger_all.debug("Pickling best model and trainer")
             # pickle trainer and save model (overkill?)
             with open(
-                os.path.join(save_path, "best_trainer_{key}".format(key=exp_key)), "wb"
+                os.path.join(save_path, "best_model_{key}".format(key=exp_key)), "wb"
             ) as f:
-                pickle.dump(best_trainer, f)
+                pickle.dump(best_model, f)
             torch.save(
-                best_trainer.model.state_dict(),
-                os.path.join(save_path, "best_model_{key}".format(key=exp_key)),
+                best_model.model.state_dict(),
+                os.path.join(save_path, "best_model_module_{key}".format(key=exp_key)),
             )
         # remove object containing thread.lock (otherwise pickle.dump throws)
         logger_all.debug("Pickling Trials object")
@@ -499,7 +499,7 @@ def auto_tune_scvi_model(
     _cleanup_logger()
 
     if train_best:
-        return best_trainer, trials
+        return best_model, trials
     else:
         return trials
 
@@ -1308,8 +1308,7 @@ def _objective_function(
 
     # use_cuda default
     if "use_cuda" not in trainer_specific_kwargs:
-        trainer_specific_kwargs["use_cuda"] = bool(torch.cuda.device_count())
-        model_specific_kwargs["use_cuda"] = trainer_specific_kwargs["use_cuda"]
+        model_specific_kwargs["use_cuda"] = bool(torch.cuda.device_count())
     if "n_epochs" not in {**train_func_specific_kwargs, **train_func_tunable_kwargs}:
         train_func_specific_kwargs["n_epochs"] = 1000
 
@@ -1348,18 +1347,17 @@ def _objective_function(
     model = model_class(gene_dataset, **model_tunable_kwargs)
 
     # define trainer
-    logger_all.debug("Instantiating trainer")
-    trainer_class = model._trainer_class
-    trainer = trainer_class(model.model, gene_dataset, **trainer_tunable_kwargs)
-
     # train model
+    logger_all.debug("Instantiating trainer")
     logger_all.debug("Starting training")
-    trainer.train(**train_func_tunable_kwargs)
+    model.train(**trainer_tunable_kwargs, train_fun_kwargs=train_func_tunable_kwargs)
     logger_all.debug("Finished training")
     elapsed_time = time.monotonic() - start_time
+
+    trainer = model.trainer
     # if training the best model, return model else return criterion
     if is_best_training:
-        return trainer
+        return model
     else:
         # select metric from early stopping kwargs if possible
         metric = None

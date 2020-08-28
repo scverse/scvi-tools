@@ -35,9 +35,9 @@ class VAEMixin:
         lr=1e-3,
         n_iter_kl_warmup=None,
         n_epochs_kl_warmup=400,
-        metric_frequency=None,
-        trainer_kwargs={},
-        train_kwargs={},
+        frequency=None,
+        train_fun_kwargs={},
+        **kwargs
     ):
         if self.is_trained is False:
             self.trainer = UnsupervisedTrainer(
@@ -47,11 +47,16 @@ class VAEMixin:
                 test_size=test_size,
                 n_iter_kl_warmup=n_iter_kl_warmup,
                 n_epochs_kl_warmup=n_epochs_kl_warmup,
-                frequency=metric_frequency,
+                frequency=frequency,
                 use_cuda=self.use_cuda,
-                **trainer_kwargs,
+                **kwargs,
             )
-        self.trainer.train(n_epochs=n_epochs, lr=lr, **train_kwargs)
+        # for autotune
+        if "n_epochs" not in train_fun_kwargs:
+            train_fun_kwargs["n_epochs"] = n_epochs
+        if "lr" not in train_fun_kwargs:
+            train_fun_kwargs["lr"] = lr
+        self.trainer.train(**train_fun_kwargs)
         self.is_trained = True
         self.train_indices = self.trainer.train_set.indices
         self.test_indices = self.trainer.test_set.indices
