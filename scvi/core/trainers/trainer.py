@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 class Trainer:
-    """The abstract Trainer class for training a PyTorch model and monitoring its statistics.
+    """
+    The abstract Trainer class for training a PyTorch model and monitoring its statistics.
 
     It should be inherited at least with a ``.loss()`` function to be optimized in the training loop.
 
@@ -52,10 +53,6 @@ class Trainer:
         If False, disables progress bar.
     seed :
         Random seed for train/test/validate split
-
-    Returns
-    -------
-
     """
 
     default_metrics_to_monitor = []
@@ -217,17 +214,7 @@ class Trainer:
         self.optimizer.step()
 
     def training_extras_init(self, **extras_kwargs):
-        """Other necessary models to simultaneously train
-
-        Parameters
-        ----------
-        **extras_kwargs :
-
-
-        Returns
-        -------
-
-        """
+        """Other necessary models to simultaneously train."""
         pass
 
     def training_extras_end(self):
@@ -277,7 +264,8 @@ class Trainer:
         pass
 
     def check_training_status(self):
-        """Checks if loss is admissible.
+        """
+        Checks if loss is admissible.
 
         If not, training is stopped after max_nans consecutive inadmissible loss
         loss corresponds to the training loss of the model.
@@ -305,7 +293,7 @@ class Trainer:
         pass
 
     def data_loaders_loop(self):
-        """returns an zipped iterable corresponding to loss signature"""
+        """Returns an zipped iterable corresponding to loss signature."""
         data_loaders_loop = [self._posteriors[name] for name in self.posteriors_loop]
         return zip(
             data_loaders_loop[0],
@@ -344,7 +332,8 @@ class Trainer:
         test_size=None,
         type_class=Posterior,
     ):
-        """Creates posteriors ``train_set``, ``test_set``, ``validation_set``.
+        """
+        Creates posteriors ``train_set``, ``test_set``, ``validation_set``.
 
         If ``train_size + test_size < 1`` then ``validation_set`` is non-empty.
 
@@ -360,10 +349,6 @@ class Trainer:
              (Default value = None)
         type_class :
              (Default value = Posterior)
-
-        Returns
-        -------
-
         """
         train_size = float(train_size)
         if train_size > 1.0 or train_size <= 0.0:

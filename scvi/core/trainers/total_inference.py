@@ -59,8 +59,6 @@ class TotalTrainer(UnsupervisedTrainer):
         Scaling factor for adversarial loss. If None, follow inverse of kl warmup schedule.
     early_stopping_kwargs
         Keyword args for early stopping. If "auto", use totalVI defaults. If None, disable early stopping.
-
-
     """
 
     default_metrics_to_monitor = ["elbo"]

@@ -65,7 +65,6 @@ class UnsupervisedTrainer(Trainer):
     If your applications rely on the posterior quality,
     (i.e. differential expression, batch effect removal), ensure the number of total
     epochs (or iterations) exceed the number of epochs (or iterations) used for KL warmup
-
     """
 
     default_metrics_to_monitor = ["elbo"]
