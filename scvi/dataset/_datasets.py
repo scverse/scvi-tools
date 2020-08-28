@@ -23,7 +23,8 @@ def pbmc_dataset(
     run_setup_anndata: bool = True,
     remove_extracted_data: bool = True,
 ) -> anndata.AnnData:
-    """Loads pbmc dataset.
+    """
+    Loads pbmc dataset.
 
     We considered scRNA-seq data from two batches of peripheral blood mononuclear cells (PBMCs) from a healthy donor
     (4K PBMCs and 8K PBMCs). We derived quality control metrics using the cellrangerRkit R package (v. 1.1.0).
@@ -49,8 +50,8 @@ def pbmc_dataset(
     --------
     >>> import scvi
     >>> adata = scvi.dataset.pbmc_dataset()
-    """
 
+    """
     return _load_pbmc_dataset(
         save_path=save_path,
         run_setup_anndata=run_setup_anndata,

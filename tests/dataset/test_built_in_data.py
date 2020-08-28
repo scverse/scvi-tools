@@ -95,3 +95,17 @@ class TestBrainLargeDataset(TestCase):
             max_cells_to_keep=128,
         )
         unsupervised_training_one_epoch(adata)
+
+
+class TestCsvDataset(TestCase):
+    def test_breast_cancer(self):
+        adata = scvi.dataset.breast_cancer_dataset(
+            save_path="tests/data",
+        )
+        unsupervised_training_one_epoch(adata)
+
+    def test_mouse_ob(self):
+        adata = scvi.dataset.mouse_ob_dataset(
+            save_path="tests/data",
+        )
+        unsupervised_training_one_epoch(adata)
