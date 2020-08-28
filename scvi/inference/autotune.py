@@ -328,7 +328,7 @@ def auto_tune_scvi_model(
     Returns
     -------
     type
-        ``BaseModelClass`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
+        ``Trainer`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
 
     Examples
     --------
@@ -499,11 +499,7 @@ def auto_tune_scvi_model(
     _cleanup_logger()
 
     if train_best:
-        # TODO implement load as class method and do that here
-        best_model = model_class(gene_dataset)
-        best_model.model = best_trainer.model
-        best_model.trainer = best_trainer
-        return best_model, trials
+        return best_trainer, trials
     else:
         return trials
 
