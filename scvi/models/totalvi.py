@@ -4,14 +4,14 @@ import torch
 import numpy as np
 import pandas as pd
 
-from typing import Optional, Union, List, Dict, Tuple
+from typing import Optional, Union, List, Tuple
 from scvi._compat import Literal
 from collections.abc import Iterable
 from scvi.core.models import TOTALVAE
 from scvi import _CONSTANTS
 from functools import partial
 
-from scvi.models._base import BaseModelClass, RNASeqMixin, VAEMixin
+from scvi.models._base import BaseModelClass, VAEMixin
 from scvi.core.posteriors import TotalPosterior
 from scvi.core.trainers import TotalTrainer
 from scvi.models._differential import DifferentialComputation
@@ -24,7 +24,7 @@ from scvi.dataset import get_from_registry
 logger = logging.getLogger(__name__)
 
 
-class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
+class TOTALVI(VAEMixin, BaseModelClass):
     """
     total Variational Inference [GayosoSteier20]_.
 
@@ -903,60 +903,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             [np.asarray(var_names), self.adata.uns["scvi_protein_names"]]
         )
         return pd.DataFrame(corr_matrix, index=names, columns=names)
-
-    # TODO
-    @torch.no_grad()
-    def get_likelihood_parameters(
-        self,
-        adata=None,
-        indices=None,
-        n_samples: Optional[int] = 1,
-        give_mean: Optional[bool] = False,
-        batch_size=128,
-    ) -> Dict[str, np.ndarray]:
-        r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`."""
-        adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
-
-        rna_dropout_list = []
-        rna_mean_list = []
-        rna_dispersion_list = []
-        for tensors in post:
-            x = tensors[_CONSTANTS.X_KEY]
-            batch_idx = tensors[_CONSTANTS.BATCH_KEY]
-            labels = tensors[_CONSTANTS.LABELS_KEY]
-
-            outputs = self.model.inference(
-                x, batch_index=batch_idx, y=labels, n_samples=n_samples
-            )
-            px_r = outputs["px_r"]
-            px_rate = outputs["px_rate"]
-            px_dropout = outputs["px_dropout"]
-
-            n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
-            rna_dispersion_list += [
-                np.repeat(np.array(px_r.cpu())[np.newaxis, :], n_batch, axis=0)
-            ]
-            rna_mean_list += [np.array(px_rate.cpu())]
-            rna_dropout_list += [np.array(px_dropout.cpu())]
-
-        dropout = np.concatenate(rna_dropout_list)
-        means = np.concatenate(rna_mean_list)
-        dispersions = np.concatenate(rna_dispersion_list)
-        if give_mean and n_samples > 1:
-            dropout = dropout.mean(0)
-            means = means.mean(0)
-
-        return_dict = {}
-        return_dict["RNA_mean"] = means
-
-        if self.model.reconstruction_loss_gene == "zinb":
-            return_dict["RNA_dropout"] = dropout
-            return_dict["RNA_dispersions"] = dispersions
-        if self.model.reconstruction_loss_gene == "nb":
-            return_dict["RNA_dispersions"] = dispersions
-
-        return return_dict
 
     def _validate_anndata(
         self, adata: Optional[AnnData] = None, copy_if_view: bool = True
