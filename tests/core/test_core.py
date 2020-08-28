@@ -1,7 +1,11 @@
 import scvi
 from scvi.core.models.vae import VAE
-from scvi.core.trainers.inference import UnsupervisedTrainer
-from scvi.core.trainers.annotation import ClassifierTrainer
+from scvi.core.models.vaec import VAEC
+from scvi.core.trainers import (
+    UnsupervisedTrainer,
+    ClassifierTrainer,
+    SemiSupervisedTrainer,
+)
 from scvi.core.models.classifier import Classifier
 
 scvi.set_seed(0)
@@ -29,6 +33,49 @@ def test_sampling_zl(save_path):
     )
     trainer_cortex_cls.train(n_epochs=2)
     trainer_cortex_cls.test_set.accuracy()
+
+
+def test_classifier_accuracy(save_path):
+    cortex_dataset = scvi.dataset.cortex(save_path=save_path)
+    scvi.dataset.setup_anndata(cortex_dataset, labels_key="labels")
+    cls = Classifier(
+        cortex_dataset.uns["_scvi"]["summary_stats"]["n_genes"],
+        n_labels=cortex_dataset.uns["_scvi"]["summary_stats"]["n_labels"],
+    )
+    cls_trainer = ClassifierTrainer(
+        cls,
+        cortex_dataset,
+        metrics_to_monitor=["accuracy"],
+        frequency=1,
+        early_stopping_kwargs={
+            "early_stopping_metric": "accuracy",
+            "save_best_state_metric": "accuracy",
+        },
+    )
+    cls_trainer.train(n_epochs=2)
+    cls_trainer.train_set.accuracy()
+
+
+def test_vaec():
+    synthetic_dataset = scvi.dataset.synthetic_iid()
+    scvi.dataset.setup_anndata(
+        synthetic_dataset, batch_key="batch", labels_key="labels"
+    )
+    stats = synthetic_dataset.uns["_scvi"]["summary_stats"]
+
+    vaec = VAEC(stats["n_genes"], stats["n_batch"], stats["n_labels"])
+    trainer_synthetic_vaec = SemiSupervisedTrainer(
+        vaec,
+        synthetic_dataset,
+        use_cuda=use_cuda,
+        frequency=1,
+        early_stopping_kwargs={
+            "early_stopping_metric": "reconstruction_error",
+            "on": "labelled_set",
+            "save_best_state_metric": "reconstruction_error",
+        },
+    )
+    trainer_synthetic_vaec.train(n_epochs=2)
 
 
 def test_annealing_procedures(save_path):

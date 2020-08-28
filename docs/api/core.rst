@@ -41,5 +41,6 @@ Trainers
    core.trainers.UnsupervisedTrainer
    core.trainers.TotalTrainer
    core.trainers.SemiSupervisedTrainer
+   core.trainers.ClassifierTrainer
    core.trainers.trainer.Trainer
    core.trainers.trainer.EarlyStopping

@@ -2,7 +2,7 @@ import torch
 from torch.distributions import Normal, Categorical, kl_divergence as kl
 
 from .classifier import Classifier
-from .modules import Encoder, DecoderSCVI
+from ._modules import Encoder, DecoderSCVI
 from .utils import broadcast_labels
 from .vae import VAE
 
@@ -36,7 +36,7 @@ class VAEC(VAE):
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
     log_variational :
         Log(data+1) prior to encoding for numerical stability. Not normalization.
-    reconstruction_loss :
+    gene_likelihood :
         One of
 
         * ``'nb'`` - Negative binomial distribution
@@ -71,7 +71,7 @@ class VAEC(VAE):
         y_prior=None,
         dispersion="gene",
         log_variational=True,
-        reconstruction_loss="zinb",
+        gene_likelihood="zinb",
     ):
         super().__init__(
             n_input,
@@ -83,7 +83,7 @@ class VAEC(VAE):
             dropout_rate=dropout_rate,
             dispersion=dispersion,
             log_variational=log_variational,
-            reconstruction_loss=reconstruction_loss,
+            gene_likelihood=gene_likelihood,
         )
 
         self.z_encoder = Encoder(

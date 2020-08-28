@@ -148,28 +148,6 @@
 #     )
 
 
-# def test_synthetic_2():
-#     synthetic_dataset = scvi.dataset.synthetic_iid()
-#     scvi.dataset.setup_anndata(
-#         synthetic_dataset, batch_key="batch", labels_key="labels"
-#     )
-#     stats = synthetic_dataset.uns["scvi_summary_stats"]
-
-#     vaec = VAEC(stats["n_genes"], stats["n_batch"], stats["n_labels"])
-#     trainer_synthetic_vaec = JointSemiSupervisedTrainer(
-#         vaec,
-#         synthetic_dataset,
-#         use_cuda=use_cuda,
-#         frequency=1,
-#         early_stopping_kwargs={
-#             "early_stopping_metric": "reconstruction_error",
-#             "on": "labelled_set",
-#             "save_best_state_metric": "reconstruction_error",
-#         },
-#     )
-#     trainer_synthetic_vaec.train(n_epochs=2)
-
-
 # def base_benchmark(adata):
 #     stats = adata.uns["scvi_summary_stats"]
 #     vae = VAE(stats["n_genes"], stats["n_batch"], stats["n_labels"])
@@ -275,27 +253,6 @@
 #         svaec, synthetic_dataset, use_cuda=use_cuda
 #     )
 #     trainer_synthetic_svaec.train(n_epochs=1)
-
-
-# def test_classifier_accuracy(save_path):
-#     cortex_dataset = scvi.dataset.cortex(save_path=save_path)
-#     scvi.dataset.setup_anndata(cortex_dataset, labels_key="labels")
-#     cls = Classifier(
-#         cortex_dataset.uns["scvi_summary_stats"]["n_genes"],
-#         n_labels=cortex_dataset.uns["scvi_summary_stats"]["n_labels"],
-#     )
-#     cls_trainer = ClassifierTrainer(
-#         cls,
-#         cortex_dataset,
-#         metrics_to_monitor=["accuracy"],
-#         frequency=1,
-#         early_stopping_kwargs={
-#             "early_stopping_metric": "accuracy",
-#             "save_best_state_metric": "accuracy",
-#         },
-#     )
-#     cls_trainer.train(n_epochs=2)
-#     cls_trainer.train_set.accuracy()
 
 
 # def test_LDVAE(save_path):
