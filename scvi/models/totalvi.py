@@ -364,7 +364,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
                     n_samples=n_samples,
                     transform_batch=b,
                 )
-                if library_size == "observed":
+                if library_size == "latent":
                     px_scale += outputs["px_"]["rate"]
                 else:
                     px_scale += outputs["px_"]["scale"]

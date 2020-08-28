@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from torch.distributions import Normal, Bernoulli, kl_divergence as kl
+from torch.distributions import Normal, kl_divergence as kl
 from typing import Dict, Optional, Tuple, Union, List
 from scvi.core._distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
 from scvi.core._log_likelihood import log_mixture_nb
@@ -240,42 +240,6 @@ class TOTALVAE(nn.Module):
         else:
             return library_gene
 
-    def get_sample_rate(
-        self,
-        x: torch.Tensor,
-        y: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        label: Optional[torch.Tensor] = None,
-        n_samples: int = 1,
-    ) -> torch.Tensor:
-        """
-        Returns the tensor of negative binomial mean for genes.
-
-        Parameters
-        ----------
-        x
-            tensor of values with shape ``(batch_size, n_input_genes)``
-        y
-            tensor of values with shape ``(batch_size, n_input_proteins)``
-        batch_index
-            array that indicates which batch the cells belong to with shape ``batch_size``
-        label
-            tensor of cell-types labels with shape ``(batch_size, n_labels)``
-        n_samples
-            number of samples
-
-        Returns
-        -------
-        type
-            tensor of means of the negative binomial distribution with shape ``(batch_size, n_input_genes)``
-
-        """
-        outputs = self.inference(
-            x, y, batch_index=batch_index, label=label, n_samples=n_samples
-        )
-        rate = outputs["px_"]["rate"]
-        return rate
-
     def get_sample_dispersion(
         self,
         x: torch.Tensor,
@@ -312,72 +276,6 @@ class TOTALVAE(nn.Module):
         px_r = outputs["px_"]["r"]
         py_r = outputs["py_"]["r"]
         return px_r, py_r
-
-    def get_sample_scale(
-        self,
-        x: torch.Tensor,
-        y: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        label: Optional[torch.Tensor] = None,
-        n_samples: int = 1,
-        transform_batch: Optional[int] = None,
-        eps=0,
-        normalize_pro=False,
-        sample_bern=True,
-        include_bg=False,
-    ) -> torch.Tensor:
-        """
-        Returns tuple of gene and protein scales.
-
-        These scales can also be transformed into a particular batch. This function is
-        the core of differential expression.
-
-        Parameters
-        ----------
-        x
-            tensor of values with shape ``(batch_size, n_input_genes)``
-        y
-            tensor of values with shape ``(batch_size, n_input_proteins)``
-        batch_index
-            array that indicates which batch the cells belong to with shape ``batch_size``
-        label
-            tensor of cell-types labels with shape ``(batch_size, n_labels)``
-        n_samples
-            number of samples
-        transform_batch
-            Int of batch to "transform" all cells into
-        eps
-            Prior count to add to protein normalized expression (Default value = 0)
-        normalize_pro
-            bool, whether to make protein expression sum to one in a cell (Default value = False)
-        sample_bern
-            bool, whether to sample bernoulli in protein likelihood
-        include_bg
-            bool, whether to include the background component of expression (Default value = False)
-
-        """
-        outputs = self.inference(
-            x,
-            y,
-            batch_index=batch_index,
-            label=label,
-            n_samples=n_samples,
-            transform_batch=transform_batch,
-        )
-        px_ = outputs["px_"]
-        py_ = outputs["py_"]
-        protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
-        if sample_bern is True:
-            protein_mixing = Bernoulli(protein_mixing).sample()
-        pro_value = (1 - protein_mixing) * py_["rate_fore"]
-        if include_bg is True:
-            pro_value = (1 - protein_mixing) * py_["rate_fore"] + protein_mixing * py_[
-                "rate_back"
-            ]
-        if normalize_pro is True:
-            pro_value = torch.nn.functional.normalize(pro_value, p=1, dim=-1)
-
-        return px_["scale"], pro_value + eps
 
     def get_reconstruction_loss(
         self,
