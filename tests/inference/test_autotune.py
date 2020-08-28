@@ -29,9 +29,9 @@ def test_autotune_cortex(save_path):
 
     cortex_dataset = scvi.dataset.cortex(save_path=save_path)
 
-    best_trainer, trials = auto_tune_scvi_model(
+    vae, trials = auto_tune_scvi_model(
         gene_dataset=cortex_dataset,
-        parallel=False,
+        parallel=True,
         exp_key="cortex_dataset",
         train_func_specific_kwargs={"n_epochs": n_epochs},
         max_evals=max_evals,
@@ -39,16 +39,21 @@ def test_autotune_cortex(save_path):
         fmin_timeout=fmin_timeout,
         save_path=save_path,  # temp dir, see conftest.py
     )
+    vae.get_latent_representation()
+
+
+def test_autotune_cortex_custom_space(save_path):
+    cortex_dataset = scvi.dataset.cortex(save_path=save_path)
 
     space = {
         "model_tunable_kwargs": {"dropout_rate": hp.uniform("dropout_rate", 0.1, 0.3)},
         "train_func_tunable_kwargs": {"lr": hp.loguniform("lr", -4.0, -3.0)},
     }
 
-    best_trainer, trials = auto_tune_scvi_model(
+    vae, trials = auto_tune_scvi_model(
         gene_dataset=cortex_dataset,
         space=space,
-        parallel=False,
+        parallel=True,
         exp_key="cortex_dataset_custom_space",
         train_func_specific_kwargs={"n_epochs": n_epochs},
         max_evals=max_evals,
@@ -56,6 +61,7 @@ def test_autotune_cortex(save_path):
         fmin_timeout=fmin_timeout,
         save_path=save_path,
     )
+    vae.get_latent_representation()
 
 
 def custom_objective_hyperopt(
@@ -145,3 +151,41 @@ def test_autotune_simulated_data(save_path):
         fmin_timeout=fmin_timeout,
         save_path=save_path,
     )
+
+
+def test_autotune_totalvi(save_path):
+
+    adata = scvi.dataset.pbmcs_10x_cite_seq(
+        save_path=save_path, run_setup_anndata=False
+    )
+    adata = adata[:75, :50].copy()
+    scvi.dataset.setup_anndata(
+        adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
+    )
+
+    space = {
+        "model_tunable_kwargs": {
+            "n_latent": 5 + hp.randint("n_latent", 11),  # [5, 15]
+            "n_hidden": hp.choice("n_hidden", [64, 128, 256]),
+            "n_layers_encoder": 1 + hp.randint("n_layers", 5),
+            "dropout_rate_encoder": hp.choice("dropout_rate", [0.1, 0.3, 0.5, 0.7]),
+            "gene_likelihood": hp.choice("gene_likelihood", ["zinb", "nb"]),
+        },
+        "train_func_tunable_kwargs": {
+            "lr": hp.choice("lr", [0.01, 0.005, 0.001, 0.0005, 0.0001])
+        },
+    }
+
+    vae, trials = auto_tune_scvi_model(
+        gene_dataset=adata,
+        space=space,
+        parallel=True,
+        model_class=scvi.models.TOTALVI,
+        exp_key="totalvi_adata",
+        train_func_specific_kwargs={"n_epochs": n_epochs},
+        max_evals=max_evals,
+        reserve_timeout=reserve_timeout,
+        fmin_timeout=fmin_timeout,
+        save_path=save_path,  # temp dir, see conftest.py
+    )
+    vae.get_latent_representation()
