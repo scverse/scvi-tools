@@ -267,14 +267,13 @@ class RNASeqMixin:
     def differential_expression(
         self,
         groupby,
-        group1=None,
+        group1,
         group2=None,
         adata=None,
         mode="vanilla",
         within_key=None,
         all_stats=True,
     ):
-
         adata = self._validate_anndata(adata)
         cell_idx1 = adata.obs[groupby] == group1
         if group2 is None:
@@ -295,7 +294,7 @@ class RNASeqMixin:
                 nonz2,
                 norm_mean1,
                 norm_mean2,
-            ) = scrna_raw_counts_properties(cell_idx1, cell_idx2)
+            ) = scrna_raw_counts_properties(adata, cell_idx1, cell_idx2)
             genes_properties_dict = dict(
                 raw_mean1=mean1,
                 raw_mean2=mean2,

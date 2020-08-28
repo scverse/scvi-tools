@@ -85,6 +85,12 @@ def test_SCVI():
     with pytest.raises(AssertionError):
         model.get_elbo(adata2)
 
+    # test differential expression
+    model.differential_expression(groupby="labels", group1="undefined_1")
+    model.differential_expression(
+        groupby="labels", group1="undefined_1", group2="undefined_2"
+    )
+
 
 def test_SCANVI():
     adata = synthetic_iid()
@@ -95,6 +101,10 @@ def test_SCANVI():
     assert len(predictions) == 3
     model.predict(adata2, soft=True)
     model.get_normalized_expression(adata2)
+    model.differential_expression(groupby="labels", group1="undefined_1")
+    model.differential_expression(
+        groupby="labels", group1="undefined_1", group2="undefined_2"
+    )
 
 
 def test_LinearSCVI():
@@ -107,6 +117,10 @@ def test_LinearSCVI():
     model.train(1)
     loadings = model.get_loadings()
     pd.testing.assert_index_equal(loadings.index, adata.raw.var_names)
+    model.differential_expression(groupby="labels", group1="undefined_1")
+    model.differential_expression(
+        groupby="labels", group1="undefined_1", group2="undefined_2"
+    )
 
 
 def test_GIMVI():
@@ -218,3 +232,7 @@ def test_TOTALVI():
     del adata2.obsm["protein_expression"]
     with pytest.raises(KeyError):
         model.get_elbo(adata2)
+    model.differential_expression(groupby="labels", group1="undefined_1")
+    model.differential_expression(
+        groupby="labels", group1="undefined_1", group2="undefined_2"
+    )
