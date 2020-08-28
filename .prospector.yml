@@ -1,6 +1,10 @@
 doc-warnings: true
 test-warnings: true
 
+ignore-paths:
+  - docs
+  - tests
+
 pylint:
   run: false
 
