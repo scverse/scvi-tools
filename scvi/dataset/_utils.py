@@ -92,7 +92,7 @@ def _compute_library_size_batch(
 
 
 def _check_nonnegative_integers(
-    data: Union[pd.DataFrame, np.ndarray, sp_sparse.csr_matridata]
+    data: Union[pd.DataFrame, np.ndarray, sp_sparse.csr_matrix]
 ):
     """Checks values of data to ensure it is count data."""
     if type(data) is np.ndarray:
