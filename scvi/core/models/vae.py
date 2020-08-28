@@ -59,12 +59,6 @@ class VAE(nn.Module):
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
 
-    Examples
-    --------
-
-    >>> gene_dataset = CortexDataset()
-    >>> vae = VAE(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-    ... n_labels=gene_dataset.n_labels)
     """
 
     def __init__(
@@ -130,7 +124,8 @@ class VAE(nn.Module):
         )
 
     def get_latents(self, x, y=None) -> torch.Tensor:
-        """Returns the result of ``sample_from_posterior_z`` inside a list
+        """
+        Returns the result of ``sample_from_posterior_z`` inside a list.
 
         Parameters
         ----------
@@ -150,7 +145,8 @@ class VAE(nn.Module):
     def sample_from_posterior_z(
         self, x, y=None, give_mean=False, n_samples=5000
     ) -> torch.Tensor:
-        """Samples the tensor of latent values from the posterior
+        """
+        Samples the tensor of latent values from the posterior.
 
         Parameters
         ----------
@@ -184,7 +180,8 @@ class VAE(nn.Module):
         return z
 
     def sample_from_posterior_l(self, x) -> torch.Tensor:
-        """Samples the tensor of library sizes from the posterior
+        """
+        Samples the tensor of library sizes from the posterior.
 
         Parameters
         ----------
@@ -207,7 +204,8 @@ class VAE(nn.Module):
     def get_sample_scale(
         self, x, batch_index=None, y=None, n_samples=1, transform_batch=None
     ) -> torch.Tensor:
-        """Returns the tensor of predicted frequencies of expression
+        """
+        Returns the tensor of predicted frequencies of expression.
 
         Parameters
         ----------
@@ -239,7 +237,8 @@ class VAE(nn.Module):
     def get_sample_rate(
         self, x, batch_index=None, y=None, n_samples=1, transform_batch=None
     ) -> torch.Tensor:
-        """Returns the tensor of means of the negative binomial distribution
+        """
+        Returns the tensor of means of the negative binomial distribution.
 
         Parameters
         ----------
@@ -344,7 +343,8 @@ class VAE(nn.Module):
     def forward(
         self, x, local_l_mean, local_l_var, batch_index=None, y=None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Returns the reconstruction loss and the KL divergences
+        """
+        Returns the reconstruction loss and the KL divergences.
 
         Parameters
         ----------
@@ -396,7 +396,8 @@ class VAE(nn.Module):
 
 
 class LDVAE(VAE):
-    """Linear-decoded Variational auto-encoder model.
+    """
+    Linear-decoded Variational auto-encoder model.
 
     Implementation of [Svensson20]_.
 
@@ -443,6 +444,7 @@ class LDVAE(VAE):
         Bool whether to use batch norm in decoder
     bias
         Bool whether to have bias term in linear decoder
+
     """
 
     def __init__(

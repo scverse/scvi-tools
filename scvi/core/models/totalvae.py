@@ -18,7 +18,7 @@ torch.backends.cudnn.benchmark = True
 # VAE model
 class TOTALVAE(nn.Module):
     """
-    Total variational inference for CITE-seq data
+    Total variational inference for CITE-seq data.
 
     Implements the totalVI model of [GayosoSteier20]_.
 
@@ -65,12 +65,6 @@ class TOTALVAE(nn.Module):
         * ``'normal'`` - Isotropic normal
         * ``'ln'`` - Logistic normal with normal params N(0, 1)
 
-
-    Examples
-    --------
-
-    >>> dataset = Dataset10X(dataset_name="pbmc_10k_protein_v3", save_path=save_path)
-    >>> totalvae = TOTALVI(gene_dataset.nb_genes, len(dataset.protein_names), use_cuda=True)
     """
 
     def __init__(
@@ -169,7 +163,8 @@ class TOTALVAE(nn.Module):
         give_mean: bool = False,
         n_samples: int = 5000,
     ) -> torch.Tensor:
-        """Access the tensor of latent values from the posterior
+        """
+        Access the tensor of latent values from the posterior.
 
         Parameters
         ----------
@@ -181,6 +176,8 @@ class TOTALVAE(nn.Module):
             tensor of batch indices
         give_mean
             Whether to sample, or give mean of distribution
+        n_samples
+            Number of samples for monte carlo estimation
 
         Returns
         -------
@@ -211,7 +208,8 @@ class TOTALVAE(nn.Module):
         batch_index: Optional[torch.Tensor] = None,
         give_mean: bool = True,
     ) -> torch.Tensor:
-        """Provides the tensor of library size from the posterior
+        """
+        Provides the tensor of library size from the posterior.
 
         Parameters
         ----------
@@ -219,6 +217,10 @@ class TOTALVAE(nn.Module):
             tensor of values with shape ``(batch_size, n_input_genes)``
         y
             tensor of values with shape ``(batch_size, n_input_proteins)``
+        batch_index
+            tensor of values with shape ``(batch_size, 1)``
+        give_mean
+            return mean of l or sample from it
 
         Returns
         -------
@@ -246,7 +248,8 @@ class TOTALVAE(nn.Module):
         label: Optional[torch.Tensor] = None,
         n_samples: int = 1,
     ) -> torch.Tensor:
-        """Returns the tensor of negative binomial mean for genes
+        """
+        Returns the tensor of negative binomial mean for genes.
 
         Parameters
         ----------
@@ -281,7 +284,8 @@ class TOTALVAE(nn.Module):
         label: Optional[torch.Tensor] = None,
         n_samples: int = 1,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Returns the tensors of dispersions for genes and proteins
+        """
+        Returns the tensors of dispersions for genes and proteins.
 
         Parameters
         ----------
@@ -322,24 +326,34 @@ class TOTALVAE(nn.Module):
         sample_bern=True,
         include_bg=False,
     ) -> torch.Tensor:
-        """Returns tuple of gene and protein scales.
+        """
+        Returns tuple of gene and protein scales.
 
         These scales can also be transformed into a particular batch. This function is
         the core of differential expression.
 
         Parameters
         ----------
+        x
+            tensor of values with shape ``(batch_size, n_input_genes)``
+        y
+            tensor of values with shape ``(batch_size, n_input_proteins)``
+        batch_index
+            array that indicates which batch the cells belong to with shape ``batch_size``
+        label
+            tensor of cell-types labels with shape ``(batch_size, n_labels)``
+        n_samples
+            number of samples
         transform_batch
             Int of batch to "transform" all cells into
         eps
             Prior count to add to protein normalized expression (Default value = 0)
         normalize_pro
             bool, whether to make protein expression sum to one in a cell (Default value = False)
+        sample_bern
+            bool, whether to sample bernoulli in protein likelihood
         include_bg
             bool, whether to include the background component of expression (Default value = False)
-
-        Returns
-        -------
 
         """
         outputs = self.inference(
@@ -416,7 +430,8 @@ class TOTALVAE(nn.Module):
         n_samples=1,
         transform_batch: Optional[int] = None,
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
-        """Internal helper function to compute necessary inference quantities
+        """
+        Internal helper function to compute necessary inference quantities.
 
         We use the dictionary ``px_`` to contain the parameters of the ZINB/NB for genes.
         The rate refers to the mean of the NB, dropout refers to Bernoulli mixing parameters.
@@ -520,7 +535,8 @@ class TOTALVAE(nn.Module):
     ) -> Tuple[
         torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor
     ]:
-        """Returns the reconstruction loss and the Kullback divergences
+        """
+        Returns the reconstruction loss and the Kullback divergences.
 
         Parameters
         ----------

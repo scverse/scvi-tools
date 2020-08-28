@@ -12,7 +12,8 @@ base_path = os.getcwd()
 
 
 def find_notebook(fullname, path=None):
-    """find a notebook, given its fully qualified name and an optional path
+    """
+    Find a notebook, given its fully qualified name and an optional path.
 
     This turns "foo.bar" into "foo/bar.ipynb"
     and tries turning "Foo_Bar" into "Foo Bar" if Foo_Bar
@@ -32,14 +33,14 @@ def find_notebook(fullname, path=None):
 
 
 class NotebookLoader(object):
-    """Module Loader for Jupyter Notebooks"""
+    """Module Loader for Jupyter Notebooks."""
 
     def __init__(self, path=None):
         self.shell = InteractiveShell.instance()
         self.path = path
 
     def load_module(self, fullname):
-        """import a notebook as a module"""
+        """Import a notebook as a module."""
         path = find_notebook(fullname, [os.path.join(base_path, "tests/notebooks")])
 
         print("importing Jupyter notebook from %s" % path)
@@ -114,7 +115,7 @@ class NotebookLoader(object):
 
 
 class NotebookFinder(object):
-    """Module finder that locates Jupyter Notebooks"""
+    """Module finder that locates Jupyter Notebooks."""
 
     def __init__(self):
         self.loaders = {}

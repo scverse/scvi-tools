@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class DifferentialComputation:
     def __init__(self, model_fn, adata):  # method of model class (SCVI, not VAE)
         """
-        Unified class for differential computation
+        Unified class for differential computation.
 
         This class takes a function from a model like SCVI or TOTALVI and takes outputs
         from this function with respect to the adata input and computed Bayes factors as
@@ -24,6 +24,7 @@ class DifferentialComputation:
             Function in model API to get values from.
         adata
             AnnData setup with scvi
+
         """
         self.adata = adata
         self.model_fn = model_fn
@@ -44,7 +45,8 @@ class DifferentialComputation:
         delta: Optional[float] = 0.5,
         cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
     ) -> Dict[str, np.ndarray]:
-        r"""A unified method for differential expression inference.
+        r"""
+        A unified method for differential expression inference.
 
         Two modes coexist:
 
@@ -329,7 +331,8 @@ class DifferentialComputation:
         use_observed_batches: Optional[bool] = False,
         give_mean: Optional[bool] = False,
     ) -> dict:
-        """Samples the posterior scale using the variational posterior distribution.
+        """
+        Samples the posterior scale using the variational posterior distribution.
 
         Parameters
         ----------
@@ -361,6 +364,7 @@ class DifferentialComputation:
             - n_samples_total
             `batch`
             associated batch ids
+
         """
         # Get overall number of desired samples and desired batches
         if batchid is None and not use_observed_batches:
@@ -421,7 +425,10 @@ def pairs_sampler(
     weights1: Union[List[float], np.ndarray, torch.Tensor] = None,
     weights2: Union[List[float], np.ndarray, torch.Tensor] = None,
 ) -> tuple:
-    """In a context where we want to estimate a double sum, virtually increases the number
+    """
+    Creates more pairs.
+
+    In a context where we want to estimate a double sum, virtually increases the number
     of samples by considering more pairs so as to better estimate the double summation operation
 
     Parameters
@@ -526,7 +533,8 @@ def describe_continuous_distrib(
     samples: Union[np.ndarray, torch.Tensor],
     credible_intervals_levels: Optional[Union[List[float], np.ndarray]] = None,
 ) -> dict:
-    """Computes properties of distribution based on its samples
+    """
+    Computes properties of distribution based on its samples.
 
     Parameters
     ----------
@@ -565,7 +573,8 @@ def describe_continuous_distrib(
 def save_cluster_xlsx(
     filepath: str, de_results: List[pd.DataFrame], cluster_names: List
 ):
-    """Saves multi-clusters DE in an xlsx sheet
+    """
+    Saves multi-clusters DE in an xlsx sheet.
 
     Parameters
     ----------
@@ -575,6 +584,7 @@ def save_cluster_xlsx(
         list of pandas Dataframes for each cluster
     cluster_names
         list of cluster names
+
     """
     writer = pd.ExcelWriter(filepath, engine="xlsxwriter")
     for i, x in enumerate(cluster_names):
