@@ -102,6 +102,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
             latent_distribution,
         )
         self.n_latent = n_latent
+        self._init_params = self._get_init_params(locals())
 
     @property
     def _trainer_class(self):

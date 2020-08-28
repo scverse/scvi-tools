@@ -1,8 +1,10 @@
 import torch
+import pickle
 import os
 import logging
 import pandas as pd
 import numpy as np
+import inspect
 
 from anndata import AnnData
 from functools import partial
@@ -39,6 +41,8 @@ class VAEMixin:
         train_fun_kwargs={},
         **kwargs
     ):
+        # TODO figure out how to train after loading
+        # might need to have function which saved unsupervisedTrainer
         if self.is_trained is False:
             self.trainer = UnsupervisedTrainer(
                 self.model,
@@ -51,6 +55,9 @@ class VAEMixin:
                 use_cuda=self.use_cuda,
                 **kwargs,
             )
+            self.train_indices = self.trainer.train_set.indices
+            self.test_indices = self.trainer.test_set.indices
+            self.validation_indices = self.trainer.validation_set.indices
         # for autotune
         if "n_epochs" not in train_fun_kwargs:
             train_fun_kwargs["n_epochs"] = n_epochs
@@ -58,9 +65,6 @@ class VAEMixin:
             train_fun_kwargs["lr"] = lr
         self.trainer.train(**train_fun_kwargs)
         self.is_trained = True
-        self.train_indices = self.trainer.train_set.indices
-        self.test_indices = self.trainer.test_set.indices
-        self.validation_indices = self.trainer.validation_set.indices
 
     @torch.no_grad()
     def get_elbo(self, adata=None, indices=None, batch_size=128):
@@ -630,6 +634,9 @@ class BaseModelClass(ABC):
         self.is_trained = False
         self.use_cuda = use_cuda and torch.cuda.is_available()
         self._model_summary_string = ""
+        self.train_indices = None
+        self.test_indices = None
+        self.validation_indices = None
 
     def _make_posterior(
         self, adata: AnnData, indices=None, batch_size=128, **posterior_kwargs
@@ -689,7 +696,33 @@ class BaseModelClass(ABC):
     def train(self):
         pass
 
+    def _get_user_attributes(self):
+        attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
+        attributes = [
+            a for a in attributes if not (a[0].startswith("__") and a[0].endswith("__"))
+        ]
+        attributes = [a for a in attributes if not a[0].startswith("_abc_")]
+        return attributes
+
+    def _get_init_params(self, locals):
+        init = self.__init__
+        sig = inspect.signature(init)
+        init_params = [p for p in sig.parameters]
+        user_params = {p: locals[p] for p in locals if p in init_params}
+        return user_params
+
     def save(self, dir_path):
+        user_attributes = self._get_user_attributes()
+        attr_not_to_save = [
+            "model",
+            "trainer",
+            "adata",
+            "_posterior_class",
+            "_trainer_class",
+        ]
+        user_attributes = {
+            a[0]: a[1] for a in user_attributes if a[0] not in attr_not_to_save
+        }
         # save the model state dict and the trainer state dict only
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
@@ -700,12 +733,17 @@ class BaseModelClass(ABC):
                 )
             )
         torch.save(self.model.state_dict(), os.path.join(dir_path, "model_params.pt"))
-        torch.save(
-            self.trainer.optimizer.state_dict(),
-            os.path.join(dir_path, "optimizer_params.pt"),
-        )
+        # torch.save(
+        #     self.trainer.optimizer.state_dict(),
+        #     os.path.join(dir_path, "optimizer_params.pt"),
+        # )
+        with open(os.path.join(dir_path, "attr.pkl"), "wb") as f:
+            pickle.dump(user_attributes, f)
+        # with open(os.path.join(dir_path, "scvi_setup_dict.pkl"), "wb") as f:
+        #     pickle.dump(self._scvi_setup_dict, f)
 
-    def load(self, adata: AnnData, dir_path):
+    @classmethod
+    def load(cls, adata: AnnData, dir_path, use_cuda=False):
         # NOTES
         # Make a class method
         # load the _scvi_setup_dict
@@ -715,19 +753,37 @@ class BaseModelClass(ABC):
         # Load state dict into vae.model
         # TODO figure out if we should save optimizer state dict
 
+        # loaded_model = cls(adata)
         model_path = os.path.join(dir_path, "model_params.pt")
-        optimizer_path = os.path.join(dir_path, "optimizer_params.pt")
-        if self.use_cuda:
-            self.model.load_state_dict(torch.load(model_path))
-            self.trainer.optimizer.load_state_dict(torch.load(optimizer_path))
-            self.model.cuda()
+        # optimizer_path = os.path.join(dir_path, "optimizer_params.pt")
+        setup_dict_path = os.path.join(dir_path, "attr.pkl")
+        with open(setup_dict_path, "rb") as handle:
+            attr_dict = pickle.load(handle)
+        init_params = attr_dict.pop("_init_params")
+        if "adata" in init_params:
+            init_params.pop("adata")
+        non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
+        kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
+        kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+        model = cls(adata, **non_kwargs, **kwargs)
+        for attr, val in attr_dict.items():
+            setattr(model, attr, val)
+        use_cuda = use_cuda and torch.cuda.is_available()
+
+        if use_cuda:
+            model.model.load_state_dict(torch.load(model_path))
+            # model.trainer.optimizer.load_state_dict(torch.load(optimizer_path))
+            model.model.cuda()
         else:
             device = torch.device("cpu")
-            self.model.load_state_dict(torch.load(model_path, map_location=device))
-            self.trainer.optimizer.load_state_dict(
-                torch.load(optimizer_path, map_location=device)
-            )
-        self.model.eval()
+            model.model.load_state_dict(torch.load(model_path, map_location=device))
+            # model.trainer.optimizer.load_state_dict(
+            #     torch.load(optimizer_path, map_location=device)
+            # )
+        model.model.eval()
+
+        model._validate_anndata(adata)
+        return model
 
     def __repr__(
         self,

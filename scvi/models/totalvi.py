@@ -109,6 +109,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             gene_likelihood,
             latent_distribution,
         )
+        self._init_params = self._get_init_params(locals())
 
     def train(
         self,

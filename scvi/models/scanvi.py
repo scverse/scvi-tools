@@ -140,6 +140,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             dispersion,
             gene_likelihood,
         )
+        self._init_params = self._get_init_params(locals())
 
     @property
     def _trainer_class(self):

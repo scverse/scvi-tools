@@ -98,6 +98,7 @@ class SCVI(RNASeqMixin, VAEMixin, BaseModelClass):
             gene_likelihood,
             latent_distribution,
         )
+        self._init_params = self._get_init_params(locals())
 
     @property
     def _trainer_class(self):
