@@ -38,6 +38,8 @@ test_requirements = [
     "nbformat>=4.4.0",
     "jupyter>=1.0.0",
     "ipython>=7.1.1",
+    "loompy>=3.0.6",
+    "scanpy>=1.6",
 ]
 
 extras_requirements = {
