@@ -214,7 +214,7 @@ def test_TOTALVI(save_path):
 
     # test automatic transfer_anndata_setup
     adata = synthetic_iid()
-    model = SCVI(adata)
+    model = TOTALVI(adata)
     adata2 = synthetic_iid(run_setup_anndata=False)
     model.get_elbo(adata2)
 
