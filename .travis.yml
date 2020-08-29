@@ -24,7 +24,7 @@ script:
   - flake8
   - black --check .
   - python setup.py check --restructuredtext
-  - pytest --cov-report=xml --cov=myproj --internet-tests
+  - pytest --cov-report=xml --cov=scvi --internet-tests
 
 after_success:
   - codecov
