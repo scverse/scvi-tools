@@ -107,7 +107,7 @@ class TotalTrainer(UnsupervisedTrainer):
             discriminator = Classifier(
                 n_input=self.model.n_latent,
                 n_hidden=32,
-                n_labels=self.adata.uns["scvi_summary_stats"]["n_batch"],
+                n_labels=self.adata.uns["_scvi"]["summary_stats"]["n_batch"],
                 n_layers=2,
                 logits=True,
             )
@@ -175,7 +175,7 @@ class TotalTrainer(UnsupervisedTrainer):
         self, z, batch_index, predict_true_class=True, return_details=True
     ):
 
-        n_classes = self.adata.uns["scvi_summary_stats"]["n_batch"]
+        n_classes = self.adata.uns["_scvi"]["summary_stats"]["n_batch"]
         cls_logits = torch.nn.LogSoftmax(dim=1)(self.discriminator(z))
 
         if predict_true_class:

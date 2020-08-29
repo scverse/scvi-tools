@@ -124,7 +124,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
         **kwargs,
     ):
 
-        if "totalvi_batch_mask" in self.adata.uns.keys():
+        if "totalvi_batch_mask" in self._scvi_setup_dict.keys():
             imputation = True
         else:
             imputation = False
