@@ -2,6 +2,7 @@ import scvi
 import tarfile
 import os
 import scanpy as sc
+import pytest
 from .utils import unsupervised_training_one_epoch
 
 
@@ -43,3 +44,8 @@ def test_pbmc_cite(save_path):
         dataset, protein_expression_obsm_key="protein_expression"
     )
     unsupervised_training_one_epoch(dataset)
+
+
+@pytest.mark.internet
+def test_download_dataset_10x(save_path):
+    scvi.dataset.dataset10X("hgmm_1k_v3", save_path=save_path)
