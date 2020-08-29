@@ -1,6 +1,7 @@
 import pandas as pd
 
 import pytest
+import scvi
 from scvi.dataset import synthetic_iid, transfer_anndata_setup, setup_anndata
 from scvi.models import SCVI, SCANVI, GIMVI, TOTALVI, LinearSCVI, AUTOZI
 
@@ -148,7 +149,7 @@ def test_AUTOZI():
         autozivae.get_alphas_betas()
 
 
-def test_TOTALVI():
+def test_TOTALVI(save_path):
     adata = synthetic_iid()
     n_obs = adata.n_obs
     n_vars = adata.n_vars
@@ -236,3 +237,9 @@ def test_TOTALVI():
     model.differential_expression(
         groupby="labels", group1="undefined_1", group2="undefined_2"
     )
+
+    # test with missing proteins
+    adata = scvi.dataset.pbmcs_10x_cite_seq(save_path=save_path, protein_join="outer")
+    model = TOTALVI(adata)
+    assert model.model.protein_batch_mask is not None
+    model.train(2, train_size=0.5)
