@@ -17,13 +17,14 @@ notifications:
   email: false
 
 install:
+  - pip install pytest-cov
   - pip install --quiet .[test,notebooks]
 
 script:
   - flake8
   - black --check .
   - python setup.py check --restructuredtext
-  - coverage run setup.py test
+  - py.test --cov-report=xml --cov=myproj tests/
 
 after_success:
   - codecov
