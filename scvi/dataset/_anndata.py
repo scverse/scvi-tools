@@ -3,6 +3,7 @@ import numpy as np
 import logging
 import pandas as pd
 import anndata
+import scvi
 
 from typing import Dict, Tuple, Optional, Union, List
 from scvi._compat import Literal
@@ -267,6 +268,7 @@ def setup_anndata(
     if copy:
         adata = adata.copy()
     adata.uns["_scvi"] = {}
+    adata.uns["_scvi"]["scvi_version"] = scvi.__version__
 
     batch_key = _setup_batch(adata, batch_key)
     labels_key = _setup_labels(adata, labels_key)
@@ -387,12 +389,16 @@ def transfer_anndata_setup(
         Layer for X
     """
     adata_target.uns["_scvi"] = {}
+
     if isinstance(adata_source, anndata.AnnData):
         _scvi_dict = adata_source.uns["_scvi"]
     else:
         _scvi_dict = adata_source
     data_registry = _scvi_dict["data_registry"]
     summary_stats = _scvi_dict["summary_stats"]
+
+    # transfer version
+    adata_target.uns["_scvi"]["scvi_version"] = _scvi_dict["scvi_version"]
 
     x_loc = data_registry[_CONSTANTS.X_KEY]["attr_name"]
     if x_loc == "layers":
