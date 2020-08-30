@@ -7,6 +7,7 @@ from scvi.core.trainers import (
     SemiSupervisedTrainer,
 )
 from scvi.core.models.classifier import Classifier
+from scvi.core.trainers.inference import AdapterTrainer
 
 scvi.set_seed(0)
 use_cuda = True
@@ -33,6 +34,17 @@ def test_sampling_zl(save_path):
     )
     trainer_cortex_cls.train(n_epochs=2)
     trainer_cortex_cls.test_set.accuracy()
+
+
+def test_adapter_trainer():
+
+    n_latent = 5
+    adata = scvi.dataset.synthetic_iid()
+    model = scvi.models.SCVI(adata, n_latent=n_latent)
+    model.train(1, train_size=0.5)
+
+    trainer = AdapterTrainer(model.model, adata, model.trainer.test_set)
+    trainer.train(n_epochs=1, n_path=1)
 
 
 def test_classifier_accuracy(save_path):
