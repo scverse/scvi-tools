@@ -86,6 +86,12 @@ def test_SCVI():
     with pytest.raises(AssertionError):
         model.get_elbo(adata2)
 
+    # test mismatched categories raises ValueError
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2.obs.labels.cat.rename_categories(["a", "b", "c"], inplace=True)
+    with pytest.raises(ValueError):
+        model.get_elbo(adata2)
+
     # test differential expression
     model.differential_expression(groupby="labels", group1="undefined_1")
     model.differential_expression(
