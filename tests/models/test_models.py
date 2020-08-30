@@ -138,6 +138,17 @@ def test_GIMVI():
     model.get_imputed_values()
     model.train(1)
 
+    trainer = model.trainer
+    results = pd.DataFrame(
+        trainer.get_loss_magnitude(),
+        index=["reconstruction", "kl_divergence", "discriminator"],
+        columns=["Sequencing", "Spatial"],
+    )
+    results.columns.name = "Dataset"
+    results.index.name = "Loss"
+
+    trainer.get_discriminator_confusion()
+
 
 def test_AUTOZI():
     data = synthetic_iid(n_batches=1)
