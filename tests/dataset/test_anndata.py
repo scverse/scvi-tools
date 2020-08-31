@@ -6,7 +6,11 @@ import scipy.sparse as sparse
 import pytest
 from scvi.dataset._biodataset import BioDataset
 from scvi.dataset._datasets import synthetic_iid
-from scvi.dataset import setup_anndata, transfer_anndata_setup
+from scvi.dataset import (
+    setup_anndata,
+    transfer_anndata_setup,
+    register_tensor_from_anndata,
+)
 from scvi.dataset._anndata import get_from_registry
 
 
@@ -158,6 +162,38 @@ def test_setup_anndata():
     )
     np.testing.assert_array_equal(
         get_from_registry(adata, "labels"), np.zeros((adata.shape[0], 1))
+    )
+
+
+def test_extra_covariates():
+    adata = synthetic_iid()
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    df1 = adata.obsm["_scvi_extra_continuous"]
+    df2 = adata.obs[["cont1", "cont2"]]
+    pd.testing.assert_frame_equal(df1, df2)
+
+
+def test_register_tensor_from_anndata():
+    adata = synthetic_iid()
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    register_tensor_from_anndata(
+        adata, registry_key="test", adata_attr_name="obs", adata_key_name="cont1"
+    )
+    assert "test" in adata.uns["_scvi"]["data_registry"]
+    assert adata.uns["_scvi"]["data_registry"]["test"] == dict(
+        attr_name="obs", attr_key="cont1"
     )
 
 
