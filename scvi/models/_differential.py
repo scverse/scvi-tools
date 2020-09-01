@@ -287,9 +287,10 @@ class DifferentialComputation:
 
             change_fn_specs = inspect.getfullargspec(change_fn)
             domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
-            assert (len(change_fn_specs.args) == 2) & (
-                len(domain_fn_specs.args) == 1
-            ), "change_fn should take exactly two parameters as inputs; m1_domain_fn one parameter."
+            if (len(change_fn_specs.args) != 2) | (len(domain_fn_specs.args) != 1):
+                raise ValueError(
+                    "change_fn should take exactly two parameters as inputs; m1_domain_fn one parameter."
+                )
             try:
                 change_distribution = change_fn(scales_1, scales_2)
                 is_de = m1_domain_fn(change_distribution)
@@ -483,7 +484,8 @@ def pairs_sampler(
 def credible_intervals(
     ary: np.ndarray, confidence_level: Union[float, List[float], np.ndarray] = 0.94
 ) -> np.ndarray:
-    """Calculate highest posterior density (HPD) of array for given credible_interval.
+    """
+    Calculate highest posterior density (HPD) of array for given credible_interval.
 
     Taken from the arviz package
     The HPD is the minimum width Bayesian credible interval (BCI). This implementation works only

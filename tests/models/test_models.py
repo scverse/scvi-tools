@@ -84,7 +84,7 @@ def test_SCVI():
     adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = pd.Index(
         data=["undefined_1", "undefined_0", "undefined_2"]
     )
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         model.get_elbo(adata2)
 
     # test mismatched categories raises ValueError
@@ -293,7 +293,7 @@ def test_TOTALVI(save_path):
     adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = pd.Index(
         data=["undefined_1", "undefined_0", "undefined_2"]
     )
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         model.get_elbo(adata2)
 
     # test that we catch missing proteins

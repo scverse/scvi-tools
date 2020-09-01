@@ -414,7 +414,13 @@ def transfer_anndata_setup(
         use_raw = False
 
     target_n_vars = adata_target.shape[1] if not use_raw else adata_target.raw.shape[1]
-    assert target_n_vars == summary_stats["n_genes"]
+    if target_n_vars != summary_stats["n_genes"]:
+        raise ValueError(
+            "Number of vars in adata_target not the same as source. "
+            + "Expected: {} Received: {}".format(
+                target_n_vars, summary_stats["n_genes"]
+            )
+        )
     # transfer protein_expression
     protein_expression_obsm_key = _transfer_protein_expression(_scvi_dict, adata_target)
 
@@ -739,7 +745,8 @@ def _setup_X(adata, layer, use_raw):
 
     # checking layers
     if use_raw:
-        assert adata.raw is not None, "use_raw is True but adata.raw is None"
+        if adata.raw is None:
+            raise ValueError("use_raw is True but adata.raw is None")
         logger.info("Using data from adata.raw.X")
         X_loc = "X"
         X_key = "None"

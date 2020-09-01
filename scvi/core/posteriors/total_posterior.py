@@ -131,7 +131,7 @@ class TotalPosterior(Posterior):
         """
         # Iterate once over the posterior and computes the total log_likelihood
         elbo = 0
-        for i_batch, tensors in enumerate(self):
+        for _, tensors in enumerate(self):
             x, local_l_mean, local_l_var, batch_index, labels, y = self._unpack_tensors(
                 tensors
             )

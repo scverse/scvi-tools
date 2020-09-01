@@ -99,7 +99,7 @@ def compute_predictions(
     all_y_pred = []
     all_y = []
 
-    for i_batch, tensors in enumerate(data_loader):
+    for _, tensors in enumerate(data_loader):
         sample_batch = tensors[_CONSTANTS.X_KEY]
         labels = tensors[_CONSTANTS.LABELS_KEY]
 

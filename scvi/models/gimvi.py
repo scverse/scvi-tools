@@ -16,6 +16,15 @@ from scvi.models._utils import _get_var_names_from_setup_anndata
 logger = logging.getLogger(__name__)
 
 
+def _unpack_tensors(tensors):
+    x = tensors[_CONSTANTS.X_KEY].squeeze_(0)
+    local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY].squeeze_(0)
+    local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY].squeeze_(0)
+    batch_index = tensors[_CONSTANTS.BATCH_KEY].squeeze_(0)
+    y = tensors[_CONSTANTS.LABELS_KEY].squeeze_(0)
+    return x, local_l_mean, local_l_var, batch_index, y
+
+
 class GIMVI(VAEMixin, BaseModelClass):
     """
     Joint VAE for imputing missing genes in spatial data [Lopez19]_.
@@ -146,7 +155,7 @@ class GIMVI(VAEMixin, BaseModelClass):
                     batch_index,
                     label,
                     *_,
-                ) = self._unpack_tensors(tensors)
+                ) = _unpack_tensors(tensors)
                 latent.append(
                     self.model.sample_from_posterior_z(
                         sample_batch, mode, deterministic=deterministic
@@ -157,14 +166,6 @@ class GIMVI(VAEMixin, BaseModelClass):
             latents.append(latent)
 
         return latents
-
-    def _unpack_tensors(self, tensors):
-        x = tensors[_CONSTANTS.X_KEY].squeeze_(0)
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY].squeeze_(0)
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY].squeeze_(0)
-        batch_index = tensors[_CONSTANTS.BATCH_KEY].squeeze_(0)
-        y = tensors[_CONSTANTS.LABELS_KEY].squeeze_(0)
-        return x, local_l_mean, local_l_var, batch_index, y
 
     def get_imputed_values(
         self,
@@ -208,7 +209,7 @@ class GIMVI(VAEMixin, BaseModelClass):
                     batch_index,
                     label,
                     *_,
-                ) = self._unpack_tensors(tensors)
+                ) = _unpack_tensors(tensors)
                 if normalized:
                     imputed_value.append(
                         self.model.sample_scale(

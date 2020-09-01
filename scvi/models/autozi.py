@@ -125,8 +125,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
     def get_alphas_betas(
         self, as_numpy: bool = True
     ) -> Dict[str, Union[torch.Tensor, np.ndarray]]:
-        """Return parameters of Bernoulli Beta distributions in a dictionary"""
-
+        """Return parameters of Bernoulli Beta distributions in a dictionary."""
         return self.model.get_alphas_betas(as_numpy=as_numpy)
 
     @property

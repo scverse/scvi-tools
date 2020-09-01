@@ -26,6 +26,16 @@ default_early_stopping_kwargs = {
 }
 
 
+def _unpack_tensors(tensors):
+    x = tensors[_CONSTANTS.X_KEY]
+    local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+    local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+    batch_index = tensors[_CONSTANTS.BATCH_KEY]
+    labels = tensors[_CONSTANTS.LABELS_KEY]
+    y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+    return x, local_l_mean, local_l_var, batch_index, labels, y
+
+
 class TotalTrainer(UnsupervisedTrainer):
     """
     Unsupervised training for totalVI using variational inference.
@@ -128,15 +138,6 @@ class TotalTrainer(UnsupervisedTrainer):
             self.test_set.to_monitor = ["elbo"]
             self.validation_set.to_monitor = ["elbo"]
 
-    def _unpack_tensors(self, tensors):
-        x = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        labels = tensors[_CONSTANTS.LABELS_KEY]
-        y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
-        return x, local_l_mean, local_l_var, batch_index, labels, y
-
     def loss(self, tensors):
         (
             sample_batch_x,
@@ -145,7 +146,7 @@ class TotalTrainer(UnsupervisedTrainer):
             batch_index,
             label,
             sample_batch_y,
-        ) = self._unpack_tensors(tensors)
+        ) = _unpack_tensors(tensors)
         (
             reconst_loss_gene,
             reconst_loss_protein,
@@ -201,7 +202,7 @@ class TotalTrainer(UnsupervisedTrainer):
             batch_index,
             label,
             sample_batch_y,
-        ) = self._unpack_tensors(tensors)
+        ) = _unpack_tensors(tensors)
 
         z = self.model.sample_from_posterior_z(
             sample_batch_x, sample_batch_y, batch_index, give_mean=False

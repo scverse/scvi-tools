@@ -19,13 +19,14 @@ logger = logging.getLogger(__name__)
 
 def nearest_neighbor_overlap(X1, X2, k=100):
     """
-    Compute the overlap between the k-nearest neighbor graph of X1 and X2
+    Compute the overlap between the k-nearest neighbor graph of X1 and X2.
 
     Using Spearman correlation of the adjacency matrices.
     Compute the overlap fold enrichment between the protein and mRNA-based cell 100-nearest neighbor
         graph and the Spearman correlation of the adjacency matrices.
     """
-    assert len(X1) == len(X2)
+    if len(X1) != len(X2):
+        raise ValueError("len(X1) != len(X2)")
     n_samples = len(X1)
     k = min(k, n_samples - 1)
     nne = NearestNeighbors(n_neighbors=k + 1)  # "n_jobs=8
@@ -53,7 +54,8 @@ def unsupervised_clustering_accuracy(
     y: Union[np.ndarray, torch.Tensor], y_pred: Union[np.ndarray, torch.Tensor]
 ) -> tuple:
     """Unsupervised Clustering Accuracy."""
-    assert len(y_pred) == len(y)
+    if len(y_pred) != len(y):
+        raise ValueError("len(y_pred) != len(y)")
     u = np.unique(np.concatenate((y, y_pred)))
     n_clusters = len(u)
     mapping = dict(zip(u, range(n_clusters)))

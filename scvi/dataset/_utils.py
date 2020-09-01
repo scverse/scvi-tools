@@ -60,7 +60,8 @@ def _compute_library_size_batch(
         anndata.AnnData if copy was True, else None
 
     """
-    assert batch_key in adata.obs_keys(), "batch_key not valid key in obs dataframe"
+    if batch_key not in adata.obs_keys():
+        raise ValueError("batch_key not valid key in obs dataframe")
     local_means = np.zeros((adata.shape[0], 1))
     local_vars = np.zeros((adata.shape[0], 1))
     batch_indices = adata.obs[batch_key]
@@ -69,9 +70,8 @@ def _compute_library_size_batch(
         if use_raw:
             data = adata[idx_batch].raw.X
         elif layer is not None:
-            assert (
-                layer in adata.layers.keys()
-            ), "layer not a valid key for adata.layers"
+            if layer not in adata.layers.keys():
+                raise ValueError("layer not a valid key for adata.layers")
             data = adata[idx_batch].layers[layer]
         else:
             data = adata[idx_batch].X
@@ -150,7 +150,8 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
     error_msg = (
         "Number of {} in anndata different from initial anndata used for training."
     )
-    assert target_n_vars == stats["n_genes"], error_msg.format("genes")
+    if target_n_vars != stats["n_genes"]:
+        raise ValueError(error_msg.format("genes"))
 
     error_msg = (
         "There are more {} categories in the data than were originally registered. "
@@ -168,25 +169,30 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
         + "Categorical encoding needs to be same elements, same order, and same datatype."
         + "Expected categories: {}. Received categories: {}."
     )
-    assert np.sum(self_batch_mapping == adata_batch_mapping) == len(
-        self_batch_mapping
-    ), error_msg.format("batch", self_batch_mapping, adata_batch_mapping)
+    if np.sum(self_batch_mapping == adata_batch_mapping) != len(self_batch_mapping):
+        raise ValueError(
+            error_msg.format("batch", self_batch_mapping, adata_batch_mapping)
+        )
     self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
     adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
-    assert np.sum(self_labels_mapping == adata_labels_mapping) == len(
-        self_labels_mapping
-    ), error_msg.format("label", self_labels_mapping, adata_labels_mapping)
+    if np.sum(self_labels_mapping == adata_labels_mapping) != len(self_labels_mapping):
+        raise ValueError(
+            error_msg.format("label", self_labels_mapping, adata_labels_mapping)
+        )
 
     # validate any extra categoricals
     if "extra_categorical_mappings" in _scvi_dict.keys():
         target_extra_cat_maps = adata.uns["_scvi"]["extra_categorical_mappings"]
         for key, val in _scvi_dict["extra_categorical_mappings"]:
             target_map = target_extra_cat_maps[key]
-            assert np.sum(val == target_map) == len(val), error_msg.format(
-                key, val, target_map
-            )
+            if np.sum(val == target_map) != len(val):
+                raise ValueError(error_msg.format(key, val, target_map))
     # validate any extra continuous covs
     if "extra_continuous_keys" in _scvi_dict.keys():
-        assert "extra_continuous_keys" in adata.uns["_scvi"].keys()
+        if "extra_continuous_keys" not in adata.uns["_scvi"].keys():
+            raise ValueError('extra_continuous_keys not in adata.uns["_scvi"]')
         target_cont_keys = adata.uns["_scvi"]["extra_continuous_keys"]
-        assert _scvi_dict["extra_continuous_keys"].equals(target_cont_keys)
+        if not _scvi_dict["extra_continuous_keys"].equals(target_cont_keys):
+            raise ValueError(
+                "extra_continous_keys are not the same between source and target"
+            )

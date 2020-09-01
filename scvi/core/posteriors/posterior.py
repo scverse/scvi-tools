@@ -95,15 +95,15 @@ class Posterior:
         data_loader_kwargs=dict(),
     ):
         self.model = model
-        assert "_scvi" in adata.uns.keys(), ValueError(
-            "Please run setup_anndata() on your anndata object first."
-        )
+        if "_scvi" not in adata.uns.keys():
+            raise ValueError("Please run setup_anndata() on your anndata object first.")
         for key in self._data_and_attributes.keys():
-            assert key in adata.uns["_scvi"]["data_registry"].keys(), ValueError(
-                "{} required for model but not included when setup_anndata was run".format(
-                    key
+            if key not in adata.uns["_scvi"]["data_registry"].keys():
+                raise ValueError(
+                    "{} required for model but not included when setup_anndata was run".format(
+                        key
+                    )
                 )
-            )
         self.gene_dataset = BioDataset(adata, getitem_tensors=self._data_and_attributes)
         self.to_monitor = []
         self.use_cuda = use_cuda
@@ -315,11 +315,3 @@ class Posterior:
         sampler = BatchSampler(**self.sampler_kwargs)
         self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
         self.data_loader = DataLoader(self.gene_dataset, **self.data_loader_kwargs)
-
-    def _unpack_tensors(self, tensors):
-        x = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
-        return x, local_l_mean, local_l_var, batch_index, y

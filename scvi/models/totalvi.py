@@ -668,7 +668,8 @@ class TOTALVI(VAEMixin, BaseModelClass):
         x_new : :py:class:`np.ndarray`
             tensor with shape (n_cells, n_genes, n_samples)
         """
-        assert self.model.gene_likelihood in ["nb"]
+        if self.model.gene_likelihood not in ["nb"]:
+            raise ValueError("Invalid gene_likelihood")
 
         adata = self._validate_anndata(adata)
         if gene_list is None:
@@ -903,10 +904,11 @@ class TOTALVI(VAEMixin, BaseModelClass):
         adata = super()._validate_anndata(adata, copy_if_view)
         error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
         if _CONSTANTS.PROTEIN_EXP_KEY in adata.uns["_scvi"]["data_registry"].keys():
-            assert (
+            if (
                 self.summary_stats["n_proteins"]
-                == get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY).shape[1]
-            ), error_msg.format("proteins")
+                != get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY).shape[1]
+            ):
+                raise ValueError(error_msg.format("proteins"))
         else:
             raise ValueError("No protein data found, please setup or transfer anndata")
 

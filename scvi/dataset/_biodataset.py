@@ -12,9 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class BioDataset(Dataset):
-    """
-    Extension of torch dataset to get tensors from anndata
-    """
+    """Extension of torch dataset to get tensors from anndata."""
 
     def __init__(
         self,
@@ -31,11 +29,12 @@ class BioDataset(Dataset):
     def get_registered_keys(
         self,
     ):
-        """Returns the keys of the mappings in scvi data registry"""
+        """Returns the keys of the mappings in scvi data registry."""
         return self.adata.uns["_scvi"]["data_registry"].keys()
 
     def setup_data_attr(self):
-        """Sets data attribute
+        """
+        Sets data attribute.
 
         Reduces number of times anndata needs to be accessed
         """
@@ -45,7 +44,8 @@ class BioDataset(Dataset):
         }
 
     def setup_getitem(self, getitem_tensors: Union[List[str], Dict[str, type]] = None):
-        """Sets up the __getitem__ function used by Pytorch
+        """
+        Sets up the __getitem__ function used by Pytorch.
 
         By default, getitem will return every single item registered in the scvi data registry
         and also set their type to np.float32.

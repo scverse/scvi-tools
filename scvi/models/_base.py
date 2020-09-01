@@ -345,7 +345,8 @@ class RNASeqMixin:
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
         """
-        assert self.model.gene_likelihood in ["zinb", "nb", "poisson"]
+        if self.model.gene_likelihood not in ["zinb", "nb", "poisson"]:
+            raise ValueError("Invalid gene_likelihood.")
 
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -622,9 +623,10 @@ class RNASeqMixin:
 class BaseModelClass(ABC):
     def __init__(self, adata=None, use_cuda=False):
         if adata is not None:
-            assert (
-                "_scvi" in adata.uns.keys()
-            ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
+            if "_scvi" not in adata.uns.keys():
+                raise ValueError(
+                    "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
+                )
             self.adata = adata
             self.scvi_setup_dict_ = adata.uns["_scvi"]
             self.summary_stats = self.scvi_setup_dict_["summary_stats"]
