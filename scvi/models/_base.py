@@ -43,7 +43,7 @@ class VAEMixin:
     ):
         # TODO figure out how to train after loading
         # might need to have function which saved unsupervisedTrainer
-        if self.is_trained is False:
+        if self.is_trained_ is False:
             self.trainer = UnsupervisedTrainer(
                 self.model,
                 self.adata,
@@ -55,16 +55,17 @@ class VAEMixin:
                 use_cuda=self.use_cuda,
                 **kwargs,
             )
-            self.train_indices = self.trainer.train_set.indices
-            self.test_indices = self.trainer.test_set.indices
-            self.validation_indices = self.trainer.validation_set.indices
+            self.train_indices_ = self.trainer.train_set.indices
+            self.test_indices_ = self.trainer.test_set.indices
+            self.validation_indices_ = self.trainer.validation_set.indices
         # for autotune
+
         if "n_epochs" not in train_fun_kwargs:
             train_fun_kwargs["n_epochs"] = n_epochs
         if "lr" not in train_fun_kwargs:
             train_fun_kwargs["lr"] = lr
         self.trainer.train(**train_fun_kwargs)
-        self.is_trained = True
+        self.is_trained_ = True
 
     @torch.no_grad()
     def get_elbo(self, adata=None, indices=None, batch_size=128):
@@ -124,7 +125,7 @@ class VAEMixin:
         latent_representation : np.ndarray
             Low-dimensional representation for each cell
         """
-        if self.is_trained is False:
+        if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
 
         adata = self._validate_anndata(adata)
@@ -606,7 +607,7 @@ class RNASeqMixin:
     def get_latent_library_size(
         self, adata=None, indices=None, give_mean=True, batch_size=128
     ):
-        if self.is_trained is False:
+        if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -625,16 +626,16 @@ class BaseModelClass(ABC):
                 "_scvi" in adata.uns.keys()
             ), "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
             self.adata = adata
-            self._scvi_setup_dict = adata.uns["_scvi"]
-            self.summary_stats = self._scvi_setup_dict["summary_stats"]
+            self.scvi_setup_dict_ = adata.uns["_scvi"]
+            self.summary_stats = self.scvi_setup_dict_["summary_stats"]
             self._validate_anndata(adata, copy_if_view=False)
 
-        self.is_trained = False
+        self.is_trained_ = False
         self.use_cuda = use_cuda and torch.cuda.is_available()
         self._model_summary_string = ""
-        self.train_indices = None
-        self.test_indices = None
-        self.validation_indices = None
+        self.train_indices_ = None
+        self.test_indices_ = None
+        self.validation_indices_ = None
 
     def _make_posterior(
         self, adata: AnnData, indices=None, batch_size=128, **posterior_kwargs
@@ -667,7 +668,7 @@ class BaseModelClass(ABC):
                 "Input adata not setup with scvi. "
                 + "attempting to transfer anndata setup"
             )
-            transfer_anndata_setup(self._scvi_setup_dict, adata)
+            transfer_anndata_setup(self.scvi_setup_dict_, adata)
         is_nonneg_int = _check_nonnegative_integers(
             get_from_registry(adata, _CONSTANTS.X_KEY)
         )
@@ -676,7 +677,7 @@ class BaseModelClass(ABC):
                 "Make sure the registered X field in anndata contains unnormalized count data."
             )
 
-        _check_anndata_setup_equivalence(self._scvi_setup_dict, adata)
+        _check_anndata_setup_equivalence(self.scvi_setup_dict_, adata)
 
         return adata
 
@@ -707,23 +708,18 @@ class BaseModelClass(ABC):
         sig = inspect.signature(init)
         init_params = [p for p in sig.parameters]
         user_params = {p: locals[p] for p in locals if p in init_params}
+        user_params = {k: v for (k, v) in user_params.items() if type(v) != AnnData}
         return user_params
 
-    def save(self, dir_path):
+    def save(self, dir_path, overwrite=False):
+        # get all the user attributes
         user_attributes = self._get_user_attributes()
-        attr_not_to_save = [
-            "model",
-            "trainer",
-            "adata",
-            "_posterior_class",
-            "_trainer_class",
-        ]
-        user_attributes = {
-            a[0]: a[1] for a in user_attributes if a[0] not in attr_not_to_save
-        }
+        # only save the public attributes with _ at the very end
+        user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
+
         # save the model state dict and the trainer state dict only
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
+        if not os.path.exists(dir_path) or overwrite:
+            os.makedirs(dir_path, exist_ok=overwrite)
         else:
             raise ValueError(
                 "{} already exists. Please provide an unexisting directory for saving.".format(
@@ -757,10 +753,15 @@ class BaseModelClass(ABC):
         setup_dict_path = os.path.join(dir_path, "attr.pkl")
         with open(setup_dict_path, "rb") as handle:
             attr_dict = pickle.load(handle)
-        init_params = attr_dict.pop("_init_params")
-        if "adata" in init_params:
-            init_params.pop("adata")
+        if "init_params_" not in attr_dict.keys():
+            raise ValueError(
+                "No init_params_ were saved by the model. Check out the developers guide if creating custom models."
+            )
+        # get the parameters for the class init signiture
+        init_params = attr_dict.pop("init_params_")
+        # grab all the parameters execept for kwargs (is a dict)
         non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
+        # expand out kwargs
         kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         model = cls(adata, **non_kwargs, **kwargs)
@@ -779,7 +780,6 @@ class BaseModelClass(ABC):
             #     torch.load(optimizer_path, map_location=device)
             # )
         model.model.eval()
-
         model._validate_anndata(adata)
         return model
 
@@ -787,6 +787,6 @@ class BaseModelClass(ABC):
         self,
     ):
         summary_string = self._model_summary_string + "\nTraining status: {}".format(
-            "Trained" if self.is_trained else "Not Trained"
+            "Trained" if self.is_trained_ else "Not Trained"
         )
         return summary_string

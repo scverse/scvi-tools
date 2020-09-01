@@ -115,11 +115,11 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         )
 
         # get indices for labeled and unlabeled cells
-        key = self._scvi_setup_dict["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
-        self._label_mapping = self._scvi_setup_dict["categorical_mappings"][key][
+        key = self.scvi_setup_dict_["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
+        self._label_mapping = self.scvi_setup_dict_["categorical_mappings"][key][
             "mapping"
         ]
-        original_key = self._scvi_setup_dict["categorical_mappings"][key][
+        original_key = self.scvi_setup_dict_["categorical_mappings"][key][
             "original_key"
         ]
         labels = np.asarray(self.adata.obs[original_key]).ravel()
@@ -139,7 +139,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             dispersion,
             gene_likelihood,
         )
-        self._init_params = self._get_init_params(locals())
+        self.init_params_ = self._get_init_params(locals())
 
     @property
     def _trainer_class(self):
@@ -173,7 +173,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
                 np.min([10, np.max([2, round(n_epochs_unsupervised / 3.0)])])
             )
 
-        if self._is_trained_base is not True:
+        if self.is_trained_base is not True:
             self._unsupervised_trainer = UnsupervisedTrainer(
                 self._base_model,
                 self.adata,

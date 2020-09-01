@@ -82,8 +82,8 @@ class TOTALVI(VAEMixin, BaseModelClass):
         **model_kwargs,
     ):
         super(TOTALVI, self).__init__(adata, use_cuda=use_cuda)
-        if "totalvi_batch_mask" in self._scvi_setup_dict.keys():
-            batch_mask = self._scvi_setup_dict["totalvi_batch_mask"]
+        if "totalvi_batch_mask" in self.scvi_setup_dict_.keys():
+            batch_mask = self.scvi_setup_dict_["totalvi_batch_mask"]
         else:
             batch_mask = None
         self.model = TOTALVAE(
@@ -108,7 +108,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
             gene_likelihood,
             latent_distribution,
         )
-        self._init_params = self._get_init_params(locals())
+        self.init_params_ = self._get_init_params(locals())
 
     def train(
         self,
@@ -124,7 +124,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
         **kwargs,
     ):
 
-        if "totalvi_batch_mask" in self._scvi_setup_dict.keys():
+        if "totalvi_batch_mask" in self.scvi_setup_dict_.keys():
             imputation = True
         else:
             imputation = False
@@ -147,10 +147,10 @@ class TOTALVI(VAEMixin, BaseModelClass):
         if "lr" not in train_fun_kwargs:
             train_fun_kwargs["lr"] = lr
         self.trainer.train(**train_fun_kwargs)
-        self.is_trained = True
-        self.train_indices = self.trainer.train_set.indices
-        self.test_indices = self.trainer.test_set.indices
-        self.validation_indices = self.trainer.validation_set.indices
+        self.is_trained_ = True
+        self.train_indices_ = self.trainer.train_set.indices
+        self.test_indices_ = self.trainer.test_set.indices
+        self.validation_indices_ = self.trainer.validation_set.indices
 
     @torch.no_grad()
     def get_reconstruction_error(
@@ -205,7 +205,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
         >>> adata_subset = adata[adata.obs.cell_type == "really cool cell type"]
         >>> latent_subset = vae.get_latent_representation(adata_subset)
         """
-        if self.is_trained is False:
+        if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
 
         adata = self._validate_anndata(adata)
@@ -225,7 +225,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
     def get_latent_library_size(
         self, adata=None, indices=None, give_mean=True, batch_size=128
     ):
-        if self.is_trained is False:
+        if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
 
         adata = self._validate_anndata(adata)

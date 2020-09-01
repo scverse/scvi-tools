@@ -1,5 +1,7 @@
 import numpy as np
+import os
 import logging
+import pickle
 import torch
 from anndata import AnnData
 
@@ -80,6 +82,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         )
 
         self._model_summary_string = "gimVI model with params"
+        self.init_params_ = self._get_init_params(locals())
 
     @property
     def _trainer_class(self):
@@ -102,7 +105,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         )
         self.trainer.train(n_epochs=n_epochs)
 
-        self.is_trained = True
+        self.is_trained_ = True
 
     def _make_posteriors(self, adatas: List[AnnData] = None, batch_size=128):
         if adatas is None:
@@ -233,3 +236,36 @@ class GIMVI(VAEMixin, BaseModelClass):
             imputed_values.append(imputed_value)
 
         return imputed_values
+
+    @classmethod
+    def load(cls, adata_seq: AnnData, adata_spatial: AnnData, dir_path, use_cuda=False):
+        model_path = os.path.join(dir_path, "model_params.pt")
+        # optimizer_path = os.path.join(dir_path, "optimizer_params.pt")
+        setup_dict_path = os.path.join(dir_path, "attr.pkl")
+        with open(setup_dict_path, "rb") as handle:
+            attr_dict = pickle.load(handle)
+        # get the parameters for the class init signiture
+        init_params = attr_dict.pop("init_params_")
+        # grab all the parameters execept for kwargs (is a dict)
+        non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
+        # expand out kwargs
+        kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
+        kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+        model = cls(adata_seq, adata_spatial, **non_kwargs, **kwargs)
+        for attr, val in attr_dict.items():
+            setattr(model, attr, val)
+        use_cuda = use_cuda and torch.cuda.is_available()
+
+        if use_cuda:
+            model.model.load_state_dict(torch.load(model_path))
+            # model.trainer.optimizer.load_state_dict(torch.load(optimizer_path))
+            model.model.cuda()
+        else:
+            device = torch.device("cpu")
+            model.model.load_state_dict(torch.load(model_path, map_location=device))
+            # model.trainer.optimizer.load_state_dict(
+            #     torch.load(optimizer_path, map_location=device)
+            # )
+        model.model.eval()
+        # model._validate_anndata(adata_seq)
+        return model

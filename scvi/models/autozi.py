@@ -120,7 +120,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
             minimal_dropout,
             zero_inflation,
         )
-        self._init_params = self._get_init_params(locals())
+        self.init_params_ = self._get_init_params(locals())
 
     def get_alphas_betas(
         self, as_numpy: bool = True
