@@ -142,6 +142,12 @@ class Posterior:
 
     @property
     def _data_and_attributes(self):
+        """
+        Returns dictionary where key is scVI data field and value is its datatype.
+
+        Used by BioDataset when _get_item_ is called by mapping the keys in the dict
+        to its associated datatype
+        """
         return {
             _CONSTANTS.X_KEY: np.float32,
             _CONSTANTS.BATCH_KEY: np.int64,
