@@ -691,13 +691,13 @@ class BaseModelClass(ABC):
     def _trainer_class(self):
         pass
 
-    @property
-    def is_trained(self):
-        return self.is_trained_
-
     @abstractmethod
     def train(self):
         pass
+
+    @property
+    def is_trained(self):
+        return self.is_trained_
 
     @property
     def test_indices(self):
@@ -712,6 +712,7 @@ class BaseModelClass(ABC):
         return self.validation_indices_
 
     def _get_user_attributes(self):
+        # returns all the self attributes defined in a model class, eg, self.is_trained_
         attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
         attributes = [
             a for a in attributes if not (a[0].startswith("__") and a[0].endswith("__"))
@@ -720,6 +721,8 @@ class BaseModelClass(ABC):
         return attributes
 
     def _get_init_params(self, locals):
+        # returns the model init signiture with associated passed in values
+        # except the anndata objects passed in
         init = self.__init__
         sig = inspect.signature(init)
         init_params = [p for p in sig.parameters]
@@ -732,7 +735,6 @@ class BaseModelClass(ABC):
         user_attributes = self._get_user_attributes()
         # only save the public attributes with _ at the very end
         user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
-
         # save the model state dict and the trainer state dict only
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
@@ -743,29 +745,12 @@ class BaseModelClass(ABC):
                 )
             )
         torch.save(self.model.state_dict(), os.path.join(dir_path, "model_params.pt"))
-        # torch.save(
-        #     self.trainer.optimizer.state_dict(),
-        #     os.path.join(dir_path, "optimizer_params.pt"),
-        # )
         with open(os.path.join(dir_path, "attr.pkl"), "wb") as f:
             pickle.dump(user_attributes, f)
-        # with open(os.path.join(dir_path, "scvi_setup_dict.pkl"), "wb") as f:
-        #     pickle.dump(self._scvi_setup_dict, f)
 
     @classmethod
     def load(cls, adata: AnnData, dir_path, use_cuda=False):
-        # NOTES
-        # Make a class method
-        # load the _scvi_setup_dict
-        # transfer anndata setup to input adata using setup dict
-        # Load SCVI init signature
-        # Run init
-        # Load state dict into vae.model
-        # TODO figure out if we should save optimizer state dict
-
-        # loaded_model = cls(adata)
         model_path = os.path.join(dir_path, "model_params.pt")
-        # optimizer_path = os.path.join(dir_path, "optimizer_params.pt")
         setup_dict_path = os.path.join(dir_path, "attr.pkl")
         with open(setup_dict_path, "rb") as handle:
             attr_dict = pickle.load(handle)
@@ -787,14 +772,10 @@ class BaseModelClass(ABC):
 
         if use_cuda:
             model.model.load_state_dict(torch.load(model_path))
-            # model.trainer.optimizer.load_state_dict(torch.load(optimizer_path))
             model.model.cuda()
         else:
             device = torch.device("cpu")
             model.model.load_state_dict(torch.load(model_path, map_location=device))
-            # model.trainer.optimizer.load_state_dict(
-            #     torch.load(optimizer_path, map_location=device)
-            # )
         model.model.eval()
         model._validate_anndata(adata)
         return model
