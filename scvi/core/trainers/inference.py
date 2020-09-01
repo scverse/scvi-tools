@@ -92,8 +92,8 @@ class UnsupervisedTrainer(Trainer):
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.normalize_loss = (
             not (
-                hasattr(self.model, "reconstruction_loss")
-                and self.model.reconstruction_loss == "autozinb"
+                hasattr(self.model, "gene_likelihood")
+                and self.model.gene_likelihood == "autozinb"
             )
             if normalize_loss is None
             else normalize_loss
