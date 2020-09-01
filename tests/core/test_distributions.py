@@ -3,7 +3,7 @@ import pytest
 import torch
 
 import scvi
-from scvi.metrics._core import unsupervised_clustering_accuracy
+from scvi.core import unsupervised_clustering_accuracy
 from scvi.core._distributions import (
     ZeroInflatedNegativeBinomial,
     NegativeBinomial,

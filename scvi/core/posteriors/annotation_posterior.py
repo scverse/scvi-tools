@@ -5,7 +5,7 @@ from sklearn.neighbors import KNeighborsClassifier
 
 import torch
 from .posterior import Posterior
-from scvi.metrics import unsupervised_clustering_accuracy
+from scvi.core import unsupervised_clustering_accuracy
 from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)
