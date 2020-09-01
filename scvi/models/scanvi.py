@@ -173,7 +173,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
                 np.min([10, np.max([2, round(n_epochs_unsupervised / 3.0)])])
             )
 
-        if self.is_trained_base is not True:
+        if self._is_trained_base is not True:
             self._unsupervised_trainer = UnsupervisedTrainer(
                 self._base_model,
                 self.adata,
@@ -204,7 +204,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         )
         self.trainer.train(n_epochs=n_epochs_semisupervised)
 
-        self.is_trained = True
+        self.is_trained_ = True
 
     def predict(self, adata=None, indices=None, soft=False, batch_size=128):
         """

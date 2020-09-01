@@ -691,9 +691,25 @@ class BaseModelClass(ABC):
     def _trainer_class(self):
         pass
 
+    @property
+    def is_trained(self):
+        return self.is_trained_
+
     @abstractmethod
     def train(self):
         pass
+
+    @property
+    def test_indices(self):
+        return self.test_indices_
+
+    @property
+    def train_indices(self):
+        return self.train_indices_
+
+    @property
+    def validation_indices(self):
+        return self.validation_indices_
 
     def _get_user_attributes(self):
         attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
