@@ -1,6 +1,7 @@
 import pandas as pd
-
+import numpy as np
 import pytest
+
 import scvi
 from scvi.dataset import synthetic_iid, transfer_anndata_setup, setup_anndata
 from scvi.models import SCVI, SCANVI, GIMVI, TOTALVI, LinearSCVI, AUTOZI
@@ -97,6 +98,56 @@ def test_SCVI():
     model.differential_expression(
         groupby="labels", group1="undefined_1", group2="undefined_2", mode="change"
     )
+
+
+def test_saving_and_loading():
+    adata = synthetic_iid()
+
+    for cls in [SCVI, LinearSCVI, TOTALVI]:
+        model = cls(adata, latent_distribution="normal")
+        model.train(1)
+        z1 = model.get_latent_representation(adata)
+        test_idx1 = model.test_indices
+        model.save("tmp", overwrite=True)
+        model = cls.load(adata, "tmp")
+        z2 = model.get_latent_representation()
+        test_idx2 = model.test_indices
+        np.testing.assert_array_equal(z1, z2)
+        np.testing.assert_array_equal(test_idx1, test_idx2)
+        assert model.is_trained is True
+
+    # AUTOZI
+    model = AUTOZI(adata, latent_distribution="normal")
+    model.train(1)
+    ab1 = model.get_alphas_betas()
+    model.save("tmp", overwrite=True)
+    model = AUTOZI.load(adata, "tmp")
+    ab2 = model.get_alphas_betas()
+    np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
+    np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
+    assert model.is_trained is True
+
+    # SCANVI
+    model = SCANVI(adata, "undefined_0")
+    model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1)
+    p1 = model.predict()
+    model.save("tmp", overwrite=True)
+    model = SCANVI.load(adata, "tmp")
+    p2 = model.predict()
+    np.testing.assert_array_equal(p1, p2)
+    assert model.is_trained is True
+
+    # GIMVI
+    model = GIMVI(adata, adata)
+    model.train(1)
+    z1 = model.get_latent_representation([adata])
+    z2 = model.get_latent_representation([adata])
+    np.testing.assert_array_equal(z1, z2)
+    model.save("tmp", overwrite=True)
+    model = GIMVI(adata, adata, "tmp")
+    z2 = model.get_latent_representation([adata])
+    np.testing.assert_array_equal(z1, z2)
+    assert model.is_trained is True
 
 
 def test_SCANVI():
