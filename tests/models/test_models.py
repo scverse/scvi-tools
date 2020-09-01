@@ -144,7 +144,7 @@ def test_saving_and_loading():
     z2 = model.get_latent_representation([adata])
     np.testing.assert_array_equal(z1, z2)
     model.save("tmp", overwrite=True)
-    model = GIMVI(adata, adata, "tmp")
+    model = GIMVI.load(adata, adata, "tmp")
     z2 = model.get_latent_representation([adata])
     np.testing.assert_array_equal(z1, z2)
     assert model.is_trained is True
