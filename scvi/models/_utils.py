@@ -49,3 +49,11 @@ def _get_var_names_from_setup_anndata(adata):
     )
 
     return var_names
+
+
+def _get_batch_code_from_category(adata, category):
+    categorical_mappings = adata.uns["_scvi"]["categorical_mappings"]
+    batch_mappings = categorical_mappings["_scvi_batch"]["mapping"]
+    if category not in batch_mappings:
+        raise ValueError('"{}" not a valid batch category.'.format(category))
+    return np.where(batch_mappings == category)[0][0]

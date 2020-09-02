@@ -5,6 +5,8 @@ import torch
 import logging
 import warnings
 from typing import Union, List, Optional, Callable, Dict
+from scvi.dataset import get_from_registry
+from scvi._constants import _CONSTANTS
 
 logger = logging.getLogger(__name__)
 
@@ -369,9 +371,9 @@ class DifferentialComputation:
         """
         # Get overall number of desired samples and desired batches
         if batchid is None and not use_observed_batches:
-            batchid = np.arange(
-                self.adata.uns["_scvi"]["summary_stats"]["n_batch"], dtype=np.int64
-            )
+            # TODO determine if we iterate over all categorical batches from train dataset
+            # or just the batches in adata
+            batchid = np.unique(get_from_registry(self.adata, key=_CONSTANTS.BATCH_KEY))
         if use_observed_batches:
             if batchid is not None:
                 raise ValueError("Unconsistent batch policy")

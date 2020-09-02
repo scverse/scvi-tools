@@ -13,6 +13,7 @@ from scvi.models._differential import DifferentialComputation
 from scvi.models._utils import (
     scrna_raw_counts_properties,
     _get_var_names_from_setup_anndata,
+    _get_batch_code_from_category,
 )
 from scvi.dataset._utils import (
     _check_anndata_setup_equivalence,
@@ -146,9 +147,7 @@ class RNASeqMixin:
         self,
         adata=None,
         indices=None,
-        transform_batch: Optional[
-            int
-        ] = None,  # should take categories and ints (de requires ints )
+        transform_batch: Optional[Union[str, int]] = None,
         gene_list: Optional[Union[np.ndarray, List[int]]] = None,
         library_size: Optional[Union[float, Literal["latent"]]] = 1,
         n_samples: int = 1,
@@ -203,6 +202,8 @@ class RNASeqMixin:
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        if transform_batch is not None:
+            transform_batch = _get_batch_code_from_category(adata, transform_batch)
 
         if gene_list is None:
             gene_mask = slice(None)
