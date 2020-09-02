@@ -13,6 +13,7 @@ Models
 
 .. autosummary::
     :toctree: reference/
+
     core.models.BaseModelClass
     core.models.VAEMixin
     core.models.RNASeqMixin

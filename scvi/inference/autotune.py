@@ -28,7 +28,7 @@ from hyperopt.mongoexp import (
 
 from scvi._settings import autotune_formatter
 
-from scvi.models._base import BaseModelClass
+from scvi.core.models import BaseModelClass
 from scvi.core.trainers.trainer import Trainer
 from scvi.models import SCVI
 
