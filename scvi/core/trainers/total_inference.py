@@ -126,7 +126,7 @@ class TotalTrainer(UnsupervisedTrainer):
         if self.use_cuda and self.discriminator is not None:
             self.discriminator.cuda()
 
-        if type(self) is TotalTrainer:
+        if isinstance(self, TotalTrainer):
             (
                 self.train_set,
                 self.test_set,

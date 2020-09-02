@@ -95,11 +95,11 @@ def _check_nonnegative_integers(
     data: Union[pd.DataFrame, np.ndarray, sp_sparse.spmatrix]
 ):
     """Checks values of data to ensure it is count data."""
-    if type(data) is np.ndarray:
+    if isinstance(data, np.ndarray):
         data = data
     elif issubclass(type(data), sp_sparse.spmatrix):
         data = data.data
-    elif type(data) is pd.DataFrame:
+    elif isinstance(data, pd.DataFrame):
         data = data.to_numpy()
     else:
         raise TypeError("data type not understood")
@@ -123,7 +123,7 @@ def _get_batch_mask_protein_data(
     in each batch. Absence is defined by all 0 for that protein in that batch.
     """
     pro_exp = adata.obsm[protein_expression_obsm_key]
-    pro_exp = pro_exp.to_numpy() if type(pro_exp) is pd.DataFrame else pro_exp
+    pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
     batches = adata.obs[batch_key].values
     batch_mask = []
     for b in np.unique(batches):

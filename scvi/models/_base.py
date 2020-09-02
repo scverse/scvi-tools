@@ -729,7 +729,9 @@ class BaseModelClass(ABC):
         sig = inspect.signature(init)
         init_params = [p for p in sig.parameters]
         user_params = {p: locals[p] for p in locals if p in init_params}
-        user_params = {k: v for (k, v) in user_params.items() if type(v) != AnnData}
+        user_params = {
+            k: v for (k, v) in user_params.items() if not isinstance(v, AnnData)
+        }
         return user_params
 
     def save(self, dir_path, overwrite=False):

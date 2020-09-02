@@ -13,6 +13,16 @@ from scvi import _CONSTANTS
 logger = logging.getLogger(__name__)
 
 
+def _unpack_tensors(tensors):
+    x = tensors[_CONSTANTS.X_KEY]
+    local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+    local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+    batch_index = tensors[_CONSTANTS.BATCH_KEY]
+    labels = tensors[_CONSTANTS.LABELS_KEY]
+    y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+    return x, local_l_mean, local_l_var, batch_index, labels, y
+
+
 class TotalPosterior(Posterior):
     """
     Extended data loader for totalVI.
@@ -93,22 +103,13 @@ class TotalPosterior(Posterior):
     def get_protein_background_mean(self):
         background_mean = []
         for tensors in self:
-            x, _, _, batch_index, label, y = self._unpack_tensors(tensors)
+            x, _, _, batch_index, label, y = _unpack_tensors(tensors)
             outputs = self.model.inference(
                 x, y, batch_index=batch_index, label=label, n_samples=1
             )
             b_mean = outputs["py_"]["rate_back"]
             background_mean += [np.array(b_mean.cpu())]
         return np.concatenate(background_mean)
-
-    def _unpack_tensors(self, tensors):
-        x = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        labels = tensors[_CONSTANTS.LABELS_KEY]
-        y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
-        return x, local_l_mean, local_l_var, batch_index, labels, y
 
     def compute_elbo(self, vae: TOTALVAE, **kwargs):
         """
@@ -132,7 +133,7 @@ class TotalPosterior(Posterior):
         # Iterate once over the posterior and computes the total log_likelihood
         elbo = 0
         for _, tensors in enumerate(self):
-            x, local_l_mean, local_l_var, batch_index, labels, y = self._unpack_tensors(
+            x, local_l_mean, local_l_var, batch_index, labels, y = _unpack_tensors(
                 tensors
             )
             (
@@ -173,8 +174,8 @@ class TotalPosterior(Posterior):
         # Iterate once over the posterior and computes the total log_likelihood
         log_lkl_gene = 0
         log_lkl_protein = 0
-        for i_batch, tensors in enumerate(self):
-            x, local_l_mean, local_l_var, batch_index, labels, y = self._unpack_tensors(
+        for _, tensors in enumerate(self):
+            x, local_l_mean, local_l_var, batch_index, labels, y = _unpack_tensors(
                 tensors
             )
             (
@@ -220,8 +221,8 @@ class TotalPosterior(Posterior):
         """
         # Uses MC sampling to compute a tighter lower bound on log p(x)
         log_lkl = 0
-        for i_batch, tensors in enumerate(self.update_batch_size(batch_size)):
-            x, local_l_mean, local_l_var, batch_index, labels, y = self._unpack_tensors(
+        for _, tensors in enumerate(self.update_batch_size(batch_size)):
+            x, local_l_mean, local_l_var, batch_index, labels, y = _unpack_tensors(
                 tensors
             )
             to_sum = torch.zeros(x.size()[0], n_samples_mc)

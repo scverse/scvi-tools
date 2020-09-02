@@ -337,6 +337,8 @@ class DifferentialComputation:
 
         Parameters
         ----------
+        selection
+            Mask or list of cell ids to select
         n_samples
             Number of samples in total per batch (fill either `n_samples_total`
             or `n_samples_per_cell`)
@@ -349,8 +351,6 @@ class DifferentialComputation:
         use_observed_batches
             Whether normalized means are conditioned on observed
             batches or if observed batches are to be used
-        selection
-            Mask or list of cell ids to select
 
 
         Returns
@@ -373,7 +373,8 @@ class DifferentialComputation:
                 self.adata.uns["_scvi"]["summary_stats"]["n_batch"], dtype=np.int64
             )
         if use_observed_batches:
-            assert batchid is None, "Unconsistent batch policy"
+            if batchid is not None:
+                raise ValueError("Unconsistent batch policy")
             batchid = [None]
         if n_samples is None and n_samples_per_cell is None:
             n_samples = 5000
@@ -409,9 +410,8 @@ class DifferentialComputation:
             batch_ids.append([batch_idx] * px_scales[-1].shape[0])
         px_scales = np.concatenate(px_scales)
         batch_ids = np.concatenate(batch_ids).reshape(-1)
-        assert (
-            px_scales.shape[0] == batch_ids.shape[0]
-        ), "sampled scales and batches have inconsistent shapes"
+        if px_scales.shape[0] != batch_ids.shape[0]:
+            raise ValueError("sampled scales and batches have inconsistent shapes")
         if give_mean:
             px_scales = px_scales.mean(0)
         return dict(scale=px_scales, batch=batch_ids)
