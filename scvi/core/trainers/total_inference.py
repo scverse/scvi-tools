@@ -5,10 +5,9 @@ import torch
 
 from scvi.core.trainers import UnsupervisedTrainer
 from scvi.core.posteriors import TotalPosterior
-
-from scvi.core.models import TOTALVAE
-from scvi.core.models import Classifier
-from scvi.core.models.utils import one_hot
+from scvi.core.modules import TOTALVAE
+from scvi.core.modules import Classifier
+from scvi.core.modules.utils import one_hot
 from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)

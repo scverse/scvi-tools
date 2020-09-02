@@ -5,9 +5,8 @@ from anndata import AnnData
 
 from typing import Optional, Dict, Union
 from scvi._compat import Literal
-from scvi.core.models import AutoZIVAE
-from scvi.models._base import VAEMixin, BaseModelClass
-
+from scvi.core.modules import AutoZIVAE
+from scvi.core.models import VAEMixin, BaseModelClass
 from scvi.core.posteriors import Posterior
 from scvi.core.trainers import UnsupervisedTrainer
 

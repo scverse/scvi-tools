@@ -1,13 +1,13 @@
 import logging
 import copy
-from typing import Union
-
 import torch
 import anndata
-from numpy import ceil
 
-from .trainer import Trainer
+from numpy import ceil
+from typing import Union
+
 from scvi import _CONSTANTS
+from .trainer import Trainer
 
 logger = logging.getLogger(__name__)
 

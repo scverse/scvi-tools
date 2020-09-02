@@ -14,8 +14,7 @@ from scvi.core._distributions import (
     ZeroInflatedNegativeBinomial,
     Poisson,
 )
-from ._modules import Encoder
-from ._modules import MultiEncoder, MultiDecoder
+from ._base import Encoder, MultiEncoder, MultiDecoder
 from .utils import one_hot
 
 torch.backends.cudnn.benchmark = True

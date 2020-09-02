@@ -12,7 +12,7 @@ from scvi.core._distributions import (
     NegativeBinomial,
     Poisson,
 )
-from ._modules import Encoder, DecoderSCVI, LinearDecoderSCVI
+from ._base import Encoder, DecoderSCVI, LinearDecoderSCVI
 from .utils import one_hot
 
 from typing import Tuple, Dict

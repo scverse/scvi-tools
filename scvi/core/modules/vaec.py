@@ -2,7 +2,7 @@ import torch
 from torch.distributions import Normal, Categorical, kl_divergence as kl
 
 from .classifier import Classifier
-from ._modules import Encoder, DecoderSCVI
+from ._base import Encoder, DecoderSCVI
 from .utils import broadcast_labels
 from .vae import VAE
 

@@ -1,6 +1,6 @@
 from torch import nn as nn
 
-from ._modules import FCLayers
+from ._base import FCLayers
 
 
 class Classifier(nn.Module):

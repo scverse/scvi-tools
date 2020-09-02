@@ -1,14 +1,14 @@
 import logging
+
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.core.models import VAE
-from scvi.models._base import (
+from scvi.core.modules import VAE
+from scvi.core.models import (
     BaseModelClass,
     RNASeqMixin,
     VAEMixin,
 )
-
 from scvi.core.trainers import UnsupervisedTrainer
 from scvi.core.posteriors import Posterior
 

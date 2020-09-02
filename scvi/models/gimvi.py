@@ -6,12 +6,12 @@ import torch
 from anndata import AnnData
 
 from typing import List, Optional
-from scvi.core.models import JVAE, Classifier
+from scvi.core.modules import JVAE, Classifier
 from scvi.core.trainers.jvae_trainer import JPosterior
 from scvi.core.trainers import JVAETrainer
-from scvi.models._base import VAEMixin, BaseModelClass
-from scvi import _CONSTANTS
+from scvi.core.models import VAEMixin, BaseModelClass
 from scvi.models._utils import _get_var_names_from_setup_anndata
+from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)
 

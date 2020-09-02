@@ -1,12 +1,12 @@
 import scvi
-from scvi.core.models.vae import VAE
-from scvi.core.models.vaec import VAEC
+from scvi.core.modules.vae import VAE
+from scvi.core.modules.vaec import VAEC
+from scvi.core.modules.classifier import Classifier
 from scvi.core.trainers import (
     UnsupervisedTrainer,
     ClassifierTrainer,
     SemiSupervisedTrainer,
 )
-from scvi.core.models.classifier import Classifier
 from scvi.core.trainers.inference import AdapterTrainer
 
 scvi.set_seed(0)

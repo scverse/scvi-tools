@@ -1,21 +1,21 @@
 import logging
 import sys
 import time
+import numpy as np
+import torch
+import anndata
+
 from abc import abstractmethod
 from collections import defaultdict, OrderedDict
 from itertools import cycle
 from typing import List
-
-import numpy as np
-import torch
-import anndata
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
+from tqdm import tqdm
 
 from scvi.core.posteriors import Posterior
 from scvi import _CONSTANTS
 
-from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 

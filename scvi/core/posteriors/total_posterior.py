@@ -7,7 +7,7 @@ import numpy as np
 
 from .posterior import Posterior
 
-from scvi.core.models import TOTALVAE
+from scvi.core.modules import TOTALVAE
 from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)

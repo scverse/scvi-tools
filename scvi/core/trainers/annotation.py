@@ -1,11 +1,12 @@
 import numpy as np
 import logging
 import torch
+
 from torch.nn import functional as F
 
-from scvi.core.posteriors import AnnotationPosterior
 from .trainer import Trainer
 from .inference import UnsupervisedTrainer
+from scvi.core.posteriors import AnnotationPosterior
 from scvi.dataset._anndata import get_from_registry
 from scvi import _CONSTANTS
 

@@ -4,7 +4,7 @@ import torch
 from typing import Sequence
 from torch.distributions import Normal, Categorical, kl_divergence as kl
 from .classifier import Classifier
-from ._modules import Decoder, Encoder
+from ._base import Decoder, Encoder
 from .utils import broadcast_labels
 from .vae import VAE
 

@@ -1,17 +1,18 @@
 import logging
-from anndata import AnnData
 import torch
 import numpy as np
 import pandas as pd
 
+from anndata import AnnData
 from typing import Optional, Union, List, Tuple
-from scvi._compat import Literal
-from collections.abc import Iterable
-from scvi.core.models import TOTALVAE
-from scvi import _CONSTANTS
 from functools import partial
 
-from scvi.models._base import BaseModelClass, VAEMixin
+from scvi import _CONSTANTS
+from scvi.dataset import get_from_registry
+from scvi._compat import Literal
+from collections.abc import Iterable
+from scvi.core.modules import TOTALVAE
+from scvi.core.models import BaseModelClass, VAEMixin
 from scvi.core.posteriors import TotalPosterior
 from scvi.core.trainers import TotalTrainer
 from scvi.models._differential import DifferentialComputation
@@ -19,7 +20,6 @@ from scvi.models._utils import (
     scrna_raw_counts_properties,
     _get_var_names_from_setup_anndata,
 )
-from scvi.dataset import get_from_registry
 
 logger = logging.getLogger(__name__)
 

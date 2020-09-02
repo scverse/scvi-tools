@@ -9,7 +9,7 @@ from torch.distributions import Normal, kl_divergence as kl
 from typing import Dict, Optional, Tuple, Union, List
 from scvi.core._distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
 from scvi.core._log_likelihood import log_mixture_nb
-from ._modules import DecoderTOTALVI, EncoderTOTALVI
+from ._base import DecoderTOTALVI, EncoderTOTALVI
 from .utils import one_hot
 
 torch.backends.cudnn.benchmark = True
