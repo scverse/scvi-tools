@@ -111,10 +111,6 @@ class FCLayers(nn.Module):
             tensor of shape ``(n_out,)``
 
         """
-        # import pdb
-
-        # pdb.set_trace()
-
         one_hot_cat_list = []  # for generality in this list many indices useless.
 
         assert len(self.n_cat_list) <= len(
@@ -142,7 +138,6 @@ class FCLayers(nn.Module):
                             x = layer(x)
                     else:
                         if isinstance(layer, nn.Linear):
-                            # when is x.dim==3?
                             if x.dim() == 3:
                                 one_hot_cat_list_layer = [
                                     o.unsqueeze(0).expand(
@@ -234,9 +229,6 @@ class Encoder(nn.Module):
             tensors of shape ``(n_latent,)`` for mean and var, and sample
 
         """
-        # import pdb
-        # pdb.set_trace()
-
         # Parameters for latent distribution
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)

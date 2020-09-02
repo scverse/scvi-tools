@@ -22,7 +22,7 @@ torch.backends.cudnn.benchmark = True
 
 class JVAE(nn.Module):
     """
-    Joint Variational auto-encoder for imputing missing genes in spatial data.
+    Joint variational auto-encoder for imputing missing genes in spatial data.
 
     Implementation of gimVI [Lopez19]_.
 

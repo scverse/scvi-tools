@@ -166,7 +166,6 @@ class VAE(nn.Module):
             x = torch.log(1 + x)
         qz_m, qz_v, z = self.z_encoder(x, y)  # y only used in VAEC
 
-        # would you ever use give_mean = False?
         if give_mean:
             if self.latent_distribution == "ln":
                 samples = Normal(qz_m, qz_v.sqrt()).sample([n_samples])

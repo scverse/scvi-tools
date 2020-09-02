@@ -162,7 +162,8 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         frequency=None,
         unsupervised_trainer_kwargs={},
         semisupervised_trainer_kwargs={},
-        train_kwargs={},
+        unsupervised_train_kwargs={},
+        semisupervised_train_kwargs={},
     ):
 
         if n_epochs_unsupervised is None:
@@ -187,14 +188,17 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
                 **unsupervised_trainer_kwargs,
             )
             self._unsupervised_trainer.train(
-                n_epochs=n_epochs_unsupervised, lr=lr, **train_kwargs
+                n_epochs=n_epochs_unsupervised, lr=lr, **unsupervised_train_kwargs
             )
             self._is_trained_base = True
 
         self.model.load_state_dict(self._base_model.state_dict(), strict=False)
 
         self.trainer = SemiSupervisedTrainer(
-            self.model, self.adata, use_cuda=self.use_cuda
+            self.model,
+            self.adata,
+            use_cuda=self.use_cuda,
+            **semisupervised_trainer_kwargs,
         )
 
         self.trainer.unlabelled_set = self.trainer.create_posterior(
@@ -203,7 +207,9 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self.trainer.labelled_set = self.trainer.create_posterior(
             indices=self._labeled_indices
         )
-        self.trainer.train(n_epochs=n_epochs_semisupervised)
+        self.trainer.train(
+            n_epochs=n_epochs_semisupervised, **semisupervised_train_kwargs
+        )
 
         self.is_trained_ = True
 

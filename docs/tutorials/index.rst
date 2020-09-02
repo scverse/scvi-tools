@@ -8,7 +8,7 @@ Tutorials
 
 
 The easiest way to get familiar with scVI is to follow along with our tutorials!
-The tutorials are accessible on the sidebar to the left. Some are designed to work seamlessly in Google Colab, a free cloud computing platform. These tutorials have a Colab badge in their introduction. In general, these tutorials are designed to work with the latest installable version of scVI. Previous versions of the tutorials are avaiable by changing the Read the Docs version (avaialble at the bottom of the page).
+The tutorials are accessible on the sidebar to the left. Some are designed to work seamlessly in Google Colab, a free cloud computing platform. These tutorials have a Colab badge in their introduction. In general, these tutorials are designed to work with the latest installable version of scVI. Previous versions of the tutorials are available by changing the Read the Docs version (available at the bottom of the page).
 
 To download the tutorials:
 

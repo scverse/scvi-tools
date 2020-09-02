@@ -1,5 +1,5 @@
 import torch
-import torch.nn.functional as fun
+import torch.nn.functional as F
 from torch.distributions import Normal, Beta, Gamma, kl_divergence as kl
 import numpy as np
 from scipy.special import logit
@@ -15,7 +15,7 @@ torch.backends.cudnn.benchmark = True
 
 class AutoZIVAE(VAE):
     """
-    Implementation of AutoZI model [Clivio19]_.
+    Implementation of the AutoZI model [Clivio19]_.
 
     Parameters
     ----------
@@ -210,24 +210,24 @@ class AutoZIVAE(VAE):
             one_hot_label = one_hot(y, self.n_labels)
             # If we sampled several random Bernoulli parameters
             if len(bernoulli_params.shape) == 2:
-                bernoulli_params = fun.linear(one_hot_label, bernoulli_params)
+                bernoulli_params = F.linear(one_hot_label, bernoulli_params)
             else:
                 bernoulli_params_res = []
                 for sample in range(bernoulli_params.shape[0]):
                     bernoulli_params_res.append(
-                        fun.linear(one_hot_label, bernoulli_params[sample])
+                        F.linear(one_hot_label, bernoulli_params[sample])
                     )
                 bernoulli_params = torch.stack(bernoulli_params_res)
         elif self.zero_inflation == "gene-batch":
             one_hot_batch = one_hot(batch_index, self.n_batch)
             if len(bernoulli_params.shape) == 2:
-                bernoulli_params = fun.linear(one_hot_batch, bernoulli_params)
+                bernoulli_params = F.linear(one_hot_batch, bernoulli_params)
             # If we sampled several random Bernoulli parameters
             else:
                 bernoulli_params_res = []
                 for sample in range(bernoulli_params.shape[0]):
                     bernoulli_params_res.append(
-                        fun.linear(one_hot_batch, bernoulli_params[sample])
+                        F.linear(one_hot_batch, bernoulli_params[sample])
                     )
                 bernoulli_params = torch.stack(bernoulli_params_res)
 

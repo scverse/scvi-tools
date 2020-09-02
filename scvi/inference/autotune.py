@@ -534,7 +534,7 @@ def _auto_tune_parallel(
     and tries to dequeue the results from the minimization process.
     At that point, if ``multiple_hosts`` is set to True, the program waits indefinitely
     for the minimization process to put the results in the queue.
-    If not, the minimisation process has ``fmin_timeout`` seconds to finish.
+    If not, the minimization process has ``fmin_timeout`` seconds to finish.
     This mechanism ensures that the program does not hang if, for any reason,
     the workers die before completing all the jobs.
     Note that logs to the ``hyperopt`` package are automatically stored in ``./hyperopt_logfile.txt``.
@@ -751,7 +751,7 @@ def _auto_tune_parallel(
 
 class FminLauncherThread(StoppableThread):
     """
-    Starts the process which ultimately call the minimzation procedure.
+    Starts the process which ultimately call the minimization procedure.
 
     Is encapsulated in a ``threading.Thread`` to allow for the ``fmin_timer`` mechanism.
 

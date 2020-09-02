@@ -26,7 +26,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.array:
     Parameters
     ----------
     adata
-        anndata object setup with `scvi`
+        anndata object already setup with `scvi.dataset.setup_anndata()`
     key
         key of object to get from ``adata.uns['_scvi]['data_registry']``
 
@@ -317,7 +317,14 @@ def setup_anndata(
     # add the data_registry to anndata
     _register_anndata(adata, data_registry_dict=data_registry)
     logger.info("Registered keys:{}".format(list(data_registry.keys())))
-    _setup_summary_stats(adata, batch_key, labels_key, protein_expression_obsm_key)
+    _setup_summary_stats(
+        adata,
+        batch_key,
+        labels_key,
+        protein_expression_obsm_key,
+        categorical_covariate_keys,
+        continuous_covariate_keys,
+    )
 
     if copy:
         return adata
@@ -474,6 +481,8 @@ def transfer_anndata_setup(
         target_data_registry.update(
             {_CONSTANTS.CAT_COVS_KEY: {"attr_name": cat_loc, "attr_key": cat_key}}
         )
+    else:
+        source_cat_dict = None
 
     # transfer extra continuous covs
     has_cont_cov = True if _CONSTANTS.CONT_COVS_KEY in data_registry.keys() else False
@@ -485,12 +494,19 @@ def transfer_anndata_setup(
         target_data_registry.update(
             {_CONSTANTS.CONT_COVS_KEY: {"attr_name": cont_loc, "attr_key": cont_key}}
         )
+    else:
+        obs_keys_names = None
 
     # add the data_registry to anndata
     _register_anndata(adata_target, data_registry_dict=target_data_registry)
     logger.info("Registered keys:{}".format(list(target_data_registry.keys())))
     _setup_summary_stats(
-        adata_target, batch_key, labels_key, protein_expression_obsm_key
+        adata_target,
+        batch_key,
+        labels_key,
+        protein_expression_obsm_key,
+        source_cat_dict,
+        obs_keys_names,
     )
 
 
@@ -534,7 +550,6 @@ def _setup_labels(adata, labels_key):
         _assert_key_in_obs(adata, labels_key)
         logger.info('Using labels from adata.obs["{}"]'.format(labels_key))
         alt_key = "_scvi_labels"
-    # make categorical mapping even if no labels were inputted
     labels_key = _make_obs_column_categorical(
         adata, column_key=labels_key, alternate_column_key=alt_key
     )
@@ -552,7 +567,6 @@ def _setup_batch(adata, batch_key):
         _assert_key_in_obs(adata, batch_key)
         logger.info('Using batches from adata.obs["{}"]'.format(batch_key))
         alt_key = "_scvi_batch"
-    # make categorical mapping even if no batch was inputted
     batch_key = _make_obs_column_categorical(
         adata, column_key=batch_key, alternate_column_key=alt_key
     )
@@ -592,7 +606,6 @@ def _setup_extra_categorical_covs(
         if category_dict is not None:
             possible_cats = category_dict[key]
             cat = cat.astype(CategoricalDtype(categories=possible_cats))
-            # TODO NOW CHECK IF THERE ARE -1 in the codes FOR MISSPECIFICATION
         else:
             categories[key] = cat.astype("category").cat.categories
 
@@ -794,7 +807,14 @@ def _setup_library_size(adata, batch_key, layer, use_raw):
     return local_l_mean_key, local_l_var_key
 
 
-def _setup_summary_stats(adata, batch_key, labels_key, protein_expression_obsm_key):
+def _setup_summary_stats(
+    adata,
+    batch_key,
+    labels_key,
+    protein_expression_obsm_key,
+    categorical_covariate_keys,
+    continuous_covariate_keys,
+):
     categorical_mappings = adata.uns["_scvi"]["categorical_mappings"]
     use_raw = adata.uns["_scvi"]["use_raw"]
 
@@ -808,6 +828,16 @@ def _setup_summary_stats(adata, batch_key, labels_key, protein_expression_obsm_k
     else:
         n_proteins = 0
 
+    if categorical_covariate_keys is not None:
+        n_cat_covs = len(categorical_covariate_keys)
+    else:
+        n_cat_covs = 0
+
+    if continuous_covariate_keys is not None:
+        n_cont_covs = len(continuous_covariate_keys)
+    else:
+        n_cont_covs = 0
+
     summary_stats = {
         "n_batch": n_batch,
         "n_cells": n_cells,
@@ -818,8 +848,12 @@ def _setup_summary_stats(adata, batch_key, labels_key, protein_expression_obsm_k
     adata.uns["_scvi"]["summary_stats"] = summary_stats
     logger.info(
         "Successfully registered anndata object containing {} cells, {} genes, "
-        "{} batches, and {} proteins.".format(n_cells, n_genes, n_batch, n_proteins)
+        "{} batches, {} labels, and {} proteins. Also registered {} extra categorical "
+        "covariates and {} extra continuous covariates.".format(
+            n_cells, n_genes, n_batch, n_labels, n_proteins, n_cat_covs, n_cont_covs
+        )
     )
+
     return summary_stats
 
 
@@ -841,15 +875,4 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
     >>> data_dict = {"batch" :("obs", "batch_idx"), "X": ("_X", None)}
     >>> _register_anndata(adata, data_dict)
     """
-    # check doesnt work for adata.raw since adata.raw is not a dict
-
-    # for df, df_key in data_registry_dict.values():
-    #     if df_key is not None:
-    #         assert df_key in getattr(
-    #             adata, df
-    #         ), "anndata.{} has no attribute '{}'".format(df, df_key)
-    #     else:
-    #         assert hasattr(adata, df) is True, "anndata has no attribute '{}'".format(
-    #             df_key
-    #         )
     adata.uns["_scvi"]["data_registry"] = data_registry_dict.copy()

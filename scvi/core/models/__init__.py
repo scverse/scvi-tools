@@ -42,8 +42,6 @@ class VAEMixin:
         train_fun_kwargs={},
         **kwargs
     ):
-        # TODO figure out how to train after loading
-        # might need to have function which saved unsupervisedTrainer
         if self.is_trained_ is False:
             self.trainer = UnsupervisedTrainer(
                 self.model,
@@ -60,7 +58,6 @@ class VAEMixin:
             self.test_indices_ = self.trainer.test_set.indices
             self.validation_indices_ = self.trainer.validation_set.indices
         # for autotune
-
         if "n_epochs" not in train_fun_kwargs:
             train_fun_kwargs["n_epochs"] = n_epochs
         if "lr" not in train_fun_kwargs:
