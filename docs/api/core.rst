@@ -8,19 +8,28 @@ Core
 
 .. currentmodule:: scvi
 
+Models
+~~~~~~
+
+.. autosummary::
+    :toctree: reference/
+    core.models.BaseModelClass
+    core.models.VAEMixin
+    core.models.RNASeqMixin
+
 Modules
 ~~~~~~~
 
 .. autosummary::
    :toctree: reference/
 
-   core.models.VAE
-   core.models.LDVAE
-   core.models.TOTALVAE
-   core.models.SCANVAE
-   core.models.JVAE
-   core.models.AutoZIVAE
-   core.models.Classifier
+   core.modules.VAE
+   core.modules.LDVAE
+   core.modules.TOTALVAE
+   core.modules.SCANVAE
+   core.modules.JVAE
+   core.modules.AutoZIVAE
+   core.modules.Classifier
 
 Posteriors
 ~~~~~~~~~~
