@@ -142,12 +142,14 @@ class TOTALVI(VAEMixin, BaseModelClass):
         n_iter_kl_warmup
             Number of minibatches for scaling term on KL divergence to go from 0 to 1.
             To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
+        batch_size
+            Minibatch size to use during training.
         frequency
             Frequency with which metrics are computed on the data for train/test/val sets.
         train_fun_kwargs
-            Keyword args for the train method of :class:`~scvi.core.trainers.UnsupervisedTrainer`.
+            Keyword args for the train method of :class:`~scvi.core.trainers.TotalTrainer`.
         **kwargs
-            Other keyword args for :class:`~scvi.core.trainers.UnsupervisedTrainer`.
+            Other keyword args for :class:`~scvi.core.trainers.TotalTrainer`.
         """
         train_fun_kwargs = dict(train_fun_kwargs)
         if "totalvi_batch_mask" in self.scvi_setup_dict_.keys():
@@ -203,7 +205,6 @@ class TOTALVI(VAEMixin, BaseModelClass):
         batch_size
             Minibatch size for data loading into model.
         """
-
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
@@ -213,10 +214,10 @@ class TOTALVI(VAEMixin, BaseModelClass):
     def get_latent_representation(
         self,
         adata: Optional[AnnData] = None,
-        indices: Optional[Union[np.ndarray, List[int]]] = None,
+        indices: Optional[Sequence[int]] = None,
         give_mean: bool = True,
         mc_samples: int = 5000,
-        batch_size=128,
+        batch_size: int = 128,
     ) -> np.ndarray:
         """
         Return the latent representation for each cell.
@@ -224,7 +225,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
@@ -270,8 +271,29 @@ class TOTALVI(VAEMixin, BaseModelClass):
 
     @torch.no_grad()
     def get_latent_library_size(
-        self, adata=None, indices=None, give_mean=True, batch_size=128
-    ):
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        give_mean: bool = True,
+        batch_size: int = 128,
+    ) -> np.ndarray:
+        r"""
+        Returns the latent library size for each cell.
+
+        This is denoted as :math:`\ell_n` in the totalVI paper.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        give_mean
+            Return the mean or a sample from the posterior distribution.
+        batch_size
+            Minibatch size for data loading into model.
+        """
         if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
 
@@ -314,7 +336,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
@@ -472,10 +494,10 @@ class TOTALVI(VAEMixin, BaseModelClass):
     @torch.no_grad()
     def get_protein_foreground_probability(
         self,
-        adata=None,
-        indices=None,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
         transform_batch: Optional[int] = None,
-        protein_list: Optional[Union[np.ndarray, List[int]]] = None,
+        protein_list: Optional[Sequence[str]] = None,
         n_samples: int = 1,
         batch_size=128,
         return_mean: bool = True,
@@ -484,12 +506,12 @@ class TOTALVI(VAEMixin, BaseModelClass):
         r"""
         Returns the foreground probability for proteins.
 
-        This is denoted as :math:`\pi_{nt}` in the totalVI paper.
+        This is denoted as :math:`(1 - \pi_{nt})` in the totalVI paper.
 
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
@@ -505,22 +527,22 @@ class TOTALVI(VAEMixin, BaseModelClass):
             This can save memory when working with large datasets and few genes are
             of interest.
         n_samples
-            Get sample scale from multiple samples.
+            Number of posterior samples to use for estimation.
         batch_size
-            Minibatch size for data loading into model
+            Minibatch size for data loading into model.
         return_mean
             Whether to return the mean of the samples.
         return_numpy
-            Return a `np.ndarray` instead of a `pd.DataFrame`. Includes gene
-            names as columns. If either n_samples=1 or return_mean=True, defaults to False.
-            Otherwise, it defaults to True.
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame includes
+            gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults to `False`.
+            Otherwise, it defaults to `True`.
 
         Returns
         -------
         - **foreground_probability** - probability foreground for each protein
 
-        If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, proteins)``.
-        Otherwise, shape is ``(cells, proteins)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
+        If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
+        Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -682,12 +704,12 @@ class TOTALVI(VAEMixin, BaseModelClass):
     @torch.no_grad()
     def posterior_predictive_sample(
         self,
-        adata=None,
-        indices=None,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
         n_samples: int = 1,
-        batch_size=128,
-        gene_list: Union[list, np.ndarray] = None,
-        protein_list: Union[list, np.ndarray] = None,
+        batch_size: int = 128,
+        gene_list: Optional[Sequence[str]] = None,
+        protein_list: Optional[Sequence[str]] = None,
     ) -> np.ndarray:
         r"""
         Generate observation samples from the posterior predictive distribution.
@@ -697,7 +719,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
@@ -712,7 +734,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
 
         Returns
         -------
-        x_new : :py:class:`np.ndarray`
+        x_new : :class:`~numpy.ndarray`
             tensor with shape (n_cells, n_genes, n_samples)
         """
         if self.model.gene_likelihood not in ["nb"]:
@@ -800,7 +822,8 @@ class TOTALVI(VAEMixin, BaseModelClass):
         Parameters
         ----------
         adata
-            AnnData with equivalent organization to initial AnnData
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
         indices
             indices of `adata` to use
         n_samples
@@ -881,11 +904,12 @@ class TOTALVI(VAEMixin, BaseModelClass):
         Parameters
         ----------
         adata
-            AnnData with equivalent organization to initial AnnData
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
         indices
-            indices of `adata` to use
+            Indices of cells in adata to use. If `None`, all cells are used.
         n_samples
-            How may samples per cell
+            Number of posterior samples to use for estimation.
         batch_size
             Minibatch size for data loading into model
         rna_size_factor
@@ -898,9 +922,9 @@ class TOTALVI(VAEMixin, BaseModelClass):
             - int, then batch transform_batch is used
             - list of int, then values are averaged over provided batches.
         correlation_type
-            One of "pearson", "spearman"
+            One of "pearson", "spearman".
         log_transform
-            Whether to log transform denoised values prior to correlation calculation
+            Whether to log transform denoised values prior to correlation calculation.
 
         Returns
         -------

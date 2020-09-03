@@ -688,8 +688,8 @@ class RNASeqMixin:
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
-        give_mean=True,
-        batch_size=128,
+        give_mean: bool = True,
+        batch_size: int = 128,
     ) -> np.ndarray:
         r"""
         Returns the latent library size for each cell.
