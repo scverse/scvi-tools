@@ -2,7 +2,7 @@ Dataset
 =======
 .. currentmodule:: scvi
 
-Data Loading
+Data loading
 ~~~~~~~~~~~~
 
 ``scvi`` now relies entirely on the AnnData_ format. For convenience, we have included data loaders from the AnnData_ API. Scanpy_ also has utilities_ to load data that are outputted by 10X's Cell Ranger software.
@@ -19,7 +19,7 @@ Data Loading
    dataset.read_loom
    dataset.read_text
 
-Basic Preprocessing
+Basic preprocessing
 ~~~~~~~~~~~~~~~~~~~
 
 For general single-cell preprocessing, we defer to our friends at Scanpy_, and specifically their preprocessing module (:mod:`scanpy.pp`).
