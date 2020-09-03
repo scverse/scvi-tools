@@ -140,6 +140,8 @@ class VAEMixin:
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
+        n_mc_samples
+            Number of Monte Carlo samples to use for marginal LL estimation.
         batch_size
             Minibatch size for data loading into model.
         """
@@ -170,7 +172,6 @@ class VAEMixin:
         batch_size
             Minibatch size for data loading into model.
         """
-
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
