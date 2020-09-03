@@ -165,6 +165,10 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         unsupervised_train_kwargs={},
         semisupervised_train_kwargs={},
     ):
+        unsupervised_trainer_kwargs = dict(unsupervised_trainer_kwargs)
+        semisupervised_trainer_kwargs = dict(semisupervised_trainer_kwargs)
+        unsupervised_train_kwargs = dict(unsupervised_train_kwargs)
+        semisupervised_train_kwargs = dict(semisupervised_train_kwargs)
 
         if n_epochs_unsupervised is None:
             n_epochs_unsupervised = np.min(
