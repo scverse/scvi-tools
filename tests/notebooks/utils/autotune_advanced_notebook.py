@@ -3,7 +3,7 @@ import torch
 
 from collections import defaultdict
 from hyperopt import STATUS_OK
-from scvi.core.models import SCANVAE
+from scvi.core.modules import SCANVAE
 from scvi.core.trainers import SemiSupervisedTrainer
 from sklearn.model_selection import train_test_split
 from scvi.dataset._anndata import get_from_registry
