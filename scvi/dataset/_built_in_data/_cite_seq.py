@@ -56,6 +56,7 @@ def _load_pbmcs_10x_cite_seq(
     del dataset2.uns["protein_names"]
 
     dataset = dataset1.concatenate(dataset2, join=protein_join)
+    dataset.obsm["protein_expression"] = dataset.obsm["protein_expression"].fillna(0)
     dataset.obs["labels"] = np.zeros(dataset.shape[0], dtype=np.int64)
     dataset.obs["batch"] = dataset.obs["batch"].astype(np.int64)
 

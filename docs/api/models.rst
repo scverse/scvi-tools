@@ -10,7 +10,7 @@ scVI
 .. autosummary::
    :toctree: reference/
 
-   models.VAE
+   models.SCVI
 
 scANVI
 ~~~~~~
@@ -35,7 +35,7 @@ Linearly-decoded scVI
 .. autosummary::
    :toctree: reference/
 
-   models.LDVAE
+   models.LinearSCVI
 
 
 AutoZI
@@ -44,7 +44,7 @@ AutoZI
 .. autosummary::
    :toctree: reference/
 
-   models.AutoZIVAE
+   models.AUTOZI
 
 
 gimVI
@@ -53,4 +53,4 @@ gimVI
 .. autosummary::
    :toctree: reference/
 
-   models.JVAE
+   models.GIMVI

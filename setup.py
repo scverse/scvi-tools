@@ -10,7 +10,7 @@ with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
 requirements = [
-    "numpy>=1.16.2",
+    "numpy>=1.17.0",
     "torch>=1.3",
     "matplotlib>=3.1.2",
     "scikit-learn>=0.20.3",
@@ -38,6 +38,8 @@ test_requirements = [
     "nbformat>=4.4.0",
     "jupyter>=1.0.0",
     "ipython>=7.1.1",
+    "loompy>=3.0.6",
+    "scanpy>=1.6",
 ]
 
 extras_requirements = {
@@ -50,7 +52,7 @@ extras_requirements = {
         "seaborn>=0.9.0",
         "leidenalg>=0.7.0",
         "loompy>=3.0.6",
-        "scanpy>=1.4.6",
+        "scanpy>=1.6",
     ],
     "docs": [
         "sphinx>=2.0.1",
@@ -60,6 +62,8 @@ extras_requirements = {
         "nbsphinx-link",
         "scanpydoc",
         "pydata-sphinx-theme",
+        'typing_extensions; python_version < "3.8"',  # for `Literal`
+        "ipython>=7.1.1",
     ],
     "test": test_requirements,
 }

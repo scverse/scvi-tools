@@ -28,8 +28,9 @@ from hyperopt.mongoexp import (
 
 from scvi._settings import autotune_formatter
 
-from scvi.models import VAE
-from . import Trainer, UnsupervisedTrainer
+from scvi.core.models import BaseModelClass
+from scvi.core.trainers.trainer import Trainer
+from scvi.models import SCVI
 
 # spawning is required for processes relying on cuda, and for windows
 multiprocessing.set_start_method("spawn", force=True)
@@ -45,13 +46,16 @@ fh_hyperopt = None
 
 
 class FminTimeoutError(Exception):
-    """Thrown if fmin process hasn't finished in the allotted
-    time after all workers have died.
+    """
+    Timeout error.
+
+    Thrown if fmin process hasn't finished in the allotted time after all workers have died.
     """
 
 
 class DispatchHandler(logging.Handler):
-    """A simple dispatcher for logging events.
+    """
+    A simple dispatcher for logging events.
 
     It dispatches events to loggers based on the name in the received record,
     which then get dispatched, by the logging system, to the handlers, configured for those loggers.
@@ -81,7 +85,8 @@ open_files: List[TextIO] = []
 
 # cleanup helpers
 def _cleanup_processes_files():
-    """Cleanup function, starts with latest processes/files.
+    """
+    Cleanup function, starts with latest processes/files.
 
     Terminates processes, sets stop events to stop threads, closes open files.
     """
@@ -137,8 +142,7 @@ def _cleanup_logger():
 
 
 def _cleanup_decorator(func: Callable):
-    """Decorates top-level calls in order to launch cleanup when an Exception is caught.
-    """
+    """Decorates top-level calls in order to launch cleanup when an Exception is caught."""
 
     @wraps(func)
     def decorated(*args, **kwargs):
@@ -159,8 +163,7 @@ def _cleanup_decorator(func: Callable):
 
 
 def _error_logger_decorator(func: Callable):
-    """Decorates top-level calls in order to launch cleanup when an Exception is caught.
-    """
+    """Decorates top-level calls in order to launch cleanup when an Exception is caught."""
 
     @wraps(func)
     def decorated(*args, **kwargs):
@@ -179,8 +182,7 @@ def _error_logger_decorator(func: Callable):
 
 
 def configure_asynchronous_logging(logging_queue: multiprocessing.Queue):
-    """Helper for asynchronous logging - Writes all logs to a queue.
-    """
+    """Helper for asynchronous logging - Writes all logs to a queue."""
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
     queue_handler = QueueHandler(logging_queue)
@@ -190,8 +192,7 @@ def configure_asynchronous_logging(logging_queue: multiprocessing.Queue):
 
 
 def _asynchronous_logging_method_decorator(func: Callable):
-    """Decorates top-level calls in order to launch cleanup when an Exception is caught.
-    """
+    """Decorates top-level calls in order to launch cleanup when an Exception is caught."""
 
     @wraps(func)
     def decorated(self, *args, **kwargs):
@@ -207,8 +208,7 @@ def auto_tune_scvi_model(
     gene_dataset: Union[anndata.AnnData, str] = None,
     custom_objective_hyperopt: Callable = None,
     objective_kwargs: Dict[str, Any] = None,
-    model_class: VAE = VAE,
-    trainer_class: Trainer = UnsupervisedTrainer,
+    model_class: BaseModelClass = SCVI,
     metric_name: str = None,
     metric_kwargs: Dict[str, Any] = None,
     posterior_name: str = "test_set",
@@ -220,7 +220,6 @@ def auto_tune_scvi_model(
     train_best: bool = True,
     pickle_result: bool = True,
     save_path: str = ".",
-    use_batches: bool = False,
     parallel: bool = True,
     n_cpu_workers: int = None,
     gpu_ids: List[int] = None,
@@ -232,9 +231,11 @@ def auto_tune_scvi_model(
     mongo_host: str = "localhost",
     db_name: str = "scvi_db",
     multiple_hosts: bool = False,
-) -> (Type[Trainer], Trials):
-    """Perform automatic hyperparameter optimization of an scVI model
-    and return best model and hyperopt Trials object.
+) -> (Type[BaseModelClass], Trials):
+    """
+    Perform automatic hyperparameter optimization of an scvi model.
+
+    Returns best model and hyperopt Trials object.
 
     ``Trials`` object contains hyperparameter space and loss history for each trial.
     We provide a default hyperparameter search space (see source code),
@@ -263,9 +264,7 @@ def auto_tune_scvi_model(
         Dictionary containing the fixed keyword arguments `
         to the custom `objective_hyperopt.
     model_class :
-        scVI model class (e.g ``VAE``, ``VAEC``, ``SCANVI``)
-    trainer_class :
-        Trainer`` sub-class (e.g ``UnsupervisedTrainer``)
+        scvi model class (e.g ``SCVI``, ``SCANVI``)
     metric_name :
         Name of the metric to optimize for. If `None` defaults to ``marginal_ll``
     metric_kwargs :
@@ -293,8 +292,6 @@ def auto_tune_scvi_model(
         If ``True``, pickle ``Trials`` and  ``Trainer`` objects using ``save_path``.
     save_path :
         Path where to save best model, trainer, trials and mongo files.
-    use_batches :
-        If ``False``, pass ``n_batch=0`` to model else pass ``gene_dataset.n_batches``.
     parallel :
         If ``True``, use ``MongoTrials`` object to run trainings in parallel.
     n_cpu_workers :
@@ -331,14 +328,15 @@ def auto_tune_scvi_model(
     Returns
     -------
     type
-        ``Trainer`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
+        ``BaseModelClass`` object for the best model and ``(Mongo)Trials`` object containing logs for the different runs.
 
     Examples
     --------
+    >>> import scvi
+    >>> adata = scvi.dataset.cortex()
+    >>> vae, trials = auto_tune_scvi_model("cortex", adata)
+    >>> latent = vae.get_latent_representation()
 
-    >>> from scvi.dataset import CortexDataset
-    >>> gene_dataset = CortexDataset()
-    >>> best_trainer, trials = auto_tune_scvi_model("cortex", gene_dataset)
     """
     global fh_autotune
 
@@ -368,7 +366,7 @@ def auto_tune_scvi_model(
                 "n_hidden": hp.choice("n_hidden", [64, 128, 256]),
                 "n_layers": 1 + hp.randint("n_layers", 5),
                 "dropout_rate": hp.choice("dropout_rate", [0.1, 0.3, 0.5, 0.7]),
-                "reconstruction_loss": hp.choice("reconstruction_loss", ["zinb", "nb"]),
+                "gene_likelihood": hp.choice("gene_likelihood", ["zinb", "nb"]),
             },
             "train_func_tunable_kwargs": {
                 "lr": hp.choice("lr", [0.01, 0.005, 0.001, 0.0005, 0.0001])
@@ -425,14 +423,12 @@ def auto_tune_scvi_model(
             **{
                 "gene_dataset": gene_dataset,
                 "model_class": model_class,
-                "trainer_class": trainer_class,
                 "metric_name": metric_name,
                 "metric_kwargs": metric_kwargs,
                 "posterior_name": posterior_name,
                 "model_specific_kwargs": model_specific_kwargs,
                 "trainer_specific_kwargs": trainer_specific_kwargs,
                 "train_func_specific_kwargs": train_func_specific_kwargs,
-                "use_batches": use_batches,
             },
         )
     else:
@@ -476,19 +472,19 @@ def auto_tune_scvi_model(
     if train_best:
         logger_all.debug("Training best model with full training set")
         best_space = trials.best_trial["result"]["space"]
-        best_trainer = objective_hyperopt(best_space, is_best_training=True)
+        best_model = objective_hyperopt(best_space, is_best_training=True)
 
     if pickle_result:
         if train_best:
             logger_all.debug("Pickling best model and trainer")
             # pickle trainer and save model (overkill?)
             with open(
-                os.path.join(save_path, "best_trainer_{key}".format(key=exp_key)), "wb"
+                os.path.join(save_path, "best_model_{key}".format(key=exp_key)), "wb"
             ) as f:
-                pickle.dump(best_trainer, f)
+                pickle.dump(best_model, f)
             torch.save(
-                best_trainer.model.state_dict(),
-                os.path.join(save_path, "best_model_{key}".format(key=exp_key)),
+                best_model.model.state_dict(),
+                os.path.join(save_path, "best_model_module_{key}".format(key=exp_key)),
             )
         # remove object containing thread.lock (otherwise pickle.dump throws)
         logger_all.debug("Pickling Trials object")
@@ -503,7 +499,7 @@ def auto_tune_scvi_model(
     _cleanup_logger()
 
     if train_best:
-        return best_trainer, trials
+        return best_model, trials
     else:
         return trials
 
@@ -525,7 +521,8 @@ def _auto_tune_parallel(
     db_name: str = "scvi_db",
     multiple_hosts: bool = False,
 ) -> MongoTrials:
-    """Parallel version of the hyperoptimization procedure.
+    """
+    Parallel version of the hyperoptimization procedure.
 
     Called by ``auto_tune_scvi_model`` when ``parallel=True``.
     Specifically, first the MongoDb service is launched in its own forked process.
@@ -537,7 +534,7 @@ def _auto_tune_parallel(
     and tries to dequeue the results from the minimization process.
     At that point, if ``multiple_hosts`` is set to True, the program waits indefinitely
     for the minimization process to put the results in the queue.
-    If not, the minimisation process has ``fmin_timeout`` seconds to finish.
+    If not, the minimization process has ``fmin_timeout`` seconds to finish.
     This mechanism ensures that the program does not hang if, for any reason,
     the workers die before completing all the jobs.
     Note that logs to the ``hyperopt`` package are automatically stored in ``./hyperopt_logfile.txt``.
@@ -753,7 +750,8 @@ def _auto_tune_parallel(
 
 
 class FminLauncherThread(StoppableThread):
-    """Starts the process which ultimately call the minimzation procedure.
+    """
+    Starts the process which ultimately call the minimization procedure.
 
     Is encapsulated in a ``threading.Thread`` to allow for the ``fmin_timer`` mechanism.
 
@@ -784,9 +782,6 @@ class FminLauncherThread(StoppableThread):
         Used only if ``parallel`` is set to ``True``.
     mongo_url :
         String of the form mongo_host:mongo_port/db_name.
-
-    Returns
-    -------
 
     """
 
@@ -872,7 +867,8 @@ class FminLauncherThread(StoppableThread):
 
 
 class FminProcess(multiprocessing.Process):
-    """Call ``hyperopt``'s fmin.
+    """
+    Call ``hyperopt``'s fmin.
 
     Is encapsulated in a ``multiprocessing.Process`` in order to
     allow for termination in case cleanup is required.
@@ -901,9 +897,6 @@ class FminProcess(multiprocessing.Process):
         Maximum number of evaluations of the objective.
     show_progressbar :
         Whether or not to show the ``hyperopt`` progress bar.
-
-    Returns
-    -------
 
     """
 
@@ -955,7 +948,9 @@ class FminProcess(multiprocessing.Process):
 
 
 class WorkerLauncherThread(StoppableThread):
-    """Launches the local workers which are going to run the jobs required by the minimization process.
+    """
+    Launches the local workers which are going to run the jobs required by the minimization process.
+
     Terminates when the worker_watchdog call finishes.
     Specifically, first ``n_gpu_workers`` are launched per GPU in ``gpu_ids`` in their own spawned process.
     Then, ``n_cpu_workers`` CPU workers are launched, also in their own spawned process.
@@ -990,9 +985,6 @@ class WorkerLauncherThread(StoppableThread):
     max_evals :
         Maximum number of evaluations of the objective.
         Useful for instantiating a progress bar.
-
-    Returns
-    -------
 
     """
 
@@ -1130,16 +1122,11 @@ class WorkerLauncherThread(StoppableThread):
 
 
 class ProgressListener(StoppableThread):
-    """Listens to workers when they finish a job and logs progress.
+    """
+    Listens to workers when they finish a job and logs progress.
 
     Workers put in the progress_queue when they finish a job
     and when they do this function sends a log to the progress logger.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
 
     """
 
@@ -1171,7 +1158,8 @@ class ProgressListener(StoppableThread):
 
 
 class HyperoptWorker(multiprocessing.Process):
-    """Launches a ``hyperopt`` ``MongoWorker`` which runs jobs until ``ReserveTimeout`` is raised.
+    """
+    Launches a ``hyperopt`` ``MongoWorker`` which runs jobs until ``ReserveTimeout`` is raised.
 
     Parameters
     ----------
@@ -1193,9 +1181,6 @@ class HyperoptWorker(multiprocessing.Process):
         before throwing a ``ReserveTimeout`` Exception.
     mongo_url :
         Address to the running MongoDb service.
-
-    Returns
-    -------
 
     """
 
@@ -1255,18 +1240,18 @@ class HyperoptWorker(multiprocessing.Process):
 def _objective_function(
     space: dict,
     gene_dataset: Union[anndata.AnnData, str],
-    model_class: Type[VAE] = VAE,
-    trainer_class: Type[Trainer] = UnsupervisedTrainer,
+    model_class: Type[BaseModelClass] = SCVI,
     metric_name: str = None,
     metric_kwargs: Dict[str, Any] = None,
     posterior_name: str = "test_set",
     model_specific_kwargs: dict = None,
     trainer_specific_kwargs: dict = None,
     train_func_specific_kwargs: dict = None,
-    use_batches: bool = False,
     is_best_training: bool = False,
 ) -> Union[Dict[str, Any], Trainer]:
-    """Objective function for automatic hyperparameter optimization.
+    """
+    Objective function for automatic hyperparameter optimization.
+
     Train a scVI model and return the best value of the early-stopping metric (e.g, log-likelihood).
     Convention: fixed parameters (no default) have precedence over tunable parameters (default).
 
@@ -1299,8 +1284,6 @@ def _objective_function(
         dict of fixed parameters which will be passed to the trainer.
     train_func_specific_kwargs :
         dict of fixed parameters which will be passed to the train method.
-    use_batches :
-        If False, pass n_batch=0 to model else pass gene_dataset.n_batches
     is_best_training :
         True if training the model with the best hyperparameters
 
@@ -1325,7 +1308,7 @@ def _objective_function(
 
     # use_cuda default
     if "use_cuda" not in trainer_specific_kwargs:
-        trainer_specific_kwargs["use_cuda"] = bool(torch.cuda.device_count())
+        model_specific_kwargs["use_cuda"] = bool(torch.cuda.device_count())
     if "n_epochs" not in {**train_func_specific_kwargs, **train_func_tunable_kwargs}:
         train_func_specific_kwargs["n_epochs"] = 1000
 
@@ -1361,24 +1344,20 @@ def _objective_function(
 
     # define model
     logger_all.debug("Instantiating model")
-    model = model_class(
-        n_input=gene_dataset.uns["scvi_summary_stats"]["n_genes"],
-        n_batch=gene_dataset.uns["scvi_summary_stats"]["n_batch"] * use_batches,
-        **model_tunable_kwargs,
-    )
+    model = model_class(gene_dataset, **model_tunable_kwargs)
 
     # define trainer
-    logger_all.debug("Instantiating trainer")
-    trainer = trainer_class(model, gene_dataset, **trainer_tunable_kwargs)
-
     # train model
+    logger_all.debug("Instantiating trainer")
     logger_all.debug("Starting training")
-    trainer.train(**train_func_tunable_kwargs)
+    model.train(**trainer_tunable_kwargs, train_fun_kwargs=train_func_tunable_kwargs)
     logger_all.debug("Finished training")
     elapsed_time = time.monotonic() - start_time
+
+    trainer = model.trainer
     # if training the best model, return model else return criterion
     if is_best_training:
-        return trainer
+        return model
     else:
         # select metric from early stopping kwargs if possible
         metric = None
@@ -1409,7 +1388,7 @@ def _objective_function(
 
         # load best state
         if save_best_state_metric is not None:
-            model.load_state_dict(trainer.best_state_dict)
+            model.model.load_state_dict(trainer.best_state_dict)
 
         # compute optimized metric
         loss = getattr(getattr(trainer, posterior_name), metric_name)(**metric_kwargs)

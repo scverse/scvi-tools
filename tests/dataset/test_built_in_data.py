@@ -1,6 +1,6 @@
-from unittest import TestCase
-
 import scvi
+
+from unittest import TestCase
 from .utils import unsupervised_training_one_epoch
 
 
@@ -27,6 +27,11 @@ class TestLoomDataset(TestCase):
 
     def test_fc_dropseq_load_train_one(self):
         gene_dataset = scvi.dataset.frontalcortex_dropseq(save_path="tests/data")
+        scvi.dataset.setup_anndata(gene_dataset)
+        unsupervised_training_one_epoch(gene_dataset)
+
+    def test_smfish_load_train_one(self):
+        gene_dataset = scvi.dataset.smfish(save_path="tests/data")
         scvi.dataset.setup_anndata(gene_dataset)
         unsupervised_training_one_epoch(gene_dataset)
 
@@ -79,3 +84,28 @@ class TestCortexDataset(TestCase):
     #         :total_genes
     #     ]
     #     self.assertListEqual(dataset_small.gene_names.tolist(), genes_truth)
+
+
+class TestBrainLargeDataset(TestCase):
+    def test_populate(self):
+        adata = scvi.dataset.brainlarge_dataset(
+            save_path="tests/data",
+            sample_size_gene_var=10,
+            n_genes_to_keep=10,
+            max_cells_to_keep=128,
+        )
+        unsupervised_training_one_epoch(adata)
+
+
+class TestCsvDataset(TestCase):
+    def test_breast_cancer(self):
+        adata = scvi.dataset.breast_cancer_dataset(
+            save_path="tests/data",
+        )
+        unsupervised_training_one_epoch(adata)
+
+    def test_mouse_ob(self):
+        adata = scvi.dataset.mouse_ob_dataset(
+            save_path="tests/data",
+        )
+        unsupervised_training_one_epoch(adata)

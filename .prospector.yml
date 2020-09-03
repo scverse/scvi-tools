@@ -1,0 +1,22 @@
+doc-warnings: true
+test-warnings: true
+
+ignore-paths:
+  - docs
+  - tests
+
+pylint:
+  run: false
+
+pep8:
+  run: false
+
+pep257:
+  run: true
+  disable:
+    - D203
+    - D105
+    - D107
+    - D212
+    - D104
+    - D413

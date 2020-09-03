@@ -27,7 +27,6 @@ Here we maintain a few package specific utilities for feature selection, etc.
 .. autosummary::
    :toctree: reference/
 
-   dataset.highly_variable_genes_seurat_v3
    dataset.poisson_gene_selection
    dataset.organize_cite_seq_10x
 
@@ -41,7 +40,8 @@ Setting up an AnnData object is a prerequisite for running any ``scvi`` model.
    :toctree: reference/
 
    dataset.setup_anndata
-
+   dataset.transfer_anndata_setup
+   dataset.register_tensor_from_anndata
 
 Built in data
 ~~~~~~~~~~~~~
