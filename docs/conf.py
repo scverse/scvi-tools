@@ -98,9 +98,9 @@ qualname_overrides = {
 
 
 # General information about the project.
-project = u"scVI"
-copyright = u"2020, Romain Lopez, Adam Gayoso, Pierre Boyeau"
-author = u"Romain Lopez"
+project = u"scvi"
+copyright = u"2020, Romain Lopez, Adam Gayoso, Pierre Boyeau, Galen Xing"
+author = u"Romain Lopez, Adam Gayoso"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -203,7 +203,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass
 # [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, "scvi.tex", u"scVI Documentation", u"Romain Lopez", "manual")
+    (master_doc, "scvi.tex", u"scvi Documentation", u"Romain Lopez", "manual")
 ]
 
 
@@ -223,7 +223,7 @@ texinfo_documents = [
     (
         master_doc,
         "scvi",
-        u"scVI Documentation",
+        u"scvi Documentation",
         author,
         "scvi",
         "One line description of project.",
