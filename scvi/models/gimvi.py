@@ -108,13 +108,47 @@ class GIMVI(VAEMixin, BaseModelClass):
         n_epochs: Optional[int] = 200,
         kappa: Optional[int] = 5,
         discriminator: Optional[Classifier] = None,
+        train_size: float = 0.9,
+        frequency: int = 1,
+        n_epochs_kl_warmup: int = 400,
+        train_fun_kwargs: dict = {},
+        **kwargs,
     ):
+        """
+        Train the model.
 
-        discriminator = Classifier(self.model.n_latent, 32, 2, 3, logits=True)
+        Parameters
+        ----------
+        n_epochs
+            Number of passes through the dataset.
+        kappa
+            Scaling parameter for the discriminator loss.
+        discriminator
+            :class:`~scvi.core.modules.Classifier` object.
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        frequency
+            Frequency with which metrics are computed on the data for train/test/val sets.
+        n_epochs_kl_warmup
+            Number of passes through dataset for scaling term on KL divergence to go from 0 to 1.
+        train_fun_kwargs
+            Keyword args for the train method of :class:`~scvi.core.trainers.trainer.Trainer`.
+        **kwargs
+            Other keyword args for :class:`~scvi.core.trainers.trainer.Trainer`.
+        """
+        train_fun_kwargs = dict(train_fun_kwargs)
+        if discriminator is None:
+            discriminator = Classifier(self.model.n_latent, 32, 2, 3, logits=True)
         self.trainer = JVAETrainer(
-            self.model, discriminator, self.adatas, 0.95, frequency=1, kappa=kappa
+            self.model,
+            discriminator,
+            self.adatas,
+            train_size,
+            frequency=frequency,
+            kappa=kappa,
+            n_epochs_kl_warmup=n_epochs_kl_warmup,
         )
-        self.trainer.train(n_epochs=n_epochs)
+        self.trainer.train(n_epochs=n_epochs, **train_fun_kwargs)
 
         self.is_trained_ = True
 
@@ -128,7 +162,10 @@ class GIMVI(VAEMixin, BaseModelClass):
         return post_list
 
     def get_latent_representation(
-        self, adatas: List[AnnData] = None, deterministic: bool = True, batch_size=128
+        self,
+        adatas: List[AnnData] = None,
+        deterministic: bool = True,
+        batch_size: int = 128,
     ) -> List[np.ndarray]:
         """
         Return the latent space embedding for each dataset.
@@ -136,11 +173,11 @@ class GIMVI(VAEMixin, BaseModelClass):
         Parameters
         ----------
         adatas
-            List of adata seq and adata spatial
+            List of adata seq and adata spatial.
         deterministic
-            If true, use the mean of the encoder instead of a Gaussian sample
+            If true, use the mean of the encoder instead of a Gaussian sample.
         batch_size
-            Minibatch size for data loading into model
+            Minibatch size for data loading into model.
         """
         if adatas is None:
             adatas = self.adatas
@@ -175,7 +212,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         deterministic: bool = True,
         normalized: bool = True,
         decode_mode: Optional[int] = None,
-        batch_size: Optional[int] = 128,
+        batch_size: int = 128,
     ) -> List[np.ndarray]:
         """
         Return imputed values for all genes for each dataset.
@@ -185,14 +222,14 @@ class GIMVI(VAEMixin, BaseModelClass):
         adatas
             List of adata seq and adata spatial
         deterministic
-            If true, use the mean of the encoder instead of a Gaussian sample for the latent vector
+            If true, use the mean of the encoder instead of a Gaussian sample for the latent vector.
         normalized
-            Return imputed normalized values or not
+            Return imputed normalized values or not.
         decode_mode
             If a `decode_mode` is given, use the encoder specific to each dataset as usual but use
-            the decoder of the dataset of id `decode_mode` to impute values
+            the decoder of the dataset of id `decode_mode` to impute values.
         batch_size
-            Minibatch size for data loading into model
+            Minibatch size for data loading into model.
         """
         self.model.eval()
 
@@ -241,7 +278,38 @@ class GIMVI(VAEMixin, BaseModelClass):
         return imputed_values
 
     @classmethod
-    def load(cls, adata_seq: AnnData, adata_spatial: AnnData, dir_path, use_cuda=False):
+    def load(
+        cls,
+        adata_seq: AnnData,
+        adata_spatial: AnnData,
+        dir_path: str,
+        use_cuda: bool = False,
+    ):
+        """
+        Create an `scvi` model from the saved output.
+
+        Parameters
+        ----------
+        adata_seq
+            AnnData organized in the same way as data used to train model.
+            AnnData must be registered via :func:`~scvi.dataset.setup_anndata`.
+        adata_spatial
+            AnnData organized in the same way as data used to train model.
+            AnnData must be registered via :func:`~scvi.dataset.setup_anndata`.
+        dir_path
+            Path to saved outputs.
+        use_cuda
+            Whether to load model on GPU.
+
+        Returns
+        -------
+        `scvi` model
+
+        Examples
+        --------
+        >>> vae = GIMVI.load(adata_seq, adata_spatial, save_path)
+        >>> vae.get_latent_representation()
+        """
         model_path = os.path.join(dir_path, "model_params.pt")
         # optimizer_path = os.path.join(dir_path, "optimizer_params.pt")
         setup_dict_path = os.path.join(dir_path, "attr.pkl")
