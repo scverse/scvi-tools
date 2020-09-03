@@ -52,6 +52,8 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
+    use_cuda
+        Use the GPU or not.
 
     Examples
     --------

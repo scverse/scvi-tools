@@ -45,6 +45,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         List of bool of whether to model library size for adata_seq and adata_spatial.
     n_latent
         Dimensionality of the latent space.
+    use_cuda
+        Use the GPU or not.
 
     Examples
     --------
