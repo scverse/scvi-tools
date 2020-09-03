@@ -108,7 +108,7 @@ class VAEMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
@@ -136,7 +136,7 @@ class VAEMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
@@ -163,7 +163,7 @@ class VAEMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
@@ -191,7 +191,7 @@ class VAEMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
@@ -245,7 +245,7 @@ class RNASeqMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
@@ -408,7 +408,7 @@ class RNASeqMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
@@ -500,7 +500,7 @@ class RNASeqMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
@@ -570,7 +570,7 @@ class RNASeqMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
@@ -699,7 +699,7 @@ class RNASeqMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.

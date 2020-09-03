@@ -22,30 +22,30 @@ class SCVI(RNASeqMixin, VAEMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered with scvi
+        AnnData object that has been registered via :func:`~scvi.dataset.setup_anndata`.
     n_hidden
-        Number of nodes per hidden layer
+        Number of nodes per hidden layer.
     n_latent
-        Dimensionality of the latent space
+        Dimensionality of the latent space.
     n_layers
-        Number of hidden layers used for encoder and decoder NNs
+        Number of hidden layers used for encoder and decoder NNs.
     dropout_rate
-        Dropout rate for neural networks
+        Dropout rate for neural networks.
     dispersion
-        One of the following
+        One of the following:
 
         * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
         * ``'gene-batch'`` - dispersion can differ between different batches
         * ``'gene-label'`` - dispersion can differ between different labels
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
     gene_likelihood
-        One of
+        One of:
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
     latent_distribution
-        One of
+        One of:
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
@@ -55,9 +55,8 @@ class SCVI(RNASeqMixin, VAEMixin, BaseModelClass):
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.dataset.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.models.SCVI(adata)
-    >>> vae.train(n_epochs=400)
+    >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
-
     """
 
     def __init__(
@@ -87,7 +86,7 @@ class SCVI(RNASeqMixin, VAEMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "SCVI Model with following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
+            "SCVI Model with params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
             "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
         ).format(
             n_hidden,

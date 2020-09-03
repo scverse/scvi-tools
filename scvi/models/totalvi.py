@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from anndata import AnnData
-from typing import Optional, Union, List, Tuple
+from typing import Optional, Union, List, Tuple, Sequence
 from functools import partial
 
 from scvi import _CONSTANTS
@@ -31,28 +31,28 @@ class TOTALVI(VAEMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered with scvi
+        AnnData object that has been registered via :func:`~scvi.dataset.setup_anndata`.
     n_latent
-        Dimensionality of the latent space
+        Dimensionality of the latent space.
     gene_dispersion
-        One of the following
+        One of the following:
 
         * ``'gene'`` - genes_dispersion parameter of NB is constant per gene across cells
         * ``'gene-batch'`` - genes_dispersion can differ between different batches
         * ``'gene-label'`` - genes_dispersion can differ between different labels
     protein_dispersion
-        One of the following
+        One of the following:
 
         * ``'protein'`` - protein_dispersion parameter is constant per protein across cells
         * ``'protein-batch'`` - protein_dispersion can differ between different batches NOT TESTED
         * ``'protein-label'`` - protein_dispersion can differ between different labels NOT TESTED
     gene_likelihood
-        One of
+        One of:
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
     latent_distribution
-        One of
+        One of:
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
@@ -62,7 +62,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.dataset.setup_anndata(adata, batch_key="batch", protein_expression_obsm_key="protein_expression")
     >>> vae = scvi.models.TOTALVI(adata)
-    >>> vae.train(n_epochs=400)
+    >>> vae.train()
     >>> adata.obsm["X_totalVI"] = vae.get_latent_representation()
     """
 
@@ -112,17 +112,43 @@ class TOTALVI(VAEMixin, BaseModelClass):
 
     def train(
         self,
-        n_epochs=400,
-        train_size=0.9,
-        test_size=None,
-        lr=1e-3,
-        n_iter_kl_warmup=None,
-        n_epochs_kl_warmup=400,
-        batch_size=256,
-        frequency=1,
-        train_fun_kwargs={},
+        n_epochs: int = 400,
+        train_size: float = 0.9,
+        test_size: Optional[float] = None,
+        lr: float = 1e-3,
+        n_epochs_kl_warmup: Optional[int] = 400,
+        n_iter_kl_warmup: Optional[int] = None,
+        batch_size: int = 256,
+        frequency: int = 1,
+        train_fun_kwargs: dict = {},
         **kwargs,
     ):
+        """
+        Train the model.
+
+        Parameters
+        ----------
+        n_epochs
+            Number of passes through the dataset.
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        test_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + test_size < 1`, the remaining cells belong to a validation set.
+        lr
+            Learning rate for optimization.
+        n_epochs_kl_warmup
+            Number of passes through dataset for scaling term on KL divergence to go from 0 to 1.
+        n_iter_kl_warmup
+            Number of minibatches for scaling term on KL divergence to go from 0 to 1.
+            To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
+        frequency
+            Frequency with which metrics are computed on the data for train/test/val sets.
+        train_fun_kwargs
+            Keyword args for the train method of :class:`~scvi.core.trainers.UnsupervisedTrainer`.
+        **kwargs
+            Other keyword args for :class:`~scvi.core.trainers.UnsupervisedTrainer`.
+        """
         train_fun_kwargs = dict(train_fun_kwargs)
         if "totalvi_batch_mask" in self.scvi_setup_dict_.keys():
             imputation = True
@@ -154,8 +180,29 @@ class TOTALVI(VAEMixin, BaseModelClass):
 
     @torch.no_grad()
     def get_reconstruction_error(
-        self, adata=None, indices=None, mode="total", batch_size=128
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        mode: Literal["total", "gene", "protein"] = "total",
+        batch_size=128,
     ):
+        r"""
+        Return the reconstruction error for the data.
+
+        This is typically written as :math:`p(x, y \mid z)`, the likelihood term given one posterior sample.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        mode
+            Compute for genes, proteins, or both.
+        batch_size
+            Minibatch size for data loading into model.
+        """
 
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)

@@ -21,7 +21,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered with scvi
+        AnnData object that has been registered via :func:`~scvi.dataset.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer
     n_latent

@@ -32,17 +32,19 @@ class GIMVI(VAEMixin, BaseModelClass):
     Parameters
     ----------
     adata_seq
-        AnnData object that has been registered with scvi and contains RNA-seq data
+        AnnData object that has been registered via :func:`~scvi.dataset.setup_anndata`
+        and contains RNA-seq data.
     adata_spatial
-        AnnData object that has been registered with scvi and contains spatial data
+        AnnData object that has been registered via :func:`~scvi.dataset.setup_anndata`
+        and contains spatial data.
     n_hidden
-        Number of nodes per hidden layer
+        Number of nodes per hidden layer.
     generative_distributions
-        List of generative distribution for adata_seq data and adata_spatial data
+        List of generative distribution for adata_seq data and adata_spatial data.
     model_library_size
-        List of bool of whether to model library size for adata_seq and adata_spatial
+        List of bool of whether to model library size for adata_seq and adata_spatial.
     n_latent
-        Dimensionality of the latent space
+        Dimensionality of the latent space.
 
     Examples
     --------
