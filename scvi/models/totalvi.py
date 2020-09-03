@@ -123,7 +123,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
         train_fun_kwargs={},
         **kwargs,
     ):
-
+        train_fun_kwargs = dict(train_fun_kwargs)
         if "totalvi_batch_mask" in self.scvi_setup_dict_.keys():
             imputation = True
         else:
