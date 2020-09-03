@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import pytest
@@ -100,28 +101,33 @@ def test_SCVI():
     )
 
 
-def test_saving_and_loading():
-    adata = synthetic_iid()
-
-    for cls in [SCVI, LinearSCVI, TOTALVI]:
+def test_saving_and_loading(save_path):
+    def test_save_load_model(cls, adata, save_path):
         model = cls(adata, latent_distribution="normal")
         model.train(1)
         z1 = model.get_latent_representation(adata)
         test_idx1 = model.test_indices
-        model.save("tmp", overwrite=True)
-        model = cls.load(adata, "tmp")
+        model.save(save_path, overwrite=True)
+        model = cls.load(adata, save_path)
         z2 = model.get_latent_representation()
         test_idx2 = model.test_indices
         np.testing.assert_array_equal(z1, z2)
         np.testing.assert_array_equal(test_idx1, test_idx2)
         assert model.is_trained is True
 
+    save_path = os.path.join(save_path, "tmp")
+    adata = synthetic_iid()
+
+    for cls in [SCVI, LinearSCVI, TOTALVI]:
+        print(cls)
+        test_save_load_model(cls, adata, save_path)
+
     # AUTOZI
     model = AUTOZI(adata, latent_distribution="normal")
     model.train(1)
     ab1 = model.get_alphas_betas()
-    model.save("tmp", overwrite=True)
-    model = AUTOZI.load(adata, "tmp")
+    model.save(save_path, overwrite=True)
+    model = AUTOZI.load(adata, save_path)
     ab2 = model.get_alphas_betas()
     np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
     np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
@@ -131,8 +137,8 @@ def test_saving_and_loading():
     model = SCANVI(adata, "undefined_0")
     model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1)
     p1 = model.predict()
-    model.save("tmp", overwrite=True)
-    model = SCANVI.load(adata, "tmp")
+    model.save(save_path, overwrite=True)
+    model = SCANVI.load(adata, save_path)
     p2 = model.predict()
     np.testing.assert_array_equal(p1, p2)
     assert model.is_trained is True
@@ -143,8 +149,8 @@ def test_saving_and_loading():
     z1 = model.get_latent_representation([adata])
     z2 = model.get_latent_representation([adata])
     np.testing.assert_array_equal(z1, z2)
-    model.save("tmp", overwrite=True)
-    model = GIMVI.load(adata, adata, "tmp")
+    model.save(save_path, overwrite=True)
+    model = GIMVI.load(adata, adata, save_path)
     z2 = model.get_latent_representation([adata])
     np.testing.assert_array_equal(z1, z2)
     assert model.is_trained is True
