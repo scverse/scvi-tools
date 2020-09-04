@@ -186,8 +186,10 @@ class VAEMixin:
         mc_samples: int = 5000,
         batch_size: int = 128,
     ) -> np.ndarray:
-        """
+        r"""
         Return the latent representation for each cell.
+
+        This is denoted as :math:`z_n` in our manuscripts.
 
         Parameters
         ----------
