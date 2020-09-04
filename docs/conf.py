@@ -101,7 +101,7 @@ qualname_overrides = {
 # General information about the project.
 project = u"scvi"
 copyright = u"2020, Romain Lopez, Adam Gayoso, Pierre Boyeau, Galen Xing"
-author = u"Romain Lopez, Adam Gayoso"
+author = u"Romain Lopez, Adam Gayoso, Pierre Boyeau, Galen Xing"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
