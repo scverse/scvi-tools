@@ -164,6 +164,7 @@ def test_SCANVI():
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3
     model.predict(adata2, soft=True)
+    model.predict(adata2, soft=True, indices=[1, 2, 3])
     model.get_normalized_expression(adata2)
     model.differential_expression(groupby="labels", group1="undefined_1")
     model.differential_expression(
