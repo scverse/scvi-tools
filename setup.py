@@ -59,7 +59,7 @@ extras_requirements = {
         "sphinx-rtd-theme>=0.3.1",
         "nbsphinx-link",
         "scanpydoc",
-        "pydata-sphinx-theme",
+        "pydata-sphinx-theme>=0.4.0",
         'typing_extensions; python_version < "3.8"',  # for `Literal`
         "ipython>=7.1.1",
     ],
