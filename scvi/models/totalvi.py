@@ -634,6 +634,9 @@ class TOTALVI(VAEMixin, BaseModelClass):
         """
         adata = self._validate_anndata(adata)
 
+        if group1 == "all" and idx1 is None:
+            group1 = adata.obs[groupby].cat.categories.tolist()
+
         if isinstance(group1, str):
             group1 = [group1]
 
