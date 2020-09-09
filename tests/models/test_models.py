@@ -99,6 +99,7 @@ def test_SCVI():
     model.differential_expression(
         groupby="labels", group1="undefined_1", group2="undefined_2", mode="change"
     )
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
 
 
 def test_saving_and_loading(save_path):
@@ -311,6 +312,7 @@ def test_TOTALVI(save_path):
     model.differential_expression(
         groupby="labels", group1="undefined_1", group2="undefined_2"
     )
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
 
     # test with missing proteins
     adata = scvi.dataset.pbmcs_10x_cite_seq(save_path=save_path, protein_join="outer")

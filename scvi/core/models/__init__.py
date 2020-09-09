@@ -264,10 +264,10 @@ class RNASeqMixin:
 
     def differential_expression(
         self,
-        groupby: str,
+        adata: Optional[AnnData] = None,
+        groupby: Optional[str] = None,
         group1: Union[Literal["all"], Iterable[str]] = "all",
         group2: Optional[str] = "rest",
-        adata: Optional[AnnData] = None,
         idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         mode: Literal["vanilla", "change"] = "change",
@@ -285,6 +285,9 @@ class RNASeqMixin:
 
         Parameters
         ----------
+        adata
+            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object used to initialize the model.
         groupby
             The key of the observations grouping to consider.
         group1
@@ -293,9 +296,6 @@ class RNASeqMixin:
         group2
             If `"rest"`, compare each group to the union of the rest of the group.
             If a group identifier, compare with respect to this group.
-        adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
-            AnnData object used to initialize the model.
         idx1
             Boolean mask or indices for `group1`. `idx1` and `idx2` can be used as an alternative
             to the AnnData keys. If `idx1` is not `None`, this option overrides `group1`
@@ -335,11 +335,12 @@ class RNASeqMixin:
         # make a temp obs key using indices
         temp_key = None
         if idx1 is not None:
-            g1_key = "group1"
+            g1_key = "one"
             obs_col = np.array(["None"] * adata.shape[0])
             obs_col[idx1] = g1_key
-            group2 = "None" if idx2 is None else "group2"
-            obs_col[idx2] = group2
+            group2 = "rest" if idx2 is None else "two"
+            if idx2 is not None:
+                obs_col[idx2] = group2
             temp_key = "_scvi_temp_de"
             adata.obs[temp_key] = obs_col
             groupby = temp_key

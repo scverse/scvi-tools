@@ -396,7 +396,7 @@ class DifferentialComputation:
         # Selection of desired cells for sampling
         if selection is None:
             raise ValueError("selections should be a list of cell subsets indices")
-        selection = np.array(selection)
+        selection = np.asarray(selection)
         if selection.dtype is np.dtype("bool"):
             selection = np.asarray(np.where(selection)[0].ravel())
 
