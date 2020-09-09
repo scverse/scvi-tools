@@ -262,11 +262,14 @@ def setup_anndata(
     'TIGIT_TotalSeqB',
     'CD127_TotalSeqB']
     """
-    if adata.is_view:
-        raise ValueError("adata cannot be a view of an AnnData object.")
-
     if copy:
         adata = adata.copy()
+
+    if adata.is_view:
+        raise ValueError(
+            "Please run `adata = adata.copy()` or use the copy option in this function."
+        )
+
     adata.uns["_scvi"] = {}
     adata.uns["_scvi"]["scvi_version"] = scvi.__version__
 
