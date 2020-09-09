@@ -20,7 +20,7 @@ from scvi.dataset._utils import (
     _check_nonnegative_integers,
 )
 from scvi import _CONSTANTS
-from typing import Optional, Union, List, Dict
+from typing import Optional, Union, List, Dict, Sequence, Iterable
 from scvi._compat import Literal
 from scvi.core.trainers import UnsupervisedTrainer
 from abc import ABC, abstractmethod
@@ -264,15 +264,61 @@ class RNASeqMixin:
 
     def differential_expression(
         self,
-        groupby,
-        group1,
-        group2=None,
-        adata=None,
-        mode="vanilla",
-        within_key=None,
-        all_stats=True,
-        use_permutation=False,
-    ):
+        groupby: str,
+        group1: Union[Literal["all"], Iterable[str]] = None,
+        group2: Optional[str] = None,
+        adata: Optional[AnnData] = None,
+        idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
+        idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
+        mode: Literal["vanilla", "change"] = "change",
+        delta: float = 0.5,
+        all_stats: bool = True,
+        use_permutation: bool = False,
+    ) -> pd.DataFrame:
+        r"""
+        A unified method for differential expression inference.
+
+        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
+
+        Parameters
+        ----------
+        groupby
+            The key of the observations grouping to consider.
+        group1
+            Subset of groups, e.g. [`'g1'`, `'g2'`, `'g3'`], to which comparison
+            shall be restricted, or all groups in `groupby` (default).
+        group2
+            If `None`, compare each group to the union of the rest of the group.
+            If a group identifier, compare with respect to this group.
+        adata
+            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        idx1
+            Boolean mask or indices for group1. `idx1` and `idx2` can be used as an alternative
+            to the AnnData keys. `idx1` and `idx2` must both be not `None` and override `group1`
+            and `group2`.
+        idx2
+            Boolean mask or indices for group2.
+        mode
+            Method for differential expression. See user guide for full explanation.
+        delta
+            specific case of region inducing differential expression.
+            In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce differential expression
+            (change model default case).
+        all_stats
+            Concatenate count statistics (e.g., mean expression group 1) to DE results.
+        batchid1
+            List of batch ids for which you want to perform DE Analysis for
+            subpopulation 1. By default, all ids are taken into account
+        batchid2
+            List of batch ids for which you want to perform DE Analysis for
+            subpopulation 2. By default, all ids are taken into account
+        use_observed_batches
+            Whether normalized means are conditioned on observed
+            batches
+        **kwargs
+            Keyword args for TODO
+        """
         adata = self._validate_anndata(adata)
         cell_idx1 = adata.obs[groupby] == group1
         if group2 is None:
