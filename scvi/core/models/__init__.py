@@ -271,7 +271,7 @@ class RNASeqMixin:
         idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         mode: Literal["vanilla", "change"] = "change",
-        delta: float = 0.5,
+        delta: float = 0.25,
         all_stats: bool = True,
         batch_correction: bool = False,
         batchid1: Optional[Iterable[str]] = None,
@@ -322,6 +322,10 @@ class RNASeqMixin:
             or be exactly equal to `batchid1`.
         **kwargs
             Keyword args for TODO
+
+        Returns
+        -------
+        Differential expression DataFrame.
         """
         adata = self._validate_anndata(adata)
 
@@ -342,6 +346,9 @@ class RNASeqMixin:
             group1 = [g1_key]
 
         df_results = []
+        gene_names = _get_var_names_from_setup_anndata(adata)
+        model_fn = partial(self.get_normalized_expression, return_numpy=True)
+        dc = DifferentialComputation(model_fn, adata)
         for g1 in group1:
             cell_idx1 = adata.obs[groupby] == g1
             if group2 == "rest":
@@ -349,17 +356,17 @@ class RNASeqMixin:
             else:
                 cell_idx2 = adata.obs[groupby] == group2
 
-            model_fn = partial(self.get_normalized_expression, return_numpy=True)
-            dc = DifferentialComputation(model_fn, adata)
             all_info = dc.get_bayes_factors(
                 cell_idx1,
                 cell_idx2,
                 mode=mode,
                 delta=delta,
+                batchid1=batchid1,
+                batchid2=batchid2,
+                use_observed_batches=not batch_correction,
                 **kwargs,
             )
 
-            gene_names = _get_var_names_from_setup_anndata(adata)
             if all_stats is True:
                 (
                     mean1,
@@ -389,7 +396,9 @@ class RNASeqMixin:
         if temp_key is not None:
             del adata.obs[temp_key]
 
-        return res
+        result = pd.concat(df_results, axis=0)
+
+        return result
 
     @torch.no_grad()
     def posterior_predictive_sample(

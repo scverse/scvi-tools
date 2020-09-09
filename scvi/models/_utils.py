@@ -18,10 +18,13 @@ def scrna_raw_counts_properties(
 
     Parameters
     ----------
+    adata
+        AnnData object setup with `scvi`.
     idx1
         subset of indices describing the first population.
     idx2
         subset of indices describing the second population.
+
     Returns
     -------
     type
