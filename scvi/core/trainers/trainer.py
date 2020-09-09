@@ -11,7 +11,7 @@ from itertools import cycle
 from typing import List
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
-from tqdm import tqdm
+from scvi._compat import tqdm
 
 from scvi.core.posteriors import Posterior
 from scvi import _CONSTANTS

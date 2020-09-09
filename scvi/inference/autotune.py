@@ -16,7 +16,7 @@ from typing import Any, Callable, Dict, List, TextIO, Type, Union
 import numpy as np
 import pymongo
 import torch
-import tqdm
+from scvi._compat import tqdm
 from hyperopt import fmin, tpe, Trials, hp, STATUS_OK, STATUS_FAIL
 from hyperopt.mongoexp import (
     as_mongo_str,
