@@ -38,7 +38,7 @@ class VAEMixin:
         lr=1e-3,
         n_iter_kl_warmup=None,
         n_epochs_kl_warmup=400,
-        frequency=None,
+        frequency=5,
         train_fun_kwargs={},
         **kwargs
     ):
@@ -364,42 +364,15 @@ class RNASeqMixin:
             x = tensors[_CONSTANTS.X_KEY]
             batch_idx = tensors[_CONSTANTS.BATCH_KEY]
             labels = tensors[_CONSTANTS.LABELS_KEY]
-            outputs = self.model.inference(
-                x, batch_index=batch_idx, y=labels, n_samples=n_samples
+            samples = self.model.sample(
+                x=x, batch_idx=batch_idx, y=labels, n_samples=n_samples
             )
-            px_r = outputs["px_r"]
-            px_rate = outputs["px_rate"]
-            px_dropout = outputs["px_dropout"]
 
-            if self.model.gene_likelihood == "poisson":
-                l_train = px_rate
-                l_train = torch.clamp(l_train, max=1e8)
-                dist = torch.distributions.Poisson(
-                    l_train
-                )  # Shape : (n_samples, n_cells_batch, n_genes)
-            elif self.model.gene_likelihood == "nb":
-                dist = NegativeBinomial(mu=px_rate, theta=px_r)
-            elif self.model.gene_likelihood == "zinb":
-                dist = ZeroInflatedNegativeBinomial(
-                    mu=px_rate, theta=px_r, zi_logits=px_dropout
-                )
-            else:
-                raise ValueError(
-                    "{} reconstruction error not handled right now".format(
-                        self.model.gene_likelihood
-                    )
-                )
-            if n_samples > 1:
-                exprs = dist.sample().permute(
-                    [1, 2, 0]
-                )  # Shape : (n_cells_batch, n_genes, n_samples)
-            else:
-                exprs = dist.sample()
-
+            # add in gene mask
             if gene_list is not None:
-                exprs = exprs[:, gene_mask, ...]
+                samples = samples[:, gene_mask, ...]
+            x_new.append(samples)
 
-            x_new.append(exprs.cpu())
         x_new = torch.cat(x_new)  # Shape (n_cells, n_genes, n_samples)
 
         return x_new.numpy()

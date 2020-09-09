@@ -21,24 +21,22 @@ def compute_elbo(vae, posterior, **kwargs):
     # Iterate once over the posterior and compute the elbo
     elbo = 0
     for i_batch, tensors in enumerate(posterior):
-        sample_batch = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        labels = tensors[_CONSTANTS.LABELS_KEY]
-
         # kl_divergence_global (scalar) should be common across all batches after training
-        reconst_loss, kl_divergence, kl_divergence_global = vae(
-            sample_batch,
-            local_l_mean,
-            local_l_var,
-            batch_index=batch_index,
-            y=labels,
-            **kwargs
-        )
-        elbo += torch.sum(reconst_loss + kl_divergence).item()
+        outputs = vae(tensors)
+
+        reconst_loss = outputs["reconstruction_loss"]
+        kl_local_for_warmup = outputs["kl_local_for_warmup"]
+        kl_local_no_warmup = outputs["kl_local_no_warmup"]
+        kl_global_for_warmup = outputs["kl_global_for_warmup"]
+        kl_global_no_warmup = outputs["kl_global_no_warmup"]
+
+        elbo += torch.sum(
+            reconst_loss + kl_local_for_warmup + kl_local_no_warmup
+        ).item()
+
     n_samples = len(posterior.indices)
-    elbo += kl_divergence_global
+
+    elbo += kl_global_for_warmup + kl_global_no_warmup
     return elbo / n_samples
 
 
@@ -51,26 +49,22 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
     # Iterate once over the posterior and computes the reconstruction error
     log_lkl = 0
     for i_batch, tensors in enumerate(posterior):
-        sample_batch = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        labels = tensors[_CONSTANTS.LABELS_KEY]
-
         # Distribution parameters
-        outputs = vae.inference(sample_batch, batch_index, labels, **kwargs)
-        px_r = outputs["px_r"]
-        px_rate = outputs["px_rate"]
-        px_dropout = outputs["px_dropout"]
-        bernoulli_params = outputs.get("bernoulli_params", None)
+        # should call forward and take the first term
+        # outputs = vae.inference(sample_batch, batch_index, labels, **kwargs)
+        outputs = vae(tensors)
+        reconst_loss = outputs["reconstruction_loss"]
 
+        # what is bernoulli params?
         # Reconstruction loss
-        reconst_loss = vae.get_reconstruction_loss(
-            sample_batch,
-            px_rate,
-            px_r,
-            px_dropout,
-            bernoulli_params=bernoulli_params,
-            **kwargs
-        )
+        # reconst_loss = vae.get_reconstruction_loss(
+        #     sample_batch,
+        #     px_rate,
+        #     px_r,
+        #     px_dropout,
+        #     bernoulli_params=bernoulli_params,
+        #     **kwargs
+        # )
 
         log_lkl += torch.sum(reconst_loss).item()
     n_samples = len(posterior.indices)

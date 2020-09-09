@@ -122,6 +122,213 @@ class VAE(AbstractVAE):
             n_hidden=n_hidden,
         )
 
+    def forward(self, tensors) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass through the network
+
+        Parameters
+        ----------
+        tensors
+            tensors to pass through
+        """
+        x = tensors[_CONSTANTS.X_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+
+        outputs = self._full_pass(x, batch_index)
+        losses = self.loss(tensors, outputs)
+
+        return dict(**outputs, **losses)
+
+    def loss(self, tensors, model_outputs):
+        x = tensors[_CONSTANTS.X_KEY]
+        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+
+        qz_m = model_outputs["qz_m"]
+        qz_v = model_outputs["qz_v"]
+        ql_m = model_outputs["ql_m"]
+        ql_v = model_outputs["ql_v"]
+        px_rate = model_outputs["px_rate"]
+        px_r = model_outputs["px_r"]
+        px_dropout = model_outputs["px_dropout"]
+
+        mean = torch.zeros_like(qz_m)
+        scale = torch.ones_like(qz_v)
+
+        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
+            dim=1
+        )
+
+        kl_divergence_l = kl(
+            Normal(ql_m, torch.sqrt(ql_v)),
+            Normal(local_l_mean, torch.sqrt(local_l_var)),
+        ).sum(dim=1)
+
+        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
+
+        return dict(
+            reconstruction_loss=reconst_loss,
+            kl_local_for_warmup=kl_divergence_l,
+            kl_local_no_warmup=kl_divergence_z,
+            kl_global_for_warmup=0.0,
+            kl_global_no_warmup=0.0,
+        )
+
+    def get_reconstruction_loss(
+        self, x, px_rate, px_r, px_dropout, **kwargs
+    ) -> torch.Tensor:
+        # signiture should be output of generative and tensors
+        # Reconstruction Loss
+        if self.gene_likelihood == "zinb":
+            reconst_loss = (
+                -ZeroInflatedNegativeBinomial(
+                    mu=px_rate, theta=px_r, zi_logits=px_dropout
+                )
+                .log_prob(x)
+                .sum(dim=-1)
+            )
+        elif self.gene_likelihood == "nb":
+            reconst_loss = (
+                -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
+            )
+        elif self.gene_likelihood == "poisson":
+            reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
+        return reconst_loss
+
+    def inference(
+        self,
+        x,
+    ) -> Dict[str, torch.Tensor]:
+        """Runs the inference model"""
+        x_ = x
+        if self.log_variational:
+            x_ = torch.log(1 + x_)
+
+        # make random y since its not used
+        # TODO: refactor forward function to not rely on y
+        y = torch.zeros(x.shape[0], 1)
+
+        # Sampling
+        qz_m, qz_v, z = self.z_encoder(x_, y)
+        ql_m, ql_v, library = self.l_encoder(x_)
+
+        return dict(
+            qz_m=qz_m,
+            qz_v=qz_v,
+            z=z,
+            ql_m=ql_m,
+            ql_v=ql_v,
+            library=library,
+        )
+
+    def generative(self, z, library, batch_index):
+        """Runs the generative model"""
+        # make random y since its not used
+        # TODO: refactor forward function to not rely on y
+        y = torch.zeros(z.shape[0], 1)
+
+        px_scale, px_r, px_rate, px_dropout = self.decoder(
+            self.dispersion, z, library, batch_index, y
+        )
+
+        if self.dispersion == "gene-label":
+            px_r = F.linear(
+                one_hot(y, self.n_labels), self.px_r
+            )  # px_r gets transposed - last dimension is nb genes
+        elif self.dispersion == "gene-batch":
+            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+        elif self.dispersion == "gene":
+            px_r = self.px_r
+
+        px_r = torch.exp(px_r)
+
+        return dict(
+            px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
+        )
+
+    @torch.no_grad()
+    def sample(self, x, batch_idx, n_samples=1, y=None) -> np.ndarray:
+        r"""
+        Generate observation samples from the posterior predictive distribution.
+
+        The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
+
+        Parameters
+        ----------
+        adata
+            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        n_samples
+            Number of required samples for each cell
+        gene_list
+            Names of genes of interest
+        batch_size
+            Minibatch size for data loading into model
+
+        Returns
+        -------
+        x_new : :py:class:`torch.Tensor`
+            tensor with shape (n_cells, n_genes, n_samples)
+        """
+        outputs = self._full_pass(x, batch_index=batch_idx, n_samples=n_samples)
+        px_r = outputs["px_r"]
+        px_rate = outputs["px_rate"]
+        px_dropout = outputs["px_dropout"]
+
+        if self.gene_likelihood == "poisson":
+            l_train = px_rate
+            l_train = torch.clamp(l_train, max=1e8)
+            dist = torch.distributions.Poisson(
+                l_train
+            )  # Shape : (n_samples, n_cells_batch, n_genes)
+        elif self.gene_likelihood == "nb":
+            dist = NegativeBinomial(mu=px_rate, theta=px_r)
+        elif self.gene_likelihood == "zinb":
+            dist = ZeroInflatedNegativeBinomial(
+                mu=px_rate, theta=px_r, zi_logits=px_dropout
+            )
+        else:
+            raise ValueError(
+                "{} reconstruction error not handled right now".format(
+                    self.model.gene_likelihood
+                )
+            )
+        if n_samples > 1:
+            exprs = dist.sample().permute(
+                [1, 2, 0]
+            )  # Shape : (n_cells_batch, n_genes, n_samples)
+        else:
+            exprs = dist.sample()
+
+        return exprs.cpu()
+
+    def _full_pass(self, x, batch_index, n_samples=1):
+        inference_outputs = self.inference(x)
+
+        z = inference_outputs["z"]
+        qz_m = inference_outputs["qz_m"]
+        qz_v = inference_outputs["qz_v"]
+        ql_m = inference_outputs["ql_m"]
+        ql_v = inference_outputs["ql_v"]
+        library = inference_outputs["library"]
+
+        if n_samples > 1:
+            qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
+            qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
+            # when z is normal, untran_z == z
+            untran_z = Normal(qz_m, qz_v.sqrt()).sample()
+            z = self.z_encoder.z_transformation(untran_z)
+            ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
+            ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
+            library = Normal(ql_m, ql_v.sqrt()).sample()
+
+        generative_outputs = self.generative(
+            z=z, library=library, batch_index=batch_index
+        )
+        return dict(**inference_outputs, **generative_outputs)
+
     def get_latents(self, x, y=None) -> torch.Tensor:
         """
         Returns the result of ``sample_from_posterior_z`` inside a list.
@@ -265,149 +472,6 @@ class VAE(AbstractVAE):
             n_samples=n_samples,
             transform_batch=transform_batch,
         )["px_rate"]
-
-    def get_reconstruction_loss(
-        self, x, px_rate, px_r, px_dropout, **kwargs
-    ) -> torch.Tensor:
-        # Reconstruction Loss
-        if self.gene_likelihood == "zinb":
-            reconst_loss = (
-                -ZeroInflatedNegativeBinomial(
-                    mu=px_rate, theta=px_r, zi_logits=px_dropout
-                )
-                .log_prob(x)
-                .sum(dim=-1)
-            )
-        elif self.gene_likelihood == "nb":
-            reconst_loss = (
-                -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
-            )
-        elif self.gene_likelihood == "poisson":
-            reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
-        return reconst_loss
-
-    def inference(
-        self,
-        x,
-        y=None,
-        n_samples=1,
-    ) -> Dict[str, torch.Tensor]:
-        """Helper function used in forward pass."""
-        x_ = x
-        if self.log_variational:
-            x_ = torch.log(1 + x_)
-
-        # Sampling
-        qz_m, qz_v, z = self.z_encoder(x_, y)
-        ql_m, ql_v, library = self.l_encoder(x_)
-
-        if n_samples > 1:
-            qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
-            qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
-            # when z is normal, untran_z == z
-            untran_z = Normal(qz_m, qz_v.sqrt()).sample()
-            z = self.z_encoder.z_transformation(untran_z)
-            ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
-            ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
-            library = Normal(ql_m, ql_v.sqrt()).sample()
-
-        return dict(
-            qz_m=qz_m,
-            qz_v=qz_v,
-            z=z,
-            ql_m=ql_m,
-            ql_v=ql_v,
-            library=library,
-        )
-
-    def generative(self, z, library, y=None, transform_batch=None, batch_index=None):
-        if transform_batch is not None:
-            dec_batch_index = transform_batch * torch.ones_like(batch_index)
-        else:
-            dec_batch_index = batch_index
-
-        px_scale, px_r, px_rate, px_dropout = self.decoder(
-            self.dispersion, z, library, dec_batch_index, y
-        )
-        if self.dispersion == "gene-label":
-            px_r = F.linear(
-                one_hot(y, self.n_labels), self.px_r
-            )  # px_r gets transposed - last dimension is nb genes
-        elif self.dispersion == "gene-batch":
-            px_r = F.linear(one_hot(dec_batch_index, self.n_batch), self.px_r)
-        elif self.dispersion == "gene":
-            px_r = self.px_r
-        px_r = torch.exp(px_r)
-
-        return dict(
-            px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
-        )
-
-    def sample(self):
-        pass
-
-    def forward(self, tensors) -> Tuple[torch.Tensor, torch.Tensor]:
-        # x, local_l_mean, local_l_var, batch_index=None, y=None
-        """
-        Returns the reconstruction loss and the KL divergences.
-
-        Parameters
-        ----------
-        x
-            tensor of values with shape (batch_size, n_input)
-        local_l_mean
-            tensor of means of the prior distribution of latent variable l
-            with shape (batch_size, 1)
-        local_l_var
-            tensor of variancess of the prior distribution of latent variable l
-            with shape (batch_size, 1)
-        batch_index
-            array that indicates which batch the cells belong to with shape ``batch_size`` (Default value = None)
-        y
-            tensor of cell-types labels with shape (batch_size, n_labels) (Default value = None)
-
-        Returns
-        -------
-        type
-            the reconstruction loss and the Kullback divergences
-        """
-        # Parameters for z latent distribution
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
-
-        inference_outputs = self.inference(x, batch_index)
-        z = inference_outputs["z"]
-        library = inference_outputs["library"]
-        generative_outputs = self.generative(
-            z=z, library=library, batch_index=batch_index
-        )
-        # outputs = self.inference(x, batch_index, y)
-        qz_m = inference_outputs["qz_m"]
-        qz_v = inference_outputs["qz_v"]
-        ql_m = inference_outputs["ql_m"]
-        ql_v = inference_outputs["ql_v"]
-        px_rate = generative_outputs["px_rate"]
-        px_r = generative_outputs["px_r"]
-        px_dropout = generative_outputs["px_dropout"]
-
-        # KL Divergence
-        mean = torch.zeros_like(qz_m)
-        scale = torch.ones_like(qz_v)
-
-        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
-            dim=1
-        )
-        kl_divergence_l = kl(
-            Normal(ql_m, torch.sqrt(ql_v)),
-            Normal(local_l_mean, torch.sqrt(local_l_var)),
-        ).sum(dim=1)
-        kl_divergence = kl_divergence_z
-
-        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
-
-        return reconst_loss + kl_divergence_l, kl_divergence, 0.0
 
 
 class LDVAE(VAE):
