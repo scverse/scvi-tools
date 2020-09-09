@@ -324,6 +324,13 @@ class VAE(AbstractVAE):
             ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
             library = Normal(ql_m, ql_v.sqrt()).sample()
 
+            inference_outputs["z"] = z
+            inference_outputs["qz_m"] = qz_m
+            inference_outputs["qz_v"] = qz_v
+            inference_outputs["ql_m"] = ql_m
+            inference_outputs["ql_v"] = ql_v
+            inference_outputs["library"] = library
+
         generative_outputs = self.generative(
             z=z, library=library, batch_index=batch_index
         )
