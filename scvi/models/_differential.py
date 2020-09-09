@@ -454,7 +454,6 @@ def pairs_sampler(
     -------
     type
         new_arr1, new_arr2
-
     """
     if use_permutation is True:
         # prepare the pairs for sampling
@@ -504,7 +503,6 @@ def credible_intervals(
     -------
     type
         intervals minima, intervals maxima
-
     """
     if ary.ndim > 1:
         hpd = np.array(
@@ -552,7 +550,6 @@ def describe_continuous_distrib(
     -------
     type
         properties of distribution
-
     """
     dist_props = dict(
         mean=samples.mean(0),
