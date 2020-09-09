@@ -8,7 +8,6 @@ import inspect
 
 from anndata import AnnData
 from functools import partial
-from scvi.core._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.models._differential import DifferentialComputation
 from scvi.models._utils import (
     scrna_raw_counts_properties,
@@ -368,7 +367,6 @@ class RNASeqMixin:
                 x=x, batch_idx=batch_idx, y=labels, n_samples=n_samples
             )
 
-            # add in gene mask
             if gene_list is not None:
                 samples = samples[:, gene_mask, ...]
             x_new.append(samples)
