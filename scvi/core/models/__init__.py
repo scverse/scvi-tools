@@ -266,8 +266,8 @@ class RNASeqMixin:
         self,
         adata: Optional[AnnData] = None,
         groupby: Optional[str] = None,
-        group1: Union[Literal["all"], Iterable[str]] = "all",
-        group2: Optional[str] = "rest",
+        group1: Optional[Iterable[str]] = None,
+        group2: Optional[str] = None,
         idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         mode: Literal["vanilla", "change"] = "change",
@@ -294,7 +294,7 @@ class RNASeqMixin:
             Subset of groups, e.g. [`'g1'`, `'g2'`, `'g3'`], to which comparison
             shall be restricted, or all groups in `groupby` (default).
         group2
-            If `"rest"`, compare each group to the union of the rest of the group.
+            If `None`, compare each group to the union of the rest of the group.
             If a group identifier, compare with respect to this group.
         idx1
             Boolean mask or indices for `group1`. `idx1` and `idx2` can be used as an alternative
@@ -329,7 +329,7 @@ class RNASeqMixin:
         """
         adata = self._validate_anndata(adata)
 
-        if group1 == "all" and idx1 is None:
+        if group1 is None and idx1 is None:
             group1 = adata.obs[groupby].cat.categories.tolist()
 
         if isinstance(group1, str):
@@ -339,9 +339,9 @@ class RNASeqMixin:
         temp_key = None
         if idx1 is not None:
             g1_key = "one"
-            obs_col = np.array(["None"] * adata.shape[0])
+            obs_col = np.array(["None"] * adata.shape[0], dtype=str)
             obs_col[idx1] = g1_key
-            group2 = "rest" if idx2 is None else "two"
+            group2 = None if idx2 is None else "two"
             if idx2 is not None:
                 obs_col[idx2] = group2
             temp_key = "_scvi_temp_de"
@@ -355,7 +355,7 @@ class RNASeqMixin:
         dc = DifferentialComputation(model_fn, adata)
         for g1 in group1:
             cell_idx1 = adata.obs[groupby] == g1
-            if group2 == "rest":
+            if group2 is None:
                 cell_idx2 = ~cell_idx1
             else:
                 cell_idx2 = adata.obs[groupby] == group2
