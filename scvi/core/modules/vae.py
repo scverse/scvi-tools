@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """Main module."""
-
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence as kl
+from typing import Tuple, Dict
 
 from scvi.core._distributions import (
     ZeroInflatedNegativeBinomial,
@@ -14,14 +14,14 @@ from scvi.core._distributions import (
 )
 from ._base import Encoder, DecoderSCVI, LinearDecoderSCVI
 from .utils import one_hot
-
-from typing import Tuple, Dict
+from scvi.core.modules._base.basemodule import AbstractVAE
+from scvi import _CONSTANTS
 
 torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class VAE(nn.Module):
+class VAE(AbstractVAE):
     """
     Variational auto-encoder model.
 
@@ -287,7 +287,10 @@ class VAE(nn.Module):
         return reconst_loss
 
     def inference(
-        self, x, batch_index=None, y=None, n_samples=1, transform_batch=None
+        self,
+        x,
+        y=None,
+        n_samples=1,
     ) -> Dict[str, torch.Tensor]:
         """Helper function used in forward pass."""
         x_ = x
@@ -308,6 +311,16 @@ class VAE(nn.Module):
             ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
             library = Normal(ql_m, ql_v.sqrt()).sample()
 
+        return dict(
+            qz_m=qz_m,
+            qz_v=qz_v,
+            z=z,
+            ql_m=ql_m,
+            ql_v=ql_v,
+            library=library,
+        )
+
+    def generative(self, z, library, y=None, transform_batch=None, batch_index=None):
         if transform_batch is not None:
             dec_batch_index = transform_batch * torch.ones_like(batch_index)
         else:
@@ -327,21 +340,14 @@ class VAE(nn.Module):
         px_r = torch.exp(px_r)
 
         return dict(
-            px_scale=px_scale,
-            px_r=px_r,
-            px_rate=px_rate,
-            px_dropout=px_dropout,
-            qz_m=qz_m,
-            qz_v=qz_v,
-            z=z,
-            ql_m=ql_m,
-            ql_v=ql_v,
-            library=library,
+            px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
         )
 
-    def forward(
-        self, x, local_l_mean, local_l_var, batch_index=None, y=None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def sample(self):
+        pass
+
+    def forward(self, tensors) -> Tuple[torch.Tensor, torch.Tensor]:
+        # x, local_l_mean, local_l_var, batch_index=None, y=None
         """
         Returns the reconstruction loss and the KL divergences.
 
@@ -366,14 +372,25 @@ class VAE(nn.Module):
             the reconstruction loss and the Kullback divergences
         """
         # Parameters for z latent distribution
-        outputs = self.inference(x, batch_index, y)
-        qz_m = outputs["qz_m"]
-        qz_v = outputs["qz_v"]
-        ql_m = outputs["ql_m"]
-        ql_v = outputs["ql_v"]
-        px_rate = outputs["px_rate"]
-        px_r = outputs["px_r"]
-        px_dropout = outputs["px_dropout"]
+        x = tensors[_CONSTANTS.X_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+
+        inference_outputs = self.inference(x, batch_index)
+        z = inference_outputs["z"]
+        library = inference_outputs["library"]
+        generative_outputs = self.generative(
+            z=z, library=library, batch_index=batch_index
+        )
+        # outputs = self.inference(x, batch_index, y)
+        qz_m = inference_outputs["qz_m"]
+        qz_v = inference_outputs["qz_v"]
+        ql_m = inference_outputs["ql_m"]
+        ql_v = inference_outputs["ql_v"]
+        px_rate = generative_outputs["px_rate"]
+        px_r = generative_outputs["px_r"]
+        px_dropout = generative_outputs["px_dropout"]
 
         # KL Divergence
         mean = torch.zeros_like(qz_m)
