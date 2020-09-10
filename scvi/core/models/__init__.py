@@ -286,8 +286,8 @@ class RNASeqMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnData object with equivalent structure to initial AnnData.
+            If None, defaults to the AnnData object used to initialize the model.
         groupby
             The key of the observations grouping to consider.
         group1
