@@ -61,4 +61,4 @@ Miscellaneous
 .. autosummary::
    :toctree: reference/
 
-   core.models._differential.DifferentialComputation
+   core.models.differential.DifferentialComputation

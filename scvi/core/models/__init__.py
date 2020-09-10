@@ -9,7 +9,7 @@ import inspect
 from anndata import AnnData
 from functools import partial
 from scvi.core._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
-from scvi.models._differential import DifferentialComputation
+from scvi.models.differential import DifferentialComputation
 from scvi.models._utils import (
     scrna_raw_counts_properties,
     _get_var_names_from_setup_anndata,

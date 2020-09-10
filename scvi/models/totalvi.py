@@ -14,7 +14,7 @@ from scvi.core.modules import TOTALVAE
 from scvi.core.models import BaseModelClass, VAEMixin
 from scvi.core.posteriors import TotalPosterior
 from scvi.core.trainers import TotalTrainer
-from scvi.models._differential import DifferentialComputation
+from scvi.models.differential import DifferentialComputation
 from scvi.models._utils import (
     scrna_raw_counts_properties,
     _get_var_names_from_setup_anndata,
