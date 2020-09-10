@@ -625,6 +625,14 @@ class TOTALVI(VAEMixin, BaseModelClass):
         batchid2
             Same as `batchid1` for group2. `batchid2` must either have null intersection with `batchid1`,
             or be exactly equal to `batchid1`.
+        protein_prior_count
+            Prior count added to protein expression before LFC computation
+        scale_protein
+            Force protein values to sum to one in every single cell (post-hoc normalization)
+        sample_protein_mixing
+            Sample the protein mixture component
+        include_protein_background
+            Include the protein background component as part of the protein expression
         **kwargs
             Keyword args for :func:`scvi.core.utils.DifferentialComputation.get_bayes_factors`
 
