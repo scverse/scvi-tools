@@ -13,22 +13,22 @@ logger = logging.getLogger(__name__)
 
 
 class DifferentialComputation:
-    def __init__(self, model_fn, adata):  # method of model class (SCVI, not VAE)
-        """
-        Unified class for differential computation.
+    """
+    Unified class for differential computation.
 
-        This class takes a function from a model like SCVI or TOTALVI and takes outputs
-        from this function with respect to the adata input and computed Bayes factors as
-        described in [Lopez18]_ or [Boyeau19]_.
+    This class takes a function from a model like `SCVI` or `TOTALVI` and takes outputs
+    from this function with respect to the adata input and computed Bayes factors as
+    described in [Lopez18]_ or [Boyeau19]_.
 
-        Parameters
-        ----------
-        model_fn
-            Function in model API to get values from.
-        adata
-            AnnData setup with scvi
+    Parameters
+    ----------
+    model_fn
+        Function in model API to get values from.
+    adata
+        AnnData setup with scvi
+    """
 
-        """
+    def __init__(self, model_fn, adata):
         self.adata = adata
         self.model_fn = model_fn
 
@@ -57,18 +57,18 @@ class DifferentialComputation:
         In this case, we perform hypothesis testing based on the hypotheses
 
         .. math::
-            M_1: h_1 > h_2 ~\text{and}~ M_2: h_1 \leq h_2
+            M_1: h_1 > h_2 ~\text{and}~ M_2: h_1 \leq h_2.
 
         DE can then be based on the study of the Bayes factors
 
         .. math::
-            \log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2)
+            \log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2).
 
         - the `"change"` mode (described in [Boyeau19]_)
-        consists in estimating an effect size random variable (e.g., log fold-change) and
+        This mode consists of estimating an effect size random variable (e.g., log fold-change) and
         performing Bayesian hypothesis testing on this variable.
-        The `change_fn` function computes the effect size variable r based two inputs
-        corresponding to the normalized means in both populations.
+        The `change_fn` function computes the effect size variable :math:`r` based on two inputs
+        corresponding to the posterior quantities (e.g., normalized expression) in both populations.
 
         Hypotheses:
 
@@ -81,33 +81,33 @@ class DifferentialComputation:
         To characterize the region :math:`R_1`, which induces DE, the user has two choices.
 
         1. A common case is when the region :math:`[-\delta, \delta]` does not induce differential
-        expression. If the user specifies a threshold delta, we suppose that :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
-        2. Specify an specific indicator function
+           expression. If the user specifies a threshold delta, we suppose that :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
+        2. Specify an specific indicator function:
 
         .. math::
-            f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 ~\text{iff.}~ f(r) = 1
+            f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 ~\text{iff.}~ f(r) = 1.
 
         Decision-making can then be based on the estimates of
 
         .. math::
-            p(M_1 \mid x_1, x_2)
+            p(M_1 \mid x_1, x_2).
 
         Both modes require to sample the posterior distributions.
         To that purpose, we sample the posterior in the following way:
 
         1. The posterior is sampled `n_samples` times for each subpopulation.
         2. For computational efficiency (posterior sampling is quite expensive), instead of
-        comparing the obtained samples element-wise, we can permute posterior samples.
-        Remember that computing the Bayes Factor requires sampling :math:`q(z_A \mid x_A)` and :math:`q(z_B \mid x_B)`
+           comparing the obtained samples element-wise, we can permute posterior samples.
+           Remember that computing the Bayes Factor requires sampling :math:`q(z_A \mid x_A)` and :math:`q(z_B \mid x_B)`.
 
         Currently, the code covers several batch handling configurations:
 
         1. If ``use_observed_batches=True``, then batch are considered as observations
-        and cells' normalized means are conditioned on real batch observations.
+           and cells' normalized means are conditioned on real batch observations.
         2. If case (cell group 1) and control (cell group 2) are conditioned on the same
-        batch ids. This requires ``set(batchid1) == set(batchid2)`` or ``batchid1 == batchid2 === None``.
+           batch ids. This requires ``set(batchid1) == set(batchid2)`` or ``batchid1 == batchid2 === None``.
         3. If case and control are conditioned on different batch ids that do not intersect
-        i.e., ``set(batchid1) != set(batchid2)`` and ``len(set(batchid1).intersection(set(batchid2))) == 0``.
+           i.e., ``set(batchid1) != set(batchid2)`` and ``len(set(batchid1).intersection(set(batchid2))) == 0``.
 
         This function does not cover other cases yet and will warn users in such cases.
 
