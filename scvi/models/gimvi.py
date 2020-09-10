@@ -288,7 +288,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         use_cuda: bool = False,
     ):
         """
-        Create an `scvi` model from the saved output.
+        Instantiate a model from the saved output.
 
         Parameters
         ----------
@@ -305,7 +305,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         Returns
         -------
-        `scvi` model
+        Model with loaded state dictionaries.
 
         Examples
         --------

@@ -43,7 +43,7 @@ class VAEMixin:
         **kwargs
     ):
         """
-        Train the model.
+        Trains the model using amortized variational inference.
 
         Parameters
         ----------
@@ -102,7 +102,7 @@ class VAEMixin:
         """
         Return the ELBO for the data.
 
-        The ELBO is the lower bound on the log likelihood of the data used for optimization
+        The ELBO is a lower bound on the log likelihood of the data used for optimization
         of VAEs.
 
         Parameters
@@ -845,9 +845,9 @@ class BaseModelClass(ABC):
 
     def save(self, dir_path: str, overwrite: bool = False):
         """
-        Save the state of the `scvi` model.
+        Save the state of the model.
 
-        The trainer optimizer state nor the trainer history are saved.
+        Neither the trainer optimizer state nor the trainer history are saved.
 
         Parameters
         ----------
@@ -877,7 +877,7 @@ class BaseModelClass(ABC):
     @classmethod
     def load(cls, adata: AnnData, dir_path: str, use_cuda: bool = False):
         """
-        Create an `scvi` model from the saved output.
+        Instantiate a model from the saved output.
 
         Parameters
         ----------
@@ -892,7 +892,7 @@ class BaseModelClass(ABC):
 
         Returns
         -------
-        `scvi` model
+        Model with loaded state dictionaries.
 
         Examples
         --------

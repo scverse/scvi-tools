@@ -96,13 +96,13 @@ def setup_anndata(
     adata
         AnnData object containing raw counts. Rows represent cells, columns represent features.
     batch_key
-        key in `adata.obs` for batch information. If they're not integers, will automatically be converted into integer
+        key in `adata.obs` for batch information. Categories will automatically be converted into integer
         categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data.
     labels_key
-        key in `adata.obs` for label information. If they're not integers, will automatically be converted into integer
+        key in `adata.obs` for label information. Categories will automatically be converted into integer
         categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label to all the data.
     use_raw
-        Use `.raw` when applicable (e.g., for X)
+        Use `.raw` when applicable (e.g., for `X`)
     layer
         if not `None`, uses this as the key in `adata.layers` for raw count data.
     protein_expression_obsm_key
