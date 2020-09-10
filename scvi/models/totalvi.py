@@ -14,7 +14,7 @@ from scvi.core.modules import TOTALVAE
 from scvi.core.models import BaseModelClass, VAEMixin
 from scvi.core.posteriors import TotalPosterior
 from scvi.core.trainers import TotalTrainer
-from scvi.models.differential import DifferentialComputation
+from scvi.core.utils import DifferentialComputation
 from scvi.models._utils import (
     scrna_raw_counts_properties,
     _get_var_names_from_setup_anndata,
@@ -626,7 +626,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
             Same as `batchid1` for group2. `batchid2` must either have null intersection with `batchid1`,
             or be exactly equal to `batchid1`.
         **kwargs
-            Keyword args for :func:`scvi.core.models.differential.DifferentialComputation.get_bayes_factors`
+            Keyword args for :func:`scvi.core.utils.DifferentialComputation.get_bayes_factors`
 
         Returns
         -------
