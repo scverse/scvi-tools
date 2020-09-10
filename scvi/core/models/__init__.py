@@ -321,7 +321,7 @@ class RNASeqMixin:
             Same as `batchid1` for group2. `batchid2` must either have null intersection with `batchid1`,
             or be exactly equal to `batchid1`.
         **kwargs
-            Keyword args for :func:`scvi.core.models._differential.DifferentialComputation.get_bayes_factors`
+            Keyword args for :func:`scvi.core.models.differential.DifferentialComputation.get_bayes_factors`
 
         Returns
         -------
