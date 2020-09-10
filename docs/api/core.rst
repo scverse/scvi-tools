@@ -54,3 +54,11 @@ Trainers
    core.trainers.ClassifierTrainer
    core.trainers.trainer.Trainer
    core.trainers.trainer.EarlyStopping
+
+Miscellaneous
+~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: reference/
+
+   core.models._differential.DifferentialComputation
