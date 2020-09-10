@@ -12,7 +12,7 @@ Version 1.0 introduces many breaking changes. The best way to learn how to use v
 * ``scvi`` now relies entirely on the AnnData_ format.
 * ``scvi.models`` has been moved to ``scvi.core.modules``.
 * ``scvi.inference`` has been split to ``scvi.core.posteriors`` for `Posterior` classes and ``scvi.core.trainers`` for trainer classes.
-* Usage of old classes like ``Trainer`` and ``Posterior` now require the ``AnnData`` data object as input.
+* Usage of old classes like ``Trainer`` and ``Posterior`` now require the ``AnnData`` data object as input.
 
 
 0.6.7 (2020-8-05)
