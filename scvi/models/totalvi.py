@@ -599,7 +599,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
             Subset of groups, e.g. [`'g1'`, `'g2'`, `'g3'`], to which comparison
             shall be restricted, or all groups in `groupby` (default).
         group2
-            If `"rest"`, compare each group in `group1` to the union of the rest of the groups
+            If `None`, compare each group in `group1` to the union of the rest of the groups
             in `groupby`. If a group identifier, compare with respect to this group.
         idx1
             Boolean mask or indices for `group1`. `idx1` and `idx2` can be used as an alternative

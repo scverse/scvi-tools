@@ -294,8 +294,8 @@ class RNASeqMixin:
             Subset of groups, e.g. [`'g1'`, `'g2'`, `'g3'`], to which comparison
             shall be restricted, or all groups in `groupby` (default).
         group2
-            If `None`, compare each group to the union of the rest of the group.
-            If a group identifier, compare with respect to this group.
+            If `None`, compare each group in `group1` to the union of the rest of the groups
+            in `groupby`. If a group identifier, compare with respect to this group.
         idx1
             Boolean mask or indices for `group1`. `idx1` and `idx2` can be used as an alternative
             to the AnnData keys. If `idx1` is not `None`, this option overrides `group1`
