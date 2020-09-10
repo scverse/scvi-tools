@@ -25,42 +25,43 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered with scvi
+        AnnData object that has been registered via :func:`~scvi.dataset.setup_anndata`.
     n_hidden
-        Number of nodes per hidden layer
+        Number of nodes per hidden layer.
     n_latent
-        Dimensionality of the latent space
+        Dimensionality of the latent space.
     n_layers
-        Number of hidden layers used for encoder NN
+        Number of hidden layers used for encoder NN.
     dropout_rate
-        Dropout rate for neural networks
+        Dropout rate for neural networks.
     dispersion
-        One of the following
+        One of the following:
 
         * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
         * ``'gene-batch'`` - dispersion can differ between different batches
         * ``'gene-label'`` - dispersion can differ between different labels
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
     gene_likelihood
-        One of
+        One of:
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
     latent_distribution
-        One of
+        One of:
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
+    use_cuda
+        Use the GPU or not.
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.dataset.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.models.LinearSCVI(adata)
-    >>> vae.train(n_epochs=400)
+    >>> vae.train()
     >>> adata.var["loadings"] = vae.get_loadings()
-
     """
 
     def __init__(
@@ -90,7 +91,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "LinearSCVI Model with following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
+            "LinearSCVI Model with params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
             "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
         ).format(
             n_hidden,
@@ -116,7 +117,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
         """
         Extract per-gene weights in the linear decoder.
 
-        Shape is genes by dim(Z)
+        Shape is genes by `n_latent`.
 
         """
         cols = ["Z_{}".format(i) for i in range(self.n_latent)]

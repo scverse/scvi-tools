@@ -20,7 +20,7 @@ from scvi.dataset._utils import (
     _check_nonnegative_integers,
 )
 from scvi import _CONSTANTS
-from typing import Optional, Union, List, Dict
+from typing import Optional, Union, List, Dict, Sequence
 from scvi._compat import Literal
 from scvi.core.trainers import UnsupervisedTrainer
 from abc import ABC, abstractmethod
@@ -32,16 +32,42 @@ logger = logging.getLogger(__name__)
 class VAEMixin:
     def train(
         self,
-        n_epochs=400,
-        train_size=0.9,
-        test_size=None,
-        lr=1e-3,
-        n_iter_kl_warmup=None,
-        n_epochs_kl_warmup=400,
-        frequency=None,
-        train_fun_kwargs={},
+        n_epochs: int = 400,
+        train_size: float = 0.9,
+        test_size: Optional[float] = None,
+        lr: float = 1e-3,
+        n_epochs_kl_warmup: int = 400,
+        n_iter_kl_warmup: int = None,
+        frequency: Optional[int] = None,
+        train_fun_kwargs: dict = {},
         **kwargs
     ):
+        """
+        Trains the model using amortized variational inference.
+
+        Parameters
+        ----------
+        n_epochs
+            Number of passes through the dataset.
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        test_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + test_size < 1`, the remaining cells belong to a validation set.
+        lr
+            Learning rate for optimization.
+        n_epochs_kl_warmup
+            Number of passes through dataset for scaling term on KL divergence to go from 0 to 1.
+        n_iter_kl_warmup
+            Number of minibatches for scaling term on KL divergence to go from 0 to 1.
+            To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
+        frequency
+            Frequency with which metrics are computed on the data for train/test/val sets.
+        train_fun_kwargs
+            Keyword args for the train method of :class:`~scvi.core.trainers.UnsupervisedTrainer`.
+        **kwargs
+            Other keyword args for :class:`~scvi.core.trainers.UnsupervisedTrainer`.
+        """
         train_fun_kwargs = dict(train_fun_kwargs)
         if self.is_trained_ is False:
             self.trainer = UnsupervisedTrainer(
@@ -67,8 +93,28 @@ class VAEMixin:
         self.is_trained_ = True
 
     @torch.no_grad()
-    def get_elbo(self, adata=None, indices=None, batch_size=128):
+    def get_elbo(
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        batch_size: int = 128,
+    ) -> float:
+        """
+        Return the ELBO for the data.
 
+        The ELBO is a lower bound on the log likelihood of the data used for optimization
+        of VAEs.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model.
+        """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
@@ -76,17 +122,56 @@ class VAEMixin:
 
     @torch.no_grad()
     def get_marginal_ll(
-        self, adata=None, indices=None, n_mc_samples=1000, batch_size=128
-    ):
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        n_mc_samples: int = 1000,
+        batch_size: int = 128,
+    ) -> float:
+        """
+        Return the marginal LL for the data.
 
+        The computation here is a biased estimator of the marginal log likelihood of the data.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        n_mc_samples
+            Number of Monte Carlo samples to use for marginal LL estimation.
+        batch_size
+            Minibatch size for data loading into model.
+        """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         return -post.marginal_ll(n_mc_samples=n_mc_samples)
 
     @torch.no_grad()
-    def get_reconstruction_error(self, adata=None, indices=None, batch_size=128):
+    def get_reconstruction_error(
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        batch_size: int = 128,
+    ) -> float:
+        r"""
+        Return the reconstruction error for the data.
 
+        This is typically written as :math:`p(x \mid z)`, the likelihood term given one posterior sample.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model.
+        """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
@@ -96,28 +181,30 @@ class VAEMixin:
     def get_latent_representation(
         self,
         adata: Optional[AnnData] = None,
-        indices: Optional[Union[np.ndarray, List[int]]] = None,
+        indices: Optional[Sequence[int]] = None,
         give_mean: bool = True,
         mc_samples: int = 5000,
-        batch_size=128,
+        batch_size: int = 128,
     ) -> np.ndarray:
-        """
+        r"""
         Return the latent representation for each cell.
+
+        This is denoted as :math:`z_n` in our manuscripts.
 
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         give_mean
-            Give mean of distribution or sample from it
+            Give mean of distribution or sample from it.
         mc_samples
             For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte Carlo
             samples to take for computing mean.
         batch_size
-            Minibatch size for data loading into model
+            Minibatch size for data loading into model.
 
         Returns
         -------
@@ -143,17 +230,16 @@ class RNASeqMixin:
     @torch.no_grad()
     def get_normalized_expression(
         self,
-        adata=None,
-        indices=None,
-        transform_batch: Optional[Union[str, int]] = None,
-        gene_list: Optional[Union[np.ndarray, List[int]]] = None,
-        library_size: Optional[Union[float, Literal["latent"]]] = 1,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        transform_batch: Optional[Sequence[Union[str, int]]] = None,
+        gene_list: Optional[Sequence[str]] = None,
+        library_size: Union[float, Literal["latent"]] = 1,
         n_samples: int = 1,
-        batch_size=128,
+        batch_size: int = 128,
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ) -> Union[np.ndarray, pd.DataFrame]:
-        # whatever is here will pass it into cat and batch
         r"""
         Returns the normalized (decoded) gene expression.
 
@@ -162,7 +248,7 @@ class RNASeqMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
@@ -170,8 +256,8 @@ class RNASeqMixin:
             Batch to condition on.
             If transform_batch is:
 
-            - None, then real observed batch is used
-            - int, then batch transform_batch is used
+            - None, then real observed batch is used.
+            - int, then batch transform_batch is used.
         gene_list
             Return frequencies of expression for a subset of genes.
             This can save memory when working with large datasets and few genes are
@@ -179,24 +265,22 @@ class RNASeqMixin:
         library_size
             Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude.
+            magnitude. If set to `"latent"`, use the latent libary size.
         n_samples
-            Get sample scale from multiple samples.
+            Number of posterior samples to use for estimation.
         batch_size
-            Minibatch size for data loading into model
+            Minibatch size for data loading into model.
         return_mean
             Whether to return the mean of the samples.
         return_numpy
-            Return a `np.ndarray` instead of a `pd.DataFrame`. Includes gene
-            names as columns. If either n_samples=1 or return_mean=True, defaults to False.
-            Otherwise, it defaults to True.
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame includes
+            gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults to `False`.
+            Otherwise, it defaults to `True`.
 
         Returns
         -------
-        - **normalized_expression** - array of normalized expression
-
-        If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, genes)``.
-        Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
+        If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
+        Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -264,12 +348,11 @@ class RNASeqMixin:
 
     def differential_expression(
         self,
-        groupby,
-        group1,
-        group2=None,
-        adata=None,
+        groupby: str,
+        group1: str,
+        group2: Optional[str] = None,
+        adata: Optional[AnnData] = None,
         mode="vanilla",
-        within_key=None,
         all_stats=True,
         use_permutation=False,
     ):
@@ -314,11 +397,11 @@ class RNASeqMixin:
     @torch.no_grad()
     def posterior_predictive_sample(
         self,
-        adata=None,
-        indices=None,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
         n_samples: int = 1,
-        gene_list: Union[list, np.ndarray] = None,
-        batch_size=128,
+        gene_list: Optional[Sequence[str]] = None,
+        batch_size: int = 128,
     ) -> np.ndarray:
         r"""
         Generate observation samples from the posterior predictive distribution.
@@ -328,16 +411,16 @@ class RNASeqMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         n_samples
-            Number of required samples for each cell
+            Number of samples for each cell.
         gene_list
-            Names of genes of interest
+            Names of genes of interest.
         batch_size
-            Minibatch size for data loading into model
+            Minibatch size for data loading into model.
 
         Returns
         -------
@@ -407,12 +490,12 @@ class RNASeqMixin:
     @torch.no_grad()
     def _get_denoised_samples(
         self,
-        adata=None,
-        indices=None,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
         n_samples: int = 25,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
-        transform_batch: Optional[int] = None,
+        transform_batch: Optional[Sequence[str]] = None,
     ) -> np.ndarray:
         """
         Return samples from an adjusted posterior predictive.
@@ -420,18 +503,18 @@ class RNASeqMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         n_samples
-            How may samples per cell
+            Number of posterior samples to use for estimation.
         batch_size
-            Minibatch size for data loading into model
+            Minibatch size for data loading into model.
         rna_size_factor
-            size factor for RNA prior to sampling gamma distribution
+            size factor for RNA prior to sampling gamma distribution.
         transform_batch
-            int of which batch to condition on for all cells
+            int of which batch to condition on for all cells.
 
         Returns
         -------
@@ -476,8 +559,8 @@ class RNASeqMixin:
     @torch.no_grad()
     def get_feature_correlation_matrix(
         self,
-        adata=None,
-        indices=None,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
         n_samples: int = 10,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
@@ -490,25 +573,25 @@ class RNASeqMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         n_samples
-            How may samples per cell
+            Number of posterior samples to use for estimation.
         batch_size
-            Minibatch size for data loading into model
+            Minibatch size for data loading into model.
         rna_size_factor
-            size factor for RNA prior to sampling gamma distribution
+            size factor for RNA prior to sampling gamma distribution.
         transform_batch
             Batches to condition on.
             If transform_batch is:
 
-            - None, then real observed batch is used
-            - int, then batch transform_batch is used
+            - None, then real observed batch is used.
+            - int, then batch transform_batch is used.
             - list of int, then values are averaged over provided batches.
         correlation_type
-            One of "pearson", "spearman"
+            One of "pearson", "spearman".
 
         Returns
         -------
@@ -553,8 +636,8 @@ class RNASeqMixin:
     @torch.no_grad()
     def get_likelihood_parameters(
         self,
-        adata=None,
-        indices=None,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
         n_samples: Optional[int] = 1,
         give_mean: Optional[bool] = False,
         batch_size=128,
@@ -605,8 +688,29 @@ class RNASeqMixin:
 
     @torch.no_grad()
     def get_latent_library_size(
-        self, adata=None, indices=None, give_mean=True, batch_size=128
-    ):
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        give_mean: bool = True,
+        batch_size: int = 128,
+    ) -> np.ndarray:
+        r"""
+        Returns the latent library size for each cell.
+
+        This is denoted as :math:`\ell_n` in the scVI paper.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        give_mean
+            Return the mean or a sample from the posterior distribution.
+        batch_size
+            Minibatch size for data loading into model.
+        """
         if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
         adata = self._validate_anndata(adata)
@@ -620,7 +724,7 @@ class RNASeqMixin:
 
 
 class BaseModelClass(ABC):
-    def __init__(self, adata=None, use_cuda=False):
+    def __init__(self, adata: Optional[AnnData] = None, use_cuda=False):
         if adata is not None:
             if "_scvi" not in adata.uns.keys():
                 raise ValueError(
@@ -639,8 +743,13 @@ class BaseModelClass(ABC):
         self.validation_indices_ = None
 
     def _make_posterior(
-        self, adata: AnnData, indices=None, batch_size=128, **posterior_kwargs
+        self,
+        adata: AnnData,
+        indices: Optional[Sequence[int]] = None,
+        batch_size: int = 128,
+        **posterior_kwargs
     ):
+        """Create a Posterior object for data iteration."""
         if indices is None:
             indices = np.arange(adata.n_obs)
         post = self._posterior_class(
@@ -657,6 +766,7 @@ class BaseModelClass(ABC):
     def _validate_anndata(
         self, adata: Optional[AnnData] = None, copy_if_view: bool = True
     ):
+        """Validate anndata has been properly registered, transfer if necessary."""
         if adata is None:
             adata = self.adata
         if adata.is_view:
@@ -733,7 +843,20 @@ class BaseModelClass(ABC):
         }
         return user_params
 
-    def save(self, dir_path, overwrite=False):
+    def save(self, dir_path: str, overwrite: bool = False):
+        """
+        Save the state of the model.
+
+        Neither the trainer optimizer state nor the trainer history are saved.
+
+        Parameters
+        ----------
+        dir_path
+            Path to a directory.
+        overwrite
+            Overwrite existing data or not. If `False` and directory
+            already exists at `dir_path`, error will be raised.
+        """
         # get all the user attributes
         user_attributes = self._get_user_attributes()
         # only save the public attributes with _ at the very end
@@ -752,7 +875,30 @@ class BaseModelClass(ABC):
             pickle.dump(user_attributes, f)
 
     @classmethod
-    def load(cls, adata: AnnData, dir_path, use_cuda=False):
+    def load(cls, adata: AnnData, dir_path: str, use_cuda: bool = False):
+        """
+        Instantiate a model from the saved output.
+
+        Parameters
+        ----------
+        adata
+            AnnData organized in the same way as data used to train model.
+            It is not necessary to run :func:`~scvi.dataset.setup_anndata`,
+            as AnnData is validated against the saved `scvi` setup dictionary.
+        dir_path
+            Path to saved outputs.
+        use_cuda
+            Whether to load model on GPU.
+
+        Returns
+        -------
+        Model with loaded state dictionaries.
+
+        Examples
+        --------
+        >>> vae = SCVI.load(adata, save_path)
+        >>> vae.get_latent_representation()
+        """
         model_path = os.path.join(dir_path, "model_params.pt")
         setup_dict_path = os.path.join(dir_path, "attr.pkl")
         with open(setup_dict_path, "rb") as handle:

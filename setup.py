@@ -6,9 +6,6 @@ from setuptools import setup, find_packages
 with open("README.rst") as readme_file:
     readme = readme_file.read()
 
-with open("HISTORY.rst") as history_file:
-    history = history_file.read()
-
 requirements = [
     "numpy>=1.17.0",
     "torch>=1.3",
@@ -62,7 +59,7 @@ extras_requirements = {
         "sphinx-rtd-theme>=0.3.1",
         "nbsphinx-link",
         "scanpydoc",
-        "pydata-sphinx-theme",
+        "pydata-sphinx-theme>=0.4.0",
         'typing_extensions; python_version < "3.8"',  # for `Literal`
         "ipython>=7.1.1",
     ],
@@ -99,7 +96,7 @@ setup(
     description="Single-cell Variational Inference",
     install_requires=requirements,
     license="MIT license",
-    long_description=readme + "\n\n" + history,
+    long_description=readme,
     include_package_data=True,
     keywords="scvi",
     name="scvi",
