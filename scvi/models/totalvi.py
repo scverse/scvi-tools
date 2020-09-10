@@ -579,7 +579,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
         batchid2: Optional[Iterable[str]] = None,
         protein_prior_count: float = 0.5,
         scale_protein: bool = False,
-        sample_protein_mixing: bool = False,
+        sample_protein_mixing: bool = True,
         include_protein_background: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
@@ -630,7 +630,8 @@ class TOTALVI(VAEMixin, BaseModelClass):
         scale_protein
             Force protein values to sum to one in every single cell (post-hoc normalization)
         sample_protein_mixing
-            Sample the protein mixture component
+            Sample the protein mixture component, i.e., use the parameter to sample a Bernoulli
+            that determines if expression is from foreground/background.
         include_protein_background
             Include the protein background component as part of the protein expression
         **kwargs
