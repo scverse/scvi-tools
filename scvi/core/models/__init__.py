@@ -665,7 +665,7 @@ class BaseModelClass(ABC):
                 adata = adata.copy()
             else:
                 raise ValueError(
-                    "Please run `adata = adata.copy()` or set copy_if_view to be True."
+                    "Please run `adata = adata.copy()`"
                 )
 
         if "_scvi" not in adata.uns_keys():
