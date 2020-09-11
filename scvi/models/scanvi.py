@@ -266,6 +266,10 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             Minibatch size to use.
         """
         adata = self._validate_anndata(adata)
+
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         _, pred = post.sequential().compute_predictions(soft=soft)
@@ -278,6 +282,8 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             return np.array(predictions)
         else:
             pred = pd.DataFrame(
-                pred, columns=self._label_mapping, index=adata.obs_names
+                pred,
+                columns=self._label_mapping,
+                index=adata.obs_names[indices],
             )
             return pred

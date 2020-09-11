@@ -174,11 +174,14 @@ def setup_anndata(
     INFO      Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels', 'protein_expression']
     INFO      Successfully registered anndata object containing 400 cells, 100 genes, 2 batches, 1 labels, and 100 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
     """
-    if adata.is_view:
-        raise ValueError("adata cannot be a view of an AnnData object.")
-
     if copy:
         adata = adata.copy()
+
+    if adata.is_view:
+        raise ValueError(
+            "Please run `adata = adata.copy()` or use the copy option in this function."
+        )
+
     adata.uns["_scvi"] = {}
     adata.uns["_scvi"]["scvi_version"] = scvi.__version__
 
@@ -228,7 +231,7 @@ def setup_anndata(
 
     # add the data_registry to anndata
     _register_anndata(adata, data_registry_dict=data_registry)
-    logger.info("Registered keys:{}".format(list(data_registry.keys())))
+    logger.debug("Registered keys:{}".format(list(data_registry.keys())))
     _setup_summary_stats(
         adata,
         batch_key,
@@ -237,6 +240,7 @@ def setup_anndata(
         categorical_covariate_keys,
         continuous_covariate_keys,
     )
+    logger.info("Please do not further modify adata until model is trained.")
 
     if copy:
         return adata

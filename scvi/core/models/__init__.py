@@ -770,10 +770,12 @@ class BaseModelClass(ABC):
         if adata is None:
             adata = self.adata
         if adata.is_view:
-            logger.warning("Input anndata is a view.")
             if copy_if_view:
-                logger.info("Making copy of anndata.")
+                logger.info("Received view of anndata, making copy.")
                 adata = adata.copy()
+            else:
+                raise ValueError("Please run `adata = adata.copy()`")
+
         if "_scvi" not in adata.uns_keys():
             logger.info(
                 "Input adata not setup with scvi. "
