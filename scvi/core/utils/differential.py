@@ -379,6 +379,8 @@ class DifferentialComputation:
             raise ValueError("selections should be a list of cell subsets indices")
         selection = np.asarray(selection)
         if selection.dtype is np.dtype("bool"):
+            if len(selection) < self.adata.shape[0]:
+                raise ValueError("Mask must be same length as adata.")
             selection = np.asarray(np.where(selection)[0].ravel())
 
         # Sampling loop
