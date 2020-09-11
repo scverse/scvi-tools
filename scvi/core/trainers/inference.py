@@ -119,30 +119,17 @@ class UnsupervisedTrainer(Trainer):
     def posteriors_loop(self):
         return ["train_set"]
 
+    # loss function of trinaer calls loss of model and feeds the kl weight
+    # klweight of model default is 1.0
     def loss(self, tensors: dict, feed_labels: bool = True):
         # The next lines should not be modified, because scanVI's trainer inherits
         # from this class and should NOT include label information to compute the ELBO by default
         if not feed_labels:
-            # you should make labels key non
-            y = None
-        # should be **tensors
-        # modify this
-        outputs = self.model(tensors)
-        losses = self.model.loss(tensors, outputs)
-        # reconst_loss, kl_divergence_local, kl_divergence_global =
+            tensors[_CONSTANTS.LABELS_KEY] = None
 
-        reconst_loss = losses["reconstruction_loss"]
-        kl_local_for_warmup = losses["kl_local_for_warmup"]
-        kl_local_no_warmup = losses["kl_local_no_warmup"]
-        kl_global_for_warmup = losses["kl_global_for_warmup"]
-        kl_global_no_warmup = losses["kl_global_no_warmup"]
+        outputs = self.model(tensors, self.kl_weight, self.normalize_loss)
+        loss = outputs["loss"]
 
-        loss = self.n_samples * torch.mean(
-            reconst_loss + self.kl_weight * kl_local_for_warmup + kl_local_no_warmup
-        ) + (self.kl_weight * kl_global_for_warmup + kl_global_no_warmup)
-
-        if self.normalize_loss:
-            loss = loss / self.n_samples
         return loss
 
     @property

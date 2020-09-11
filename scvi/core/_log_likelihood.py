@@ -24,19 +24,36 @@ def compute_elbo(vae, posterior, **kwargs):
         # kl_divergence_global (scalar) should be common across all batches after training
         outputs = vae(tensors)
 
-        reconst_loss = outputs["reconstruction_loss"]
-        kl_local_for_warmup = outputs["kl_local_for_warmup"]
-        kl_local_no_warmup = outputs["kl_local_no_warmup"]
-        kl_global_for_warmup = outputs["kl_global_for_warmup"]
-        kl_global_no_warmup = outputs["kl_global_no_warmup"]
+        reconstruction_losses = outputs["reconstruction_losses"]
+        kls_local = outputs["kl_local"]
 
-        elbo += torch.sum(
-            reconst_loss + kl_local_for_warmup + kl_local_no_warmup
-        ).item()
+        if isinstance(reconstruction_losses, dict):
+            reconstruction_loss = 0.0
+            for value in reconstruction_losses.values():
+                reconstruction_loss += value
+        else:
+            reconstruction_loss = reconstruction_losses
+
+        if isinstance(kls_local, dict):
+            kl_local = 0.0
+            for kl in kls_local.values():
+                kl_local += kl
+        else:
+            kl_local = kls_local
+
+        elbo += torch.sum(reconstruction_loss + kl_local).item()
+
+    kl_globals = outputs["kl_global"]
+    if isinstance(kl_globals, dict):
+        kl_global = 0.0
+        for kl in kl_globals.values():
+            kl_global += kl
+    else:
+        kl_global = kl_globals
 
     n_samples = len(posterior.indices)
 
-    elbo += kl_global_for_warmup + kl_global_no_warmup
+    elbo += kl_global
     return elbo / n_samples
 
 
@@ -52,10 +69,16 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
         # Distribution parameters
         # should call forward and take the first term
         # outputs = vae.inference(sample_batch, batch_index, labels, **kwargs)
-        outputs = vae(tensors)
-        reconst_loss = outputs["reconstruction_loss"]
+        outputs = vae(tensors, kl_weight=1)
+        reconstruction_loss = outputs["reconstruction_loss"]
 
-        # what is bernoulli params?
+        # this if for TotalVI
+        if isinstance(reconstruction_loss, dict):
+            recon_loss = 0
+            for value in recon_loss.values():
+                recon_loss += value
+            reconstruction_loss = recon_loss
+
         # Reconstruction loss
         # reconst_loss = vae.get_reconstruction_loss(
         #     sample_batch,
@@ -66,7 +89,7 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
         #     **kwargs
         # )
 
-        log_lkl += torch.sum(reconst_loss).item()
+        log_lkl += torch.sum(reconstruction_loss).item()
     n_samples = len(posterior.indices)
     return log_lkl / n_samples
 

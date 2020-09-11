@@ -121,7 +121,11 @@ class VAE(AbstractVAE):
             n_hidden=n_hidden,
         )
 
-    def forward(self, tensors) -> Tuple[torch.Tensor, torch.Tensor]:
+    # pretty sure kwargs doesnt work in forward function
+    # def forward(self, tensors, **loss_kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self, tensors, kl_weight=1.0, normalize_loss=True
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass through the network
 
@@ -134,11 +138,15 @@ class VAE(AbstractVAE):
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
         outputs = self._full_pass(x, batch_index)
-        losses = self.loss(tensors, outputs)
-
+        losses = self.loss(
+            tensors=tensors,
+            model_outputs=outputs,
+            kl_weight=kl_weight,
+            normalize_loss=normalize_loss,
+        )
         return dict(**outputs, **losses)
 
-    def loss(self, tensors, model_outputs):
+    def loss(self, tensors, model_outputs, kl_weight=1.0, normalize_loss=True):
         x = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
         local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
@@ -165,12 +173,30 @@ class VAE(AbstractVAE):
 
         reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
 
+        kl_local_for_warmup = kl_divergence_l
+        kl_local_no_warmup = kl_divergence_z
+        kl_global_for_warmup = 0.0
+        kl_global_no_warmup = 0.0
+
+        weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
+        weighted_kl_global = kl_weight * kl_global_for_warmup + kl_global_no_warmup
+
+        loss = torch.mean(reconst_loss + weighted_kl_local) + weighted_kl_global
+
+        if not normalize_loss:
+            n_samples = x.shape[0]
+            loss = loss * n_samples
+
+        kl_local = dict(
+            kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
+        )
+        kl_global = 0.0
+
         return dict(
-            reconstruction_loss=reconst_loss,
-            kl_local_for_warmup=kl_divergence_l,
-            kl_local_no_warmup=kl_divergence_z,
-            kl_global_for_warmup=0.0,
-            kl_global_no_warmup=0.0,
+            loss=loss,
+            reconstruction_losses=reconst_loss,
+            kl_local=kl_local,
+            kl_global=kl_global,
         )
 
     def get_reconstruction_loss(
