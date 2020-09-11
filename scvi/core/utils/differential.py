@@ -18,7 +18,7 @@ class DifferentialComputation:
 
     This class takes a function from a model like `SCVI` or `TOTALVI` and takes outputs
     from this function with respect to the adata input and computed Bayes factors as
-    described in [Lopez18]_ or [Boyeau19]_.
+    described in [Lopez18]_, [Xu19]_, or [Boyeau19]_.
 
     Parameters
     ----------
@@ -53,7 +53,7 @@ class DifferentialComputation:
 
         Two modes coexist:
 
-        - the ``"vanilla"` mode follows protocol described in [Lopez18]_
+        - the `"vanilla"` mode follows protocol described in [Lopez18]_ and [Xu19]_
         In this case, we perform hypothesis testing based on the hypotheses
 
         .. math::
