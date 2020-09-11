@@ -166,8 +166,9 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
     error_msg = (
         "Categorial encoding for {} is not the same between "
         + "the anndata used to train the model and the anndata just passed in. "
-        + "Categorical encoding needs to be same elements, same order, and same datatype."
-        + "Expected categories: {}. Received categories: {}."
+        + "Categorical encoding needs to be same elements, same order, and same datatype.\n"
+        + "Expected categories: {}. Received categories: {}.\n"
+        + "Try running `dataset.transfer_anndata_setup()` or deleting `adata.uns['_scvi']."
     )
     if np.sum(self_batch_mapping == adata_batch_mapping) != len(self_batch_mapping):
         raise ValueError(

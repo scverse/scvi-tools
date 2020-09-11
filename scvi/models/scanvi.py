@@ -2,7 +2,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from typing import Union, Optional
+from typing import Union, Optional, Sequence
 from anndata import AnnData
 
 from scvi import _CONSTANTS
@@ -25,44 +25,41 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered with scvi
+        AnnData object that has been registered via :func:`~scvi.dataset.setup_anndata`.
     unlabeled_category
-        Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi
+        Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
     pretrained_model
-        Instance of SCVI model that has already been trained
+        Instance of SCVI model that has already been trained.
     n_hidden
-        Number of nodes per hidden layer
+        Number of nodes per hidden layer.
     n_latent
-        Dimensionality of the latent space
+        Dimensionality of the latent space.
     n_layers
-        Number of hidden layers used for encoder and decoder NNs
+        Number of hidden layers used for encoder and decoder NNs.
     dropout_rate
-        Dropout rate for neural networks
+        Dropout rate for neural networks.
     dispersion
-        One of the following
+        One of the following:
 
         * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
         * ``'gene-batch'`` - dispersion can differ between different batches
         * ``'gene-label'`` - dispersion can differ between different labels
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
     gene_likelihood
-        One of
+        One of:
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
-    latent_distribution
-        One of
-
-        * ``'normal'`` - Normal distribution
-        * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
+    use_cuda
+        Use the GPU or not.
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.dataset.setup_anndata(adata, batch_key="batch", labels_key="labels")
-    >>> vae = scvi.models.SCANVI(adata)
-    >>> vae.train(n_epochs=400)
+    >>> vae = scvi.models.SCANVI(adata, "Unknown")
+    >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     >>> adata.obs["pred_label"] = vae.predict()
     """
@@ -157,14 +154,44 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         train_size=0.9,
         test_size=None,
         lr=1e-3,
-        n_iter_kl_warmup=None,
         n_epochs_kl_warmup=400,
+        n_iter_kl_warmup=None,
         frequency=None,
         unsupervised_trainer_kwargs={},
         semisupervised_trainer_kwargs={},
         unsupervised_train_kwargs={},
         semisupervised_train_kwargs={},
     ):
+        """
+        Train the model.
+
+        Parameters
+        ----------
+        n_epochs_unsupervised
+            Number of passes through the dataset for unsupervised pre-training.
+        n_epochs_semisupervised
+            Number of passes through the dataset for semisupervised training.
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        test_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + test_size < 1`, the remaining cells belong to a validation set.
+        lr
+            Learning rate for optimization.
+        n_epochs_kl_warmup
+            Number of passes through dataset for scaling term on KL divergence to go from 0 to 1.
+        n_iter_kl_warmup
+            Number of minibatches for scaling term on KL divergence to go from 0 to 1.
+            To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
+        frequency
+            Frequency with which metrics are computed on the data for train/test/val sets.
+        unsupervised_trainer_kwargs
+            Other keyword args for :class:`~scvi.core.trainers.UnsupervisedTrainer`.
+        semisupervised_trainer_kwargs
+            Other keyword args for :class:`~scvi.core.trainers.SemiSupervisedTrainer`.
+        semisupervised_train_kwargs
+            Keyword args for the train method of :class:`~scvi.core.trainers.SemiSupervisedTrainer`.
+        """
         unsupervised_trainer_kwargs = dict(unsupervised_trainer_kwargs)
         semisupervised_trainer_kwargs = dict(semisupervised_trainer_kwargs)
         unsupervised_train_kwargs = dict(unsupervised_train_kwargs)
@@ -217,23 +244,32 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         self.is_trained_ = True
 
-    def predict(self, adata=None, indices=None, soft=False, batch_size=128):
+    def predict(
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        soft: bool = False,
+        batch_size: int = 128,
+    ) -> Union[np.ndarray, pd.DataFrame]:
         """
-        Compute cell label predictions.
+        Return cell label predictions.
 
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnData object that has been registered via :func:`~scvi.dataset.setup_anndata`.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         soft
-            TODO
+            Return probabilities for each class label.
         batch_size
-            Minibatch size to use
+            Minibatch size to use.
         """
         adata = self._validate_anndata(adata)
+
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
 
         _, pred = post.sequential().compute_predictions(soft=soft)
@@ -246,6 +282,8 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             return np.array(predictions)
         else:
             pred = pd.DataFrame(
-                pred, columns=self._label_mapping, index=adata.obs_names
+                pred,
+                columns=self._label_mapping,
+                index=adata.obs_names[indices],
             )
             return pred

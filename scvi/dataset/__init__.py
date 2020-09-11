@@ -26,6 +26,7 @@ from ._datasets import (
     frontalcortex_dropseq,
     annotation_simulation,
 )
+from anndata import read_h5ad, read_csv, read_loom, read_text
 
 
 __all__ = [
@@ -51,4 +52,8 @@ __all__ = [
     "annotation_simulation",
     "transfer_anndata_setup",
     "register_tensor_from_anndata",
+    "read_h5ad",
+    "read_csv",
+    "read_loom",
+    "read_text",
 ]

@@ -5,5 +5,5 @@ sphinx-autodoc-typehints
 nbsphinx-link
 ipython
 scanpydoc>=0.4.5
-pydata-sphinx-theme
+pydata-sphinx-theme>=0.4.0
 typing_extensions; python_version < '3.8'

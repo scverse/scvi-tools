@@ -21,7 +21,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered with scvi
+        AnnData object that has been registered via :func:`~scvi.dataset.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer
     n_latent
@@ -42,6 +42,8 @@ class AUTOZI(VAEMixin, BaseModelClass):
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
+    use_cuda
+        Use the GPU or not.
     alpha_prior
         Float denoting the alpha parameter of the prior Beta distribution of
         the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.

@@ -82,7 +82,7 @@ def poisson_gene_selection(
         If batch_key is given, this denotes in how many batches genes are detected as zero enriched
 
     """
-    from tqdm import tqdm
+    from scvi._compat import tqdm
     import sys
 
     X = adata.layers[layer] if layer is not None else adata.X
