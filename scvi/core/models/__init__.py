@@ -664,9 +664,7 @@ class BaseModelClass(ABC):
                 logger.info("Received view of anndata, making copy.")
                 adata = adata.copy()
             else:
-                raise ValueError(
-                    "Please run `adata = adata.copy()`"
-                )
+                raise ValueError("Please run `adata = adata.copy()`")
 
         if "_scvi" not in adata.uns_keys():
             logger.info(
