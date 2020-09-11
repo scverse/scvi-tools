@@ -639,8 +639,8 @@ class TOTALVI(VAEMixin, BaseModelClass):
         self,
         adata: Optional[AnnData] = None,
         groupby: Optional[str] = None,
-        group1: Optional[Iterable[str]] = None,
-        group2: Optional[str] = None,
+        groups: Optional[Iterable[str]] = None,
+        reference: Optional[str] = None,
         idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         mode: Literal["vanilla", "change"] = "change",
@@ -667,18 +667,18 @@ class TOTALVI(VAEMixin, BaseModelClass):
             If None, defaults to the AnnData object used to initialize the model.
         groupby
             The key of the observations grouping to consider.
-        group1
+        groups
             Subset of groups, e.g. [`'g1'`, `'g2'`, `'g3'`], to which comparison
             shall be restricted, or all groups in `groupby` (default).
-        group2
-            If `None`, compare each group in `group1` to the union of the rest of the groups
+        reference
+            If `None`, compare each group in `groups` to the union of the rest of the groups
             in `groupby`. If a group identifier, compare with respect to this group.
         idx1
-            Boolean mask or indices for `group1`. `idx1` and `idx2` can be used as an alternative
+            Boolean mask or indices for `query`. `idx1` and `idx2` can be used as an alternative
             to the AnnData keys. If `idx1` is not `None`, this option overrides `group1`
             and `group2`.
         idx2
-            Boolean mask or indices for `group2`. By default, includes all cells not specified in
+            Boolean mask or indices for `reference`. By default, includes all cells not specified in
             `idx1`.
         mode
             Method for differential expression. See user guide for full explanation.
@@ -714,7 +714,9 @@ class TOTALVI(VAEMixin, BaseModelClass):
         Differential expression DataFrame.
         """
         adata = self._validate_anndata(adata)
-
+        # groups vs reference ==> group1 vs group2 in code
+        group1 = groups
+        group2 = reference
         if group1 is None and idx1 is None:
             group1 = adata.obs[groupby].cat.categories.tolist()
 
