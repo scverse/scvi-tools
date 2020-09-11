@@ -319,7 +319,7 @@ def setup_anndata(
 
     # add the data_registry to anndata
     _register_anndata(adata, data_registry_dict=data_registry)
-    logger.info("Registered keys:{}".format(list(data_registry.keys())))
+    logger.debug("Registered keys:{}".format(list(data_registry.keys())))
     _setup_summary_stats(
         adata,
         batch_key,
@@ -328,6 +328,7 @@ def setup_anndata(
         categorical_covariate_keys,
         continuous_covariate_keys,
     )
+    logger.info("Please do not further modify adata until model is trained.")
 
     if copy:
         return adata
