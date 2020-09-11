@@ -57,8 +57,16 @@ def scrna_raw_counts_properties(
 
     norm_mean1 = np.asarray(normalized_data[idx1, :].mean(axis=0)).ravel()
     norm_mean2 = np.asarray(normalized_data[idx2, :].mean(axis=0)).ravel()
-    return_vals = [mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2]
-    return [np.squeeze(np.asarray(arr)) for arr in return_vals]
+
+    properties = dict(
+        raw_mean1=mean1,
+        raw_mean2=mean2,
+        non_zeros_proportion1=nonz1,
+        non_zeros_proportion2=nonz2,
+        raw_normalized_mean1=norm_mean1,
+        raw_normalized_mean2=norm_mean2,
+    )
+    return properties
 
 
 def _get_var_names_from_setup_anndata(adata):

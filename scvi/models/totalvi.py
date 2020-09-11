@@ -700,29 +700,30 @@ class TOTALVI(VAEMixin, BaseModelClass):
 
             if all_stats is True:
                 nan = np.array([np.nan] * len(adata.uns["scvi_protein_names"]))
-                (
-                    mean1,
-                    mean2,
-                    nonz1,
-                    nonz2,
-                    norm_mean1,
-                    norm_mean2,
-                ) = scrna_raw_counts_properties(adata, cell_idx1, cell_idx2)
+                gp = scrna_raw_counts_properties(adata, cell_idx1, cell_idx2)
                 protein_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
-                mean2_pro = np.asarray(protein_exp[cell_idx2].mean(0))
                 mean1_pro = np.asarray(protein_exp[cell_idx1].mean(0))
+                mean2_pro = np.asarray(protein_exp[cell_idx2].mean(0))
                 nonz1_pro = np.asarray((protein_exp[cell_idx1] > 0).mean(0))
                 nonz2_pro = np.asarray((protein_exp[cell_idx2] > 0).mean(0))
                 # TODO implement properties for proteins
-                genes_properties_dict = dict(
-                    raw_mean1=np.concatenate([mean1, mean1_pro]),
-                    raw_mean2=np.concatenate([mean2, mean2_pro]),
-                    non_zeros_proportion1=np.concatenate([nonz1, nonz1_pro]),
-                    non_zeros_proportion2=np.concatenate([nonz2, nonz2_pro]),
-                    raw_normalized_mean1=np.concatenate([norm_mean1, nan]),
-                    raw_normalized_mean2=np.concatenate([norm_mean2, nan]),
+                properties_dict = dict(
+                    raw_mean1=np.concatenate([gp["raw_mean1"], mean1_pro]),
+                    raw_mean2=np.concatenate([gp["raw_mean2"], mean2_pro]),
+                    non_zeros_proportion1=np.concatenate(
+                        [gp["non_zeros_proportion1"], nonz1_pro]
+                    ),
+                    non_zeros_proportion2=np.concatenate(
+                        [gp["non_zeros_proportion2"], nonz2_pro]
+                    ),
+                    raw_normalized_mean1=np.concatenate(
+                        [gp["raw_normalized_mean1"], nan]
+                    ),
+                    raw_normalized_mean2=np.concatenate(
+                        [gp["raw_normalized_mean2"], nan]
+                    ),
                 )
-                all_info = {**all_info, **genes_properties_dict}
+                all_info = {**all_info, **properties_dict}
 
             res = pd.DataFrame(all_info, index=col_names)
             sort_key = "proba_de" if mode == "change" else "bayes_factor"

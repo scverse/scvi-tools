@@ -374,21 +374,8 @@ class RNASeqMixin:
             )
 
             if all_stats is True:
-                (
-                    mean1,
-                    mean2,
-                    nonz1,
-                    nonz2,
-                    norm_mean1,
-                    norm_mean2,
-                ) = scrna_raw_counts_properties(adata, cell_idx1, cell_idx2)
-                genes_properties_dict = dict(
-                    raw_mean1=mean1,
-                    raw_mean2=mean2,
-                    non_zeros_proportion1=nonz1,
-                    non_zeros_proportion2=nonz2,
-                    raw_normalized_mean1=norm_mean1,
-                    raw_normalized_mean2=norm_mean2,
+                genes_properties_dict = scrna_raw_counts_properties(
+                    adata, cell_idx1, cell_idx2
                 )
                 all_info = {**all_info, **genes_properties_dict}
 
