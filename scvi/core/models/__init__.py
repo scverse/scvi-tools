@@ -351,7 +351,9 @@ class RNASeqMixin:
 
         df_results = []
         gene_names = _get_var_names_from_setup_anndata(adata)
-        model_fn = partial(self.get_normalized_expression, return_numpy=True)
+        model_fn = partial(
+            self.get_normalized_expression, return_numpy=True, n_samples=1
+        )
         dc = DifferentialComputation(model_fn, adata)
         for g1 in group1:
             cell_idx1 = adata.obs[groupby] == g1

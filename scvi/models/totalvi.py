@@ -554,6 +554,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
             indices=indices,
             transform_batch=transform_batch,
             return_numpy=True,
+            n_samples=1,
             scale_protein=scale_protein,
             sample_protein_mixing=sample_protein_mixing,
             include_protein_background=include_protein_background,
