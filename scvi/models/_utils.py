@@ -39,22 +39,18 @@ def scrna_raw_counts_properties(
     nonz1 = np.asarray((data1 != 0).mean(axis=0)).ravel()
     nonz2 = np.asarray((data2 != 0).mean(axis=0)).ravel()
 
-    key = "_scvi_raw_norm_X"
-    if key not in adata.obsm.keys():
-        scaling_factor = np.asarray(data.sum(axis=1)).ravel().reshape(-1, 1)
-        normalized_data = 1e4 * data / scaling_factor
-        adata.obsm[key] = normalized_data
-        logger.info(
-            "Storing library size normalized data in adata.obsm['{}']".format(key)
-        )
-        logger.info(
-            "This may be deleted after DE -- 'del adata.obsm['{}']'".format(key)
-        )
+    key = "_scvi_raw_norm_scaling"
+    if key not in adata.obs.keys():
+        scaling_factor = 1 / np.asarray(data.sum(axis=1)).ravel().reshape(-1, 1)
+        scaling_factor *= 1e4
     else:
-        normalized_data = adata.obsm[key]
+        scaling_factor = adata.obs[key].to_numpy().ravel()
 
-    norm_mean1 = np.asarray(normalized_data[idx1, :].mean(axis=0)).ravel()
-    norm_mean2 = np.asarray(normalized_data[idx2, :].mean(axis=0)).ravel()
+    norm_data1 = data1 * scaling_factor[idx1]
+    norm_data2 = data2 * scaling_factor[idx2]
+
+    norm_mean1 = np.asarray(norm_data1.mean(axis=0)).ravel()
+    norm_mean2 = np.asarray(norm_data2.mean(axis=0)).ravel()
 
     properties = dict(
         raw_mean1=mean1,
