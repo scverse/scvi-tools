@@ -777,7 +777,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
             res = pd.DataFrame(all_info, index=col_names)
             sort_key = "proba_de" if mode == "change" else "bayes_factor"
             res = res.sort_values(by=sort_key, ascending=False)
-            if idx1 is not None:
+            if idx1 is None:
                 res["comparison"] = "{} vs {}".format(g1, group2)
             df_results.append(res)
 
