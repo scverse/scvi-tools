@@ -21,11 +21,10 @@ import sys
 
 
 def track(*args, **kwargs):
-    console = Console(force_terminal=True)
     in_colab = "google.colab" in sys.modules
-    if in_colab:
-        if console.is_jupyter is True:
-            console.is_jupyter = False
+    force_jupyter = None if not in_colab else True
+    console = Console(force_jupyter=force_jupyter)
+
     if "disable" in kwargs.keys():
         disable = kwargs.pop("disable")
     else:
