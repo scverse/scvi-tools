@@ -363,6 +363,7 @@ class RNASeqMixin:
         idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.25,
+        batch_size: int = 128,
         all_stats: bool = True,
         batch_correction: bool = False,
         batchid1: Optional[Iterable[str]] = None,
@@ -409,7 +410,10 @@ class RNASeqMixin:
         df_results = []
         gene_names = _get_var_names_from_setup_anndata(adata)
         model_fn = partial(
-            self.get_normalized_expression, return_numpy=True, n_samples=1
+            self.get_normalized_expression,
+            return_numpy=True,
+            n_samples=1,
+            batch_size=batch_size,
         )
         dc = DifferentialComputation(model_fn, adata)
         for g1 in tqdm(

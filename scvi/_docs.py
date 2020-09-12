@@ -25,6 +25,8 @@ delta
     specific case of region inducing differential expression.
     In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce differential expression
     (change model default case).
+batch_size
+    Minibatch size for data loading into model.
 all_stats
     Concatenate count statistics (e.g., mean expression group 1) to DE results.
 batch_correction

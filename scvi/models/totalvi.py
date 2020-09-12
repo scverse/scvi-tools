@@ -621,6 +621,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
         indices=None,
         transform_batch: Optional[int] = None,
         scale_protein=False,
+        batch_size=128,
         sample_protein_mixing=False,
         include_protein_background=False,
         protein_prior_count=0.5,
@@ -631,6 +632,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
             transform_batch=transform_batch,
             return_numpy=True,
             n_samples=1,
+            batch_size=batch_size,
             scale_protein=scale_protein,
             sample_protein_mixing=sample_protein_mixing,
             include_protein_background=include_protein_background,
@@ -653,6 +655,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
         idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.25,
+        batch_size: int = 128,
         all_stats: bool = True,
         batch_correction: bool = False,
         batchid1: Optional[Iterable[str]] = None,
@@ -715,6 +718,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
             sample_protein_mixing=sample_protein_mixing,
             include_protein_background=include_protein_background,
             protein_prior_count=protein_prior_count,
+            batch_size=batch_size,
         )
 
         col_names = np.concatenate(
