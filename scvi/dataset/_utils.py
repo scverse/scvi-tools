@@ -111,7 +111,7 @@ def _check_nonnegative_integers(
 
 @numba.njit(cache=True)
 def _iterate_nonnegative_integers(data):
-    for i, d in enumerate(data.flat):
+    for d in data.flat:
         if d < 0 or d % 1 != 0:
             return False
     return True
