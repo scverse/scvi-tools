@@ -1,7 +1,7 @@
 import anndata
 import numpy as np
 from scvi.dataset import get_from_registry
-from typing import Union, Tuple, List
+from typing import Union, Dict, List
 from scvi import _CONSTANTS
 import logging
 
@@ -12,7 +12,7 @@ def scrna_raw_counts_properties(
     adata: anndata.AnnData,
     idx1: Union[List[int], np.ndarray],
     idx2: Union[List[int], np.ndarray],
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Dict[str, np.ndarray]:
     """
     Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -28,7 +28,7 @@ def scrna_raw_counts_properties(
     Returns
     -------
     type
-        Tuple of ``np.ndarray`` containing, by pair (one for each sub-population),
+        Dict of ``np.ndarray`` containing, by pair (one for each sub-population),
         mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
     """
     data = get_from_registry(adata, _CONSTANTS.X_KEY)
@@ -39,24 +39,18 @@ def scrna_raw_counts_properties(
     nonz1 = np.asarray((data1 != 0).mean(axis=0)).ravel()
     nonz2 = np.asarray((data2 != 0).mean(axis=0)).ravel()
 
-    key = "_scvi_raw_norm_X"
-    if key not in adata.obsm.keys():
-        scaling_factor = np.asarray(data.sum(axis=1)).ravel().reshape(-1, 1)
-        normalized_data = 1e4 * data / scaling_factor
-        adata.obsm[key] = normalized_data
-        logger.info(
-            "Storing library size normalized data in adata.obsm['{}']".format(key)
-        )
-        logger.info(
-            "This can deleted after DE inference with `del adata.obsm['{}']`".format(
-                key
-            )
-        )
+    key = "_scvi_raw_norm_scaling"
+    if key not in adata.obs.keys():
+        scaling_factor = 1 / np.asarray(data.sum(axis=1)).ravel().reshape(-1, 1)
+        scaling_factor *= 1e4
     else:
-        normalized_data = adata.obsm[key]
+        scaling_factor = adata.obs[key].to_numpy().ravel()
 
-    norm_mean1 = np.asarray(normalized_data[idx1, :].mean(axis=0)).ravel()
-    norm_mean2 = np.asarray(normalized_data[idx2, :].mean(axis=0)).ravel()
+    norm_data1 = data1 * scaling_factor[idx1]
+    norm_data2 = data2 * scaling_factor[idx2]
+
+    norm_mean1 = np.asarray(norm_data1.mean(axis=0)).ravel()
+    norm_mean2 = np.asarray(norm_data2.mean(axis=0)).ravel()
 
     properties = dict(
         raw_mean1=mean1,
@@ -66,6 +60,50 @@ def scrna_raw_counts_properties(
         raw_normalized_mean1=norm_mean1,
         raw_normalized_mean2=norm_mean2,
     )
+    return properties
+
+
+def cite_seq_raw_counts_properties(
+    adata: anndata.AnnData,
+    idx1: Union[List[int], np.ndarray],
+    idx2: Union[List[int], np.ndarray],
+) -> Dict[str, np.ndarray]:
+    """
+    Computes and returns some statistics on the raw counts of two sub-populations.
+
+    Parameters
+    ----------
+    adata
+        AnnData object setup with `scvi`.
+    idx1
+        subset of indices describing the first population.
+    idx2
+        subset of indices describing the second population.
+
+    Returns
+    -------
+    type
+        Dict of ``np.ndarray`` containing, by pair (one for each sub-population),
+        mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
+    """
+    gp = scrna_raw_counts_properties(adata, idx1, idx2)
+    protein_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
+
+    nan = np.array([np.nan] * len(adata.uns["scvi_protein_names"]))
+    protein_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
+    mean1_pro = np.asarray(protein_exp[idx1].mean(0))
+    mean2_pro = np.asarray(protein_exp[idx2].mean(0))
+    nonz1_pro = np.asarray((protein_exp[idx1] > 0).mean(0))
+    nonz2_pro = np.asarray((protein_exp[idx2] > 0).mean(0))
+    properties = dict(
+        raw_mean1=np.concatenate([gp["raw_mean1"], mean1_pro]),
+        raw_mean2=np.concatenate([gp["raw_mean2"], mean2_pro]),
+        non_zeros_proportion1=np.concatenate([gp["non_zeros_proportion1"], nonz1_pro]),
+        non_zeros_proportion2=np.concatenate([gp["non_zeros_proportion2"], nonz2_pro]),
+        raw_normalized_mean1=np.concatenate([gp["raw_normalized_mean1"], nan]),
+        raw_normalized_mean2=np.concatenate([gp["raw_normalized_mean2"], nan]),
+    )
+
     return properties
 
 

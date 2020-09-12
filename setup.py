@@ -21,6 +21,7 @@ requirements = [
     "scikit-misc>=0.1.3",
     "tables>=3.6.1",  # read_hdf pandas in load_posterior
     "rich",
+    "numba>=0.41.0",
 ]
 
 setup_requirements = ["pip>=18.1"]

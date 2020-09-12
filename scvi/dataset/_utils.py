@@ -3,6 +3,7 @@ import pandas as pd
 import anndata
 import logging
 import numpy as np
+import numba
 from typing import Union, Tuple
 
 
@@ -94,7 +95,7 @@ def _compute_library_size_batch(
 def _check_nonnegative_integers(
     data: Union[pd.DataFrame, np.ndarray, sp_sparse.spmatrix]
 ):
-    """Checks values of data to ensure it is count data."""
+    """Approximately checks values of data to ensure it is count data."""
     if isinstance(data, np.ndarray):
         data = data
     elif issubclass(type(data), sp_sparse.spmatrix):
@@ -103,14 +104,17 @@ def _check_nonnegative_integers(
         data = data.to_numpy()
     else:
         raise TypeError("data type not understood")
-    # Check no negatives
-    if np.any(data < 0):
-        return False
-    # Check all are integers
-    elif np.any(~np.equal(np.mod(data, 1), 0)):
-        return False
-    else:
-        return True
+
+    check = data[:10]
+    return _iterate_nonnegative_integers(check)
+
+
+@numba.njit(cache=True)
+def _iterate_nonnegative_integers(data):
+    for d in data.flat:
+        if d < 0 or d % 1 != 0:
+            return False
+    return True
 
 
 def _get_batch_mask_protein_data(

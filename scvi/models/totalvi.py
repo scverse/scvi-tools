@@ -2,7 +2,6 @@ import logging
 import torch
 import numpy as np
 import pandas as pd
-import sys
 
 from anndata import AnnData
 from typing import Optional, Union, List, Tuple, Sequence, Iterable
@@ -12,23 +11,22 @@ from scvi import _CONSTANTS
 from scvi.dataset import get_from_registry
 from scvi._compat import Literal
 from scvi.core.modules import TOTALVAE
-from scvi.core.models import BaseModelClass, VAEMixin
+from scvi.core.models import BaseModelClass, VAEMixin, RNASeqMixin
+from scvi.core.models._utils import _de_core
 from scvi.core.posteriors import TotalPosterior
 from scvi.core.trainers import TotalTrainer
-from scvi.core.utils import DifferentialComputation
 from scvi.models._utils import (
-    scrna_raw_counts_properties,
+    cite_seq_raw_counts_properties,
     _get_var_names_from_setup_anndata,
 )
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
-from scvi._compat import tqdm
 
 
 logger = logging.getLogger(__name__)
 
 
-class TOTALVI(VAEMixin, BaseModelClass):
+class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
     """
     total Variational Inference [GayosoSteier20]_.
 
@@ -121,7 +119,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
         n_epochs: int = 400,
         train_size: float = 0.9,
         test_size: Optional[float] = None,
-        lr: float = 1e-3,
+        lr: float = 4e-3,
         n_epochs_kl_warmup: Optional[int] = 400,
         n_iter_kl_warmup: Optional[int] = None,
         batch_size: int = 256,
@@ -621,6 +619,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
         indices=None,
         transform_batch: Optional[int] = None,
         scale_protein=False,
+        batch_size=128,
         sample_protein_mixing=False,
         include_protein_background=False,
         protein_prior_count=0.5,
@@ -631,6 +630,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
             transform_batch=transform_batch,
             return_numpy=True,
             n_samples=1,
+            batch_size=batch_size,
             scale_protein=scale_protein,
             sample_protein_mixing=sample_protein_mixing,
             include_protein_background=include_protein_background,
@@ -653,6 +653,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
         idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.25,
+        batch_size: int = 128,
         all_stats: bool = True,
         batch_correction: bool = False,
         batchid1: Optional[Iterable[str]] = None,
@@ -688,103 +689,38 @@ class TOTALVI(VAEMixin, BaseModelClass):
         Differential expression DataFrame.
         """
         adata = self._validate_anndata(adata)
-
-        if group1 is None and idx1 is None:
-            group1 = adata.obs[groupby].cat.categories.tolist()
-
-        if isinstance(group1, str):
-            group1 = [group1]
-
-        # make a temp obs key using indices
-        temp_key = None
-        if idx1 is not None:
-            g1_key = "one"
-            obs_col = np.array(["None"] * adata.shape[0], dtype=str)
-            obs_col[idx1] = g1_key
-            group2 = None if idx2 is None else "two"
-            if idx2 is not None:
-                obs_col[idx2] = group2
-            temp_key = "_scvi_temp_de"
-            adata.obs[temp_key] = obs_col
-            groupby = temp_key
-            group1 = [g1_key]
-
         model_fn = partial(
             self._expression_for_de,
             scale_protein=scale_protein,
             sample_protein_mixing=sample_protein_mixing,
             include_protein_background=include_protein_background,
             protein_prior_count=protein_prior_count,
+            batch_size=batch_size,
         )
-
         col_names = np.concatenate(
             [
                 np.asarray(_get_var_names_from_setup_anndata(adata)),
                 adata.uns["scvi_protein_names"],
             ]
         )
-        df_results = []
-        dc = DifferentialComputation(model_fn, adata)
-        for g1 in tqdm(
+        result = _de_core(
+            adata,
+            model_fn,
+            groupby,
             group1,
-            desc="DE",
-            file=sys.stdout,
-        ):
-            cell_idx1 = adata.obs[groupby] == g1
-            if group2 is None:
-                cell_idx2 = ~cell_idx1
-            else:
-                cell_idx2 = adata.obs[groupby] == group2
-
-            all_info = dc.get_bayes_factors(
-                cell_idx1,
-                cell_idx2,
-                mode=mode,
-                delta=delta,
-                batchid1=batchid1,
-                batchid2=batchid2,
-                use_observed_batches=not batch_correction,
-                **kwargs,
-            )
-
-            if all_stats is True:
-                nan = np.array([np.nan] * len(adata.uns["scvi_protein_names"]))
-                gp = scrna_raw_counts_properties(adata, cell_idx1, cell_idx2)
-                protein_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
-                mean1_pro = np.asarray(protein_exp[cell_idx1].mean(0))
-                mean2_pro = np.asarray(protein_exp[cell_idx2].mean(0))
-                nonz1_pro = np.asarray((protein_exp[cell_idx1] > 0).mean(0))
-                nonz2_pro = np.asarray((protein_exp[cell_idx2] > 0).mean(0))
-                # TODO implement properties for proteins
-                properties_dict = dict(
-                    raw_mean1=np.concatenate([gp["raw_mean1"], mean1_pro]),
-                    raw_mean2=np.concatenate([gp["raw_mean2"], mean2_pro]),
-                    non_zeros_proportion1=np.concatenate(
-                        [gp["non_zeros_proportion1"], nonz1_pro]
-                    ),
-                    non_zeros_proportion2=np.concatenate(
-                        [gp["non_zeros_proportion2"], nonz2_pro]
-                    ),
-                    raw_normalized_mean1=np.concatenate(
-                        [gp["raw_normalized_mean1"], nan]
-                    ),
-                    raw_normalized_mean2=np.concatenate(
-                        [gp["raw_normalized_mean2"], nan]
-                    ),
-                )
-                all_info = {**all_info, **properties_dict}
-
-            res = pd.DataFrame(all_info, index=col_names)
-            sort_key = "proba_de" if mode == "change" else "bayes_factor"
-            res = res.sort_values(by=sort_key, ascending=False)
-            if idx1 is None:
-                res["comparison"] = "{} vs {}".format(g1, group2)
-            df_results.append(res)
-
-        if temp_key is not None:
-            del adata.obs[temp_key]
-
-        result = pd.concat(df_results, axis=0)
+            group2,
+            idx1,
+            idx2,
+            all_stats,
+            cite_seq_raw_counts_properties,
+            col_names,
+            mode,
+            batchid1,
+            batchid2,
+            delta,
+            batch_correction,
+            **kwargs,
+        )
 
         return result
 
