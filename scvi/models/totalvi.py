@@ -4,22 +4,23 @@ import numpy as np
 import pandas as pd
 
 from anndata import AnnData
-from typing import Optional, Union, List, Tuple, Sequence
+from typing import Optional, Union, List, Tuple, Sequence, Iterable
 from functools import partial
 
 from scvi import _CONSTANTS
 from scvi.dataset import get_from_registry
 from scvi._compat import Literal
-from collections.abc import Iterable
 from scvi.core.modules import TOTALVAE
 from scvi.core.models import BaseModelClass, VAEMixin
 from scvi.core.posteriors import TotalPosterior
 from scvi.core.trainers import TotalTrainer
-from scvi.models._differential import DifferentialComputation
+from scvi.core.utils import DifferentialComputation
 from scvi.models._utils import (
     scrna_raw_counts_properties,
     _get_var_names_from_setup_anndata,
 )
+from scvi._docs import doc_differential_expression
+from scvi._utils import _doc_params
 
 logger = logging.getLogger(__name__)
 
@@ -611,60 +612,107 @@ class TOTALVI(VAEMixin, BaseModelClass):
             )
             return foreground_prob
 
-    def differential_expression(
+    def _expression_for_de(
         self,
-        groupby,
         adata=None,
-        group1=None,
-        group2=None,
-        mode="change",
-        delta=0.5,
-        all_stats=True,
-        protein_prior_count=0.5,
+        indices=None,
+        transform_batch: Optional[int] = None,
         scale_protein=False,
         sample_protein_mixing=False,
         include_protein_background=False,
+        protein_prior_count=0.5,
     ):
+        rna, protein = self.get_normalized_expression(
+            adata=adata,
+            indices=indices,
+            transform_batch=transform_batch,
+            return_numpy=True,
+            n_samples=1,
+            scale_protein=scale_protein,
+            sample_protein_mixing=sample_protein_mixing,
+            include_protein_background=include_protein_background,
+        )
+        protein += protein_prior_count
+
+        joint = np.concatenate([rna, protein], axis=1)
+        return joint
+
+    @_doc_params(
+        doc_differential_expression=doc_differential_expression,
+    )
+    def differential_expression(
+        self,
+        adata: Optional[AnnData] = None,
+        groupby: Optional[str] = None,
+        group1: Optional[Iterable[str]] = None,
+        group2: Optional[str] = None,
+        idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
+        idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
+        mode: Literal["vanilla", "change"] = "change",
+        delta: float = 0.25,
+        all_stats: bool = True,
+        batch_correction: bool = False,
+        batchid1: Optional[Iterable[str]] = None,
+        batchid2: Optional[Iterable[str]] = None,
+        protein_prior_count: float = 0.5,
+        scale_protein: bool = False,
+        sample_protein_mixing: bool = True,
+        include_protein_background: bool = False,
+        **kwargs,
+    ) -> pd.DataFrame:
+        r"""
+        A unified method for differential expression analysis.
+
+        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
+
+        Parameters
+        ----------
+        {doc_differential_expression}
+        protein_prior_count
+            Prior count added to protein expression before LFC computation
+        scale_protein
+            Force protein values to sum to one in every single cell (post-hoc normalization)
+        sample_protein_mixing
+            Sample the protein mixture component, i.e., use the parameter to sample a Bernoulli
+            that determines if expression is from foreground/background.
+        include_protein_background
+            Include the protein background component as part of the protein expression
+        **kwargs
+            Keyword args for :func:`scvi.core.utils.DifferentialComputation.get_bayes_factors`
+
+        Returns
+        -------
+        Differential expression DataFrame.
+        """
         adata = self._validate_anndata(adata)
-        cell_idx1 = np.asarray(adata.obs[groupby] == group1)
-        if group2 is None:
-            cell_idx2 = ~cell_idx1
-        else:
-            cell_idx2 = np.asarray(adata.obs[groupby] == group2)
 
-        def _expression_for_de(
-            adata=None,
-            indices=None,
-            transform_batch: Optional[int] = None,
-            scale_protein=False,
-            sample_protein_mixing=False,
-            include_protein_background=False,
-            protein_prior_count=0.5,
-        ):
-            rna, protein = self.get_normalized_expression(
-                adata=adata,
-                indices=indices,
-                transform_batch=transform_batch,
-                return_numpy=True,
-                scale_protein=scale_protein,
-                sample_protein_mixing=sample_protein_mixing,
-                include_protein_background=include_protein_background,
-            )
-            protein += protein_prior_count
+        if group1 is None and idx1 is None:
+            group1 = adata.obs[groupby].cat.categories.tolist()
 
-            joint = np.concatenate([rna, protein], axis=1)
-            return joint
+        if isinstance(group1, str):
+            group1 = [group1]
+
+        # make a temp obs key using indices
+        temp_key = None
+        if idx1 is not None:
+            g1_key = "one"
+            obs_col = np.array(["None"] * adata.shape[0], dtype=str)
+            obs_col[idx1] = g1_key
+            group2 = None if idx2 is None else "two"
+            if idx2 is not None:
+                obs_col[idx2] = group2
+            temp_key = "_scvi_temp_de"
+            adata.obs[temp_key] = obs_col
+            groupby = temp_key
+            group1 = [g1_key]
 
         model_fn = partial(
-            _expression_for_de,
+            self._expression_for_de,
             scale_protein=scale_protein,
             sample_protein_mixing=sample_protein_mixing,
             include_protein_background=include_protein_background,
             protein_prior_count=protein_prior_count,
         )
-
-        dc = DifferentialComputation(model_fn, adata)
-        all_info = dc.get_bayes_factors(cell_idx1, cell_idx2, mode=mode, delta=delta)
 
         col_names = np.concatenate(
             [
@@ -672,36 +720,66 @@ class TOTALVI(VAEMixin, BaseModelClass):
                 adata.uns["scvi_protein_names"],
             ]
         )
-        if all_stats is True:
-            nan = np.array([np.nan] * len(adata.uns["scvi_protein_names"]))
-            (
-                mean1,
-                mean2,
-                nonz1,
-                nonz2,
-                norm_mean1,
-                norm_mean2,
-            ) = scrna_raw_counts_properties(adata, cell_idx1, cell_idx2)
-            protein_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
-            mean2_pro = np.asarray(protein_exp[cell_idx2].mean(0))
-            mean1_pro = np.asarray(protein_exp[cell_idx1].mean(0))
-            nonz1_pro = np.asarray((protein_exp[cell_idx1] > 0).mean(0))
-            nonz2_pro = np.asarray((protein_exp[cell_idx2] > 0).mean(0))
-            # TODO implement properties for proteins
-            genes_properties_dict = dict(
-                raw_mean1=np.concatenate([mean1, mean1_pro]),
-                raw_mean2=np.concatenate([mean2, mean2_pro]),
-                non_zeros_proportion1=np.concatenate([nonz1, nonz1_pro]),
-                non_zeros_proportion2=np.concatenate([nonz2, nonz2_pro]),
-                raw_normalized_mean1=np.concatenate([norm_mean1, nan]),
-                raw_normalized_mean2=np.concatenate([norm_mean2, nan]),
-            )
-            all_info = {**all_info, **genes_properties_dict}
+        df_results = []
+        dc = DifferentialComputation(model_fn, adata)
+        for g1 in group1:
+            cell_idx1 = adata.obs[groupby] == g1
+            if group2 is None:
+                cell_idx2 = ~cell_idx1
+            else:
+                cell_idx2 = adata.obs[groupby] == group2
 
-        res = pd.DataFrame(all_info, index=col_names)
-        sort_key = "proba_de" if mode == "change" else "bayes_factor"
-        res = res.sort_values(by=sort_key, ascending=False)
-        return res
+            all_info = dc.get_bayes_factors(
+                cell_idx1,
+                cell_idx2,
+                mode=mode,
+                delta=delta,
+                batchid1=batchid1,
+                batchid2=batchid2,
+                use_observed_batches=not batch_correction,
+                **kwargs,
+            )
+
+            if all_stats is True:
+                nan = np.array([np.nan] * len(adata.uns["scvi_protein_names"]))
+                gp = scrna_raw_counts_properties(adata, cell_idx1, cell_idx2)
+                protein_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
+                mean1_pro = np.asarray(protein_exp[cell_idx1].mean(0))
+                mean2_pro = np.asarray(protein_exp[cell_idx2].mean(0))
+                nonz1_pro = np.asarray((protein_exp[cell_idx1] > 0).mean(0))
+                nonz2_pro = np.asarray((protein_exp[cell_idx2] > 0).mean(0))
+                # TODO implement properties for proteins
+                properties_dict = dict(
+                    raw_mean1=np.concatenate([gp["raw_mean1"], mean1_pro]),
+                    raw_mean2=np.concatenate([gp["raw_mean2"], mean2_pro]),
+                    non_zeros_proportion1=np.concatenate(
+                        [gp["non_zeros_proportion1"], nonz1_pro]
+                    ),
+                    non_zeros_proportion2=np.concatenate(
+                        [gp["non_zeros_proportion2"], nonz2_pro]
+                    ),
+                    raw_normalized_mean1=np.concatenate(
+                        [gp["raw_normalized_mean1"], nan]
+                    ),
+                    raw_normalized_mean2=np.concatenate(
+                        [gp["raw_normalized_mean2"], nan]
+                    ),
+                )
+                all_info = {**all_info, **properties_dict}
+
+            res = pd.DataFrame(all_info, index=col_names)
+            sort_key = "proba_de" if mode == "change" else "bayes_factor"
+            res = res.sort_values(by=sort_key, ascending=False)
+            if idx1 is not None:
+                res["comparison"] = "{} vs {}".format(g1, group2)
+            df_results.append(res)
+
+        if temp_key is not None:
+            del adata.obs[temp_key]
+
+        result = pd.concat(df_results, axis=0)
+
+        return result
 
     @torch.no_grad()
     def posterior_predictive_sample(

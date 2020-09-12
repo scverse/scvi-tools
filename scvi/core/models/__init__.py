@@ -9,7 +9,7 @@ import inspect
 from anndata import AnnData
 from functools import partial
 from scvi.core._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
-from scvi.models._differential import DifferentialComputation
+from scvi.core.utils import DifferentialComputation
 from scvi.models._utils import (
     scrna_raw_counts_properties,
     _get_var_names_from_setup_anndata,
@@ -20,11 +20,13 @@ from scvi.dataset._utils import (
     _check_nonnegative_integers,
 )
 from scvi import _CONSTANTS
-from typing import Optional, Union, List, Dict, Sequence
+from typing import Optional, Union, List, Dict, Sequence, Iterable
 from scvi._compat import Literal
 from scvi.core.trainers import UnsupervisedTrainer
 from abc import ABC, abstractmethod
 from scvi.dataset import get_from_registry, transfer_anndata_setup
+from scvi._docs import doc_differential_expression
+from scvi._utils import _doc_params
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +42,7 @@ class VAEMixin:
         n_iter_kl_warmup: int = None,
         frequency: Optional[int] = None,
         train_fun_kwargs: dict = {},
-        **kwargs
+        **kwargs,
     ):
         """
         Trains the model using amortized variational inference.
@@ -346,53 +348,105 @@ class RNASeqMixin:
         else:
             return exprs
 
+    @_doc_params(
+        doc_differential_expression=doc_differential_expression,
+    )
     def differential_expression(
         self,
-        groupby: str,
-        group1: str,
-        group2: Optional[str] = None,
         adata: Optional[AnnData] = None,
-        mode="vanilla",
-        all_stats=True,
-        use_permutation=False,
-    ):
+        groupby: Optional[str] = None,
+        group1: Optional[Iterable[str]] = None,
+        group2: Optional[str] = None,
+        idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
+        idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
+        mode: Literal["vanilla", "change"] = "change",
+        delta: float = 0.25,
+        all_stats: bool = True,
+        batch_correction: bool = False,
+        batchid1: Optional[Iterable[str]] = None,
+        batchid2: Optional[Iterable[str]] = None,
+        **kwargs,
+    ) -> pd.DataFrame:
+        r"""
+        A unified method for differential expression analysis.
+
+        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
+
+        Parameters
+        ----------
+        {doc_differential_expression}
+        **kwargs
+            Keyword args for :func:`scvi.core.utils.DifferentialComputation.get_bayes_factors`
+
+        Returns
+        -------
+        Differential expression DataFrame.
+        """
         adata = self._validate_anndata(adata)
-        cell_idx1 = adata.obs[groupby] == group1
-        if group2 is None:
-            cell_idx2 = ~cell_idx1
-        else:
-            cell_idx2 = adata.obs[groupby] == group2
 
-        model_fn = partial(self.get_normalized_expression, return_numpy=True)
-        dc = DifferentialComputation(model_fn, adata)
-        all_info = dc.get_bayes_factors(
-            cell_idx1, cell_idx2, mode=mode, use_permutation=use_permutation
-        )
+        if group1 is None and idx1 is None:
+            group1 = adata.obs[groupby].cat.categories.tolist()
 
+        if isinstance(group1, str):
+            group1 = [group1]
+
+        # make a temp obs key using indices
+        temp_key = None
+        if idx1 is not None:
+            g1_key = "one"
+            obs_col = np.array(["None"] * adata.shape[0], dtype=str)
+            obs_col[idx1] = g1_key
+            group2 = None if idx2 is None else "two"
+            if idx2 is not None:
+                obs_col[idx2] = group2
+            temp_key = "_scvi_temp_de"
+            adata.obs[temp_key] = obs_col
+            groupby = temp_key
+            group1 = [g1_key]
+
+        df_results = []
         gene_names = _get_var_names_from_setup_anndata(adata)
-        if all_stats is True:
-            (
-                mean1,
-                mean2,
-                nonz1,
-                nonz2,
-                norm_mean1,
-                norm_mean2,
-            ) = scrna_raw_counts_properties(adata, cell_idx1, cell_idx2)
-            genes_properties_dict = dict(
-                raw_mean1=mean1,
-                raw_mean2=mean2,
-                non_zeros_proportion1=nonz1,
-                non_zeros_proportion2=nonz2,
-                raw_normalized_mean1=norm_mean1,
-                raw_normalized_mean2=norm_mean2,
-            )
-            all_info = {**all_info, **genes_properties_dict}
+        model_fn = partial(
+            self.get_normalized_expression, return_numpy=True, n_samples=1
+        )
+        dc = DifferentialComputation(model_fn, adata)
+        for g1 in group1:
+            cell_idx1 = adata.obs[groupby] == g1
+            if group2 is None:
+                cell_idx2 = ~cell_idx1
+            else:
+                cell_idx2 = adata.obs[groupby] == group2
 
-        res = pd.DataFrame(all_info, index=gene_names)
-        sort_key = "proba_de" if mode == "change" else "bayes_factor"
-        res = res.sort_values(by=sort_key, ascending=False)
-        return res
+            all_info = dc.get_bayes_factors(
+                cell_idx1,
+                cell_idx2,
+                mode=mode,
+                delta=delta,
+                batchid1=batchid1,
+                batchid2=batchid2,
+                use_observed_batches=not batch_correction,
+                **kwargs,
+            )
+
+            if all_stats is True:
+                genes_properties_dict = scrna_raw_counts_properties(
+                    adata, cell_idx1, cell_idx2
+                )
+                all_info = {**all_info, **genes_properties_dict}
+
+            res = pd.DataFrame(all_info, index=gene_names)
+            sort_key = "proba_de" if mode == "change" else "bayes_factor"
+            res = res.sort_values(by=sort_key, ascending=False)
+            if idx1 is not None:
+                res["comparison"] = "{} vs {}".format(g1, group2)
+            df_results.append(res)
+
+        if temp_key is not None:
+            del adata.obs[temp_key]
+
+        result = pd.concat(df_results, axis=0)
+
+        return result
 
     @torch.no_grad()
     def posterior_predictive_sample(
@@ -747,7 +801,7 @@ class BaseModelClass(ABC):
         adata: AnnData,
         indices: Optional[Sequence[int]] = None,
         batch_size: int = 128,
-        **posterior_kwargs
+        **posterior_kwargs,
     ):
         """Create a Posterior object for data iteration."""
         if indices is None:

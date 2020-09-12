@@ -3,6 +3,9 @@ import numpy as np
 from scvi.dataset import get_from_registry
 from typing import Union, Tuple, List
 from scvi import _CONSTANTS
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def scrna_raw_counts_properties(
@@ -15,29 +18,55 @@ def scrna_raw_counts_properties(
 
     Parameters
     ----------
+    adata
+        AnnData object setup with `scvi`.
     idx1
         subset of indices describing the first population.
     idx2
         subset of indices describing the second population.
+
     Returns
     -------
     type
         Tuple of ``np.ndarray`` containing, by pair (one for each sub-population),
         mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
     """
-    X = get_from_registry(adata, _CONSTANTS.X_KEY)
-    mean1 = np.asarray((X[idx1]).mean(axis=0)).ravel()
-    mean2 = np.asarray((X[idx2]).mean(axis=0)).ravel()
-    nonz1 = np.asarray((X[idx1] != 0).mean(axis=0)).ravel()
-    nonz2 = np.asarray((X[idx2] != 0).mean(axis=0)).ravel()
+    data = get_from_registry(adata, _CONSTANTS.X_KEY)
+    data1 = data[idx1]
+    data2 = data[idx2]
+    mean1 = np.asarray((data1).mean(axis=0)).ravel()
+    mean2 = np.asarray((data2).mean(axis=0)).ravel()
+    nonz1 = np.asarray((data1 != 0).mean(axis=0)).ravel()
+    nonz2 = np.asarray((data2 != 0).mean(axis=0)).ravel()
 
-    scaling_factor = np.asarray(X.sum(axis=1)).ravel().reshape(-1, 1)
-    normalized_X = X / scaling_factor
+    key = "_scvi_raw_norm_X"
+    if key not in adata.obsm.keys():
+        scaling_factor = np.asarray(data.sum(axis=1)).ravel().reshape(-1, 1)
+        normalized_data = 1e4 * data / scaling_factor
+        adata.obsm[key] = normalized_data
+        logger.info(
+            "Storing library size normalized data in adata.obsm['{}']".format(key)
+        )
+        logger.info(
+            "This can deleted after DE inference with `del adata.obsm['{}']`".format(
+                key
+            )
+        )
+    else:
+        normalized_data = adata.obsm[key]
 
-    norm_mean1 = np.asarray(normalized_X[idx1, :].mean(axis=0)).ravel()
-    norm_mean2 = np.asarray(normalized_X[idx2, :].mean(axis=0)).ravel()
-    return_vals = [mean1, mean2, nonz1, nonz2, norm_mean1, norm_mean2]
-    return [np.squeeze(np.asarray(arr)) for arr in return_vals]
+    norm_mean1 = np.asarray(normalized_data[idx1, :].mean(axis=0)).ravel()
+    norm_mean2 = np.asarray(normalized_data[idx2, :].mean(axis=0)).ravel()
+
+    properties = dict(
+        raw_mean1=mean1,
+        raw_mean2=mean2,
+        non_zeros_proportion1=nonz1,
+        non_zeros_proportion2=nonz2,
+        raw_normalized_mean1=norm_mean1,
+        raw_normalized_mean2=norm_mean2,
+    )
+    return properties
 
 
 def _get_var_names_from_setup_anndata(adata):
