@@ -39,7 +39,8 @@ class DispatchingFormatter(logging.Formatter):
 
 
 def set_verbosity(level: Union[str, int]):
-    """Sets logging configuration for scvi based on chosen level of verbosity.
+    """
+    Sets logging configuration for scvi based on chosen level of verbosity.
 
     Sets "scvi" logging level to `level`
     If "scvi" logger has no StreamHandler, add one.
