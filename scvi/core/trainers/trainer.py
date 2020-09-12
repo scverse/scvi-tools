@@ -1,5 +1,4 @@
 import logging
-import sys
 import time
 import numpy as np
 import torch
@@ -11,7 +10,7 @@ from itertools import cycle
 from typing import List
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
-from scvi._compat import tqdm
+from scvi._compat import track
 
 from scvi.core.posteriors import Posterior
 from scvi import _CONSTANTS
@@ -173,11 +172,8 @@ class Trainer:
 
         self.on_training_begin()
 
-        for self.epoch in tqdm(
-            range(n_epochs),
-            desc="training",
-            disable=not self.show_progbar,
-            file=sys.stdout,
+        for self.epoch in track(
+            range(n_epochs), description="Training...", disable=not self.show_progbar
         ):
             self.on_epoch_begin()
             for tensors_dict in self.data_loaders_loop():
@@ -200,11 +196,10 @@ class Trainer:
         self.training_extras_end()
 
         self.training_time += (time.time() - begin) - self.compute_metrics_time
-        if self.frequency:
-            logger.debug(
-                "\nTraining time:  %i s. / %i epochs"
-                % (int(self.training_time), self.n_epochs)
-            )
+        logger.info(
+            "Training time:  %i s. / %i epochs"
+            % (int(self.training_time), self.n_epochs)
+        )
         self.on_training_end()
 
     def on_training_loop(self, tensors_dict):

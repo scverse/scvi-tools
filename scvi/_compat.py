@@ -15,13 +15,22 @@ except ImportError:
             pass
 
 
-from tqdm import tqdm as tqdm_base
+from rich.progress import track as track_base
+from rich.console import Console
+import sys
 
 
-def tqdm(*args, **kwargs):
-    # fixes repeated pbar in jupyter
-    # see https://github.com/tqdm/tqdm/issues/375
-    if hasattr(tqdm_base, "_instances"):
-        for instance in list(tqdm_base._instances):
-            tqdm_base._decr_instances(instance)
-    return tqdm_base(*args, **kwargs)
+def track(*args, **kwargs):
+    console = Console(force_terminal=True)
+    in_colab = "google.colab" in sys.modules
+    if in_colab:
+        if console.is_jupyter is True:
+            console.is_jupyter = False
+    if "disable" in kwargs.keys():
+        disable = kwargs.pop("disable")
+    else:
+        disable = False
+    if disable:
+        return args[0]
+    else:
+        return track_base(*args, **kwargs, console=console)

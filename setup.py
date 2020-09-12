@@ -20,7 +20,7 @@ requirements = [
     'dataclasses; python_version < "3.7"',  # for `dataclass`
     "scikit-misc>=0.1.3",
     "tables>=3.6.1",  # read_hdf pandas in load_posterior
-    "rich",
+    "rich[jupyter]",
     "numba>=0.41.0",
 ]
 
