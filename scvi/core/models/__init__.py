@@ -5,6 +5,7 @@ import logging
 import pandas as pd
 import numpy as np
 import inspect
+import sys
 
 from anndata import AnnData
 from functools import partial
@@ -27,6 +28,7 @@ from abc import ABC, abstractmethod
 from scvi.dataset import get_from_registry, transfer_anndata_setup
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
+from scvi._compat import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -410,7 +412,11 @@ class RNASeqMixin:
             self.get_normalized_expression, return_numpy=True, n_samples=1
         )
         dc = DifferentialComputation(model_fn, adata)
-        for g1 in group1:
+        for g1 in tqdm(
+            group1,
+            desc="DE",
+            file=sys.stdout,
+        ):
             cell_idx1 = adata.obs[groupby] == g1
             if group2 is None:
                 cell_idx2 = ~cell_idx1
@@ -437,7 +443,7 @@ class RNASeqMixin:
             res = pd.DataFrame(all_info, index=gene_names)
             sort_key = "proba_de" if mode == "change" else "bayes_factor"
             res = res.sort_values(by=sort_key, ascending=False)
-            if idx1 is not None:
+            if idx1 is None:
                 res["comparison"] = "{} vs {}".format(g1, group2)
             df_results.append(res)
 

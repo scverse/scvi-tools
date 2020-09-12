@@ -2,6 +2,7 @@ import logging
 import torch
 import numpy as np
 import pandas as pd
+import sys
 
 from anndata import AnnData
 from typing import Optional, Union, List, Tuple, Sequence, Iterable
@@ -21,6 +22,8 @@ from scvi.models._utils import (
 )
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
+from scvi._compat import tqdm
+
 
 logger = logging.getLogger(__name__)
 
@@ -722,7 +725,11 @@ class TOTALVI(VAEMixin, BaseModelClass):
         )
         df_results = []
         dc = DifferentialComputation(model_fn, adata)
-        for g1 in group1:
+        for g1 in tqdm(
+            group1,
+            desc="DE",
+            file=sys.stdout,
+        ):
             cell_idx1 = adata.obs[groupby] == g1
             if group2 is None:
                 cell_idx2 = ~cell_idx1
@@ -770,7 +777,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
             res = pd.DataFrame(all_info, index=col_names)
             sort_key = "proba_de" if mode == "change" else "bayes_factor"
             res = res.sort_values(by=sort_key, ascending=False)
-            if idx1 is not None:
+            if idx1 is None:
                 res["comparison"] = "{} vs {}".format(g1, group2)
             df_results.append(res)
 
