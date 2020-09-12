@@ -1,7 +1,7 @@
 import anndata
 import numpy as np
 from scvi.dataset import get_from_registry
-from typing import Union, Tuple, List
+from typing import Union, Dict, List
 from scvi import _CONSTANTS
 import logging
 
@@ -12,7 +12,7 @@ def scrna_raw_counts_properties(
     adata: anndata.AnnData,
     idx1: Union[List[int], np.ndarray],
     idx2: Union[List[int], np.ndarray],
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Dict[str, np.ndarray]:
     """
     Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -28,7 +28,7 @@ def scrna_raw_counts_properties(
     Returns
     -------
     type
-        Tuple of ``np.ndarray`` containing, by pair (one for each sub-population),
+        Dict of ``np.ndarray`` containing, by pair (one for each sub-population),
         mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
     """
     data = get_from_registry(adata, _CONSTANTS.X_KEY)
@@ -48,9 +48,7 @@ def scrna_raw_counts_properties(
             "Storing library size normalized data in adata.obsm['{}']".format(key)
         )
         logger.info(
-            "This can deleted after DE inference with `del adata.obsm['{}']`".format(
-                key
-            )
+            "This may be deleted after DE -- 'del adata.obsm['{}']'".format(key)
         )
     else:
         normalized_data = adata.obsm[key]

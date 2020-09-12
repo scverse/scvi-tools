@@ -121,7 +121,7 @@ class TOTALVI(VAEMixin, BaseModelClass):
         n_epochs: int = 400,
         train_size: float = 0.9,
         test_size: Optional[float] = None,
-        lr: float = 1e-3,
+        lr: float = 4e-3,
         n_epochs_kl_warmup: Optional[int] = 400,
         n_iter_kl_warmup: Optional[int] = None,
         batch_size: int = 256,
@@ -782,7 +782,8 @@ class TOTALVI(VAEMixin, BaseModelClass):
             sort_key = "proba_de" if mode == "change" else "bayes_factor"
             res = res.sort_values(by=sort_key, ascending=False)
             if idx1 is None:
-                res["comparison"] = "{} vs {}".format(g1, group2)
+                g2 = "Rest" if group2 is None else group2
+                res["comparison"] = "{} vs {}".format(g1, g2)
             df_results.append(res)
 
         if temp_key is not None:

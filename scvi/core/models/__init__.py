@@ -448,7 +448,8 @@ class RNASeqMixin:
             sort_key = "proba_de" if mode == "change" else "bayes_factor"
             res = res.sort_values(by=sort_key, ascending=False)
             if idx1 is None:
-                res["comparison"] = "{} vs {}".format(g1, group2)
+                g2 = "Rest" if group2 is None else group2
+                res["comparison"] = "{} vs {}".format(g1, g2)
             df_results.append(res)
 
         if temp_key is not None:
