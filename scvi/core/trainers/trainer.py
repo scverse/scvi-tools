@@ -196,10 +196,6 @@ class Trainer:
         self.training_extras_end()
 
         self.training_time += (time.time() - begin) - self.compute_metrics_time
-        logger.info(
-            "Training time:  %i s. / %i epochs"
-            % (int(self.training_time), self.n_epochs)
-        )
         self.on_training_end()
 
     def on_training_loop(self, tensors_dict):
