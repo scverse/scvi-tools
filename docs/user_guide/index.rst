@@ -31,7 +31,7 @@ To download the tutorials:
 
 .. container:: custom-button
 
-    :doc:`GO<basic_tutorial>`
+    :doc:`GO<notebooks/basic_tutorial>`
 
 
 .. raw:: html
@@ -48,7 +48,7 @@ To download the tutorials:
 
 .. container:: custom-button
 
-    :doc:`GO<totalvi>`
+    :doc:`GO<notebooks/totalvi>`
 
 
 .. raw:: html
@@ -65,7 +65,7 @@ To download the tutorials:
 
 .. container:: custom-button
 
-    :doc:`GO<data_loading>`
+    :doc:`GO<notebooks/data_loading>`
 
 
 .. raw:: html
@@ -82,7 +82,7 @@ To download the tutorials:
 
 .. container:: custom-button
 
-    :doc:`GO<harmonization>`
+    :doc:`GO<notebooks/harmonization>`
 
 
 .. raw:: html
@@ -99,7 +99,7 @@ To download the tutorials:
 
 .. container:: custom-button
 
-    :doc:`GO<linear_decoder>`
+    :doc:`GO<notebooks/linear_decoder>`
 
 
 .. raw:: html
