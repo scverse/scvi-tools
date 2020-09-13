@@ -43,4 +43,4 @@ def track(
         in_colab = "google.colab" in sys.modules
         force_jupyter = None if not in_colab else True
         console = Console(force_jupyter=force_jupyter)
-        return track_base(sequence, console=console, **kwargs)
+        return track_base(sequence, description=description, console=console, **kwargs)
