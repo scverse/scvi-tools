@@ -8,6 +8,8 @@ import inspect
 
 from anndata import AnnData
 from functools import partial
+from torch.distributions import Normal
+
 from scvi.models._differential import DifferentialComputation
 from scvi.models._utils import (
     scrna_raw_counts_properties,
@@ -92,6 +94,8 @@ class VAEMixin:
         return -post.reconstruction_error()
 
     @torch.no_grad()
+    # just calls inference and then checks self.model.latent_distribution
+    # then does the sampling here
     def get_latent_representation(
         self,
         adata: Optional[AnnData] = None,
@@ -129,11 +133,22 @@ class VAEMixin:
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
+
         for tensors in post:
-            x = tensors[_CONSTANTS.X_KEY]
-            z = self.model.sample_from_posterior_z(
-                x, give_mean=give_mean, n_samples=mc_samples
-            )
+            outputs = self.model.inference(tensors)
+            qz_m = outputs["qz_m"]
+            qz_v = outputs["qz_v"]
+            z = outputs["z"]
+
+            if give_mean:
+                # does each model need to have this latent distribution param?
+                if self.model.latent_distribution == "ln":
+                    samples = Normal(qz_m, qz_v.sqrt()).sample([mc_samples])
+                    z = self.z_encoder.z_transformation(samples)
+                    z = z.mean(dim=0)
+                else:
+                    z = qz_m
+
             latent += [z.cpu()]
         return np.array(torch.cat(latent))
 
@@ -360,12 +375,7 @@ class RNASeqMixin:
 
         x_new = []
         for tensors in post:
-            x = tensors[_CONSTANTS.X_KEY]
-            batch_idx = tensors[_CONSTANTS.BATCH_KEY]
-            labels = tensors[_CONSTANTS.LABELS_KEY]
-            samples = self.model.sample(
-                x=x, batch_idx=batch_idx, y=labels, n_samples=n_samples
-            )
+            samples = self.model.sample(tensors, n_samples=n_samples)
 
             if gene_list is not None:
                 samples = samples[:, gene_mask, ...]

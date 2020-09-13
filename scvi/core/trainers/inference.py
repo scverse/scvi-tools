@@ -1,6 +1,5 @@
 import logging
 import copy
-import torch
 import anndata
 
 from numpy import ceil
@@ -126,8 +125,8 @@ class UnsupervisedTrainer(Trainer):
         # from this class and should NOT include label information to compute the ELBO by default
         if not feed_labels:
             tensors[_CONSTANTS.LABELS_KEY] = None
-
-        outputs = self.model(tensors, self.kl_weight, self.normalize_loss)
+        loss_kwargs = dict(kl_weight=self.kl_weight, normalize_loss=self.normalize_loss)
+        outputs = self.model(tensors, loss_kwargs=loss_kwargs)
         loss = outputs["loss"]
 
         return loss

@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence as kl
-from typing import Tuple, Dict
+from typing import Dict
 
 from scvi.core._distributions import (
     ZeroInflatedNegativeBinomial,
@@ -121,30 +121,48 @@ class VAE(AbstractVAE):
             n_hidden=n_hidden,
         )
 
-    # pretty sure kwargs doesnt work in forward function
-    # def forward(self, tensors, **loss_kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
-    def forward(
-        self, tensors, kl_weight=1.0, normalize_loss=True
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Forward pass through the network
+    def inference(self, tensors, n_samples=1):
+        """High level inference method
 
-        Parameters
-        ----------
-        tensors
-            tensors to pass through
+        Runs the inference (encoder) model.
+
+        Calls self._inference with then does postprocessing
         """
         x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        outputs = self._inference(x)
 
-        outputs = self._full_pass(x, batch_index)
-        losses = self.loss(
-            tensors=tensors,
-            model_outputs=outputs,
-            kl_weight=kl_weight,
-            normalize_loss=normalize_loss,
-        )
-        return dict(**outputs, **losses)
+        z = outputs["z"]
+        qz_m = outputs["qz_m"]
+        qz_v = outputs["qz_v"]
+        ql_m = outputs["ql_m"]
+        ql_v = outputs["ql_v"]
+        library = outputs["library"]
+
+        if n_samples > 1:
+            qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
+            qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
+            # when z is normal, untran_z == z
+            untran_z = Normal(qz_m, qz_v.sqrt()).sample()
+            z = self.z_encoder.z_transformation(untran_z)
+            ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
+            ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
+            library = Normal(ql_m, ql_v.sqrt()).sample()
+
+            outputs["z"] = z
+            outputs["qz_m"] = qz_m
+            outputs["qz_v"] = qz_v
+            outputs["ql_m"] = ql_m
+            outputs["ql_v"] = ql_v
+            outputs["library"] = library
+
+        return outputs
+
+    def generative(self, tensors, model_params):
+        z = model_params["z"]
+        library = model_params["library"]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        outputs = self._generative(z, library, batch_index)
+        return outputs
 
     def loss(self, tensors, model_outputs, kl_weight=1.0, normalize_loss=True):
         x = tensors[_CONSTANTS.X_KEY]
@@ -155,9 +173,6 @@ class VAE(AbstractVAE):
         qz_v = model_outputs["qz_v"]
         ql_m = model_outputs["ql_m"]
         ql_v = model_outputs["ql_v"]
-        px_rate = model_outputs["px_rate"]
-        px_r = model_outputs["px_r"]
-        px_dropout = model_outputs["px_dropout"]
 
         mean = torch.zeros_like(qz_m)
         scale = torch.ones_like(qz_v)
@@ -171,7 +186,7 @@ class VAE(AbstractVAE):
             Normal(local_l_mean, torch.sqrt(local_l_var)),
         ).sum(dim=1)
 
-        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
+        reconst_loss = self.get_reconstruction_loss(tensors, model_outputs)
 
         kl_local_for_warmup = kl_divergence_l
         kl_local_no_warmup = kl_divergence_z
@@ -181,6 +196,7 @@ class VAE(AbstractVAE):
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
         weighted_kl_global = kl_weight * kl_global_for_warmup + kl_global_no_warmup
 
+        # need to scale the loss
         loss = torch.mean(reconst_loss + weighted_kl_local) + weighted_kl_global
 
         if not normalize_loss:
@@ -199,11 +215,13 @@ class VAE(AbstractVAE):
             kl_global=kl_global,
         )
 
-    def get_reconstruction_loss(
-        self, x, px_rate, px_r, px_dropout, **kwargs
-    ) -> torch.Tensor:
-        # signiture should be output of generative and tensors
+    def get_reconstruction_loss(self, tensors, generative_output) -> torch.Tensor:
         # Reconstruction Loss
+        x = tensors[_CONSTANTS.X_KEY]
+        px_rate = generative_output["px_rate"]
+        px_r = generative_output["px_r"]
+        px_dropout = generative_output["px_dropout"]
+
         if self.gene_likelihood == "zinb":
             reconst_loss = (
                 -ZeroInflatedNegativeBinomial(
@@ -220,7 +238,7 @@ class VAE(AbstractVAE):
             reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
         return reconst_loss
 
-    def inference(
+    def _inference(
         self,
         x,
     ) -> Dict[str, torch.Tensor]:
@@ -246,7 +264,7 @@ class VAE(AbstractVAE):
             library=library,
         )
 
-    def generative(self, z, library, batch_index):
+    def _generative(self, z, library, batch_index):
         """Runs the generative model"""
         # make random y since its not used
         # TODO: refactor forward function to not rely on y
@@ -272,7 +290,7 @@ class VAE(AbstractVAE):
         )
 
     @torch.no_grad()
-    def sample(self, x, batch_idx, n_samples=1, y=None) -> np.ndarray:
+    def sample(self, tensors, n_samples=1) -> np.ndarray:
         r"""
         Generate observation samples from the posterior predictive distribution.
 
@@ -297,7 +315,9 @@ class VAE(AbstractVAE):
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
         """
-        outputs = self._full_pass(x, batch_index=batch_idx, n_samples=n_samples)
+        inference_kwargs = dict(n_samples=n_samples)
+        outputs = self.forward(tensors, inference_kwargs=inference_kwargs)
+
         px_r = outputs["px_r"]
         px_rate = outputs["px_rate"]
         px_dropout = outputs["px_dropout"]
@@ -329,38 +349,6 @@ class VAE(AbstractVAE):
 
         return exprs.cpu()
 
-    def _full_pass(self, x, batch_index, n_samples=1):
-        inference_outputs = self.inference(x)
-
-        z = inference_outputs["z"]
-        qz_m = inference_outputs["qz_m"]
-        qz_v = inference_outputs["qz_v"]
-        ql_m = inference_outputs["ql_m"]
-        ql_v = inference_outputs["ql_v"]
-        library = inference_outputs["library"]
-
-        if n_samples > 1:
-            qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
-            qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
-            # when z is normal, untran_z == z
-            untran_z = Normal(qz_m, qz_v.sqrt()).sample()
-            z = self.z_encoder.z_transformation(untran_z)
-            ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
-            ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
-            library = Normal(ql_m, ql_v.sqrt()).sample()
-
-            inference_outputs["z"] = z
-            inference_outputs["qz_m"] = qz_m
-            inference_outputs["qz_v"] = qz_v
-            inference_outputs["ql_m"] = ql_m
-            inference_outputs["ql_v"] = ql_v
-            inference_outputs["library"] = library
-
-        generative_outputs = self.generative(
-            z=z, library=library, batch_index=batch_index
-        )
-        return dict(**inference_outputs, **generative_outputs)
-
     def get_latents(self, x, y=None) -> torch.Tensor:
         """
         Returns the result of ``sample_from_posterior_z`` inside a list.
@@ -378,41 +366,6 @@ class VAE(AbstractVAE):
             one element list of tensor
         """
         return [self.sample_from_posterior_z(x, y)]
-
-    def sample_from_posterior_z(
-        self, x, y=None, give_mean=False, n_samples=5000
-    ) -> torch.Tensor:
-        """
-        Samples the tensor of latent values from the posterior.
-
-        Parameters
-        ----------
-        x
-            tensor of values with shape ``(batch_size, n_input)``
-        y
-            tensor of cell-types labels with shape ``(batch_size, n_labels)`` (Default value = None)
-        give_mean
-            is True when we want the mean of the posterior  distribution rather than sampling (Default value = False)
-        n_samples
-            how many MC samples to average over for transformed mean (Default value = 5000)
-
-        Returns
-        -------
-        type
-            tensor of shape ``(batch_size, n_latent)``
-        """
-        if self.log_variational:
-            x = torch.log(1 + x)
-        qz_m, qz_v, z = self.z_encoder(x, y)  # y only used in VAEC
-
-        if give_mean:
-            if self.latent_distribution == "ln":
-                samples = Normal(qz_m, qz_v.sqrt()).sample([n_samples])
-                z = self.z_encoder.z_transformation(samples)
-                z = z.mean(dim=0)
-            else:
-                z = qz_m
-        return z
 
     def sample_from_posterior_l(self, x, give_mean=True) -> torch.Tensor:
         """

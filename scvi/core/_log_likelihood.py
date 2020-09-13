@@ -69,7 +69,8 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
         # Distribution parameters
         # should call forward and take the first term
         # outputs = vae.inference(sample_batch, batch_index, labels, **kwargs)
-        outputs = vae(tensors, kl_weight=1)
+        loss_kwargs = dict(kl_weight=1)
+        outputs = vae(tensors, loss_kwargs=loss_kwargs)
         reconstruction_loss = outputs["reconstruction_loss"]
 
         # this if for TotalVI
@@ -122,9 +123,6 @@ def compute_marginal_log_likelihood_scvi(vae, posterior, n_samples_mc=100):
 
             # Distribution parameters and sampled variables
             outputs = vae.inference(sample_batch, batch_index, labels)
-            px_r = outputs["px_r"]
-            px_rate = outputs["px_rate"]
-            px_dropout = outputs["px_dropout"]
             qz_m = outputs["qz_m"]
             qz_v = outputs["qz_v"]
             z = outputs["z"]
@@ -133,9 +131,7 @@ def compute_marginal_log_likelihood_scvi(vae, posterior, n_samples_mc=100):
             library = outputs["library"]
 
             # Reconstruction Loss
-            reconst_loss = vae.get_reconstruction_loss(
-                sample_batch, px_rate, px_r, px_dropout
-            )
+            reconst_loss = vae.get_reconstruction_loss(sample_batch, outputs)
 
             # Log-probabilities
             p_l = Normal(local_l_mean, local_l_var.sqrt()).log_prob(library).sum(dim=-1)
