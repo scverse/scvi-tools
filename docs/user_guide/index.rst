@@ -15,6 +15,10 @@ To download the tutorials:
 1. Click the Colab within the tutorial (if available).
 2. Download it with the option in the file menu.
 
+
+Quick start
+-----------
+
 .. raw:: html
 
     <div class="container">
@@ -39,26 +43,9 @@ To download the tutorials:
             </div>
             <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
                 <div class="card text-center intro-card shadow">
-                <img src="../_static/tutorials/totalvi_cell.svg" class="card-img-top" alt="totalvi basic tutorial action icon" height="225">
-                <div class="card-body flex-fill">
-                    <h5 class="card-title">Analysis of paired RNA and protein data</h5>
-                    <p class="card-text">Analyzing CITE-seq data? Use totalVI for joint dimension reduction, integration, differential expression, protein background removal.</p>
-
-.. container:: custom-button
-
-    :doc:`GO<notebooks/totalVI>`
-
-
-.. raw:: html
-
-                </div>
-                </div>
-            </div>
-            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
-                <div class="card text-center intro-card shadow">
                 <img src="../_static/tutorials/anndata.svg" class="card-img-top" alt="data loading tutorial action icon" height="225">
                 <div class="card-body flex-fill">
-                    <h5 class="card-title">Data preparation</h5>
+                    <h5 class="card-title">Data loading and prep</h5>
                     <p class="card-text">How do I get my data prepared for scvi-tools?</p>
 
 .. container:: custom-button
@@ -71,42 +58,190 @@ To download the tutorials:
                 </div>
                 </div>
             </div>
-            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
-                <div class="card text-center intro-card shadow">
-                <img src="../_static/tutorials/scanvi.svg" class="card-img-top" alt="scanvi tutorial action icon" height="225">
-                <div class="card-body flex-fill">
-                    <h5 class="card-title">Cell type annotation</h5>
-                    <p class="card-text">Want to transfer cell type annotations to unlabeled cells? scANVI was designed for just that.</p>
+        </div>
+    </div>
 
-.. container:: custom-button
-
-    :doc:`GO<notebooks/harmonization>`
-
+Tutorials
+---------
 
 .. raw:: html
 
-                </div>
+    <div class="container">
+    <div id="accordion" class="shadow tutorial-accordion">
+
+        <div class="card tutorial-card">
+            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseOne">
+                <div class="d-flex flex-row tutorial-card-header-1">
+                    <div class="d-flex flex-row tutorial-card-header-2">
+                        <button class="btn btn-dark btn-sm"></button>
+                        Analysis of paired RNA and protein data with totalVI
+                    </div>
+                    <span class="badge gs-badge-link">
+
+:doc:`Straight to tutorial...<notebooks/totalVI>`
+
+.. raw:: html
+
+                    </span>
                 </div>
             </div>
-            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
-                <div class="card text-center intro-card shadow">
-                <img src="../_static/tutorials/ldvae.svg" class="card-img-top" alt="ldvae tutorial action icon" height="225">
-                <div class="card-body flex-fill">
-                    <h5 class="card-title">Linearly-decoded scVI</h5>
-                    <p class="card-text">It's scVI, but with PCA-like interpretability.</p>
+            <div id="collapseOne" class="collapse" data-parent="#accordion">
+                <div class="card-body">
 
-.. container:: custom-button
+This is a walkthrough of a totalVI-based analysis pipeline, from dimension reduction to differential expression.
 
-    :doc:`GO<notebooks/linear_decoder>`
-
+.. image:: ../_static/tutorials/totalvi_cell.svg
+   :align: center
+   :height: 300px
 
 .. raw:: html
 
-                </div>
+                    <div class="d-flex flex-row">
+                        <span class="badge gs-badge-link">
+
+:doc:`To the tutorial <notebooks/totalVI>`
+
+.. raw:: html
+
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <div class="card tutorial-card">
+            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseTwo">
+                <div class="d-flex flex-row tutorial-card-header-1">
+                    <div class="d-flex flex-row tutorial-card-header-2">
+                        <button class="btn btn-dark btn-sm"></button>
+                        scRNA-seq atlas-level integration and label transfer with scVI and scANVI
+                    </div>
+                    <span class="badge gs-badge-link">
+
+:doc:`Straight to tutorial...<notebooks/harmonization>`
+
+.. raw:: html
+
+                    </span>
+                </div>
+            </div>
+            <div id="collapseTwo" class="collapse" data-parent="#accordion">
+                <div class="card-body">
+
+TODO
+
+.. image:: ../_static/tutorials/scanvi.svg
+   :align: center
+   :height: 300px
+
+.. raw:: html
+
+                    <div class="d-flex flex-row">
+                        <span class="badge gs-badge-link">
+
+:doc:`To the tutorial <notebooks/harmonization>`
+
+
+.. raw:: html
+
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card tutorial-card">
+            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseThree">
+                <div class="d-flex flex-row tutorial-card-header-1">
+                    <div class="d-flex flex-row tutorial-card-header-2">
+                        <button class="btn btn-dark btn-sm"></button>
+                        Interpretable factor model of scVI
+                    </div>
+                    <span class="badge gs-badge-link">
+
+:doc:`Straight to tutorial...<notebooks/linear_decoder>`
+
+.. raw:: html
+
+                    </span>
+                </div>
+            </div>
+            <div id="collapseThree" class="collapse" data-parent="#accordion">
+                <div class="card-body">
+
+It's scVI, but with PCA-like interpretability.
+
+
+.. image:: ../_static/tutorials/ldvae.svg
+   :align: center
+   :height: 300px
+
+.. raw:: html
+
+                    <div class="d-flex flex-row">
+                        <span class="badge gs-badge-link">
+
+:doc:`To the tutorial <notebooks/linear_decoder>`
+
+.. raw:: html
+
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
+    </div>
+
+
+User-contributed tutorials
+--------------------------
+
+
+.. raw:: html
+
+    <div class="container">
+    <div id="accordion" class="shadow tutorial-accordion">
+
+        <div class="card tutorial-card">
+            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseOne">
+                <div class="d-flex flex-row tutorial-card-header-1">
+                    <div class="d-flex flex-row tutorial-card-header-2">
+                        <button class="btn btn-dark btn-sm"></button>
+                        Differential expression on Packer C. elegans data
+                    </div>
+                    <span class="badge gs-badge-link">
+
+:doc:`Straight to tutorial...<notebooks/contributed/scVI_DE_worm>`
+
+.. raw:: html
+
+                    </span>
+                </div>
+            </div>
+            <div id="collapseOne" class="collapse" data-parent="#accordion">
+                <div class="card-body">
+
+.. raw:: html
+
+                    <div class="d-flex flex-row">
+                        <span class="badge gs-badge-link">
+
+:doc:`To the tutorial <notebooks/contributed/scVI_DE_worm>`
+
+.. raw:: html
+
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    </div>
+
+
 
 .. toctree::
    :maxdepth: 1
