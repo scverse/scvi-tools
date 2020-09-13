@@ -48,7 +48,7 @@ To download the tutorials:
 
 .. container:: custom-button
 
-    :doc:`GO<notebooks/totalvi>`
+    :doc:`GO<notebooks/totalVI>`
 
 
 .. raw:: html
