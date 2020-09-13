@@ -117,10 +117,10 @@ To download the tutorials:
    notebooks/basic_tutorial
    notebooks/data_loading
    notebooks/totalVI
-   cite_scrna_integration_w_totalVI
+   notebooks/cite_scrna_integration_w_totalVI
    notebooks/harmonization
    notebooks/AutoZI_tutorial
    notebooks/gimvi_tutorial
    notebooks/linear_decoder
    autotune
-   scVI_DE_worm
+   notebooks/contributed/scVI_DE_worm
