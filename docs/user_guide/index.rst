@@ -7,15 +7,13 @@ User guide
     :target: https://colab.research.google.com/github/yoseflab/scVI/blob/stable
 
 
-The easiest way to get familiar with scVI is to follow along with our tutorials!
-The tutorials are accessible on the sidebar to the left. Some are designed to work seamlessly in Google Colab, a free cloud computing platform. These tutorials have a Colab badge in their introduction. In general, these tutorials are designed to work with the latest installable version of scVI. Previous versions of the tutorials are available by changing the Read the Docs version (available at the bottom of the page).
+The easiest way to get familiar with scvi-tools is to follow along with our tutorials.
+The tutorials are accessible on the sidebar to the left. They are also designed to work seamlessly in Google Colab, a free cloud computing platform. These tutorials have a Colab badge in their introduction. In general, these tutorials are designed to work with the latest installable version of scvi-tools.
 
 To download the tutorials:
 
-1. Click the Colab badge above
-2. Open the tutorial
-3. Download it with the option in the file menu.
-4. When you execute the notebook yourself, please set your own `save_path`.
+1. Click the Colab within the tutorial (if available).
+2. Download it with the option in the file menu.
 
 .. raw:: html
 
@@ -23,15 +21,15 @@ To download the tutorials:
         <div class="row">
             <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
                 <div class="card text-center intro-card shadow">
-                <img src="../_static/tutorials/scvi_batch.png" class="card-img-top" alt="scvi basic tutorial action icon" height="225">
+                <img src="../_static/tutorials/overview.svg" class="card-img-top" alt="scvi basic tutorial action icon" height="225">
                 <div class="card-body flex-fill">
-                    <h5 class="card-title">Introduction to scVI</h5>
-                    <p class="card-text">Dimension reduction, integration, differential expression.
+                    <h5 class="card-title">Quick guide to scvi-tools</h5>
+                    <p class="card-text">Rapidly learn the basics to run any of the scvi-tools models.
                     </p>
 
 .. container:: custom-button
 
-    :doc:`GO<notebooks/basic_tutorial>`
+    :doc:`GO<notebooks/api_overview>`
 
 
 .. raw:: html
@@ -43,8 +41,8 @@ To download the tutorials:
                 <div class="card text-center intro-card shadow">
                 <img src="../_static/tutorials/totalvi_cell.svg" class="card-img-top" alt="totalvi basic tutorial action icon" height="225">
                 <div class="card-body flex-fill">
-                    <h5 class="card-title">Introduction to totalVI</h5>
-                    <p class="card-text">Analyzing CITE-seq data? Joint dimension reduction, integration, differential expression, protein background removal.</p>
+                    <h5 class="card-title">Analysis of paired RNA and protein data</h5>
+                    <p class="card-text">Analyzing CITE-seq data? Use totalVI for joint dimension reduction, integration, differential expression, protein background removal.</p>
 
 .. container:: custom-button
 
@@ -61,7 +59,7 @@ To download the tutorials:
                 <img src="../_static/tutorials/anndata.svg" class="card-img-top" alt="data loading tutorial action icon" height="225">
                 <div class="card-body flex-fill">
                     <h5 class="card-title">Data preparation</h5>
-                    <p class="card-text">How do I get my data prepared for scvi?</p>
+                    <p class="card-text">How do I get my data prepared for scvi-tools?</p>
 
 .. container:: custom-button
 
@@ -114,7 +112,7 @@ To download the tutorials:
    :maxdepth: 1
    :hidden:
 
-   notebooks/basic_tutorial
+   notebooks/api_overview
    notebooks/data_loading
    notebooks/totalVI
    notebooks/cite_scrna_integration_w_totalVI
