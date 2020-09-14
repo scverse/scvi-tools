@@ -4,7 +4,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence as kl
-from typing import Dict
 
 from scvi.core._distributions import (
     ZeroInflatedNegativeBinomial,
@@ -129,14 +128,24 @@ class VAE(AbstractVAE):
         Calls self._inference with then does postprocessing
         """
         x = tensors[_CONSTANTS.X_KEY]
-        outputs = self._inference(x)
+        x_ = x
+        if self.log_variational:
+            x_ = torch.log(1 + x_)
 
-        z = outputs["z"]
-        qz_m = outputs["qz_m"]
-        qz_v = outputs["qz_v"]
-        ql_m = outputs["ql_m"]
-        ql_v = outputs["ql_v"]
-        library = outputs["library"]
+        # make random y since its not used
+        # Sampling
+        # vaec used to need y in z_encoder, but no longer
+        qz_m, qz_v, z = self.z_encoder(x_)
+        ql_m, ql_v, library = self.l_encoder(x_)
+
+        outputs = dict()
+
+        outputs["z"] = z
+        outputs["qz_m"] = qz_m
+        outputs["qz_v"] = qz_v
+        outputs["ql_m"] = ql_m
+        outputs["ql_v"] = ql_v
+        outputs["library"] = library
 
         if n_samples > 1:
             qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
@@ -157,14 +166,30 @@ class VAE(AbstractVAE):
 
         return outputs
 
-    def generative(self, tensors, model_params):
-        z = model_params["z"]
-        library = model_params["library"]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+    def generative(self, z, library, batch_index, y, **kwargs):
+        """Runs the generative model"""
+        # make random y since its not used
+        # TODO: refactor forward function to not rely on y
+        # y = torch.zeros(z.shape[0], 1)
 
-        outputs = self._generative(z, library, batch_index, y)
-        return outputs
+        px_scale, px_r, px_rate, px_dropout = self.decoder(
+            self.dispersion, z, library, batch_index, y
+        )
+
+        if self.dispersion == "gene-label":
+            px_r = F.linear(
+                one_hot(y, self.n_labels), self.px_r
+            )  # px_r gets transposed - last dimension is nb genes
+        elif self.dispersion == "gene-batch":
+            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+        elif self.dispersion == "gene":
+            px_r = self.px_r
+
+        px_r = torch.exp(px_r)
+
+        return dict(
+            px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
+        )
 
     def loss(self, tensors, model_outputs, kl_weight=1.0, normalize_loss=True):
         x = tensors[_CONSTANTS.X_KEY]
@@ -239,55 +264,6 @@ class VAE(AbstractVAE):
         elif self.gene_likelihood == "poisson":
             reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
         return reconst_loss
-
-    def _inference(
-        self,
-        x,
-    ) -> Dict[str, torch.Tensor]:
-        """Runs the inference model"""
-        x_ = x
-        if self.log_variational:
-            x_ = torch.log(1 + x_)
-
-        # make random y since its not used
-        # Sampling
-        # vaec used to need y in z_encoder, but no longer
-        qz_m, qz_v, z = self.z_encoder(x_)
-        ql_m, ql_v, library = self.l_encoder(x_)
-
-        return dict(
-            qz_m=qz_m,
-            qz_v=qz_v,
-            z=z,
-            ql_m=ql_m,
-            ql_v=ql_v,
-            library=library,
-        )
-
-    def _generative(self, z, library, batch_index, y=None):
-        """Runs the generative model"""
-        # make random y since its not used
-        # TODO: refactor forward function to not rely on y
-        # y = torch.zeros(z.shape[0], 1)
-
-        px_scale, px_r, px_rate, px_dropout = self.decoder(
-            self.dispersion, z, library, batch_index, y
-        )
-
-        if self.dispersion == "gene-label":
-            px_r = F.linear(
-                one_hot(y, self.n_labels), self.px_r
-            )  # px_r gets transposed - last dimension is nb genes
-        elif self.dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
-        elif self.dispersion == "gene":
-            px_r = self.px_r
-
-        px_r = torch.exp(px_r)
-
-        return dict(
-            px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
-        )
 
     @torch.no_grad()
     def sample(self, tensors, n_samples=1) -> np.ndarray:
