@@ -142,7 +142,10 @@ def poisson_gene_selection(
 
         extra_zeros = torch.zeros(expected_fraction_zeros.shape).to(dev)
         for i in track(
-            range(n_samples), description="Sampling from binomial...", disable=silent
+            range(n_samples),
+            description="Sampling from binomial...",
+            disable=silent,
+            style="tqdm",  # do not change
         ):
             extra_zeros += observed_zero.sample() > expected_zero.sample()
 
