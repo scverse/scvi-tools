@@ -161,7 +161,9 @@ class VAE(AbstractVAE):
         z = model_params["z"]
         library = model_params["library"]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        outputs = self._generative(z, library, batch_index)
+        y = tensors[_CONSTANTS.LABELS_KEY]
+
+        outputs = self._generative(z, library, batch_index, y)
         return outputs
 
     def loss(self, tensors, model_outputs, kl_weight=1.0, normalize_loss=True):
@@ -248,11 +250,9 @@ class VAE(AbstractVAE):
             x_ = torch.log(1 + x_)
 
         # make random y since its not used
-        # TODO: refactor forward function to not rely on y
-        y = torch.zeros(x.shape[0], 1)
-
         # Sampling
-        qz_m, qz_v, z = self.z_encoder(x_, y)
+        # vaec used to need y in z_encoder, but no longer
+        qz_m, qz_v, z = self.z_encoder(x_)
         ql_m, ql_v, library = self.l_encoder(x_)
 
         return dict(
@@ -264,11 +264,11 @@ class VAE(AbstractVAE):
             library=library,
         )
 
-    def _generative(self, z, library, batch_index):
+    def _generative(self, z, library, batch_index, y=None):
         """Runs the generative model"""
         # make random y since its not used
         # TODO: refactor forward function to not rely on y
-        y = torch.zeros(z.shape[0], 1)
+        # y = torch.zeros(z.shape[0], 1)
 
         px_scale, px_r, px_rate, px_dropout = self.decoder(
             self.dispersion, z, library, batch_index, y
@@ -316,7 +316,7 @@ class VAE(AbstractVAE):
             tensor with shape (n_cells, n_genes, n_samples)
         """
         inference_kwargs = dict(n_samples=n_samples)
-        outputs = self.forward(tensors, inference_kwargs=inference_kwargs)
+        outputs, _ = self.forward(tensors, inference_kwargs=inference_kwargs)
 
         px_r = outputs["px_r"]
         px_rate = outputs["px_rate"]

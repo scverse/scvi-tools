@@ -22,10 +22,10 @@ def compute_elbo(vae, posterior, **kwargs):
     elbo = 0
     for i_batch, tensors in enumerate(posterior):
         # kl_divergence_global (scalar) should be common across all batches after training
-        outputs = vae(tensors)
+        _, losses = vae(tensors)
 
-        reconstruction_losses = outputs["reconstruction_losses"]
-        kls_local = outputs["kl_local"]
+        reconstruction_losses = losses["reconstruction_losses"]
+        kls_local = losses["kl_local"]
 
         if isinstance(reconstruction_losses, dict):
             reconstruction_loss = 0.0
@@ -43,7 +43,7 @@ def compute_elbo(vae, posterior, **kwargs):
 
         elbo += torch.sum(reconstruction_loss + kl_local).item()
 
-    kl_globals = outputs["kl_global"]
+    kl_globals = losses["kl_global"]
     if isinstance(kl_globals, dict):
         kl_global = 0.0
         for kl in kl_globals.values():
@@ -70,8 +70,8 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
         # should call forward and take the first term
         # outputs = vae.inference(sample_batch, batch_index, labels, **kwargs)
         loss_kwargs = dict(kl_weight=1)
-        outputs = vae(tensors, loss_kwargs=loss_kwargs)
-        reconstruction_loss = outputs["reconstruction_loss"]
+        _, losses = vae(tensors, loss_kwargs=loss_kwargs)
+        reconstruction_loss = losses["reconstruction_loss"]
 
         # this if for TotalVI
         if isinstance(reconstruction_loss, dict):

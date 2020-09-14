@@ -120,15 +120,16 @@ class UnsupervisedTrainer(Trainer):
 
     # loss function of trinaer calls loss of model and feeds the kl weight
     # klweight of model default is 1.0
+    # loss here should probbaly have kwargs.
+    # this is called by annotaiton posterior
     def loss(self, tensors: dict, feed_labels: bool = True):
         # The next lines should not be modified, because scanVI's trainer inherits
         # from this class and should NOT include label information to compute the ELBO by default
         if not feed_labels:
             tensors[_CONSTANTS.LABELS_KEY] = None
         loss_kwargs = dict(kl_weight=self.kl_weight, normalize_loss=self.normalize_loss)
-        outputs = self.model(tensors, loss_kwargs=loss_kwargs)
-        loss = outputs["loss"]
-
+        _, losses = self.model(tensors, loss_kwargs=loss_kwargs)
+        loss = losses["loss"]
         return loss
 
     @property
