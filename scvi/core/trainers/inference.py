@@ -5,7 +5,6 @@ import anndata
 from numpy import ceil
 from typing import Union
 
-from scvi import _CONSTANTS
 from .trainer import Trainer
 
 logger = logging.getLogger(__name__)
@@ -122,11 +121,9 @@ class UnsupervisedTrainer(Trainer):
     # klweight of model default is 1.0
     # loss here should probbaly have kwargs.
     # this is called by annotaiton posterior
-    def loss(self, tensors: dict, feed_labels: bool = True):
+    def loss(self, tensors: dict):
         # The next lines should not be modified, because scanVI's trainer inherits
         # from this class and should NOT include label information to compute the ELBO by default
-        if not feed_labels:
-            tensors[_CONSTANTS.LABELS_KEY] = None
         loss_kwargs = dict(kl_weight=self.kl_weight, normalize_loss=self.normalize_loss)
         _, losses = self.model(tensors, loss_kwargs=loss_kwargs)
         loss = losses["loss"]

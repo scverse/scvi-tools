@@ -7,6 +7,7 @@ from .classifier import Classifier
 from ._base import Decoder, Encoder
 from .utils import broadcast_labels
 from .vae import VAE
+from scvi import _CONSTANTS
 
 
 class SCANVAE(VAE):
@@ -170,6 +171,8 @@ class SCANVAE(VAE):
             w_y = self.classifier(z)
         return w_y
 
+    # this is just going to become inference
+    # and you get the z key
     def get_latents(self, x, y=None):
         zs = super().get_latents(x)
         qz2_m, qz2_v, z2 = self.encoder_z2_z1(zs[0], y)
@@ -177,25 +180,24 @@ class SCANVAE(VAE):
             z2 = qz2_m
         return [zs[0], z2]
 
-    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
+    def loss(self, tensors, model_outputs, **kwargs):
+        y = tensors[_CONSTANTS.LABELS_KEY]
+        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
         is_labelled = False if y is None else True
 
-        outputs = self.inference(x, batch_index, y)
-        px_r = outputs["px_r"]
-        px_rate = outputs["px_rate"]
-        px_dropout = outputs["px_dropout"]
-        qz1_m = outputs["qz_m"]
-        qz1_v = outputs["qz_v"]
-        z1 = outputs["z"]
-        ql_m = outputs["ql_m"]
-        ql_v = outputs["ql_v"]
+        qz1_m = model_outputs["qz_m"]
+        qz1_v = model_outputs["qz_v"]
+        z1 = model_outputs["z"]
+        ql_m = model_outputs["ql_m"]
+        ql_v = model_outputs["ql_v"]
 
         # Enumerate choices of label
         ys, z1s = broadcast_labels(y, z1, n_broadcast=self.n_labels)
         qz2_m, qz2_v, z2 = self.encoder_z2_z1(z1s, ys)
         pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
 
-        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
+        reconst_loss = self.get_reconstruction_loss(tensors, model_outputs)
 
         # KL Divergence
         mean = torch.zeros_like(qz2_m)
@@ -231,5 +233,15 @@ class SCANVAE(VAE):
             Categorical(probs=self.y_prior.repeat(probs.size(0), 1)),
         )
         kl_divergence += kl_divergence_l
+        kl_local = kl_divergence
+        kl_global = 0.0
 
-        return reconst_loss, kl_divergence, 0.0
+        # double check this mean thing with loss and kl global!?!?!??!
+        loss = torch.mean(reconst_loss + kl_local) + kl_global
+
+        return dict(
+            loss=loss,
+            reconstruction_losses=reconst_loss,
+            kl_local=kl_local,
+            kl_global=kl_global,
+        )

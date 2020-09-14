@@ -197,7 +197,10 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         super().__setattr__(key, value)
 
     def loss(self, tensors_all, tensors_labelled):
-        loss = super().loss(tensors_all, feed_labels=False)
+        # dont feed labels
+        tensors_all[_CONSTANTS.LABELS_KEY] = None
+
+        loss = super().loss(tensors_all)
         sample_batch = tensors_labelled[_CONSTANTS.X_KEY]
         y = tensors_labelled[_CONSTANTS.LABELS_KEY]
         classification_loss = F.cross_entropy(
