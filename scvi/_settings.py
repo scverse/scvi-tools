@@ -85,7 +85,7 @@ class ScviConfig:
         self._batch_size = batch_size
 
     @property
-    def progress_bar_style(self) -> int:
+    def progress_bar_style(self) -> str:
         """Library to use for progress bar."""
         return self._pbar_style
 
@@ -113,7 +113,7 @@ class ScviConfig:
         return self._seed
 
     @seed.setter
-    def seed(self, seed: int) -> int:
+    def seed(self, seed: int):
         """Random seed for torch and numpy."""
         torch.manual_seed(seed)
         torch.backends.cudnn.deterministic = True
