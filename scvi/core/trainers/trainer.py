@@ -48,8 +48,8 @@ class Trainer:
     on :
         The data_loader name reference for the ``early_stopping_metric`` and ``save_best_state_metric``, that
         should be specified if any of them is. Default: ``None``.
-    show_progbar :
-        If False, disables progress bar.
+    silent :
+        If True, disables progress bar.
     seed :
         Random seed for train/test/validate split
     """
@@ -67,7 +67,7 @@ class Trainer:
         weight_decay: float = 1e-6,
         early_stopping_kwargs: dict = None,
         data_loader_kwargs: dict = None,
-        show_progbar: bool = True,
+        silent: bool = False,
         batch_size: int = 128,
         seed: int = 0,
         max_nans: int = 10,
@@ -120,7 +120,7 @@ class Trainer:
         if self.early_stopping.early_stopping_metric:
             self.metrics_to_monitor.add(self.early_stopping.early_stopping_metric)
 
-        self.show_progbar = show_progbar
+        self.silent = silent
 
     @torch.no_grad()
     def compute_metrics(self):
@@ -173,7 +173,7 @@ class Trainer:
         self.on_training_begin()
 
         for self.epoch in track(
-            range(n_epochs), description="Training...", disable=not self.show_progbar
+            range(n_epochs), description="Training...", disable=not self.silent
         ):
             self.on_epoch_begin()
             for tensors_dict in self.data_loaders_loop():
