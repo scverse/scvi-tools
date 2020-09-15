@@ -26,10 +26,13 @@ def track(
     sequence: Iterable,
     description: str = "Working...",
     disable: bool = False,
-    style: Literal["rich", "tqdm"] = "rich",
+    style: Literal["rich", "tqdm"] = "tqdm",
     **kwargs
 ):
     """Progress bar with `'rich'` and `'tqdm'` styles."""
+
+    if style not in ["rich", "tqdm"]:
+        raise ValueError("style must be one of ['rich', 'tqdm']")
     if disable:
         return sequence
     if style == "tqdm":
