@@ -30,7 +30,6 @@ def track(
     **kwargs
 ):
     """Progress bar with `'rich'` and `'tqdm'` styles."""
-
     if style not in ["rich", "tqdm"]:
         raise ValueError("style must be one of ['rich', 'tqdm']")
     if disable:
