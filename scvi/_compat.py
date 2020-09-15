@@ -26,7 +26,7 @@ def track(
     sequence: Iterable,
     description: str = "Working...",
     disable: bool = False,
-    style: Literal["rich", "tqdm"] = "tqdm",
+    style: Literal["rich", "tqdm"] = "rich",
     **kwargs
 ):
     """Progress bar with `'rich'` and `'tqdm'` styles."""
