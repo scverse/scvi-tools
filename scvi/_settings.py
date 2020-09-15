@@ -59,10 +59,20 @@ class ScviConfig:
 
         self.verbosity = verbosity
         self.seed = seed
-        self.batch_size = batch_size
+        self._batch_size = batch_size
         if progress_bar_style not in ["rich", "tqdm"]:
             raise ValueError("Progress bar style must be in ['rich', 'tqdm']")
         self.pbar_style = progress_bar_style
+
+    @property
+    def batch_size(self) -> int:
+        """
+        Minibatch size for loading data into the model.
+
+        This is only used after a model is trained. Trainers have specific
+        `batch_size` parameters.
+        """
+        return self._batch_size
 
     @property
     def seed(self) -> int:
