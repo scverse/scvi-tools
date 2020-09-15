@@ -1,6 +1,6 @@
-=====================================================
-scvi-tools -- single-cell variational inference tools
-=====================================================
+==========
+scvi-tools
+==========
 
 |Stars| |PyPI| |BioConda| |Docs| |Build Status| |Coverage| |Code Style| |Downloads|
 
@@ -22,7 +22,7 @@ scvi-tools -- single-cell variational inference tools
 .. |Downloads| image:: https://pepy.tech/badge/scvi-tools
    :target: https://pepy.tech/project/scvi-tools
 
-scvi-tools is a package for end-to-end analysis of single-cell omics data. The package is composed of several deep generative models for omics data analysis, namely:
+scvi-tools (single-cell variational inference tools) is a package for end-to-end analysis of single-cell omics data. The package is composed of several deep generative models for omics data analysis, namely:
 
 * scVI_ for analysis of single-cell RNA-seq data, as well as its improved differential expression framework_
 * scANVI_ for cell annotation of scRNA-seq data using semi-labeled examples

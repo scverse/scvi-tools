@@ -1,7 +1,7 @@
 .. include:: ../README.rst
    :end-line: 22
 
-scVI is a package for end-to-end analysis of single-cell omics data. The package is composed of several deep generative models for omics data analysis, namely:
+scvi-tools (single-cell variational inference tools) is a package for end-to-end analysis of single-cell omics data. The package is composed of several deep generative models for omics data analysis, namely:
 
 * scVI for analysis of single-cell RNA-seq data [Lopez18]_
 * scANVI for cell annotation of scRNA-seq data using semi-labeled examples [Xu19]_
