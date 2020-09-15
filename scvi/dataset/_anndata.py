@@ -187,7 +187,7 @@ def setup_anndata(
 
     batch_key = _setup_batch(adata, batch_key)
     labels_key = _setup_labels(adata, labels_key)
-    X_loc, X_key = _setup_X(adata, layer, use_raw)
+    x_loc, x_key = _setup_x(adata, layer, use_raw)
     local_l_mean_key, local_l_var_key = _setup_library_size(
         adata, batch_key, layer, use_raw
     )
@@ -195,7 +195,7 @@ def setup_anndata(
     adata.uns["_scvi"]["use_raw"] = True if use_raw is True else False
 
     data_registry = {
-        _CONSTANTS.X_KEY: {"attr_name": X_loc, "attr_key": X_key},
+        _CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key},
         _CONSTANTS.BATCH_KEY: {"attr_name": "obs", "attr_key": batch_key},
         _CONSTANTS.LOCAL_L_MEAN_KEY: {"attr_name": "obs", "attr_key": local_l_mean_key},
         _CONSTANTS.LOCAL_L_VAR_KEY: {"attr_name": "obs", "attr_key": local_l_var_key},
@@ -375,13 +375,13 @@ def transfer_anndata_setup(
     labels_key = "_scvi_labels"
 
     # transfer X
-    X_loc, X_key = _setup_X(adata_target, layer, use_raw)
+    x_loc, x_key = _setup_x(adata_target, layer, use_raw)
     local_l_mean_key, local_l_var_key = _setup_library_size(
         adata_target, batch_key, layer, use_raw
     )
     target_data_registry = data_registry.copy()
     target_data_registry.update(
-        {_CONSTANTS.X_KEY: {"attr_name": X_loc, "attr_key": X_key}}
+        {_CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key}}
     )
     # transfer extra categorical covs
     has_cat_cov = True if _CONSTANTS.CAT_COVS_KEY in data_registry.keys() else False
@@ -664,7 +664,7 @@ def _setup_protein_expression(
     return protein_expression_obsm_key
 
 
-def _setup_X(adata, layer, use_raw):
+def _setup_x(adata, layer, use_raw):
     if use_raw and layer:
         logging.warning("use_raw and layer were both passed in. Defaulting to use_raw.")
 
@@ -673,24 +673,24 @@ def _setup_X(adata, layer, use_raw):
         if adata.raw is None:
             raise ValueError("use_raw is True but adata.raw is None")
         logger.info("Using data from adata.raw.X")
-        X_loc = "X"
-        X_key = "None"
-        X = adata.raw.X
+        x_loc = "X"
+        x_key = "None"
+        x = adata.raw.X
     elif layer is not None:
         assert (
             layer in adata.layers.keys()
         ), "{} is not a valid key in adata.layers".format(layer)
         logger.info('Using data from adata.layers["{}"]'.format(layer))
-        X_loc = "layers"
-        X_key = layer
-        X = adata.layers[X_key]
+        x_loc = "layers"
+        x_key = layer
+        x = adata.layers[x_key]
     else:
         logger.info("Using data from adata.X")
-        X_loc = "X"
-        X_key = "None"
-        X = adata._X
+        x_loc = "X"
+        x_key = "None"
+        x = adata._X
 
-    if _check_nonnegative_integers(X) is False:
+    if _check_nonnegative_integers(x) is False:
         logger_data_loc = (
             "adata.X" if layer is None else "adata.layers[{}]".format(layer)
         )
@@ -700,7 +700,7 @@ def _setup_X(adata, layer, use_raw):
             )
         )
 
-    return X_loc, X_key
+    return x_loc, x_key
 
 
 def _setup_library_size(adata, batch_key, layer, use_raw):
