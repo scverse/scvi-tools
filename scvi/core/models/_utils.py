@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from scvi.core.utils import DifferentialComputation
-from scvi._compat import track
+from scvi._utils import track
 
 
 def _de_core(

@@ -1,5 +1,6 @@
 import logging
 from typing import Union
+from ._compat import Literal
 from rich.logging import RichHandler
 from rich.console import Console
 
@@ -38,40 +39,81 @@ class DispatchingFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def set_verbosity(level: Union[str, int]):
+class ScviConfig:
     """
-    Sets logging configuration for scvi based on chosen level of verbosity.
+    Config manager for scvi-tools.
 
-    Sets "scvi" logging level to `level`
-    If "scvi" logger has no StreamHandler, add one.
-    Else, set its level to `level`.
+    Examples
+    --------
+    >>> import scvi
+    >>> scvi.settings(seed=1)
     """
-    scvi_logger.setLevel(level)
-    has_streamhandler = False
-    for handler in scvi_logger.handlers:
-        if isinstance(handler, RichHandler):
-            handler.setLevel(level)
-            logger.info(
-                "'scvi' logger already has a StreamHandler, set its level to {}.".format(
-                    level
+
+    def __init__(
+        self,
+        verbosity: int = logging.INFO,
+        progress_bar_style: Literal["rich", "tqdm"] = "rich",
+        batch_size: int = 128,
+        seed: int = 0,
+    ):
+
+        self.verbosity = verbosity
+        self.seed = seed
+        self.batch_size = batch_size
+        if progress_bar_style not in ["rich", "tqdm"]:
+            raise ValueError("Progress bar style must be in ['rich', 'tqdm']")
+        self.pbar_style = progress_bar_style
+
+    @property
+    def seed(self) -> int:
+        """Random seed."""
+        return self._seed
+
+    @seed.setter
+    def seed(self, seed: int) -> int:
+        """Random seed for torch and numpy."""
+        torch.manual_seed(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        np.random.seed(seed)
+
+    @property
+    def verbosity(self) -> int:
+        """Verbosity level (default `logging.INFO`)."""
+        return self._verbosity
+
+    @verbosity.setter
+    def verbosity(self, level: Union[str, int]):
+        """
+        Sets logging configuration for scvi based on chosen level of verbosity.
+
+        Sets "scvi" logging level to `level`
+        If "scvi" logger has no StreamHandler, add one.
+        Else, set its level to `level`.
+        """
+        scvi_logger.setLevel(level)
+        has_streamhandler = False
+        for handler in scvi_logger.handlers:
+            if isinstance(handler, RichHandler):
+                handler.setLevel(level)
+                logger.info(
+                    "'scvi' logger already has a StreamHandler, set its level to {}.".format(
+                        level
+                    )
                 )
+                has_streamhandler = True
+            self._verbosity = level
+        if not has_streamhandler:
+            console = Console(force_terminal=True)
+            if console.is_jupyter is True:
+                console.is_jupyter = False
+            ch = RichHandler(show_path=False, console=console, show_time=False)
+            formatter = logging.Formatter("%(message)s")
+            ch.setFormatter(
+                DispatchingFormatter(formatter, {"scvi.autotune": autotune_formatter})
             )
-            has_streamhandler = True
-    if not has_streamhandler:
-        console = Console(force_terminal=True)
-        if console.is_jupyter is True:
-            console.is_jupyter = False
-        ch = RichHandler(show_path=False, console=console, show_time=False)
-        formatter = logging.Formatter("%(message)s")
-        ch.setFormatter(
-            DispatchingFormatter(formatter, {"scvi.autotune": autotune_formatter})
-        )
-        scvi_logger.addHandler(ch)
-        logger.debug("Added StreamHandler with custom formatter to 'scvi' logger.")
+            scvi_logger.addHandler(ch)
+            logger.debug("Added StreamHandler with custom formatter to 'scvi' logger.")
 
 
-def set_seed(seed: int = 0):
-    torch.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
+settings = ScviConfig()

@@ -10,7 +10,7 @@ from itertools import cycle
 from typing import List
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
-from scvi._compat import track
+from scvi._utils import track
 
 from scvi.core.posteriors import Posterior
 from scvi import _CONSTANTS

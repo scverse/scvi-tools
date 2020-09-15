@@ -6,18 +6,16 @@ __version__ = "0.6.7"
 import logging
 from logging import NullHandler
 
-from ._settings import set_verbosity, set_seed
 from ._constants import _CONSTANTS
+from ._settings import settings
 from . import dataset, models
 
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
 
-# default to INFO level logging for the scvi package
-set_verbosity(logging.INFO)
 # this prevents double outputs
 logger.propagate = False
 
 test_var = "test"
 
-__all__ = ["set_verbosity", "set_seed", "_CONSTANTS", "dataset", "models"]
+__all__ = ["settings", "_CONSTANTS", "dataset", "models"]

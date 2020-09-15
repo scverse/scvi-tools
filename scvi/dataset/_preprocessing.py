@@ -5,7 +5,7 @@ import anndata
 import torch
 
 from typing import Optional
-from scvi._compat import track
+from scvi._utils import track
 
 from ._utils import _check_nonnegative_integers
 
