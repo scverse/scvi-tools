@@ -46,7 +46,7 @@ class ScviConfig:
     Examples
     --------
     >>> import scvi
-    >>> scvi.settings(seed=1)
+    >>> scvi.settings.seed = 1
     """
 
     def __init__(
