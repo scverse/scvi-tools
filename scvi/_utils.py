@@ -17,7 +17,7 @@ def track(
 ):
     """Progress bar with `'rich'` and `'tqdm'` styles."""
     if style is None:
-        style = settings.pbar_style
+        style = settings.progress_bar_style
     if style not in ["rich", "tqdm"]:
         raise ValueError("style must be one of ['rich', 'tqdm']")
     if disable:

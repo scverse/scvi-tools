@@ -62,7 +62,7 @@ class ScviConfig:
         self._batch_size = batch_size
         if progress_bar_style not in ["rich", "tqdm"]:
             raise ValueError("Progress bar style must be in ['rich', 'tqdm']")
-        self.pbar_style = progress_bar_style
+        self._pbar_style = progress_bar_style
 
     @property
     def batch_size(self) -> int:
@@ -74,9 +74,42 @@ class ScviConfig:
         """
         return self._batch_size
 
+    @batch_size.setter
+    def batch_size(self, batch_size: int):
+        """
+        Minibatch size for loading data into the model.
+
+        This is only used after a model is trained. Trainers have specific
+        `batch_size` parameters.
+        """
+        self._batch_size = batch_size
+
+    @property
+    def progress_bar_style(self) -> int:
+        """Library to use for progress bar."""
+        return self._pbar_style
+
+    @progress_bar_style.setter
+    def progress_bar_style(self, pbar_style: Literal["tqdm", "rich"]):
+        """Library to use for progress bar."""
+        self._pbar_style = pbar_style
+
     @property
     def seed(self) -> int:
         """Random seed."""
+        return self._seed
+
+    @seed.setter
+    def seed(self, seed: int) -> int:
+        """Random seed for torch and numpy."""
+        torch.manual_seed(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        np.random.seed(seed)
+
+    @property
+    def seed(self) -> int:
+        """Random seed for torch and numpy."""
         return self._seed
 
     @seed.setter
