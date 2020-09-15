@@ -163,7 +163,7 @@ html_context = dict(
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
-html_css_files = ["css/custom.css"]
+html_css_files = ["css/user_guide.css", "css/custom.css"]
 
 html_show_sphinx = False
 
