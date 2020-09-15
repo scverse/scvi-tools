@@ -27,7 +27,7 @@ def custom_objective_hyperopt(
 
     # add hardcoded parameters
     # disable scVI progbar
-    trainer_specific_kwargs["show_progbar"] = False
+    trainer_specific_kwargs["silent"] = True
     trainer_specific_kwargs["frequency"] = 1
 
     # merge params with fixed param precedence

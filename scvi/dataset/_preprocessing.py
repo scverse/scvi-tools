@@ -5,12 +5,14 @@ import anndata
 import torch
 
 from typing import Optional
+from scvi._utils import track
 
 from ._utils import _check_nonnegative_integers
 
 logger = logging.getLogger(__name__)
 
 
+@torch.no_grad()
 def poisson_gene_selection(
     adata,
     layer: Optional[str] = None,
@@ -82,9 +84,6 @@ def poisson_gene_selection(
         If batch_key is given, this denotes in how many batches genes are detected as zero enriched
 
     """
-    from scvi._compat import tqdm
-    import sys
-
     X = adata.layers[layer] if layer is not None else adata.X
     if _check_nonnegative_integers(X) is False:
         raise ValueError("`poisson_gene_selection` expects " "raw count data.")
@@ -142,11 +141,11 @@ def poisson_gene_selection(
         expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
 
         extra_zeros = torch.zeros(expected_fraction_zeros.shape).to(dev)
-        for i in tqdm(
+        for i in track(
             range(n_samples),
+            description="Sampling from binomial...",
             disable=silent,
-            desc="Sampling from binomial",
-            file=sys.stdout,
+            style="tqdm",  # do not change
         ):
             extra_zeros += observed_zero.sample() > expected_zero.sample()
 

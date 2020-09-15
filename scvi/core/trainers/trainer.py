@@ -1,5 +1,4 @@
 import logging
-import sys
 import time
 import numpy as np
 import torch
@@ -11,7 +10,7 @@ from itertools import cycle
 from typing import List
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
-from scvi._compat import tqdm
+from scvi._utils import track
 
 from scvi.core.posteriors import Posterior
 from scvi import _CONSTANTS
@@ -49,8 +48,8 @@ class Trainer:
     on :
         The data_loader name reference for the ``early_stopping_metric`` and ``save_best_state_metric``, that
         should be specified if any of them is. Default: ``None``.
-    show_progbar :
-        If False, disables progress bar.
+    silent :
+        If True, disables progress bar.
     seed :
         Random seed for train/test/validate split
     """
@@ -68,7 +67,7 @@ class Trainer:
         weight_decay: float = 1e-6,
         early_stopping_kwargs: dict = None,
         data_loader_kwargs: dict = None,
-        show_progbar: bool = True,
+        silent: bool = False,
         batch_size: int = 128,
         seed: int = 0,
         max_nans: int = 10,
@@ -121,7 +120,7 @@ class Trainer:
         if self.early_stopping.early_stopping_metric:
             self.metrics_to_monitor.add(self.early_stopping.early_stopping_metric)
 
-        self.show_progbar = show_progbar
+        self.silent = silent
 
     @torch.no_grad()
     def compute_metrics(self):
@@ -173,11 +172,8 @@ class Trainer:
 
         self.on_training_begin()
 
-        for self.epoch in tqdm(
-            range(n_epochs),
-            desc="training",
-            disable=not self.show_progbar,
-            file=sys.stdout,
+        for self.epoch in track(
+            range(n_epochs), description="Training...", disable=self.silent
         ):
             self.on_epoch_begin()
             for tensors_dict in self.data_loaders_loop():
@@ -200,11 +196,6 @@ class Trainer:
         self.training_extras_end()
 
         self.training_time += (time.time() - begin) - self.compute_metrics_time
-        if self.frequency:
-            logger.debug(
-                "\nTraining time:  %i s. / %i epochs"
-                % (int(self.training_time), self.n_epochs)
-            )
         self.on_training_end()
 
     def on_training_loop(self, tensors_dict):

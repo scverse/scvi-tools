@@ -78,7 +78,7 @@ class VAEMixin:
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
     ) -> float:
         """
         Return the ELBO for the data.
@@ -94,7 +94,7 @@ class VAEMixin:
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
-            Minibatch size for data loading into model.
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -107,7 +107,7 @@ class VAEMixin:
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         n_mc_samples: int = 1000,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
     ) -> float:
         """
         Return the marginal LL for the data.
@@ -124,7 +124,7 @@ class VAEMixin:
         n_mc_samples
             Number of Monte Carlo samples to use for marginal LL estimation.
         batch_size
-            Minibatch size for data loading into model.
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -136,7 +136,7 @@ class VAEMixin:
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
     ) -> float:
         r"""
         Return the reconstruction error for the data.
@@ -151,7 +151,7 @@ class VAEMixin:
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
-            Minibatch size for data loading into model.
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -165,7 +165,7 @@ class VAEMixin:
         indices: Optional[Sequence[int]] = None,
         give_mean: bool = True,
         mc_samples: int = 5000,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
     ) -> np.ndarray:
         r"""
         Return the latent representation for each cell.
@@ -185,7 +185,7 @@ class VAEMixin:
             For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte Carlo
             samples to take for computing mean.
         batch_size
-            Minibatch size for data loading into model.
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
 
         Returns
         -------

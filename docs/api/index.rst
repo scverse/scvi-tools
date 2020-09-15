@@ -14,4 +14,5 @@ Import scvi as::
    dataset
    models
    inference
+   settings
    core

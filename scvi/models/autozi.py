@@ -103,6 +103,10 @@ class AUTOZI(VAEMixin, BaseModelClass):
             dropout_rate=dropout_rate,
             dispersion=dispersion,
             latent_distribution=latent_distribution,
+            zero_inflation=zero_inflation,
+            alpha_prior=alpha_prior,
+            beta_prior=beta_prior,
+            minimal_dropout=minimal_dropout,
             **model_kwargs,
         )
         self.model_summary_string = (

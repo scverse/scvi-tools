@@ -186,6 +186,10 @@ class UnsupervisedTrainer(Trainer):
                 "If your applications rely on the posterior quality, "
                 "consider training for more epochs or reducing the kl warmup."
             )
+        logger.info(
+            "Training time:  %i s. / %i epochs"
+            % (int(self.training_time), self.n_epochs)
+        )
 
 
 class AdapterTrainer(UnsupervisedTrainer):

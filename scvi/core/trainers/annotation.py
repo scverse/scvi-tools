@@ -176,7 +176,7 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
             model.classifier,
             self.adata,
             metrics_to_monitor=[],
-            show_progbar=False,
+            silent=True,
             frequency=0,
             sampling_model=self.model,
         )

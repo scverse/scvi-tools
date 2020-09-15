@@ -1,8 +1,7 @@
-import sys
 import numpy as np
 import pandas as pd
 from scvi.core.utils import DifferentialComputation
-from scvi._compat import tqdm
+from scvi._utils import track
 
 
 def _de_core(
@@ -46,10 +45,9 @@ def _de_core(
 
     df_results = []
     dc = DifferentialComputation(model_fn, adata)
-    for g1 in tqdm(
+    for g1 in track(
         group1,
-        desc="DE",
-        file=sys.stdout,
+        description="DE...",
     ):
         cell_idx1 = adata.obs[groupby] == g1
         if group2 is None:

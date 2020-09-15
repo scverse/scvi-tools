@@ -1314,7 +1314,7 @@ def _objective_function(
 
     # add hardcoded parameters
     # disable scVI progbar
-    trainer_specific_kwargs["show_progbar"] = False
+    trainer_specific_kwargs["silent"] = True
     if is_best_training:
         trainer_specific_kwargs["train_size"] = 1.0
         # no monitoring, will crash otherwise
