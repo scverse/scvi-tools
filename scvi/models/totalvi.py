@@ -190,7 +190,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         mode: Literal["total", "gene", "protein"] = "total",
-        batch_size=128,
+        batch_size: Optional[int] = None,
     ):
         r"""
         Return the reconstruction error for the data.
@@ -207,7 +207,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         mode
             Compute for genes, proteins, or both.
         batch_size
-            Minibatch size for data loading into model.
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
         post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
@@ -221,7 +221,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         indices: Optional[Sequence[int]] = None,
         give_mean: bool = True,
         mc_samples: int = 5000,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
     ) -> np.ndarray:
         """
         Return the latent representation for each cell.
@@ -239,7 +239,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte Carlo
             samples to take for computing mean.
         batch_size
-            Minibatch size for data loading into model
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
 
         Returns
         -------
@@ -279,7 +279,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         give_mean: bool = True,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
     ) -> np.ndarray:
         r"""
         Returns the latent library size for each cell.
@@ -296,7 +296,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         give_mean
             Return the mean or a sample from the posterior distribution.
         batch_size
-            Minibatch size for data loading into model.
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
@@ -327,7 +327,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         sample_protein_mixing: bool = True,
         scale_protein: bool = False,
         include_protein_background: bool = False,
-        batch_size=128,
+        batch_size: Optional[int] = None,
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ) -> Tuple[Union[np.ndarray, pd.DataFrame], Union[np.ndarray, pd.DataFrame]]:
@@ -372,7 +372,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         include_protein_background
             Include background component for protein expression
         batch_size
-            Minibatch size for data loading into model
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -503,7 +503,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         transform_batch: Optional[int] = None,
         protein_list: Optional[Sequence[str]] = None,
         n_samples: int = 1,
-        batch_size=128,
+        batch_size: Optional[int] = None,
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ):
@@ -533,7 +533,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         n_samples
             Number of posterior samples to use for estimation.
         batch_size
-            Minibatch size for data loading into model.
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -619,7 +619,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         indices=None,
         transform_batch: Optional[int] = None,
         scale_protein=False,
-        batch_size=128,
+        batch_size: Optional[int] = None,
         sample_protein_mixing=False,
         include_protein_background=False,
         protein_prior_count=0.5,
@@ -653,7 +653,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.25,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
         all_stats: bool = True,
         batch_correction: bool = False,
         batchid1: Optional[Iterable[str]] = None,
@@ -730,7 +730,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         n_samples: int = 1,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
         gene_list: Optional[Sequence[str]] = None,
         protein_list: Optional[Sequence[str]] = None,
     ) -> np.ndarray:
@@ -749,7 +749,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         n_samples
             Number of required samples for each cell
         batch_size
-            Minibatch size for data loading into model
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         gene_list
             Names of genes of interest
         protein_list
@@ -852,7 +852,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         n_samples
             How may samples per cell
         batch_size
-            Minibatch size for data loading into model
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         rna_size_factor
             size factor for RNA prior to sampling gamma distribution
         transform_batch
@@ -934,7 +934,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         n_samples
             Number of posterior samples to use for estimation.
         batch_size
-            Minibatch size for data loading into model
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         rna_size_factor
             size factor for RNA prior to sampling gamma distribution
         transform_batch

@@ -26,7 +26,7 @@ delta
     In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce differential expression
     (change model default case).
 batch_size
-    Minibatch size for data loading into model.
+    Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
 all_stats
     Concatenate count statistics (e.g., mean expression group 1) to DE results.
 batch_correction

@@ -10,7 +10,7 @@ from scvi.dataset._utils import (
     _check_anndata_setup_equivalence,
     _check_nonnegative_integers,
 )
-from scvi import _CONSTANTS
+from scvi import _CONSTANTS, settings
 from typing import Optional, Sequence
 from abc import ABC, abstractmethod
 from scvi.dataset import get_from_registry, transfer_anndata_setup
@@ -41,10 +41,12 @@ class BaseModelClass(ABC):
         self,
         adata: AnnData,
         indices: Optional[Sequence[int]] = None,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
         **posterior_kwargs,
     ):
         """Create a Posterior object for data iteration."""
+        if batch_size is None:
+            batch_size = settings.batch_size
         if indices is None:
             indices = np.arange(adata.n_obs)
         post = self._posterior_class(

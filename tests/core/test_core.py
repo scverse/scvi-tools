@@ -9,7 +9,6 @@ from scvi.core.trainers import (
 )
 from scvi.core.trainers.inference import AdapterTrainer
 
-scvi.set_seed(0)
 use_cuda = True
 
 

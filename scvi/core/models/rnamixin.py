@@ -31,7 +31,7 @@ class RNASeqMixin:
         gene_list: Optional[Sequence[str]] = None,
         library_size: Union[float, Literal["latent"]] = 1,
         n_samples: int = 1,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ) -> Union[np.ndarray, pd.DataFrame]:
@@ -64,7 +64,7 @@ class RNASeqMixin:
         n_samples
             Number of posterior samples to use for estimation.
         batch_size
-            Minibatch size for data loading into model.
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -154,7 +154,7 @@ class RNASeqMixin:
         idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.25,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
         all_stats: bool = True,
         batch_correction: bool = False,
         batchid1: Optional[Iterable[str]] = None,
@@ -213,7 +213,7 @@ class RNASeqMixin:
         indices: Optional[Sequence[int]] = None,
         n_samples: int = 1,
         gene_list: Optional[Sequence[str]] = None,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
     ) -> np.ndarray:
         r"""
         Generate observation samples from the posterior predictive distribution.
@@ -232,7 +232,7 @@ class RNASeqMixin:
         gene_list
             Names of genes of interest.
         batch_size
-            Minibatch size for data loading into model.
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
 
         Returns
         -------
@@ -322,7 +322,7 @@ class RNASeqMixin:
         n_samples
             Number of posterior samples to use for estimation.
         batch_size
-            Minibatch size for data loading into model.
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         rna_size_factor
             size factor for RNA prior to sampling gamma distribution.
         transform_batch
@@ -392,7 +392,7 @@ class RNASeqMixin:
         n_samples
             Number of posterior samples to use for estimation.
         batch_size
-            Minibatch size for data loading into model.
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         rna_size_factor
             size factor for RNA prior to sampling gamma distribution.
         transform_batch
@@ -452,7 +452,7 @@ class RNASeqMixin:
         indices: Optional[Sequence[int]] = None,
         n_samples: Optional[int] = 1,
         give_mean: Optional[bool] = False,
-        batch_size=128,
+        batch_size: Optional[int] = None,
     ) -> Dict[str, np.ndarray]:
         r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`."""
         adata = self._validate_anndata(adata)
@@ -504,7 +504,7 @@ class RNASeqMixin:
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         give_mean: bool = True,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
     ) -> np.ndarray:
         r"""
         Returns the latent library size for each cell.
@@ -521,7 +521,7 @@ class RNASeqMixin:
         give_mean
             Return the mean or a sample from the posterior distribution.
         batch_size
-            Minibatch size for data loading into model.
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
