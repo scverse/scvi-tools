@@ -25,7 +25,7 @@ These models are able to simultaneously perform many downstream tasks such as le
                 <img src="_static/computer-24px.svg" class="card-img-top" alt="getting started with scvi action icon" height="52">
                 <div class="card-body flex-fill">
                     <h5 class="card-title">Getting started</h5>
-                    <p class="card-text">New to <em>scvi</em>? Check out the installation guide.
+                    <p class="card-text">New to <em>scvi-tools</em>? Check out the installation guide.
                     </p>
 
 .. container:: custom-button
@@ -42,7 +42,7 @@ These models are able to simultaneously perform many downstream tasks such as le
                 <img src="_static/play_circle_outline-24px.svg" class="card-img-top" alt="scvi user guide action icon" height="52">
                 <div class="card-body flex-fill">
                     <h5 class="card-title">User guide</h5>
-                    <p class="card-text">The tutorials provide in-depth information on running scvi models.</p>
+                    <p class="card-text">The tutorials provide in-depth information on running scvi-tools models.</p>
 
 .. container:: custom-button
 
@@ -55,11 +55,11 @@ These models are able to simultaneously perform many downstream tasks such as le
             </div>
             <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
                 <div class="card text-center intro-card shadow">
-                <img src="_static/library_books-24px.svg" class="card-img-top" alt="api of pandas action icon" height="52">
+                <img src="_static/library_books-24px.svg" class="card-img-top" alt="api of scvi action icon" height="52">
                 <div class="card-body flex-fill">
                     <h5 class="card-title">API reference</h5>
                     <p class="card-text">The API reference contains a detailed description of
-                    the scvi API.</p>
+                    the scvi-tools API.</p>
 
 .. container:: custom-button
 
@@ -75,7 +75,7 @@ These models are able to simultaneously perform many downstream tasks such as le
                 <img src="_static/code-24px.svg" class="card-img-top" alt="contribute to pandas action icon" height="52">
                 <div class="card-body flex-fill">
                     <h5 class="card-title">Developer guide</h5>
-                    <p class="card-text">Want to improve scvi? The contributing guidelines
+                    <p class="card-text">Want to improve scvi-tools? The contributing guidelines
                     will guide you through the process.</p>
 
 .. container:: custom-button
