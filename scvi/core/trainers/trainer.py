@@ -173,7 +173,7 @@ class Trainer:
         self.on_training_begin()
 
         for self.epoch in track(
-            range(n_epochs), description="Training...", disable=not self.silent
+            range(n_epochs), description="Training...", disable=self.silent
         ):
             self.on_epoch_begin()
             for tensors_dict in self.data_loaders_loop():
