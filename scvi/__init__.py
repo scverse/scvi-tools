@@ -1,6 +1,4 @@
-__author__ = "Romain Lopez"
-__email__ = "romain_lopez@berkeley.edu"
-__version__ = "0.6.8"
+"""scvi-tools."""
 
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
