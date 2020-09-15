@@ -1,28 +1,28 @@
-========================================
-scvi - single cell variational inference
-========================================
+=====================================================
+scvi-tools -- single-cell variational inference tools
+=====================================================
 
 |Stars| |PyPI| |BioConda| |Docs| |Build Status| |Coverage| |Code Style| |Downloads|
 
-.. |Stars| image:: https://img.shields.io/github/stars/YosefLab/scVI?logo=GitHub&color=yellow
-   :target: https://github.com/YosefLab/scVI/stargazers
-.. |PyPI| image:: https://img.shields.io/pypi/v/scVI.svg
-    :target: https://pypi.org/project/scvi
-.. |BioConda| image:: https://img.shields.io/conda/vn/bioconda/scVI
-   :target: https://bioconda.github.io/recipes/scvi/README.html
+.. |Stars| image:: https://img.shields.io/github/stars/YosefLab/scvi-toolslogo=GitHub&color=yellow
+   :target: https://github.com/YosefLab/scvi-tools/stargazers
+.. |PyPI| image:: https://img.shields.io/pypi/v/scvi-tools.svg
+    :target: https://pypi.org/project/scvi-tools
+.. |BioConda| image:: https://img.shields.io/conda/vn/bioconda/scvi-tools
+   :target: https://bioconda.github.io/recipes/scvi-tools/README.html
 .. |Docs| image:: https://readthedocs.org/projects/scvi/badge/?version=latest
     :target: https://scvi.readthedocs.io/en/stable/?badge=stable
     :alt: Documentation Status
-.. |Build Status| image:: https://travis-ci.org/YosefLab/scVI.svg?branch=master
-    :target: https://travis-ci.org/YosefLab/scVI
-.. |Coverage| image:: https://codecov.io/gh/YosefLab/scVI/branch/master/graph/badge.svg
-    :target: https://codecov.io/gh/YosefLab/scVI
+.. |Build Status| image:: https://travis-ci.org/YosefLab/scvi-tools.svg?branch=master
+    :target: https://travis-ci.org/YosefLab/scvi-tools
+.. |Coverage| image:: https://codecov.io/gh/YosefLab/scvi-tools/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/YosefLab/scvi-tools
 .. |Code Style| image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/python/black
-.. |Downloads| image:: https://pepy.tech/badge/scvi
-   :target: https://pepy.tech/project/scvi
+.. |Downloads| image:: https://pepy.tech/badge/scvi-tools
+   :target: https://pepy.tech/project/scvi-tools
 
-scvi is a package for end-to-end analysis of single-cell omics data. The package is composed of several deep generative models for omics data analysis, namely:
+scvi-tools is a package for end-to-end analysis of single-cell omics data. The package is composed of several deep generative models for omics data analysis, namely:
 
 * scVI_ for analysis of single-cell RNA-seq data, as well as its improved differential expression framework_
 * scANVI_ for cell annotation of scRNA-seq data using semi-labeled examples
