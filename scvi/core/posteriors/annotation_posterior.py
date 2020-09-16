@@ -4,14 +4,14 @@ import logging
 from sklearn.neighbors import KNeighborsClassifier
 
 import torch
-from .posterior import Posterior
+from scvi.core.posteriors import ScviDataLoader
 from scvi.core import unsupervised_clustering_accuracy
 from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)
 
 
-class AnnotationPosterior(Posterior):
+class AnnotationDataLoader(ScviDataLoader):
     def __init__(self, *args, model_zl=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.model_zl = model_zl
@@ -75,9 +75,9 @@ class AnnotationPosterior(Posterior):
     unsupervised_classification_accuracy.mode = "max"
 
     @torch.no_grad()
-    def nn_latentspace(self, posterior):
+    def nn_latentspace(self, data_loader):
         data_train, _, labels_train = self.get_latent()
-        data_test, _, labels_test = posterior.get_latent()
+        data_test, _, labels_test = data_loader.get_latent()
         nn = KNeighborsClassifier()
         nn.fit(data_train, labels_train)
         score = nn.score(data_test, labels_test)

@@ -1,5 +1,5 @@
-from .posterior import Posterior
-from .total_posterior import TotalPosterior
-from .annotation_posterior import AnnotationPosterior
+from .posterior import ScviDataLoader
+from .total_posterior import TotalDataLoader
+from .annotation_posterior import AnnotationDataLoader
 
-__all__ = ["Posterior", "TotalPosterior", "AnnotationPosterior"]
+__all__ = ["ScviDataLoader", "TotalDataLoader", "AnnotationDataLoader"]
