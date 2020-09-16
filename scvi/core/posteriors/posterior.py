@@ -104,14 +104,12 @@ class ScviDataLoader:
                         key
                     )
                 )
-        self.gene_dataset = ScviDataset(
-            adata, getitem_tensors=self._data_and_attributes
-        )
+        self.dataset = ScviDataset(adata, getitem_tensors=self._data_and_attributes)
         self.to_monitor = []
         self.use_cuda = use_cuda
 
         if indices is None:
-            inds = np.arange(len(self.gene_dataset))
+            inds = np.arange(len(self.dataset))
             if shuffle:
                 sampler_kwargs = {
                     "indices": inds,
@@ -139,7 +137,7 @@ class ScviDataLoader:
         self.data_loader_kwargs = copy.copy(data_loader_kwargs)
         # do not touch batch size here, sampler gives batched indices
         self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
-        self.data_loader = DataLoader(self.gene_dataset, **self.data_loader_kwargs)
+        self.data_loader = DataLoader(self.dataset, **self.data_loader_kwargs)
         self.original_indices = self.indices
 
     @property
@@ -169,7 +167,7 @@ class ScviDataLoader:
         if hasattr(self.data_loader.sampler, "indices"):
             return self.data_loader.sampler.indices
         else:
-            return np.arange(len(self.gene_dataset))
+            return np.arange(len(self.dataset))
 
     @property
     def n_cells(self) -> int:
@@ -177,7 +175,7 @@ class ScviDataLoader:
         if hasattr(self.data_loader.sampler, "indices"):
             return len(self.data_loader.sampler.indices)
         else:
-            return self.gene_dataset.n_cells
+            return self.dataset.n_cells
 
     @property
     def scvi_data_loader_type(self) -> str:
@@ -216,7 +214,7 @@ class ScviDataLoader:
         scdl = copy.copy(self)
         scdl.data_loader_kwargs = copy.copy(self.data_loader_kwargs)
         scdl.data_loader_kwargs.update(data_loader_kwargs)
-        scdl.data_loader = DataLoader(self.gene_dataset, **scdl.data_loader_kwargs)
+        scdl.data_loader = DataLoader(self.dataset, **scdl.data_loader_kwargs)
         return scdl
 
     def update_batch_size(self, batch_size):
@@ -314,4 +312,4 @@ class ScviDataLoader:
         self.sampler_kwargs.update({"indices": idx})
         sampler = BatchSampler(**self.sampler_kwargs)
         self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
-        self.data_loader = DataLoader(self.gene_dataset, **self.data_loader_kwargs)
+        self.data_loader = DataLoader(self.dataset, **self.data_loader_kwargs)

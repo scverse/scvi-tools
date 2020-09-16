@@ -96,11 +96,11 @@ def clustering_scores(
     if adata.uns["scvi_summary_stats"]["n_labels"] > 1:
         if prediction_algorithm == "knn":
             labels_pred = KMeans(
-                self.gene_dataset.adata.uns["scvi_summary_stats"]["n_labels"],
+                self.dataset.adata.uns["scvi_summary_stats"]["n_labels"],
                 n_init=200,
             ).fit_predict(latent)
         elif prediction_algorithm == "gmm":
-            gmm = GMM(self.gene_dataset.adata.uns["scvi_summary_stats"]["n_labels"])
+            gmm = GMM(self.dataset.adata.uns["scvi_summary_stats"]["n_labels"])
             gmm.fit(latent)
             labels_pred = gmm.predict(latent)
 

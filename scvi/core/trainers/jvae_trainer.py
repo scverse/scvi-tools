@@ -37,8 +37,8 @@ class JVAETrainer(Trainer):
         A model instance from class ``JVAE``
     discriminator
         A model instance of a classifier (with logit output)
-    gene_dataset_list
-        list of gene_dataset instance like ``[CortexDataset(), SmfishDataset()]``
+    dataset_list
+        list of ScviDataset instance like ``[CortexDataset(), SmfishDataset()]``
     train_size
         Train-test split ratio in (0,1) to split cells
     kappa
@@ -57,7 +57,7 @@ class JVAETrainer(Trainer):
         self,
         model: nn.Module,
         discriminator: nn.Module,
-        gene_dataset_list: List[anndata.AnnData],
+        dataset_list: List[anndata.AnnData],
         train_size: float = 0.9,
         use_cuda: bool = True,
         kappa: float = 1.0,
@@ -70,12 +70,12 @@ class JVAETrainer(Trainer):
                 "train_size needs to be greater than 0 and less than or equal to 1"
             )
 
-        super().__init__(model, gene_dataset_list[0], use_cuda=use_cuda, **kwargs)
+        super().__init__(model, dataset_list[0], use_cuda=use_cuda, **kwargs)
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.kappa = kappa
         self.all_dataset = [
             self.create_scvi_dl(adata=gd, type_class=partial(JvaeDataLoader, mode=i))
-            for i, gd in enumerate(gene_dataset_list)
+            for i, gd in enumerate(dataset_list)
         ]
         self.n_dataset = len(self.all_dataset)
         self.all_train, self.all_test, self.all_validation = list(
@@ -87,7 +87,7 @@ class JVAETrainer(Trainer):
                         train_size,
                         type_class=partial(JvaeDataLoader, mode=i),
                     )
-                    for i, gd in enumerate(gene_dataset_list)
+                    for i, gd in enumerate(dataset_list)
                 ]
             )
         )
@@ -122,7 +122,7 @@ class JVAETrainer(Trainer):
     def data_loaders_loop(self):
         scdls = [self._scvi_data_loaders[name] for name in self.scvi_data_loaders_loop]
         # find the largest dataset to cycle over the others
-        largest = np.argmax([scdl.gene_dataset.n_cells for scdl in scdls])
+        largest = np.argmax([scdl.dataset.n_cells for scdl in scdls])
 
         data_loaders = [
             scdl if i == largest else cycle(scdl) for i, scdl in enumerate(scdls)
@@ -277,8 +277,8 @@ class JVAETrainer(Trainer):
         confusion = []
         for i, scdl in enumerate(self.all_dataset):
 
-            indices = np.arange(scdl.gene_dataset.n_cells)
-            data = scdl.gene_dataset[indices][_CONSTANTS.X_KEY]
+            indices = np.arange(scdl.dataset.n_cells)
+            data = scdl.dataset[indices][_CONSTANTS.X_KEY]
             data = torch.from_numpy(data)
             if self.use_cuda:
                 data = data.cuda()

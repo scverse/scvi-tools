@@ -158,7 +158,7 @@ class DifferentialComputation:
         Differential expression properties
 
         """
-        # if not np.array_equal(self.indices, np.arange(len(self.gene_dataset))):
+        # if not np.array_equal(self.indices, np.arange(len(self.dataset))):
         #     logger.warning(
         #         "Differential expression requires a Posterior object created with all indices."
         #     )
