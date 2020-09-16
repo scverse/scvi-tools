@@ -43,7 +43,7 @@ def custom_objective_hyperopt(
     )
     trainer_scanvi = SemiSupervisedTrainer(scanvi, dataset, **trainer_tunable_kwargs)
     batch_indices = get_from_registry(dataset, _CONSTANTS.BATCH_KEY)
-    trainer_scanvi.unlabelled_set = trainer_scanvi.create_posterior(
+    trainer_scanvi.unlabelled_set = trainer_scanvi.create_scvi_dl(
         indices=(batch_indices == 1)
     )
     trainer_scanvi.unlabelled_set.to_monitor = ["reconstruction_error", "accuracy"]
@@ -58,14 +58,14 @@ def custom_objective_hyperopt(
             indices_labelled_train, indices_labelled_val = train_test_split(
                 indices_labelled.nonzero()[0], test_size=0.2
             )
-            trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(
+            trainer_scanvi.labelled_set = trainer_scanvi.create_scvi_dl(
                 indices=indices_labelled_train
             )
             trainer_scanvi.labelled_set.to_monitor = [
                 "reconstruction_error",
                 "accuracy",
             ]
-            trainer_scanvi.validation_set = trainer_scanvi.create_posterior(
+            trainer_scanvi.validation_set = trainer_scanvi.create_scvi_dl(
                 indices=indices_labelled_val
             )
             trainer_scanvi.validation_set.to_monitor = ["accuracy"]
@@ -73,7 +73,7 @@ def custom_objective_hyperopt(
             accuracies[i] = trainer_scanvi.history["accuracy_unlabelled_set"][-1]
         return {"loss": -accuracies.mean(), "space": space, "status": STATUS_OK}
     else:
-        trainer_scanvi.labelled_set = trainer_scanvi.create_posterior(
+        trainer_scanvi.labelled_set = trainer_scanvi.create_scvi_dl(
             indices=indices_labelled
         )
         trainer_scanvi.labelled_set.to_monitor = ["reconstruction_error", "accuracy"]
