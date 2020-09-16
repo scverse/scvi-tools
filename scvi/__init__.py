@@ -8,6 +8,7 @@ __version__ = "0.6.7"
 
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
+import warnings
 from logging import NullHandler
 
 from ._settings import set_verbosity, set_seed
@@ -21,3 +22,10 @@ set_verbosity(logging.INFO)
 logger.propagate = False
 
 __all__ = ["set_verbosity", "set_seed"]
+
+deprecation_msg = (
+    "scvi is deprecated, please uninstall scvi via `pip uninstall scvi` "
+    + "and install the new scvi-tools package at github.com/YosefLab/scvi-tools"
+)
+warnings.simplefilter("always", DeprecationWarning)
+warnings.warn(deprecation_msg, DeprecationWarning)
