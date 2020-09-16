@@ -21,7 +21,7 @@ default_early_stopping_kwargs = {
     "reduce_lr_on_plateau": True,
     "lr_patience": 30,
     "lr_factor": 0.6,
-    "ScviDataLoader_class": TotalDataLoader,
+    "scvi_data_loader_class": TotalDataLoader,
 }
 
 
