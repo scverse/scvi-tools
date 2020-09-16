@@ -1,0 +1,3 @@
+[submodule "docs/user_guide/notebooks"]
+	path = docs/user_guide/notebooks
+	url = https://github.com/YosefLab/scvi_tutorials.git

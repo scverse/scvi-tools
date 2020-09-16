@@ -27,6 +27,7 @@
 
   .custom-button a {
     color: #484848;
+    display: block;
   }
 
   .custom-button p {

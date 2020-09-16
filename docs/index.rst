@@ -38,14 +38,14 @@ These models are able to simultaneously perform many downstream tasks such as le
             </div>
             <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
                 <div class="card text-center intro-card shadow">
-                <img src="_static/play_circle_outline-24px.svg" class="card-img-top" alt="pandas user guide action icon" height="52">
+                <img src="_static/play_circle_outline-24px.svg" class="card-img-top" alt="scvi user guide action icon" height="52">
                 <div class="card-body flex-fill">
                     <h5 class="card-title">User guide</h5>
                     <p class="card-text">The tutorials provide in-depth information on running scvi models.</p>
 
 .. container:: custom-button
 
-    :doc:`To the tutorials<tutorials/index>`
+    :doc:`To the user guide<user_guide/index>`
 
 .. raw:: html
 
@@ -96,7 +96,7 @@ These models are able to simultaneously perform many downstream tasks such as le
    :titlesonly:
 
    installation
-   tutorials/index
+   user_guide/index
    api/index
    contributing
    history
