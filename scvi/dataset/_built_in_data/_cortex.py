@@ -13,9 +13,7 @@ logger = logging.getLogger(__name__)
 def _load_cortex(
     save_path: str = "data/", run_setup_anndata: bool = True
 ) -> anndata.AnnData:
-    """
-    Loads cortex dataset
-    """
+    """Loads cortex dataset."""
     save_path = os.path.abspath(save_path)
     url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt"
     save_fn = "expression.bin"
@@ -42,7 +40,7 @@ def _load_cortex_txt(path_to_file: str) -> anndata.AnnData:
                 gene_names.append(row[0])
     cell_types, labels = np.unique(clusters, return_inverse=True)
     _, precise_labels = np.unique(precise_clusters, return_inverse=True)
-    X = np.asarray(rows, dtype=np.int).T[1:]
+    data = np.asarray(rows, dtype=np.int).T[1:]
     gene_names = np.asarray(gene_names, dtype=np.str)
     gene_indices = []
 
@@ -51,10 +49,10 @@ def _load_cortex_txt(path_to_file: str) -> anndata.AnnData:
     if gene_indices.size == 0:
         gene_indices = slice(None)
 
-    X = X[:, gene_indices]
+    data = data[:, gene_indices]
     gene_names = gene_names[gene_indices]
-    X_df = pd.DataFrame(X, columns=gene_names)
-    adata = anndata.AnnData(X=X_df)
+    data_df = pd.DataFrame(data, columns=gene_names)
+    adata = anndata.AnnData(X=data_df)
     adata.obs["labels"] = labels
     adata.obs["precise_labels"] = precise_clusters
     adata.obs["cell_type"] = clusters

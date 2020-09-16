@@ -8,32 +8,32 @@ import logging
 from scipy.optimize import linear_sum_assignment
 from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import KMeans
-from sklearn.metrics import adjusted_rand_score as ARI
-from sklearn.metrics import normalized_mutual_info_score as NMI
+from sklearn.metrics import adjusted_rand_score
+from sklearn.metrics import normalized_mutual_info_score
 from sklearn.metrics import silhouette_score
-from sklearn.mixture import GaussianMixture as GMM
+from sklearn.mixture import GaussianMixture
 
 
 logger = logging.getLogger(__name__)
 
 
-def nearest_neighbor_overlap(X1, X2, k=100):
+def nearest_neighbor_overlap(x1, x2, k=100):
     """
-    Compute the overlap between the k-nearest neighbor graph of X1 and X2.
+    Compute the overlap between the k-nearest neighbor graph of x1 and x2.
 
     Using Spearman correlation of the adjacency matrices.
     Compute the overlap fold enrichment between the protein and mRNA-based cell 100-nearest neighbor
         graph and the Spearman correlation of the adjacency matrices.
     """
-    if len(X1) != len(X2):
-        raise ValueError("len(X1) != len(X2)")
-    n_samples = len(X1)
+    if len(x1) != len(x2):
+        raise ValueError("len(x1) != len(x2)")
+    n_samples = len(x1)
     k = min(k, n_samples - 1)
     nne = NearestNeighbors(n_neighbors=k + 1)  # "n_jobs=8
-    nne.fit(X1)
-    kmatrix_1 = nne.kneighbors_graph(X1) - scipy.sparse.identity(n_samples)
-    nne.fit(X2)
-    kmatrix_2 = nne.kneighbors_graph(X2) - scipy.sparse.identity(n_samples)
+    nne.fit(x1)
+    kmatrix_1 = nne.kneighbors_graph(x1) - scipy.sparse.identity(n_samples)
+    nne.fit(x2)
+    kmatrix_2 = nne.kneighbors_graph(x2) - scipy.sparse.identity(n_samples)
 
     # 1 - spearman correlation from knn graphs
     spearman_correlation = scipy.stats.spearmanr(
@@ -100,13 +100,15 @@ def clustering_scores(
                 n_init=200,
             ).fit_predict(latent)
         elif prediction_algorithm == "gmm":
-            gmm = GMM(self.dataset.adata.uns["scvi_summary_stats"]["n_labels"])
+            gmm = GaussianMixture(
+                self.dataset.adata.uns["scvi_summary_stats"]["n_labels"]
+            )
             gmm.fit(latent)
             labels_pred = gmm.predict(latent)
 
         asw_score = silhouette_score(latent, labels)
-        nmi_score = NMI(labels, labels_pred)
-        ari_score = ARI(labels, labels_pred)
+        nmi_score = normalized_mutual_info_score(labels, labels_pred)
+        ari_score = adjusted_rand_score(labels, labels_pred)
         uca_score = unsupervised_clustering_accuracy(labels, labels_pred)[0]
         logger.debug(
             "Clustering Scores:\nSilhouette: %.4f\nNMI: %.4f\nARI: %.4f\nUCA: %.4f"

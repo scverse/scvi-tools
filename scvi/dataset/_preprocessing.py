@@ -26,7 +26,7 @@ def poisson_gene_selection(
     minibatch_size: int = 5000,
     **kwargs,
 ):
-    """\
+    """
     Rank and select genes based on the enrichment of zero counts in data compared to a Poisson count model.
 
     This is based on M3Drop: https://github.com/tallulandrews/M3Drop
@@ -84,8 +84,8 @@ def poisson_gene_selection(
         If batch_key is given, this denotes in how many batches genes are detected as zero enriched
 
     """
-    X = adata.layers[layer] if layer is not None else adata.X
-    if _check_nonnegative_integers(X) is False:
+    data = adata.layers[layer] if layer is not None else adata.X
+    if _check_nonnegative_integers(data) is False:
         raise ValueError("`poisson_gene_selection` expects " "raw count data.")
 
     use_cuda = use_cuda and torch.cuda.is_available()
@@ -101,17 +101,17 @@ def poisson_gene_selection(
     for b in np.unique(batch_info):
 
         ad = adata[batch_info == b]
-        X = ad.layers[layer] if layer is not None else ad.X
+        data = ad.layers[layer] if layer is not None else ad.X
 
         # Calculate empirical statistics.
-        scaled_means = torch.from_numpy(np.asarray(X.sum(0) / X.sum()).ravel())
+        scaled_means = torch.from_numpy(np.asarray(data.sum(0) / data.sum()).ravel())
         if use_cuda is True:
             scaled_means = scaled_means.cuda()
         dev = scaled_means.device
-        total_counts = torch.from_numpy(np.asarray(X.sum(1)).ravel()).to(dev)
+        total_counts = torch.from_numpy(np.asarray(data.sum(1)).ravel()).to(dev)
 
         observed_fraction_zeros = torch.from_numpy(
-            np.asarray(1.0 - (X > 0).sum(0) / X.shape[0]).ravel()
+            np.asarray(1.0 - (data > 0).sum(0) / data.shape[0]).ravel()
         ).to(dev)
 
         # Calculate probability of zero for a Poisson model.
@@ -134,7 +134,7 @@ def poisson_gene_selection(
         expected_fraction_zeros += torch.exp(
             -torch.einsum("i,j->ij", [scaled_means, total_counts_batch])
         ).sum(1)
-        expected_fraction_zeros /= X.shape[0]
+        expected_fraction_zeros /= data.shape[0]
 
         # Compute probability of enriched zeros through sampling from Binomial distributions.
         observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
@@ -230,8 +230,8 @@ def poisson_gene_selection(
 
 
 def organize_cite_seq_10x(adata: anndata.AnnData, copy: bool = False):
-    """\
-    Organize anndata object loaded from 10x for scvi models
+    """
+    Organize anndata object loaded from 10x for scvi models.
 
     Parameters
     ----------
@@ -258,7 +258,6 @@ def organize_cite_seq_10x(adata: anndata.AnnData, copy: bool = False):
         var: 'gene_ids', 'feature_types', 'genome'
         obsm: 'protein_expression'
     """
-
     if copy:
         adata = adata.copy()
 
