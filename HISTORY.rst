@@ -1,6 +1,11 @@
 =======
 History
 =======
+
+0.6.8 (2020-9-16)
+-----------------
+* scvi is now deprecated, please uninstall and install scvi-tools (available shortly)
+
 0.6.7 (2020-8-05)
 -----------------
 * downgrade anndata>=0.7 and scanpy>=1.4.6 `@galen`_
