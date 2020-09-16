@@ -12,7 +12,7 @@ from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
 from scvi._utils import track
 
-from scvi.core.posteriors import Posterior
+from scvi.core.posteriors import ScviDataLoader
 from scvi import _CONSTANTS
 
 
@@ -76,7 +76,7 @@ class Trainer:
         # Model, dataset management
         self.model = model
         self.adata = adata
-        self._posteriors = OrderedDict()
+        self._scvi_data_loaders = OrderedDict()
         self.seed = seed  # For train/test splitting
         self.use_cuda = use_cuda and torch.cuda.is_available()
         if self.use_cuda:
@@ -133,21 +133,21 @@ class Trainer:
                 self.model.eval()
                 logger.debug("\nEPOCH [%d/%d]: " % (epoch, self.n_epochs))
 
-                for name, posterior in self._posteriors.items():
+                for name, scdl in self._scvi_data_loaders.items():
                     message = " ".join([s.capitalize() for s in name.split("_")[-2:]])
-                    if posterior.n_cells < 5:
+                    if scdl.n_cells < 5:
                         logging.debug(
                             message + " is too small to track metrics (<5 samples)"
                         )
                         continue
-                    if hasattr(posterior, "to_monitor"):
-                        for metric in posterior.to_monitor:
+                    if hasattr(scdl, "to_monitor"):
+                        for metric in scdl.to_monitor:
                             if metric not in self.metrics_to_monitor:
                                 logger.debug(message)
-                                result = getattr(posterior, metric)()
+                                result = getattr(scdl, metric)()
                                 self.history[metric + "_" + name] += [result]
                     for metric in self.metrics_to_monitor:
-                        result = getattr(posterior, metric)()
+                        result = getattr(scdl, metric)()
                         self.history[metric + "_" + name] += [result]
                 self.model.train()
         self.compute_metrics_time += time.time() - begin
@@ -280,38 +280,40 @@ class Trainer:
 
     @property
     @abstractmethod
-    def posteriors_loop(self):
+    def scvi_data_loaders_loop(self):
         pass
 
     def data_loaders_loop(self):
         """Returns an zipped iterable corresponding to loss signature."""
-        data_loaders_loop = [self._posteriors[name] for name in self.posteriors_loop]
+        data_loaders_loop = [
+            self._scvi_data_loaders[name] for name in self.scvi_data_loaders_loop
+        ]
         return zip(
             data_loaders_loop[0],
             *[cycle(data_loader) for data_loader in data_loaders_loop[1:]]
         )
 
-    def register_posterior(self, name, value):
+    def register_data_loader(self, name, value):
         name = name.strip("_")
-        self._posteriors[name] = value
+        self._scvi_data_loaders[name] = value
 
     def __getattr__(self, name):
-        if "_posteriors" in self.__dict__:
-            _posteriors = self.__dict__["_posteriors"]
-            if name.strip("_") in _posteriors:
-                return _posteriors[name.strip("_")]
+        if "_scvi_data_loaders" in self.__dict__:
+            _scvi_data_loaders = self.__dict__["_scvi_data_loaders"]
+            if name.strip("_") in _scvi_data_loaders:
+                return _scvi_data_loaders[name.strip("_")]
         return object.__getattribute__(self, name)
 
     def __delattr__(self, name):
-        if name.strip("_") in self._posteriors:
-            del self._posteriors[name.strip("_")]
+        if name.strip("_") in self._scvi_data_loaders:
+            del self._scvi_data_loaders[name.strip("_")]
         else:
             object.__delattr__(self, name)
 
     def __setattr__(self, name, value):
-        if isinstance(value, Posterior):
+        if isinstance(value, ScviDataLoader):
             name = name.strip("_")
-            self.register_posterior(name, value)
+            self.register_data_loader(name, value)
         else:
             object.__setattr__(self, name, value)
 
@@ -321,10 +323,10 @@ class Trainer:
         adata=None,
         train_size=0.9,
         test_size=None,
-        type_class=Posterior,
+        type_class=ScviDataLoader,
     ):
         """
-        Creates posteriors ``train_set``, ``test_set``, ``validation_set``.
+        Creates data loaders ``train_set``, ``test_set``, ``validation_set``.
 
         If ``train_size + test_size < 1`` then ``validation_set`` is non-empty.
 
@@ -339,7 +341,7 @@ class Trainer:
         adata:
              (Default value = None)
         type_class :
-             (Default value = Posterior)
+             (Default value = ScviDataLoader)
         """
         train_size = float(train_size)
         if train_size > 1.0 or train_size <= 0.0:
@@ -368,24 +370,24 @@ class Trainer:
         indices_validation = permutation[(n_test + n_train) :]
 
         return (
-            self.create_posterior(
+            self.create_scvi_dl(
                 model, adata, indices=indices_train, type_class=type_class
             ),
-            self.create_posterior(
+            self.create_scvi_dl(
                 model, adata, indices=indices_test, type_class=type_class
             ),
-            self.create_posterior(
+            self.create_scvi_dl(
                 model, adata, indices=indices_validation, type_class=type_class
             ),
         )
 
-    def create_posterior(
+    def create_scvi_dl(
         self,
         model=None,
         adata: anndata.AnnData = None,
         shuffle=False,
         indices=None,
-        type_class=Posterior,
+        type_class=ScviDataLoader,
     ):
         model = self.model if model is None and hasattr(self, "model") else model
         adata = self.adata if adata is None and hasattr(self, "model") else adata
@@ -420,7 +422,7 @@ class EarlyStopping:
         reduce_lr_on_plateau: bool = False,
         lr_patience: int = 10,
         lr_factor: float = 0.5,
-        posterior_class=Posterior,
+        ScviDataLoader_class=ScviDataLoader,
     ):
         self.benchmark = benchmark
         self.patience = patience
@@ -429,7 +431,7 @@ class EarlyStopping:
         self.wait = 0
         self.wait_lr = 0
         self.mode = (
-            getattr(posterior_class, early_stopping_metric).mode
+            getattr(ScviDataLoader_class, early_stopping_metric).mode
             if early_stopping_metric is not None
             else None
         )
@@ -442,7 +444,7 @@ class EarlyStopping:
             self.best_performance *= -1
             self.current_performance *= -1
         self.mode_save_state = (
-            getattr(Posterior, save_best_state_metric).mode
+            getattr(ScviDataLoader, save_best_state_metric).mode
             if save_best_state_metric is not None
             else None
         )

@@ -57,15 +57,15 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         return len(self.indices) // self.batch_size
 
 
-class Posterior:
+class ScviDataLoader:
     """
-    Extended data loader.
+    Scvi Data Loader.
 
-    A `Posterior` instance is instantiated with a model and a gene_dataset, and
+    A `ScviDataLoader` instance is instantiated with a model and a gene_dataset, and
     as well as additional arguments that for Pytorch's `DataLoader`. A subset of indices can be specified, for
     purposes such as splitting the data into train/test or labelled/unlabelled (for semi-supervised learning).
-    Each trainer instance of the `Trainer` class can therefore have multiple `Posterior` instances to train a model.
-    A `Posterior` instance also comes with methods to compute likelihood and other relevant training metrics.
+    Each trainer instance of the `Trainer` class can therefore have multiple `ScviDataLoader` instances to train a model.
+    A `ScviDataLoader` instance also comes with methods to compute likelihood and other relevant training metrics.
 
     Parameters
     ----------
@@ -104,14 +104,12 @@ class Posterior:
                         key
                     )
                 )
-        self.gene_dataset = ScviDataset(
-            adata, getitem_tensors=self._data_and_attributes
-        )
+        self.dataset = ScviDataset(adata, getitem_tensors=self._data_and_attributes)
         self.to_monitor = []
         self.use_cuda = use_cuda
 
         if indices is None:
-            inds = np.arange(len(self.gene_dataset))
+            inds = np.arange(len(self.dataset))
             if shuffle:
                 sampler_kwargs = {
                     "indices": inds,
@@ -139,7 +137,7 @@ class Posterior:
         self.data_loader_kwargs = copy.copy(data_loader_kwargs)
         # do not touch batch size here, sampler gives batched indices
         self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
-        self.data_loader = DataLoader(self.gene_dataset, **self.data_loader_kwargs)
+        self.data_loader = DataLoader(self.dataset, **self.data_loader_kwargs)
         self.original_indices = self.indices
 
     @property
@@ -169,7 +167,7 @@ class Posterior:
         if hasattr(self.data_loader.sampler, "indices"):
             return self.data_loader.sampler.indices
         else:
-            return np.arange(len(self.gene_dataset))
+            return np.arange(len(self.dataset))
 
     @property
     def n_cells(self) -> int:
@@ -177,11 +175,11 @@ class Posterior:
         if hasattr(self.data_loader.sampler, "indices"):
             return len(self.data_loader.sampler.indices)
         else:
-            return self.gene_dataset.n_cells
+            return self.dataset.n_cells
 
     @property
-    def posterior_type(self) -> str:
-        """Returns the posterior class name."""
+    def scvi_data_loader_type(self) -> str:
+        """Returns the dataloader class name."""
         return self.__class__.__name__
 
     def __iter__(self):
@@ -199,7 +197,7 @@ class Posterior:
         """
         return {k: (t.cuda() if self.use_cuda else t) for k, t in tensors.items()}
 
-    def update(self, data_loader_kwargs: dict) -> "Posterior":
+    def update(self, data_loader_kwargs: dict) -> "ScviDataLoader":
         """
         Updates the dataloader.
 
@@ -210,23 +208,21 @@ class Posterior:
 
         Returns
         -------
-        Updated posterior
+        Updated ScviDataLoader
 
         """
-        posterior = copy.copy(self)
-        posterior.data_loader_kwargs = copy.copy(self.data_loader_kwargs)
-        posterior.data_loader_kwargs.update(data_loader_kwargs)
-        posterior.data_loader = DataLoader(
-            self.gene_dataset, **posterior.data_loader_kwargs
-        )
-        return posterior
+        scdl = copy.copy(self)
+        scdl.data_loader_kwargs = copy.copy(self.data_loader_kwargs)
+        scdl.data_loader_kwargs.update(data_loader_kwargs)
+        scdl.data_loader = DataLoader(self.dataset, **scdl.data_loader_kwargs)
+        return scdl
 
     def update_batch_size(self, batch_size):
         self.sampler_kwargs.update({"batch_size": batch_size})
         sampler = BatchSampler(**self.sampler_kwargs)
         return self.update({"sampler": sampler, "batch_size": None})
 
-    def sequential(self, batch_size: Optional[int] = 128) -> "Posterior":
+    def sequential(self, batch_size: Optional[int] = 128) -> "ScviDataLoader":
         """
         Returns a copy of the object that iterate over the data sequentially.
 
@@ -288,12 +284,12 @@ class Posterior:
 
     def update_sampler_indices(self, idx: Union[List, np.ndarray]):
         """
-        Updates the dataloader indices.
+        Updates the data loader indices.
 
         More precisely, this method can be used to temporarily change which cells __iter__
         will yield. This is particularly useful for computational considerations when one is only interested
-        in a subset of the cells of the Posterior object.
-        This method should be used carefully and requires to reset the dataloader to its
+        in a subset of the cells of the ScviDataLoader object.
+        This method should be used carefully and requires to reset the data loader to its
         original value after use.
 
         Parameters
@@ -316,4 +312,4 @@ class Posterior:
         self.sampler_kwargs.update({"indices": idx})
         sampler = BatchSampler(**self.sampler_kwargs)
         self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
-        self.data_loader = DataLoader(self.gene_dataset, **self.data_loader_kwargs)
+        self.data_loader = DataLoader(self.dataset, **self.data_loader_kwargs)

@@ -116,7 +116,7 @@ class UnsupervisedTrainer(Trainer):
             self.n_samples = len(self.train_set.indices)
 
     @property
-    def posteriors_loop(self):
+    def scvi_data_loaders_loop(self):
         return ["train_set"]
 
     def loss(self, tensors: dict, feed_labels: bool = True):
@@ -193,9 +193,9 @@ class UnsupervisedTrainer(Trainer):
 
 
 class AdapterTrainer(UnsupervisedTrainer):
-    def __init__(self, model, adata, posterior_test, frequency=5):
+    def __init__(self, model, adata, test_data_loader, frequency=5):
         super().__init__(model, adata, frequency=frequency)
-        self.test_set = posterior_test
+        self.test_set = test_data_loader
         self.test_set.to_monitor = ["elbo"]
         self.params = list(self.model.z_encoder.parameters()) + list(
             self.model.l_encoder.parameters()
@@ -205,7 +205,7 @@ class AdapterTrainer(UnsupervisedTrainer):
         self.n_scale = len(self.test_set.indices)
 
     @property
-    def posteriors_loop(self):
+    def scvi_data_loaders_loop(self):
         return ["test_set"]
 
     def train(self, n_path=10, n_epochs=50, **kwargs):

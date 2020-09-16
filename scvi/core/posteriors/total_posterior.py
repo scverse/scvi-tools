@@ -5,8 +5,7 @@ import torch
 from torch.distributions import Normal
 import numpy as np
 
-from .posterior import Posterior
-
+from scvi.core.posteriors import ScviDataLoader
 from scvi.core.modules import TOTALVAE
 from scvi import _CONSTANTS
 
@@ -23,7 +22,7 @@ def _unpack_tensors(tensors):
     return x, local_l_mean, local_l_var, batch_index, labels, y
 
 
-class TotalPosterior(Posterior):
+class TotalDataLoader(ScviDataLoader):
     """
     Extended data loader for totalVI.
 
@@ -130,7 +129,7 @@ class TotalPosterior(Posterior):
             keyword args for forward
 
         """
-        # Iterate once over the posterior and computes the total log_likelihood
+        # Iterate once over the data loader and computes the total log_likelihood
         elbo = 0
         for _, tensors in enumerate(self):
             x, local_l_mean, local_l_var, batch_index, labels, y = _unpack_tensors(
@@ -171,7 +170,7 @@ class TotalPosterior(Posterior):
         This is really a helper function to self.ll, self.ll_protein, etc.
 
         """
-        # Iterate once over the posterior and computes the total log_likelihood
+        # Iterate once over the data loader and computes the total log_likelihood
         log_lkl_gene = 0
         log_lkl_protein = 0
         for _, tensors in enumerate(self):

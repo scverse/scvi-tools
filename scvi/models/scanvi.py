@@ -10,7 +10,7 @@ from scvi.models import SCVI
 from scvi.core.models import BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.modules import VAE, SCANVAE
 from scvi.core.trainers import UnsupervisedTrainer, SemiSupervisedTrainer
-from scvi.core.posteriors import AnnotationPosterior
+from scvi.core.posteriors import AnnotationDataLoader
 from scvi._compat import Literal
 
 logger = logging.getLogger(__name__)
@@ -144,8 +144,8 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         return SemiSupervisedTrainer
 
     @property
-    def _posterior_class(self):
-        return AnnotationPosterior
+    def _scvi_dl_class(self):
+        return AnnotationDataLoader
 
     def train(
         self,
@@ -232,10 +232,10 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             **semisupervised_trainer_kwargs,
         )
 
-        self.trainer.unlabelled_set = self.trainer.create_posterior(
+        self.trainer.unlabelled_set = self.trainer.create_scvi_dl(
             indices=self._unlabeled_indices
         )
-        self.trainer.labelled_set = self.trainer.create_posterior(
+        self.trainer.labelled_set = self.trainer.create_scvi_dl(
             indices=self._labeled_indices
         )
         self.trainer.train(
@@ -270,9 +270,9 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         if indices is None:
             indices = np.arange(adata.n_obs)
 
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
-        _, pred = post.sequential().compute_predictions(soft=soft)
+        _, pred = scdl.sequential().compute_predictions(soft=soft)
 
         if not soft:
             predictions = []

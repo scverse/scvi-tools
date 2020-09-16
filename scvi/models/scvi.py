@@ -10,7 +10,7 @@ from scvi.core.models import (
     VAEMixin,
 )
 from scvi.core.trainers import UnsupervisedTrainer
-from scvi.core.posteriors import Posterior
+from scvi.core.posteriors import ScviDataLoader
 
 logger = logging.getLogger(__name__)
 
@@ -107,5 +107,5 @@ class SCVI(RNASeqMixin, VAEMixin, BaseModelClass):
         return UnsupervisedTrainer
 
     @property
-    def _posterior_class(self):
-        return Posterior
+    def _scvi_dl_class(self):
+        return ScviDataLoader

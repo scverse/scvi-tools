@@ -8,7 +8,7 @@ from functools import partial
 from itertools import cycle
 from typing import List, Tuple, Union, Iterable
 
-from scvi.core.posteriors import Posterior
+from scvi.core.posteriors import ScviDataLoader
 from scvi.core.trainers.trainer import Trainer
 from scvi.core._log_likelihood import compute_elbo
 from scvi import _CONSTANTS
@@ -17,7 +17,7 @@ from scvi import _CONSTANTS
 logger = logging.getLogger(__name__)
 
 
-class JPosterior(Posterior):
+class JvaeDataLoader(ScviDataLoader):
     def __init__(self, *args, mode=0, **kwargs):
         super().__init__(*args, **kwargs)
         self.mode = mode
@@ -37,8 +37,8 @@ class JVAETrainer(Trainer):
         A model instance from class ``JVAE``
     discriminator
         A model instance of a classifier (with logit output)
-    gene_dataset_list
-        list of gene_dataset instance like ``[CortexDataset(), SmfishDataset()]``
+    dataset_list
+        list of ScviDataset instance like ``[CortexDataset(), SmfishDataset()]``
     train_size
         Train-test split ratio in (0,1) to split cells
     kappa
@@ -57,7 +57,7 @@ class JVAETrainer(Trainer):
         self,
         model: nn.Module,
         discriminator: nn.Module,
-        gene_dataset_list: List[anndata.AnnData],
+        dataset_list: List[anndata.AnnData],
         train_size: float = 0.9,
         use_cuda: bool = True,
         kappa: float = 1.0,
@@ -70,30 +70,33 @@ class JVAETrainer(Trainer):
                 "train_size needs to be greater than 0 and less than or equal to 1"
             )
 
-        super().__init__(model, gene_dataset_list[0], use_cuda=use_cuda, **kwargs)
+        super().__init__(model, dataset_list[0], use_cuda=use_cuda, **kwargs)
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.kappa = kappa
         self.all_dataset = [
-            self.create_posterior(adata=gd, type_class=partial(JPosterior, mode=i))
-            for i, gd in enumerate(gene_dataset_list)
+            self.create_scvi_dl(adata=gd, type_class=partial(JvaeDataLoader, mode=i))
+            for i, gd in enumerate(dataset_list)
         ]
         self.n_dataset = len(self.all_dataset)
         self.all_train, self.all_test, self.all_validation = list(
             zip(
                 *[
                     self.train_test_validation(
-                        model, gd, train_size, type_class=partial(JPosterior, mode=i)
+                        model,
+                        gd,
+                        train_size,
+                        type_class=partial(JvaeDataLoader, mode=i),
                     )
-                    for i, gd in enumerate(gene_dataset_list)
+                    for i, gd in enumerate(dataset_list)
                 ]
             )
         )
         for i, d in enumerate(self.all_train):
-            self.register_posterior("train_%d" % i, d)
+            self.register_data_loader("train_%d" % i, d)
             d.to_monitor = ["elbo"]
 
         for i, d in enumerate(self.all_test):
-            self.register_posterior("test_%d" % i, d)
+            self.register_data_loader("test_%d" % i, d)
             d.to_monitor = ["elbo"]
 
         self.discriminator = discriminator
@@ -113,19 +116,16 @@ class JVAETrainer(Trainer):
             self.kl_weight = 1.0
 
     @property
-    def posteriors_loop(self):
+    def scvi_data_loaders_loop(self):
         return ["train_%d" % i for i in range(self.n_dataset)]
 
     def data_loaders_loop(self):
-        posteriors = [self._posteriors[name] for name in self.posteriors_loop]
+        scdls = [self._scvi_data_loaders[name] for name in self.scvi_data_loaders_loop]
         # find the largest dataset to cycle over the others
-        largest = np.argmax(
-            [posterior.gene_dataset.n_cells for posterior in posteriors]
-        )
+        largest = np.argmax([scdl.dataset.n_cells for scdl in scdls])
 
         data_loaders = [
-            posterior if i == largest else cycle(posterior)
-            for i, posterior in enumerate(posteriors)
+            scdl if i == largest else cycle(scdl) for i, scdl in enumerate(scdls)
         ]
 
         return zip(*data_loaders)
@@ -275,10 +275,10 @@ class JVAETrainer(Trainer):
     def get_discriminator_confusion(self) -> np.ndarray:
         """A good mixing should lead to a uniform matrix."""
         confusion = []
-        for i, posterior in enumerate(self.all_dataset):
+        for i, scdl in enumerate(self.all_dataset):
 
-            indices = np.arange(posterior.gene_dataset.n_cells)
-            data = posterior.gene_dataset[indices][_CONSTANTS.X_KEY]
+            indices = np.arange(scdl.dataset.n_cells)
+            data = scdl.dataset[indices][_CONSTANTS.X_KEY]
             data = torch.from_numpy(data)
             if self.use_cuda:
                 data = data.cuda()
