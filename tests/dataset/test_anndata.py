@@ -4,7 +4,7 @@ import pandas as pd
 import scipy.sparse as sparse
 
 import pytest
-from scvi.dataset._biodataset import ScviDataset
+from scvi.dataset._scvidataset import ScviDataset
 from scvi.dataset._datasets import synthetic_iid
 from scvi.dataset import (
     setup_anndata,
