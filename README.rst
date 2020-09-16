@@ -4,7 +4,7 @@ scvi-tools
 
 |Stars| |PyPI| |BioConda| |Docs| |Build Status| |Coverage| |Code Style| |Downloads|
 
-.. |Stars| image:: https://img.shields.io/github/stars/YosefLab/scvi-toolslogo=GitHub&color=yellow
+.. |Stars| image:: https://img.shields.io/github/stars/YosefLab/scvi-tools?logo=GitHub&color=yellow
    :target: https://github.com/YosefLab/scvi-tools/stargazers
 .. |PyPI| image:: https://img.shields.io/pypi/v/scvi-tools.svg
     :target: https://pypi.org/project/scvi-tools
