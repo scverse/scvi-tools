@@ -38,9 +38,9 @@ Posteriors
 .. autosummary::
    :toctree: reference/
 
-   core.posteriors.Posterior
-   core.posteriors.TotalPosterior
-   core.posteriors.AnnotationPosterior
+   core.posteriors.ScviDataLoader
+   core.posteriors.TotalDataLoader
+   core.posteriors.AnnotationDataLoader
 
 Trainers
 ~~~~~~~~
