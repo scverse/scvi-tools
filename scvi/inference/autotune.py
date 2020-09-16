@@ -211,7 +211,7 @@ def auto_tune_scvi_model(
     model_class: BaseModelClass = SCVI,
     metric_name: str = None,
     metric_kwargs: Dict[str, Any] = None,
-    posterior_name: str = "test_set",
+    data_loader_name: str = "test_set",
     model_specific_kwargs: dict = None,
     trainer_specific_kwargs: dict = None,
     train_func_specific_kwargs: dict = None,
@@ -270,8 +270,8 @@ def auto_tune_scvi_model(
     metric_kwargs :
         keyword arguments for the metric method.
         If `metric_name` is None, defaults to {"n_mc_samples": 100}.
-    posterior_name :
-        Name of the posterior distribution to compute the metric with.
+    data_loader_name:
+        Name of the ScviDataLoader to compute the metric with.
     model_specific_kwargs :
         dict`` of fixed parameters which will be passed to the model.
     trainer_specific_kwargs :
@@ -425,7 +425,7 @@ def auto_tune_scvi_model(
                 "model_class": model_class,
                 "metric_name": metric_name,
                 "metric_kwargs": metric_kwargs,
-                "posterior_name": posterior_name,
+                "data_loader_name": data_loader_name,
                 "model_specific_kwargs": model_specific_kwargs,
                 "trainer_specific_kwargs": trainer_specific_kwargs,
                 "train_func_specific_kwargs": train_func_specific_kwargs,
@@ -1243,7 +1243,7 @@ def _objective_function(
     model_class: Type[BaseModelClass] = SCVI,
     metric_name: str = None,
     metric_kwargs: Dict[str, Any] = None,
-    posterior_name: str = "test_set",
+    data_loader_name: str = "test_set",
     model_specific_kwargs: dict = None,
     trainer_specific_kwargs: dict = None,
     train_func_specific_kwargs: dict = None,
@@ -1274,8 +1274,8 @@ def _objective_function(
     metric_kwargs :
         keyword arguments for the metric method.
         If `metric_name` is None, defaults to {"n_mc_samples": 100}.
-    posterior_name :
-        Name of the posterior distribution to compute the metric with.
+    data_loader_name:
+        Name of the ScviDataLoader to compute the metric with.
     model_specific_kwargs :
         dict`` of fixed parameters which will be passed to the model.
     model_specific_kwargs :
@@ -1391,7 +1391,7 @@ def _objective_function(
             model.model.load_state_dict(trainer.best_state_dict)
 
         # compute optimized metric
-        loss = getattr(getattr(trainer, posterior_name), metric_name)(**metric_kwargs)
+        loss = getattr(getattr(trainer, data_loader_name), metric_name)(**metric_kwargs)
 
         logger_all.debug(
             "Training of {n_epochs} epochs finished in {time} with loss = {loss}".format(
