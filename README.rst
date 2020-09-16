@@ -37,7 +37,7 @@ If you'd like to contribute, please check out our `contributing guide`_.
 If you find a model useful for your research, please consider citing the corresponding publication (linked above).
 
 Package transition
-~~~~~~~~~~~~~~~~~~
+------------------
 
 ``scvi`` is transitioning to ``scvi-tools``. If you're looking for ``scvi`` source code, please use the branch tags. ``scvi`` is still available via pypi and bioconda, but there will be no future releases past ``0.6.8``. An alpha-release of ``scvi-tools`` will be available shortly.
 
