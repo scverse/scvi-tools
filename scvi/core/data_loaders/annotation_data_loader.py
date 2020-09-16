@@ -4,7 +4,7 @@ import logging
 from sklearn.neighbors import KNeighborsClassifier
 
 import torch
-from scvi.core.posteriors import ScviDataLoader
+from scvi.core.data_loaders import ScviDataLoader
 from scvi.core import unsupervised_clustering_accuracy
 from scvi import _CONSTANTS
 

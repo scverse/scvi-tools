@@ -10,7 +10,7 @@ from scvi.models import SCVI
 from scvi.core.models import BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.modules import VAE, SCANVAE
 from scvi.core.trainers import UnsupervisedTrainer, SemiSupervisedTrainer
-from scvi.core.posteriors import AnnotationDataLoader
+from scvi.core.data_loaders import AnnotationDataLoader
 from scvi._compat import Literal
 
 logger = logging.getLogger(__name__)

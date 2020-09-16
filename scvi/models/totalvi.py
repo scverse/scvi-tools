@@ -13,7 +13,7 @@ from scvi._compat import Literal
 from scvi.core.modules import TOTALVAE
 from scvi.core.models import BaseModelClass, VAEMixin, RNASeqMixin
 from scvi.core.models._utils import _de_core
-from scvi.core.posteriors import TotalDataLoader
+from scvi.core.data_loaders import TotalDataLoader
 from scvi.core.trainers import TotalTrainer
 from scvi.models._utils import (
     cite_seq_raw_counts_properties,
