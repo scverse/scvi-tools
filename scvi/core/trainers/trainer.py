@@ -176,7 +176,7 @@ class Trainer:
             range(n_epochs), description="Training...", disable=self.silent
         ):
             self.on_epoch_begin()
-            for tensors_dict in self.scvi_data_loaders_loop():
+            for tensors_dict in self.data_loaders_loop():
                 if tensors_dict[0][_CONSTANTS.X_KEY].shape[0] < 3:
                     continue
                 self.on_iteration_begin()

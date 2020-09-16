@@ -154,7 +154,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         self.is_trained_ = True
 
-    def _make_scvi_dl(self, adatas: List[AnnData] = None, batch_size=128):
+    def _make_scvi_dls(self, adatas: List[AnnData] = None, batch_size=128):
         if adatas is None:
             adatas = self.adatas
         post_list = [
@@ -183,7 +183,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         """
         if adatas is None:
             adatas = self.adatas
-        scdls = self._make_scvi_dl(adatas, batch_size=batch_size)
+        scdls = self._make_scvi_dls(adatas, batch_size=batch_size)
         self.model.eval()
         latents = []
         for mode, scdl in enumerate(scdls):
@@ -237,7 +237,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         if adatas is None:
             adatas = self.adatas
-        scdls = self._make_scvi_dl(adatas, batch_size=batch_size)
+        scdls = self._make_scvi_dls(adatas, batch_size=batch_size)
 
         imputed_values = []
         for mode, scdl in enumerate(scdls):
