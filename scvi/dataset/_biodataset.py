@@ -11,7 +11,7 @@ from scvi.dataset._anndata import get_from_registry
 logger = logging.getLogger(__name__)
 
 
-class BioDataset(Dataset):
+class ScviDataset(Dataset):
     """Extension of torch dataset to get tensors from anndata."""
 
     def __init__(
@@ -62,13 +62,13 @@ class BioDataset(Dataset):
 
         Examples
         --------
-        >>> bd = BioDataset(adata)
+        >>> sd = ScviDataset(adata)
 
         # following will only return the X and batch_indices both by defualt as np.float32
-        >>> bd.setup_getitem(getitem_tensors  = ['X,'batch_indices'])
+        >>> sd .setup_getitem(getitem_tensors  = ['X,'batch_indices'])
 
         # This will return X as an integer and batch_indices as np.float32
-        >>> bd.setup_getitem(getitem_tensors  = {'X':np.int64, 'batch_indices':np.float32])
+        >>> sd.setup_getitem(getitem_tensors  = {'X':np.int64, 'batch_indices':np.float32])
         """
         registered_keys = self.get_registered_keys()
 

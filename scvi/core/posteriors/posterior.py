@@ -7,7 +7,7 @@ import torch
 import anndata
 from torch.utils.data import DataLoader
 
-from scvi.dataset._biodataset import BioDataset
+from scvi.dataset._biodataset import ScviDataset
 from scvi.core._log_likelihood import (
     compute_elbo,
     compute_reconstruction_error,
@@ -104,7 +104,9 @@ class Posterior:
                         key
                     )
                 )
-        self.gene_dataset = BioDataset(adata, getitem_tensors=self._data_and_attributes)
+        self.gene_dataset = ScviDataset(
+            adata, getitem_tensors=self._data_and_attributes
+        )
         self.to_monitor = []
         self.use_cuda = use_cuda
 
@@ -145,7 +147,7 @@ class Posterior:
         """
         Returns dictionary where key is scVI data field and value is its datatype.
 
-        Used by BioDataset when _get_item_ is called by mapping the keys in the dict
+        Used by ScviDataset when _get_item_ is called by mapping the keys in the dict
         to its associated datatype
         """
         return {
