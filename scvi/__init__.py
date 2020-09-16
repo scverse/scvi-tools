@@ -25,7 +25,7 @@ __all__ = ["set_verbosity", "set_seed"]
 
 deprecation_msg = (
     "scvi is deprecated, please uninstall scvi via `pip uninstall scvi` "
-    + "and install the new scvi-tools package at github.com/YosefLab/scvi-tools."
+    + "and install the new scvi-tools package at github.com/YosefLab/scvi-tools"
 )
 warnings.simplefilter("always", DeprecationWarning)
 warnings.warn(deprecation_msg, DeprecationWarning)
