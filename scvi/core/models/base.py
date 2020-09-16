@@ -37,26 +37,26 @@ class BaseModelClass(ABC):
         self.test_indices_ = None
         self.validation_indices_ = None
 
-    def _make_posterior(
+    def _make_scvi_dl(
         self,
         adata: AnnData,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
-        **posterior_kwargs,
+        **data_loader_kwargs,
     ):
-        """Create a Posterior object for data iteration."""
+        """Create a ScviDataLoader object for data iteration."""
         if batch_size is None:
             batch_size = settings.batch_size
         if indices is None:
             indices = np.arange(adata.n_obs)
-        post = self._posterior_class(
+        post = self._scvi_dl_class(
             self.model,
             adata,
             shuffle=False,
             indices=indices,
             use_cuda=self.use_cuda,
             batch_size=batch_size,
-            **posterior_kwargs,
+            **data_loader_kwargs,
         ).sequential()
         return post
 
@@ -93,7 +93,7 @@ class BaseModelClass(ABC):
 
     @property
     @abstractmethod
-    def _posterior_class(self):
+    def _scvi_dl_class(self):
         pass
 
     @property

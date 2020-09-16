@@ -78,7 +78,7 @@ class RNASeqMixin:
         Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         if transform_batch is not None:
             transform_batch = _get_batch_code_from_category(adata, transform_batch)
 
@@ -104,7 +104,7 @@ class RNASeqMixin:
             scaling = library_size
 
         exprs = []
-        for tensors in post:
+        for tensors in scdl:
             x = tensors[_CONSTANTS.X_KEY]
             batch_idx = tensors[_CONSTANTS.BATCH_KEY]
             labels = tensors[_CONSTANTS.LABELS_KEY]
@@ -243,7 +243,7 @@ class RNASeqMixin:
             raise ValueError("Invalid gene_likelihood.")
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
         if indices is None:
             indices = np.arange(adata.n_obs)
@@ -255,7 +255,7 @@ class RNASeqMixin:
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
 
         x_new = []
-        for tensors in post:
+        for tensors in scdl:
             x = tensors[_CONSTANTS.X_KEY]
             batch_idx = tensors[_CONSTANTS.BATCH_KEY]
             labels = tensors[_CONSTANTS.LABELS_KEY]
@@ -333,10 +333,10 @@ class RNASeqMixin:
         denoised_samples
         """
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
-        posterior_list = []
-        for tensors in post:
+        data_loader_list = []
+        for tensors in scdl:
             x = tensors[_CONSTANTS.X_KEY]
             batch_idx = tensors[_CONSTANTS.BATCH_KEY]
             labels = tensors[_CONSTANTS.LABELS_KEY]
@@ -362,11 +362,11 @@ class RNASeqMixin:
             # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
             # rate = (1 - p) / p  # = 1/scale # used in pytorch
             # """
-            posterior_list += [data]
+            data_loader_list += [data]
 
-            posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
+            data_loader_list[-1] = np.transpose(data_loader_list[-1], (1, 2, 0))
 
-        return np.concatenate(posterior_list, axis=0)
+        return np.concatenate(data_loader_list, axis=0)
 
     @torch.no_grad()
     def get_feature_correlation_matrix(
@@ -456,12 +456,12 @@ class RNASeqMixin:
     ) -> Dict[str, np.ndarray]:
         r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`."""
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
         dropout_list = []
         mean_list = []
         dispersion_list = []
-        for tensors in post:
+        for tensors in scdl:
             x = tensors[_CONSTANTS.X_KEY]
             batch_idx = tensors[_CONSTANTS.BATCH_KEY]
             labels = tensors[_CONSTANTS.LABELS_KEY]
@@ -526,9 +526,9 @@ class RNASeqMixin:
         if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         libraries = []
-        for tensors in post:
+        for tensors in scdl:
             x = tensors[_CONSTANTS.X_KEY]
             library = self.model.sample_from_posterior_l(x, give_mean=give_mean)
             libraries += [library.cpu()]

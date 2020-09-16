@@ -97,9 +97,9 @@ class VAEMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
-        return -post.elbo()
+        return -scdl.elbo()
 
     @torch.no_grad()
     def get_marginal_ll(
@@ -127,9 +127,9 @@ class VAEMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
-        return -post.marginal_ll(n_mc_samples=n_mc_samples)
+        return -scdl.marginal_ll(n_mc_samples=n_mc_samples)
 
     @torch.no_grad()
     def get_reconstruction_error(
@@ -154,9 +154,9 @@ class VAEMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
-        return -post.reconstruction_error()
+        return -scdl.reconstruction_error()
 
     @torch.no_grad()
     def get_latent_representation(
@@ -196,9 +196,9 @@ class VAEMixin:
             raise RuntimeError("Please train the model first.")
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
-        for tensors in post:
+        for tensors in scdl:
             x = tensors[_CONSTANTS.X_KEY]
             z = self.model.sample_from_posterior_z(
                 x, give_mean=give_mean, n_samples=mc_samples
