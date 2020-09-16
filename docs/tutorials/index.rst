@@ -16,7 +16,7 @@ Also, please pardon the code at the beginning of tutorials that is used for test
 |Open In Colab|
 
 .. |Open In Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
-    :target: https://colab.research.google.com/github/yoseflab/scVI/blob/stable
+    :target: https://colab.research.google.com/github/yoseflab/scVI/blob/scvi-deprecated-stable
 
 
 .. toctree::
