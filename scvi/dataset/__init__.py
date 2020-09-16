@@ -11,7 +11,7 @@ from ._preprocessing import (
 from ._datasets import (
     pbmcs_10x_cite_seq,
     purified_pbmc_dataset,
-    dataset10X,
+    dataset_10x,
     brainlarge_dataset,
     synthetic_iid,
     pbmc_dataset,
@@ -35,7 +35,7 @@ __all__ = [
     "poisson_gene_selection",
     "organize_cite_seq_10x",
     "pbmcs_10x_cite_seq",
-    "dataset10X",
+    "dataset_10x",
     "purified_pbmc_dataset",
     "brainlarge_dataset",
     "synthetic_iid",

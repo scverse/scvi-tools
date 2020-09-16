@@ -422,7 +422,7 @@ class EarlyStopping:
         reduce_lr_on_plateau: bool = False,
         lr_patience: int = 10,
         lr_factor: float = 0.5,
-        ScviDataLoader_class=ScviDataLoader,
+        scvi_data_loader_class=ScviDataLoader,
     ):
         self.benchmark = benchmark
         self.patience = patience
@@ -431,7 +431,7 @@ class EarlyStopping:
         self.wait = 0
         self.wait_lr = 0
         self.mode = (
-            getattr(ScviDataLoader_class, early_stopping_metric).mode
+            getattr(scvi_data_loader_class, early_stopping_metric).mode
             if early_stopping_metric is not None
             else None
         )

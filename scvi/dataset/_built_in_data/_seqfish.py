@@ -88,8 +88,10 @@ def _load_seqfish_data(path_to_file: str) -> anndata.AnnData:
     logger.info("Loading seqfish dataset from {}".format(path_to_file))
     xl = pd.ExcelFile(path_to_file)
     counts = xl.parse("Hippocampus Counts")
-    X = counts.values[:, 1:].astype(int).T  # transpose because counts is genes X cells
+    data = (
+        counts.values[:, 1:].astype(int).T
+    )  # transpose because counts is genes X cells
     gene_names = counts.values[:, 0].astype(str)
-    adata = anndata.AnnData(pd.DataFrame(data=X, columns=gene_names))
+    adata = anndata.AnnData(pd.DataFrame(data=data, columns=gene_names))
     logger.info("Finished loading seqfish dataset")
     return adata

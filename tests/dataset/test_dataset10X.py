@@ -8,7 +8,7 @@ from .utils import unsupervised_training_one_epoch
 
 def test_populate_and_train_one_v1(save_path):
     sp = os.path.join(save_path, "10X")
-    dataset = scvi.dataset.dataset10X(
+    dataset = scvi.dataset.dataset_10x(
         dataset_name="cd4_t_helper",
         remove_extracted_data=True,
         save_path=sp,
@@ -19,7 +19,7 @@ def test_populate_and_train_one_v1(save_path):
 
 def test_brain_small(save_path):
     sp = os.path.join(save_path, "10X")
-    dataset = scvi.dataset.dataset10X(
+    dataset = scvi.dataset.dataset_10x(
         dataset_name="neuron_9k",
         save_path=sp,
         remove_extracted_data=True,
@@ -48,4 +48,4 @@ def test_pbmc_cite(save_path):
 
 @pytest.mark.internet
 def test_download_dataset_10x(save_path):
-    scvi.dataset.dataset10X("hgmm_1k_v3", save_path=save_path)
+    scvi.dataset.dataset_10x("hgmm_1k_v3", save_path=save_path)

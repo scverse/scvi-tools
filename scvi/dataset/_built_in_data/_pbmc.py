@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import anndata
 
-from scvi.dataset._built_in_data._dataset10X import _load_dataset10X
+from scvi.dataset._built_in_data._dataset_10x import _load_dataset_10x
 from typing import List
 from scvi.dataset._built_in_data._utils import _download
 from scvi.dataset import setup_anndata
@@ -67,13 +67,13 @@ def _load_pbmc_dataset(
     pbmc_metadata = pickle.load(
         open(os.path.join(save_path, "pbmc_metadata.pickle"), "rb")
     )
-    pbmc8k = _load_dataset10X(
+    pbmc8k = _load_dataset_10x(
         "pbmc8k",
         save_path=save_path,
         var_names="gene_ids",
         remove_extracted_data=remove_extracted_data,
     )
-    pbmc4k = _load_dataset10X(
+    pbmc4k = _load_dataset_10x(
         "pbmc4k",
         save_path=save_path,
         var_names="gene_ids",
