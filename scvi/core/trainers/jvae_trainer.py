@@ -135,8 +135,10 @@ class JVAETrainer(Trainer):
         if self.train_discriminator:
             latent_tensors = []
             for (i, tensors) in enumerate(tensors_dict):
-                X = tensors[_CONSTANTS.X_KEY]
-                z = self.model.sample_from_posterior_z(X, mode=i, deterministic=False)
+                data = tensors[_CONSTANTS.X_KEY]
+                z = self.model.sample_from_posterior_z(
+                    data, mode=i, deterministic=False
+                )
                 latent_tensors.append(z)
 
             # Train discriminator

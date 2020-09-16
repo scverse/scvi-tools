@@ -8,7 +8,7 @@ from scvi.dataset import synthetic_iid, transfer_anndata_setup, setup_anndata
 from scvi.models import SCVI, SCANVI, GIMVI, TOTALVI, LinearSCVI, AUTOZI
 
 
-def test_SCVI():
+def test_scvi():
     n_latent = 5
     adata = synthetic_iid()
     model = SCVI(adata, n_latent=n_latent)
@@ -159,7 +159,7 @@ def test_saving_and_loading(save_path):
     assert model.is_trained is True
 
 
-def test_SCANVI():
+def test_scanvi():
     adata = synthetic_iid()
     model = SCANVI(adata, "undefined_0", n_latent=10)
     model.train(1)
@@ -176,7 +176,7 @@ def test_SCANVI():
     )
 
 
-def test_LinearSCVI():
+def test_linear_scvi():
     # test using raw
     adata = synthetic_iid()
     adata.raw = adata
@@ -192,7 +192,7 @@ def test_LinearSCVI():
     )
 
 
-def test_GIMVI():
+def test_gimvi():
     adata_seq = synthetic_iid()
     adata_spatial = synthetic_iid()
     model = GIMVI(adata_seq, adata_spatial, n_latent=10)
@@ -212,7 +212,7 @@ def test_GIMVI():
     trainer.get_discriminator_confusion()
 
 
-def test_AUTOZI():
+def test_autozi():
     data = synthetic_iid(n_batches=1)
 
     for disp_zi in ["gene", "gene-label"]:
@@ -228,7 +228,7 @@ def test_AUTOZI():
         autozivae.get_alphas_betas()
 
 
-def test_TOTALVI(save_path):
+def test_totalvi(save_path):
     adata = synthetic_iid()
     n_obs = adata.n_obs
     n_vars = adata.n_vars

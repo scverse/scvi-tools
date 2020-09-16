@@ -501,8 +501,8 @@ class LDVAE(VAE):
             sigma = torch.sqrt(bn.running_var + bn.eps)
             gamma = bn.weight
             b = gamma / sigma
-            bI = torch.diag(b)
-            loadings = torch.matmul(bI, w)
+            b_identity = torch.diag(b)
+            loadings = torch.matmul(b_identity, w)
         else:
             loadings = self.decoder.factor_regressor.fc_layers[0][0].weight
         loadings = loadings.detach().cpu().numpy()

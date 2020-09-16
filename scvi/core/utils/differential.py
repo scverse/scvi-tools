@@ -42,7 +42,7 @@ class DifferentialComputation:
         use_observed_batches: Optional[bool] = False,
         n_samples: int = 5000,
         use_permutation: bool = False,
-        M_permutation: int = 10000,
+        m_permutation: int = 10000,
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
@@ -136,8 +136,8 @@ class DifferentialComputation:
             Activates step 2 described above.
             Simply formulated, pairs obtained from posterior sampling
             will be randomly permuted so that the number of pairs used
-            to compute Bayes Factors becomes `M_permutation`.
-        M_permutation
+            to compute Bayes Factors becomes `m_permutation`.
+        m_permutation
             Number of times we will "mix" posterior samples in step 2.
             Only makes sense when `use_permutation=True`
         change_fn
@@ -195,7 +195,7 @@ class DifferentialComputation:
             logger.debug("Same batches in both cell groups")
             n_batches = len(set(batchid1_vals))
             n_samples_per_batch = (
-                M_permutation // n_batches if M_permutation is not None else None
+                m_permutation // n_batches if m_permutation is not None else None
             )
             scales_1 = []
             scales_2 = []
@@ -213,7 +213,7 @@ class DifferentialComputation:
                     scales_1_batch,
                     scales_2_batch,
                     use_permutation=use_permutation,
-                    M_permutation=n_samples_per_batch,
+                    m_permutation=n_samples_per_batch,
                 )
                 scales_1.append(scales_1_local)
                 scales_2.append(scales_2_local)
@@ -231,7 +231,7 @@ class DifferentialComputation:
                 scales_batches_1["scale"],
                 scales_batches_2["scale"],
                 use_permutation=use_permutation,
-                M_permutation=M_permutation,
+                m_permutation=m_permutation,
             )
 
         # Core of function: hypotheses testing based on the posterior samples we obtained above
@@ -406,7 +406,7 @@ def pairs_sampler(
     arr1: Union[List[float], np.ndarray, torch.Tensor],
     arr2: Union[List[float], np.ndarray, torch.Tensor],
     use_permutation: bool = True,
-    M_permutation: int = None,
+    m_permutation: int = None,
     sanity_check_perm: bool = False,
     weights1: Union[List[float], np.ndarray, torch.Tensor] = None,
     weights2: Union[List[float], np.ndarray, torch.Tensor] = None,
@@ -425,7 +425,7 @@ def pairs_sampler(
         samples from population 2
     use_permutation
         Whether to mix samples from both populations
-    M_permutation
+    m_permutation
         param sanity_check_perm: If True, resulting mixed arrays arr1 and arr2 are mixed together
         In most cases, this parameter should remain False
     sanity_check_perm
@@ -447,16 +447,16 @@ def pairs_sampler(
         if not sanity_check_perm:
             # case1: no permutation, sample from A and then from B
             u, v = (
-                np.random.choice(n_arr1, size=M_permutation, p=weights1),
-                np.random.choice(n_arr2, size=M_permutation, p=weights2),
+                np.random.choice(n_arr1, size=m_permutation, p=weights1),
+                np.random.choice(n_arr2, size=m_permutation, p=weights2),
             )
             first_set = arr1[u]
             second_set = arr2[v]
         else:
             # case2: permutation, sample from A+B twice (sanity check)
             u, v = (
-                np.random.choice(n_arr1 + n_arr2, size=M_permutation),
-                np.random.choice(n_arr1 + n_arr2, size=M_permutation),
+                np.random.choice(n_arr1 + n_arr2, size=m_permutation),
+                np.random.choice(n_arr1 + n_arr2, size=m_permutation),
             )
             concat_arr = np.concatenate((arr1, arr2))
             first_set = concat_arr[u]

@@ -15,7 +15,7 @@ from ._built_in_data._loom import (
 from ._built_in_data._pbmc import _load_purified_pbmc_dataset, _load_pbmc_dataset
 from ._built_in_data._seqfish import _load_seqfish, _load_seqfishplus
 from ._built_in_data._smfish import _load_smfish
-from ._built_in_data._dataset10X import _load_dataset10X
+from ._built_in_data._dataset_10x import _load_dataset_10x
 
 
 def pbmc_dataset(
@@ -58,7 +58,7 @@ def pbmc_dataset(
     )
 
 
-def dataset10X(
+def dataset_10x(
     dataset_name: Optional[str] = None,
     filename: Optional[str] = None,
     save_path: str = "data/10X",
@@ -105,7 +105,7 @@ def dataset10X(
     >>> import scvi
     >>> neuron = scvi.dataset.dataset10X("neuron_9k")
     """
-    return _load_dataset10X(
+    return _load_dataset_10x(
         dataset_name=dataset_name,
         filename=filename,
         save_path=save_path,

@@ -75,7 +75,7 @@ group_to_filename_skeleton = {
 }
 
 
-def _load_dataset10X(
+def _load_dataset_10x(
     dataset_name: str = None,
     filename: str = None,
     save_path: str = "data/10X",
