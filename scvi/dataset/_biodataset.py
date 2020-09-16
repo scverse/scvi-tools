@@ -62,13 +62,13 @@ class ScviDataset(Dataset):
 
         Examples
         --------
-        >>> bd = ScviDataset(adata)
+        >>> sd = ScviDataset(adata)
 
         # following will only return the X and batch_indices both by defualt as np.float32
-        >>> bd.setup_getitem(getitem_tensors  = ['X,'batch_indices'])
+        >>> sd .setup_getitem(getitem_tensors  = ['X,'batch_indices'])
 
         # This will return X as an integer and batch_indices as np.float32
-        >>> bd.setup_getitem(getitem_tensors  = {'X':np.int64, 'batch_indices':np.float32])
+        >>> sd.setup_getitem(getitem_tensors  = {'X':np.int64, 'batch_indices':np.float32])
         """
         registered_keys = self.get_registered_keys()
 
