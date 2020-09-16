@@ -11,7 +11,7 @@ from scvi.core.models import (
     VAEMixin,
 )
 
-from scvi.core.posteriors import Posterior
+from scvi.core.posteriors import ScviDataLoader
 from scvi.core.trainers import UnsupervisedTrainer
 
 
@@ -110,8 +110,8 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
         return UnsupervisedTrainer
 
     @property
-    def _posterior_class(self):
-        return Posterior
+    def _scvi_dl_class(self):
+        return ScviDataLoader
 
     def get_loadings(self) -> pd.DataFrame:
         """

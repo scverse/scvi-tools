@@ -7,7 +7,7 @@ from typing import Optional, Dict, Union
 from scvi._compat import Literal
 from scvi.core.modules import AutoZIVAE
 from scvi.core.models import VAEMixin, BaseModelClass
-from scvi.core.posteriors import Posterior
+from scvi.core.posteriors import ScviDataLoader
 from scvi.core.trainers import UnsupervisedTrainer
 
 
@@ -138,5 +138,5 @@ class AUTOZI(VAEMixin, BaseModelClass):
         return UnsupervisedTrainer
 
     @property
-    def _posterior_class(self):
-        return Posterior
+    def _scvi_dl_class(self):
+        return ScviDataLoader

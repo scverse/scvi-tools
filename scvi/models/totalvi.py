@@ -13,7 +13,7 @@ from scvi._compat import Literal
 from scvi.core.modules import TOTALVAE
 from scvi.core.models import BaseModelClass, VAEMixin, RNASeqMixin
 from scvi.core.models._utils import _de_core
-from scvi.core.posteriors import TotalPosterior
+from scvi.core.posteriors import TotalDataLoader
 from scvi.core.trainers import TotalTrainer
 from scvi.models._utils import (
     cite_seq_raw_counts_properties,
@@ -210,7 +210,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
         return -post.reconstruction_error(mode=mode)
 
@@ -261,7 +261,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             raise RuntimeError("Please train the model first.")
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
@@ -302,7 +302,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             raise RuntimeError("Please train the model first.")
 
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         libraries = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
@@ -389,7 +389,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
         """
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
         if gene_list is None:
             gene_mask = slice(None)
@@ -549,7 +549,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
         if protein_list is None:
             protein_mask = slice(None)
@@ -775,9 +775,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             all_proteins = adata.uns["scvi_protein_names"]
             protein_mask = [True if p in protein_list else False for p in all_proteins]
 
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
-        posterior_list = []
+        scdl_list = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
             batch_idx = tensors[_CONSTANTS.BATCH_KEY]
@@ -822,12 +822,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
             # rate = (1 - p) / p  # = 1/scale # used in pytorch
             # """
-            posterior_list += [data]
+            scdl_list += [data]
             if n_samples > 1:
-                posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
-        posterior_list = np.concatenate(posterior_list, axis=0)
+                scdl_list[-1] = np.transpose(scdl_list[-1], (1, 2, 0))
+        scdl_list = np.concatenate(scdl_list, axis=0)
 
-        return posterior_list
+        return scdl_list
 
     @torch.no_grad()
     def _get_denoised_samples(
@@ -859,9 +859,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             int of which batch to condition on for all cells
         """
         adata = self._validate_anndata(adata)
-        post = self._make_posterior(adata=adata, indices=indices, batch_size=batch_size)
+        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
-        posterior_list = []
+        scdl_list = []
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
             batch_idx = tensors[_CONSTANTS.BATCH_KEY]
@@ -903,11 +903,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             data[:, :, self.adata.shape[1] :] = (
                 data[:, :, self.adata.shape[1] :] * (1 - mixing_sample).cpu().numpy()
             )
-            posterior_list += [data]
+            scdl_list += [data]
 
-            posterior_list[-1] = np.transpose(posterior_list[-1], (1, 2, 0))
+            scdl_list[-1] = np.transpose(scdl_list[-1], (1, 2, 0))
 
-        return np.concatenate(posterior_list, axis=0)
+        return np.concatenate(scdl_list, axis=0)
 
     @torch.no_grad()
     def get_feature_correlation_matrix(
@@ -1013,5 +1013,5 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         return TotalTrainer
 
     @property
-    def _posterior_class(self):
-        return TotalPosterior
+    def _scvi_dl_class(self):
+        return TotalDataLoader

@@ -7,7 +7,7 @@ from anndata import AnnData
 
 from typing import List, Optional
 from scvi.core.modules import JVAE, Classifier
-from scvi.core.trainers.jvae_trainer import JPosterior
+from scvi.core.trainers.jvae_trainer import JvaeDataLoader
 from scvi.core.trainers import JVAETrainer
 from scvi.core.models import VAEMixin, BaseModelClass
 from scvi.models._utils import _get_var_names_from_setup_anndata
@@ -102,8 +102,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         return JVAETrainer
 
     @property
-    def _posterior_class(self):
-        return JPosterior
+    def _scvi_dl_class(self):
+        return JvaeDataLoader
 
     def train(
         self,
@@ -154,11 +154,11 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         self.is_trained_ = True
 
-    def _make_posteriors(self, adatas: List[AnnData] = None, batch_size=128):
+    def _make_scvi_dl(self, adatas: List[AnnData] = None, batch_size=128):
         if adatas is None:
             adatas = self.adatas
         post_list = [
-            self._make_posterior(adata, mode=i) for i, adata in enumerate(adatas)
+            self._make_scvi_dl(adata, mode=i) for i, adata in enumerate(adatas)
         ]
 
         return post_list
@@ -183,12 +183,12 @@ class GIMVI(VAEMixin, BaseModelClass):
         """
         if adatas is None:
             adatas = self.adatas
-        posteriors = self._make_posteriors(adatas, batch_size=batch_size)
+        scdls = self._make_scvi_dl(adatas, batch_size=batch_size)
         self.model.eval()
         latents = []
-        for mode, posterior in enumerate(posteriors):
+        for mode, scdl in enumerate(scdls):
             latent = []
-            for tensors in posterior:
+            for tensors in scdl:
                 (
                     sample_batch,
                     local_l_mean,
@@ -237,12 +237,12 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         if adatas is None:
             adatas = self.adatas
-        posteriors = self._make_posteriors(adatas, batch_size=batch_size)
+        scdls = self._make_scvi_dl(adatas, batch_size=batch_size)
 
         imputed_values = []
-        for mode, posterior in enumerate(posteriors):
+        for mode, scdl in enumerate(scdls):
             imputed_value = []
-            for tensors in posterior:
+            for tensors in scdl:
                 (
                     sample_batch,
                     local_l_mean,
