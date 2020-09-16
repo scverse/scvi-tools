@@ -6,7 +6,7 @@ from torch.nn import functional as F
 
 from .trainer import Trainer
 from .inference import UnsupervisedTrainer
-from scvi.core.posteriors import AnnotationPosterior
+from scvi.core.posteriors import AnnotationDataLoader
 from scvi.dataset._anndata import get_from_registry
 from scvi import _CONSTANTS
 
@@ -73,7 +73,7 @@ class ClassifierTrainer(Trainer):
             self.adata,
             train_size=train_size,
             test_size=test_size,
-            type_class=AnnotationPosterior,
+            type_class=AnnotationDataLoader,
         )
         self.train_set.to_monitor = ["accuracy"]
         self.test_set.to_monitor = ["accuracy"]
@@ -83,7 +83,7 @@ class ClassifierTrainer(Trainer):
         self.validation_set.model_zl = sampling_zl
 
     @property
-    def posteriors_loop(self):
+    def scvi_data_loaders_loop(self):
         return ["train_set"]
 
     def __setattr__(self, key, value):
@@ -110,15 +110,15 @@ class ClassifierTrainer(Trainer):
                     x = self.sampling_model.z_encoder(x)[0]
         return F.cross_entropy(self.model(x), labels_train.view(-1))
 
-    def create_posterior(
+    def create_scvi_dl(
         self,
         model=None,
         adata=None,
         shuffle=False,
         indices=None,
-        type_class=AnnotationPosterior,
+        type_class=AnnotationDataLoader,
     ):
-        return super().create_posterior(model, adata, shuffle, indices, type_class)
+        return super().create_scvi_dl(model, adata, shuffle, indices, type_class)
 
 
 class SemiSupervisedTrainer(UnsupervisedTrainer):
@@ -180,15 +180,15 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
             frequency=0,
             sampling_model=self.model,
         )
-        self.full_dataset = self.create_posterior(shuffle=True)
-        self.labelled_set = self.create_posterior(indices=indices_labelled)
-        self.unlabelled_set = self.create_posterior(indices=indices_unlabelled)
+        self.full_dataset = self.create_scvi_dl(shuffle=True)
+        self.labelled_set = self.create_scvi_dl(indices=indices_labelled)
+        self.unlabelled_set = self.create_scvi_dl(indices=indices_unlabelled)
 
-        for posterior in [self.labelled_set, self.unlabelled_set]:
-            posterior.to_monitor = ["reconstruction_error", "accuracy"]
+        for scdl in [self.labelled_set, self.unlabelled_set]:
+            scdl.to_monitor = ["reconstruction_error", "accuracy"]
 
     @property
-    def posteriors_loop(self):
+    def scvi_data_loaders_loop(self):
         return ["full_dataset", "labelled_set"]
 
     def __setattr__(self, key, value):
@@ -214,15 +214,15 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         self.model.train()
         return super().on_epoch_end()
 
-    def create_posterior(
+    def create_scvi_dl(
         self,
         model=None,
         adata=None,
         shuffle=False,
         indices=None,
-        type_class=AnnotationPosterior,
+        type_class=AnnotationDataLoader,
     ):
-        return super().create_posterior(model, adata, shuffle, indices, type_class)
+        return super().create_scvi_dl(model, adata, shuffle, indices, type_class)
 
 
 class JointSemiSupervisedTrainer(SemiSupervisedTrainer):
@@ -239,5 +239,5 @@ class AlternateSemiSupervisedTrainer(SemiSupervisedTrainer):
         return UnsupervisedTrainer.loss(self, all_tensor)
 
     @property
-    def posteriors_loop(self):
+    def scvi_data_loaders_loop(self):
         return ["full_dataset"]

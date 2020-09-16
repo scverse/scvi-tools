@@ -4,7 +4,7 @@ import logging
 import torch
 
 from scvi.core.trainers import UnsupervisedTrainer
-from scvi.core.posteriors import TotalPosterior
+from scvi.core.posteriors import TotalDataLoader
 from scvi.core.modules import TOTALVAE
 from scvi.core.modules import Classifier
 from scvi.core.modules.utils import one_hot
@@ -21,7 +21,7 @@ default_early_stopping_kwargs = {
     "reduce_lr_on_plateau": True,
     "lr_patience": 30,
     "lr_factor": 0.6,
-    "posterior_class": TotalPosterior,
+    "ScviDataLoader_class": TotalDataLoader,
 }
 
 
@@ -131,7 +131,7 @@ class TotalTrainer(UnsupervisedTrainer):
                 self.test_set,
                 self.validation_set,
             ) = self.train_test_validation(
-                model, dataset, train_size, test_size, type_class=TotalPosterior
+                model, dataset, train_size, test_size, type_class=TotalDataLoader
             )
             self.train_set.to_monitor = []
             self.test_set.to_monitor = ["elbo"]
