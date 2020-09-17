@@ -7,7 +7,7 @@ Prerequisites
 
 .. _Miniconda: https://conda.io/miniconda.html
 
-2. Install PyTorch_. If you have an Nvidia GPU, be sure to install a version of PyTorch that supports it -- scvi runs much faster with a discrete GPU.
+2. Install PyTorch_. If you have an Nvidia GPU, be sure to install a version of PyTorch that supports it -- scvi-tools runs much faster with a discrete GPU.
 
 .. _PyTorch: http://pytorch.org
 
@@ -15,7 +15,7 @@ Prerequisites
 scvi-tools installation
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Install scvi in one of the following ways:
+Install scvi-tools in one of the following ways:
 
 Through conda::
 

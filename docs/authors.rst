@@ -10,12 +10,12 @@ Key contributors
 Here we highlight some key contributors who helped craft this project into what it is today.
 Many have diverse contributions to the code. Here we highlight some specific projects.
 
-# = maintainer, ☀ = diverse contributions
+☀ = maintainer
 
-* `Romain Lopez`_: scVI lead, new API, #
-* `Adam Gayoso`_: totalVI lead, LDVAE, new API, #
-* Pierre Boyeau: differential expression, #
-* `Galen Xing`_: code infrastructure, new API, #
+* `Romain Lopez`_: scVI lead, new API, ☀
+* `Adam Gayoso`_: totalVI lead, LDVAE, new API, ☀
+* Pierre Boyeau: differential expression, ☀
+* `Galen Xing`_: code infrastructure, new API, ☀
 * `Jeffrey Regier`_: initial scVI package
 * Chenling Xu : scANVI
 * `Valentine Svensson`_: LDVAE
