@@ -39,7 +39,7 @@ def test_adapter_trainer():
 
     n_latent = 5
     adata = scvi.data.synthetic_iid()
-    model = scvi.models.SCVI(adata, n_latent=n_latent)
+    model = scvi.model.SCVI(adata, n_latent=n_latent)
     model.train(1, train_size=0.5)
 
     trainer = AdapterTrainer(model.model, adata, model.trainer.test_set)

@@ -58,7 +58,7 @@ class SCVI(RNASeqMixin, VAEMixin, BaseModelClass):
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.data.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.models.SCVI(adata)
+    >>> vae = scvi.model.SCVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     >>> adata.obsm["X_normalized_scVI"] = vae.get_normalized_expression()

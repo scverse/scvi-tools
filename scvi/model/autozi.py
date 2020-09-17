@@ -72,7 +72,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
 
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.data.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.models.AutoZIVAE(adata)
+    >>> vae = scvi.model.AutoZIVAE(adata)
     >>> vae.train(n_epochs=400)
     """
 

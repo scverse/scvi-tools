@@ -10,7 +10,7 @@ from scvi.core.modules import JVAE, Classifier
 from scvi.core.trainers.jvae_trainer import JvaeDataLoader
 from scvi.core.trainers import JVAETrainer
 from scvi.core.models import VAEMixin, BaseModelClass
-from scvi.models._utils import _get_var_names_from_setup_anndata
+from scvi.model._utils import _get_var_names_from_setup_anndata
 from scvi import _CONSTANTS
 
 logger = logging.getLogger(__name__)
@@ -56,7 +56,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     >>> adata_spatial = anndata.read_h5ad(path_to_anndata_spatial)
     >>> scvi.data.setup_anndata(adata_seq)
     >>> scvi.data.setup_anndata(adata_spatial)
-    >>> vae = scvi.models.GIMVI(adata_seq, adata_spatial)
+    >>> vae = scvi.model.GIMVI(adata_seq, adata_spatial)
     >>> vae.train(n_epochs=400)
     """
 

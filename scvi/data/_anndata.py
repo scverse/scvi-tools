@@ -106,10 +106,10 @@ def setup_anndata(
     layer
         if not `None`, uses this as the key in `adata.layers` for raw count data.
     protein_expression_obsm_key
-        key in `adata.obsm` for protein expression data, Required for :class:`~scvi.models.TOTALVI`.
+        key in `adata.obsm` for protein expression data, Required for :class:`~scvi.model.TOTALVI`.
     protein_names_uns_key
         key in `adata.uns` for protein names. If None, will use the column names of `adata.obsm[protein_expression_obsm_key]`
-        if it is a DataFrame, else will assign sequential names to proteins. Only relevant but not required for :class:`~scvi.models.TOTALVI`.
+        if it is a DataFrame, else will assign sequential names to proteins. Only relevant but not required for :class:`~scvi.model.TOTALVI`.
     categorical_covariate_keys
         keys in `adata.obs` that correspond to categorical data. Used in some `scvi` models.
     continuous_covariate_keys
@@ -780,7 +780,7 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
     adata
         anndata object
     data_registry_dict
-        dictionary mapping keys used by scvi models to their respective location in adata.
+        dictionary mapping keys used by scvi.model to their respective location in adata.
 
     Examples
     --------

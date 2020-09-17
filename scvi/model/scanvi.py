@@ -6,7 +6,7 @@ from typing import Union, Optional, Sequence
 from anndata import AnnData
 
 from scvi import _CONSTANTS
-from scvi.models import SCVI
+from scvi.model import SCVI
 from scvi.core.models import BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.modules import VAE, SCANVAE
 from scvi.core.trainers import UnsupervisedTrainer, SemiSupervisedTrainer
@@ -60,7 +60,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.data.setup_anndata(adata, batch_key="batch", labels_key="labels")
-    >>> vae = scvi.models.SCANVI(adata, "Unknown")
+    >>> vae = scvi.model.SCANVI(adata, "Unknown")
     >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     >>> adata.obs["pred_label"] = vae.predict()

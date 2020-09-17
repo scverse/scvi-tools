@@ -5,7 +5,7 @@ import pytest
 
 import scvi
 from scvi.data import synthetic_iid, transfer_anndata_setup, setup_anndata
-from scvi.models import SCVI, SCANVI, GIMVI, TOTALVI, LinearSCVI, AUTOZI
+from scvi.model import SCVI, SCANVI, GIMVI, TOTALVI, LinearSCVI, AUTOZI
 
 
 def test_scvi():

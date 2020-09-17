@@ -15,7 +15,7 @@ from scvi.core.models import BaseModelClass, VAEMixin, RNASeqMixin
 from scvi.core.models._utils import _de_core
 from scvi.core.data_loaders import TotalDataLoader
 from scvi.core.trainers import TotalTrainer
-from scvi.models._utils import (
+from scvi.model._utils import (
     cite_seq_raw_counts_properties,
     _get_var_names_from_setup_anndata,
 )
@@ -67,7 +67,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.data.setup_anndata(adata, batch_key="batch", protein_expression_obsm_key="protein_expression")
-    >>> vae = scvi.models.TOTALVI(adata)
+    >>> vae = scvi.model.TOTALVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_totalVI"] = vae.get_latent_representation()
     """

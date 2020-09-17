@@ -30,7 +30,7 @@ from scvi._settings import autotune_formatter
 
 from scvi.core.models import BaseModelClass
 from scvi.core.trainers.trainer import Trainer
-from scvi.models import SCVI
+from scvi.model import SCVI
 
 # spawning is required for processes relying on cuda, and for windows
 multiprocessing.set_start_method("spawn", force=True)
