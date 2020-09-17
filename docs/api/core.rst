@@ -4,7 +4,7 @@ Core
 
 .. warning::
 
-    The ``scvi.core`` top-level module is PRIVATE. We document here for contributors. Please use the top-level module ``scvi.model``.
+    The ``scvi.core`` top-level module is PRIVATE. We document here for contributors. Please use the top-level module ``scvi.models``.
 
 .. currentmodule:: scvi
 

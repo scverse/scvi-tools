@@ -14,10 +14,10 @@ Data loading
 .. autosummary::
    :toctree: reference/
 
-   dataset.read_h5ad
-   dataset.read_csv
-   dataset.read_loom
-   dataset.read_text
+   data.read_h5ad
+   data.read_csv
+   data.read_loom
+   data.read_text
 
 Basic preprocessing
 ~~~~~~~~~~~~~~~~~~~
@@ -35,8 +35,8 @@ Here we maintain a few package specific utilities for feature selection, etc.
 .. autosummary::
    :toctree: reference/
 
-   dataset.poisson_gene_selection
-   dataset.organize_cite_seq_10x
+   data.poisson_gene_selection
+   data.organize_cite_seq_10x
 
 
 Data preparation
@@ -47,9 +47,9 @@ Setting up an AnnData object is a prerequisite for running any ``scvi-tools`` mo
 .. autosummary::
    :toctree: reference/
 
-   dataset.setup_anndata
-   dataset.transfer_anndata_setup
-   dataset.register_tensor_from_anndata
+   data.setup_anndata
+   data.transfer_anndata_setup
+   data.register_tensor_from_anndata
 
 Built in data
 ~~~~~~~~~~~~~
@@ -57,18 +57,18 @@ Built in data
 .. autosummary::
    :toctree: reference/
 
-   dataset.pbmcs_10x_cite_seq
-   dataset.purified_pbmc_dataset
-   dataset.dataset_10x
-   dataset.brainlarge_dataset
-   dataset.pbmc_dataset
-   dataset.cortex
-   dataset.seqfishplus
-   dataset.seqfish
-   dataset.smfish
-   dataset.breast_cancer_dataset
-   dataset.mouse_ob_dataset
-   dataset.retina
-   dataset.prefrontalcortex_starmap
-   dataset.frontalcortex_dropseq
+   data.pbmcs_10x_cite_seq
+   data.purified_pbmc_dataset
+   data.dataset_10x
+   data.brainlarge_dataset
+   data.pbmc_dataset
+   data.cortex
+   data.seqfishplus
+   data.seqfish
+   data.smfish
+   data.breast_cancer_dataset
+   data.mouse_ob_dataset
+   data.retina
+   data.prefrontalcortex_starmap
+   data.frontalcortex_dropseq
 

@@ -11,8 +11,8 @@ Import scvi-tools as::
 .. toctree::
    :maxdepth: 2
 
-   dataset
-   models
+   data
+   model
    inference
    settings
    core
