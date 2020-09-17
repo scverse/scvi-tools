@@ -106,11 +106,11 @@ def _check_nonnegative_integers(
         raise TypeError("data type not understood")
 
     check = data[:10]
-    return _iterate_nonnegative_integers(check)
+    return _check_is_counts(check)
 
 
 @numba.njit(cache=True)
-def _iterate_nonnegative_integers(data):
+def _check_is_counts(data):
     for d in data.flat:
         if d < 0 or d % 1 != 0:
             return False
