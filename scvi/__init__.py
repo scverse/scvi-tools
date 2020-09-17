@@ -12,13 +12,23 @@ import toml
 from pathlib import Path
 
 
-def get_version():
-    path = Path(__file__).resolve().parents[1] / "pyproject.toml"
-    pyproject = toml.loads(open(str(path)).read())
-    return pyproject["tool"]["poetry"]["version"]
+def get_version(source_file):
+    # https://github.com/rominf/poetry-version/blob/master/poetry_version/__init__.py
+    d = Path(source_file)
+    result = None
+    while d.parent != d and result is None:
+        d = d.parent
+        pyproject_toml_path = d / "pyproject.toml"
+        if pyproject_toml_path.exists():
+            with open(file=str(pyproject_toml_path)) as f:
+                pyproject_toml = toml.loads(f.read())
+                if "tool" in pyproject_toml and "poetry" in pyproject_toml["tool"]:
+                    # noinspection PyUnresolvedReferences
+                    result = pyproject_toml["tool"]["poetry"]["version"]
+    return result
 
 
-__version__ = get_version()
+__version__ = get_version(__file__)
 
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
