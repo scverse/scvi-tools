@@ -2,7 +2,7 @@
 Authors
 =======
 
-We are grateful to have received contributions from many authors (`scVI graph`_). We would also like to acknowledge the environment at the `Yosef Lab`_ at UC Berkeley, which has allowed us to advance this package.
+We are grateful to have received contributions from many authors (`scvi-tools graph`_). We would also like to acknowledge the environment at the `Yosef Lab`_ at UC Berkeley, which has allowed us to advance this package.
 
 Key contributors
 ~~~~~~~~~~~~~~~~
@@ -28,7 +28,7 @@ Many have diverse contributions to the code. Here we highlight some specific pro
 * Edouard Mehlman : code infrastructure < v0.7, scANVI
 
 
-.. _scVI graph: https://github.com/YosefLab/scVI/graphs/contributors
+.. _scvi-tools graph: https://github.com/YosefLab/scvi-tools/graphs/contributors
 .. _Romain Lopez: https://romain-lopez.github.io/
 .. _Adam Gayoso: https://adamgayoso.com/
 .. _Jeffrey Regier: https://regier.stat.lsa.umich.edu/

@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 
 from anndata import AnnData
-from scvi.dataset import setup_anndata
-from scvi.dataset._built_in_data._utils import _download
+from scvi.data import setup_anndata
+from scvi.data._built_in_data._utils import _download
 
 
 logger = logging.getLogger(__name__)

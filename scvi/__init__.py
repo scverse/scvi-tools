@@ -6,7 +6,7 @@ from logging import NullHandler
 
 from ._constants import _CONSTANTS
 from ._settings import settings
-from . import dataset, models
+from . import data, model
 
 import toml
 from pathlib import Path
@@ -38,4 +38,4 @@ logger.propagate = False
 
 test_var = "test"
 
-__all__ = ["settings", "_CONSTANTS", "dataset", "models"]
+__all__ = ["settings", "_CONSTANTS", "data", "model"]

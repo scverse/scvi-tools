@@ -5,7 +5,7 @@ import numpy as np
 import shutil
 
 from typing import Tuple
-from scvi.dataset._built_in_data._utils import _download
+from scvi.data._built_in_data._utils import _download
 
 
 logger = logging.getLogger(__name__)

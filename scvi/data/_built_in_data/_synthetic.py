@@ -1,7 +1,7 @@
 import logging
 import pandas as pd
 import numpy as np
-from scvi.dataset import setup_anndata
+from scvi.data import setup_anndata
 from anndata import AnnData
 
 logger = logging.getLogger(__name__)

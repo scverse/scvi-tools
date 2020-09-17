@@ -3,8 +3,8 @@ import numpy as np
 import anndata
 import os
 
-from scvi.dataset import setup_anndata
-from scvi.dataset._built_in_data._utils import _download
+from scvi.data import setup_anndata
+from scvi.data._built_in_data._utils import _download
 
 
 def _load_pbmcs_10x_cite_seq(

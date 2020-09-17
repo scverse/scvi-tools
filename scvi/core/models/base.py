@@ -6,14 +6,14 @@ import inspect
 import numpy as np
 
 from anndata import AnnData
-from scvi.dataset._utils import (
+from scvi.data._utils import (
     _check_anndata_setup_equivalence,
     _check_nonnegative_integers,
 )
 from scvi import _CONSTANTS, settings
 from typing import Optional, Sequence
 from abc import ABC, abstractmethod
-from scvi.dataset import get_from_registry, transfer_anndata_setup
+from scvi.data import get_from_registry, transfer_anndata_setup
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class BaseModelClass(ABC):
         if adata is not None:
             if "_scvi" not in adata.uns.keys():
                 raise ValueError(
-                    "Please setup your AnnData with scvi.dataset.setup_anndata(adata) first"
+                    "Please setup your AnnData with scvi.data.setup_anndata(adata) first"
                 )
             self.adata = adata
             self.scvi_setup_dict_ = adata.uns["_scvi"]
@@ -182,7 +182,7 @@ class BaseModelClass(ABC):
         ----------
         adata
             AnnData organized in the same way as data used to train model.
-            It is not necessary to run :func:`~scvi.dataset.setup_anndata`,
+            It is not necessary to run :func:`~scvi.data.setup_anndata`,
             as AnnData is validated against the saved `scvi` setup dictionary.
         dir_path
             Path to saved outputs.

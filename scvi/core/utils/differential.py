@@ -6,7 +6,7 @@ import logging
 import warnings
 from scvi._compat import Literal
 from typing import Union, List, Optional, Callable, Dict
-from scvi.dataset import get_from_registry
+from scvi.data import get_from_registry
 from scvi._constants import _CONSTANTS
 
 logger = logging.getLogger(__name__)

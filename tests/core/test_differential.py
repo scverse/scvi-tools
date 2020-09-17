@@ -1,5 +1,5 @@
-from scvi.dataset import synthetic_iid
-from scvi.models import SCVI
+from scvi.data import synthetic_iid
+from scvi.model import SCVI
 from scvi.core.utils.differential import DifferentialComputation
 from functools import partial
 import numpy as np

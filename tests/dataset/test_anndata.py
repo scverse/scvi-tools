@@ -4,14 +4,14 @@ import pandas as pd
 import scipy.sparse as sparse
 
 import pytest
-from scvi.dataset._scvidataset import ScviDataset
-from scvi.dataset._datasets import synthetic_iid
-from scvi.dataset import (
+from scvi.data._scvidataset import ScviDataset
+from scvi.data import synthetic_iid
+from scvi.data import (
     setup_anndata,
     transfer_anndata_setup,
     register_tensor_from_anndata,
 )
-from scvi.dataset._anndata import get_from_registry
+from scvi.data._anndata import get_from_registry
 
 
 def test_transfer_anndata_setup():

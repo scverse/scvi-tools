@@ -8,14 +8,14 @@ from typing import Optional, Union, List, Tuple, Sequence, Iterable
 from functools import partial
 
 from scvi import _CONSTANTS
-from scvi.dataset import get_from_registry
+from scvi.data import get_from_registry
 from scvi._compat import Literal
 from scvi.core.modules import TOTALVAE
 from scvi.core.models import BaseModelClass, VAEMixin, RNASeqMixin
 from scvi.core.models._utils import _de_core
 from scvi.core.data_loaders import TotalDataLoader
 from scvi.core.trainers import TotalTrainer
-from scvi.models._utils import (
+from scvi.model._utils import (
     cite_seq_raw_counts_properties,
     _get_var_names_from_setup_anndata,
 )
@@ -33,7 +33,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.dataset.setup_anndata`.
+        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
     n_latent
         Dimensionality of the latent space.
     gene_dispersion
@@ -66,8 +66,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.dataset.setup_anndata(adata, batch_key="batch", protein_expression_obsm_key="protein_expression")
-    >>> vae = scvi.models.TOTALVI(adata)
+    >>> scvi.data.setup_anndata(adata, batch_key="batch", protein_expression_obsm_key="protein_expression")
+    >>> vae = scvi.model.TOTALVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_totalVI"] = vae.get_latent_representation()
     """

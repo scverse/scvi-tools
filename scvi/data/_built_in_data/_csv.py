@@ -3,8 +3,8 @@ import numpy as np
 import anndata
 import os
 
-from scvi.dataset._built_in_data._utils import _download
-from scvi.dataset._anndata import setup_anndata
+from scvi.data._built_in_data._utils import _download
+from scvi.data._anndata import setup_anndata
 
 logger = logging.getLogger(__name__)
 
