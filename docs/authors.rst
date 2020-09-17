@@ -2,7 +2,7 @@
 Authors
 =======
 
-We are grateful to have received contributions from many authors (`scVI graph`_).
+We are grateful to have received contributions from many authors (`scVI-tools graph`_).
 
 Key contributors
 ~~~~~~~~~~~~~~~~
