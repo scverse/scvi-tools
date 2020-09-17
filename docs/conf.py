@@ -147,14 +147,14 @@ html_theme = "pydata_sphinx_theme"
 html_logo = "_static/logo.png"
 
 html_theme_options = {
-    "github_url": "https://github.com/YosefLab/scVI",
+    "github_url": "https://github.com/YosefLab/scvi-tools",
     "twitter_url": "https://twitter.com/YosefLab",
     # "use_edit_page_button": True,
 }
 html_context = dict(
     # display_github=True,  # Integrate GitHub
     github_user="YosefLab",  # Username
-    github_repo="scVI",  # Repo name
+    github_repo="scvi-tools",  # Repo name
     github_version="master",  # Version
     doc_path="docs/",  # Path in the checkout to the docs root
 )
