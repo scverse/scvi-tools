@@ -21,7 +21,7 @@ packages = [
   {include = "scvi"},
 ]
 readme = "README.rst"
-version = "0.6.7"
+version = "0.7.0-alpha.0"
 
 [tool.poetry.dependencies]
 anndata = ">=0.7.4"
@@ -67,10 +67,6 @@ tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy"]
 
 [tool.poetry.dev-dependencies]
 
-[build-system]
-build-backend = "poetry.masonry.api"
-requires = ["poetry>=1.0"]
-
 [tool.tox]
 legacy_tox_ini = """
 [tox]
@@ -82,3 +78,7 @@ extras =
     dev
 commands = pytest {posargs}
 """
+[build-system]
+build-backend = "poetry.masonry.api"
+requires = ["poetry>=1.0"]
+
