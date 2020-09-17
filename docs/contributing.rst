@@ -15,7 +15,7 @@ Types of Contributions
 Report Bugs
 ~~~~~~~~~~~
 
-Report bugs at https://github.com/YosefLab/scVI/issues.
+Report bugs at https://github.com/YosefLab/scvi-tools/issues.
 
 If you are reporting a bug, please include:
 
@@ -45,7 +45,7 @@ articles, and such.
 Submit Feedback
 ~~~~~~~~~~~~~~~
 
-The best way to send feedback is to file an issue at https://github.com/YosefLab/scVI/issues.
+The best way to send feedback is to file an issue at https://github.com/YosefLab/scvi-tools/issues.
 
 If you are proposing a feature:
 
@@ -57,18 +57,18 @@ If you are proposing a feature:
 Get Started!
 ------------
 
-Ready to contribute? Here's how to set up `scvi` for local development.
+Ready to contribute? Here's how to set up `scvi-tools` for local development.
 
-1. Fork the `scvi` repo on GitHub.
+1. Fork the `scvi-tools` repo on GitHub.
 2. Clone your fork locally::
 
     $ git clone git@github.com:your_name_here/scvi.git
 
 3. Install your local copy into a virtualenv (or conda environment). Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
 
-    $ mkvirtualenv scvi
+    $ mkvirtualenv scvi-dev
     $ cd scvi/
-    $ pip install -e .[test,notebooks]
+    $ pip install -e .[dev,tutorials]
 
 4. Install pre-commit, which will enforce the scvi code style (black, flake8) on each of your commit::
 
@@ -83,7 +83,7 @@ Ready to contribute? Here's how to set up `scvi` for local development.
 
 6. When you're done making changes, run the tests using tox::
 
-    $ python setup.py test or py.test
+    $ pytest
     $ tox
 
    To get tox, just pip install it into your virtualenv.
@@ -125,14 +125,15 @@ Tips
 
 To run a subset of tests::
 
-$ py.test tests.test_scvi
+$ pytest tests/dataset/test_anndata.py
 
 
 Deploying
 ---------
 
 A reminder for the maintainers on how to deploy.
-Make sure all your changes are committed (including an entry in HISTORY.rst).
+Make sure all your changes are committed (including an entry in history.rst).
+First, please install Poetry.
 
 Also, make sure you've tested your code using tox by running::
 
@@ -140,24 +141,16 @@ $ tox
 
 Then run::
 
-$ bumpversion patch # possible: major / minor / patch
-$ git push
-$ git push --tags
+$ poetry version preversion # possible: major / minor / patch
+$ poetry build
+$ poetry publish
 
-
-Instructions on Uploading to pip
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-`scvi` is available on PyPI.
-
-You can build and upload a new version to PyPI by running::
-
-$ python3 setup.py sdist bdist_wheel
-$ twine upload dist/*
+This will upload `scvi-tools` to PyPi
 
 
 Instructions on Uploading to conda
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-`scvi` is available on bioconda channel.
+`scvi-tools` is available on bioconda channel.
 
 Follow the below steps to upload a new version to bioconda channel.
 
@@ -185,7 +178,7 @@ $ git push -u origin my-recipe
 
 For this, it's easier to look at old scVI PR's.
 
-Instructions on updating notebooks
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Write a GitHub release
+~~~~~~~~~~~~~~~~~~~~~~
 
-In order to update the notebooks appearing in readthedocs, in scVI, merge the new tag onto the `stable` branch
+On the GitHub page, draft a release.
