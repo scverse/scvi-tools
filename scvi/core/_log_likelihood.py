@@ -8,7 +8,7 @@ from torch.distributions import Normal, Beta
 from scvi import _CONSTANTS
 
 
-def compute_elbo(vae, posterior, **kwargs):
+def compute_elbo(vae, data_loader, **kwargs):
     """Computes the ELBO.
 
     The ELBO is the reconstruction error + the KL divergences
@@ -18,9 +18,9 @@ def compute_elbo(vae, posterior, **kwargs):
     plus a term that is constant with respect to the variational distribution.
     It still gives good insights on the modeling of the data, and is fast to compute.
     """
-    # Iterate once over the posterior and compute the elbo
+    # Iterate once over the data and compute the elbo
     elbo = 0
-    for i_batch, tensors in enumerate(posterior):
+    for i_batch, tensors in enumerate(data_loader):
         sample_batch = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
         local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
@@ -37,20 +37,20 @@ def compute_elbo(vae, posterior, **kwargs):
             **kwargs
         )
         elbo += torch.sum(reconst_loss + kl_divergence).item()
-    n_samples = len(posterior.indices)
+    n_samples = len(data_loader.indices)
     elbo += kl_divergence_global
     return elbo / n_samples
 
 
-def compute_reconstruction_error(vae, posterior, **kwargs):
+def compute_reconstruction_error(vae, data_loader, **kwargs):
     """Computes log p(x/z), which is the reconstruction error.
 
     Differs from the marginal log likelihood, but still gives good
     insights on the modeling of the data, and is fast to compute.
     """
-    # Iterate once over the posterior and computes the reconstruction error
+    # Iterate once over the data and computes the reconstruction error
     log_lkl = 0
-    for i_batch, tensors in enumerate(posterior):
+    for i_batch, tensors in enumerate(data_loader):
         sample_batch = tensors[_CONSTANTS.X_KEY]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
         labels = tensors[_CONSTANTS.LABELS_KEY]
@@ -73,11 +73,11 @@ def compute_reconstruction_error(vae, posterior, **kwargs):
         )
 
         log_lkl += torch.sum(reconst_loss).item()
-    n_samples = len(posterior.indices)
+    n_samples = len(data_loader.indices)
     return log_lkl / n_samples
 
 
-def compute_marginal_log_likelihood_scvi(vae, posterior, n_samples_mc=100):
+def compute_marginal_log_likelihood_scvi(vae, data_loader, n_samples_mc=100):
     """Computes a biased estimator for log p(x), which is the marginal log likelihood.
 
     Despite its bias, the estimator still converges to the real value
@@ -92,7 +92,7 @@ def compute_marginal_log_likelihood_scvi(vae, posterior, n_samples_mc=100):
 
     # Uses MC sampling to compute a tighter lower bound on log p(x)
     log_lkl = 0
-    for i_batch, tensors in enumerate(posterior):
+    for i_batch, tensors in enumerate(data_loader):
         sample_batch = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
         local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
@@ -136,12 +136,12 @@ def compute_marginal_log_likelihood_scvi(vae, posterior, n_samples_mc=100):
         batch_log_lkl = logsumexp(to_sum, dim=-1) - np.log(n_samples_mc)
         log_lkl += torch.sum(batch_log_lkl).item()
 
-    n_samples = len(posterior.indices)
+    n_samples = len(data_loader.indices)
     # The minus sign is there because we actually look at the negative log likelihood
     return -log_lkl / n_samples
 
 
-def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=100):
+def compute_marginal_log_likelihood_autozi(autozivae, data_loader, n_samples_mc=100):
     """Computes a biased estimator for log p(x), which is the marginal log likelihood.
 
     Despite its bias, the estimator still converges to the real value
@@ -166,7 +166,7 @@ def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=10
             alpha_posterior, beta_posterior
         )
 
-        for i_batch, tensors in enumerate(posterior):
+        for i_batch, tensors in enumerate(data_loader):
             sample_batch = tensors[_CONSTANTS.X_KEY]
             local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
             local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
@@ -213,7 +213,7 @@ def compute_marginal_log_likelihood_autozi(autozivae, posterior, n_samples_mc=10
         to_sum[i] += p_d - q_d
 
     log_lkl = logsumexp(to_sum, dim=-1).item() - np.log(n_samples_mc)
-    n_samples = len(posterior.indices)
+    n_samples = len(data_loader.indices)
     # The minus sign is there because we actually look at the negative log likelihood
     return -log_lkl / n_samples
 

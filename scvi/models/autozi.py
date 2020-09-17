@@ -7,7 +7,7 @@ from typing import Optional, Dict, Union
 from scvi._compat import Literal
 from scvi.core.modules import AutoZIVAE
 from scvi.core.models import VAEMixin, BaseModelClass
-from scvi.core.posteriors import ScviDataLoader
+from scvi.core.data_loaders import ScviDataLoader
 from scvi.core.trainers import UnsupervisedTrainer
 
 
