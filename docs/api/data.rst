@@ -1,3 +1,4 @@
+====
 Data
 ====
 .. currentmodule:: scvi
