@@ -3,7 +3,6 @@ authors = ["Romain Lopez <romain_lopez@gmail.com>", "Adam Gayoso <adamgayoso@ber
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: BSD-3-Clause License",
   "Natural Language :: English",
   "Programming Language :: Python :: 3.6",
   "Programming Language :: Python :: 3.7",
@@ -81,4 +80,3 @@ commands = pytest {posargs}
 [build-system]
 build-backend = "poetry.masonry.api"
 requires = ["poetry>=1.0"]
-
