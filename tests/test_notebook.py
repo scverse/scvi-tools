@@ -12,7 +12,8 @@ base_path = os.getcwd()
 
 
 def find_notebook(fullname, path=None):
-    """find a notebook, given its fully qualified name and an optional path
+    """
+    Find a notebook, given its fully qualified name and an optional path.
 
     This turns "foo.bar" into "foo/bar.ipynb"
     and tries turning "Foo_Bar" into "Foo Bar" if Foo_Bar
@@ -32,14 +33,14 @@ def find_notebook(fullname, path=None):
 
 
 class NotebookLoader(object):
-    """Module Loader for Jupyter Notebooks"""
+    """Module Loader for Jupyter Notebooks."""
 
     def __init__(self, path=None):
         self.shell = InteractiveShell.instance()
         self.path = path
 
     def load_module(self, fullname):
-        """import a notebook as a module"""
+        """Import a notebook as a module."""
         path = find_notebook(fullname, [os.path.join(base_path, "tests/notebooks")])
 
         print("importing Jupyter notebook from %s" % path)
@@ -97,7 +98,11 @@ class NotebookLoader(object):
                             "save_path = '" + os.getcwd() + "'",
                             code,
                         )
-                        code = re.sub("dendrogram=True", "dendrogram=False", code,)
+                        code = re.sub(
+                            "dendrogram=True",
+                            "dendrogram=False",
+                            code,
+                        )
                         code = re.sub("show_plot = True", "show_plot = False", code)
                         code = re.sub("test_mode = False", "test_mode = True", code)
                         # run the code in themodule
@@ -110,7 +115,7 @@ class NotebookLoader(object):
 
 
 class NotebookFinder(object):
-    """Module finder that locates Jupyter Notebooks"""
+    """Module finder that locates Jupyter Notebooks."""
 
     def __init__(self):
         self.loaders = {}
@@ -133,85 +138,6 @@ class NotebookFinder(object):
 sys.meta_path.append(NotebookFinder())
 
 
-def test_notebooks_annotation(save_path):
-    try:
-        os.chdir(save_path)
-        import notebooks.annotation
-
-        notebooks.annotation.allow_notebook_for_test()
-        plt.close("all")
-    except BaseException:
-        raise
-    finally:
-        os.chdir(path=base_path)
-
-
-def test_notebooks_dataloading(save_path):
-    try:
-        os.chdir(save_path)
-        import notebooks.data_loading
-
-        notebooks.data_loading.allow_notebook_for_test()
-        plt.close("all")
-    except BaseException:
-        raise
-    finally:
-        os.chdir(path=base_path)
-
-
-def test_notebooks_basictutorial(save_path):
-    try:
-        os.chdir(save_path)
-        import notebooks.basic_tutorial
-
-        notebooks.basic_tutorial.allow_notebook_for_test()
-        plt.close("all")
-    except BaseException:
-        raise
-    finally:
-        os.chdir(path=base_path)
-
-
-def test_notebooks_gimvitutorial(save_path):
-    try:
-        os.chdir(save_path)
-        import notebooks.gimvi_tutorial
-
-        notebooks.gimvi_tutorial.allow_notebook_for_test()
-        plt.close("all")
-    except BaseException:
-        raise
-    finally:
-        os.chdir(path=base_path)
-
-
-def test_notebooks_harmonization(save_path):
-    try:
-        os.chdir(save_path)
-        import notebooks.harmonization
-
-        notebooks.harmonization.allow_notebook_for_test()
-        plt.close("all")
-    except BaseException:
-        raise
-    finally:
-        os.chdir(path=base_path)
-
-
-def test_notebooks_scanpy_api(save_path):
-    try:
-        os.chdir(save_path)
-        import notebooks.scanpy_pbmc3k
-
-        print(save_path)
-        notebooks.scanpy_pbmc3k.allow_notebook_for_test()
-        plt.close("all")
-    except BaseException:
-        raise
-    finally:
-        os.chdir(path=base_path)
-
-
 def test_notebooks_autotune(save_path):
     try:
         os.chdir(save_path)
@@ -219,48 +145,6 @@ def test_notebooks_autotune(save_path):
 
         print(save_path)
         notebooks.autotune_advanced_notebook.allow_notebook_for_test()
-        plt.close("all")
-    except BaseException:
-        raise
-    finally:
-        os.chdir(path=base_path)
-
-
-def test_notebooks_totalvi(save_path):
-    try:
-        os.chdir(save_path)
-        import notebooks.totalVI
-
-        print(save_path)
-        notebooks.totalVI.allow_notebook_for_test()
-        plt.close("all")
-    except BaseException:
-        raise
-    finally:
-        os.chdir(path=base_path)
-
-
-def test_notebooks_autozi(save_path):
-    try:
-        os.chdir(save_path)
-        import notebooks.AutoZI_tutorial
-
-        print(save_path)
-        notebooks.AutoZI_tutorial.allow_notebook_for_test()
-        plt.close("all")
-    except BaseException:
-        raise
-    finally:
-        os.chdir(path=base_path)
-
-
-def test_notebooks_lineardecoder(save_path):
-    try:
-        os.chdir(save_path)
-        import notebooks.linear_decoder
-
-        print(save_path)
-        notebooks.linear_decoder.allow_notebook_for_test()
         plt.close("all")
     except BaseException:
         raise

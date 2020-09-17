@@ -1,31 +1,31 @@
-# -*- coding: utf-8 -*-
-
-"""Top-level package for scVI-dev."""
-
-__author__ = "Romain Lopez"
-__email__ = "romain_lopez@berkeley.edu"
-__version__ = "0.6.8"
+"""scvi-tools."""
 
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
-import warnings
 from logging import NullHandler
 
-from ._settings import set_verbosity, set_seed
+from ._constants import _CONSTANTS
+from ._settings import settings
+from . import dataset, models
+
+import toml
+from pathlib import Path
+
+
+def get_version():
+    path = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    pyproject = toml.loads(open(str(path)).read())
+    return pyproject["tool"]["poetry"]["version"]
+
+
+__version__ = get_version()
 
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
 
-# default to INFO level logging for the scvi package
-set_verbosity(logging.INFO)
 # this prevents double outputs
 logger.propagate = False
 
-__all__ = ["set_verbosity", "set_seed"]
+test_var = "test"
 
-deprecation_msg = (
-    "scvi is deprecated, please uninstall scvi via `pip uninstall scvi` "
-    + "and install the new scvi-tools package at github.com/YosefLab/scvi-tools"
-)
-warnings.simplefilter("always", DeprecationWarning)
-warnings.warn(deprecation_msg, DeprecationWarning)
+__all__ = ["settings", "_CONSTANTS", "dataset", "models"]

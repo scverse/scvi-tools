@@ -1,18 +1,8 @@
-from .classifier import Classifier
-from .scanvi import SCANVI
-from .vae import VAE, LDVAE
-from .autozivae import AutoZIVAE
-from .vaec import VAEC
-from .jvae import JVAE
+from .scvi import SCVI
 from .totalvi import TOTALVI
+from .linear_scvi import LinearSCVI
+from .autozi import AUTOZI
+from .scanvi import SCANVI
+from .gimvi import GIMVI
 
-__all__ = [
-    "SCANVI",
-    "VAEC",
-    "VAE",
-    "LDVAE",
-    "JVAE",
-    "Classifier",
-    "AutoZIVAE",
-    "TOTALVI",
-]
+__all__ = ["SCVI", "TOTALVI", "LinearSCVI", "AUTOZI", "SCANVI", "GIMVI"]

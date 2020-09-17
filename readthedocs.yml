@@ -10,3 +10,7 @@ python:
     path: .
     extra_requirements:
     - docs
+submodules:
+  include:
+     - "docs/user_guide/notebooks"
+  recursive: true

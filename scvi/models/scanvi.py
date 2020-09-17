@@ -1,240 +1,289 @@
-from typing import Sequence
-
+import logging
 import numpy as np
-import torch
-from torch.distributions import Normal, Categorical, kl_divergence as kl
+import pandas as pd
 
-from scvi.models.classifier import Classifier
-from scvi.models.modules import Decoder, Encoder
-from scvi.models.utils import broadcast_labels
-from scvi.models.vae import VAE
+from typing import Union, Optional, Sequence
+from anndata import AnnData
+
+from scvi import _CONSTANTS
+from scvi.models import SCVI
+from scvi.core.models import BaseModelClass, RNASeqMixin, VAEMixin
+from scvi.core.modules import VAE, SCANVAE
+from scvi.core.trainers import UnsupervisedTrainer, SemiSupervisedTrainer
+from scvi.core.posteriors import AnnotationDataLoader
+from scvi._compat import Literal
+
+logger = logging.getLogger(__name__)
 
 
-class SCANVI(VAE):
-    """Single-cell annotation using variational inference.
+class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
+    """
+    Single-cell annotation using variational inference [Xu19]_.
 
-    This is an implementation of the scANVI model descibed in [Xu19]_,
-    inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
+    Inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
 
     Parameters
     ----------
-    n_input
-        Number of input genes
-    n_batch
-        Number of batches
-    n_labels
-        Number of labels
+    adata
+        AnnData object that has been registered via :func:`~scvi.dataset.setup_anndata`.
+    unlabeled_category
+        Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
+    pretrained_model
+        Instance of SCVI model that has already been trained.
     n_hidden
-        Number of nodes per hidden layer
+        Number of nodes per hidden layer.
     n_latent
-        Dimensionality of the latent space
+        Dimensionality of the latent space.
     n_layers
-        Number of hidden layers used for encoder and decoder NNs
+        Number of hidden layers used for encoder and decoder NNs.
     dropout_rate
-        Dropout rate for neural networks
+        Dropout rate for neural networks.
     dispersion
-        One of the following
+        One of the following:
 
         * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
         * ``'gene-batch'`` - dispersion can differ between different batches
         * ``'gene-label'`` - dispersion can differ between different labels
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
-    log_variational
-        Log(data+1) prior to encoding for numerical stability. Not normalization.
-    reconstruction_loss
-        One of
+    gene_likelihood
+        One of:
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
-    y_prior
-        If None, initialized to uniform probability over cell types
-    labels_groups
-        Label group designations
-    use_labels_groups
-        Whether to use the label groups
-
-
-    Returns
-    -------
+        * ``'poisson'`` - Poisson distribution
+    use_cuda
+        Use the GPU or not.
 
     Examples
     --------
-
-    >>> gene_dataset = CortexDataset()
-    >>> scanvi = SCANVI(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-    ... n_labels=gene_dataset.n_labels)
-
-    >>> gene_dataset = SyntheticDataset(n_labels=3)
-    >>> scanvi = SCANVI(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-    ... n_labels=3, y_prior=torch.tensor([[0.1,0.5,0.4]]), labels_groups=[0,0,1])
+    >>> adata = anndata.read_h5ad(path_to_anndata)
+    >>> scvi.dataset.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    >>> vae = scvi.models.SCANVI(adata, "Unknown")
+    >>> vae.train()
+    >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
+    >>> adata.obs["pred_label"] = vae.predict()
     """
 
     def __init__(
         self,
-        n_input: int,
-        n_batch: int = 0,
-        n_labels: int = 0,
+        adata: AnnData,
+        unlabeled_category: Union[str, int, float],
+        pretrained_model: Optional[SCVI] = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
         dropout_rate: float = 0.1,
-        dispersion: str = "gene",
-        log_variational: bool = True,
-        reconstruction_loss: str = "zinb",
-        y_prior=None,
-        labels_groups: Sequence[int] = None,
-        use_labels_groups: bool = False,
-        classifier_parameters: dict = dict(),
+        dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
+        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        use_cuda: bool = True,
+        **model_kwargs,
     ):
-        super().__init__(
-            n_input,
+        super(SCANVI, self).__init__(adata, use_cuda=use_cuda)
+        self.unlabeled_category = unlabeled_category
+
+        if pretrained_model is not None:
+            if pretrained_model.is_trained is False:
+                raise ValueError("pretrained model has not been trained")
+            self._base_model = pretrained_model.model
+            self._is_trained_base = True
+        else:
+            self._base_model = VAE(
+                n_input=self.summary_stats["n_genes"],
+                n_batch=self.summary_stats["n_batch"],
+                n_hidden=n_hidden,
+                n_latent=n_latent,
+                n_layers=n_layers,
+                dropout_rate=dropout_rate,
+                dispersion=dispersion,
+                gene_likelihood=gene_likelihood,
+                **model_kwargs,
+            )
+            self._is_trained_base = False
+        self.model = SCANVAE(
+            n_input=self.summary_stats["n_genes"],
+            n_batch=self.summary_stats["n_batch"],
+            n_labels=self.summary_stats["n_labels"],
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
-            n_batch=n_batch,
             dispersion=dispersion,
-            log_variational=log_variational,
-            reconstruction_loss=reconstruction_loss,
+            gene_likelihood=gene_likelihood,
+            **model_kwargs,
         )
 
-        self.n_labels = n_labels
-        # Classifier takes n_latent as input
-        cls_parameters = {
-            "n_layers": n_layers,
-            "n_hidden": n_hidden,
-            "dropout_rate": dropout_rate,
-        }
-        cls_parameters.update(classifier_parameters)
-        self.classifier = Classifier(n_latent, n_labels=n_labels, **cls_parameters)
+        # get indices for labeled and unlabeled cells
+        key = self.scvi_setup_dict_["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
+        self._label_mapping = self.scvi_setup_dict_["categorical_mappings"][key][
+            "mapping"
+        ]
+        original_key = self.scvi_setup_dict_["categorical_mappings"][key][
+            "original_key"
+        ]
+        labels = np.asarray(self.adata.obs[original_key]).ravel()
+        self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
+        self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
+        self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
 
-        self.encoder_z2_z1 = Encoder(
+        self._model_summary_string = (
+            "ScanVI Model with params: \nunlabeled_category: {}, n_hidden: {}, n_latent: {}"
+            ", n_layers: {}, dropout_rate: {}, dispersion: {}, gene_likelihood: {}"
+        ).format(
+            unlabeled_category,
+            n_hidden,
             n_latent,
-            n_latent,
-            n_cat_list=[self.n_labels],
-            n_layers=n_layers,
-            n_hidden=n_hidden,
-            dropout_rate=dropout_rate,
+            n_layers,
+            dropout_rate,
+            dispersion,
+            gene_likelihood,
         )
-        self.decoder_z1_z2 = Decoder(
-            n_latent,
-            n_latent,
-            n_cat_list=[self.n_labels],
-            n_layers=n_layers,
-            n_hidden=n_hidden,
-        )
+        self.init_params_ = self._get_init_params(locals())
 
-        self.y_prior = torch.nn.Parameter(
-            y_prior
-            if y_prior is not None
-            else (1 / n_labels) * torch.ones(1, n_labels),
-            requires_grad=False,
-        )
-        self.use_labels_groups = use_labels_groups
-        self.labels_groups = (
-            np.array(labels_groups) if labels_groups is not None else None
-        )
-        if self.use_labels_groups:
-            assert labels_groups is not None, "Specify label groups"
-            unique_groups = np.unique(self.labels_groups)
-            self.n_groups = len(unique_groups)
-            assert (unique_groups == np.arange(self.n_groups)).all()
-            self.classifier_groups = Classifier(
-                n_latent, n_hidden, self.n_groups, n_layers, dropout_rate
+    @property
+    def _trainer_class(self):
+        return SemiSupervisedTrainer
+
+    @property
+    def _scvi_dl_class(self):
+        return AnnotationDataLoader
+
+    def train(
+        self,
+        n_epochs_unsupervised=None,
+        n_epochs_semisupervised=None,
+        train_size=0.9,
+        test_size=None,
+        lr=1e-3,
+        n_epochs_kl_warmup=400,
+        n_iter_kl_warmup=None,
+        frequency=None,
+        unsupervised_trainer_kwargs={},
+        semisupervised_trainer_kwargs={},
+        unsupervised_train_kwargs={},
+        semisupervised_train_kwargs={},
+    ):
+        """
+        Train the model.
+
+        Parameters
+        ----------
+        n_epochs_unsupervised
+            Number of passes through the dataset for unsupervised pre-training.
+        n_epochs_semisupervised
+            Number of passes through the dataset for semisupervised training.
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        test_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + test_size < 1`, the remaining cells belong to a validation set.
+        lr
+            Learning rate for optimization.
+        n_epochs_kl_warmup
+            Number of passes through dataset for scaling term on KL divergence to go from 0 to 1.
+        n_iter_kl_warmup
+            Number of minibatches for scaling term on KL divergence to go from 0 to 1.
+            To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
+        frequency
+            Frequency with which metrics are computed on the data for train/test/val sets.
+        unsupervised_trainer_kwargs
+            Other keyword args for :class:`~scvi.core.trainers.UnsupervisedTrainer`.
+        semisupervised_trainer_kwargs
+            Other keyword args for :class:`~scvi.core.trainers.SemiSupervisedTrainer`.
+        semisupervised_train_kwargs
+            Keyword args for the train method of :class:`~scvi.core.trainers.SemiSupervisedTrainer`.
+        """
+        unsupervised_trainer_kwargs = dict(unsupervised_trainer_kwargs)
+        semisupervised_trainer_kwargs = dict(semisupervised_trainer_kwargs)
+        unsupervised_train_kwargs = dict(unsupervised_train_kwargs)
+        semisupervised_train_kwargs = dict(semisupervised_train_kwargs)
+
+        if n_epochs_unsupervised is None:
+            n_epochs_unsupervised = np.min(
+                [round((20000 / self.adata.shape[0]) * 400), 400]
             )
-            self.groups_index = torch.nn.ParameterList(
-                [
-                    torch.nn.Parameter(
-                        torch.tensor(
-                            (self.labels_groups == i).astype(np.uint8),
-                            dtype=torch.uint8,
-                        ),
-                        requires_grad=False,
-                    )
-                    for i in range(self.n_groups)
-                ]
+        if n_epochs_semisupervised is None:
+            n_epochs_semisupervised = int(
+                np.min([10, np.max([2, round(n_epochs_unsupervised / 3.0)])])
             )
 
-    def classify(self, x):
-        if self.log_variational:
-            x = torch.log(1 + x)
-        qz_m, _, z = self.z_encoder(x)
-        # We classify using the inferred mean parameter of z_1 in the latent space
-        z = qz_m
-        if self.use_labels_groups:
-            w_g = self.classifier_groups(z)
-            unw_y = self.classifier(z)
-            w_y = torch.zeros_like(unw_y)
-            for i, group_index in enumerate(self.groups_index):
-                unw_y_g = unw_y[:, group_index]
-                w_y[:, group_index] = unw_y_g / (
-                    unw_y_g.sum(dim=-1, keepdim=True) + 1e-8
-                )
-                w_y[:, group_index] *= w_g[:, [i]]
+        if self._is_trained_base is not True:
+            self._unsupervised_trainer = UnsupervisedTrainer(
+                self._base_model,
+                self.adata,
+                train_size=train_size,
+                test_size=test_size,
+                n_iter_kl_warmup=n_iter_kl_warmup,
+                n_epochs_kl_warmup=n_epochs_kl_warmup,
+                frequency=frequency,
+                use_cuda=self.use_cuda,
+                **unsupervised_trainer_kwargs,
+            )
+            self._unsupervised_trainer.train(
+                n_epochs=n_epochs_unsupervised, lr=lr, **unsupervised_train_kwargs
+            )
+            self._is_trained_base = True
+
+        self.model.load_state_dict(self._base_model.state_dict(), strict=False)
+
+        self.trainer = SemiSupervisedTrainer(
+            self.model,
+            self.adata,
+            use_cuda=self.use_cuda,
+            **semisupervised_trainer_kwargs,
+        )
+
+        self.trainer.unlabelled_set = self.trainer.create_scvi_dl(
+            indices=self._unlabeled_indices
+        )
+        self.trainer.labelled_set = self.trainer.create_scvi_dl(
+            indices=self._labeled_indices
+        )
+        self.trainer.train(
+            n_epochs=n_epochs_semisupervised, **semisupervised_train_kwargs
+        )
+
+        self.is_trained_ = True
+
+    def predict(
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        soft: bool = False,
+        batch_size: int = 128,
+    ) -> Union[np.ndarray, pd.DataFrame]:
+        """
+        Return cell label predictions.
+
+        Parameters
+        ----------
+        adata
+            AnnData object that has been registered via :func:`~scvi.dataset.setup_anndata`.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        soft
+            Return probabilities for each class label.
+        batch_size
+            Minibatch size to use.
+        """
+        adata = self._validate_anndata(adata)
+
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+
+        _, pred = scdl.sequential().compute_predictions(soft=soft)
+
+        if not soft:
+            predictions = []
+            for p in pred:
+                predictions.append(self._code_to_label[p])
+
+            return np.array(predictions)
         else:
-            w_y = self.classifier(z)
-        return w_y
-
-    def get_latents(self, x, y=None):
-        zs = super().get_latents(x)
-        qz2_m, qz2_v, z2 = self.encoder_z2_z1(zs[0], y)
-        if not self.training:
-            z2 = qz2_m
-        return [zs[0], z2]
-
-    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
-        is_labelled = False if y is None else True
-
-        outputs = self.inference(x, batch_index, y)
-        px_r = outputs["px_r"]
-        px_rate = outputs["px_rate"]
-        px_dropout = outputs["px_dropout"]
-        qz1_m = outputs["qz_m"]
-        qz1_v = outputs["qz_v"]
-        z1 = outputs["z"]
-        ql_m = outputs["ql_m"]
-        ql_v = outputs["ql_v"]
-
-        # Enumerate choices of label
-        ys, z1s = broadcast_labels(y, z1, n_broadcast=self.n_labels)
-        qz2_m, qz2_v, z2 = self.encoder_z2_z1(z1s, ys)
-        pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
-
-        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
-
-        # KL Divergence
-        mean = torch.zeros_like(qz2_m)
-        scale = torch.ones_like(qz2_v)
-
-        kl_divergence_z2 = kl(
-            Normal(qz2_m, torch.sqrt(qz2_v)), Normal(mean, scale)
-        ).sum(dim=1)
-        loss_z1_unweight = -Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1s).sum(dim=-1)
-        loss_z1_weight = Normal(qz1_m, torch.sqrt(qz1_v)).log_prob(z1).sum(dim=-1)
-        kl_divergence_l = kl(
-            Normal(ql_m, torch.sqrt(ql_v)),
-            Normal(local_l_mean, torch.sqrt(local_l_var)),
-        ).sum(dim=1)
-
-        if is_labelled:
-            return (
-                reconst_loss + loss_z1_weight + loss_z1_unweight,
-                kl_divergence_z2 + kl_divergence_l,
-                0.0,
+            pred = pd.DataFrame(
+                pred,
+                columns=self._label_mapping,
+                index=adata.obs_names[indices],
             )
-
-        probs = self.classifier(z1)
-        reconst_loss += loss_z1_weight + (
-            (loss_z1_unweight).view(self.n_labels, -1).t() * probs
-        ).sum(dim=1)
-
-        kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(
-            dim=1
-        )
-        kl_divergence += kl(
-            Categorical(probs=probs),
-            Categorical(probs=self.y_prior.repeat(probs.size(0), 1)),
-        )
-        kl_divergence += kl_divergence_l
-
-        return reconst_loss, kl_divergence, 0.0
+            return pred

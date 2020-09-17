@@ -1,0 +1,74 @@
+Dataset
+=======
+.. currentmodule:: scvi
+
+Data loading
+~~~~~~~~~~~~
+
+``scvi`` now relies entirely on the AnnData_ format. For convenience, we have included data loaders from the AnnData_ API. Scanpy_ also has utilities_ to load data that are outputted by 10X's Cell Ranger software.
+
+.. _AnnData: https://anndata.readthedocs.io/en/stable/
+.. _Scanpy: https://scanpy.readthedocs.io/en/stable/index.html
+.. _utilities: https://scanpy.readthedocs.io/en/stable/api/index.html#reading
+
+.. autosummary::
+   :toctree: reference/
+
+   dataset.read_h5ad
+   dataset.read_csv
+   dataset.read_loom
+   dataset.read_text
+
+Basic preprocessing
+~~~~~~~~~~~~~~~~~~~
+
+For general single-cell preprocessing, we defer to our friends at Scanpy_, and specifically their preprocessing module (:mod:`scanpy.pp`).
+
+All ``scvi`` models require raw UMI count data. The count data can be safely stored in an AnnData layer as one of the first steps of a Scanpy single-cell workflow::
+
+    adata.layers["counts"] = adata.X.copy()
+
+Here we maintain a few package specific utilities for feature selection, etc.
+
+.. _Scanpy: https://scanpy.readthedocs.io/en/stable/index.html
+
+.. autosummary::
+   :toctree: reference/
+
+   dataset.poisson_gene_selection
+   dataset.organize_cite_seq_10x
+
+
+Data preparation
+~~~~~~~~~~~~~~~~
+
+Setting up an AnnData object is a prerequisite for running any ``scvi`` model.
+
+.. autosummary::
+   :toctree: reference/
+
+   dataset.setup_anndata
+   dataset.transfer_anndata_setup
+   dataset.register_tensor_from_anndata
+
+Built in data
+~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: reference/
+
+   dataset.pbmcs_10x_cite_seq
+   dataset.purified_pbmc_dataset
+   dataset.dataset10X
+   dataset.brainlarge_dataset
+   dataset.pbmc_dataset
+   dataset.cortex
+   dataset.seqfishplus
+   dataset.seqfish
+   dataset.smfish
+   dataset.breast_cancer_dataset
+   dataset.mouse_ob_dataset
+   dataset.retina
+   dataset.prefrontalcortex_starmap
+   dataset.frontalcortex_dropseq
+

@@ -1,60 +1,59 @@
-from scvi.dataset.anndataset import AnnDatasetFromAnnData, DownloadableAnnDataset
-from scvi.dataset.brain_large import BrainLargeDataset
-from scvi.dataset.cite_seq import CiteSeqDataset, CbmcDataset
-from scvi.dataset.cortex import CortexDataset
-from scvi.dataset.csv import CsvDataset, BreastCancerDataset, MouseOBDataset
-from scvi.dataset.dataset import (
-    GeneExpressionDataset,
-    DownloadableDataset,
-    CellMeasurement,
+from ._anndata import (
+    setup_anndata,
+    get_from_registry,
+    transfer_anndata_setup,
+    register_tensor_from_anndata,
 )
-from scvi.dataset.dataset10X import Dataset10X, BrainSmallDataset
-from scvi.dataset.hemato import HematoDataset
-from scvi.dataset.loom import (
-    LoomDataset,
-    RetinaDataset,
-    PreFrontalCortexStarmapDataset,
-    FrontalCortexDropseqDataset,
+from ._preprocessing import (
+    poisson_gene_selection,
+    organize_cite_seq_10x,
 )
-from scvi.dataset.pbmc import PbmcDataset, PurifiedPBMCDataset
-from scvi.dataset.seqfish import SeqfishDataset
-from scvi.dataset.seqfishplus import SeqFishPlusDataset
-from scvi.dataset.smfish import SmfishDataset
-from scvi.dataset.synthetic import (
-    SyntheticDataset,
-    SyntheticRandomDataset,
-    SyntheticDatasetCorr,
-    ZISyntheticDatasetCorr,
+from ._datasets import (
+    pbmcs_10x_cite_seq,
+    purified_pbmc_dataset,
+    dataset_10x,
+    brainlarge_dataset,
+    synthetic_iid,
+    pbmc_dataset,
+    cortex,
+    seqfishplus,
+    seqfish,
+    smfish,
+    breast_cancer_dataset,
+    mouse_ob_dataset,
+    retina,
+    prefrontalcortex_starmap,
+    frontalcortex_dropseq,
+    annotation_simulation,
 )
+from anndata import read_h5ad, read_csv, read_loom, read_text
 
 
 __all__ = [
-    "AnnDatasetFromAnnData",
-    "DownloadableAnnDataset",
-    "BrainLargeDataset",
-    "CiteSeqDataset",
-    "CbmcDataset",
-    "CellMeasurement",
-    "CortexDataset",
-    "CsvDataset",
-    "BreastCancerDataset",
-    "MouseOBDataset",
-    "GeneExpressionDataset",
-    "DownloadableDataset",
-    "Dataset10X",
-    "BrainSmallDataset",
-    "HematoDataset",
-    "LoomDataset",
-    "RetinaDataset",
-    "FrontalCortexDropseqDataset",
-    "PreFrontalCortexStarmapDataset",
-    "PbmcDataset",
-    "PurifiedPBMCDataset",
-    "SeqfishDataset",
-    "SeqFishPlusDataset",
-    "SmfishDataset",
-    "SyntheticDataset",
-    "SyntheticRandomDataset",
-    "SyntheticDatasetCorr",
-    "ZISyntheticDatasetCorr",
+    "setup_anndata",
+    "get_from_registry",
+    "poisson_gene_selection",
+    "organize_cite_seq_10x",
+    "pbmcs_10x_cite_seq",
+    "dataset_10x",
+    "purified_pbmc_dataset",
+    "brainlarge_dataset",
+    "synthetic_iid",
+    "pbmc_dataset",
+    "cortex",
+    "seqfish",
+    "seqfishplus",
+    "smfish",
+    "breast_cancer_dataset",
+    "mouse_ob_dataset",
+    "retina",
+    "prefrontalcortex_starmap",
+    "frontalcortex_dropseq",
+    "annotation_simulation",
+    "transfer_anndata_setup",
+    "register_tensor_from_anndata",
+    "read_h5ad",
+    "read_csv",
+    "read_loom",
+    "read_text",
 ]
