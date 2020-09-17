@@ -53,6 +53,8 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         * ``'poisson'`` - Poisson distribution
     use_cuda
         Use the GPU or not.
+    **model_kwargs
+        Keyword args for :class:`~scvi.core.modules.VAE` and :class:`~scvi.core.modules.SCANVAE`
 
     Examples
     --------

@@ -51,6 +51,8 @@ class SCVI(RNASeqMixin, VAEMixin, BaseModelClass):
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     use_cuda
         Use the GPU or not.
+    **model_kwargs
+        Keyword args for :class:`~scvi.core.modules.VAE`
 
     Examples
     --------

@@ -47,6 +47,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         Dimensionality of the latent space.
     use_cuda
         Use the GPU or not.
+    **model_kwargs
+        Keyword args for :class:`~scvi.core.modules.JVAE`
 
     Examples
     --------

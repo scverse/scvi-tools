@@ -84,7 +84,7 @@ class VAEMixin:
         Return the ELBO for the data.
 
         The ELBO is a lower bound on the log likelihood of the data used for optimization
-        of VAEs.
+        of VAEs. Note, this is not the negative ELBO, higher is better.
 
         Parameters
         ----------
@@ -113,6 +113,7 @@ class VAEMixin:
         Return the marginal LL for the data.
 
         The computation here is a biased estimator of the marginal log likelihood of the data.
+        Note, this is not the negative log likelihood, higher is better.
 
         Parameters
         ----------
@@ -142,6 +143,7 @@ class VAEMixin:
         Return the reconstruction error for the data.
 
         This is typically written as :math:`p(x \mid z)`, the likelihood term given one posterior sample.
+        Note, this is not the negative likelihood, higher is better.
 
         Parameters
         ----------

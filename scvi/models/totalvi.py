@@ -60,6 +60,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     use_cuda
         Use the GPU or not.
+    **model_kwargs
+        Keyword args for :class:`~scvi.core.modules.TOTALVAE`
 
     Examples
     --------
@@ -196,6 +198,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         Return the reconstruction error for the data.
 
         This is typically written as :math:`p(x, y \mid z)`, the likelihood term given one posterior sample.
+        Note, this is not the negative likelihood, higher is better.
 
         Parameters
         ----------
