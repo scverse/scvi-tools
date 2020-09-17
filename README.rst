@@ -39,7 +39,7 @@ If you find a model useful for your research, please consider citing the corresp
 Package transition
 ------------------
 
-``scvi`` is transitioning to ``scvi-tools``. If you're looking for ``scvi`` source code, please use the branch tags. ``scvi`` is still available via pypi and bioconda, but there will be no future releases past ``0.6.8``. An alpha-release of ``scvi-tools`` will be available shortly.
+``scvi`` is transitioning to ``scvi-tools``. If you're looking for ``scvi`` source code, please use the branch tags. ``scvi`` is still available via pypi and bioconda, but there will be no future releases past ``0.6.8``. An alpha-release of ``scvi-tools`` is currently available.
 
 .. _documentation: https://scvi.readthedocs.io
 .. _`contributing guide`: https://scvi.readthedocs.io/en/stable/contributing.html
