@@ -1,5 +1,5 @@
-Dataset
-=======
+Data
+====
 .. currentmodule:: scvi
 
 Data loading

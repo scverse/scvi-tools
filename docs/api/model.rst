@@ -1,6 +1,6 @@
-======
-Models
-======
+=====
+Model
+=====
 
 .. currentmodule:: scvi
 
