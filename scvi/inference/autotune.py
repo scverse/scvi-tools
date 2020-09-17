@@ -333,7 +333,7 @@ def auto_tune_scvi_model(
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.cortex()
+    >>> adata = scvi.data.cortex()
     >>> vae, trials = auto_tune_scvi_model("cortex", adata)
     >>> latent = vae.get_latent_representation()
 

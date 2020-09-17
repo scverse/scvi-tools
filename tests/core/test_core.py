@@ -13,8 +13,8 @@ use_cuda = True
 
 
 def test_sampling_zl(save_path):
-    cortex_dataset = scvi.dataset.cortex(save_path=save_path)
-    scvi.dataset.setup_anndata(cortex_dataset, labels_key="cell_type")
+    cortex_dataset = scvi.data.cortex(save_path=save_path)
+    scvi.data.setup_anndata(cortex_dataset, labels_key="cell_type")
     cortex_vae = VAE(
         cortex_dataset.uns["_scvi"]["summary_stats"]["n_genes"],
         cortex_dataset.uns["_scvi"]["summary_stats"]["n_batch"],
@@ -38,7 +38,7 @@ def test_sampling_zl(save_path):
 def test_adapter_trainer():
 
     n_latent = 5
-    adata = scvi.dataset.synthetic_iid()
+    adata = scvi.data.synthetic_iid()
     model = scvi.models.SCVI(adata, n_latent=n_latent)
     model.train(1, train_size=0.5)
 
@@ -47,8 +47,8 @@ def test_adapter_trainer():
 
 
 def test_classifier_accuracy(save_path):
-    cortex_dataset = scvi.dataset.cortex(save_path=save_path)
-    scvi.dataset.setup_anndata(cortex_dataset, labels_key="labels")
+    cortex_dataset = scvi.data.cortex(save_path=save_path)
+    scvi.data.setup_anndata(cortex_dataset, labels_key="labels")
     cls = Classifier(
         cortex_dataset.uns["_scvi"]["summary_stats"]["n_genes"],
         n_labels=cortex_dataset.uns["_scvi"]["summary_stats"]["n_labels"],
@@ -68,10 +68,8 @@ def test_classifier_accuracy(save_path):
 
 
 def test_vaec():
-    synthetic_dataset = scvi.dataset.synthetic_iid()
-    scvi.dataset.setup_anndata(
-        synthetic_dataset, batch_key="batch", labels_key="labels"
-    )
+    synthetic_dataset = scvi.data.synthetic_iid()
+    scvi.data.setup_anndata(synthetic_dataset, batch_key="batch", labels_key="labels")
     stats = synthetic_dataset.uns["_scvi"]["summary_stats"]
 
     vaec = VAEC(stats["n_genes"], stats["n_batch"], stats["n_labels"])
@@ -90,8 +88,8 @@ def test_vaec():
 
 
 def test_annealing_procedures(save_path):
-    cortex_dataset = scvi.dataset.cortex(save_path=save_path)
-    scvi.dataset.setup_anndata(cortex_dataset, labels_key="cell_type")
+    cortex_dataset = scvi.data.cortex(save_path=save_path)
+    scvi.data.setup_anndata(cortex_dataset, labels_key="cell_type")
 
     cortex_vae = VAE(
         cortex_dataset.uns["_scvi"]["summary_stats"]["n_genes"],

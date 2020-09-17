@@ -49,7 +49,7 @@ def pbmc_dataset(
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.pbmc_dataset()
+    >>> adata = scvi.data.pbmc_dataset()
     """
     return _load_pbmc_dataset(
         save_path=save_path,
@@ -103,7 +103,7 @@ def dataset_10x(
     Examples
     --------
     >>> import scvi
-    >>> neuron = scvi.dataset.dataset10X("neuron_9k")
+    >>> neuron = scvi.data.dataset10X("neuron_9k")
     """
     return _load_dataset_10x(
         dataset_name=dataset_name,
@@ -143,7 +143,7 @@ def smfish(
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.smfish()
+    >>> adata = scvi.data.smfish()
     """
     return _load_smfish(
         save_path=save_path,
@@ -181,7 +181,7 @@ def seqfishplus(
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.seqfishplus()
+    >>> adata = scvi.data.seqfishplus()
     """
     return _load_seqfishplus(
         save_path=save_path,
@@ -210,7 +210,7 @@ def seqfish(
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.seqfish()
+    >>> adata = scvi.data.seqfish()
     """
     return _load_seqfish(save_path=save_path, run_setup_anndata=run_setup_anndata)
 
@@ -242,7 +242,7 @@ def purified_pbmc_dataset(
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.purified_pbmc_dataset()
+    >>> adata = scvi.data.purified_pbmc_dataset()
     """
     return _load_purified_pbmc_dataset(
         save_path=save_path,
@@ -274,7 +274,7 @@ def prefrontalcortex_starmap(
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.prefrontalcortex_starmap()
+    >>> adata = scvi.data.prefrontalcortex_starmap()
 
     """
     return _load_prefrontalcortex_starmap(save_path=save_path)
@@ -305,7 +305,7 @@ def frontalcortex_dropseq(
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.frontalcortex_dropseq()
+    >>> adata = scvi.data.frontalcortex_dropseq()
     """
     return _load_frontalcortex_dropseq(save_path=save_path)
 
@@ -332,7 +332,7 @@ def annotation_simulation(
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.annontation_simulation("1")
+    >>> adata = scvi.data.annontation_simulation("1")
 
     """
     return _load_annotation_simulation(
@@ -386,7 +386,7 @@ def mouse_ob_dataset(
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.mouse_ob_dataset()
+    >>> adata = scvi.data.mouse_ob_dataset()
     """
     return _load_mouse_ob_dataset(
         save_path=save_path, run_setup_anndata=run_setup_anndata
@@ -413,7 +413,7 @@ def breast_cancer_dataset(
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.breast_cancer_dataset()
+    >>> adata = scvi.data.breast_cancer_dataset()
     """
     return _load_breast_cancer_dataset(
         save_path=save_path, run_setup_anndata=run_setup_anndata
@@ -450,7 +450,7 @@ def pbmcs_10x_cite_seq(
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.pbmcs_10x_cite_seq()
+    >>> adata = scvi.data.pbmcs_10x_cite_seq()
     """
     return _load_pbmcs_10x_cite_seq(
         save_path=save_path,
@@ -498,7 +498,7 @@ def brainlarge_dataset(
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.brainlarge_dataset()
+    >>> adata = scvi.data.brainlarge_dataset()
     """
     return _load_brainlarge_dataset(
         save_path=save_path,
@@ -533,7 +533,7 @@ def cortex(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.cortex()
+    >>> adata = scvi.data.cortex()
     """
     return _load_cortex(save_path, run_setup_anndata)
 
@@ -576,7 +576,7 @@ def synthetic_iid(
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.synthetic_iid()
+    >>> adata = scvi.data.synthetic_iid()
     """
     return _generate_synthetic(
         batch_size=batch_size,

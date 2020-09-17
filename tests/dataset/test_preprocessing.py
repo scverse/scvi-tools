@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import sparse
-from scvi.dataset import synthetic_iid
-from scvi.dataset import poisson_gene_selection
+from scvi.data import synthetic_iid
+from scvi.data import poisson_gene_selection
 
 
 def test_poisson_gene_selection():

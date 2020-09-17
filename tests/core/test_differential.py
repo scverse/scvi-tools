@@ -1,4 +1,4 @@
-from scvi.dataset import synthetic_iid
+from scvi.data import synthetic_iid
 from scvi.models import SCVI
 from scvi.core.utils.differential import DifferentialComputation
 from functools import partial

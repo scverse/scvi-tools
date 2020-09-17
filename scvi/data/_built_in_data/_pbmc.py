@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 import anndata
 
-from scvi.dataset._built_in_data._dataset_10x import _load_dataset_10x
+from scvi.data._built_in_data._dataset_10x import _load_dataset_10x
 from typing import List
-from scvi.dataset._built_in_data._utils import _download
-from scvi.dataset import setup_anndata
+from scvi.data._built_in_data._utils import _download
+from scvi.data import setup_anndata
 
 
 def _load_purified_pbmc_dataset(

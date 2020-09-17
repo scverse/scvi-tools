@@ -6,7 +6,7 @@ import logging
 
 from torch.utils.data import Dataset
 from typing import Union, List, Dict
-from scvi.dataset._anndata import get_from_registry
+from scvi.data._anndata import get_from_registry
 
 logger = logging.getLogger(__name__)
 

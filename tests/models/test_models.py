@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 import scvi
-from scvi.dataset import synthetic_iid, transfer_anndata_setup, setup_anndata
+from scvi.data import synthetic_iid, transfer_anndata_setup, setup_anndata
 from scvi.models import SCVI, SCANVI, GIMVI, TOTALVI, LinearSCVI, AUTOZI
 
 
@@ -321,7 +321,7 @@ def test_totalvi(save_path):
     model.differential_expression(groupby="labels")
 
     # test with missing proteins
-    adata = scvi.dataset.pbmcs_10x_cite_seq(save_path=save_path, protein_join="outer")
+    adata = scvi.data.pbmcs_10x_cite_seq(save_path=save_path, protein_join="outer")
     model = TOTALVI(adata)
     assert model.model.protein_batch_mask is not None
     model.train(2, train_size=0.5)

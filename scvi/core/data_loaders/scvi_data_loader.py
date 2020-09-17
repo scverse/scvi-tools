@@ -7,7 +7,7 @@ import torch
 import anndata
 from torch.utils.data import DataLoader
 
-from scvi.dataset._scvidataset import ScviDataset
+from scvi.data._scvidataset import ScviDataset
 from scvi.core._log_likelihood import (
     compute_elbo,
     compute_reconstruction_error,

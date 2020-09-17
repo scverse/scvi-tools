@@ -7,7 +7,7 @@ import scvi
 
 from typing import Dict, Tuple, Optional, Union, List
 from scvi._compat import Literal
-from scvi.dataset._utils import (
+from scvi.data._utils import (
     _compute_library_size_batch,
     _check_nonnegative_integers,
     _get_batch_mask_protein_data,
@@ -26,7 +26,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     Parameters
     ----------
     adata
-        anndata object already setup with `scvi.dataset.setup_anndata()`
+        anndata object already setup with `scvi.data.setup_anndata()`
     key
         key of object to get from ``adata.uns['_scvi]['data_registry']``
 
@@ -37,7 +37,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     Examples
     --------
     >>> import scvi
-    >>> adata = scvi.dataset.cortex()
+    >>> adata = scvi.data.cortex()
     >>> adata.uns['_scvi']['data_registry']
     {'X': ['_X', None],
     'batch_indices': ['obs', 'batch'],
@@ -140,7 +140,7 @@ def setup_anndata(
     >>> import scanpy as sc
     >>> import scvi
     >>> import numpy as np
-    >>> adata = scvi.dataset.synthetic_iid(run_setup_anndata=False)
+    >>> adata = scvi.data.synthetic_iid(run_setup_anndata=False)
     >>> adata
     AnnData object with n_obs × n_vars = 400 × 100
         obs: 'batch', 'labels'
@@ -153,7 +153,7 @@ def setup_anndata(
 
     Since no batch_key nor labels_key was passed, setup_anndata() will assume all cells have the same batch and label
 
-    >>> scvi.dataset.setup_anndata(adata)
+    >>> scvi.data.setup_anndata(adata)
     INFO      No batch_key inputted, assuming all cells are same batch
     INFO      No label_key inputted, assuming all cells have same label
     INFO      Using data from adata.X
@@ -163,8 +163,8 @@ def setup_anndata(
 
     Example setting up scanpy dataset with random gene data, batch, and protein expression
 
-    >>> adata = scvi.dataset.synthetic_iid(run_setup_anndata=False)
-    >>> scvi.dataset.setup_anndata(adata, batch_key='batch', protein_expression_obsm_key='protein_expression')
+    >>> adata = scvi.data.synthetic_iid(run_setup_anndata=False)
+    >>> scvi.data.setup_anndata(adata, batch_key='batch', protein_expression_obsm_key='protein_expression')
     INFO      Using batches from adata.obs["batch"]
     INFO      No label_key inputted, assuming all cells have same label
     INFO      Using data from adata.X

@@ -94,7 +94,7 @@ intersphinx_mapping = dict(
     scanpy=("https://scanpy.readthedocs.io/en/stable/", None),
 )
 qualname_overrides = {
-    "scvi.dataset.dataset.GeneExpressionDataset": "scvi.dataset.GeneExpressionDataset"
+    "scvi.data.dataset.GeneExpressionDataset": "scvi.data.GeneExpressionDataset"
 }
 
 

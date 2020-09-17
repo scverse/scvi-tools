@@ -32,7 +32,7 @@ all_stats
 batch_correction
     Whether to correct for batch effects in DE inference.
 batchid1
-    Subset of categories from `batch_key` registered in :func:`~scvi.dataset.setup_anndata`,
+    Subset of categories from `batch_key` registered in :func:`~scvi.data.setup_anndata`,
     e.g. [`'batch1'`, `'batch2'`, `'batch3'`], for `group1`. Only used if `batch_correction` is `True`, and
     by default all categories are used.
 batchid2

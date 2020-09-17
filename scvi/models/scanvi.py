@@ -25,7 +25,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.dataset.setup_anndata`.
+        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
     unlabeled_category
         Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
     pretrained_model
@@ -59,7 +59,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.dataset.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    >>> scvi.data.setup_anndata(adata, batch_key="batch", labels_key="labels")
     >>> vae = scvi.models.SCANVI(adata, "Unknown")
     >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
@@ -259,7 +259,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         Parameters
         ----------
         adata
-            AnnData object that has been registered via :func:`~scvi.dataset.setup_anndata`.
+            AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         soft

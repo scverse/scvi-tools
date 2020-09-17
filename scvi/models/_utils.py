@@ -1,6 +1,6 @@
 import anndata
 import numpy as np
-from scvi.dataset import get_from_registry
+from scvi.data import get_from_registry
 from typing import Union, Dict, List
 from scvi import _CONSTANTS
 import logging
