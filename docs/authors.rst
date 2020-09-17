@@ -28,7 +28,7 @@ Many have diverse contributions to the code. Here we highlight some specific pro
 * Edouard Mehlman : code infrastructure < v0.7, scANVI
 
 
-.. _scVI graph: https://github.com/YosefLab/scVI/graphs/contributors
+.. _scvi-tools graph: https://github.com/YosefLab/scvi-tools/graphs/contributors
 .. _Romain Lopez: https://romain-lopez.github.io/
 .. _Adam Gayoso: https://adamgayoso.com/
 .. _Jeffrey Regier: https://regier.stat.lsa.umich.edu/
