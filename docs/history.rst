@@ -2,9 +2,9 @@
 Release notes
 =============
 
-1.0 (2020-X-XX)
+0.7.0 (2020-X-XX)
 -----------------
-Version 1.0 introduces many breaking changes. The best way to learn how to use v1.0 is with our documentation and tutorials.
+scvi is now scvi-tools. Version 0.7 introduces many breaking changes. The best way to learn how to use v1.0 is with our documentation and tutorials.
 
 * New high-level API and data loading, please see tutorials and examples for usage.
 * ``GeneExpressionDataset`` and associated classes have been removed.
