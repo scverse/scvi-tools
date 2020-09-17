@@ -3,7 +3,7 @@ API
 ===
 
 
-Import scvi as::
+Import scvi-tools as::
 
    import scvi
 

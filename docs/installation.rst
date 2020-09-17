@@ -12,22 +12,22 @@ Prerequisites
 .. _PyTorch: http://pytorch.org
 
 
-scvi installation
-~~~~~~~~~~~~~~~~~~
+scvi-tools installation
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Install scvi in one of the following ways:
 
 Through conda::
 
-    conda install scvi -c bioconda -c conda-forge
+    conda install scvi-tools -c bioconda -c conda-forge
 
 Through pip::
 
-    pip install scvi
+    pip install scvi-tools
 
 Through pip with packages to run notebooks. This installs scanpy, etc.::
 
-    pip install scvi[notebooks]
+    pip install scvi-tools[tutorials]
 
 Nightly version - clone this repo and run::
 
@@ -35,7 +35,7 @@ Nightly version - clone this repo and run::
 
 For development - clone this repo and run::
 
-    pip install -e .[test,notebooks]
+    pip install -e .[dev,docs]
 
 If you wish to use multiple GPUs for hyperparameter tuning, install MongoDb_.
 
