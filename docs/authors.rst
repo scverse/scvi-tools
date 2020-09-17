@@ -2,7 +2,7 @@
 Authors
 =======
 
-We are grateful to have received contributions from many authors (`scVI-tools graph`_).
+We are grateful to have received contributions from many authors (`scvi-tools graph`_). We would also like to acknowledge the environment at the `Yosef Lab`_ at UC Berkeley, which has allowed us to advance this package.
 
 Key contributors
 ~~~~~~~~~~~~~~~~
@@ -35,3 +35,4 @@ Many have diverse contributions to the code. Here we highlight some specific pro
 .. _Valentine Svensson: http://www.nxn.se/
 .. _Achille Nazaret: https://nazaret.me/
 .. _Galen Xing: https://galenxing.com/
+.. _Yosef Lab: https://niryosef.wordpress.com/
