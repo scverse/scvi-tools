@@ -8,7 +8,7 @@ from functools import partial
 from itertools import cycle
 from typing import List, Tuple, Union, Iterable
 
-from scvi.core.posteriors import ScviDataLoader
+from scvi.core.data_loaders import ScviDataLoader
 from scvi.core.trainers.trainer import Trainer
 from scvi.core._log_likelihood import compute_elbo
 from scvi import _CONSTANTS

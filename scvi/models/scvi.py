@@ -10,7 +10,7 @@ from scvi.core.models import (
     VAEMixin,
 )
 from scvi.core.trainers import UnsupervisedTrainer
-from scvi.core.posteriors import ScviDataLoader
+from scvi.core.data_loaders import ScviDataLoader
 
 logger = logging.getLogger(__name__)
 

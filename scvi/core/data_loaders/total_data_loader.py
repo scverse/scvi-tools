@@ -5,7 +5,7 @@ import torch
 from torch.distributions import Normal
 import numpy as np
 
-from scvi.core.posteriors import ScviDataLoader
+from scvi.core.data_loaders import ScviDataLoader
 from scvi.core.modules import TOTALVAE
 from scvi import _CONSTANTS
 

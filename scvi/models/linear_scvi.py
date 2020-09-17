@@ -11,7 +11,7 @@ from scvi.core.models import (
     VAEMixin,
 )
 
-from scvi.core.posteriors import ScviDataLoader
+from scvi.core.data_loaders import ScviDataLoader
 from scvi.core.trainers import UnsupervisedTrainer
 
 

@@ -12,7 +12,7 @@ from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
 from scvi._utils import track
 
-from scvi.core.posteriors import ScviDataLoader
+from scvi.core.data_loaders import ScviDataLoader
 from scvi import _CONSTANTS
 
 

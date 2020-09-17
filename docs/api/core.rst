@@ -32,15 +32,15 @@ Modules
    core.modules.AutoZIVAE
    core.modules.Classifier
 
-Posteriors
-~~~~~~~~~~
+Data Loaders
+~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: reference/
 
-   core.posteriors.ScviDataLoader
-   core.posteriors.TotalDataLoader
-   core.posteriors.AnnotationDataLoader
+   core.data_loaders.ScviDataLoader
+   core.data_loaders.TotalDataLoader
+   core.data_loaders.AnnotationDataLoader
 
 Trainers
 ~~~~~~~~

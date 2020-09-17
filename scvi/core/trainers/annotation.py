@@ -6,7 +6,7 @@ from torch.nn import functional as F
 
 from .trainer import Trainer
 from .inference import UnsupervisedTrainer
-from scvi.core.posteriors import AnnotationDataLoader
+from scvi.core.data_loaders import AnnotationDataLoader
 from scvi.dataset._anndata import get_from_registry
 from scvi import _CONSTANTS
 
