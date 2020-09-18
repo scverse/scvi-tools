@@ -59,10 +59,10 @@ class ScviConfig:
 
         self.verbosity = verbosity
         self.seed = seed
-        self._batch_size = batch_size
+        self.batch_size = batch_size
         if progress_bar_style not in ["rich", "tqdm"]:
             raise ValueError("Progress bar style must be in ['rich', 'tqdm']")
-        self._pbar_style = progress_bar_style
+        self.progress_bar_style = progress_bar_style
 
     @property
     def batch_size(self) -> int:
@@ -106,6 +106,7 @@ class ScviConfig:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
         np.random.seed(seed)
+        self._seed = seed
 
     @property
     def verbosity(self) -> int:
@@ -121,6 +122,7 @@ class ScviConfig:
         If "scvi" logger has no StreamHandler, add one.
         Else, set its level to `level`.
         """
+        self._verbosity = level
         scvi_logger.setLevel(level)
         has_streamhandler = False
         for handler in scvi_logger.handlers:
@@ -132,7 +134,6 @@ class ScviConfig:
                     )
                 )
                 has_streamhandler = True
-            self._verbosity = level
         if not has_streamhandler:
             console = Console(force_terminal=True)
             if console.is_jupyter is True:
