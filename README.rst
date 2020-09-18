@@ -41,7 +41,7 @@ Package transition
 
 ``scvi`` is transitioning to ``scvi-tools``. If you're looking for ``scvi`` source code, please use the branch tags. ``scvi`` is still available via pypi and bioconda, but there will be no future releases past ``0.6.8``. An alpha-release of ``scvi-tools`` is currently available.
 
-.. _documentation: https://scvi.readthedocs.io
+.. _documentation: https://scvi-tools.org/
 .. _`contributing guide`: https://scvi.readthedocs.io/en/stable/contributing.html
 .. _scVI: https://rdcu.be/bdHYQ
 .. _scANVI: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf
