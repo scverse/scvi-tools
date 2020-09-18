@@ -45,7 +45,7 @@ def scrna_raw_counts_properties(
         scaling_factor *= 1e4
         adata.obs[key] = scaling_factor.ravel()
     else:
-        scaling_factor = adata.obs[key].to_numpy().ravel()
+        scaling_factor = adata.obs[key].to_numpy().ravel().reshape(-1, 1)
 
     norm_data1 = data1 * scaling_factor[idx1]
     norm_data2 = data2 * scaling_factor[idx2]
