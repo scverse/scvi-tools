@@ -32,11 +32,13 @@ def _de_core(
     # make a temp obs key using indices
     temp_key = None
     if idx1 is not None:
+        idx1 = np.asarray(idx1).ravel()
         g1_key = "one"
         obs_col = np.array(["None"] * adata.shape[0], dtype=str)
         obs_col[idx1] = g1_key
         group2 = None if idx2 is None else "two"
         if idx2 is not None:
+            idx2 = np.asarray(idx2).ravel()
             obs_col[idx2] = group2
         temp_key = "_scvi_temp_de"
         adata.obs[temp_key] = obs_col
@@ -49,7 +51,7 @@ def _de_core(
         group1,
         description="DE...",
     ):
-        cell_idx1 = adata.obs[groupby] == g1
+        cell_idx1 = (adata.obs[groupby] == g1).ravel()
         if group2 is None:
             cell_idx2 = ~cell_idx1
         else:
