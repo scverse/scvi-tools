@@ -28,6 +28,15 @@ Many have diverse contributions to the code. Here we highlight some specific pro
 * Edouard Mehlman : code infrastructure < v0.7, scANVI
 
 
+.. figure:: _static/scvi_team.jpg
+    :align: center
+    :height: 325px
+    :alt: scvi-tools team pic
+    :figclass: align-center
+
+    scvi-tools team members at ICML 2019, Long Beach, CA.
+
+
 .. _scvi-tools graph: https://github.com/YosefLab/scvi-tools/graphs/contributors
 .. _Romain Lopez: https://romain-lopez.github.io/
 .. _Adam Gayoso: https://adamgayoso.com/
