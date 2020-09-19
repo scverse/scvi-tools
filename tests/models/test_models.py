@@ -6,6 +6,7 @@ import pytest
 import scvi
 from scvi.data import synthetic_iid, transfer_anndata_setup, setup_anndata
 from scvi.model import SCVI, SCANVI, GIMVI, TOTALVI, LinearSCVI, AUTOZI
+from scipy.sparse import csr_matrix
 
 
 def test_scvi():
@@ -102,6 +103,23 @@ def test_scvi():
     model.differential_expression(groupby="labels")
     model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
     model.differential_expression(idx1=[0, 1, 2])
+
+
+def test_scvi_sparse():
+    n_latent = 5
+    adata = synthetic_iid(run_setup_anndata=False)
+    adata.X = csr_matrix(adata.X)
+    setup_anndata(adata)
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(1)
+    assert model.is_trained is True
+    z = model.get_latent_representation()
+    assert z.shape == (adata.shape[0], n_latent)
+    model.get_elbo()
+    model.get_marginal_ll()
+    model.get_reconstruction_error()
+    model.get_normalized_expression()
+    model.differential_expression(groupby="labels", group1="undefined_1")
 
 
 def test_saving_and_loading(save_path):
