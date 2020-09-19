@@ -20,6 +20,7 @@ def _de_core(
     batchid2,
     delta,
     batch_correction,
+    fdr,
     **kwargs
 ):
     """Internal function for DE interface."""
@@ -75,6 +76,10 @@ def _de_core(
         res = pd.DataFrame(all_info, index=col_names)
         sort_key = "proba_de" if mode == "change" else "bayes_factor"
         res = res.sort_values(by=sort_key, ascending=False)
+        if mode == "change":
+            res["is_de_fdr_{}".format(fdr)] = _fdr_de_prediction(
+                res["proba_de"], fdr=fdr
+            )
         if idx1 is None:
             g2 = "Rest" if group2 is None else group2
             res["comparison"] = "{} vs {}".format(g1, g2)
@@ -86,3 +91,17 @@ def _de_core(
     result = pd.concat(df_results, axis=0)
 
     return result
+
+
+def _fdr_de_prediction(posterior_probas: np.ndarray, fdr: float = 0.05):
+    """Compute posterior expected FDR and tag features as DE."""
+    if not posterior_probas.ndim == 1:
+        raise ValueError("posterior_probas should be 1-dimensional")
+    sorted_genes = np.argsort(-posterior_probas)
+    sorted_pgs = posterior_probas[sorted_genes]
+    cumulative_fdr = (1.0 - sorted_pgs).cumsum() / (1.0 + np.arange(len(sorted_pgs)))
+    d = (cumulative_fdr <= fdr).sum()
+    pred_de_genes = sorted_genes[:d]
+    is_pred_de = np.zeros_like(cumulative_fdr).astype(bool)
+    is_pred_de[pred_de_genes] = True
+    return is_pred_de
