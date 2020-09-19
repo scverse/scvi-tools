@@ -188,7 +188,7 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
     # validate any extra categoricals
     if "extra_categorical_mappings" in _scvi_dict.keys():
         target_extra_cat_maps = adata.uns["_scvi"]["extra_categorical_mappings"]
-        for key, val in _scvi_dict["extra_categorical_mappings"]:
+        for key, val in _scvi_dict["extra_categorical_mappings"].items():
             target_map = target_extra_cat_maps[key]
             if np.sum(val == target_map) != len(val):
                 raise ValueError(error_msg.format(key, val, target_map))
