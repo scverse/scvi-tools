@@ -4,6 +4,7 @@ from scvi.data import get_from_registry
 from typing import Union, Dict, List
 from scvi import _CONSTANTS
 import logging
+import scipy.sparse as sp_sparse
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +48,12 @@ def scrna_raw_counts_properties(
     else:
         scaling_factor = adata.obs[key].to_numpy().ravel().reshape(-1, 1)
 
-    norm_data1 = data1 * scaling_factor[idx1]
-    norm_data2 = data2 * scaling_factor[idx2]
+    if issubclass(type(data), sp_sparse.spmatrix):
+        norm_data1 = data1.multiply(scaling_factor[idx1])
+        norm_data2 = data2.multiply(scaling_factor[idx2])
+    else:
+        norm_data1 = data1 * scaling_factor[idx1]
+        norm_data2 = data2 * scaling_factor[idx2]
 
     norm_mean1 = np.asarray(norm_data1.mean(axis=0)).ravel()
     norm_mean2 = np.asarray(norm_data2.mean(axis=0)).ravel()
