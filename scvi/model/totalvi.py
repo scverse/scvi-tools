@@ -327,7 +327,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         protein_list: Optional[Union[np.ndarray, List[int]]] = None,
         library_size: Optional[Union[float, Literal["latent"]]] = 1,
         n_samples: int = 1,
-        sample_protein_mixing: bool = True,
+        sample_protein_mixing: bool = False,
         scale_protein: bool = False,
         include_protein_background: bool = False,
         batch_size: Optional[int] = None,
