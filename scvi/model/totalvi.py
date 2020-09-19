@@ -661,7 +661,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         batch_correction: bool = False,
         batchid1: Optional[Iterable[str]] = None,
         batchid2: Optional[Iterable[str]] = None,
-        protein_prior_count: float = 0.5,
+        protein_prior_count: float = 0.1,
         scale_protein: bool = False,
         sample_protein_mixing: bool = True,
         include_protein_background: bool = False,
