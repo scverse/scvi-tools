@@ -117,13 +117,12 @@ class Trainer:
         self.history = defaultdict(list)
         self.best_state_dict = self.model.state_dict()
         self.best_epoch = self.epoch
-        if self.early_stopping.early_stopping_metric:
-            self.metrics_to_monitor.add(self.early_stopping.early_stopping_metric)
 
         self.silent = silent
 
     @torch.no_grad()
     def compute_metrics(self):
+        computed = set()  # for ensuring no double computation in function
         begin = time.time()
         epoch = self.epoch + 1
         if self.frequency and (
@@ -145,11 +144,25 @@ class Trainer:
                             if metric not in self.metrics_to_monitor:
                                 logger.debug(message)
                                 result = getattr(scdl, metric)()
-                                self.history[metric + "_" + name] += [result]
+                                out_str = metric + "_" + name
+                                self.history[out_str] += [result]
+                                computed.add(out_str)
                     for metric in self.metrics_to_monitor:
                         result = getattr(scdl, metric)()
-                        self.history[metric + "_" + name] += [result]
+                        out_str = metric + "_" + name
+                        self.history[out_str] += [result]
+                        computed.add(out_str)
                 self.model.train()
+        # compute metrics every epoch if using early stopping
+        if self.early_stopping.early_stopping_metric is not None:
+            name = self.early_stopping.on
+            metric = self.early_stopping.early_stopping_metric
+            out_str = metric + "_" + name
+            if out_str not in computed:
+                scdl = self._scvi_data_loaders[name]
+                result = getattr(scdl, metric)()
+                self.history[metric + "_" + name] += [result]
+
         self.compute_metrics_time += time.time() - begin
 
     def train(self, n_epochs=400, lr=1e-3, eps=0.01, params=None, **extras_kwargs):

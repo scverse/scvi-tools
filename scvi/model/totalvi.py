@@ -125,7 +125,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         n_epochs_kl_warmup: Optional[int] = None,
         n_iter_kl_warmup: Union[Literal["auto"], int] = "auto",
         batch_size: int = 256,
-        frequency: int = 1,
+        frequency: Optional[int] = None,
         train_fun_kwargs: dict = {},
         **kwargs,
     ):
