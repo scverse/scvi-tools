@@ -683,12 +683,15 @@ def _setup_x(adata, layer, use_raw):
         logger.info('Using data from adata.layers["{}"]'.format(layer))
         x_loc = "layers"
         x_key = layer
+        # C order is much faster than F, possible bug in anndata
+        if isinstance(adata.layers[x_key], np.ndarray):
+            adata.layers[x_key] = np.asarray(adata.layers[x_key], order="C")
         x = adata.layers[x_key]
     else:
         logger.info("Using data from adata.X")
         x_loc = "X"
         x_key = "None"
-        x = adata._X
+        x = adata.X
 
     if _check_nonnegative_integers(x) is False:
         logger_data_loc = (
