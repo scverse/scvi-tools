@@ -122,7 +122,7 @@ class Trainer:
 
     @torch.no_grad()
     def compute_metrics(self):
-        computed = {}  # for ensuring no double computation in function
+        computed = set()  # for ensuring no double computation in function
         begin = time.time()
         epoch = self.epoch + 1
         if self.frequency and (
@@ -144,18 +144,21 @@ class Trainer:
                             if metric not in self.metrics_to_monitor:
                                 logger.debug(message)
                                 result = getattr(scdl, metric)()
-                                self.history[metric + "_" + name] += [result]
-                                computed[name] = metric
+                                out_str = metric + "_" + name
+                                self.history[out_str] += [result]
+                                computed.add(out_str)
                     for metric in self.metrics_to_monitor:
                         result = getattr(scdl, metric)()
-                        self.history[metric + "_" + name] += [result]
-                        computed[name] = metric
+                        out_str = metric + "_" + name
+                        self.history[out_str] += [result]
+                        computed.add(out_str)
                 self.model.train()
         # compute metrics every epoch if using early stopping
         if self.early_stopping.early_stopping_metric is not None:
             name = self.early_stopping.on
             metric = self.early_stopping.early_stopping_metric
-            if computed[name] != metric:
+            out_str = metric + "_" + name
+            if out_str not in computed:
                 scdl = self._scvi_data_loaders[name]
                 result = getattr(scdl, metric)()
                 self.history[metric + "_" + name] += [result]
