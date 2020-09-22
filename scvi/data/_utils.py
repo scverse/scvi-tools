@@ -18,7 +18,7 @@ def _compute_library_size(
     if np.ma.is_masked(masked_log_sum):
         logger.warning(
             "This dataset has some empty cells, this might fail scVI inference."
-            "Data should be filtered with `my_dataset.filter_cells_by_count()"
+            "Data should be filtered with `scanpy.pp.filter_cells()`"
         )
     log_counts = masked_log_sum.filled(0)
     local_mean = (np.mean(log_counts).reshape(-1, 1)).astype(np.float32)

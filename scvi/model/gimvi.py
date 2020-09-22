@@ -333,14 +333,9 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         if use_cuda:
             model.model.load_state_dict(torch.load(model_path))
-            # model.trainer.optimizer.load_state_dict(torch.load(optimizer_path))
             model.model.cuda()
         else:
             device = torch.device("cpu")
             model.model.load_state_dict(torch.load(model_path, map_location=device))
-            # model.trainer.optimizer.load_state_dict(
-            #     torch.load(optimizer_path, map_location=device)
-            # )
         model.model.eval()
-        # model._validate_anndata(adata_seq)
         return model
