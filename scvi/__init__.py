@@ -8,27 +8,15 @@ from ._constants import _CONSTANTS
 from ._settings import settings
 from . import data, model
 
-import toml
-from pathlib import Path
 
+# https://github.com/python-poetry/poetry/pull/2366#issuecomment-652418094
+# https://github.com/python-poetry/poetry/issues/144#issuecomment-623927302
+try:
+    import importlib.metadata as importlib_metadata
+except ModuleNotFoundError:
+    import importlib_metadata
 
-def get_version(source_file):
-    # https://github.com/rominf/poetry-version/blob/master/poetry_version/__init__.py
-    d = Path(source_file)
-    result = None
-    while d.parent != d and result is None:
-        d = d.parent
-        pyproject_toml_path = d / "pyproject.toml"
-        if pyproject_toml_path.exists():
-            with open(file=str(pyproject_toml_path)) as f:
-                pyproject_toml = toml.loads(f.read())
-                if "tool" in pyproject_toml and "poetry" in pyproject_toml["tool"]:
-                    # noinspection PyUnresolvedReferences
-                    result = pyproject_toml["tool"]["poetry"]["version"]
-    return result
-
-
-__version__ = get_version(__file__)
+__version__ = importlib_metadata.version(__name__)
 
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
