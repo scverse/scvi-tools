@@ -15,8 +15,8 @@ try:
     import importlib.metadata as importlib_metadata
 except ModuleNotFoundError:
     import importlib_metadata
-
-__version__ = importlib_metadata.version(__name__)
+package_name = "scvi-tools"
+__version__ = importlib_metadata.version(package_name)
 
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
