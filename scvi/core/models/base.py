@@ -147,7 +147,7 @@ class BaseModelClass(ABC):
         Save the state of the model.
 
         Neither the trainer optimizer state nor the trainer history are saved.
-        Model files are not expected to be reproduicbly saved and loaded across versions
+        Model files are not expected to be reproducibly saved and loaded across versions
         until we reach version 1.0.
 
         Parameters
