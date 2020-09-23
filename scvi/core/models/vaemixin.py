@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class VAEMixin:
     def train(
         self,
-        n_epochs: int = 400,
+        n_epochs: Optional[int] = None,
         train_size: float = 0.9,
         test_size: Optional[float] = None,
         lr: float = 1e-3,
@@ -67,6 +67,9 @@ class VAEMixin:
             self.validation_indices_ = self.trainer.validation_set.indices
         # for autotune
         if "n_epochs" not in train_fun_kwargs:
+            if n_epochs is None:
+                n_cells = self.summary_stats["n_cells"]
+                n_epochs = np.min([round((20000 / n_cells) * 400), 400])
             train_fun_kwargs["n_epochs"] = n_epochs
         if "lr" not in train_fun_kwargs:
             train_fun_kwargs["lr"] = lr
