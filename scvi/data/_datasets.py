@@ -5,7 +5,10 @@ from ._built_in_data._brain_large import _load_brainlarge_dataset
 from ._built_in_data._cortex import _load_cortex
 from ._built_in_data._csv import _load_breast_cancer_dataset, _load_mouse_ob_dataset
 from ._built_in_data._synthetic import _generate_synthetic
-from ._built_in_data._cite_seq import _load_pbmcs_10x_cite_seq
+from ._built_in_data._cite_seq import (
+    _load_pbmcs_10x_cite_seq,
+    _load_spleen_lymph_cite_seq,
+)
 from ._built_in_data._loom import (
     _load_annotation_simulation,
     _load_frontalcortex_dropseq,
@@ -455,6 +458,48 @@ def pbmcs_10x_cite_seq(
     return _load_pbmcs_10x_cite_seq(
         save_path=save_path,
         protein_join=protein_join,
+        run_setup_anndata=run_setup_anndata,
+    )
+
+
+def spleen_lymph_cite_seq(
+    save_path: str = "data/",
+    protein_join: str = "inner",
+    remove_outliers: bool = True,
+    run_setup_anndata: bool = True,
+) -> anndata.AnnData:
+    """
+    Immune cells from the murine spleen and lymph nodes [GayosoSteier20]_.
+
+    This dataset was used throughout the totalVI manuscript, and named SLN-all.
+
+    Parameters
+    ----------
+    save_path
+        Location to use when saving/loading the data.
+    protein_join
+        Whether to take an inner join or outer join of proteins
+    remove_outliers
+        Whether to remove clusters annotated as doublet or low quality
+    run_setup_anndata
+        If true, runs setup_anndata() on dataset before returning
+
+    Returns
+    -------
+    AnnData with batch info (``.obs['batch']``), label info (``.obs['cell_types']``),
+    protein expression (``.obsm["protein_expression"]``), and tissue (``.obs['tissue']``).
+
+    Missing protein values are zero, when ``protein_join == "outer`` and are identified during ``AnnData`` setup.
+
+    Examples
+    --------
+    >>> import scvi
+    >>> adata = scvi.data.spleen_lymph_cite_seq()
+    """
+    return _load_spleen_lymph_cite_seq(
+        save_path=save_path,
+        protein_join=protein_join,
+        remove_outliers=remove_outliers,
         run_setup_anndata=run_setup_anndata,
     )
 

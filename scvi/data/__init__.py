@@ -25,6 +25,7 @@ from ._datasets import (
     prefrontalcortex_starmap,
     frontalcortex_dropseq,
     annotation_simulation,
+    spleen_lymph_cite_seq,
 )
 from anndata import read_h5ad, read_csv, read_loom, read_text
 
@@ -35,6 +36,7 @@ __all__ = [
     "poisson_gene_selection",
     "organize_cite_seq_10x",
     "pbmcs_10x_cite_seq",
+    "spleen_lymph_cite_seq",
     "dataset_10x",
     "purified_pbmc_dataset",
     "brainlarge_dataset",

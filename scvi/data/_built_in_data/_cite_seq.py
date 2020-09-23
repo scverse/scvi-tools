@@ -12,15 +12,20 @@ def _load_pbmcs_10x_cite_seq(
     protein_join: str = "inner",
     run_setup_anndata: bool = True,
 ):
-    """Filtered PBMCs from 10x Genomics profiled with RNA and protein
+    """
+    Filtered PBMCs from 10x Genomics profiled with RNA and protein.
 
     Datasets were filtered for doublets and other outliers as in
     https://github.com/YosefLab/totalVI_reproducibility/blob/master/data/data_filtering_scripts/pbmc_10k/pbmc_10k.py
 
     Parameters
     ----------
+    save_path
+        Location to use when saving/loading the data.
     protein_join
         Whether to take an inner join or outer join of proteins
+    run_setup_anndata
+        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -28,7 +33,6 @@ def _load_pbmcs_10x_cite_seq(
 
     Missing protein values are zero, and are identified during `AnnData` setup.
     """
-
     url = "https://github.com/YosefLab/scVI-data/raw/master/pbmc_10k_protein_v3.h5ad?raw=true"
     save_fn = "pbmc_10k_protein_v3.h5ad"
     _download(url, save_path, save_fn)
@@ -65,6 +69,75 @@ def _load_pbmcs_10x_cite_seq(
             dataset,
             batch_key="batch",
             labels_key="labels",
+            protein_expression_obsm_key="protein_expression",
+        )
+
+    return dataset
+
+
+def _load_spleen_lymph_cite_seq(
+    save_path: str = "data/",
+    protein_join: str = "inner",
+    remove_outliers: bool = True,
+    run_setup_anndata: bool = True,
+):
+    """
+    Immune cells from the murine spleen and lymph nodes [GayosoSteier20]_.
+
+    This dataset was used throughout the totalVI manuscript, and named SLN-all.
+
+    Parameters
+    ----------
+    save_path
+        Location to use when saving/loading the data.
+    protein_join
+        Whether to take an inner join or outer join of proteins
+    remove_outliers
+        Whether to remove clusters annotated as doublet or low quality
+    run_setup_anndata
+        If true, runs setup_anndata() on dataset before returning
+
+    Returns
+    -------
+    `AnnData` with `.obsm["protein_expression"]
+
+    Missing protein values are zero, and are identified during `AnnData` setup.
+    """
+    url = "https://github.com/YosefLab/scVI-data/raw/master/sln_111.h5ad?raw=true"
+    save_fn = "sln_111.h5ad"
+    _download(url, save_path, save_fn)
+    dataset1 = anndata.read_h5ad(os.path.join(save_path, save_fn))
+
+    url = "https://github.com/YosefLab/scVI-data/raw/master/sln_208.h5ad?raw=true"
+    save_fn = "sln_208.h5ad"
+    _download(url, save_path, save_fn)
+    dataset2 = anndata.read_h5ad(os.path.join(save_path, save_fn))
+
+    common_genes = dataset1.var_names.intersection(dataset2.var_names)
+    dataset1 = dataset1[:, common_genes]
+    dataset2 = dataset2[:, common_genes]
+
+    del dataset1.uns["protein_names"]
+    del dataset2.uns["protein_names"]
+
+    dataset = dataset1.concatenate(
+        dataset2, join=protein_join, batch_key="anndata_batch"
+    )
+    del dataset.obs["anndata_batch"]
+    dataset.obsm["protein_expression"] = dataset.obsm["protein_expression"].fillna(0)
+
+    if remove_outliers:
+        include_cells = [
+            c not in ["16,0", "17", "19", "21", "23", "24,0", "24,2", "25", "29"]
+            for c in dataset.obs["leiden_subclusters"]
+        ]
+        dataset = dataset[include_cells].copy()
+
+    if run_setup_anndata:
+        setup_anndata(
+            dataset,
+            batch_key="batch",
+            labels_key="cell_types",
             protein_expression_obsm_key="protein_expression",
         )
 

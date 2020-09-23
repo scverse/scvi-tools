@@ -59,6 +59,7 @@ Built in data
    :toctree: reference/
 
    data.pbmcs_10x_cite_seq
+   data.spleen_lymph_cite_seq
    data.purified_pbmc_dataset
    data.dataset_10x
    data.brainlarge_dataset
