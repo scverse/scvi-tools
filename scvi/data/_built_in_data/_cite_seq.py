@@ -74,12 +74,14 @@ def _load_pbmcs_10x_cite_seq(
 def _load_spleen_lymph_cite_seq(
     save_path: str = "data/",
     protein_join: str = "inner",
+    remove_outliers: bool = True,
     run_setup_anndata: bool = True,
 ):
     """
     Immune cells from the murine spleen and lymph nodes [GayosoSteier20]_.
 
     This dataset was used throughout the totalVI manuscript, and named SLN-all.
+
     Parameters
     ----------
     save_path
@@ -119,6 +121,13 @@ def _load_spleen_lymph_cite_seq(
     )
     del dataset.obs["anndata_batch"]
     dataset.obsm["protein_expression"] = dataset.obsm["protein_expression"].fillna(0)
+
+    if remove_outliers:
+        include_cells = [
+            c not in ["16,0", "17", "19", "21", "23", "24,0", "24,2", "25", "29"]
+            for c in dataset.obs["leiden_subclusters"]
+        ]
+        dataset = dataset[include_cells].copy()
 
     if run_setup_anndata:
         setup_anndata(
