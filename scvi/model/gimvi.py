@@ -77,9 +77,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         seq_var_names = _get_var_names_from_setup_anndata(adata_seq)
         spatial_var_names = _get_var_names_from_setup_anndata(adata_spatial)
 
-        assert set(spatial_var_names) <= set(seq_var_names), ValueError(
-            "spatial genes needs to be subset of seq genes"
-        )
+        if not set(spatial_var_names) <= set(seq_var_names):
+            raise ValueError("spatial genes needs to be subset of seq genes")
 
         spatial_gene_loc = [
             np.argwhere(seq_var_names == g)[0] for g in spatial_var_names

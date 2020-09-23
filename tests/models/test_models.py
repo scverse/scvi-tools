@@ -226,8 +226,10 @@ def test_gimvi():
     )
     results.columns.name = "Dataset"
     results.index.name = "Loss"
-
     trainer.get_discriminator_confusion()
+    adata_spatial.var_names += "asdf"
+    with pytest.raises(ValueError):
+        model = GIMVI(adata_seq, adata_spatial)
 
 
 def test_autozi():
