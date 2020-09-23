@@ -486,8 +486,8 @@ def spleen_lymph_cite_seq(
 
     Returns
     -------
-    AnnData with batch info (``.obs['batch']``), label info (``.obs['labels']``),
-    and protein expression (``.obsm["protein_expression"]``)
+    AnnData with batch info (``.obs['batch']``), label info (``.obs['cell_types']``),
+    protein expression (``.obsm["protein_expression"]``), and tissue (``.obs['tissue']``).
 
     Missing protein values are zero, when ``protein_join == "outer`` and are identified during ``AnnData`` setup.
 
