@@ -73,8 +73,14 @@ class GIMVI(VAEMixin, BaseModelClass):
         super(GIMVI, self).__init__(use_cuda=use_cuda)
         self.use_cuda = use_cuda and torch.cuda.is_available()
         self.adatas = [adata_seq, adata_spatial]
+
         seq_var_names = _get_var_names_from_setup_anndata(adata_seq)
         spatial_var_names = _get_var_names_from_setup_anndata(adata_spatial)
+
+        assert set(spatial_var_names) <= set(seq_var_names), ValueError(
+            "spatial genes needs to be subset of seq genes"
+        )
+
         spatial_gene_loc = [
             np.argwhere(seq_var_names == g)[0] for g in spatial_var_names
         ]
@@ -82,7 +88,14 @@ class GIMVI(VAEMixin, BaseModelClass):
         gene_mappings = [slice(None), spatial_gene_loc]
         sum_stats = [d.uns["_scvi"]["summary_stats"] for d in self.adatas]
         n_inputs = [s["n_genes"] for s in sum_stats]
+
         total_genes = adata_seq.uns["_scvi"]["summary_stats"]["n_genes"]
+
+        # since we are combining datasets, we need to increment the batch_idx
+        # of one of the datasets
+        adata_seq_n_batches = adata_seq.uns["_scvi"]["summary_stats"]["n_batch"]
+        adata_spatial.obs["_scvi_batch"] += adata_seq_n_batches
+
         n_batches = sum([s["n_batch"] for s in sum_stats])
 
         self.model = JVAE(
