@@ -12,15 +12,20 @@ def _load_pbmcs_10x_cite_seq(
     protein_join: str = "inner",
     run_setup_anndata: bool = True,
 ):
-    """Filtered PBMCs from 10x Genomics profiled with RNA and protein
+    """
+    Filtered PBMCs from 10x Genomics profiled with RNA and protein.
 
     Datasets were filtered for doublets and other outliers as in
     https://github.com/YosefLab/totalVI_reproducibility/blob/master/data/data_filtering_scripts/pbmc_10k/pbmc_10k.py
 
     Parameters
     ----------
+    save_path
+        Location to use when saving/loading the data.
     protein_join
         Whether to take an inner join or outer join of proteins
+    run_setup_anndata
+        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -28,7 +33,6 @@ def _load_pbmcs_10x_cite_seq(
 
     Missing protein values are zero, and are identified during `AnnData` setup.
     """
-
     url = "https://github.com/YosefLab/scVI-data/raw/master/pbmc_10k_protein_v3.h5ad?raw=true"
     save_fn = "pbmc_10k_protein_v3.h5ad"
     _download(url, save_path, save_fn)
