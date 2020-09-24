@@ -205,4 +205,4 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
 
 def _assert_equal_mapping(mapping1, mapping2):
 
-    return set(mapping1) == set(mapping2)
+    return pd.Index(mapping1).equals(pd.Index(mapping2))
