@@ -51,11 +51,11 @@ def _de_core(
         group1,
         description="DE...",
     ):
-        cell_idx1 = (adata.obs[groupby] == g1).ravel()
+        cell_idx1 = (adata.obs[groupby] == g1).to_numpy().ravel()
         if group2 is None:
             cell_idx2 = ~cell_idx1
         else:
-            cell_idx2 = adata.obs[groupby] == group2
+            cell_idx2 = (adata.obs[groupby] == group2).to_numpy().ravel()
 
         all_info = dc.get_bayes_factors(
             cell_idx1,
