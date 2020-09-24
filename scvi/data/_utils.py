@@ -174,13 +174,13 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
         + "Expected categories: {}. Received categories: {}.\n"
         + "Try running `dataset.transfer_anndata_setup()` or deleting `adata.uns['_scvi']."
     )
-    if np.sum(self_batch_mapping == adata_batch_mapping) != len(self_batch_mapping):
+    if not _assert_equal_mapping(self_batch_mapping, adata_batch_mapping):
         raise ValueError(
             error_msg.format("batch", self_batch_mapping, adata_batch_mapping)
         )
     self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
     adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
-    if np.sum(self_labels_mapping == adata_labels_mapping) != len(self_labels_mapping):
+    if not _assert_equal_mapping(self_labels_mapping, adata_labels_mapping):
         raise ValueError(
             error_msg.format("label", self_labels_mapping, adata_labels_mapping)
         )
@@ -190,7 +190,7 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
         target_extra_cat_maps = adata.uns["_scvi"]["extra_categorical_mappings"]
         for key, val in _scvi_dict["extra_categorical_mappings"].items():
             target_map = target_extra_cat_maps[key]
-            if np.sum(val == target_map) != len(val):
+            if not _assert_equal_mapping(val, target_map):
                 raise ValueError(error_msg.format(key, val, target_map))
     # validate any extra continuous covs
     if "extra_continuous_keys" in _scvi_dict.keys():
@@ -201,3 +201,8 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
             raise ValueError(
                 "extra_continous_keys are not the same between source and target"
             )
+
+
+def _assert_equal_mapping(mapping1, mapping2):
+
+    return pd.Index(mapping1).equals(pd.Index(mapping2))

@@ -83,8 +83,8 @@ def test_scvi():
     adata = synthetic_iid()
     adata2 = synthetic_iid(run_setup_anndata=False)
     transfer_anndata_setup(adata, adata2)
-    adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = pd.Index(
-        data=["undefined_1", "undefined_0", "undefined_2"]
+    adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = np.array(
+        ["undefined_1", "undefined_0", "undefined_2"]
     )
     with pytest.raises(ValueError):
         model.get_elbo(adata2)
@@ -321,8 +321,8 @@ def test_totalvi(save_path):
     adata = synthetic_iid()
     adata2 = synthetic_iid(run_setup_anndata=False)
     transfer_anndata_setup(adata, adata2)
-    adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = pd.Index(
-        data=["undefined_1", "undefined_0", "undefined_2"]
+    adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = np.array(
+        ["undefined_1", "undefined_0", "undefined_2"]
     )
     with pytest.raises(ValueError):
         model.get_elbo(adata2)

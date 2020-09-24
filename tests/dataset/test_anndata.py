@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import random
 import pandas as pd
 import scipy.sparse as sparse
@@ -163,6 +164,11 @@ def test_setup_anndata():
     np.testing.assert_array_equal(
         get_from_registry(adata, "labels"), np.zeros((adata.shape[0], 1))
     )
+
+
+def test_save_setup_anndata(save_path):
+    adata = synthetic_iid()
+    adata.write(os.path.join(save_path, "test.h5ad"))
 
 
 def test_extra_covariates():
