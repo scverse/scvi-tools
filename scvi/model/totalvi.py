@@ -62,6 +62,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
+    empirical_protein_background_prior
+        Set the initialization of protein background prior empirically. This option fits a GMM for each of
+        100 cells per batch and averages the distributions. Note that even with this option set to `True`,
+        this only initializes a parameter that is learned during inference. If `False`, randomly initializes.
     use_cuda
         Use the GPU or not.
     **model_kwargs
@@ -88,6 +92,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         ] = "protein",
         gene_likelihood: Literal["zinb", "nb"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "ln",
+        empirical_protein_background_prior: bool = True,
         use_cuda: bool = True,
         **model_kwargs,
     ):
@@ -96,6 +101,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             batch_mask = self.scvi_setup_dict_["totalvi_batch_mask"]
         else:
             batch_mask = None
+        if empirical_protein_background_prior:
+            prior_mean, prior_scale = _get_totalvi_protein_priors(adata)
+        else:
+            prior_mean, prior_scale = None, None
         self.model = TOTALVAE(
             n_input_genes=self.summary_stats["n_vars"],
             n_input_proteins=self.summary_stats["n_proteins"],
@@ -106,6 +115,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
             protein_batch_mask=batch_mask,
+            protein_background_prior_mean=prior_mean,
+            protein_background_prior_scale=prior_scale,
             **model_kwargs,
         )
         self._model_summary_string = (
@@ -1048,3 +1059,45 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     @property
     def _scvi_dl_class(self):
         return TotalDataLoader
+
+
+def _get_totalvi_protein_priors(adata, n_cells=100):
+    """Compute an empirical prior for protein background."""
+    from sklearn.mixture import GaussianMixture
+
+    batch = get_from_registry(adata, _CONSTANTS.BATCH_KEY).ravel()
+
+    batch_avg_mus, batch_avg_scales = [], []
+    for b in np.unique(batch):
+        pro_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)[batch == b]
+        cells = np.random.choice(np.arange(pro_exp.shape[0]), size=n_cells)
+        if isinstance(pro_exp, pd.DataFrame):
+            pro_exp = pro_exp.to_numpy()
+        pro_exp = pro_exp[cells]
+        gmm = GaussianMixture(n_components=2)
+        mus, scales = [], []
+        # fit per cell GMM
+        for c in pro_exp:
+            gmm.fit(np.log1p(c.reshape(-1, 1)))
+            means = gmm.means_.ravel()
+            sorted_fg_bg = np.argsort(means)
+            mu = means[sorted_fg_bg].ravel()[0]
+            covariances = gmm.covariances_[sorted_fg_bg].ravel()[0]
+            scale = np.sqrt(covariances)
+            mus.append(mu)
+            scales.append(scale)
+
+        # average distribution over cells
+        batch_avg_mu = np.mean(mus)
+        batch_avg_scale = np.sqrt(np.sum(np.square(scales)) / (n_cells ** 2))
+
+        batch_avg_mus.append(batch_avg_mu)
+        batch_avg_scales.append(batch_avg_scale)
+
+    # repeat prior for each protein
+    batch_avg_mus = np.array(batch_avg_mus, dtype=np.float32).reshape(1, -1)
+    batch_avg_scales = np.array(batch_avg_scales, dtype=np.float32).reshape(1, -1)
+    batch_avg_mus = np.tile(batch_avg_mus, (pro_exp.shape[1], 1))
+    batch_avg_scales = np.tile(batch_avg_scales, (pro_exp.shape[1], 1))
+
+    return batch_avg_mus, batch_avg_scales
