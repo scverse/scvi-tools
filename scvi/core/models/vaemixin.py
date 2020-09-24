@@ -68,7 +68,7 @@ class VAEMixin:
         # for autotune
         if "n_epochs" not in train_fun_kwargs:
             if n_epochs is None:
-                n_cells = self.summary_stats["n_cells"]
+                n_cells = self.adata.n_obs
                 n_epochs = np.min([round((20000 / n_cells) * 400), 400])
             train_fun_kwargs["n_epochs"] = n_epochs
         if "lr" not in train_fun_kwargs:
