@@ -519,7 +519,7 @@ def _setup_extra_categorical_covs(
             possible_cats = category_dict[key]
             cat = cat.astype(CategoricalDtype(categories=possible_cats))
         else:
-            categories[key] = cat.astype("category").cat.categories
+            categories[key] = cat.astype("category").cat.categories.to_numpy(copy=True)
 
         one_hot_rep = pd.get_dummies(cat, prefix=key)
         one_hots.append(one_hot_rep)
@@ -577,7 +577,7 @@ def _make_obs_column_categorical(
 
     # put codes in .obs[alternate_column_key]
     codes = categorical_obs.cat.codes
-    mapping = categorical_obs.cat.categories
+    mapping = categorical_obs.cat.categories.to_numpy(copy=True)
     if -1 in np.unique(codes):
         received_categories = adata.obs[column_key].astype("category").cat.categories
         raise ValueError(
