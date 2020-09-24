@@ -18,7 +18,7 @@ class VAEMixin:
         test_size: Optional[float] = None,
         lr: float = 1e-3,
         n_epochs_kl_warmup: int = 400,
-        n_iter_kl_warmup: int = None,
+        n_iter_kl_warmup: Optional[int] = None,
         frequency: Optional[int] = None,
         train_fun_kwargs: dict = {},
         **kwargs,

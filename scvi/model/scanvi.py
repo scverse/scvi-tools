@@ -151,18 +151,18 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
     def train(
         self,
-        n_epochs_unsupervised=None,
-        n_epochs_semisupervised=None,
-        train_size=0.9,
-        test_size=None,
-        lr=1e-3,
-        n_epochs_kl_warmup=400,
-        n_iter_kl_warmup=None,
-        frequency=None,
-        unsupervised_trainer_kwargs={},
-        semisupervised_trainer_kwargs={},
-        unsupervised_train_kwargs={},
-        semisupervised_train_kwargs={},
+        n_epochs_unsupervised: Optional[int] = None,
+        n_epochs_semisupervised: Optional[int] = None,
+        train_size: float = 0.9,
+        test_size: float = None,
+        lr: float = 1e-3,
+        n_epochs_kl_warmup: int = 400,
+        n_iter_kl_warmup: Optional[int] = None,
+        frequency: Optional[int] = None,
+        unsupervised_trainer_kwargs: dict = {},
+        semisupervised_trainer_kwargs: dict = {},
+        unsupervised_train_kwargs: dict = {},
+        semisupervised_train_kwargs: dict = {},
     ):
         """
         Train the model.
