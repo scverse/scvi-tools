@@ -157,11 +157,15 @@ class TOTALVAE(nn.Module):
             pass
 
         if self.protein_dispersion == "protein":
-            self.py_r = torch.nn.Parameter(torch.ones(self.n_input_proteins))
+            self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins))
         elif self.protein_dispersion == "protein-batch":
-            self.py_r = torch.nn.Parameter(torch.ones(self.n_input_proteins, n_batch))
+            self.py_r = torch.nn.Parameter(
+                2 * torch.rand(self.n_input_proteins, n_batch)
+            )
         elif self.protein_dispersion == "protein-label":
-            self.py_r = torch.nn.Parameter(torch.ones(self.n_input_proteins, n_labels))
+            self.py_r = torch.nn.Parameter(
+                2 * torch.rand(self.n_input_proteins, n_labels)
+            )
         else:  # protein-cell
             pass
 
