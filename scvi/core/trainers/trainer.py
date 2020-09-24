@@ -166,6 +166,7 @@ class Trainer:
         self.compute_metrics_time += time.time() - begin
 
     def train(self, n_epochs=400, lr=1e-3, eps=0.01, params=None, **extras_kwargs):
+        logger.info("Training for {} epochs".format(n_epochs))
         begin = time.time()
         self.model.train()
 
