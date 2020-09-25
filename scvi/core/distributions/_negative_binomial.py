@@ -12,7 +12,9 @@ from torch.distributions.utils import (
 )
 
 
-def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
+def log_zinb_positive(
+    x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, pi: torch.Tensor, eps=1e-8
+):
     """
     Log likelihood (scalar) of a minibatch according to a zinb model.
 
@@ -62,7 +64,7 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
     return res
 
 
-def log_nb_positive(x, mu, theta, eps=1e-8):
+def log_nb_positive(x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, eps=1e-8):
     """
     Log likelihood (scalar) of a minibatch according to a nb model.
 
@@ -100,7 +102,15 @@ def log_nb_positive(x, mu, theta, eps=1e-8):
     return res
 
 
-def log_mixture_nb(x, mu_1, mu_2, theta_1, theta_2, pi, eps=1e-8):
+def log_mixture_nb(
+    x: torch.Tensor,
+    mu_1: torch.Tensor,
+    mu_2: torch.Tensor,
+    theta_1: torch.Tensor,
+    theta_2: torch.Tensor,
+    pi: torch.Tensor,
+    eps=1e-8,
+):
     """
     Log likelihood (scalar) of a minibatch according to a mixture nb model.
 
@@ -110,20 +120,20 @@ def log_mixture_nb(x, mu_1, mu_2, theta_1, theta_2, pi, eps=1e-8):
     Parameters
     ----------
     x
-        data
-    mu1
-        mean of the first negative binomial component (has to be positive support) (shape: minibatch x features)
-    mu2
-        mean of the second negative binomial (has to be positive support) (shape: minibatch x features)
-    theta1
-        first inverse dispersion parameter (has to be positive support) (shape: minibatch x features)
-    theta2
-        second inverse dispersion parameter (has to be positive support) (shape: minibatch x features)
+        Observed data
+    mu_1
+        Mean of the first negative binomial component (has to be positive support) (shape: minibatch x features)
+    mu_2
+        Mean of the second negative binomial (has to be positive support) (shape: minibatch x features)
+    theta_1
+        First inverse dispersion parameter (has to be positive support) (shape: minibatch x features)
+    theta_2
+        Second inverse dispersion parameter (has to be positive support) (shape: minibatch x features)
         If None, assume one shared inverse dispersion parameter.
     pi
         Probability of belonging to mixture component 1
     eps
-        numerical stability constant
+        Numerical stability constant
     """
     if theta_2 is not None:
         log_nb_1 = log_nb_positive(x, mu_1, theta_1)
