@@ -308,7 +308,7 @@ def _verify_and_correct_data_format(adata, data_registry):
 
     for k in keys:
         data = get_from_registry(adata, k)
-        if isspmatrix(data) and (data.getformat() == "csc"):
+        if isspmatrix(data) and (data.getformat() != "csr"):
             data = data.tocsr()
             _set_data_in_registry(adata, data, k)
         elif isinstance(data, np.ndarray) and (data.flags["C_CONTIGUOUS"] is False):
