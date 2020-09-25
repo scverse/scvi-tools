@@ -13,6 +13,7 @@ from scvi.data._utils import (
     _get_batch_mask_protein_data,
 )
 from pandas.api.types import CategoricalDtype
+from scipy.sparse import isspmatrix
 
 from scvi import _CONSTANTS
 
@@ -240,10 +241,96 @@ def setup_anndata(
         categorical_covariate_keys,
         continuous_covariate_keys,
     )
+
     logger.info("Please do not further modify adata until model is trained.")
+
+    _verify_and_correct_data_format(adata, data_registry)
 
     if copy:
         return adata
+
+
+def _set_data_in_registry(adata, data, key):
+    """
+    Sets the data associated with key in adata.uns['_scvi']['data_registry'].keys() to data.
+
+    Note: This is a dangerous method and will change the underlying data of the user's anndata
+    Currently used to make the user's anndata C_CONTIGUOUS and csr if it is dense numpy
+    or sparse respectively.
+
+    Parameters
+    ----------
+    adata
+        anndata object to change data of
+    data
+        data to change to
+    key
+        key in adata.uns['_scvi]['data_registry'].keys() associated with the data
+    """
+    use_raw = adata.uns["_scvi"]["use_raw"]
+    data_loc = adata.uns["_scvi"]["data_registry"][key]
+    attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
+
+    if use_raw is True and attr_name in ["X", "var"]:
+        tmp_adata = adata.raw.to_adata()
+    else:
+        tmp_adata = adata
+    if attr_key == "None":
+        setattr(tmp_adata, attr_name, data)
+
+    elif attr_key != "None":
+        attribute = getattr(tmp_adata, attr_name)
+        if isinstance(attribute, pd.DataFrame):
+            attribute.loc[:, attr_key] = data
+        else:
+            attribute[attr_key] = data
+        setattr(tmp_adata, attr_name, attribute)
+
+    if use_raw is True and attr_name in ["X", "var"]:
+        adata.raw = tmp_adata
+
+
+def _verify_and_correct_data_format(adata, data_registry):
+    """
+    Will make sure that the user's anndata is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
+
+    Will iterate through all the keys of data_registry.
+
+    Parameters
+    ----------
+    adata
+        anndata to check
+    data_registry
+        data registry of anndata
+    """
+    keys_to_check = [_CONSTANTS.X_KEY, _CONSTANTS.PROTEIN_EXP_KEY]
+    keys = [key for key in keys_to_check if key in data_registry.keys()]
+
+    for k in keys:
+        data = get_from_registry(adata, k)
+        if isspmatrix(data) and (data.getformat() != "csr"):
+            logger.debug("{} is csc_matrix. Overwriting to csr_matrix.".format(k))
+            data = data.tocsr()
+            _set_data_in_registry(adata, data, k)
+        elif isinstance(data, np.ndarray) and (data.flags["C_CONTIGUOUS"] is False):
+            logger.debug(
+                "{} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.".format(k)
+            )
+            data = np.asarray(data, order="C")
+            _set_data_in_registry(adata, data, k)
+        elif isinstance(data, pd.DataFrame) and (
+            data.to_numpy().flags["C_CONTIGUOUS"] is False
+        ):
+            logger.debug(
+                "{} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.".format(k)
+            )
+            index = data.index
+            vals = data.to_numpy()
+            columns = data.columns
+            data = pd.DataFrame(
+                np.ascontiguousarray(vals), index=index, columns=columns
+            )
+            _set_data_in_registry(adata, data, k)
 
 
 def register_tensor_from_anndata(
@@ -287,7 +374,10 @@ def register_tensor_from_anndata(
     new_dict = {
         registry_key: {"attr_name": adata_attr_name, "attr_key": adata_key_name}
     }
-    adata.uns["_scvi"]["data_registry"].update(new_dict)
+
+    data_registry = adata.uns["_scvi"]["data_registry"]
+    data_registry.update(new_dict)
+    _verify_and_correct_data_format(adata, data_registry)
 
 
 def transfer_anndata_setup(
@@ -420,6 +510,7 @@ def transfer_anndata_setup(
         source_cat_dict,
         obs_keys_names,
     )
+    _verify_and_correct_data_format(adata_target, data_registry)
 
 
 def _transfer_protein_expression(_scvi_dict, adata_target):
@@ -683,9 +774,6 @@ def _setup_x(adata, layer, use_raw):
         logger.info('Using data from adata.layers["{}"]'.format(layer))
         x_loc = "layers"
         x_key = layer
-        # C order is much faster than F, possible bug in anndata
-        if isinstance(adata.layers[x_key], np.ndarray):
-            adata.layers[x_key] = np.asarray(adata.layers[x_key], order="C")
         x = adata.layers[x_key]
     else:
         logger.info("Using data from adata.X")

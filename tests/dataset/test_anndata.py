@@ -12,7 +12,9 @@ from scvi.data import (
     transfer_anndata_setup,
     register_tensor_from_anndata,
 )
+from scvi import _CONSTANTS
 from scvi.data._anndata import get_from_registry
+from scipy.sparse import csc_matrix
 
 
 def test_transfer_anndata_setup():
@@ -97,6 +99,70 @@ def test_transfer_anndata_setup():
     transfer_anndata_setup(adata1, adata2)
     assert adata2.obs["_scvi_batch"][0] == 0
     assert adata2.obs["_scvi_labels"][0] == 0
+
+
+def test_data_format():
+    # if data was dense np array, check after setup_anndata, data is C_CONTIGUOUS
+    adata = synthetic_iid(run_setup_anndata=False)
+
+    old_x = adata.X
+    old_pro = adata.obsm["protein_expression"]
+    old_obs = adata.obs
+    adata.X = np.asfortranarray(old_x)
+    adata.obsm["protein_expression"] = np.asfortranarray(old_pro)
+    assert adata.X.flags["C_CONTIGUOUS"] is False
+    assert adata.obsm["protein_expression"].flags["C_CONTIGUOUS"] is False
+
+    setup_anndata(adata, protein_expression_obsm_key="protein_expression")
+    assert adata.X.flags["C_CONTIGUOUS"] is True
+    assert adata.obsm["protein_expression"].flags["C_CONTIGUOUS"] is True
+
+    assert np.array_equal(old_x, adata.X)
+    assert np.array_equal(old_pro, adata.obsm["protein_expression"])
+    assert np.array_equal(old_obs, adata.obs)
+
+    assert np.array_equal(adata.X, get_from_registry(adata, _CONSTANTS.X_KEY))
+    assert np.array_equal(
+        adata.obsm["protein_expression"],
+        get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY),
+    )
+
+    # if data is sparse, check that after setup_anndata, data is csr_matrix
+    adata = synthetic_iid(run_setup_anndata=False)
+    adata.X = csc_matrix(adata.X)
+    adata.obsm["protein_expression"] = csc_matrix(adata.obsm["protein_expression"])
+    old_x = adata.X
+    old_pro = adata.obsm["protein_expression"]
+    setup_anndata(adata, protein_expression_obsm_key="protein_expression")
+
+    assert adata.X.getformat() == "csr"
+    assert adata.obsm["protein_expression"].getformat() == "csr"
+
+    assert np.array_equal(old_x.toarray(), adata.X.toarray())
+    assert np.array_equal(old_pro.toarray(), adata.obsm["protein_expression"].toarray())
+
+    assert np.array_equal(
+        adata.X.toarray(), get_from_registry(adata, _CONSTANTS.X_KEY).toarray()
+    )
+    assert np.array_equal(
+        adata.obsm["protein_expression"].toarray(),
+        get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY).toarray(),
+    )
+
+    # if obsm is dataframe, make it C_CONTIGUOUS if it isnt
+    adata = synthetic_iid()
+    pe = np.asfortranarray(adata.obsm["protein_expression"])
+    adata.obsm["protein_expression"] = pd.DataFrame(pe, index=adata.obs_names)
+    assert adata.obsm["protein_expression"].to_numpy().flags["C_CONTIGUOUS"] is False
+    setup_anndata(adata, protein_expression_obsm_key="protein_expression")
+    new_pe = get_from_registry(adata, "protein_expression")
+    assert new_pe.to_numpy().flags["C_CONTIGUOUS"] is True
+    assert np.array_equal(pe, new_pe)
+    assert np.array_equal(adata.X, get_from_registry(adata, _CONSTANTS.X_KEY))
+    assert np.array_equal(
+        adata.obsm["protein_expression"],
+        get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY),
+    )
 
 
 def test_setup_anndata():
