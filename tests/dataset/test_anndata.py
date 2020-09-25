@@ -134,6 +134,16 @@ def test_data_format():
     assert np.array_equal(old_X.toarray(), adata.X.toarray())
     assert np.array_equal(old_pro.toarray(), adata.obsm["protein_expression"].toarray())
 
+    # if obsm is dataframe, make it C_CONTIGUOUS if it isnt
+    a = synthetic_iid()
+    pe = np.asfortranarray(a.obsm["protein_expression"])
+    a.obsm["protein_expression"] = pd.DataFrame(pe, index=a.obs_names)
+    assert a.obsm["protein_expression"].values.flags["C_CONTIGUOUS"] is False
+    setup_anndata(a, protein_expression_obsm_key="protein_expression")
+    new_pe = get_from_registry(a, "protein_expression")
+    assert new_pe.values.flags["C_CONTIGUOUS"] is True
+    assert np.array_equal(pe, new_pe)
+
 
 def test_setup_anndata():
     # test regular setup

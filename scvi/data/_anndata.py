@@ -303,13 +303,28 @@ def _verify_and_correct_data_format(adata, data_registry):
     data_registry
         data registry of anndata
     """
-    for k in data_registry.keys():
+    keys_to_check = [_CONSTANTS.X_KEY, _CONSTANTS.PROTEIN_EXP_KEY]
+    keys = [key for key in keys_to_check if key in data_registry.keys()]
+
+    for k in keys:
         data = get_from_registry(adata, k)
-        if isspmatrix(data):
+        if isspmatrix(data) and (data.getformat() == "csc"):
             data = data.tocsr()
-        elif isinstance(data, np.ndarray):
+            _set_data_in_registry(adata, data, k)
+        elif isinstance(data, np.ndarray) and (data.flags["C_CONTIGUOUS"] is False):
             data = np.asarray(data, order="C")
-        _set_data_in_registry(adata, data, k)
+            _set_data_in_registry(adata, data, k)
+        # TODO when we support obsm as sparse dataframe, need to modify this function
+        elif isinstance(data, pd.DataFrame) and (
+            data.values.flags["C_CONTIGUOUS"] is False
+        ):
+            index = data.index
+            vals = data.values
+            columns = data.columns
+            data = pd.DataFrame(
+                np.ascontiguousarray(vals), index=index, columns=columns
+            )
+            _set_data_in_registry(adata, data, k)
 
 
 def register_tensor_from_anndata(
