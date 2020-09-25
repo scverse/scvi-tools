@@ -394,9 +394,11 @@ class NegativeBinomialMixture(Distribution):
             self.mu1,
             self.theta1,
             self.mu2,
-            self.theta2,
             self.mixture_logits,
-        ) = broadcast_all(mu1, theta1, mu2, theta2, mixture_logits)
+        ) = broadcast_all(mu1, theta1, mu2, mixture_logits)
+
+        if theta2 is not None:
+            self.theta2 = broadcast_all(mu1, theta2)
 
         super().__init__(validate_args=validate_args)
 
