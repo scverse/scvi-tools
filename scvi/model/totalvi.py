@@ -9,6 +9,7 @@ from functools import partial
 
 from scvi import _CONSTANTS
 from scvi.data import get_from_registry
+from scvi.data._utils import _check_nonnegative_integers
 from scvi._compat import Literal
 from scvi.core.modules import TOTALVAE
 from scvi.core.models import BaseModelClass, VAEMixin, RNASeqMixin
@@ -1001,11 +1002,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         adata = super()._validate_anndata(adata, copy_if_view)
         error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
         if _CONSTANTS.PROTEIN_EXP_KEY in adata.uns["_scvi"]["data_registry"].keys():
-            if (
-                self.summary_stats["n_proteins"]
-                != get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY).shape[1]
-            ):
+            pro_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
+            if self.summary_stats["n_proteins"] != pro_exp.shape[1]:
                 raise ValueError(error_msg.format("proteins"))
+            is_nonneg_int = _check_nonnegative_integers(pro_exp)
+            if not is_nonneg_int:
+                logger.warning(
+                    "Make sure the registered protein expression in anndata contains unnormalized count data."
+                )
         else:
             raise ValueError("No protein data found, please setup or transfer anndata")
 
