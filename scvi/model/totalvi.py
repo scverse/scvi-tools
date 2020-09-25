@@ -804,7 +804,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
             rna_sample = rna_dist.sample().cpu()[..., gene_mask]
             protein_sample = protein_dist.sample().cpu()[..., protein_mask]
-            data = torch.cat([rna_sample, protein_sample], dim=1).numpy()
+            data = torch.cat([rna_sample, protein_sample], dim=-1).numpy()
 
             scdl_list += [data]
             if n_samples > 1:

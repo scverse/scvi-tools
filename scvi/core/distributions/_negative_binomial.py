@@ -396,12 +396,12 @@ class NegativeBinomialMixture(Distribution):
             self.mixture_logits,
         ) = broadcast_all(mu1, theta1, mu2, mixture_logits)
 
+        super().__init__(validate_args=validate_args)
+
         if theta2 is not None:
             self.theta2 = broadcast_all(mu1, theta2)
         else:
             self.theta2 = None
-
-        super().__init__(validate_args=validate_args)
 
     @lazy_property
     def mixture_probs(self) -> torch.Tensor:
