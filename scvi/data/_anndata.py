@@ -292,8 +292,7 @@ def _set_data_in_registry(adata, data, key):
 
 def _verify_and_correct_data_format(adata, data_registry):
     """
-    Will make sure that the user's anndata is C_CONTIGUOUS and csr if it is dense numpy
-    or sparse respectively.
+    Will make sure that the user's anndata is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
 
     Will iterate through all the keys of data_registry.
 
