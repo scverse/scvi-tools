@@ -239,11 +239,10 @@ class NegativeBinomial(Distribution):
 
     One of the following parameterizations must be provided:
 
-    - (`total_count`, `probs`) where `total_count` is the number of failures
-        until the experiment is stopped
-        and `probs` the success probability.
-    - The (`mu`, `theta`) parameterization is the one used by scvi=tool. These parameters respectively
-        control the mean and overdispersion of the distribution.
+    - (`total_count`, `probs`) where `total_count` is the number of failures until
+    the experiment is stopped and `probs` the success probability.
+    - The (`mu`, `theta`) parameterization is the one used by scvi-tools. These parameters respectively
+    control the mean and inverse dispersion of the distribution.
 
     Parameters
     ----------
@@ -292,6 +291,14 @@ class NegativeBinomial(Distribution):
         self.theta = theta
         super().__init__(validate_args=validate_args)
 
+    @property
+    def mean(self):
+        return self.mu
+
+    @property
+    def variance(self):
+        return self.mean + (self.mean ** 2) / self.theta
+
     def sample(
         self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
     ) -> torch.Tensor:
@@ -328,11 +335,10 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
 
     One of the following parameterizations must be provided:
 
-    - (`total_count`, `probs`) where `total_count` is the number of failures
-        until the experiment is stopped
-        and `probs` the success probability.
-    - The (`mu`, `theta`) parameterization is the one used by scvi=tool. These parameters respectively
-        control the mean and overdispersion of the distribution.
+    - (`total_count`, `probs`) where `total_count` is the number of failures until
+    the experiment is stopped and `probs` the success probability.
+    - The (`mu`, `theta`) parameterization is the one used by scvi-tools. These parameters respectively
+    control the mean and inverse dispersion of the distribution.
 
     Parameters
     ----------
@@ -378,6 +384,15 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         self.zi_logits, self.mu, self.theta = broadcast_all(
             zi_logits, self.mu, self.theta
         )
+
+    @property
+    def mean(self):
+        pi = self.zi_probs
+        return (1 - pi) * self.mu
+
+    @property
+    def variance(self):
+        raise NotImplementedError
 
     @lazy_property
     def zi_logits(self) -> torch.Tensor:
@@ -457,6 +472,11 @@ class NegativeBinomialMixture(Distribution):
             self.theta2 = broadcast_all(mu1, theta2)
         else:
             self.theta2 = None
+
+    @property
+    def mean(self):
+        pi = self.mixture_probs
+        return pi * self.mu1 + (1 - pi) * self.mu2
 
     @lazy_property
     def mixture_probs(self) -> torch.Tensor:
