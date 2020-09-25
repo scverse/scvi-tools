@@ -319,13 +319,13 @@ def _verify_and_correct_data_format(adata, data_registry):
             data = np.asarray(data, order="C")
             _set_data_in_registry(adata, data, k)
         elif isinstance(data, pd.DataFrame) and (
-            data.values.flags["C_CONTIGUOUS"] is False
+            data.to_numpy().flags["C_CONTIGUOUS"] is False
         ):
             logger.debug(
                 "{} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.".format(k)
             )
             index = data.index
-            vals = data.values
+            vals = data.to_numpy()
             columns = data.columns
             data = pd.DataFrame(
                 np.ascontiguousarray(vals), index=index, columns=columns
