@@ -445,7 +445,7 @@ def pbmcs_10x_cite_seq(
 
     Returns
     -------
-    AnnData with batch info (``.obs['batch']``), label info (``.obs['labels']``),
+    AnnData with batch info (``.obs['batch']``),
     and protein expression (``.obsm["protein_expression"]``)
 
     Missing protein values are zero, when ``protein_join == "outer`` and are identified during ``AnnData`` setup.

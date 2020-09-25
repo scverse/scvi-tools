@@ -67,7 +67,6 @@ def _load_pbmcs_10x_cite_seq(
         setup_anndata(
             dataset,
             batch_key="batch",
-            labels_key="labels",
             protein_expression_obsm_key="protein_expression",
         )
 
