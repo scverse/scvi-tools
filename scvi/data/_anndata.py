@@ -1,5 +1,4 @@
 import warnings
-import pdb
 import numpy as np
 import logging
 import pandas as pd
@@ -14,7 +13,7 @@ from scvi.data._utils import (
     _get_batch_mask_protein_data,
 )
 from pandas.api.types import CategoricalDtype
-from scipy.sparse import csr_matrix, isspmatrix
+from scipy.sparse import isspmatrix
 
 from scvi import _CONSTANTS
 
@@ -252,32 +251,27 @@ def setup_anndata(
 
 
 def _set_data_in_registry(adata, data, key):
-    import pdb
-
     use_raw = adata.uns["_scvi"]["use_raw"]
     data_loc = adata.uns["_scvi"]["data_registry"][key]
     attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
 
     if use_raw is True and attr_name in ["X", "var"]:
-        adata = adata.raw
+        tmp_adata = adata.raw.to_adata()
+    else:
+        tmp_adata = adata
     if attr_key == "None":
-        try:
-            setattr(adata, attr_name, data)
-        except:
-            pdb.set_trace()
+        setattr(tmp_adata, attr_name, data)
 
     elif attr_key != "None":
-        attribute = getattr(adata, attr_name)
+        attribute = getattr(tmp_adata, attr_name)
         if isinstance(attribute, pd.DataFrame):
-            try:
-                attribute.loc[:, attr_key] = data
-            except:
-                import pdb
-
-                pdb.set_trace()
+            attribute.loc[:, attr_key] = data
         else:
             attribute[attr_key] = data
-        setattr(adata, attr_name, attribute)
+        setattr(tmp_adata, attr_name, attribute)
+
+    if use_raw is True and attr_name in ["X", "var"]:
+        adata.raw = tmp_adata
 
 
 def _verify_and_correct_data_format(adata, data_registry):
