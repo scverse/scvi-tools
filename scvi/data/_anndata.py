@@ -251,6 +251,22 @@ def setup_anndata(
 
 
 def _set_data_in_registry(adata, data, key):
+    """
+    Sets the data associated with key in adata.uns['_scvi']['data_registry'].keys() to data.
+
+    Note: This is a dangerous method and will change the underlying data of the user's anndata
+    Currently used to make the user's anndata C_CONTIGUOUS and csr if it is dense numpy
+    or sparse respectively.
+
+    Parameters
+    ----------
+    adata
+        anndata object to change data of
+    data
+        data to change to
+    key
+        key in adata.uns['_scvi]['data_registry'].keys() associated with the data
+    """
     use_raw = adata.uns["_scvi"]["use_raw"]
     data_loc = adata.uns["_scvi"]["data_registry"][key]
     attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
@@ -275,6 +291,19 @@ def _set_data_in_registry(adata, data, key):
 
 
 def _verify_and_correct_data_format(adata, data_registry):
+    """
+    Will make sure that the user's anndata is C_CONTIGUOUS and csr if it is dense numpy
+    or sparse respectively.
+
+    Will iterate through all the keys of data_registry.
+
+    Parameters
+    ----------
+    adata
+        anndata to check
+    data_registry
+        data registry of anndata
+    """
     for k in data_registry.keys():
         data = get_from_registry(adata, k)
         if isspmatrix(data):
