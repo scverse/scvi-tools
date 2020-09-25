@@ -13,19 +13,26 @@ from torch.distributions.utils import (
 
 
 def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
-    """Note: All inputs are torch Tensors
-    log likelihood (scalar) of a minibatch according to a zinb model.
-    Notes:
-    We parametrize the bernoulli using the logits, hence the softplus functions appearing
-
-    Variables:
-    mu: mean of the negative binomial (has to be positive support) (shape: minibatch x genes)
-    theta: inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
-    pi: logit of the dropout parameter (real support) (shape: minibatch x genes)
-    eps: numerical stability constant
-
     """
+    Log likelihood (scalar) of a minibatch according to a zinb model.
 
+    Parameters
+    ----------
+    x
+        Data
+    mu
+        mean of the negative binomial (has to be positive support) (shape: minibatch x genes)
+    theta
+        inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
+    pi
+        logit of the dropout parameter (real support) (shape: minibatch x genes)
+    eps
+        numerical stability constant
+
+    Notes
+    -----
+    We parametrize the bernoulli using the logits, hence the softplus functions appearing.
+    """
     # theta is the dispersion rate. If .ndimension() == 1, it is shared for all cells (regardless of batch or labels)
     if theta.ndimension() == 1:
         theta = theta.view(
@@ -56,13 +63,23 @@ def log_zinb_positive(x, mu, theta, pi, eps=1e-8):
 
 
 def log_nb_positive(x, mu, theta, eps=1e-8):
-    """Note: All inputs should be torch Tensors
-    log likelihood (scalar) of a minibatch according to a nb model.
+    """
+    Log likelihood (scalar) of a minibatch according to a nb model.
 
-    Variables:
-    mu: mean of the negative binomial (has to be positive support) (shape: minibatch x genes)
-    theta: inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
-    eps: numerical stability constant
+    Parameters
+    ----------
+    x
+        data
+    mu
+        mean of the negative binomial (has to be positive support) (shape: minibatch x genes)
+    theta
+        inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
+    eps
+        numerical stability constant
+
+    Notes
+    -----
+    We parametrize the bernoulli using the logits, hence the softplus functions appearing.
 
     """
     if theta.ndimension() == 1:
@@ -84,25 +101,29 @@ def log_nb_positive(x, mu, theta, eps=1e-8):
 
 
 def log_mixture_nb(x, mu_1, mu_2, theta_1, theta_2, pi, eps=1e-8):
-    """Note: All inputs should be torch Tensors
-    log likelihood (scalar) of a minibatch according to a mixture nb model.
-    pi is the probability to be in the first component.
+    """
+    Log likelihood (scalar) of a minibatch according to a mixture nb model.
 
+    pi is the probability to be in the first component.
     For totalVI, the first component should be background.
 
     Parameters
     ----------
-    mu1: mean of the first negative binomial component (has to be positive support) (shape: minibatch x genes)
-    theta1: first inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
-    mu2: mean of the second negative binomial (has to be positive support) (shape: minibatch x genes)
-    theta2: second inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
+    x
+        data
+    mu1
+        mean of the first negative binomial component (has to be positive support) (shape: minibatch x features)
+    mu2
+        mean of the second negative binomial (has to be positive support) (shape: minibatch x features)
+    theta1
+        first inverse dispersion parameter (has to be positive support) (shape: minibatch x features)
+    theta2
+        second inverse dispersion parameter (has to be positive support) (shape: minibatch x features)
         If None, assume one shared inverse dispersion parameter.
-    eps: numerical stability constant
-
-
-    Returns
-    -------
-
+    pi
+        Probability of belonging to mixture component 1
+    eps
+        numerical stability constant
     """
     if theta_2 is not None:
         log_nb_1 = log_nb_positive(x, mu_1, theta_1)
@@ -145,15 +166,16 @@ def log_mixture_nb(x, mu_1, mu_2, theta_1, theta_2, pi, eps=1e-8):
 
 
 def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):
-    r"""NB parameterizations conversion
+    r"""
+    NB parameterizations conversion.
 
     Parameters
     ----------
-    mu :
+    mu
         mean of the NB distribution.
-    theta :
+    theta
         inverse overdispersion.
-    eps :
+    eps
         constant used for numerical log stability. (Default value = 1e-6)
 
     Returns
@@ -171,13 +193,14 @@ def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):
 
 
 def _convert_counts_logits_to_mean_disp(total_count, logits):
-    """NB parameterizations conversion
+    """
+    NB parameterizations conversion.
 
     Parameters
     ----------
-    total_count :
+    total_count
         Number of failures until the experiment is stopped.
-    logits :
+    logits
         success logits.
 
     Returns
@@ -200,23 +223,29 @@ def _gamma(theta, mu):
 
 
 class NegativeBinomial(Distribution):
-    r"""Negative Binomial(NB) distribution using two parameterizations:
+    """
+    Negative binomial distribution.
+
+    One of the following parameterizations must be provided:
 
     - (`total_count`, `probs`) where `total_count` is the number of failures
         until the experiment is stopped
         and `probs` the success probability.
-    - The (`mu`, `theta`) parameterization is the one used by scVI. These parameters respectively
-    control the mean and overdispersion of the distribution.
-
-    `_convert_mean_disp_to_counts_logits` and `_convert_counts_logits_to_mean_disp` provide ways to convert
-    one parameterization to another.
+    - The (`mu`, `theta`) parameterization is the one used by scvi=tool. These parameters respectively
+        control the mean and overdispersion of the distribution.
 
     Parameters
     ----------
-
-    Returns
-    -------
+    total_count
+        Number of failures until the experiment is stopped.
+    probs
+        The success probability.
+    mu
+        Mean of the distribution.
+    theta
+        Inverse dispersion.
     """
+
     arg_constraints = {
         "mu": constraints.greater_than_eq(0),
         "theta": constraints.greater_than_eq(0),
@@ -225,12 +254,12 @@ class NegativeBinomial(Distribution):
 
     def __init__(
         self,
-        total_count: torch.Tensor = None,
-        probs: torch.Tensor = None,
-        logits: torch.Tensor = None,
-        mu: torch.Tensor = None,
-        theta: torch.Tensor = None,
-        validate_args=True,
+        total_count: Optional[torch.Tensor] = None,
+        probs: Optional[torch.Tensor] = None,
+        logits: Optional[torch.Tensor] = None,
+        mu: Optional[torch.Tensor] = None,
+        theta: Optional[torch.Tensor] = None,
+        validate_args: bool = True,
     ):
         self._eps = 1e-8
         if (mu is None) == (total_count is None):
@@ -252,7 +281,9 @@ class NegativeBinomial(Distribution):
         self.theta = theta
         super().__init__(validate_args=validate_args)
 
-    def sample(self, sample_shape=torch.Size()):
+    def sample(
+        self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
+    ) -> torch.Tensor:
         with torch.no_grad():
             gamma_d = self._gamma()
             p_means = gamma_d.sample(sample_shape)
@@ -265,7 +296,7 @@ class NegativeBinomial(Distribution):
             ).sample()  # Shape : (n_samples, n_cells_batch, n_genes)
             return counts
 
-    def log_prob(self, value):
+    def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         if self._validate_args:
             try:
                 self._validate_sample(value)
@@ -281,26 +312,31 @@ class NegativeBinomial(Distribution):
 
 
 class ZeroInflatedNegativeBinomial(NegativeBinomial):
-    r"""Zero Inflated Negative Binomial distribution.
+    """
+    Zero-inflated negative binomial distribution.
 
-    zi_logits correspond to the zero-inflation logits
-        mu + mu ** 2 / theta
-    The negative binomial component parameters can follow two two parameterizations:
-    - The first one corresponds to the parameterization NB(`total_count`, `probs`)
-        where `total_count` is the number of failures until the experiment is stopped
+    One of the following parameterizations must be provided:
+
+    - (`total_count`, `probs`) where `total_count` is the number of failures
+        until the experiment is stopped
         and `probs` the success probability.
-    - The (`mu`, `theta`) parameterization is the one used by scVI. These parameters respectively
-    control the mean and overdispersion of the distribution.
-
-    `_convert_mean_disp_to_counts_logits` and `_convert_counts_logits_to_mean_disp`
-    provide ways to convert one parameterization to another.
+    - The (`mu`, `theta`) parameterization is the one used by scvi=tool. These parameters respectively
+        control the mean and overdispersion of the distribution.
 
     Parameters
     ----------
-
-    Returns
-    -------
+    total_count
+        Number of failures until the experiment is stopped.
+    probs
+        The success probability.
+    mu
+        Mean of the distribution.
+    theta
+        Inverse dispersion.
+    zi_logits
+        Logits scale of zero inflation probability.
     """
+
     arg_constraints = {
         "mu": constraints.greater_than_eq(0),
         "theta": constraints.greater_than_eq(0),
@@ -311,13 +347,13 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
 
     def __init__(
         self,
-        total_count: torch.Tensor = None,
-        probs: torch.Tensor = None,
-        logits: torch.Tensor = None,
-        mu: torch.Tensor = None,
-        theta: torch.Tensor = None,
-        zi_logits: torch.Tensor = None,
-        validate_args=True,
+        total_count: Optional[torch.Tensor] = None,
+        probs: Optional[torch.Tensor] = None,
+        logits: Optional[torch.Tensor] = None,
+        mu: Optional[torch.Tensor] = None,
+        theta: Optional[torch.Tensor] = None,
+        zi_logits: Optional[torch.Tensor] = None,
+        validate_args: bool = True,
     ):
 
         super().__init__(
@@ -361,15 +397,23 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
 
 
 class NegativeBinomialMixture(Distribution):
-    r"""
+    """
     Negative binomial mixture distribution.
 
     Parameters
     ----------
-
-    Returns
-    -------
+    mu1
+        Mean of the component 1 distribution.
+    mu2
+        Mean of the component 2 distribution.
+    theta1
+        Inverse dispersion for component 1.
+    mixture_logits
+        Logits scale probability of belonging to component 1.
+    theta2
+        Inverse dispersion for component 1. If `None`, assumed to be equal to `theta1`.
     """
+
     arg_constraints = {
         "mu1": constraints.greater_than_eq(0),
         "mu2": constraints.greater_than_eq(0),
@@ -386,7 +430,7 @@ class NegativeBinomialMixture(Distribution):
         theta1: torch.Tensor,
         mixture_logits: torch.Tensor,
         theta2: Optional[torch.Tensor] = None,
-        validate_args=True,
+        validate_args: bool = True,
     ):
 
         (

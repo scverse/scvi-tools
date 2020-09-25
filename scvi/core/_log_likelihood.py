@@ -9,7 +9,8 @@ from scvi import _CONSTANTS
 
 
 def compute_elbo(vae, data_loader, **kwargs):
-    """Computes the ELBO.
+    """
+    Computes the ELBO.
 
     The ELBO is the reconstruction error + the KL divergences
     between the variational distributions and the priors.
@@ -43,7 +44,8 @@ def compute_elbo(vae, data_loader, **kwargs):
 
 
 def compute_reconstruction_error(vae, data_loader, **kwargs):
-    """Computes log p(x/z), which is the reconstruction error.
+    """
+    Computes log p(x/z), which is the reconstruction error.
 
     Differs from the marginal log likelihood, but still gives good
     insights on the modeling of the data, and is fast to compute.
@@ -78,7 +80,8 @@ def compute_reconstruction_error(vae, data_loader, **kwargs):
 
 
 def compute_marginal_log_likelihood_scvi(vae, data_loader, n_samples_mc=100):
-    """Computes a biased estimator for log p(x), which is the marginal log likelihood.
+    """
+    Computes a biased estimator for log p(x), which is the marginal log likelihood.
 
     Despite its bias, the estimator still converges to the real value
     of log p(x) when n_samples_mc (for Monte Carlo) goes to infinity
@@ -142,7 +145,8 @@ def compute_marginal_log_likelihood_scvi(vae, data_loader, n_samples_mc=100):
 
 
 def compute_marginal_log_likelihood_autozi(autozivae, data_loader, n_samples_mc=100):
-    """Computes a biased estimator for log p(x), which is the marginal log likelihood.
+    """
+    Computes a biased estimator for log p(x), which is the marginal log likelihood.
 
     Despite its bias, the estimator still converges to the real value
     of log p(x) when n_samples_mc (for Monte Carlo) goes to infinity
