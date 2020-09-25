@@ -3,11 +3,14 @@ import pytest
 import torch
 
 from scvi.core import unsupervised_clustering_accuracy
-from scvi.core._distributions import (
+from scvi.core.distributions import (
     ZeroInflatedNegativeBinomial,
     NegativeBinomial,
 )
-from scvi.core._log_likelihood import log_zinb_positive, log_nb_positive
+from scvi.core.distributions._negative_binomial import (
+    log_zinb_positive,
+    log_nb_positive,
+)
 
 use_cuda = True
 
