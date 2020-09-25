@@ -59,7 +59,7 @@ def _load_pbmcs_10x_cite_seq(
     del dataset1.uns["protein_names"]
     del dataset2.uns["protein_names"]
 
-    dataset = dataset1.concatenate(dataset2, join=protein_join)
+    dataset = anndata.concat([dataset1, dataset2], join=protein_join)
     dataset.obsm["protein_expression"] = dataset.obsm["protein_expression"].fillna(0)
     dataset.obs["labels"] = np.zeros(dataset.shape[0], dtype=np.int64)
     dataset.obs["batch"] = dataset.obs["batch"].astype(np.int64)
@@ -120,8 +120,8 @@ def _load_spleen_lymph_cite_seq(
     del dataset1.uns["protein_names"]
     del dataset2.uns["protein_names"]
 
-    dataset = dataset1.concatenate(
-        dataset2, join=protein_join, batch_key="anndata_batch"
+    dataset = anndata.concat(
+        [dataset1, dataset2], join=protein_join, batch_key="anndata_batch"
     )
     del dataset.obs["anndata_batch"]
     dataset.obsm["protein_expression"] = dataset.obsm["protein_expression"].fillna(0)
