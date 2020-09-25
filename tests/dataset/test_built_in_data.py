@@ -96,3 +96,4 @@ class TestCsvDataset(TestCase):
 @pytest.mark.internet
 def test_download_spleen_lymph_data(save_path):
     scvi.data.spleen_lymph_cite_seq(save_path=save_path)
+    scvi.data.spleen_lymph_cite_seq(save_path=save_path, protein_join="outer")

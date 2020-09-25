@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import anndata
 import os
 
@@ -37,11 +36,13 @@ def _load_pbmcs_10x_cite_seq(
     save_fn = "pbmc_10k_protein_v3.h5ad"
     _download(url, save_path, save_fn)
     dataset1 = anndata.read_h5ad(os.path.join(save_path, save_fn))
+    dataset1.obs["batch"] = "PBMC10k"
 
     url = "https://github.com/YosefLab/scVI-data/raw/master/pbmc_5k_protein_v3.h5ad?raw=true"
     save_fn = "pbmc_5k_protein_v3.h5ad"
     _download(url, save_path, save_fn)
     dataset2 = anndata.read_h5ad(os.path.join(save_path, "pbmc_5k_protein_v3.h5ad"))
+    dataset2.obs["batch"] = "PBMC5k"
 
     common_genes = dataset1.var_names.intersection(dataset2.var_names)
     dataset1 = dataset1[:, common_genes]
@@ -59,16 +60,13 @@ def _load_pbmcs_10x_cite_seq(
     del dataset1.uns["protein_names"]
     del dataset2.uns["protein_names"]
 
-    dataset = dataset1.concatenate(dataset2, join=protein_join)
+    dataset = anndata.concat([dataset1, dataset2], join=protein_join)
     dataset.obsm["protein_expression"] = dataset.obsm["protein_expression"].fillna(0)
-    dataset.obs["labels"] = np.zeros(dataset.shape[0], dtype=np.int64)
-    dataset.obs["batch"] = dataset.obs["batch"].astype(np.int64)
 
     if run_setup_anndata:
         setup_anndata(
             dataset,
             batch_key="batch",
-            labels_key="labels",
             protein_expression_obsm_key="protein_expression",
         )
 
@@ -107,6 +105,8 @@ def _load_spleen_lymph_cite_seq(
     save_fn = "sln_111.h5ad"
     _download(url, save_path, save_fn)
     dataset1 = anndata.read_h5ad(os.path.join(save_path, save_fn))
+    dataset1.obsm["isotypes_htos"] = dataset1.obsm["htos"].copy()
+    del dataset1.obsm["htos"]
 
     url = "https://github.com/YosefLab/scVI-data/raw/master/sln_208.h5ad?raw=true"
     save_fn = "sln_208.h5ad"
@@ -120,10 +120,10 @@ def _load_spleen_lymph_cite_seq(
     del dataset1.uns["protein_names"]
     del dataset2.uns["protein_names"]
 
-    dataset = dataset1.concatenate(
-        dataset2, join=protein_join, batch_key="anndata_batch"
+    dataset = anndata.concat(
+        [dataset1, dataset2],
+        join=protein_join,
     )
-    del dataset.obs["anndata_batch"]
     dataset.obsm["protein_expression"] = dataset.obsm["protein_expression"].fillna(0)
 
     if remove_outliers:
