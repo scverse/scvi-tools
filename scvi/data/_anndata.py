@@ -1,4 +1,5 @@
 import warnings
+import pdb
 import numpy as np
 import logging
 import pandas as pd
@@ -13,6 +14,7 @@ from scvi.data._utils import (
     _get_batch_mask_protein_data,
 )
 from pandas.api.types import CategoricalDtype
+from scipy.sparse import csr_matrix, isspmatrix
 
 from scvi import _CONSTANTS
 
@@ -240,10 +242,52 @@ def setup_anndata(
         categorical_covariate_keys,
         continuous_covariate_keys,
     )
+
     logger.info("Please do not further modify adata until model is trained.")
+
+    _verify_and_correct_data_format(adata, data_registry)
 
     if copy:
         return adata
+
+
+def _set_data_in_registry(adata, data, key):
+    import pdb
+
+    use_raw = adata.uns["_scvi"]["use_raw"]
+    data_loc = adata.uns["_scvi"]["data_registry"][key]
+    attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
+
+    if use_raw is True and attr_name in ["X", "var"]:
+        adata = adata.raw
+    if attr_key == "None":
+        try:
+            setattr(adata, attr_name, data)
+        except:
+            pdb.set_trace()
+
+    elif attr_key != "None":
+        attribute = getattr(adata, attr_name)
+        if isinstance(attribute, pd.DataFrame):
+            try:
+                attribute.loc[:, attr_key] = data
+            except:
+                import pdb
+
+                pdb.set_trace()
+        else:
+            attribute[attr_key] = data
+        setattr(adata, attr_name, attribute)
+
+
+def _verify_and_correct_data_format(adata, data_registry):
+    for k in data_registry.keys():
+        data = get_from_registry(adata, k)
+        if isspmatrix(data):
+            data = data.tocsr()
+        elif isinstance(data, np.ndarray):
+            data = np.asarray(data, order="C")
+        _set_data_in_registry(adata, data, k)
 
 
 def register_tensor_from_anndata(
@@ -287,7 +331,10 @@ def register_tensor_from_anndata(
     new_dict = {
         registry_key: {"attr_name": adata_attr_name, "attr_key": adata_key_name}
     }
-    adata.uns["_scvi"]["data_registry"].update(new_dict)
+
+    data_registry = adata.uns["_scvi"]["data_registry"]
+    data_registry.update(new_dict)
+    _verify_and_correct_data_format(adata, data_registry)
 
 
 def transfer_anndata_setup(
@@ -420,6 +467,7 @@ def transfer_anndata_setup(
         source_cat_dict,
         obs_keys_names,
     )
+    _verify_and_correct_data_format(adata_target, data_registry)
 
 
 def _transfer_protein_expression(_scvi_dict, adata_target):
@@ -683,9 +731,6 @@ def _setup_x(adata, layer, use_raw):
         logger.info('Using data from adata.layers["{}"]'.format(layer))
         x_loc = "layers"
         x_key = layer
-        # C order is much faster than F, possible bug in anndata
-        if isinstance(adata.layers[x_key], np.ndarray):
-            adata.layers[x_key] = np.asarray(adata.layers[x_key], order="C")
         x = adata.layers[x_key]
     else:
         logger.info("Using data from adata.X")
