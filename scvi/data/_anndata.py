@@ -309,15 +309,21 @@ def _verify_and_correct_data_format(adata, data_registry):
     for k in keys:
         data = get_from_registry(adata, k)
         if isspmatrix(data) and (data.getformat() != "csr"):
+            logger.debug("{} is csc_matrix. Overwriting to csr_matrix.".format(k))
             data = data.tocsr()
             _set_data_in_registry(adata, data, k)
         elif isinstance(data, np.ndarray) and (data.flags["C_CONTIGUOUS"] is False):
+            logger.debug(
+                "{} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.".format(k)
+            )
             data = np.asarray(data, order="C")
             _set_data_in_registry(adata, data, k)
-        # TODO when we support obsm as sparse dataframe, need to modify this function
         elif isinstance(data, pd.DataFrame) and (
             data.values.flags["C_CONTIGUOUS"] is False
         ):
+            logger.debug(
+                "{} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.".format(k)
+            )
             index = data.index
             vals = data.values
             columns = data.columns
