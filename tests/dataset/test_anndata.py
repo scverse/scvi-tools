@@ -105,10 +105,10 @@ def test_data_format():
     # if data was dense np array, check after setup_anndata, data is C_CONTIGUOUS
     adata = synthetic_iid(run_setup_anndata=False)
 
-    old_X = adata.X
+    old_x = adata.X
     old_pro = adata.obsm["protein_expression"]
     old_obs = adata.obs
-    adata.X = np.asfortranarray(old_X)
+    adata.X = np.asfortranarray(old_x)
     adata.obsm["protein_expression"] = np.asfortranarray(old_pro)
     assert adata.X.flags["C_CONTIGUOUS"] is False
     assert adata.obsm["protein_expression"].flags["C_CONTIGUOUS"] is False
@@ -117,7 +117,7 @@ def test_data_format():
     assert adata.X.flags["C_CONTIGUOUS"] is True
     assert adata.obsm["protein_expression"].flags["C_CONTIGUOUS"] is True
 
-    assert np.array_equal(old_X, adata.X)
+    assert np.array_equal(old_x, adata.X)
     assert np.array_equal(old_pro, adata.obsm["protein_expression"])
     assert np.array_equal(old_obs, adata.obs)
 
@@ -131,14 +131,14 @@ def test_data_format():
     adata = synthetic_iid(run_setup_anndata=False)
     adata.X = csc_matrix(adata.X)
     adata.obsm["protein_expression"] = csc_matrix(adata.obsm["protein_expression"])
-    old_X = adata.X
+    old_x = adata.X
     old_pro = adata.obsm["protein_expression"]
     setup_anndata(adata, protein_expression_obsm_key="protein_expression")
 
     assert adata.X.getformat() == "csr"
     assert adata.obsm["protein_expression"].getformat() == "csr"
 
-    assert np.array_equal(old_X.toarray(), adata.X.toarray())
+    assert np.array_equal(old_x.toarray(), adata.X.toarray())
     assert np.array_equal(old_pro.toarray(), adata.obsm["protein_expression"].toarray())
 
     assert np.array_equal(
