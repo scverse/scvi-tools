@@ -6,17 +6,16 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.distributions import Normal
+from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
 from torch.nn import ModuleList
 
-from scvi.core._distributions import (
+from scvi.core.distributions import (
     NegativeBinomial,
-    Poisson,
     ZeroInflatedNegativeBinomial,
 )
 
-from ._base import Encoder, MultiDecoder, MultiEncoder
+from ._base import Encoder, MultiEncoder, MultiDecoder
 from .utils import one_hot
 
 torch.backends.cudnn.benchmark = True

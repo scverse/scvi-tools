@@ -7,7 +7,7 @@ from scipy.special import logit
 from torch.distributions import Beta, Gamma, Normal
 from torch.distributions import kl_divergence as kl
 
-from scvi.core._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
+from scvi.core.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 
 from .utils import one_hot
 from .vae import VAE

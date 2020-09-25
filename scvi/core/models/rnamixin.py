@@ -11,7 +11,7 @@ from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
-from scvi.core._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
+from scvi.core.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.core.models._utils import _de_core
 from scvi.model._utils import (
     _get_batch_code_from_category,

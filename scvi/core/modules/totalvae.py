@@ -9,8 +9,11 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
-from scvi.core._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
-from scvi.core._log_likelihood import log_mixture_nb
+from scvi.core.distributions import (
+    NegativeBinomial, 
+    NegativeBinomialMixture, 
+    ZeroInflatedNegativeBinomial,
+)
 
 from ._base import DecoderTOTALVI, EncoderTOTALVI
 from .utils import one_hot
@@ -303,9 +306,13 @@ class TOTALVAE(nn.Module):
                 .sum(dim=-1)
             )
 
-        reconst_loss_protein_full = -log_mixture_nb(
-            y, py_["rate_back"], py_["rate_fore"], py_["r"], None, py_["mixing"]
+        py_conditional = NegativeBinomialMixture(
+            mu1=py_["rate_back"],
+            mu2=py_["rate_fore"],
+            theta1=py_["r"],
+            mixture_logits=py_["mixing"],
         )
+        reconst_loss_protein_full = -py_conditional.log_prob(y)
         if pro_batch_mask_minibatch is not None:
             temp_pro_loss_full = torch.zeros_like(reconst_loss_protein_full)
             temp_pro_loss_full.masked_scatter_(
