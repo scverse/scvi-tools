@@ -13,10 +13,12 @@ def test_scvi():
     n_latent = 5
     adata = synthetic_iid()
     model = SCVI(adata, n_latent=n_latent)
-    model.train(1)
+    model.train(1, frequency=1)
     assert model.is_trained is True
     z = model.get_latent_representation()
     assert z.shape == (adata.shape[0], n_latent)
+    # len of history should be 2 since metrics is also run once at the very end after training
+    assert len(model.history["elbo_train_set"]) == 2
     model.get_elbo()
     model.get_marginal_ll()
     model.get_reconstruction_error()
@@ -180,7 +182,9 @@ def test_saving_and_loading(save_path):
 def test_scanvi():
     adata = synthetic_iid()
     model = SCANVI(adata, "undefined_0", n_latent=10)
-    model.train(1)
+    model.train(1, frequency=1)
+    assert len(model.history["unsupervised_trainer_history"]) == 2
+    assert len(model.history["semisupervised_trainer_history"]) == 3
     adata2 = synthetic_iid()
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3
@@ -201,7 +205,9 @@ def test_linear_scvi():
     adata = adata[:, :10].copy()
     setup_anndata(adata, use_raw=True)
     model = LinearSCVI(adata, n_latent=10)
-    model.train(1)
+    model.train(1, frequency=1)
+    assert len(model.history["elbo_train_set"]) == 2
+    assert len(model.history["elbo_test_set"]) == 2
     loadings = model.get_loadings()
     pd.testing.assert_index_equal(loadings.index, adata.raw.var_names)
     model.differential_expression(groupby="labels", group1="undefined_1")
@@ -216,7 +222,12 @@ def test_gimvi():
     model = GIMVI(adata_seq, adata_spatial, n_latent=10)
     model.get_latent_representation()
     model.get_imputed_values()
-    model.train(1)
+    model.train(1, frequency=1, early_stopping_kwargs=None)
+
+    assert len(model.history["elbo_train_0"]) == 2
+    assert len(model.history["elbo_train_1"]) == 2
+    assert len(model.history["elbo_test_0"]) == 2
+    assert len(model.history["elbo_test_1"]) == 2
 
     trainer = model.trainer
     results = pd.DataFrame(
@@ -241,7 +252,9 @@ def test_autozi():
             dispersion=disp_zi,
             zero_inflation=disp_zi,
         )
-        autozivae.train(1, lr=1e-2)
+        autozivae.train(1, lr=1e-2, frequency=1)
+        assert len(autozivae.history["elbo_train_set"]) == 2
+        assert len(autozivae.history["elbo_test_set"]) == 2
         autozivae.get_elbo(indices=autozivae.test_indices)
         autozivae.get_reconstruction_error(indices=autozivae.test_indices)
         autozivae.get_marginal_ll(indices=autozivae.test_indices)
@@ -256,7 +269,9 @@ def test_totalvi(save_path):
     n_latent = 10
 
     model = TOTALVI(adata, n_latent=n_latent)
-    model.train(1)
+    model.train(1, frequency=1, early_stopping_kwargs=None)
+    assert len(model.history["elbo_train_set"]) == 2
+    assert len(model.history["elbo_test_set"]) == 2
     assert model.is_trained is True
     z = model.get_latent_representation()
     assert z.shape == (n_obs, n_latent)

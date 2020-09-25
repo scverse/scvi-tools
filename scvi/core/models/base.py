@@ -121,6 +121,13 @@ class BaseModelClass(ABC):
     def validation_indices(self):
         return self.validation_indices_
 
+    @property
+    def history(self):
+        """Returns computed metrics during training."""
+        if self.is_trained_ is False:
+            return {}
+        return self.trainer.history
+
     def _get_user_attributes(self):
         # returns all the self attributes defined in a model class, eg, self.is_trained_
         attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))

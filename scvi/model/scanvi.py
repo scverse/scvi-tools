@@ -149,6 +149,17 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
     def _scvi_dl_class(self):
         return AnnotationDataLoader
 
+    @property
+    def history(self):
+        """Returns computed metrics during training."""
+        if self.is_trained_ is False:
+            return {}
+        else:
+            return {
+                "unsupervised_trainer_history": self._unsupervised_trainer.history,
+                "semisupervised_trainer_history": self.trainer.history,
+            }
+
     def train(
         self,
         n_epochs_unsupervised: Optional[int] = None,
@@ -186,7 +197,9 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             Number of minibatches for scaling term on KL divergence to go from 0 to 1.
             To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
         frequency
-            Frequency with which metrics are computed on the data for train/test/val sets.
+            Frequency with which metrics are computed on the data for train/test/val sets for both
+            the unsupervised and semisupervised trainers. If you'd like a different frequency for
+            the semisupervised trainer, set frequency in semisupervised_train_kwargs.
         unsupervised_trainer_kwargs
             Other keyword args for :class:`~scvi.core.trainers.UnsupervisedTrainer`.
         semisupervised_trainer_kwargs
@@ -227,13 +240,15 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         self.model.load_state_dict(self._base_model.state_dict(), strict=False)
 
+        if "frequency" not in semisupervised_trainer_kwargs and frequency is not None:
+            semisupervised_trainer_kwargs["frequency"] = frequency
+
         self.trainer = SemiSupervisedTrainer(
             self.model,
             self.adata,
             use_cuda=self.use_cuda,
             **semisupervised_trainer_kwargs,
         )
-
         self.trainer.unlabelled_set = self.trainer.create_scvi_dl(
             indices=self._unlabeled_indices
         )
@@ -241,7 +256,8 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             indices=self._labeled_indices
         )
         self.trainer.train(
-            n_epochs=n_epochs_semisupervised, **semisupervised_train_kwargs
+            n_epochs=n_epochs_semisupervised,
+            **semisupervised_train_kwargs,
         )
 
         self.is_trained_ = True
