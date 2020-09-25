@@ -374,7 +374,6 @@ class NegativeBinomialMixture(Distribution):
         "mu1": constraints.greater_than_eq(0),
         "mu2": constraints.greater_than_eq(0),
         "theta1": constraints.greater_than_eq(0),
-        "theta2": constraints.greater_than_eq(0),
         "mixture_probs": constraints.half_open_interval(0.0, 1.0),
         "mixture_logits": constraints.real,
     }
@@ -399,6 +398,8 @@ class NegativeBinomialMixture(Distribution):
 
         if theta2 is not None:
             self.theta2 = broadcast_all(mu1, theta2)
+        else:
+            self.theta2 = None
 
         super().__init__(validate_args=validate_args)
 
