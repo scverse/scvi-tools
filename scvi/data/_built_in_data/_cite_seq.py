@@ -106,6 +106,8 @@ def _load_spleen_lymph_cite_seq(
     save_fn = "sln_111.h5ad"
     _download(url, save_path, save_fn)
     dataset1 = anndata.read_h5ad(os.path.join(save_path, save_fn))
+    dataset1.obsm["isotypes_htos"] = dataset1.obsm["htos"].copy()
+    del dataset1.obsm["htos"]
 
     url = "https://github.com/YosefLab/scVI-data/raw/master/sln_208.h5ad?raw=true"
     save_fn = "sln_208.h5ad"
