@@ -1,5 +1,5 @@
-import os
 import logging
+import os
 import urllib
 
 logger = logging.getLogger(__name__)

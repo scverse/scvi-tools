@@ -1,10 +1,12 @@
+import logging
+from typing import Dict, List, Union
+
 import anndata
 import numpy as np
-from scvi.data import get_from_registry
-from typing import Union, Dict, List
-from scvi import _CONSTANTS
-import logging
 import scipy.sparse as sp_sparse
+
+from scvi import _CONSTANTS
+from scvi.data import get_from_registry
 
 logger = logging.getLogger(__name__)
 

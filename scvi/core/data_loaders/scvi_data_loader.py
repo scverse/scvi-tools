@@ -1,20 +1,20 @@
 import copy
 import logging
-from typing import List, Optional, Union, Dict
+from typing import Dict, List, Optional, Union
 
+import anndata
 import numpy as np
 import torch
-import anndata
 from torch.utils.data import DataLoader
 
-from scvi.data._scvidataset import ScviDataset
+from scvi import _CONSTANTS
 from scvi.core._log_likelihood import (
     compute_elbo,
-    compute_reconstruction_error,
-    compute_marginal_log_likelihood_scvi,
     compute_marginal_log_likelihood_autozi,
+    compute_marginal_log_likelihood_scvi,
+    compute_reconstruction_error,
 )
-from scvi import _CONSTANTS
+from scvi.data._scvidataset import ScviDataset
 
 logger = logging.getLogger(__name__)
 

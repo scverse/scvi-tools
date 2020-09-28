@@ -1,21 +1,21 @@
-import warnings
-import numpy as np
 import logging
-import pandas as pd
-import anndata
-import scvi
+import warnings
+from typing import Dict, List, Optional, Tuple, Union
 
-from typing import Dict, Tuple, Optional, Union, List
-from scvi._compat import Literal
-from scvi.data._utils import (
-    _compute_library_size_batch,
-    _check_nonnegative_integers,
-    _get_batch_mask_protein_data,
-)
+import anndata
+import numpy as np
+import pandas as pd
 from pandas.api.types import CategoricalDtype
 from scipy.sparse import isspmatrix
 
+import scvi
 from scvi import _CONSTANTS
+from scvi._compat import Literal
+from scvi.data._utils import (
+    _check_nonnegative_integers,
+    _compute_library_size_batch,
+    _get_batch_mask_protein_data,
+)
 
 logger = logging.getLogger(__name__)
 

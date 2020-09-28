@@ -1,15 +1,15 @@
-import numpy as np
 import logging
+from typing import Dict, Optional, Union
+
+import numpy as np
 import torch
 from anndata import AnnData
 
-from typing import Optional, Dict, Union
 from scvi._compat import Literal
-from scvi.core.modules import AutoZIVAE
-from scvi.core.models import VAEMixin, BaseModelClass
 from scvi.core.data_loaders import ScviDataLoader
+from scvi.core.models import BaseModelClass, VAEMixin
+from scvi.core.modules import AutoZIVAE
 from scvi.core.trainers import UnsupervisedTrainer
-
 
 logger = logging.getLogger(__name__)
 

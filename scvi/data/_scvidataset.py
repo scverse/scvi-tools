@@ -1,11 +1,12 @@
-import torch
-import pandas as pd
+import logging
+from typing import Dict, List, Union
+
 import anndata
 import numpy as np
-import logging
-
+import pandas as pd
+import torch
 from torch.utils.data import Dataset
-from typing import Union, List, Dict
+
 from scvi.data._anndata import get_from_registry
 
 logger = logging.getLogger(__name__)

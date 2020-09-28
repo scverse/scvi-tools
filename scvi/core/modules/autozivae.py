@@ -1,14 +1,16 @@
+from typing import Dict, Optional, Tuple, Union
+
+import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.distributions import Normal, Beta, Gamma, kl_divergence as kl
-import numpy as np
 from scipy.special import logit
+from torch.distributions import Beta, Gamma, Normal
+from torch.distributions import kl_divergence as kl
 
-from scvi.core._distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
-from .vae import VAE
+from scvi.core._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
+
 from .utils import one_hot
-
-from typing import Dict, Optional, Tuple, Union
+from .vae import VAE
 
 torch.backends.cudnn.benchmark = True
 

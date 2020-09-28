@@ -1,11 +1,12 @@
 import logging
 from typing import Union
-from ._compat import Literal
-from rich.logging import RichHandler
-from rich.console import Console
 
-import torch
 import numpy as np
+import torch
+from rich.console import Console
+from rich.logging import RichHandler
+
+from ._compat import Literal
 
 logger = logging.getLogger(__name__)
 scvi_logger = logging.getLogger("scvi")

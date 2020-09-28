@@ -1,19 +1,20 @@
-import torch
-import pickle
-import os
-import logging
 import inspect
-import numpy as np
+import logging
+import os
+import pickle
+from abc import ABC, abstractmethod
+from typing import Optional, Sequence
 
+import numpy as np
+import torch
 from anndata import AnnData
+
+from scvi import _CONSTANTS, settings
+from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._utils import (
     _check_anndata_setup_equivalence,
     _check_nonnegative_integers,
 )
-from scvi import _CONSTANTS, settings
-from typing import Optional, Sequence
-from abc import ABC, abstractmethod
-from scvi.data import get_from_registry, transfer_anndata_setup
 
 logger = logging.getLogger(__name__)
 

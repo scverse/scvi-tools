@@ -1,12 +1,13 @@
-import numpy as np
 import logging
 
+import numpy as np
+import torch
 from sklearn.neighbors import KNeighborsClassifier
 
-import torch
-from scvi.core.data_loaders import ScviDataLoader
-from scvi.core import unsupervised_clustering_accuracy
 from scvi import _CONSTANTS
+from scvi.core import unsupervised_clustering_accuracy
+
+from .scvi_data_loader import ScviDataLoader
 
 logger = logging.getLogger(__name__)
 

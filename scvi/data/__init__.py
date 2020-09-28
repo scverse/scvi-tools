@@ -1,34 +1,31 @@
+from anndata import read_csv, read_h5ad, read_loom, read_text
+
 from ._anndata import (
-    setup_anndata,
     get_from_registry,
-    transfer_anndata_setup,
     register_tensor_from_anndata,
-)
-from ._preprocessing import (
-    poisson_gene_selection,
-    organize_cite_seq_10x,
+    setup_anndata,
+    transfer_anndata_setup,
 )
 from ._datasets import (
-    pbmcs_10x_cite_seq,
-    purified_pbmc_dataset,
-    dataset_10x,
-    brainlarge_dataset,
-    synthetic_iid,
-    pbmc_dataset,
-    cortex,
-    seqfishplus,
-    seqfish,
-    smfish,
-    breast_cancer_dataset,
-    mouse_ob_dataset,
-    retina,
-    prefrontalcortex_starmap,
-    frontalcortex_dropseq,
     annotation_simulation,
+    brainlarge_dataset,
+    breast_cancer_dataset,
+    cortex,
+    dataset_10x,
+    frontalcortex_dropseq,
+    mouse_ob_dataset,
+    pbmc_dataset,
+    pbmcs_10x_cite_seq,
+    prefrontalcortex_starmap,
+    purified_pbmc_dataset,
+    retina,
+    seqfish,
+    seqfishplus,
+    smfish,
     spleen_lymph_cite_seq,
+    synthetic_iid,
 )
-from anndata import read_h5ad, read_csv, read_loom, read_text
-
+from ._preprocessing import organize_cite_seq_10x, poisson_gene_selection
 
 __all__ = [
     "setup_anndata",

@@ -1,13 +1,15 @@
-import numpy as np
 import inspect
-import pandas as pd
-import torch
 import logging
 import warnings
+from typing import Callable, Dict, List, Optional, Union
+
+import numpy as np
+import pandas as pd
+import torch
+
 from scvi._compat import Literal
-from typing import Union, List, Optional, Callable, Dict
-from scvi.data import get_from_registry
 from scvi._constants import _CONSTANTS
+from scvi.data import get_from_registry
 
 logger = logging.getLogger(__name__)
 

@@ -1,11 +1,13 @@
 import csv
-import anndata
-import pandas as pd
 import logging
-import numpy as np
 import os
-from scvi.data._built_in_data._utils import _download
+
+import anndata
+import numpy as np
+import pandas as pd
+
 from scvi.data._anndata import setup_anndata
+from scvi.data._built_in_data._utils import _download
 
 logger = logging.getLogger(__name__)
 

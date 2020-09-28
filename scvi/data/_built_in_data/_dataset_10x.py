@@ -1,12 +1,12 @@
 import logging
 import os
-import tarfile
-import numpy as np
 import shutil
-
+import tarfile
 from typing import Tuple
-from scvi.data._built_in_data._utils import _download
 
+import numpy as np
+
+from scvi.data._built_in_data._utils import _download
 
 logger = logging.getLogger(__name__)
 

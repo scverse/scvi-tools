@@ -1,11 +1,13 @@
-from textwrap import dedent
-from rich.progress import track as track_base
-from rich.console import Console
-from tqdm import tqdm as tqdm_base
-from typing import Iterable
-from scvi._compat import Literal
 import sys
+from textwrap import dedent
+from typing import Iterable
+
+from rich.console import Console
+from rich.progress import track as track_base
+from tqdm import tqdm as tqdm_base
+
 from scvi import settings
+from scvi._compat import Literal
 
 
 def track(

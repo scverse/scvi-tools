@@ -1,13 +1,15 @@
-from typing import Optional
-import anndata
 import logging
+from typing import Optional
+
+import anndata
+import numpy as np
 import torch
 from torch.distributions import Normal
-import numpy as np
 
-from scvi.core.data_loaders import ScviDataLoader
-from scvi.core.modules import TOTALVAE
 from scvi import _CONSTANTS
+from scvi.core.modules import TOTALVAE
+
+from .scvi_data_loader import ScviDataLoader
 
 logger = logging.getLogger(__name__)
 

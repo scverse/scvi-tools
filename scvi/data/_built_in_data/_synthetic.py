@@ -1,8 +1,10 @@
 import logging
-import pandas as pd
+
 import numpy as np
-from scvi.data import setup_anndata
+import pandas as pd
 from anndata import AnnData
+
+from scvi.data import setup_anndata
 
 logger = logging.getLogger(__name__)
 

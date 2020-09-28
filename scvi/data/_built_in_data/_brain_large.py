@@ -1,12 +1,13 @@
 import logging
+import os
+
 import anndata
 import h5py
 import numpy as np
 import scipy.sparse as sp_sparse
-import os
 
-from scvi.data._built_in_data._utils import _download
 from scvi.data._anndata import setup_anndata
+from scvi.data._built_in_data._utils import _download
 
 logger = logging.getLogger(__name__)
 

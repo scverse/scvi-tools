@@ -1,20 +1,19 @@
 import logging
 import time
-import numpy as np
-import torch
-import anndata
-
 from abc import abstractmethod
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict, defaultdict
 from itertools import cycle
 from typing import List
+
+import anndata
+import numpy as np
+import torch
 from sklearn.model_selection._split import _validate_shuffle_split
 from torch.utils.data.sampler import SubsetRandomSampler
-from scvi._utils import track
 
-from scvi.core.data_loaders import ScviDataLoader
 from scvi import _CONSTANTS
-
+from scvi._utils import track
+from scvi.core.data_loaders import ScviDataLoader
 
 logger = logging.getLogger(__name__)
 

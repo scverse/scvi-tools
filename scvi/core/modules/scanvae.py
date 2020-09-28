@@ -1,10 +1,12 @@
+from typing import Sequence
+
 import numpy as np
 import torch
+from torch.distributions import Categorical, Normal
+from torch.distributions import kl_divergence as kl
 
-from typing import Sequence
-from torch.distributions import Normal, Categorical, kl_divergence as kl
-from .classifier import Classifier
 from ._base import Decoder, Encoder
+from .classifier import Classifier
 from .utils import broadcast_labels
 from .vae import VAE
 

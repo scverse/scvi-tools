@@ -3,14 +3,10 @@ import logging
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.core.modules import VAE
-from scvi.core.models import (
-    BaseModelClass,
-    RNASeqMixin,
-    VAEMixin,
-)
-from scvi.core.trainers import UnsupervisedTrainer
 from scvi.core.data_loaders import ScviDataLoader
+from scvi.core.models import BaseModelClass, RNASeqMixin, VAEMixin
+from scvi.core.modules import VAE
+from scvi.core.trainers import UnsupervisedTrainer
 
 logger = logging.getLogger(__name__)
 

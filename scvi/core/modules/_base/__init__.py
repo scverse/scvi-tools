@@ -1,10 +1,11 @@
-import torch
 import collections
-
 from typing import Iterable, List
+
+import torch
 from torch import nn as nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
+
 from ..utils import one_hot
 
 

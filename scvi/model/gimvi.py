@@ -1,17 +1,18 @@
-import numpy as np
-import os
 import logging
+import os
 import pickle
+from typing import List, Optional
+
+import numpy as np
 import torch
 from anndata import AnnData
 
-from typing import List, Optional
-from scvi.core.modules import JVAE, Classifier
-from scvi.core.trainers.jvae_trainer import JvaeDataLoader
-from scvi.core.trainers import JVAETrainer
-from scvi.core.models import VAEMixin, BaseModelClass
-from scvi.model._utils import _get_var_names_from_setup_anndata
 from scvi import _CONSTANTS
+from scvi.core.models import BaseModelClass, VAEMixin
+from scvi.core.modules import JVAE, Classifier
+from scvi.core.trainers import JVAETrainer
+from scvi.core.trainers.jvae_trainer import JvaeDataLoader
+from scvi.model._utils import _get_var_names_from_setup_anndata
 
 logger = logging.getLogger(__name__)
 

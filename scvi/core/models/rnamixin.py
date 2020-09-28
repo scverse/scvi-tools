@@ -1,22 +1,23 @@
-import torch
 import logging
-import pandas as pd
-import numpy as np
-
-from anndata import AnnData
 from functools import partial
-from scvi.core._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
-from scvi.model._utils import (
-    scrna_raw_counts_properties,
-    _get_var_names_from_setup_anndata,
-    _get_batch_code_from_category,
-)
+from typing import Dict, Iterable, List, Optional, Sequence, Union
+
+import numpy as np
+import pandas as pd
+import torch
+from anndata import AnnData
+
 from scvi import _CONSTANTS
-from typing import Optional, Union, List, Dict, Sequence, Iterable
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
+from scvi.core._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.core.models._utils import _de_core
+from scvi.model._utils import (
+    _get_batch_code_from_category,
+    _get_var_names_from_setup_anndata,
+    scrna_raw_counts_properties,
+)
 
 logger = logging.getLogger(__name__)
 
