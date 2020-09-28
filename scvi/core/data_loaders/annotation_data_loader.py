@@ -6,7 +6,7 @@ from sklearn.neighbors import KNeighborsClassifier
 
 from scvi import _CONSTANTS
 from scvi.core import unsupervised_clustering_accuracy
-from scvi.core.data_loaders import ScviDataLoader
+from .scvi_data_loader import ScviDataLoader
 
 logger = logging.getLogger(__name__)
 
