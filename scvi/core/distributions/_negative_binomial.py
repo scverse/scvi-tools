@@ -254,6 +254,8 @@ class NegativeBinomial(Distribution):
         Mean of the distribution.
     theta
         Inverse dispersion.
+    validate_args
+        Raise ValueError if arguments do not match constraints
     """
 
     arg_constraints = {
@@ -352,6 +354,8 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         Inverse dispersion.
     zi_logits
         Logits scale of zero inflation probability.
+    validate_args
+        Raise ValueError if arguments do not match constraints
     """
 
     arg_constraints = {
@@ -438,6 +442,8 @@ class NegativeBinomialMixture(Distribution):
         Logits scale probability of belonging to component 1.
     theta2
         Inverse dispersion for component 1. If `None`, assumed to be equal to `theta1`.
+    validate_args
+        Raise ValueError if arguments do not match constraints
     """
 
     arg_constraints = {
