@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -975,6 +975,34 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             [np.asarray(var_names), self.adata.uns["scvi_protein_names"]]
         )
         return pd.DataFrame(corr_matrix, index=names, columns=names)
+
+    @torch.no_grad()
+    def get_likelihood_parameters(
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        n_samples: Optional[int] = 1,
+        give_mean: Optional[bool] = False,
+        batch_size: Optional[int] = None,
+    ) -> Dict[str, np.ndarray]:
+        r"""
+        Estimates for the parameters of the likelihood :math:`p(x, y \mid z)`
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        n_samples
+            Number of posterior samples to use for estimation.
+        give_mean
+            Return expected value of parameters or a samples
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        """
+        raise NotImplementedError
 
     def _validate_anndata(
         self, adata: Optional[AnnData] = None, copy_if_view: bool = True
