@@ -8,6 +8,16 @@ Core
 
 .. currentmodule:: scvi
 
+Distributions
+~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: reference/
+
+   core.distributions.NegativeBinomial
+   core.distributions.NegativeBinomialMixture
+   core.distributions.ZeroInflatedNegativeBinomial
+
 Models
 ~~~~~~
 

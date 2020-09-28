@@ -7,12 +7,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Normal
+from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
 
-from scvi.core._distributions import (
+from scvi.core.distributions import (
     NegativeBinomial,
-    Poisson,
     ZeroInflatedNegativeBinomial,
 )
 

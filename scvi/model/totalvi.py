@@ -12,6 +12,7 @@ from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
 from scvi.core.data_loaders import TotalDataLoader
+from scvi.core.distributions import NegativeBinomial, NegativeBinomialMixture
 from scvi.core.models import BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.models._utils import _de_core
 from scvi.core.modules import TOTALVAE
@@ -793,38 +794,18 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             px_ = outputs["px_"]
             py_ = outputs["py_"]
 
-            pi = 1 / (1 + torch.exp(-py_["mixing"]))
-            mixing_sample = torch.distributions.Bernoulli(pi).sample()
-            protein_rate = (
-                py_["rate_fore"] * (1 - mixing_sample)
-                + py_["rate_back"] * mixing_sample
-            )
-            rate = torch.cat(
-                (px_["rate"][..., gene_mask], protein_rate[..., protein_mask]), dim=-1
-            )
-            if len(px_["r"].size()) == 2:
-                px_dispersion = px_["r"]
-            else:
-                px_dispersion = torch.ones_like(x) * px_["r"]
-            if len(py_["r"].size()) == 2:
-                py_dispersion = py_["r"]
-            else:
-                py_dispersion = torch.ones_like(y) * py_["r"]
-
-            dispersion = torch.cat(
-                (px_dispersion[..., gene_mask], py_dispersion[..., protein_mask]),
-                dim=-1,
+            rna_dist = NegativeBinomial(mu=px_["rate"], theta=px_["r"])
+            protein_dist = NegativeBinomialMixture(
+                mu1=py_["rate_back"],
+                mu2=py_["rate_fore"],
+                theta1=py_["r"],
+                mixture_logits=py_["mixing"],
             )
 
-            # This gamma is really l*w using scVI manuscript notation
-            p = rate / (rate + dispersion)
-            r = dispersion
-            l_train = torch.distributions.Gamma(r, (1 - p) / p).sample()
-            data = torch.distributions.Poisson(l_train).sample().cpu().numpy()
-            # """
-            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
-            # rate = (1 - p) / p  # = 1/scale # used in pytorch
-            # """
+            rna_sample = rna_dist.sample().cpu()[..., gene_mask]
+            protein_sample = protein_dist.sample().cpu()[..., protein_mask]
+            data = torch.cat([rna_sample, protein_sample], dim=-1).numpy()
+
             scdl_list += [data]
             if n_samples > 1:
                 scdl_list[-1] = np.transpose(scdl_list[-1], (1, 2, 0))
