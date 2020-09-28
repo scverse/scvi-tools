@@ -7,8 +7,9 @@ import torch
 from torch.distributions import Normal
 
 from scvi import _CONSTANTS
-from .scvi_data_loader import ScviDataLoader
 from scvi.core.modules import TOTALVAE
+
+from .scvi_data_loader import ScviDataLoader
 
 logger = logging.getLogger(__name__)
 
