@@ -455,7 +455,23 @@ class RNASeqMixin:
         give_mean: Optional[bool] = False,
         batch_size: Optional[int] = None,
     ) -> Dict[str, np.ndarray]:
-        r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`."""
+        r"""
+        Estimates for the parameters of the likelihood :math:`p(x \mid z)`
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        n_samples
+            Number of posterior samples to use for estimation.
+        give_mean
+            Return expected value of parameters or a samples
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        """
         adata = self._validate_anndata(adata)
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
