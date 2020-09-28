@@ -10,8 +10,8 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi.core.distributions import (
-    NegativeBinomial, 
-    NegativeBinomialMixture, 
+    NegativeBinomial,
+    NegativeBinomialMixture,
     ZeroInflatedNegativeBinomial,
 )
 
