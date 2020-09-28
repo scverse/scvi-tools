@@ -1,17 +1,17 @@
 import logging
+from typing import Optional, Sequence, Union
+
 import numpy as np
 import pandas as pd
-
-from typing import Union, Optional, Sequence
 from anndata import AnnData
 
 from scvi import _CONSTANTS
-from scvi.model import SCVI
-from scvi.core.models import BaseModelClass, RNASeqMixin, VAEMixin
-from scvi.core.modules import VAE, SCANVAE
-from scvi.core.trainers import UnsupervisedTrainer, SemiSupervisedTrainer
-from scvi.core.data_loaders import AnnotationDataLoader
 from scvi._compat import Literal
+from scvi.core.data_loaders import AnnotationDataLoader
+from scvi.core.models import BaseModelClass, RNASeqMixin, VAEMixin
+from scvi.core.modules import SCANVAE, VAE
+from scvi.core.trainers import SemiSupervisedTrainer, UnsupervisedTrainer
+from scvi.model import SCVI
 
 logger = logging.getLogger(__name__)
 

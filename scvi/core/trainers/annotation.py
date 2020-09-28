@@ -1,15 +1,15 @@
-import numpy as np
 import logging
-import torch
 
+import numpy as np
+import torch
 from torch.nn import functional as F
 
-from .trainer import Trainer
-from .inference import UnsupervisedTrainer
+from scvi import _CONSTANTS
 from scvi.core.data_loaders import AnnotationDataLoader
 from scvi.data._anndata import get_from_registry
-from scvi import _CONSTANTS
 
+from .inference import UnsupervisedTrainer
+from .trainer import Trainer
 
 logger = logging.getLogger(__name__)
 

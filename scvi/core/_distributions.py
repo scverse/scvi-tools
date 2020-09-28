@@ -1,13 +1,13 @@
-from typing import Union, Tuple
 import warnings
+from typing import Tuple, Union
 
 import torch
-from torch.distributions import constraints, Distribution, Gamma, Poisson
+from torch.distributions import Distribution, Gamma, Poisson, constraints
 from torch.distributions.utils import (
     broadcast_all,
-    probs_to_logits,
     lazy_property,
     logits_to_probs,
+    probs_to_logits,
 )
 
 from ._log_likelihood import log_nb_positive, log_zinb_positive

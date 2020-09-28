@@ -1,10 +1,11 @@
-import torch
 import logging
-import numpy as np
-
-from anndata import AnnData
-from scvi import _CONSTANTS
 from typing import Optional, Sequence
+
+import numpy as np
+import torch
+from anndata import AnnData
+
+from scvi import _CONSTANTS
 from scvi.core.trainers import UnsupervisedTrainer
 
 logger = logging.getLogger(__name__)

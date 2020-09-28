@@ -1,28 +1,27 @@
 import logging
-import torch
+from functools import partial
+from typing import Iterable, List, Optional, Sequence, Tuple, Union
+
 import numpy as np
 import pandas as pd
-
+import torch
 from anndata import AnnData
-from typing import Optional, Union, List, Tuple, Sequence, Iterable
-from functools import partial
 
 from scvi import _CONSTANTS
-from scvi.data import get_from_registry
-from scvi.data._utils import _check_nonnegative_integers
 from scvi._compat import Literal
-from scvi.core.modules import TOTALVAE
-from scvi.core.models import BaseModelClass, VAEMixin, RNASeqMixin
-from scvi.core.models._utils import _de_core
-from scvi.core.data_loaders import TotalDataLoader
-from scvi.core.trainers import TotalTrainer
-from scvi.model._utils import (
-    cite_seq_raw_counts_properties,
-    _get_var_names_from_setup_anndata,
-)
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
-
+from scvi.core.data_loaders import TotalDataLoader
+from scvi.core.models import BaseModelClass, RNASeqMixin, VAEMixin
+from scvi.core.models._utils import _de_core
+from scvi.core.modules import TOTALVAE
+from scvi.core.trainers import TotalTrainer
+from scvi.data import get_from_registry
+from scvi.data._utils import _check_nonnegative_integers
+from scvi.model._utils import (
+    _get_var_names_from_setup_anndata,
+    cite_seq_raw_counts_properties,
+)
 
 logger = logging.getLogger(__name__)
 

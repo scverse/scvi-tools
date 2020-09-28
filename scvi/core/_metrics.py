@@ -1,18 +1,18 @@
+import logging
+from typing import Tuple, Union
+
 import numpy as np
 import scipy
 import torch
-
-from typing import Union, Tuple
-import logging
-
 from scipy.optimize import linear_sum_assignment
-from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import KMeans
-from sklearn.metrics import adjusted_rand_score
-from sklearn.metrics import normalized_mutual_info_score
-from sklearn.metrics import silhouette_score
+from sklearn.metrics import (
+    adjusted_rand_score,
+    normalized_mutual_info_score,
+    silhouette_score,
+)
 from sklearn.mixture import GaussianMixture
-
+from sklearn.neighbors import NearestNeighbors
 
 logger = logging.getLogger(__name__)
 

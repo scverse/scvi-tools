@@ -1,14 +1,14 @@
-from typing import Union
-import anndata
 import logging
+from typing import Union
+
+import anndata
 import torch
 
-from scvi.core.trainers import UnsupervisedTrainer
-from scvi.core.data_loaders import TotalDataLoader
-from scvi.core.modules import TOTALVAE
-from scvi.core.modules import Classifier
-from scvi.core.modules.utils import one_hot
 from scvi import _CONSTANTS
+from scvi.core.data_loaders import TotalDataLoader
+from scvi.core.modules import TOTALVAE, Classifier
+from scvi.core.modules.utils import one_hot
+from scvi.core.trainers import UnsupervisedTrainer
 
 logger = logging.getLogger(__name__)
 

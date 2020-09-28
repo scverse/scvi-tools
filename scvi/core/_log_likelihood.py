@@ -2,9 +2,9 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
-
 from torch import logsumexp
-from torch.distributions import Normal, Beta
+from torch.distributions import Beta, Normal
+
 from scvi import _CONSTANTS
 
 

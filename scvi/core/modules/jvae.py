@@ -1,20 +1,22 @@
 # -*- coding: utf-8 -*-
 """Main module."""
-from typing import List, Optional, Union, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.distributions import Normal, kl_divergence as kl
+from torch.distributions import Normal
+from torch.distributions import kl_divergence as kl
 from torch.nn import ModuleList
 
 from scvi.core._distributions import (
     NegativeBinomial,
-    ZeroInflatedNegativeBinomial,
     Poisson,
+    ZeroInflatedNegativeBinomial,
 )
-from ._base import Encoder, MultiEncoder, MultiDecoder
+
+from ._base import Encoder, MultiDecoder, MultiEncoder
 from .utils import one_hot
 
 torch.backends.cudnn.benchmark = True

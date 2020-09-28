@@ -1,5 +1,4 @@
 import datetime
-import anndata
 import logging
 import multiprocessing
 import os
@@ -8,26 +7,26 @@ import threading
 import time
 from collections import defaultdict
 from functools import partial, wraps
-from logging.handlers import QueueListener, QueueHandler
+from logging.handlers import QueueHandler, QueueListener
 from queue import Empty
 from subprocess import Popen
 from typing import Any, Callable, Dict, List, TextIO, Type, Union
 
+import anndata
 import numpy as np
 import pymongo
 import torch
 import tqdm
-from hyperopt import fmin, tpe, Trials, hp, STATUS_OK, STATUS_FAIL
+from hyperopt import STATUS_FAIL, STATUS_OK, Trials, fmin, hp, tpe
 from hyperopt.mongoexp import (
-    as_mongo_str,
     MongoJobs,
     MongoTrials,
     MongoWorker,
     ReserveTimeout,
+    as_mongo_str,
 )
 
 from scvi._settings import autotune_formatter
-
 from scvi.core.models import BaseModelClass
 from scvi.core.trainers.trainer import Trainer
 from scvi.model import SCVI

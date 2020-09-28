@@ -1,11 +1,11 @@
-import scipy.sparse as sp_sparse
-import pandas as pd
-import anndata
 import logging
-import numpy as np
-import numba
-from typing import Union, Tuple
+from typing import Tuple, Union
 
+import anndata
+import numba
+import numpy as np
+import pandas as pd
+import scipy.sparse as sp_sparse
 
 logger = logging.getLogger(__name__)
 

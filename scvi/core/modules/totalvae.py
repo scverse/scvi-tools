@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 """Main module."""
+from typing import Dict, List, Optional, Tuple, Union
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
+from torch.distributions import Normal
+from torch.distributions import kl_divergence as kl
 
-from torch.distributions import Normal, kl_divergence as kl
-from typing import Dict, Optional, Tuple, Union, List
-from scvi.core._distributions import ZeroInflatedNegativeBinomial, NegativeBinomial
+from scvi.core._distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.core._log_likelihood import log_mixture_nb
+
 from ._base import DecoderTOTALVI, EncoderTOTALVI
 from .utils import one_hot
 

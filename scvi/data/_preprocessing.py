@@ -1,10 +1,11 @@
-import numpy as np
 import logging
-import pandas as pd
+from typing import Optional
+
 import anndata
+import numpy as np
+import pandas as pd
 import torch
 
-from typing import Optional
 from scvi._utils import track
 
 from ._utils import _check_nonnegative_integers

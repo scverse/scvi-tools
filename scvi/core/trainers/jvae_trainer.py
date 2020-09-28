@@ -1,18 +1,17 @@
 import logging
-import anndata
-import torch
-import numpy as np
-
-from torch import nn
 from functools import partial
 from itertools import cycle
-from typing import List, Tuple, Union, Iterable
+from typing import Iterable, List, Tuple, Union
 
+import anndata
+import numpy as np
+import torch
+from torch import nn
+
+from scvi import _CONSTANTS
+from scvi.core._log_likelihood import compute_elbo
 from scvi.core.data_loaders import ScviDataLoader
 from scvi.core.trainers.trainer import Trainer
-from scvi.core._log_likelihood import compute_elbo
-from scvi import _CONSTANTS
-
 
 logger = logging.getLogger(__name__)
 
