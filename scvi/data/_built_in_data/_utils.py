@@ -1,6 +1,10 @@
 import logging
+import numpy as np
 import os
 import urllib
+
+import scvi
+from scvi._utils import track
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +31,18 @@ def _download(url: str, save_path: str, filename: str):
     # Create the path to save the data
     if not os.path.exists(save_path):
         os.makedirs(save_path)
+    block_size = 1000
 
+    user_progress_bar_style = scvi.settings.progress_bar_style
+
+    # force progress bar style
+    scvi.settings.progress_bar_style = "tqdm"
+
+    filesize = int(r.getheader("Content-Length"))
+    filesize = np.rint(filesize / block_size)
     with open(os.path.join(save_path, filename), "wb") as f:
-        for data in read_iter(r):
+        iterator = read_iter(r, block_size=block_size)
+        for data in track(iterator, total=filesize, description="Downloading..."):
             f.write(data)
+
+    scvi.settings.progress_bar_style = user_progress_bar_style
