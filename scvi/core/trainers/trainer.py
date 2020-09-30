@@ -1,4 +1,5 @@
 import logging
+import math
 import time
 from abc import abstractmethod
 from collections import OrderedDict, defaultdict
@@ -212,7 +213,8 @@ class Trainer:
         self.on_training_end()
 
     def on_training_loop(self, tensors_dict):
-        self.current_loss = loss = self.loss(*tensors_dict)
+        loss = self.loss(*tensors_dict)
+        self.current_loss = loss.item()
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -267,6 +269,7 @@ class Trainer:
     def on_training_end(self):
         pass
 
+    @torch.no_grad()
     def check_training_status(self):
         """
         Checks if loss is admissible.
@@ -276,7 +279,7 @@ class Trainer:
 
         `max_nans` is the maximum number of consecutive NaNs after which a ValueError will be
         """
-        loss_is_nan = torch.isnan(self.current_loss).item()
+        loss_is_nan = math.isnan(self.current_loss)
         if loss_is_nan:
             logger.warning("Model training loss was NaN")
             self.nan_counter += 1

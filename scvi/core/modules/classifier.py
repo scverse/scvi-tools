@@ -36,10 +36,8 @@ class Classifier(nn.Module):
         super().__init__()
         layers = [
             FCLayers(
-                n_in=n_input,
-                n_out=n_hidden,
-                n_layers=n_layers,
-                n_hidden=n_hidden,
+                n_input=n_input,
+                n_hidden=[n_hidden] * n_layers,
                 dropout_rate=dropout_rate,
                 use_batch_norm=True,
             ),

@@ -181,7 +181,7 @@ def test_saving_and_loading(save_path):
 
 def test_scanvi():
     adata = synthetic_iid()
-    model = SCANVI(adata, "undefined_0", n_latent=10)
+    model = SCANVI(adata, "undefined_0", n_latent=10, n_layers=2)
     model.train(1, frequency=1)
     assert len(model.history["unsupervised_trainer_history"]) == 2
     assert len(model.history["semisupervised_trainer_history"]) == 3

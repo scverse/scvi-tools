@@ -117,7 +117,6 @@ class TotalTrainer(UnsupervisedTrainer):
                 n_input=self.model.n_latent,
                 n_hidden=32,
                 n_labels=self.adata.uns["_scvi"]["summary_stats"]["n_batch"],
-                n_layers=2,
                 logits=True,
             )
 

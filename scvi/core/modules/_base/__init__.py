@@ -4,7 +4,7 @@ from typing import Iterable, List
 import torch
 from torch import nn as nn
 from torch.distributions import Normal
-from torch.nn import ModuleList
+from torch.nn import ModuleList, ParameterList, Parameter
 
 from ..utils import one_hot
 
@@ -17,24 +17,68 @@ def identity(x):
     return x
 
 
+def _make_one_hot_cat_list(n_cat_list: List[int], cat_list: List[torch.Tensor]):
+    """
+    For each categorical covariate, make a minibatch specific one-hot cat list.
+
+    Parameters
+    ----------
+    n_cat_list
+        List of number of categories for each covariate
+    cat_list
+        List of minibatch specific torch tensor with "code" of each category,
+        or already one-hotted.
+    """
+    assert len(n_cat_list) <= len(
+        cat_list
+    ), "number of categorical args provided doesn't match init. params."
+    one_hot_cat_list = []  # for generality in this list many indices useless.
+    # n_cat = 1 will be ignored
+    for n_cat, cat in zip(n_cat_list, cat_list):
+        assert not (
+            n_cat and cat is None
+        ), "cat not provided while n_cat != 0 in init. params."
+        if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
+            if cat.size(1) != n_cat:
+                one_hot_cat = one_hot(cat, n_cat)
+            else:
+                one_hot_cat = cat  # cat has already been one_hot encoded
+            one_hot_cat_list += [one_hot_cat]
+    return one_hot_cat_list
+
+
+def _make_cat_param_tensor(n_cat_list, cat_param_list) -> torch.Tensor:
+    """Concatenate weight matrix for categoricals"""
+    cat_tensor_list = []
+    # n_cat = 1 will be ignored
+    for n_cat, plist in zip(n_cat_list, cat_param_list):
+        if n_cat > 1:
+            # n_hidden by n_cat
+            for i in range(n_cat):
+                cat_tensor_list.append(plist[i])
+    cat_param_tensor = torch.stack(cat_tensor_list, dim=1)
+
+    return cat_param_tensor
+
+
 class FCLayers(nn.Module):
     """
     A helper class to build fully-connected layers for a neural network.
 
     Parameters
     ----------
-    n_in
+    n_input
         The dimensionality of the input
-    n_out
-        The dimensionality of the output
+    n_hidden
+        The number of nodes per hidden layer
     n_cat_list
         A list containing, for each category of interest,
         the number of categories. Each category will be
         included using a one-hot encoding.
+    n_continuous_covs
+        Number of continuous covariates
     n_layers
         The number of fully-connected hidden layers
-    n_hidden
-        The number of nodes per hidden layer
     dropout_rate
         Dropout rate to apply to each of the hidden layers
     use_batch_norm
@@ -43,41 +87,57 @@ class FCLayers(nn.Module):
         Whether to have `ReLU` layers or not
     bias
         Whether to learn bias in linear layers or not
-
+    inject_covariates
+        Whether to concatenate covariates in each hidden layer
     """
 
     def __init__(
         self,
-        n_in: int,
-        n_out: int,
+        n_input: int,
+        n_hidden: Iterable[int] = [128],
         n_cat_list: Iterable[int] = None,
-        n_layers: int = 1,
-        n_hidden: int = 128,
+        n_continuous_covs: int = 0,
         dropout_rate: float = 0.1,
         use_batch_norm: bool = True,
         use_relu: bool = True,
         bias: bool = True,
+        inject_covariates: bool = True,
     ):
         super().__init__()
-        layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
+
+        self.inject_covariates = inject_covariates
+        # can only inject covariates if every layer is same size
+        if sum(n_hidden) != n_hidden[0] * len(n_hidden):
+            self.inject_covariates = False
 
         if n_cat_list is not None:
-            # n_cat = 1 will be ignored
             self.n_cat_list = [n_cat if n_cat > 1 else 0 for n_cat in n_cat_list]
         else:
             self.n_cat_list = []
+        if sum(self.n_cat_list) > 0:
+            self.cat_param_list = nn.ModuleList(
+                [
+                    ParameterList(
+                        [Parameter(torch.randn(n_hidden[0])) for _ in range(n_cat)]
+                    )
+                    for n_cat in n_cat_list
+                ]
+            )
+        else:
+            self.cat_param_list = None
+
+        input_dim_list = [n_input + n_continuous_covs * inject_covariates] + n_hidden[
+            :-1
+        ]
 
         self.fc_layers = nn.Sequential(
             collections.OrderedDict(
                 [
                     (
-                        "Layer {}".format(i),
+                        "Layer_{}".format(i),
                         nn.Sequential(
-                            nn.Linear(n_in + sum(self.n_cat_list), n_out, bias=bias),
-                            # Below, 0.01 and 0.001 are the default values for `momentum` and `eps` from
-                            # the tensorflow implementation of batch norm; we're using those settings
-                            # here too so that the results match our old tensorflow code. The default
-                            # setting from pytorch would probably be fine too but we haven't tested that.
+                            nn.Linear(n_in, n_out, bias=bias),
+                            # Below, 0.01 and 0.001 are the default values for `momentum` and `eps` from tensorflow
                             nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001)
                             if use_batch_norm
                             else None,
@@ -86,13 +146,22 @@ class FCLayers(nn.Module):
                         ),
                     )
                     for i, (n_in, n_out) in enumerate(
-                        zip(layers_dim[:-1], layers_dim[1:])
+                        zip(
+                            input_dim_list,
+                            n_hidden,
+                        )
                     )
                 ]
             )
         )
 
-    def forward(self, x: torch.Tensor, *cat_list: int, instance_id: int = 0):
+    def inject_into_layer(self, layer_num) -> bool:
+        """Helper to determine if covariates should be injected."""
+        user_cond = layer_num == 0 or (layer_num > 0 and self.inject_covariates)
+        observed_cond = self.cat_param_list is not None
+        return user_cond and observed_cond
+
+    def forward(self, x: torch.Tensor, *cat_list: int):
         """
         Forward computation on ``x``.
 
@@ -102,32 +171,15 @@ class FCLayers(nn.Module):
             tensor of values with shape ``(n_in,)``
         cat_list
             list of category membership(s) for this sample
-        instance_id
-            Use a specific conditional instance normalization (batchnorm)
-        x: torch.Tensor
-
-        Returns
-        -------
-        py:class:`torch.Tensor`
-            tensor of shape ``(n_out,)``
-
         """
-        one_hot_cat_list = []  # for generality in this list many indices useless.
+        one_hot_cat_list = _make_one_hot_cat_list(self.n_cat_list, cat_list)
+        # assemble categorical params into tensor
+        if len(one_hot_cat_list) > 0:
+            cat_param_tensor = _make_cat_param_tensor(
+                self.n_cat_list, self.cat_param_list
+            )
 
-        assert len(self.n_cat_list) <= len(
-            cat_list
-        ), "nb. categorical args provided doesn't match init. params."
-        for n_cat, cat in zip(self.n_cat_list, cat_list):
-            assert not (
-                n_cat and cat is None
-            ), "cat not provided while n_cat != 0 in init. params."
-            if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
-                if cat.size(1) != n_cat:
-                    one_hot_cat = one_hot(cat, n_cat)
-                else:
-                    one_hot_cat = cat  # cat has already been one_hot encoded
-                one_hot_cat_list += [one_hot_cat]
-        for layers in self.fc_layers:
+        for i, layers in enumerate(self.fc_layers):
             for layer in layers:
                 if layer is not None:
                     if isinstance(layer, nn.BatchNorm1d):
@@ -137,18 +189,27 @@ class FCLayers(nn.Module):
                             )
                         else:
                             x = layer(x)
-                    else:
-                        if isinstance(layer, nn.Linear):
-                            if x.dim() == 3:
+                    elif isinstance(layer, nn.Linear):
+                        x_size = x.size()
+                        if self.inject_into_layer(i):
+                            if len(x_size) == 3:
                                 one_hot_cat_list_layer = [
                                     o.unsqueeze(0).expand(
-                                        (x.size(0), o.size(0), o.size(1))
+                                        (x_size[0], o.size(0), o.size(1))
                                     )
                                     for o in one_hot_cat_list
                                 ]
                             else:
                                 one_hot_cat_list_layer = one_hot_cat_list
+                            # covariates with one category ignored
+                            # one_hot_cat_tensor has same shape as x
                             x = torch.cat((x, *one_hot_cat_list_layer), dim=-1)
+                            # cat_param_tensor.shape == [n_hidden, sum(n_cats)]
+                            weight = torch.cat((layer.weight, cat_param_tensor), dim=1)
+                        else:
+                            weight = layer.weight
+                        x = nn.functional.linear(x, weight, layer.bias)
+                    else:
                         x = layer(x)
         return x
 
@@ -194,11 +255,9 @@ class Encoder(nn.Module):
 
         self.distribution = distribution
         self.encoder = FCLayers(
-            n_in=n_input,
-            n_out=n_hidden,
+            n_input=n_input,
+            n_hidden=[n_hidden] * n_layers,
             n_cat_list=n_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
             dropout_rate=dropout_rate,
         )
         self.mean_encoder = nn.Linear(n_hidden, n_output)
@@ -274,11 +333,9 @@ class DecoderSCVI(nn.Module):
     ):
         super().__init__()
         self.px_decoder = FCLayers(
-            n_in=n_input,
-            n_out=n_hidden,
+            n_input=n_input,
             n_cat_list=n_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
+            n_hidden=[n_hidden] * n_layers,
             dropout_rate=0,
         )
 
@@ -348,10 +405,9 @@ class LinearDecoderSCVI(nn.Module):
 
         # mean gamma
         self.factor_regressor = FCLayers(
-            n_in=n_input,
-            n_out=n_output,
+            n_input=n_input,
+            n_hidden=[n_output],
             n_cat_list=n_cat_list,
-            n_layers=1,
             use_relu=False,
             use_batch_norm=use_batch_norm,
             bias=bias,
@@ -360,10 +416,9 @@ class LinearDecoderSCVI(nn.Module):
 
         # dropout
         self.px_dropout_decoder = FCLayers(
-            n_in=n_input,
-            n_out=n_output,
+            n_input=n_input,
+            n_hidden=[n_output],
             n_cat_list=n_cat_list,
-            n_layers=1,
             use_relu=False,
             use_batch_norm=use_batch_norm,
             bias=bias,
@@ -421,11 +476,9 @@ class Decoder(nn.Module):
     ):
         super().__init__()
         self.decoder = FCLayers(
-            n_in=n_input,
-            n_out=n_hidden,
+            n_input=n_input,
+            n_hidden=[n_hidden] * n_layers,
             n_cat_list=n_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
             dropout_rate=0,
         )
 
@@ -476,11 +529,9 @@ class MultiEncoder(nn.Module):
         self.encoders = ModuleList(
             [
                 FCLayers(
-                    n_in=n_input_list[i],
-                    n_out=n_hidden,
+                    n_input=n_input_list[i],
+                    n_hidden=[n_hidden] * n_layers_individual,
                     n_cat_list=n_cat_list,
-                    n_layers=n_layers_individual,
-                    n_hidden=n_hidden,
                     dropout_rate=dropout_rate,
                     use_batch_norm=True,
                 )
@@ -489,11 +540,9 @@ class MultiEncoder(nn.Module):
         )
 
         self.encoder_shared = FCLayers(
-            n_in=n_hidden,
-            n_out=n_hidden,
+            n_input=n_hidden,
+            n_hidden=[n_hidden] * n_layers_shared,
             n_cat_list=n_cat_list,
-            n_layers=n_layers_shared,
-            n_hidden=n_hidden,
             dropout_rate=dropout_rate,
         )
 
@@ -572,7 +621,7 @@ class MultiDecoder(nn.Module):
 
         px = z
         if self.px_decoder_conditioned:
-            px = self.px_decoder_conditioned(px, *cat_list, instance_id=dataset_id)
+            px = self.px_decoder_conditioned(px, *cat_list)
         if self.px_decoder_final:
             px = self.px_decoder_final(px, *cat_list)
 
@@ -620,20 +669,17 @@ class DecoderTOTALVI(nn.Module):
         self.n_output_proteins = n_output_proteins
 
         self.px_decoder = FCLayers(
-            n_in=n_input,
-            n_out=n_hidden,
+            n_input=n_input,
+            n_hidden=[n_hidden] * n_layers,
             n_cat_list=n_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
             dropout_rate=dropout_rate,
         )
 
         # mean gamma
         self.px_scale_decoder = FCLayers(
-            n_in=n_hidden + n_input,
-            n_out=n_output_genes,
+            n_input=n_hidden + n_input,
+            n_hidden=[n_output_genes],
             n_cat_list=n_cat_list,
-            n_layers=1,
             use_relu=False,
             use_batch_norm=False,
             dropout_rate=0,
@@ -641,28 +687,24 @@ class DecoderTOTALVI(nn.Module):
 
         # background mean first decoder
         self.py_back_decoder = FCLayers(
-            n_in=n_input,
-            n_out=n_hidden,
+            n_input=n_input,
+            n_hidden=[n_hidden] * n_layers,
             n_cat_list=n_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
             dropout_rate=dropout_rate,
         )
         # background mean parameters second decoder
         self.py_back_mean_log_alpha = FCLayers(
-            n_in=n_hidden + n_input,
-            n_out=n_output_proteins,
+            n_input=n_hidden + n_input,
+            n_hidden=[n_output_proteins],
             n_cat_list=n_cat_list,
-            n_layers=1,
             use_relu=False,
             use_batch_norm=False,
             dropout_rate=0,
         )
         self.py_back_mean_log_beta = FCLayers(
-            n_in=n_hidden + n_input,
-            n_out=n_output_proteins,
+            n_input=n_hidden + n_input,
+            n_hidden=[n_output_proteins],
             n_cat_list=n_cat_list,
-            n_layers=1,
             use_relu=False,
             use_batch_norm=False,
             dropout_rate=0,
@@ -670,19 +712,16 @@ class DecoderTOTALVI(nn.Module):
 
         # foreground increment decoder step 1
         self.py_fore_decoder = FCLayers(
-            n_in=n_input,
-            n_out=n_hidden,
+            n_input=n_input,
+            n_hidden=[n_hidden] * n_layers,
             n_cat_list=n_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
             dropout_rate=dropout_rate,
         )
         # foreground increment decoder step 2
         self.py_fore_scale_decoder = FCLayers(
-            n_in=n_hidden + n_input,
-            n_out=n_output_proteins,
+            n_input=n_hidden + n_input,
+            n_hidden=[n_output_proteins],
             n_cat_list=n_cat_list,
-            n_layers=1,
             use_relu=True,
             use_batch_norm=False,
             dropout_rate=0,
@@ -690,28 +729,24 @@ class DecoderTOTALVI(nn.Module):
 
         # dropout (mixture component for proteins, ZI probability for genes)
         self.sigmoid_decoder = FCLayers(
-            n_in=n_input,
-            n_out=n_hidden,
+            n_input=n_input,
+            n_hidden=[n_hidden] * n_layers,
             n_cat_list=n_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
             dropout_rate=dropout_rate,
         )
         self.px_dropout_decoder_gene = FCLayers(
-            n_in=n_hidden + n_input,
-            n_out=n_output_genes,
+            n_input=n_hidden + n_input,
+            n_hidden=[n_output_genes],
             n_cat_list=n_cat_list,
-            n_layers=1,
             use_relu=False,
             use_batch_norm=False,
             dropout_rate=0,
         )
 
         self.py_background_decoder = FCLayers(
-            n_in=n_hidden + n_input,
-            n_out=n_output_proteins,
+            n_input=n_hidden + n_input,
+            n_hidden=[n_output_proteins],
             n_cat_list=n_cat_list,
-            n_layers=1,
             use_relu=False,
             use_batch_norm=False,
             dropout_rate=0,
@@ -833,11 +868,9 @@ class EncoderTOTALVI(nn.Module):
         super().__init__()
 
         self.encoder = FCLayers(
-            n_in=n_input,
-            n_out=n_hidden,
+            n_input=n_input,
+            n_hidden=[n_hidden] * n_layers,
             n_cat_list=n_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
             dropout_rate=dropout_rate,
         )
         self.z_encoder = nn.Sequential(
