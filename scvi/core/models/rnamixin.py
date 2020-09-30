@@ -28,7 +28,9 @@ class RNASeqMixin:
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
-        transform_batch: Optional[Union[int, List[int]]] = None,
+        transform_batch: Optional[
+            Union[Union[int, str], Sequence[Union[int, str]]]
+        ] = None,
         gene_list: Optional[Sequence[str]] = None,
         library_size: Union[float, Literal["latent"]] = 1,
         n_samples: int = 1,
