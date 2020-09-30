@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 
 import anndata
 import numpy as np
@@ -126,9 +126,18 @@ def _get_var_names_from_setup_anndata(adata):
     return var_names
 
 
-def _get_batch_code_from_category(adata, category):
+def _get_batch_code_from_category(
+    adata: anndata.AnnData, category: Optional[List[Union[int, str]]]
+):
     categorical_mappings = adata.uns["_scvi"]["categorical_mappings"]
     batch_mappings = categorical_mappings["_scvi_batch"]["mapping"]
-    if category not in batch_mappings:
-        raise ValueError('"{}" not a valid batch category.'.format(category))
-    return np.where(batch_mappings == category)[0][0]
+    batch_code = []
+    for cat in category:
+        if cat is None:
+            batch_code.append(None)
+        elif cat not in batch_mappings:
+            raise ValueError('"{}" not a valid batch category.'.format(cat))
+        else:
+            batch_loc = np.where(batch_mappings == cat)[0][0]
+            batch_code.append(batch_loc)
+    return batch_code
