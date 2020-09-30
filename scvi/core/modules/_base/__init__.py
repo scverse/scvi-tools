@@ -56,7 +56,7 @@ def _make_cat_param_tensor(n_cat_list, cat_param_list) -> torch.Tensor:
             # n_hidden by n_cat
             for i in range(n_cat):
                 cat_tensor_list.append(plist[i])
-    cat_param_tensor = torch.stack(cat_tensor_list, dim=1)
+    cat_param_tensor = torch.cat(cat_tensor_list, dim=1)
 
     return cat_param_tensor
 
@@ -118,7 +118,7 @@ class FCLayers(nn.Module):
             self.cat_param_list = nn.ModuleList(
                 [
                     ParameterList(
-                        [Parameter(torch.randn(n_hidden[0])) for _ in range(n_cat)]
+                        [Parameter(torch.randn((n_hidden[0], 1))) for _ in range(n_cat)]
                     )
                     for n_cat in n_cat_list
                 ]
