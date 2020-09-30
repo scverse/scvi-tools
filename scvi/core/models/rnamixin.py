@@ -28,7 +28,7 @@ class RNASeqMixin:
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
-        transform_batch: Optional[Sequence[Union[str, int]]] = None,
+        transform_batch: Optional[Union[int, List[int]]] = None,
         gene_list: Optional[Sequence[str]] = None,
         library_size: Union[float, Literal["latent"]] = 1,
         n_samples: int = 1,
@@ -80,8 +80,11 @@ class RNASeqMixin:
         """
         adata = self._validate_anndata(adata)
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
-        if transform_batch is not None:
-            transform_batch = _get_batch_code_from_category(adata, transform_batch)
+
+        if not isinstance(transform_batch, list):
+            transform_batch = [transform_batch]
+
+        transform_batch = _get_batch_code_from_category(adata, transform_batch)
 
         if gene_list is None:
             gene_mask = slice(None)
@@ -104,43 +107,48 @@ class RNASeqMixin:
             model_fn = self.model.get_sample_scale
             scaling = library_size
 
-        exprs = []
-        for tensors in scdl:
-            x = tensors[_CONSTANTS.X_KEY]
-            batch_idx = tensors[_CONSTANTS.BATCH_KEY]
-            labels = tensors[_CONSTANTS.LABELS_KEY]
-            exprs += [
-                np.array(
-                    (
-                        model_fn(
-                            x,
-                            batch_index=batch_idx,
-                            y=labels,
-                            n_samples=n_samples,
-                            transform_batch=transform_batch,
-                        )[..., gene_mask]
-                        * scaling
-                    ).cpu()
-                )
-            ]
+        all_exprs = []
+        for batch in transform_batch:
+            exprs = []
+            for tensors in scdl:
+                x = tensors[_CONSTANTS.X_KEY]
+                batch_idx = tensors[_CONSTANTS.BATCH_KEY]
+                labels = tensors[_CONSTANTS.LABELS_KEY]
+                exprs += [
+                    np.array(
+                        (
+                            model_fn(
+                                x,
+                                batch_index=batch_idx,
+                                y=labels,
+                                n_samples=n_samples,
+                                transform_batch=batch,
+                            )[..., gene_mask]
+                            * scaling
+                        ).cpu()
+                    )
+                ]
+            if n_samples > 1:
+                # The -2 axis correspond to cells.
+                exprs = np.concatenate(exprs, axis=-2)
+            else:
+                exprs = np.concatenate(exprs, axis=0)
 
-        if n_samples > 1:
-            # The -2 axis correspond to cells.
-            exprs = np.concatenate(exprs, axis=-2)
-        else:
-            exprs = np.concatenate(exprs, axis=0)
+            if n_samples > 1 and return_mean:
+                exprs = exprs.mean(0)
+            all_exprs.append(exprs)
 
-        if n_samples > 1 and return_mean:
-            exprs = exprs.mean(0)
+        all_exprs = np.array(all_exprs)
+        all_exprs = np.mean(all_exprs, axis=0)
 
         if return_numpy is None or return_numpy is False:
             return pd.DataFrame(
-                exprs,
+                all_exprs,
                 columns=adata.var_names[gene_mask],
                 index=adata.obs_names[indices],
             )
         else:
-            return exprs
+            return all_exprs
 
     @_doc_params(
         doc_differential_expression=doc_differential_expression,
@@ -414,8 +422,11 @@ class RNASeqMixin:
 
         adata = self._validate_anndata(adata)
 
-        if (transform_batch is None) or (isinstance(transform_batch, int)):
+        if not isinstance(transform_batch, list):
             transform_batch = [transform_batch]
+
+        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+
         corr_mats = []
         for b in transform_batch:
             denoised_data = self._get_denoised_samples(
