@@ -36,6 +36,9 @@ def test_scvi():
     denoised = model.get_normalized_expression(
         adata2, indices=[1, 2, 3], transform_batch=1
     )
+    denoised = model.get_normalized_expression(
+        adata2, indices=[1, 2, 3], transform_batch=[0, 1]
+    )
     assert denoised.shape == (3, adata2.n_vars)
     sample = model.posterior_predictive_sample(adata2)
     assert sample.shape == adata2.shape
@@ -55,6 +58,14 @@ def test_scvi():
         correlation_type="spearman",
         rna_size_factor=500,
         n_samples=5,
+    )
+    model.get_feature_correlation_matrix(
+        adata2,
+        indices=[1, 2, 3],
+        correlation_type="spearman",
+        rna_size_factor=500,
+        n_samples=5,
+        transform_batch=[0, 1],
     )
     params = model.get_likelihood_parameters()
     assert params["mean"].shape == adata.shape
@@ -279,14 +290,19 @@ def test_totalvi(save_path):
     model.get_marginal_ll()
     model.get_reconstruction_error()
     model.get_normalized_expression()
+    model.get_normalized_expression(transform_batch=[0, 1])
     model.get_latent_library_size()
     model.get_protein_foreground_probability()
+    model.get_protein_foreground_probability(transform_batch=[0, 1])
     post_pred = model.posterior_predictive_sample(n_samples=2)
     assert post_pred.shape == (n_obs, n_vars + n_proteins, 2)
     post_pred = model.posterior_predictive_sample(n_samples=1)
     assert post_pred.shape == (n_obs, n_vars + n_proteins)
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(
         correlation_type="spearman"
+    )
+    feature_correlation_matrix1 = model.get_feature_correlation_matrix(
+        correlation_type="spearman", transform_batch=[0, 1]
     )
     feature_correlation_matrix2 = model.get_feature_correlation_matrix(
         correlation_type="pearson"
