@@ -21,6 +21,7 @@ from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.model._utils import (
     _get_var_names_from_setup_anndata,
+    _get_batch_code_from_category,
     cite_seq_raw_counts_properties,
 )
 
@@ -323,7 +324,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self,
         adata=None,
         indices=None,
-        transform_batch: Optional[int] = None,
+        transform_batch: Optional[Union[int, List[int]]] = None,
         gene_list: Optional[Union[np.ndarray, List[int]]] = None,
         protein_list: Optional[Union[np.ndarray, List[int]]] = None,
         library_size: Optional[Union[float, Literal["latent"]]] = 1,
@@ -415,10 +416,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
                 )
             return_numpy = True
 
+        if not isinstance(transform_batch, list):
+            transform_batch = [transform_batch]
+
+        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+
         scale_list_gene = []
         scale_list_pro = []
-        if not isinstance(transform_batch, Iterable):
-            transform_batch = [transform_batch]
+
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
             y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
@@ -504,7 +509,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
-        transform_batch: Optional[int] = None,
+        transform_batch: Optional[Union[int, List[int]]] = None,
         protein_list: Optional[Sequence[str]] = None,
         n_samples: int = 1,
         batch_size: Optional[int] = None,
@@ -571,8 +576,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             indices = np.arange(adata.n_obs)
 
         py_mixings = []
-        if (transform_batch is None) or (isinstance(transform_batch, int)):
+        if not isinstance(transform_batch, list):
             transform_batch = [transform_batch]
+
+        transform_batch = _get_batch_code_from_category(adata, transform_batch)
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
             y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
@@ -621,7 +628,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self,
         adata=None,
         indices=None,
-        transform_batch: Optional[int] = None,
+        transform_batch: Optional[Union[int, List[int]]] = None,
         scale_protein=False,
         batch_size: Optional[int] = None,
         sample_protein_mixing=False,
@@ -941,8 +948,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         adata = self._validate_anndata(adata)
 
-        if (transform_batch is None) or (isinstance(transform_batch, int)):
+        if not isinstance(transform_batch, list):
             transform_batch = [transform_batch]
+
+        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+
         corr_mats = []
         for b in transform_batch:
             denoised_data = self._get_denoised_samples(
