@@ -39,11 +39,14 @@ class FCLayers(nn.Module):
         Dropout rate to apply to each of the hidden layers
     use_batch_norm
         Whether to have `BatchNorm` layers or not
-    use_relu
-        Whether to have `ReLU` layers or not
+    use_activation
+        Whether to have layer activation or not
     bias
         Whether to learn bias in linear layers or not
-
+    inject_covariates
+        Whether to inject covariates in each layer, or just the first (default).
+    activation_fn
+        Which activation function to use
     """
 
     def __init__(
@@ -55,10 +58,13 @@ class FCLayers(nn.Module):
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
         use_batch_norm: bool = True,
-        use_relu: bool = True,
+        use_activation: bool = True,
         bias: bool = True,
+        inject_covariates: bool = True,
+        activation_fn: nn.Module = nn.ReLU,
     ):
         super().__init__()
+        self.inject_covariates = inject_covariates
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
 
         if n_cat_list is not None:
@@ -67,21 +73,23 @@ class FCLayers(nn.Module):
         else:
             self.n_cat_list = []
 
+        cat_dim = sum(self.n_cat_list)
         self.fc_layers = nn.Sequential(
             collections.OrderedDict(
                 [
                     (
-                        "Layer {}".format(i),
+                        "Layer_{}".format(i),
                         nn.Sequential(
-                            nn.Linear(n_in + sum(self.n_cat_list), n_out, bias=bias),
-                            # Below, 0.01 and 0.001 are the default values for `momentum` and `eps` from
-                            # the tensorflow implementation of batch norm; we're using those settings
-                            # here too so that the results match our old tensorflow code. The default
-                            # setting from pytorch would probably be fine too but we haven't tested that.
+                            nn.Linear(
+                                n_in + cat_dim * self.inject_into_layer(i),
+                                n_out,
+                                bias=bias,
+                            ),
+                            # non-default params come from defaults in original Tensorflow implementation
                             nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001)
                             if use_batch_norm
                             else None,
-                            nn.ReLU() if use_relu else None,
+                            activation_fn() if use_activation else None,
                             nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None,
                         ),
                     )
@@ -92,7 +100,37 @@ class FCLayers(nn.Module):
             )
         )
 
-    def forward(self, x: torch.Tensor, *cat_list: int, instance_id: int = 0):
+    def inject_into_layer(self, layer_num) -> bool:
+        """Helper to determine if covariates should be injected."""
+        user_cond = layer_num == 0 or (layer_num > 0 and self.inject_covariates)
+        return user_cond
+
+    def set_online_update_hooks(self, include_first_layer=True):
+        self.hooks = []
+
+        def _hook_fn_weight(grad):
+            categorical_dims = sum(self.n_cat_list)
+            new_grad = torch.zeros_like(grad)
+            new_grad[:, -categorical_dims:] = grad[:, -categorical_dims:]
+            return new_grad
+
+        def _hook_fn_bias(grad):
+            categorical_dims = sum(self.n_cat_list)
+            new_grad = torch.zeros_like(grad)
+            new_grad[-categorical_dims:] = grad[-categorical_dims:]
+            return new_grad
+
+        for layers in self.fc_layers:
+            for i, layer in enumerate(layers):
+                if i == 0 and not include_first_layer:
+                    continue
+                if isinstance(layer, nn.Linear):
+                    w = layer.weight.register_hook(_hook_fn_weight)
+                    self.hooks.append(w)
+                    b = layer.bias.register_hook(_hook_fn_bias)
+                    self.hooks.append(b)
+
+    def forward(self, x: torch.Tensor, *cat_list: int):
         """
         Forward computation on ``x``.
 
@@ -102,8 +140,6 @@ class FCLayers(nn.Module):
             tensor of values with shape ``(n_in,)``
         cat_list
             list of category membership(s) for this sample
-        instance_id
-            Use a specific conditional instance normalization (batchnorm)
         x: torch.Tensor
 
         Returns
@@ -128,7 +164,7 @@ class FCLayers(nn.Module):
                     one_hot_cat = cat  # cat has already been one_hot encoded
                 one_hot_cat_list += [one_hot_cat]
         for layers in self.fc_layers:
-            for layer in layers:
+            for i, layer in enumerate(layers):
                 if layer is not None:
                     if isinstance(layer, nn.BatchNorm1d):
                         if x.dim() == 3:
@@ -138,7 +174,7 @@ class FCLayers(nn.Module):
                         else:
                             x = layer(x)
                     else:
-                        if isinstance(layer, nn.Linear):
+                        if isinstance(layer, nn.Linear) and self.inject_into_layer(i):
                             if x.dim() == 3:
                                 one_hot_cat_list_layer = [
                                     o.unsqueeze(0).expand(
@@ -352,7 +388,7 @@ class LinearDecoderSCVI(nn.Module):
             n_out=n_output,
             n_cat_list=n_cat_list,
             n_layers=1,
-            use_relu=False,
+            use_activation=False,
             use_batch_norm=use_batch_norm,
             bias=bias,
             dropout_rate=0,
@@ -364,7 +400,7 @@ class LinearDecoderSCVI(nn.Module):
             n_out=n_output,
             n_cat_list=n_cat_list,
             n_layers=1,
-            use_relu=False,
+            use_activation=False,
             use_batch_norm=use_batch_norm,
             bias=bias,
             dropout_rate=0,
@@ -572,7 +608,7 @@ class MultiDecoder(nn.Module):
 
         px = z
         if self.px_decoder_conditioned:
-            px = self.px_decoder_conditioned(px, *cat_list, instance_id=dataset_id)
+            px = self.px_decoder_conditioned(px, *cat_list)
         if self.px_decoder_final:
             px = self.px_decoder_final(px, *cat_list)
 
@@ -634,7 +670,7 @@ class DecoderTOTALVI(nn.Module):
             n_out=n_output_genes,
             n_cat_list=n_cat_list,
             n_layers=1,
-            use_relu=False,
+            use_activation=False,
             use_batch_norm=False,
             dropout_rate=0,
         )
@@ -654,7 +690,7 @@ class DecoderTOTALVI(nn.Module):
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
             n_layers=1,
-            use_relu=False,
+            use_activation=False,
             use_batch_norm=False,
             dropout_rate=0,
         )
@@ -663,7 +699,7 @@ class DecoderTOTALVI(nn.Module):
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
             n_layers=1,
-            use_relu=False,
+            use_activation=False,
             use_batch_norm=False,
             dropout_rate=0,
         )
@@ -683,7 +719,7 @@ class DecoderTOTALVI(nn.Module):
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
             n_layers=1,
-            use_relu=True,
+            use_activation=True,
             use_batch_norm=False,
             dropout_rate=0,
         )
@@ -702,7 +738,7 @@ class DecoderTOTALVI(nn.Module):
             n_out=n_output_genes,
             n_cat_list=n_cat_list,
             n_layers=1,
-            use_relu=False,
+            use_activation=False,
             use_batch_norm=False,
             dropout_rate=0,
         )
@@ -712,7 +748,7 @@ class DecoderTOTALVI(nn.Module):
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
             n_layers=1,
-            use_relu=False,
+            use_activation=False,
             use_batch_norm=False,
             dropout_rate=0,
         )
