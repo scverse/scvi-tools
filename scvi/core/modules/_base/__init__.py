@@ -135,10 +135,13 @@ class FCLayers(nn.Module):
             assert not (
                 n_cat and cat is None
             ), "cat not provided while n_cat != 0 in init. params."
-            if cat.size(1) != n_cat:
-                one_hot_cat = one_hot(cat, n_cat)
+            if n_cat > 1:
+                if cat.size(1) != n_cat:
+                    one_hot_cat = one_hot(cat, n_cat)
+                else:
+                    one_hot_cat = cat  # cat has already been one_hot encoded
             else:
-                one_hot_cat = cat  # cat has already been one_hot encoded
+                one_hot_cat = None
             one_hot_cat_list += [one_hot_cat]
 
         for i, layers in enumerate(self.fc_layers):
