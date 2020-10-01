@@ -95,7 +95,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
         super(AUTOZI, self).__init__(adata, use_cuda=use_cuda)
 
         self.model = AutoZIVAE(
-            n_input=self.summary_stats["n_genes"],
+            n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
             n_labels=self.summary_stats["n_labels"],
             n_hidden=n_hidden,

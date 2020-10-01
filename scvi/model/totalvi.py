@@ -94,7 +94,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         else:
             batch_mask = None
         self.model = TOTALVAE(
-            n_input_genes=self.summary_stats["n_genes"],
+            n_input_genes=self.summary_stats["n_vars"],
             n_input_proteins=self.summary_stats["n_proteins"],
             n_batch=self.summary_stats["n_batch"],
             n_latent=n_latent,

@@ -343,7 +343,7 @@ class DifferentialComputation:
         type
             Dictionary containing:
             `scale`
-            Posterior aggregated scale samples of shape (n_samples, n_genes)
+            Posterior aggregated scale samples of shape (n_samples, n_vars)
             where n_samples correspond to either:
             - n_bio_batches * n_cells * n_samples_per_cell
             or

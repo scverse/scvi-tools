@@ -87,9 +87,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         spatial_gene_loc = np.concatenate(spatial_gene_loc)
         gene_mappings = [slice(None), spatial_gene_loc]
         sum_stats = [d.uns["_scvi"]["summary_stats"] for d in self.adatas]
-        n_inputs = [s["n_genes"] for s in sum_stats]
+        n_inputs = [s["n_vars"] for s in sum_stats]
 
-        total_genes = adata_seq.uns["_scvi"]["summary_stats"]["n_genes"]
+        total_genes = adata_seq.uns["_scvi"]["summary_stats"]["n_vars"]
 
         # since we are combining datasets, we need to increment the batch_idx
         # of one of the datasets

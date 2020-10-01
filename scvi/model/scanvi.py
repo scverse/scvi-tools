@@ -91,7 +91,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             self._is_trained_base = True
         else:
             self._base_model = VAE(
-                n_input=self.summary_stats["n_genes"],
+                n_input=self.summary_stats["n_vars"],
                 n_batch=self.summary_stats["n_batch"],
                 n_hidden=n_hidden,
                 n_latent=n_latent,
@@ -103,7 +103,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             )
             self._is_trained_base = False
         self.model = SCANVAE(
-            n_input=self.summary_stats["n_genes"],
+            n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
             n_labels=self.summary_stats["n_labels"],
             n_hidden=n_hidden,

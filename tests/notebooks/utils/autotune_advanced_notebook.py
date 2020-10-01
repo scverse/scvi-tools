@@ -36,7 +36,7 @@ def custom_objective_hyperopt(
     train_func_tunable_kwargs.update(train_func_specific_kwargs)
 
     scanvi = SCANVAE(
-        dataset.uns["_scvi"]["summary_stats"]["n_genes"],
+        dataset.uns["_scvi"]["summary_stats"]["n_vars"],
         dataset.uns["_scvi"]["summary_stats"]["n_batch"],
         dataset.uns["_scvi"]["summary_stats"]["n_labels"],
         **model_tunable_kwargs
