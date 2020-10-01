@@ -160,7 +160,7 @@ def setup_anndata(
     INFO      Using data from adata.X
     INFO      Computing library size prior per batch
     INFO      Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels']
-    INFO      Successfully registered anndata object containing 400 cells, 100 genes, 1 batches, 1 labels, and 0 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
+    INFO      Successfully registered anndata object containing 400 cells, 100 vars, 1 batches, 1 labels, and 0 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
 
     Example setting up scanpy dataset with random gene data, batch, and protein expression
 
@@ -173,7 +173,7 @@ def setup_anndata(
     INFO      Using protein expression from adata.obsm['protein_expression']
     INFO      Generating sequential protein names
     INFO      Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels', 'protein_expression']
-    INFO      Successfully registered anndata object containing 400 cells, 100 genes, 2 batches, 1 labels, and 100 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
+    INFO      Successfully registered anndata object containing 400 cells, 100 vars, 2 batches, 1 labels, and 100 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
     """
     if copy:
         adata = adata.copy()
@@ -423,12 +423,10 @@ def transfer_anndata_setup(
         use_raw = False
 
     target_n_vars = adata_target.shape[1] if not use_raw else adata_target.raw.shape[1]
-    if target_n_vars != summary_stats["n_genes"]:
+    if target_n_vars != summary_stats["n_vars"]:
         raise ValueError(
             "Number of vars in adata_target not the same as source. "
-            + "Expected: {} Received: {}".format(
-                target_n_vars, summary_stats["n_genes"]
-            )
+            + "Expected: {} Received: {}".format(target_n_vars, summary_stats["n_vars"])
         )
     # transfer protein_expression
     protein_expression_obsm_key = _transfer_protein_expression(_scvi_dict, adata_target)
@@ -823,7 +821,7 @@ def _setup_summary_stats(
 
     n_batch = len(np.unique(categorical_mappings[batch_key]["mapping"]))
     n_cells = adata.shape[0]
-    n_genes = adata.shape[1] if not use_raw else adata.raw.shape[1]
+    n_vars = adata.shape[1] if not use_raw else adata.raw.shape[1]
     n_labels = len(np.unique(categorical_mappings[labels_key]["mapping"]))
 
     if protein_expression_obsm_key is not None:
@@ -844,16 +842,16 @@ def _setup_summary_stats(
     summary_stats = {
         "n_batch": n_batch,
         "n_cells": n_cells,
-        "n_genes": n_genes,
+        "n_vars": n_vars,
         "n_labels": n_labels,
         "n_proteins": n_proteins,
     }
     adata.uns["_scvi"]["summary_stats"] = summary_stats
     logger.info(
-        "Successfully registered anndata object containing {} cells, {} genes, "
+        "Successfully registered anndata object containing {} cells, {} vars, "
         "{} batches, {} labels, and {} proteins. Also registered {} extra categorical "
         "covariates and {} extra continuous covariates.".format(
-            n_cells, n_genes, n_batch, n_labels, n_proteins, n_cat_covs, n_cont_covs
+            n_cells, n_vars, n_batch, n_labels, n_proteins, n_cat_covs, n_cont_covs
         )
     )
 

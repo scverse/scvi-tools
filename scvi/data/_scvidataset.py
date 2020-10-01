@@ -121,10 +121,10 @@ class ScviDataset(Dataset):
         return n_cells
 
     @property
-    def n_genes(self) -> int:
-        """Returns the number of genes in the dataset."""
-        n_genes = self.adata.uns["_scvi"]["summary_stats"]["n_genes"]
-        return n_genes
+    def n_vars(self) -> int:
+        """Returns the number of variables in the dataset."""
+        n_vars = self.adata.uns["_scvi"]["summary_stats"]["n_vars"]
+        return n_vars
 
     @property
     def n_batches(self) -> int:

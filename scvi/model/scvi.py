@@ -75,7 +75,7 @@ class SCVI(RNASeqMixin, VAEMixin, BaseModelClass):
     ):
         super(SCVI, self).__init__(adata, use_cuda=use_cuda)
         self.model = VAE(
-            n_input=self.summary_stats["n_genes"],
+            n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
             n_hidden=n_hidden,
             n_latent=n_latent,
