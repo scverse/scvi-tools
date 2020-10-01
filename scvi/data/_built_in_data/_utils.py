@@ -1,6 +1,9 @@
 import logging
+import numpy as np
 import os
 import urllib
+
+from scvi._utils import track
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +30,13 @@ def _download(url: str, save_path: str, filename: str):
     # Create the path to save the data
     if not os.path.exists(save_path):
         os.makedirs(save_path)
+    block_size = 1000
 
+    filesize = int(r.getheader("Content-Length"))
+    filesize = np.rint(filesize / block_size)
     with open(os.path.join(save_path, filename), "wb") as f:
-        for data in read_iter(r):
+        iterator = read_iter(r, block_size=block_size)
+        for data in track(
+            iterator, style="tqdm", total=filesize, description="Downloading..."
+        ):
             f.write(data)
