@@ -44,7 +44,8 @@ class FCLayers(nn.Module):
     bias
         Whether to learn bias in linear layers or not
     inject_covariates
-        Whether to concatenate covariates in each hidden layer
+        Whether to concatenate covariates in each hidden layer.
+        If `False`, only the first layer still has categoricals concatenated.
     """
 
     def __init__(
@@ -67,6 +68,7 @@ class FCLayers(nn.Module):
             self.inject_covariates = False
 
         if n_cat_list is not None:
+            # n_cat = 1 will be ignored
             self.n_cat_list = [n_cat if n_cat > 1 else 0 for n_cat in n_cat_list]
         else:
             self.n_cat_list = []
@@ -137,7 +139,7 @@ class FCLayers(nn.Module):
                 one_hot_cat = one_hot(cat, n_cat)
             else:
                 one_hot_cat = cat  # cat has already been one_hot encoded
-            one_hot_cat_list += [one_hot_cat]  # assemble categorical params into tensor
+            one_hot_cat_list += [one_hot_cat]
 
         for i, layers in enumerate(self.fc_layers):
             for layer in layers:
