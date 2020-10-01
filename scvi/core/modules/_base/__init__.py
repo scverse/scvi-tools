@@ -203,12 +203,15 @@ class FCLayers(nn.Module):
                                 one_hot_cat_list_layer = one_hot_cat_list
                             # covariates with one category ignored
                             # one_hot_cat_tensor has same shape as x
-                            x = torch.cat((x, *one_hot_cat_list_layer), dim=-1)
+                            cat_input = torch.cat(one_hot_cat_list_layer, dim=-1)
                             # cat_param_tensor.shape == [n_hidden, sum(n_cats)]
-                            weight = torch.cat((layer.weight, cat_param_tensor), dim=1)
+                            cat_output = nn.functional.linear(
+                                cat_input, cat_param_tensor
+                            )
                         else:
-                            weight = layer.weight
-                        x = nn.functional.linear(x, weight, layer.bias)
+                            cat_output = 0
+                        x = layer(x)
+                        x = x + cat_output
                     else:
                         x = layer(x)
         return x
