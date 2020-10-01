@@ -159,7 +159,7 @@ class RNASeqMixin:
         batch_correction: bool = False,
         batchid1: Optional[Iterable[str]] = None,
         batchid2: Optional[Iterable[str]] = None,
-        fdr: float = 0.05,
+        fdr_target: float = 0.05,
         **kwargs,
     ) -> pd.DataFrame:
         r"""
@@ -202,7 +202,7 @@ class RNASeqMixin:
             batchid2,
             delta,
             batch_correction,
-            fdr,
+            fdr_target,
             **kwargs,
         )
 
