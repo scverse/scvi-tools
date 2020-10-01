@@ -40,4 +40,6 @@ batchid2
     or be exactly equal to `batchid1`. When the two sets are exactly equal, cells are compared by
     decoding on the same batch. When sets have null intersection, cells from `group1` and `group2`
     are decoded on each group in `group1` and `group2`, respectively.
+fdr_target
+    Tag features as DE based on posterior expected false discovery rate.
 """
