@@ -105,7 +105,7 @@ class FCLayers(nn.Module):
         user_cond = layer_num == 0 or (layer_num > 0 and self.inject_covariates)
         return user_cond
 
-    def set_online_update_hooks(self, include_first_layer=True):
+    def set_online_update_hooks(self, hook_first_layer=True):
         self.hooks = []
 
         def _hook_fn_weight(grad):
@@ -120,7 +120,7 @@ class FCLayers(nn.Module):
 
         for layers in self.fc_layers:
             for i, layer in enumerate(layers):
-                if i == 0 and not include_first_layer:
+                if i == 0 and not hook_first_layer:
                     continue
                 if isinstance(layer, nn.Linear):
                     w = layer.weight.register_hook(_hook_fn_weight)

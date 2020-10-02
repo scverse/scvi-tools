@@ -20,6 +20,7 @@ class ArchesMixin:
         use_cuda: bool = True,
         freeze_dropout: bool = False,
         freeze_batchnorm: bool = False,
+        freeze_expression: bool = True,
     ):
         """
         Online update of a reference model using method of scArches.
@@ -38,6 +39,8 @@ class ArchesMixin:
             Whether to freeze dropout during training
         freeze_batchnorm
             Whether to freeze batchnorm statistics during training
+        freeze_expression
+            Freeze neurons corersponding to expression in first layer
         """
         model_path = os.path.join(dir_path, "model_params.pt")
         setup_dict_path = os.path.join(dir_path, "attr.pkl")
@@ -91,34 +94,53 @@ class ArchesMixin:
             model.model,
             freeze_batchnorm=freeze_batchnorm,
             freeze_dropout=freeze_dropout,
+            freeze_expression=freeze_expression,
         )
         model.is_trained_ = False
 
         return model
 
 
-def _set_params_online_update(model, freeze_batchnorm, freeze_dropout):
+def _set_params_online_update(
+    model, freeze_batchnorm, freeze_dropout, freeze_expression
+):
 
-    mod_no_hooks = ["classifier", "encoder_z2_z1", "decoder_z1_z2"]
+    mod_no_grad = set(["classifier", "encoder_z2_z1", "decoder_z1_z2"])
+    mod_no_hooks_yes_grad = set(["l_encoder"])
 
     for key, mod in model.named_modules():
-        if isinstance(mod, FCLayers):
-            mod.set_online_update_hooks()
-        if isinstance(mod, torch.nn.Dropout):
-            if freeze_dropout:
-                mod.p = 0
-        if isinstance(mod, torch.nn.BatchNorm1d):
-            if freeze_batchnorm:
-                mod.affine = False
-                mod.track_running_stats = False
+        for m in mod_no_hooks_yes_grad:
+            if m not in key:
+                if isinstance(mod, FCLayers):
+                    hook_first_layer = freeze_expression and "encoder" in key
+                    mod.set_online_update_hooks(hook_first_layer)
+                if isinstance(mod, torch.nn.Dropout):
+                    if freeze_dropout:
+                        mod.p = 0
+                if isinstance(mod, torch.nn.BatchNorm1d):
+                    if freeze_batchnorm:
+                        mod.affine = False
+                        mod.track_running_stats = False
 
+    # TODO improve flow here
+    # e.g., classifiern will have hooks set on it, but all parameters
+    # will have requires_grad == False
     for key, par in model.named_parameters():
         # gets the linear layer
         if "fc_layers" in key and ".0." in key:
-            for m in mod_no_hooks:
-                if m in key:
-                    par.requires_grad = False
-                else:
+            # set requires grad to False for linear layers
+            # in modules that don't need grad
+            for m in mod_no_grad:
+                if m not in key:
                     par.requires_grad = True
+                else:
+                    par.requires_grad = False
         else:
-            par.requires_grad = False
+            # sets requires_grad to True for all parameters
+            # in modules that should be fully trained
+            # requires_grad is False otherwise
+            for m in mod_no_hooks_yes_grad:
+                if m in key:
+                    par.requires_grad = True
+                else:
+                    par.requires_grad = False

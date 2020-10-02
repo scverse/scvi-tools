@@ -380,6 +380,8 @@ def test_scvi_online_update(save_path):
 
     # dispersion
     assert model.model.px_r.requires_grad is False
+    # library encoder linear layer
+    assert model.model.l_encoder.encoder.fc_layers[0][0].weight.requires_grad is True
     # batch norm weight in encoder layer
     assert model.model.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
     # linear first layer
@@ -400,6 +402,12 @@ def test_scvi_online_update(save_path):
     model = SCVI.load_query_data(adata2, dir_path)
     model.train(n_epochs=1)
     model.get_latent_representation()
+
+    model = SCVI.load_query_data(adata2, dir_path, freeze_expression=False)
+    model.train(n_epochs=1)
+    model.get_latent_representation()
+    # linear layer weight in encoder layer
+    assert model.model.z_encoder.encoder.fc_layers[0][0].weight.requires_grad is True
 
 
 def test_scanvi_online_update(save_path):
