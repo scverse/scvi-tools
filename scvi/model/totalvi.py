@@ -1,6 +1,7 @@
 import logging
 from functools import partial
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union, TypeVar
+from collections.abc import Iterable as IterableClass
 
 import numpy as np
 import pandas as pd
@@ -26,6 +27,7 @@ from scvi.model._utils import (
 )
 
 logger = logging.getLogger(__name__)
+Number = TypeVar(int, float)
 
 
 class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
@@ -324,7 +326,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self,
         adata=None,
         indices=None,
-        transform_batch: Optional[Union[int, List[int]]] = None,
+        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         gene_list: Optional[Union[np.ndarray, List[int]]] = None,
         protein_list: Optional[Union[np.ndarray, List[int]]] = None,
         library_size: Optional[Union[float, Literal["latent"]]] = 1,
@@ -416,7 +418,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
                 )
             return_numpy = True
 
-        if not isinstance(transform_batch, list):
+        if not isinstance(transform_batch, IterableClass):
             transform_batch = [transform_batch]
 
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
@@ -576,7 +578,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             indices = np.arange(adata.n_obs)
 
         py_mixings = []
-        if not isinstance(transform_batch, list):
+        if not isinstance(transform_batch, IterableClass):
             transform_batch = [transform_batch]
 
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
@@ -948,7 +950,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         adata = self._validate_anndata(adata)
 
-        if not isinstance(transform_batch, list):
+        if not isinstance(transform_batch, IterableClass):
             transform_batch = [transform_batch]
 
         transform_batch = _get_batch_code_from_category(adata, transform_batch)

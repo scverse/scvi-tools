@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Union, Sequence
 
 import anndata
 import numpy as np
@@ -127,7 +127,7 @@ def _get_var_names_from_setup_anndata(adata):
 
 
 def _get_batch_code_from_category(
-    adata: anndata.AnnData, category: Optional[List[Union[int, str]]]
+    adata: anndata.AnnData, category: Sequence[Union[int, str]]
 ):
     categorical_mappings = adata.uns["_scvi"]["categorical_mappings"]
     batch_mappings = categorical_mappings["_scvi_batch"]["mapping"]
