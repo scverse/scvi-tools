@@ -104,7 +104,7 @@ class ArchesMixin:
 def _set_params_online_update(
     model, freeze_batchnorm, freeze_dropout, freeze_expression
 ):
-
+    """Freeze parts of network for scArches."""
     mod_no_grad = set(["classifier", "encoder_z2_z1", "decoder_z1_z2"])
     mod_no_hooks_yes_grad = set(["l_encoder"])
 
@@ -112,7 +112,10 @@ def _set_params_online_update(
         for m in mod_no_hooks_yes_grad:
             if m not in key:
                 if isinstance(mod, FCLayers):
-                    hook_first_layer = freeze_expression and "encoder" in key
+                    if not freeze_expression and "encoder" in key:
+                        hook_first_layer = False
+                    else:
+                        hook_first_layer = True
                     mod.set_online_update_hooks(hook_first_layer)
                 if isinstance(mod, torch.nn.Dropout):
                     if freeze_dropout:
