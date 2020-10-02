@@ -65,6 +65,7 @@ class ArchesMixin:
             setattr(model, attr, val)
 
         use_cuda = use_cuda and torch.cuda.is_available()
+        setattr(model, "use_cuda", use_cuda)
         if use_cuda:
             model.model.cuda()
 
