@@ -384,3 +384,17 @@ def test_scvi_online_update(save_path):
     assert model.model.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
     # linear first layer
     assert model.model.z_encoder.encoder.fc_layers[0][0].weight.requires_grad is True
+
+    adata1 = synthetic_iid()
+    model = SCVI(adata1, n_latent=n_latent, n_layers=2)
+    model.train(1, frequency=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    new_b = [2, 3]
+    adata2.obs["batch"] = pd.Categorical(new_b[i] for i in adata2.obs.batch)
+
+    model = SCVI.load_query_data(adata2, dir_path)
+    model.train(n_epochs=1)
+    model.get_latent_representation()
