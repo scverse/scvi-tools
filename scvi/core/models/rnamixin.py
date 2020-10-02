@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import Dict, Iterable, List, Optional, Sequence, Union, TypeVar
+from typing import Dict, Iterable, Optional, Sequence, Union, TypeVar
 from collections.abc import Iterable as IterableClass
 
 import numpy as np
@@ -316,7 +316,7 @@ class RNASeqMixin:
         n_samples: int = 25,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
-        transform_batch: Optional[Sequence[str]] = None,
+        transform_batch: Optional[Sequence[int]] = None,
     ) -> np.ndarray:
         """
         Return samples from an adjusted posterior predictive.
@@ -351,7 +351,11 @@ class RNASeqMixin:
             labels = tensors[_CONSTANTS.LABELS_KEY]
 
             outputs = self.model.inference(
-                x, batch_index=batch_idx, y=labels, n_samples=n_samples
+                x,
+                batch_index=batch_idx,
+                y=labels,
+                n_samples=n_samples,
+                transform_batch=transform_batch,
             )
             px_scale = outputs["px_scale"]
             px_r = outputs["px_r"]
@@ -385,7 +389,7 @@ class RNASeqMixin:
         n_samples: int = 10,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
-        transform_batch: Optional[Union[int, List[int]]] = None,
+        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
     ) -> pd.DataFrame:
         """
