@@ -8,7 +8,7 @@ from anndata import AnnData
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.core.data_loaders import AnnotationDataLoader
-from scvi.core.models import BaseModelClass, RNASeqMixin, VAEMixin
+from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.modules import SCANVAE, VAE
 from scvi.core.trainers import SemiSupervisedTrainer, UnsupervisedTrainer
 
@@ -17,7 +17,7 @@ from .scvi import SCVI
 logger = logging.getLogger(__name__)
 
 
-class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
+class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     """
     Single-cell annotation using variational inference [Xu19]_.
 

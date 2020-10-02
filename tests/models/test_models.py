@@ -400,3 +400,25 @@ def test_scvi_online_update(save_path):
     model = SCVI.load_query_data(adata2, dir_path)
     model.train(n_epochs=1)
     model.get_latent_representation()
+
+
+def test_scanvi_online_update(save_path):
+    n_latent = 5
+    adata1 = synthetic_iid(run_setup_anndata=False)
+    new_labels = adata1.obs.labels.to_numpy()
+    new_labels[0] = "Unknown"
+    adata1.obs["labels"] = pd.Categorical(new_labels)
+    setup_anndata(adata1, batch_key="batch", labels_key="labels")
+    model = SCANVI(adata1, "Unknown", n_latent=n_latent)
+    model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1, frequency=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    new_b = [2, 3]
+    adata2.obs["batch"] = pd.Categorical(new_b[i] for i in adata2.obs.batch)
+    adata2.obs["labels"] = "Unknown"
+
+    model = SCANVI.load_query_data(adata2, dir_path)
+    model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1)
+    model.get_latent_representation()
