@@ -374,7 +374,7 @@ def test_scvi_online_update(save_path):
     new_b = [2, 3]
     adata2.obs["batch"] = pd.Categorical(new_b[i] for i in adata2.obs.batch)
 
-    model = SCVI.load_query_data(adata2, dir_path, n_epochs=1)
+    model = SCVI.load_query_data(adata2, dir_path)
     model.train(n_epochs=1)
     model.get_latent_representation()
 

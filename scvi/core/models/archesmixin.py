@@ -88,6 +88,9 @@ class ArchesMixin:
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
+        if use_cuda:
+            model.model.cuda()
+
         # model tweaking
         use_cuda = use_cuda and torch.cuda.is_available()
         load_state_dict = torch.load(
@@ -105,8 +108,6 @@ class ArchesMixin:
                 load_state_dict[key] = fixed_ten
 
         model.model.load_state_dict(load_state_dict)
-        if use_cuda:
-            model.model.cuda()
         model.model.eval()
 
         _set_params_online_update(model.model)
