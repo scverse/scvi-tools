@@ -88,11 +88,11 @@ class ArchesMixin:
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
+        use_cuda = use_cuda and torch.cuda.is_available()
         if use_cuda:
             model.model.cuda()
 
         # model tweaking
-        use_cuda = use_cuda and torch.cuda.is_available()
         load_state_dict = torch.load(
             model_path, map_location=torch.device("cpu") if not use_cuda else None
         )
