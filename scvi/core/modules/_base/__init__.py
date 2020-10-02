@@ -111,14 +111,12 @@ class FCLayers(nn.Module):
         def _hook_fn_weight(grad):
             categorical_dims = sum(self.n_cat_list)
             new_grad = torch.zeros_like(grad)
-            new_grad[:, -categorical_dims:] = grad[:, -categorical_dims:]
+            if categorical_dims > 0:
+                new_grad[:, -categorical_dims:] = grad[:, -categorical_dims:]
             return new_grad
 
         def _hook_fn_bias(grad):
-            categorical_dims = sum(self.n_cat_list)
-            new_grad = torch.zeros_like(grad)
-            new_grad[-categorical_dims:] = grad[-categorical_dims:]
-            return new_grad
+            return grad * 0
 
         for layers in self.fc_layers:
             for i, layer in enumerate(layers):
