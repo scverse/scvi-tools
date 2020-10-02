@@ -609,7 +609,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if return_numpy is True:
             return 1 - py_mixings
         else:
-            pro_names = self.self.scvi_setup_dict_["protein_names"]
+            pro_names = self.scvi_setup_dict_["protein_names"]
             foreground_prob = pd.DataFrame(
                 1 - py_mixings,
                 columns=pro_names[protein_mask],
@@ -974,7 +974,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
         var_names = _get_var_names_from_setup_anndata(adata)
         names = np.concatenate(
-            [np.asarray(var_names), self.self.scvi_setup_dict_["protein_names"]]
+            [np.asarray(var_names), self.scvi_setup_dict_["protein_names"]]
         )
         return pd.DataFrame(corr_matrix, index=names, columns=names)
 
