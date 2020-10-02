@@ -27,7 +27,7 @@ from scvi.model._utils import (
 )
 
 logger = logging.getLogger(__name__)
-Number = TypeVar(int, float)
+Number = TypeVar("Number", int, float)
 
 
 class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
