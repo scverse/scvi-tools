@@ -105,45 +105,40 @@ def _set_params_online_update(
     model, freeze_batchnorm, freeze_dropout, freeze_expression
 ):
     """Freeze parts of network for scArches."""
-    mod_no_grad = set(["classifier", "encoder_z2_z1", "decoder_z1_z2"])
+    mod_no_grad = set(["encoder_z2_z1", "decoder_z1_z2"])
     mod_no_hooks_yes_grad = set(["l_encoder"])
 
-    for key, mod in model.named_modules():
-        for m in mod_no_hooks_yes_grad:
-            if m not in key:
-                if isinstance(mod, FCLayers):
-                    if not freeze_expression and "encoder" in key:
-                        hook_first_layer = False
-                    else:
-                        hook_first_layer = True
-                    mod.set_online_update_hooks(hook_first_layer)
-                if isinstance(mod, torch.nn.Dropout):
-                    if freeze_dropout:
-                        mod.p = 0
-                if isinstance(mod, torch.nn.BatchNorm1d):
-                    if freeze_batchnorm:
-                        mod.affine = False
-                        mod.track_running_stats = False
+    def no_hook_cond(key):
+        return not freeze_expression and "encoder" in key
 
-    # TODO improve flow here
-    # e.g., classifiern will have hooks set on it, but all parameters
-    # will have requires_grad == False
-    for key, par in model.named_parameters():
-        # gets the linear layer
-        if "fc_layers" in key and ".0." in key:
-            # set requires grad to False for linear layers
-            # in modules that don't need grad
-            for m in mod_no_grad:
-                if m not in key:
-                    par.requires_grad = True
-                else:
-                    par.requires_grad = False
+    def requires_grad(key):
+        mod_name = key.split(".")[0]
+        # linear weights and bias that need grad
+        one = "fc_layers" in key and ".0." in key and mod_name not in mod_no_grad
+        # modules that need grad
+        two = mod_name in mod_no_hooks_yes_grad
+        if one or two:
+            return True
         else:
-            # sets requires_grad to True for all parameters
-            # in modules that should be fully trained
-            # requires_grad is False otherwise
-            for m in mod_no_hooks_yes_grad:
-                if m in key:
-                    par.requires_grad = True
-                else:
-                    par.requires_grad = False
+            return False
+
+    for key, mod in model.named_modules():
+        # skip over protected modules
+        if key.split(".")[0] in mod_no_hooks_yes_grad:
+            continue
+        if isinstance(mod, FCLayers):
+            hook_first_layer = False if no_hook_cond else True
+            mod.set_online_update_hooks(hook_first_layer)
+        if isinstance(mod, torch.nn.Dropout):
+            if freeze_dropout:
+                mod.p = 0
+        if isinstance(mod, torch.nn.BatchNorm1d):
+            if freeze_batchnorm:
+                mod.affine = False
+                mod.track_running_stats = False
+
+    for key, par in model.named_parameters():
+        if requires_grad(key):
+            par.requires_grad = True
+        else:
+            par.requires_grad = False
