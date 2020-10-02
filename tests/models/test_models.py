@@ -424,3 +424,31 @@ def test_scanvi_online_update(save_path):
         n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
     )
     model.get_latent_representation()
+
+
+def test_totalvi_online_update(save_path):
+    # basic case
+    n_latent = 5
+    adata1 = synthetic_iid()
+    model = TOTALVI(adata1, n_latent=n_latent)
+    model.train(1, frequency=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    new_b = [2, 3]
+    adata2.obs["batch"] = pd.Categorical(new_b[i] for i in adata2.obs.batch)
+
+    model = TOTALVI.load_query_data(adata2, dir_path)
+    model.train(n_epochs=1)
+    model.get_latent_representation()
+
+    # batch 3 has no proteins
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    new_b = [2, 3]
+    adata2.obs["batch"] = pd.Categorical(new_b[i] for i in adata2.obs.batch)
+    adata2.obsm["protein_expression"][adata2.obs.batch == 3] = 0
+
+    model = TOTALVI.load_query_data(adata2, dir_path)
+    model.train(n_epochs=1)
+    model.get_latent_representation()

@@ -434,44 +434,18 @@ def transfer_anndata_setup(
                 target_n_vars, summary_stats["n_genes"]
             )
         )
-    # transfer protein_expression
-    protein_expression_obsm_key = _transfer_protein_expression(_scvi_dict, adata_target)
 
     # transfer batch and labels
     categorical_mappings = _scvi_dict["categorical_mappings"]
-    for key, val in categorical_mappings.items():
-        original_key = val["original_key"]
-        if (key == original_key) and (original_key not in adata_target.obs.keys()):
-            # case where original key and key are equal
-            # caused when no batch or label key were given
-            # when anndata_source was setup
-            logger.info(
-                ".obs[{}] not found in target, assuming every cell is same category".format(
-                    original_key
-                )
-            )
-            adata_target.obs[original_key] = np.zeros(
-                adata_target.shape[0], dtype=np.int64
-            )
-        elif (key != original_key) and (original_key not in adata_target.obs.keys()):
-            raise KeyError(
-                '.obs["{}"] was used to setup source, but not found in target.'.format(
-                    original_key
-                )
-            )
-        mapping = val["mapping"].copy()
-        # extend mapping for new categories
-        if extend_categories:
-            for c in np.unique(adata_target.obs[original_key]):
-                if c not in mapping:
-                    mapping = np.concatenate([mapping, [c]])
-        cat_dtype = CategoricalDtype(categories=mapping)
-        _make_obs_column_categorical(
-            adata_target, original_key, key, categorical_dtype=cat_dtype
-        )
+    _transfer_batch_and_labels(adata_target, categorical_mappings, extend_categories)
 
     batch_key = "_scvi_batch"
     labels_key = "_scvi_labels"
+
+    # transfer protein_expression
+    protein_expression_obsm_key = _transfer_protein_expression(
+        _scvi_dict, adata_target, batch_key
+    )
 
     # transfer X
     x_loc, x_key = _setup_x(adata_target, layer, use_raw)
@@ -529,7 +503,41 @@ def transfer_anndata_setup(
     _verify_and_correct_data_format(adata_target, data_registry)
 
 
-def _transfer_protein_expression(_scvi_dict, adata_target):
+def _transfer_batch_and_labels(adata_target, categorical_mappings, extend_categories):
+
+    for key, val in categorical_mappings.items():
+        original_key = val["original_key"]
+        if (key == original_key) and (original_key not in adata_target.obs.keys()):
+            # case where original key and key are equal
+            # caused when no batch or label key were given
+            # when anndata_source was setup
+            logger.info(
+                ".obs[{}] not found in target, assuming every cell is same category".format(
+                    original_key
+                )
+            )
+            adata_target.obs[original_key] = np.zeros(
+                adata_target.shape[0], dtype=np.int64
+            )
+        elif (key != original_key) and (original_key not in adata_target.obs.keys()):
+            raise KeyError(
+                '.obs["{}"] was used to setup source, but not found in target.'.format(
+                    original_key
+                )
+            )
+        mapping = val["mapping"].copy()
+        # extend mapping for new categories
+        if extend_categories:
+            for c in np.unique(adata_target.obs[original_key]):
+                if c not in mapping:
+                    mapping = np.concatenate([mapping, [c]])
+        cat_dtype = CategoricalDtype(categories=mapping)
+        _make_obs_column_categorical(
+            adata_target, original_key, key, categorical_dtype=cat_dtype
+        )
+
+
+def _transfer_protein_expression(_scvi_dict, adata_target, batch_key):
     data_registry = _scvi_dict["data_registry"]
     summary_stats = _scvi_dict["summary_stats"]
 
@@ -548,6 +556,17 @@ def _transfer_protein_expression(_scvi_dict, adata_target):
                 == adata_target.obsm[prev_protein_obsm_key].shape[1]
             )
             protein_expression_obsm_key = prev_protein_obsm_key
+
+            adata_target.uns["_scvi"]["protein_names"] = _scvi_dict["protein_names"]
+            # batch mask totalVI
+            batch_mask = _get_batch_mask_protein_data(
+                adata_target, protein_expression_obsm_key, batch_key
+            )
+
+            # check if it's actually needed
+            if np.sum([~b for b in batch_mask]) > 0:
+                logger.info("Found batches with missing protein expression")
+                adata_target.uns["_scvi"]["totalvi_batch_mask"] = batch_mask
     else:
         protein_expression_obsm_key = None
 
@@ -757,7 +776,7 @@ def _setup_protein_expression(
         logger.info("Generating sequential protein names")
         protein_names = np.arange(adata.obsm[protein_expression_obsm_key].shape[1])
 
-    adata.uns["scvi_protein_names"] = protein_names
+    adata.uns["_scvi"]["protein_names"] = protein_names
 
     # batch mask totalVI
     batch_mask = _get_batch_mask_protein_data(
