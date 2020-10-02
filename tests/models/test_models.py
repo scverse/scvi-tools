@@ -384,6 +384,8 @@ def test_scvi_online_update(save_path):
     assert model.model.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
     # linear first layer
     assert model.model.z_encoder.encoder.fc_layers[0][0].weight.requires_grad is True
+    # 5 for n_latent, 4 for batches
+    assert model.model.decoder.px_decoder.fc_layers[0][0].weight.shape[1] == 9
 
     adata1 = synthetic_iid()
     model = SCVI(adata1, n_latent=n_latent, n_layers=2)
