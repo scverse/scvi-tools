@@ -165,6 +165,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         n_epochs_unsupervised: Optional[int] = None,
         n_epochs_semisupervised: Optional[int] = None,
+        train_base_model: bool = True,
         train_size: float = 0.9,
         test_size: float = None,
         lr: float = 1e-3,
@@ -185,6 +186,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Number of passes through the dataset for unsupervised pre-training.
         n_epochs_semisupervised
             Number of passes through the dataset for semisupervised training.
+        train_base_model
+            Pretrain an SCVI base model first before semisupervised training.
         train_size
             Size of training set in the range [0.0, 1.0].
         test_size
@@ -222,7 +225,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 np.min([10, np.max([2, round(n_epochs_unsupervised / 3.0)])])
             )
 
-        if self._is_trained_base is not True:
+        if self._is_trained_base is not True and train_base_model:
             self._unsupervised_trainer = UnsupervisedTrainer(
                 self._base_model,
                 self.adata,
@@ -239,7 +242,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             )
             self._is_trained_base = True
 
-        self.model.load_state_dict(self._base_model.state_dict(), strict=False)
+            self.model.load_state_dict(self._base_model.state_dict(), strict=False)
 
         if "frequency" not in semisupervised_trainer_kwargs and frequency is not None:
             semisupervised_trainer_kwargs["frequency"] = frequency

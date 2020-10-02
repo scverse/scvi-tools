@@ -420,5 +420,7 @@ def test_scanvi_online_update(save_path):
     adata2.obs["labels"] = "Unknown"
 
     model = SCANVI.load_query_data(adata2, dir_path)
-    model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1)
+    model.train(
+        n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
+    )
     model.get_latent_representation()
