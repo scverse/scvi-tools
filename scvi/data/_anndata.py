@@ -381,7 +381,9 @@ def register_tensor_from_anndata(
 
 
 def transfer_anndata_setup(
-    adata_source: Union[anndata.AnnData, dict], adata_target: anndata.AnnData
+    adata_source: Union[anndata.AnnData, dict],
+    adata_target: anndata.AnnData,
+    extend_categories: bool = False,
 ):
     """
     Transfer anndata setup from a source object to a target object.
@@ -396,6 +398,8 @@ def transfer_anndata_setup(
         from source anndata containing scvi setup parameters.
     adata_target
         AnnData with equivalent organization as source, but possibly subsetted.
+    extend_categories
+        New categories in `adata_target` are added to the registry.
     """
     adata_target.uns["_scvi"] = {}
 
@@ -455,7 +459,12 @@ def transfer_anndata_setup(
                     original_key
                 )
             )
-        mapping = val["mapping"]
+        mapping = val["mapping"].copy()
+        # extend mapping for new categories
+        if extend_categories:
+            for c in np.unique(adata_target.obs[original_key]):
+                if c not in mapping:
+                    mapping = np.concatenate([mapping, [c]])
         cat_dtype = CategoricalDtype(categories=mapping)
         _make_obs_column_categorical(
             adata_target, original_key, key, categorical_dtype=cat_dtype
@@ -476,7 +485,14 @@ def transfer_anndata_setup(
     # transfer extra categorical covs
     has_cat_cov = True if _CONSTANTS.CAT_COVS_KEY in data_registry.keys() else False
     if has_cat_cov:
-        source_cat_dict = _scvi_dict["extra_categorical_mappings"]
+        source_cat_dict = _scvi_dict["extra_categorical_mappings"].copy()
+        # extend categories
+        if extend_categories:
+            for key, mapping in source_cat_dict:
+                for c in np.unique(adata_target.obs[key]):
+                    if c not in mapping:
+                        mapping = np.concatenate([mapping, [c]])
+                source_cat_dict[key] = mapping
         cat_loc, cat_key = _setup_extra_categorical_covs(
             adata_target, list(source_cat_dict.keys()), category_dict=source_cat_dict
         )
