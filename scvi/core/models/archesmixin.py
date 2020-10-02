@@ -102,19 +102,15 @@ def _set_params_online_update(model, freeze_batchnorm, freeze_dropout):
     mod_no_hooks = ["classifier", "encoder_z2_z1", "decoder_z1_z2"]
 
     for key, mod in model.named_modules():
-        for m in mod_no_hooks:
-            if m in key:
-                continue
-            else:
-                if isinstance(mod, FCLayers):
-                    mod.set_online_update_hooks()
-                if isinstance(mod, torch.nn.Dropout):
-                    if freeze_dropout:
-                        mod.p = 0
-                if isinstance(mod, torch.nn.BatchNorm1d):
-                    if freeze_batchnorm:
-                        mod.affine = False
-                        mod.track_running_stats = False
+        if isinstance(mod, FCLayers):
+            mod.set_online_update_hooks()
+        if isinstance(mod, torch.nn.Dropout):
+            if freeze_dropout:
+                mod.p = 0
+        if isinstance(mod, torch.nn.BatchNorm1d):
+            if freeze_batchnorm:
+                mod.affine = False
+                mod.track_running_stats = False
 
     for key, par in model.named_parameters():
         # gets the linear layer
