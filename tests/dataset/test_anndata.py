@@ -189,7 +189,7 @@ def test_setup_anndata():
         adata.obsm["protein_expression"],
     )
     np.testing.assert_array_equal(
-        adata.uns["scvi_protein_names"], adata.uns["protein_names"]
+        adata.uns["_scvi"]["protein_names"], adata.uns["protein_names"]
     )
 
     # test that error is thrown if its a view:
@@ -207,7 +207,9 @@ def test_setup_anndata():
     )
     adata.obsm["protein_expression"] = df
     setup_anndata(adata, protein_expression_obsm_key="protein_expression")
-    np.testing.assert_array_equal(adata.uns["scvi_protein_names"], new_protein_names)
+    np.testing.assert_array_equal(
+        adata.uns["_scvi"]["protein_names"], new_protein_names
+    )
 
     # test that layer is working properly
     adata = synthetic_iid()
