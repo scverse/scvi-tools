@@ -448,6 +448,7 @@ def test_totalvi_online_update(save_path):
     adata2.obs["batch"] = pd.Categorical(new_b[i] for i in adata2.obs.batch)
 
     model = TOTALVI.load_query_data(adata2, dir_path)
+    assert model.model.background_pro_alpha.requires_grad is True
     model.train(n_epochs=1)
     model.get_latent_representation()
 

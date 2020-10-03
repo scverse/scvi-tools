@@ -107,6 +107,7 @@ def _set_params_online_update(
     """Freeze parts of network for scArches."""
     mod_no_grad = set(["encoder_z2_z1", "decoder_z1_z2"])
     mod_no_hooks_yes_grad = set(["l_encoder"])
+    parameters_yes_grad = set(["background_pro_alpha", "background_pro_log_beta"])
 
     def no_hook_cond(key):
         return not freeze_expression and "encoder" in key
@@ -117,7 +118,8 @@ def _set_params_online_update(
         one = "fc_layers" in key and ".0." in key and mod_name not in mod_no_grad
         # modules that need grad
         two = mod_name in mod_no_hooks_yes_grad
-        if one or two:
+        three = sum([p in key for p in parameters_yes_grad]) > 0
+        if one or two or three:
             return True
         else:
             return False
