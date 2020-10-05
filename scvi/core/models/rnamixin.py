@@ -117,21 +117,20 @@ class RNASeqMixin:
             labels = tensors[_CONSTANTS.LABELS_KEY]
             per_batch_exprs = []
             for batch in transform_batch:
-                output = np.array(
-                    (
-                        model_fn(
-                            x,
-                            batch_index=batch_idx,
-                            y=labels,
-                            n_samples=n_samples,
-                            transform_batch=batch,
-                        )[..., gene_mask]
-                        * scaling
-                    ).cpu()
-                )
+                output = model_fn(
+                    x,
+                    batch_index=batch_idx,
+                    y=labels,
+                    n_samples=n_samples,
+                    transform_batch=batch,
+                )[..., gene_mask]
+                output *= scaling
+                output = output.cpu().numpy()
                 per_batch_exprs.append(output)
-            per_batch_exprs = np.array(per_batch_exprs)
-            exprs += [np.mean(per_batch_exprs, axis=0)]
+            per_batch_exprs = np.stack(
+                per_batch_exprs
+            )  # shape is (len(transform_batch) x batch_size x n_var)
+            exprs += [per_batch_exprs.mean(0)]
 
         if n_samples > 1:
             # The -2 axis correspond to cells.
