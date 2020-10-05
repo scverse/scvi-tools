@@ -211,7 +211,8 @@ class Encoder(nn.Module):
         :dropout_rate: Dropout rate to apply to each of the hidden layers
     distribution
         Distribution of z
-
+    inject_covariates
+        Whether to inject covariates in each layer, or just the first (default).
     """
 
     def __init__(
@@ -223,6 +224,7 @@ class Encoder(nn.Module):
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
         distribution: str = "normal",
+        inject_covariates: bool = True,
     ):
         super().__init__()
 
@@ -234,6 +236,7 @@ class Encoder(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            inject_covariates=inject_covariates,
         )
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)
@@ -295,7 +298,8 @@ class DecoderSCVI(nn.Module):
         The number of nodes per hidden layer
     dropout_rate
         Dropout rate to apply to each of the hidden layers
-
+    inject_covariates
+        Whether to inject covariates in each layer, or just the first (default).
     """
 
     def __init__(
@@ -305,6 +309,7 @@ class DecoderSCVI(nn.Module):
         n_cat_list: Iterable[int] = None,
         n_layers: int = 1,
         n_hidden: int = 128,
+        inject_covariates: bool = True,
     ):
         super().__init__()
         self.px_decoder = FCLayers(
@@ -314,6 +319,7 @@ class DecoderSCVI(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=0,
+            inject_covariates=inject_covariates,
         )
 
         # mean gamma
@@ -442,7 +448,6 @@ class Decoder(nn.Module):
         The number of nodes per hidden layer
     dropout_rate
         Dropout rate to apply to each of the hidden layers
-
     """
 
     def __init__(

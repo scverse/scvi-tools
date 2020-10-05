@@ -59,6 +59,16 @@ class VAE(nn.Module):
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
+    latent_distribution
+        One of
+
+        * ``'normal'`` - Isotropic normal
+        * ``'ln'`` - Logistic normal with normal params N(0, 1)
+    encode_covariates
+        Whether to concatenate covariates to expression in encoder
+    deeply_inject_covariates
+        Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
+        only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
     """
 
     def __init__(
@@ -74,6 +84,8 @@ class VAE(nn.Module):
         log_variational: bool = True,
         gene_likelihood: str = "zinb",
         latent_distribution: str = "normal",
+        encode_covariates: bool = False,
+        deeply_inject_covariates: bool = True,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -84,6 +96,7 @@ class VAE(nn.Module):
         self.n_batch = n_batch
         self.n_labels = n_labels
         self.latent_distribution = latent_distribution
+        self.encode_covariates = encode_covariates
 
         if self.dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input))
@@ -105,14 +118,22 @@ class VAE(nn.Module):
         self.z_encoder = Encoder(
             n_input,
             n_latent,
+            n_cat_list=[n_batch] if encode_covariates else None,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             distribution=latent_distribution,
+            inject_covariates=deeply_inject_covariates,
         )
         # l encoder goes from n_input-dimensional data to 1-d library size
         self.l_encoder = Encoder(
-            n_input, 1, n_layers=1, n_hidden=n_hidden, dropout_rate=dropout_rate
+            n_input,
+            1,
+            n_layers=1,
+            n_cat_list=[n_batch] if encode_covariates else None,
+            n_hidden=n_hidden,
+            dropout_rate=dropout_rate,
+            inject_covariates=deeply_inject_covariates,
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
         self.decoder = DecoderSCVI(
@@ -121,6 +142,7 @@ class VAE(nn.Module):
             n_cat_list=[n_batch],
             n_layers=n_layers,
             n_hidden=n_hidden,
+            inject_covariates=deeply_inject_covariates,
         )
 
     def get_latents(self, x, y=None) -> torch.Tensor:
@@ -142,7 +164,7 @@ class VAE(nn.Module):
         return [self.sample_from_posterior_z(x, y)]
 
     def sample_from_posterior_z(
-        self, x, y=None, give_mean=False, n_samples=5000
+        self, x, batch_index=None, y=None, give_mean=False, n_samples=5000
     ) -> torch.Tensor:
         """
         Samples the tensor of latent values from the posterior.
@@ -165,7 +187,7 @@ class VAE(nn.Module):
         """
         if self.log_variational:
             x = torch.log(1 + x)
-        qz_m, qz_v, z = self.z_encoder(x, y)  # y only used in VAEC
+        qz_m, qz_v, z = self.z_encoder(x, batch_index, y)  # y only used in VAEC
 
         if give_mean:
             if self.latent_distribution == "ln":
@@ -176,7 +198,9 @@ class VAE(nn.Module):
                 z = qz_m
         return z
 
-    def sample_from_posterior_l(self, x, give_mean=True) -> torch.Tensor:
+    def sample_from_posterior_l(
+        self, x, batch_index=None, give_mean=True
+    ) -> torch.Tensor:
         """
         Samples the tensor of library sizes from the posterior.
 
@@ -196,7 +220,7 @@ class VAE(nn.Module):
         """
         if self.log_variational:
             x = torch.log(1 + x)
-        ql_m, ql_v, library = self.l_encoder(x)
+        ql_m, ql_v, library = self.l_encoder(x, batch_index)
         if give_mean is False:
             library = library
         else:
@@ -296,8 +320,8 @@ class VAE(nn.Module):
             x_ = torch.log(1 + x_)
 
         # Sampling
-        qz_m, qz_v, z = self.z_encoder(x_, y)
-        ql_m, ql_v, library = self.l_encoder(x_)
+        qz_m, qz_v, z = self.z_encoder(x_, batch_index, y)
+        ql_m, ql_v, library = self.l_encoder(x_, batch_index)
 
         if n_samples > 1:
             qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))

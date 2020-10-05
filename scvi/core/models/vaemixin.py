@@ -206,8 +206,9 @@ class VAEMixin:
         latent = []
         for tensors in scdl:
             x = tensors[_CONSTANTS.X_KEY]
+            b = tensors[_CONSTANTS.BATCH_KEY]
             z = self.model.sample_from_posterior_z(
-                x, give_mean=give_mean, n_samples=mc_samples
+                x, b, give_mean=give_mean, n_samples=mc_samples
             )
             latent += [z.cpu()]
         return np.array(torch.cat(latent))

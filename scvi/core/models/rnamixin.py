@@ -549,6 +549,7 @@ class RNASeqMixin:
         libraries = []
         for tensors in scdl:
             x = tensors[_CONSTANTS.X_KEY]
-            library = self.model.sample_from_posterior_l(x, give_mean=give_mean)
+            b = tensors[_CONSTANTS.BATCH_KEY]
+            library = self.model.sample_from_posterior_l(x, b, give_mean=give_mean)
             libraries += [library.cpu()]
         return np.array(torch.cat(libraries))

@@ -365,7 +365,7 @@ def test_totalvi(save_path):
 def test_scvi_online_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
-    model = SCVI(adata1, n_latent=n_latent)
+    model = SCVI(adata1, n_latent=n_latent, encode_covariates=True)
     model.train(1, frequency=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)

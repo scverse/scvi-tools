@@ -89,7 +89,7 @@ class VAEC(VAE):
         self.z_encoder = Encoder(
             n_input,
             n_latent,
-            n_cat_list=[n_labels],
+            n_cat_list=[n_batch, n_labels],
             n_hidden=n_hidden,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
