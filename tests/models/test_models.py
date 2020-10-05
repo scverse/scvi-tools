@@ -444,6 +444,7 @@ def test_scanvi_online_update(save_path):
         n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
     )
     model.get_latent_representation()
+    model.predict()
 
 
 def test_totalvi_online_update(save_path):
