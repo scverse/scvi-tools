@@ -19,7 +19,7 @@ class ArchesMixin:
         dir_path: str,
         use_cuda: bool = True,
         freeze_dropout: bool = False,
-        freeze_batchnorm: bool = False,
+        freeze_batchnorm: bool = True,
         freeze_expression: bool = True,
     ):
         """
@@ -38,7 +38,7 @@ class ArchesMixin:
         freeze_dropout
             Whether to freeze dropout during training
         freeze_batchnorm
-            Whether to freeze batchnorm statistics during training
+            Whether to freeze batchnorm weight and bias during training
         freeze_expression
             Freeze neurons corersponding to expression in first layer
         """
@@ -119,7 +119,9 @@ def _set_params_online_update(
         # modules that need grad
         two = mod_name in mod_no_hooks_yes_grad
         three = sum([p in key for p in parameters_yes_grad]) > 0
-        if one or two or three:
+        # batch norm option
+        four = "fc_layers" in key and ".1." in key and (not freeze_batchnorm)
+        if one or two or three or four:
             return True
         else:
             return False
@@ -134,10 +136,6 @@ def _set_params_online_update(
         if isinstance(mod, torch.nn.Dropout):
             if freeze_dropout:
                 mod.p = 0
-        if isinstance(mod, torch.nn.BatchNorm1d):
-            if freeze_batchnorm:
-                mod.affine = False
-                mod.track_running_stats = False
 
     for key, par in model.named_parameters():
         if requires_grad(key):

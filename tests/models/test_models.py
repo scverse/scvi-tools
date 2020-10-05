@@ -414,12 +414,18 @@ def test_scvi_online_update(save_path):
     # categorical part has non-zero grad
     assert np.sum(grad[:, -4:]) != 0
 
+    # do not freeze expression
     model3 = SCVI.load_query_data(adata2, dir_path, freeze_expression=False)
     model3.train(n_epochs=1)
     model3.get_latent_representation()
     grad = model3.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()
     # linear layer weight in encoder layer has non-zero grad
     assert np.sum(grad[:, :-4]) != 0
+
+    # do not freeze batchnorm
+    model3 = SCVI.load_query_data(adata2, dir_path, freeze_batchnorm=False)
+    model3.train(n_epochs=1)
+    model3.get_latent_representation()
 
 
 def test_scanvi_online_update(save_path):
