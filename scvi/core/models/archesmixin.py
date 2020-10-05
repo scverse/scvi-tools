@@ -110,7 +110,7 @@ def _set_params_online_update(
     parameters_yes_grad = set(["background_pro_alpha", "background_pro_log_beta"])
 
     def no_hook_cond(key):
-        return not freeze_expression and "encoder" in key
+        return (not freeze_expression) and "encoder" in key
 
     def requires_grad(key):
         mod_name = key.split(".")[0]
@@ -124,12 +124,18 @@ def _set_params_online_update(
         else:
             return False
 
+    for key, par in model.named_parameters():
+        if requires_grad(key):
+            par.requires_grad = True
+        else:
+            par.requires_grad = False
+
     for key, mod in model.named_modules():
         # skip over protected modules
         if key.split(".")[0] in mod_no_hooks_yes_grad:
             continue
         if isinstance(mod, FCLayers):
-            hook_first_layer = False if no_hook_cond else True
+            hook_first_layer = False if no_hook_cond(key) else True
             mod.set_online_update_hooks(hook_first_layer)
         if isinstance(mod, torch.nn.Dropout):
             if freeze_dropout:
@@ -138,9 +144,3 @@ def _set_params_online_update(
             if freeze_batchnorm:
                 mod.affine = False
                 mod.track_running_stats = False
-
-    for key, par in model.named_parameters():
-        if requires_grad(key):
-            par.requires_grad = True
-        else:
-            par.requires_grad = False

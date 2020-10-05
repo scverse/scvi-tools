@@ -365,7 +365,7 @@ def test_totalvi(save_path):
 def test_scvi_online_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
-    model = SCVI(adata1, n_latent=n_latent, encode_covariates=True)
+    model = SCVI(adata1, n_latent=n_latent)
     model.train(1, frequency=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
@@ -374,23 +374,29 @@ def test_scvi_online_update(save_path):
     new_b = [2, 3]
     adata2.obs["batch"] = pd.Categorical(new_b[i] for i in adata2.obs.batch)
 
-    model = SCVI.load_query_data(adata2, dir_path)
-    model.train(n_epochs=1)
-    model.get_latent_representation()
+    model2 = SCVI.load_query_data(adata2, dir_path)
+    model2.train(n_epochs=1)
+    model2.get_latent_representation()
 
+    # encoder linear layer equal
+    one = model.model.z_encoder.encoder.fc_layers[0][0].weight.detach().numpy()
+    two = model2.model.z_encoder.encoder.fc_layers[0][0].weight.detach().numpy()
+    np.testing.assert_allclose(one, two, atol=1e-07)
+    assert (
+        np.sum(model2.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()) == 0
+    )
     # dispersion
-    assert model.model.px_r.requires_grad is False
+    assert model2.model.px_r.requires_grad is False
     # library encoder linear layer
-    assert model.model.l_encoder.encoder.fc_layers[0][0].weight.requires_grad is True
+    assert model2.model.l_encoder.encoder.fc_layers[0][0].weight.requires_grad is True
     # batch norm weight in encoder layer
-    assert model.model.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
-    # linear first layer
-    assert model.model.z_encoder.encoder.fc_layers[0][0].weight.requires_grad is True
+    assert model2.model.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
     # 5 for n_latent, 4 for batches
-    assert model.model.decoder.px_decoder.fc_layers[0][0].weight.shape[1] == 9
+    assert model2.model.decoder.px_decoder.fc_layers[0][0].weight.shape[1] == 9
 
+    # test options
     adata1 = synthetic_iid()
-    model = SCVI(adata1, n_latent=n_latent, n_layers=2)
+    model = SCVI(adata1, n_latent=n_latent, n_layers=2, encode_covariates=True)
     model.train(1, frequency=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
@@ -399,15 +405,21 @@ def test_scvi_online_update(save_path):
     new_b = [2, 3]
     adata2.obs["batch"] = pd.Categorical(new_b[i] for i in adata2.obs.batch)
 
-    model = SCVI.load_query_data(adata2, dir_path)
-    model.train(n_epochs=1)
-    model.get_latent_representation()
+    model2 = SCVI.load_query_data(adata2, dir_path, freeze_expression=True)
+    model2.train(n_epochs=1)
+    model2.get_latent_representation()
+    grad = model2.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()
+    # expression part has zero grad
+    assert np.sum(grad[:, :-4]) == 0
+    # categorical part has non-zero grad
+    assert np.sum(grad[:, -4:]) != 0
 
-    model = SCVI.load_query_data(adata2, dir_path, freeze_expression=False)
-    model.train(n_epochs=1)
-    model.get_latent_representation()
-    # linear layer weight in encoder layer
-    assert model.model.z_encoder.encoder.fc_layers[0][0].weight.requires_grad is True
+    model3 = SCVI.load_query_data(adata2, dir_path, freeze_expression=False)
+    model3.train(n_epochs=1)
+    model3.get_latent_representation()
+    grad = model3.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()
+    # linear layer weight in encoder layer has non-zero grad
+    assert np.sum(grad[:, :-4]) != 0
 
 
 def test_scanvi_online_update(save_path):
