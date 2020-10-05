@@ -124,12 +124,6 @@ def _set_params_online_update(
         else:
             return False
 
-    for key, par in model.named_parameters():
-        if requires_grad(key):
-            par.requires_grad = True
-        else:
-            par.requires_grad = False
-
     for key, mod in model.named_modules():
         # skip over protected modules
         if key.split(".")[0] in mod_no_hooks_yes_grad:
@@ -144,3 +138,9 @@ def _set_params_online_update(
             if freeze_batchnorm:
                 mod.affine = False
                 mod.track_running_stats = False
+
+    for key, par in model.named_parameters():
+        if requires_grad(key):
+            par.requires_grad = True
+        else:
+            par.requires_grad = False

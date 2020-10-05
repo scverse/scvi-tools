@@ -93,21 +93,22 @@ class ClassifierTrainer(Trainer):
 
     def loss(self, tensors_labelled):
         x = tensors_labelled[_CONSTANTS.X_KEY]
+        b = tensors_labelled[_CONSTANTS.BATCH_KEY]
         labels_train = tensors_labelled[_CONSTANTS.LABELS_KEY]
         if self.sampling_model:
             if hasattr(self.sampling_model, "classify"):
                 return F.cross_entropy(
-                    self.sampling_model.classify(x), labels_train.view(-1)
+                    self.sampling_model.classify(x, b), labels_train.view(-1)
                 )
             else:
                 if self.sampling_model.log_variational:
                     x = torch.log(1 + x)
                 if self.sampling_zl:
-                    x_z = self.sampling_model.z_encoder(x)[0]
-                    x_l = self.sampling_model.l_encoder(x)[0]
+                    x_z = self.sampling_model.z_encoder(x, b)[0]
+                    x_l = self.sampling_model.l_encoder(x, b)[0]
                     x = torch.cat((x_z, x_l), dim=-1)
                 else:
-                    x = self.sampling_model.z_encoder(x)[0]
+                    x = self.sampling_model.z_encoder(x, b)[0]
         return F.cross_entropy(self.model(x), labels_train.view(-1))
 
     def create_scvi_dl(
@@ -199,9 +200,10 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
     def loss(self, tensors_all, tensors_labelled):
         loss = super().loss(tensors_all, feed_labels=False)
         sample_batch = tensors_labelled[_CONSTANTS.X_KEY]
+        batch_index = tensors_labelled[_CONSTANTS.BATCH_KEY]
         y = tensors_labelled[_CONSTANTS.LABELS_KEY]
         classification_loss = F.cross_entropy(
-            self.model.classify(sample_batch), y.view(-1)
+            self.model.classify(sample_batch, batch_index), y.view(-1)
         )
         loss += classification_loss * self.classification_ratio
         return loss
