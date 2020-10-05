@@ -23,7 +23,7 @@ class ArchesMixin:
         freeze_expression: bool = True,
     ):
         """
-        Online update of a reference model using method of scArches.
+        Online update of a reference model with scArches algorithm [Lotfollahi20]_.
 
         Parameters
         ----------
