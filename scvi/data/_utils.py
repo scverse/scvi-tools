@@ -129,12 +129,12 @@ def _get_batch_mask_protein_data(
     pro_exp = adata.obsm[protein_expression_obsm_key]
     pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
     batches = adata.obs[batch_key].values
-    batch_mask = []
+    batch_mask = {}
     for b in np.unique(batches):
         b_inds = np.where(batches.ravel() == b)[0]
         batch_sum = pro_exp[b_inds, :].sum(axis=0)
         all_zero = batch_sum == 0
-        batch_mask.append(~all_zero)
+        batch_mask[b] = ~all_zero
 
     return batch_mask
 
