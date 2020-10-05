@@ -564,7 +564,7 @@ def _transfer_protein_expression(_scvi_dict, adata_target, batch_key):
             )
 
             # check if it's actually needed
-            if np.sum([~b for b in batch_mask]) > 0:
+            if np.sum([~b[1] for b in batch_mask.items()]) > 0:
                 logger.info("Found batches with missing protein expression")
                 adata_target.uns["_scvi"]["totalvi_batch_mask"] = batch_mask
     else:
@@ -784,7 +784,7 @@ def _setup_protein_expression(
     )
 
     # check if it's actually needed
-    if np.sum([~b for b in batch_mask]) > 0:
+    if np.sum([~b[1] for b in batch_mask.items()]) > 0:
         logger.info("Found batches with missing protein expression")
         adata.uns["_scvi"]["totalvi_batch_mask"] = batch_mask
     return protein_expression_obsm_key

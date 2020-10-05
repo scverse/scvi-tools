@@ -478,5 +478,7 @@ def test_totalvi_online_update(save_path):
     adata2.obsm["protein_expression"][adata2.obs.batch == 3] = 0
 
     model = TOTALVI.load_query_data(adata2, dir_path)
+    model.model.protein_batch_mask[2]
+    model.model.protein_batch_mask[3]
     model.train(n_epochs=1)
     model.get_latent_representation()
