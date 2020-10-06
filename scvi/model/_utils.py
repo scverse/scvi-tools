@@ -1,5 +1,6 @@
 import logging
 from typing import Dict, List, Union, Sequence
+from collections.abc import Iterable as IterableClass
 
 import anndata
 import numpy as np
@@ -9,6 +10,8 @@ from scvi import _CONSTANTS
 from scvi.data import get_from_registry
 
 logger = logging.getLogger(__name__)
+
+Number = Union[int, float]
 
 
 def scrna_raw_counts_properties(
@@ -127,8 +130,11 @@ def _get_var_names_from_setup_anndata(adata):
 
 
 def _get_batch_code_from_category(
-    adata: anndata.AnnData, category: Sequence[Union[int, str]]
+    adata: anndata.AnnData, category: Sequence[Union[Number, str]]
 ):
+    if not isinstance(category, IterableClass) and not isinstance(category, str):
+        category = [category]
+
     categorical_mappings = adata.uns["_scvi"]["categorical_mappings"]
     batch_mappings = categorical_mappings["_scvi_batch"]["mapping"]
     batch_code = []
