@@ -22,7 +22,7 @@ conda prerequisites
 pip prerequisites:
 ##################
 
-1. Install Python_.
+1. Install Python_, we prefer the pyenv_ version management system, along with pyenv-virtualenv_.
 
 2. Install PyTorch_. If you have an Nvidia GPU, be sure to install a version of PyTorch that supports it -- scvi-tools runs much faster with a discrete GPU.
 
