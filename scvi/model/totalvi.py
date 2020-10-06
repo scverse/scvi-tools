@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union, TypeVar
+from typing import Dict, Iterable, Optional, Sequence, Tuple, Union, TypeVar
 from collections.abc import Iterable as IterableClass
 
 import numpy as np
@@ -330,8 +330,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         adata=None,
         indices=None,
         transform_batch: Optional[Sequence[Union[Number, str]]] = None,
-        gene_list: Optional[Union[np.ndarray, List[int]]] = None,
-        protein_list: Optional[Union[np.ndarray, List[int]]] = None,
+        gene_list: Optional[Sequence[str]] = None,
+        protein_list: Optional[Sequence[str]] = None,
         library_size: Optional[Union[float, Literal["latent"]]] = 1,
         n_samples: int = 1,
         sample_protein_mixing: bool = False,
