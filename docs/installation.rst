@@ -6,7 +6,7 @@ Prerequisites
 
 scvi-tools can be installed via conda or pip. If you don't know which to choose, we recommend conda for beginner users. 
 
-Conda Prerequisites
+conda prerequisites
 ###################
 
 1. Install Conda. We typically use the Miniconda_ Python distribution. Use Python version >=3.7.
