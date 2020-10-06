@@ -29,6 +29,8 @@ pip prerequisites:
 .. _Miniconda: https://conda.io/miniconda.html
 .. _Python: https://www.python.org/downloads/
 .. _PyTorch: http://pytorch.org
+.. _pyenv: https://github.com/pyenv/pyenv
+.. _pyenv-virtualenv: https://github.com/pyenv/pyenv-virtualenv
 
 
 scvi-tools installation
