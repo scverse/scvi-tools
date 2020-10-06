@@ -19,7 +19,7 @@ conda prerequisites
 
     source activate scvi-env
 
-pip Prerequisites:
+pip prerequisites:
 ##################
 
 1. Install Python_.
