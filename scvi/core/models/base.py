@@ -7,7 +7,7 @@ from typing import Optional, Sequence
 
 import numpy as np
 import torch
-from anndata import AnnData
+from anndata import AnnData, read
 
 from scvi import _CONSTANTS, settings
 from scvi.data import get_from_registry, transfer_anndata_setup
@@ -150,7 +150,7 @@ class BaseModelClass(ABC):
         }
         return user_params
 
-    def save(self, dir_path: str, overwrite: bool = False):
+    def save(self, dir_path: str, overwrite: bool = False, save_anndata: bool = True):
         """
         Save the state of the model.
 
@@ -179,12 +179,29 @@ class BaseModelClass(ABC):
                     dir_path
                 )
             )
-        torch.save(self.model.state_dict(), os.path.join(dir_path, "model_params.pt"))
-        with open(os.path.join(dir_path, "attr.pkl"), "wb") as f:
+
+        if save_anndata:
+            self.adata.write(os.path.join(dir_path, "adata.h5ad"))
+
+        model_save_path = os.path.join(dir_path, "model_params.pt")
+        attr_save_path = os.path.join(dir_path, "attr.pkl")
+        varnames_save_path = os.path.join(dir_path, "var_names.pkl")
+
+        var_names = self.adata.var_names
+        with open(varnames_save_path, "wb") as fp:
+            pickle.dump(var_names, fp)
+
+        torch.save(self.model.state_dict(), model_save_path)
+        with open(attr_save_path, "wb") as f:
             pickle.dump(user_attributes, f)
 
     @classmethod
-    def load(cls, adata: AnnData, dir_path: str, use_cuda: bool = False):
+    def load(
+        cls,
+        dir_path: str,
+        adata: AnnData = None,
+        use_cuda: bool = False,
+    ):
         """
         Instantiate a model from the saved output.
 
@@ -210,11 +227,41 @@ class BaseModelClass(ABC):
         """
         model_path = os.path.join(dir_path, "model_params.pt")
         setup_dict_path = os.path.join(dir_path, "attr.pkl")
+        adata_path = os.path.join(dir_path, "adata.h5ad")
+        varnames_path = os.path.join(dir_path, "var_names.pkl")
+
+        if os.path.exists(adata_path) and adata is None:
+            adata = read(adata_path)
+        elif not os.path.exists(adata_path) and adata is None:
+            raise ValueError(
+                "Save path contains no saved anndata and no adata was passed."
+            )
+        elif os.path.exists(adata_path) and adata is not None:
+            logger.info(
+                "Passed in adata to initialize model with. Ignoring saved anndata."
+            )
+
+        with open(varnames_path, "rb") as handle:
+            var_names = pickle.load(handle)
+
+        if len(set(adata.var_names) - set(var_names)) != 0:
+            logger.warning(
+                "var_names for adata passed in does not match var_names of "
+                "adata used to train the model. For valid results, the vars "
+                "need to be the same and in the same order as the adata used to train the model."
+            )
+
         with open(setup_dict_path, "rb") as handle:
             attr_dict = pickle.load(handle)
+
+        scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+
+        transfer_anndata_setup(scvi_setup_dict, adata)
+
         if "init_params_" not in attr_dict.keys():
             raise ValueError(
-                "No init_params_ were saved by the model. Check out the developers guide if creating custom models."
+                "No init_params_ were saved by the model. Check out the "
+                "developers guide if creating custom models."
             )
         # get the parameters for the class init signiture
         init_params = attr_dict.pop("init_params_")
@@ -236,6 +283,7 @@ class BaseModelClass(ABC):
             model.model.load_state_dict(torch.load(model_path, map_location=device))
         model.model.eval()
         model._validate_anndata(adata)
+
         return model
 
     def __repr__(
