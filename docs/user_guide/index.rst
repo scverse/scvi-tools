@@ -215,6 +215,7 @@ totalVI can be used to integrate datasets from CITE-seq (RNA + protein) and data
 
 :doc:`To the tutorial <notebooks/cite_scrna_integration_w_totalVI>`
 
+
 .. raw:: html
 
                         </span>
@@ -225,6 +226,42 @@ totalVI can be used to integrate datasets from CITE-seq (RNA + protein) and data
 
         <div class="card tutorial-card">
             <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseFive">
+                <div class="d-flex flex-row tutorial-card-header-1">
+                    <div class="d-flex flex-row tutorial-card-header-2">
+                        <button class="btn btn-dark btn-sm"></button>
+                        Interoperability with R and Seurat
+                    </div>
+                    <span class="badge gs-badge-link">
+
+:doc:`Straight to tutorial...<notebooks/scvi_in_R>`
+
+.. raw:: html
+
+                    </span>
+                </div>
+            </div>
+            <div id="collapseFive" class="collapse" data-parent="#accordion">
+                <div class="card-body">
+
+scvi-tools can be used interfaced directly from R. Learn the basics here.
+
+.. raw:: html
+
+                    <div class="d-flex flex-row">
+                        <span class="badge gs-badge-link">
+
+:doc:`To the tutorial <notebooks/scvi_in_R>`
+
+.. raw:: html
+
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card tutorial-card">
+            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseSix">
                 <div class="d-flex flex-row tutorial-card-header-1">
                     <div class="d-flex flex-row tutorial-card-header-2">
                         <button class="btn btn-dark btn-sm"></button>
@@ -239,7 +276,7 @@ totalVI can be used to integrate datasets from CITE-seq (RNA + protein) and data
                     </span>
                 </div>
             </div>
-            <div id="collapseFive" class="collapse" data-parent="#accordion">
+            <div id="collapseSix" class="collapse" data-parent="#accordion">
                 <div class="card-body">
 
 gimVI can be used to integrate spatial and sequencing data. Integration enables imputation of missing genes in the cells measured with a spatial technology.
@@ -261,7 +298,7 @@ gimVI can be used to integrate spatial and sequencing data. Integration enables 
         </div>
 
         <div class="card tutorial-card">
-            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseSix">
+            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseSeven">
                 <div class="d-flex flex-row tutorial-card-header-1">
                     <div class="d-flex flex-row tutorial-card-header-2">
                         <button class="btn btn-dark btn-sm"></button>
@@ -276,7 +313,7 @@ gimVI can be used to integrate spatial and sequencing data. Integration enables 
                     </span>
                 </div>
             </div>
-            <div id="collapseSix" class="collapse" data-parent="#accordion">
+            <div id="collapseSeven" class="collapse" data-parent="#accordion">
                 <div class="card-body">
 
 AutoZI can be used to determine which genes are zero-inflated. This can be extended to finding cell-type specific zero-inflation.
@@ -361,6 +398,7 @@ This tutorial was contributed by Eduardo Beltrame.
    notebooks/harmonization
    notebooks/linear_decoder
    notebooks/cite_scrna_integration_w_totalVI
+   notebooks/scvi_in_R
    notebooks/gimvi_tutorial
    notebooks/AutoZI_tutorial
    notebooks/contributed/scVI_DE_worm
