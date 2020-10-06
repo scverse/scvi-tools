@@ -74,6 +74,8 @@ class VAEMixin:
             train_fun_kwargs["n_epochs"] = n_epochs
         if "lr" not in train_fun_kwargs:
             train_fun_kwargs["lr"] = lr
+
+        logger.info("Training for {} epochs".format(n_epochs))
         self.trainer.train(**train_fun_kwargs)
         self.is_trained_ = True
 

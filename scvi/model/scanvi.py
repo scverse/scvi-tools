@@ -221,6 +221,14 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             n_epochs_semisupervised = int(
                 np.min([10, np.max([2, round(n_epochs_unsupervised / 3.0)])])
             )
+        logger.info(
+            "Training Unsupervised Trainer for {} epochs.".format(n_epochs_unsupervised)
+        )
+        logger.info(
+            "Training SemiSupervised Trainer for {} epochs.".format(
+                n_epochs_semisupervised
+            )
+        )
 
         if self._is_trained_base is not True:
             self._unsupervised_trainer = UnsupervisedTrainer(

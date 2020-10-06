@@ -165,6 +165,8 @@ class GIMVI(VAEMixin, BaseModelClass):
             kappa=kappa,
             n_epochs_kl_warmup=n_epochs_kl_warmup,
         )
+
+        logger.info("Training for {} epochs.".format(n_epochs))
         self.trainer.train(n_epochs=n_epochs, **train_fun_kwargs)
 
         self.is_trained_ = True
