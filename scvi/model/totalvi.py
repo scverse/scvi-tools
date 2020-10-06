@@ -1066,10 +1066,18 @@ def _get_totalvi_protein_priors(adata, n_cells=100):
     from sklearn.mixture import GaussianMixture
 
     batch = get_from_registry(adata, _CONSTANTS.BATCH_KEY).ravel()
+    cats = adata.uns["_scvi"]["categorical_mappings"]["_scvi_batch"]["mapping"]
+    codes = np.arange(len(cats))
 
     batch_avg_mus, batch_avg_scales = [], []
-    for b in np.unique(batch):
+    for b in np.unique(codes):
         pro_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)[batch == b]
+
+        # for missing batches, put dummy values -- scarches case, will be replaced anyway
+        if pro_exp.shape[0] == 0:
+            batch_avg_mus.append(0.0)
+            batch_avg_scales.append(-3.0)
+
         cells = np.random.choice(np.arange(pro_exp.shape[0]), size=n_cells)
         if isinstance(pro_exp, pd.DataFrame):
             pro_exp = pro_exp.to_numpy()
