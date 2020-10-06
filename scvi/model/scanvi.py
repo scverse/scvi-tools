@@ -259,6 +259,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.trainer.labelled_set = self.trainer.create_scvi_dl(
             indices=self._labeled_indices
         )
+
+        for scdl in [self.trainer.labelled_set, self.trainer.unlabelled_set]:
+            scdl.to_monitor = ["reconstruction_error", "accuracy"]
+
         self.trainer.train(
             n_epochs=n_epochs_semisupervised,
             **semisupervised_train_kwargs,

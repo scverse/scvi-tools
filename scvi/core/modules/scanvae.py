@@ -176,8 +176,8 @@ class SCANVAE(VAE):
             w_y = self.classifier(z)
         return w_y
 
-    def get_latents(self, x, y=None):
-        zs = super().get_latents(x)
+    def get_latents(self, x, y=None, batch_index=None):
+        zs = super().get_latents(x, batch_index=batch_index)
         qz2_m, qz2_v, z2 = self.encoder_z2_z1(zs[0], y)
         if not self.training:
             z2 = qz2_m

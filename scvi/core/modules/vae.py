@@ -145,7 +145,7 @@ class VAE(nn.Module):
             inject_covariates=deeply_inject_covariates,
         )
 
-    def get_latents(self, x, y=None) -> torch.Tensor:
+    def get_latents(self, x, y=None, batch_index=None) -> torch.Tensor:
         """
         Returns the result of ``sample_from_posterior_z`` inside a list.
 
@@ -161,7 +161,7 @@ class VAE(nn.Module):
         type
             one element list of tensor
         """
-        return [self.sample_from_posterior_z(x, y)]
+        return [self.sample_from_posterior_z(x, batch_index, y)]
 
     def sample_from_posterior_z(
         self, x, batch_index=None, y=None, give_mean=False, n_samples=5000
