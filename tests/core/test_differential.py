@@ -15,7 +15,7 @@ def test_differential_computation(save_path):
     model_fn = partial(model.get_normalized_expression, return_numpy=True)
     dc = DifferentialComputation(model_fn, adata)
 
-    cell_idx1 = np.asarray(adata.obs.labels == "undefined_1")
+    cell_idx1 = np.asarray(adata.obs.labels == "label_1")
     cell_idx2 = ~cell_idx1
 
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="vanilla", use_permutation=True)

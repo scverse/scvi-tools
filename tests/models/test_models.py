@@ -13,7 +13,7 @@ def test_scvi():
     n_latent = 5
     adata = synthetic_iid()
     model = SCVI(adata, n_latent=n_latent)
-    model.train(1, frequency=1)
+    model.train(1, frequency=1, train_size=0.5)
     assert model.is_trained is True
     z = model.get_latent_representation()
     assert z.shape == (adata.shape[0], n_latent)
@@ -22,7 +22,7 @@ def test_scvi():
     model.get_elbo()
     model.get_marginal_ll()
     model.get_reconstruction_error()
-    model.get_normalized_expression()
+    model.get_normalized_expression(transform_batch="batch_1")
 
     adata2 = synthetic_iid()
     model.get_elbo(adata2)
@@ -34,10 +34,10 @@ def test_scvi():
     assert denoised.shape == adata.shape
 
     denoised = model.get_normalized_expression(
-        adata2, indices=[1, 2, 3], transform_batch=1
+        adata2, indices=[1, 2, 3], transform_batch="batch_1"
     )
     denoised = model.get_normalized_expression(
-        adata2, indices=[1, 2, 3], transform_batch=[0, 1]
+        adata2, indices=[1, 2, 3], transform_batch=["batch_0", "batch_1"]
     )
     assert denoised.shape == (3, adata2.n_vars)
     sample = model.posterior_predictive_sample(adata2)
@@ -65,7 +65,7 @@ def test_scvi():
         correlation_type="spearman",
         rna_size_factor=500,
         n_samples=5,
-        transform_batch=[0, 1],
+        transform_batch=["batch_0", "batch_1"],
     )
     params = model.get_likelihood_parameters()
     assert params["mean"].shape == adata.shape
@@ -97,7 +97,7 @@ def test_scvi():
     adata2 = synthetic_iid(run_setup_anndata=False)
     transfer_anndata_setup(adata, adata2)
     adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = np.array(
-        ["undefined_1", "undefined_0", "undefined_2"]
+        ["label_1", "label_0", "label_2"]
     )
     with pytest.raises(ValueError):
         model.get_elbo(adata2)
@@ -109,13 +109,24 @@ def test_scvi():
         model.get_elbo(adata2)
 
     # test differential expression
-    model.differential_expression(groupby="labels", group1="undefined_1")
+    model.differential_expression(groupby="labels", group1="label_1")
     model.differential_expression(
-        groupby="labels", group1="undefined_1", group2="undefined_2", mode="change"
+        groupby="labels", group1="label_1", group2="label_2", mode="change"
     )
     model.differential_expression(groupby="labels")
     model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
     model.differential_expression(idx1=[0, 1, 2])
+
+    # transform batch works with all different types
+    a = synthetic_iid(run_setup_anndata=False)
+    batch = np.zeros(a.n_obs)
+    batch[:64] += 1
+    a.obs["batch"] = batch
+    setup_anndata(a, batch_key="batch")
+    m = SCVI(a)
+    m.train(1, train_size=0.5)
+    m.get_normalized_expression(transform_batch=1)
+    m.get_normalized_expression(transform_batch=[0, 1])
 
 
 def test_scvi_sparse():
@@ -124,7 +135,7 @@ def test_scvi_sparse():
     adata.X = csr_matrix(adata.X)
     setup_anndata(adata)
     model = SCVI(adata, n_latent=n_latent)
-    model.train(1)
+    model.train(1, train_size=0.5)
     assert model.is_trained is True
     z = model.get_latent_representation()
     assert z.shape == (adata.shape[0], n_latent)
@@ -132,13 +143,13 @@ def test_scvi_sparse():
     model.get_marginal_ll()
     model.get_reconstruction_error()
     model.get_normalized_expression()
-    model.differential_expression(groupby="labels", group1="undefined_1")
+    model.differential_expression(groupby="labels", group1="label_1")
 
 
 def test_saving_and_loading(save_path):
     def test_save_load_model(cls, adata, save_path):
         model = cls(adata, latent_distribution="normal")
-        model.train(1)
+        model.train(1, train_size=0.2)
         z1 = model.get_latent_representation(adata)
         test_idx1 = model.test_indices
         model.save(save_path, overwrite=True)
@@ -158,7 +169,7 @@ def test_saving_and_loading(save_path):
 
     # AUTOZI
     model = AUTOZI(adata, latent_distribution="normal")
-    model.train(1)
+    model.train(1, train_size=0.5)
     ab1 = model.get_alphas_betas()
     model.save(save_path, overwrite=True)
     model = AUTOZI.load(adata, save_path)
@@ -168,8 +179,8 @@ def test_saving_and_loading(save_path):
     assert model.is_trained is True
 
     # SCANVI
-    model = SCANVI(adata, "undefined_0")
-    model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1)
+    model = SCANVI(adata, "label_0")
+    model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_size=0.5)
     p1 = model.predict()
     model.save(save_path, overwrite=True)
     model = SCANVI.load(adata, save_path)
@@ -179,7 +190,7 @@ def test_saving_and_loading(save_path):
 
     # GIMVI
     model = GIMVI(adata, adata)
-    model.train(1)
+    model.train(1, train_size=0.5)
     z1 = model.get_latent_representation([adata])
     z2 = model.get_latent_representation([adata])
     np.testing.assert_array_equal(z1, z2)
@@ -192,8 +203,8 @@ def test_saving_and_loading(save_path):
 
 def test_scanvi():
     adata = synthetic_iid()
-    model = SCANVI(adata, "undefined_0", n_latent=10)
-    model.train(1, frequency=1)
+    model = SCANVI(adata, "label_0", n_latent=10)
+    model.train(1, train_size=0.5, frequency=1)
     assert len(model.history["unsupervised_trainer_history"]) == 2
     assert len(model.history["semisupervised_trainer_history"]) == 3
     adata2 = synthetic_iid()
@@ -203,10 +214,8 @@ def test_scanvi():
     model.predict(adata2, soft=True)
     model.predict(adata2, soft=True, indices=[1, 2, 3])
     model.get_normalized_expression(adata2)
-    model.differential_expression(groupby="labels", group1="undefined_1")
-    model.differential_expression(
-        groupby="labels", group1="undefined_1", group2="undefined_2"
-    )
+    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
 
 
 def test_linear_scvi():
@@ -216,15 +225,13 @@ def test_linear_scvi():
     adata = adata[:, :10].copy()
     setup_anndata(adata, use_raw=True)
     model = LinearSCVI(adata, n_latent=10)
-    model.train(1, frequency=1)
+    model.train(1, frequency=1, train_size=0.5)
     assert len(model.history["elbo_train_set"]) == 2
     assert len(model.history["elbo_test_set"]) == 2
     loadings = model.get_loadings()
     pd.testing.assert_index_equal(loadings.index, adata.raw.var_names)
-    model.differential_expression(groupby="labels", group1="undefined_1")
-    model.differential_expression(
-        groupby="labels", group1="undefined_1", group2="undefined_2"
-    )
+    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
 
 
 def test_gimvi():
@@ -233,7 +240,7 @@ def test_gimvi():
     model = GIMVI(adata_seq, adata_spatial, n_latent=10)
     model.get_latent_representation()
     model.get_imputed_values()
-    model.train(1, frequency=1, early_stopping_kwargs=None)
+    model.train(1, frequency=1, early_stopping_kwargs=None, train_size=0.5)
 
     assert len(model.history["elbo_train_0"]) == 2
     assert len(model.history["elbo_train_1"]) == 2
@@ -280,7 +287,7 @@ def test_totalvi(save_path):
     n_latent = 10
 
     model = TOTALVI(adata, n_latent=n_latent)
-    model.train(1, frequency=1, early_stopping_kwargs=None)
+    model.train(1, frequency=1, early_stopping_kwargs=None, train_size=0.5)
     assert len(model.history["elbo_train_set"]) == 2
     assert len(model.history["elbo_test_set"]) == 2
     assert model.is_trained is True
@@ -290,10 +297,10 @@ def test_totalvi(save_path):
     model.get_marginal_ll()
     model.get_reconstruction_error()
     model.get_normalized_expression()
-    model.get_normalized_expression(transform_batch=[0, 1])
+    model.get_normalized_expression(transform_batch=["batch_0", "batch_1"])
     model.get_latent_library_size()
     model.get_protein_foreground_probability()
-    model.get_protein_foreground_probability(transform_batch=[0, 1])
+    model.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
     post_pred = model.posterior_predictive_sample(n_samples=2)
     assert post_pred.shape == (n_obs, n_vars + n_proteins, 2)
     post_pred = model.posterior_predictive_sample(n_samples=1)
@@ -302,7 +309,7 @@ def test_totalvi(save_path):
         correlation_type="spearman"
     )
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(
-        correlation_type="spearman", transform_batch=[0, 1]
+        correlation_type="spearman", transform_batch=["batch_0", "batch_1"]
     )
     feature_correlation_matrix2 = model.get_feature_correlation_matrix(
         correlation_type="pearson"
@@ -353,7 +360,7 @@ def test_totalvi(save_path):
     adata2 = synthetic_iid(run_setup_anndata=False)
     transfer_anndata_setup(adata, adata2)
     adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = np.array(
-        ["undefined_1", "undefined_0", "undefined_2"]
+        ["label_1", "label_0", "label_2"]
     )
     with pytest.raises(ValueError):
         model.get_elbo(adata2)
@@ -363,10 +370,8 @@ def test_totalvi(save_path):
     del adata2.obsm["protein_expression"]
     with pytest.raises(KeyError):
         model.get_elbo(adata2)
-    model.differential_expression(groupby="labels", group1="undefined_1")
-    model.differential_expression(
-        groupby="labels", group1="undefined_1", group2="undefined_2"
-    )
+    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
     model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
     model.differential_expression(idx1=[0, 1, 2])
     model.differential_expression(groupby="labels")

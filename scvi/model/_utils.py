@@ -132,7 +132,7 @@ def _get_var_names_from_setup_anndata(adata):
 def _get_batch_code_from_category(
     adata: anndata.AnnData, category: Sequence[Union[Number, str]]
 ):
-    if not isinstance(category, IterableClass) and not isinstance(category, str):
+    if not isinstance(category, IterableClass) or isinstance(category, str):
         category = [category]
 
     categorical_mappings = adata.uns["_scvi"]["categorical_mappings"]
