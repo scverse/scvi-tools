@@ -127,6 +127,8 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
         self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
+        self.unsupervised_history_ = None
+        self.semisupervised_history_ = None
 
         self._model_summary_string = (
             "ScanVI Model with params: \nunlabeled_category: {}, n_hidden: {}, n_latent: {}"
@@ -153,13 +155,10 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
     @property
     def history(self):
         """Returns computed metrics during training."""
-        if self.is_trained_ is False:
-            return {}
-        else:
-            return {
-                "unsupervised_trainer_history": self._unsupervised_trainer.history,
-                "semisupervised_trainer_history": self.trainer.history,
-            }
+        return {
+            "unsupervised_trainer_history": self.unsupervised_history_,
+            "semisupervised_trainer_history": self.semisupervised_history_,
+        }
 
     def train(
         self,
@@ -245,6 +244,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             self._unsupervised_trainer.train(
                 n_epochs=n_epochs_unsupervised, lr=lr, **unsupervised_train_kwargs
             )
+            self.unsupervised_history_ = self._unsupervised_trainer.history
             self._is_trained_base = True
 
         self.model.load_state_dict(self._base_model.state_dict(), strict=False)
@@ -264,6 +264,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self.trainer.labelled_set = self.trainer.create_scvi_dl(
             indices=self._labeled_indices
         )
+        self.semisupervised_history_ = self.trainer.history
         self.trainer.train(
             n_epochs=n_epochs_semisupervised,
             **semisupervised_train_kwargs,

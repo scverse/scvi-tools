@@ -66,6 +66,7 @@ class VAEMixin:
             self.train_indices_ = self.trainer.train_set.indices
             self.test_indices_ = self.trainer.test_set.indices
             self.validation_indices_ = self.trainer.validation_set.indices
+            self.history_ = self.trainer.history
         # for autotune
         if "n_epochs" not in train_fun_kwargs:
             if n_epochs is None:

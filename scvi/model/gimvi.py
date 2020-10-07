@@ -5,9 +5,10 @@ from typing import List, Optional
 
 import numpy as np
 import torch
-from anndata import AnnData
+from anndata import AnnData, read
 
 from scvi import _CONSTANTS
+from scvi.data import transfer_anndata_setup
 from scvi.core.models import BaseModelClass, VAEMixin
 from scvi.core.modules import JVAE, Classifier
 from scvi.core.trainers import JVAETrainer
@@ -74,6 +75,10 @@ class GIMVI(VAEMixin, BaseModelClass):
         super(GIMVI, self).__init__(use_cuda=use_cuda)
         self.use_cuda = use_cuda and torch.cuda.is_available()
         self.adatas = [adata_seq, adata_spatial]
+        self.scvi_setup_dicts_ = {
+            "seq": adata_seq.uns["_scvi"],
+            "spatial": adata_spatial.uns["_scvi"],
+        }
 
         seq_var_names = _get_var_names_from_setup_anndata(adata_seq)
         spatial_var_names = _get_var_names_from_setup_anndata(adata_spatial)
@@ -170,6 +175,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         self.trainer.train(n_epochs=n_epochs, **train_fun_kwargs)
 
         self.is_trained_ = True
+        self.history_ = self.trainer.history
 
     def _make_scvi_dls(self, adatas: List[AnnData] = None, batch_size=128):
         if adatas is None:
@@ -296,12 +302,62 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         return imputed_values
 
+    def save(self, dir_path: str, overwrite: bool = False, save_anndata: bool = True):
+        """
+        Save the state of the model.
+
+        Neither the trainer optimizer state nor the trainer history are saved.
+        Model files are not expected to be reproducibly saved and loaded across versions
+        until we reach version 1.0.
+
+        Parameters
+        ----------
+        dir_path
+            Path to a directory.
+        overwrite
+            Overwrite existing data or not. If `False` and directory
+            already exists at `dir_path`, error will be raised.
+        """
+        # get all the user attributes
+        user_attributes = self._get_user_attributes()
+        # only save the public attributes with _ at the very end
+        user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
+        # save the model state dict and the trainer state dict only
+        if not os.path.exists(dir_path) or overwrite:
+            os.makedirs(dir_path, exist_ok=overwrite)
+        else:
+            raise ValueError(
+                "{} already exists. Please provide an unexisting directory for saving.".format(
+                    dir_path
+                )
+            )
+        if save_anndata:
+            dataset_names = ["seq", "spatial"]
+            for i in range(len(self.adatas)):
+                save_path = os.path.join(
+                    dir_path, "adata_{}.h5ad".format(dataset_names[i])
+                )
+                self.adatas[i].write(save_path)
+                varnames_save_path = os.path.join(
+                    dir_path, "var_names_{}.pkl".format(dataset_names[i])
+                )
+                var_names = self.adatas[i].var_names
+                with open(varnames_save_path, "wb") as fp:
+                    pickle.dump(var_names, fp)
+
+        model_save_path = os.path.join(dir_path, "model_params.pt")
+        attr_save_path = os.path.join(dir_path, "attr.pkl")
+
+        torch.save(self.model.state_dict(), model_save_path)
+        with open(attr_save_path, "wb") as f:
+            pickle.dump(user_attributes, f)
+
     @classmethod
     def load(
         cls,
-        adata_seq: AnnData,
-        adata_spatial: AnnData,
         dir_path: str,
+        adata_seq: AnnData = None,
+        adata_spatial: AnnData = None,
         use_cuda: bool = False,
     ):
         """
@@ -330,12 +386,54 @@ class GIMVI(VAEMixin, BaseModelClass):
         >>> vae.get_latent_representation()
         """
         model_path = os.path.join(dir_path, "model_params.pt")
-        # optimizer_path = os.path.join(dir_path, "optimizer_params.pt")
         setup_dict_path = os.path.join(dir_path, "attr.pkl")
+        seq_data_path = os.path.join(dir_path, "adata_seq.h5ad")
+        spatial_data_path = os.path.join(dir_path, "adata_spatial.h5ad")
+        seq_var_names_path = os.path.join(dir_path, "var_names_seq.pkl")
+        spatial_var_names_path = os.path.join(dir_path, "var_names_spatial.pkl")
+
+        if adata_seq is None and os.path.exists(seq_data_path):
+            adata_seq = read(seq_data_path)
+        elif adata_seq is None and not os.path.exists(seq_data_path):
+            raise ValueError(
+                "Save path contains no saved anndata and no adata was passed."
+            )
+        if adata_spatial is None and os.path.exists(spatial_data_path):
+            adata_spatial = read(spatial_data_path)
+        elif adata_spatial is None and not os.path.exists(spatial_data_path):
+            raise ValueError(
+                "Save path contains no saved anndata and no adata was passed."
+            )
+        adatas = [adata_seq, adata_spatial]
+
+        with open(seq_var_names_path, "rb") as handle:
+            seq_var_names = pickle.load(handle)
+        with open(spatial_var_names_path, "rb") as handle:
+            spatial_var_names = pickle.load(handle)
+        var_names = [seq_var_names, spatial_var_names]
+
+        for i in range(len(adatas)):
+            adata = adatas[i]
+            var_name = var_names[i]
+            if len(set(adata.var_names) - set(var_name)) != 0:
+                logger.warning(
+                    "var_names for adata passed in does not match var_names of "
+                    "adata used to train the model. For valid results, the vars "
+                    "need to be the same and in the same order as the adata used to train the model."
+                )
+
         with open(setup_dict_path, "rb") as handle:
             attr_dict = pickle.load(handle)
+
+        scvi_setup_dicts = attr_dict.pop("scvi_setup_dicts_")
+        transfer_anndata_setup(scvi_setup_dicts["seq"], adata_seq)
+        transfer_anndata_setup(scvi_setup_dicts["spatial"], adata_spatial)
+
         # get the parameters for the class init signiture
         init_params = attr_dict.pop("init_params_")
+        use_cuda = use_cuda and torch.cuda.is_available()
+        init_params["use_cuda"] = use_cuda
+
         # grab all the parameters execept for kwargs (is a dict)
         non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
         # expand out kwargs
@@ -344,7 +442,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         model = cls(adata_seq, adata_spatial, **non_kwargs, **kwargs)
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
-        use_cuda = use_cuda and torch.cuda.is_available()
 
         if use_cuda:
             model.model.load_state_dict(torch.load(model_path))

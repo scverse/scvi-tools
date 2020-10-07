@@ -153,7 +153,8 @@ def test_saving_and_loading(save_path):
         z1 = model.get_latent_representation(adata)
         test_idx1 = model.test_indices
         model.save(save_path, overwrite=True)
-        model = cls.load(adata, save_path)
+        model = cls.load(save_path)
+        model = cls.load(save_path, adata)
         z2 = model.get_latent_representation()
         test_idx2 = model.test_indices
         np.testing.assert_array_equal(z1, z2)
@@ -172,7 +173,8 @@ def test_saving_and_loading(save_path):
     model.train(1, train_size=0.5)
     ab1 = model.get_alphas_betas()
     model.save(save_path, overwrite=True)
-    model = AUTOZI.load(adata, save_path)
+    model = AUTOZI.load(save_path)
+    model = AUTOZI.load(save_path, adata)
     ab2 = model.get_alphas_betas()
     np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
     np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
@@ -183,7 +185,8 @@ def test_saving_and_loading(save_path):
     model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_size=0.5)
     p1 = model.predict()
     model.save(save_path, overwrite=True)
-    model = SCANVI.load(adata, save_path)
+    model = SCANVI.load(save_path)
+    model = SCANVI.load(save_path, adata)
     p2 = model.predict()
     np.testing.assert_array_equal(p1, p2)
     assert model.is_trained is True
@@ -195,7 +198,8 @@ def test_saving_and_loading(save_path):
     z2 = model.get_latent_representation([adata])
     np.testing.assert_array_equal(z1, z2)
     model.save(save_path, overwrite=True)
-    model = GIMVI.load(adata, adata, save_path)
+    model = GIMVI.load(save_path)
+    model = GIMVI.load(save_path, adata, adata)
     z2 = model.get_latent_representation([adata])
     np.testing.assert_array_equal(z1, z2)
     assert model.is_trained is True

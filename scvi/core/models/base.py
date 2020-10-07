@@ -37,6 +37,7 @@ class BaseModelClass(ABC):
         self.train_indices_ = None
         self.test_indices_ = None
         self.validation_indices_ = None
+        self.history_ = None
 
     def _make_scvi_dl(
         self,
@@ -125,9 +126,7 @@ class BaseModelClass(ABC):
     @property
     def history(self):
         """Returns computed metrics during training."""
-        if self.is_trained_ is False:
-            return {}
-        return self.trainer.history
+        return self.history_
 
     def _get_user_attributes(self):
         # returns all the self attributes defined in a model class, eg, self.is_trained_
@@ -265,6 +264,8 @@ class BaseModelClass(ABC):
             )
         # get the parameters for the class init signiture
         init_params = attr_dict.pop("init_params_")
+        use_cuda = use_cuda and torch.cuda.is_available()
+        init_params["use_cuda"] = use_cuda
         # grab all the parameters execept for kwargs (is a dict)
         non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
         # expand out kwargs
@@ -273,7 +274,6 @@ class BaseModelClass(ABC):
         model = cls(adata, **non_kwargs, **kwargs)
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
-        use_cuda = use_cuda and torch.cuda.is_available()
 
         if use_cuda:
             model.model.load_state_dict(torch.load(model_path))
@@ -281,6 +281,7 @@ class BaseModelClass(ABC):
         else:
             device = torch.device("cpu")
             model.model.load_state_dict(torch.load(model_path, map_location=device))
+
         model.model.eval()
         model._validate_anndata(adata)
 
