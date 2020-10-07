@@ -118,8 +118,10 @@ class FCLayers(nn.Module):
         def _hook_fn_bias(grad):
             return grad * 0
 
-        for layers in self.fc_layers:
-            for i, layer in enumerate(layers):
+        for i, layers in enumerate(self.fc_layers):
+            # if i > 0 and not self.inject_covariates:
+            #     break
+            for layer in layers:
                 if i == 0 and not hook_first_layer:
                     continue
                 if isinstance(layer, nn.Linear):
@@ -161,8 +163,8 @@ class FCLayers(nn.Module):
                 else:
                     one_hot_cat = cat  # cat has already been one_hot encoded
                 one_hot_cat_list += [one_hot_cat]
-        for layers in self.fc_layers:
-            for i, layer in enumerate(layers):
+        for i, layers in enumerate(self.fc_layers):
+            for layer in layers:
                 if layer is not None:
                     if isinstance(layer, nn.BatchNorm1d):
                         if x.dim() == 3:
