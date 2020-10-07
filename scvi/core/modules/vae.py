@@ -130,7 +130,6 @@ class VAE(nn.Module):
             n_input,
             1,
             n_layers=1,
-            n_cat_list=[n_batch] if encode_covariates else None,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             inject_covariates=deeply_inject_covariates,

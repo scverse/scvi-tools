@@ -172,9 +172,12 @@ class Trainer:
         if params is None:
             params = filter(lambda p: p.requires_grad, self.model.parameters())
 
-        self.optimizer = torch.optim.Adam(
-            params, lr=lr, eps=eps, weight_decay=self.weight_decay
-        )
+        try:
+            self.optimizer = torch.optim.Adam(
+                params, lr=lr, eps=eps, weight_decay=self.weight_decay
+            )
+        except ValueError:
+            return
 
         # Initialization of other model's optimizers
         self.training_extras_init(**extras_kwargs)
