@@ -136,6 +136,9 @@ def _set_params_online_update(
         if isinstance(mod, torch.nn.Dropout):
             if freeze_dropout:
                 mod.p = 0
+        # momentum freezes the running stats of batchnorm
+        if isinstance(mod, torch.nn.BatchNorm1d) and freeze_batchnorm:
+            mod.momentum = 0
 
     for key, par in model.named_parameters():
         if requires_grad(key):
