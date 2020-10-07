@@ -317,6 +317,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         overwrite
             Overwrite existing data or not. If `False` and directory
             already exists at `dir_path`, error will be raised.
+        save_anndata
+            If True, also saves the anndata
         """
         # get all the user attributes
         user_attributes = self._get_user_attributes()
@@ -356,8 +358,8 @@ class GIMVI(VAEMixin, BaseModelClass):
     def load(
         cls,
         dir_path: str,
-        adata_seq: AnnData = None,
-        adata_spatial: AnnData = None,
+        adata_seq: Optional[AnnData] = None,
+        adata_spatial: Optional[AnnData] = None,
         use_cuda: bool = False,
     ):
         """
@@ -367,10 +369,12 @@ class GIMVI(VAEMixin, BaseModelClass):
         ----------
         adata_seq
             AnnData organized in the same way as data used to train model.
+            It is not necessary to run :func:`~scvi.data.setup_anndata`,
+            as AnnData is validated against the saved `scvi` setup dictionary.
             AnnData must be registered via :func:`~scvi.data.setup_anndata`.
         adata_spatial
             AnnData organized in the same way as data used to train model.
-            AnnData must be registered via :func:`~scvi.data.setup_anndata`.
+            If None, will check for and load anndata saved with the model.
         dir_path
             Path to saved outputs.
         use_cuda

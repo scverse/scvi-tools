@@ -164,6 +164,8 @@ class BaseModelClass(ABC):
         overwrite
             Overwrite existing data or not. If `False` and directory
             already exists at `dir_path`, error will be raised.
+        save_anndata
+            If True, also saves the anndata
         """
         # get all the user attributes
         user_attributes = self._get_user_attributes()
@@ -198,7 +200,7 @@ class BaseModelClass(ABC):
     def load(
         cls,
         dir_path: str,
-        adata: AnnData = None,
+        adata: Optional[AnnData] = None,
         use_cuda: bool = False,
     ):
         """
@@ -206,12 +208,13 @@ class BaseModelClass(ABC):
 
         Parameters
         ----------
+        dir_path
+            Path to saved outputs.
         adata
             AnnData organized in the same way as data used to train model.
             It is not necessary to run :func:`~scvi.data.setup_anndata`,
             as AnnData is validated against the saved `scvi` setup dictionary.
-        dir_path
-            Path to saved outputs.
+            If None, will check for and load anndata saved with the model.
         use_cuda
             Whether to load model on GPU.
 
@@ -234,10 +237,6 @@ class BaseModelClass(ABC):
         elif not os.path.exists(adata_path) and adata is None:
             raise ValueError(
                 "Save path contains no saved anndata and no adata was passed."
-            )
-        elif os.path.exists(adata_path) and adata is not None:
-            logger.info(
-                "Passed in adata to initialize model with. Ignoring saved anndata."
             )
 
         with open(varnames_path, "rb") as handle:
