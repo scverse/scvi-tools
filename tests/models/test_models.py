@@ -154,6 +154,10 @@ def test_saving_and_loading(save_path):
         test_idx1 = model.test_indices
         model.save(save_path, overwrite=True)
         model = cls.load(save_path)
+        model.get_latent_representation()
+        tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+        with pytest.raises(ValueError):
+            cls.load(save_path, tmp_adata)
         model = cls.load(save_path, adata)
         z2 = model.get_latent_representation()
         test_idx2 = model.test_indices
@@ -174,6 +178,10 @@ def test_saving_and_loading(save_path):
     ab1 = model.get_alphas_betas()
     model.save(save_path, overwrite=True)
     model = AUTOZI.load(save_path)
+    model.get_latent_representation()
+    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+    with pytest.raises(ValueError):
+        AUTOZI.load(save_path, tmp_adata)
     model = AUTOZI.load(save_path, adata)
     ab2 = model.get_alphas_betas()
     np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
@@ -186,6 +194,10 @@ def test_saving_and_loading(save_path):
     p1 = model.predict()
     model.save(save_path, overwrite=True)
     model = SCANVI.load(save_path)
+    model.get_latent_representation()
+    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+    with pytest.raises(ValueError):
+        SCANVI.load(save_path, tmp_adata)
     model = SCANVI.load(save_path, adata)
     p2 = model.predict()
     np.testing.assert_array_equal(p1, p2)
@@ -199,6 +211,10 @@ def test_saving_and_loading(save_path):
     np.testing.assert_array_equal(z1, z2)
     model.save(save_path, overwrite=True)
     model = GIMVI.load(save_path)
+    model.get_latent_representation()
+    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+    with pytest.raises(ValueError):
+        GIMVI.load(save_path, tmp_adata, tmp_adata)
     model = GIMVI.load(save_path, adata, adata)
     z2 = model.get_latent_representation([adata])
     np.testing.assert_array_equal(z1, z2)
