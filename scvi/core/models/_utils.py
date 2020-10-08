@@ -29,7 +29,7 @@ def _de_core(
         group1 = adata.obs[groupby].cat.categories.tolist()
         if len(group1) == 1:
             raise ValueError(
-                "Only a single batch in the data. Can't run DE on a single batch."
+                "Only a single group in the data. Can't run DE on a single group."
             )
 
     if isinstance(group1, str):
