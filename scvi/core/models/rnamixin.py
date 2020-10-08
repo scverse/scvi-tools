@@ -1,7 +1,6 @@
 import logging
 from functools import partial
-from typing import Dict, Iterable, Optional, Sequence, Union, TypeVar
-from collections.abc import Iterable as IterableClass
+from typing import Dict, Iterable, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -22,7 +21,7 @@ from scvi.model._utils import (
 
 logger = logging.getLogger(__name__)
 
-Number = TypeVar("Number", int, float)
+Number = Union[int, float]
 
 
 class RNASeqMixin:
@@ -83,9 +82,6 @@ class RNASeqMixin:
         """
         adata = self._validate_anndata(adata)
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
-
-        if not isinstance(transform_batch, IterableClass):
-            transform_batch = [transform_batch]
 
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
 
@@ -426,9 +422,6 @@ class RNASeqMixin:
         from scipy.stats import spearmanr
 
         adata = self._validate_anndata(adata)
-
-        if not isinstance(transform_batch, IterableClass):
-            transform_batch = [transform_batch]
 
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
 

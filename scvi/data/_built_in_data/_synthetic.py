@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def _generate_synthetic(
-    batch_size: int = 200,
+    batch_size: int = 128,
     n_genes: int = 100,
     n_proteins: int = 100,
     n_batches: int = 2,
@@ -22,11 +22,11 @@ def _generate_synthetic(
     mask = np.random.binomial(n=1, p=0.7, size=(batch_size * n_batches, n_genes))
     data = data * mask  # We put the batch index first
     labels = np.random.randint(0, n_labels, size=(batch_size * n_batches,))
-    labels = np.array(["undefined_%d" % i for i in labels])
+    labels = np.array(["label_%d" % i for i in labels])
 
     batch = []
     for i in range(n_batches):
-        batch += [i] * batch_size
+        batch += ["batch_{}".format(i)] * batch_size
 
     adata = AnnData(data)
     adata.obs["batch"] = pd.Categorical(batch)
