@@ -1,4 +1,5 @@
 import logging
+import h5py
 import os
 import pickle
 from typing import List, Optional
@@ -352,8 +353,9 @@ class GIMVI(VAEMixin, BaseModelClass):
                     dir_path, "var_names_{}.pkl".format(dataset_names[i])
                 )
                 var_names = self.adatas[i].var_names
-                with open(varnames_save_path, "wb") as fp:
-                    pickle.dump(var_names, fp)
+
+                with h5py.File(varnames_save_path, "w") as f:
+                    f.create_dataset("var_names", data=var_names.to_numpy().astype("S"))
 
         model_save_path = os.path.join(dir_path, "model_params.pt")
         attr_save_path = os.path.join(dir_path, "attr.pkl")
@@ -418,16 +420,16 @@ class GIMVI(VAEMixin, BaseModelClass):
             )
         adatas = [adata_seq, adata_spatial]
 
-        with open(seq_var_names_path, "rb") as handle:
-            seq_var_names = pickle.load(handle)
-        with open(spatial_var_names_path, "rb") as handle:
-            spatial_var_names = pickle.load(handle)
+        with h5py.File(seq_var_names_path, "r") as f:
+            seq_var_names = f["var_names"][:].astype(str)
+        with h5py.File(spatial_var_names_path, "r") as f:
+            spatial_var_names = f["var_names"][:].astype(str)
         var_names = [seq_var_names, spatial_var_names]
 
         for i in range(len(adatas)):
-            adata = adatas[i]
-            var_name = var_names[i]
-            if len(set(adata.var_names) - set(var_name)) != 0:
+            saved_var_names = var_names[i]
+            user_var_names = adatas[i].var_names.astype(str)
+            if not np.array_equal(saved_var_names, user_var_names):
                 logger.warning(
                     "var_names for adata passed in does not match var_names of "
                     "adata used to train the model. For valid results, the vars "
