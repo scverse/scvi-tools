@@ -32,7 +32,6 @@ def _compute_library_size_batch(
     local_l_mean_key: str = None,
     local_l_var_key: str = None,
     layer=None,
-    # use_raw=False,
     copy: bool = False,
 ):
     """
@@ -144,9 +143,7 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
     adata = adata_target
 
     stats = _scvi_dict["summary_stats"]
-    # use_raw = _scvi_dict["use_raw"]
 
-    # target_n_vars = adata.shape[1] if not use_raw else adata.raw.shape[1]
     target_n_vars = adata.shape[1]
     error_msg = (
         "Number of {} in anndata different from initial anndata used for training."
