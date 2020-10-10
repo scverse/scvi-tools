@@ -18,19 +18,12 @@ from scipy.sparse import csc_matrix
 
 
 def test_transfer_anndata_setup():
-    # test if raw was initially used, that it is again used in transfer
+    # test transfer_anndata function
     adata1 = synthetic_iid(run_setup_anndata=False)
     adata2 = synthetic_iid(run_setup_anndata=False)
-    raw_counts = adata1.copy()
-    adata1.raw = raw_counts
-    adata2.raw = raw_counts
-    zeros = np.zeros_like(adata1.X)
-    ones = np.ones_like(adata1.X)
-    adata1.X = zeros
-    adata2.X = ones
-    setup_anndata(adata1, use_raw=True)
+    adata2.X = adata1.X
+    setup_anndata(adata1)
     transfer_anndata_setup(adata1, adata2)
-    # makes sure that use_raw was used
     np.testing.assert_array_equal(
         adata1.obs["_scvi_local_l_mean"], adata2.obs["_scvi_local_l_mean"]
     )

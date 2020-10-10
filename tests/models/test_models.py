@@ -239,17 +239,14 @@ def test_scanvi():
 
 
 def test_linear_scvi():
-    # test using raw
     adata = synthetic_iid()
-    adata.raw = adata
     adata = adata[:, :10].copy()
-    setup_anndata(adata, use_raw=True)
+    setup_anndata(adata)
     model = LinearSCVI(adata, n_latent=10)
     model.train(1, frequency=1, train_size=0.5)
     assert len(model.history["elbo_train_set"]) == 2
     assert len(model.history["elbo_test_set"]) == 2
-    loadings = model.get_loadings()
-    pd.testing.assert_index_equal(loadings.index, adata.raw.var_names)
+    model.get_loadings()
     model.differential_expression(groupby="labels", group1="label_1")
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
 
