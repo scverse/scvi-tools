@@ -308,7 +308,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         dir_path: str,
         overwrite: bool = False,
         save_anndata: bool = False,
-        anndata_write_kwargs: dict = {},
+        **anndata_write_kwargs,
     ):
         """
         Save the state of the model.
@@ -326,9 +326,9 @@ class GIMVI(VAEMixin, BaseModelClass):
             already exists at `dir_path`, error will be raised.
         save_anndata
             If True, also saves the anndata
+        anndata_write_kwargs
+            Kwargs for anndata write function
         """
-        anndata_write_kwargs = dict(anndata_write_kwargs)
-
         # get all the user attributes
         user_attributes = self._get_user_attributes()
         # only save the public attributes with _ at the very end
@@ -426,9 +426,9 @@ class GIMVI(VAEMixin, BaseModelClass):
             spatial_var_names = f["var_names"][:].astype(str)
         var_names = [seq_var_names, spatial_var_names]
 
-        for i in range(len(adatas)):
+        for i, adata in enumerate(adatas):
             saved_var_names = var_names[i]
-            user_var_names = adatas[i].var_names.astype(str)
+            user_var_names = adata.var_names.astype(str)
             if not np.array_equal(saved_var_names, user_var_names):
                 logger.warning(
                     "var_names for adata passed in does not match var_names of "
