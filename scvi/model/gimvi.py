@@ -302,7 +302,13 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         return imputed_values
 
-    def save(self, dir_path: str, overwrite: bool = False, save_anndata: bool = True):
+    def save(
+        self,
+        dir_path: str,
+        overwrite: bool = False,
+        save_anndata: bool = False,
+        anndata_write_kwargs: dict = {},
+    ):
         """
         Save the state of the model.
 
@@ -320,6 +326,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         save_anndata
             If True, also saves the anndata
         """
+        anndata_write_kwargs = dict(anndata_write_kwargs)
+
         # get all the user attributes
         user_attributes = self._get_user_attributes()
         # only save the public attributes with _ at the very end
@@ -435,6 +443,8 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         # get the parameters for the class init signiture
         init_params = attr_dict.pop("init_params_")
+
+        # update use_cuda from the saved model
         use_cuda = use_cuda and torch.cuda.is_available()
         init_params["use_cuda"] = use_cuda
 

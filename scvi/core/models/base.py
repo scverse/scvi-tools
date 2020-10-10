@@ -149,7 +149,13 @@ class BaseModelClass(ABC):
         }
         return user_params
 
-    def save(self, dir_path: str, overwrite: bool = False, save_anndata: bool = True):
+    def save(
+        self,
+        dir_path: str,
+        overwrite: bool = False,
+        save_anndata: bool = False,
+        anndata_write_kwargs: dict = {},
+    ):
         """
         Save the state of the model.
 
@@ -167,6 +173,8 @@ class BaseModelClass(ABC):
         save_anndata
             If True, also saves the anndata
         """
+        anndata_write_kwargs = dict(anndata_write_kwargs)
+
         # get all the user attributes
         user_attributes = self._get_user_attributes()
         # only save the public attributes with _ at the very end
@@ -182,7 +190,9 @@ class BaseModelClass(ABC):
             )
 
         if save_anndata:
-            self.adata.write(os.path.join(dir_path, "adata.h5ad"))
+            self.adata.write(
+                os.path.join(dir_path, "adata.h5ad"), **anndata_write_kwargs
+            )
 
         model_save_path = os.path.join(dir_path, "model_params.pt")
         attr_save_path = os.path.join(dir_path, "attr.pkl")
@@ -263,8 +273,11 @@ class BaseModelClass(ABC):
             )
         # get the parameters for the class init signiture
         init_params = attr_dict.pop("init_params_")
+
+        # update use_cuda from the saved model
         use_cuda = use_cuda and torch.cuda.is_available()
         init_params["use_cuda"] = use_cuda
+
         # grab all the parameters execept for kwargs (is a dict)
         non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
         # expand out kwargs
