@@ -22,22 +22,6 @@ def compute_elbo(vae, data_loader, **kwargs):
     # Iterate once over the data and compute the elbo
     elbo = 0
     for i_batch, tensors in enumerate(data_loader):
-        # sample_batch = tensors[_CONSTANTS.X_KEY]
-        # local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        # local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
-        # batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        # labels = tensors[_CONSTANTS.LABELS_KEY]
-
-        # kl_divergence_global (scalar) should be common across all batches after training
-        # reconst_loss, kl_divergence, kl_divergence_global = vae(
-        #     sample_batch,
-        #     local_l_mean,
-        #     local_l_var,
-        #     batch_index=batch_index,
-        #     y=labels,
-        #     **kwargs
-        # )
-        # elbo += torch.sum(reconst_loss + kl_divergence).item()
         _, losses = vae(tensors)
 
         reconstruction_losses = losses["reconstruction_losses"]
@@ -82,19 +66,6 @@ def compute_reconstruction_error(vae, data_loader, **kwargs):
     # Iterate once over the data and computes the reconstruction error
     log_lkl = 0
     for i_batch, tensors in enumerate(data_loader):
-        # sample_batch = tensors[_CONSTANTS.X_KEY]
-        # batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        # labels = tensors[_CONSTANTS.LABELS_KEY]
-
-        # Distribution parameters
-        # outputs = vae.inference(sample_batch, batch_index, labels, **kwargs)
-        # px_r = outputs["px_r"]
-        # px_rate = outputs["px_rate"]
-        # px_dropout = outputs["px_dropout"]
-        # bernoulli_params = outputs.get("bernoulli_params", None)
-
-        # should call forward and take the first term
-        # outputs = vae.inference(sample_batch, batch_index, labels, **kwargs)
         loss_kwargs = dict(kl_weight=1)
         _, losses = vae(tensors, loss_kwargs=loss_kwargs)
         reconstruction_loss = losses["reconstruction_loss"]
@@ -106,17 +77,6 @@ def compute_reconstruction_error(vae, data_loader, **kwargs):
                 recon_loss += value
             reconstruction_loss = recon_loss
 
-        # Reconstruction loss
-        # reconst_loss = vae.get_reconstruction_loss(
-        #     sample_batch,
-        #     px_rate,
-        #     px_r,
-        #     px_dropout,
-        #     bernoulli_params=bernoulli_params,
-        #     **kwargs
-        # )
-
-        # log_lkl += torch.sum(reconst_loss).item()
         log_lkl += torch.sum(reconstruction_loss).item()
 
     n_samples = len(data_loader.indices)
@@ -152,9 +112,6 @@ def compute_marginal_log_likelihood_scvi(vae, data_loader, n_samples_mc=100):
 
             # Distribution parameters and sampled variables
             outputs = vae.inference(sample_batch, batch_index, labels)
-            # px_r = outputs["px_r"]
-            # px_rate = outputs["px_rate"]
-            # px_dropout = outputs["px_dropout"]
             qz_m = outputs["qz_m"]
             qz_v = outputs["qz_v"]
             z = outputs["z"]
@@ -163,9 +120,6 @@ def compute_marginal_log_likelihood_scvi(vae, data_loader, n_samples_mc=100):
             library = outputs["library"]
 
             # Reconstruction Loss
-            # reconst_loss = vae.get_reconstruction_loss(
-            #     sample_batch, px_rate, px_r, px_dropout
-            # )
             reconst_loss = vae.get_reconstruction_loss(sample_batch, outputs)
 
             # Log-probabilities
