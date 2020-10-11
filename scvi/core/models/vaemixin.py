@@ -4,8 +4,8 @@ from typing import Optional, Sequence
 import numpy as np
 import torch
 from anndata import AnnData
+from torch.distributions import Normal
 
-from scvi import _CONSTANTS
 from scvi.core.trainers import UnsupervisedTrainer
 
 logger = logging.getLogger(__name__)
@@ -208,10 +208,23 @@ class VAEMixin:
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
         for tensors in scdl:
-            x = tensors[_CONSTANTS.X_KEY]
-            b = tensors[_CONSTANTS.BATCH_KEY]
-            z = self.model.sample_from_posterior_z(
-                x, b, give_mean=give_mean, n_samples=mc_samples
-            )
+            # x = tensors[_CONSTANTS.X_KEY]
+            # z = self.model.sample_from_posterior_z(
+            #     x, give_mean=give_mean, n_samples=mc_samples
+            # )
+            outputs = self.model.inference(tensors)
+            qz_m = outputs["qz_m"]
+            qz_v = outputs["qz_v"]
+            z = outputs["z"]
+
+            if give_mean:
+                # does each model need to have this latent distribution param?
+                if self.model.latent_distribution == "ln":
+                    samples = Normal(qz_m, qz_v.sqrt()).sample([mc_samples])
+                    z = self.z_encoder.z_transformation(samples)
+                    z = z.mean(dim=0)
+                else:
+                    z = qz_m
+
             latent += [z.cpu()]
         return np.array(torch.cat(latent))
