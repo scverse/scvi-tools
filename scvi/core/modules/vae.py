@@ -170,6 +170,153 @@ class VAE(AbstractVAE):
             use_layer_norm=use_layer_norm_decoder,
         )
 
+    def _get_inference_input(self, tensors):
+        return {"x": tensors[_CONSTANTS.X_KEY]}
+
+    def _get_generative_input(self, tensors, inference_outputs):
+        z = inference_outputs["z"]
+        library = inference_outputs["library"]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        y = tensors[_CONSTANTS.LABELS_KEY]
+
+        input_dict = {"z": z, "library": library, "batch_index": batch_index, "y": y}
+        return input_dict
+
+    def inference(self, x, n_samples=1):
+        """
+        High level inference method.
+
+        Runs the inference (encoder) model.
+        """
+        x_ = x
+        if self.log_variational:
+            x_ = torch.log(1 + x_)
+
+        qz_m, qz_v, z = self.z_encoder(x_)
+        ql_m, ql_v, library = self.l_encoder(x_)
+
+        outputs = dict()
+
+        outputs["z"] = z
+        outputs["qz_m"] = qz_m
+        outputs["qz_v"] = qz_v
+        outputs["ql_m"] = ql_m
+        outputs["ql_v"] = ql_v
+        outputs["library"] = library
+
+        if n_samples > 1:
+            qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
+            qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
+            # when z is normal, untran_z == z
+            untran_z = Normal(qz_m, qz_v.sqrt()).sample()
+            z = self.z_encoder.z_transformation(untran_z)
+            ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
+            ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
+            library = Normal(ql_m, ql_v.sqrt()).sample()
+
+            outputs["z"] = z
+            outputs["qz_m"] = qz_m
+            outputs["qz_v"] = qz_v
+            outputs["ql_m"] = ql_m
+            outputs["ql_v"] = ql_v
+            outputs["library"] = library
+
+        return outputs
+
+    def generative(self, z, library, batch_index, y, **kwargs):
+        """Runs the generative model."""
+        # make random y since its not used
+        # TODO: refactor forward function to not rely on y
+        # y = torch.zeros(z.shape[0], 1)
+
+        px_scale, px_r, px_rate, px_dropout = self.decoder(
+            self.dispersion, z, library, batch_index, y
+        )
+
+        if self.dispersion == "gene-label":
+            px_r = F.linear(
+                one_hot(y, self.n_labels), self.px_r
+            )  # px_r gets transposed - last dimension is nb genes
+        elif self.dispersion == "gene-batch":
+            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+        elif self.dispersion == "gene":
+            px_r = self.px_r
+
+        px_r = torch.exp(px_r)
+
+        return dict(
+            px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
+        )
+
+    def get_latents(self, x, y=None) -> torch.Tensor:
+        """
+        Returns the result of ``sample_from_posterior_z`` inside a list.
+
+        Parameters
+        ----------
+        x
+            tensor of values with shape ``(batch_size, n_input)``
+        y
+            tensor of cell-types labels with shape ``(batch_size, n_labels)`` (Default value = None)
+
+        Returns
+        -------
+        type
+            one element list of tensor
+        """
+        return [self.sample_from_posterior_z(x, y)]
+
+    def loss(self, tensors, model_outputs, kl_weight=1.0, normalize_loss=True):
+        x = tensors[_CONSTANTS.X_KEY]
+        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+
+        qz_m = model_outputs["qz_m"]
+        qz_v = model_outputs["qz_v"]
+        ql_m = model_outputs["ql_m"]
+        ql_v = model_outputs["ql_v"]
+
+        mean = torch.zeros_like(qz_m)
+        scale = torch.ones_like(qz_v)
+
+        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
+            dim=1
+        )
+
+        kl_divergence_l = kl(
+            Normal(ql_m, torch.sqrt(ql_v)),
+            Normal(local_l_mean, torch.sqrt(local_l_var)),
+        ).sum(dim=1)
+
+        reconst_loss = self.get_reconstruction_loss(tensors, model_outputs)
+
+        kl_local_for_warmup = kl_divergence_l
+        kl_local_no_warmup = kl_divergence_z
+        kl_global_for_warmup = 0.0
+        kl_global_no_warmup = 0.0
+
+        weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
+        weighted_kl_global = kl_weight * kl_global_for_warmup + kl_global_no_warmup
+
+        # need to scale the loss
+        loss = torch.mean(reconst_loss + weighted_kl_local) + weighted_kl_global
+
+        if not normalize_loss:
+            n_samples = x.shape[0]
+            loss = loss * n_samples
+
+        kl_local = dict(
+            kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
+        )
+        kl_global = 0.0
+
+        return dict(
+            loss=loss,
+            reconstruction_losses=reconst_loss,
+            kl_local=kl_local,
+            kl_global=kl_global,
+        )
+
     @torch.no_grad()
     def sample(self, tensors, n_samples=1) -> np.ndarray:
         r"""
@@ -191,6 +338,7 @@ class VAE(AbstractVAE):
         """
         inference_kwargs = dict(n_samples=n_samples)
         outputs, _ = self.forward(tensors, inference_kwargs=inference_kwargs)
+
         px_r = outputs["px_r"]
         px_rate = outputs["px_rate"]
         px_dropout = outputs["px_dropout"]
@@ -349,159 +497,6 @@ class VAE(AbstractVAE):
             n_samples=n_samples,
             transform_batch=transform_batch,
         )["px_rate"]
-
-    def inference(self, tensors, n_samples=1):
-        """
-        High level inference method.
-
-        Runs the inference (encoder) model.
-
-        Calls self._inference with then does postprocessing
-        """
-        x = tensors[_CONSTANTS.X_KEY]
-        x_ = x
-
-        x_ = x
-        if self.use_observed_lib_size:
-            library = torch.log(x.sum(1)).unsqueeze(1)
-        if self.log_variational:
-            x_ = torch.log(1 + x_)
-
-        # make random y since its not used
-        # Sampling
-        qz_m, qz_v, z = self.z_encoder(x_, batch_index)
-        ql_m, ql_v, library_encoded = self.l_encoder(x_, batch_index)
-        if not self.use_observed_lib_size:
-            library = library_encoded
-
-        outputs = dict()
-
-        outputs["z"] = z
-        outputs["qz_m"] = qz_m
-        outputs["qz_v"] = qz_v
-        outputs["ql_m"] = ql_m
-        outputs["ql_v"] = ql_v
-        outputs["library"] = library
-
-        if n_samples > 1:
-            qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
-            qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
-            # when z is normal, untran_z == z
-            untran_z = Normal(qz_m, qz_v.sqrt()).sample()
-            z = self.z_encoder.z_transformation(untran_z)
-            ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
-            ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
-            if self.use_observed_lib_size:
-                library = library.unsqueeze(0).expand(
-                    (n_samples, library.size(0), library.size(1))
-                )
-            else:
-                library = Normal(ql_m, ql_v.sqrt()).sample()
-
-            outputs["z"] = z
-            outputs["qz_m"] = qz_m
-            outputs["qz_v"] = qz_v
-            outputs["ql_m"] = ql_m
-            outputs["ql_v"] = ql_v
-            outputs["library"] = library
-
-        return outputs
-
-    def generative(self, z, library, batch_index, y, **kwargs):
-        """Runs the generative model."""
-        # make random y since its not used
-        # TODO: refactor forward function to not rely on y
-        # y = torch.zeros(z.shape[0], 1)
-
-        px_scale, px_r, px_rate, px_dropout = self.decoder(
-            self.dispersion, z, library, batch_index, y
-        )
-
-        if self.dispersion == "gene-label":
-            px_r = F.linear(
-                one_hot(y, self.n_labels), self.px_r
-            )  # px_r gets transposed - last dimension is nb genes
-        elif self.dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
-        elif self.dispersion == "gene":
-            px_r = self.px_r
-
-        px_r = torch.exp(px_r)
-
-        return dict(
-            px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
-        )
-
-    def get_latents(self, x, y=None) -> torch.Tensor:
-        """
-        Returns the result of ``sample_from_posterior_z`` inside a list.
-
-        Parameters
-        ----------
-        x
-            tensor of values with shape ``(batch_size, n_input)``
-        y
-            tensor of cell-types labels with shape ``(batch_size, n_labels)`` (Default value = None)
-
-        Returns
-        -------
-        type
-            one element list of tensor
-        """
-        return [self.sample_from_posterior_z(x, y)]
-
-    def loss(self, tensors, model_outputs, kl_weight=1.0, normalize_loss=True):
-        x = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
-
-        qz_m = model_outputs["qz_m"]
-        qz_v = model_outputs["qz_v"]
-        ql_m = model_outputs["ql_m"]
-        ql_v = model_outputs["ql_v"]
-
-        mean = torch.zeros_like(qz_m)
-        scale = torch.ones_like(qz_v)
-
-        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
-            dim=1
-        )
-        if not self.use_observed_lib_size:
-            kl_divergence_l = kl(
-                Normal(ql_m, torch.sqrt(ql_v)),
-                Normal(local_l_mean, torch.sqrt(local_l_var)),
-            ).sum(dim=1)
-        else:
-            kl_divergence_l = 0.0
-
-        reconst_loss = self.get_reconstruction_loss(tensors, model_outputs)
-
-        kl_local_for_warmup = kl_divergence_l
-        kl_local_no_warmup = kl_divergence_z
-        kl_global_for_warmup = 0.0
-        kl_global_no_warmup = 0.0
-
-        weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
-        weighted_kl_global = kl_weight * kl_global_for_warmup + kl_global_no_warmup
-
-        # need to scale the loss
-        loss = torch.mean(reconst_loss + weighted_kl_local) + weighted_kl_global
-
-        if not normalize_loss:
-            n_samples = x.shape[0]
-            loss = loss * n_samples
-
-        kl_local = dict(
-            kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
-        )
-        kl_global = 0.0
-
-        return dict(
-            loss=loss,
-            reconstruction_losses=reconst_loss,
-            kl_local=kl_local,
-            kl_global=kl_global,
-        )
 
     def get_reconstruction_loss(self, tensors, generative_output) -> torch.Tensor:
         # Reconstruction Loss
