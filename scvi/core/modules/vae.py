@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 """Main module."""
 
-from typing import Dict, Tuple
 
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
@@ -15,6 +13,9 @@ from scvi.core.distributions import (
     NegativeBinomial,
     ZeroInflatedNegativeBinomial,
 )
+from scvi.core.modules._base._base_module import AbstractVAE
+from scvi import _CONSTANTS
+
 
 from ._base import DecoderSCVI, Encoder, LinearDecoderSCVI
 from .utils import one_hot
@@ -23,7 +24,7 @@ torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class VAE(nn.Module):
+class VAE(AbstractVAE):
     """
     Variational auto-encoder model.
 
@@ -169,23 +170,57 @@ class VAE(nn.Module):
             use_layer_norm=use_layer_norm_decoder,
         )
 
-    def get_latents(self, x, y=None) -> torch.Tensor:
-        """
-        Returns the result of ``sample_from_posterior_z`` inside a list.
+    @torch.no_grad()
+    def sample(self, tensors, n_samples=1) -> np.ndarray:
+        r"""
+        Generate observation samples from the posterior predictive distribution.
+
+        The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
 
         Parameters
         ----------
-        x
-            tensor of values with shape ``(batch_size, n_input)``
-        y
-            tensor of cell-types labels with shape ``(batch_size, n_labels)`` (Default value = None)
+        tensors
+            tensors dict
+        n_samples
+            Number of required samples for each cell
 
         Returns
         -------
-        type
-            one element list of tensor
+        x_new : :py:class:`torch.Tensor`
+            tensor with shape (n_cells, n_genes, n_samples)
         """
-        return [self.sample_from_posterior_z(x, y)]
+        inference_kwargs = dict(n_samples=n_samples)
+        outputs, _ = self.forward(tensors, inference_kwargs=inference_kwargs)
+        px_r = outputs["px_r"]
+        px_rate = outputs["px_rate"]
+        px_dropout = outputs["px_dropout"]
+
+        if self.gene_likelihood == "poisson":
+            l_train = px_rate
+            l_train = torch.clamp(l_train, max=1e8)
+            dist = torch.distributions.Poisson(
+                l_train
+            )  # Shape : (n_samples, n_cells_batch, n_genes)
+        elif self.gene_likelihood == "nb":
+            dist = NegativeBinomial(mu=px_rate, theta=px_r)
+        elif self.gene_likelihood == "zinb":
+            dist = ZeroInflatedNegativeBinomial(
+                mu=px_rate, theta=px_r, zi_logits=px_dropout
+            )
+        else:
+            raise ValueError(
+                "{} reconstruction error not handled right now".format(
+                    self.model.gene_likelihood
+                )
+            )
+        if n_samples > 1:
+            exprs = dist.sample().permute(
+                [1, 2, 0]
+            )  # Shape : (n_cells_batch, n_genes, n_samples)
+        else:
+            exprs = dist.sample()
+
+        return exprs.cpu()
 
     def sample_from_posterior_z(
         self, x, batch_index=None, y=None, give_mean=False, n_samples=5000
@@ -315,41 +350,38 @@ class VAE(nn.Module):
             transform_batch=transform_batch,
         )["px_rate"]
 
-    def get_reconstruction_loss(
-        self, x, px_rate, px_r, px_dropout, **kwargs
-    ) -> torch.Tensor:
-        # Reconstruction Loss
-        if self.gene_likelihood == "zinb":
-            reconst_loss = (
-                -ZeroInflatedNegativeBinomial(
-                    mu=px_rate, theta=px_r, zi_logits=px_dropout
-                )
-                .log_prob(x)
-                .sum(dim=-1)
-            )
-        elif self.gene_likelihood == "nb":
-            reconst_loss = (
-                -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
-            )
-        elif self.gene_likelihood == "poisson":
-            reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
-        return reconst_loss
+    def inference(self, tensors, n_samples=1):
+        """
+        High level inference method.
 
-    def inference(
-        self, x, batch_index=None, y=None, n_samples=1, transform_batch=None
-    ) -> Dict[str, torch.Tensor]:
-        """Helper function used in forward pass."""
+        Runs the inference (encoder) model.
+
+        Calls self._inference with then does postprocessing
+        """
+        x = tensors[_CONSTANTS.X_KEY]
+        x_ = x
+
         x_ = x
         if self.use_observed_lib_size:
             library = torch.log(x.sum(1)).unsqueeze(1)
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
+        # make random y since its not used
         # Sampling
-        qz_m, qz_v, z = self.z_encoder(x_, batch_index, y)
+        qz_m, qz_v, z = self.z_encoder(x_, batch_index)
         ql_m, ql_v, library_encoded = self.l_encoder(x_, batch_index)
         if not self.use_observed_lib_size:
             library = library_encoded
+
+        outputs = dict()
+
+        outputs["z"] = z
+        outputs["qz_m"] = qz_m
+        outputs["qz_v"] = qz_v
+        outputs["ql_m"] = ql_m
+        outputs["ql_v"] = ql_v
+        outputs["library"] = library
 
         if n_samples > 1:
             qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
@@ -366,74 +398,68 @@ class VAE(nn.Module):
             else:
                 library = Normal(ql_m, ql_v.sqrt()).sample()
 
-        if transform_batch is not None:
-            dec_batch_index = transform_batch * torch.ones_like(batch_index)
-        else:
-            dec_batch_index = batch_index
+            outputs["z"] = z
+            outputs["qz_m"] = qz_m
+            outputs["qz_v"] = qz_v
+            outputs["ql_m"] = ql_m
+            outputs["ql_v"] = ql_v
+            outputs["library"] = library
+
+        return outputs
+
+    def generative(self, z, library, batch_index, y, **kwargs):
+        """Runs the generative model."""
+        # make random y since its not used
+        # TODO: refactor forward function to not rely on y
+        # y = torch.zeros(z.shape[0], 1)
 
         px_scale, px_r, px_rate, px_dropout = self.decoder(
-            self.dispersion, z, library, dec_batch_index, y
+            self.dispersion, z, library, batch_index, y
         )
+
         if self.dispersion == "gene-label":
             px_r = F.linear(
                 one_hot(y, self.n_labels), self.px_r
             )  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
-            px_r = F.linear(one_hot(dec_batch_index, self.n_batch), self.px_r)
+            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
         elif self.dispersion == "gene":
             px_r = self.px_r
+
         px_r = torch.exp(px_r)
 
         return dict(
-            px_scale=px_scale,
-            px_r=px_r,
-            px_rate=px_rate,
-            px_dropout=px_dropout,
-            qz_m=qz_m,
-            qz_v=qz_v,
-            z=z,
-            ql_m=ql_m,
-            ql_v=ql_v,
-            library=library,
+            px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
         )
 
-    def forward(
-        self, x, local_l_mean, local_l_var, batch_index=None, y=None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def get_latents(self, x, y=None) -> torch.Tensor:
         """
-        Returns the reconstruction loss and the KL divergences.
+        Returns the result of ``sample_from_posterior_z`` inside a list.
 
         Parameters
         ----------
         x
-            tensor of values with shape (batch_size, n_input)
-        local_l_mean
-            tensor of means of the prior distribution of latent variable l
-            with shape (batch_size, 1)
-        local_l_var
-            tensor of variancess of the prior distribution of latent variable l
-            with shape (batch_size, 1)
-        batch_index
-            array that indicates which batch the cells belong to with shape ``batch_size`` (Default value = None)
+            tensor of values with shape ``(batch_size, n_input)``
         y
-            tensor of cell-types labels with shape (batch_size, n_labels) (Default value = None)
+            tensor of cell-types labels with shape ``(batch_size, n_labels)`` (Default value = None)
 
         Returns
         -------
         type
-            the reconstruction loss and the Kullback divergences
+            one element list of tensor
         """
-        # Parameters for z latent distribution
-        outputs = self.inference(x, batch_index, y)
-        qz_m = outputs["qz_m"]
-        qz_v = outputs["qz_v"]
-        ql_m = outputs["ql_m"]
-        ql_v = outputs["ql_v"]
-        px_rate = outputs["px_rate"]
-        px_r = outputs["px_r"]
-        px_dropout = outputs["px_dropout"]
+        return [self.sample_from_posterior_z(x, y)]
 
-        # KL Divergence
+    def loss(self, tensors, model_outputs, kl_weight=1.0, normalize_loss=True):
+        x = tensors[_CONSTANTS.X_KEY]
+        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+
+        qz_m = model_outputs["qz_m"]
+        qz_v = model_outputs["qz_v"]
+        ql_m = model_outputs["ql_m"]
+        ql_v = model_outputs["ql_v"]
+
         mean = torch.zeros_like(qz_m)
         scale = torch.ones_like(qz_v)
 
@@ -447,11 +473,58 @@ class VAE(nn.Module):
             ).sum(dim=1)
         else:
             kl_divergence_l = 0.0
-        kl_divergence = kl_divergence_z
 
-        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
+        reconst_loss = self.get_reconstruction_loss(tensors, model_outputs)
 
-        return reconst_loss + kl_divergence_l, kl_divergence, 0.0
+        kl_local_for_warmup = kl_divergence_l
+        kl_local_no_warmup = kl_divergence_z
+        kl_global_for_warmup = 0.0
+        kl_global_no_warmup = 0.0
+
+        weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
+        weighted_kl_global = kl_weight * kl_global_for_warmup + kl_global_no_warmup
+
+        # need to scale the loss
+        loss = torch.mean(reconst_loss + weighted_kl_local) + weighted_kl_global
+
+        if not normalize_loss:
+            n_samples = x.shape[0]
+            loss = loss * n_samples
+
+        kl_local = dict(
+            kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
+        )
+        kl_global = 0.0
+
+        return dict(
+            loss=loss,
+            reconstruction_losses=reconst_loss,
+            kl_local=kl_local,
+            kl_global=kl_global,
+        )
+
+    def get_reconstruction_loss(self, tensors, generative_output) -> torch.Tensor:
+        # Reconstruction Loss
+        x = tensors[_CONSTANTS.X_KEY]
+        px_rate = generative_output["px_rate"]
+        px_r = generative_output["px_r"]
+        px_dropout = generative_output["px_dropout"]
+
+        if self.gene_likelihood == "zinb":
+            reconst_loss = (
+                -ZeroInflatedNegativeBinomial(
+                    mu=px_rate, theta=px_r, zi_logits=px_dropout
+                )
+                .log_prob(x)
+                .sum(dim=-1)
+            )
+        elif self.gene_likelihood == "nb":
+            reconst_loss = (
+                -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
+            )
+        elif self.gene_likelihood == "poisson":
+            reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
+        return reconst_loss
 
 
 class LDVAE(VAE):

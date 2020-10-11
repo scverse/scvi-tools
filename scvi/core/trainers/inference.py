@@ -3,10 +3,7 @@ import logging
 from typing import Union
 
 import anndata
-import torch
 from numpy import ceil
-
-from scvi import _CONSTANTS
 
 from .trainer import Trainer
 
@@ -121,26 +118,11 @@ class UnsupervisedTrainer(Trainer):
         return ["train_set"]
 
     def loss(self, tensors: dict, feed_labels: bool = True):
-        sample_batch = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
-
         # The next lines should not be modified, because scanVI's trainer inherits
         # from this class and should NOT include label information to compute the ELBO by default
-        if not feed_labels:
-            y = None
-        reconst_loss, kl_divergence_local, kl_divergence_global = self.model(
-            sample_batch, local_l_mean, local_l_var, batch_index, y
-        )
-        loss = (
-            self.n_samples
-            * torch.mean(reconst_loss + self.kl_weight * kl_divergence_local)
-            + kl_divergence_global
-        )
-        if self.normalize_loss:
-            loss = loss / self.n_samples
+        loss_kwargs = dict(kl_weight=self.kl_weight, normalize_loss=self.normalize_loss)
+        _, losses = self.model(tensors, loss_kwargs=loss_kwargs)
+        loss = losses["loss"]
         return loss
 
     @property
