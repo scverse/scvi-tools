@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 """Main module."""
-
-
 import numpy as np
 import torch
 import torch.nn.functional as F
