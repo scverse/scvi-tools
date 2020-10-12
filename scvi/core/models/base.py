@@ -1,5 +1,4 @@
 import inspect
-import h5py
 import logging
 import os
 import pickle
@@ -197,11 +196,11 @@ class BaseModelClass(ABC):
 
         model_save_path = os.path.join(dir_path, "model_params.pt")
         attr_save_path = os.path.join(dir_path, "attr.pkl")
-        varnames_save_path = os.path.join(dir_path, "var_names.h5")
+        varnames_save_path = os.path.join(dir_path, "var_names.csv")
 
-        var_names = self.adata.var_names
-        with h5py.File(varnames_save_path, "w") as f:
-            f.create_dataset("var_names", data=var_names.to_numpy().astype("S"))
+        var_names = self.adata.var_names.astype(str)
+        var_names = var_names.to_numpy()
+        np.savetxt(varnames_save_path, var_names, fmt="%s")
 
         torch.save(self.model.state_dict(), model_save_path)
         with open(attr_save_path, "wb") as f:
@@ -241,7 +240,7 @@ class BaseModelClass(ABC):
         model_path = os.path.join(dir_path, "model_params.pt")
         setup_dict_path = os.path.join(dir_path, "attr.pkl")
         adata_path = os.path.join(dir_path, "adata.h5ad")
-        varnames_path = os.path.join(dir_path, "var_names.h5")
+        varnames_path = os.path.join(dir_path, "var_names.csv")
 
         if os.path.exists(adata_path) and adata is None:
             adata = read(adata_path)
@@ -249,9 +248,7 @@ class BaseModelClass(ABC):
             raise ValueError(
                 "Save path contains no saved anndata and no adata was passed."
             )
-
-        with h5py.File(varnames_path, "r") as f:
-            var_names = f["var_names"][:].astype(str)
+        var_names = np.genfromtxt(varnames_path, delimiter=",", dtype=str)
         user_var_names = adata.var_names.astype(str)
         if not np.array_equal(var_names, user_var_names):
             logger.warning(
