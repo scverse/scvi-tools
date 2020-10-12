@@ -19,6 +19,8 @@ def _download(url: str, save_path: str, filename: str):
 
     def read_iter(file, block_size=1000):
         """
+        Iterates through file.
+
         Given a file 'file', returns an iterator that returns bytes of
         size 'blocksize' from the file, using read().
         """
