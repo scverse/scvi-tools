@@ -4,6 +4,7 @@ import warnings
 from typing import Dict, List, Optional, Tuple, Union
 
 import anndata
+import pickle
 import rich
 import numpy as np
 import pandas as pd
@@ -864,20 +865,24 @@ def view_anndata_setup(source):
         adata = source
     elif isinstance(source, str):
         # check if user passed in folder or anndata
-        if len(source) > 4:
-            if source[-4:] == "h5ad":
-                path = source
-            else:
-                path = os.path.join(source, "adata.h5ad")
+        if source.endswith("h5ad"):
+            path = source
+            adata = anndata.read(path)
         else:
             path = os.path.join(source, "adata.h5ad")
-        adata = anndata.read(path)
+            if os.path.exists(path):
+                adata = anndata.read(path)
+            else:
+                path = os.path.join(source, "attr.pkl")
+                with open(path, "rb") as handle:
+                    adata = None
+                    setup_dict = pickle.load(handle)["scvi_setup_dict_"]
     elif isinstance(source, dict):
         adata = None
         setup_dict = source
     else:
         raise ValueError(
-            "Invalid source passed in. Must be either AnnData,path to saved AnnData, "
+            "Invalid source passed in. Must be either AnnData, path to saved AnnData, "
             + "path to folder with adata.h5ad or scvi-setup-dict (adata.uns['_scvi'])"
         )
 
