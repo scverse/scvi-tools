@@ -328,7 +328,7 @@ def test_scvidataset_getitem():
 
 
 def test_saving(save_path):
-    save_path = os.path.join(save_path, "tmp")
+    save_path = os.path.join(save_path, "tmp_adata.h5ad")
     adata = synthetic_iid(run_setup_anndata=False)
     adata.obs["cont1"] = np.random.uniform(5, adata.n_obs)
     adata.obs["cont2"] = np.random.uniform(5, adata.n_obs)
