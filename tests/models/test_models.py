@@ -152,8 +152,13 @@ def test_saving_and_loading(save_path):
         model.train(1, train_size=0.2)
         z1 = model.get_latent_representation(adata)
         test_idx1 = model.test_indices
-        model.save(save_path, overwrite=True)
-        model = cls.load(adata, save_path)
+        model.save(save_path, overwrite=True, save_anndata=True)
+        model = cls.load(save_path)
+        model.get_latent_representation()
+        tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+        with pytest.raises(ValueError):
+            cls.load(save_path, tmp_adata)
+        model = cls.load(save_path, adata)
         z2 = model.get_latent_representation()
         test_idx2 = model.test_indices
         np.testing.assert_array_equal(z1, z2)
@@ -171,8 +176,13 @@ def test_saving_and_loading(save_path):
     model = AUTOZI(adata, latent_distribution="normal")
     model.train(1, train_size=0.5)
     ab1 = model.get_alphas_betas()
-    model.save(save_path, overwrite=True)
-    model = AUTOZI.load(adata, save_path)
+    model.save(save_path, overwrite=True, save_anndata=True)
+    model = AUTOZI.load(save_path)
+    model.get_latent_representation()
+    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+    with pytest.raises(ValueError):
+        AUTOZI.load(save_path, tmp_adata)
+    model = AUTOZI.load(save_path, adata)
     ab2 = model.get_alphas_betas()
     np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
     np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
@@ -182,8 +192,13 @@ def test_saving_and_loading(save_path):
     model = SCANVI(adata, "label_0")
     model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_size=0.5)
     p1 = model.predict()
-    model.save(save_path, overwrite=True)
-    model = SCANVI.load(adata, save_path)
+    model.save(save_path, overwrite=True, save_anndata=True)
+    model = SCANVI.load(save_path)
+    model.get_latent_representation()
+    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+    with pytest.raises(ValueError):
+        SCANVI.load(save_path, tmp_adata)
+    model = SCANVI.load(save_path, adata)
     p2 = model.predict()
     np.testing.assert_array_equal(p1, p2)
     assert model.is_trained is True
@@ -194,8 +209,13 @@ def test_saving_and_loading(save_path):
     z1 = model.get_latent_representation([adata])
     z2 = model.get_latent_representation([adata])
     np.testing.assert_array_equal(z1, z2)
-    model.save(save_path, overwrite=True)
-    model = GIMVI.load(adata, adata, save_path)
+    model.save(save_path, overwrite=True, save_anndata=True)
+    model = GIMVI.load(save_path)
+    model.get_latent_representation()
+    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+    with pytest.raises(ValueError):
+        GIMVI.load(save_path, tmp_adata, tmp_adata)
+    model = GIMVI.load(save_path, adata, adata)
     z2 = model.get_latent_representation([adata])
     np.testing.assert_array_equal(z1, z2)
     assert model.is_trained is True
@@ -219,17 +239,14 @@ def test_scanvi():
 
 
 def test_linear_scvi():
-    # test using raw
     adata = synthetic_iid()
-    adata.raw = adata
     adata = adata[:, :10].copy()
-    setup_anndata(adata, use_raw=True)
+    setup_anndata(adata)
     model = LinearSCVI(adata, n_latent=10)
     model.train(1, frequency=1, train_size=0.5)
     assert len(model.history["elbo_train_set"]) == 2
     assert len(model.history["elbo_test_set"]) == 2
-    loadings = model.get_loadings()
-    pd.testing.assert_index_equal(loadings.index, adata.raw.var_names)
+    model.get_loadings()
     model.differential_expression(groupby="labels", group1="label_1")
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
 

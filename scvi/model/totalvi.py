@@ -192,6 +192,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self.train_indices_ = self.trainer.train_set.indices
         self.test_indices_ = self.trainer.test_set.indices
         self.validation_indices_ = self.trainer.validation_set.indices
+        self.history_ = self.trainer.history
 
     @torch.no_grad()
     def get_reconstruction_error(

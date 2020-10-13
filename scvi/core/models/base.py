@@ -7,7 +7,7 @@ from typing import Optional, Sequence
 
 import numpy as np
 import torch
-from anndata import AnnData
+from anndata import AnnData, read
 
 from scvi import _CONSTANTS, settings
 from scvi.data import get_from_registry, transfer_anndata_setup
@@ -37,6 +37,7 @@ class BaseModelClass(ABC):
         self.train_indices_ = None
         self.test_indices_ = None
         self.validation_indices_ = None
+        self.history_ = None
 
     def _make_scvi_dl(
         self,
@@ -125,9 +126,7 @@ class BaseModelClass(ABC):
     @property
     def history(self):
         """Returns computed metrics during training."""
-        if self.is_trained_ is False:
-            return {}
-        return self.trainer.history
+        return self.history_
 
     def _get_user_attributes(self):
         # returns all the self attributes defined in a model class, eg, self.is_trained_
@@ -150,7 +149,13 @@ class BaseModelClass(ABC):
         }
         return user_params
 
-    def save(self, dir_path: str, overwrite: bool = False):
+    def save(
+        self,
+        dir_path: str,
+        overwrite: bool = False,
+        save_anndata: bool = False,
+        **anndata_write_kwargs,
+    ):
         """
         Save the state of the model.
 
@@ -165,6 +170,10 @@ class BaseModelClass(ABC):
         overwrite
             Overwrite existing data or not. If `False` and directory
             already exists at `dir_path`, error will be raised.
+        save_anndata
+            If True, also saves the anndata
+        anndata_write_kwargs
+            Kwargs for anndata write function
         """
         # get all the user attributes
         user_attributes = self._get_user_attributes()
@@ -179,23 +188,43 @@ class BaseModelClass(ABC):
                     dir_path
                 )
             )
-        torch.save(self.model.state_dict(), os.path.join(dir_path, "model_params.pt"))
-        with open(os.path.join(dir_path, "attr.pkl"), "wb") as f:
+
+        if save_anndata:
+            self.adata.write(
+                os.path.join(dir_path, "adata.h5ad"), **anndata_write_kwargs
+            )
+
+        model_save_path = os.path.join(dir_path, "model_params.pt")
+        attr_save_path = os.path.join(dir_path, "attr.pkl")
+        varnames_save_path = os.path.join(dir_path, "var_names.csv")
+
+        var_names = self.adata.var_names.astype(str)
+        var_names = var_names.to_numpy()
+        np.savetxt(varnames_save_path, var_names, fmt="%s")
+
+        torch.save(self.model.state_dict(), model_save_path)
+        with open(attr_save_path, "wb") as f:
             pickle.dump(user_attributes, f)
 
     @classmethod
-    def load(cls, adata: AnnData, dir_path: str, use_cuda: bool = False):
+    def load(
+        cls,
+        dir_path: str,
+        adata: Optional[AnnData] = None,
+        use_cuda: bool = False,
+    ):
         """
         Instantiate a model from the saved output.
 
         Parameters
         ----------
+        dir_path
+            Path to saved outputs.
         adata
             AnnData organized in the same way as data used to train model.
             It is not necessary to run :func:`~scvi.data.setup_anndata`,
             as AnnData is validated against the saved `scvi` setup dictionary.
-        dir_path
-            Path to saved outputs.
+            If None, will check for and load anndata saved with the model.
         use_cuda
             Whether to load model on GPU.
 
@@ -210,14 +239,43 @@ class BaseModelClass(ABC):
         """
         model_path = os.path.join(dir_path, "model_params.pt")
         setup_dict_path = os.path.join(dir_path, "attr.pkl")
+        adata_path = os.path.join(dir_path, "adata.h5ad")
+        varnames_path = os.path.join(dir_path, "var_names.csv")
+
+        if os.path.exists(adata_path) and adata is None:
+            adata = read(adata_path)
+        elif not os.path.exists(adata_path) and adata is None:
+            raise ValueError(
+                "Save path contains no saved anndata and no adata was passed."
+            )
+        var_names = np.genfromtxt(varnames_path, delimiter=",", dtype=str)
+        user_var_names = adata.var_names.astype(str)
+        if not np.array_equal(var_names, user_var_names):
+            logger.warning(
+                "var_names for adata passed in does not match var_names of "
+                "adata used to train the model. For valid results, the vars "
+                "need to be the same and in the same order as the adata used to train the model."
+            )
+
         with open(setup_dict_path, "rb") as handle:
             attr_dict = pickle.load(handle)
+
+        scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+
+        transfer_anndata_setup(scvi_setup_dict, adata)
+
         if "init_params_" not in attr_dict.keys():
             raise ValueError(
-                "No init_params_ were saved by the model. Check out the developers guide if creating custom models."
+                "No init_params_ were saved by the model. Check out the "
+                "developers guide if creating custom models."
             )
         # get the parameters for the class init signiture
         init_params = attr_dict.pop("init_params_")
+
+        # update use_cuda from the saved model
+        use_cuda = use_cuda and torch.cuda.is_available()
+        init_params["use_cuda"] = use_cuda
+
         # grab all the parameters execept for kwargs (is a dict)
         non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
         # expand out kwargs
@@ -226,7 +284,6 @@ class BaseModelClass(ABC):
         model = cls(adata, **non_kwargs, **kwargs)
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
-        use_cuda = use_cuda and torch.cuda.is_available()
 
         if use_cuda:
             model.model.load_state_dict(torch.load(model_path))
@@ -234,8 +291,10 @@ class BaseModelClass(ABC):
         else:
             device = torch.device("cpu")
             model.model.load_state_dict(torch.load(model_path, map_location=device))
+
         model.model.eval()
         model._validate_anndata(adata)
+
         return model
 
     def __repr__(

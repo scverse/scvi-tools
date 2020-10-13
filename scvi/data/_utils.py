@@ -32,7 +32,6 @@ def _compute_library_size_batch(
     local_l_mean_key: str = None,
     local_l_var_key: str = None,
     layer=None,
-    use_raw=False,
     copy: bool = False,
 ):
     """
@@ -50,8 +49,6 @@ def _compute_library_size_batch(
         key in obs to save the local log variance
     layer
         if not None, will use this in adata.layers[] for X
-    use_raw
-        Use ``.raw`` for X
     copy
         if True, returns a copy of the adata
 
@@ -68,9 +65,7 @@ def _compute_library_size_batch(
     batch_indices = adata.obs[batch_key]
     for i_batch in np.unique(batch_indices):
         idx_batch = np.squeeze(batch_indices == i_batch)
-        if use_raw:
-            data = adata[idx_batch].raw.X
-        elif layer is not None:
+        if layer is not None:
             if layer not in adata.layers.keys():
                 raise ValueError("layer not a valid key for adata.layers")
             data = adata[idx_batch].layers[layer]
@@ -148,9 +143,8 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
     adata = adata_target
 
     stats = _scvi_dict["summary_stats"]
-    use_raw = _scvi_dict["use_raw"]
 
-    target_n_vars = adata.shape[1] if not use_raw else adata.raw.shape[1]
+    target_n_vars = adata.shape[1]
     error_msg = (
         "Number of {} in anndata different from initial anndata used for training."
     )
