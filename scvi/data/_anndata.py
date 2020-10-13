@@ -965,7 +965,8 @@ def view_anndata_setup(source: Union[anndata.AnnData, dict, str]):
         console.print(t)
 
 
-def _extra_categoricals_table(setup_dict):
+def _extra_categoricals_table(setup_dict: dict):
+    """Returns rich.table.Table with info on extra categorical variables."""
     t = rich.table.Table(title="Extra Categorical Variables")
     t.add_column(
         "Source Location",
@@ -994,7 +995,8 @@ def _extra_categoricals_table(setup_dict):
     return t
 
 
-def _extra_continuous_table(adata, setup_dict):
+def _extra_continuous_table(adata: Optional[anndata.AnnData], setup_dict: dict):
+    """Returns rich.table.Table with info on extra continuous variables."""
     t = rich.table.Table(title="Extra Continuous Variables")
     t.add_column(
         "Source Location",
@@ -1026,7 +1028,20 @@ def _extra_continuous_table(adata, setup_dict):
     return t
 
 
-def _categorical_mappings_table(title, scvi_column, mappings):
+def _categorical_mappings_table(title: str, scvi_column: str, mappings: dict):
+    """
+    Returns rich.table.Table with info on a categorical variable.
+
+    Parameters
+    ----------
+    title
+        title of table
+    scvi_column
+        column used by scvi for categorical representation
+    mappings
+        output of adata.uns['_scvi']['categorical_mappings'], containing mapping
+        between scvi_column and original column and categories
+    """
     source_key = mappings[scvi_column]["original_key"]
     mapping = mappings[scvi_column]["mapping"]
     t = rich.table.Table(title=title)
