@@ -409,8 +409,7 @@ def test_scvi_online_update(save_path):
     model.save(dir_path, overwrite=True)
 
     adata2 = synthetic_iid(run_setup_anndata=False)
-    new_b = [2, 3]
-    adata2.obs["batch"] = pd.Categorical(new_b[i] for i in adata2.obs.batch)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path)
     model2.train(n_epochs=1)
@@ -440,8 +439,7 @@ def test_scvi_online_update(save_path):
     model.save(dir_path, overwrite=True)
 
     adata2 = synthetic_iid(run_setup_anndata=False)
-    new_b = [2, 3]
-    adata2.obs["batch"] = pd.Categorical(new_b[i] for i in adata2.obs.batch)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path, freeze_expression=True)
     model2.train(n_epochs=1)
@@ -482,8 +480,7 @@ def test_scanvi_online_update(save_path):
     model.save(dir_path, overwrite=True)
 
     adata2 = synthetic_iid(run_setup_anndata=False)
-    new_b = [2, 3]
-    adata2.obs["batch"] = pd.Categorical(new_b[i] for i in adata2.obs.batch)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     adata2.obs["labels"] = "Unknown"
 
     model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm=True)
@@ -504,8 +501,7 @@ def test_totalvi_online_update(save_path):
     model.save(dir_path, overwrite=True)
 
     adata2 = synthetic_iid(run_setup_anndata=False)
-    new_b = [2, 3]
-    adata2.obs["batch"] = pd.Categorical(new_b[i] for i in adata2.obs.batch)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model = TOTALVI.load_query_data(adata2, dir_path)
     assert model.model.background_pro_alpha.requires_grad is True
@@ -514,9 +510,8 @@ def test_totalvi_online_update(save_path):
 
     # batch 3 has no proteins
     adata2 = synthetic_iid(run_setup_anndata=False)
-    new_b = [2, 3]
-    adata2.obs["batch"] = pd.Categorical(new_b[i] for i in adata2.obs.batch)
-    adata2.obsm["protein_expression"][adata2.obs.batch == 3] = 0
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    adata2.obsm["protein_expression"][adata2.obs.batch == "batch_3"] = 0
 
     model = TOTALVI.load_query_data(adata2, dir_path)
     model.model.protein_batch_mask[2]
