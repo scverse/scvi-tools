@@ -862,16 +862,16 @@ def view_anndata_setup(source):
     """
     if isinstance(source, anndata.AnnData):
         adata = source
-        setup_dict = adata.uns["_scvi"]
     elif isinstance(source, str):
         # check if user passed in folder or anndata
         if len(source) > 4:
             if source[-4:] == "h5ad":
                 path = source
+            else:
+                path = os.path.join(source, "adata.h5ad")
         else:
             path = os.path.join(source, "adata.h5ad")
         adata = anndata.read(path)
-        setup_dict = adata.uns["_scvi"]
     elif isinstance(source, dict):
         adata = None
         setup_dict = source
@@ -884,6 +884,7 @@ def view_anndata_setup(source):
     if adata is not None:
         if "_scvi" not in adata.uns.keys():
             raise ValueError("Please run setup_anndata() on your adata first.")
+        setup_dict = adata.uns["_scvi"]
 
     summary_stats = setup_dict["summary_stats"]
     data_registry = setup_dict["data_registry"]
