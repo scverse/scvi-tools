@@ -5,6 +5,7 @@ from ._anndata import (
     register_tensor_from_anndata,
     setup_anndata,
     transfer_anndata_setup,
+    view_anndata_setup,
 )
 from ._datasets import (
     annotation_simulation,
@@ -30,6 +31,7 @@ from ._preprocessing import organize_cite_seq_10x, poisson_gene_selection
 __all__ = [
     "setup_anndata",
     "get_from_registry",
+    "view_anndata_setup",
     "poisson_gene_selection",
     "organize_cite_seq_10x",
     "pbmcs_10x_cite_seq",
