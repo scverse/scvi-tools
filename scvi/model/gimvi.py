@@ -114,7 +114,10 @@ class GIMVI(VAEMixin, BaseModelClass):
             **model_kwargs,
         )
 
-        self._model_summary_string = "gimVI model with params"
+        self._model_summary_string = (
+            "GimVI Model with the following params: \nn_latent: {}, n_inputs: {}, n_genes: {}, "
+            + "n_batch: {}, generative distributions: {}"
+        ).format(n_latent, n_inputs, total_genes, n_batches, generative_distributions)
         self.init_params_ = self._get_init_params(locals())
 
     @property
