@@ -359,14 +359,19 @@ def test_view_anndata_setup(save_path):
 
     adata = scvi.data.synthetic_iid()
     m = scvi.model.SCVI(adata)
-    save_path = os.path.join(save_path, "tmp")
-    m.save(save_path, save_anndata=True)
+    folder_path = os.path.join(save_path, "tmp")
+    m.save(folder_path, save_anndata=True)
 
     # test it works with a saved model folder
-    view_anndata_setup(save_path)
-    save_path = os.path.join(save_path, "adata.h5ad")
+    view_anndata_setup(folder_path)
+    adata_path = os.path.join(folder_path, "adata.h5ad")
     # test it works with the path to an anndata
-    view_anndata_setup(save_path)
+    view_anndata_setup(adata_path)
+
+    m = scvi.model.SCVI(adata)
+    m.save(folder_path, overwrite=True)
+    # test it works without saving the anndata
+    view_anndata_setup(folder_path)
 
     # test it throws error if adata was not setup
     with pytest.raises(ValueError):
