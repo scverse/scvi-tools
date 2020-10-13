@@ -906,8 +906,12 @@ def view_anndata_setup(source):
 
     console = Console()
     t = rich.table.Table(title="Data Summary")
-    t.add_column("Data", justify="center", style="dodger_blue1", no_wrap=True)
-    t.add_column("Count", justify="center", style="dark_violet", no_wrap=True)
+    t.add_column(
+        "Data", justify="center", style="dodger_blue1", no_wrap=True, overflow="fold"
+    )
+    t.add_column(
+        "Count", justify="center", style="dark_violet", no_wrap=True, overflow="fold"
+    )
     data_summary = {
         "Cells": n_cells,
         "Vars": n_vars,
@@ -922,9 +926,15 @@ def view_anndata_setup(source):
     console.print(t)
 
     t = rich.table.Table(title="SCVI Data Registry")
-    t.add_column("Data", justify="center", style="dodger_blue1", no_wrap=True)
     t.add_column(
-        "scvi-tools Location", justify="center", style="dark_violet", no_wrap=True
+        "Data", justify="center", style="dodger_blue1", no_wrap=True, overflow="fold"
+    )
+    t.add_column(
+        "scvi-tools Location",
+        justify="center",
+        style="dark_violet",
+        no_wrap=True,
+        overflow="fold",
     )
 
     for scvi_data_key, data_loc in data_registry.items():
@@ -944,11 +954,21 @@ def view_anndata_setup(source):
         mapping = mappings[scvi_column]["mapping"]
         t = rich.table.Table(title=title)
         t.add_column(
-            "Source Location", justify="center", style="dodger_blue1", no_wrap=True
+            "Source Location",
+            justify="center",
+            style="dodger_blue1",
+            no_wrap=True,
+            overflow="fold",
         )
-        t.add_column("Categories", justify="center", style="green", no_wrap=True)
         t.add_column(
-            "scvi-tools Encoding", justify="center", style="dark_violet", no_wrap=True
+            "Categories", justify="center", style="green", no_wrap=True, overflow="fold"
+        )
+        t.add_column(
+            "scvi-tools Encoding",
+            justify="center",
+            style="dark_violet",
+            no_wrap=True,
+            overflow="fold",
         )
         for i, cat in enumerate(mapping):
             if i == 0:
@@ -965,11 +985,21 @@ def view_anndata_setup(source):
     if "extra_categorical_mappings" in setup_dict.keys():
         t = rich.table.Table(title="Extra Categorical Variables")
         t.add_column(
-            "Source Location", justify="center", style="dodger_blue1", no_wrap=True
+            "Source Location",
+            justify="center",
+            style="dodger_blue1",
+            no_wrap=True,
+            overflow="fold",
         )
-        t.add_column("Categories", justify="center", style="green", no_wrap=True)
         t.add_column(
-            "scvi-tools Encoding", justify="center", style="dark_violet", no_wrap=True
+            "Categories", justify="center", style="green", no_wrap=True, overflow="fold"
+        )
+        t.add_column(
+            "scvi-tools Encoding",
+            justify="center",
+            style="dark_violet",
+            no_wrap=True,
+            overflow="fold",
         )
         for key, mappings in setup_dict["extra_categorical_mappings"].items():
             for i, mapping in enumerate(mappings):
@@ -983,10 +1013,20 @@ def view_anndata_setup(source):
     if "extra_continuous_keys" in setup_dict.keys():
         t = rich.table.Table(title="Extra Continuous Variables")
         t.add_column(
-            "Source Location", justify="center", style="dodger_blue1", no_wrap=True
+            "Source Location",
+            justify="center",
+            style="dodger_blue1",
+            no_wrap=True,
+            overflow="fold",
         )
         if adata is not None:
-            t.add_column("Range", justify="center", style="dark_violet", no_wrap=True)
+            t.add_column(
+                "Range",
+                justify="center",
+                style="dark_violet",
+                no_wrap=True,
+                overflow="fold",
+            )
             cont_covs = scvi.data.get_from_registry(adata, "cont_covs")
             for cov in cont_covs.iteritems():
                 col_name, values = cov[0], cov[1]
@@ -999,4 +1039,4 @@ def view_anndata_setup(source):
         else:
             for key in setup_dict["extra_continuous_keys"]:
                 t.add_row("adata.obs['{}']".format(key))
-    console.print(t)
+        console.print(t)
