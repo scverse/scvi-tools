@@ -621,7 +621,9 @@ def _setup_extra_continuous_covs(
         series.append(s)
 
     adata.obsm[cont_key] = pd.concat(series, axis=1)
-    adata.uns["_scvi"]["extra_continuous_keys"] = adata.obsm[cont_key].columns
+    adata.uns["_scvi"]["extra_continuous_keys"] = adata.obsm[
+        cont_key
+    ].columns.to_numpy()
 
     return cont_loc, cont_key
 
