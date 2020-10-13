@@ -111,7 +111,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
             **model_kwargs,
         )
         self.model_summary_string = (
-            "AutoZI Model with following params: \nn_hidden: {}, n_latent: {}, "
+            "AutoZI Model with the following params: \nn_hidden: {}, n_latent: {}, "
             "n_layers: {}, dropout_rate: {}, dispersion: {}, latent_distribution: "
             "{}, alpha_prior: {}, beta_prior: {}, minimal_dropout: {}, zero_inflation:{}"
         ).format(

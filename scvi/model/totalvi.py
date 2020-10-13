@@ -109,7 +109,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "TotalVI Model with following params: \nn_latent: {}, "
+            "TotalVI Model with the following params: \nn_latent: {}, "
             "gene_dispersion: {}, protein_dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
         ).format(
             n_latent,
