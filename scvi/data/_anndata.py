@@ -845,21 +845,22 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
     adata.uns["_scvi"]["data_registry"] = data_registry_dict.copy()
 
 
-def view_anndata_setup(source):
-    """Prints setup anndata.
+def view_anndata_setup(source: Union[anndata.AnnData, dict, str]):
+    """
+    Prints setup anndata.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     source
         Either AnnData, path to saved AnnData, path to folder with adata.h5ad,
         or scvi-setup-dict (adata.uns['_scvi'])
 
-    Examples:
-    ---------
-    >>> view_anndata_setup(adata)
-    >>> view_anndata_setup('saved_model_folder/adata.h5ad')
-    >>> view_anndata_setup('saved_model_folder/')
-    >>> view_anndata_setup(adata.uns['_scvi'])
+    Examples
+    --------
+    >>> scvi.data.view_anndata_setup(adata)
+    >>> scvi.data.view_anndata_setup('saved_model_folder/adata.h5ad')
+    >>> scvi.data.view_anndata_setup('saved_model_folder/')
+    >>> scvi.data.view_anndata_setup(adata.uns['_scvi'])
     """
     if isinstance(source, anndata.AnnData):
         adata = source
@@ -896,19 +897,14 @@ def view_anndata_setup(source):
     mappings = setup_dict["categorical_mappings"]
     version = setup_dict["scvi_version"]
 
-    n_cells = summary_stats["n_cells"]
-    n_vars = summary_stats["n_vars"]
-    n_labels = summary_stats["n_labels"]
-    n_batch = summary_stats["n_batch"]
-    n_proteins = summary_stats["n_proteins"]
+    rich.print("Anndata setup with scvi-tools version {}.".format(version))
+
     n_cat = 0
     n_covs = 0
     if "extra_categorical_mappings" in setup_dict.keys():
         n_cat = len(setup_dict["extra_categorical_mappings"])
     if "extra_continuous_keys" in setup_dict.keys():
         n_covs = len(setup_dict["extra_continuous_keys"])
-
-    rich.print("Anndata setup with scvi-tools version {}.".format(version))
 
     console = Console()
     t = rich.table.Table(title="Data Summary")
@@ -919,11 +915,11 @@ def view_anndata_setup(source):
         "Count", justify="center", style="dark_violet", no_wrap=True, overflow="fold"
     )
     data_summary = {
-        "Cells": n_cells,
-        "Vars": n_vars,
-        "Labels": n_labels,
-        "Batches": n_batch,
-        "Proteins": n_proteins,
+        "Cells": summary_stats["n_cells"],
+        "Vars": summary_stats["n_vars"],
+        "Labels": summary_stats["n_labels"],
+        "Batches": summary_stats["n_batch"],
+        "Proteins": summary_stats["n_proteins"],
         "Extra Categorical Covariates": n_cat,
         "Extra Continuous Covariates": n_covs,
     }
@@ -955,94 +951,105 @@ def view_anndata_setup(source):
 
     console.print(t)
 
-    def _categorical_mappings_table(title, scvi_column):
-        source_key = mappings[scvi_column]["original_key"]
-        mapping = mappings[scvi_column]["mapping"]
-        t = rich.table.Table(title=title)
-        t.add_column(
-            "Source Location",
-            justify="center",
-            style="dodger_blue1",
-            no_wrap=True,
-            overflow="fold",
-        )
-        t.add_column(
-            "Categories", justify="center", style="green", no_wrap=True, overflow="fold"
-        )
-        t.add_column(
-            "scvi-tools Encoding",
-            justify="center",
-            style="dark_violet",
-            no_wrap=True,
-            overflow="fold",
-        )
-        for i, cat in enumerate(mapping):
-            if i == 0:
-                t.add_row("adata.obs['{}']".format(source_key), str(cat), str(i))
-            else:
-                t.add_row("", str(cat), str(i))
-        return t
-
-    t = _categorical_mappings_table("Label Categories", "_scvi_labels")
+    t = _categorical_mappings_table("Label Categories", "_scvi_labels", mappings)
     console.print(t)
-    t = _categorical_mappings_table("Batch Categories", "_scvi_batch")
+    t = _categorical_mappings_table("Batch Categories", "_scvi_batch", mappings)
     console.print(t)
 
     if "extra_categorical_mappings" in setup_dict.keys():
-        t = rich.table.Table(title="Extra Categorical Variables")
+        t = _extra_categoricals_table(setup_dict)
+        console.print(t)
+
+    if "extra_continuous_keys" in setup_dict.keys():
+        t = _extra_continuous_table(adata, setup_dict)
+        console.print(t)
+
+
+def _extra_categoricals_table(setup_dict):
+    t = rich.table.Table(title="Extra Categorical Variables")
+    t.add_column(
+        "Source Location",
+        justify="center",
+        style="dodger_blue1",
+        no_wrap=True,
+        overflow="fold",
+    )
+    t.add_column(
+        "Categories", justify="center", style="green", no_wrap=True, overflow="fold"
+    )
+    t.add_column(
+        "scvi-tools Encoding",
+        justify="center",
+        style="dark_violet",
+        no_wrap=True,
+        overflow="fold",
+    )
+    for key, mappings in setup_dict["extra_categorical_mappings"].items():
+        for i, mapping in enumerate(mappings):
+            if i == 0:
+                t.add_row("adata.obs['{}']".format(key), str(mapping), str(i))
+            else:
+                t.add_row("", str(mapping), str(i))
+        t.add_row("", "")
+    return t
+
+
+def _extra_continuous_table(adata, setup_dict):
+    t = rich.table.Table(title="Extra Continuous Variables")
+    t.add_column(
+        "Source Location",
+        justify="center",
+        style="dodger_blue1",
+        no_wrap=True,
+        overflow="fold",
+    )
+    if adata is not None:
         t.add_column(
-            "Source Location",
-            justify="center",
-            style="dodger_blue1",
-            no_wrap=True,
-            overflow="fold",
-        )
-        t.add_column(
-            "Categories", justify="center", style="green", no_wrap=True, overflow="fold"
-        )
-        t.add_column(
-            "scvi-tools Encoding",
+            "Range",
             justify="center",
             style="dark_violet",
             no_wrap=True,
             overflow="fold",
         )
-        for key, mappings in setup_dict["extra_categorical_mappings"].items():
-            for i, mapping in enumerate(mappings):
-                if i == 0:
-                    t.add_row("adata.obs['{}']".format(key), str(mapping), str(i))
-                else:
-                    t.add_row("", str(mapping), str(i))
-            t.add_row("", "")
-        console.print(t)
-
-    if "extra_continuous_keys" in setup_dict.keys():
-        t = rich.table.Table(title="Extra Continuous Variables")
-        t.add_column(
-            "Source Location",
-            justify="center",
-            style="dodger_blue1",
-            no_wrap=True,
-            overflow="fold",
-        )
-        if adata is not None:
-            t.add_column(
-                "Range",
-                justify="center",
-                style="dark_violet",
-                no_wrap=True,
-                overflow="fold",
+        cont_covs = scvi.data.get_from_registry(adata, "cont_covs")
+        for cov in cont_covs.iteritems():
+            col_name, values = cov[0], cov[1]
+            min_val = np.min(values)
+            max_val = np.max(values)
+            t.add_row(
+                "adata.obs['{}']".format(col_name),
+                "{:.20g} -> {:.20g}".format(min_val, max_val),
             )
-            cont_covs = scvi.data.get_from_registry(adata, "cont_covs")
-            for cov in cont_covs.iteritems():
-                col_name, values = cov[0], cov[1]
-                min_val = np.min(values)
-                max_val = np.max(values)
-                t.add_row(
-                    "adata.obs['{}']".format(col_name),
-                    "{:.20g} -> {:.20g}".format(min_val, max_val),
-                )
+    else:
+        for key in setup_dict["extra_continuous_keys"]:
+            t.add_row("adata.obs['{}']".format(key))
+    return t
+
+
+def _categorical_mappings_table(title, scvi_column, mappings):
+    source_key = mappings[scvi_column]["original_key"]
+    mapping = mappings[scvi_column]["mapping"]
+    t = rich.table.Table(title=title)
+    t.add_column(
+        "Source Location",
+        justify="center",
+        style="dodger_blue1",
+        no_wrap=True,
+        overflow="fold",
+    )
+    t.add_column(
+        "Categories", justify="center", style="green", no_wrap=True, overflow="fold"
+    )
+    t.add_column(
+        "scvi-tools Encoding",
+        justify="center",
+        style="dark_violet",
+        no_wrap=True,
+        overflow="fold",
+    )
+    for i, cat in enumerate(mapping):
+        if i == 0:
+            t.add_row("adata.obs['{}']".format(source_key), str(cat), str(i))
         else:
-            for key in setup_dict["extra_continuous_keys"]:
-                t.add_row("adata.obs['{}']".format(key))
-        console.print(t)
+            t.add_row("", str(cat), str(i))
+    return t
