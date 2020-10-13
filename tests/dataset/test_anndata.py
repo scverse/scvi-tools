@@ -4,6 +4,7 @@ import random
 import pandas as pd
 import scipy.sparse as sparse
 
+import anndata
 import pytest
 from scvi.data._scvidataset import ScviDataset
 from scvi.data import synthetic_iid
@@ -324,3 +325,28 @@ def test_scvidataset_getitem():
     bd = ScviDataset(adata)
     for key, value in bd[1].items():
         assert type(value) == np.ndarray
+
+
+def test_saving(save_path):
+    save_path = os.path.join(save_path, "tmp")
+    adata = synthetic_iid(run_setup_anndata=False)
+    adata.obs["cont1"] = np.random.uniform(5, adata.n_obs)
+    adata.obs["cont2"] = np.random.uniform(5, adata.n_obs)
+
+    adata.obs["cat1"] = np.random.randint(0, 3, adata.n_obs).astype(str)
+    adata.obs["cat1"][1] = "asdf"
+    adata.obs["cat1"][2] = "f34"
+
+    adata.obs["cat2"] = np.random.randint(0, 7, adata.n_obs)
+
+    setup_anndata(
+        adata,
+        protein_expression_obsm_key="protein_expression",
+        batch_key="batch",
+        labels_key="labels",
+        categorical_covariate_keys=["cat1", "cat2"],
+        continuous_covariate_keys=["cont1", "cont2"],
+    )
+
+    adata.write(save_path)
+    anndata.read(save_path)
