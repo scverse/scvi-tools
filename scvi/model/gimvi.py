@@ -1,5 +1,4 @@
 import logging
-import h5py
 import os
 import pickle
 from typing import List, Optional
@@ -350,12 +349,12 @@ class GIMVI(VAEMixin, BaseModelClass):
                 )
                 self.adatas[i].write(save_path)
                 varnames_save_path = os.path.join(
-                    dir_path, "var_names_{}.pkl".format(dataset_names[i])
+                    dir_path, "var_names_{}.csv".format(dataset_names[i])
                 )
-                var_names = self.adatas[i].var_names
 
-                with h5py.File(varnames_save_path, "w") as f:
-                    f.create_dataset("var_names", data=var_names.to_numpy().astype("S"))
+                var_names = self.adatas[i].var_names.astype(str)
+                var_names = var_names.to_numpy()
+                np.savetxt(varnames_save_path, var_names, fmt="%s")
 
         model_save_path = os.path.join(dir_path, "model_params.pt")
         attr_save_path = os.path.join(dir_path, "attr.pkl")
@@ -403,8 +402,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         setup_dict_path = os.path.join(dir_path, "attr.pkl")
         seq_data_path = os.path.join(dir_path, "adata_seq.h5ad")
         spatial_data_path = os.path.join(dir_path, "adata_spatial.h5ad")
-        seq_var_names_path = os.path.join(dir_path, "var_names_seq.pkl")
-        spatial_var_names_path = os.path.join(dir_path, "var_names_spatial.pkl")
+        seq_var_names_path = os.path.join(dir_path, "var_names_seq.csv")
+        spatial_var_names_path = os.path.join(dir_path, "var_names_spatial.csv")
 
         if adata_seq is None and os.path.exists(seq_data_path):
             adata_seq = read(seq_data_path)
@@ -420,10 +419,10 @@ class GIMVI(VAEMixin, BaseModelClass):
             )
         adatas = [adata_seq, adata_spatial]
 
-        with h5py.File(seq_var_names_path, "r") as f:
-            seq_var_names = f["var_names"][:].astype(str)
-        with h5py.File(spatial_var_names_path, "r") as f:
-            spatial_var_names = f["var_names"][:].astype(str)
+        seq_var_names = np.genfromtxt(seq_var_names_path, delimiter=",", dtype=str)
+        spatial_var_names = np.genfromtxt(
+            spatial_var_names_path, delimiter=",", dtype=str
+        )
         var_names = [seq_var_names, spatial_var_names]
 
         for i, adata in enumerate(adatas):
