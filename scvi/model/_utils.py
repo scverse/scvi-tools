@@ -1,5 +1,6 @@
 import logging
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Sequence
+from collections.abc import Iterable as IterableClass
 
 import anndata
 import numpy as np
@@ -9,6 +10,8 @@ from scvi import _CONSTANTS
 from scvi.data import get_from_registry
 
 logger = logging.getLogger(__name__)
+
+Number = Union[int, float]
 
 
 def scrna_raw_counts_properties(
@@ -117,18 +120,25 @@ def cite_seq_raw_counts_properties(
 
 def _get_var_names_from_setup_anndata(adata):
     """Gets var names by checking if using raw."""
-    var_names = (
-        adata.var_names
-        if adata.uns["_scvi"]["use_raw"] is False
-        else adata.raw.var_names
-    )
-
+    var_names = adata.var_names
     return var_names
 
 
-def _get_batch_code_from_category(adata, category):
+def _get_batch_code_from_category(
+    adata: anndata.AnnData, category: Sequence[Union[Number, str]]
+):
+    if not isinstance(category, IterableClass) or isinstance(category, str):
+        category = [category]
+
     categorical_mappings = adata.uns["_scvi"]["categorical_mappings"]
     batch_mappings = categorical_mappings["_scvi_batch"]["mapping"]
-    if category not in batch_mappings:
-        raise ValueError('"{}" not a valid batch category.'.format(category))
-    return np.where(batch_mappings == category)[0][0]
+    batch_code = []
+    for cat in category:
+        if cat is None:
+            batch_code.append(None)
+        elif cat not in batch_mappings:
+            raise ValueError('"{}" not a valid batch category.'.format(cat))
+        else:
+            batch_loc = np.where(batch_mappings == cat)[0][0]
+            batch_code.append(batch_loc)
+    return batch_code

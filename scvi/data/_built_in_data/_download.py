@@ -18,7 +18,10 @@ def _download(url: str, save_path: str, filename: str):
     logger.info("Downloading file at %s" % os.path.join(save_path, filename))
 
     def read_iter(file, block_size=1000):
-        """Given a file 'file', returns an iterator that returns bytes of
+        """
+        Iterates through file.
+
+        Given a file 'file', returns an iterator that returns bytes of
         size 'blocksize' from the file, using read().
         """
         while True:

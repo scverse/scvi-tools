@@ -55,12 +55,9 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
            [0],
            [0]])
     """
-    use_raw = adata.uns["_scvi"]["use_raw"]
     data_loc = adata.uns["_scvi"]["data_registry"][key]
     attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
 
-    if use_raw is True and attr_name in ["X", "var"]:
-        adata = adata.raw
     data = getattr(adata, attr_name)
     if attr_key != "None":
         if isinstance(data, pd.DataFrame):
@@ -76,7 +73,6 @@ def setup_anndata(
     adata: anndata.AnnData,
     batch_key: Optional[str] = None,
     labels_key: Optional[str] = None,
-    use_raw: bool = False,
     layer: Optional[str] = None,
     protein_expression_obsm_key: Optional[str] = None,
     protein_names_uns_key: Optional[str] = None,
@@ -102,8 +98,6 @@ def setup_anndata(
     labels_key
         key in `adata.obs` for label information. Categories will automatically be converted into integer
         categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label to all the data.
-    use_raw
-        Use `.raw` when applicable (e.g., for `X`)
     layer
         if not `None`, uses this as the key in `adata.layers` for raw count data.
     protein_expression_obsm_key
@@ -160,7 +154,7 @@ def setup_anndata(
     INFO      Using data from adata.X
     INFO      Computing library size prior per batch
     INFO      Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels']
-    INFO      Successfully registered anndata object containing 400 cells, 100 genes, 1 batches, 1 labels, and 0 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
+    INFO      Successfully registered anndata object containing 400 cells, 100 vars, 1 batches, 1 labels, and 0 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
 
     Example setting up scanpy dataset with random gene data, batch, and protein expression
 
@@ -173,7 +167,7 @@ def setup_anndata(
     INFO      Using protein expression from adata.obsm['protein_expression']
     INFO      Generating sequential protein names
     INFO      Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels', 'protein_expression']
-    INFO      Successfully registered anndata object containing 400 cells, 100 genes, 2 batches, 1 labels, and 100 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
+    INFO      Successfully registered anndata object containing 400 cells, 100 vars, 2 batches, 1 labels, and 100 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
     """
     if copy:
         adata = adata.copy()
@@ -188,12 +182,8 @@ def setup_anndata(
 
     batch_key = _setup_batch(adata, batch_key)
     labels_key = _setup_labels(adata, labels_key)
-    x_loc, x_key = _setup_x(adata, layer, use_raw)
-    local_l_mean_key, local_l_var_key = _setup_library_size(
-        adata, batch_key, layer, use_raw
-    )
-
-    adata.uns["_scvi"]["use_raw"] = True if use_raw is True else False
+    x_loc, x_key = _setup_x(adata, layer)
+    local_l_mean_key, local_l_var_key = _setup_library_size(adata, batch_key, layer)
 
     data_registry = {
         _CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key},
@@ -267,27 +257,19 @@ def _set_data_in_registry(adata, data, key):
     key
         key in adata.uns['_scvi]['data_registry'].keys() associated with the data
     """
-    use_raw = adata.uns["_scvi"]["use_raw"]
     data_loc = adata.uns["_scvi"]["data_registry"][key]
     attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
 
-    if use_raw is True and attr_name in ["X", "var"]:
-        tmp_adata = adata.raw.to_adata()
-    else:
-        tmp_adata = adata
     if attr_key == "None":
-        setattr(tmp_adata, attr_name, data)
+        setattr(adata, attr_name, data)
 
     elif attr_key != "None":
-        attribute = getattr(tmp_adata, attr_name)
+        attribute = getattr(adata, attr_name)
         if isinstance(attribute, pd.DataFrame):
             attribute.loc[:, attr_key] = data
         else:
             attribute[attr_key] = data
-        setattr(tmp_adata, attr_name, attribute)
-
-    if use_raw is True and attr_name in ["X", "var"]:
-        adata.raw = tmp_adata
+        setattr(adata, attr_name, attribute)
 
 
 def _verify_and_correct_data_format(adata, data_registry):
@@ -419,20 +401,12 @@ def transfer_anndata_setup(
     else:
         layer = None
 
-    if _scvi_dict["use_raw"] is True:
-        adata_target.uns["_scvi"]["use_raw"] = True
-        use_raw = True
-    else:
-        adata_target.uns["_scvi"]["use_raw"] = False
-        use_raw = False
+    target_n_vars = adata_target.shape[1]
 
-    target_n_vars = adata_target.shape[1] if not use_raw else adata_target.raw.shape[1]
-    if target_n_vars != summary_stats["n_genes"]:
+    if target_n_vars != summary_stats["n_vars"]:
         raise ValueError(
             "Number of vars in adata_target not the same as source. "
-            + "Expected: {} Received: {}".format(
-                target_n_vars, summary_stats["n_genes"]
-            )
+            + "Expected: {} Received: {}".format(target_n_vars, summary_stats["n_vars"])
         )
 
     # transfer batch and labels
@@ -448,9 +422,9 @@ def transfer_anndata_setup(
     )
 
     # transfer X
-    x_loc, x_key = _setup_x(adata_target, layer, use_raw)
+    x_loc, x_key = _setup_x(adata_target, layer)
     local_l_mean_key, local_l_var_key = _setup_library_size(
-        adata_target, batch_key, layer, use_raw
+        adata_target, batch_key, layer
     )
     target_data_registry = data_registry.copy()
     target_data_registry.update(
@@ -790,19 +764,8 @@ def _setup_protein_expression(
     return protein_expression_obsm_key
 
 
-def _setup_x(adata, layer, use_raw):
-    if use_raw and layer:
-        logging.warning("use_raw and layer were both passed in. Defaulting to use_raw.")
-
-    # checking layers
-    if use_raw:
-        if adata.raw is None:
-            raise ValueError("use_raw is True but adata.raw is None")
-        logger.info("Using data from adata.raw.X")
-        x_loc = "X"
-        x_key = "None"
-        x = adata.raw.X
-    elif layer is not None:
+def _setup_x(adata, layer):
+    if layer is not None:
         assert (
             layer in adata.layers.keys()
         ), "{} is not a valid key in adata.layers".format(layer)
@@ -829,7 +792,7 @@ def _setup_x(adata, layer, use_raw):
     return x_loc, x_key
 
 
-def _setup_library_size(adata, batch_key, layer, use_raw):
+def _setup_library_size(adata, batch_key, layer):
     # computes the library size per batch
     logger.info("Computing library size prior per batch")
     local_l_mean_key = "_scvi_local_l_mean"
@@ -840,7 +803,6 @@ def _setup_library_size(adata, batch_key, layer, use_raw):
         local_l_mean_key=local_l_mean_key,
         local_l_var_key=local_l_var_key,
         layer=layer,
-        use_raw=use_raw,
     )
     return local_l_mean_key, local_l_var_key
 
@@ -854,11 +816,9 @@ def _setup_summary_stats(
     continuous_covariate_keys,
 ):
     categorical_mappings = adata.uns["_scvi"]["categorical_mappings"]
-    use_raw = adata.uns["_scvi"]["use_raw"]
-
     n_batch = len(np.unique(categorical_mappings[batch_key]["mapping"]))
     n_cells = adata.shape[0]
-    n_genes = adata.shape[1] if not use_raw else adata.raw.shape[1]
+    n_vars = adata.shape[1]
     n_labels = len(np.unique(categorical_mappings[labels_key]["mapping"]))
 
     if protein_expression_obsm_key is not None:
@@ -879,16 +839,16 @@ def _setup_summary_stats(
     summary_stats = {
         "n_batch": n_batch,
         "n_cells": n_cells,
-        "n_genes": n_genes,
+        "n_vars": n_vars,
         "n_labels": n_labels,
         "n_proteins": n_proteins,
     }
     adata.uns["_scvi"]["summary_stats"] = summary_stats
     logger.info(
-        "Successfully registered anndata object containing {} cells, {} genes, "
+        "Successfully registered anndata object containing {} cells, {} vars, "
         "{} batches, {} labels, and {} proteins. Also registered {} extra categorical "
         "covariates and {} extra continuous covariates.".format(
-            n_cells, n_genes, n_batch, n_labels, n_proteins, n_cat_covs, n_cont_covs
+            n_cells, n_vars, n_batch, n_labels, n_proteins, n_cat_covs, n_cont_covs
         )
     )
 

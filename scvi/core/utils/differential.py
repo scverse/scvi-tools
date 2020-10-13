@@ -1,17 +1,17 @@
 import inspect
 import logging
 import warnings
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union, Sequence
 
 import numpy as np
 import pandas as pd
 import torch
 
 from scvi._compat import Literal
-from scvi._constants import _CONSTANTS
-from scvi.data import get_from_registry
 
 logger = logging.getLogger(__name__)
+
+Number = Union[int, float]
 
 
 class DifferentialComputation:
@@ -39,8 +39,8 @@ class DifferentialComputation:
         idx1: Union[List[bool], np.ndarray],
         idx2: Union[List[bool], np.ndarray],
         mode: Literal["vanilla", "change"] = "vanilla",
-        batchid1: Optional[Union[List[int], np.ndarray]] = None,
-        batchid2: Optional[Union[List[int], np.ndarray]] = None,
+        batchid1: Optional[Sequence[Union[Number, str]]] = None,
+        batchid2: Optional[Sequence[Union[Number, str]]] = None,
         use_observed_batches: Optional[bool] = False,
         n_samples: int = 5000,
         use_permutation: bool = False,
@@ -311,7 +311,7 @@ class DifferentialComputation:
         selection: Union[List[bool], np.ndarray],
         n_samples: Optional[int] = 5000,
         n_samples_per_cell: Optional[int] = None,
-        batchid: Optional[Union[List[int], np.ndarray]] = None,
+        batchid: Optional[Sequence[Union[Number, str]]] = None,
         use_observed_batches: Optional[bool] = False,
         give_mean: Optional[bool] = False,
     ) -> dict:
@@ -343,7 +343,7 @@ class DifferentialComputation:
         type
             Dictionary containing:
             `scale`
-            Posterior aggregated scale samples of shape (n_samples, n_genes)
+            Posterior aggregated scale samples of shape (n_samples, n_vars)
             where n_samples correspond to either:
             - n_bio_batches * n_cells * n_samples_per_cell
             or
@@ -354,9 +354,8 @@ class DifferentialComputation:
         """
         # Get overall number of desired samples and desired batches
         if batchid is None and not use_observed_batches:
-            # TODO determine if we iterate over all categorical batches from train dataset
-            # or just the batches in adata
-            batchid = np.unique(get_from_registry(self.adata, key=_CONSTANTS.BATCH_KEY))
+            categorical_mappings = self.adata.uns["_scvi"]["categorical_mappings"]
+            batchid = categorical_mappings["_scvi_batch"]["mapping"]
         if use_observed_batches:
             if batchid is not None:
                 raise ValueError("Unconsistent batch policy")

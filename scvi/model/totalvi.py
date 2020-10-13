@@ -1,6 +1,7 @@
 import logging
 from functools import partial
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Iterable, Optional, Sequence, Tuple, Union, TypeVar
+from collections.abc import Iterable as IterableClass
 
 import numpy as np
 import pandas as pd
@@ -21,10 +22,12 @@ from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.model._utils import (
     _get_var_names_from_setup_anndata,
+    _get_batch_code_from_category,
     cite_seq_raw_counts_properties,
 )
 
 logger = logging.getLogger(__name__)
+Number = TypeVar("Number", int, float)
 
 
 class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
@@ -94,7 +97,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         else:
             batch_mask = None
         self.model = TOTALVAE(
-            n_input_genes=self.summary_stats["n_genes"],
+            n_input_genes=self.summary_stats["n_vars"],
             n_input_proteins=self.summary_stats["n_proteins"],
             n_batch=self.summary_stats["n_batch"],
             n_latent=n_latent,
@@ -181,11 +184,15 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             train_fun_kwargs["n_epochs"] = n_epochs
         if "lr" not in train_fun_kwargs:
             train_fun_kwargs["lr"] = lr
+
+        logger.info("Training for {} epochs.".format(n_epochs))
+
         self.trainer.train(**train_fun_kwargs)
         self.is_trained_ = True
         self.train_indices_ = self.trainer.train_set.indices
         self.test_indices_ = self.trainer.test_set.indices
         self.validation_indices_ = self.trainer.validation_set.indices
+        self.history_ = self.trainer.history
 
     @torch.no_grad()
     def get_reconstruction_error(
@@ -323,9 +330,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         adata=None,
         indices=None,
-        transform_batch: Optional[int] = None,
-        gene_list: Optional[Union[np.ndarray, List[int]]] = None,
-        protein_list: Optional[Union[np.ndarray, List[int]]] = None,
+        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
+        gene_list: Optional[Sequence[str]] = None,
+        protein_list: Optional[Sequence[str]] = None,
         library_size: Optional[Union[float, Literal["latent"]]] = 1,
         n_samples: int = 1,
         sample_protein_mixing: bool = False,
@@ -415,10 +422,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 )
             return_numpy = True
 
+        if not isinstance(transform_batch, IterableClass):
+            transform_batch = [transform_batch]
+
+        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+
         scale_list_gene = []
         scale_list_pro = []
-        if not isinstance(transform_batch, Iterable):
-            transform_batch = [transform_batch]
+
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
             y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
@@ -504,7 +515,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
-        transform_batch: Optional[int] = None,
+        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         protein_list: Optional[Sequence[str]] = None,
         n_samples: int = 1,
         batch_size: Optional[int] = None,
@@ -571,8 +582,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             indices = np.arange(adata.n_obs)
 
         py_mixings = []
-        if (transform_batch is None) or (isinstance(transform_batch, int)):
+        if not isinstance(transform_batch, IterableClass):
             transform_batch = [transform_batch]
+
+        transform_batch = _get_batch_code_from_category(adata, transform_batch)
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
             y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
@@ -621,7 +634,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         adata=None,
         indices=None,
-        transform_batch: Optional[int] = None,
+        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         scale_protein=False,
         batch_size: Optional[int] = None,
         sample_protein_mixing=False,
@@ -903,7 +916,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         n_samples: int = 10,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
-        transform_batch: Optional[Union[int, List[int]]] = None,
+        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
         log_transform: bool = False,
     ) -> pd.DataFrame:
@@ -943,8 +956,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         adata = self._validate_anndata(adata)
 
-        if (transform_batch is None) or (isinstance(transform_batch, int)):
+        if not isinstance(transform_batch, IterableClass):
             transform_batch = [transform_batch]
+
+        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+
         corr_mats = []
         for b in transform_batch:
             denoised_data = self._get_denoised_samples(

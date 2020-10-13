@@ -23,11 +23,11 @@ def log_zinb_positive(
     x
         Data
     mu
-        mean of the negative binomial (has to be positive support) (shape: minibatch x genes)
+        mean of the negative binomial (has to be positive support) (shape: minibatch x vars)
     theta
-        inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
+        inverse dispersion parameter (has to be positive support) (shape: minibatch x vars)
     pi
-        logit of the dropout parameter (real support) (shape: minibatch x genes)
+        logit of the dropout parameter (real support) (shape: minibatch x vars)
     eps
         numerical stability constant
 
@@ -73,9 +73,9 @@ def log_nb_positive(x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, eps=
     x
         data
     mu
-        mean of the negative binomial (has to be positive support) (shape: minibatch x genes)
+        mean of the negative binomial (has to be positive support) (shape: minibatch x vars)
     theta
-        inverse dispersion parameter (has to be positive support) (shape: minibatch x genes)
+        inverse dispersion parameter (has to be positive support) (shape: minibatch x vars)
     eps
         numerical stability constant
 
@@ -313,7 +313,7 @@ class NegativeBinomial(Distribution):
             l_train = torch.clamp(p_means, max=1e8)
             counts = Poisson(
                 l_train
-            ).sample()  # Shape : (n_samples, n_cells_batch, n_genes)
+            ).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
             return counts
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:

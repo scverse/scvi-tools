@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import Dict, Iterable, List, Optional, Sequence, Union
+from typing import Dict, Iterable, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -21,6 +21,8 @@ from scvi.model._utils import (
 
 logger = logging.getLogger(__name__)
 
+Number = Union[int, float]
+
 
 class RNASeqMixin:
     @torch.no_grad()
@@ -28,7 +30,7 @@ class RNASeqMixin:
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
-        transform_batch: Optional[Sequence[Union[str, int]]] = None,
+        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         gene_list: Optional[Sequence[str]] = None,
         library_size: Union[float, Literal["latent"]] = 1,
         n_samples: int = 1,
@@ -80,8 +82,8 @@ class RNASeqMixin:
         """
         adata = self._validate_anndata(adata)
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
-        if transform_batch is not None:
-            transform_batch = _get_batch_code_from_category(adata, transform_batch)
+
+        transform_batch = _get_batch_code_from_category(adata, transform_batch)
 
         if gene_list is None:
             gene_mask = slice(None)
@@ -109,27 +111,28 @@ class RNASeqMixin:
             x = tensors[_CONSTANTS.X_KEY]
             batch_idx = tensors[_CONSTANTS.BATCH_KEY]
             labels = tensors[_CONSTANTS.LABELS_KEY]
-            exprs += [
-                np.array(
-                    (
-                        model_fn(
-                            x,
-                            batch_index=batch_idx,
-                            y=labels,
-                            n_samples=n_samples,
-                            transform_batch=transform_batch,
-                        )[..., gene_mask]
-                        * scaling
-                    ).cpu()
-                )
-            ]
+            per_batch_exprs = []
+            for batch in transform_batch:
+                output = model_fn(
+                    x,
+                    batch_index=batch_idx,
+                    y=labels,
+                    n_samples=n_samples,
+                    transform_batch=batch,
+                )[..., gene_mask]
+                output *= scaling
+                output = output.cpu().numpy()
+                per_batch_exprs.append(output)
+            per_batch_exprs = np.stack(
+                per_batch_exprs
+            )  # shape is (len(transform_batch) x batch_size x n_var)
+            exprs += [per_batch_exprs.mean(0)]
 
         if n_samples > 1:
             # The -2 axis correspond to cells.
             exprs = np.concatenate(exprs, axis=-2)
         else:
             exprs = np.concatenate(exprs, axis=0)
-
         if n_samples > 1 and return_mean:
             exprs = exprs.mean(0)
 
@@ -310,7 +313,7 @@ class RNASeqMixin:
         n_samples: int = 25,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
-        transform_batch: Optional[Sequence[str]] = None,
+        transform_batch: Optional[Sequence[int]] = None,
     ) -> np.ndarray:
         """
         Return samples from an adjusted posterior predictive.
@@ -345,7 +348,11 @@ class RNASeqMixin:
             labels = tensors[_CONSTANTS.LABELS_KEY]
 
             outputs = self.model.inference(
-                x, batch_index=batch_idx, y=labels, n_samples=n_samples
+                x,
+                batch_index=batch_idx,
+                y=labels,
+                n_samples=n_samples,
+                transform_batch=transform_batch,
             )
             px_scale = outputs["px_scale"]
             px_r = outputs["px_r"]
@@ -379,7 +386,7 @@ class RNASeqMixin:
         n_samples: int = 10,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
-        transform_batch: Optional[Union[int, List[int]]] = None,
+        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
     ) -> pd.DataFrame:
         """
@@ -416,8 +423,8 @@ class RNASeqMixin:
 
         adata = self._validate_anndata(adata)
 
-        if (transform_batch is None) or (isinstance(transform_batch, int)):
-            transform_batch = [transform_batch]
+        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+
         corr_mats = []
         for b in transform_batch:
             denoised_data = self._get_denoised_samples(

@@ -27,6 +27,10 @@ def _de_core(
     """Internal function for DE interface."""
     if group1 is None and idx1 is None:
         group1 = adata.obs[groupby].cat.categories.tolist()
+        if len(group1) == 1:
+            raise ValueError(
+                "Only a single group in the data. Can't run DE on a single group."
+            )
 
     if isinstance(group1, str):
         group1 = [group1]
