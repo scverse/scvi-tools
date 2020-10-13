@@ -4,6 +4,7 @@ import random
 import pandas as pd
 import scipy.sparse as sparse
 
+import anndata
 import pytest
 import scvi
 
@@ -333,7 +334,6 @@ def test_view_anndata_setup(save_path):
     adata = synthetic_iid(run_setup_anndata=False)
     adata.obs["cont1"] = np.random.uniform(5, adata.n_obs)
     adata.obs["cont2"] = np.random.uniform(5, adata.n_obs)
-
     adata.obs["cont1"][0] = 939543895847598301.423432423523512351234123421341234
     adata.obs["cont2"][1] = 0.12938471298374691827634
 
@@ -350,7 +350,6 @@ def test_view_anndata_setup(save_path):
         categorical_covariate_keys=["cat1", "cat2"],
         continuous_covariate_keys=["cont1", "cont2"],
     )
-
     # test it works with adata
     view_anndata_setup(adata)
 
@@ -381,3 +380,25 @@ def test_view_anndata_setup(save_path):
     # test it throws error if we dont pass dict, anndata or str in
     with pytest.raises(ValueError):
         view_anndata_setup(0)
+
+        
+def test_saving(save_path):
+    save_path = os.path.join(save_path, "tmp_adata.h5ad")
+    adata = synthetic_iid(run_setup_anndata=False)
+    adata.obs["cont1"] = np.random.uniform(5, adata.n_obs)
+    adata.obs["cont2"] = np.random.uniform(5, adata.n_obs)
+    adata.obs["cat1"] = np.random.randint(0, 3, adata.n_obs).astype(str)
+    adata.obs["cat1"][1] = "asdf"
+    adata.obs["cat1"][2] = "f34"
+    adata.obs["cat2"] = np.random.randint(0, 7, adata.n_obs)
+
+    setup_anndata(
+        adata,
+        protein_expression_obsm_key="protein_expression",
+        batch_key="batch",
+        labels_key="labels",
+        categorical_covariate_keys=["cat1", "cat2"],
+        continuous_covariate_keys=["cont1", "cont2"],
+    )
+    adata.write(save_path)
+    anndata.read(save_path)

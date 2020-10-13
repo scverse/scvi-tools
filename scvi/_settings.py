@@ -53,7 +53,7 @@ class ScviConfig:
     def __init__(
         self,
         verbosity: int = logging.INFO,
-        progress_bar_style: Literal["rich", "tqdm"] = "rich",
+        progress_bar_style: Literal["rich", "tqdm"] = "tqdm",
         batch_size: int = 128,
         seed: int = 0,
     ):
