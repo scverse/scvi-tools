@@ -296,9 +296,9 @@ def _verify_and_correct_data_format(adata, data_registry):
     for k in keys:
         data = get_from_registry(adata, k)
         if isspmatrix(data) and (data.getformat() != "csr"):
-            logger.debug("{} is csc_matrix. Overwriting to csr_matrix.".format(k))
-            data = data.tocsr()
-            _set_data_in_registry(adata, data, k)
+            logger.warning(
+                "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast before model initialization."
+            )
         elif isinstance(data, np.ndarray) and (data.flags["C_CONTIGUOUS"] is False):
             logger.debug(
                 "{} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.".format(k)
