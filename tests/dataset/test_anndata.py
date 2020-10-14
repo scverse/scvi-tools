@@ -381,7 +381,7 @@ def test_view_anndata_setup(save_path):
     with pytest.raises(ValueError):
         view_anndata_setup(0)
 
-        
+
 def test_saving(save_path):
     save_path = os.path.join(save_path, "tmp_adata.h5ad")
     adata = synthetic_iid(run_setup_anndata=False)
