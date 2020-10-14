@@ -430,8 +430,6 @@ def test_scvi_online_update(save_path):
     assert model2.model.px_r.requires_grad is False
     # library encoder linear layer
     assert model2.model.l_encoder.encoder.fc_layers[0][0].weight.requires_grad is True
-    # batch norm weight in encoder layer
-    assert model2.model.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
     # 5 for n_latent, 4 for batches
     assert model2.model.decoder.px_decoder.fc_layers[0][0].weight.shape[1] == 9
 
@@ -461,6 +459,8 @@ def test_scvi_online_update(save_path):
     model3.train(n_epochs=1)
     model3.get_latent_representation()
     assert model3.model.z_encoder.encoder.fc_layers[0][1].momentum == 0
+    # batch norm weight in encoder layer
+    assert model3.model.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
     grad = model3.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()
     # linear layer weight in encoder layer has non-zero grad
     assert np.sum(grad[:, :-4]) != 0
