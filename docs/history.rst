@@ -2,7 +2,7 @@
 Release notes
 =============
 
-0.7.0 (2020-10-13)
+0.7.0 (2020-10-14)
 -----------------
 scvi is now scvi-tools. Version 0.7 introduces many breaking changes. The best way to learn how to use scvi-tools is with our documentation and tutorials.
 
