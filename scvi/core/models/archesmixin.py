@@ -22,7 +22,7 @@ class ArchesMixin:
         dir_path: str,
         use_cuda: bool = True,
         freeze_dropout: bool = False,
-        freeze_batchnorm: bool = True,
+        freeze_batchnorm: bool = False,
         freeze_expression: bool = True,
     ):
         """
