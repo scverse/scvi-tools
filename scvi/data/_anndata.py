@@ -1,6 +1,7 @@
 import logging
 import os
 import warnings
+import sys
 from typing import Dict, List, Optional, Tuple, Union
 
 import anndata
@@ -908,7 +909,9 @@ def view_anndata_setup(source: Union[anndata.AnnData, dict, str]):
     if "extra_continuous_keys" in setup_dict.keys():
         n_covs = len(setup_dict["extra_continuous_keys"])
 
-    console = Console()
+    in_colab = "google.colab" in sys.modules
+    force_jupyter = None if not in_colab else True
+    console = Console(force_jupyter=force_jupyter)
     t = rich.table.Table(title="Data Summary")
     t.add_column(
         "Data", justify="center", style="dodger_blue1", no_wrap=True, overflow="fold"
