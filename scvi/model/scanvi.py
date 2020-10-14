@@ -131,7 +131,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self.semisupervised_history_ = None
 
         self._model_summary_string = (
-            "ScanVI Model with params: \nunlabeled_category: {}, n_hidden: {}, n_latent: {}"
+            "ScanVI Model with the following params: \nunlabeled_category: {}, n_hidden: {}, n_latent: {}"
             ", n_layers: {}, dropout_rate: {}, dispersion: {}, gene_likelihood: {}"
         ).format(
             unlabeled_category,
