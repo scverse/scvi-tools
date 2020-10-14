@@ -11,14 +11,12 @@ os:
   - linux
 
 cache:
-  - pip
+  directories:
+    - $HOME/.cache/pip
+    - $HOME/.cache/codacy
 
 notifications:
   email: false
-
-before_install:
-  - sudo apt-get install jq
-  - curl -LSs "$(curl -LSs https://api.github.com/repos/codacy/codacy-coverage-reporter/releases/latest | jq -r '.assets | map({name, browser_download_url} | select(.name | endswith(".jar"))) | .[0].browser_download_url')" -o codacy-coverage-reporter-assembly.jar
 
 install:
   - pip install pytest-cov
@@ -33,7 +31,7 @@ script:
 after_success:
   - codecov
   - pip list
-  - java -jar codacy-coverage-reporter-assembly.jar report -l Python -r coverage.xml
+  - bash <(curl -Ls https://coverage.codacy.com/get.sh) report -l Python -r coverage.xml
 
 branches:
   only:

@@ -87,7 +87,7 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "SCVI Model with params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
+            "SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
             "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
         ).format(
             n_hidden,
