@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Main module."""
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -89,7 +89,7 @@ class TOTALVAE(nn.Module):
         log_variational: bool = True,
         gene_likelihood: str = "nb",
         latent_distribution: str = "ln",
-        protein_batch_mask: List[np.ndarray] = None,
+        protein_batch_mask: Dict[Union[str, int], np.ndarray] = None,
         encoder_batch: bool = True,
     ):
         super().__init__()
@@ -475,10 +475,11 @@ class TOTALVAE(nn.Module):
 
         if self.protein_batch_mask is not None:
             pro_batch_mask_minibatch = torch.zeros_like(y)
-            for b in np.arange(len(torch.unique(batch_index))):
+            for b in torch.unique(batch_index):
                 b_indices = (batch_index == b).reshape(-1)
                 pro_batch_mask_minibatch[b_indices] = torch.tensor(
-                    self.protein_batch_mask[b].astype(np.float32), device=y.device
+                    self.protein_batch_mask[b.item()].astype(np.float32),
+                    device=y.device,
                 )
         else:
             pro_batch_mask_minibatch = None

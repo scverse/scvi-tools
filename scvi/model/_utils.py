@@ -100,7 +100,7 @@ def cite_seq_raw_counts_properties(
     gp = scrna_raw_counts_properties(adata, idx1, idx2)
     protein_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
 
-    nan = np.array([np.nan] * len(adata.uns["scvi_protein_names"]))
+    nan = np.array([np.nan] * len(adata.uns["_scvi"]["protein_names"]))
     protein_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
     mean1_pro = np.asarray(protein_exp[idx1].mean(0))
     mean2_pro = np.asarray(protein_exp[idx2].mean(0))

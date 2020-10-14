@@ -102,23 +102,24 @@ def compute_predictions(
 
     for _, tensors in enumerate(data_loader):
         sample_batch = tensors[_CONSTANTS.X_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
         labels = tensors[_CONSTANTS.LABELS_KEY]
 
         all_y += [labels.view(-1).cpu()]
 
         if hasattr(model, "classify"):
-            y_pred = model.classify(sample_batch)
+            y_pred = model.classify(sample_batch, batch_index)
         elif classifier is not None:
             # Then we use the specified classifier
             if model is not None:
                 if model.log_variational:
                     sample_batch = torch.log(1 + sample_batch)
                 if model_zl:
-                    sample_z = model.z_encoder(sample_batch)[0]
-                    sample_l = model.l_encoder(sample_batch)[0]
+                    sample_z = model.z_encoder(sample_batch, batch_index)[0]
+                    sample_l = model.l_encoder(sample_batch, batch_index)[0]
                     sample_batch = torch.cat((sample_z, sample_l), dim=-1)
                 else:
-                    sample_batch, _, _ = model.z_encoder(sample_batch)
+                    sample_batch, _, _ = model.z_encoder(sample_batch, batch_index)
             y_pred = classifier(sample_batch)
         else:  # The model is the raw classifier
             y_pred = model(sample_batch)

@@ -14,7 +14,7 @@ from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
 from scvi.core.data_loaders import TotalDataLoader
 from scvi.core.distributions import NegativeBinomial, NegativeBinomialMixture
-from scvi.core.models import BaseModelClass, RNASeqMixin, VAEMixin
+from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.models._utils import _de_core
 from scvi.core.modules import TOTALVAE
 from scvi.core.trainers import TotalTrainer
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 Number = TypeVar("Number", int, float)
 
 
-class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
+class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     """
     total Variational Inference [GayosoSteier20]_.
 
@@ -410,7 +410,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         if protein_list is None:
             protein_mask = slice(None)
         else:
-            all_proteins = adata.uns["scvi_protein_names"]
+            all_proteins = self.scvi_setup_dict_["protein_names"]
             protein_mask = [True if p in protein_list else False for p in all_proteins]
         if indices is None:
             indices = np.arange(adata.n_obs)
@@ -502,7 +502,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
             )
             pro_df = pd.DataFrame(
                 scale_list_pro,
-                columns=adata.uns["scvi_protein_names"][protein_mask],
+                columns=self.scvi_setup_dict_["protein_names"][protein_mask],
                 index=adata.obs_names[indices],
             )
 
@@ -569,7 +569,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         if protein_list is None:
             protein_mask = slice(None)
         else:
-            all_proteins = adata.uns["scvi_protein_names"]
+            all_proteins = self.scvi_setup_dict_["protein_names"]
             protein_mask = [True if p in protein_list else False for p in all_proteins]
 
         if n_samples > 1 and return_mean is False:
@@ -622,7 +622,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         if return_numpy is True:
             return 1 - py_mixings
         else:
-            pro_names = self.adata.uns["scvi_protein_names"]
+            pro_names = self.scvi_setup_dict_["protein_names"]
             foreground_prob = pd.DataFrame(
                 1 - py_mixings,
                 columns=pro_names[protein_mask],
@@ -718,7 +718,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         col_names = np.concatenate(
             [
                 np.asarray(_get_var_names_from_setup_anndata(adata)),
-                adata.uns["scvi_protein_names"],
+                self.scvi_setup_dict_["protein_names"],
             ]
         )
         result = _de_core(
@@ -791,7 +791,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         if protein_list is None:
             protein_mask = slice(None)
         else:
-            all_proteins = adata.uns["scvi_protein_names"]
+            all_proteins = self.scvi_setup_dict_["protein_names"]
             protein_mask = [True if p in protein_list else False for p in all_proteins]
 
         post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
@@ -990,7 +990,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
         var_names = _get_var_names_from_setup_anndata(adata)
         names = np.concatenate(
-            [np.asarray(var_names), self.adata.uns["scvi_protein_names"]]
+            [np.asarray(var_names), self.scvi_setup_dict_["protein_names"]]
         )
         return pd.DataFrame(corr_matrix, index=names, columns=names)
 
@@ -1004,7 +1004,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, BaseModelClass):
         batch_size: Optional[int] = None,
     ) -> Dict[str, np.ndarray]:
         r"""
-        Estimates for the parameters of the likelihood :math:`p(x, y \mid z)`
+        Estimates for the parameters of the likelihood :math:`p(x, y \mid z)`.
 
         Parameters
         ----------

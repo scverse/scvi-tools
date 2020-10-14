@@ -54,6 +54,8 @@ class SCANVAE(VAE):
         Label group designations
     use_labels_groups
         Whether to use the label groups
+    **kwargs
+        Keyword args for :class:`~scvi.core.modules.VAE`
 
     Examples
     --------
@@ -82,6 +84,7 @@ class SCANVAE(VAE):
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
         classifier_parameters: dict = dict(),
+        **kwargs
     ):
         super().__init__(
             n_input,
@@ -93,6 +96,7 @@ class SCANVAE(VAE):
             dispersion=dispersion,
             log_variational=log_variational,
             gene_likelihood=gene_likelihood,
+            **kwargs
         )
 
         self.n_labels = n_labels
@@ -152,10 +156,10 @@ class SCANVAE(VAE):
                 ]
             )
 
-    def classify(self, x):
+    def classify(self, x, batch_index=None):
         if self.log_variational:
             x = torch.log(1 + x)
-        qz_m, _, z = self.z_encoder(x)
+        qz_m, _, z = self.z_encoder(x, batch_index)
         # We classify using the inferred mean parameter of z_1 in the latent space
         z = qz_m
         if self.use_labels_groups:

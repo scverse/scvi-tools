@@ -89,7 +89,7 @@ class VAEC(VAE):
         self.z_encoder = Encoder(
             n_input,
             n_latent,
-            n_cat_list=[n_labels],
+            n_cat_list=[n_batch, n_labels],
             n_hidden=n_hidden,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
@@ -113,7 +113,7 @@ class VAEC(VAE):
             n_input, n_hidden, n_labels, n_layers=n_layers, dropout_rate=dropout_rate
         )
 
-    def classify(self, x):
+    def classify(self, x, batch_index=None):
         x = torch.log(1 + x)
         return self.classifier(x)
 
