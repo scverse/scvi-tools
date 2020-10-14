@@ -2,18 +2,18 @@
 Release notes
 =============
 
-0.7.0 (2020-X-XX)
+0.7.0 (2020-10-13)
 -----------------
 scvi is now scvi-tools. Version 0.7 introduces many breaking changes. The best way to learn how to use scvi-tools is with our documentation and tutorials.
 
 * New high-level API and data loading, please see tutorials and examples for usage.
-* ``GeneExpressionDataset`` and associated classes have been removed.
-* Built-in dataests now return ``AnnData`` objects.
-* ``scvi`` now relies entirely on the AnnData_ format.
-* ``scvi.models`` has been moved to ``scvi.core.modules``.
+* `GeneExpressionDataset` and associated classes have been removed.
+* Built-in datasets now return `AnnData` objects.
+* `scvi` now relies entirely on the AnnData_ format.
+* `scvi.models` has been moved to ``scvi.core.modules``.
 * `Posterior` classes have been reduced to wrappers on `DataLoaders`
-* ``scvi.inference`` has been split to ``scvi.core.data_loaders`` for `ScviDataLoader` classes and ``scvi.core.trainers`` for trainer classes.
-* Usage of classes like ``Trainer`` and ``ScviDataLoader`` now require the ``AnnData`` data object as input.
+* `scvi.inference` has been split to `scvi.core.data_loaders` for `ScviDataLoader` classes and `scvi.core.trainers` for trainer classes.
+* Usage of classes like `Trainer` and `ScviDataLoader` now require the `AnnData` data object as input.
 
 
 0.6.7 (2020-8-05)
