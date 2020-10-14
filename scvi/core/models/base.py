@@ -7,6 +7,8 @@ from typing import Optional, Sequence
 
 import numpy as np
 import torch
+import rich
+from rich.text import Text
 from anndata import AnnData, read
 
 from scvi import _CONSTANTS, settings
@@ -300,7 +302,19 @@ class BaseModelClass(ABC):
     def __repr__(
         self,
     ):
-        summary_string = self._model_summary_string + "\nTraining status: {}".format(
+        summary_string = self._model_summary_string
+        summary_string += "\nTraining status: {}".format(
             "Trained" if self.is_trained_ else "Not Trained"
         )
-        return summary_string
+        rich.print(summary_string)
+
+        command = "scvi.data.view_anndata_setup(model.adata)"
+        command_len = len(command)
+        print_adata_str = "\n\nTo print summary of associated AnnData, use: " + command
+        text = Text(print_adata_str)
+        text.stylize(
+            "dark_violet", len(print_adata_str) - command_len, len(print_adata_str)
+        )
+        console = rich.console.Console()
+        console.print(text)
+        return ""
