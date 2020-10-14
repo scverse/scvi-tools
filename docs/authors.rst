@@ -44,4 +44,4 @@ Many have diverse contributions to the code. Here we highlight some specific pro
 .. _Valentine Svensson: http://www.nxn.se/
 .. _Achille Nazaret: https://nazaret.me/
 .. _Galen Xing: https://galenxing.com/
-.. _Yosef Lab: https://niryosef.wordpress.com/
+.. _Yosef Lab: https://yoseflab.github.io/

@@ -124,7 +124,7 @@ This is a walkthrough of a totalVI-based analysis pipeline, from dimension reduc
 
 Here we describe how to use scVI and scANVI for integrating data from Tabula Muris.
 
-.. image:: ../_static/tutorials/scanvi.svg
+.. image:: ../_static/tutorials/scanvi.png
    :align: center
    :height: 300px
 

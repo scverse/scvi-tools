@@ -17,7 +17,7 @@ These models are able to simultaneously perform many downstream tasks such as le
 * If you find a model useful for your research, please consider citing the corresponding publication.
 
 .. important:: ``scvi`` is now ``scvi-tools``.
-   If you'd like to view documentation for ``scvi``, please change the documentation version using the menu at the bottom right.
+   If you'd like to view documentation for ``scvi``, please change the documentation version using the menu at the bottom right (versions <= 0.6.8).
 
 .. raw:: html
 

@@ -18,7 +18,6 @@ from scvi.data import (
 )
 from scvi import _CONSTANTS
 from scvi.data._anndata import get_from_registry
-from scipy.sparse import csc_matrix
 
 
 def test_transfer_anndata_setup():
@@ -122,28 +121,6 @@ def test_data_format():
     assert np.array_equal(
         adata.obsm["protein_expression"],
         get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY),
-    )
-
-    # if data is sparse, check that after setup_anndata, data is csr_matrix
-    adata = synthetic_iid(run_setup_anndata=False)
-    adata.X = csc_matrix(adata.X)
-    adata.obsm["protein_expression"] = csc_matrix(adata.obsm["protein_expression"])
-    old_x = adata.X
-    old_pro = adata.obsm["protein_expression"]
-    setup_anndata(adata, protein_expression_obsm_key="protein_expression")
-
-    assert adata.X.getformat() == "csr"
-    assert adata.obsm["protein_expression"].getformat() == "csr"
-
-    assert np.array_equal(old_x.toarray(), adata.X.toarray())
-    assert np.array_equal(old_pro.toarray(), adata.obsm["protein_expression"].toarray())
-
-    assert np.array_equal(
-        adata.X.toarray(), get_from_registry(adata, _CONSTANTS.X_KEY).toarray()
-    )
-    assert np.array_equal(
-        adata.obsm["protein_expression"].toarray(),
-        get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY).toarray(),
     )
 
     # if obsm is dataframe, make it C_CONTIGUOUS if it isnt
