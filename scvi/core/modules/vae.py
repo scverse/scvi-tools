@@ -299,7 +299,10 @@ class VAE(AbstractVAE):
         # need to scale the loss
         loss = torch.mean(reconst_loss + weighted_kl_local) + weighted_kl_global
 
+        # normalize loss should be an integer
+        # make scale loss
         if not normalize_loss:
+            # n_samples needs to be train set size
             n_samples = x.shape[0]
             loss = loss * n_samples
 
