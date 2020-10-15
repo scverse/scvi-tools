@@ -51,22 +51,22 @@ class VAEMixin:
             Other keyword args for :class:`~scvi.core.trainers.UnsupervisedTrainer`.
         """
         train_fun_kwargs = dict(train_fun_kwargs)
-        if self.is_trained_ is False:
-            self.trainer = UnsupervisedTrainer(
-                self.model,
-                self.adata,
-                train_size=train_size,
-                test_size=test_size,
-                n_iter_kl_warmup=n_iter_kl_warmup,
-                n_epochs_kl_warmup=n_epochs_kl_warmup,
-                frequency=frequency,
-                use_cuda=self.use_cuda,
-                **kwargs,
-            )
-            self.train_indices_ = self.trainer.train_set.indices
-            self.test_indices_ = self.trainer.test_set.indices
-            self.validation_indices_ = self.trainer.validation_set.indices
-            self.history_ = self.trainer.history
+        self.trainer = UnsupervisedTrainer(
+            self.model,
+            self.adata,
+            train_size=train_size,
+            test_size=test_size,
+            n_iter_kl_warmup=n_iter_kl_warmup,
+            n_epochs_kl_warmup=n_epochs_kl_warmup,
+            frequency=frequency,
+            use_cuda=self.use_cuda,
+            **kwargs,
+        )
+        self.train_indices_ = self.trainer.train_set.indices
+        self.test_indices_ = self.trainer.test_set.indices
+        self.validation_indices_ = self.trainer.validation_set.indices
+        self.history_ = self.trainer.history
+
         # for autotune
         if "n_epochs" not in train_fun_kwargs:
             if n_epochs is None:

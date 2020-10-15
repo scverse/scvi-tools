@@ -229,23 +229,22 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             )
         )
 
-        if self._is_trained_base is not True:
-            self._unsupervised_trainer = UnsupervisedTrainer(
-                self._base_model,
-                self.adata,
-                train_size=train_size,
-                test_size=test_size,
-                n_iter_kl_warmup=n_iter_kl_warmup,
-                n_epochs_kl_warmup=n_epochs_kl_warmup,
-                frequency=frequency,
-                use_cuda=self.use_cuda,
-                **unsupervised_trainer_kwargs,
-            )
-            self._unsupervised_trainer.train(
-                n_epochs=n_epochs_unsupervised, lr=lr, **unsupervised_train_kwargs
-            )
-            self.unsupervised_history_ = self._unsupervised_trainer.history
-            self._is_trained_base = True
+        self._unsupervised_trainer = UnsupervisedTrainer(
+            self._base_model,
+            self.adata,
+            train_size=train_size,
+            test_size=test_size,
+            n_iter_kl_warmup=n_iter_kl_warmup,
+            n_epochs_kl_warmup=n_epochs_kl_warmup,
+            frequency=frequency,
+            use_cuda=self.use_cuda,
+            **unsupervised_trainer_kwargs,
+        )
+        self._unsupervised_trainer.train(
+            n_epochs=n_epochs_unsupervised, lr=lr, **unsupervised_train_kwargs
+        )
+        self.unsupervised_history_ = self._unsupervised_trainer.history
+        self._is_trained_base = True
 
         self.model.load_state_dict(self._base_model.state_dict(), strict=False)
 
