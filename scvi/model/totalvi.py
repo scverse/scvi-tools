@@ -1071,6 +1071,13 @@ def _get_totalvi_protein_priors(adata, n_cells=100):
 
     batch_avg_mus, batch_avg_scales = [], []
     for b in np.unique(codes):
+        # can happen during online updates
+        # the values of these batches will not be used
+        num_in_batch = np.sum(batch == b)
+        if num_in_batch == 0:
+            batch_avg_mus.append(0)
+            batch_avg_scales.append(1)
+            continue
         pro_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)[batch == b]
 
         # for missing batches, put dummy values -- scarches case, will be replaced anyway
