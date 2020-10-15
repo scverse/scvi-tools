@@ -60,5 +60,9 @@ class AbstractVAE(nn.Module):
         pass
 
     @abstractmethod
+    def loss(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
     def sample(self):
         pass
