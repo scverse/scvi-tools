@@ -454,7 +454,7 @@ def test_scvi_online_update(save_path):
 
     # do not freeze expression
     model3 = SCVI.load_query_data(
-        adata2, dir_path, freeze_expression=False, freeze_batchnorm=True
+        adata2, dir_path, freeze_expression=False, freeze_batchnorm_encoder=True
     )
     model3.train(n_epochs=1)
     model3.get_latent_representation()
@@ -466,7 +466,7 @@ def test_scvi_online_update(save_path):
     assert np.sum(grad[:, :-4]) != 0
 
     # do not freeze batchnorm
-    model3 = SCVI.load_query_data(adata2, dir_path, freeze_batchnorm=False)
+    model3 = SCVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=False)
     model3.train(n_epochs=1)
     model3.get_latent_representation()
 
@@ -487,7 +487,7 @@ def test_scanvi_online_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     adata2.obs["labels"] = "Unknown"
 
-    model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm=True)
+    model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
     model.train(
         n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
     )

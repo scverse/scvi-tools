@@ -22,8 +22,9 @@ class ArchesMixin:
         dir_path: str,
         use_cuda: bool = True,
         freeze_dropout: bool = False,
-        freeze_batchnorm: bool = False,
         freeze_expression: bool = True,
+        freeze_batchnorm_encoder: bool = False,
+        freeze_batchnorm_decoder: bool = True,
     ):
         """
         Online update of a reference model with scArches algorithm [Lotfollahi20]_.
@@ -40,10 +41,12 @@ class ArchesMixin:
             Whether to load model on GPU.
         freeze_dropout
             Whether to freeze dropout during training
-        freeze_batchnorm
-            Whether to freeze batchnorm weight and bias during training
         freeze_expression
             Freeze neurons corersponding to expression in first layer
+        freeze_batchnorm_encoder
+            Whether to freeze batchnorm weight and bias during training for encoder
+        freeze_batchnorm_decoder
+            Whether to freeze batchnorm weight and bias during training for decoder
         """
         use_cuda = use_cuda and torch.cuda.is_available()
         map_location = torch.device("cpu") if use_cuda is False else None
@@ -79,7 +82,8 @@ class ArchesMixin:
 
         _set_params_online_update(
             model.model,
-            freeze_batchnorm=freeze_batchnorm,
+            freeze_batchnorm_encoder=freeze_batchnorm_encoder,
+            freeze_batchnorm_decoder=freeze_batchnorm_decoder,
             freeze_dropout=freeze_dropout,
             freeze_expression=freeze_expression,
         )
@@ -89,7 +93,11 @@ class ArchesMixin:
 
 
 def _set_params_online_update(
-    model, freeze_batchnorm, freeze_dropout, freeze_expression
+    model,
+    freeze_batchnorm_encoder,
+    freeze_batchnorm_decoder,
+    freeze_dropout,
+    freeze_expression,
 ):
     """Freeze parts of network for scArches."""
     mod_no_grad = set(["encoder_z2_z1", "decoder_z1_z2"])
@@ -107,8 +115,19 @@ def _set_params_online_update(
         two = mod_name in mod_no_hooks_yes_grad
         three = sum([p in key for p in parameters_yes_grad]) > 0
         # batch norm option
-        four = "fc_layers" in key and ".1." in key and (not freeze_batchnorm)
-        if one or two or three or four:
+        four = (
+            "fc_layers" in key
+            and ".1." in key
+            and "encoder" in key
+            and (not freeze_batchnorm_encoder)
+        )
+        five = (
+            "fc_layers" in key
+            and ".1." in key
+            and "decoder" in key
+            and (not freeze_batchnorm_decoder)
+        )
+        if one or two or three or four or five:
             return True
         else:
             return False
@@ -124,6 +143,9 @@ def _set_params_online_update(
             if freeze_dropout:
                 mod.p = 0
         # momentum freezes the running stats of batchnorm
+        freeze_batchnorm = ("decoder" in key and freeze_batchnorm_decoder) or (
+            "encoder" in key and freeze_batchnorm_encoder
+        )
         if isinstance(mod, torch.nn.BatchNorm1d) and freeze_batchnorm:
             mod.momentum = 0
 
