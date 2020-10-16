@@ -69,6 +69,8 @@ class VAE(nn.Module):
     deeply_inject_covariates
         Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
+    use_batch_norm_encoder
+        Whether to use batch norm in layers
     """
 
     def __init__(
@@ -86,6 +88,7 @@ class VAE(nn.Module):
         latent_distribution: str = "normal",
         encode_covariates: bool = False,
         deeply_inject_covariates: bool = True,
+        use_batch_norm_encoder: bool = True,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -124,6 +127,7 @@ class VAE(nn.Module):
             dropout_rate=dropout_rate,
             distribution=latent_distribution,
             inject_covariates=deeply_inject_covariates,
+            use_batch_norm=use_batch_norm_encoder,
         )
         # l encoder goes from n_input-dimensional data to 1-d library size
         self.l_encoder = Encoder(
@@ -134,6 +138,7 @@ class VAE(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             inject_covariates=deeply_inject_covariates,
+            use_batch_norm=use_batch_norm_encoder,
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
         self.decoder = DecoderSCVI(

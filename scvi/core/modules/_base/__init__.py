@@ -215,6 +215,8 @@ class Encoder(nn.Module):
         Distribution of z
     inject_covariates
         Whether to inject covariates in each layer, or just the first (default).
+    use_batch_norm
+        Whether to use batch norm in layers
     """
 
     def __init__(
@@ -227,6 +229,7 @@ class Encoder(nn.Module):
         dropout_rate: float = 0.1,
         distribution: str = "normal",
         inject_covariates: bool = True,
+        use_batch_norm: bool = True,
     ):
         super().__init__()
 
@@ -239,6 +242,7 @@ class Encoder(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             inject_covariates=inject_covariates,
+            use_batch_norm=use_batch_norm,
         )
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)
@@ -858,7 +862,8 @@ class EncoderTOTALVI(nn.Module):
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal
-
+    use_batch_norm
+        Whether to use batch norm in layers
     """
 
     def __init__(
@@ -870,6 +875,7 @@ class EncoderTOTALVI(nn.Module):
         n_hidden: int = 256,
         dropout_rate: float = 0.1,
         distribution: str = "ln",
+        use_batch_norm: bool = True,
     ):
         super().__init__()
 
@@ -880,21 +886,26 @@ class EncoderTOTALVI(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            use_batch_norm=use_batch_norm,
         )
-        self.z_encoder = nn.Sequential(
-            nn.Linear(n_hidden, n_hidden),
-            nn.BatchNorm1d(n_hidden),
-            nn.ReLU(),
-            nn.Dropout(p=dropout_rate),
+        self.z_encoder = FCLayers(
+            n_in=n_hidden,
+            n_out=n_hidden,
+            n_layers=1,
+            n_hidden=n_hidden,
+            dropout_rate=dropout_rate,
+            use_batch_norm=use_batch_norm,
         )
         self.z_mean_encoder = nn.Linear(n_hidden, n_output)
         self.z_var_encoder = nn.Linear(n_hidden, n_output)
 
-        self.l_gene_encoder = nn.Sequential(
-            nn.Linear(n_hidden, n_hidden),
-            nn.BatchNorm1d(n_hidden),
-            nn.ReLU(),
-            nn.Dropout(p=dropout_rate),
+        self.l_gene_encoder = FCLayers(
+            n_in=n_hidden,
+            n_out=n_hidden,
+            n_layers=1,
+            n_hidden=n_hidden,
+            dropout_rate=dropout_rate,
+            use_batch_norm=use_batch_norm,
         )
         self.l_gene_mean_encoder = nn.Linear(n_hidden, 1)
         self.l_gene_var_encoder = nn.Linear(n_hidden, 1)

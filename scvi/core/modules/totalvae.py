@@ -70,6 +70,8 @@ class TOTALVAE(nn.Module):
 
         * ``'normal'`` - Isotropic normal
         * ``'ln'`` - Logistic normal with normal params N(0, 1)
+    use_batch_norm_encoder
+        Whether to use batch norm in layers
     """
 
     def __init__(
@@ -91,6 +93,7 @@ class TOTALVAE(nn.Module):
         latent_distribution: str = "ln",
         protein_batch_mask: Dict[Union[str, int], np.ndarray] = None,
         encoder_batch: bool = True,
+        use_batch_norm_encoder: bool = True,
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
@@ -149,6 +152,7 @@ class TOTALVAE(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate_encoder,
             distribution=latent_distribution,
+            use_batch_norm=use_batch_norm_encoder,
         )
         self.decoder = DecoderTOTALVI(
             n_latent,
