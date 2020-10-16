@@ -74,6 +74,8 @@ class TOTALVAE(nn.Module):
         Array of proteins by batches, the prior initialization for the protein background mean (log scale)
     protein_background_prior_scale
         Array of proteins by batches, the prior initialization for the protein background scale (log scale)
+    use_observed_lib_size
+        Use observed library size for RNA as scaling factor in mean of conditional distribution
     use_batch_norm_encoder
         Whether to use batch norm in layers
     use_batch_norm_decoder
@@ -101,6 +103,7 @@ class TOTALVAE(nn.Module):
         encoder_batch: bool = True,
         protein_background_prior_mean: Optional[np.ndarray] = None,
         protein_background_prior_scale: Optional[np.ndarray] = None,
+        use_observed_lib_size: bool = False,
         use_batch_norm_encoder: bool = True,
         use_batch_norm_decoder: bool = True,
     ):
@@ -116,6 +119,7 @@ class TOTALVAE(nn.Module):
         self.protein_dispersion = protein_dispersion
         self.latent_distribution = latent_distribution
         self.protein_batch_mask = protein_batch_mask
+        self.use_observed_lib_size = use_observed_lib_size
 
         # parameters for prior on rate_back (background protein mean)
         if protein_background_prior_mean is None:
@@ -384,6 +388,8 @@ class TOTALVAE(nn.Module):
         """
         x_ = x
         y_ = y
+        if self.use_observed_lib_size:
+            library_gene = x.sum(1).unsqueeze(1)
         if self.log_variational:
             x_ = torch.log(1 + x_)
             y_ = torch.log(1 + y_)
@@ -393,9 +399,10 @@ class TOTALVAE(nn.Module):
             torch.cat((x_, y_), dim=-1), batch_index
         )
         z = latent["z"]
-        library_gene = latent["l"]
         untran_z = untran_latent["z"]
         untran_l = untran_latent["l"]
+        if not self.use_observed_lib_size:
+            library_gene = latent["l"]
 
         if n_samples > 1:
             qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
@@ -405,7 +412,12 @@ class TOTALVAE(nn.Module):
             ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
             ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
             untran_l = Normal(ql_m, ql_v.sqrt()).sample()
-            library_gene = self.encoder.l_transformation(untran_l)
+            if self.use_observed_lib_size:
+                library_gene = library_gene.unsqueeze(0).expand(
+                    (n_samples, library_gene.size(0), library_gene.size(1))
+                )
+            else:
+                library_gene = self.encoder.l_transformation(untran_l)
 
         if self.gene_dispersion == "gene-label":
             # px_r gets transposed - last dimension is nb genes
@@ -522,10 +534,13 @@ class TOTALVAE(nn.Module):
 
         # KL Divergence
         kl_div_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(0, 1)).sum(dim=1)
-        kl_div_l_gene = kl(
-            Normal(ql_m, torch.sqrt(ql_v)),
-            Normal(local_l_mean_gene, torch.sqrt(local_l_var_gene)),
-        ).sum(dim=1)
+        if self.use_observed_lib_size:
+            kl_div_l_gene = kl(
+                Normal(ql_m, torch.sqrt(ql_v)),
+                Normal(local_l_mean_gene, torch.sqrt(local_l_var_gene)),
+            ).sum(dim=1)
+        else:
+            kl_div_l_gene = 0.0
 
         kl_div_back_pro_full = kl(
             Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
