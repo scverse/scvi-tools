@@ -90,8 +90,8 @@ class TOTALVAE(nn.Module):
         n_labels: int = 0,
         n_hidden: int = 256,
         n_latent: int = 20,
-        n_layers_encoder: int = 1,
-        n_layers_decoder: int = 1,
+        n_layers_encoder: int = 2,
+        n_layers_decoder: int = 2,
         dropout_rate_decoder: float = 0.2,
         dropout_rate_encoder: float = 0.2,
         gene_dispersion: str = "gene",
@@ -103,8 +103,8 @@ class TOTALVAE(nn.Module):
         encoder_batch: bool = True,
         protein_background_prior_mean: Optional[np.ndarray] = None,
         protein_background_prior_scale: Optional[np.ndarray] = None,
-        use_observed_lib_size: bool = False,
-        use_batch_norm_encoder: bool = True,
+        use_observed_lib_size: bool = True,
+        use_batch_norm_encoder: bool = False,
         use_batch_norm_decoder: bool = True,
     ):
         super().__init__()
