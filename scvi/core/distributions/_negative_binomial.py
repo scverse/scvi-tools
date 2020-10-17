@@ -271,7 +271,7 @@ class NegativeBinomial(Distribution):
         logits: Optional[torch.Tensor] = None,
         mu: Optional[torch.Tensor] = None,
         theta: Optional[torch.Tensor] = None,
-        validate_args: bool = True,
+        validate_args: bool = False,
     ):
         self._eps = 1e-8
         if (mu is None) == (total_count is None):
@@ -374,7 +374,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         mu: Optional[torch.Tensor] = None,
         theta: Optional[torch.Tensor] = None,
         zi_logits: Optional[torch.Tensor] = None,
-        validate_args: bool = True,
+        validate_args: bool = False,
     ):
 
         super().__init__(
@@ -462,7 +462,7 @@ class NegativeBinomialMixture(Distribution):
         theta1: torch.Tensor,
         mixture_logits: torch.Tensor,
         theta2: Optional[torch.Tensor] = None,
-        validate_args: bool = True,
+        validate_args: bool = False,
     ):
 
         (
