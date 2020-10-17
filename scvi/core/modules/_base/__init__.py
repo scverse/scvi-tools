@@ -306,6 +306,8 @@ class DecoderSCVI(nn.Module):
         Dropout rate to apply to each of the hidden layers
     inject_covariates
         Whether to inject covariates in each layer, or just the first (default).
+    use_batch_norm
+        Whether to use batch norm in layers
     """
 
     def __init__(
@@ -316,6 +318,7 @@ class DecoderSCVI(nn.Module):
         n_layers: int = 1,
         n_hidden: int = 128,
         inject_covariates: bool = True,
+        use_batch_norm: bool = True,
     ):
         super().__init__()
         self.px_decoder = FCLayers(
@@ -326,6 +329,7 @@ class DecoderSCVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=0,
             inject_covariates=inject_covariates,
+            use_batch_norm=use_batch_norm,
         )
 
         # mean gamma
@@ -647,7 +651,8 @@ class DecoderTOTALVI(nn.Module):
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
-
+    use_batch_norm
+        Whether to use batch norm in layers
     """
 
     def __init__(
@@ -659,6 +664,7 @@ class DecoderTOTALVI(nn.Module):
         n_layers: int = 1,
         n_hidden: int = 256,
         dropout_rate: float = 0,
+        use_batch_norm: float = True,
     ):
         super().__init__()
         self.n_output_genes = n_output_genes
@@ -671,6 +677,7 @@ class DecoderTOTALVI(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            use_batch_norm=use_batch_norm,
         )
 
         # mean gamma
@@ -684,6 +691,7 @@ class DecoderTOTALVI(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            use_batch_norm=use_batch_norm,
         )
         # background mean parameters second decoder
         self.py_back_mean_log_alpha = nn.Linear(n_hidden + n_input, n_output_proteins)
@@ -697,6 +705,7 @@ class DecoderTOTALVI(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            use_batch_norm=use_batch_norm,
         )
         # foreground increment decoder step 2
         self.py_fore_scale_decoder = nn.Sequential(
@@ -711,6 +720,7 @@ class DecoderTOTALVI(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            use_batch_norm=use_batch_norm,
         )
         self.px_dropout_decoder_gene = nn.Linear(n_hidden + n_input, n_output_genes)
 

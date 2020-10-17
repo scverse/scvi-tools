@@ -71,6 +71,8 @@ class VAE(nn.Module):
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
     use_batch_norm_encoder
         Whether to use batch norm in layers
+    use_batch_norm_decoder
+        Whether to use batch norm in layers
     """
 
     def __init__(
@@ -89,6 +91,7 @@ class VAE(nn.Module):
         encode_covariates: bool = False,
         deeply_inject_covariates: bool = True,
         use_batch_norm_encoder: bool = True,
+        use_batch_norm_decoder: bool = True,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -148,6 +151,7 @@ class VAE(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             inject_covariates=deeply_inject_covariates,
+            use_batch_norm=use_batch_norm_decoder,
         )
 
     def get_latents(self, x, y=None) -> torch.Tensor:
