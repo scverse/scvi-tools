@@ -23,8 +23,8 @@ class ArchesMixin:
         use_cuda: bool = True,
         freeze_dropout: bool = False,
         freeze_expression: bool = True,
-        freeze_batchnorm_encoder: bool = False,
-        freeze_batchnorm_decoder: bool = True,
+        freeze_batchnorm_encoder: bool = True,
+        freeze_batchnorm_decoder: bool = False,
     ):
         """
         Online update of a reference model with scArches algorithm [Lotfollahi20]_.
