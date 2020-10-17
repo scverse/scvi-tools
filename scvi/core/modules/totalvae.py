@@ -534,7 +534,7 @@ class TOTALVAE(nn.Module):
 
         # KL Divergence
         kl_div_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(0, 1)).sum(dim=1)
-        if self.use_observed_lib_size:
+        if not self.use_observed_lib_size:
             kl_div_l_gene = kl(
                 Normal(ql_m, torch.sqrt(ql_v)),
                 Normal(local_l_mean_gene, torch.sqrt(local_l_var_gene)),
