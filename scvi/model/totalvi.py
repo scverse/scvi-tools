@@ -1063,7 +1063,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
 def _get_totalvi_protein_priors(adata, n_cells=100):
     """Compute an empirical prior for protein background."""
+    import warnings
+    from sklearn.exceptions import ConvergenceWarning
     from sklearn.mixture import GaussianMixture
+
+    warnings.filterwarnings("error")
 
     batch = get_from_registry(adata, _CONSTANTS.BATCH_KEY).ravel()
     cats = adata.uns["_scvi"]["categorical_mappings"]["_scvi_batch"]["mapping"]
@@ -1083,7 +1087,7 @@ def _get_totalvi_protein_priors(adata, n_cells=100):
         # for missing batches, put dummy values -- scarches case, will be replaced anyway
         if pro_exp.shape[0] == 0:
             batch_avg_mus.append(0.0)
-            batch_avg_scales.append(-3.0)
+            batch_avg_scales.append(0.05)
 
         cells = np.random.choice(np.arange(pro_exp.shape[0]), size=n_cells)
         if isinstance(pro_exp, pd.DataFrame):
@@ -1093,7 +1097,14 @@ def _get_totalvi_protein_priors(adata, n_cells=100):
         mus, scales = [], []
         # fit per cell GMM
         for c in pro_exp:
-            gmm.fit(np.log1p(c.reshape(-1, 1)))
+            try:
+                gmm.fit(np.log1p(c.reshape(-1, 1)))
+            # when cell is all 0
+            except ConvergenceWarning:
+                mus.append(0)
+                scales.append(0.05)
+                continue
+
             means = gmm.means_.ravel()
             sorted_fg_bg = np.argsort(means)
             mu = means[sorted_fg_bg].ravel()[0]
@@ -1114,5 +1125,7 @@ def _get_totalvi_protein_priors(adata, n_cells=100):
     batch_avg_scales = np.array(batch_avg_scales, dtype=np.float32).reshape(1, -1)
     batch_avg_mus = np.tile(batch_avg_mus, (pro_exp.shape[1], 1))
     batch_avg_scales = np.tile(batch_avg_scales, (pro_exp.shape[1], 1))
+
+    warnings.resetwarnings()
 
     return batch_avg_mus, batch_avg_scales
