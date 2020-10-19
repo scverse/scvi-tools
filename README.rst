@@ -32,9 +32,9 @@ scvi-tools (single-cell variational inference tools) is a package for end-to-end
 * LDVAE_ for an interpretable linear factor model version of scVI
 
 Tutorials, API reference, and installation guides are available in the documentation_.
-Please use the issues here to discuss usage, or submit bug reports.
-If you'd like to contribute, please check out our `development guide`_.
+Please use the issues here to submit bug reports.
 For discussion of usage, please checkout out our `forum`_.
+If you'd like to contribute, please check out our `development guide`_.
 If you find a model useful for your research, please consider citing the corresponding publication (linked above).
 
 Package transition
