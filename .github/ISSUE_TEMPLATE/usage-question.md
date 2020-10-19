@@ -1,6 +1,6 @@
 ---
 name: Usage question
-about: Ask a question related to using scvi models (e.g., scVI, totalVI, scANVI)
+about: For questions related to using scvi-tools models, please see discourse.scvi-tools.org
 title: ''
 labels: question
 assignees: ''
