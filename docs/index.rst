@@ -106,4 +106,4 @@ These models are able to simultaneously perform many downstream tasks such as le
    history
    authors
    references
-
+   Discussion <https://discourse.scvi-tools.org>
