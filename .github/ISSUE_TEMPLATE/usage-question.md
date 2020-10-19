@@ -7,6 +7,8 @@ assignees: ''
 
 ---
 
+<!-- Please raise usage questions at discourse.scvi-tools.org --> 
+
 <!-- Describe the question, be sure to specify which model you're referring to -->
 [TEXT HERE]
 
