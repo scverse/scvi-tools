@@ -190,22 +190,29 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
 
     @property
     def scvi_data_loaders_loop(self):
-        return ["full_dataset", "labelled_set"]
+
+        joint = ["full_dataset", "labelled_set"]
+        full = ["full_dataset"]
+        if len(self.labelled_set.indices) == 0:
+            return full
+        else:
+            return joint
 
     def __setattr__(self, key, value):
         if key == "labelled_set":
             self.classifier_trainer.train_set = value
         super().__setattr__(key, value)
 
-    def loss(self, tensors_all, tensors_labelled):
+    def loss(self, tensors_all, tensors_labelled=None):
         loss = super().loss(tensors_all, feed_labels=False)
-        sample_batch = tensors_labelled[_CONSTANTS.X_KEY]
-        batch_index = tensors_labelled[_CONSTANTS.BATCH_KEY]
-        y = tensors_labelled[_CONSTANTS.LABELS_KEY]
-        classification_loss = F.cross_entropy(
-            self.model.classify(sample_batch, batch_index), y.view(-1)
-        )
-        loss += classification_loss * self.classification_ratio
+        if tensors_labelled is not None:
+            sample_batch = tensors_labelled[_CONSTANTS.X_KEY]
+            batch_index = tensors_labelled[_CONSTANTS.BATCH_KEY]
+            y = tensors_labelled[_CONSTANTS.LABELS_KEY]
+            classification_loss = F.cross_entropy(
+                self.model.classify(sample_batch, batch_index), y.view(-1)
+            )
+            loss += classification_loss * self.classification_ratio
         return loss
 
     def on_epoch_end(self):
