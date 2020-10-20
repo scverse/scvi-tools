@@ -115,7 +115,7 @@ class FCLayers(nn.Module):
                 new_grad[:, -categorical_dims:] = grad[:, -categorical_dims:]
             return new_grad
 
-        def _hook_fn_bias(grad):
+        def _hook_fn_zero_out(grad):
             return grad * 0
 
         for i, layers in enumerate(self.fc_layers):
@@ -125,9 +125,12 @@ class FCLayers(nn.Module):
                 if i == 0 and not hook_first_layer:
                     continue
                 if isinstance(layer, nn.Linear):
-                    w = layer.weight.register_hook(_hook_fn_weight)
+                    if self.inject_into_layer(i):
+                        w = layer.weight.register_hook(_hook_fn_weight)
+                    else:
+                        w = layer.weight.register_hook(_hook_fn_zero_out)
                     self.hooks.append(w)
-                    b = layer.bias.register_hook(_hook_fn_bias)
+                    b = layer.bias.register_hook(_hook_fn_zero_out)
                     self.hooks.append(b)
 
     def forward(self, x: torch.Tensor, *cat_list: int):
