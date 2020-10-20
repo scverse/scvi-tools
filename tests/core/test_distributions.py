@@ -61,13 +61,17 @@ def test_zinb_distribution():
     mu = 15.0 * torch.ones_like(theta)
     pi = torch.randn_like(theta)
     x = torch.randint_like(mu, high=20)
-    dist1 = ZeroInflatedNegativeBinomial(mu=mu, theta=theta, zi_logits=pi)
-    dist2 = NegativeBinomial(mu=mu, theta=theta)
+    dist1 = ZeroInflatedNegativeBinomial(
+        mu=mu, theta=theta, zi_logits=pi, validate_args=True
+    )
+    dist2 = NegativeBinomial(mu=mu, theta=theta, validate_args=True)
     assert dist1.log_prob(x).shape == size
     assert dist2.log_prob(x).shape == size
 
     with pytest.raises(ValueError):
-        ZeroInflatedNegativeBinomial(mu=-mu, theta=theta, zi_logits=pi)
+        ZeroInflatedNegativeBinomial(
+            mu=-mu, theta=theta, zi_logits=pi, validate_args=True
+        )
     with pytest.warns(UserWarning):
         dist1.log_prob(-x)  # ensures neg values raise warning
     with pytest.warns(UserWarning):
