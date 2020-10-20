@@ -103,7 +103,7 @@ These models are able to simultaneously perform many downstream tasks such as le
    user_guide/index
    api/index
    development
-   history
+   release_notes/index
    authors
    references
    Discussion <https://discourse.scvi-tools.org>
