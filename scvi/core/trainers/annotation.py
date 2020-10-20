@@ -5,6 +5,7 @@ import torch
 from torch.nn import functional as F
 
 from scvi import _CONSTANTS
+from scvi._compat import Literal
 from scvi.core.data_loaders import AnnotationDataLoader
 from scvi.data._anndata import get_from_registry
 
@@ -58,7 +59,7 @@ class ClassifierTrainer(Trainer):
         sampling_model=None,
         sampling_zl=False,
         use_cuda=True,
-        **kwargs
+        **kwargs,
     ):
         train_size = float(train_size)
         if train_size > 1.0 or train_size <= 0.0:
@@ -144,7 +145,8 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         lr_classification=5 * 1e-3,
         classification_ratio=50,
         seed=0,
-        **kwargs
+        scheme: Literal["joint", "alternate", "both"] = "both",
+        **kwargs,
     ):
         super().__init__(model, adata, **kwargs)
         self.model = model
@@ -152,6 +154,11 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         self.n_epochs_classifier = n_epochs_classifier
         self.lr_classification = lr_classification
         self.classification_ratio = classification_ratio
+        self.scheme = scheme
+
+        if scheme == "joint":
+            self.n_epochs_classifier = 0
+
         n_labelled_samples_per_class_array = [
             n_labelled_samples_per_class
         ] * self.adata.uns["_scvi"]["summary_stats"]["n_labels"]
@@ -193,7 +200,7 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
 
         joint = ["full_dataset", "labelled_set"]
         full = ["full_dataset"]
-        if len(self.labelled_set.indices) == 0:
+        if len(self.labelled_set.indices) == 0 or self.scheme == "alternate":
             return full
         else:
             return joint
@@ -232,21 +239,3 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         type_class=AnnotationDataLoader,
     ):
         return super().create_scvi_dl(model, adata, shuffle, indices, type_class)
-
-
-class JointSemiSupervisedTrainer(SemiSupervisedTrainer):
-    def __init__(self, model, adata, **kwargs):
-        kwargs.update({"n_epochs_classifier": 0})
-        super().__init__(model, adata, **kwargs)
-
-
-class AlternateSemiSupervisedTrainer(SemiSupervisedTrainer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def loss(self, all_tensor):
-        return UnsupervisedTrainer.loss(self, all_tensor)
-
-    @property
-    def scvi_data_loaders_loop(self):
-        return ["full_dataset"]
