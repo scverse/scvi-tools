@@ -417,6 +417,7 @@ class LinearDecoderSCVI(nn.Module):
         n_output: int,
         n_cat_list: Iterable[int] = None,
         use_batch_norm: bool = False,
+        use_layer_norm: bool = False,
         bias: bool = False,
         use_softmax: bool = True,
     ):
@@ -431,7 +432,7 @@ class LinearDecoderSCVI(nn.Module):
             n_layers=1,
             use_activation=False,
             use_batch_norm=use_batch_norm,
-            use_layer_norm=False,
+            use_layer_norm=use_layer_norm,
             bias=bias,
             dropout_rate=0,
         )
@@ -444,7 +445,7 @@ class LinearDecoderSCVI(nn.Module):
             n_layers=1,
             use_activation=False,
             use_batch_norm=use_batch_norm,
-            use_layer_norm=False,
+            use_layer_norm=use_layer_norm,
             bias=bias,
             dropout_rate=0,
         )

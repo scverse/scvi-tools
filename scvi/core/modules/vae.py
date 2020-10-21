@@ -504,6 +504,8 @@ class LDVAE(VAE):
         Bool whether to use batch norm in decoder
     bias
         Bool whether to have bias term in linear decoder
+    use_observed_lib_size
+        Use observed library size for RNA as scaling factor in mean of conditional distribution
     """
 
     def __init__(
@@ -521,19 +523,21 @@ class LDVAE(VAE):
         use_batch_norm: bool = True,
         bias: bool = False,
         latent_distribution: str = "normal",
+        use_observed_lib_size: bool = False,
     ):
         super().__init__(
-            n_input,
-            n_batch,
-            n_labels,
-            n_hidden,
-            n_latent,
-            n_layers_encoder,
-            dropout_rate,
-            dispersion,
-            log_variational,
-            gene_likelihood,
-            latent_distribution,
+            n_input=n_input,
+            n_batch=n_batch,
+            n_labels=n_labels,
+            n_hidden=n_hidden,
+            n_latent=n_latent,
+            n_layers=n_layers_encoder,
+            dropout_rate=dropout_rate,
+            dispersion=dispersion,
+            log_variational=log_variational,
+            gene_likelihood=gene_likelihood,
+            latent_distribution=latent_distribution,
+            use_observed_lib_size=use_observed_lib_size,
         )
         self.use_batch_norm = use_batch_norm
         self.z_encoder = Encoder(
@@ -546,7 +550,15 @@ class LDVAE(VAE):
             use_batch_norm=True,
             use_layer_norm=False,
         )
-
+        self.l_encoder = Encoder(
+            n_input,
+            1,
+            n_layers=1,
+            n_hidden=n_hidden,
+            dropout_rate=dropout_rate,
+            use_batch_norm=True,
+            use_layer_norm=False,
+        )
         self.decoder = LinearDecoderSCVI(
             n_latent,
             n_input,
