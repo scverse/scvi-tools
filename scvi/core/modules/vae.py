@@ -543,6 +543,8 @@ class LDVAE(VAE):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             distribution=latent_distribution,
+            use_batch_norm=True,
+            use_layer_norm=False,
         )
 
         self.decoder = LinearDecoderSCVI(
@@ -550,6 +552,7 @@ class LDVAE(VAE):
             n_input,
             n_cat_list=[n_batch],
             use_batch_norm=use_batch_norm,
+            use_layer_norm=False,
             bias=bias,
         )
 
