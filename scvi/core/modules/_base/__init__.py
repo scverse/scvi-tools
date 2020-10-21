@@ -744,7 +744,7 @@ class DecoderTOTALVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
-            use_layer_norm=use_layer_norm,
+            use_layer_norm=False,
         )
         # background mean parameters second decoder
         self.py_back_mean_log_alpha = FCLayers(
@@ -769,7 +769,7 @@ class DecoderTOTALVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
-            use_layer_norm=use_layer_norm,
+            use_layer_norm=False,
         )
         # foreground increment decoder step 2
         self.py_fore_scale_decoder = FCLayers(
@@ -793,7 +793,7 @@ class DecoderTOTALVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
-            use_layer_norm=use_layer_norm,
+            use_layer_norm=False,
         )
         self.px_dropout_decoder_gene = FCLayers(
             n_in=n_hidden + n_input,
