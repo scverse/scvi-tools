@@ -323,6 +323,8 @@ class DecoderSCVI(nn.Module):
         Whether to inject covariates in each layer, or just the first (default).
     use_batch_norm
         Whether to use batch norm in layers
+    use_layer_norm
+        Whether to use layer norm in layers
     use_softmax
         Whether to softmax expression
     """
@@ -336,6 +338,7 @@ class DecoderSCVI(nn.Module):
         n_hidden: int = 128,
         inject_covariates: bool = True,
         use_batch_norm: bool = False,
+        use_layer_norm: bool = False,
         use_softmax: bool = True,
     ):
         super().__init__()
@@ -349,7 +352,7 @@ class DecoderSCVI(nn.Module):
             dropout_rate=0,
             inject_covariates=inject_covariates,
             use_batch_norm=use_batch_norm,
-            use_layer_norm=False,
+            use_layer_norm=use_layer_norm,
         )
 
         # mean gamma
@@ -680,6 +683,8 @@ class DecoderTOTALVI(nn.Module):
         included using a one-hot encoding
     use_batch_norm
         Whether to use batch norm in layers
+    use_layer_norm
+        Whether to use layer norm in layers
     use_softmax
         Whether to use softmax for px_scale
     """
@@ -694,6 +699,7 @@ class DecoderTOTALVI(nn.Module):
         n_hidden: int = 256,
         dropout_rate: float = 0,
         use_batch_norm: float = False,
+        use_layer_norm: float = False,
         use_softmax: bool = True,
     ):
         super().__init__()
@@ -717,7 +723,7 @@ class DecoderTOTALVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
-            use_layer_norm=False,
+            use_layer_norm=use_layer_norm,
         )
 
         # mean gamma
@@ -737,7 +743,7 @@ class DecoderTOTALVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
-            use_layer_norm=False,
+            use_layer_norm=use_layer_norm,
         )
         # background mean parameters second decoder
         self.py_back_mean_log_alpha = FCLayers(
@@ -762,7 +768,7 @@ class DecoderTOTALVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
-            use_layer_norm=False,
+            use_layer_norm=use_layer_norm,
         )
         # foreground increment decoder step 2
         self.py_fore_scale_decoder = FCLayers(
@@ -786,7 +792,7 @@ class DecoderTOTALVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
-            use_layer_norm=False,
+            use_layer_norm=use_layer_norm,
         )
         self.px_dropout_decoder_gene = FCLayers(
             n_in=n_hidden + n_input,
@@ -947,6 +953,7 @@ class EncoderTOTALVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
         )
         self.l_gene_mean_encoder = nn.Linear(n_hidden, 1)
         self.l_gene_var_encoder = nn.Linear(n_hidden, 1)

@@ -453,8 +453,8 @@ def test_scvi_online_update(save_path):
         n_latent=n_latent,
         n_layers=2,
         encode_covariates=True,
-        use_batch_norm_encoder=True,
-        use_layer_norm_encoder=False,
+        use_batch_norm="encoder",
+        use_layer_norm="none",
     )
     model.train(1, frequency=1)
     dir_path = os.path.join(save_path, "saved_model/")

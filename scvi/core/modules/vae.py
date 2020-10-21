@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
 
+from scvi._compat import Literal
 from scvi.core.distributions import (
     NegativeBinomial,
     ZeroInflatedNegativeBinomial,
@@ -71,12 +72,10 @@ class VAE(nn.Module):
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
-    use_batch_norm_encoder
+    use_batch_norm
         Whether to use batch norm in layers
-    use_batch_norm_decoder
-        Whether to use batch norm in layers
-    use_layer_norm_encoder
-        Whether to use layernorm in the encoder
+    use_layer_norm
+        Whether to use layer norm in layers
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
     """
@@ -96,9 +95,8 @@ class VAE(nn.Module):
         latent_distribution: str = "normal",
         encode_covariates: bool = True,
         deeply_inject_covariates: bool = True,
-        use_batch_norm_encoder: bool = False,
-        use_batch_norm_decoder: bool = False,
-        use_layer_norm_encoder: bool = True,
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_observed_lib_size: bool = True,
     ):
         super().__init__()
@@ -127,6 +125,11 @@ class VAE(nn.Module):
                 " 'gene-label', 'gene-cell'], but input was "
                 "{}.format(self.dispersion)"
             )
+
+        use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
+        use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
+        use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
+        use_layer_norm_decoder = use_layer_norm == "decoder" or use_layer_norm == "both"
 
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         # latent space representation
@@ -163,6 +166,7 @@ class VAE(nn.Module):
             n_hidden=n_hidden,
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
+            use_layer_norm=use_layer_norm_decoder,
             use_softmax=not use_observed_lib_size,
         )
 

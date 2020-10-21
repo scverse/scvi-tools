@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
+from scvi._compat import Literal
 from scvi.core.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
@@ -80,12 +81,6 @@ class TOTALVAE(nn.Module):
         Array of proteins by batches, the prior initialization for the protein background scale (log scale)
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
-    use_batch_norm_encoder
-        Whether to use batch norm in layers
-    use_batch_norm_decoder
-        Whether to use batch norm in layers
-    use_layer_norm_encoder
-        Whether to use layernorm in the encoder
     """
 
     def __init__(
@@ -110,9 +105,8 @@ class TOTALVAE(nn.Module):
         protein_background_prior_mean: Optional[np.ndarray] = None,
         protein_background_prior_scale: Optional[np.ndarray] = None,
         use_observed_lib_size: bool = True,
-        use_batch_norm_encoder: bool = False,
-        use_batch_norm_decoder: bool = False,
-        use_layer_norm_encoder: bool = True,
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
@@ -180,6 +174,11 @@ class TOTALVAE(nn.Module):
         else:  # protein-cell
             pass
 
+        use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
+        use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
+        use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
+        use_layer_norm_decoder = use_layer_norm == "decoder" or use_layer_norm == "both"
+
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         # latent space representation
         self.encoder = EncoderTOTALVI(
@@ -191,6 +190,7 @@ class TOTALVAE(nn.Module):
             dropout_rate=dropout_rate_encoder,
             distribution=latent_distribution,
             use_batch_norm=use_batch_norm_encoder,
+            use_layer_norm=use_layer_norm_encoder,
         )
         self.decoder = DecoderTOTALVI(
             n_latent,
@@ -201,6 +201,7 @@ class TOTALVAE(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate_decoder,
             use_batch_norm=use_batch_norm_decoder,
+            use_layer_norm=use_layer_norm_decoder,
             use_softmax=not use_observed_lib_size,
         )
 
