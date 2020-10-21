@@ -69,10 +69,16 @@ class VAE(nn.Module):
     deeply_inject_covariates
         Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
+    use_observed_lib_size
+        Use observed library size for RNA as scaling factor in mean of conditional distribution
     use_batch_norm_encoder
         Whether to use batch norm in layers
     use_batch_norm_decoder
         Whether to use batch norm in layers
+    use_layer_norm_encoder
+        Whether to use layernorm in the encoder
+    use_observed_lib_size
+        Use observed library size for RNA as scaling factor in mean of conditional distribution
     """
 
     def __init__(
@@ -88,10 +94,12 @@ class VAE(nn.Module):
         log_variational: bool = True,
         gene_likelihood: str = "zinb",
         latent_distribution: str = "normal",
-        encode_covariates: bool = False,
+        encode_covariates: bool = True,
         deeply_inject_covariates: bool = True,
-        use_batch_norm_encoder: bool = True,
-        use_batch_norm_decoder: bool = True,
+        use_batch_norm_encoder: bool = False,
+        use_batch_norm_decoder: bool = False,
+        use_layer_norm_encoder: bool = True,
+        use_observed_lib_size: bool = True,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -103,6 +111,7 @@ class VAE(nn.Module):
         self.n_labels = n_labels
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
+        self.use_observed_lib_size = use_observed_lib_size
 
         if self.dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input))
@@ -131,6 +140,7 @@ class VAE(nn.Module):
             distribution=latent_distribution,
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_encoder,
+            use_layer_norm=use_layer_norm_encoder,
         )
         # l encoder goes from n_input-dimensional data to 1-d library size
         self.l_encoder = Encoder(
@@ -142,6 +152,7 @@ class VAE(nn.Module):
             dropout_rate=dropout_rate,
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_encoder,
+            use_layer_norm=use_layer_norm_encoder,
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
         self.decoder = DecoderSCVI(
@@ -152,6 +163,7 @@ class VAE(nn.Module):
             n_hidden=n_hidden,
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
+            use_softmax=not use_observed_lib_size,
         )
 
     def get_latents(self, x, y=None) -> torch.Tensor:
@@ -325,12 +337,16 @@ class VAE(nn.Module):
     ) -> Dict[str, torch.Tensor]:
         """Helper function used in forward pass."""
         x_ = x
+        if self.use_observed_lib_size:
+            library = torch.log(x.sum(1)).unsqueeze(1)
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
         # Sampling
         qz_m, qz_v, z = self.z_encoder(x_, batch_index, y)
-        ql_m, ql_v, library = self.l_encoder(x_, batch_index)
+        ql_m, ql_v, library_encoded = self.l_encoder(x_, batch_index)
+        if not self.use_observed_lib_size:
+            library = library_encoded
 
         if n_samples > 1:
             qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
@@ -340,7 +356,12 @@ class VAE(nn.Module):
             z = self.z_encoder.z_transformation(untran_z)
             ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
             ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
-            library = Normal(ql_m, ql_v.sqrt()).sample()
+            if self.use_observed_lib_size:
+                library = library.unsqueeze(0).expand(
+                    (n_samples, library.size(0), library.size(1))
+                )
+            else:
+                library = Normal(ql_m, ql_v.sqrt()).sample()
 
         if transform_batch is not None:
             dec_batch_index = transform_batch * torch.ones_like(batch_index)
@@ -416,10 +437,13 @@ class VAE(nn.Module):
         kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
             dim=1
         )
-        kl_divergence_l = kl(
-            Normal(ql_m, torch.sqrt(ql_v)),
-            Normal(local_l_mean, torch.sqrt(local_l_var)),
-        ).sum(dim=1)
+        if not self.use_observed_lib_size:
+            kl_divergence_l = kl(
+                Normal(ql_m, torch.sqrt(ql_v)),
+                Normal(local_l_mean, torch.sqrt(local_l_var)),
+            ).sum(dim=1)
+        else:
+            kl_divergence_l = 0.0
         kl_divergence = kl_divergence_z
 
         reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)

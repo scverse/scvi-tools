@@ -46,7 +46,7 @@ class TOTALVAE(nn.Module):
         Number of hidden layers used for encoder and decoder NNs
     dropout_rate
         Dropout rate for neural networks
-    genes_dispersion
+    gene_dispersion
         One of the following
 
         * ``'gene'`` - genes_dispersion parameter of NB is constant per gene across cells
@@ -70,6 +70,10 @@ class TOTALVAE(nn.Module):
 
         * ``'normal'`` - Isotropic normal
         * ``'ln'`` - Logistic normal with normal params N(0, 1)
+    protein_batch_mask
+        Dictionary where each key is a batch code, and value is for each protein, whether it was observed or not.
+    encode_covariates
+        Whether to concatenate covariates to expression in encoder
     protein_background_prior_mean
         Array of proteins by batches, the prior initialization for the protein background mean (log scale)
     protein_background_prior_scale
@@ -80,6 +84,8 @@ class TOTALVAE(nn.Module):
         Whether to use batch norm in layers
     use_batch_norm_decoder
         Whether to use batch norm in layers
+    use_layer_norm_encoder
+        Whether to use layernorm in the encoder
     """
 
     def __init__(
@@ -90,22 +96,23 @@ class TOTALVAE(nn.Module):
         n_labels: int = 0,
         n_hidden: int = 256,
         n_latent: int = 20,
-        n_layers_encoder: int = 2,
-        n_layers_decoder: int = 2,
-        dropout_rate_decoder: float = 0.2,
-        dropout_rate_encoder: float = 0.2,
+        n_layers_encoder: int = 1,
+        n_layers_decoder: int = 1,
+        dropout_rate_decoder: float = 0.1,
+        dropout_rate_encoder: float = 0.3,
         gene_dispersion: str = "gene",
         protein_dispersion: str = "protein",
         log_variational: bool = True,
         gene_likelihood: str = "nb",
-        latent_distribution: str = "ln",
+        latent_distribution: str = "normal",
         protein_batch_mask: Dict[Union[str, int], np.ndarray] = None,
-        encoder_batch: bool = True,
+        encode_covariates: bool = True,
         protein_background_prior_mean: Optional[np.ndarray] = None,
         protein_background_prior_scale: Optional[np.ndarray] = None,
         use_observed_lib_size: bool = True,
         use_batch_norm_encoder: bool = False,
         use_batch_norm_decoder: bool = False,
+        use_layer_norm_encoder: bool = True,
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
@@ -179,7 +186,7 @@ class TOTALVAE(nn.Module):
             n_input_genes + self.n_input_proteins,
             n_latent,
             n_layers=n_layers_encoder,
-            n_cat_list=[n_batch] if encoder_batch else None,
+            n_cat_list=[n_batch] if encode_covariates else None,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate_encoder,
             distribution=latent_distribution,

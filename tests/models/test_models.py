@@ -416,15 +416,28 @@ def test_scvi_online_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path)
-    model2.train(n_epochs=1)
+    model2.train(n_epochs=1, weight_decay=0.0)
     model2.get_latent_representation()
 
     # encoder linear layer equal
-    one = model.model.z_encoder.encoder.fc_layers[0][0].weight.detach().numpy()
-    two = model2.model.z_encoder.encoder.fc_layers[0][0].weight.detach().numpy()
+    one = (
+        model.model.z_encoder.encoder.fc_layers[0][0]
+        .weight.detach()
+        .numpy()[:, : adata1.shape[1]]
+    )
+    two = (
+        model2.model.z_encoder.encoder.fc_layers[0][0]
+        .weight.detach()
+        .numpy()[:, : adata1.shape[1]]
+    )
     np.testing.assert_allclose(one, two, atol=1e-07)
     assert (
-        np.sum(model2.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()) == 0
+        np.sum(
+            model2.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()[
+                :, : adata1.shape[1]
+            ]
+        )
+        == 0
     )
     # dispersion
     assert model2.model.px_r.requires_grad is False
@@ -435,7 +448,14 @@ def test_scvi_online_update(save_path):
 
     # test options
     adata1 = synthetic_iid()
-    model = SCVI(adata1, n_latent=n_latent, n_layers=2, encode_covariates=True)
+    model = SCVI(
+        adata1,
+        n_latent=n_latent,
+        n_layers=2,
+        encode_covariates=True,
+        use_batch_norm_encoder=True,
+        use_layer_norm_encoder=False,
+    )
     model.train(1, frequency=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
@@ -444,7 +464,7 @@ def test_scvi_online_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path, freeze_expression=True)
-    model2.train(n_epochs=1)
+    model2.train(n_epochs=1, weight_decay=0.0)
     model2.get_latent_representation()
     grad = model2.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()
     # expression part has zero grad
