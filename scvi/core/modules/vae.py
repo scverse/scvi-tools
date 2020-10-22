@@ -264,7 +264,7 @@ class VAE(AbstractVAE):
         """
         return [self.sample_from_posterior_z(x, y)]
 
-    def loss(self, tensors, model_outputs, kl_weight=1.0, normalize_loss=True):
+    def loss(self, tensors, model_outputs, kl_weight=1.0, normalize_loss=False):
         x = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
         local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
@@ -304,6 +304,7 @@ class VAE(AbstractVAE):
         if not normalize_loss:
             # n_samples needs to be train set size
             n_samples = x.shape[0]
+            print(n_samples)
             loss = loss * n_samples
 
         kl_local = dict(
