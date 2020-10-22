@@ -11,6 +11,7 @@ from ._base import Decoder, Encoder
 from .classifier import Classifier
 from .utils import broadcast_labels
 from .vae import VAE
+from scvi import _CONSTANTS
 
 
 class SCANVAE(VAE):
@@ -198,18 +199,39 @@ class SCANVAE(VAE):
             z2 = qz2_m
         return [zs[0], z2]
 
-    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
-        is_labelled = False if y is None else True
+    # def generative():
+    #     pass
 
-        outputs = self.inference(x, batch_index, y)
-        px_r = outputs["px_r"]
-        px_rate = outputs["px_rate"]
-        px_dropout = outputs["px_dropout"]
-        qz1_m = outputs["qz_m"]
-        qz1_v = outputs["qz_v"]
-        z1 = outputs["z"]
-        ql_m = outputs["ql_m"]
-        ql_v = outputs["ql_v"]
+    # def inference(self, x, local_l_mean, local_l_var, batch_index=None):
+    #     outputs = self.inference(x, batch_index, y)
+
+    # def _get_inference_input(self, tensors, feed_labels=True):
+    #     inputs = super()._get_inference_input(tensors)
+    #     if feed_labels:
+    #         y = tensors[_CONSTANTS.LABELS_KEY]
+    #     else:
+    #         y = None
+    #     inputs['y'] = y
+    #     return inputs
+
+    def loss(self, tensors, model_outputs, feel_labels=True):
+        px_r = model_outputs["px_r"]
+        px_rate = model_outputs["px_rate"]
+        px_dropout = model_outputs["px_dropout"]
+        qz1_m = model_outputs["qz_m"]
+        qz1_v = model_outputs["qz_v"]
+        z1 = model_outputs["z"]
+        ql_m = model_outputs["ql_m"]
+        ql_v = model_outputs["ql_v"]
+        x = tensors[_CONSTANTS.X_KEY]
+        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+
+        if feed_labels:
+            y = tensors[_CONSTANTS.LABELS_KEY]
+        else:
+            y = None
+        is_labelled = False if y is None else True
 
         # Enumerate choices of label
         ys, z1s = broadcast_labels(y, z1, n_broadcast=self.n_labels)
@@ -255,5 +277,32 @@ class SCANVAE(VAE):
             Categorical(probs=self.y_prior.repeat(probs.size(0), 1)),
         )
         kl_divergence += kl_divergence_l
+
+        kl_global = 0
+
+        #########
+        loss = (
+            self.n_samples
+            * torch.mean(reconst_loss + self.kl_weight * kl_divergence_local)
+            + kl_divergence_global
+        )
+        if self.normalize_loss:
+            loss = loss / self.n_samples
+
+        #############
+        sample_batch = tensors_labelled[_CONSTANTS.X_KEY]
+
+        y = tensors_labelled[_CONSTANTS.LABELS_KEY]
+        classification_loss = F.cross_entropy(self.model.classify(x), y.view(-1))
+        loss += classification_loss * self.classification_ratio
+        ####################3
+        return dict(
+            loss=loss,
+            reconstruction_looses=reconst_loss,
+            kl_local=kl_local,
+            kl_global=kl_global,
+        )
+
+    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
 
         return reconst_loss, kl_divergence, 0.0
