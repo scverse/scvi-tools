@@ -80,4 +80,7 @@ commands = pytest {posargs}
 """
 [build-system]
 build-backend = "poetry.masonry.api"
-requires = ["poetry>=1.0"]
+requires = [
+  "poetry>=1.0",
+  "setuptools", # keep it here or "pip install -e" would fail
+]
