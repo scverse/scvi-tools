@@ -214,16 +214,16 @@ class SCANVAE(VAE):
     #     inputs['y'] = y
     #     return inputs
 
-    def loss(self, tensors, model_outputs, feel_labels=True):
-        px_r = model_outputs["px_r"]
-        px_rate = model_outputs["px_rate"]
-        px_dropout = model_outputs["px_dropout"]
-        qz1_m = model_outputs["qz_m"]
-        qz1_v = model_outputs["qz_v"]
-        z1 = model_outputs["z"]
-        ql_m = model_outputs["ql_m"]
-        ql_v = model_outputs["ql_v"]
-        x = tensors[_CONSTANTS.X_KEY]
+    def loss(self, tensors, inference_outputs, generative_ouputs, feed_labels=True):
+        # px_r = model_outputs["px_r"]
+        # px_rate = model_outputs["px_rate"]
+        # px_dropout = model_outputs["px_dropout"]
+        qz1_m = inference_outputs["qz_m"]
+        qz1_v = inference_outputs["qz_v"]
+        z1 = inference_outputs["z"]
+        ql_m = inference_outputs["ql_m"]
+        ql_v = inference_outputs["ql_v"]
+        # x = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
         local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
 
@@ -238,7 +238,7 @@ class SCANVAE(VAE):
         qz2_m, qz2_v, z2 = self.encoder_z2_z1(z1s, ys)
         pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
 
-        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
+        reconst_loss = self.get_reconstruction_loss(tensors, model_outputs)
 
         # KL Divergence
         mean = torch.zeros_like(qz2_m)
@@ -258,10 +258,17 @@ class SCANVAE(VAE):
             kl_divergence_l = 0.0
 
         if is_labelled:
-            return (
-                reconst_loss + loss_z1_weight + loss_z1_unweight,
-                kl_divergence_z2 + kl_divergence_l,
-                0.0,
+            loss = reconst_loss + loss_z1_weight + loss_z1_unweight
+            kl_locals = {
+                "kl_divergence_z2": kl_divergence_z2,
+                "kl_divergence_l": kl_divergence_l,
+            }
+            # need to fix loss output here
+            return dict(
+                loss=loss,
+                reconstruction_losses=reconst_loss,
+                kl_local=kl_locals,
+                kl_global=0.0,
             )
 
         probs = self.classifier(z1)
@@ -278,31 +285,12 @@ class SCANVAE(VAE):
         )
         kl_divergence += kl_divergence_l
 
-        kl_global = 0
+        loss = torch.mean(reconst_loss + kl_divergence)
 
-        #########
-        loss = (
-            self.n_samples
-            * torch.mean(reconst_loss + self.kl_weight * kl_divergence_local)
-            + kl_divergence_global
-        )
-        if self.normalize_loss:
-            loss = loss / self.n_samples
-
-        #############
-        sample_batch = tensors_labelled[_CONSTANTS.X_KEY]
-
-        y = tensors_labelled[_CONSTANTS.LABELS_KEY]
-        classification_loss = F.cross_entropy(self.model.classify(x), y.view(-1))
-        loss += classification_loss * self.classification_ratio
-        ####################3
+        # reconstruction_loss probably isnt correct
         return dict(
             loss=loss,
-            reconstruction_looses=reconst_loss,
-            kl_local=kl_local,
-            kl_global=kl_global,
+            reconstruction_losses=reconst_loss,
+            kl_local=kl_divergence,
+            kl_global=0.0,
         )
-
-    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
-
-        return reconst_loss, kl_divergence, 0.0

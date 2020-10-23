@@ -214,13 +214,10 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         input_kwargs = dict(feed_labels=False)
         _, losses = self.model(tensors, loss_kwargs=input_kwargs)
         loss = losses["loss"]
-
-        # sample_batch = tensors_labelled[_CONSTANTS.X_KEY]
-        # y = tensors_labelled[_CONSTANTS.LABELS_KEY]
-        # classification_loss = F.cross_entropy(
-        #     self.model.classify(sample_batch), y.view(-1)
-        # )
-        # loss += classification_loss * self.classification_ratio
+        x = tensors_labelled[_CONSTANTS.X_KEY]
+        y = tensors_labelled[_CONSTANTS.LABELS_KEY]
+        classification_loss = F.cross_entropy(self.model.classify(x), y.view(-1))
+        loss += classification_loss * self.classification_ratio
         return loss
 
     def on_epoch_end(self):

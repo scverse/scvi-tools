@@ -264,15 +264,25 @@ class VAE(AbstractVAE):
         """
         return [self.sample_from_posterior_z(x, y)]
 
-    def loss(self, tensors, model_outputs, kl_weight=1.0, normalize_loss=False):
+    def loss(
+        self,
+        tensors,
+        inference_outputs,
+        generative_outputs,
+        kl_weight=1.0,
+        normalize_loss: float = 1.0,
+    ):
         x = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
         local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
 
-        qz_m = model_outputs["qz_m"]
-        qz_v = model_outputs["qz_v"]
-        ql_m = model_outputs["ql_m"]
-        ql_v = model_outputs["ql_v"]
+        qz_m = inference_outputs["qz_m"]
+        qz_v = inference_outputs["qz_v"]
+        ql_m = inference_outputs["ql_m"]
+        ql_v = inference_outputs["ql_v"]
+        px_rate = generative_outputs["px_rate"]
+        px_r = generative_outputs["px_r"]
+        px_dropout = generative_outputs["px_dropout"]
 
         mean = torch.zeros_like(qz_m)
         scale = torch.ones_like(qz_v)
@@ -286,7 +296,7 @@ class VAE(AbstractVAE):
             Normal(local_l_mean, torch.sqrt(local_l_var)),
         ).sum(dim=1)
 
-        reconst_loss = self.get_reconstruction_loss(tensors, model_outputs)
+        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
 
         kl_local_for_warmup = kl_divergence_l
         kl_local_no_warmup = kl_divergence_z
@@ -296,16 +306,7 @@ class VAE(AbstractVAE):
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
         weighted_kl_global = kl_weight * kl_global_for_warmup + kl_global_no_warmup
 
-        # need to scale the loss
         loss = torch.mean(reconst_loss + weighted_kl_local) + weighted_kl_global
-
-        # normalize loss should be an integer
-        # make scale loss
-        if not normalize_loss:
-            # n_samples needs to be train set size
-            n_samples = x.shape[0]
-            print(n_samples)
-            loss = loss * n_samples
 
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
@@ -652,13 +653,7 @@ class VAE(AbstractVAE):
             kl_global=kl_global,
         )
 
-    def get_reconstruction_loss(self, tensors, generative_output) -> torch.Tensor:
-        # Reconstruction Loss
-        x = tensors[_CONSTANTS.X_KEY]
-        px_rate = generative_output["px_rate"]
-        px_r = generative_output["px_r"]
-        px_dropout = generative_output["px_dropout"]
-
+    def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout) -> torch.Tensor:
         if self.gene_likelihood == "zinb":
             reconst_loss = (
                 -ZeroInflatedNegativeBinomial(
