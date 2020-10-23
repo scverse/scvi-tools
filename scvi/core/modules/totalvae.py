@@ -15,6 +15,8 @@ from scvi.core.distributions import (
     NegativeBinomialMixture,
     ZeroInflatedNegativeBinomial,
 )
+from scvi.core.modules._base._base_module import AbstractVAE
+from scvi import _CONSTANTS
 
 from ._base import DecoderTOTALVI, EncoderTOTALVI
 from .utils import one_hot
@@ -23,7 +25,7 @@ torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class TOTALVAE(nn.Module):
+class TOTALVAE(AbstractVAE):
     """
     Total variational inference for CITE-seq data.
 
@@ -369,6 +371,51 @@ class TOTALVAE(nn.Module):
 
         return reconst_loss_gene, reconst_loss_protein
 
+    def _get_inference_input(self, tensors):
+        return dict(
+            x=tensors[_CONSTANTS.X_KEY],
+            y=tensors[_CONSTANTS.PROTEIN_EXP_KEY],
+            batch_index=tensors[_CONSTANTS.BATCH_KEY],
+        )
+
+    def _get_generative_input(self, tensors, inference_outputs):
+        z = inference_outputs["z"]
+        library_gene = inference_outputs["library_gene"]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        label = tensors[_CONSTANTS.LABELS_KEY]
+        return dict(
+            z=z, library_gene=library_gene, batch_index=batch_index, label=label
+        )
+
+    def generative(self, z, library_gene, batch_index, label):
+        px_, py_, log_pro_back_mean = self.decoder(z, library_gene, batch_index, label)
+
+        if self.gene_dispersion == "gene-label":
+            # px_r gets transposed - last dimension is nb genes
+            px_r = F.linear(one_hot(label, self.n_labels), self.px_r)
+        elif self.gene_dispersion == "gene-batch":
+            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+        elif self.gene_dispersion == "gene":
+            px_r = self.px_r
+        px_r = torch.exp(px_r)
+
+        if self.protein_dispersion == "protein-label":
+            # py_r gets transposed - last dimension is n_proteins
+            py_r = F.linear(one_hot(label, self.n_labels), self.py_r)
+        elif self.protein_dispersion == "protein-batch":
+            py_r = F.linear(one_hot(batch_index, self.n_batch), self.py_r)
+        elif self.protein_dispersion == "protein":
+            py_r = self.py_r
+        py_r = torch.exp(py_r)
+
+        px_["r"] = px_r
+        py_["r"] = py_r
+        return dict(
+            px_=px_,
+            py_=py_,
+            log_pro_back_mean=log_pro_back_mean,
+        )
+
     def inference(
         self,
         x: torch.Tensor,
@@ -427,6 +474,7 @@ class TOTALVAE(nn.Module):
             else:
                 library_gene = self.encoder.l_transformation(untran_l)
 
+        # Background regularization
         if self.gene_dispersion == "gene-label":
             # px_r gets transposed - last dimension is nb genes
             px_r = F.linear(one_hot(label, self.n_labels), self.px_r)
@@ -444,8 +492,6 @@ class TOTALVAE(nn.Module):
         elif self.protein_dispersion == "protein":
             py_r = self.py_r
         py_r = torch.exp(py_r)
-
-        # Background regularization
         if self.n_batch > 0:
             py_back_alpha_prior = F.linear(
                 one_hot(batch_index, self.n_batch), self.background_pro_alpha
@@ -461,13 +507,8 @@ class TOTALVAE(nn.Module):
 
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
-        px_, py_, log_pro_back_mean = self.decoder(z, library_gene, batch_index, label)
-        px_["r"] = px_r
-        py_["r"] = py_r
 
         return dict(
-            px_=px_,
-            py_=py_,
             qz_m=qz_m,
             qz_v=qz_v,
             z=z,
@@ -476,17 +517,15 @@ class TOTALVAE(nn.Module):
             ql_v=ql_v,
             library_gene=library_gene,
             untran_l=untran_l,
-            log_pro_back_mean=log_pro_back_mean,
         )
 
-    def forward(
+    def loss(
         self,
-        x: torch.Tensor,
-        y: torch.Tensor,
-        local_l_mean_gene: torch.Tensor,
-        local_l_var_gene: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        label: Optional[torch.Tensor] = None,
+        tensors,
+        inference_outputs,
+        generative_outputs,
+        pro_recons_weight=1.0,  # double check these defaults
+        kl_weight=1.0,
     ) -> Tuple[
         torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor
     ]:
@@ -515,15 +554,18 @@ class TOTALVAE(nn.Module):
         type
             the reconstruction loss and the Kullback divergences
         """
-        # Parameters for z latent distribution
+        qz_m = inference_outputs["qz_m"]
+        qz_v = inference_outputs["qz_v"]
+        ql_m = inference_outputs["ql_m"]
+        ql_v = inference_outputs["ql_v"]
+        px_ = generative_outputs["px_"]
+        py_ = generative_outputs["py_"]
 
-        outputs = self.inference(x, y, batch_index, label)
-        qz_m = outputs["qz_m"]
-        qz_v = outputs["qz_v"]
-        ql_m = outputs["ql_m"]
-        ql_v = outputs["ql_v"]
-        px_ = outputs["px_"]
-        py_ = outputs["py_"]
+        x = tensors[_CONSTANTS.X_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        local_l_mean_gene = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+        local_l_var_gene = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+        y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
 
         if self.protein_batch_mask is not None:
             pro_batch_mask_minibatch = torch.zeros_like(y)
@@ -559,11 +601,26 @@ class TOTALVAE(nn.Module):
             )
         else:
             kl_div_back_pro = kl_div_back_pro_full.sum(dim=1)
+        loss = torch.mean(
+            reconst_loss_gene
+            + pro_recons_weight * reconst_loss_protein
+            + kl_weight * kl_div_z
+            + kl_div_l_gene
+            + kl_weight * kl_div_back_pro
+        )
 
-        return (
-            reconst_loss_gene,
-            reconst_loss_protein,
-            kl_div_z,
-            kl_div_l_gene,
-            kl_div_back_pro,
+        reconst_losses = dict(
+            reconst_loss_gene=reconst_loss_gene,
+            reconst_loss_protein=reconst_loss_protein,
+        )
+        kl_local = dict(
+            kl_div_z=kl_div_z,
+            kl_div_l_gene=kl_div_l_gene,
+            kl_div_back_pro=kl_div_back_pro,
+        )
+        return dict(
+            loss=loss,
+            reconstruction_losses=reconst_losses,
+            kl_local=kl_local,
+            kl_global=0.0,
         )
