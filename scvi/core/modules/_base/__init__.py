@@ -852,7 +852,7 @@ class DecoderTOTALVI(nn.Module):
         if self.use_softmax:
             px_["scale"] = nn.Softmax(dim=-1)(unnorm_px_scale)
         else:
-            px_["scale"] = torch.exp(self.px_scale_decoder(px_cat_z, *cat_list))
+            px_["scale"] = torch.exp(unnorm_px_scale)
         px_["rate"] = library_gene * px_["scale"]
 
         py_back = self.py_back_decoder(z, *cat_list)
