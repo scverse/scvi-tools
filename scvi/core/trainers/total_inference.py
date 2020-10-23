@@ -138,37 +138,11 @@ class TotalTrainer(UnsupervisedTrainer):
             self.validation_set.to_monitor = ["elbo"]
 
     def loss(self, tensors):
-        (
-            sample_batch_x,
-            local_l_mean,
-            local_l_var,
-            batch_index,
-            label,
-            sample_batch_y,
-        ) = _unpack_tensors(tensors)
-        (
-            reconst_loss_gene,
-            reconst_loss_protein,
-            kl_div_z,
-            kl_div_l_gene,
-            kl_div_back_pro,
-        ) = self.model(
-            sample_batch_x,
-            sample_batch_y,
-            local_l_mean,
-            local_l_var,
-            batch_index,
-            label,
+        loss_kwargs = dict(
+            pro_recons_weight=self.pro_recons_weight, kl_weight=self.kl_weight
         )
-
-        loss = torch.mean(
-            reconst_loss_gene
-            + self.pro_recons_weight * reconst_loss_protein
-            + self.kl_weight * kl_div_z
-            + kl_div_l_gene
-            + self.kl_weight * kl_div_back_pro
-        )
-
+        _, _, losses = self.model(tensors, loss_kwargs=loss_kwargs)
+        loss = losses["loss"]
         return loss
 
     def loss_discriminator(

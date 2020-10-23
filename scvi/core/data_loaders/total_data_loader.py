@@ -76,12 +76,12 @@ class TotalDataLoader(ScviDataLoader):
             _CONSTANTS.PROTEIN_EXP_KEY: np.float32,
         }
 
-    @torch.no_grad()
-    def elbo(self):
-        elbo = self.compute_elbo(self.model)
-        return elbo
+    # @torch.no_grad()
+    # def elbo(self):
+    #     elbo = self.compute_elbo()
+    #     return elbo
 
-    elbo.mode = "min"
+    # elbo.mode = "min"
 
     @torch.no_grad()
     def reconstruction_error(self, mode="total"):
@@ -112,55 +112,55 @@ class TotalDataLoader(ScviDataLoader):
             background_mean += [np.array(b_mean.cpu())]
         return np.concatenate(background_mean)
 
-    def compute_elbo(self, vae: TOTALVAE, **kwargs):
-        """
-        Computes the ELBO.
+    # def compute_elbo(self, vae: TOTALVAE, **kwargs):
+    #     """
+    #     Computes the ELBO.
 
-        The ELBO is the reconstruction error + the KL divergences
-        between the variational distributions and the priors.
-        It differs from the marginal log likelihood.
-        Specifically, it is a lower bound on the marginal log likelihood
-        plus a term that is constant with respect to the variational distribution.
-        It still gives good insights on the modeling of the data, and is fast to compute.
+    #     The ELBO is the reconstruction error + the KL divergences
+    #     between the variational distributions and the priors.
+    #     It differs from the marginal log likelihood.
+    #     Specifically, it is a lower bound on the marginal log likelihood
+    #     plus a term that is constant with respect to the variational distribution.
+    #     It still gives good insights on the modeling of the data, and is fast to compute.
 
-        Parameters
-        ----------
-        vae
-            vae model
-        **kwargs
-            keyword args for forward
+    #     Parameters
+    #     ----------
+    #     vae
+    #         vae model
+    #     **kwargs
+    #         keyword args for forward
 
-        """
-        # Iterate once over the data loader and computes the total log_likelihood
-        elbo = 0
-        for _, tensors in enumerate(self):
-            x, local_l_mean, local_l_var, batch_index, labels, y = _unpack_tensors(
-                tensors
-            )
-            (
-                reconst_loss_gene,
-                reconst_loss_protein,
-                kl_div_z,
-                kl_div_gene_l,
-                kl_div_back_pro,
-            ) = vae(
-                x,
-                y,
-                local_l_mean,
-                local_l_var,
-                batch_index=batch_index,
-                label=labels,
-                **kwargs,
-            )
-            elbo += torch.sum(
-                reconst_loss_gene
-                + reconst_loss_protein
-                + kl_div_z
-                + kl_div_gene_l
-                + kl_div_back_pro
-            ).item()
-        n_samples = len(self.indices)
-        return elbo / n_samples
+    #     """
+    #     # Iterate once over the data loader and computes the total log_likelihood
+    #     elbo = 0
+    #     for _, tensors in enumerate(self):
+    #         x, local_l_mean, local_l_var, batch_index, labels, y = _unpack_tensors(
+    #             tensors
+    #         )
+    #         (
+    #             reconst_loss_gene,
+    #             reconst_loss_protein,
+    #             kl_div_z,
+    #             kl_div_gene_l,
+    #             kl_div_back_pro,
+    #         ) = vae(
+    #             x,
+    #             y,
+    #             local_l_mean,
+    #             local_l_var,
+    #             batch_index=batch_index,
+    #             label=labels,
+    #             **kwargs,
+    #         )
+    #         elbo += torch.sum(
+    #             reconst_loss_gene
+    #             + reconst_loss_protein
+    #             + kl_div_z
+    #             + kl_div_gene_l
+    #             + kl_div_back_pro
+    #         ).item()
+    #     n_samples = len(self.indices)
+    #     return elbo / n_samples
 
     def compute_reconstruction_error(self, vae: TOTALVAE, **kwargs):
         r"""

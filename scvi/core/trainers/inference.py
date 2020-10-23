@@ -75,7 +75,7 @@ class UnsupervisedTrainer(Trainer):
         test_size: Union[int, float] = None,
         n_iter_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
-        normalize_loss: bool = None,
+        scale_loss: float = 1.0,
         **kwargs
     ):
         train_size = float(train_size)
@@ -88,14 +88,9 @@ class UnsupervisedTrainer(Trainer):
         # Set up number of warmup iterations
         self.n_iter_kl_warmup = n_iter_kl_warmup
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
-        self.normalize_loss = (
-            not (
-                hasattr(self.model, "gene_likelihood")
-                and self.model.gene_likelihood == "autozinb"
-            )
-            if normalize_loss is None
-            else normalize_loss
-        )
+
+        # if autozi then scale loss should be testsize?
+        self.scale_loss = scale_loss
 
         # Total size of the dataset used for training
         # (e.g. training set in this class but testing set in AdapterTrainer).
@@ -120,9 +115,9 @@ class UnsupervisedTrainer(Trainer):
     def loss(self, tensors: dict, feed_labels: bool = True):
         # The next lines should not be modified, because scanVI's trainer inherits
         # from this class and should NOT include label information to compute the ELBO by default
-        loss_kwargs = dict(kl_weight=self.kl_weight, normalize_loss=self.normalize_loss)
-        _, losses = self.model(tensors, loss_kwargs=loss_kwargs)
-        loss = losses["loss"]
+        loss_kwargs = dict(kl_weight=self.kl_weight)
+        _, _, losses = self.model(tensors, loss_kwargs=loss_kwargs)
+        loss = losses["loss"] * self.scale_loss
         return loss
 
     @property
