@@ -39,11 +39,11 @@ class AbstractVAE(nn.Module):
             tensors, inference_outputs, **get_generative_input_kwargs
         )
         generative_outputs = self.generative(**generative_inputs, **generative_kwargs)
+        losses = self.loss(
+            tensors, inference_outputs, generative_outputs, **loss_kwargs
+        )
 
-        model_outputs = dict(**inference_outputs, **generative_outputs)
-        losses = self.loss(tensors, model_outputs, **loss_kwargs)
-
-        return model_outputs, losses
+        return inference_outputs, generative_outputs, losses
 
     @abstractmethod
     def _get_inference_input(self, tensors):
