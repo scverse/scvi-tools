@@ -167,7 +167,6 @@ class VAE(nn.Module):
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
-            use_softmax=not use_observed_lib_size,
         )
 
     def get_latents(self, x, y=None) -> torch.Tensor:

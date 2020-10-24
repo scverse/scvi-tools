@@ -202,7 +202,6 @@ class TOTALVAE(nn.Module):
             dropout_rate=dropout_rate_decoder,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
-            use_softmax=not use_observed_lib_size,
         )
 
     def sample_from_posterior_z(
