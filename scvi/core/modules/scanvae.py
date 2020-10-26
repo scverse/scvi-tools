@@ -199,31 +199,16 @@ class SCANVAE(VAE):
             z2 = qz2_m
         return [zs[0], z2]
 
-    # def generative():
-    #     pass
-
-    # def inference(self, x, local_l_mean, local_l_var, batch_index=None):
-    #     outputs = self.inference(x, batch_index, y)
-
-    # def _get_inference_input(self, tensors, feed_labels=True):
-    #     inputs = super()._get_inference_input(tensors)
-    #     if feed_labels:
-    #         y = tensors[_CONSTANTS.LABELS_KEY]
-    #     else:
-    #         y = None
-    #     inputs['y'] = y
-    #     return inputs
-
     def loss(self, tensors, inference_outputs, generative_ouputs, feed_labels=True):
-        # px_r = model_outputs["px_r"]
-        # px_rate = model_outputs["px_rate"]
-        # px_dropout = model_outputs["px_dropout"]
+        px_r = generative_ouputs["px_r"]
+        px_rate = generative_ouputs["px_rate"]
+        px_dropout = generative_ouputs["px_dropout"]
         qz1_m = inference_outputs["qz_m"]
         qz1_v = inference_outputs["qz_v"]
         z1 = inference_outputs["z"]
         ql_m = inference_outputs["ql_m"]
         ql_v = inference_outputs["ql_v"]
-        # x = tensors[_CONSTANTS.X_KEY]
+        x = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
         local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
 
@@ -238,7 +223,7 @@ class SCANVAE(VAE):
         qz2_m, qz2_v, z2 = self.encoder_z2_z1(z1s, ys)
         pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
 
-        reconst_loss = self.get_reconstruction_loss(tensors, model_outputs)
+        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
 
         # KL Divergence
         mean = torch.zeros_like(qz2_m)
