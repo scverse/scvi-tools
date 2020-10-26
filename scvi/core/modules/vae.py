@@ -176,7 +176,6 @@ class VAE(AbstractVAE):
         library = inference_outputs["library"]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
         y = tensors[_CONSTANTS.LABELS_KEY]
-
         input_dict = {"z": z, "library": library, "batch_index": batch_index, "y": y}
         return input_dict
 
@@ -221,7 +220,7 @@ class VAE(AbstractVAE):
 
         return outputs
 
-    def generative(self, z, library, batch_index, y, **kwargs):
+    def generative(self, z, library, batch_index, y=None, **kwargs):
         """Runs the generative model."""
         # make random y since its not used
         # TODO: refactor forward function to not rely on y
