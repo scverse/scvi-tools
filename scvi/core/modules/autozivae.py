@@ -8,6 +8,7 @@ from torch.distributions import Beta, Gamma, Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi.core.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
+from scvi import _CONSTANTS
 
 from .utils import one_hot
 from .vae import VAE
@@ -285,19 +286,18 @@ class AutoZIVAE(VAE):
             px_dropout_rescaled = px_dropout
         return px_dropout_rescaled
 
-    def inference(
+    def generative(
         self,
-        x,
+        z,
+        library,
         batch_index: Optional[torch.Tensor] = None,
         y: Optional[torch.Tensor] = None,
         n_samples: int = 1,
         eps_log: float = 1e-8,
     ) -> Dict[str, torch.Tensor]:
-
-        outputs = super().inference(
-            x, batch_index=batch_index, y=y, n_samples=n_samples
+        outputs = super().generative(
+            z=z, library=library, batch_index=batch_index, y=y, n_samples=n_samples
         )
-
         # Rescale dropout
         outputs["px_dropout"] = self.rescale_dropout(
             outputs["px_dropout"], eps_log=eps_log
@@ -307,17 +307,14 @@ class AutoZIVAE(VAE):
         outputs["bernoulli_params"] = self.sample_bernoulli_params(
             batch_index, y, n_samples=n_samples
         )
-
         return outputs
 
     def compute_global_kl_divergence(self) -> torch.Tensor:
-
         outputs = self.get_alphas_betas(as_numpy=False)
         alpha_posterior = outputs["alpha_posterior"]
         beta_posterior = outputs["beta_posterior"]
         alpha_prior = outputs["alpha_prior"]
         beta_prior = outputs["beta_prior"]
-
         return kl(
             Beta(alpha_posterior, beta_posterior), Beta(alpha_prior, beta_prior)
         ).sum()
@@ -354,13 +351,13 @@ class AutoZIVAE(VAE):
 
         return reconst_loss
 
-    def forward(
+    def loss(
         self,
-        x: torch.Tensor,
-        local_l_mean: torch.Tensor,
-        local_l_var: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        y: Optional[torch.Tensor] = None,
+        tensors,
+        inference_outputs,
+        generative_outputs,
+        kl_weight=1.0,
+        normalize_loss: float = 1.0,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         r"""
         Returns the reconstruction loss and the Kullback divergences.
@@ -388,15 +385,17 @@ class AutoZIVAE(VAE):
 
         """
         # Parameters for z latent distribution
-        outputs = self.inference(x, batch_index, y)
-        qz_m = outputs["qz_m"]
-        qz_v = outputs["qz_v"]
-        ql_m = outputs["ql_m"]
-        ql_v = outputs["ql_v"]
-        px_rate = outputs["px_rate"]
-        px_r = outputs["px_r"]
-        px_dropout = outputs["px_dropout"]
-        bernoulli_params = outputs["bernoulli_params"]
+        qz_m = inference_outputs["qz_m"]
+        qz_v = inference_outputs["qz_v"]
+        ql_m = inference_outputs["ql_m"]
+        ql_v = inference_outputs["ql_v"]
+        px_rate = generative_outputs["px_rate"]
+        px_r = generative_outputs["px_r"]
+        px_dropout = generative_outputs["px_dropout"]
+        bernoulli_params = generative_outputs["bernoulli_params"]
+        x = tensors[_CONSTANTS.X_KEY]
+        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
 
         # KL divergences wrt z_n,l_n
         mean = torch.zeros_like(qz_m)
@@ -418,4 +417,20 @@ class AutoZIVAE(VAE):
             x, px_rate, px_r, px_dropout, bernoulli_params
         )
 
-        return reconst_loss + kl_divergence_l, kl_divergence_z, kl_divergence_bernoulli
+        reconst_loss = reconst_loss
+
+        kl_global = kl_divergence_bernoulli
+        kl_local_for_warmup = kl_divergence_l
+        kl_local_no_warmup = kl_divergence_z
+
+        weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
+        loss = torch.mean(reconst_loss + weighted_kl_local) + kl_global
+        kl_local = dict(
+            kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
+        )
+        return dict(
+            loss=loss,
+            reconstruction_loss=reconst_loss,
+            kl_local=kl_local,
+            kl_global=kl_global,
+        )
