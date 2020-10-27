@@ -105,8 +105,8 @@ class TOTALVAE(nn.Module):
         protein_background_prior_mean: Optional[np.ndarray] = None,
         protein_background_prior_scale: Optional[np.ndarray] = None,
         use_observed_lib_size: bool = True,
-        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion

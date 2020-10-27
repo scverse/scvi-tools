@@ -95,8 +95,8 @@ class VAE(nn.Module):
         latent_distribution: str = "normal",
         encode_covariates: bool = True,
         deeply_inject_covariates: bool = True,
-        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_observed_lib_size: bool = True,
     ):
         super().__init__()
