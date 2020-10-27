@@ -14,6 +14,7 @@ from scvi.core.distributions import (
     NegativeBinomial,
     ZeroInflatedNegativeBinomial,
 )
+from scvi import _CONSTANTS
 
 from ._base import Encoder, MultiEncoder, MultiDecoder
 from .utils import one_hot
@@ -337,16 +338,19 @@ class JVAE(nn.Module):
             reconstruction_loss = -Poisson(px_rate).log_prob(x).sum(dim=1)
         return reconstruction_loss
 
-    def encode(
-        self, x: torch.Tensor, mode: int
-    ) -> Tuple[
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-        Optional[torch.Tensor],
-        Optional[torch.Tensor],
-        torch.Tensor,
-    ]:
+    def _get_inference_input(self, tensors):
+        return dict(
+            x=tensors[_CONSTANTS.X_KEY],
+        )
+
+    def _get_generative_input(self, tensors, inference_outputs):
+        z = inference_outputs["z"]
+        library = inference_outputs["library"]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        y = tensors[_CONSTANTS.LABELS_KEY]
+        return dict(z=z, library=library, batch_index=batch_index, y=y)
+
+    def inference(self, x: torch.Tensor, mode: int) -> dict:
         x_ = x
         if self.log_variational:
             x_ = torch.log(1 + x_)
@@ -358,16 +362,16 @@ class JVAE(nn.Module):
         else:
             library = torch.log(torch.sum(x, dim=1)).view(-1, 1)
 
-        return qz_m, qz_v, z, ql_m, ql_v, library
+        return dict(qzm=qz_m, qz_v=qz_v, z=z, ql_m=ql_m, ql_v=ql_v, library=library)
 
-    def decode(
+    def generative(
         self,
         z: torch.Tensor,
         mode: int,
         library: torch.Tensor,
         batch_index: Optional[torch.Tensor] = None,
         y: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> dict:
         px_scale, px_r, px_rate, px_dropout = self.decoder(
             z, mode, library, self.dispersion, batch_index, y
         )
@@ -385,15 +389,15 @@ class JVAE(nn.Module):
         ).view(-1, 1)
         px_rate = px_scale * torch.exp(library)
 
-        return px_scale, px_r, px_rate, px_dropout
+        return dict(
+            px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
+        )
 
-    def forward(
+    def loss(
         self,
-        x: torch.Tensor,
-        local_l_mean: torch.Tensor,
-        local_l_var: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        y: Optional[torch.Tensor] = None,
+        tensors,
+        inference_outputs,
+        generative_outputs,
         mode: Optional[int] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -428,11 +432,17 @@ class JVAE(nn.Module):
                 mode = 0
             else:
                 raise Exception("Must provide a mode")
+        x = tensors[_CONSTANTS.X_KEY]
+        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
 
-        qz_m, qz_v, z, ql_m, ql_v, library = self.encode(x, mode)
-        px_scale, px_r, px_rate, px_dropout = self.decode(
-            z, mode, library, batch_index, y
-        )
+        qz_m = inference_outputs["qz_m"]
+        qz_v = inference_outputs["qz_v"]
+        ql_m = inference_outputs["ql_m"]
+        ql_v = inference_outputs["ql_v"]
+        px_rate = generative_outputs["px_rate"]
+        px_r = generative_outputs["px_r"]
+        px_dropout = generative_outputs["px_dropout"]
 
         # mask loss to observed genes
         mapping_indices = self.indices_mappings[mode]
