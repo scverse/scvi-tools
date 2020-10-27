@@ -236,17 +236,13 @@ class JVAETrainer(Trainer):
         -------
         type
             scalar loss if return_details is False, else tuple (reconstruction_loss, kl_loss)
-
-
         """
         reconstruction_losses = []
         kl_divergences = []
         losses = []
         total_batch_size = 0
         for i, data in enumerate(tensors):
-            sample_batch, l_mean, l_var, batch_index, labels, *_ = self._unpack_tensors(
-                data
-            )
+            self.model(tensors)
             reconstruction_loss, kl_divergence, _ = self.model(
                 sample_batch, l_mean, l_var, batch_index, mode=i
             )
