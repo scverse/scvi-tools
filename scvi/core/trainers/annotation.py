@@ -184,26 +184,39 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         self.labelled_set = self.create_scvi_dl(indices=indices_labelled)
         self.unlabelled_set = self.create_scvi_dl(indices=indices_unlabelled)
 
+        n_s = float(len(indices_labelled))
+        n_u = float(len(indices_unlabelled))
+        self.l_fraction = n_s / (n_s + n_u)
+        self.u_fraction = n_u / (n_s + n_u)
+
         for scdl in [self.labelled_set, self.unlabelled_set]:
             scdl.to_monitor = ["reconstruction_error", "accuracy"]
 
     @property
     def scvi_data_loaders_loop(self):
-        return ["full_dataset", "labelled_set"]
+        return ["unlabelled_set", "labelled_set"]
 
     def __setattr__(self, key, value):
         if key == "labelled_set":
             self.classifier_trainer.train_set = value
         super().__setattr__(key, value)
 
-    def loss(self, tensors_all, tensors_labelled):
-        loss = super().loss(tensors_all, feed_labels=False)
+    def loss(self, tensors_unlabelled, tensors_labelled):
+        # Compute ELBO terms
+        loss_unsuper = super().loss(tensors_unlabelled, feed_labels=False)
+        loss_superv = super().loss(tensors_labelled, feed_labels=True)
+
+        # Compute classification term
         sample_batch = tensors_labelled[_CONSTANTS.X_KEY]
         y = tensors_labelled[_CONSTANTS.LABELS_KEY]
         classification_loss = F.cross_entropy(
             self.model.classify(sample_batch), y.view(-1)
         )
-        loss += classification_loss * self.classification_ratio
+        loss = (
+            (self.l_fraction * loss_superv)
+            + (self.u_fraction * loss_unsuper)
+            + (classification_loss * self.classification_ratio)
+        )
         return loss
 
     def on_epoch_end(self):
