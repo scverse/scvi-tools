@@ -224,8 +224,8 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
 
     def loss(self, tensors, tensors_labelled):
         input_kwargs = dict(feed_labels=False)
-        _, _, losses = self.model(tensors, loss_kwargs=input_kwargs)
-        loss = losses["loss"]
+        _, _, scvi_losses = self.model(tensors, loss_kwargs=input_kwargs)
+        loss = scvi_losses.loss
         x = tensors_labelled[_CONSTANTS.X_KEY]
         y = tensors_labelled[_CONSTANTS.LABELS_KEY]
         classification_loss = F.cross_entropy(self.model.classify(x), y.view(-1))
