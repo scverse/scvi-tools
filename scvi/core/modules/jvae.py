@@ -5,7 +5,6 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch import nn
 from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
 from torch.nn import ModuleList
@@ -15,7 +14,7 @@ from scvi.core.distributions import (
     ZeroInflatedNegativeBinomial,
 )
 from scvi import _CONSTANTS
-from scvi.core.modules._base._base_module import AbstractVAE
+from scvi.core.modules._base._base_module import AbstractVAE, SCVILoss
 
 from ._base import Encoder, MultiEncoder, MultiDecoder
 from .utils import one_hot
@@ -475,9 +474,4 @@ class JVAE(AbstractVAE):
 
         loss = torch.mean(reconstruction_loss + kl_weight * kl_local) * x.size(0)
 
-        return dict(
-            loss=loss,
-            reconstruction_losses=reconstruction_loss,
-            kl_local=kl_local,
-            kl_global=kl_global,
-        )
+        return SCVILoss(loss, reconstruction_loss, kl_local, kl_global)

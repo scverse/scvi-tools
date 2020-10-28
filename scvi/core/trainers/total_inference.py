@@ -141,14 +141,13 @@ class TotalTrainer(UnsupervisedTrainer):
         loss_kwargs = dict(
             pro_recons_weight=self.pro_recons_weight, kl_weight=self.kl_weight
         )
-        _, _, losses = self.model(tensors, loss_kwargs=loss_kwargs)
-        loss = losses["loss"]
+        _, _, scvi_losses = self.model(tensors, loss_kwargs=loss_kwargs)
+        loss = scvi_losses.loss
         return loss
 
     def loss_discriminator(
         self, z, batch_index, predict_true_class=True, return_details=True
     ):
-
         n_classes = self.adata.uns["_scvi"]["summary_stats"]["n_batch"]
         cls_logits = torch.nn.LogSoftmax(dim=1)(self.discriminator(z))
 
