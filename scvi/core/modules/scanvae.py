@@ -112,7 +112,13 @@ class SCANVAE(VAE):
             "dropout_rate": dropout_rate,
         }
         cls_parameters.update(classifier_parameters)
-        self.classifier = Classifier(n_latent, n_labels=n_labels, **cls_parameters)
+        self.classifier = Classifier(
+            n_latent,
+            n_labels=n_labels,
+            use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
+            **cls_parameters
+        )
 
         self.encoder_z2_z1 = Encoder(
             n_latent,
