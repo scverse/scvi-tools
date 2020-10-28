@@ -22,7 +22,16 @@ class JvaeDataLoader(ScviDataLoader):
         self.mode = mode
 
     def elbo(self) -> float:
-        elbo = compute_elbo(self.model, self, mode=self.mode)
+        inference_kwargs = dict(mode=self.mode)
+        generative_kwargs = dict(mode=self.mode)
+        loss_kwargs = dict(mode=self.mode)
+        elbo = compute_elbo(
+            self.model,
+            self,
+            inference_kwargs=inference_kwargs,
+            generative_kwargs=generative_kwargs,
+            loss_kwargs=loss_kwargs,
+        )
         logger.debug("ELBO : %.4f" % elbo)
         return elbo
 
@@ -242,14 +251,21 @@ class JVAETrainer(Trainer):
         losses = []
         total_batch_size = 0
         for i, data in enumerate(tensors):
-            self.model(tensors)
-            reconstruction_loss, kl_divergence, _ = self.model(
-                sample_batch, l_mean, l_var, batch_index, mode=i
+            inference_kwargs = dict(mode=i)
+            generative_kwargs = dict(mode=i)
+            loss_kwargs = dict(mode=i, kl_weight=self.kl_weight)
+
+            _, _, loss_output = self.model(
+                data,
+                inference_kwargs=inference_kwargs,
+                generative_kwargs=generative_kwargs,
+                loss_kwargs=loss_kwargs,
             )
-            loss = torch.mean(
-                reconstruction_loss + self.kl_weight * kl_divergence
-            ) * sample_batch.size(0)
-            total_batch_size += sample_batch.size(0)
+            loss = loss_output["loss"]
+            reconstruction_loss = loss_output["reconstruction_losses"]
+            kl_divergence = loss_output["kl_local"]
+
+            total_batch_size += data[_CONSTANTS.X_KEY].size(0)
             losses.append(loss)
             if return_details:
                 reconstruction_losses.append(reconstruction_loss.mean())

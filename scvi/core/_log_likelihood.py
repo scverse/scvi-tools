@@ -22,7 +22,7 @@ def compute_elbo(vae, data_loader, feed_labels=True, **kwargs):
     # Iterate once over the data and compute the elbo
     elbo = 0
     for i_batch, tensors in enumerate(data_loader):
-        _, _, losses = vae(tensors)
+        _, _, losses = vae(tensors, **kwargs)
 
         reconstruction_losses = losses["reconstruction_losses"]
         kls_local = losses["kl_local"]
