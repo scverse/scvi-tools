@@ -208,11 +208,8 @@ class VAEMixin:
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
         for tensors in scdl:
-            # x = tensors[_CONSTANTS.X_KEY]
-            # z = self.model.sample_from_posterior_z(
-            #     x, give_mean=give_mean, n_samples=mc_samples
-            # )
-            outputs = self.model.inference(tensors)
+            inference_inputs = self.model._get_inference_input(tensors)
+            outputs = self.model.inference(**inference_inputs)
             qz_m = outputs["qz_m"]
             qz_v = outputs["qz_v"]
             z = outputs["z"]
