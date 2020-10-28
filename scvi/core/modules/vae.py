@@ -245,24 +245,6 @@ class VAE(AbstractVAE):
             px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
         )
 
-    def get_latents(self, x, y=None) -> torch.Tensor:
-        """
-        Returns the result of ``sample_from_posterior_z`` inside a list.
-
-        Parameters
-        ----------
-        x
-            tensor of values with shape ``(batch_size, n_input)``
-        y
-            tensor of cell-types labels with shape ``(batch_size, n_labels)`` (Default value = None)
-
-        Returns
-        -------
-        type
-            one element list of tensor
-        """
-        return [self.sample_from_posterior_z(x, y)]
-
     def loss(
         self,
         tensors,
@@ -369,48 +351,7 @@ class VAE(AbstractVAE):
 
         return exprs.cpu()
 
-    def sample_from_posterior_z(
-        self, x, give_mean=False, n_samples=5000
-    ) -> torch.Tensor:
-        """
-        Samples the tensor of latent values from the posterior.
-
-        Parameters
-        ----------
-        x
-            tensor of values with shape ``(batch_size, n_input)``
-        y
-            tensor of cell-types labels with shape ``(batch_size, n_labels)`` (Default value = None)
-        give_mean
-            is True when we want the mean of the posterior  distribution rather than sampling (Default value = False)
-        n_samples
-            how many MC samples to average over for transformed mean (Default value = 5000)
-
-        Returns
-        -------
-        type
-            tensor of shape ``(batch_size, n_latent)``
-        """
-        if self.log_variational:
-            x = torch.log(1 + x)
-        outputs = self.inference(x, n_samples=n_samples)
-        qz_m = outputs["qz_m"]
-        qz_v = outputs["qz_v"]
-        z = outputs["z"]
-        # qz_m, qz_v, z = self.z_encoder(x, y)  # y only used in VAEC
-
-        if give_mean:
-            if self.latent_distribution == "ln":
-                samples = Normal(qz_m, qz_v.sqrt()).sample([n_samples])
-                z = self.z_encoder.z_transformation(samples)
-                z = z.mean(dim=0)
-            else:
-                z = qz_m
-        return z
-
-    def sample_from_posterior_l(
-        self, x, batch_index=None, give_mean=True
-    ) -> torch.Tensor:
+    def sample_from_posterior_l(self, x, give_mean=True) -> torch.Tensor:
         """
         Samples the tensor of library sizes from the posterior.
 
