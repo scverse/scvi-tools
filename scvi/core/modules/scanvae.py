@@ -94,6 +94,8 @@ class SCANVAE(VAE):
             dispersion=dispersion,
             log_variational=log_variational,
             gene_likelihood=gene_likelihood,
+            use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
             **kwargs
         )
 
