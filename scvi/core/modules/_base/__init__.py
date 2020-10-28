@@ -60,8 +60,8 @@ class FCLayers(nn.Module):
         n_layers: int = 1,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
-        use_batch_norm: bool = False,
-        use_layer_norm: bool = True,
+        use_batch_norm: bool = True,
+        use_layer_norm: bool = False,
         use_activation: bool = True,
         bias: bool = True,
         inject_covariates: bool = True,
@@ -224,12 +224,8 @@ class Encoder(nn.Module):
         Dropout rate to apply to each of the hidden layers
     distribution
         Distribution of z
-    inject_covariates
-        Whether to inject covariates in each layer, or just the first (default).
-    use_batch_norm
-        Whether to use batch norm in layers
-    use_layer_norm
-        Whether to use layer norm in layers
+    **kwargs
+        Keyword args for :class:`~scvi.core.modules._base.FCLayers`
     """
 
     def __init__(
@@ -241,9 +237,7 @@ class Encoder(nn.Module):
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
         distribution: str = "normal",
-        inject_covariates: bool = True,
-        use_batch_norm: bool = False,
-        use_layer_norm: bool = True,
+        **kwargs,
     ):
         super().__init__()
 
@@ -255,9 +249,7 @@ class Encoder(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
-            inject_covariates=inject_covariates,
-            use_batch_norm=use_batch_norm,
-            use_layer_norm=use_layer_norm,
+            **kwargs,
         )
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)
@@ -489,6 +481,8 @@ class Decoder(nn.Module):
         The number of nodes per hidden layer
     dropout_rate
         Dropout rate to apply to each of the hidden layers
+    kwargs
+        Keyword args for :class:`~scvi.core.modules._base.FCLayers`
     """
 
     def __init__(
@@ -498,6 +492,7 @@ class Decoder(nn.Module):
         n_cat_list: Iterable[int] = None,
         n_layers: int = 1,
         n_hidden: int = 128,
+        **kwargs,
     ):
         super().__init__()
         self.decoder = FCLayers(
@@ -507,6 +502,7 @@ class Decoder(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=0,
+            **kwargs,
         )
 
         self.mean_decoder = nn.Linear(n_hidden, n_output)
@@ -647,7 +643,7 @@ class MultiDecoder(nn.Module):
         dataset_id: int,
         library: torch.Tensor,
         dispersion: str,
-        *cat_list: int
+        *cat_list: int,
     ):
 
         px = z
@@ -699,7 +695,7 @@ class DecoderTOTALVI(nn.Module):
         n_layers: int = 1,
         n_hidden: int = 256,
         dropout_rate: float = 0,
-        use_batch_norm: float = False,
+        use_batch_norm: float = True,
         use_layer_norm: float = False,
         use_softmax: bool = True,
     ):
@@ -732,7 +728,7 @@ class DecoderTOTALVI(nn.Module):
             n_in=n_hidden + n_input,
             n_out=n_output_genes,
             n_cat_list=n_cat_list,
-            **linear_args
+            **linear_args,
         )
 
         # background mean first decoder
@@ -751,13 +747,13 @@ class DecoderTOTALVI(nn.Module):
             n_in=n_hidden + n_input,
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
-            **linear_args
+            **linear_args,
         )
         self.py_back_mean_log_beta = FCLayers(
             n_in=n_hidden + n_input,
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
-            **linear_args
+            **linear_args,
         )
 
         # foreground increment decoder step 1
@@ -799,14 +795,14 @@ class DecoderTOTALVI(nn.Module):
             n_in=n_hidden + n_input,
             n_out=n_output_genes,
             n_cat_list=n_cat_list,
-            **linear_args
+            **linear_args,
         )
 
         self.py_background_decoder = FCLayers(
             n_in=n_hidden + n_input,
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
-            **linear_args
+            **linear_args,
         )
 
     def forward(self, z: torch.Tensor, library_gene: torch.Tensor, *cat_list: int):
@@ -928,8 +924,8 @@ class EncoderTOTALVI(nn.Module):
         n_hidden: int = 256,
         dropout_rate: float = 0.1,
         distribution: str = "ln",
-        use_batch_norm: bool = False,
-        use_layer_norm: bool = True,
+        use_batch_norm: bool = True,
+        use_layer_norm: bool = False,
     ):
         super().__init__()
 

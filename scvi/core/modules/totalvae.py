@@ -139,7 +139,7 @@ class TOTALVAE(nn.Module):
                     torch.clamp(torch.randn(n_input_proteins), -10, 1)
                 )
         else:
-            if protein_background_prior_mean.shape[1] == 1:
+            if protein_background_prior_mean.shape[1] == 1 and n_batch != 1:
                 init_mean = protein_background_prior_mean.ravel()
                 init_scale = protein_background_prior_scale.ravel()
             else:
