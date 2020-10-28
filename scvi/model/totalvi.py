@@ -91,7 +91,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             "protein", "protein-batch", "protein-label"
         ] = "protein",
         gene_likelihood: Literal["zinb", "nb"] = "nb",
-        latent_distribution: Literal["normal", "ln"] = "ln",
+        latent_distribution: Literal["normal", "ln"] = "normal",
         empirical_protein_background_prior: bool = True,
         use_cuda: bool = True,
         **model_kwargs,
