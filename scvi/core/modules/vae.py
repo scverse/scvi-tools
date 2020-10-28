@@ -522,7 +522,6 @@ class LDVAE(VAE):
         use_batch_norm: bool = True,
         bias: bool = False,
         latent_distribution: str = "normal",
-        use_observed_lib_size: bool = False,
     ):
         super().__init__(
             n_input=n_input,
@@ -536,7 +535,7 @@ class LDVAE(VAE):
             log_variational=log_variational,
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
-            use_observed_lib_size=use_observed_lib_size,
+            use_observed_lib_size=False,
         )
         self.use_batch_norm = use_batch_norm
         self.z_encoder = Encoder(
