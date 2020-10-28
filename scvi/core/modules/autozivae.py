@@ -12,6 +12,7 @@ from scvi import _CONSTANTS
 
 from .utils import one_hot
 from .vae import VAE
+from scvi.core.modules._base._base_module import SCVILoss
 
 torch.backends.cudnn.benchmark = True
 
@@ -295,9 +296,7 @@ class AutoZIVAE(VAE):
         n_samples: int = 1,
         eps_log: float = 1e-8,
     ) -> Dict[str, torch.Tensor]:
-        outputs = super().generative(
-            z=z, library=library, batch_index=batch_index, y=y, n_samples=n_samples
-        )
+        outputs = super().generative(z=z, library=library, batch_index=batch_index, y=y)
         # Rescale dropout
         outputs["px_dropout"] = self.rescale_dropout(
             outputs["px_dropout"], eps_log=eps_log
@@ -357,7 +356,7 @@ class AutoZIVAE(VAE):
         inference_outputs,
         generative_outputs,
         kl_weight=1.0,
-        normalize_loss: float = 1.0,
+        scale_loss: float = 1.0,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         r"""
         Returns the reconstruction loss and the Kullback divergences.
@@ -425,12 +424,8 @@ class AutoZIVAE(VAE):
 
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
         loss = torch.mean(reconst_loss + weighted_kl_local) + kl_global
+        loss = loss * scale_loss
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )
-        return dict(
-            loss=loss,
-            reconstruction_loss=reconst_loss,
-            kl_local=kl_local,
-            kl_global=kl_global,
-        )
+        return SCVILoss(loss, reconst_loss, kl_local, kl_global)
