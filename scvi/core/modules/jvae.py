@@ -15,6 +15,7 @@ from scvi.core.distributions import (
     ZeroInflatedNegativeBinomial,
 )
 from scvi import _CONSTANTS
+from scvi.core.modules._base._base_module import AbstractVAE
 
 from ._base import Encoder, MultiEncoder, MultiDecoder
 from .utils import one_hot
@@ -22,7 +23,7 @@ from .utils import one_hot
 torch.backends.cudnn.benchmark = True
 
 
-class JVAE(nn.Module):
+class JVAE(AbstractVAE):
     """
     Joint variational auto-encoder for imputing missing genes in spatial data.
 
@@ -183,7 +184,9 @@ class JVAE(nn.Module):
                 mode = 0
             else:
                 raise Exception("Must provide a mode when having multiple datasets")
-        qz_m, _, z, _, _, _ = self.encode(x, mode)
+        outputs = self.inference(x, mode)
+        qz_m = outputs["qz_m"]
+        z = outputs["z"]
         if deterministic:
             z = qz_m
         return z
@@ -339,9 +342,7 @@ class JVAE(nn.Module):
         return reconstruction_loss
 
     def _get_inference_input(self, tensors):
-        return dict(
-            x=tensors[_CONSTANTS.X_KEY],
-        )
+        return dict(x=tensors[_CONSTANTS.X_KEY])
 
     def _get_generative_input(self, tensors, inference_outputs):
         z = inference_outputs["z"]
@@ -362,7 +363,7 @@ class JVAE(nn.Module):
         else:
             library = torch.log(torch.sum(x, dim=1)).view(-1, 1)
 
-        return dict(qzm=qz_m, qz_v=qz_v, z=z, ql_m=ql_m, ql_v=ql_v, library=library)
+        return dict(qz_m=qz_m, qz_v=qz_v, z=z, ql_m=ql_m, ql_v=ql_v, library=library)
 
     def generative(
         self,
@@ -375,7 +376,6 @@ class JVAE(nn.Module):
         px_scale, px_r, px_rate, px_dropout = self.decoder(
             z, mode, library, self.dispersion, batch_index, y
         )
-
         if self.dispersion == "gene-label":
             px_r = F.linear(one_hot(y, self.n_labels), self.px_r)
         elif self.dispersion == "gene-batch":
@@ -399,6 +399,7 @@ class JVAE(nn.Module):
         inference_outputs,
         generative_outputs,
         mode: Optional[int] = None,
+        kl_weight=1.0,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Return the reconstruction loss and the Kullback divergences.
@@ -469,4 +470,14 @@ class JVAE(nn.Module):
         else:
             kl_divergence_l = torch.zeros_like(kl_divergence_z)
 
-        return reconstruction_loss, kl_divergence_l + kl_divergence_z, 0.0
+        kl_local = kl_divergence_l + kl_divergence_z
+        kl_global = 0.0
+
+        loss = torch.mean(reconstruction_loss + kl_weight * kl_local) * x.size(0)
+
+        return dict(
+            loss=loss,
+            reconstruction_losses=reconstruction_loss,
+            kl_local=kl_local,
+            kl_global=kl_global,
+        )
