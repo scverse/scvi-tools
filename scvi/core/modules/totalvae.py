@@ -4,7 +4,6 @@ from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
@@ -15,7 +14,7 @@ from scvi.core.distributions import (
     NegativeBinomialMixture,
     ZeroInflatedNegativeBinomial,
 )
-from scvi.core.modules._base._base_module import AbstractVAE
+from scvi.core.modules._base._base_module import AbstractVAE, SCVILoss
 from scvi import _CONSTANTS
 
 from ._base import DecoderTOTALVI, EncoderTOTALVI
@@ -618,9 +617,5 @@ class TOTALVAE(AbstractVAE):
             kl_div_l_gene=kl_div_l_gene,
             kl_div_back_pro=kl_div_back_pro,
         )
-        return dict(
-            loss=loss,
-            reconstruction_losses=reconst_losses,
-            kl_local=kl_local,
-            kl_global=0.0,
-        )
+
+        return SCVILoss(loss, reconst_losses, kl_local, kl_global=0.0)

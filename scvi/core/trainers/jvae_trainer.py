@@ -255,15 +255,15 @@ class JVAETrainer(Trainer):
             generative_kwargs = dict(mode=i)
             loss_kwargs = dict(mode=i, kl_weight=self.kl_weight)
 
-            _, _, loss_output = self.model(
+            _, _, scvi_loss = self.model(
                 data,
                 inference_kwargs=inference_kwargs,
                 generative_kwargs=generative_kwargs,
                 loss_kwargs=loss_kwargs,
             )
-            loss = loss_output["loss"]
-            reconstruction_loss = loss_output["reconstruction_losses"]
-            kl_divergence = loss_output["kl_local"]
+            loss = scvi_loss.loss
+            reconstruction_loss = scvi_loss.reconstruction_loss
+            kl_divergence = scvi_loss.kl_local
 
             total_batch_size += data[_CONSTANTS.X_KEY].size(0)
             losses.append(loss)
