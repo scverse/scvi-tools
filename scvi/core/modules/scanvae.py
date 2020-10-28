@@ -11,6 +11,7 @@ from ._base import Decoder, Encoder
 from .classifier import Classifier
 from .utils import broadcast_labels
 from .vae import VAE
+from scvi.core.modules._base._base_module import SCVILoss
 from scvi import _CONSTANTS
 
 
@@ -199,7 +200,14 @@ class SCANVAE(VAE):
             z2 = qz2_m
         return [zs[0], z2]
 
-    def loss(self, tensors, inference_outputs, generative_ouputs, feed_labels=True):
+    def loss(
+        self,
+        tensors,
+        inference_outputs,
+        generative_ouputs,
+        feed_labels=True,
+        scale_loss=1.0,
+    ):
         px_r = generative_ouputs["px_r"]
         px_rate = generative_ouputs["px_rate"]
         px_dropout = generative_ouputs["px_dropout"]
@@ -271,11 +279,7 @@ class SCANVAE(VAE):
         kl_divergence += kl_divergence_l
 
         loss = torch.mean(reconst_loss + kl_divergence)
+        loss = loss * scale_loss
 
         # reconstruction_loss probably isnt correct
-        return dict(
-            loss=loss,
-            reconstruction_losses=reconst_loss,
-            kl_local=kl_divergence,
-            kl_global=0.0,
-        )
+        return SCVILoss(loss, reconst_loss, kl_divergence, kl_global=0.0)
