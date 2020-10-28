@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
+from scvi._compat import Literal
 from scvi.core.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
@@ -46,7 +47,7 @@ class TOTALVAE(nn.Module):
         Number of hidden layers used for encoder and decoder NNs
     dropout_rate
         Dropout rate for neural networks
-    genes_dispersion
+    gene_dispersion
         One of the following
 
         * ``'gene'`` - genes_dispersion parameter of NB is constant per gene across cells
@@ -70,10 +71,16 @@ class TOTALVAE(nn.Module):
 
         * ``'normal'`` - Isotropic normal
         * ``'ln'`` - Logistic normal with normal params N(0, 1)
-    use_batch_norm_encoder
-        Whether to use batch norm in layers
-    use_batch_norm_decoder
-        Whether to use batch norm in layers
+    protein_batch_mask
+        Dictionary where each key is a batch code, and value is for each protein, whether it was observed or not.
+    encode_covariates
+        Whether to concatenate covariates to expression in encoder
+    protein_background_prior_mean
+        Array of proteins by batches, the prior initialization for the protein background mean (log scale)
+    protein_background_prior_scale
+        Array of proteins by batches, the prior initialization for the protein background scale (log scale)
+    use_observed_lib_size
+        Use observed library size for RNA as scaling factor in mean of conditional distribution
     """
 
     def __init__(
@@ -84,7 +91,7 @@ class TOTALVAE(nn.Module):
         n_labels: int = 0,
         n_hidden: int = 256,
         n_latent: int = 20,
-        n_layers_encoder: int = 1,
+        n_layers_encoder: int = 2,
         n_layers_decoder: int = 1,
         dropout_rate_decoder: float = 0.2,
         dropout_rate_encoder: float = 0.2,
@@ -92,11 +99,14 @@ class TOTALVAE(nn.Module):
         protein_dispersion: str = "protein",
         log_variational: bool = True,
         gene_likelihood: str = "nb",
-        latent_distribution: str = "ln",
+        latent_distribution: str = "normal",
         protein_batch_mask: Dict[Union[str, int], np.ndarray] = None,
-        encoder_batch: bool = True,
-        use_batch_norm_encoder: bool = True,
-        use_batch_norm_decoder: bool = True,
+        encode_covariates: bool = True,
+        protein_background_prior_mean: Optional[np.ndarray] = None,
+        protein_background_prior_scale: Optional[np.ndarray] = None,
+        use_observed_lib_size: bool = True,
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
@@ -110,21 +120,36 @@ class TOTALVAE(nn.Module):
         self.protein_dispersion = protein_dispersion
         self.latent_distribution = latent_distribution
         self.protein_batch_mask = protein_batch_mask
+        self.use_observed_lib_size = use_observed_lib_size
 
         # parameters for prior on rate_back (background protein mean)
-        if n_batch > 0:
-            self.background_pro_alpha = torch.nn.Parameter(
-                torch.randn(n_input_proteins, n_batch)
-            )
-            self.background_pro_log_beta = torch.nn.Parameter(
-                torch.clamp(torch.randn(n_input_proteins, n_batch), -10, 1)
-            )
+        if protein_background_prior_mean is None:
+            if n_batch > 0:
+                self.background_pro_alpha = torch.nn.Parameter(
+                    torch.randn(n_input_proteins, n_batch)
+                )
+                self.background_pro_log_beta = torch.nn.Parameter(
+                    torch.clamp(torch.randn(n_input_proteins, n_batch), -10, 1)
+                )
+            else:
+                self.background_pro_alpha = torch.nn.Parameter(
+                    torch.randn(n_input_proteins)
+                )
+                self.background_pro_log_beta = torch.nn.Parameter(
+                    torch.clamp(torch.randn(n_input_proteins), -10, 1)
+                )
         else:
+            if protein_background_prior_mean.shape[1] == 1 and n_batch != 1:
+                init_mean = protein_background_prior_mean.ravel()
+                init_scale = protein_background_prior_scale.ravel()
+            else:
+                init_mean = protein_background_prior_mean
+                init_scale = protein_background_prior_scale
             self.background_pro_alpha = torch.nn.Parameter(
-                torch.randn(n_input_proteins)
+                torch.from_numpy(init_mean.astype(np.float32))
             )
             self.background_pro_log_beta = torch.nn.Parameter(
-                torch.clamp(torch.randn(n_input_proteins), -10, 1)
+                torch.log(torch.from_numpy(init_scale.astype(np.float32)))
             )
 
         if self.gene_dispersion == "gene":
@@ -137,13 +162,22 @@ class TOTALVAE(nn.Module):
             pass
 
         if self.protein_dispersion == "protein":
-            self.py_r = torch.nn.Parameter(torch.ones(self.n_input_proteins))
+            self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins))
         elif self.protein_dispersion == "protein-batch":
-            self.py_r = torch.nn.Parameter(torch.ones(self.n_input_proteins, n_batch))
+            self.py_r = torch.nn.Parameter(
+                2 * torch.rand(self.n_input_proteins, n_batch)
+            )
         elif self.protein_dispersion == "protein-label":
-            self.py_r = torch.nn.Parameter(torch.ones(self.n_input_proteins, n_labels))
+            self.py_r = torch.nn.Parameter(
+                2 * torch.rand(self.n_input_proteins, n_labels)
+            )
         else:  # protein-cell
             pass
+
+        use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
+        use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
+        use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
+        use_layer_norm_decoder = use_layer_norm == "decoder" or use_layer_norm == "both"
 
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         # latent space representation
@@ -151,11 +185,12 @@ class TOTALVAE(nn.Module):
             n_input_genes + self.n_input_proteins,
             n_latent,
             n_layers=n_layers_encoder,
-            n_cat_list=[n_batch] if encoder_batch else None,
+            n_cat_list=[n_batch] if encode_covariates else None,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate_encoder,
             distribution=latent_distribution,
             use_batch_norm=use_batch_norm_encoder,
+            use_layer_norm=use_layer_norm_encoder,
         )
         self.decoder = DecoderTOTALVI(
             n_latent,
@@ -166,6 +201,7 @@ class TOTALVAE(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate_decoder,
             use_batch_norm=use_batch_norm_decoder,
+            use_layer_norm=use_layer_norm_decoder,
         )
 
     def sample_from_posterior_z(
@@ -360,6 +396,8 @@ class TOTALVAE(nn.Module):
         """
         x_ = x
         y_ = y
+        if self.use_observed_lib_size:
+            library_gene = x.sum(1).unsqueeze(1)
         if self.log_variational:
             x_ = torch.log(1 + x_)
             y_ = torch.log(1 + y_)
@@ -369,9 +407,10 @@ class TOTALVAE(nn.Module):
             torch.cat((x_, y_), dim=-1), batch_index
         )
         z = latent["z"]
-        library_gene = latent["l"]
         untran_z = untran_latent["z"]
         untran_l = untran_latent["l"]
+        if not self.use_observed_lib_size:
+            library_gene = latent["l"]
 
         if n_samples > 1:
             qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
@@ -381,7 +420,12 @@ class TOTALVAE(nn.Module):
             ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
             ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
             untran_l = Normal(ql_m, ql_v.sqrt()).sample()
-            library_gene = self.encoder.l_transformation(untran_l)
+            if self.use_observed_lib_size:
+                library_gene = library_gene.unsqueeze(0).expand(
+                    (n_samples, library_gene.size(0), library_gene.size(1))
+                )
+            else:
+                library_gene = self.encoder.l_transformation(untran_l)
 
         if self.gene_dispersion == "gene-label":
             # px_r gets transposed - last dimension is nb genes
@@ -498,10 +542,13 @@ class TOTALVAE(nn.Module):
 
         # KL Divergence
         kl_div_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(0, 1)).sum(dim=1)
-        kl_div_l_gene = kl(
-            Normal(ql_m, torch.sqrt(ql_v)),
-            Normal(local_l_mean_gene, torch.sqrt(local_l_var_gene)),
-        ).sum(dim=1)
+        if not self.use_observed_lib_size:
+            kl_div_l_gene = kl(
+                Normal(ql_m, torch.sqrt(ql_v)),
+                Normal(local_l_mean_gene, torch.sqrt(local_l_var_gene)),
+            ).sum(dim=1)
+        else:
+            kl_div_l_gene = 0.0
 
         kl_div_back_pro_full = kl(
             Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior

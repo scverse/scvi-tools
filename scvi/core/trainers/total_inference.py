@@ -209,7 +209,8 @@ class TotalTrainer(UnsupervisedTrainer):
 
         return z
 
-    def train(self, n_epochs=500, lr=4e-3, eps=0.01, params=None):
+    def train(self, n_epochs=500, lr=4e-3, eps=0.01, params=None, max_grad_value=None):
+        self.max_grad_value = max_grad_value
 
         super().train(n_epochs=n_epochs, lr=lr, eps=eps, params=params)
 
@@ -240,12 +241,24 @@ class TotalTrainer(UnsupervisedTrainer):
                 (loss + fool_loss).backward()
             else:
                 loss.backward()
+            if self.max_grad_value is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.optimizer.param_groups[0]["params"],
+                    self.max_grad_value,
+                    norm_type="inf",
+                )
             self.optimizer.step()
 
         else:
             self.current_loss = loss = self.loss(*tensors_dict)
             self.optimizer.zero_grad()
             loss.backward()
+            if self.max_grad_value is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.optimizer.param_groups[0]["params"],
+                    self.max_grad_value,
+                    norm_type="inf",
+                )
             self.optimizer.step()
 
     def training_extras_init(self, lr_d=1e-3, eps=0.01):

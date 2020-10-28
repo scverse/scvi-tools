@@ -84,6 +84,7 @@ class VAEC(VAE):
             dispersion=dispersion,
             log_variational=log_variational,
             gene_likelihood=gene_likelihood,
+            use_observed_lib_size=False,
         )
 
         self.z_encoder = Encoder(
@@ -122,7 +123,7 @@ class VAEC(VAE):
 
         # Prepare for sampling
         x_ = torch.log(1 + x)
-        ql_m, ql_v, library = self.l_encoder(x_)
+        ql_m, ql_v, library = self.l_encoder(x_, batch_index)
 
         # Enumerate choices of label
         ys, xs, library_s, batch_index_s = broadcast_labels(

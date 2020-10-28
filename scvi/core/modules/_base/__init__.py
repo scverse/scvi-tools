@@ -1,4 +1,5 @@
 import collections
+from functools import partial
 from typing import Iterable, List
 
 import torch
@@ -39,6 +40,8 @@ class FCLayers(nn.Module):
         Dropout rate to apply to each of the hidden layers
     use_batch_norm
         Whether to have `BatchNorm` layers or not
+    use_layer_norm
+        Whether to have `LayerNorm` layers or not
     use_activation
         Whether to have layer activation or not
     bias
@@ -58,6 +61,7 @@ class FCLayers(nn.Module):
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
         use_batch_norm: bool = True,
+        use_layer_norm: bool = False,
         use_activation: bool = True,
         bias: bool = True,
         inject_covariates: bool = True,
@@ -88,6 +92,9 @@ class FCLayers(nn.Module):
                             # non-default params come from defaults in original Tensorflow implementation
                             nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001)
                             if use_batch_norm
+                            else None,
+                            nn.LayerNorm(n_out, elementwise_affine=False)
+                            if use_layer_norm
                             else None,
                             activation_fn() if use_activation else None,
                             nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None,
@@ -213,13 +220,12 @@ class Encoder(nn.Module):
         The number of fully-connected hidden layers
     n_hidden
         The number of nodes per hidden layer
-        :dropout_rate: Dropout rate to apply to each of the hidden layers
+    dropout_rate
+        Dropout rate to apply to each of the hidden layers
     distribution
         Distribution of z
-    inject_covariates
-        Whether to inject covariates in each layer, or just the first (default).
-    use_batch_norm
-        Whether to use batch norm in layers
+    **kwargs
+        Keyword args for :class:`~scvi.core.modules._base.FCLayers`
     """
 
     def __init__(
@@ -231,8 +237,7 @@ class Encoder(nn.Module):
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
         distribution: str = "normal",
-        inject_covariates: bool = True,
-        use_batch_norm: bool = True,
+        **kwargs,
     ):
         super().__init__()
 
@@ -244,8 +249,7 @@ class Encoder(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
-            inject_covariates=inject_covariates,
-            use_batch_norm=use_batch_norm,
+            **kwargs,
         )
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)
@@ -311,6 +315,10 @@ class DecoderSCVI(nn.Module):
         Whether to inject covariates in each layer, or just the first (default).
     use_batch_norm
         Whether to use batch norm in layers
+    use_layer_norm
+        Whether to use layer norm in layers
+    use_softmax
+        Whether to softmax expression
     """
 
     def __init__(
@@ -321,9 +329,12 @@ class DecoderSCVI(nn.Module):
         n_layers: int = 1,
         n_hidden: int = 128,
         inject_covariates: bool = True,
-        use_batch_norm: bool = True,
+        use_batch_norm: bool = False,
+        use_layer_norm: bool = False,
+        use_softmax: bool = True,
     ):
         super().__init__()
+        self.use_softmax = use_softmax
         self.px_decoder = FCLayers(
             n_in=n_input,
             n_out=n_hidden,
@@ -333,12 +344,11 @@ class DecoderSCVI(nn.Module):
             dropout_rate=0,
             inject_covariates=inject_covariates,
             use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
         )
 
         # mean gamma
-        self.px_scale_decoder = nn.Sequential(
-            nn.Linear(n_hidden, n_output), nn.Softmax(dim=-1)
-        )
+        self.px_scale_decoder = nn.Linear(n_hidden, n_output)
 
         # dispersion: here we only deal with gene-cell dispersion case
         self.px_r_decoder = nn.Linear(n_hidden, n_output)
@@ -381,6 +391,10 @@ class DecoderSCVI(nn.Module):
         # The decoder returns values for the parameters of the ZINB distribution
         px = self.px_decoder(z, *cat_list)
         px_scale = self.px_scale_decoder(px)
+        if self.use_softmax:
+            px_scale = nn.Softmax(dim=-1)(px_scale)
+        else:
+            px_scale = torch.exp(px_scale)
         px_dropout = self.px_dropout_decoder(px)
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
         px_rate = torch.exp(library) * px_scale  # torch.clamp( , max=12)
@@ -394,10 +408,13 @@ class LinearDecoderSCVI(nn.Module):
         n_input: int,
         n_output: int,
         n_cat_list: Iterable[int] = None,
-        use_batch_norm: bool = True,
+        use_batch_norm: bool = False,
+        use_layer_norm: bool = False,
         bias: bool = False,
+        use_softmax: bool = True,
     ):
         super(LinearDecoderSCVI, self).__init__()
+        self.use_softmax = use_softmax
 
         # mean gamma
         self.factor_regressor = FCLayers(
@@ -407,6 +424,7 @@ class LinearDecoderSCVI(nn.Module):
             n_layers=1,
             use_activation=False,
             use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
             bias=bias,
             dropout_rate=0,
         )
@@ -419,6 +437,7 @@ class LinearDecoderSCVI(nn.Module):
             n_layers=1,
             use_activation=False,
             use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
             bias=bias,
             dropout_rate=0,
         )
@@ -428,7 +447,8 @@ class LinearDecoderSCVI(nn.Module):
     ):
         # The decoder returns values for the parameters of the ZINB distribution
         raw_px_scale = self.factor_regressor(z, *cat_list)
-        px_scale = torch.softmax(raw_px_scale, dim=-1)
+        act = partial(torch.softmax, dim=-1) if self.use_softmax else torch.exp
+        px_scale = act(raw_px_scale)
         px_dropout = self.px_dropout_decoder(z, *cat_list)
         px_rate = torch.exp(library) * px_scale
         px_r = None
@@ -461,6 +481,8 @@ class Decoder(nn.Module):
         The number of nodes per hidden layer
     dropout_rate
         Dropout rate to apply to each of the hidden layers
+    kwargs
+        Keyword args for :class:`~scvi.core.modules._base.FCLayers`
     """
 
     def __init__(
@@ -470,6 +492,7 @@ class Decoder(nn.Module):
         n_cat_list: Iterable[int] = None,
         n_layers: int = 1,
         n_hidden: int = 128,
+        **kwargs,
     ):
         super().__init__()
         self.decoder = FCLayers(
@@ -479,6 +502,7 @@ class Decoder(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=0,
+            **kwargs,
         )
 
         self.mean_decoder = nn.Linear(n_hidden, n_output)
@@ -619,7 +643,7 @@ class MultiDecoder(nn.Module):
         dataset_id: int,
         library: torch.Tensor,
         dispersion: str,
-        *cat_list: int
+        *cat_list: int,
     ):
 
         px = z
@@ -656,6 +680,10 @@ class DecoderTOTALVI(nn.Module):
         included using a one-hot encoding
     use_batch_norm
         Whether to use batch norm in layers
+    use_layer_norm
+        Whether to use layer norm in layers
+    use_softmax
+        Whether to use softmax for px_scale
     """
 
     def __init__(
@@ -668,10 +696,21 @@ class DecoderTOTALVI(nn.Module):
         n_hidden: int = 256,
         dropout_rate: float = 0,
         use_batch_norm: float = True,
+        use_layer_norm: float = False,
+        use_softmax: bool = True,
     ):
         super().__init__()
         self.n_output_genes = n_output_genes
         self.n_output_proteins = n_output_proteins
+        self.use_softmax = use_softmax
+
+        linear_args = dict(
+            n_layers=1,
+            use_activation=False,
+            use_batch_norm=False,
+            use_layer_norm=False,
+            dropout_rate=0,
+        )
 
         self.px_decoder = FCLayers(
             n_in=n_input,
@@ -681,6 +720,7 @@ class DecoderTOTALVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
         )
 
         # mean gamma
@@ -688,10 +728,7 @@ class DecoderTOTALVI(nn.Module):
             n_in=n_hidden + n_input,
             n_out=n_output_genes,
             n_cat_list=n_cat_list,
-            n_layers=1,
-            use_activation=False,
-            use_batch_norm=False,
-            dropout_rate=0,
+            **linear_args,
         )
 
         # background mean first decoder
@@ -703,25 +740,20 @@ class DecoderTOTALVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
         )
         # background mean parameters second decoder
         self.py_back_mean_log_alpha = FCLayers(
             n_in=n_hidden + n_input,
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
-            n_layers=1,
-            use_activation=False,
-            use_batch_norm=False,
-            dropout_rate=0,
+            **linear_args,
         )
         self.py_back_mean_log_beta = FCLayers(
             n_in=n_hidden + n_input,
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
-            n_layers=1,
-            use_activation=False,
-            use_batch_norm=False,
-            dropout_rate=0,
+            **linear_args,
         )
 
         # foreground increment decoder step 1
@@ -733,6 +765,7 @@ class DecoderTOTALVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
         )
         # foreground increment decoder step 2
         self.py_fore_scale_decoder = FCLayers(
@@ -742,7 +775,9 @@ class DecoderTOTALVI(nn.Module):
             n_layers=1,
             use_activation=True,
             use_batch_norm=False,
+            use_layer_norm=False,
             dropout_rate=0,
+            activation_fn=nn.ReLU,
         )
 
         # dropout (mixture component for proteins, ZI probability for genes)
@@ -754,25 +789,20 @@ class DecoderTOTALVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
         )
         self.px_dropout_decoder_gene = FCLayers(
             n_in=n_hidden + n_input,
             n_out=n_output_genes,
             n_cat_list=n_cat_list,
-            n_layers=1,
-            use_activation=False,
-            use_batch_norm=False,
-            dropout_rate=0,
+            **linear_args,
         )
 
         self.py_background_decoder = FCLayers(
             n_in=n_hidden + n_input,
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
-            n_layers=1,
-            use_activation=False,
-            use_batch_norm=False,
-            dropout_rate=0,
+            **linear_args,
         )
 
     def forward(self, z: torch.Tensor, library_gene: torch.Tensor, *cat_list: int):
@@ -814,7 +844,11 @@ class DecoderTOTALVI(nn.Module):
 
         px = self.px_decoder(z, *cat_list)
         px_cat_z = torch.cat([px, z], dim=-1)
-        px_["scale"] = nn.Softmax(dim=-1)(self.px_scale_decoder(px_cat_z, *cat_list))
+        unnorm_px_scale = self.px_scale_decoder(px_cat_z, *cat_list)
+        if self.use_softmax:
+            px_["scale"] = nn.Softmax(dim=-1)(unnorm_px_scale)
+        else:
+            px_["scale"] = torch.exp(unnorm_px_scale)
         px_["rate"] = library_gene * px_["scale"]
 
         py_back = self.py_back_decoder(z, *cat_list)
@@ -877,6 +911,8 @@ class EncoderTOTALVI(nn.Module):
         * ``'ln'`` - Logistic normal
     use_batch_norm
         Whether to use batch norm in layers
+    use_layer_norm
+        Whether to use layer norm
     """
 
     def __init__(
@@ -889,6 +925,7 @@ class EncoderTOTALVI(nn.Module):
         dropout_rate: float = 0.1,
         distribution: str = "ln",
         use_batch_norm: bool = True,
+        use_layer_norm: bool = False,
     ):
         super().__init__()
 
@@ -900,6 +937,7 @@ class EncoderTOTALVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
         )
         self.z_mean_encoder = nn.Linear(n_hidden, n_output)
         self.z_var_encoder = nn.Linear(n_hidden, n_output)
@@ -912,6 +950,7 @@ class EncoderTOTALVI(nn.Module):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
         )
         self.l_gene_mean_encoder = nn.Linear(n_hidden, 1)
         self.l_gene_var_encoder = nn.Linear(n_hidden, 1)
