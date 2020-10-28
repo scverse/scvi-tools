@@ -89,7 +89,8 @@ class UnsupervisedTrainer(Trainer):
         self.n_iter_kl_warmup = n_iter_kl_warmup
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
 
-        # if autozi then scale loss should be testsize?
+        # TODO: so the user needs to pass in what to scale loss by?
+        # slightly different from previous implementation
         self.scale_loss = scale_loss
 
         # Total size of the dataset used for training
@@ -113,12 +114,9 @@ class UnsupervisedTrainer(Trainer):
         return ["train_set"]
 
     def loss(self, tensors: dict, feed_labels: bool = True):
-        # The next lines should not be modified, because scanVI's trainer inherits
-        # from this class and should NOT include label information to compute the ELBO by default
-        loss_kwargs = dict(kl_weight=self.kl_weight)
-        _, _, losses = self.model(tensors, loss_kwargs=loss_kwargs)
-        loss = losses["loss"] * self.scale_loss
-        return loss
+        loss_kwargs = dict(kl_weight=self.kl_weight, scale_loss=self.scale_loss)
+        _, _, scvi_loss = self.model(tensors, loss_kwargs=loss_kwargs)
+        return scvi_loss.loss
 
     @property
     def kl_weight(self):

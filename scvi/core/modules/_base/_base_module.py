@@ -5,6 +5,58 @@ import torch
 import torch.nn as nn
 
 
+class SCVILoss:
+    def __init__(self, loss, reconstruction_loss, kl_local, kl_global):
+
+        self._loss = loss if isinstance(loss, dict) else dict(loss=loss)
+        self._reconstruction_loss = (
+            reconstruction_loss
+            if isinstance(reconstruction_loss, dict)
+            else dict(reconstruction_loss=reconstruction_loss)
+        )
+        self._kl_local = (
+            kl_local if isinstance(kl_local, dict) else dict(kl_local=kl_local)
+        )
+        self._kl_global = (
+            kl_global if isinstance(kl_global, dict) else dict(kl_global=kl_global)
+        )
+
+    @staticmethod
+    def _get_dict_sum(dictionary):
+        sum = 0.0
+        for value in dictionary.values():
+            sum += value
+        return sum
+
+    @property
+    def loss(self, sum=True):
+        if sum:
+            return self._get_dict_sum(self._loss)
+        return self._loss
+
+    @property
+    def reconstruction_loss(self, sum=True):
+        if sum:
+            return self._get_dict_sum(self._reconstruction_loss)
+        return self._reconstruction_loss
+
+    @property
+    def kl_local(self, sum=True):
+        if sum:
+            return self._get_dict_sum(self._kl_local)
+        return self._kl_local
+
+    @property
+    def kl_global(self, sum=True):
+        if sum:
+            return self._get_dict_sum(self._kl_global)
+        return self._kl_global
+
+    @property
+    def elbo(self):
+        return
+
+
 class AbstractVAE(nn.Module):
     def __init__(
         self,
