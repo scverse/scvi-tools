@@ -11,7 +11,7 @@ from scvi.core.distributions import (
     NegativeBinomial,
     ZeroInflatedNegativeBinomial,
 )
-from scvi.core.modules._base._base_module import AbstractVAE
+from scvi.core.modules._base._base_module import AbstractVAE, SCVILoss
 from scvi import _CONSTANTS
 
 
@@ -268,8 +268,8 @@ class VAE(AbstractVAE):
         tensors,
         inference_outputs,
         generative_outputs,
-        kl_weight=1.0,
-        normalize_loss: float = 1.0,
+        kl_weight: float = 1.0,
+        scale_loss: float = 1.0,
     ):
         x = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
@@ -306,18 +306,13 @@ class VAE(AbstractVAE):
         weighted_kl_global = kl_weight * kl_global_for_warmup + kl_global_no_warmup
 
         loss = torch.mean(reconst_loss + weighted_kl_local) + weighted_kl_global
+        loss = loss * scale_loss
 
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )
         kl_global = 0.0
-
-        return dict(
-            loss=loss,
-            reconstruction_losses=reconst_loss,
-            kl_local=kl_local,
-            kl_global=kl_global,
-        )
+        return SCVILoss(loss, reconst_loss, kl_local, kl_global)
 
     @torch.no_grad()
     def sample(self, tensors, n_samples=1) -> np.ndarray:
@@ -339,11 +334,13 @@ class VAE(AbstractVAE):
             tensor with shape (n_cells, n_genes, n_samples)
         """
         inference_kwargs = dict(n_samples=n_samples)
-        outputs, _ = self.forward(tensors, inference_kwargs=inference_kwargs)
+        _, inference_outputs, _ = self.forward(
+            tensors, inference_kwargs=inference_kwargs
+        )
 
-        px_r = outputs["px_r"]
-        px_rate = outputs["px_rate"]
-        px_dropout = outputs["px_dropout"]
+        px_r = inference_outputs["px_r"]
+        px_rate = inference_outputs["px_rate"]
+        px_dropout = inference_outputs["px_dropout"]
 
         if self.gene_likelihood == "poisson":
             l_train = px_rate
@@ -373,7 +370,7 @@ class VAE(AbstractVAE):
         return exprs.cpu()
 
     def sample_from_posterior_z(
-        self, x, batch_index=None, y=None, give_mean=False, n_samples=5000
+        self, x, give_mean=False, n_samples=5000
     ) -> torch.Tensor:
         """
         Samples the tensor of latent values from the posterior.
@@ -396,7 +393,11 @@ class VAE(AbstractVAE):
         """
         if self.log_variational:
             x = torch.log(1 + x)
-        qz_m, qz_v, z = self.z_encoder(x, batch_index, y)  # y only used in VAEC
+        outputs = self.inference(x, n_samples=n_samples)
+        qz_m = outputs["qz_m"]
+        qz_v = outputs["qz_v"]
+        z = outputs["z"]
+        # qz_m, qz_v, z = self.z_encoder(x, y)  # y only used in VAEC
 
         if give_mean:
             if self.latent_distribution == "ln":
@@ -429,7 +430,10 @@ class VAE(AbstractVAE):
         """
         if self.log_variational:
             x = torch.log(1 + x)
-        ql_m, ql_v, library = self.l_encoder(x, batch_index)
+        outputs = self.inference(x)
+        ql_m = outputs["ql_m"]
+        ql_v = outputs["ql_v"]
+        library = outputs["library"]
         if give_mean is False:
             library = library
         else:

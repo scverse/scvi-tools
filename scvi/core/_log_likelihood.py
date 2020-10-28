@@ -22,37 +22,15 @@ def compute_elbo(vae, data_loader, **kwargs):
     # Iterate once over the data and compute the elbo
     elbo = 0
     for i_batch, tensors in enumerate(data_loader):
-        _, _, losses = vae(tensors, **kwargs)
+        _, _, scvi_loss = vae(tensors, **kwargs)
 
-        reconstruction_losses = losses["reconstruction_losses"]
-        kls_local = losses["kl_local"]
+        recon_loss = scvi_loss.reconstruction_loss
+        kl_local = scvi_loss.kl_local
+        elbo += torch.sum(recon_loss + kl_local).item()
 
-        if isinstance(reconstruction_losses, dict):
-            reconstruction_loss = 0.0
-            for value in reconstruction_losses.values():
-                reconstruction_loss += value
-        else:
-            reconstruction_loss = reconstruction_losses
-
-        if isinstance(kls_local, dict):
-            kl_local = 0.0
-            for kl in kls_local.values():
-                kl_local += kl
-        else:
-            kl_local = kls_local
-
-        elbo += torch.sum(reconstruction_loss + kl_local).item()
-
-    kl_globals = losses["kl_global"]
-    if isinstance(kl_globals, dict):
-        kl_global = 0.0
-        for kl in kl_globals.values():
-            kl_global += kl
-    else:
-        kl_global = kl_globals
-
+    kl_global = scvi_loss.kl_global
     n_samples = len(data_loader.indices)
-    # elbo += kl_divergence_global
+    elbo += kl_global
     return elbo / n_samples
 
 
