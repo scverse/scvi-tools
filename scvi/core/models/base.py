@@ -114,9 +114,9 @@ class BaseModelClass(ABC):
         indices_test = permutation[(n_val + n_train) :]
 
         return (
-            self._make_scvi_dl(adata, indices=indices_train),
-            self._make_scvi_dl(adata, indices=indices_validation),
-            self._make_scvi_dl(adata, indices=indices_test),
+            self._make_scvi_dl(adata, indices=indices_train, shuffle=True),
+            self._make_scvi_dl(adata, indices=indices_validation, shuffle=True),
+            self._make_scvi_dl(adata, indices=indices_test, shuffle=True),
         )
 
     def _validate_anndata(

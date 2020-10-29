@@ -28,8 +28,15 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
 
     """
 
-    def __init__(self, indices: np.ndarray, batch_size: int, shuffle: bool):
+    def __init__(
+        self,
+        indices: np.ndarray,
+        batch_size: int,
+        shuffle: bool,
+        drop_last: bool = False,
+    ):
         self.indices = indices
+        self.n_obs = len(indices)
         self.batch_size = batch_size
         self.shuffle = shuffle
 
@@ -48,7 +55,11 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         return data_iter
 
     def __len__(self):
-        return len(self.indices) // self.batch_size
+        from math import ceil
+
+        length = ceil(self.n_obs / self.batch_size)
+
+        return length
 
 
 class ScviDataLoader(DataLoader):
@@ -113,29 +124,19 @@ class ScviDataLoader(DataLoader):
         self.to_monitor = []
         self.use_cuda = use_cuda
 
+        sampler_kwargs = {
+            "batch_size": batch_size,
+            "shuffle": shuffle,
+        }
+
         if indices is None:
             inds = np.arange(len(self.dataset))
-            if shuffle:
-                sampler_kwargs = {
-                    "indices": inds,
-                    "batch_size": batch_size,
-                    "shuffle": True,
-                }
-            else:
-                sampler_kwargs = {
-                    "indices": inds,
-                    "batch_size": batch_size,
-                    "shuffle": False,
-                }
+            sampler_kwargs["indices"] = inds
         else:
             if hasattr(indices, "dtype") and indices.dtype is np.dtype("bool"):
                 indices = np.where(indices)[0].ravel()
             indices = np.asarray(indices)
-            sampler_kwargs = {
-                "indices": indices,
-                "batch_size": batch_size,
-                "shuffle": True,
-            }
+            sampler_kwargs["indices"] = indices
 
         self.indices = indices
         self.sampler_kwargs = sampler_kwargs
