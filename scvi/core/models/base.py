@@ -237,7 +237,9 @@ class BaseModelClass(ABC):
             self._pl_task = VAETask(
                 self.model,
             )
-            self.trainer = pl.Trainer(max_epochs=n_epochs, checkpoint_callback=False)
+            self.trainer = pl.Trainer(
+                max_epochs=n_epochs, checkpoint_callback=False, **kwargs
+            )
             train_dl, val_dl, test_dl = self._train_test_val_split(
                 self.adata, train_size=train_size, validation_size=validation_size
             )
