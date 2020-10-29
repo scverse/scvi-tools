@@ -1,4 +1,5 @@
 import logging
+from typing import Union
 
 import torch
 from anndata import AnnData
@@ -11,6 +12,8 @@ from scvi.core.models._utils import (
     _validate_var_names,
 )
 
+from .base import BaseModelClass
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,7 +22,7 @@ class ArchesMixin:
     def load_query_data(
         cls,
         adata: AnnData,
-        dir_path: str,
+        reference_model: Union[str, BaseModelClass],
         use_cuda: bool = True,
         freeze_dropout: bool = False,
         freeze_expression: bool = True,
@@ -35,8 +38,9 @@ class ArchesMixin:
             AnnData organized in the same way as data used to train model.
             It is not necessary to run :func:`~scvi.data.setup_anndata`,
             as AnnData is validated against the saved `scvi` setup dictionary.
-        dir_path
-            Path to saved outputs for reference model.
+        reference_model
+            Either an already instantiated model of the same class, or a path to
+            saved outputs for reference model.
         use_cuda
             Whether to load model on GPU.
         freeze_dropout
@@ -49,10 +53,24 @@ class ArchesMixin:
             Whether to freeze batchnorm weight and bias during training for decoder
         """
         use_cuda = use_cuda and torch.cuda.is_available()
-        map_location = torch.device("cpu") if use_cuda is False else None
-        scvi_setup_dict, attr_dict, var_names, load_state_dict, _ = _load_saved_files(
-            dir_path, load_adata=False, map_location=map_location
-        )
+
+        if isinstance(reference_model, str):
+            map_location = torch.device("cpu") if use_cuda is False else None
+            (
+                scvi_setup_dict,
+                attr_dict,
+                var_names,
+                load_state_dict,
+                _,
+            ) = _load_saved_files(
+                reference_model, load_adata=False, map_location=map_location
+            )
+        else:
+            attr_dict = reference_model._get_user_attributes()
+            attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
+            scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+            var_names = reference_model.adata.var_names
+            load_state_dict = reference_model.model.state_dict().copy()
 
         _validate_var_names(adata, var_names)
         transfer_anndata_setup(scvi_setup_dict, adata, extend_categories=True)

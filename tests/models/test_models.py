@@ -555,18 +555,19 @@ def test_totalvi_online_update(save_path):
     adata2 = synthetic_iid(run_setup_anndata=False)
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
-    model = TOTALVI.load_query_data(adata2, dir_path)
-    assert model.model.background_pro_alpha.requires_grad is True
-    model.train(n_epochs=1)
-    model.get_latent_representation()
+    model2 = TOTALVI.load_query_data(adata2, dir_path)
+    assert model2.model.background_pro_alpha.requires_grad is True
+    model2.train(n_epochs=1)
+    model2.get_latent_representation()
 
     # batch 3 has no proteins
     adata2 = synthetic_iid(run_setup_anndata=False)
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     adata2.obsm["protein_expression"][adata2.obs.batch == "batch_3"] = 0
 
-    model = TOTALVI.load_query_data(adata2, dir_path)
-    model.model.protein_batch_mask[2]
-    model.model.protein_batch_mask[3]
-    model.train(n_epochs=1)
-    model.get_latent_representation()
+    # load from model in memory
+    model3 = TOTALVI.load_query_data(adata2, model)
+    model3.model.protein_batch_mask[2]
+    model3.model.protein_batch_mask[3]
+    model3.train(n_epochs=1)
+    model3.get_latent_representation()
