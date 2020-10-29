@@ -230,7 +230,7 @@ def test_scanvi():
     model = SCANVI(adata, "label_0", n_latent=10)
     model.train(1, train_size=0.5, frequency=1)
     assert len(model.history["unsupervised_trainer_history"]) == 2
-    assert len(model.history["semisupervised_trainer_history"]) == 3
+    assert len(model.history["semisupervised_trainer_history"]) == 7
     adata2 = synthetic_iid()
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3
