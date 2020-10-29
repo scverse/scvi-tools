@@ -98,11 +98,11 @@ class AbstractVAE(nn.Module):
         return inference_outputs, generative_outputs, losses
 
     @abstractmethod
-    def _get_inference_input(self, tensors):
+    def _get_inference_input(self, tensors, **kwargs):
         pass
 
     @abstractmethod
-    def _get_generative_input(self, tensors, inference_outputs):
+    def _get_generative_input(self, tensors, inference_outputs, **kwargs):
         pass
 
     @abstractmethod
@@ -122,5 +122,5 @@ class AbstractVAE(nn.Module):
         pass
 
     @abstractmethod
-    def sample(self):
+    def sample(self, *args, **kwargs):
         pass

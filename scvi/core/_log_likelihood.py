@@ -45,16 +45,8 @@ def compute_reconstruction_error(vae, data_loader, **kwargs):
     log_lkl = 0
     for i_batch, tensors in enumerate(data_loader):
         loss_kwargs = dict(kl_weight=1)
-        _, losses = vae(tensors, loss_kwargs=loss_kwargs)
-        reconstruction_loss = losses["reconstruction_loss"]
-
-        # this if for TotalVI
-        if isinstance(reconstruction_loss, dict):
-            recon_loss = 0
-            for value in recon_loss.values():
-                recon_loss += value
-            reconstruction_loss = recon_loss
-
+        _, _, losses = vae(tensors, loss_kwargs=loss_kwargs)
+        reconstruction_loss = losses.reconstruction_loss
         log_lkl += torch.sum(reconstruction_loss).item()
 
     n_samples = len(data_loader.indices)
@@ -81,24 +73,22 @@ def compute_marginal_log_likelihood_scvi(vae, data_loader, n_samples_mc=100):
         sample_batch = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
         local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        labels = tensors[_CONSTANTS.LABELS_KEY]
 
         to_sum = torch.zeros(sample_batch.size()[0], n_samples_mc)
 
         for i in range(n_samples_mc):
 
             # Distribution parameters and sampled variables
-            outputs = vae.inference(sample_batch, batch_index, labels)
-            qz_m = outputs["qz_m"]
-            qz_v = outputs["qz_v"]
-            z = outputs["z"]
-            ql_m = outputs["ql_m"]
-            ql_v = outputs["ql_v"]
-            library = outputs["library"]
+            inference_outputs, generative_outputs, losses = vae(tensors)
+            qz_m = inference_outputs["qz_m"]
+            qz_v = inference_outputs["qz_v"]
+            z = inference_outputs["z"]
+            ql_m = inference_outputs["ql_m"]
+            ql_v = inference_outputs["ql_v"]
+            library = inference_outputs["library"]
 
             # Reconstruction Loss
-            reconst_loss = vae.get_reconstruction_loss(sample_batch, outputs)
+            reconst_loss = losses.reconstruction_loss
 
             # Log-probabilities
             p_l = Normal(local_l_mean, local_l_var.sqrt()).log_prob(library).sum(dim=-1)
