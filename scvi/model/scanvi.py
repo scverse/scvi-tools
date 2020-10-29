@@ -82,7 +82,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         **model_kwargs,
     ):
         super(SCANVI, self).__init__(adata, use_cuda=use_cuda)
-        self.unlabeled_category = unlabeled_category
+        self.unlabeled_category_ = unlabeled_category
 
         if pretrained_model is not None:
             if pretrained_model.is_trained is False:
@@ -125,8 +125,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         ]
         labels = np.asarray(self.adata.obs[original_key]).ravel()
         self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
-        self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
-        self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
+        self._unlabeled_indices = np.argwhere(
+            labels == self.unlabeled_category_
+        ).ravel()
+        self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
         self.unsupervised_history_ = None
         self.semisupervised_history_ = None
 
@@ -259,13 +261,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             self.model,
             self.adata,
             use_cuda=self.use_cuda,
+            indices_labelled=self._labeled_indices,
+            indices_unlabelled=self._unlabeled_indices,
             **semisupervised_trainer_kwargs,
-        )
-        self.trainer.unlabelled_set = self.trainer.create_scvi_dl(
-            indices=self._unlabeled_indices
-        )
-        self.trainer.labelled_set = self.trainer.create_scvi_dl(
-            indices=self._labeled_indices
         )
         self.semisupervised_history_ = self.trainer.history
         self.trainer.train(

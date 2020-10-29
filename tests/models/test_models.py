@@ -492,6 +492,7 @@ def test_scvi_online_update(save_path):
 
 
 def test_scanvi_online_update(save_path):
+    # ref has semi-observed labels
     n_latent = 5
     adata1 = synthetic_iid(run_setup_anndata=False)
     new_labels = adata1.obs.labels.to_numpy()
@@ -508,6 +509,33 @@ def test_scanvi_online_update(save_path):
     adata2.obs["labels"] = "Unknown"
 
     model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
+    model.train(
+        n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
+    )
+    model.get_latent_representation()
+    model.predict()
+
+    # ref has fully-observed labels
+    n_latent = 5
+    adata1 = synthetic_iid(run_setup_anndata=False)
+    new_labels = adata1.obs.labels.to_numpy()
+    adata1.obs["labels"] = pd.Categorical(new_labels)
+    setup_anndata(adata1, batch_key="batch", labels_key="labels")
+    model = SCANVI(adata1, "Unknown", n_latent=n_latent, encode_covariates=True)
+    model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1, frequency=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    # query has one new label
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    new_labels = adata2.obs.labels.to_numpy()
+    new_labels[0] = "Unknown"
+    adata2.obs["labels"] = pd.Categorical(new_labels)
+
+    model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
+    model._unlabeled_indices = np.arange(adata2.n_obs)
+    model._labeled_indices = []
     model.train(
         n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
     )
