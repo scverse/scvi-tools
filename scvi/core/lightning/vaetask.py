@@ -26,7 +26,8 @@ class VAETask(pl.LightningModule):
         return self.model(*args, **kwargs)
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
-        _, _, scvi_loss = self.forward(batch, kl_weight=self.kl_weight)
+        loss_kwargs = dict(kl_weight=self.kl_weight)
+        _, _, scvi_loss = self.forward(batch, loss_kwargs=loss_kwargs)
         return scvi_loss.loss
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
