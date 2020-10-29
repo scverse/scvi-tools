@@ -94,8 +94,8 @@ class ScviDataLoader(DataLoader):
         indices=None,
         use_cuda=True,
         batch_size=128,
-        data_loader_kwargs=dict(),
         data_and_attributes: Optional[dict] = None,
+        **data_loader_kwargs,
     ):
 
         if "_scvi" not in adata.uns.keys():
