@@ -20,6 +20,8 @@ class VAETask(pl.LightningModule):
         self.model = vae_model
         self.lr = lr
         self.weight_decay = weight_decay
+        self.n_iter_kl_warmup = n_iter_kl_warmup
+        self.n_epochs_kl_warmup = n_epochs_kl_warmup
 
     def forward(self, *args, **kwargs):
         """Passthrough to model.forward()."""
