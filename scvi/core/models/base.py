@@ -73,10 +73,7 @@ class BaseModelClass(ABC):
         return post
 
     def _train_test_val_split(
-        self,
-        adata,
-        train_size=0.9,
-        validation_size=None,
+        self, adata, train_size=0.9, validation_size=None, **kwargs
     ):
         """
         Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
@@ -114,9 +111,11 @@ class BaseModelClass(ABC):
         indices_test = permutation[(n_val + n_train) :]
 
         return (
-            self._make_scvi_dl(adata, indices=indices_train, shuffle=True),
-            self._make_scvi_dl(adata, indices=indices_validation, shuffle=True),
-            self._make_scvi_dl(adata, indices=indices_test, shuffle=True),
+            self._make_scvi_dl(adata, indices=indices_train, shuffle=True, **kwargs),
+            self._make_scvi_dl(
+                adata, indices=indices_validation, shuffle=True, **kwargs
+            ),
+            self._make_scvi_dl(adata, indices=indices_test, shuffle=True, **kwargs),
         )
 
     def _validate_anndata(
@@ -207,6 +206,7 @@ class BaseModelClass(ABC):
         n_epochs: Optional[int] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
+        use_gpu: Optional[bool] = None,
         **kwargs,
     ):
         """
@@ -235,15 +235,29 @@ class BaseModelClass(ABC):
         **kwargs
             Other keyword args for :class:`~scvi.core.trainers.UnsupervisedTrainer`.
         """
+        if use_gpu is not None:
+            use_gpu = use_gpu and torch.cuda.is_available()
+        else:
+            use_gpu = torch.cuda.is_available()
+
         if self.is_trained_ is False:
             self._pl_task = VAETask(
                 self.model,
             )
+            if use_gpu:
+                gpus = 1
+                pin_memory = True
+            else:
+                gpus = None
+                pin_memory = False
             self.trainer = pl.Trainer(
-                max_epochs=n_epochs, checkpoint_callback=False, **kwargs
+                max_epochs=n_epochs, checkpoint_callback=False, gpus=gpus, **kwargs
             )
             train_dl, val_dl, test_dl = self._train_test_val_split(
-                self.adata, train_size=train_size, validation_size=validation_size
+                self.adata,
+                train_size=train_size,
+                validation_size=validation_size,
+                pin_memory=pin_memory,
             )
             self.train_indices_ = train_dl.indices
             self.test_indices_ = test_dl.indices
