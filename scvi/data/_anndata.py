@@ -510,7 +510,7 @@ def _transfer_batch_and_labels(adata_target, categorical_mappings, extend_catego
             for c in np.unique(adata_target.obs[original_key]):
                 if c not in mapping:
                     mapping = np.concatenate([mapping, [c]])
-        cat_dtype = CategoricalDtype(categories=mapping)
+        cat_dtype = CategoricalDtype(categories=mapping, ordered=None)
         _make_obs_column_categorical(
             adata_target, original_key, key, categorical_dtype=cat_dtype
         )
