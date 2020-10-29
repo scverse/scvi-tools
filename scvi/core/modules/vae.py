@@ -171,11 +171,15 @@ class VAE(AbstractVAE):
     def _get_inference_input(self, tensors):
         return {"x": tensors[_CONSTANTS.X_KEY]}
 
-    def _get_generative_input(self, tensors, inference_outputs):
+    def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
         z = inference_outputs["z"]
         library = inference_outputs["library"]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
         y = tensors[_CONSTANTS.LABELS_KEY]
+
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
         input_dict = {"z": z, "library": library, "batch_index": batch_index, "y": y}
         return input_dict
 
@@ -220,7 +224,7 @@ class VAE(AbstractVAE):
 
         return outputs
 
-    def generative(self, z, library, batch_index, y=None, **kwargs):
+    def generative(self, z, library, batch_index, y=None):
         """Runs the generative model."""
         # make random y since its not used
         # TODO: refactor forward function to not rely on y
@@ -297,7 +301,15 @@ class VAE(AbstractVAE):
         return SCVILoss(loss, reconst_loss, kl_local, kl_global)
 
     @torch.no_grad()
-    def sample(self, tensors, n_samples=1) -> np.ndarray:
+    # a lot of these n_samples
+    def sample(
+        self,
+        tensors,
+        n_samples=1,
+        n_inference_samples=1,
+        transform_batch=None,
+        library_size=1,
+    ) -> np.ndarray:
         r"""
         Generate observation samples from the posterior predictive distribution.
 
@@ -315,9 +327,12 @@ class VAE(AbstractVAE):
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
         """
+        generative_input_kwargs = dict(transform_batch=transform_batch)
         inference_kwargs = dict(n_samples=n_samples)
-        _, inference_outputs, _ = self.forward(
-            tensors, inference_kwargs=inference_kwargs
+        inference_outputs, generative_outputs, loss = self.forward(
+            tensors,
+            inference_kwargs=inference_kwargs,
+            get_generative_input_kwargs=generative_input_kwargs,
         )
 
         px_r = inference_outputs["px_r"]
