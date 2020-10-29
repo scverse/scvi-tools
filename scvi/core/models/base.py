@@ -7,11 +7,14 @@ from typing import Optional, Sequence
 
 import numpy as np
 import rich
+import pytorch_lightning as pl
 import torch
 from anndata import AnnData
 from rich.text import Text
+from sklearn.model_selection._split import _validate_shuffle_split
 
 from scvi import _CONSTANTS, settings
+from scvi.core.lightning import VAETask
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
@@ -49,6 +52,7 @@ class BaseModelClass(ABC):
         adata: AnnData,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
+        shuffle=False,
         **data_loader_kwargs,
     ):
         """Create a ScviDataLoader object for data iteration."""
@@ -57,15 +61,61 @@ class BaseModelClass(ABC):
         if indices is None:
             indices = np.arange(adata.n_obs)
         post = self._scvi_dl_class(
-            self.model,
             adata,
-            shuffle=False,
+            shuffle=shuffle,
             indices=indices,
             use_cuda=self.use_cuda,
             batch_size=batch_size,
             **data_loader_kwargs,
-        ).sequential()
+        )
         return post
+
+    def _train_test_val_split(
+        self,
+        adata,
+        train_size=0.9,
+        validation_size=None,
+    ):
+        """
+        Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
+
+        If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
+
+        Parameters
+        ----------
+        train_size
+            float, or None (default is 0.9)
+        validation_size
+            float, or None (default is None)
+        """
+        train_size = float(train_size)
+        if train_size > 1.0 or train_size <= 0.0:
+            raise ValueError(
+                "train_size needs to be greater than 0 and less than or equal to 1"
+            )
+
+        n = len(adata)
+        try:
+            n_train, n_val = _validate_shuffle_split(n, validation_size, train_size)
+        except ValueError:
+            if train_size != 1.0:
+                raise ValueError(
+                    "Choice of train_size={} and validation_size={} not understood".format(
+                        train_size, validation_size
+                    )
+                )
+            n_train, n_val = n, 0
+        random_state = np.random.RandomState(seed=settings.seed)
+        permutation = random_state.permutation(n)
+        indices_validation = permutation[:n_val]
+        indices_train = permutation[n_val : (n_val + n_train)]
+        indices_test = permutation[(n_val + n_train) :]
+
+        return (
+            self._make_scvi_dl(adata, indices=indices_train),
+            self._make_scvi_dl(adata, indices=indices_validation),
+            self._make_scvi_dl(adata, indices=indices_test),
+        )
 
     def _validate_anndata(
         self, adata: Optional[AnnData] = None, copy_if_view: bool = True
@@ -106,10 +156,6 @@ class BaseModelClass(ABC):
     @property
     @abstractmethod
     def _trainer_class(self):
-        pass
-
-    @abstractmethod
-    def train(self):
         pass
 
     @property
@@ -153,6 +199,54 @@ class BaseModelClass(ABC):
             k: v for (k, v) in user_params.items() if not isinstance(v, AnnData)
         }
         return user_params
+
+    def train(
+        self,
+        n_epochs: Optional[int] = None,
+        train_size: float = 0.9,
+        validation_size: Optional[float] = None,
+        **kwargs,
+    ):
+        """
+        Trains the model using amortized variational inference.
+
+        Parameters
+        ----------
+        n_epochs
+            Number of passes through the dataset.
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        validation_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        lr
+            Learning rate for optimization.
+        n_epochs_kl_warmup
+            Number of passes through dataset for scaling term on KL divergence to go from 0 to 1.
+        n_iter_kl_warmup
+            Number of minibatches for scaling term on KL divergence to go from 0 to 1.
+            To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
+        frequency
+            Frequency with which metrics are computed on the data for train/test/val sets.
+        train_fun_kwargs
+            Keyword args for the train method of :class:`~scvi.core.trainers.UnsupervisedTrainer`.
+        **kwargs
+            Other keyword args for :class:`~scvi.core.trainers.UnsupervisedTrainer`.
+        """
+        if self.is_trained_ is False:
+            self._pl_task = VAETask(
+                self.model,
+            )
+            self.trainer = pl.Trainer(checkpoint_callback=False)
+            train_dl, val_dl, test_dl = self._train_test_val_split(
+                self.adata, train_size=train_size, validation_size=validation_size
+            )
+            self.train_indices_ = train_dl.indices
+            self.test_indices_ = test_dl.indices
+            self.validation_indices_ = val_dl.indices
+
+        self.trainer.fit(self._pl_task, train_dl, val_dl)
+        self.is_trained_ = True
 
     def save(
         self,
