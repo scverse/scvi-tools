@@ -115,8 +115,8 @@ class SCANVAE(VAE):
         self.classifier = Classifier(
             n_latent,
             n_labels=n_labels,
-            use_batch_norm=use_batch_norm,
-            use_layer_norm=use_layer_norm,
+            use_batch_norm=use_batch_norm_encoder,
+            use_layer_norm=use_layer_norm_encoder,
             **cls_parameters
         )
 
