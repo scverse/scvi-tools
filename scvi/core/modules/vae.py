@@ -197,8 +197,8 @@ class VAE(AbstractVAE):
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
-        qz_m, qz_v, z = self.z_encoder(x_)
-        ql_m, ql_v, library_encoded = self.l_encoder(x_)
+        qz_m, qz_v, z = self.z_encoder(x_, batch_index)
+        ql_m, ql_v, library_encoded = self.l_encoder(x_, batch_index)
 
         if not self.use_observed_lib_size:
             library = library_encoded
