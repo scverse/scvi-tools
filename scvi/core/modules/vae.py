@@ -340,12 +340,14 @@ class VAE(AbstractVAE):
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
         """
-        generative_input_kwargs = dict(transform_batch=transform_batch)
+        get_inference_input_kwargs = dict(transform_batch=transform_batch)
+        get_generative_input_kwargs = dict(transform_batch=transform_batch)
         inference_kwargs = dict(n_samples=n_samples)
         inference_outputs, generative_outputs, = self.forward(
             tensors,
             inference_kwargs=inference_kwargs,
-            get_generative_input_kwargs=generative_input_kwargs,
+            get_inference_input_kwargs=get_inference_input_kwargs,
+            get_generative_input_kwargs=get_generative_input_kwargs,
             compute_loss=False,
         )
 
