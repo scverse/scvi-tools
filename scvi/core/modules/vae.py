@@ -69,10 +69,6 @@ class VAE(AbstractVAE):
     deeply_inject_covariates
         Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
-    use_observed_lib_size
-        Use observed library size for RNA as scaling factor in mean of conditional distribution
-    use_batch_norm
-        Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
     use_observed_lib_size
@@ -196,11 +192,16 @@ class VAE(AbstractVAE):
         Runs the inference (encoder) model.
         """
         x_ = x
+        if self.use_observed_lib_size:
+            library = torch.log(x.sum(1)).unsqueeze(1)
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
-        qz_m, qz_v, z = self.z_encoder(x_, batch_index)
-        ql_m, ql_v, library = self.l_encoder(x_, batch_index)
+        qz_m, qz_v, z = self.z_encoder(x_)
+        ql_m, ql_v, library_encoded = self.l_encoder(x_)
+
+        if not self.use_observed_lib_size:
+            library = library_encoded
 
         outputs = dict()
 
@@ -219,8 +220,12 @@ class VAE(AbstractVAE):
             z = self.z_encoder.z_transformation(untran_z)
             ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
             ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
-            library = Normal(ql_m, ql_v.sqrt()).sample()
-
+            if self.use_observed_lib_size:
+                library = library.unsqueeze(0).expand(
+                    (n_samples, library.size(0), library.size(1))
+                )
+            else:
+                library = Normal(ql_m, ql_v.sqrt()).sample()
             outputs["z"] = z
             outputs["qz_m"] = qz_m
             outputs["qz_v"] = qz_v
@@ -282,10 +287,13 @@ class VAE(AbstractVAE):
             dim=1
         )
 
-        kl_divergence_l = kl(
-            Normal(ql_m, torch.sqrt(ql_v)),
-            Normal(local_l_mean, torch.sqrt(local_l_var)),
-        ).sum(dim=1)
+        if not self.use_observed_lib_size:
+            kl_divergence_l = kl(
+                Normal(ql_m, torch.sqrt(ql_v)),
+                Normal(local_l_mean, torch.sqrt(local_l_var)),
+            ).sum(dim=1)
+        else:
+            kl_divergence_l = 0.0
 
         reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
 
