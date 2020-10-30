@@ -287,18 +287,25 @@ class TOTALVAE(AbstractVAE):
 
         return reconst_loss_gene, reconst_loss_protein
 
-    def _get_inference_input(self, tensors):
-        return dict(
-            x=tensors[_CONSTANTS.X_KEY],
-            y=tensors[_CONSTANTS.PROTEIN_EXP_KEY],
-            batch_index=tensors[_CONSTANTS.BATCH_KEY],
-        )
+    def _get_inference_input(self, tensors, transform_batch=None):
+        x = tensors[_CONSTANTS.X_KEY]
+        y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
-    def _get_generative_input(self, tensors, inference_outputs):
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
+        input_dict = dict(x=x, y=y, batch_index=batch_index)
+        return input_dict
+
+    def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
         z = inference_outputs["z"]
         library_gene = inference_outputs["library_gene"]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
         label = tensors[_CONSTANTS.LABELS_KEY]
+
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
         return dict(
             z=z, library_gene=library_gene, batch_index=batch_index, label=label
         )
@@ -536,3 +543,31 @@ class TOTALVAE(AbstractVAE):
         )
 
         return SCVILoss(loss, reconst_losses, kl_local, kl_global=0.0)
+
+    def sample(self, tensors, transform_batch=None, n_samples=1):
+        get_inference_input_kwargs = dict(transform_batch=transform_batch)
+        get_generative_input_kwargs = dict(transform_batch=transform_batch)
+        inference_kwargs = dict(n_samples=n_samples)
+        with torch.no_grad():
+            inference_outputs, generative_outputs, = self.forward(
+                tensors,
+                inference_kwargs=inference_kwargs,
+                get_inference_input_kwargs=get_inference_input_kwargs,
+                get_generative_input_kwargs=get_generative_input_kwargs,
+                compute_loss=False,
+            )
+
+        px_ = generative_outputs["px_"]
+        py_ = generative_outputs["py_"]
+
+        rna_dist = NegativeBinomial(mu=px_["rate"], theta=px_["r"])
+        protein_dist = NegativeBinomialMixture(
+            mu1=py_["rate_back"],
+            mu2=py_["rate_fore"],
+            theta1=py_["r"],
+            mixture_logits=py_["mixing"],
+        )
+        rna_sample = rna_dist.sample().cpu()
+        protein_sample = protein_dist.sample().cpu()
+
+        return rna_sample, protein_sample

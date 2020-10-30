@@ -13,7 +13,6 @@ from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
 from scvi.core.data_loaders import TotalDataLoader
-from scvi.core.distributions import NegativeBinomial, NegativeBinomialMixture
 from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.models._utils import _de_core
 from scvi.core.modules import TOTALVAE
@@ -268,12 +267,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         libraries = []
         for tensors in post:
-            x = tensors[_CONSTANTS.X_KEY]
-            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
-            batch = tensors[_CONSTANTS.BATCH_KEY]
-            library = self.model.sample_from_posterior_l(
-                x, y, batch, give_mean=give_mean
-            )
+            inference_inputs = self.model._get_inference_input(tensors)
+            outputs = self.model.inference(**inference_inputs)
+            ql_m = outputs["ql_m"]
+            ql_v = outputs["ql_v"]
+            if give_mean is True:
+                library = torch.exp(ql_m + 0.5 * ql_v)
+            else:
+                library = outputs["library_gene"]
             libraries += [library.cpu()]
         return np.array(torch.cat(libraries))
 
@@ -385,29 +386,29 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for tensors in post:
             x = tensors[_CONSTANTS.X_KEY]
             y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
-            batch_index = tensors[_CONSTANTS.BATCH_KEY]
-            label = tensors[_CONSTANTS.LABELS_KEY]
             px_scale = torch.zeros_like(x)
             py_scale = torch.zeros_like(y)
             if n_samples > 1:
                 px_scale = torch.stack(n_samples * [px_scale])
                 py_scale = torch.stack(n_samples * [py_scale])
             for b in transform_batch:
-                outputs = self.model.inference(
-                    x,
-                    y,
-                    batch_index=batch_index,
-                    label=label,
-                    n_samples=n_samples,
-                    transform_batch=b,
+                get_inference_input_kwargs = dict(transform_batch=b)
+                get_generative_input_kwargs = dict(transform_batch=b)
+                inference_kwargs = dict(n_samples=n_samples)
+                inference_outputs, generative_outputs = self.model.forward(
+                    tensors=tensors,
+                    get_inference_input_kwargs=get_inference_input_kwargs,
+                    get_generative_input_kwargs=get_generative_input_kwargs,
+                    inference_kwargs=inference_kwargs,
+                    compute_loss=False,
                 )
                 if library_size == "latent":
-                    px_scale += outputs["px_"]["rate"]
+                    px_scale += generative_outputs["px_"]["rate"]
                 else:
-                    px_scale += outputs["px_"]["scale"]
+                    px_scale += generative_outputs["px_"]["scale"]
                 px_scale = px_scale[..., gene_mask]
 
-                py_ = outputs["py_"]
+                py_ = generative_outputs["py_"]
                 # probability of background
                 protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
                 if sample_protein_mixing is True:
@@ -539,23 +540,24 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
         for tensors in post:
-            x = tensors[_CONSTANTS.X_KEY]
             y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
-            batch_index = tensors[_CONSTANTS.BATCH_KEY]
-            label = tensors[_CONSTANTS.LABELS_KEY]
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
             for b in transform_batch:
-                outputs = self.model.inference(
-                    x,
-                    y,
-                    batch_index=batch_index,
-                    label=label,
-                    n_samples=n_samples,
-                    transform_batch=b,
+                get_inference_input_kwargs = dict(transform_batch=b)
+                get_generative_input_kwargs = dict(transform_batch=b)
+                inference_kwargs = dict(n_samples=n_samples)
+                inference_outputs, generative_outputs = self.model.forward(
+                    tensors=tensors,
+                    get_inference_input_kwargs=get_inference_input_kwargs,
+                    get_generative_input_kwargs=get_generative_input_kwargs,
+                    inference_kwargs=inference_kwargs,
+                    compute_loss=False,
                 )
-                py_mixing += torch.sigmoid(outputs["py_"]["mixing"])[..., protein_mask]
+                py_mixing += torch.sigmoid(generative_outputs["py_"]["mixing"])[
+                    ..., protein_mask
+                ]
             py_mixing /= len(transform_batch)
             py_mixings += [py_mixing.cpu()]
         if n_samples > 1:
@@ -746,31 +748,13 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             all_proteins = self.scvi_setup_dict_["protein_names"]
             protein_mask = [True if p in protein_list else False for p in all_proteins]
 
-        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
         scdl_list = []
-        for tensors in post:
-            x = tensors[_CONSTANTS.X_KEY]
-            batch_idx = tensors[_CONSTANTS.BATCH_KEY]
-            labels = tensors[_CONSTANTS.LABELS_KEY]
-            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
-            with torch.no_grad():
-                outputs = self.model.inference(
-                    x, y, batch_index=batch_idx, label=labels, n_samples=n_samples
-                )
-            px_ = outputs["px_"]
-            py_ = outputs["py_"]
-
-            rna_dist = NegativeBinomial(mu=px_["rate"], theta=px_["r"])
-            protein_dist = NegativeBinomialMixture(
-                mu1=py_["rate_back"],
-                mu2=py_["rate_fore"],
-                theta1=py_["r"],
-                mixture_logits=py_["mixing"],
-            )
-
-            rna_sample = rna_dist.sample().cpu()[..., gene_mask]
-            protein_sample = protein_dist.sample().cpu()[..., protein_mask]
+        for tensors in scdl:
+            rna_sample, protein_sample = self.model.sample(tensors, n_samples=n_samples)
+            rna_sample = rna_sample[..., gene_mask]
+            protein_sample = protein_sample[..., protein_mask]
             data = torch.cat([rna_sample, protein_sample], dim=-1).numpy()
 
             scdl_list += [data]
@@ -810,25 +794,25 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             int of which batch to condition on for all cells
         """
         adata = self._validate_anndata(adata)
-        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
 
         scdl_list = []
-        for tensors in post:
+        for tensors in scdl:
             x = tensors[_CONSTANTS.X_KEY]
-            batch_idx = tensors[_CONSTANTS.BATCH_KEY]
-            label = tensors[_CONSTANTS.LABELS_KEY]
             y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+            get_inference_input_kwargs = dict(transform_batch=transform_batch)
+            get_generative_input_kwargs = dict(transform_batch=transform_batch)
+            inference_kwargs = dict(n_samples=n_samples)
             with torch.no_grad():
-                outputs = self.model.inference(
-                    x,
-                    y,
-                    batch_index=batch_idx,
-                    label=label,
-                    n_samples=n_samples,
-                    transform_batch=transform_batch,
+                inference_outputs, generative_outputs, = self.model.forward(
+                    tensors,
+                    inference_kwargs=inference_kwargs,
+                    get_inference_input_kwargs=get_inference_input_kwargs,
+                    get_generative_input_kwargs=get_generative_input_kwargs,
+                    compute_loss=False,
                 )
-            px_ = outputs["px_"]
-            py_ = outputs["py_"]
+            px_ = generative_outputs["px_"]
+            py_ = generative_outputs["py_"]
 
             pi = 1 / (1 + torch.exp(-py_["mixing"]))
             mixing_sample = torch.distributions.Bernoulli(pi).sample()

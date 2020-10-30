@@ -179,7 +179,7 @@ class TotalTrainer(UnsupervisedTrainer):
                 kappa = self.kappa
             batch_index = tensors_dict[0][_CONSTANTS.BATCH_KEY]
             if kappa > 0:
-                inference_inputs = self.model._get_inference_input(tensors_dict)
+                inference_inputs = self.model._get_inference_input(*tensors_dict)
                 z = self.model.inference(**inference_inputs)["z"]
                 # Train discriminator
                 d_loss = self.loss_discriminator(z.detach(), batch_index, True)
