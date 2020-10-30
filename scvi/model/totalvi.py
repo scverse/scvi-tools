@@ -237,65 +237,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         return -post.reconstruction_error(mode=mode)
 
     @torch.no_grad()
-    def get_latent_representation(
-        self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        give_mean: bool = True,
-        mc_samples: int = 5000,
-        batch_size: Optional[int] = None,
-    ) -> np.ndarray:
-        """
-        Return the latent representation for each cell.
-
-        Parameters
-        ----------
-        adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
-        indices
-            Indices of cells in adata to use. If `None`, all cells are used.
-        give_mean
-            Give mean of distribution or sample from it
-        mc_samples
-            For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte Carlo
-            samples to take for computing mean.
-        batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-
-        Returns
-        -------
-        latent_representation : np.ndarray
-            Low-dimensional representation for each cell
-
-        Examples
-        --------
-        >>> vae = scvi.model.TOTALVI(adata)
-        >>> vae.train(n_epochs=400)
-        >>> adata.obsm["X_totalVI"] = vae.get_latent_representation()
-
-        We can also get the latent representation for a subset of cells
-
-        >>> adata_subset = adata[adata.obs.cell_type == "really cool cell type"]
-        >>> latent_subset = vae.get_latent_representation(adata_subset)
-        """
-        if self.is_trained_ is False:
-            raise RuntimeError("Please train the model first.")
-
-        adata = self._validate_anndata(adata)
-        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
-        latent = []
-        for tensors in post:
-            x = tensors[_CONSTANTS.X_KEY]
-            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
-            batch = tensors[_CONSTANTS.BATCH_KEY]
-            z = self.model.sample_from_posterior_z(
-                x, y, batch, give_mean=give_mean, n_samples=mc_samples
-            )
-            latent += [z.cpu()]
-        return np.array(torch.cat(latent))
-
-    @torch.no_grad()
     def get_latent_library_size(
         self,
         adata: Optional[AnnData] = None,
