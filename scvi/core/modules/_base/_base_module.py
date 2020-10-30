@@ -29,28 +29,20 @@ class SCVILoss:
         return sum
 
     @property
-    def loss(self, sum=True):
-        if sum:
-            return self._get_dict_sum(self._loss)
-        return self._loss
+    def loss(self):
+        return self._get_dict_sum(self._loss)
 
     @property
-    def reconstruction_loss(self, sum=True):
-        if sum:
-            return self._get_dict_sum(self._reconstruction_loss)
-        return self._reconstruction_loss
+    def reconstruction_loss(self):
+        return self._get_dict_sum(self._reconstruction_loss)
 
     @property
-    def kl_local(self, sum=True):
-        if sum:
-            return self._get_dict_sum(self._kl_local)
-        return self._kl_local
+    def kl_local(self):
+        return self._get_dict_sum(self._kl_local)
 
     @property
-    def kl_global(self, sum=True):
-        if sum:
-            return self._get_dict_sum(self._kl_global)
-        return self._kl_global
+    def kl_global(self):
+        return self._get_dict_sum(self._kl_global)
 
     @property
     def elbo(self):
