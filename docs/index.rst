@@ -75,7 +75,7 @@ These models are able to simultaneously perform many downstream tasks such as le
             </div>
             <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
                 <div class="card text-center intro-card shadow">
-                <img src="_static/code-24px.svg" class="card-img-top" alt="contribute to pandas action icon" height="52">
+                <img src="_static/code-24px.svg" class="card-img-top" alt="contribute to scvi-tools action icon" height="52">
                 <div class="card-body flex-fill">
                     <h5 class="card-title">Developer guide</h5>
                     <p class="card-text">Want to improve scvi-tools? The contributing guidelines
@@ -83,7 +83,7 @@ These models are able to simultaneously perform many downstream tasks such as le
 
 .. container:: custom-button
 
-    :doc:`To the development guide<contributing>`
+    :doc:`To the development guide<development>`
 
 .. raw:: html
 
@@ -102,8 +102,8 @@ These models are able to simultaneously perform many downstream tasks such as le
    installation
    user_guide/index
    api/index
-   contributing
-   history
+   development
+   release_notes/index
    authors
    references
-
+   Discussion <https://discourse.scvi-tools.org>
