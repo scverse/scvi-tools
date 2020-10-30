@@ -168,8 +168,15 @@ class VAE(AbstractVAE):
             use_layer_norm=use_layer_norm_decoder,
         )
 
-    def _get_inference_input(self, tensors):
-        return {"x": tensors[_CONSTANTS.X_KEY]}
+    def _get_inference_input(self, tensors, transform_batch=None):
+        x = tensors[_CONSTANTS.X_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
+        input_dict = dict(x=x, batch_index=batch_index)
+        return input_dict
 
     def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
         z = inference_outputs["z"]
@@ -179,11 +186,10 @@ class VAE(AbstractVAE):
 
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
-
         input_dict = {"z": z, "library": library, "batch_index": batch_index, "y": y}
         return input_dict
 
-    def inference(self, x, n_samples=1):
+    def inference(self, x, batch_index, n_samples=1):
         """
         High level inference method.
 
@@ -193,8 +199,8 @@ class VAE(AbstractVAE):
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
-        qz_m, qz_v, z = self.z_encoder(x_)
-        ql_m, ql_v, library = self.l_encoder(x_)
+        qz_m, qz_v, z = self.z_encoder(x_, batch_index)
+        ql_m, ql_v, library = self.l_encoder(x_, batch_index)
 
         outputs = dict()
 
@@ -306,7 +312,6 @@ class VAE(AbstractVAE):
         self,
         tensors,
         n_samples=1,
-        n_inference_samples=1,
         transform_batch=None,
         library_size=1,
     ) -> np.ndarray:
@@ -329,15 +334,16 @@ class VAE(AbstractVAE):
         """
         generative_input_kwargs = dict(transform_batch=transform_batch)
         inference_kwargs = dict(n_samples=n_samples)
-        inference_outputs, generative_outputs, loss = self.forward(
+        inference_outputs, generative_outputs, = self.forward(
             tensors,
             inference_kwargs=inference_kwargs,
             get_generative_input_kwargs=generative_input_kwargs,
+            compute_loss=False,
         )
 
-        px_r = inference_outputs["px_r"]
-        px_rate = inference_outputs["px_rate"]
-        px_dropout = inference_outputs["px_dropout"]
+        px_r = generative_outputs["px_r"]
+        px_rate = generative_outputs["px_rate"]
+        px_dropout = generative_outputs["px_dropout"]
 
         if self.gene_likelihood == "poisson":
             l_train = px_rate
@@ -365,100 +371,6 @@ class VAE(AbstractVAE):
             exprs = dist.sample()
 
         return exprs.cpu()
-
-    def sample_from_posterior_l(self, x, give_mean=True) -> torch.Tensor:
-        """
-        Samples the tensor of library sizes from the posterior.
-
-        Parameters
-        ----------
-        x
-            tensor of values with shape ``(batch_size, n_input)``
-        y
-            tensor of cell-types labels with shape ``(batch_size, n_labels)``
-        give_mean
-            Return mean or sample
-
-        Returns
-        -------
-        type
-            tensor of shape ``(batch_size, 1)``
-        """
-        if self.log_variational:
-            x = torch.log(1 + x)
-        outputs = self.inference(x)
-        ql_m = outputs["ql_m"]
-        ql_v = outputs["ql_v"]
-        library = outputs["library"]
-        if give_mean is False:
-            library = library
-        else:
-            library = torch.distributions.LogNormal(ql_m, ql_v.sqrt()).mean
-        return library
-
-    def get_sample_scale(
-        self, x, batch_index=None, y=None, n_samples=1, transform_batch=None
-    ) -> torch.Tensor:
-        """
-        Returns the tensor of predicted frequencies of expression.
-
-        Parameters
-        ----------
-        x
-            tensor of values with shape ``(batch_size, n_input)``
-        batch_index
-            array that indicates which batch the cells belong to with shape ``batch_size`` (Default value = None)
-        y
-            tensor of cell-types labels with shape ``(batch_size, n_labels)`` (Default value = None)
-        n_samples
-            number of samples (Default value = 1)
-        transform_batch
-            int of batch to transform samples into (Default value = None)
-
-        Returns
-        -------
-        type
-            tensor of predicted frequencies of expression with shape ``(batch_size, n_input)``
-        """
-        return self.inference(
-            x,
-            batch_index=batch_index,
-            y=y,
-            n_samples=n_samples,
-            transform_batch=transform_batch,
-        )["px_scale"]
-
-    def get_sample_rate(
-        self, x, batch_index=None, y=None, n_samples=1, transform_batch=None
-    ) -> torch.Tensor:
-        """
-        Returns the tensor of means of the negative binomial distribution.
-
-        Parameters
-        ----------
-        x
-            tensor of values with shape ``(batch_size, n_input)``
-        y
-            tensor of cell-types labels with shape ``(batch_size, n_labels)`` (Default value = None)
-        batch_index
-            array that indicates which batch the cells belong to with shape ``batch_size`` (Default value = None)
-        n_samples
-            number of samples (Default value = 1)
-        transform_batch
-            int of batch to transform samples into (Default value = None)
-
-        Returns
-        -------
-        type
-            tensor of means of the negative binomial distribution with shape ``(batch_size, n_input)``
-        """
-        return self.inference(
-            x,
-            batch_index=batch_index,
-            y=y,
-            n_samples=n_samples,
-            transform_batch=transform_batch,
-        )["px_rate"]
 
     def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout) -> torch.Tensor:
         if self.gene_likelihood == "zinb":
