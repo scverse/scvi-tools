@@ -71,6 +71,7 @@ class AbstractVAE(nn.Module):
         inference_kwargs={},
         generative_kwargs={},
         loss_kwargs={},
+        compute_loss=True,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass through the network
@@ -91,11 +92,13 @@ class AbstractVAE(nn.Module):
             tensors, inference_outputs, **get_generative_input_kwargs
         )
         generative_outputs = self.generative(**generative_inputs, **generative_kwargs)
-        losses = self.loss(
-            tensors, inference_outputs, generative_outputs, **loss_kwargs
-        )
-
-        return inference_outputs, generative_outputs, losses
+        if compute_loss:
+            losses = self.loss(
+                tensors, inference_outputs, generative_outputs, **loss_kwargs
+            )
+            return inference_outputs, generative_outputs, losses
+        else:
+            return inference_outputs, generative_outputs
 
     @abstractmethod
     def _get_inference_input(self, tensors, **kwargs):
