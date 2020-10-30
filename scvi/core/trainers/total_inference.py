@@ -166,22 +166,6 @@ class TotalTrainer(UnsupervisedTrainer):
 
         return loss
 
-    def _get_z(self, tensors):
-        (
-            sample_batch_x,
-            local_l_mean,
-            local_l_var,
-            batch_index,
-            label,
-            sample_batch_y,
-        ) = _unpack_tensors(tensors)
-
-        z = self.model.sample_from_posterior_z(
-            sample_batch_x, sample_batch_y, batch_index, give_mean=False
-        )
-
-        return z
-
     def train(self, n_epochs=500, lr=4e-3, eps=0.01, params=None, max_grad_value=None):
         self.max_grad_value = max_grad_value
 
@@ -195,7 +179,8 @@ class TotalTrainer(UnsupervisedTrainer):
                 kappa = self.kappa
             batch_index = tensors_dict[0][_CONSTANTS.BATCH_KEY]
             if kappa > 0:
-                z = self._get_z(*tensors_dict)
+                inference_inputs = self.model._get_inference_input(tensors_dict)
+                z = self.model.inference(**inference_inputs)["z"]
                 # Train discriminator
                 d_loss = self.loss_discriminator(z.detach(), batch_index, True)
                 d_loss *= kappa
