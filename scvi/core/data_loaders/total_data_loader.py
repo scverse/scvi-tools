@@ -179,21 +179,13 @@ class TotalDataLoader(ScviDataLoader):
             x, local_l_mean, local_l_var, batch_index, labels, y = _unpack_tensors(
                 tensors
             )
-            (
-                reconst_loss_gene,
-                reconst_loss_protein,
-                kl_div_z,
-                kl_div_l_gene,
-                kl_div_back_pro,
-            ) = vae(
-                x,
-                y,
-                local_l_mean,
-                local_l_var,
-                batch_index=batch_index,
-                label=labels,
+            _, _, losses = vae(
+                tensors,
                 **kwargs,
             )
+            reconst_losses = losses._reconstruction_loss
+            reconst_loss_gene = reconst_losses["reconst_loss_gene"]
+            reconst_loss_protein = reconst_losses["reconst_loss_protein"]
             log_lkl_gene += torch.sum(reconst_loss_gene).item()
             log_lkl_protein += torch.sum(reconst_loss_protein).item()
 
@@ -223,31 +215,32 @@ class TotalDataLoader(ScviDataLoader):
         # Uses MC sampling to compute a tighter lower bound on log p(x)
         log_lkl = 0
         for _, tensors in enumerate(self.update_batch_size(batch_size)):
-            x, local_l_mean, local_l_var, batch_index, labels, y = _unpack_tensors(
-                tensors
-            )
+            x = tensors[_CONSTANTS.X_KEY]
+            local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+            local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
             to_sum = torch.zeros(x.size()[0], n_samples_mc)
 
             for i in range(n_samples_mc):
 
                 # Distribution parameters and sampled variables
-                outputs = self.model.inference(x, y, batch_index, labels)
-                qz_m = outputs["qz_m"]
-                qz_v = outputs["qz_v"]
-                ql_m = outputs["ql_m"]
-                ql_v = outputs["ql_v"]
-                px_ = outputs["px_"]
-                py_ = outputs["py_"]
-                log_library = outputs["untran_l"]
+                inference_outputs, generative_outputs, losses = self.model.forward(
+                    tensors
+                )
+                # outputs = self.model.inference(x, y, batch_index, labels)
+                qz_m = inference_outputs["qz_m"]
+                qz_v = inference_outputs["qz_v"]
+                ql_m = inference_outputs["ql_m"]
+                ql_v = inference_outputs["ql_v"]
+                py_ = generative_outputs["py_"]
+                log_library = inference_outputs["untran_l"]
                 # really need not softmax transformed random variable
-                z = outputs["untran_z"]
-                log_pro_back_mean = outputs["log_pro_back_mean"]
+                z = inference_outputs["untran_z"]
+                log_pro_back_mean = generative_outputs["log_pro_back_mean"]
 
                 # Reconstruction Loss
-                (
-                    reconst_loss_gene,
-                    reconst_loss_protein,
-                ) = self.model.get_reconstruction_loss(x, y, px_, py_)
+                reconst_loss = losses._reconstruction_loss
+                reconst_loss_gene = reconst_loss["reconst_loss_gene"]
+                reconst_loss_protein = reconst_loss["reconst_loss_protein"]
 
                 # Log-probabilities
                 p_l_gene = (
