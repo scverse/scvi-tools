@@ -99,26 +99,28 @@ class RNASeqMixin:
         if indices is None:
             indices = np.arange(adata.n_obs)
         if library_size == "latent":
-            model_fn = self.model.get_sample_rate
+            generative_output_key = "px_rate"
             scaling = 1
         else:
-            model_fn = self.model.get_sample_scale
+            generative_output_key = "px_scale"
             scaling = library_size
 
         exprs = []
         for tensors in scdl:
-            x = tensors[_CONSTANTS.X_KEY]
-            batch_idx = tensors[_CONSTANTS.BATCH_KEY]
-            labels = tensors[_CONSTANTS.LABELS_KEY]
             per_batch_exprs = []
             for batch in transform_batch:
-                output = model_fn(
-                    x,
-                    batch_index=batch_idx,
-                    y=labels,
-                    n_samples=n_samples,
-                    transform_batch=batch,
-                )[..., gene_mask]
+                get_inference_input_kwargs = dict(transform_batch=batch)
+                get_generative_input_kwargs = dict(transform_batch=batch)
+                inference_kwargs = dict(n_samples=n_samples)
+                _, generative_outputs = self.model.forward(
+                    tensors=tensors,
+                    get_inference_input_kwargs=get_inference_input_kwargs,
+                    get_generative_input_kwargs=get_generative_input_kwargs,
+                    inference_kwargs=inference_kwargs,
+                    compute_loss=False,
+                )
+                output = generative_outputs[generative_output_key]
+                output = output[..., gene_mask]
                 output *= scaling
                 output = output.cpu().numpy()
                 per_batch_exprs.append(output)
@@ -263,7 +265,6 @@ class RNASeqMixin:
         for tensors in scdl:
             samples = self.model.sample(tensors, n_samples=n_samples)
             if gene_list is not None:
-                # exprs = exprs[:, gene_mask, ...]
                 samples = samples[:, gene_mask, ...]
             x_new.append(samples)
 
@@ -310,18 +311,18 @@ class RNASeqMixin:
         data_loader_list = []
         for tensors in scdl:
             x = tensors[_CONSTANTS.X_KEY]
-            batch_idx = tensors[_CONSTANTS.BATCH_KEY]
-            labels = tensors[_CONSTANTS.LABELS_KEY]
-
-            outputs = self.model.inference(
-                x,
-                batch_index=batch_idx,
-                y=labels,
-                n_samples=n_samples,
-                transform_batch=transform_batch,
+            get_inference_input_kwargs = dict(transform_batch=transform_batch)
+            get_generative_input_kwargs = dict(transform_batch=transform_batch)
+            inference_kwargs = dict(n_samples=n_samples)
+            _, generative_outputs = self.model.forward(
+                tensors=tensors,
+                get_inference_input_kwargs=get_inference_input_kwargs,
+                get_generative_input_kwargs=get_generative_input_kwargs,
+                inference_kwargs=inference_kwargs,
+                compute_loss=False,
             )
-            px_scale = outputs["px_scale"]
-            px_r = outputs["px_r"]
+            px_scale = generative_outputs["px_scale"]
+            px_r = generative_outputs["px_r"]
 
             rate = rna_size_factor * px_scale
             if len(px_r.size()) == 2:
@@ -454,16 +455,15 @@ class RNASeqMixin:
         mean_list = []
         dispersion_list = []
         for tensors in scdl:
-            x = tensors[_CONSTANTS.X_KEY]
-            batch_idx = tensors[_CONSTANTS.BATCH_KEY]
-            labels = tensors[_CONSTANTS.LABELS_KEY]
-
-            outputs = self.model.inference(
-                x, batch_index=batch_idx, y=labels, n_samples=n_samples
+            inference_kwargs = dict(n_samples=n_samples)
+            _, generative_outputs = self.model.forward(
+                tensors=tensors,
+                inference_kwargs=inference_kwargs,
+                compute_loss=False,
             )
-            px_r = outputs["px_r"]
-            px_rate = outputs["px_rate"]
-            px_dropout = outputs["px_dropout"]
+            px_r = generative_outputs["px_r"]
+            px_rate = generative_outputs["px_rate"]
+            px_dropout = generative_outputs["px_dropout"]
 
             n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
             dispersion_list += [
@@ -521,8 +521,15 @@ class RNASeqMixin:
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         libraries = []
         for tensors in scdl:
-            x = tensors[_CONSTANTS.X_KEY]
-            b = tensors[_CONSTANTS.BATCH_KEY]
-            library = self.model.sample_from_posterior_l(x, b, give_mean=give_mean)
+            inference_inputs = self.model._get_inference_input(tensors)
+            outputs = self.model.inference(**inference_inputs)
+
+            ql_m = outputs["ql_m"]
+            ql_v = outputs["ql_v"]
+            library = outputs["library"]
+            if give_mean is False:
+                library = library
+            else:
+                library = torch.distributions.LogNormal(ql_m, ql_v.sqrt()).mean
             libraries += [library.cpu()]
         return np.array(torch.cat(libraries))
