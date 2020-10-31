@@ -31,9 +31,10 @@ scvi-tools (single-cell variational inference tools) is a package for end-to-end
 * AutoZI_ for assessing gene-specific levels of zero-inflation in scRNA-seq data
 * LDVAE_ for an interpretable linear factor model version of scVI
 
-Tutorials and API reference are available in the documentation_.
-Please use the issues here to discuss usage, or submit bug reports.
-If you'd like to contribute, please check out our `contributing guide`_.
+Tutorials, API reference, and installation guides are available in the documentation_.
+Please use the issues here to submit bug reports.
+For discussion of usage, checkout out our `forum`_.
+If you'd like to contribute, check out our `development guide`_.
 If you find a model useful for your research, please consider citing the corresponding publication (linked above).
 
 Package transition
@@ -42,7 +43,7 @@ Package transition
 ``scvi`` is now ``scvi-tools``. If you're looking for ``scvi`` source code, please use the branch tags. ``scvi`` is still available via pypi and bioconda, but there will be no future releases past ``0.6.8``. Documentation for ``scvi`` is available at the same documentation website.
 
 .. _documentation: https://scvi-tools.org/
-.. _`contributing guide`: https://scvi.readthedocs.io/en/stable/contributing.html
+.. _`development guide`: https://scvi-tools.org/en/stable/development.html
 .. _scVI: https://rdcu.be/bdHYQ
 .. _scANVI: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf
 .. _totalVI: https://www.biorxiv.org/content/10.1101/2020.05.08.083337v1.full.pdf
@@ -50,4 +51,4 @@ Package transition
 .. _LDVAE: https://www.biorxiv.org/content/10.1101/737601v1.full.pdf
 .. _gimVI: https://arxiv.org/pdf/1905.02269.pdf
 .. _framework: https://www.biorxiv.org/content/biorxiv/early/2019/10/04/794289.full.pdf
-
+.. _forum: https://discourse.scvi-tools.org
