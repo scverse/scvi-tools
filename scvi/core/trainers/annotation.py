@@ -141,6 +141,8 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         model,
         adata,
         n_labelled_samples_per_class=50,
+        indices_labelled=None,
+        indices_unlabelled=None,
         n_epochs_classifier=1,
         lr_classification=5 * 1e-3,
         classification_ratio=50,
@@ -159,26 +161,29 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         if scheme == "joint":
             self.n_epochs_classifier = 0
 
-        n_labelled_samples_per_class_array = [
-            n_labelled_samples_per_class
-        ] * self.adata.uns["_scvi"]["summary_stats"]["n_labels"]
-        labels = np.array(get_from_registry(self.adata, _CONSTANTS.LABELS_KEY)).ravel()
-        np.random.seed(seed=seed)
-        permutation_idx = np.random.permutation(len(labels))
-        labels = labels[permutation_idx]
-        indices = []
-        current_nbrs = np.zeros(len(n_labelled_samples_per_class_array))
-        for idx, (label) in enumerate(labels):
-            label = int(label)
-            if current_nbrs[label] < n_labelled_samples_per_class_array[label]:
-                indices.insert(0, idx)
-                current_nbrs[label] += 1
-            else:
-                indices.append(idx)
-        indices = np.array(indices)
-        total_labelled = sum(n_labelled_samples_per_class_array)
-        indices_labelled = permutation_idx[indices[:total_labelled]]
-        indices_unlabelled = permutation_idx[indices[total_labelled:]]
+        if indices_labelled is None and indices_unlabelled is None:
+            n_labelled_samples_per_class_array = [
+                n_labelled_samples_per_class
+            ] * self.adata.uns["_scvi"]["summary_stats"]["n_labels"]
+            labels = np.array(
+                get_from_registry(self.adata, _CONSTANTS.LABELS_KEY)
+            ).ravel()
+            np.random.seed(seed=seed)
+            permutation_idx = np.random.permutation(len(labels))
+            labels = labels[permutation_idx]
+            indices = []
+            current_nbrs = np.zeros(len(n_labelled_samples_per_class_array))
+            for idx, (label) in enumerate(labels):
+                label = int(label)
+                if current_nbrs[label] < n_labelled_samples_per_class_array[label]:
+                    indices.insert(0, idx)
+                    current_nbrs[label] += 1
+                else:
+                    indices.append(idx)
+            indices = np.array(indices)
+            total_labelled = sum(n_labelled_samples_per_class_array)
+            indices_labelled = permutation_idx[indices[:total_labelled]]
+            indices_unlabelled = permutation_idx[indices[total_labelled:]]
 
         self.classifier_trainer = ClassifierTrainer(
             model.classifier,
