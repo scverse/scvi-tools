@@ -203,15 +203,6 @@ class VAE(AbstractVAE):
         if not self.use_observed_lib_size:
             library = library_encoded
 
-        outputs = dict()
-
-        outputs["z"] = z
-        outputs["qz_m"] = qz_m
-        outputs["qz_v"] = qz_v
-        outputs["ql_m"] = ql_m
-        outputs["ql_v"] = ql_v
-        outputs["library"] = library
-
         if n_samples > 1:
             qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
             qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
@@ -226,13 +217,8 @@ class VAE(AbstractVAE):
                 )
             else:
                 library = Normal(ql_m, ql_v.sqrt()).sample()
-            outputs["z"] = z
-            outputs["qz_m"] = qz_m
-            outputs["qz_v"] = qz_v
-            outputs["ql_m"] = ql_m
-            outputs["ql_v"] = ql_v
-            outputs["library"] = library
 
+        outputs = dict(z=z, qz_m=qz_m, qz_v=qz_v, ql_m=ql_m, ql_v=ql_v, library=library)
         return outputs
 
     def generative(self, z, library, batch_index, y=None):
@@ -240,11 +226,9 @@ class VAE(AbstractVAE):
         # make random y since its not used
         # TODO: refactor forward function to not rely on y
         # y = torch.zeros(z.shape[0], 1)
-
         px_scale, px_r, px_rate, px_dropout = self.decoder(
             self.dispersion, z, library, batch_index, y
         )
-
         if self.dispersion == "gene-label":
             px_r = F.linear(
                 one_hot(y, self.n_labels), self.px_r
