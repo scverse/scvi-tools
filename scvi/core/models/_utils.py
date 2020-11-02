@@ -107,8 +107,6 @@ def _de_core(
                 "Only a single group in the data. Can't run DE on a single group."
             )
 
-    # if isinstance(group1, str):
-    #     group1 = [group1]
     if not isinstance(group1, IterableClass) or isinstance(group1, str):
         group1 = [group1]
 
