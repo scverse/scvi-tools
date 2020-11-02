@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import read
+from collections.abc import Iterable as IterableClass
 
 from scvi._compat import Literal
 from scvi._utils import track
@@ -106,7 +107,9 @@ def _de_core(
                 "Only a single group in the data. Can't run DE on a single group."
             )
 
-    if isinstance(group1, str):
+    # if isinstance(group1, str):
+    #     group1 = [group1]
+    if not isinstance(group1, IterableClass) or isinstance(group1, str):
         group1 = [group1]
 
     # make a temp obs key using indices
