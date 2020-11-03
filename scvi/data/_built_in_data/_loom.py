@@ -162,10 +162,11 @@ def _load_loom(path_to_file: str, gene_names_attribute_name: str = "Gene") -> An
         uns_dict[global_key] = dataset.attrs[global_key]
         if type(uns_dict[global_key]) is np.ndarray:
             uns_dict[global_key] = uns_dict[global_key].ravel()
-    data = dataset[:, select].T  # change matrix to cells by genes
+    data = dataset.T  # change matrix to cells by genes
     dataset.close()
 
     adata = AnnData(X=data, obs=obs_dict, var=var_dict, uns=uns_dict, obsm=obsm_dict)
+    adata = adata[select].copy()
     adata.var_names = gene_names
 
     return adata
