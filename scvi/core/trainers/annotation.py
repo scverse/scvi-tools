@@ -1,8 +1,6 @@
 import logging
 
 import numpy as np
-import torch
-from torch.nn import functional as F
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
@@ -93,24 +91,26 @@ class ClassifierTrainer(Trainer):
         super().__setattr__(key, value)
 
     def loss(self, tensors_labelled):
-        x = tensors_labelled[_CONSTANTS.X_KEY]
-        b = tensors_labelled[_CONSTANTS.BATCH_KEY]
-        labels_train = tensors_labelled[_CONSTANTS.LABELS_KEY]
-        if self.sampling_model:
-            if hasattr(self.sampling_model, "classify"):
-                return F.cross_entropy(
-                    self.sampling_model.classify(x, b), labels_train.view(-1)
-                )
-            else:
-                if self.sampling_model.log_variational:
-                    x = torch.log(1 + x)
-                if self.sampling_zl:
-                    x_z = self.sampling_model.z_encoder(x, b)[0]
-                    x_l = self.sampling_model.l_encoder(x, b)[0]
-                    x = torch.cat((x_z, x_l), dim=-1)
-                else:
-                    x = self.sampling_model.z_encoder(x, b)[0]
-        return F.cross_entropy(self.model(x), labels_train.view(-1))
+        # x = tensors_labelled[_CONSTANTS.X_KEY]
+        # b = tensors_labelled[_CONSTANTS.BATCH_KEY]
+        # labels_train = tensors_labelled[_CONSTANTS.LABELS_KEY]
+        # if self.sampling_model:
+        #     # TODO: we need to document that it looks for classify
+        #     if hasattr(self.sampling_model, "classify"):
+        #         return F.cross_entropy(
+        #             self.sampling_model.classify(x, b), labels_train.view(-1)
+        #         )
+        #     else:
+        #         if self.sampling_model.log_variational:
+        #             x = torch.log(1 + x)
+        #         if self.sampling_zl:
+        #             x_z = self.sampling_model.z_encoder(x, b)[0]
+        #             x_l = self.sampling_model.l_encoder(x, b)[0]
+        #             x = torch.cat((x_z, x_l), dim=-1)
+        #         else:
+        #             x = self.sampling_model.z_encoder(x, b)[0]
+        # return F.cross_entropy(self.model(x), labels_train.view(-1))
+        pass
 
     def create_scvi_dl(
         self,
@@ -202,7 +202,6 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
 
     @property
     def scvi_data_loaders_loop(self):
-
         joint = ["full_dataset", "labelled_set"]
         full = ["full_dataset"]
         if len(self.labelled_set.indices) == 0 or self.scheme == "alternate":
@@ -215,23 +214,23 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
             self.classifier_trainer.train_set = value
         super().__setattr__(key, value)
 
-    def loss(self, tensors, tensors_labelled):
-        input_kwargs = dict(feed_labels=False)
-        _, _, scvi_losses = self.model(tensors, loss_kwargs=input_kwargs)
-        loss = scvi_losses.loss
-        x = tensors_labelled[_CONSTANTS.X_KEY]
-        y = tensors_labelled[_CONSTANTS.LABELS_KEY]
-        classification_loss = F.cross_entropy(self.model.classify(x), y.view(-1))
-        loss += classification_loss * self.classification_ratio
-        return loss
+    # def loss(self, tensors, tensors_labelled):
+    #     input_kwargs = dict(feed_labels=False)
+    #     _, _, scvi_losses = self.model(tensors, loss_kwargs=input_kwargs)
+    #     loss = scvi_losses.loss
+    #     x = tensors_labelled[_CONSTANTS.X_KEY]
+    #     y = tensors_labelled[_CONSTANTS.LABELS_KEY]
+    #     classification_loss = F.cross_entropy(self.model.classify(x), y.view(-1))
+    #     loss += classification_loss * self.classification_ratio
+    #     return loss
 
-    def on_epoch_end(self):
-        self.model.eval()
-        self.classifier_trainer.train(
-            self.n_epochs_classifier, lr=self.lr_classification
-        )
-        self.model.train()
-        return super().on_epoch_end()
+    # def on_epoch_end(self):
+    #     self.model.eval()
+    #     self.classifier_trainer.train(
+    #         self.n_epochs_classifier, lr=self.lr_classification
+    #     )
+    #     self.model.train()
+    #     return super().on_epoch_end()
 
     def create_scvi_dl(
         self,

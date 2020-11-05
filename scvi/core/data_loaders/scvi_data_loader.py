@@ -1,6 +1,8 @@
 import copy
 import logging
 from typing import Optional
+from scvi._compat import Literal
+from itertools import cycle
 
 import anndata
 import numpy as np
@@ -130,8 +132,8 @@ class ScviDataLoader(DataLoader):
         }
 
         if indices is None:
-            inds = np.arange(len(self.dataset))
-            sampler_kwargs["indices"] = inds
+            indices = np.arange(len(self.dataset))
+            sampler_kwargs["indices"] = indices
         else:
             if hasattr(indices, "dtype") and indices.dtype is np.dtype("bool"):
                 indices = np.where(indices)[0].ravel()
@@ -146,3 +148,52 @@ class ScviDataLoader(DataLoader):
         self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
 
         super().__init__(self.dataset, **self.data_loader_kwargs)
+
+
+class SemiSupervisedDataloader(ScviDataLoader):
+    def __init__(
+        self,
+        adata,
+        labeled_indices,
+        unlabelled_indices,
+        scheme: Literal["joint", "alternate", "both"] = "both",
+        shuffle=False,
+        use_cuda=True,
+        batch_size=128,
+        data_and_attributes: Optional[dict] = None,
+        **data_loader_kwargs,
+    ):
+        self.full_dataset = ScviDataLoader(
+            adata,
+            shuffle=True,
+            use_cuda=use_cuda,
+            batch_size=batch_size,
+            data_and_attributes=data_and_attributes,
+            **data_loader_kwargs,
+        )
+        self.labelled_set = ScviDataLoader(
+            adata,
+            indices=labeled_indices,
+            shuffle=shuffle,
+            use_cuda=use_cuda,
+            batch_size=batch_size,
+            data_and_attributes=data_and_attributes,
+            **data_loader_kwargs,
+        )
+        self.unlabelled_set = ScviDataLoader(
+            adata,
+            indices=labeled_indices,
+            shuffle=shuffle,
+            use_cuda=use_cuda,
+            batch_size=batch_size,
+            data_and_attributes=data_and_attributes,
+            **data_loader_kwargs,
+        )
+        self.scheme = scheme
+
+    def __iter__(self):
+        # TODO: probably don't want to hardcode this condition
+        if len(self.labelled_set.indices) == 0 or self.scheme == "alternate":
+            return iter(self.full_dataset)
+        else:
+            return zip(self.full_dataset, cycle(self.labelled_set))
