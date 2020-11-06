@@ -24,8 +24,6 @@ class ScviDataset(Dataset):
         self.attributes_and_types = None
         self.setup_getitem(getitem_tensors)
         self.setup_data_attr()
-        self.gene_names = self.adata.var_names
-        self.normalized_X = None
 
     def get_registered_keys(
         self,
@@ -66,7 +64,7 @@ class ScviDataset(Dataset):
         >>> sd = ScviDataset(adata)
 
         # following will only return the X and batch_indices both by defualt as np.float32
-        >>> sd .setup_getitem(getitem_tensors  = ['X,'batch_indices'])
+        >>> sd.setup_getitem(getitem_tensors  = ['X,'batch_indices'])
 
         # This will return X as an integer and batch_indices as np.float32
         >>> sd.setup_getitem(getitem_tensors  = {'X':np.int64, 'batch_indices':np.float32])
@@ -113,24 +111,3 @@ class ScviDataset(Dataset):
 
     def __len__(self):
         return self.adata.shape[0]
-
-    @property
-    def n_cells(self) -> int:
-        """Returns the number of cells in the dataset."""
-        n_cells = self.adata.uns["_scvi"]["summary_stats"]["n_cells"]
-        return n_cells
-
-    @property
-    def n_vars(self) -> int:
-        """Returns the number of variables in the dataset."""
-        n_vars = self.adata.uns["_scvi"]["summary_stats"]["n_vars"]
-        return n_vars
-
-    @property
-    def n_batches(self) -> int:
-        return self.adata.uns["_scvi"]["summary_stats"]["n_batch"]
-
-    def to_anndata(
-        self,
-    ) -> anndata.AnnData:
-        return self.adata.copy()
