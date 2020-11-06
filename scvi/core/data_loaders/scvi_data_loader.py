@@ -9,7 +9,6 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from scvi import _CONSTANTS
 from scvi.data._scvidataset import ScviDataset
 
 logger = logging.getLogger(__name__)
@@ -103,24 +102,15 @@ class ScviDataLoader(DataLoader):
         if "_scvi" not in adata.uns.keys():
             raise ValueError("Please run setup_anndata() on your anndata object first.")
 
-        if data_and_attributes is None:
-            self._data_and_attributes = {
-                _CONSTANTS.X_KEY: np.float32,
-                _CONSTANTS.BATCH_KEY: np.int64,
-                _CONSTANTS.LOCAL_L_MEAN_KEY: np.float32,
-                _CONSTANTS.LOCAL_L_VAR_KEY: np.float32,
-                _CONSTANTS.LABELS_KEY: np.int64,
-            }
-        else:
-            self._data_and_attributes = data_and_attributes
-
-        for key in self._data_and_attributes.keys():
-            if key not in adata.uns["_scvi"]["data_registry"].keys():
-                raise ValueError(
-                    "{} required for model but not included when setup_anndata was run".format(
-                        key
+        if data_and_attributes is not None:
+            data_registry = adata.uns["_scvi"]["data_registry"]
+            for key in data_and_attributes.keys():
+                if key not in data_registry.keys():
+                    raise ValueError(
+                        "{} required for model but not included when setup_anndata was run".format(
+                            key
+                        )
                     )
-                )
 
         self.dataset = ScviDataset(adata, getitem_tensors=data_and_attributes)
         self.to_monitor = []
