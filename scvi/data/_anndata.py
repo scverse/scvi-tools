@@ -615,21 +615,22 @@ def _setup_extra_categorical_covs(
     cat_loc = "obsm"
     cat_key = "_scvi_extra_categoricals"
 
-    one_hots = []
-
     categories = {}
+    df = pd.DataFrame(index=adata.obs_names)
     for key in categorical_covariate_keys:
-        cat = adata.obs[key]
-        if category_dict is not None:
-            possible_cats = category_dict[key]
-            cat = cat.astype(CategoricalDtype(categories=possible_cats))
+        if category_dict is None:
+            categorical_obs = adata.obs[key].astype("category")
+            mapping = categorical_obs.cat.categories.to_numpy(copy=True)
+            categories[key] = mapping
         else:
-            categories[key] = cat.astype("category").cat.categories.to_numpy(copy=True)
+            possible_cats = category_dict[key]
+            categorical_obs = adata.obs[key].astype(
+                CategoricalDtype(categories=possible_cats)
+            )
+        codes = categorical_obs.cat.codes
+        df[key] = codes
 
-        one_hot_rep = pd.get_dummies(cat, prefix=key)
-        one_hots.append(one_hot_rep)
-
-    adata.obsm[cat_key] = pd.concat(one_hots, axis=1)
+    adata.obsm[cat_key] = df
 
     store_cats = categories if category_dict is None else category_dict
     adata.uns["_scvi"]["extra_categorical_mappings"] = store_cats
