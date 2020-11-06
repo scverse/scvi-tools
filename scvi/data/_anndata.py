@@ -634,6 +634,8 @@ def _setup_extra_categorical_covs(
 
     store_cats = categories if category_dict is None else category_dict
     adata.uns["_scvi"]["extra_categorical_mappings"] = store_cats
+    # this preserves the order of the keys added to the df
+    adata.uns["_scvi"]["extra_categorical_keys"] = categorical_covariate_keys
     return cat_loc, cat_key
 
 
