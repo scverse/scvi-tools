@@ -7,14 +7,13 @@ from typing import Optional, Sequence
 
 import numpy as np
 import rich
-import pytorch_lightning as pl
 import torch
 from anndata import AnnData
 from rich.text import Text
 from sklearn.model_selection._split import _validate_shuffle_split
 
 from scvi import _CONSTANTS, settings
-from scvi.core.lightning import VAETask
+from scvi.core.lightning import VAETask, Trainer
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
@@ -201,10 +200,10 @@ class BaseModelClass(ABC):
 
     def train(
         self,
-        n_epochs: Optional[int] = None,
+        max_epochs: Optional[int] = None,
+        use_gpu: bool = True,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
-        use_gpu: Optional[bool] = None,
         **kwargs,
     ):
         """
@@ -212,8 +211,10 @@ class BaseModelClass(ABC):
 
         Parameters
         ----------
-        n_epochs
+        max_epochs
             Number of passes through the dataset.
+        use_gpu
+            If `True`, use the GPU if available.
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -226,12 +227,8 @@ class BaseModelClass(ABC):
         n_iter_kl_warmup
             Number of minibatches for scaling term on KL divergence to go from 0 to 1.
             To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
-        frequency
-            Frequency with which metrics are computed on the data for train/test/val sets.
-        train_fun_kwargs
-            Keyword args for the train method of :class:`~scvi.core.trainers.UnsupervisedTrainer`.
         **kwargs
-            Other keyword args for :class:`~scvi.core.trainers.UnsupervisedTrainer`.
+            Other keyword args for :class:`~scvi.core.lightning.Trainer`.
         """
         if use_gpu is not None:
             use_gpu = use_gpu and torch.cuda.is_available()
@@ -248,9 +245,7 @@ class BaseModelClass(ABC):
             else:
                 gpus = None
                 pin_memory = False
-            self.trainer = pl.Trainer(
-                max_epochs=n_epochs, checkpoint_callback=False, gpus=gpus, **kwargs
-            )
+            self.trainer = Trainer(max_epochs=max_epochs, gpus=gpus, **kwargs)
             train_dl, val_dl, test_dl = self._train_test_val_split(
                 self.adata,
                 train_size=train_size,

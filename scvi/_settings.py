@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Union
 
 import numpy as np
@@ -28,6 +29,7 @@ class ScviConfig:
         progress_bar_style: Literal["rich", "tqdm"] = "tqdm",
         batch_size: int = 128,
         seed: int = 0,
+        logging_dir: str = "./scvi_log/",
     ):
 
         self.verbosity = verbosity
@@ -36,6 +38,7 @@ class ScviConfig:
         if progress_bar_style not in ["rich", "tqdm"]:
             raise ValueError("Progress bar style must be in ['rich', 'tqdm']")
         self.progress_bar_style = progress_bar_style
+        self.logging_dir = logging_dir
 
     @property
     def batch_size(self) -> int:
@@ -56,6 +59,17 @@ class ScviConfig:
         `batch_size` parameters.
         """
         self._batch_size = batch_size
+
+    @property
+    def logging_dir(self) -> Path:
+        """\
+        Directory for training logs (default `'./scvi_log/'`).
+        """
+        return self._logging_dir
+
+    @logging_dir.setter
+    def logging_dir(self, logging_dir: Union[str, Path]):
+        self._logging_dir = Path(logging_dir).resolve()
 
     @property
     def progress_bar_style(self) -> str:
