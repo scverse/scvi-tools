@@ -180,10 +180,10 @@ class VAE(AbstractVAE):
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
         cont_key = _CONSTANTS.CONT_COVS_KEY
-        cont_covs = tensors[cont_key] if cont_key in tensors else None
+        cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
         cat_key = _CONSTANTS.CAT_COVS_KEY
-        cat_covs = tensors[cat_key] if cat_key in tensors else None
+        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
@@ -200,10 +200,10 @@ class VAE(AbstractVAE):
         y = tensors[_CONSTANTS.LABELS_KEY]
 
         cont_key = _CONSTANTS.CONT_COVS_KEY
-        cont_covs = tensors[cont_key] if cont_key in tensors else None
+        cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
         cat_key = _CONSTANTS.CAT_COVS_KEY
-        cat_covs = tensors[cat_key] if cat_key in tensors else None
+        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch

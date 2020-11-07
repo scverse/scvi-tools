@@ -33,15 +33,28 @@ class VAETask(pl.LightningModule):
         _, _, scvi_loss = self.forward(batch, loss_kwargs=loss_kwargs)
         return scvi_loss.loss
 
-    # on validation epoch end
-    # mean of the mean etc
-    # should return scvi_loss object
-    # on_validation_epoch_end should iterate over it
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
         _, _, scvi_loss = self.forward(batch)
-        loss = scvi_loss.loss
-        self.log("elbo_validation", loss)
-        return
+        reconstruction_loss = scvi_loss.reconstruction_loss
+        return {
+            "reconstruction_loss_sum": reconstruction_loss.sum(),
+            "kl_local_sum": scvi_loss.kl_local.sum(),
+            "kl_global": scvi_loss.kl_global,
+            "n_obs": reconstruction_loss.shape[0],
+        }
+
+    def validation_epoch_end(self, outputs):
+        """Aggregate validation step information."""
+        n_obs = 0
+        for tensors in outputs:
+            elbo = tensors["reconstruction_loss_sum"] + tensors["kl_local_sum"]
+            n_obs += tensors["n_obs"]
+        # kl global same for each minibatch
+        elbo += tensors["kl_global"]
+        avg_elbo = elbo / n_obs
+
+        self.log("elbo_validation", avg_elbo)
+        return {"elbo_validation": avg_elbo}
 
     def configure_optimizers(self):
         params = filter(lambda p: p.requires_grad, self.model.parameters())
