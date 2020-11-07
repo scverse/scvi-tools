@@ -259,6 +259,7 @@ class BaseModelClass(ABC):
             self.validation_indices_ = val_dl.indices
 
         self.trainer.fit(self._pl_task, train_dl, val_dl)
+        self.model.eval()
         self.is_trained_ = True
 
     def save(
