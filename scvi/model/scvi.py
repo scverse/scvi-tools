@@ -74,13 +74,17 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         **model_kwargs,
     ):
         super(SCVI, self).__init__(adata, use_cuda=use_cuda)
+
+        n_cats_per_cov = (
+            self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
+            if "extra_categoricals" in self.scvi_setup_dict_
+            else [0]
+        )
         self.model = VAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
             n_continuous_cov=self.summary_stats["n_continuous_covs"],
-            n_cats_per_cov=self.scvi_setup_dict_["extra_categoricals"][
-                "n_cats_per_key"
-            ],
+            n_cats_per_cov=n_cats_per_cov,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,

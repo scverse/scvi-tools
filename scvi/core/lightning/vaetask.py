@@ -46,8 +46,9 @@ class VAETask(pl.LightningModule):
     def validation_epoch_end(self, outputs):
         """Aggregate validation step information."""
         n_obs = 0
+        elbo = 0
         for tensors in outputs:
-            elbo = tensors["reconstruction_loss_sum"] + tensors["kl_local_sum"]
+            elbo += tensors["reconstruction_loss_sum"] + tensors["kl_local_sum"]
             n_obs += tensors["n_obs"]
         # kl global same for each minibatch
         elbo += tensors["kl_global"]
