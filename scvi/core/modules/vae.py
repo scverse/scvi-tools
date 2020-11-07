@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Main module."""
+from typing import Iterable
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -42,6 +43,10 @@ class VAE(AbstractVAE):
         Dimensionality of the latent space
     n_layers
         Number of hidden layers used for encoder and decoder NNs
+    n_continuous_cov
+        Number of continuous covarites
+    n_cats_per_cov
+        Number of categories for each extra categorical covariate
     dropout_rate
         Dropout rate for neural networks
     dispersion
@@ -83,6 +88,8 @@ class VAE(AbstractVAE):
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
+        n_continuous_cov: int = 0,
+        n_cats_per_cov: Iterable[int] = [],
         dropout_rate: float = 0.1,
         dispersion: str = "gene",
         log_variational: bool = True,
@@ -128,10 +135,13 @@ class VAE(AbstractVAE):
 
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         # latent space representation
+        n_input_encoder = n_input + n_continuous_cov * encode_covariates
+        cat_list = [n_batch] + list(n_cats_per_cov)
+        encoder_cat_list = cat_list if encode_covariates else None
         self.z_encoder = Encoder(
-            n_input,
+            n_input_encoder,
             n_latent,
-            n_cat_list=[n_batch] if encode_covariates else None,
+            n_cat_list=encoder_cat_list,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -142,10 +152,10 @@ class VAE(AbstractVAE):
         )
         # l encoder goes from n_input-dimensional data to 1-d library size
         self.l_encoder = Encoder(
-            n_input,
+            n_input_encoder,
             1,
             n_layers=1,
-            n_cat_list=[n_batch] if encode_covariates else None,
+            n_cat_list=encoder_cat_list,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             inject_covariates=deeply_inject_covariates,
@@ -153,10 +163,11 @@ class VAE(AbstractVAE):
             use_layer_norm=use_layer_norm_encoder,
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
+        n_input_decoder = n_latent + n_continuous_cov
         self.decoder = DecoderSCVI(
-            n_latent,
+            n_input_decoder,
             n_input,
-            n_cat_list=[n_batch],
+            n_cat_list=cat_list,
             n_layers=n_layers,
             n_hidden=n_hidden,
             inject_covariates=deeply_inject_covariates,
@@ -168,10 +179,18 @@ class VAE(AbstractVAE):
         x = tensors[_CONSTANTS.X_KEY]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
+        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_covs = tensors[cont_key] if cont_key in tensors else None
+
+        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_covs = tensors[cat_key] if cat_key in tensors else None
+
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
 
-        input_dict = dict(x=x, batch_index=batch_index)
+        input_dict = dict(
+            x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
+        )
         return input_dict
 
     def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
@@ -180,12 +199,25 @@ class VAE(AbstractVAE):
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
         y = tensors[_CONSTANTS.LABELS_KEY]
 
+        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_covs = tensors[cont_key] if cont_key in tensors else None
+
+        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_covs = tensors[cat_key] if cat_key in tensors else None
+
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
-        input_dict = {"z": z, "library": library, "batch_index": batch_index, "y": y}
+        input_dict = {
+            "z": z,
+            "library": library,
+            "batch_index": batch_index,
+            "y": y,
+            "cont_covs": cont_covs,
+            "cat_covs": cat_covs,
+        }
         return input_dict
 
-    def inference(self, x, batch_index, n_samples=1):
+    def inference(self, x, batch_index, cont_covs=None, cat_covs=None, n_samples=1):
         """
         High level inference method.
 
@@ -197,8 +229,18 @@ class VAE(AbstractVAE):
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
-        qz_m, qz_v, z = self.z_encoder(x_, batch_index)
-        ql_m, ql_v, library_encoded = self.l_encoder(x_, batch_index)
+        if cont_covs is not None and self.encode_covariates is True:
+            encoder_input = torch.cat((x_, cont_covs), dim=-1)
+        else:
+            encoder_input = x_
+        if cat_covs is not None and self.encode_covariates is True:
+            categorical_input = torch.split(cat_covs, 1, dim=1)
+        else:
+            categorical_input = tuple()
+        qz_m, qz_v, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
+        ql_m, ql_v, library_encoded = self.l_encoder(
+            encoder_input, batch_index, *categorical_input
+        )
 
         if not self.use_observed_lib_size:
             library = library_encoded
@@ -221,13 +263,20 @@ class VAE(AbstractVAE):
         outputs = dict(z=z, qz_m=qz_m, qz_v=qz_v, ql_m=ql_m, ql_v=ql_v, library=library)
         return outputs
 
-    def generative(self, z, library, batch_index, y=None):
+    def generative(
+        self, z, library, batch_index, cont_covs=None, cat_covs=None, y=None
+    ):
         """Runs the generative model."""
         # make random y since its not used
         # TODO: refactor forward function to not rely on y
         # y = torch.zeros(z.shape[0], 1)
+        decoder_input = z if cont_covs is None else torch.cat([z, cont_covs], dim=-1)
+        if cat_covs is not None:
+            categorical_input = torch.split(cat_covs, 1, dim=1)
+        else:
+            categorical_input = tuple()
         px_scale, px_r, px_rate, px_dropout = self.decoder(
-            self.dispersion, z, library, batch_index, y
+            self.dispersion, decoder_input, library, batch_index, *categorical_input, y
         )
         if self.dispersion == "gene-label":
             px_r = F.linear(
