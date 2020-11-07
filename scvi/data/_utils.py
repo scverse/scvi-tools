@@ -180,15 +180,17 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
         )
 
     # validate any extra categoricals
-    if "extra_categorical_mappings" in _scvi_dict.keys():
-        target_extra_cat_maps = adata.uns["_scvi"]["extra_categorical_mappings"]
-        for key, val in _scvi_dict["extra_categorical_mappings"].items():
+    if "extra_categoricals" in _scvi_dict.keys():
+        target_extra_cat_maps = adata.uns["_scvi"]["extra_categoricals"]["mappings"]
+        for key, val in _scvi_dict["extra_categoricals"]["mappings"].items():
             target_map = target_extra_cat_maps[key]
             if not _assert_equal_mapping(val, target_map):
                 raise ValueError(error_msg.format(key, val, target_map))
         # check order of cols in df is same
-        target_cat_keys = adata.uns["_scvi"]["extra_categorical_keys"]
-        if not np.array_equal(_scvi_dict["extra_categorical_keys"], target_cat_keys):
+        target_cat_keys = adata.uns["_scvi"]["extra_categoricals"]["keys"]
+        if not np.array_equal(
+            _scvi_dict["extra_categoricals"]["keys"], target_cat_keys
+        ):
             raise ValueError(
                 "extra_continous_keys are not the same between source and target"
             )
