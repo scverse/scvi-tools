@@ -55,7 +55,6 @@ class VAETask(pl.LightningModule):
         avg_elbo = elbo / n_obs
 
         self.log("elbo_validation", avg_elbo)
-        return {"elbo_validation": avg_elbo}
 
     def configure_optimizers(self):
         params = filter(lambda p: p.requires_grad, self.model.parameters())
