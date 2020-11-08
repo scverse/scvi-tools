@@ -258,6 +258,8 @@ class BaseModelClass(ABC):
 
         self.trainer.fit(self._pl_task, train_dl, val_dl)
         self.model.eval()
+        if use_gpu:
+            self.model.cuda()
         self.is_trained_ = True
 
     def save(
