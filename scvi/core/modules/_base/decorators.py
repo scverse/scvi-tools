@@ -28,6 +28,10 @@ def auto_move_data(fn: Callable) -> Callable:
         if not isinstance(self, Module):
             return fn(self, *args, **kwargs)
 
+        # decorator only necessary after training
+        if self.training:
+            return fn(self, *args, **kwargs)
+
         device = list(set(p.device for p in self.parameters()))
         if len(device) > 1:
             raise RuntimeError("Model tensors on multiple devices.")
