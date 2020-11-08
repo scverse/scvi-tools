@@ -28,8 +28,13 @@ def auto_move_data(fn: Callable) -> Callable:
         if not isinstance(self, Module):
             return fn(self, *args, **kwargs)
 
-        args = _move_data_to_device(args, self.device)
-        kwargs = _move_data_to_device(kwargs, self.device)
+        device = list(set(p.device for p in self.parameters()))
+        if len(device) > 1:
+            raise RuntimeError("Model tensors on multiple devices.")
+        else:
+            device = device[0]
+        args = _move_data_to_device(args, device)
+        kwargs = _move_data_to_device(kwargs, device)
         return fn(self, *args, **kwargs)
 
     return auto_transfer_args

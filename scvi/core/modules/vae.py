@@ -17,6 +17,7 @@ from scvi import _CONSTANTS
 
 
 from ._base import DecoderSCVI, Encoder, LinearDecoderSCVI
+from ._base.decorators import auto_move_data
 from .utils import one_hot
 
 torch.backends.cudnn.benchmark = True
@@ -217,6 +218,7 @@ class VAE(AbstractVAE):
         }
         return input_dict
 
+    @auto_move_data
     def inference(self, x, batch_index, cont_covs=None, cat_covs=None, n_samples=1):
         """
         High level inference method.
@@ -263,6 +265,7 @@ class VAE(AbstractVAE):
         outputs = dict(z=z, qz_m=qz_m, qz_v=qz_v, ql_m=ql_m, ql_v=ql_v, library=library)
         return outputs
 
+    @auto_move_data
     def generative(
         self, z, library, batch_index, cont_covs=None, cat_covs=None, y=None
     ):

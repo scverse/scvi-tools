@@ -4,6 +4,8 @@ from typing import Tuple
 import torch
 import torch.nn as nn
 
+from .decorators import auto_move_data
+
 
 class SCVILoss:
     def __init__(self, loss, reconstruction_loss, kl_local, kl_global):
@@ -55,6 +57,7 @@ class AbstractVAE(nn.Module):
     ):
         super().__init__()
 
+    @auto_move_data
     def forward(
         self,
         tensors,
