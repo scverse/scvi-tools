@@ -4,7 +4,7 @@ Core
 
 .. warning::
 
-    The ``scvi.core`` top-level module is PRIVATE. We document here for contributors. Please use the top-level module ``scvi.models``.
+    The ``scvi.core`` top-level module is PRIVATE. We document here for contributors. Please use the top-level module ``scvi.model``.
 
 .. currentmodule:: scvi
 
@@ -49,24 +49,21 @@ Data Loaders
    :toctree: reference/
 
    core.data_loaders.ScviDataLoader
-   core.data_loaders.TotalDataLoader
-   core.data_loaders.AnnotationDataLoader
 
-Trainers
-~~~~~~~~
+Lightning
+~~~~~~~~~
+
+PyTorch lightning is used to train our modules. Tasks define train/test/val optimization
+steps for modules like `TOTALVAE`, `SCANVAE`, etc.
 
 .. autosummary::
    :toctree: reference/
 
-   core.trainers.UnsupervisedTrainer
-   core.trainers.TotalTrainer
-   core.trainers.SemiSupervisedTrainer
-   core.trainers.ClassifierTrainer
-   core.trainers.trainer.Trainer
-   core.trainers.trainer.EarlyStopping
+   core.lightning.Trainer
+   core.lightning.VAETask
 
 Utilities
-~~~~~~~~~~~~~
+~~~~~~~~~
 
 .. autosummary::
    :toctree: reference/
