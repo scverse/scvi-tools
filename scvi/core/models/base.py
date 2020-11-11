@@ -206,6 +206,7 @@ class BaseModelClass(ABC):
         use_gpu: bool = True,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
+        batch_size: int = 128,
         **kwargs,
     ):
         """
@@ -222,6 +223,8 @@ class BaseModelClass(ABC):
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        batch_size
+            Minibatch size to use during training.
         lr
             Learning rate for optimization.
         n_epochs_kl_warmup
