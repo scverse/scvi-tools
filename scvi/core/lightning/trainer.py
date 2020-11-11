@@ -7,6 +7,8 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from scvi import settings
 from scvi._compat import Literal
 
+from .progress import ProgressBar
+
 
 class Trainer(pl.Trainer):
     """
@@ -33,6 +35,9 @@ class Trainer(pl.Trainer):
     checkpoint_callback
         If `True`, enable checkpointing. It will configure a default ModelCheckpoint
         callback if there is no user-defined ModelCheckpoint in `callbacks`.
+    num_sanity_val_steps
+        Sanity check runs n validation batches before starting the training routine.
+        Set it to -1 to run all batches in all validation dataloaders.
     **kwargs
         Other keyword args for :class:`~pytorch_lightning.Trainer`
     """
@@ -46,6 +51,7 @@ class Trainer(pl.Trainer):
         max_epochs=400,
         default_root_dir: Optional[str] = None,
         checkpoint_callback: bool = False,
+        num_sanity_val_steps: int = 0,
         early_stopping: bool = False,
         early_stopping_monitor: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
@@ -58,6 +64,9 @@ class Trainer(pl.Trainer):
         if default_root_dir is None:
             default_root_dir = settings.logging_dir
 
+        kwargs["callbacks"] = (
+            [] if "callbacks" not in kwargs.keys() else kwargs["callbacks"]
+        )
         if early_stopping:
             early_stopping_callback = EarlyStopping(
                 monitor=early_stopping_monitor,
@@ -65,11 +74,11 @@ class Trainer(pl.Trainer):
                 patience=early_stopping_patience,
                 mode=early_stopping_mode,
             )
-            if "callbacks" in kwargs.keys():
-                kwargs["callbacks"] += early_stopping_callback
-            else:
-                kwargs["callbacks"] = [early_stopping_callback]
+            kwargs["callbacks"] += [early_stopping_callback]
             check_val_every_n_epoch = 1
+
+        bar = ProgressBar()
+        kwargs["callbacks"] += [bar]
 
         super().__init__(
             gpus=gpus,
@@ -79,5 +88,6 @@ class Trainer(pl.Trainer):
             max_epochs=max_epochs,
             default_root_dir=default_root_dir,
             checkpoint_callback=checkpoint_callback,
+            num_sanity_val_steps=num_sanity_val_steps,
             **kwargs,
         )
