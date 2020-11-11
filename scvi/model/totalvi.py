@@ -12,7 +12,7 @@ from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
-from scvi.core.data_loaders import TotalDataLoader
+from scvi.core.data_loaders import ScviDataLoader
 from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.models._utils import _de_core
 from scvi.core.modules import TOTALVAE
@@ -957,7 +957,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     @property
     def _scvi_dl_class(self):
-        return TotalDataLoader
+        return ScviDataLoader
 
 
 def _get_totalvi_protein_priors(adata, n_cells=100):
