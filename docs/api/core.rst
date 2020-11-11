@@ -33,6 +33,7 @@ Modules
 
 .. autosummary::
    :toctree: reference/
+   :template: class_no_inherited.rst
 
    core.modules.VAE
    core.modules.LDVAE
@@ -58,9 +59,10 @@ steps for modules like `TOTALVAE`, `SCANVAE`, etc.
 
 .. autosummary::
    :toctree: reference/
+   :template: class_no_inherited.rst
 
-   core.lightning.Trainer
    core.lightning.VAETask
+   core.lightning.Trainer
 
 Utilities
 ~~~~~~~~~

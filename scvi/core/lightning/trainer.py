@@ -42,7 +42,7 @@ class Trainer(pl.Trainer):
     weights_summary
         Prints a summary of the weights when training begins.
     **kwargs
-        Other keyword args for :class:`~pytorch_lightning.Trainer`
+        Other keyword args for :class:`~pytorch_lightning.trainer.Trainer`
     """
 
     def __init__(
