@@ -18,6 +18,7 @@ from scvi.core.modules._base._base_module import AbstractVAE, SCVILoss
 from scvi import _CONSTANTS
 
 from ._base import DecoderTOTALVI, EncoderTOTALVI
+from ._base.decorators import auto_move_data
 from .utils import one_hot
 
 torch.backends.cudnn.benchmark = True
@@ -310,6 +311,7 @@ class TOTALVAE(AbstractVAE):
             z=z, library_gene=library_gene, batch_index=batch_index, label=label
         )
 
+    @auto_move_data
     def generative(self, z, library_gene, batch_index, label):
         px_, py_, log_pro_back_mean = self.decoder(z, library_gene, batch_index, label)
 
@@ -339,6 +341,7 @@ class TOTALVAE(AbstractVAE):
             log_pro_back_mean=log_pro_back_mean,
         )
 
+    @auto_move_data
     def inference(
         self,
         x: torch.Tensor,
