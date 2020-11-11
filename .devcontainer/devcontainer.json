@@ -14,7 +14,9 @@
     "settings": {
         "terminal.integrated.shell.linux": "/bin/bash",
         "python.pythonPath": "/usr/local/bin/python",
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
         "editor.formatOnSave": true,
+        "python.languageServer": "Pylance",
         // Python - Formatting
         "python.formatting.autopep8Path": "/usr/local/py-utils/bin/autopep8",
         "python.formatting.blackPath": "/usr/local/py-utils/bin/black",
@@ -35,11 +37,13 @@
     "extensions": [
         "ms-python.python",
         "editorconfig.editorconfig",
+        "ms-python.vscode-pylance",
+        "eamodio.gitlens",
     ],
     // Use 'forwardPorts' to make a list of ports inside the container available locally.
     // "forwardPorts": [],
     // Use 'postCreateCommand' to run commands after the container is created.
-    "postCreateCommand": "pre-commit install && pip --disable-pip-version-check install -e .[test,notebooks]",
+    "postCreateCommand": "pre-commit install && pip --disable-pip-version-check install -e .[dev,docs,tutorials]",
     // Uncomment to connect as a non-root user. See https://aka.ms/vscode-remote/containers/non-root.
     "remoteUser": "vscode"
 }
