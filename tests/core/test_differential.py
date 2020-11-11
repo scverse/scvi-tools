@@ -47,3 +47,11 @@ def test_differential_computation(save_path):
     model.differential_expression(
         adata[adata.obs["labels"] == "label_1"], groupby="batch"
     )
+
+    # test that ints as group work
+    a = synthetic_iid()
+    a.obs["test"] = [0] * 200 + [1] * 200
+    model = SCVI(a)
+    model.differential_expression(groupby="test", group1=0)
+
+    #
