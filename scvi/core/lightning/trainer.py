@@ -14,7 +14,8 @@ class Trainer(pl.Trainer):
     """
     Lightweight wrapper of Pytorch Lightning Trainer.
 
-    Appropriate defaults are set for scvi-tools models.
+    Appropriate defaults are set for scvi-tools models, as well as callbacks like
+    EarlyStopping, with parameters accessible here.
 
     Parameters
     ----------
@@ -38,6 +39,8 @@ class Trainer(pl.Trainer):
     num_sanity_val_steps
         Sanity check runs n validation batches before starting the training routine.
         Set it to -1 to run all batches in all validation dataloaders.
+    weights_summary
+        Prints a summary of the weights when training begins.
     **kwargs
         Other keyword args for :class:`~pytorch_lightning.Trainer`
     """
@@ -52,6 +55,7 @@ class Trainer(pl.Trainer):
         default_root_dir: Optional[str] = None,
         checkpoint_callback: bool = False,
         num_sanity_val_steps: int = 0,
+        weights_summary: Optional[Literal["top", "full"]] = None,
         early_stopping: bool = False,
         early_stopping_monitor: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
@@ -89,5 +93,6 @@ class Trainer(pl.Trainer):
             default_root_dir=default_root_dir,
             checkpoint_callback=checkpoint_callback,
             num_sanity_val_steps=num_sanity_val_steps,
+            weights_summary=weights_summary,
             **kwargs,
         )
