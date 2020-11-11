@@ -256,6 +256,7 @@ class BaseModelClass(ABC):
                 train_size=train_size,
                 validation_size=validation_size,
                 pin_memory=pin_memory,
+                batch_size=batch_size,
             )
             self.train_indices_ = train_dl.indices
             self.test_indices_ = test_dl.indices

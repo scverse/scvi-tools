@@ -176,6 +176,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             validation_size=validation_size,
             batch_size=batch_size,
             early_stopping=early_stopping,
+            **kwargs,
         )
 
     @torch.no_grad()
