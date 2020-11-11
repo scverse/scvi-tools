@@ -45,16 +45,20 @@ class VAETask(pl.LightningModule):
 
     def validation_epoch_end(self, outputs):
         """Aggregate validation step information."""
-        n_obs = 0
-        elbo = 0
+        n_obs, elbo, rec_loss, kl_local = 0, 0, 0, 0
         for tensors in outputs:
             elbo += tensors["reconstruction_loss_sum"] + tensors["kl_local_sum"]
+            rec_loss += tensors["reconstruction_loss_sum"]
+            kl_local += tensors["kl_local_sum"]
             n_obs += tensors["n_obs"]
         # kl global same for each minibatch
-        elbo += tensors["kl_global"]
-        avg_elbo = elbo / n_obs
+        kl_global = tensors["kl_global"]
+        elbo += kl_global
 
-        self.log("elbo_validation", avg_elbo)
+        self.log("elbo_validation", elbo / n_obs)
+        self.log("reconstruction_loss_validation", rec_loss / n_obs)
+        self.log("kl_local_validation", kl_local / n_obs)
+        self.log("kl_global_validation", kl_global)
 
     def configure_optimizers(self):
         params = filter(lambda p: p.requires_grad, self.model.parameters())

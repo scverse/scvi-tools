@@ -47,7 +47,9 @@ class Trainer(pl.Trainer):
         default_root_dir: Optional[str] = None,
         checkpoint_callback: bool = False,
         early_stopping: bool = False,
-        early_stopping_monitor: str = "elbo_validation",
+        early_stopping_monitor: Literal[
+            "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
+        ] = "elbo_validation",
         early_stopping_min_delta: float = 0.00,
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
