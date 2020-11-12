@@ -77,12 +77,13 @@ class VAETask(pl.LightningModule):
             inference_outputs, _, scvi_loss = self.forward(
                 batch, loss_kwargs=loss_kwargs
             )
+            loss = scvi_loss.loss
             # fool classifier if doing adversarial training
             if kappa > 0 and self.adversarial_classifier is not False:
                 z = inference_outputs["z"]
-                fool_loss = self.loss_discriminator(z, batch_tensor, False)
-                scvi_loss.loss += fool_loss * kappa
-            return scvi_loss.loss
+                fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
+                loss += fool_loss * kappa
+            return loss
 
         # train adversarial classifier
         # this condition will not be met unless self.adversarial_classifier is not False
@@ -90,7 +91,9 @@ class VAETask(pl.LightningModule):
             inference_inputs = self.model._get_inference_input(batch)
             outputs = self.model.inference(**inference_inputs)
             z = outputs["z"]
-            adversarial_loss = self.loss_discriminator(z.detach(), batch_tensor, True)
+            adversarial_loss = self.loss_adversarial_classifier(
+                z.detach(), batch_tensor, True
+            )
             adversarial_loss *= kappa
             return adversarial_loss
 
@@ -163,9 +166,9 @@ class VAETask(pl.LightningModule):
             kl_weight = 1.0
         return kl_weight
 
-    def loss_discriminator(self, z, batch_index, predict_true_class=True):
+    def loss_adversarial_classifier(self, z, batch_index, predict_true_class=True):
         n_classes = self.model.n_batch
-        cls_logits = torch.nn.LogSoftmax(dim=1)(self.discriminator(z))
+        cls_logits = torch.nn.LogSoftmax(dim=1)(self.adversarial_classifier(z))
 
         if predict_true_class:
             cls_target = one_hot(batch_index, n_classes)
