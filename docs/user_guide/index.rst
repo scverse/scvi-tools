@@ -356,7 +356,7 @@ User-contributed tutorials
                     </div>
                     <span class="badge gs-badge-link">
 
-:doc:`Straight to tutorial...<notebooks/contributed/scVI_DE_worm>`
+:doc:`Straight to tutorial...<notebooks/scVI_DE_worm>`
 
 .. raw:: html
 
@@ -373,7 +373,7 @@ This tutorial was contributed by Eduardo Beltrame.
                     <div class="d-flex flex-row">
                         <span class="badge gs-badge-link">
 
-:doc:`To the tutorial <notebooks/contributed/scVI_DE_worm>`
+:doc:`To the tutorial <notebooks/scVI_DE_worm>`
 
 .. raw:: html
 
@@ -401,5 +401,5 @@ This tutorial was contributed by Eduardo Beltrame.
    notebooks/scvi_in_R
    notebooks/gimvi_tutorial
    notebooks/AutoZI_tutorial
-   notebooks/contributed/scVI_DE_worm
+   notebooks/scVI_DE_worm
    autotune
