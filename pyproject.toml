@@ -1,5 +1,5 @@
 [tool.poetry]
-authors = ["Romain Lopez <romain_lopez@gmail.com>", "Adam Gayoso <adamgayoso@berkeley.edu", "Galen Xing <gx2113@columbia.edu>"]
+authors = ["Romain Lopez <romain_lopez@gmail.com>", "Adam Gayoso <adamgayoso@berkeley.edu>", "Galen Xing <gx2113@columbia.edu>"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
