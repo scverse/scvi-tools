@@ -390,9 +390,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     protein_mixing = torch.distributions.Bernoulli(
                         protein_mixing
                     ).sample()
-                protein_val = py_["rate_fore"] * (1 - protein_mixing)
+                protein_val = py_["rate_fore"].cpu() * (1 - protein_mixing)
                 if include_protein_background is True:
-                    protein_val += py_["rate_back"] * protein_mixing
+                    protein_val += py_["rate_back"].cpu() * protein_mixing
 
                 if scale_protein is True:
                     protein_val = torch.nn.functional.normalize(
@@ -532,9 +532,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 )
                 py_mixing += torch.sigmoid(generative_outputs["py_"]["mixing"])[
                     ..., protein_mask
-                ]
+                ].cpu()
             py_mixing /= len(transform_batch)
-            py_mixings += [py_mixing.cpu()]
+            py_mixings += [py_mixing]
         if n_samples > 1:
             # concatenate along batch dimension -> result shape = (samples, cells, features)
             py_mixings = torch.cat(py_mixings, dim=1)
