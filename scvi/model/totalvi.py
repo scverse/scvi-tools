@@ -133,6 +133,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     def train(
         self,
         max_epochs: Optional[int] = 400,
+        lr: float = 4e-3,
         use_gpu: bool = True,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
@@ -173,6 +174,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             True if "totalvi_batch_mask" in self.scvi_setup_dict_.keys() else False
         )
         vae_task_kwargs = {
+            "lr": lr,
             "adversarial_classifier": True if imputation else False,
             "reduce_lr_on_plateau": reduce_lr_on_plateau,
         }
