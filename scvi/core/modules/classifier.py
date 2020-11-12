@@ -22,6 +22,12 @@ class Classifier(nn.Module):
         dropout_rate for nodes
     logits
         Return logits or not
+    use_batch_norm
+        Whether to use batch norm in layers
+    use_layer_norm
+        Whether to use layer norm in layers
+    activation_fn
+        Valid activation function from torch.nn
     """
 
     def __init__(
@@ -32,6 +38,9 @@ class Classifier(nn.Module):
         n_layers: int = 1,
         dropout_rate: float = 0.1,
         logits: bool = False,
+        use_batch_norm: bool = True,
+        use_layer_norm: bool = False,
+        activation_fn: nn.Module = nn.ReLU,
     ):
         super().__init__()
         layers = [
@@ -41,7 +50,9 @@ class Classifier(nn.Module):
                 n_layers=n_layers,
                 n_hidden=n_hidden,
                 dropout_rate=dropout_rate,
-                use_batch_norm=True,
+                use_batch_norm=use_batch_norm,
+                use_layer_norm=use_layer_norm,
+                activation_fn=activation_fn,
             ),
             nn.Linear(n_hidden, n_labels),
         ]

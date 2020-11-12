@@ -84,12 +84,13 @@ class VAEC(VAE):
             dispersion=dispersion,
             log_variational=log_variational,
             gene_likelihood=gene_likelihood,
+            use_observed_lib_size=False,
         )
 
         self.z_encoder = Encoder(
             n_input,
             n_latent,
-            n_cat_list=[n_labels],
+            n_cat_list=[n_batch, n_labels],
             n_hidden=n_hidden,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
@@ -113,7 +114,7 @@ class VAEC(VAE):
             n_input, n_hidden, n_labels, n_layers=n_layers, dropout_rate=dropout_rate
         )
 
-    def classify(self, x):
+    def classify(self, x, batch_index=None):
         x = torch.log(1 + x)
         return self.classifier(x)
 
@@ -122,7 +123,7 @@ class VAEC(VAE):
 
         # Prepare for sampling
         x_ = torch.log(1 + x)
-        ql_m, ql_v, library = self.l_encoder(x_)
+        ql_m, ql_v, library = self.l_encoder(x_, batch_index)
 
         # Enumerate choices of label
         ys, xs, library_s, batch_index_s = broadcast_labels(

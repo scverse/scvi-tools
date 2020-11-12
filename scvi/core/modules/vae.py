@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
 
+from scvi._compat import Literal
 from scvi.core.distributions import (
     NegativeBinomial,
     ZeroInflatedNegativeBinomial,
@@ -59,6 +60,24 @@ class VAE(nn.Module):
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
+    latent_distribution
+        One of
+
+        * ``'normal'`` - Isotropic normal
+        * ``'ln'`` - Logistic normal with normal params N(0, 1)
+    encode_covariates
+        Whether to concatenate covariates to expression in encoder
+    deeply_inject_covariates
+        Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
+        only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
+    use_observed_lib_size
+        Use observed library size for RNA as scaling factor in mean of conditional distribution
+    use_batch_norm
+        Whether to use batch norm in layers
+    use_layer_norm
+        Whether to use layer norm in layers
+    use_observed_lib_size
+        Use observed library size for RNA as scaling factor in mean of conditional distribution
     """
 
     def __init__(
@@ -74,6 +93,11 @@ class VAE(nn.Module):
         log_variational: bool = True,
         gene_likelihood: str = "zinb",
         latent_distribution: str = "normal",
+        encode_covariates: bool = False,
+        deeply_inject_covariates: bool = True,
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        use_observed_lib_size: bool = True,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -84,6 +108,8 @@ class VAE(nn.Module):
         self.n_batch = n_batch
         self.n_labels = n_labels
         self.latent_distribution = latent_distribution
+        self.encode_covariates = encode_covariates
+        self.use_observed_lib_size = use_observed_lib_size
 
         if self.dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input))
@@ -100,19 +126,36 @@ class VAE(nn.Module):
                 "{}.format(self.dispersion)"
             )
 
+        use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
+        use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
+        use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
+        use_layer_norm_decoder = use_layer_norm == "decoder" or use_layer_norm == "both"
+
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         # latent space representation
         self.z_encoder = Encoder(
             n_input,
             n_latent,
+            n_cat_list=[n_batch] if encode_covariates else None,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             distribution=latent_distribution,
+            inject_covariates=deeply_inject_covariates,
+            use_batch_norm=use_batch_norm_encoder,
+            use_layer_norm=use_layer_norm_encoder,
         )
         # l encoder goes from n_input-dimensional data to 1-d library size
         self.l_encoder = Encoder(
-            n_input, 1, n_layers=1, n_hidden=n_hidden, dropout_rate=dropout_rate
+            n_input,
+            1,
+            n_layers=1,
+            n_cat_list=[n_batch] if encode_covariates else None,
+            n_hidden=n_hidden,
+            dropout_rate=dropout_rate,
+            inject_covariates=deeply_inject_covariates,
+            use_batch_norm=use_batch_norm_encoder,
+            use_layer_norm=use_layer_norm_encoder,
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
         self.decoder = DecoderSCVI(
@@ -121,6 +164,9 @@ class VAE(nn.Module):
             n_cat_list=[n_batch],
             n_layers=n_layers,
             n_hidden=n_hidden,
+            inject_covariates=deeply_inject_covariates,
+            use_batch_norm=use_batch_norm_decoder,
+            use_layer_norm=use_layer_norm_decoder,
         )
 
     def get_latents(self, x, y=None) -> torch.Tensor:
@@ -142,7 +188,7 @@ class VAE(nn.Module):
         return [self.sample_from_posterior_z(x, y)]
 
     def sample_from_posterior_z(
-        self, x, y=None, give_mean=False, n_samples=5000
+        self, x, batch_index=None, y=None, give_mean=False, n_samples=5000
     ) -> torch.Tensor:
         """
         Samples the tensor of latent values from the posterior.
@@ -165,7 +211,7 @@ class VAE(nn.Module):
         """
         if self.log_variational:
             x = torch.log(1 + x)
-        qz_m, qz_v, z = self.z_encoder(x, y)  # y only used in VAEC
+        qz_m, qz_v, z = self.z_encoder(x, batch_index, y)  # y only used in VAEC
 
         if give_mean:
             if self.latent_distribution == "ln":
@@ -176,7 +222,9 @@ class VAE(nn.Module):
                 z = qz_m
         return z
 
-    def sample_from_posterior_l(self, x, give_mean=True) -> torch.Tensor:
+    def sample_from_posterior_l(
+        self, x, batch_index=None, give_mean=True
+    ) -> torch.Tensor:
         """
         Samples the tensor of library sizes from the posterior.
 
@@ -196,7 +244,7 @@ class VAE(nn.Module):
         """
         if self.log_variational:
             x = torch.log(1 + x)
-        ql_m, ql_v, library = self.l_encoder(x)
+        ql_m, ql_v, library = self.l_encoder(x, batch_index)
         if give_mean is False:
             library = library
         else:
@@ -292,12 +340,16 @@ class VAE(nn.Module):
     ) -> Dict[str, torch.Tensor]:
         """Helper function used in forward pass."""
         x_ = x
+        if self.use_observed_lib_size:
+            library = torch.log(x.sum(1)).unsqueeze(1)
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
         # Sampling
-        qz_m, qz_v, z = self.z_encoder(x_, y)
-        ql_m, ql_v, library = self.l_encoder(x_)
+        qz_m, qz_v, z = self.z_encoder(x_, batch_index, y)
+        ql_m, ql_v, library_encoded = self.l_encoder(x_, batch_index)
+        if not self.use_observed_lib_size:
+            library = library_encoded
 
         if n_samples > 1:
             qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
@@ -307,7 +359,12 @@ class VAE(nn.Module):
             z = self.z_encoder.z_transformation(untran_z)
             ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
             ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
-            library = Normal(ql_m, ql_v.sqrt()).sample()
+            if self.use_observed_lib_size:
+                library = library.unsqueeze(0).expand(
+                    (n_samples, library.size(0), library.size(1))
+                )
+            else:
+                library = Normal(ql_m, ql_v.sqrt()).sample()
 
         if transform_batch is not None:
             dec_batch_index = transform_batch * torch.ones_like(batch_index)
@@ -383,10 +440,13 @@ class VAE(nn.Module):
         kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
             dim=1
         )
-        kl_divergence_l = kl(
-            Normal(ql_m, torch.sqrt(ql_v)),
-            Normal(local_l_mean, torch.sqrt(local_l_var)),
-        ).sum(dim=1)
+        if not self.use_observed_lib_size:
+            kl_divergence_l = kl(
+                Normal(ql_m, torch.sqrt(ql_v)),
+                Normal(local_l_mean, torch.sqrt(local_l_var)),
+            ).sum(dim=1)
+        else:
+            kl_divergence_l = 0.0
         kl_divergence = kl_divergence_z
 
         reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
@@ -443,6 +503,8 @@ class LDVAE(VAE):
         Bool whether to use batch norm in decoder
     bias
         Bool whether to have bias term in linear decoder
+    use_observed_lib_size
+        Use observed library size for RNA as scaling factor in mean of conditional distribution
     """
 
     def __init__(
@@ -462,17 +524,18 @@ class LDVAE(VAE):
         latent_distribution: str = "normal",
     ):
         super().__init__(
-            n_input,
-            n_batch,
-            n_labels,
-            n_hidden,
-            n_latent,
-            n_layers_encoder,
-            dropout_rate,
-            dispersion,
-            log_variational,
-            gene_likelihood,
-            latent_distribution,
+            n_input=n_input,
+            n_batch=n_batch,
+            n_labels=n_labels,
+            n_hidden=n_hidden,
+            n_latent=n_latent,
+            n_layers=n_layers_encoder,
+            dropout_rate=dropout_rate,
+            dispersion=dispersion,
+            log_variational=log_variational,
+            gene_likelihood=gene_likelihood,
+            latent_distribution=latent_distribution,
+            use_observed_lib_size=False,
         )
         self.use_batch_norm = use_batch_norm
         self.z_encoder = Encoder(
@@ -482,13 +545,24 @@ class LDVAE(VAE):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             distribution=latent_distribution,
+            use_batch_norm=True,
+            use_layer_norm=False,
         )
-
+        self.l_encoder = Encoder(
+            n_input,
+            1,
+            n_layers=1,
+            n_hidden=n_hidden,
+            dropout_rate=dropout_rate,
+            use_batch_norm=True,
+            use_layer_norm=False,
+        )
         self.decoder = LinearDecoderSCVI(
             n_latent,
             n_input,
             n_cat_list=[n_batch],
             use_batch_norm=use_batch_norm,
+            use_layer_norm=False,
             bias=bias,
         )
 

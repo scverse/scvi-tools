@@ -8,7 +8,7 @@ from anndata import AnnData
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.core.data_loaders import AnnotationDataLoader
-from scvi.core.models import BaseModelClass, RNASeqMixin, VAEMixin
+from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.modules import SCANVAE, VAE
 from scvi.core.trainers import SemiSupervisedTrainer, UnsupervisedTrainer
 
@@ -17,7 +17,7 @@ from .scvi import SCVI
 logger = logging.getLogger(__name__)
 
 
-class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
+class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     """
     Single-cell annotation using variational inference [Xu19]_.
 
@@ -82,7 +82,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         **model_kwargs,
     ):
         super(SCANVI, self).__init__(adata, use_cuda=use_cuda)
-        self.unlabeled_category = unlabeled_category
+        self.unlabeled_category_ = unlabeled_category
 
         if pretrained_model is not None:
             if pretrained_model.is_trained is False:
@@ -125,8 +125,10 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         ]
         labels = np.asarray(self.adata.obs[original_key]).ravel()
         self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
-        self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
-        self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
+        self._unlabeled_indices = np.argwhere(
+            labels == self.unlabeled_category_
+        ).ravel()
+        self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
         self.unsupervised_history_ = None
         self.semisupervised_history_ = None
 
@@ -164,6 +166,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self,
         n_epochs_unsupervised: Optional[int] = None,
         n_epochs_semisupervised: Optional[int] = None,
+        train_base_model: bool = True,
         train_size: float = 0.9,
         test_size: float = None,
         lr: float = 1e-3,
@@ -184,6 +187,8 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             Number of passes through the dataset for unsupervised pre-training.
         n_epochs_semisupervised
             Number of passes through the dataset for semisupervised training.
+        train_base_model
+            Pretrain an SCVI base model first before semisupervised training.
         train_size
             Size of training set in the range [0.0, 1.0].
         test_size
@@ -229,7 +234,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             )
         )
 
-        if self._is_trained_base is not True:
+        if self._is_trained_base is not True and train_base_model:
             self._unsupervised_trainer = UnsupervisedTrainer(
                 self._base_model,
                 self.adata,
@@ -247,7 +252,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             self.unsupervised_history_ = self._unsupervised_trainer.history
             self._is_trained_base = True
 
-        self.model.load_state_dict(self._base_model.state_dict(), strict=False)
+            self.model.load_state_dict(self._base_model.state_dict(), strict=False)
 
         if "frequency" not in semisupervised_trainer_kwargs and frequency is not None:
             semisupervised_trainer_kwargs["frequency"] = frequency
@@ -256,13 +261,9 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             self.model,
             self.adata,
             use_cuda=self.use_cuda,
+            indices_labelled=self._labeled_indices,
+            indices_unlabelled=self._unlabeled_indices,
             **semisupervised_trainer_kwargs,
-        )
-        self.trainer.unlabelled_set = self.trainer.create_scvi_dl(
-            indices=self._unlabeled_indices
-        )
-        self.trainer.labelled_set = self.trainer.create_scvi_dl(
-            indices=self._labeled_indices
         )
         self.semisupervised_history_ = self.trainer.history
         self.trainer.train(

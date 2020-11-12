@@ -5,6 +5,8 @@ import torch
 from torch.distributions import Categorical, Normal
 from torch.distributions import kl_divergence as kl
 
+from scvi._compat import Literal
+
 from ._base import Decoder, Encoder
 from .classifier import Classifier
 from .utils import broadcast_labels
@@ -54,16 +56,12 @@ class SCANVAE(VAE):
         Label group designations
     use_labels_groups
         Whether to use the label groups
-
-    Examples
-    --------
-    >>> gene_dataset = CortexDataset()
-    >>> scanvi = SCANVI(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-    ... n_labels=gene_dataset.n_labels)
-
-    >>> gene_dataset = SyntheticDataset(n_labels=3)
-    >>> scanvi = SCANVI(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-    ... n_labels=3, y_prior=torch.tensor([[0.1,0.5,0.4]]), labels_groups=[0,0,1])
+    use_batch_norm
+        Whether to use batch norm in layers
+    use_layer_norm
+        Whether to use layer norm in layers
+    **kwargs
+        Keyword args for :class:`~scvi.core.modules.VAE`
     """
 
     def __init__(
@@ -82,6 +80,9 @@ class SCANVAE(VAE):
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
         classifier_parameters: dict = dict(),
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        **kwargs
     ):
         super().__init__(
             n_input,
@@ -93,7 +94,15 @@ class SCANVAE(VAE):
             dispersion=dispersion,
             log_variational=log_variational,
             gene_likelihood=gene_likelihood,
+            use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
+            **kwargs
         )
+
+        use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
+        use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
+        use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
+        use_layer_norm_decoder = use_layer_norm == "decoder" or use_layer_norm == "both"
 
         self.n_labels = n_labels
         # Classifier takes n_latent as input
@@ -103,7 +112,13 @@ class SCANVAE(VAE):
             "dropout_rate": dropout_rate,
         }
         cls_parameters.update(classifier_parameters)
-        self.classifier = Classifier(n_latent, n_labels=n_labels, **cls_parameters)
+        self.classifier = Classifier(
+            n_latent,
+            n_labels=n_labels,
+            use_batch_norm=use_batch_norm_encoder,
+            use_layer_norm=use_layer_norm_encoder,
+            **cls_parameters
+        )
 
         self.encoder_z2_z1 = Encoder(
             n_latent,
@@ -112,6 +127,8 @@ class SCANVAE(VAE):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            use_batch_norm=use_batch_norm_encoder,
+            use_layer_norm=use_layer_norm_encoder,
         )
         self.decoder_z1_z2 = Decoder(
             n_latent,
@@ -119,6 +136,8 @@ class SCANVAE(VAE):
             n_cat_list=[self.n_labels],
             n_layers=n_layers,
             n_hidden=n_hidden,
+            use_batch_norm=use_batch_norm_decoder,
+            use_layer_norm=use_layer_norm_decoder,
         )
 
         self.y_prior = torch.nn.Parameter(
@@ -152,10 +171,10 @@ class SCANVAE(VAE):
                 ]
             )
 
-    def classify(self, x):
+    def classify(self, x, batch_index=None):
         if self.log_variational:
             x = torch.log(1 + x)
-        qz_m, _, z = self.z_encoder(x)
+        qz_m, _, z = self.z_encoder(x, batch_index)
         # We classify using the inferred mean parameter of z_1 in the latent space
         z = qz_m
         if self.use_labels_groups:
@@ -208,10 +227,13 @@ class SCANVAE(VAE):
         ).sum(dim=1)
         loss_z1_unweight = -Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1s).sum(dim=-1)
         loss_z1_weight = Normal(qz1_m, torch.sqrt(qz1_v)).log_prob(z1).sum(dim=-1)
-        kl_divergence_l = kl(
-            Normal(ql_m, torch.sqrt(ql_v)),
-            Normal(local_l_mean, torch.sqrt(local_l_var)),
-        ).sum(dim=1)
+        if not self.use_observed_lib_size:
+            kl_divergence_l = kl(
+                Normal(ql_m, torch.sqrt(ql_v)),
+                Normal(local_l_mean, torch.sqrt(local_l_var)),
+            ).sum(dim=1)
+        else:
+            kl_divergence_l = 0.0
 
         if is_labelled:
             return (

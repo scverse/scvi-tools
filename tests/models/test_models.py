@@ -230,7 +230,7 @@ def test_scanvi():
     model = SCANVI(adata, "label_0", n_latent=10)
     model.train(1, train_size=0.5, frequency=1)
     assert len(model.history["unsupervised_trainer_history"]) == 2
-    assert len(model.history["semisupervised_trainer_history"]) == 3
+    assert len(model.history["semisupervised_trainer_history"]) == 7
     adata2 = synthetic_iid()
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3
@@ -402,3 +402,172 @@ def test_totalvi(save_path):
     model = TOTALVI(adata)
     assert model.model.protein_batch_mask is not None
     model.train(1, train_size=0.5)
+
+
+def test_scvi_online_update(save_path):
+    n_latent = 5
+    adata1 = synthetic_iid()
+    model = SCVI(adata1, n_latent=n_latent)
+    model.train(1, frequency=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+
+    model2 = SCVI.load_query_data(adata2, dir_path)
+    model2.train(n_epochs=1, weight_decay=0.0)
+    model2.get_latent_representation()
+
+    # encoder linear layer equal
+    one = (
+        model.model.z_encoder.encoder.fc_layers[0][0]
+        .weight.detach()
+        .numpy()[:, : adata1.shape[1]]
+    )
+    two = (
+        model2.model.z_encoder.encoder.fc_layers[0][0]
+        .weight.detach()
+        .numpy()[:, : adata1.shape[1]]
+    )
+    np.testing.assert_allclose(one, two, atol=1e-07)
+    assert (
+        np.sum(
+            model2.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()[
+                :, : adata1.shape[1]
+            ]
+        )
+        == 0
+    )
+    # dispersion
+    assert model2.model.px_r.requires_grad is False
+    # library encoder linear layer
+    assert model2.model.l_encoder.encoder.fc_layers[0][0].weight.requires_grad is True
+    # 5 for n_latent, 4 for batches
+    assert model2.model.decoder.px_decoder.fc_layers[0][0].weight.shape[1] == 9
+
+    # test options
+    adata1 = synthetic_iid()
+    model = SCVI(
+        adata1,
+        n_latent=n_latent,
+        n_layers=2,
+        encode_covariates=True,
+        use_batch_norm="encoder",
+        use_layer_norm="none",
+    )
+    model.train(1, frequency=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+
+    model2 = SCVI.load_query_data(adata2, dir_path, freeze_expression=True)
+    model2.train(n_epochs=1, weight_decay=0.0)
+    model2.get_latent_representation()
+    grad = model2.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()
+    # expression part has zero grad
+    assert np.sum(grad[:, :-4]) == 0
+    # categorical part has non-zero grad
+    assert np.sum(grad[:, -4:]) != 0
+
+    # do not freeze expression
+    model3 = SCVI.load_query_data(
+        adata2, dir_path, freeze_expression=False, freeze_batchnorm_encoder=True
+    )
+    model3.train(n_epochs=1)
+    model3.get_latent_representation()
+    assert model3.model.z_encoder.encoder.fc_layers[0][1].momentum == 0
+    # batch norm weight in encoder layer
+    assert model3.model.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
+    grad = model3.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()
+    # linear layer weight in encoder layer has non-zero grad
+    assert np.sum(grad[:, :-4]) != 0
+
+    # do not freeze batchnorm
+    model3 = SCVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=False)
+    model3.train(n_epochs=1)
+    model3.get_latent_representation()
+
+
+def test_scanvi_online_update(save_path):
+    # ref has semi-observed labels
+    n_latent = 5
+    adata1 = synthetic_iid(run_setup_anndata=False)
+    new_labels = adata1.obs.labels.to_numpy()
+    new_labels[0] = "Unknown"
+    adata1.obs["labels"] = pd.Categorical(new_labels)
+    setup_anndata(adata1, batch_key="batch", labels_key="labels")
+    model = SCANVI(adata1, "Unknown", n_latent=n_latent, encode_covariates=True)
+    model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1, frequency=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    adata2.obs["labels"] = "Unknown"
+
+    model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
+    model.train(
+        n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
+    )
+    model.get_latent_representation()
+    model.predict()
+
+    # ref has fully-observed labels
+    n_latent = 5
+    adata1 = synthetic_iid(run_setup_anndata=False)
+    new_labels = adata1.obs.labels.to_numpy()
+    adata1.obs["labels"] = pd.Categorical(new_labels)
+    setup_anndata(adata1, batch_key="batch", labels_key="labels")
+    model = SCANVI(adata1, "Unknown", n_latent=n_latent, encode_covariates=True)
+    model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1, frequency=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    # query has one new label
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    new_labels = adata2.obs.labels.to_numpy()
+    new_labels[0] = "Unknown"
+    adata2.obs["labels"] = pd.Categorical(new_labels)
+
+    model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
+    model._unlabeled_indices = np.arange(adata2.n_obs)
+    model._labeled_indices = []
+    model.train(
+        n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
+    )
+    model.get_latent_representation()
+    model.predict()
+
+
+def test_totalvi_online_update(save_path):
+    # basic case
+    n_latent = 5
+    adata1 = synthetic_iid()
+    model = TOTALVI(adata1, n_latent=n_latent, use_batch_norm="decoder")
+    model.train(1, frequency=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+
+    model2 = TOTALVI.load_query_data(adata2, dir_path)
+    assert model2.model.background_pro_alpha.requires_grad is True
+    model2.train(n_epochs=1)
+    model2.get_latent_representation()
+
+    # batch 3 has no proteins
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    adata2.obsm["protein_expression"][adata2.obs.batch == "batch_3"] = 0
+
+    # load from model in memory
+    model3 = TOTALVI.load_query_data(adata2, model)
+    model3.model.protein_batch_mask[2]
+    model3.model.protein_batch_mask[3]
+    model3.train(n_epochs=1)
+    model3.get_latent_representation()

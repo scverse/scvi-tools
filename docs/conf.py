@@ -76,7 +76,22 @@ napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this
+nbsphinx_prolog = """
+.. raw:: html
 
+    <style>
+        .nbinput .prompt,
+        .nboutput .prompt {
+            display: none;
+        }
+        p {
+            padding-top: 5px;
+        }
+        .nboutput .stderr{
+            display: none;
+        }
+    </style>
+"""
 # The master toctree document.
 master_doc = "index"
 
