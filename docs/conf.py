@@ -85,7 +85,10 @@ nbsphinx_prolog = """
             display: none;
         }
         p {
-        padding-top: 5px;
+            padding-top: 5px;
+        }
+        .nboutput .stderr{
+            display: none;
         }
     </style>
 """
