@@ -58,4 +58,4 @@ def test_differential_computation(save_path):
     a = synthetic_iid()
     a.obs["test"] = ["0"] * 200 + ["1"] * 200
     model = SCVI(a)
-    model.differential_expression(groupby="test", group1=0)
+    model.differential_expression(groupby="test", group1="0")
