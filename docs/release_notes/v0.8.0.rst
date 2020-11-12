@@ -1,0 +1,33 @@
+New in 0.8.0 (2020-MM-DD)
+-------------------------
+
+Enhancements
+~~~~~~~~~~~~
+
+Online updates of `SCVI`, `SCANVI`, and `TOTALVI` with the scArches method
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is now possible to iteratively update these models with new samples, without altering the model for the "reference" population.
+Here we use the `scArches method <https://github.com/theislab/scarches>`_. For usage, please see the tutorial in the user guide.
+
+To enable scArches in our models, we added a few new options. The first is `encode_covariates`, which is an `SCVI` option to encode the one-hotted
+batch covariate. We also allow users to exchange batch norm in the encoder and decoder with layer norm, which can be though of as batch norm but per cell.
+As the layer norm we use has no parameters, it's a bit faster than models with batch norm. We don't find many differences between using batch norm or layer norm
+in our models, though we have kept defaults the same in this case. To run scArches effectively, batch norm should be exhanged with layer norm.
+
+
+Empirical initialization of protein background parameters with totalVI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The learned prior parameters for the protein background were randomly initialized. Now, they can be set with the `empirical_protein_background_prior`
+option in :class:`~scvi.model.TOTALVI`. This option fits a two-component Gaussian mixture model per cell, separating those proteins that are background
+for the cell and those that are foreground, and aggregates the learned mean and variance of the smaller component across cells. This computation is done
+per batch, if the `batch_key` was registered. We emphasize this is just for the initialization of a learned parameter in the model.
+
+Use observed library size option
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Many of our models like `SCVI`, `SCANVI`, and `TOTALVI` learn a latent library size variable.
+The option `use_observed_lib_size` may now be passed on model initialization. We have set this as `True` by default,
+as we see no regression in performance, and training is a bit faster.
+
