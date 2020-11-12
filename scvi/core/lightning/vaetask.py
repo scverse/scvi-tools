@@ -32,6 +32,7 @@ class VAETask(pl.LightningModule):
         reduce_lr_on_plateau: bool = False,
         lr_factor: float = 0.6,
         lr_patience: int = 30,
+        lr_threshold: float = 0.0,
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
@@ -48,6 +49,7 @@ class VAETask(pl.LightningModule):
         self.lr_factor = lr_factor
         self.lr_patience = lr_patience
         self.lr_scheduler_metric = lr_scheduler_metric
+        self.lr_threshold = lr_threshold
 
         if adversarial_classifier is True:
             self.adversarial_classifier = Classifier(
@@ -132,7 +134,12 @@ class VAETask(pl.LightningModule):
         config1 = {"optimizer": optimizer1}
         if self.reduce_lr_on_plateau:
             scheduler1 = ReduceLROnPlateau(
-                optimizer1, patience=self.lr_patience, factor=self.lr_factor
+                optimizer1,
+                patience=self.lr_patience,
+                factor=self.lr_factor,
+                threshold=self.lr_threshold,
+                threshold_mode="abs",
+                verbose=True,
             )
             config1.update(
                 {
