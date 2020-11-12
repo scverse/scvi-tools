@@ -206,6 +206,7 @@ class BaseModelClass(ABC):
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
+        vae_task_kwargs: Optional[dict] = None,
         **kwargs,
     ):
         """
@@ -240,9 +241,10 @@ class BaseModelClass(ABC):
             use_gpu = torch.cuda.is_available()
 
         if self.is_trained_ is False:
-            self._pl_task = VAETask(
-                self.model,
+            task_kwargs = (
+                vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
             )
+            self._pl_task = VAETask(self.model, **task_kwargs)
             if use_gpu:
                 gpus = 1
                 pin_memory = True

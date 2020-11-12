@@ -308,9 +308,7 @@ def test_totalvi(save_path):
     n_latent = 10
 
     model = TOTALVI(adata, n_latent=n_latent)
-    model.train(1, frequency=1, early_stopping_kwargs=None, train_size=0.5)
-    assert len(model.history["elbo_train_set"]) == 2
-    assert len(model.history["elbo_test_set"]) == 2
+    model.train(1, train_size=0.5)
     assert model.is_trained is True
     z = model.get_latent_representation()
     assert z.shape == (n_obs, n_latent)

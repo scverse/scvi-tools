@@ -3,12 +3,25 @@ from typing import Union
 import pytorch_lightning as pl
 import torch
 from torch.nn import functional as F
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
+from scvi._compat import Literal
+from scvi.core.modules import Classifier
 from scvi.core.modules._base._base_module import AbstractVAE
+from scvi.core.modules.utils import one_hot
 from scvi import _CONSTANTS
 
 
 class VAETask(pl.LightningModule):
+    """
+    Lightning module task to train scvi-tools modules
+
+    Parameters
+    ----------
+    vae_model
+        A model instance from class ``AbstractVAE``
+    """
+
     def __init__(
         self,
         vae_model: AbstractVAE,
@@ -16,6 +29,14 @@ class VAETask(pl.LightningModule):
         weight_decay=1e-6,
         n_iter_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
+        reduce_lr_on_plateau: bool = False,
+        lr_factor: float = 0.6,
+        lr_patience: int = 30,
+        lr_scheduler_metric: Literal[
+            "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
+        ] = "elbo_validation",
+        adversarial_classifier: Union[bool, Classifier] = False,
+        scale_adversarial_loss: Union[float, Literal["auto"]] = "auto",
     ):
         super(VAETask, self).__init__()
         self.model = vae_model
@@ -23,17 +44,57 @@ class VAETask(pl.LightningModule):
         self.weight_decay = weight_decay
         self.n_iter_kl_warmup = n_iter_kl_warmup
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
+        self.reduce_lr_on_plateau = reduce_lr_on_plateau
+        self.lr_factor = lr_factor
+        self.lr_patience = lr_patience
+        self.lr_scheduler_metric = lr_scheduler_metric
+
+        if adversarial_classifier is True:
+            self.adversarial_classifier = Classifier(
+                n_input=self.model.n_latent,
+                n_hidden=32,
+                n_labels=self.model.n_batch,
+                n_layers=2,
+                logits=True,
+            )
+        else:
+            self.adversarial_classifier = adversarial_classifier
+        self.scale_adversarial_loss = scale_adversarial_loss
 
     def forward(self, *args, **kwargs):
         """Passthrough to model.forward()."""
         return self.model(*args, **kwargs)
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
-        loss_kwargs = dict(kl_weight=self.kl_weight)
-        _, _, scvi_loss = self.forward(batch, loss_kwargs=loss_kwargs)
-        return scvi_loss.loss
+        kappa = (
+            1 - self.kl_weight
+            if self.scale_adversarial_loss == "auto"
+            else self.scale_adversarial_loss
+        )
+        batch_tensor = batch[_CONSTANTS.BATCH_KEY]
+        if optimizer_idx == 0:
+            loss_kwargs = dict(kl_weight=self.kl_weight)
+            inference_outputs, _, scvi_loss = self.forward(
+                batch, loss_kwargs=loss_kwargs
+            )
+            # fool classifier if doing adversarial training
+            if kappa > 0 and self.adversarial_classifier is not False:
+                z = inference_outputs["z"]
+                fool_loss = self.loss_discriminator(z, batch_tensor, False)
+                scvi_loss.loss += fool_loss * kappa
+            return scvi_loss.loss
 
-    def validation_step(self, batch, batch_idx, optimizer_idx=0):
+        # train adversarial classifier
+        # this condition will not be met unless self.adversarial_classifier is not False
+        if optimizer_idx == 1:
+            inference_inputs = self.model._get_inference_input(batch)
+            outputs = self.model.inference(**inference_inputs)
+            z = outputs["z"]
+            adversarial_loss = self.loss_discriminator(z.detach(), batch_tensor, True)
+            adversarial_loss *= kappa
+            return adversarial_loss
+
+    def validation_step(self, batch, batch_idx):
         _, _, scvi_loss = self.forward(batch)
         reconstruction_loss = scvi_loss.reconstruction_loss
         return {
@@ -61,11 +122,33 @@ class VAETask(pl.LightningModule):
         self.log("kl_global_validation", kl_global)
 
     def configure_optimizers(self):
-        params = filter(lambda p: p.requires_grad, self.model.parameters())
-        optimizer = torch.optim.Adam(
-            params, lr=self.lr, eps=0.01, weight_decay=self.weight_decay
+        params1 = filter(lambda p: p.requires_grad, self.model.parameters())
+        optimizer1 = torch.optim.Adam(
+            params1, lr=self.lr, eps=0.01, weight_decay=self.weight_decay
         )
-        return optimizer
+        config1 = {"optimizer": optimizer1}
+        if self.reduce_lr_on_plateau:
+            scheduler1 = ReduceLROnPlateau(
+                optimizer1, patience=self.lr_patience, factor=self.lr_factor
+            )
+            config1.update(
+                {
+                    "lr_scheduler": scheduler1,
+                    "monitor": self.lr_scheduler_metric,
+                },
+            )
+
+        if self.adversarial_classifier is not False:
+            params2 = filter(
+                lambda p: p.requires_grad, self.adversarial_classifier.parameters()
+            )
+            optimizer2 = torch.optim.Adam(
+                params2, lr=1e-3, eps=0.01, weight_decay=self.weight_decay
+            )
+            config2 = {"optimizer": optimizer2}
+            return config1, config2
+
+        return config1
 
     @property
     def kl_weight(self):
@@ -79,6 +162,25 @@ class VAETask(pl.LightningModule):
         else:
             kl_weight = 1.0
         return kl_weight
+
+    def loss_discriminator(self, z, batch_index, predict_true_class=True):
+        n_classes = self.model.n_batch
+        cls_logits = torch.nn.LogSoftmax(dim=1)(self.discriminator(z))
+
+        if predict_true_class:
+            cls_target = one_hot(batch_index, n_classes)
+        else:
+            one_hot_batch = one_hot(batch_index, n_classes)
+            cls_target = torch.zeros_like(one_hot_batch)
+            # place zeroes where true label is
+            cls_target.masked_scatter_(
+                ~one_hot_batch.bool(), torch.ones_like(one_hot_batch) / (n_classes - 1)
+            )
+
+        l_soft = cls_logits * cls_target
+        loss = -l_soft.sum(dim=1).mean()
+
+        return loss
 
 
 class ClassifierTask(VAETask):

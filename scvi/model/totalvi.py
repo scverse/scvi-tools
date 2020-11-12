@@ -132,7 +132,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     def train(
         self,
-        max_epochs: Optional[int] = None,
+        max_epochs: Optional[int] = 400,
         use_gpu: bool = True,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
@@ -168,7 +168,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         **kwargs
             Other keyword args for :class:`~scvi.core.lightning.Trainer`.
         """
-
+        imputation = (
+            True if "totalvi_batch_mask" in self.scvi_setup_dict_.keys() else False
+        )
+        vae_task_kwargs = {"adversarial_classifier": True if imputation else False}
         super().train(
             max_epochs=max_epochs,
             use_gpu=use_gpu,
@@ -176,6 +179,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             validation_size=validation_size,
             batch_size=batch_size,
             early_stopping=early_stopping,
+            vae_task_kwargs=vae_task_kwargs,
             **kwargs,
         )
 
