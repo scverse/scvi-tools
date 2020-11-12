@@ -7,13 +7,4 @@ assignees: ''
 
 ---
 
-<!-- Please raise usage questions at discourse.scvi-tools.org --> 
-
-<!-- Describe the question, be sure to specify which model you're referring to -->
-[TEXT HERE]
-
-
-<!-- Code to reproduce (if applicable, else delete the block): -->
-```python
-[CODE HERE]
-```
+Please raise usage questions at [discourse.scvi-tools.org](https://discourse.scvi-tools.org/)
