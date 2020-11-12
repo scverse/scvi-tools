@@ -46,7 +46,7 @@ pre-commit = {version = ">=2.7.1", optional = true}
 prospector = {version = "*", optional = true}
 pydata-sphinx-theme = {version = ">=0.4.0", optional = true}
 pytest = {version = ">=4.4", optional = true}
-python = ">=3.6.1"
+python = ">=3.6.1,<4.0"
 python-igraph = {version = "*", optional = true}
 rich = ">=6.2.0"
 scanpy = {version = ">=1.6", optional = true}
