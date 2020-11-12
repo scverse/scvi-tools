@@ -76,7 +76,7 @@ napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this
-nbsphinx_prolog = """
+nbsphinx_prolog = r"""
 .. raw:: html
 
     <style>
@@ -91,6 +91,20 @@ nbsphinx_prolog = """
             display: none;
         }
     </style>
+
+{% set docname = env.doc2path(env.docname, base=None).split("/")[-1] %}
+
+.. raw:: html
+
+    <div class="admonition note">
+    <p class="admonition-title">Note</p>
+    <p>
+      This page was generated from
+      <a class="reference external" href="https://github.com/yoseflab/scvi-tutorials/">{{ docname|e }}</a>.
+      Interactive online version:
+      <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/yoseflab/scvi_tutorials/blob/master/{{ docname|e }}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
+    </p>
+    </div>
 """
 # The master toctree document.
 master_doc = "index"
