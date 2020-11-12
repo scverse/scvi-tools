@@ -65,27 +65,22 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
 
 class ScviDataLoader(DataLoader):
     """
-    Scvi Data Loader.
-
-    A `ScviDataLoader` instance is instantiated with a model and a gene_dataset, and
-    as well as additional arguments that for Pytorch's `DataLoader`. A subset of indices can be specified, for
-    purposes such as splitting the data into train/test or labelled/unlabelled (for semi-supervised learning).
-    Each trainer instance of the `Trainer` class can therefore have multiple `ScviDataLoader` instances to train a model.
-    A `ScviDataLoader` instance also comes with methods to compute likelihood and other relevant training metrics.
+    Scvi Data Loader for loading tensors from AnnData objects.
 
     Parameters
     ----------
     adata
-        An anndata instance
+        An anndata objects
     shuffle
-        Specifies if a `RandomSampler` or a `SequentialSampler` should be used
+        Whether the data should be shuffled
     indices
-        Specifies how the data should be split with regards to train/test or labelled/unlabelled
-    use_cuda
-        Default: ``True``
+        The indices of the observations in the adata to load
+    data_and_attributes
+        Dictionary with keys representing keys in data registry (`adata.uns["_scvi"]`)
+        and value equal to desired numpy loading type (later made into torch tensor).
+        If `None`, defaults to all registered data.
     data_loader_kwargs
-        Keyword arguments to passed into the `DataLoader`
-
+        Keyword arguments for :class:`~torch.utils.data.DataLoader`
     """
 
     def __init__(
@@ -93,7 +88,6 @@ class ScviDataLoader(DataLoader):
         adata: anndata.AnnData,
         shuffle=False,
         indices=None,
-        use_cuda=True,
         batch_size=128,
         data_and_attributes: Optional[dict] = None,
         **data_loader_kwargs,
@@ -113,8 +107,6 @@ class ScviDataLoader(DataLoader):
                     )
 
         self.dataset = ScviDataset(adata, getitem_tensors=data_and_attributes)
-        self.to_monitor = []
-        self.use_cuda = use_cuda
 
         sampler_kwargs = {
             "batch_size": batch_size,
