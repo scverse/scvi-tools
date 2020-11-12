@@ -378,14 +378,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     compute_loss=False,
                 )
                 if library_size == "latent":
-                    px_scale += generative_outputs["px_"]["rate"]
+                    px_scale += generative_outputs["px_"]["rate"].cpu()
                 else:
-                    px_scale += generative_outputs["px_"]["scale"]
+                    px_scale += generative_outputs["px_"]["scale"].cpu()
                 px_scale = px_scale[..., gene_mask]
 
                 py_ = generative_outputs["py_"]
                 # probability of background
-                protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
+                protein_mixing = 1 / (1 + torch.exp(-py_["mixing"].cpu()))
                 if sample_protein_mixing is True:
                     protein_mixing = torch.distributions.Bernoulli(
                         protein_mixing
@@ -402,8 +402,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 py_scale += protein_val
             px_scale /= len(transform_batch)
             py_scale /= len(transform_batch)
-            scale_list_gene.append(px_scale.cpu())
-            scale_list_pro.append(py_scale.cpu())
+            scale_list_gene.append(px_scale)
+            scale_list_pro.append(py_scale)
 
         if n_samples > 1:
             # concatenate along batch dimension -> result shape = (samples, cells, features)
