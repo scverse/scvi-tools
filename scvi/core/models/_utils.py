@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import read
+from collections.abc import Iterable as IterableClass
 
 from scvi._compat import Literal
 from scvi._utils import track
@@ -100,13 +101,13 @@ def _de_core(
 ):
     """Internal function for DE interface."""
     if group1 is None and idx1 is None:
-        group1 = adata.obs[groupby].cat.categories.tolist()
+        group1 = adata.obs[groupby].astype("category").cat.categories.tolist()
         if len(group1) == 1:
             raise ValueError(
                 "Only a single group in the data. Can't run DE on a single group."
             )
 
-    if isinstance(group1, str):
+    if not isinstance(group1, IterableClass) or isinstance(group1, str):
         group1 = [group1]
 
     # make a temp obs key using indices
