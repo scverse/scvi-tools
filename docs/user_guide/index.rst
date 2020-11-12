@@ -261,6 +261,43 @@ scvi-tools can be used interfaced directly from R. Learn the basics here.
         </div>
 
         <div class="card tutorial-card">
+            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseScArches">
+                <div class="d-flex flex-row tutorial-card-header-1">
+                    <div class="d-flex flex-row tutorial-card-header-2">
+                        <button class="btn btn-dark btn-sm"></button>
+                        Online updates of scvi-tools models via the scArches method
+                    </div>
+                    <span class="badge gs-badge-link">
+
+:doc:`Straight to tutorial...<notebooks/scarches_scvi_tools>`
+
+.. raw:: html
+
+                    </span>
+                </div>
+            </div>
+            <div id="collapseScArches" class="collapse" data-parent="#accordion">
+                <div class="card-body">
+
+scVI, scANVI, and totalVI can be pre-trained on large reference datasets and updated sequentially with query datasets in an online fashion.
+This technique uses the method of scArches and enables rapid, and robust integration.
+
+.. raw:: html
+
+                    <div class="d-flex flex-row">
+                        <span class="badge gs-badge-link">
+
+:doc:`To the tutorial <notebooks/scarches_scvi_tools>`
+
+.. raw:: html
+
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card tutorial-card">
             <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseSix">
                 <div class="d-flex flex-row tutorial-card-header-1">
                     <div class="d-flex flex-row tutorial-card-header-2">
@@ -399,6 +436,7 @@ This tutorial was contributed by Eduardo Beltrame.
    notebooks/linear_decoder
    notebooks/cite_scrna_integration_w_totalVI
    notebooks/scvi_in_R
+   notebooks/scarches_scvi_tools
    notebooks/gimvi_tutorial
    notebooks/AutoZI_tutorial
    notebooks/scVI_DE_worm
