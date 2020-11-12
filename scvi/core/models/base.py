@@ -65,7 +65,6 @@ class BaseModelClass(ABC):
             adata,
             shuffle=shuffle,
             indices=indices,
-            use_cuda=self.use_cuda,
             batch_size=batch_size,
             **data_loader_kwargs,
         )
