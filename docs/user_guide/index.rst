@@ -6,9 +6,12 @@ Many are also designed to work seamlessly in Google Colab, a free cloud computin
 
 To download the tutorials:
 
-1. Click the Colab within the tutorial (if available).
+1. Follow the Colab link within the tutorial (if available).
 2. Download it with the option in the file menu.
 
+.. note:: For questions about using scvi-tools, or broader questions about modeling data, please use our forum_.
+
+.. _forum: https://discourse.scvi-tools.org/
 
 Quick start
 -----------
