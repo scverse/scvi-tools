@@ -138,15 +138,15 @@ class NotebookFinder(object):
 sys.meta_path.append(NotebookFinder())
 
 
-def test_notebooks_autotune(save_path):
-    try:
-        os.chdir(save_path)
-        import notebooks.autotune_advanced_notebook
+# def test_notebooks_autotune(save_path):
+#     try:
+#         os.chdir(save_path)
+#         import notebooks.autotune_advanced_notebook
 
-        print(save_path)
-        notebooks.autotune_advanced_notebook.allow_notebook_for_test()
-        plt.close("all")
-    except BaseException:
-        raise
-    finally:
-        os.chdir(path=base_path)
+#         print(save_path)
+#         notebooks.autotune_advanced_notebook.allow_notebook_for_test()
+#         plt.close("all")
+#     except BaseException:
+#         raise
+#     finally:
+#         os.chdir(path=base_path)
