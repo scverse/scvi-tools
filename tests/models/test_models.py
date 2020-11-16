@@ -474,7 +474,11 @@ def test_scvi_online_update(save_path):
 
     # do not freeze expression
     model3 = SCVI.load_query_data(
-        adata2, dir_path, freeze_expression=False, freeze_batchnorm_encoder=True
+        adata2,
+        dir_path,
+        freeze_expression=False,
+        freeze_batchnorm_encoder=True,
+        freeze_decoder_first_layer=False,
     )
     model3.train(n_epochs=1)
     model3.get_latent_representation()
@@ -483,6 +487,9 @@ def test_scvi_online_update(save_path):
     assert model3.model.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
     grad = model3.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()
     # linear layer weight in encoder layer has non-zero grad
+    assert np.sum(grad[:, :-4]) != 0
+    grad = model3.model.decoder.px_decoder.fc_layers[0][0].weight.grad.numpy()
+    # linear layer weight in decoder layer has non-zero grad
     assert np.sum(grad[:, :-4]) != 0
 
     # do not freeze batchnorm

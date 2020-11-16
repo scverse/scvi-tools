@@ -24,8 +24,10 @@ class ArchesMixin:
         adata: AnnData,
         reference_model: Union[str, BaseModelClass],
         use_cuda: bool = True,
+        unfrozen: bool = False,
         freeze_dropout: bool = False,
         freeze_expression: bool = True,
+        freeze_decoder_first_layer: bool = True,
         freeze_batchnorm_encoder: bool = True,
         freeze_batchnorm_decoder: bool = False,
     ):
@@ -43,10 +45,14 @@ class ArchesMixin:
             saved outputs for reference model.
         use_cuda
             Whether to load model on GPU.
+        unfrozen
+            Override all other freeze options for a fully unfrozen model
         freeze_dropout
             Whether to freeze dropout during training
         freeze_expression
             Freeze neurons corersponding to expression in first layer
+        freeze_decoder_first_layer
+            Freeze neurons corersponding to first layer in decoder
         freeze_batchnorm_encoder
             Whether to freeze batchnorm weight and bias during training for encoder
         freeze_batchnorm_decoder
@@ -105,6 +111,8 @@ class ArchesMixin:
 
         _set_params_online_update(
             model.model,
+            unfrozen=unfrozen,
+            freeze_decoder_first_layer=freeze_decoder_first_layer,
             freeze_batchnorm_encoder=freeze_batchnorm_encoder,
             freeze_batchnorm_decoder=freeze_batchnorm_decoder,
             freeze_dropout=freeze_dropout,
@@ -117,18 +125,26 @@ class ArchesMixin:
 
 def _set_params_online_update(
     model,
+    unfrozen,
+    freeze_decoder_first_layer,
     freeze_batchnorm_encoder,
     freeze_batchnorm_decoder,
     freeze_dropout,
     freeze_expression,
 ):
     """Freeze parts of network for scArches."""
+    # do nothing if unfrozen
+    if unfrozen:
+        return
+
     mod_no_grad = set(["encoder_z2_z1", "decoder_z1_z2"])
     mod_no_hooks_yes_grad = set(["l_encoder"])
     parameters_yes_grad = set(["background_pro_alpha", "background_pro_log_beta"])
 
     def no_hook_cond(key):
-        return (not freeze_expression) and "encoder" in key
+        one = (not freeze_expression) and "encoder" in key
+        two = (not freeze_decoder_first_layer) and "px_decoder" in key
+        return one or two
 
     def requires_grad(key):
         mod_name = key.split(".")[0]
