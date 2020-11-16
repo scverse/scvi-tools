@@ -126,8 +126,6 @@ class FCLayers(nn.Module):
             return grad * 0
 
         for i, layers in enumerate(self.fc_layers):
-            # if i > 0 and not self.inject_covariates:
-            #     break
             for layer in layers:
                 if i == 0 and not hook_first_layer:
                     continue
