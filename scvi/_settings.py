@@ -11,10 +11,6 @@ from ._compat import Literal
 logger = logging.getLogger(__name__)
 scvi_logger = logging.getLogger("scvi")
 
-autotune_formatter = logging.Formatter(
-    "[%(asctime)s - %(processName)s - %(threadName)s] %(levelname)s - %(name)s\n%(message)s"
-)
-
 
 class DispatchingFormatter(logging.Formatter):
     """Dispatch formatter for logger and it's sub logger."""
@@ -141,9 +137,7 @@ class ScviConfig:
                 console.is_jupyter = False
             ch = RichHandler(show_path=False, console=console, show_time=False)
             formatter = logging.Formatter("%(message)s")
-            ch.setFormatter(
-                DispatchingFormatter(formatter, {"scvi.autotune": autotune_formatter})
-            )
+            ch.setFormatter(DispatchingFormatter(formatter))
             scvi_logger.addHandler(ch)
             logger.debug("Added StreamHandler with custom formatter to 'scvi' logger.")
 
