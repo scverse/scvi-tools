@@ -44,6 +44,8 @@ jobs:
       run: |
         pytest --cov-report=xml --cov=scvi --internet-tests
     - name: After success
+      env:
+        CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
       run: |
         codecov
         pip list
