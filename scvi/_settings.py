@@ -12,30 +12,6 @@ logger = logging.getLogger(__name__)
 scvi_logger = logging.getLogger("scvi")
 
 
-class DispatchingFormatter(logging.Formatter):
-    """Dispatch formatter for logger and it's sub logger."""
-
-    def __init__(self, default_formatter, formatters=None):
-        super().__init__()
-        self._formatters = formatters if formatters is not None else {}
-        self._default_formatter = default_formatter
-
-    def format(self, record):
-        # Search from record's logger up to it's parents:
-        logger = logging.getLogger(record.name)
-        while logger:
-            # Check if suitable formatter for current logger exists:
-            if logger.name in self._formatters:
-                formatter = self._formatters[logger.name]
-                break
-            else:
-                logger = logger.parent
-        else:
-            # If no formatter found, just use default:
-            formatter = self._default_formatter
-        return formatter.format(record)
-
-
 class ScviConfig:
     """
     Config manager for scvi-tools.
@@ -137,7 +113,7 @@ class ScviConfig:
                 console.is_jupyter = False
             ch = RichHandler(show_path=False, console=console, show_time=False)
             formatter = logging.Formatter("%(message)s")
-            ch.setFormatter(DispatchingFormatter(formatter))
+            ch.setFormatter(formatter)
             scvi_logger.addHandler(ch)
             logger.debug("Added StreamHandler with custom formatter to 'scvi' logger.")
 
