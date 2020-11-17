@@ -1,5 +1,4 @@
-from .annotation_data_loader import AnnotationDataLoader
-from .scvi_data_loader import ScviDataLoader
+from .scvi_data_loader import ScviDataLoader, SemiSupervisedDataLoader
 from .total_data_loader import TotalDataLoader
 
-__all__ = ["ScviDataLoader", "TotalDataLoader", "AnnotationDataLoader"]
+__all__ = ["ScviDataLoader", "TotalDataLoader", "SemiSupervisedDataLoader"]
