@@ -21,8 +21,7 @@ def test_scvi():
     assert model.is_trained is True
     z = model.get_latent_representation()
     assert z.shape == (adata.shape[0], n_latent)
-    # len of history should be 2 since metrics is also run once at the very end after training
-    assert len(model.history["elbo_train_set"]) == 2
+    assert len(model.history["elbo_train"]) == 1
     model.get_elbo()
     model.get_marginal_ll()
     model.get_reconstruction_error()
@@ -257,8 +256,8 @@ def test_linear_scvi():
     setup_anndata(adata)
     model = LinearSCVI(adata, n_latent=10)
     model.train(1, frequency=1, train_size=0.5)
-    assert len(model.history["elbo_train_set"]) == 2
-    assert len(model.history["elbo_test_set"]) == 2
+    assert len(model.history["elbo_train"]) == 1
+    assert len(model.history["elbo_test"]) == 1
     model.get_loadings()
     model.differential_expression(groupby="labels", group1="label_1")
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
@@ -301,8 +300,8 @@ def test_autozi():
             zero_inflation=disp_zi,
         )
         autozivae.train(1, lr=1e-2, frequency=1)
-        assert len(autozivae.history["elbo_train_set"]) == 2
-        assert len(autozivae.history["elbo_test_set"]) == 2
+        assert len(autozivae.history["elbo_train"]) == 1
+        assert len(autozivae.history["elbo_test"]) == 1
         autozivae.get_elbo(indices=autozivae.test_indices)
         autozivae.get_reconstruction_error(indices=autozivae.test_indices)
         autozivae.get_marginal_ll(indices=autozivae.test_indices)
