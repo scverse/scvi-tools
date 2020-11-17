@@ -5,9 +5,9 @@ name: scvi-tools
 
 on:
   push:
-    branches: [ $default-branch ]
+    branches: [master]
   pull_request:
-    branches: [ $default-branch ]
+    branches: [master]
 
 jobs:
   build:
@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.6, 3.7]
 
     steps:
     - uses: actions/checkout@v2
@@ -44,6 +44,8 @@ jobs:
       run: |
         pytest --cov-report=xml --cov=scvi --internet-tests
     - name: After success
+      env:
+        CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
       run: |
         codecov
         pip list
