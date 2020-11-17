@@ -443,4 +443,3 @@ This tutorial was contributed by Eduardo Beltrame.
    notebooks/gimvi_tutorial
    notebooks/AutoZI_tutorial
    notebooks/scVI_DE_worm
-   autotune
