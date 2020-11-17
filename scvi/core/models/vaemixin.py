@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from anndata import AnnData
 from torch.distributions import Normal
+from scvi.core._log_likelihood import compute_elbo, compute_reconstruction_error
 
 
 logger = logging.getLogger(__name__)
@@ -36,8 +37,8 @@ class VAEMixin:
         """
         adata = self._validate_anndata(adata)
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
-
-        return -scdl.elbo()
+        elbo = compute_elbo(self.model, scdl)
+        return -elbo
 
     @torch.no_grad()
     def get_marginal_ll(
@@ -95,8 +96,8 @@ class VAEMixin:
         """
         adata = self._validate_anndata(adata)
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
-
-        return -scdl.reconstruction_error()
+        reconstruction_error = compute_reconstruction_error(self.model, scdl)
+        return -reconstruction_error
 
     @torch.no_grad()
     def get_latent_representation(
