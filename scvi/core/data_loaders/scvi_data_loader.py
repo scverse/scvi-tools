@@ -132,15 +132,14 @@ class ScviDataLoader(DataLoader):
         super().__init__(self.dataset, **self.data_loader_kwargs)
 
 
-class SemiSupervisedDataloader(ScviDataLoader):
+class SemiSupervisedDataLoader(DataLoader):
     def __init__(
         self,
         adata,
         labeled_indices,
         unlabelled_indices,
-        scheme: Literal["joint", "alternate", "both"] = "both",
+        scheme: Literal["joint", "both"] = "both",
         shuffle=False,
-        use_cuda=True,
         batch_size=128,
         data_and_attributes: Optional[dict] = None,
         **data_loader_kwargs,
@@ -148,7 +147,6 @@ class SemiSupervisedDataloader(ScviDataLoader):
         self.full_dataset = ScviDataLoader(
             adata,
             shuffle=True,
-            use_cuda=use_cuda,
             batch_size=batch_size,
             data_and_attributes=data_and_attributes,
             **data_loader_kwargs,
@@ -157,7 +155,6 @@ class SemiSupervisedDataloader(ScviDataLoader):
             adata,
             indices=labeled_indices,
             shuffle=shuffle,
-            use_cuda=use_cuda,
             batch_size=batch_size,
             data_and_attributes=data_and_attributes,
             **data_loader_kwargs,
@@ -166,12 +163,15 @@ class SemiSupervisedDataloader(ScviDataLoader):
             adata,
             indices=labeled_indices,
             shuffle=shuffle,
-            use_cuda=use_cuda,
             batch_size=batch_size,
             data_and_attributes=data_and_attributes,
             **data_loader_kwargs,
         )
         self.scheme = scheme
+        super().__init__(self.full_dataset, **data_loader_kwargs)
+
+    def __len__(self):
+        return self.full_dataset.__len__
 
     def __iter__(self):
         # TODO: probably don't want to hardcode this condition
