@@ -2,14 +2,11 @@ import torch
 
 from anndata import AnnData
 
-from scvi.core.trainers.inference import UnsupervisedTrainer
-from scvi.core.modules.vae import VAE
+import scvi
 
 use_cuda = torch.cuda.is_available()
 
 
 def unsupervised_training_one_epoch(adata: AnnData):
-    stats = adata.uns["_scvi"]["summary_stats"]
-    vae = VAE(stats["n_vars"], stats["n_batch"], stats["n_labels"])
-    trainer = UnsupervisedTrainer(vae, adata, train_size=0.5, use_cuda=use_cuda)
-    trainer.train(n_epochs=1)
+    m = scvi.model.SCVI(adata)
+    m.train(1, train_size=0.4, use_cuda=use_cuda)
