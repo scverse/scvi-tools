@@ -198,8 +198,9 @@ class SCANVAE(VAE):
         tensors,
         inference_outputs,
         generative_ouputs,
-        feed_labels=True,
+        feed_labels=False,
         scale_loss=1.0,
+        kl_weight=1,
     ):
         px_r = generative_ouputs["px_r"]
         px_rate = generative_ouputs["px_rate"]
@@ -250,12 +251,7 @@ class SCANVAE(VAE):
                 "kl_divergence_l": kl_divergence_l,
             }
             # need to fix loss output here
-            return dict(
-                loss=loss,
-                reconstruction_losses=reconst_loss,
-                kl_local=kl_locals,
-                kl_global=0.0,
-            )
+            return SCVILoss(loss, reconst_loss, kl_locals, kl_global=0.0)
 
         probs = self.classifier(z1)
         reconst_loss += loss_z1_weight + (

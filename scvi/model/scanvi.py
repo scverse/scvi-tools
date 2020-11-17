@@ -1,6 +1,7 @@
 import logging
 from typing import Optional, Sequence, Union
 
+import torch
 import numpy as np
 import pandas as pd
 from anndata import AnnData
@@ -10,10 +11,10 @@ from pandas.api.types import CategoricalDtype
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.data._anndata import _make_obs_column_categorical
-from scvi.core.data_loaders import AnnotationDataLoader
 from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.modules import SCANVAE, VAE
-from scvi.core.trainers import SemiSupervisedTrainer, UnsupervisedTrainer
+from scvi.core.lightning import VAETask, Trainer, SemiSupervisedTask
+from scvi.core.data_loaders import SemiSupervisedDataLoader, ScviDataLoader
 
 from .scvi import SCVI
 
@@ -188,11 +189,11 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     @property
     def _trainer_class(self):
-        return SemiSupervisedTrainer
+        pass
 
     @property
     def _scvi_dl_class(self):
-        return AnnotationDataLoader
+        return ScviDataLoader
 
     @property
     def history(self):
@@ -206,17 +207,19 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         n_epochs_unsupervised: Optional[int] = None,
         n_epochs_semisupervised: Optional[int] = None,
-        train_base_model: bool = True,
         train_size: float = 0.9,
-        test_size: float = None,
+        validation_size: Optional[float] = None,
+        batch_size: int = 512,
+        use_cuda: Optional[bool] = None,
+        train_base_model: bool = True,
         lr: float = 1e-3,
         n_epochs_kl_warmup: int = 400,
         n_iter_kl_warmup: Optional[int] = None,
         frequency: Optional[int] = None,
         unsupervised_trainer_kwargs: dict = {},
         semisupervised_trainer_kwargs: dict = {},
-        unsupervised_train_kwargs: dict = {},
-        semisupervised_train_kwargs: dict = {},
+        unsupervised_task_kwargs: dict = {},
+        semisupervised_task_kwargs: dict = {},
     ):
         """
         Train the model.
@@ -254,8 +257,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         """
         unsupervised_trainer_kwargs = dict(unsupervised_trainer_kwargs)
         semisupervised_trainer_kwargs = dict(semisupervised_trainer_kwargs)
-        unsupervised_train_kwargs = dict(unsupervised_train_kwargs)
-        semisupervised_train_kwargs = dict(semisupervised_train_kwargs)
+        unsupervised_task_kwargs = dict(unsupervised_task_kwargs)
+        semisupervised_task_kwargs = dict(semisupervised_task_kwargs)
 
         if n_epochs_unsupervised is None:
             n_epochs_unsupervised = np.min(
@@ -273,42 +276,44 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 n_epochs_semisupervised
             )
         )
+        if use_cuda is not None:
+            use_gpu = use_cuda
+        else:
+            use_gpu = self.use_cuda
 
-        if self._is_trained_base is not True and train_base_model:
-            self._unsupervised_trainer = UnsupervisedTrainer(
-                self._base_model,
-                self.adata,
-                train_size=train_size,
-                test_size=test_size,
-                n_iter_kl_warmup=n_iter_kl_warmup,
-                n_epochs_kl_warmup=n_epochs_kl_warmup,
-                frequency=frequency,
-                use_cuda=self.use_cuda,
-                **unsupervised_trainer_kwargs,
-            )
-            self._unsupervised_trainer.train(
-                n_epochs=n_epochs_unsupervised, lr=lr, **unsupervised_train_kwargs
-            )
-            self.unsupervised_history_ = self._unsupervised_trainer.history
-            self._is_trained_base = True
-
-            self.model.load_state_dict(self._base_model.state_dict(), strict=False)
-
-        if "frequency" not in semisupervised_trainer_kwargs and frequency is not None:
-            semisupervised_trainer_kwargs["frequency"] = frequency
-
-        self.trainer = SemiSupervisedTrainer(
-            self.model,
-            self.adata,
-            use_cuda=self.use_cuda,
-            indices_labelled=self._labeled_indices,
-            indices_unlabelled=self._unlabeled_indices,
-            **semisupervised_trainer_kwargs,
+        self._unsupervised_task = VAETask(self.model, **unsupervised_task_kwargs)
+        if use_gpu:
+            gpus = 1
+            pin_memory = True
+        else:
+            gpus = None
+            pin_memory = False
+        self.trainer = Trainer(
+            max_epochs=n_epochs_unsupervised,
+            gpus=gpus,
+            **unsupervised_trainer_kwargs,
         )
-        self.semisupervised_history_ = self.trainer.history
-        self.trainer.train(
-            n_epochs=n_epochs_semisupervised,
-            **semisupervised_train_kwargs,
+        train_dl, val_dl, test_dl = self._train_test_val_split(
+            self.adata,
+            train_size=train_size,
+            validation_size=validation_size,
+            pin_memory=pin_memory,
+            batch_size=batch_size,
+        )
+        self.train_indices_ = train_dl.indices
+        self.test_indices_ = test_dl.indices
+        self.validation_indices_ = val_dl.indices
+        self.trainer.fit(self._unsupervised_task, train_dl, val_dl)
+
+        self._semisupervised_task = SemiSupervisedTask(self.model)
+        self._semisupervised_trainer = Trainer(
+            max_epochs=n_epochs_semisupervised, gpus=None
+        )
+        semisupervised_train_dl = SemiSupervisedDataLoader(
+            self.adata, self._labeled_indices, self._unlabeled_indices
+        )
+        self._semisupervised_trainer.fit(
+            self._semisupervised_task, semisupervised_train_dl
         )
         self.is_trained_ = True
 
@@ -316,6 +321,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
+        transform_batch=None,  # TODO add this functionality
         soft: bool = False,
         batch_size: int = 128,
     ) -> Union[np.ndarray, pd.DataFrame]:
@@ -339,12 +345,19 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             indices = np.arange(adata.n_obs)
 
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        y_pred = []
+        for _, tensors in enumerate(scdl):
+            x = tensors[_CONSTANTS.X_KEY]
+            batch = tensors[_CONSTANTS.BATCH_KEY]
+            pred = self.model.classify(x, batch)
+            if not soft:
+                pred = pred.argmax(dim=1)
+            y_pred.append(pred.detach().cpu())
 
-        _, pred = scdl.sequential().compute_predictions(soft=soft)
-
+        y_pred = np.array(torch.cat(y_pred))
         if not soft:
             predictions = []
-            for p in pred:
+            for p in y_pred:
                 predictions.append(self._code_to_label[p])
 
             return np.array(predictions)
@@ -355,4 +368,4 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 columns=self._label_mapping[:n_labels],
                 index=adata.obs_names[indices],
             )
-            return pred
+            return y_pred
