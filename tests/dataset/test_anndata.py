@@ -278,7 +278,7 @@ def test_scvidataset_getitem():
     bd = ScviDataset(adata)
     all_registered_tensors = list(adata.uns["_scvi"]["data_registry"].keys())
     np.testing.assert_array_equal(all_registered_tensors, list(bd[1].keys()))
-    assert bd[1]["X"].shape[0] == bd.n_vars
+    assert bd[1]["X"].shape[0] == bd.adata.uns["_scvi"]["summary_stats"]["n_vars"]
 
     # check that ScviDataset returns numpy array
     adata1 = synthetic_iid()
