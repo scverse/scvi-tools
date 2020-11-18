@@ -30,6 +30,7 @@ class ArchesMixin:
         freeze_decoder_first_layer: bool = True,
         freeze_batchnorm_encoder: bool = True,
         freeze_batchnorm_decoder: bool = False,
+        freeze_classifier: bool = False,
     ):
         """
         Online update of a reference model with scArches algorithm [Lotfollahi20]_.
@@ -57,6 +58,8 @@ class ArchesMixin:
             Whether to freeze batchnorm weight and bias during training for encoder
         freeze_batchnorm_decoder
             Whether to freeze batchnorm weight and bias during training for decoder
+        freeze_classifier
+            Whether to freeze the classifier component of SCANVI.
         """
         use_cuda = use_cuda and torch.cuda.is_available()
 
@@ -117,6 +120,7 @@ class ArchesMixin:
             freeze_batchnorm_decoder=freeze_batchnorm_decoder,
             freeze_dropout=freeze_dropout,
             freeze_expression=freeze_expression,
+            freeze_classifier=freeze_classifier,
         )
         model.is_trained_ = False
 
@@ -131,6 +135,7 @@ def _set_params_online_update(
     freeze_batchnorm_decoder,
     freeze_dropout,
     freeze_expression,
+    freeze_classifier,
 ):
     """Freeze parts of network for scArches."""
     # do nothing if unfrozen
@@ -140,6 +145,9 @@ def _set_params_online_update(
     mod_no_grad = set(["encoder_z2_z1", "decoder_z1_z2"])
     mod_no_hooks_yes_grad = set(["l_encoder"])
     parameters_yes_grad = set(["background_pro_alpha", "background_pro_log_beta"])
+
+    if freeze_classifier:
+        mod_no_grad.add("classifier")
 
     def no_hook_cond(key):
         one = (not freeze_expression) and "encoder" in key
