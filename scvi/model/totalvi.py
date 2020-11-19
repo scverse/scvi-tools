@@ -970,6 +970,17 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     def _scvi_dl_class(self):
         return ScviDataLoader
 
+    @torch.no_grad()
+    def get_protein_background_mean(self, adata, indices, batch_size):
+        adata = self._validate_anndata(adata)
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        background_mean = []
+        for tensors in scdl:
+            _, inference_outputs, _ = self.model.forward(tensors)
+            b_mean = inference_outputs["py_"]["rate_back"]
+            background_mean += [np.array(b_mean.cpu())]
+        return np.concatenate(background_mean)
+
 
 def _get_totalvi_protein_priors(adata, n_cells=100):
     """Compute an empirical prior for protein background."""

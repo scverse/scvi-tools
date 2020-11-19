@@ -75,13 +75,6 @@ class TotalDataLoader(ScviDataLoader):
             _CONSTANTS.PROTEIN_EXP_KEY: np.float32,
         }
 
-    # @torch.no_grad()
-    # def elbo(self):
-    #     elbo = self.compute_elbo()
-    #     return elbo
-
-    # elbo.mode = "min"
-
     @torch.no_grad()
     def reconstruction_error(self, mode="total"):
         ll_gene, ll_protein = self.compute_reconstruction_error(self.model)
@@ -93,20 +86,3 @@ class TotalDataLoader(ScviDataLoader):
             return ll_protein
 
     reconstruction_error.mode = "min"
-
-    @torch.no_grad()
-    def marginal_ll(self, n_mc_samples=1000):
-        ll = self.compute_marginal_log_likelihood()
-        return ll
-
-    @torch.no_grad()
-    def get_protein_background_mean(self):
-        background_mean = []
-        for tensors in self:
-            x, _, _, batch_index, label, y = _unpack_tensors(tensors)
-            outputs = self.model.inference(
-                x, y, batch_index=batch_index, label=label, n_samples=1
-            )
-            b_mean = outputs["py_"]["rate_back"]
-            background_mean += [np.array(b_mean.cpu())]
-        return np.concatenate(background_mean)
