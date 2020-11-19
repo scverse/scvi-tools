@@ -29,9 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseModelClass(ABC):
-    def __init__(
-        self, adata: Optional[AnnData] = None, use_cuda: Optional[bool] = None
-    ):
+    def __init__(self, adata: Optional[AnnData] = None, use_gpu: Optional[bool] = None):
         if adata is not None:
             if "_scvi" not in adata.uns.keys():
                 raise ValueError(
@@ -43,10 +41,7 @@ class BaseModelClass(ABC):
             self._validate_anndata(adata, copy_if_view=False)
 
         self.is_trained_ = False
-        if use_cuda is None:
-            self.use_cuda = torch.cuda.is_available()
-        else:
-            self.use_cuda = use_cuda and torch.cuda.is_available()
+        self.use_gpu = use_gpu and torch.cuda.is_available()
         self._model_summary_string = ""
         self.train_indices_ = None
         self.test_indices_ = None
@@ -207,11 +202,12 @@ class BaseModelClass(ABC):
     def train(
         self,
         n_epochs: Optional[int] = None,
-        use_cuda: Optional[bool] = None,
+        use_gpu: Optional[bool] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         vae_task_kwargs: Optional[dict] = None,
+        task_class=Optional[None],
         frequency=None,
         **kwargs,
     ):
@@ -241,42 +237,43 @@ class BaseModelClass(ABC):
         **kwargs
             Other keyword args for :class:`~scvi.core.lightning.Trainer`.
         """
-        if use_cuda is None:
-            use_gpu = self.use_cuda
+        if use_gpu is None:
+            use_gpu = self.use_gpu
         else:
-            use_gpu = use_cuda
+            use_gpu = use_gpu and torch.cuda.is_available()
         if frequency is None:
             check_val_every_n_epoch = np.inf
         else:
             check_val_every_n_epoch = frequency
 
-        if self.is_trained_ is False:
-            task_kwargs = (
-                vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
-            )
-            self._pl_task = self._task_class(self.model, **task_kwargs)
-            if use_gpu:
-                gpus = 1
-                pin_memory = True
-            else:
-                gpus = None
-                pin_memory = False
-            self.trainer = Trainer(
-                max_epochs=n_epochs,
-                gpus=gpus,
-                check_val_every_n_epoch=check_val_every_n_epoch,
-                **kwargs,
-            )
-            train_dl, val_dl, test_dl = self._train_test_val_split(
-                self.adata,
-                train_size=train_size,
-                validation_size=validation_size,
-                pin_memory=pin_memory,
-                batch_size=batch_size,
-            )
-            self.train_indices_ = train_dl.indices
-            self.test_indices_ = test_dl.indices
-            self.validation_indices_ = val_dl.indices
+        if task_class is None:
+            task_class = self._task_class
+
+        task_kwargs = vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
+        self._pl_task = task_class(self.model, **task_kwargs)
+        if use_gpu:
+            gpus = 1
+            pin_memory = True
+        else:
+            gpus = None
+            pin_memory = False
+
+        self.trainer = Trainer(
+            max_epochs=n_epochs,
+            gpus=gpus,
+            check_val_every_n_epoch=check_val_every_n_epoch,
+            **kwargs,
+        )
+        train_dl, val_dl, test_dl = self._train_test_val_split(
+            self.adata,
+            train_size=train_size,
+            validation_size=validation_size,
+            pin_memory=pin_memory,
+            batch_size=batch_size,
+        )
+        self.train_indices_ = train_dl.indices
+        self.test_indices_ = test_dl.indices
+        self.validation_indices_ = val_dl.indices
 
         self.trainer.fit(self._pl_task, train_dl, val_dl)
         self.history_ = self._pl_task.history

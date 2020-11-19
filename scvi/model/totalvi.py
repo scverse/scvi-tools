@@ -1,4 +1,5 @@
 import logging
+
 from functools import partial
 from typing import Dict, Iterable, Optional, Sequence, Tuple, Union, TypeVar
 from collections.abc import Iterable as IterableClass
@@ -16,7 +17,7 @@ from scvi.core.data_loaders import ScviDataLoader
 from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.models._utils import _de_core
 from scvi.core.modules import TOTALVAE
-from scvi.core.lightning import VAETask
+from scvi.core.lightning import VAETask, AdvesarialTask
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.model._utils import (
@@ -65,7 +66,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Set the initialization of protein background prior empirically. This option fits a GMM for each of
         100 cells per batch and averages the distributions. Note that even with this option set to `True`,
         this only initializes a parameter that is learned during inference. If `False`, randomly initializes.
-    use_cuda
+    use_gpu
         Use the GPU or not.
     **model_kwargs
         Keyword args for :class:`~scvi.core.modules.TOTALVAE`
@@ -92,10 +93,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         gene_likelihood: Literal["zinb", "nb"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
         empirical_protein_background_prior: bool = True,
-        use_cuda: bool = True,
+        use_gpu: Optional[bool] = None,
         **model_kwargs,
     ):
-        super(TOTALVI, self).__init__(adata, use_cuda=use_cuda)
+        super(TOTALVI, self).__init__(adata, use_gpu=use_gpu)
         if "totalvi_batch_mask" in self.scvi_setup_dict_.keys():
             batch_mask = self.scvi_setup_dict_["totalvi_batch_mask"]
         else:
@@ -130,11 +131,43 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
-    def train(
+    def train_advesarial(
         self,
-        max_epochs: Optional[int] = 400,
+        n_epochs: Optional[int] = 400,
         lr: float = 4e-3,
         use_gpu: bool = True,
+        train_size: float = 0.9,
+        validation_size: Optional[float] = None,
+        batch_size: int = 256,
+        early_stopping: bool = True,
+        reduce_lr_on_plateau: bool = True,
+        **kwargs,
+    ):
+        imputation = (
+            True if "totalvi_batch_mask" in self.scvi_setup_dict_.keys() else False
+        )
+        vae_task_kwargs = {
+            "lr": lr,
+            "adversarial_classifier": True if imputation else False,
+            "reduce_lr_on_plateau": reduce_lr_on_plateau,
+        }
+        super().train(
+            n_epochs=n_epochs,
+            use_gpu=use_gpu,
+            train_size=train_size,
+            validation_size=validation_size,
+            batch_size=batch_size,
+            early_stopping=early_stopping,
+            vae_task_kwargs=vae_task_kwargs,
+            task_class=AdvesarialTask,
+            **kwargs,
+        )
+
+    def train(
+        self,
+        n_epochs: Optional[int] = 400,
+        lr: float = 4e-3,
+        use_gpu: Optional[bool] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 256,
@@ -173,13 +206,17 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         imputation = (
             True if "totalvi_batch_mask" in self.scvi_setup_dict_.keys() else False
         )
+        if imputation:
+            logger.warning(
+                "totalvi_batch_mask exists. "
+                "Are you sure you don't want to train_advesarial?"
+            )
         vae_task_kwargs = {
             "lr": lr,
-            "adversarial_classifier": True if imputation else False,
             "reduce_lr_on_plateau": reduce_lr_on_plateau,
         }
         super().train(
-            max_epochs=max_epochs,
+            n_epochs=n_epochs,
             use_gpu=use_gpu,
             train_size=train_size,
             validation_size=validation_size,
