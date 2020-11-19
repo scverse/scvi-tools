@@ -4,6 +4,7 @@ from typing import Iterable
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torch import logsumexp
 from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
 
@@ -434,6 +435,43 @@ class VAE(AbstractVAE):
         elif self.gene_likelihood == "poisson":
             reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
         return reconst_loss
+
+    def marginal_ll(self, tensors, n_mc_samples):
+        sample_batch = tensors[_CONSTANTS.X_KEY]
+        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+
+        to_sum = torch.zeros(sample_batch.size()[0], n_mc_samples)
+
+        for i in range(n_mc_samples):
+            # Distribution parameters and sampled variables
+            inference_outputs, generative_outputs, losses = self.forward(tensors)
+            qz_m = inference_outputs["qz_m"]
+            qz_v = inference_outputs["qz_v"]
+            z = inference_outputs["z"]
+            ql_m = inference_outputs["ql_m"]
+            ql_v = inference_outputs["ql_v"]
+            library = inference_outputs["library"]
+
+            # Reconstruction Loss
+            reconst_loss = losses.reconstruction_loss
+
+            # Log-probabilities
+            p_l = Normal(local_l_mean, local_l_var.sqrt()).log_prob(library).sum(dim=-1)
+            p_z = (
+                Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v))
+                .log_prob(z)
+                .sum(dim=-1)
+            )
+            p_x_zl = -reconst_loss
+            q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
+            q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
+
+            to_sum[:, i] = p_z + p_l + p_x_zl - q_z_x - q_l_x
+
+        batch_log_lkl = logsumexp(to_sum, dim=-1) - np.log(n_mc_samples)
+        log_lkl = torch.sum(batch_log_lkl).item()
+        return log_lkl
 
 
 class LDVAE(VAE):
