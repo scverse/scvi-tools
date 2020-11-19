@@ -13,7 +13,7 @@ from rich.text import Text
 from sklearn.model_selection._split import _validate_shuffle_split
 
 from scvi import _CONSTANTS, settings
-from scvi.core.lightning import VAETask, Trainer
+from scvi.core.lightning import Trainer
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._utils import (
     _check_anndata_setup_equivalence,
@@ -159,7 +159,7 @@ class BaseModelClass(ABC):
 
     @property
     @abstractmethod
-    def _trainer_class(self):
+    def _task_class(self):
         pass
 
     @property
@@ -254,7 +254,7 @@ class BaseModelClass(ABC):
             task_kwargs = (
                 vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
             )
-            self._pl_task = VAETask(self.model, **task_kwargs)
+            self._pl_task = self._task_class(self.model, **task_kwargs)
             if use_gpu:
                 gpus = 1
                 pin_memory = True
