@@ -342,8 +342,10 @@ class VAE(AbstractVAE):
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
         weighted_kl_global = kl_weight * kl_global_for_warmup + kl_global_no_warmup
 
-        loss = torch.mean(reconst_loss + weighted_kl_local) + weighted_kl_global
-        loss = loss * scale_loss
+        loss = (
+            scale_loss * torch.mean(reconst_loss + weighted_kl_local)
+            + weighted_kl_global
+        )
 
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
