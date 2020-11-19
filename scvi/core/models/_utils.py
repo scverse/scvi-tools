@@ -46,7 +46,7 @@ def _load_saved_files(
     return scvi_setup_dict, attr_dict, var_names, model_state_dict, adata
 
 
-def _initialize_model(cls, adata, attr_dict, use_cuda):
+def _initialize_model(cls, adata, attr_dict, use_gpu):
     """Helper to initialize a model."""
     if "init_params_" not in attr_dict.keys():
         raise ValueError(
@@ -56,8 +56,8 @@ def _initialize_model(cls, adata, attr_dict, use_cuda):
     # get the parameters for the class init signiture
     init_params = attr_dict.pop("init_params_")
 
-    # update use_cuda from the saved model
-    init_params["use_cuda"] = use_cuda
+    # update use_gpu from the saved model
+    init_params["use_gpu"] = use_gpu
 
     # grab all the parameters execept for kwargs (is a dict)
     non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}

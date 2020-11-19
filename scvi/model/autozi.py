@@ -42,7 +42,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
-    use_cuda
+    use_gpu
         Use the GPU or not.
     alpha_prior
         Float denoting the alpha parameter of the prior Beta distribution of
@@ -85,14 +85,14 @@ class AUTOZI(VAEMixin, BaseModelClass):
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        use_cuda: bool = True,
+        use_gpu: bool = True,
         alpha_prior: Optional[float] = 0.5,
         beta_prior: Optional[float] = 0.5,
         minimal_dropout: float = 0.01,
         zero_inflation: str = "gene",
         **model_kwargs,
     ):
-        super(AUTOZI, self).__init__(adata, use_cuda=use_cuda)
+        super(AUTOZI, self).__init__(adata, use_gpu=use_gpu)
 
         self.model = AutoZIVAE(
             n_input=self.summary_stats["n_vars"],

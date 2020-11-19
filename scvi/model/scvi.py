@@ -45,7 +45,7 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
-    use_cuda
+    use_gpu
         Use the GPU or not.
     **model_kwargs
         Keyword args for :class:`~scvi.core.modules.VAE`
@@ -70,10 +70,10 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        use_cuda: bool = True,
+        use_gpu: bool = True,
         **model_kwargs,
     ):
-        super(SCVI, self).__init__(adata, use_cuda=use_cuda)
+        super(SCVI, self).__init__(adata, use_gpu=use_gpu)
 
         n_cats_per_cov = (
             self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
