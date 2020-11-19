@@ -303,7 +303,7 @@ class VAE(AbstractVAE):
         inference_outputs,
         generative_outputs,
         kl_weight: float = 1.0,
-        scale_loss: float = 1.0,
+        n_obs: float = 1.0,
     ):
         x = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
@@ -342,10 +342,8 @@ class VAE(AbstractVAE):
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
         weighted_kl_global = kl_weight * kl_global_for_warmup + kl_global_no_warmup
 
-        loss = (
-            scale_loss * torch.mean(reconst_loss + weighted_kl_local)
-            + weighted_kl_global
-        )
+        loss = n_obs * torch.mean(reconst_loss + weighted_kl_local) + weighted_kl_global
+        loss /= n_obs
 
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
