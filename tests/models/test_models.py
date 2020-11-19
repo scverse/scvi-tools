@@ -9,7 +9,7 @@ from scvi.model import SCVI, SCANVI, GIMVI, TOTALVI, LinearSCVI, AUTOZI
 from scipy.sparse import csr_matrix
 
 
-def test_scvi():
+def test_scvi(save_path):
     n_latent = 5
     adata = synthetic_iid()
     model = SCVI(adata, n_latent=n_latent)
@@ -141,7 +141,7 @@ def test_scvi():
     m.get_normalized_expression(transform_batch=[0, 1])
 
 
-def test_scvi_sparse():
+def test_scvi_sparse(save_path):
     n_latent = 5
     adata = synthetic_iid(run_setup_anndata=False)
     adata.X = csr_matrix(adata.X)
@@ -233,7 +233,7 @@ def test_saving_and_loading(save_path):
     assert model.is_trained is True
 
 
-def test_scanvi():
+def test_scanvi(save_path):
     adata = synthetic_iid()
     model = SCANVI(adata, "label_0", n_latent=10)
     model.train(1, train_size=0.5, frequency=1)
@@ -250,7 +250,7 @@ def test_scanvi():
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
 
 
-def test_linear_scvi():
+def test_linear_scvi(save_path):
     adata = synthetic_iid()
     adata = adata[:, :10].copy()
     setup_anndata(adata)
