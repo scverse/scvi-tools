@@ -4,7 +4,6 @@ from typing import Optional
 import anndata
 import numpy as np
 import torch
-from torch.distributions import Normal
 
 from scvi import _CONSTANTS
 from scvi.core.modules import TOTALVAE
@@ -191,82 +190,3 @@ class TotalDataLoader(ScviDataLoader):
 
         n_samples = len(self.indices)
         return log_lkl_gene / n_samples, log_lkl_protein / n_samples
-
-    def compute_marginal_log_likelihood(
-        self, n_samples_mc: int = 100, batch_size: int = 96
-    ):
-        """
-        Computes a biased estimator for log p(x, y), which is the marginal log likelihood.
-
-        Despite its bias, the estimator still converges to the real value
-        of log p(x, y) when n_samples_mc (for Monte Carlo) goes to infinity
-        (a fairly high value like 100 should be enough). 5000 is the standard in machine learning publications.
-        Due to the Monte Carlo sampling, this method is not as computationally efficient
-        as computing only the reconstruction loss
-
-        Parameters
-        ----------
-        n_samples_mc
-             (Default value = 100)
-        batch_size
-             (Default value = 96)
-
-        """
-        # Uses MC sampling to compute a tighter lower bound on log p(x)
-        log_lkl = 0
-        for _, tensors in enumerate(self.update_batch_size(batch_size)):
-            x = tensors[_CONSTANTS.X_KEY]
-            local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-            local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
-            to_sum = torch.zeros(x.size()[0], n_samples_mc)
-
-            for i in range(n_samples_mc):
-
-                # Distribution parameters and sampled variables
-                inference_outputs, generative_outputs, losses = self.model.forward(
-                    tensors
-                )
-                # outputs = self.model.inference(x, y, batch_index, labels)
-                qz_m = inference_outputs["qz_m"]
-                qz_v = inference_outputs["qz_v"]
-                ql_m = inference_outputs["ql_m"]
-                ql_v = inference_outputs["ql_v"]
-                py_ = generative_outputs["py_"]
-                log_library = inference_outputs["untran_l"]
-                # really need not softmax transformed random variable
-                z = inference_outputs["untran_z"]
-                log_pro_back_mean = generative_outputs["log_pro_back_mean"]
-
-                # Reconstruction Loss
-                reconst_loss = losses._reconstruction_loss
-                reconst_loss_gene = reconst_loss["reconst_loss_gene"]
-                reconst_loss_protein = reconst_loss["reconst_loss_protein"]
-
-                # Log-probabilities
-                p_l_gene = (
-                    Normal(local_l_mean, local_l_var.sqrt())
-                    .log_prob(log_library)
-                    .sum(dim=-1)
-                )
-                p_z = Normal(0, 1).log_prob(z).sum(dim=-1)
-                p_mu_back = self.model.back_mean_prior.log_prob(log_pro_back_mean).sum(
-                    dim=-1
-                )
-                p_xy_zl = -(reconst_loss_gene + reconst_loss_protein)
-                q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
-                q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(log_library).sum(dim=-1)
-                q_mu_back = (
-                    Normal(py_["back_alpha"], py_["back_beta"])
-                    .log_prob(log_pro_back_mean)
-                    .sum(dim=-1)
-                )
-                to_sum[:, i] = (
-                    p_z + p_l_gene + p_mu_back + p_xy_zl - q_z_x - q_l_x - q_mu_back
-                )
-
-            batch_log_lkl = torch.logsumexp(to_sum, dim=-1) - np.log(n_samples_mc)
-            log_lkl += torch.sum(batch_log_lkl).item()
-
-        n_samples = len(self.indices)
-        # The minus sign is there because we actually look at the negative log likelihood
-        return -log_lkl / n_samples

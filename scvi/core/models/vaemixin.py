@@ -1,6 +1,5 @@
 import logging
 from typing import Optional, Sequence
-
 import numpy as np
 import torch
 from anndata import AnnData
@@ -67,9 +66,21 @@ class VAEMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
+        if indices is None:
+            indices = np.arange(adata.n_obs)
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        if hasattr(self.model, "marginal_ll"):
+            log_lkl = 0
+            for tensors in scdl:
+                log_lkl = self.model.marginal_ll(tensors, n_mc_samples=n_mc_samples)
+        else:
+            raise NotImplementedError(
+                "marginal_ll is not implemented for current model. "
+                "Please raise an issue on github if you need it."
+            )
 
-        return -scdl.marginal_ll(n_mc_samples=n_mc_samples)
+        n_samples = len(indices)
+        return log_lkl / n_samples
 
     @torch.no_grad()
     def get_reconstruction_error(
