@@ -65,10 +65,10 @@ class ArchesMixin:
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
         """
-        use_cuda = use_cuda and torch.cuda.is_available()
+        use_gpu = use_gpu and torch.cuda.is_available()
 
         if isinstance(reference_model, str):
-            map_location = torch.device("cpu") if use_cuda is False else None
+            map_location = torch.device("cpu") if use_gpu is False else None
             (
                 scvi_setup_dict,
                 attr_dict,
@@ -97,13 +97,13 @@ class ArchesMixin:
 
         transfer_anndata_setup(scvi_setup_dict, adata, extend_categories=True)
 
-        model = _initialize_model(cls, adata, attr_dict, use_cuda)
+        model = _initialize_model(cls, adata, attr_dict, use_gpu)
 
         # set saved attrs for loaded model
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
-        if use_cuda:
+        if use_gpu:
             model.model.cuda()
 
         # model tweaking

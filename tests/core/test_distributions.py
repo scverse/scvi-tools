@@ -12,7 +12,7 @@ from scvi.core.distributions._negative_binomial import (
     log_nb_positive,
 )
 
-use_cuda = True
+use_gpu = True
 
 
 def test_deprecated_munkres():

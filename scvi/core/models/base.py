@@ -216,8 +216,8 @@ class BaseModelClass(ABC):
         ----------
         n_epochs
             Number of passes through the dataset.
-        use_cuda
-            If `True`, use the GPU if available. Will override the use_cuda option when initializing model
+        use_gpu
+            If `True`, use the GPU if available. Will override the use_gpu option when initializing model
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -342,7 +342,7 @@ class BaseModelClass(ABC):
         cls,
         dir_path: str,
         adata: Optional[AnnData] = None,
-        use_cuda: bool = False,
+        use_gpu: bool = False,
     ):
         """
         Instantiate a model from the saved output.
@@ -356,7 +356,7 @@ class BaseModelClass(ABC):
             It is not necessary to run :func:`~scvi.data.setup_anndata`,
             as AnnData is validated against the saved `scvi` setup dictionary.
             If None, will check for and load anndata saved with the model.
-        use_cuda
+        use_gpu
             Whether to load model on GPU.
 
         Returns
@@ -369,8 +369,8 @@ class BaseModelClass(ABC):
         >>> vae.get_latent_representation()
         """
         load_adata = adata is None
-        use_cuda = use_cuda and torch.cuda.is_available()
-        map_location = torch.device("cpu") if use_cuda is False else None
+        use_gpu = use_gpu and torch.cuda.is_available()
+        map_location = torch.device("cpu") if use_gpu is False else None
 
         (
             scvi_setup_dict,
@@ -383,14 +383,14 @@ class BaseModelClass(ABC):
 
         _validate_var_names(adata, var_names)
         transfer_anndata_setup(scvi_setup_dict, adata)
-        model = _initialize_model(cls, adata, attr_dict, use_cuda)
+        model = _initialize_model(cls, adata, attr_dict, use_gpu)
 
         # set saved attrs for loaded model
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
         model.model.load_state_dict(model_state_dict)
-        if use_cuda:
+        if use_gpu:
             model.model.cuda()
 
         model.model.eval()

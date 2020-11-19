@@ -47,7 +47,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         List of bool of whether to model library size for adata_seq and adata_spatial.
     n_latent
         Dimensionality of the latent space.
-    use_cuda
+    use_gpu
         Use the GPU or not.
     **model_kwargs
         Keyword args for :class:`~scvi.core.modules.JVAE`
@@ -69,11 +69,11 @@ class GIMVI(VAEMixin, BaseModelClass):
         generative_distributions: List = ["zinb", "nb"],
         model_library_size: List = [True, False],
         n_latent: int = 10,
-        use_cuda: bool = True,
+        use_gpu: bool = True,
         **model_kwargs,
     ):
-        super(GIMVI, self).__init__(use_cuda=use_cuda)
-        self.use_cuda = use_cuda and torch.cuda.is_available()
+        super(GIMVI, self).__init__(use_gpu=use_gpu)
+        self.use_gpu = use_gpu and torch.cuda.is_available()
         self.adatas = [adata_seq, adata_spatial]
         self.scvi_setup_dicts_ = {
             "seq": adata_seq.uns["_scvi"],
@@ -372,7 +372,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         dir_path: str,
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
-        use_cuda: bool = False,
+        use_gpu: bool = False,
     ):
         """
         Instantiate a model from the saved output.
@@ -389,7 +389,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             If None, will check for and load anndata saved with the model.
         dir_path
             Path to saved outputs.
-        use_cuda
+        use_gpu
             Whether to load model on GPU.
 
         Returns
@@ -448,9 +448,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         # get the parameters for the class init signiture
         init_params = attr_dict.pop("init_params_")
 
-        # update use_cuda from the saved model
-        use_cuda = use_cuda and torch.cuda.is_available()
-        init_params["use_cuda"] = use_cuda
+        # update use_gpu from the saved model
+        use_gpu = use_gpu and torch.cuda.is_available()
+        init_params["use_gpu"] = use_gpu
 
         # grab all the parameters execept for kwargs (is a dict)
         non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
@@ -461,7 +461,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
-        if use_cuda:
+        if use_gpu:
             model.model.load_state_dict(torch.load(model_path))
             model.model.cuda()
         else:
