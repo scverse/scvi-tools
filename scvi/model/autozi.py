@@ -9,7 +9,7 @@ from scvi._compat import Literal
 from scvi.core.data_loaders import ScviDataLoader
 from scvi.core.models import BaseModelClass, VAEMixin
 from scvi.core.modules import AutoZIVAE
-from scvi.core.trainers import UnsupervisedTrainer
+from scvi.core.lightning import VAETask
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +136,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
 
     @property
     def _trainer_class(self):
-        return UnsupervisedTrainer
+        return VAETask
 
     @property
     def _scvi_dl_class(self):

@@ -16,7 +16,7 @@ from scvi.core.data_loaders import ScviDataLoader
 from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.models._utils import _de_core
 from scvi.core.modules import TOTALVAE
-from scvi.core.trainers import TotalTrainer
+from scvi.core.lightning import VAETask
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.model._utils import (
@@ -963,8 +963,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         return adata
 
     @property
-    def _trainer_class(self):
-        return TotalTrainer
+    def _task_class(self):
+        return VAETask
 
     @property
     def _scvi_dl_class(self):

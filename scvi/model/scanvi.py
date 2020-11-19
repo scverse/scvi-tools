@@ -189,7 +189,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     @property
     def _trainer_class(self):
-        pass
+        return SemiSupervisedTask
 
     @property
     def _scvi_dl_class(self):

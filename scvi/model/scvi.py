@@ -6,7 +6,7 @@ from scvi._compat import Literal
 from scvi.core.data_loaders import ScviDataLoader
 from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.modules import VAE
-from scvi.core.trainers import UnsupervisedTrainer
+from scvi.core.lightning import VAETask
 
 logger = logging.getLogger(__name__)
 
@@ -109,8 +109,8 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.init_params_ = self._get_init_params(locals())
 
     @property
-    def _trainer_class(self):
-        return UnsupervisedTrainer
+    def _task_class(self):
+        return VAETask
 
     @property
     def _scvi_dl_class(self):
