@@ -62,6 +62,8 @@ steps for modules like `TOTALVAE`, `SCANVAE`, etc.
    :template: class_no_inherited.rst
 
    core.lightning.VAETask
+   core.lightning.SemiSupervisedTask
+   core.lightning.AdversarialTask
    core.lightning.Trainer
 
 Utilities
