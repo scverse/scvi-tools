@@ -58,7 +58,8 @@ class ProgressBar(ProgressBarBase):
 
     def on_epoch_start(self, trainer, pl_module):
         super().on_epoch_start(trainer, pl_module)
-        self.main_progress_bar.set_description(f"Epoch {trainer.current_epoch}")
+        epoch = trainer.current_epoch + 1
+        self.main_progress_bar.set_description(f"Epoch {epoch}/{trainer.max_epochs}")
 
     def on_train_epoch_end(self, trainer, pl_module, outputs):
         super().on_train_epoch_end(trainer, pl_module, outputs)
