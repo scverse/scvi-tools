@@ -79,10 +79,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
-        use_cuda: bool = True,
+        use_gpu: bool = True,
         **model_kwargs,
     ):
-        super(SCANVI, self).__init__(adata, use_cuda=use_cuda)
+        super(SCANVI, self).__init__(adata, use_gpu=use_gpu)
         self.unlabeled_category_ = unlabeled_category
 
         if pretrained_model is not None:
@@ -148,7 +148,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.init_params_ = self._get_init_params(locals())
 
     @property
-    def _trainer_class(self):
+    def _task_class(self):
         return SemiSupervisedTask
 
     @property
@@ -170,7 +170,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 512,
-        use_cuda: Optional[bool] = None,
+        use_gpu: Optional[bool] = None,
         train_base_model: bool = True,
         lr: float = 1e-3,
         n_epochs_kl_warmup: int = 400,
@@ -236,10 +236,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 n_epochs_semisupervised
             )
         )
-        if use_cuda is not None:
-            use_gpu = use_cuda
+        if use_gpu is not None:
+            use_gpu = use_gpu
         else:
-            use_gpu = self.use_cuda
+            use_gpu = self.use_gpu
 
         self._unsupervised_task = VAETask(self.model, **unsupervised_task_kwargs)
         if use_gpu:
