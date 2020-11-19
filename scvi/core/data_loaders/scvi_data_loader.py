@@ -1,7 +1,6 @@
 import copy
 import logging
 from typing import Optional
-from scvi._compat import Literal
 from itertools import cycle
 
 import anndata
@@ -132,50 +131,37 @@ class ScviDataLoader(DataLoader):
         super().__init__(self.dataset, **self.data_loader_kwargs)
 
 
-class SemiSupervisedDataLoader(DataLoader):
+class ConcatDataLoader(DataLoader):
     def __init__(
         self,
         adata,
-        labeled_indices,
-        unlabelled_indices,
-        scheme: Literal["joint", "both"] = "both",
+        indices_list,
         shuffle=False,
         batch_size=128,
         data_and_attributes: Optional[dict] = None,
         **data_loader_kwargs,
     ):
-        self.full_dataset = ScviDataLoader(
-            adata,
-            shuffle=True,
-            batch_size=batch_size,
-            data_and_attributes=data_and_attributes,
-            **data_loader_kwargs,
-        )
-        self.labelled_set = ScviDataLoader(
-            adata,
-            indices=labeled_indices,
-            shuffle=shuffle,
-            batch_size=batch_size,
-            data_and_attributes=data_and_attributes,
-            **data_loader_kwargs,
-        )
-        self.unlabelled_set = ScviDataLoader(
-            adata,
-            indices=labeled_indices,
-            shuffle=shuffle,
-            batch_size=batch_size,
-            data_and_attributes=data_and_attributes,
-            **data_loader_kwargs,
-        )
-        self.scheme = scheme
-        super().__init__(self.full_dataset, **data_loader_kwargs)
+        self.dataloaders = []
+        for indices in indices_list:
+            self.dataloaders.append(
+                ScviDataLoader(
+                    adata,
+                    indices=indices,
+                    shuffle=True,
+                    batch_size=batch_size,
+                    data_and_attributes=data_and_attributes,
+                    **data_loader_kwargs,
+                )
+            )
+        lens = [len(dl) for dl in self.dataloaders]
+        self.largest_dl = self.dataloaders[np.argmax(lens)]
+        super().__init__(self.largest_dl, **data_loader_kwargs)
 
     def __len__(self):
-        return self.full_dataset.__len__
+        return len(self.largest_dl)
 
     def __iter__(self):
-        # TODO: probably don't want to hardcode this condition
-        if len(self.labelled_set.indices) == 0 or self.scheme == "alternate":
-            return iter(self.full_dataset)
-        else:
-            return zip(self.full_dataset, cycle(self.labelled_set))
+        iter_list = [
+            cycle(dl) if dl != self.largest_dl else dl for dl in self.dataloaders
+        ]
+        return zip(*iter_list)
