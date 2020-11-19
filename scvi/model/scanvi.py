@@ -14,7 +14,7 @@ from scvi.data._anndata import _make_obs_column_categorical
 from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.modules import SCANVAE, VAE
 from scvi.core.lightning import VAETask, Trainer, SemiSupervisedTask
-from scvi.core.data_loaders import SemiSupervisedDataLoader, ScviDataLoader
+from scvi.core.data_loaders import ConcatDataLoader, ScviDataLoader
 
 from .scvi import SCVI
 
@@ -309,9 +309,16 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self._semisupervised_trainer = Trainer(
             max_epochs=n_epochs_semisupervised, gpus=None
         )
-        semisupervised_train_dl = SemiSupervisedDataLoader(
-            self.adata, self._labeled_indices, self._unlabeled_indices
-        )
+
+        # if we have labelled cells, we want to pass them through the classifier
+        # else we only pass the full dataset
+        if len(self._labeled_indices) != 0:
+            full_idx = np.arange(self.adata.n_obs)
+            semisupervised_train_dl = ConcatDataLoader(
+                self.adata, [full_idx, self._labeled_indices]
+            )
+        else:
+            semisupervised_train_dl = ScviDataLoader(self.adata, full_idx)
         self._semisupervised_trainer.fit(
             self._semisupervised_task, semisupervised_train_dl
         )

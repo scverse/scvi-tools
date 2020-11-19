@@ -339,15 +339,31 @@ class SemiSupervisedTask(VAETask):
         self.scheme = scheme
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
-        full_dataset = batch[0]
-        labelled_dataset = batch[1]
+        # Potentially dangerous if batch is from a single dataloader with two keys
+        if len(batch) == 2:
+            full_dataset = batch[0]
+            labelled_dataset = batch[1]
+        else:
+            full_dataset = batch
+            labelled_dataset = None
+
         input_kwargs = dict(feed_labels=False)
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
-        x = labelled_dataset[_CONSTANTS.X_KEY]
-        y = labelled_dataset[_CONSTANTS.LABELS_KEY]
-        classification_loss = F.cross_entropy(
-            self.model.classify(x), y.view(-1).type(torch.LongTensor)
-        )
-        loss += classification_loss * self.classification_ratio
-        return loss
+
+        if labelled_dataset is not None:
+            x = labelled_dataset[_CONSTANTS.X_KEY]
+            y = labelled_dataset[_CONSTANTS.LABELS_KEY]
+            classification_loss = F.cross_entropy(
+                self.model.classify(x), y.view(-1).type(torch.LongTensor)
+            )
+            loss += classification_loss * self.classification_ratio
+
+        reconstruction_loss = scvi_losses.reconstruction_loss
+        return {
+            "loss": loss,
+            "reconstruction_loss_sum": reconstruction_loss.sum(),
+            "kl_local_sum": scvi_losses.kl_local.sum(),
+            "kl_global": scvi_losses.kl_global,
+            "n_obs": reconstruction_loss.shape[0],
+        }
