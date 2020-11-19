@@ -207,7 +207,7 @@ class BaseModelClass(ABC):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         vae_task_kwargs: Optional[dict] = None,
-        task_class=Optional[None],
+        task_class: Optional[None] = None,
         frequency=None,
         **kwargs,
     ):
