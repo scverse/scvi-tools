@@ -62,20 +62,17 @@ class VAETask(pl.LightningModule):
         return self.model(*args, **kwargs)
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
-        if optimizer_idx == 0:
-            loss_kwargs = dict(kl_weight=self.kl_weight)
-            inference_outputs, _, scvi_loss = self.forward(
-                batch, loss_kwargs=loss_kwargs
-            )
-            reconstruction_loss = scvi_loss.reconstruction_loss
-            # pytorch lightning automatically backprops on "loss"
-            return {
-                "loss": scvi_loss.loss,
-                "reconstruction_loss_sum": reconstruction_loss.sum(),
-                "kl_local_sum": scvi_loss.kl_local.sum(),
-                "kl_global": scvi_loss.kl_global,
-                "n_obs": reconstruction_loss.shape[0],
-            }
+        loss_kwargs = dict(kl_weight=self.kl_weight)
+        inference_outputs, _, scvi_loss = self.forward(batch, loss_kwargs=loss_kwargs)
+        reconstruction_loss = scvi_loss.reconstruction_loss
+        # pytorch lightning automatically backprops on "loss"
+        return {
+            "loss": scvi_loss.loss,
+            "reconstruction_loss_sum": reconstruction_loss.sum(),
+            "kl_local_sum": scvi_loss.kl_local.sum(),
+            "kl_global": scvi_loss.kl_global,
+            "n_obs": reconstruction_loss.shape[0],
+        }
 
     def training_epoch_end(self, outputs):
         n_obs, elbo, rec_loss, kl_local = 0, 0, 0, 0
@@ -173,6 +170,18 @@ class AdvesarialTask(VAETask):
         adversarial_classifier: Union[bool, Classifier] = False,
         scale_adversarial_loss: Union[float, Literal["auto"]] = "auto",
     ):
+        super(AdvesarialTask, self).__init__(
+            vae_model=vae_model,
+            lr=lr,
+            weight_decay=weight_decay,
+            n_iter_kl_warmup=n_iter_kl_warmup,
+            n_epochs_kl_warmup=n_epochs_kl_warmup,
+            reduce_lr_on_plateau=reduce_lr_on_plateau,
+            lr_factor=lr_factor,
+            lr_patience=lr_patience,
+            lr_threshold=lr_threshold,
+            lr_scheduler_metric=lr_scheduler_metric,
+        )
         if adversarial_classifier is True:
             self.adversarial_classifier = Classifier(
                 n_input=self.model.n_latent,
@@ -222,7 +231,6 @@ class AdvesarialTask(VAETask):
                 z = inference_outputs["z"]
                 fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
                 loss += fool_loss * kappa
-            return loss
 
         # train adversarial classifier
         # this condition will not be met unless self.adversarial_classifier is not False
@@ -230,11 +238,17 @@ class AdvesarialTask(VAETask):
             inference_inputs = self.model._get_inference_input(batch)
             outputs = self.model.inference(**inference_inputs)
             z = outputs["z"]
-            adversarial_loss = self.loss_adversarial_classifier(
-                z.detach(), batch_tensor, True
-            )
-            adversarial_loss *= kappa
-            return adversarial_loss
+            loss = self.loss_adversarial_classifier(z.detach(), batch_tensor, True)
+            loss *= kappa
+        reconstruction_loss = scvi_loss.reconstruction_loss
+        # pytorch lightning automatically backprops on "loss"
+        return {
+            "loss": scvi_loss.loss,
+            "reconstruction_loss_sum": reconstruction_loss.sum(),
+            "kl_local_sum": scvi_loss.kl_local.sum(),
+            "kl_global": scvi_loss.kl_global,
+            "n_obs": reconstruction_loss.shape[0],
+        }
 
     def configure_optimizers(self):
         params1 = filter(lambda p: p.requires_grad, self.model.parameters())
