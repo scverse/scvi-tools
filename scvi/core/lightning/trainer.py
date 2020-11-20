@@ -3,6 +3,7 @@ from typing import Optional, Union
 import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.loggers import LightningLoggerBase
 
 from scvi import settings
 from scvi._compat import Literal
@@ -42,6 +43,9 @@ class Trainer(pl.Trainer):
         Set it to -1 to run all batches in all validation dataloaders.
     weights_summary
         Prints a summary of the weights when training begins.
+    logger
+        A valid pytorch lightning logger. Defaults to a simple dictionary logger.
+        If `True`, defaults to the default pytorch lightning logger.
     **kwargs
         Other keyword args for :class:`~pytorch_lightning.trainer.Trainer`
     """
@@ -64,6 +68,7 @@ class Trainer(pl.Trainer):
         early_stopping_min_delta: float = 0.00,
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
+        logger: Union[Optional[LightningLoggerBase], bool] = None,
         **kwargs
     ):
         if default_root_dir is None:
@@ -85,6 +90,9 @@ class Trainer(pl.Trainer):
         bar = ProgressBar()
         kwargs["callbacks"] += [bar]
 
+        if logger is None:
+            logger = SimpleLogger()
+
         super().__init__(
             gpus=gpus,
             benchmark=benchmark,
@@ -95,6 +103,6 @@ class Trainer(pl.Trainer):
             checkpoint_callback=checkpoint_callback,
             num_sanity_val_steps=num_sanity_val_steps,
             weights_summary=weights_summary,
-            logger=SimpleLogger(),
+            logger=logger,
             **kwargs,
         )
