@@ -276,7 +276,10 @@ class BaseModelClass(ABC):
         self.validation_indices_ = val_dl.indices
 
         self.trainer.fit(self._pl_task, train_dl, val_dl)
-        self.history_ = self.trainer.logger.history
+        try:
+            self.history_ = self.trainer.logger.history
+        except AttributeError:
+            self.history_ = None
         self.model.eval()
         if use_gpu:
             self.model.cuda()
