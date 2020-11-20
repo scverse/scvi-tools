@@ -1,5 +1,4 @@
 from typing import Union
-from collections import defaultdict
 
 import pytorch_lightning as pl
 import torch
@@ -50,12 +49,6 @@ class VAETask(pl.LightningModule):
         self.lr_patience = lr_patience
         self.lr_scheduler_metric = lr_scheduler_metric
         self.lr_threshold = lr_threshold
-        self.history = defaultdict(list)
-
-    # should history be a part of task?
-    def log(self, name, value, **kwargs):
-        self.history[name] += [value]
-        super().log(name=name, value=value, **kwargs)
 
     def forward(self, *args, **kwargs):
         """Passthrough to model.forward()."""

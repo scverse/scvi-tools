@@ -7,6 +7,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from scvi import settings
 from scvi._compat import Literal
 
+from .logger import SimpleLogger
 from .progress import ProgressBar
 
 
@@ -94,5 +95,6 @@ class Trainer(pl.Trainer):
             checkpoint_callback=checkpoint_callback,
             num_sanity_val_steps=num_sanity_val_steps,
             weights_summary=weights_summary,
+            logger=SimpleLogger(),
             **kwargs,
         )
