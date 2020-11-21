@@ -288,13 +288,10 @@ class TOTALVAE(AbstractVAE):
 
         return reconst_loss_gene, reconst_loss_protein
 
-    def _get_inference_input(self, tensors, transform_batch=None):
+    def _get_inference_input(self, tensors):
         x = tensors[_CONSTANTS.X_KEY]
         y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
-
-        if transform_batch is not None:
-            batch_index = torch.ones_like(batch_index) * transform_batch
 
         input_dict = dict(x=x, y=y, batch_index=batch_index)
         return input_dict
@@ -548,14 +545,12 @@ class TOTALVAE(AbstractVAE):
         return SCVILoss(loss, reconst_losses, kl_local, kl_global=0.0)
 
     def sample(self, tensors, transform_batch=None, n_samples=1):
-        get_inference_input_kwargs = dict(transform_batch=transform_batch)
         get_generative_input_kwargs = dict(transform_batch=transform_batch)
         inference_kwargs = dict(n_samples=n_samples)
         with torch.no_grad():
             inference_outputs, generative_outputs, = self.forward(
                 tensors,
                 inference_kwargs=inference_kwargs,
-                get_inference_input_kwargs=get_inference_input_kwargs,
                 get_generative_input_kwargs=get_generative_input_kwargs,
                 compute_loss=False,
             )

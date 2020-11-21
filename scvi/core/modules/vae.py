@@ -177,7 +177,7 @@ class VAE(AbstractVAE):
             use_layer_norm=use_layer_norm_decoder,
         )
 
-    def _get_inference_input(self, tensors, transform_batch=None):
+    def _get_inference_input(self, tensors):
         x = tensors[_CONSTANTS.X_KEY]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
@@ -186,9 +186,6 @@ class VAE(AbstractVAE):
 
         cat_key = _CONSTANTS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
-
-        if transform_batch is not None:
-            batch_index = torch.ones_like(batch_index) * transform_batch
 
         input_dict = dict(
             x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
@@ -377,13 +374,11 @@ class VAE(AbstractVAE):
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
         """
-        get_inference_input_kwargs = dict(transform_batch=transform_batch)
         get_generative_input_kwargs = dict(transform_batch=transform_batch)
         inference_kwargs = dict(n_samples=n_samples)
         inference_outputs, generative_outputs, = self.forward(
             tensors,
             inference_kwargs=inference_kwargs,
-            get_inference_input_kwargs=get_inference_input_kwargs,
             get_generative_input_kwargs=get_generative_input_kwargs,
             compute_loss=False,
         )

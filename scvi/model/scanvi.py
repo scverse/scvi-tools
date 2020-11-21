@@ -328,7 +328,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
-        transform_batch=None,  # TODO add this functionality
         soft: bool = False,
         batch_size: int = 128,
     ) -> Union[np.ndarray, pd.DataFrame]:
