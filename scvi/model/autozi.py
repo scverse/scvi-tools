@@ -3,8 +3,12 @@ from typing import Dict, Optional, Union
 
 import numpy as np
 import torch
+from torch import logsumexp
 from anndata import AnnData
+from torch.distributions import Beta, Normal
+from typing import Sequence
 
+from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.core.data_loaders import ScviDataLoader
 from scvi.core.models import BaseModelClass, VAEMixin
@@ -12,6 +16,8 @@ from scvi.core.modules import AutoZIVAE
 from scvi.core.lightning import VAETask
 
 logger = logging.getLogger(__name__)
+
+# register buffer
 
 
 class AUTOZI(VAEMixin, BaseModelClass):
@@ -134,8 +140,106 @@ class AUTOZI(VAEMixin, BaseModelClass):
         """Return parameters of Bernoulli Beta distributions in a dictionary."""
         return self.model.get_alphas_betas(as_numpy=as_numpy)
 
+    @torch.no_grad()
+    def get_marginal_ll(
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        n_mc_samples: int = 1000,
+        batch_size: Optional[int] = None,
+    ) -> float:
+        """
+        Return the marginal LL for the data.
+
+        The computation here is a biased estimator of the marginal log likelihood of the data.
+        Note, this is not the negative log likelihood, higher is better.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        n_mc_samples
+            Number of Monte Carlo samples to use for marginal LL estimation.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        """
+        adata = self._validate_anndata(adata)
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+
+        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+
+        log_lkl = 0
+        to_sum = torch.zeros((n_mc_samples,))
+        alphas_betas = self.model.get_alphas_betas(as_numpy=False)
+        alpha_prior = alphas_betas["alpha_prior"]
+        alpha_posterior = alphas_betas["alpha_posterior"]
+        beta_prior = alphas_betas["beta_prior"]
+        beta_posterior = alphas_betas["beta_posterior"]
+
+        for i in range(n_mc_samples):
+            bernoulli_params = self.model.sample_from_beta_distribution(
+                alpha_posterior, beta_posterior
+            )
+            for i_batch, tensors in enumerate(scdl):
+                sample_batch = tensors[_CONSTANTS.X_KEY]
+                local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+                local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+                batch_index = tensors[_CONSTANTS.BATCH_KEY]
+                labels = tensors[_CONSTANTS.LABELS_KEY]
+
+                # Distribution parameters and sampled variables
+                outputs = self.model.inference(sample_batch, batch_index, labels)
+                px_r = outputs["px_r"]
+                px_rate = outputs["px_rate"]
+                px_dropout = outputs["px_dropout"]
+                qz_m = outputs["qz_m"]
+                qz_v = outputs["qz_v"]
+                z = outputs["z"]
+                ql_m = outputs["ql_m"]
+                ql_v = outputs["ql_v"]
+                library = outputs["library"]
+
+                # Reconstruction Loss
+                bernoulli_params_batch = self.reshape_bernoulli(
+                    bernoulli_params, batch_index, labels
+                )
+                reconst_loss = self.get_reconstruction_loss(
+                    sample_batch, px_rate, px_r, px_dropout, bernoulli_params_batch
+                )
+
+                # Log-probabilities
+                p_l = (
+                    Normal(local_l_mean, local_l_var.sqrt())
+                    .log_prob(library)
+                    .sum(dim=-1)
+                )
+                p_z = (
+                    Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v))
+                    .log_prob(z)
+                    .sum(dim=-1)
+                )
+                p_x_zld = -reconst_loss
+                q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
+                q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
+
+                batch_log_lkl = torch.sum(p_x_zld + p_l + p_z - q_z_x - q_l_x, dim=0)
+                to_sum[i] += batch_log_lkl
+
+            p_d = Beta(alpha_prior, beta_prior).log_prob(bernoulli_params).sum()
+            q_d = Beta(alpha_posterior, beta_posterior).log_prob(bernoulli_params).sum()
+
+            to_sum[i] += p_d - q_d
+
+        log_lkl = logsumexp(to_sum, dim=-1).item() - np.log(n_mc_samples)
+        n_samples = len(scdl.indices)
+        return -log_lkl / n_samples
+
     @property
-    def _trainer_class(self):
+    def _task_class(self):
         return VAETask
 
     @property
