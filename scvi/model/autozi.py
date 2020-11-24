@@ -192,22 +192,23 @@ class AUTOZI(VAEMixin, BaseModelClass):
                 labels = tensors[_CONSTANTS.LABELS_KEY]
 
                 # Distribution parameters and sampled variables
-                outputs = self.model.inference(sample_batch, batch_index, labels)
-                px_r = outputs["px_r"]
-                px_rate = outputs["px_rate"]
-                px_dropout = outputs["px_dropout"]
-                qz_m = outputs["qz_m"]
-                qz_v = outputs["qz_v"]
-                z = outputs["z"]
-                ql_m = outputs["ql_m"]
-                ql_v = outputs["ql_v"]
-                library = outputs["library"]
+                inf_outputs, gen_outputs, losses = self.model.forward(tensors)
+
+                px_r = gen_outputs["px_r"]
+                px_rate = gen_outputs["px_rate"]
+                px_dropout = gen_outputs["px_dropout"]
+                qz_m = inf_outputs["qz_m"]
+                qz_v = inf_outputs["qz_v"]
+                z = inf_outputs["z"]
+                ql_m = inf_outputs["ql_m"]
+                ql_v = inf_outputs["ql_v"]
+                library = inf_outputs["library"]
 
                 # Reconstruction Loss
-                bernoulli_params_batch = self.reshape_bernoulli(
+                bernoulli_params_batch = self.model.reshape_bernoulli(
                     bernoulli_params, batch_index, labels
                 )
-                reconst_loss = self.get_reconstruction_loss(
+                reconst_loss = self.model.get_reconstruction_loss(
                     sample_batch, px_rate, px_r, px_dropout, bernoulli_params_batch
                 )
 
@@ -236,7 +237,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
 
         log_lkl = logsumexp(to_sum, dim=-1).item() - np.log(n_mc_samples)
         n_samples = len(scdl.indices)
-        return -log_lkl / n_samples
+        return log_lkl / n_samples
 
     @property
     def _task_class(self):
