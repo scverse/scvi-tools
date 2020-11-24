@@ -17,7 +17,7 @@ from scvi.core.data_loaders import ScviDataLoader
 from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.models._utils import _de_core
 from scvi.core.modules import TOTALVAE
-from scvi.core.lightning import VAETask, AdvesarialTask
+from scvi.core.lightning import AdvesarialTask
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.model._utils import (
@@ -131,38 +131,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
-    def train_advesarial(
-        self,
-        n_epochs: Optional[int] = 400,
-        lr: float = 4e-3,
-        use_gpu: bool = True,
-        train_size: float = 0.9,
-        validation_size: Optional[float] = None,
-        batch_size: int = 256,
-        early_stopping: bool = True,
-        reduce_lr_on_plateau: bool = True,
-        **kwargs,
-    ):
-        imputation = (
-            True if "totalvi_batch_mask" in self.scvi_setup_dict_.keys() else False
-        )
-        vae_task_kwargs = {
-            "lr": lr,
-            "adversarial_classifier": True if imputation else False,
-            "reduce_lr_on_plateau": reduce_lr_on_plateau,
-        }
-        super().train(
-            n_epochs=n_epochs,
-            use_gpu=use_gpu,
-            train_size=train_size,
-            validation_size=validation_size,
-            batch_size=batch_size,
-            early_stopping=early_stopping,
-            vae_task_kwargs=vae_task_kwargs,
-            task_class=AdvesarialTask,
-            **kwargs,
-        )
-
     def train(
         self,
         n_epochs: Optional[int] = 400,
@@ -206,13 +174,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         imputation = (
             True if "totalvi_batch_mask" in self.scvi_setup_dict_.keys() else False
         )
-        if imputation:
-            logger.warning(
-                "totalvi_batch_mask exists. "
-                "Are you sure you don't want to train_advesarial?"
-            )
         vae_task_kwargs = {
             "lr": lr,
+            "adversarial_classifier": True if imputation else False,
             "reduce_lr_on_plateau": reduce_lr_on_plateau,
         }
         super().train(
@@ -995,7 +959,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     @property
     def _task_class(self):
-        return VAETask
+        return AdvesarialTask
 
     @property
     def _scvi_dl_class(self):
