@@ -334,8 +334,7 @@ class AdvesarialTask(VAETask):
     def training_epoch_end(self, outputs):
         # only report from optimizer one loss signature
         if self.adversarial_classifier:
-            elbo_outs = [o for i, o in enumerate(outputs) if i % 2 == 0]
-            super().training_epoch_end(elbo_outs)
+            super().training_epoch_end(outputs[0])
         else:
             super().training_epoch_end(outputs)
 
