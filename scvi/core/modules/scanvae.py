@@ -199,7 +199,6 @@ class SCANVAE(VAE):
         inference_outputs,
         generative_ouputs,
         feed_labels=False,
-        scale_loss=1.0,
         kl_weight=1,
     ):
         px_r = generative_ouputs["px_r"]
@@ -268,7 +267,6 @@ class SCANVAE(VAE):
         kl_divergence += kl_divergence_l
 
         loss = torch.mean(reconst_loss + kl_divergence)
-        loss = loss * scale_loss
 
         # reconstruction_loss probably isnt correct
         return SCVILoss(loss, reconst_loss, kl_divergence, kl_global=0.0)
