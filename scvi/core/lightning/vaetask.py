@@ -1,3 +1,4 @@
+from inspect import getfullargspec
 from typing import Union
 
 import pytorch_lightning as pl
@@ -20,15 +21,42 @@ class VAETask(pl.LightningModule):
     Parameters
     ----------
     vae_model
-        A model instance from class ``AbstractVAE``
+        A model instance from class ``AbstractVAE``.
+    n_obs_training
+        Number of observations in the training set.
+    lr
+        Learning rate used for optimization :class:`~torch.optim.Adam`.
+    weight_decay
+        Weight decay used in :class:`~torch.optim.Adam`.
+    n_steps_kl_warmup
+        Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
+        Only activated when `n_epochs_kl_warmup` is set to None.
+    n_epochs_kl_warmup
+        Number of epochs to scale weight on KL divergences from 0 to 1.
+        Overrides `n_steps_kl_warmup` when both are not `None`.
+    reduce_lr_on_plateau
+        Whether to monitor validation loss and reduce learning rate when validation set
+        `lr_scheduler_metric` plateaus.
+    lr_factor
+        Factor to reduce learning rate.
+    lr_patience
+        Number of epochs with no improvement after which learning rate will be reduced.
+    lr_threshold
+        Threshold for measuring the new optimum.
+    lr_scheduler_metric
+        Which metric to track for learning rate reduction.
+    **loss_kwargs
+        Keyword args to pass to the loss method of the `vae_model`.
+        `kl_weight` should not be passed here and is handled automatically.
     """
 
     def __init__(
         self,
         vae_model: AbstractVAE,
+        n_obs_training: int,
         lr=1e-3,
         weight_decay=1e-6,
-        n_iter_kl_warmup: Union[int, None] = None,
+        n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         reduce_lr_on_plateau: bool = False,
         lr_factor: float = 0.6,
@@ -37,26 +65,40 @@ class VAETask(pl.LightningModule):
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
+        **loss_kwargs,
     ):
         super(VAETask, self).__init__()
         self.model = vae_model
+        self.n_obs_training = n_obs_training
         self.lr = lr
         self.weight_decay = weight_decay
-        self.n_iter_kl_warmup = n_iter_kl_warmup
+        self.n_steps_kl_warmup = n_steps_kl_warmup
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.reduce_lr_on_plateau = reduce_lr_on_plateau
         self.lr_factor = lr_factor
         self.lr_patience = lr_patience
         self.lr_scheduler_metric = lr_scheduler_metric
         self.lr_threshold = lr_threshold
+        self.loss_kwargs = loss_kwargs
+
+        # automatic handling of kl weight
+        loss_args = getfullargspec(self.model.loss)[0]
+        if "kl_weight" in loss_args:
+            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+
+        if "n_obs" in loss_args:
+            self.loss_kwargs.update({"n_obs": n_obs_training})
 
     def forward(self, *args, **kwargs):
-        """Passthrough to model.forward()."""
+        """Passthrough to `model.forward()`."""
         return self.model(*args, **kwargs)
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
-        loss_kwargs = dict(kl_weight=self.kl_weight)
-        inference_outputs, _, scvi_loss = self.forward(batch, loss_kwargs=loss_kwargs)
+        if "kl_weight" in self.loss_kwargs:
+            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+        inference_outputs, _, scvi_loss = self.forward(
+            batch, loss_kwargs=self.loss_kwargs
+        )
         reconstruction_loss = scvi_loss.reconstruction_loss
         # pytorch lightning automatically backprops on "loss"
         return {
@@ -135,23 +177,65 @@ class VAETask(pl.LightningModule):
     def kl_weight(self):
         """Scaling factor on KL divergence during training."""
         epoch_criterion = self.n_epochs_kl_warmup is not None
-        iter_criterion = self.n_iter_kl_warmup is not None
+        step_criterion = self.n_steps_kl_warmup is not None
         if epoch_criterion:
             kl_weight = min(1.0, self.current_epoch / self.n_epochs_kl_warmup)
-        elif iter_criterion:
-            kl_weight = min(1.0, self.global_step / self.n_iter_kl_warmup)
+        elif step_criterion:
+            kl_weight = min(1.0, self.global_step / self.n_steps_kl_warmup)
         else:
             kl_weight = 1.0
         return kl_weight
 
 
 class AdvesarialTask(VAETask):
+    """
+    Train vaes with adversarial loss option to encourage latent space mixing.
+
+    Parameters
+    ----------
+    vae_model
+        A model instance from class ``AbstractVAE``.
+    n_obs_training
+        Number of observations in the training set.
+    lr
+        Learning rate used for optimization :class:`~torch.optim.Adam`.
+    weight_decay
+        Weight decay used in :class:`~torch.optim.Adam`.
+    n_steps_kl_warmup
+        Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
+        Only activated when `n_epochs_kl_warmup` is set to None.
+    n_epochs_kl_warmup
+        Number of epochs to scale weight on KL divergences from 0 to 1.
+        Overrides `n_steps_kl_warmup` when both are not `None`.
+    reduce_lr_on_plateau
+        Whether to monitor validation loss and reduce learning rate when validation set
+        `lr_scheduler_metric` plateaus.
+    lr_factor
+        Factor to reduce learning rate.
+    lr_patience
+        Number of epochs with no improvement after which learning rate will be reduced.
+    lr_threshold
+        Threshold for measuring the new optimum.
+    lr_scheduler_metric
+        Which metric to track for learning rate reduction.
+    adversarial_classifier
+        Whether to use adversarial classifier in the latent space
+    scale_adversarial_loss
+        Scaling factor on the adversarial components of the loss.
+        By default, adversarial loss is scaled from 1 to 0 following opposite of
+        kl warmup.
+    **loss_kwargs
+        Keyword args to pass to the loss method of the `vae_model`.
+        `kl_weight` should not be passed here and is handled automatically.
+    """
+
     def __init__(
         self,
         vae_model: AbstractVAE,
+        n_obs_training,
         lr=1e-3,
         weight_decay=1e-6,
-        n_iter_kl_warmup: Union[int, None] = None,
+        n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         reduce_lr_on_plateau: bool = False,
         lr_factor: float = 0.6,
@@ -162,12 +246,14 @@ class AdvesarialTask(VAETask):
         ] = "elbo_validation",
         adversarial_classifier: Union[bool, Classifier] = False,
         scale_adversarial_loss: Union[float, Literal["auto"]] = "auto",
+        **loss_kwargs,
     ):
         super(AdvesarialTask, self).__init__(
             vae_model=vae_model,
+            n_obs_training=n_obs_training,
             lr=lr,
             weight_decay=weight_decay,
-            n_iter_kl_warmup=n_iter_kl_warmup,
+            n_steps_kl_warmup=n_steps_kl_warmup,
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             reduce_lr_on_plateau=reduce_lr_on_plateau,
             lr_factor=lr_factor,
@@ -309,7 +395,7 @@ class SemiSupervisedTask(VAETask):
         vae_model: AbstractVAE,
         lr=1e-3,
         weight_decay=1e-6,
-        n_iter_kl_warmup: Union[int, None] = None,
+        n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         n_labelled_samples_per_class=50,
         indices_labelled=None,
@@ -332,7 +418,7 @@ class SemiSupervisedTask(VAETask):
             vae_model=vae_model,
             lr=lr,
             weight_decay=weight_decay,
-            n_iter_kl_warmup=n_iter_kl_warmup,
+            n_steps_kl_warmup=n_steps_kl_warmup,
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             reduce_lr_on_plateau=reduce_lr_on_plateau,
             lr_factor=lr_factor,

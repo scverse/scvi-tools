@@ -364,34 +364,9 @@ class AutoZIVAE(VAE):
         tensors,
         inference_outputs,
         generative_outputs,
-        kl_weight=1.0,
-        scale_loss: float = 1.0,
+        kl_weight: int = 1.0,
+        n_obs: int = 1.0,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        r"""
-        Returns the reconstruction loss and the Kullback divergences.
-
-        Parameters
-        ----------
-        x
-            tensor of values with shape (batch_size, n_input)
-        local_l_mean
-            tensor of means of the prior distribution of latent variable l
-            with shape (batch_size, 1)
-        local_l_var
-            tensor of variancess of the prior distribution of latent variable l
-            with shape (batch_size, 1)
-        batch_index
-            array that indicates which batch the cells belong to with shape ``batch_size``
-        y
-            tensor of cell-types labels with shape (batch_size, n_labels)
-
-
-        Returns
-        -------
-        2-tuple of :py:class:`torch.FloatTensor`
-            the reconstruction loss and the Kullback divergences
-
-        """
         # Parameters for z latent distribution
         qz_m = inference_outputs["qz_m"]
         qz_v = inference_outputs["qz_v"]
@@ -425,15 +400,12 @@ class AutoZIVAE(VAE):
             x, px_rate, px_r, px_dropout, bernoulli_params
         )
 
-        reconst_loss = reconst_loss
-
         kl_global = kl_divergence_bernoulli
         kl_local_for_warmup = kl_divergence_l
         kl_local_no_warmup = kl_divergence_z
 
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
-        loss = torch.mean(reconst_loss + weighted_kl_local) + kl_global
-        loss = loss * scale_loss
+        loss = n_obs * torch.mean(reconst_loss + weighted_kl_local) + kl_global
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )

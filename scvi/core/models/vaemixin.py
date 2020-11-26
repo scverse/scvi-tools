@@ -161,7 +161,7 @@ class VAEMixin:
                 # does each model need to have this latent distribution param?
                 if self.model.latent_distribution == "ln":
                     samples = Normal(qz_m, qz_v.sqrt()).sample([mc_samples])
-                    z = self.z_encoder.z_transformation(samples)
+                    z = torch.nn.functional.softmax(samples, dim=-1)
                     z = z.mean(dim=0)
                 else:
                     z = qz_m
