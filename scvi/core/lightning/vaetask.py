@@ -311,6 +311,15 @@ class AdvesarialTask(VAETask):
                 fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
                 loss += fool_loss * kappa
 
+            reconstruction_loss = scvi_loss.reconstruction_loss
+            return {
+                "loss": scvi_loss.loss,
+                "reconstruction_loss_sum": reconstruction_loss.sum(),
+                "kl_local_sum": scvi_loss.kl_local.sum(),
+                "kl_global": scvi_loss.kl_global,
+                "n_obs": reconstruction_loss.shape[0],
+            }
+
         # train adversarial classifier
         # this condition will not be met unless self.adversarial_classifier is not False
         if optimizer_idx == 1:
@@ -319,15 +328,14 @@ class AdvesarialTask(VAETask):
             z = outputs["z"]
             loss = self.loss_adversarial_classifier(z.detach(), batch_tensor, True)
             loss *= kappa
-        reconstruction_loss = scvi_loss.reconstruction_loss
+
+            return loss
+
         # pytorch lightning automatically backprops on "loss"
-        return {
-            "loss": scvi_loss.loss,
-            "reconstruction_loss_sum": reconstruction_loss.sum(),
-            "kl_local_sum": scvi_loss.kl_local.sum(),
-            "kl_global": scvi_loss.kl_global,
-            "n_obs": reconstruction_loss.shape[0],
-        }
+
+    def training_epoch_end(self, outputs):
+        elbo_outs = outputs[0][0]
+        super().training_epoch_end(elbo_outs)
 
     def configure_optimizers(self):
         params1 = filter(lambda p: p.requires_grad, self.model.parameters())
@@ -359,7 +367,12 @@ class AdvesarialTask(VAETask):
                 params2, lr=1e-3, eps=0.01, weight_decay=self.weight_decay
             )
             config2 = {"optimizer": optimizer2}
-            return config1, config2
+
+            # bug in pytorch lightning requires this way to return
+            opts = [config1.pop("optimizer"), config2["optimizer"]]
+            config1["scheduler"] = config1.pop("lr_scheduler")
+            scheds = [config1]
+            return opts, scheds
 
         return config1
 
