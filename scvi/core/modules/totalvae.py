@@ -602,9 +602,7 @@ class TOTALVAE(AbstractVAE):
                 .sum(dim=-1)
             )
             p_z = Normal(0, 1).log_prob(z).sum(dim=-1)
-            p_mu_back = self.model.back_mean_prior.log_prob(log_pro_back_mean).sum(
-                dim=-1
-            )
+            p_mu_back = self.back_mean_prior.log_prob(log_pro_back_mean).sum(dim=-1)
             p_xy_zl = -(reconst_loss_gene + reconst_loss_protein)
             q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
             q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(log_library).sum(dim=-1)

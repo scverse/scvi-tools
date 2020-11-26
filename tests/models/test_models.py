@@ -154,7 +154,7 @@ def test_saving_and_loading(save_path):
         model = cls(adata, latent_distribution="normal")
         model.train(1, train_size=0.2)
         z1 = model.get_latent_representation(adata)
-        test_idx1 = model.test_indices
+        test_idx1 = model.validation_indices
         model.save(save_path, overwrite=True, save_anndata=True)
         model = cls.load(save_path)
         model.get_latent_representation()
@@ -163,7 +163,7 @@ def test_saving_and_loading(save_path):
             cls.load(save_path, tmp_adata)
         model = cls.load(save_path, adata)
         z2 = model.get_latent_representation()
-        test_idx2 = model.test_indices
+        test_idx2 = model.validation_indices
         np.testing.assert_array_equal(z1, z2)
         np.testing.assert_array_equal(test_idx1, test_idx2)
         assert model.is_trained is True
@@ -293,9 +293,9 @@ def test_autozi():
         autozivae.train(1, lr=1e-2, frequency=1)
         assert len(autozivae.history["elbo_train"]) == 1
         assert len(autozivae.history["elbo_test"]) == 1
-        autozivae.get_elbo(indices=autozivae.test_indices)
-        autozivae.get_reconstruction_error(indices=autozivae.test_indices)
-        autozivae.get_marginal_ll(indices=autozivae.test_indices)
+        autozivae.get_elbo(indices=autozivae.validation_indices)
+        autozivae.get_reconstruction_error(indices=autozivae.validation_indices)
+        autozivae.get_marginal_ll(indices=autozivae.validation_indices)
         autozivae.get_alphas_betas()
 
 
@@ -342,9 +342,9 @@ def test_totalvi(save_path):
     )
     # model.get_likelihood_parameters()
 
-    model.get_elbo(indices=model.test_indices)
-    model.get_marginal_ll(indices=model.test_indices)
-    model.get_reconstruction_error(indices=model.test_indices)
+    model.get_elbo(indices=model.validation_indices)
+    model.get_marginal_ll(indices=model.validation_indices)
+    model.get_reconstruction_error(indices=model.validation_indices)
 
     adata2 = synthetic_iid()
     norm_exp = model.get_normalized_expression(adata2, indices=[1, 2, 3])

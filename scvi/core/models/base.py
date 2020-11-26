@@ -241,22 +241,16 @@ class BaseModelClass(ABC):
             use_gpu = self.use_gpu
         else:
             use_gpu = use_gpu and torch.cuda.is_available()
-        if frequency is None:
-            check_val_every_n_epoch = np.inf
-        else:
-            check_val_every_n_epoch = frequency
-
-        if task_class is None:
-            task_class = self._task_class
-
-        task_kwargs = vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
-        self._pl_task = task_class(self.model, **task_kwargs)
         if use_gpu:
             gpus = 1
             pin_memory = True
         else:
             gpus = None
             pin_memory = False
+        if frequency is None:
+            check_val_every_n_epoch = np.inf
+        else:
+            check_val_every_n_epoch = frequency
 
         self.trainer = Trainer(
             max_epochs=n_epochs,
@@ -274,6 +268,12 @@ class BaseModelClass(ABC):
         self.train_indices_ = train_dl.indices
         self.test_indices_ = test_dl.indices
         self.validation_indices_ = val_dl.indices
+
+        if task_class is None:
+            task_class = self._task_class
+
+        task_kwargs = vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
+        self._pl_task = task_class(self.model, len(self.train_indices_), **task_kwargs)
 
         self.trainer.fit(self._pl_task, train_dl, val_dl)
         try:

@@ -191,37 +191,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
 
     @torch.no_grad()
-    def get_reconstruction_error(
-        self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        mode: Literal["total", "gene", "protein"] = "total",
-        batch_size: Optional[int] = None,
-    ):
-        r"""
-        Return the reconstruction error for the data.
-
-        This is typically written as :math:`p(x, y \mid z)`, the likelihood term given one posterior sample.
-        Note, this is not the negative likelihood, higher is better.
-
-        Parameters
-        ----------
-        adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
-        indices
-            Indices of cells in adata to use. If `None`, all cells are used.
-        mode
-            Compute for genes, proteins, or both.
-        batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-        """
-        adata = self._validate_anndata(adata)
-        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
-
-        return -post.reconstruction_error(mode=mode)
-
-    @torch.no_grad()
     def get_latent_library_size(
         self,
         adata: Optional[AnnData] = None,

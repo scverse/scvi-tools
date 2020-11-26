@@ -15,9 +15,9 @@ class SimpleLogger(LightningLoggerBase):
         # Return the experiment object associated with this logger.
         pass
 
+    @property
     def version(self):
-        # Return the experiment version, int or str.
-        pass
+        return "1"
 
     @rank_zero_only
     def log_hyperparams(self, params):
