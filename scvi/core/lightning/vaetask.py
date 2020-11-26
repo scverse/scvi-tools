@@ -331,11 +331,13 @@ class AdvesarialTask(VAETask):
 
             return loss
 
-        # pytorch lightning automatically backprops on "loss"
-
     def training_epoch_end(self, outputs):
-        elbo_outs = outputs[0][0]
-        super().training_epoch_end(elbo_outs)
+        # only report from optimizer one loss signature
+        if self.adversarial_classifier:
+            elbo_outs = [o for i, o in enumerate(outputs) if i % 2 == 0]
+            super().training_epoch_end(elbo_outs)
+        else:
+            super().training_epoch_end(outputs)
 
     def configure_optimizers(self):
         params1 = filter(lambda p: p.requires_grad, self.model.parameters())
