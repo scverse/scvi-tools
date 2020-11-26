@@ -344,7 +344,6 @@ class VAE(AbstractVAE):
         return SCVILoss(loss, reconst_loss, kl_local, kl_global)
 
     @torch.no_grad()
-    # a lot of these n_samples
     def sample(
         self,
         tensors,
@@ -426,6 +425,7 @@ class VAE(AbstractVAE):
             reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
         return reconst_loss
 
+    @torch.no_grad()
     def marginal_ll(self, tensors, n_mc_samples):
         sample_batch = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]

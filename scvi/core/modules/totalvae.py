@@ -544,6 +544,7 @@ class TOTALVAE(AbstractVAE):
 
         return SCVILoss(loss, reconst_losses, kl_local, kl_global=0.0)
 
+    @torch.no_grad()
     def sample(self, tensors, transform_batch=None, n_samples=1):
         get_generative_input_kwargs = dict(transform_batch=transform_batch)
         inference_kwargs = dict(n_samples=n_samples)
@@ -570,6 +571,7 @@ class TOTALVAE(AbstractVAE):
 
         return rna_sample, protein_sample
 
+    @torch.no_grad()
     def marginal_ll(self, tensors, n_mc_samples):
         x = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
