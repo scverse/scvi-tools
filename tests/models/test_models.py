@@ -412,10 +412,11 @@ def test_scvi_online_update(save_path):
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    # also test subset var option
+    adata2 = synthetic_iid(run_setup_anndata=False, n_genes=110)
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
-    model2 = SCVI.load_query_data(adata2, dir_path)
+    model2 = SCVI.load_query_data(adata2, dir_path, inplace_subset_query_vars=True)
     model2.train(n_epochs=1, weight_decay=0.0)
     model2.get_latent_representation()
 

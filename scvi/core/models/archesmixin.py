@@ -23,6 +23,7 @@ class ArchesMixin:
         cls,
         adata: AnnData,
         reference_model: Union[str, BaseModelClass],
+        inplace_subset_query_vars: bool = False,
         use_cuda: bool = True,
         unfrozen: bool = False,
         freeze_dropout: bool = False,
@@ -30,7 +31,6 @@ class ArchesMixin:
         freeze_decoder_first_layer: bool = True,
         freeze_batchnorm_encoder: bool = True,
         freeze_batchnorm_decoder: bool = False,
-        freeze_classifier: bool = False,
     ):
         """
         Online update of a reference model with scArches algorithm [Lotfollahi20]_.
@@ -44,6 +44,9 @@ class ArchesMixin:
         reference_model
             Either an already instantiated model of the same class, or a path to
             saved outputs for reference model.
+        inplace_subset_query_vars
+            Whether to subset and rearrange query vars inplace based on vars used to
+            train reference model.
         use_cuda
             Whether to load model on GPU.
         unfrozen
@@ -58,8 +61,6 @@ class ArchesMixin:
             Whether to freeze batchnorm weight and bias during training for encoder
         freeze_batchnorm_decoder
             Whether to freeze batchnorm weight and bias during training for decoder
-        freeze_classifier
-            Whether to freeze the classifier component of SCANVI.
         """
         use_cuda = use_cuda and torch.cuda.is_available()
 
@@ -81,7 +82,11 @@ class ArchesMixin:
             var_names = reference_model.adata.var_names
             load_state_dict = reference_model.model.state_dict().copy()
 
+        if inplace_subset_query_vars:
+            logger.debug("Subsetting query vars to reference vars.")
+            adata._inplace_subset_var(var_names)
         _validate_var_names(adata, var_names)
+
         transfer_anndata_setup(scvi_setup_dict, adata, extend_categories=True)
         # for scanvi, any new labels in query cannot be used to extend the model
         adata.uns["_scvi"]["summary_stats"]["n_labels"] = scvi_setup_dict[
@@ -120,7 +125,6 @@ class ArchesMixin:
             freeze_batchnorm_decoder=freeze_batchnorm_decoder,
             freeze_dropout=freeze_dropout,
             freeze_expression=freeze_expression,
-            freeze_classifier=freeze_classifier,
         )
         model.is_trained_ = False
 
@@ -135,7 +139,6 @@ def _set_params_online_update(
     freeze_batchnorm_decoder,
     freeze_dropout,
     freeze_expression,
-    freeze_classifier,
 ):
     """Freeze parts of network for scArches."""
     # do nothing if unfrozen
@@ -145,9 +148,6 @@ def _set_params_online_update(
     mod_no_grad = set(["encoder_z2_z1", "decoder_z1_z2"])
     mod_no_hooks_yes_grad = set(["l_encoder"])
     parameters_yes_grad = set(["background_pro_alpha", "background_pro_log_beta"])
-
-    if freeze_classifier:
-        mod_no_grad.add("classifier")
 
     def no_hook_cond(key):
         one = (not freeze_expression) and "encoder" in key
