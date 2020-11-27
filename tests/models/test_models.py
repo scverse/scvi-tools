@@ -257,7 +257,7 @@ def test_linear_scvi(save_path):
     model = LinearSCVI(adata, n_latent=10)
     model.train(1, frequency=1, train_size=0.5)
     assert len(model.history["elbo_train"]) == 1
-    assert len(model.history["elbo_test"]) == 1
+    assert len(model.history["elbo_validation"]) == 1
     model.get_loadings()
     model.differential_expression(groupby="labels", group1="label_1")
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
@@ -419,6 +419,13 @@ def test_totalvi(save_path):
     model.train(1, train_size=0.5)
 
 
+def single_pass_for_online_update(model):
+    dl = model._make_scvi_dl(model.adata, indices=range(0, 10))
+    for i_batch, tensors in enumerate(dl):
+        _, _, scvi_loss = model.model(tensors)
+    scvi_loss.loss.backward()
+
+
 def test_scvi_online_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
@@ -432,7 +439,7 @@ def test_scvi_online_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path, inplace_subset_query_vars=True)
-    model2.train(n_epochs=1, weight_decay=0.0)
+    model2.train(n_epochs=1, vae_task_kwargs=dict(weight_decay=0.0))
     model2.get_latent_representation()
 
     # encoder linear layer equal
@@ -480,8 +487,11 @@ def test_scvi_online_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path, freeze_expression=True)
-    model2.train(n_epochs=1, weight_decay=0.0)
+    model2.train(n_epochs=1, vae_task_kwargs=dict(weight_decay=0.0))
+    # deactivate no grad decorator
     model2.get_latent_representation()
+    # pytorch lightning zeros the grad, so this will get a grad to inspect
+    single_pass_for_online_update(model2)
     grad = model2.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()
     # expression part has zero grad
     assert np.sum(grad[:, :-4]) == 0
@@ -501,6 +511,7 @@ def test_scvi_online_update(save_path):
     assert model3.model.z_encoder.encoder.fc_layers[0][1].momentum == 0
     # batch norm weight in encoder layer
     assert model3.model.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
+    single_pass_for_online_update(model3)
     grad = model3.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()
     # linear layer weight in encoder layer has non-zero grad
     assert np.sum(grad[:, :-4]) != 0
