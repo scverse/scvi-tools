@@ -303,9 +303,12 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.test_indices_ = test_dl.indices
         self.validation_indices_ = val_dl.indices
         self._unsupervised_task = VAETask(
-            self.model, len(self.train_indices), **unsupervised_task_kwargs
+            self._base_model, len(self.train_indices), **unsupervised_task_kwargs
         )
         self.trainer.fit(self._unsupervised_task, train_dl, val_dl)
+        self._base_model.eval()
+
+        self.model.load_state_dict(self._base_model.state_dict(), strict=False)
 
         self._semisupervised_task = SemiSupervisedTask(self.model)
         self._semisupervised_trainer = Trainer(
@@ -324,6 +327,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self._semisupervised_trainer.fit(
             self._semisupervised_task, semisupervised_train_dl
         )
+        self.model.eval()
         self.is_trained_ = True
 
     def predict(
