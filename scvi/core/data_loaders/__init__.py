@@ -1,4 +1,3 @@
-from .scvi_data_loader import ScviDataLoader, ConcatDataLoader
-from .total_data_loader import TotalDataLoader
+from ._scvi_data_loader import ScviDataLoader, ConcatDataLoader
 
-__all__ = ["ScviDataLoader", "TotalDataLoader", "ConcatDataLoader"]
+__all__ = ["ScviDataLoader", "ConcatDataLoader"]

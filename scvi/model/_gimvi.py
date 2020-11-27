@@ -10,9 +10,7 @@ from anndata import AnnData, read
 from scvi import _CONSTANTS
 from scvi.data import transfer_anndata_setup
 from scvi.core.models import BaseModelClass, VAEMixin
-from scvi.core.modules import JVAE, Classifier
-from scvi.core.trainers import JVAETrainer
-from scvi.core.trainers.jvae_trainer import JvaeDataLoader
+from scvi.core.modules import JVAE
 from scvi.model._utils import _get_var_names_from_setup_anndata
 
 logger = logging.getLogger(__name__)
@@ -120,65 +118,57 @@ class GIMVI(VAEMixin, BaseModelClass):
         ).format(n_latent, n_inputs, total_genes, n_batches, generative_distributions)
         self.init_params_ = self._get_init_params(locals())
 
-    @property
-    def _trainer_class(self):
-        return JVAETrainer
+    # def train(
+    #     self,
+    #     n_epochs: Optional[int] = 200,
+    #     kappa: Optional[int] = 5,
+    #     discriminator: Optional[Classifier] = None,
+    #     train_size: float = 0.9,
+    #     frequency: int = 1,
+    #     n_epochs_kl_warmup: int = 400,
+    #     train_fun_kwargs: dict = {},
+    #     **kwargs,
+    # ):
+    #     """
+    #     Train the model.
 
-    @property
-    def _scvi_dl_class(self):
-        return JvaeDataLoader
+    #     Parameters
+    #     ----------
+    #     n_epochs
+    #         Number of passes through the dataset.
+    #     kappa
+    #         Scaling parameter for the discriminator loss.
+    #     discriminator
+    #         :class:`~scvi.core.modules.Classifier` object.
+    #     train_size
+    #         Size of training set in the range [0.0, 1.0].
+    #     frequency
+    #         Frequency with which metrics are computed on the data for train/test/val sets.
+    #     n_epochs_kl_warmup
+    #         Number of passes through dataset for scaling term on KL divergence to go from 0 to 1.
+    #     train_fun_kwargs
+    #         Keyword args for the train method of :class:`~scvi.core.trainers.trainer.Trainer`.
+    #     **kwargs
+    #         Other keyword args for :class:`~scvi.core.trainers.trainer.Trainer`.
+    #     """
+    #     train_fun_kwargs = dict(train_fun_kwargs)
+    #     if discriminator is None:
+    #         discriminator = Classifier(self.model.n_latent, 32, 2, 3, logits=True)
+    #     self.trainer = JVAETrainer(
+    #         self.model,
+    #         discriminator,
+    #         self.adatas,
+    #         train_size,
+    #         frequency=frequency,
+    #         kappa=kappa,
+    #         n_epochs_kl_warmup=n_epochs_kl_warmup,
+    #     )
 
-    def train(
-        self,
-        n_epochs: Optional[int] = 200,
-        kappa: Optional[int] = 5,
-        discriminator: Optional[Classifier] = None,
-        train_size: float = 0.9,
-        frequency: int = 1,
-        n_epochs_kl_warmup: int = 400,
-        train_fun_kwargs: dict = {},
-        **kwargs,
-    ):
-        """
-        Train the model.
+    #     logger.info("Training for {} epochs.".format(n_epochs))
+    #     self.trainer.train(n_epochs=n_epochs, **train_fun_kwargs)
 
-        Parameters
-        ----------
-        n_epochs
-            Number of passes through the dataset.
-        kappa
-            Scaling parameter for the discriminator loss.
-        discriminator
-            :class:`~scvi.core.modules.Classifier` object.
-        train_size
-            Size of training set in the range [0.0, 1.0].
-        frequency
-            Frequency with which metrics are computed on the data for train/test/val sets.
-        n_epochs_kl_warmup
-            Number of passes through dataset for scaling term on KL divergence to go from 0 to 1.
-        train_fun_kwargs
-            Keyword args for the train method of :class:`~scvi.core.trainers.trainer.Trainer`.
-        **kwargs
-            Other keyword args for :class:`~scvi.core.trainers.trainer.Trainer`.
-        """
-        train_fun_kwargs = dict(train_fun_kwargs)
-        if discriminator is None:
-            discriminator = Classifier(self.model.n_latent, 32, 2, 3, logits=True)
-        self.trainer = JVAETrainer(
-            self.model,
-            discriminator,
-            self.adatas,
-            train_size,
-            frequency=frequency,
-            kappa=kappa,
-            n_epochs_kl_warmup=n_epochs_kl_warmup,
-        )
-
-        logger.info("Training for {} epochs.".format(n_epochs))
-        self.trainer.train(n_epochs=n_epochs, **train_fun_kwargs)
-
-        self.is_trained_ = True
-        self.history_ = self.trainer.history
+    #     self.is_trained_ = True
+    #     self.history_ = self.trainer.history
 
     def _make_scvi_dls(self, adatas: List[AnnData] = None, batch_size=128):
         if adatas is None:

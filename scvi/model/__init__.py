@@ -1,8 +1,8 @@
-from .autozi import AUTOZI
-from .gimvi import GIMVI
-from .linear_scvi import LinearSCVI
-from .scanvi import SCANVI
-from .scvi import SCVI
-from .totalvi import TOTALVI
+from ._autozi import AUTOZI
+from ._gimvi import GIMVI
+from ._linear_scvi import LinearSCVI
+from ._scanvi import SCANVI
+from ._scvi import SCVI
+from ._totalvi import TOTALVI
 
 __all__ = ["SCVI", "TOTALVI", "LinearSCVI", "AUTOZI", "SCANVI", "GIMVI"]

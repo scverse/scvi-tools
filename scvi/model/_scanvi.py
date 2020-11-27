@@ -13,7 +13,7 @@ from scvi.core.modules import SCANVAE, VAE
 from scvi.core.lightning import VAETask, Trainer, SemiSupervisedTask
 from scvi.core.data_loaders import ConcatDataLoader, ScviDataLoader
 
-from .scvi import SCVI
+from ._scvi import SCVI
 
 logger = logging.getLogger(__name__)
 

@@ -8,9 +8,9 @@ from torch.distributions import kl_divergence as kl
 from scvi._compat import Literal
 
 from ._base import Decoder, Encoder
-from .classifier import Classifier
-from .utils import broadcast_labels
-from .vae import VAE
+from ._classifier import Classifier
+from ._utils import broadcast_labels
+from ._vae import VAE
 from scvi.core.modules._base._base_module import SCVILoss
 from scvi import _CONSTANTS
 

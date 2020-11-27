@@ -19,7 +19,7 @@ from scvi import _CONSTANTS
 
 from ._base import DecoderSCVI, Encoder, LinearDecoderSCVI
 from ._base.decorators import auto_move_data
-from .utils import one_hot
+from ._utils import one_hot
 
 torch.backends.cudnn.benchmark = True
 

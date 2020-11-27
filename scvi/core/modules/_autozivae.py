@@ -10,8 +10,8 @@ from torch.distributions import kl_divergence as kl
 from scvi.core.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi import _CONSTANTS
 
-from .utils import one_hot
-from .vae import VAE
+from ._utils import one_hot
+from ._vae import VAE
 from scvi.core.modules._base._base_module import SCVILoss
 
 torch.backends.cudnn.benchmark = True

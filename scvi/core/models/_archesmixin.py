@@ -12,7 +12,7 @@ from scvi.core.models._utils import (
     _validate_var_names,
 )
 
-from .base import BaseModelClass
+from ._base_model import BaseModelClass
 
 logger = logging.getLogger(__name__)
 

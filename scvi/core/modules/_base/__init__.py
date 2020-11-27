@@ -7,7 +7,7 @@ from torch import nn as nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
 
-from ..utils import one_hot
+from .._utils import one_hot
 
 
 def reparameterize_gaussian(mu, var):
