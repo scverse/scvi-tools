@@ -11,12 +11,12 @@ from pandas.api.types import CategoricalDtype
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.data._anndata import _make_obs_column_categorical
-from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.modules import SCANVAE, VAE
 from scvi.core.lightning import VAETask, Trainer, SemiSupervisedTask
 from scvi.core.data_loaders import ConcatDataLoader, ScviDataLoader
 
 from ._scvi import SCVI
+from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
 logger = logging.getLogger(__name__)
 

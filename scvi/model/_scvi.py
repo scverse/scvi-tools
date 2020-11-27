@@ -4,9 +4,10 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.core.data_loaders import ScviDataLoader
-from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.modules import VAE
 from scvi.core.lightning import VAETask
+
+from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
 logger = logging.getLogger(__name__)
 

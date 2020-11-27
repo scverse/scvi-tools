@@ -6,7 +6,6 @@ from anndata import AnnData
 from torch.distributions import Normal
 from scvi.core._log_likelihood import compute_elbo, compute_reconstruction_error
 
-
 logger = logging.getLogger(__name__)
 
 

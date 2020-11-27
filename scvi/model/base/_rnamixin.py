@@ -11,12 +11,12 @@ from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
-from scvi.core.models._utils import _de_core
-from scvi.model._utils import (
+from .._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
     scrna_raw_counts_properties,
 )
+from ._utils import _de_core
 
 logger = logging.getLogger(__name__)
 

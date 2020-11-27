@@ -14,17 +14,18 @@ from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
 from scvi.core.data_loaders import ScviDataLoader
-from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
-from scvi.core.models._utils import _de_core
 from scvi.core.modules import TOTALVAE
 from scvi.core.lightning import AdvesarialTask
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
+from scvi.model.base._utils import _de_core
 from scvi.model._utils import (
     _get_var_names_from_setup_anndata,
     _get_batch_code_from_category,
     cite_seq_raw_counts_properties,
 )
+
+from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
 logger = logging.getLogger(__name__)
 Number = TypeVar("Number", int, float)

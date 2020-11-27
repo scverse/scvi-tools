@@ -6,13 +6,13 @@ from anndata import AnnData
 
 from scvi.core.modules._base import FCLayers
 from scvi.data import transfer_anndata_setup
-from scvi.core.models._utils import (
+
+from ._base_model import BaseModelClass
+from ._utils import (
     _initialize_model,
     _load_saved_files,
     _validate_var_names,
 )
-
-from ._base_model import BaseModelClass
 
 logger = logging.getLogger(__name__)
 

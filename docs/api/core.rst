@@ -18,16 +18,6 @@ Distributions
    core.distributions.NegativeBinomialMixture
    core.distributions.ZeroInflatedNegativeBinomial
 
-Models
-~~~~~~
-
-.. autosummary::
-    :toctree: reference/
-
-    core.models.BaseModelClass
-    core.models.VAEMixin
-    core.models.RNASeqMixin
-
 Modules
 ~~~~~~~
 

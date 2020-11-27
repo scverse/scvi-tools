@@ -54,3 +54,14 @@ gimVI
    :toctree: reference/
 
    model.GIMVI
+
+Base
+~~~~
+
+.. autosummary::
+    :toctree: reference/
+
+    model.base.BaseModelClass
+    model.base.VAEMixin
+    model.base.RNASeqMixin
+    model.base.ArchesMixin
