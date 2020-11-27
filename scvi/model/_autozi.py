@@ -1,5 +1,5 @@
-import logging
 from typing import Dict, Optional, Union
+import logging
 
 import numpy as np
 import torch
@@ -11,9 +11,10 @@ from typing import Sequence
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.core.data_loaders import ScviDataLoader
-from scvi.core.models import BaseModelClass, VAEMixin
 from scvi.core.modules import AutoZIVAE
 from scvi.core.lightning import VAETask
+
+from .base import BaseModelClass, VAEMixin
 
 logger = logging.getLogger(__name__)
 

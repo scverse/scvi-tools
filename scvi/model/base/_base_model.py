@@ -19,7 +19,7 @@ from scvi.data._utils import (
     _check_anndata_setup_equivalence,
     _check_nonnegative_integers,
 )
-from scvi.core.models._utils import (
+from ._utils import (
     _initialize_model,
     _load_saved_files,
     _validate_var_names,
