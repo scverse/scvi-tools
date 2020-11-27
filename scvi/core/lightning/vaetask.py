@@ -437,6 +437,7 @@ class SemiSupervisedTask(VAETask):
     ):
         super(SemiSupervisedTask, self).__init__(
             vae_model=vae_model,
+            n_obs_training=1,  # no impact with choice
             lr=lr,
             weight_decay=weight_decay,
             n_steps_kl_warmup=n_steps_kl_warmup,
@@ -472,8 +473,9 @@ class SemiSupervisedTask(VAETask):
         if labelled_dataset is not None:
             x = labelled_dataset[_CONSTANTS.X_KEY]
             y = labelled_dataset[_CONSTANTS.LABELS_KEY]
+            batch_idx = labelled_dataset[_CONSTANTS.BATCH_KEY]
             classification_loss = F.cross_entropy(
-                self.model.classify(x), y.view(-1).type(torch.LongTensor)
+                self.model.classify(x, batch_idx), y.view(-1).type(torch.LongTensor)
             )
             loss += classification_loss * self.classification_ratio
 

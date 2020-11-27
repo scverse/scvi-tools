@@ -241,7 +241,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         else:
             use_gpu = self.use_gpu
 
-        self._unsupervised_task = VAETask(self.model, **unsupervised_task_kwargs)
         if use_gpu:
             gpus = 1
             pin_memory = True
@@ -263,6 +262,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.train_indices_ = train_dl.indices
         self.test_indices_ = test_dl.indices
         self.validation_indices_ = val_dl.indices
+        self._unsupervised_task = VAETask(
+            self.model, len(self.train_indices), **unsupervised_task_kwargs
+        )
         self.trainer.fit(self._unsupervised_task, train_dl, val_dl)
 
         self._semisupervised_task = SemiSupervisedTask(self.model)
@@ -272,8 +274,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         # if we have labelled cells, we want to pass them through the classifier
         # else we only pass the full dataset
+        full_idx = np.arange(self.adata.n_obs)
         if len(self._labeled_indices) != 0:
-            full_idx = np.arange(self.adata.n_obs)
             semisupervised_train_dl = ConcatDataLoader(
                 self.adata, [full_idx, self._labeled_indices]
             )
