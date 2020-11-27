@@ -17,7 +17,7 @@ from scvi import _CONSTANTS
 from scvi.core.modules._base._base_module import AbstractVAE, SCVILoss
 
 from ._base import Encoder, MultiEncoder, MultiDecoder
-from .utils import one_hot
+from ._utils import one_hot
 
 torch.backends.cudnn.benchmark = True
 

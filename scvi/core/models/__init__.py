@@ -1,6 +1,6 @@
-from .archesmixin import ArchesMixin
-from .base import BaseModelClass
-from .rnamixin import RNASeqMixin
-from .vaemixin import VAEMixin
+from ._archesmixin import ArchesMixin
+from ._base_model import BaseModelClass
+from ._rnamixin import RNASeqMixin
+from ._vaemixin import VAEMixin
 
 __all__ = ["ArchesMixin", "BaseModelClass", "RNASeqMixin", "VAEMixin"]

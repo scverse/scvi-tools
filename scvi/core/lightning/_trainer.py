@@ -8,8 +8,8 @@ from pytorch_lightning.loggers import LightningLoggerBase
 from scvi import settings
 from scvi._compat import Literal
 
-from .logger import SimpleLogger
-from .progress import ProgressBar
+from ._logger import SimpleLogger
+from ._progress import ProgressBar
 
 
 class Trainer(pl.Trainer):

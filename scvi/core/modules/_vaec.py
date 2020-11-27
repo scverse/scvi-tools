@@ -3,9 +3,9 @@ from torch.distributions import Categorical, Normal
 from torch.distributions import kl_divergence as kl
 
 from ._base import DecoderSCVI, Encoder
-from .classifier import Classifier
-from .utils import broadcast_labels
-from .vae import VAE
+from ._classifier import Classifier
+from ._utils import broadcast_labels
+from ._vae import VAE
 
 
 class VAEC(VAE):
