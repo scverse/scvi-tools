@@ -412,10 +412,11 @@ def test_scvi_online_update(save_path):
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    # also test subset var option
+    adata2 = synthetic_iid(run_setup_anndata=False, n_genes=110)
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
-    model2 = SCVI.load_query_data(adata2, dir_path)
+    model2 = SCVI.load_query_data(adata2, dir_path, inplace_subset_query_vars=True)
     model2.train(n_epochs=1, weight_decay=0.0)
     model2.get_latent_representation()
 
@@ -474,7 +475,11 @@ def test_scvi_online_update(save_path):
 
     # do not freeze expression
     model3 = SCVI.load_query_data(
-        adata2, dir_path, freeze_expression=False, freeze_batchnorm_encoder=True
+        adata2,
+        dir_path,
+        freeze_expression=False,
+        freeze_batchnorm_encoder=True,
+        freeze_decoder_first_layer=False,
     )
     model3.train(n_epochs=1)
     model3.get_latent_representation()
@@ -483,6 +488,9 @@ def test_scvi_online_update(save_path):
     assert model3.model.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
     grad = model3.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()
     # linear layer weight in encoder layer has non-zero grad
+    assert np.sum(grad[:, :-4]) != 0
+    grad = model3.model.decoder.px_decoder.fc_layers[0][0].weight.grad.numpy()
+    # linear layer weight in decoder layer has non-zero grad
     assert np.sum(grad[:, :-4]) != 0
 
     # do not freeze batchnorm
