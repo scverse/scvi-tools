@@ -2,11 +2,24 @@
 Core
 ====
 
-.. warning::
-
-    The ``scvi.core`` top-level module is PRIVATE. We document here for contributors. Please use the top-level module ``scvi.model``.
-
 .. currentmodule:: scvi
+
+Compose
+~~~~~~~
+.. autosummary::
+   :toctree: reference/
+   :template: class_no_inherited.rst
+
+   compose.FCLayers
+   compose.Encoder
+   compose.SCVILoss
+   compose.AbstractVAE
+
+.. autosummary::
+   :toctree: reference/
+
+   compose.one_hot
+   compose.auto_move_data
 
 Distributions
 ~~~~~~~~~~~~
@@ -14,9 +27,9 @@ Distributions
 .. autosummary::
    :toctree: reference/
 
-   core.distributions.NegativeBinomial
-   core.distributions.NegativeBinomialMixture
-   core.distributions.ZeroInflatedNegativeBinomial
+   distributions.NegativeBinomial
+   distributions.NegativeBinomialMixture
+   distributions.ZeroInflatedNegativeBinomial
 
 Modules
 ~~~~~~~
@@ -25,13 +38,13 @@ Modules
    :toctree: reference/
    :template: class_no_inherited.rst
 
-   core.modules.VAE
-   core.modules.LDVAE
-   core.modules.TOTALVAE
-   core.modules.SCANVAE
-   core.modules.JVAE
-   core.modules.AutoZIVAE
-   core.modules.Classifier
+   modules.VAE
+   modules.LDVAE
+   modules.TOTALVAE
+   modules.SCANVAE
+   modules.JVAE
+   modules.AutoZIVAE
+   modules.Classifier
 
 Data Loaders
 ~~~~~~~~~~~~
@@ -39,7 +52,8 @@ Data Loaders
 .. autosummary::
    :toctree: reference/
 
-   core.data_loaders.ScviDataLoader
+   dataloaders.ScviDataLoader
+   dataloaders.ConcatDataLoader
 
 Lightning
 ~~~~~~~~~
@@ -51,10 +65,10 @@ steps for modules like `TOTALVAE`, `SCANVAE`, etc.
    :toctree: reference/
    :template: class_no_inherited.rst
 
-   core.lightning.VAETask
-   core.lightning.SemiSupervisedTask
-   core.lightning.AdversarialTask
-   core.lightning.Trainer
+   lightning.VAETask
+   lightning.SemiSupervisedTask
+   lightning.AdversarialTask
+   lightning.Trainer
 
 Utilities
 ~~~~~~~~~
@@ -62,4 +76,4 @@ Utilities
 .. autosummary::
    :toctree: reference/
 
-   core.utils.DifferentialComputation
+   utils.DifferentialComputation
