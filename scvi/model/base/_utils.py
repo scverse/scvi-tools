@@ -11,7 +11,7 @@ from collections.abc import Iterable as IterableClass
 
 from scvi._compat import Literal
 from scvi._utils import track
-from scvi.core.utils import DifferentialComputation
+from scvi.utils import DifferentialComputation
 
 logger = logging.getLogger(__name__)
 

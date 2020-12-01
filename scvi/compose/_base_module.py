@@ -4,7 +4,7 @@ from typing import Tuple
 import torch
 import torch.nn as nn
 
-from .decorators import auto_move_data
+from ._decorators import auto_move_data
 
 
 class SCVILoss:

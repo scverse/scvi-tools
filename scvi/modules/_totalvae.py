@@ -9,17 +9,15 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi._compat import Literal
-from scvi.core.distributions import (
+from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
     ZeroInflatedNegativeBinomial,
 )
-from scvi.core.modules._base._base_module import AbstractVAE, SCVILoss
+from scvi.compose import AbstractVAE, SCVILoss
 from scvi import _CONSTANTS
 
-from ._base import DecoderTOTALVI, EncoderTOTALVI
-from ._base.decorators import auto_move_data
-from ._utils import one_hot
+from scvi.compose import DecoderTOTALVI, EncoderTOTALVI, auto_move_data, one_hot
 
 torch.backends.cudnn.benchmark = True
 

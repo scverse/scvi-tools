@@ -11,9 +11,9 @@ from pandas.api.types import CategoricalDtype
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.data._anndata import _make_obs_column_categorical
-from scvi.core.modules import SCANVAE, VAE
-from scvi.core.lightning import VAETask, Trainer, SemiSupervisedTask
-from scvi.core.data_loaders import ConcatDataLoader, ScviDataLoader
+from scvi.modules import SCANVAE, VAE
+from scvi.lightning import VAETask, Trainer, SemiSupervisedTask
+from scvi.dataloaders import ConcatDataLoader, ScviDataLoader
 
 from ._scvi import SCVI
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
@@ -59,7 +59,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     use_gpu
         Use the GPU or not.
     **model_kwargs
-        Keyword args for :class:`~scvi.core.modules.VAE` and :class:`~scvi.core.modules.SCANVAE`
+        Keyword args for :class:`~scvi.modules.VAE` and :class:`~scvi.modules.SCANVAE`
 
     Examples
     --------
@@ -249,11 +249,11 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             the unsupervised and semisupervised trainers. If you'd like a different frequency for
             the semisupervised trainer, set frequency in semisupervised_train_kwargs.
         unsupervised_trainer_kwargs
-            Other keyword args for :class:`~scvi.core.trainers.UnsupervisedTrainer`.
+            Other keyword args for :class:`~scvi.trainers.UnsupervisedTrainer`.
         semisupervised_trainer_kwargs
-            Other keyword args for :class:`~scvi.core.trainers.SemiSupervisedTrainer`.
+            Other keyword args for :class:`~scvi.trainers.SemiSupervisedTrainer`.
         semisupervised_train_kwargs
-            Keyword args for the train method of :class:`~scvi.core.trainers.SemiSupervisedTrainer`.
+            Keyword args for the train method of :class:`~scvi.trainers.SemiSupervisedTrainer`.
         """
         unsupervised_trainer_kwargs = dict(unsupervised_trainer_kwargs)
         semisupervised_trainer_kwargs = dict(semisupervised_trainer_kwargs)

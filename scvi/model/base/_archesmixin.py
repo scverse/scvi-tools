@@ -4,7 +4,7 @@ from typing import Union
 import torch
 from anndata import AnnData
 
-from scvi.core.modules._base import FCLayers
+from scvi.compose import FCLayers
 from scvi.data import transfer_anndata_setup
 
 from ._base_model import BaseModelClass

@@ -174,7 +174,7 @@ class RNASeqMixin:
         ----------
         {doc_differential_expression}
         **kwargs
-            Keyword args for :func:`scvi.core.utils.DifferentialComputation.get_bayes_factors`
+            Keyword args for :func:`scvi.utils.DifferentialComputation.get_bayes_factors`
 
         Returns
         -------

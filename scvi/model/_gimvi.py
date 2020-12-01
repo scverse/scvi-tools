@@ -9,7 +9,7 @@ from anndata import AnnData, read
 
 from scvi import _CONSTANTS
 from scvi.data import transfer_anndata_setup
-from scvi.core.modules import JVAE
+from scvi.modules import JVAE
 from scvi.model._utils import _get_var_names_from_setup_anndata
 
 from .base import BaseModelClass, VAEMixin
@@ -49,7 +49,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     use_gpu
         Use the GPU or not.
     **model_kwargs
-        Keyword args for :class:`~scvi.core.modules.JVAE`
+        Keyword args for :class:`~scvi.modules.JVAE`
 
     Examples
     --------

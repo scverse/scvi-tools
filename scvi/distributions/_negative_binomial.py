@@ -440,7 +440,7 @@ class NegativeBinomialMixture(Distribution):
     """
     Negative binomial mixture distribution.
 
-    See :class:`~scvi.core.distributions.NegativeBinomial` for further description
+    See :class:`~scvi.distributions.NegativeBinomial` for further description
     of parameters.
 
     Parameters

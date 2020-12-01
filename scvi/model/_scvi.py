@@ -3,9 +3,9 @@ import logging
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.core.data_loaders import ScviDataLoader
-from scvi.core.modules import VAE
-from scvi.core.lightning import VAETask
+from scvi.dataloaders import ScviDataLoader
+from scvi.modules import VAE
+from scvi.lightning import VAETask
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
@@ -49,7 +49,7 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     use_gpu
         Use the GPU or not.
     **model_kwargs
-        Keyword args for :class:`~scvi.core.modules.VAE`
+        Keyword args for :class:`~scvi.modules.VAE`
 
     Examples
     --------
