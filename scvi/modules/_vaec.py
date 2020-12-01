@@ -5,6 +5,7 @@ from torch.distributions import kl_divergence as kl
 from scvi.compose import DecoderSCVI, Encoder
 from scvi.modules import Classifier
 from scvi.modules._utils import broadcast_labels
+
 from ._vae import VAE
 
 

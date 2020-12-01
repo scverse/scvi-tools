@@ -8,11 +8,7 @@ from scvi.compose import FCLayers
 from scvi.data import transfer_anndata_setup
 
 from ._base_model import BaseModelClass
-from ._utils import (
-    _initialize_model,
-    _load_saved_files,
-    _validate_var_names,
-)
+from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
 logger = logging.getLogger(__name__)
 

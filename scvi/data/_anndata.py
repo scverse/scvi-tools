@@ -1,17 +1,17 @@
 import logging
 import os
-import warnings
+import pickle
 import sys
+import warnings
 from typing import Dict, List, Optional, Tuple, Union
 
 import anndata
-import pickle
-import rich
 import numpy as np
 import pandas as pd
+import rich
 from pandas.api.types import CategoricalDtype
-from scipy.sparse import isspmatrix
 from rich.console import Console
+from scipy.sparse import isspmatrix
 
 import scvi
 from scvi import _CONSTANTS

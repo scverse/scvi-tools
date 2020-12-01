@@ -1,18 +1,17 @@
-from typing import Dict, Optional, Union
 import logging
+from typing import Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
-from torch import logsumexp
 from anndata import AnnData
+from torch import logsumexp
 from torch.distributions import Beta, Normal
-from typing import Sequence
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.dataloaders import ScviDataLoader
-from scvi.modules import AutoZIVAE
 from scvi.lightning import VAETask
+from scvi.modules import AutoZIVAE
 
 from .base import BaseModelClass, VAEMixin
 

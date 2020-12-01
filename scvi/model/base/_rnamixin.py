@@ -11,6 +11,7 @@ from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
+
 from .._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,

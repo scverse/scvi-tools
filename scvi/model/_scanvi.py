@@ -1,16 +1,16 @@
 import logging
 from typing import Optional, Sequence, Union
 
-import torch
 import numpy as np
 import pandas as pd
+import torch
 from anndata import AnnData
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.modules import SCANVAE, VAE
-from scvi.lightning import VAETask, Trainer, SemiSupervisedTask
 from scvi.dataloaders import ConcatDataLoader, ScviDataLoader
+from scvi.lightning import SemiSupervisedTask, Trainer, VAETask
+from scvi.modules import SCANVAE, VAE
 
 from ._scvi import SCVI
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin

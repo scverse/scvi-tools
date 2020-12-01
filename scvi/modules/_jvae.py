@@ -9,19 +9,16 @@ from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
 from torch.nn import ModuleList
 
-from scvi.distributions import (
-    NegativeBinomial,
-    ZeroInflatedNegativeBinomial,
-)
 from scvi import _CONSTANTS
 from scvi.compose import (
     AbstractVAE,
-    SCVILoss,
     Encoder,
     MultiDecoder,
     MultiEncoder,
+    SCVILoss,
     one_hot,
 )
+from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 
 torch.backends.cudnn.benchmark = True
 

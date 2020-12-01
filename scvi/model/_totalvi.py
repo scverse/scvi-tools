@@ -1,8 +1,7 @@
 import logging
-
-from functools import partial
-from typing import Dict, Iterable, Optional, Sequence, Tuple, Union, TypeVar
 from collections.abc import Iterable as IterableClass
+from functools import partial
+from typing import Dict, Iterable, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -13,17 +12,17 @@ from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
-from scvi.dataloaders import ScviDataLoader
-from scvi.modules import TOTALVAE
-from scvi.lightning import AdvesarialTask
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.model.base._utils import _de_core
+from scvi.dataloaders import ScviDataLoader
+from scvi.lightning import AdvesarialTask
 from scvi.model._utils import (
-    _get_var_names_from_setup_anndata,
     _get_batch_code_from_category,
+    _get_var_names_from_setup_anndata,
     cite_seq_raw_counts_properties,
 )
+from scvi.model.base._utils import _de_core
+from scvi.modules import TOTALVAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 

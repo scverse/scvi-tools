@@ -5,9 +5,9 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.dataloaders import ScviDataLoader
-from scvi.modules import LDVAE
 from scvi.lightning import VAETask
 from scvi.model._utils import _get_var_names_from_setup_anndata
+from scvi.modules import LDVAE
 
 from .base import BaseModelClass, RNASeqMixin, VAEMixin
 

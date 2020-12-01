@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Main module."""
 from typing import Iterable
+
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -8,22 +9,18 @@ from torch import logsumexp
 from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
 
-from scvi._compat import Literal
-from scvi.distributions import (
-    NegativeBinomial,
-    ZeroInflatedNegativeBinomial,
-)
-from scvi.compose import AbstractVAE, SCVILoss
 from scvi import _CONSTANTS
-
-
+from scvi._compat import Literal
 from scvi.compose import (
+    AbstractVAE,
     DecoderSCVI,
     Encoder,
     LinearDecoderSCVI,
+    SCVILoss,
     auto_move_data,
     one_hot,
 )
+from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 
 torch.backends.cudnn.benchmark = True
 

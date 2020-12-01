@@ -1,16 +1,15 @@
 from ._base_components import (
-    FCLayers,
-    Encoder,
-    EncoderTOTALVI,
     Decoder,
     DecoderSCVI,
     DecoderTOTALVI,
+    Encoder,
+    EncoderTOTALVI,
+    FCLayers,
     LinearDecoderSCVI,
     MultiDecoder,
     MultiEncoder,
 )
-
-from ._base_module import SCVILoss, AbstractVAE
+from ._base_module import AbstractVAE, SCVILoss
 from ._decorators import auto_move_data
 from ._utils import one_hot  # Do we want one_hot here?
 

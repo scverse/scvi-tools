@@ -5,13 +5,13 @@ import torch
 from torch.distributions import Categorical, Normal
 from torch.distributions import kl_divergence as kl
 
+from scvi import _CONSTANTS
 from scvi._compat import Literal
-
 from scvi.compose import Decoder, Encoder, SCVILoss
-from ._vae import VAE
+
 from ._classifier import Classifier
 from ._utils import broadcast_labels
-from scvi import _CONSTANTS
+from ._vae import VAE
 
 
 class SCANVAE(VAE):

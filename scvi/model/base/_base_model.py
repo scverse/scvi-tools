@@ -13,17 +13,14 @@ from rich.text import Text
 from sklearn.model_selection._split import _validate_shuffle_split
 
 from scvi import _CONSTANTS, settings
-from scvi.lightning import Trainer
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._utils import (
     _check_anndata_setup_equivalence,
     _check_nonnegative_integers,
 )
-from ._utils import (
-    _initialize_model,
-    _load_saved_files,
-    _validate_var_names,
-)
+from scvi.lightning import Trainer
+
+from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
 logger = logging.getLogger(__name__)
 
