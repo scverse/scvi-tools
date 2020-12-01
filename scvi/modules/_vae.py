@@ -193,7 +193,7 @@ class VAE(AbstractVAE):
         )
         return input_dict
 
-    def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
+    def _get_generative_input(self, tensors, inference_outputs):
         z = inference_outputs["z"]
         library = inference_outputs["library"]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
@@ -204,9 +204,6 @@ class VAE(AbstractVAE):
 
         cat_key = _CONSTANTS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
-
-        if transform_batch is not None:
-            batch_index = torch.ones_like(batch_index) * transform_batch
         input_dict = {
             "z": z,
             "library": library,
@@ -349,7 +346,6 @@ class VAE(AbstractVAE):
         self,
         tensors,
         n_samples=1,
-        transform_batch=None,
         library_size=1,
     ) -> np.ndarray:
         r"""
@@ -369,12 +365,10 @@ class VAE(AbstractVAE):
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
         """
-        get_generative_input_kwargs = dict(transform_batch=transform_batch)
         inference_kwargs = dict(n_samples=n_samples)
         inference_outputs, generative_outputs, = self.forward(
             tensors,
             inference_kwargs=inference_kwargs,
-            get_generative_input_kwargs=get_generative_input_kwargs,
             compute_loss=False,
         )
 

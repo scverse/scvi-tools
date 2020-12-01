@@ -299,14 +299,12 @@ class TOTALVAE(AbstractVAE):
         input_dict = dict(x=x, y=y, batch_index=batch_index)
         return input_dict
 
-    def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
+    def _get_generative_input(self, tensors, inference_outputs):
         z = inference_outputs["z"]
         library_gene = inference_outputs["library_gene"]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
         label = tensors[_CONSTANTS.LABELS_KEY]
 
-        if transform_batch is not None:
-            batch_index = torch.ones_like(batch_index) * transform_batch
         return dict(
             z=z, library_gene=library_gene, batch_index=batch_index, label=label
         )
@@ -548,14 +546,12 @@ class TOTALVAE(AbstractVAE):
         return SCVILoss(loss, reconst_losses, kl_local, kl_global=0.0)
 
     @torch.no_grad()
-    def sample(self, tensors, transform_batch=None, n_samples=1):
-        get_generative_input_kwargs = dict(transform_batch=transform_batch)
+    def sample(self, tensors, n_samples=1):
         inference_kwargs = dict(n_samples=n_samples)
         with torch.no_grad():
             inference_outputs, generative_outputs, = self.forward(
                 tensors,
                 inference_kwargs=inference_kwargs,
-                get_generative_input_kwargs=get_generative_input_kwargs,
                 compute_loss=False,
             )
 

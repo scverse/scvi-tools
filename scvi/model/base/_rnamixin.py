@@ -110,11 +110,14 @@ class RNASeqMixin:
         for tensors in scdl:
             per_batch_exprs = []
             for batch in transform_batch:
-                get_generative_input_kwargs = dict(transform_batch=batch)
+                if batch is not None:
+                    batch_indices = tensors[_CONSTANTS.BATCH_KEY]
+                    tensors[_CONSTANTS.BATCH_KEY] = (
+                        torch.ones_like(batch_indices) * batch
+                    )
                 inference_kwargs = dict(n_samples=n_samples)
                 _, generative_outputs = self.model.forward(
                     tensors=tensors,
-                    get_generative_input_kwargs=get_generative_input_kwargs,
                     inference_kwargs=inference_kwargs,
                     compute_loss=False,
                 )
@@ -310,11 +313,14 @@ class RNASeqMixin:
         data_loader_list = []
         for tensors in scdl:
             x = tensors[_CONSTANTS.X_KEY]
-            get_generative_input_kwargs = dict(transform_batch=transform_batch)
+            if transform_batch is not None:
+                batch_indices = tensors[_CONSTANTS.BATCH_KEY]
+                tensors[_CONSTANTS.BATCH_KEY] = (
+                    torch.ones_like(batch_indices) * transform_batch
+                )
             inference_kwargs = dict(n_samples=n_samples)
             _, generative_outputs = self.model.forward(
                 tensors=tensors,
-                get_generative_input_kwargs=get_generative_input_kwargs,
                 inference_kwargs=inference_kwargs,
                 compute_loss=False,
             )
