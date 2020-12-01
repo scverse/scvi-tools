@@ -31,3 +31,9 @@ Many of our models like `SCVI`, `SCANVI`, and `TOTALVI` learn a latent library s
 The option `use_observed_lib_size` may now be passed on model initialization. We have set this as `True` by default,
 as we see no regression in performance, and training is a bit faster.
 
+Important changes
+~~~~~~~~~~~~~~~~~
+
+- To facilitate these enhancements, saved models from previous versions will not load properly.
+- The default latent distribtuion for `TOTALVI` is now `"normal"`.
+
