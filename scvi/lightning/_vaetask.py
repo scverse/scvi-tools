@@ -3,15 +3,13 @@ from typing import Union
 
 import pytorch_lightning as pl
 import torch
-
 from torch.nn import functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from scvi._compat import Literal
-from scvi.modules import Classifier
-from scvi.compose import AbstractVAE
-from scvi.compose import one_hot
 from scvi import _CONSTANTS
+from scvi._compat import Literal
+from scvi.compose import AbstractVAE, one_hot
+from scvi.modules import Classifier
 
 
 class VAETask(pl.LightningModule):

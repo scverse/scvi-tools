@@ -4,8 +4,8 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.dataloaders import ScviDataLoader
-from scvi.modules import VAE
 from scvi.lightning import VAETask
+from scvi.modules import VAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 

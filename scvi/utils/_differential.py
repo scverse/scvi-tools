@@ -1,7 +1,7 @@
 import inspect
 import logging
 import warnings
-from typing import Callable, Dict, List, Optional, Union, Sequence
+from typing import Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd

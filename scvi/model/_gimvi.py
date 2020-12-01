@@ -9,8 +9,8 @@ from anndata import AnnData, read
 
 from scvi import _CONSTANTS
 from scvi.data import transfer_anndata_setup
-from scvi.modules import JVAE
 from scvi.model._utils import _get_var_names_from_setup_anndata
+from scvi.modules import JVAE
 
 from .base import BaseModelClass, VAEMixin
 

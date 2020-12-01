@@ -1,9 +1,11 @@
 import logging
 from typing import Optional, Sequence
+
 import numpy as np
 import torch
 from anndata import AnnData
 from torch.distributions import Normal
+
 from ._log_likelihood import compute_elbo, compute_reconstruction_error
 
 logger = logging.getLogger(__name__)

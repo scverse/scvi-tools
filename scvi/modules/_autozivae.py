@@ -7,12 +7,11 @@ from scipy.special import logit
 from torch.distributions import Beta, Gamma, Normal
 from torch.distributions import kl_divergence as kl
 
-from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi import _CONSTANTS
+from scvi.compose import SCVILoss, one_hot
+from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 
-from scvi.compose import one_hot
 from ._vae import VAE
-from scvi.compose import SCVILoss
 
 torch.backends.cudnn.benchmark = True
 

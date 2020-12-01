@@ -1,7 +1,7 @@
 import copy
 import logging
-from typing import Optional
 from itertools import cycle
+from typing import Optional
 
 import anndata
 import numpy as np

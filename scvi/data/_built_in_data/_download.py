@@ -1,7 +1,8 @@
 import logging
-import numpy as np
 import os
 import urllib
+
+import numpy as np
 
 from scvi._utils import track
 

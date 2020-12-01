@@ -1,13 +1,13 @@
 import logging
 import os
 import pickle
+from collections.abc import Iterable as IterableClass
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 import torch
 from anndata import read
-from collections.abc import Iterable as IterableClass
 
 from scvi._compat import Literal
 from scvi._utils import track
