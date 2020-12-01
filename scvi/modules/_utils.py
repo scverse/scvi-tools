@@ -1,4 +1,5 @@
 import torch
+from scvi.compose import one_hot
 
 
 def iterate(obj, func):
@@ -29,12 +30,6 @@ def broadcast_labels(y, *o, n_broadcast=-1):
         ys = one_hot(y, n_broadcast)
         new_o = o
     return (ys,) + new_o
-
-
-def one_hot(index, n_cat):
-    onehot = torch.zeros(index.size(0), n_cat, device=index.device)
-    onehot.scatter_(1, index.type(torch.long), 1)
-    return onehot.type(torch.float32)
 
 
 def enumerate_discrete(x, y_dim):

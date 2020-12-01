@@ -4,9 +4,9 @@ import pandas as pd
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.core.data_loaders import ScviDataLoader
-from scvi.core.modules import LDVAE
-from scvi.core.lightning import VAETask
+from scvi.dataloaders import ScviDataLoader
+from scvi.modules import LDVAE
+from scvi.lightning import VAETask
 from scvi.model._utils import _get_var_names_from_setup_anndata
 
 from .base import BaseModelClass, RNASeqMixin, VAEMixin
@@ -51,7 +51,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
     use_gpu
         Use the GPU or not.
     **model_kwargs
-        Keyword args for :class:`~scvi.core.modules.LDVAE`
+        Keyword args for :class:`~scvi.modules.LDVAE`
 
     Examples
     --------

@@ -10,9 +10,9 @@ from typing import Sequence
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.core.data_loaders import ScviDataLoader
-from scvi.core.modules import AutoZIVAE
-from scvi.core.lightning import VAETask
+from scvi.dataloaders import ScviDataLoader
+from scvi.modules import AutoZIVAE
+from scvi.lightning import VAETask
 
 from .base import BaseModelClass, VAEMixin
 

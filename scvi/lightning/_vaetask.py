@@ -8,9 +8,9 @@ from torch.nn import functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi._compat import Literal
-from scvi.core.modules import Classifier
-from scvi.core.modules._base._base_module import AbstractVAE
-from scvi.core.modules._utils import one_hot
+from scvi.modules import Classifier
+from scvi.compose import AbstractVAE
+from scvi.compose import one_hot
 from scvi import _CONSTANTS
 
 

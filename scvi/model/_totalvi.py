@@ -13,9 +13,9 @@ from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
-from scvi.core.data_loaders import ScviDataLoader
-from scvi.core.modules import TOTALVAE
-from scvi.core.lightning import AdvesarialTask
+from scvi.dataloaders import ScviDataLoader
+from scvi.modules import TOTALVAE
+from scvi.lightning import AdvesarialTask
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.model.base._utils import _de_core
@@ -70,7 +70,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     use_gpu
         Use the GPU or not.
     **model_kwargs
-        Keyword args for :class:`~scvi.core.modules.TOTALVAE`
+        Keyword args for :class:`~scvi.modules.TOTALVAE`
 
     Examples
     --------
@@ -170,7 +170,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Number of minibatches for scaling term on KL divergence to go from 0 to 1.
             To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
         **kwargs
-            Other keyword args for :class:`~scvi.core.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
         imputation = (
             True if "totalvi_batch_mask" in self.scvi_setup_dict_.keys() else False
@@ -606,7 +606,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         include_protein_background
             Include the protein background component as part of the protein expression
         **kwargs
-            Keyword args for :func:`scvi.core.utils.DifferentialComputation.get_bayes_factors`
+            Keyword args for :func:`scvi.utils.DifferentialComputation.get_bayes_factors`
 
         Returns
         -------

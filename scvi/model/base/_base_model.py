@@ -13,7 +13,7 @@ from rich.text import Text
 from sklearn.model_selection._split import _validate_shuffle_split
 
 from scvi import _CONSTANTS, settings
-from scvi.core.lightning import Trainer
+from scvi.lightning import Trainer
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._utils import (
     _check_anndata_setup_equivalence,
@@ -235,7 +235,7 @@ class BaseModelClass(ABC):
             Number of minibatches for scaling term on KL divergence to go from 0 to 1.
             To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
         **kwargs
-            Other keyword args for :class:`~scvi.core.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
         if use_gpu is None:
             use_gpu = self.use_gpu
