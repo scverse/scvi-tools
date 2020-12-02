@@ -265,6 +265,10 @@ class BaseModelClass(ABC):
         else:
             gpus = None
             pin_memory = False
+        if frequency is None or train_size==1.0:
+            check_val_every_n_epoch = np.inf
+        else:
+            check_val_every_n_epoch = frequency
 
         if max_epochs is None:
             n_cells = self.adata.n_obs
@@ -292,7 +296,11 @@ class BaseModelClass(ABC):
         task_kwargs = vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
         self._pl_task = task_class(self.model, len(self.train_indices_), **task_kwargs)
 
-        self.trainer.fit(self._pl_task, train_dl, val_dl)
+        if train_size==1.0:
+            # circumvent the empty DL problem
+            self.trainer.fit(self._pl_task, train_dl, train_dl)
+        else:
+            self.trainer.fit(self._pl_task, train_dl, val_dl)
         try:
             self.history_ = self.trainer.logger.history
         except AttributeError:
