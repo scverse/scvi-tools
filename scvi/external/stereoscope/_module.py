@@ -1,4 +1,6 @@
 from scvi.compose import AbstractVAE, auto_move_data, SCVILoss
+from scvi._compat import Literal
+
 from torch.distributions import NegativeBinomial, Normal
 from scvi import _CONSTANTS
 from scvi._compat import Literal
@@ -116,12 +118,14 @@ class SpatialDeconv(AbstractVAE):
         self,
         n_spots: int,
         params: Tuple[np.ndarray],
+        prior_weight:Literal["n_obs", "minibatch"] = "n_obs",
     ):
         super().__init__()
         self.W = torch.nn.Parameter(torch.tensor(params[0]), requires_grad=False)
         self.px_o = torch.nn.Parameter(torch.tensor(params[1]), requires_grad=False)
         self.n_spots = n_spots
         self.n_genes, self.n_labels = self.W.shape
+        self.prior_weight = prior_weight
 
         #####
         #
@@ -216,7 +220,12 @@ class SpatialDeconv(AbstractVAE):
         scale = torch.ones_like(self.eta)
         neg_log_likelihood_prior = -Normal(mean, scale).log_prob(self.eta).sum()
 
-        loss = n_obs * torch.mean(reconst_loss) + neg_log_likelihood_prior
+        if self.prior_weight == "n_obs":
+            # the correct way to reweight observations while performing stochastic optimization
+            loss = n_obs * torch.mean(reconst_loss) + neg_log_likelihood_prior
+        else:
+            # the original way it is done in Stereoscope; we use this option to show reproducibility of their codebase
+            loss = torch.sum(reconst_loss) + neg_log_likelihood_prior
         return SCVILoss(loss, reconst_loss, torch.zeros((1,)), neg_log_likelihood_prior)
 
     @torch.no_grad()

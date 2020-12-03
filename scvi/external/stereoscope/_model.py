@@ -1,4 +1,6 @@
 from scvi.model.base import BaseModelClass
+from scvi._compat import Literal
+
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
 from anndata import AnnData
 from scvi.dataloaders import ScviDataLoader
@@ -88,6 +90,7 @@ class SpatialStereoscope(BaseModelClass):
         st_adata: AnnData,
         params: np.ndarray,
         use_gpu: bool = True,
+        prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
         **model_kwargs,
     ):
         super().__init__(st_adata, use_gpu=use_gpu)
@@ -95,6 +98,7 @@ class SpatialStereoscope(BaseModelClass):
         self.model = SpatialDeconv(
             n_spots=st_adata.n_obs,
             params=params,
+            prior_weight=prior_weight,
             **model_kwargs,
         )
         self._model_summary_string = (
