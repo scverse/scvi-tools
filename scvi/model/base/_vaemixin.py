@@ -79,7 +79,6 @@ class VAEMixin:
                 "marginal_ll is not implemented for current model. "
                 "Please raise an issue on github if you need it."
             )
-
         n_samples = len(indices)
         return log_lkl / n_samples
 
@@ -109,7 +108,7 @@ class VAEMixin:
         adata = self._validate_anndata(adata)
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         reconstruction_error = compute_reconstruction_error(self.model, scdl)
-        return -reconstruction_error
+        return reconstruction_error
 
     @torch.no_grad()
     def get_latent_representation(

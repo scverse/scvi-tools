@@ -28,6 +28,7 @@ def compute_elbo(vae, data_loader, feed_labels=True, **kwargs):
     return elbo / n_samples
 
 
+# do each one
 def compute_reconstruction_error(vae, data_loader, **kwargs):
     """
     Computes log p(x/z), which is the reconstruction error.
@@ -36,12 +37,18 @@ def compute_reconstruction_error(vae, data_loader, **kwargs):
     insights on the modeling of the data, and is fast to compute.
     """
     # Iterate once over the data and computes the reconstruction error
-    log_lkl = 0
+    log_lkl = {}
     for i_batch, tensors in enumerate(data_loader):
         loss_kwargs = dict(kl_weight=1)
         _, _, losses = vae(tensors, loss_kwargs=loss_kwargs)
-        reconstruction_loss = losses.reconstruction_loss
-        log_lkl += torch.sum(reconstruction_loss).item()
+        for key, value in losses._reconstruction_loss.items():
+            if key in log_lkl:
+                log_lkl[key] += torch.sum(value).item()
+            else:
+                log_lkl[key] = 0.0
 
     n_samples = len(data_loader.indices)
-    return log_lkl / n_samples
+    for key, value in log_lkl.items():
+        log_lkl[key] = log_lkl[key] / n_samples
+        log_lkl[key] = -log_lkl[key]
+    return log_lkl
