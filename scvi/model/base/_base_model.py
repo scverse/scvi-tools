@@ -230,6 +230,8 @@ class BaseModelClass(ABC):
         batch_size: int = 128,
         vae_task_kwargs: Optional[dict] = None,
         task_class: Optional[None] = None,
+        num_workers: int = 4,
+        frequency=None,
         **kwargs,
     ):
         """
@@ -281,6 +283,7 @@ class BaseModelClass(ABC):
             validation_size=validation_size,
             pin_memory=pin_memory,
             batch_size=batch_size,
+            num_workers=num_workers,
         )
         self.train_indices_ = train_dl.indices
         self.test_indices_ = test_dl.indices
