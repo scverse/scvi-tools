@@ -7,7 +7,7 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.compose import Decoder, Encoder, SCVILoss
+from scvi.compose import Decoder, Encoder, SCVILoss, auto_move_data
 
 from ._classifier import Classifier
 from ._utils import broadcast_labels
@@ -172,6 +172,7 @@ class SCANVAE(VAE):
                 ]
             )
 
+    @auto_move_data
     def classify(self, x, batch_index=None):
         if self.log_variational:
             x = torch.log(1 + x)
