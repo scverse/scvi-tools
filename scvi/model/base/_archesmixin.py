@@ -20,7 +20,7 @@ class ArchesMixin:
         adata: AnnData,
         reference_model: Union[str, BaseModelClass],
         inplace_subset_query_vars: bool = False,
-        use_cuda: bool = True,
+        use_gpu: bool = True,
         unfrozen: bool = False,
         freeze_dropout: bool = False,
         freeze_expression: bool = True,
@@ -44,7 +44,7 @@ class ArchesMixin:
         inplace_subset_query_vars
             Whether to subset and rearrange query vars inplace based on vars used to
             train reference model.
-        use_cuda
+        use_gpu
             Whether to load model on GPU.
         unfrozen
             Override all other freeze options for a fully unfrozen model
