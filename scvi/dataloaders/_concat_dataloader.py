@@ -22,7 +22,7 @@ class ConcatDataLoader(DataLoader):
                 ScviDataLoader(
                     adata,
                     indices=indices,
-                    shuffle=True,
+                    shuffle=shuffle,
                     batch_size=batch_size,
                     data_and_attributes=data_and_attributes,
                     **data_loader_kwargs,

@@ -209,7 +209,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         n_epochs_unsupervised: Optional[int] = None,
         n_epochs_semisupervised: Optional[int] = None,
         n_samples_per_label: Optional[float] = None,
-        train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 512,
         use_gpu: Optional[bool] = None,
@@ -294,20 +293,22 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             gpus=gpus,
             **unsupervised_trainer_kwargs,
         )
-        train_dl, val_dl, test_dl = self._train_test_val_split(
+
+        # self.test_indices_ = test_dl.indices
+        # self.validation_indices_ = val_dl.indices
+        full_idx = np.arange(self.adata.n_obs)
+        train_dl = ScviDataLoader(
             self.adata,
-            train_size=train_size,
-            validation_size=validation_size,
-            pin_memory=pin_memory,
+            shuffle=True,
+            indices=full_idx,
             batch_size=batch_size,
+            pin_memory=pin_memory,
         )
         self.train_indices_ = train_dl.indices
-        self.test_indices_ = test_dl.indices
-        self.validation_indices_ = val_dl.indices
         self._unsupervised_task = VAETask(
             self._base_model, len(self.train_indices), **unsupervised_task_kwargs
         )
-        self.trainer.fit(self._unsupervised_task, train_dl, val_dl)
+        self.trainer.fit(self._unsupervised_task, train_dl)
         self._base_model.eval()
 
         self.model.load_state_dict(self._base_model.state_dict(), strict=False)
@@ -316,7 +317,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         # if we have labelled cells, we want to pass them through the classifier
         # else we only pass the full dataset
-        full_idx = np.arange(self.adata.n_obs)
         if len(self._labeled_indices) != 0:
             semisupervised_train_dl = SemiSupervisedDataLoader(
                 self.adata,
@@ -324,10 +324,19 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 self.original_label_key,
                 self.unlabeled_category_,
                 n_samples_per_label,
+                shuffle=True,
+                batch_size=batch_size,
+                pin_memory=pin_memory,
             )
             sampler_callback = [SubSampleLabels()]
         else:
-            semisupervised_train_dl = ScviDataLoader(self.adata, full_idx)
+            semisupervised_train_dl = ScviDataLoader(
+                self.adata,
+                shuffle=True,
+                indices=full_idx,
+                batch_size=batch_size,
+                pin_memory=pin_memory,
+            )
             sampler_callback = None
         self._semisupervised_trainer = Trainer(
             max_epochs=n_epochs_semisupervised,
