@@ -331,7 +331,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             sampler_callback = None
         self._semisupervised_trainer = Trainer(
             max_epochs=n_epochs_semisupervised,
-            gpus=None,
+            gpus=gpus,
             callbacks=sampler_callback,
         )
 
