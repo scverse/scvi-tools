@@ -17,6 +17,7 @@ from scvi.modules import SCANVAE, VAE
 
 from ._scvi import SCVI
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
+from scvi.lightning._sampling import SubSampleLabels
 
 logger = logging.getLogger(__name__)
 
@@ -207,6 +208,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         n_epochs_unsupervised: Optional[int] = None,
         n_epochs_semisupervised: Optional[int] = None,
+        n_samples_per_label: Optional[float] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 512,
@@ -311,19 +313,28 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.model.load_state_dict(self._base_model.state_dict(), strict=False)
 
         self._semisupervised_task = SemiSupervisedTask(self.model)
-        self._semisupervised_trainer = Trainer(
-            max_epochs=n_epochs_semisupervised, gpus=None
-        )
 
         # if we have labelled cells, we want to pass them through the classifier
         # else we only pass the full dataset
         full_idx = np.arange(self.adata.n_obs)
         if len(self._labeled_indices) != 0:
-            semisupervised_train_dl = ConcatDataLoader(
-                self.adata, [full_idx, self._labeled_indices]
+            semisupervised_train_dl = SemiSupervisedDataLoader(
+                self.adata,
+                full_idx,
+                self.original_label_key,
+                self.unlabeled_category_,
+                n_samples_per_label,
             )
+            sampler_callback = [SubSampleLabels()]
         else:
             semisupervised_train_dl = ScviDataLoader(self.adata, full_idx)
+            sampler_callback = None
+        self._semisupervised_trainer = Trainer(
+            max_epochs=n_epochs_semisupervised,
+            gpus=None,
+            callbacks=sampler_callback,
+        )
+
         self._semisupervised_trainer.fit(
             self._semisupervised_task, semisupervised_train_dl
         )

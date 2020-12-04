@@ -40,3 +40,60 @@ class ConcatDataLoader(DataLoader):
             cycle(dl) if dl != self.largest_dl else dl for dl in self.dataloaders
         ]
         return zip(*iter_list)
+
+
+class SemiSupervisedDataLoader(ConcatDataLoader):
+    def __init__(
+        self,
+        adata,
+        full_indices,
+        labels_obs_key,
+        unlabeled_category,
+        n_samples_per_label,
+        shuffle=False,
+        batch_size=128,
+        data_and_attributes: Optional[dict] = None,
+        **data_loader_kwargs,
+    ):
+        self.n_samples_per_label = n_samples_per_label
+
+        # save a nested list of the indices per labeled category
+        self.labeled_locs = []
+        labels = np.unique(adata.obs[labels_obs_key])
+        for label in labels:
+            if label != unlabeled_category:
+                label_loc = np.where(adata.obs[labels_obs_key] == label)[0]
+                self.labeled_locs.append(label_loc)
+        labelled_idx = self.subsample_labels()
+
+        super().__init__(
+            adata=adata,
+            indices_list=[full_indices, labelled_idx],
+            shuffle=shuffle,
+            batch_size=batch_size,
+            data_and_attributes=data_and_attributes,
+            **data_loader_kwargs,
+        )
+
+    def resample_labels(self):
+        labelled_idx = self.subsample_labels()
+        # self.dataloaders[0] iterates over full_indices
+        # self.dataloaders[1] iterates over the labelled_indices
+        # change the indicees of the labelled set
+        self.dataloaders[1].indices = labelled_idx
+
+    def subsample_labels(self):
+        if self.n_samples_per_label is None:
+            return np.concatenate(self.labeled_locs)
+
+        sample_idx = []
+        for loc in self.labeled_locs:
+            if len(loc) < self.n_samples_per_label:
+                sample_idx.append(loc)
+            else:
+                label_subset = np.random.choice(
+                    loc, self.n_samples_per_label, replace=False
+                )
+                sample_idx.append(label_subset)
+        sample_idx = np.concatenate(sample_idx)
+        return sample_idx
