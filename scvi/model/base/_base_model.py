@@ -249,6 +249,10 @@ class BaseModelClass(ABC):
         else:
             check_val_every_n_epoch = frequency
 
+        if n_epochs is None:
+            n_cells = self.adata.n_obs
+            n_epochs = np.min([round((20000 / n_cells) * 400), 400])
+
         self.trainer = Trainer(
             max_epochs=n_epochs,
             gpus=gpus,
