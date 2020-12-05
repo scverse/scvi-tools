@@ -13,8 +13,7 @@ scvi-tools
 .. |Docs| image:: https://readthedocs.org/projects/scvi/badge/?version=latest
     :target: https://scvi.readthedocs.io/en/stable/?badge=stable
     :alt: Documentation Status
-.. |Build Status| image:: https://travis-ci.com/YosefLab/scvi-tools.svg?branch=master
-    :target: https://travis-ci.com/YosefLab/scvi-tools
+.. |Build Status| image:: https://github.com/YosefLab/scvi-tools/workflows/scvi-tools/badge.svg
 .. |Coverage| image:: https://codecov.io/gh/YosefLab/scvi-tools/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/YosefLab/scvi-tools
 .. |Code Style| image:: https://img.shields.io/badge/code%20style-black-000000.svg
