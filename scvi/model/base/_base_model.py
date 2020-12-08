@@ -265,7 +265,7 @@ class BaseModelClass(ABC):
         else:
             gpus = None
             pin_memory = False
-        if frequency is None or train_size==1.0:
+        if frequency is None or train_size == 1.0:
             check_val_every_n_epoch = np.inf
         else:
             check_val_every_n_epoch = frequency
@@ -296,7 +296,7 @@ class BaseModelClass(ABC):
         task_kwargs = vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
         self._pl_task = task_class(self.model, len(self.train_indices_), **task_kwargs)
 
-        if train_size==1.0:
+        if train_size == 1.0:
             # circumvent the empty data loader problem if all dataset used for training
             self.trainer.fit(self._pl_task, train_dl)
         else:

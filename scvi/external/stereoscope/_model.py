@@ -1,17 +1,17 @@
-from scvi.model.base import BaseModelClass
-from scvi._compat import Literal
-
-from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
-from anndata import AnnData
-from scvi.dataloaders import ScviDataLoader
-from scvi.lightning import VAETask
 import numpy as np
+from anndata import AnnData
+
+from scvi._compat import Literal
+from scvi.dataloaders import ScviDataLoader
+from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
+from scvi.lightning import VAETask
+from scvi.model.base import BaseModelClass
 
 
 class RNAStereoscope(BaseModelClass):
     """
     Reimplementation of Stereoscope for deconvolution of spatial transcriptomics from single-cell transcriptomics.
-    
+
     https://github.com/almaan/stereoscope.
     Parameters
     ----------
@@ -62,10 +62,11 @@ class RNAStereoscope(BaseModelClass):
     def _scvi_dl_class(self):
         return ScviDataLoader
 
+
 class SpatialStereoscope(BaseModelClass):
     """
     Reimplementation of Stereoscope for deconvolution of spatial transcriptomics from single-cell transcriptomics.
-    
+
     https://github.com/almaan/stereoscope.
     Parameters
     ----------
