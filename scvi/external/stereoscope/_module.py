@@ -123,18 +123,14 @@ class SpatialDeconv(AbstractVAE):
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
     ):
         super().__init__()
-        self.W = torch.nn.Parameter(torch.tensor(params[0]), requires_grad=False)
-        self.px_o = torch.nn.Parameter(torch.tensor(params[1]), requires_grad=False)
+        # copy parameters
+        self.register_buffer("W", torch.tensor(params[0]))
+        self.register_buffer("px_o", torch.tensor(params[1]))
+
+        # setup constants
         self.n_spots = n_spots
         self.n_genes, self.n_labels = self.W.shape
         self.prior_weight = prior_weight
-
-        #####
-        #
-        # x_sg \sim NB(\beta_g * \sum_{z=1}^Z exp(v_sz) * softplus(W)_gz + \gamma_s \eta_g, exp(px_r))
-        #
-        #####
-        # note, the gamma is included in the V below!
 
         # noise from data
         self.eta = torch.nn.Parameter(torch.randn(self.n_genes))
@@ -180,7 +176,6 @@ class SpatialDeconv(AbstractVAE):
     @auto_move_data
     def generative(self, x, ind_x):
         """Build the deconvolution model for every cell in the minibatch."""
-        # x_sg \sim NB(softplus(\beta_g) * \sum_{z=1}^Z softplus(v_sz) * softplus(W)_gz + \gamma_s \eta_g, exp(px_r))
 
         beta = torch.nn.functional.softplus(self.beta)  # n_genes
         v = torch.nn.functional.softplus(self.V)  # n_labels + 1, n_spots
