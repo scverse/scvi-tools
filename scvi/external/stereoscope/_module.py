@@ -1,12 +1,13 @@
-from scvi.compose import AbstractVAE, auto_move_data, SCVILoss
-from scvi._compat import Literal
+from typing import Tuple
 
+import numpy as np
+import torch
 from torch.distributions import NegativeBinomial, Normal
+
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from typing import Tuple
-import numpy as np
-import torch 
+from scvi.compose import AbstractVAE, SCVILoss, auto_move_data
+
 
 class RNADeconv(AbstractVAE):
     """
@@ -20,6 +21,7 @@ class RNADeconv(AbstractVAE):
     n_labels
         Number of input cell types
     """
+
     def __init__(
         self,
         n_genes: int,
@@ -31,7 +33,9 @@ class RNADeconv(AbstractVAE):
 
         # logit param for negative binomial
         self.px_o = torch.nn.Parameter(torch.randn(self.n_genes))
-        self.W = torch.nn.Parameter(torch.randn(self.n_genes, self.n_labels)) # n_genes, n_cell types
+        self.W = torch.nn.Parameter(
+            torch.randn(self.n_genes, self.n_labels)
+        )  # n_genes, n_cell types
 
     def get_params(self) -> torch.Tensor:
         """
@@ -50,22 +54,19 @@ class RNADeconv(AbstractVAE):
         x = tensors[_CONSTANTS.X_KEY]
         y = tensors[_CONSTANTS.LABELS_KEY]
 
-        input_dict = dict(
-            x=x, y=y
-        )
+        input_dict = dict(x=x, y=y)
         return input_dict
-
 
     @auto_move_data
     def inference(self):
         return {}
 
     @auto_move_data
-    def generative(
-        self, x, y
-    ):
+    def generative(self, x, y):
         """Simply build the negative binomial parameters for every cell in the minibatch."""
-        px_scale = torch.nn.functional.softplus(self.W)[:, y.long()[:, 0]].T # cells per gene
+        px_scale = torch.nn.functional.softplus(self.W)[
+            :, y.long()[:, 0]
+        ].T  # cells per gene
         library = torch.sum(x, dim=1, keepdim=True)
         px_rate = library * px_scale
 
@@ -101,6 +102,7 @@ class RNADeconv(AbstractVAE):
     ):
         raise NotImplementedError("No sampling method for Stereoscope")
 
+
 class SpatialDeconv(AbstractVAE):
     """
     Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics:
@@ -110,14 +112,15 @@ class SpatialDeconv(AbstractVAE):
     ----------
     n_spots
         Number of input spots
-    params 
+    params
         Tuple of ndarray of shapes [(n_genes, n_labels), (n_genes)] containing the dictionnary and log dispersion parameters
     """
+
     def __init__(
         self,
         n_spots: int,
         params: Tuple[np.ndarray],
-        prior_weight:Literal["n_obs", "minibatch"] = "n_obs",
+        prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
     ):
         super().__init__()
         self.W = torch.nn.Parameter(torch.tensor(params[0]), requires_grad=False)
@@ -149,12 +152,14 @@ class SpatialDeconv(AbstractVAE):
             tensor
         """
         # get estimated unadjusted proportions
-        res  = torch.nn.functional.softplus(self.V).detach().cpu().numpy().T # n_spots, n_labels + 1
+        res = (
+            torch.nn.functional.softplus(self.V).detach().cpu().numpy().T
+        )  # n_spots, n_labels + 1
         # remove dummy cell type proportion values
         if not keep_noise:
-            res = res[:,:-1]
+            res = res[:, :-1]
         # normalize to obtain adjusted proportions
-        res = res / res.sum(axis = 1).reshape(-1,1)
+        res = res / res.sum(axis=1).reshape(-1, 1)
         return res
 
     def _get_inference_input(self, tensors):
@@ -165,40 +170,34 @@ class SpatialDeconv(AbstractVAE):
         x = tensors[_CONSTANTS.X_KEY]
         ind_x = tensors["ind_x"]
 
-        input_dict = dict(
-            x=x, ind_x=ind_x
-        )
+        input_dict = dict(x=x, ind_x=ind_x)
         return input_dict
-
 
     @auto_move_data
     def inference(self):
         return {}
 
     @auto_move_data
-    def generative(
-        self, x, ind_x
-    ):
+    def generative(self, x, ind_x):
         """Build the deconvolution model for every cell in the minibatch."""
         # x_sg \sim NB(softplus(\beta_g) * \sum_{z=1}^Z softplus(v_sz) * softplus(W)_gz + \gamma_s \eta_g, exp(px_r))
 
-        beta = torch.nn.functional.softplus(self.beta) # n_genes
-        v = torch.nn.functional.softplus(self.V) # n_labels + 1, n_spots
+        beta = torch.nn.functional.softplus(self.beta)  # n_genes
+        v = torch.nn.functional.softplus(self.V)  # n_labels + 1, n_spots
         w = torch.nn.functional.softplus(self.W)  # n_genes, n_labels
-        eps = torch.nn.functional.softplus(self.eta) # n_genes
+        eps = torch.nn.functional.softplus(self.eta)  # n_genes
 
         # account for gene specific bias and add noise
-        r_hat = torch.cat([beta.unsqueeze(1) * w, eps.unsqueeze(1)], dim=1) # n_genes, n_labels + 1
+        r_hat = torch.cat(
+            [beta.unsqueeze(1) * w, eps.unsqueeze(1)], dim=1
+        )  # n_genes, n_labels + 1
         # subsample observations
-        v_ind = v[:, ind_x.long()[:, 0]] # labels + 1, batch_size
-        px_rate = torch.transpose(torch.matmul(r_hat, v_ind), 0, 1) # batch_size, n_genes 
+        v_ind = v[:, ind_x.long()[:, 0]]  # labels + 1, batch_size
+        px_rate = torch.transpose(
+            torch.matmul(r_hat, v_ind), 0, 1
+        )  # batch_size, n_genes
 
-        return dict(
-            px_o=self.px_o,
-            px_rate=px_rate,
-            eta=self.eta
-        )
-
+        return dict(px_o=self.px_o, px_rate=px_rate, eta=self.eta)
 
     def loss(
         self,
@@ -211,7 +210,6 @@ class SpatialDeconv(AbstractVAE):
         x = tensors[_CONSTANTS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
-
 
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
         # prior likelihood
@@ -235,4 +233,3 @@ class SpatialDeconv(AbstractVAE):
         library_size=1,
     ):
         raise NotImplementedError("No sampling method for Stereoscope")
-    
