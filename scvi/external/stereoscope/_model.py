@@ -24,7 +24,7 @@ class RNAStereoscope(BaseModelClass):
     --------
     >>> sc_adata = anndata.read_h5ad(path_to_sc_anndata)
     >>> scvi.data.setup_anndata(sc_adata, label_key="labels")
-    >>> stereo = scvi.external.stereoscope.RNAStereoscope(sc_adata)
+    >>> stereo = scvi.external.RNAStereoscope(sc_adata)
     >>> stereo.train()
     >>> stereo_params = stereo.get_params()
     """
@@ -80,7 +80,7 @@ class SpatialStereoscope(BaseModelClass):
     >>> scvi.data.setup_anndata(st_adata)
     >>> st_adata.obs["indices"] = np.arange(st_adata.n_obs)
     >>> register_tensor_from_anndata(st_adata, "ind_x", "obs", "indices")
-    >>> stereo = scvi.external.stereoscope.SpatialStereoscope(st_adata, sc_params)
+    >>> stereo = scvi.external.SpatialStereoscope(st_adata, sc_params)
     >>> stereo.train()
     >>> st_adata.obs["deconv"] = stereo.get_proportions()
     """
