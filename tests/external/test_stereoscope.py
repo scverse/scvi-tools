@@ -2,25 +2,19 @@ import scvi
 import os
 
 import numpy as np
-from scvi.external.stereoscope import RNAStereoscope, SpatialStereoscope
-from scvi.data import register_tensor_from_anndata
-
-dataset = scvi.data.pbmc_dataset(
-            save_path="tests/data/10X",
-            remove_extracted_data=True,
-            run_setup_anndata=True,
-        )
+from scvi.external import RNAStereoscope, SpatialStereoscope
+from scvi.data import synthetic_iid, register_tensor_from_anndata
 
 
-model = RNAStereoscope(dataset)
-model.train(n_epochs=100, frequency=1, vae_task_kwargs={"lr":0.01}, train_size=1.0)
-params = model.get_params()
-print(model.history)
+def test_scvi(save_path):
+    dataset = synthetic_iid()
+    sc_model = RNAStereoscope(dataset)
+    sc_model.train(n_epochs=1, frequency=1, vae_task_kwargs={"lr":0.01}, train_size=1.0)
+    sc_params = sc_model.get_params()
 
+    dataset.obs["indices"] = np.arange(dataset.n_obs)
+    register_tensor_from_anndata(dataset, "ind_x", "obs", "indices")
 
-dataset.obs["indices"] = np.arange(dataset.n_obs)
-register_tensor_from_anndata(dataset, "ind_x", "obs", "indices")
-
-model = SpatialStereoscope(dataset, params)
-model.train(n_epochs=100, frequency=1, vae_task_kwargs={"lr":0.01}, train_size=1.0)
-print(model.get_proportions())
+    st_model = SpatialStereoscope(dataset, sc_params)
+    st_model.train(n_epochs=1, frequency=1, vae_task_kwargs={"lr":0.01}, train_size=1.0)
+    st_model.get_proportions()

@@ -99,8 +99,7 @@ class RNADeconv(AbstractVAE):
         n_samples=1,
         library_size=1,
     ):
-    # not a generative model
-        return None
+        raise NotImplementedError("No sampling method for Stereoscope")
 
 class SpatialDeconv(AbstractVAE):
     """
@@ -235,6 +234,5 @@ class SpatialDeconv(AbstractVAE):
         n_samples=1,
         library_size=1,
     ):
-    # not a generative model
-        return None
+        raise NotImplementedError("No sampling method for Stereoscope")
     
