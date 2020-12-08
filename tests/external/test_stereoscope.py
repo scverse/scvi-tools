@@ -4,7 +4,7 @@ from scvi.data import register_tensor_from_anndata, synthetic_iid
 from scvi.external import RNAStereoscope, SpatialStereoscope
 
 
-def test_scvi(save_path):
+def test_stereoscope(save_path):
     dataset = synthetic_iid()
     sc_model = RNAStereoscope(dataset)
     sc_model.train(
