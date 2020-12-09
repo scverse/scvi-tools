@@ -214,11 +214,22 @@ class BaseModelClass(ABC):
         """
         init = self.__init__
         sig = inspect.signature(init)
-        init_params = [p for p in sig.parameters]
-        user_params = {p: locals[p] for p in locals if p in init_params}
-        user_params = {
-            k: v for (k, v) in user_params.items() if not isinstance(v, AnnData)
+        parameters = sig.parameters.values()
+
+        init_params = [p.name for p in parameters]
+        all_params = {p: locals[p] for p in locals if p in init_params}
+        all_params = {
+            k: v for (k, v) in all_params.items() if not isinstance(v, AnnData)
         }
+        # not very efficient but is explicit
+        # seperates variable params (**kwargs) from non variable params into two dicts
+        non_var_params = [p.name for p in parameters if p.kind != p.VAR_KEYWORD]
+        non_var_params = {k: v for (k, v) in all_params.items() if k in non_var_params}
+        var_params = [p.name for p in parameters if p.kind == p.VAR_KEYWORD]
+        var_params = {k: v for (k, v) in all_params.items() if k in var_params}
+
+        user_params = {"kwargs": var_params, "non_kwargs": non_var_params}
+
         return user_params
 
     def train(
