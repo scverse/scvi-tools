@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 from anndata import AnnData
 
@@ -51,7 +53,10 @@ class RNAStereoscope(BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
-    def get_params(self):
+    def get_params(self) -> Tuple[np.ndarray]:
+        """
+        Returns the parameters of the RNA model used for deconvolution (px_o and W).
+        """
         return self.model.get_params()
 
     @property
@@ -70,10 +75,14 @@ class SpatialStereoscope(BaseModelClass):
     https://github.com/almaan/stereoscope.
     Parameters
     ----------
-    sc_adata
-        single-cell AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+    st_adata
+        spatial transcriptomics AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+    params
+        parameters learned from the single-cell RNA seq data for deconvolution.
     use_cuda
         Use the GPU or not.
+    prior_weight
+        how to reweight the minibatches for stochastic optimization. "n_obs" is the valid procedure, "minibatch" is the procedure implemented in Stereoscope.
 
     Examples
     --------
@@ -89,7 +98,7 @@ class SpatialStereoscope(BaseModelClass):
     def __init__(
         self,
         st_adata: AnnData,
-        params: np.ndarray,
+        params: Tuple[np.ndarray],
         use_gpu: bool = True,
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
         **model_kwargs,
@@ -109,7 +118,15 @@ class SpatialStereoscope(BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
-    def get_proportions(self, keep_noise=False):
+    def get_proportions(self, keep_noise=False) -> np.ndarray:
+        """
+        Returns the estimated cell type proportion for the spatial data.
+
+        Parameters:
+        -----------
+        keep_noise
+            whether to account for the noise term as a standalone cell type in the proportion estimate.
+        """
         return self.model.get_proportions(keep_noise)
 
     @property

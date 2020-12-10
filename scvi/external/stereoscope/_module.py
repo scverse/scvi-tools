@@ -37,14 +37,15 @@ class RNADeconv(AbstractVAE):
             torch.randn(self.n_genes, self.n_labels)
         )  # n_genes, n_cell types
 
-    def get_params(self) -> torch.Tensor:
+    @torch.no_grad()
+    def get_params(self) -> Tuple[np.ndarray]:
         """
         Returns the parameters for feeding into the spatial data
         -------
         type
             list of tensor
         """
-        return self.W.detach().cpu().numpy(), self.px_o.detach().cpu().numpy()
+        return self.W.cpu().numpy(), self.px_o.cpu().numpy()
 
     def _get_inference_input(self, tensors):
         # we perform MAP here, so there is nothing to infer
@@ -139,7 +140,8 @@ class SpatialDeconv(AbstractVAE):
         # additive gene bias
         self.beta = torch.nn.Parameter(0.1 * torch.randn(self.n_genes))
 
-    def get_proportions(self, keep_noise=False) -> torch.Tensor:
+    @torch.no_grad()
+    def get_proportions(self, keep_noise=False) -> np.ndarray:
         """
         Returns the loadings.
         Returns
@@ -149,7 +151,7 @@ class SpatialDeconv(AbstractVAE):
         """
         # get estimated unadjusted proportions
         res = (
-            torch.nn.functional.softplus(self.V).detach().cpu().numpy().T
+            torch.nn.functional.softplus(self.V).cpu().numpy().T
         )  # n_spots, n_labels + 1
         # remove dummy cell type proportion values
         if not keep_noise:
