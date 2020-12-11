@@ -344,13 +344,12 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 pin_memory=pin_memory,
                 num_workers=num_workers,
             )
-            sampler_callback = None
+            sampler_callback = []
         self._semisupervised_trainer = Trainer(
             max_epochs=n_epochs_semisupervised,
             gpus=gpus,
             callbacks=sampler_callback,
         )
-
         self._semisupervised_trainer.fit(
             self._semisupervised_task, semisupervised_train_dl
         )
