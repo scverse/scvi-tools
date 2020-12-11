@@ -102,9 +102,6 @@ class ArchesMixin:
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
-        if use_gpu:
-            model.model.cuda()
-
         # model tweaking
         new_state_dict = model.model.state_dict()
         for key, load_ten in load_state_dict.items():
@@ -116,6 +113,9 @@ class ArchesMixin:
                 dim_diff = new_ten.size()[-1] - load_ten.size()[-1]
                 fixed_ten = torch.cat([load_ten, new_ten[..., -dim_diff:]], dim=-1)
                 load_state_dict[key] = fixed_ten
+
+        if use_gpu:
+            model.model.cuda()
 
         model.model.load_state_dict(load_state_dict)
         model.model.eval()
