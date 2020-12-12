@@ -141,6 +141,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         batch_size: int = 256,
         early_stopping: bool = True,
         reduce_lr_on_plateau: bool = True,
+        vae_task_kwargs: Optional[dict] = None,
         **kwargs,
     ):
         """
@@ -174,11 +175,15 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         imputation = (
             True if "totalvi_batch_mask" in self.scvi_setup_dict_.keys() else False
         )
-        vae_task_kwargs = {
+        update_dict = {
             "lr": lr,
             "adversarial_classifier": True if imputation else False,
             "reduce_lr_on_plateau": reduce_lr_on_plateau,
         }
+        if vae_task_kwargs is not None:
+            vae_task_kwargs.update(update_dict)
+        else:
+            vae_task_kwargs = update_dict
         super().train(
             n_epochs=n_epochs,
             use_gpu=use_gpu,
