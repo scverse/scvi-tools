@@ -441,7 +441,7 @@ def test_scvi_online_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path, inplace_subset_query_vars=True)
-    model2.train(n_epochs=1, vae_task_kwargs=dict(weight_decay=0.0))
+    model2.train(max_epochs=1, vae_task_kwargs=dict(weight_decay=0.0))
     model2.get_latent_representation()
 
     # encoder linear layer equal
@@ -489,7 +489,7 @@ def test_scvi_online_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path, freeze_expression=True)
-    model2.train(n_epochs=1, vae_task_kwargs=dict(weight_decay=0.0))
+    model2.train(max_epochs=1, vae_task_kwargs=dict(weight_decay=0.0))
     # deactivate no grad decorator
     model2.get_latent_representation()
     # pytorch lightning zeros the grad, so this will get a grad to inspect
@@ -508,7 +508,7 @@ def test_scvi_online_update(save_path):
         freeze_batchnorm_encoder=True,
         freeze_decoder_first_layer=False,
     )
-    model3.train(n_epochs=1)
+    model3.train(max_epochs=1)
     model3.get_latent_representation()
     assert model3.model.z_encoder.encoder.fc_layers[0][1].momentum == 0
     # batch norm weight in encoder layer
@@ -523,7 +523,7 @@ def test_scvi_online_update(save_path):
 
     # do not freeze batchnorm
     model3 = SCVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=False)
-    model3.train(n_epochs=1)
+    model3.train(max_epochs=1)
     model3.get_latent_representation()
 
 
@@ -641,7 +641,7 @@ def test_totalvi_online_update(save_path):
 
     model2 = TOTALVI.load_query_data(adata2, dir_path)
     assert model2.model.background_pro_alpha.requires_grad is True
-    model2.train(n_epochs=1)
+    model2.train(max_epochs=1)
     model2.get_latent_representation()
 
     # batch 3 has no proteins
@@ -653,5 +653,5 @@ def test_totalvi_online_update(save_path):
     model3 = TOTALVI.load_query_data(adata2, model)
     model3.model.protein_batch_mask[2]
     model3.model.protein_batch_mask[3]
-    model3.train(n_epochs=1)
+    model3.train(max_epochs=1)
     model3.get_latent_representation()
