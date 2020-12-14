@@ -465,20 +465,13 @@ class SemiSupervisedTask(VAETask):
         if full_dataset[_CONSTANTS.X_KEY].shape[0] < 3:
             return None
 
-        input_kwargs = dict(feed_labels=False)
+        input_kwargs = dict(
+            feed_labels=False,
+            labelled_tensors=labelled_dataset,
+            classification_ratio=self.classification_ratio,
+        )
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
-
-        if labelled_dataset is not None:
-            x = labelled_dataset[_CONSTANTS.X_KEY].cuda()
-            y = labelled_dataset[_CONSTANTS.LABELS_KEY].cuda()
-            batch_idx = labelled_dataset[_CONSTANTS.BATCH_KEY].cuda()
-            classification_loss = F.cross_entropy(
-                self.model.classify(x, batch_idx),
-                y.view(-1).type(torch.LongTensor).cuda(),
-            )
-            loss += classification_loss * self.classification_ratio
-
         reconstruction_loss = scvi_losses.reconstruction_loss
         return {
             "loss": loss,

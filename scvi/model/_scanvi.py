@@ -11,7 +11,7 @@ from pandas.api.types import CategoricalDtype
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.data._anndata import _make_obs_column_categorical
-from scvi.dataloaders import ConcatDataLoader, ScviDataLoader
+from scvi.dataloaders import SemiSupervisedDataLoader, ScviDataLoader
 from scvi.lightning import SemiSupervisedTask, Trainer, VAETask
 from scvi.modules import SCANVAE, VAE
 
@@ -189,6 +189,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         ).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
         self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
+        self.original_label_key = original_key
         return remapped
 
     @property
@@ -310,10 +311,12 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             num_workers=num_workers,
         )
         self.train_indices_ = train_dl.indices
-        self._unsupervised_task = VAETask(
-            self._base_model, len(self.train_indices), **unsupervised_task_kwargs
-        )
-        self.trainer.fit(self._unsupervised_task, train_dl)
+
+        if train_base_model:
+            self._unsupervised_task = VAETask(
+                self._base_model, len(self.train_indices), **unsupervised_task_kwargs
+            )
+            self.trainer.fit(self._unsupervised_task, train_dl)
         self._base_model.eval()
 
         self.model.load_state_dict(self._base_model.state_dict(), strict=False)

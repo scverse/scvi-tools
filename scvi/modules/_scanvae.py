@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from torch.distributions import Categorical, Normal
 from torch.distributions import kl_divergence as kl
+from torch.nn import functional as F
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
@@ -193,6 +194,16 @@ class SCANVAE(VAE):
             w_y = self.classifier(z)
         return w_y
 
+    def classification_loss(self, labelled_dataset):
+        x = labelled_dataset[_CONSTANTS.X_KEY]
+        y = labelled_dataset[_CONSTANTS.LABELS_KEY]
+        batch_idx = labelled_dataset[_CONSTANTS.BATCH_KEY]
+        classification_loss = F.cross_entropy(
+            self.classify(x, batch_idx),
+            y.view(-1).type(torch.LongTensor),
+        )
+        return classification_loss
+
     def loss(
         self,
         tensors,
@@ -200,6 +211,8 @@ class SCANVAE(VAE):
         generative_ouputs,
         feed_labels=False,
         kl_weight=1,
+        labelled_tensors=None,
+        classification_ratio=None,
     ):
         px_r = generative_ouputs["px_r"]
         px_rate = generative_ouputs["px_rate"]
@@ -249,7 +262,10 @@ class SCANVAE(VAE):
                 "kl_divergence_z2": kl_divergence_z2,
                 "kl_divergence_l": kl_divergence_l,
             }
-            # need to fix loss output here
+            if labelled_tensors is not None:
+                loss += (
+                    self.classification_loss(labelled_tensors) * classification_ratio
+                )
             return SCVILoss(loss, reconst_loss, kl_locals, kl_global=0.0)
 
         probs = self.classifier(z1)
@@ -269,4 +285,6 @@ class SCANVAE(VAE):
         loss = torch.mean(reconst_loss + kl_divergence)
 
         # reconstruction_loss probably isnt correct
+        if labelled_tensors is not None:
+            loss += self.classification_loss(labelled_tensors) * classification_ratio
         return SCVILoss(loss, reconst_loss, kl_divergence, kl_global=0.0)
