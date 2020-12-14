@@ -29,7 +29,7 @@ class Trainer(pl.Trainer):
         How often to flush logs to disk. By default, flushes after training complete.
     check_val_every_n_epoch
         Check val every n train epochs. By default, val is not checked, unless `early_stopping` is `True`.
-    max_epochs
+    n_epochs
         Stop training once this number of epochs is reached.
     default_root_dir
         Default path for logs and weights when no logger/ckpt_callback passed.
@@ -56,7 +56,7 @@ class Trainer(pl.Trainer):
         benchmark: bool = True,
         flush_logs_every_n_steps=np.inf,
         check_val_every_n_epoch=np.inf,
-        max_epochs=400,
+        n_epochs: int = 400,
         default_root_dir: Optional[str] = None,
         checkpoint_callback: bool = False,
         num_sanity_val_steps: int = 0,
@@ -73,6 +73,9 @@ class Trainer(pl.Trainer):
     ):
         if default_root_dir is None:
             default_root_dir = settings.logging_dir
+
+        if "max_epochs" in kwargs:
+            raise ValueError("Please use n_epochs instead of max_epochs")
 
         kwargs["callbacks"] = (
             [] if "callbacks" not in kwargs.keys() else kwargs["callbacks"]
@@ -98,7 +101,7 @@ class Trainer(pl.Trainer):
             benchmark=benchmark,
             flush_logs_every_n_steps=flush_logs_every_n_steps,
             check_val_every_n_epoch=check_val_every_n_epoch,
-            max_epochs=max_epochs,
+            max_epochs=n_epochs,
             default_root_dir=default_root_dir,
             checkpoint_callback=checkpoint_callback,
             num_sanity_val_steps=num_sanity_val_steps,

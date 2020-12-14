@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Tuple
+from typing import Tuple, Optional
 
 import torch
 import torch.nn as nn
@@ -61,23 +61,39 @@ class AbstractVAE(nn.Module):
     def forward(
         self,
         tensors,
-        get_inference_input_kwargs={},
-        get_generative_input_kwargs={},
-        inference_kwargs={},
-        generative_kwargs={},
-        loss_kwargs={},
+        get_inference_input_kwargs: Optional[dict] = None,
+        get_generative_input_kwargs: Optional[dict] = None,
+        inference_kwargs: Optional[dict] = None,
+        generative_kwargs: Optional[dict] = None,
+        loss_kwargs: Optional[dict] = None,
         compute_loss=True,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Forward pass through the network
+        Forward pass through the network.
+
         Parameters
         ----------
         tensors
             tensors to pass through
+        get_inference_input_kwargs
+            Keyword args for `_get_inference_input()`
+        get_generative_input_kwargs
+            Keyword args for `_get_generative_input()`
+        inference_kwargs
+            Keyword args for `inference()`
+        generative_kwargs
+            Keyword args for `generative()`
+        loss_kwargs
+            Keyword args for `loss()`
+        compute_loss
+            Whether to compute loss on forward pass. This adds
+            another return value.
         """
-        inference_kwargs = dict(inference_kwargs)
-        generative_kwargs = dict(generative_kwargs)
-        loss_kwargs = dict(loss_kwargs)
+        inference_kwargs = _get_dict_if_none(inference_kwargs)
+        generative_kwargs = _get_dict_if_none(generative_kwargs)
+        loss_kwargs = _get_dict_if_none(loss_kwargs)
+        get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
+        get_generative_input_kwargs = _get_dict_if_none(get_generative_input_kwargs)
 
         inference_inputs = self._get_inference_input(
             tensors, **get_inference_input_kwargs
@@ -122,3 +138,9 @@ class AbstractVAE(nn.Module):
     @abstractmethod
     def sample(self, *args, **kwargs):
         pass
+
+
+def _get_dict_if_none(param):
+    param = {} if not isinstance(param, dict) else param
+
+    return param

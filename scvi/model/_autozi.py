@@ -244,5 +244,5 @@ class AUTOZI(VAEMixin, BaseModelClass):
         return VAETask
 
     @property
-    def _scvi_dl_class(self):
+    def _data_loader_cls(self):
         return ScviDataLoader

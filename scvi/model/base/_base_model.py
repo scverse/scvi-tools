@@ -53,22 +53,42 @@ class BaseModelClass(ABC):
         shuffle=False,
         **data_loader_kwargs,
     ):
-        """Create a ScviDataLoader object for data iteration."""
+        """
+        Create a ScviDataLoader object for data iteration.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        shuffle
+            Whether observations are shuffled each iteration though
+        data_loader_kwargs
+            Kwargs to the class-specific data loader class
+        """
         if batch_size is None:
             batch_size = settings.batch_size
         if indices is None:
             indices = np.arange(adata.n_obs)
-        post = self._scvi_dl_class(
+        dl = self._data_loader_cls(
             adata,
             shuffle=shuffle,
             indices=indices,
             batch_size=batch_size,
             **data_loader_kwargs,
         )
-        return post
+        return dl
 
     def _train_test_val_split(
-        self, adata, train_size=0.9, validation_size=None, **kwargs
+        self,
+        adata: AnnData,
+        train_size: float = 0.9,
+        validation_size: Optional[float] = None,
+        **kwargs,
     ):
         """
         Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
@@ -81,6 +101,8 @@ class BaseModelClass(ABC):
             float, or None (default is 0.9)
         validation_size
             float, or None (default is None)
+        **kwargs
+            Keyword args for `_make_scvi_dl()`
         """
         train_size = float(train_size)
         if train_size > 1.0 or train_size <= 0.0:
@@ -146,7 +168,7 @@ class BaseModelClass(ABC):
 
     @property
     @abstractmethod
-    def _scvi_dl_class(self):
+    def _data_loader_cls(self):
         pass
 
     @property
@@ -176,7 +198,7 @@ class BaseModelClass(ABC):
         return self.history_
 
     def _get_user_attributes(self):
-        # returns all the self attributes defined in a model class, eg, self.is_trained_
+        """Returns all the self attributes defined in a model class, e.g., self.is_trained_."""
         attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
         attributes = [
             a for a in attributes if not (a[0].startswith("__") and a[0].endswith("__"))
@@ -185,8 +207,11 @@ class BaseModelClass(ABC):
         return attributes
 
     def _get_init_params(self, locals):
-        # returns the model init signiture with associated passed in values
-        # except the anndata objects passed in
+        """
+        Returns the model init signiture with associated passed in values.
+
+        Ignores the inital AnnData.
+        """
         init = self.__init__
         sig = inspect.signature(init)
         init_params = [p for p in sig.parameters]
@@ -203,13 +228,13 @@ class BaseModelClass(ABC):
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
+        frequency=None,
         vae_task_kwargs: Optional[dict] = None,
         task_class: Optional[None] = None,
-        frequency=None,
         **kwargs,
     ):
         """
-        Trains the model using amortized variational inference.
+        Train the model.
 
         Parameters
         ----------
@@ -254,7 +279,7 @@ class BaseModelClass(ABC):
             n_epochs = np.min([round((20000 / n_cells) * 400), 400])
 
         self.trainer = Trainer(
-            max_epochs=n_epochs,
+            n_epochs=n_epochs,
             gpus=gpus,
             check_val_every_n_epoch=check_val_every_n_epoch,
             **kwargs,
@@ -310,7 +335,7 @@ class BaseModelClass(ABC):
         save_anndata
             If True, also saves the anndata
         anndata_write_kwargs
-            Kwargs for anndata write function
+            Kwargs for :func:`~anndata.AnnData.write`
         """
         # get all the user attributes
         user_attributes = self._get_user_attributes()
