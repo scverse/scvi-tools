@@ -1,7 +1,7 @@
 ---
 name: Usage question
-about: For questions related to using scvi-tools models, please see discourse.scvi-tools.org
-title: ''
+about: Please raise usage questions at https://discourse.scvi-tools.org/
+title: Please raise usage questions at https://discourse.scvi-tools.org/
 labels: question
 assignees: ''
 
