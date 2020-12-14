@@ -215,7 +215,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         lr: float = 1e-3,
         n_epochs_kl_warmup: int = 400,
         n_iter_kl_warmup: Optional[int] = None,
-        frequency: Optional[int] = None,
+        check_val_every_n_epoch: Optional[int] = None,
         unsupervised_trainer_kwargs: dict = {},
         semisupervised_trainer_kwargs: dict = {},
         unsupervised_task_kwargs: dict = {},
@@ -244,10 +244,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         n_iter_kl_warmup
             Number of minibatches for scaling term on KL divergence to go from 0 to 1.
             To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
-        frequency
-            Frequency with which metrics are computed on the data for train/test/val sets for both
+        check_val_every_n_epoch
+            Frequency with which metrics are computed on the data for validation set for both
             the unsupervised and semisupervised trainers. If you'd like a different frequency for
-            the semisupervised trainer, set frequency in semisupervised_train_kwargs.
+            the semisupervised trainer, set check_val_every_n_epoch in semisupervised_train_kwargs.
         unsupervised_trainer_kwargs
             Other keyword args for :class:`~scvi.trainers.UnsupervisedTrainer`.
         semisupervised_trainer_kwargs
@@ -288,7 +288,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             gpus = None
             pin_memory = False
         self.trainer = Trainer(
-            n_epochs=n_epochs_unsupervised,
+            max_epochs=n_epochs_unsupervised,
             gpus=gpus,
             **unsupervised_trainer_kwargs,
         )
@@ -312,7 +312,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         self._semisupervised_task = SemiSupervisedTask(self.model)
         self._semisupervised_trainer = Trainer(
-            n_epochs=n_epochs_semisupervised, gpus=None
+            max_epochs=n_epochs_semisupervised, gpus=None
         )
 
         # if we have labelled cells, we want to pass them through the classifier

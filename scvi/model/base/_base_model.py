@@ -223,12 +223,11 @@ class BaseModelClass(ABC):
 
     def train(
         self,
-        n_epochs: Optional[int] = None,
+        max_epochs: Optional[int] = None,
         use_gpu: Optional[bool] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
-        frequency=None,
         vae_task_kwargs: Optional[dict] = None,
         task_class: Optional[None] = None,
         **kwargs,
@@ -238,8 +237,9 @@ class BaseModelClass(ABC):
 
         Parameters
         ----------
-        n_epochs
-            Number of passes through the dataset.
+        max_epochs
+            Number of passes through the dataset. If `None`, defaults to
+            `np.min([round((20000 / n_cells) * 400), 400])`
         use_gpu
             If `True`, use the GPU if available. Will override the use_gpu option when initializing model
         train_size
@@ -249,13 +249,9 @@ class BaseModelClass(ABC):
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         batch_size
             Minibatch size to use during training.
-        lr
-            Learning rate for optimization.
-        n_epochs_kl_warmup
-            Number of passes through dataset for scaling term on KL divergence to go from 0 to 1.
-        n_iter_kl_warmup
-            Number of minibatches for scaling term on KL divergence to go from 0 to 1.
-            To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
+        vae_task_kwargs
+            Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed to
+            `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
@@ -269,19 +265,14 @@ class BaseModelClass(ABC):
         else:
             gpus = None
             pin_memory = False
-        if frequency is None:
-            check_val_every_n_epoch = np.inf
-        else:
-            check_val_every_n_epoch = frequency
 
-        if n_epochs is None:
+        if max_epochs is None:
             n_cells = self.adata.n_obs
-            n_epochs = np.min([round((20000 / n_cells) * 400), 400])
+            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
 
         self.trainer = Trainer(
-            n_epochs=n_epochs,
+            max_epochs=max_epochs,
             gpus=gpus,
-            check_val_every_n_epoch=check_val_every_n_epoch,
             **kwargs,
         )
         train_dl, val_dl, test_dl = self._train_test_val_split(

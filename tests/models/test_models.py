@@ -13,7 +13,7 @@ def test_scvi(save_path):
     n_latent = 5
     adata = synthetic_iid()
     model = SCVI(adata, n_latent=n_latent)
-    model.train(1, frequency=1, train_size=0.5)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # tests __repr__
     print(model)
@@ -236,7 +236,7 @@ def test_saving_and_loading(save_path):
 def test_scanvi(save_path):
     adata = synthetic_iid()
     model = SCANVI(adata, "label_0", n_latent=10)
-    model.train(1, train_size=0.5, frequency=1)
+    model.train(1, train_size=0.5, check_val_every_n_epoch=1)
     assert len(model.history["unsupervised_trainer_history"]) == 2
     assert len(model.history["semisupervised_trainer_history"]) == 7
     adata2 = synthetic_iid()
@@ -255,7 +255,7 @@ def test_linear_scvi(save_path):
     adata = adata[:, :10].copy()
     setup_anndata(adata)
     model = LinearSCVI(adata, n_latent=10)
-    model.train(1, frequency=1, train_size=0.5)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     assert len(model.history["elbo_train"]) == 1
     assert len(model.history["elbo_validation"]) == 1
     model.get_loadings()
@@ -269,7 +269,9 @@ def test_gimvi():
     model = GIMVI(adata_seq, adata_spatial, n_latent=10)
     model.get_latent_representation()
     model.get_imputed_values()
-    model.train(1, frequency=1, early_stopping_kwargs=None, train_size=0.5)
+    model.train(
+        1, check_val_every_n_epoch=1, early_stopping_kwargs=None, train_size=0.5
+    )
 
     assert len(model.history["elbo_train_0"]) == 2
     assert len(model.history["elbo_train_1"]) == 2
@@ -299,7 +301,7 @@ def test_autozi():
             dispersion=disp_zi,
             zero_inflation=disp_zi,
         )
-        autozivae.train(1, lr=1e-2, frequency=1)
+        autozivae.train(1, lr=1e-2, check_val_every_n_epoch=1)
         assert len(autozivae.history["elbo_train"]) == 1
         assert len(autozivae.history["elbo_test"]) == 1
         autozivae.get_elbo(indices=autozivae.validation_indices)
@@ -430,7 +432,7 @@ def test_scvi_online_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
     model = SCVI(adata1, n_latent=n_latent)
-    model.train(1, frequency=1)
+    model.train(1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
@@ -479,7 +481,7 @@ def test_scvi_online_update(save_path):
         use_batch_norm="encoder",
         use_layer_norm="none",
     )
-    model.train(1, frequency=1)
+    model.train(1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
@@ -534,7 +536,9 @@ def test_scanvi_online_update(save_path):
     adata1.obs["labels"] = pd.Categorical(new_labels)
     setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCANVI(adata1, "Unknown", n_latent=n_latent, encode_covariates=True)
-    model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1, frequency=1)
+    model.train(
+        n_epochs_unsupervised=1, n_epochs_semisupervised=1, check_val_every_n_epoch=1
+    )
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
@@ -556,7 +560,9 @@ def test_scanvi_online_update(save_path):
     adata1.obs["labels"] = pd.Categorical(new_labels)
     setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCANVI(adata1, "Unknown", n_latent=n_latent, encode_covariates=True)
-    model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1, frequency=1)
+    model.train(
+        n_epochs_unsupervised=1, n_epochs_semisupervised=1, check_val_every_n_epoch=1
+    )
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
@@ -626,7 +632,7 @@ def test_totalvi_online_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
     model = TOTALVI(adata1, n_latent=n_latent, use_batch_norm="decoder")
-    model.train(1, frequency=1)
+    model.train(1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 

@@ -133,14 +133,18 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     def train(
         self,
-        n_epochs: Optional[int] = 400,
+        max_epochs: Optional[int] = 400,
         lr: float = 4e-3,
         use_gpu: Optional[bool] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 256,
         early_stopping: bool = True,
+        check_val_every_n_epoch: Optional[int] = None,
         reduce_lr_on_plateau: bool = True,
+        n_steps_kl_warmup: Union[int, None] = None,
+        n_epochs_kl_warmup: Union[int, None] = None,
+        adversarial_classifier: Optional[bool] = None,
         vae_task_kwargs: Optional[dict] = None,
         **kwargs,
     ):
@@ -151,6 +155,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         ----------
         max_epochs
             Number of passes through the dataset.
+        lr
+            Learning rate for optimization.
         use_gpu
             If `True`, use the GPU if available.
         train_size
@@ -162,30 +168,57 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Minibatch size to use during training.
         early_stopping
             Whether to perform early stopping with respect to the validation set.
-        lr
-            Learning rate for optimization.
+        check_val_every_n_epoch
+            Check val every n train epochs. By default, val is not checked, unless `early_stopping` is `True`
+            or `reduce_lr_on_plateau` is `True`. If either of the latter conditions are met, val is checked
+            every epoch.
+        reduce_lr_on_plateau
+            Reduce learning rate on plateau of validation metric (default is ELBO).
+        n_steps_kl_warmup
+            Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
+            Only activated when `n_epochs_kl_warmup` is set to None. If `None`, defaults
+            to `floor(0.75 * adata.n_obs)`.
         n_epochs_kl_warmup
-            Number of passes through dataset for scaling term on KL divergence to go from 0 to 1.
-        n_iter_kl_warmup
-            Number of minibatches for scaling term on KL divergence to go from 0 to 1.
-            To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
+            Number of epochs to scale weight on KL divergences from 0 to 1.
+            Overrides `n_steps_kl_warmup` when both are not `None`.
+        adversarial_classifier
+            Whether to use adversarial classifier in the latent space. This helps mixing when
+            there are missing proteins in any of the batches. Defaults to `True` is missing proteins
+            are detected.
+        vae_task_kwargs
+            Keyword args for :class:`~scvi.lightning.AdversarialTask`. Keyword arguments passed to
+            `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
-        imputation = (
-            True if "totalvi_batch_mask" in self.scvi_setup_dict_.keys() else False
+
+        if adversarial_classifier is None:
+            imputation = (
+                True if "totalvi_batch_mask" in self.scvi_setup_dict_.keys() else False
+            )
+            adversarial_classifier = True if imputation else False
+        n_steps_kl_warmup = (
+            n_steps_kl_warmup
+            if n_steps_kl_warmup is not None
+            else int(0.75 * self.adata.n_obs)
         )
+        if reduce_lr_on_plateau:
+            check_val_every_n_epoch = 1
+
         update_dict = {
             "lr": lr,
-            "adversarial_classifier": True if imputation else False,
+            "adversarial_classifier": adversarial_classifier,
             "reduce_lr_on_plateau": reduce_lr_on_plateau,
+            "n_epochs_kl_warmup": n_epochs_kl_warmup,
+            "n_steps_kl_warmup": n_steps_kl_warmup,
+            "check_val_every_n_epoch": check_val_every_n_epoch,
         }
         if vae_task_kwargs is not None:
             vae_task_kwargs.update(update_dict)
         else:
             vae_task_kwargs = update_dict
         super().train(
-            n_epochs=n_epochs,
+            max_epochs=max_epochs,
             use_gpu=use_gpu,
             train_size=train_size,
             validation_size=validation_size,
