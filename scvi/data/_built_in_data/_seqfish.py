@@ -87,7 +87,9 @@ def _load_seqfish(
 
 def _load_seqfish_data(path_to_file: str) -> anndata.AnnData:
     logger.info("Loading seqfish dataset from {}".format(path_to_file))
-    counts = pd.read_excel(path_to_file, sheet_name="Hippocampus Counts")
+    counts = pd.read_excel(
+        path_to_file, sheet_name="Hippocampus Counts", engine="openpyxl"
+    )
     data = (
         counts.values[:, 1:].astype(int).T
     )  # transpose because counts is genes X cells
