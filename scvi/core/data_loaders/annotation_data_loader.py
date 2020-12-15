@@ -8,14 +8,16 @@ from scvi import _CONSTANTS
 from scvi.core import unsupervised_clustering_accuracy
 
 from .scvi_data_loader import ScviDataLoader
+from scvi.core._log_likelihood import compute_elbo
 
 logger = logging.getLogger(__name__)
 
 
 class AnnotationDataLoader(ScviDataLoader):
-    def __init__(self, *args, model_zl=False, **kwargs):
+    def __init__(self, *args, unlabeled=False, model_zl=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.model_zl = model_zl
+        self.unlabeled = unlabeled
 
     def accuracy(self):
         model, cls = (
@@ -74,6 +76,15 @@ class AnnotationDataLoader(ScviDataLoader):
         return uca
 
     unsupervised_classification_accuracy.mode = "max"
+
+    @torch.no_grad()
+    def elbo(self) -> torch.Tensor:
+        """Returns the Evidence Lower Bound associated to the object."""
+        elbo = compute_elbo(self.model, self, feed_labels=not self.unlabeled)
+        logger.debug("ELBO : %.4f" % elbo)
+        return elbo
+
+    elbo.mode = "min"
 
     @torch.no_grad()
     def nn_latentspace(self, data_loader):

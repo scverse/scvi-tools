@@ -88,10 +88,6 @@ class ArchesMixin:
         _validate_var_names(adata, var_names)
 
         transfer_anndata_setup(scvi_setup_dict, adata, extend_categories=True)
-        # for scanvi, any new labels in query cannot be used to extend the model
-        adata.uns["_scvi"]["summary_stats"]["n_labels"] = scvi_setup_dict[
-            "summary_stats"
-        ]["n_labels"]
 
         model = _initialize_model(cls, adata, attr_dict, use_cuda)
 

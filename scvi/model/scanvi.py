@@ -4,6 +4,8 @@ from typing import Optional, Sequence, Union
 import numpy as np
 import pandas as pd
 from anndata import AnnData
+from pandas.api.types import CategoricalDtype
+
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
@@ -83,6 +85,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     ):
         super(SCANVI, self).__init__(adata, use_cuda=use_cuda)
         self.unlabeled_category_ = unlabeled_category
+        remapped_labels = self._set_indices_reset_label_mapping()
 
         if pretrained_model is not None:
             if pretrained_model.is_trained is False:
@@ -102,10 +105,17 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 **model_kwargs,
             )
             self._is_trained_base = False
+
+        # ignores unlabelled catgegory
+        n_labels = (
+            self.summary_stats["n_labels"] - 1
+            if remapped_labels
+            else self.summary_stats["n_labels"]
+        )
         self.model = SCANVAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
-            n_labels=self.summary_stats["n_labels"],
+            n_labels=n_labels,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
@@ -115,20 +125,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             **model_kwargs,
         )
 
-        # get indices for labeled and unlabeled cells
-        key = self.scvi_setup_dict_["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
-        self._label_mapping = self.scvi_setup_dict_["categorical_mappings"][key][
-            "mapping"
-        ]
-        original_key = self.scvi_setup_dict_["categorical_mappings"][key][
-            "original_key"
-        ]
-        labels = np.asarray(self.adata.obs[original_key]).ravel()
-        self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
-        self._unlabeled_indices = np.argwhere(
-            labels == self.unlabeled_category_
-        ).ravel()
-        self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
         self.unsupervised_history_ = None
         self.semisupervised_history_ = None
 
@@ -145,6 +141,61 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             gene_likelihood,
         )
         self.init_params_ = self._get_init_params(locals())
+
+    def _set_indices_reset_label_mapping(self):
+        """
+        Set indices and make unlabeled cat as the last cat.
+
+        Returns
+        -------
+        True is categories reordered else False
+        """
+        # get indices for labeled and unlabeled cells
+        key = self.scvi_setup_dict_["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
+        self._label_mapping = self.scvi_setup_dict_["categorical_mappings"][key][
+            "mapping"
+        ]
+        original_key = self.scvi_setup_dict_["categorical_mappings"][key][
+            "original_key"
+        ]
+        labels = np.asarray(self.adata.obs[original_key]).ravel()
+        # set unlabeled and labeled indices
+        self._unlabeled_indices = np.argwhere(
+            labels == self.unlabeled_category_
+        ).ravel()
+        self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
+
+        # reset mapping
+        unlabeled_ind = None
+        for i, m in enumerate(self._label_mapping):
+            if m == self.unlabeled_category_:
+                unlabeled_ind = i
+
+        if unlabeled_ind is not None:
+            # exchange last category with unknown and remap
+            last_cat = self._label_mapping[-1]
+            self._label_mapping[-1] = self.unlabeled_category_
+            self._label_mapping[unlabeled_ind] = last_cat
+            self.scvi_setup_dict_["categorical_mappings"][key][
+                "mapping"
+            ] = self._label_mapping
+            self.adata.uns["_scvi"]["categorical_mappings"][key][
+                "mapping"
+            ] = self._label_mapping
+
+            # place new codes in same location
+            self.adata.obs[key] = (
+                self.adata.obs[original_key]
+                .astype(CategoricalDtype(categories=self._label_mapping, ordered=True))
+                .cat.codes
+            )
+            remapped = True
+        else:
+            remapped = False
+
+        self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
+
+        return remapped
 
     @property
     def _trainer_class(self):
