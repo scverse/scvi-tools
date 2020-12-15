@@ -166,7 +166,7 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
         + "the anndata used to train the model and the anndata just passed in. "
         + "Categorical encoding needs to be same elements, same order, and same datatype.\n"
         + "Expected categories: {}. Received categories: {}.\n"
-        + "Try running `dataset.transfer_anndata_setup()` or deleting `adata.uns['_scvi']."
+        + "Try running `scvi.data.transfer_anndata_setup()` or deleting `adata.uns['_scvi']."
     )
     if not _assert_equal_mapping(self_batch_mapping, adata_batch_mapping):
         raise ValueError(
