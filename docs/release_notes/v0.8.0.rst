@@ -38,3 +38,7 @@ Important changes
 - The default latent distribtuion for `TOTALVI` is now `"normal"`.
 - Autotune was removed from this release. We could not maintain the code given the new API changes and we will soon have alternative ways to tune hyperparameters.
 
+Bug fixes
+~~~~~~~~~
+
+- Fixed an issue where the unlabeled category affected the SCANVI architecture prior distribution.
