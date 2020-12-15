@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Tuple, Optional
+from typing import Dict, Tuple, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -8,8 +8,34 @@ from ._decorators import auto_move_data
 
 
 class SCVILoss:
-    def __init__(self, loss, reconstruction_loss, kl_local, kl_global):
+    """
+    Loss signature for models.
 
+    This class provides an organized way to record the model loss, as well as
+    the components of the ELBO. This may also be used in MLE, MAP, EM methods.
+    The loss is used for backpropagation during infernce. The other parameters
+    are used for logging/early stopping during inference.
+
+    Parameters
+    ----------
+    loss
+        Tensor with loss for minibatch. Should be one dimensional with one value.
+        Note that loss should be a :class:`~torch.Tensor` and not the result of `.item()`.
+    reconstruction_loss
+        Reconstruction loss for each observation in the minibatch.
+    kl_local
+        KL divergence associated with each observation in the minibatch.
+    kl_global
+        Global kl divergence term. Should be one dimensional with one value.
+    """
+
+    def __init__(
+        self,
+        loss: torch.Tensor,
+        reconstruction_loss: torch.Tensor,
+        kl_local: torch.Tensor,
+        kl_global: torch.Tensor,
+    ):
         self._loss = loss if isinstance(loss, dict) else dict(loss=loss)
         self._reconstruction_loss = (
             reconstruction_loss
@@ -31,19 +57,19 @@ class SCVILoss:
         return sum
 
     @property
-    def loss(self):
+    def loss(self) -> torch.Tensor:
         return self._get_dict_sum(self._loss)
 
     @property
-    def reconstruction_loss(self):
+    def reconstruction_loss(self) -> torch.Tensor:
         return self._get_dict_sum(self._reconstruction_loss)
 
     @property
-    def kl_local(self):
+    def kl_local(self) -> torch.Tensor:
         return self._get_dict_sum(self._kl_local)
 
     @property
-    def kl_global(self):
+    def kl_global(self) -> torch.Tensor:
         return self._get_dict_sum(self._kl_global)
 
     @property
@@ -67,7 +93,9 @@ class AbstractVAE(nn.Module):
         generative_kwargs: Optional[dict] = None,
         loss_kwargs: Optional[dict] = None,
         compute_loss=True,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Union[
+        Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor, SCVILoss]
+    ]:
         """
         Forward pass through the network.
 
@@ -112,11 +140,18 @@ class AbstractVAE(nn.Module):
             return inference_outputs, generative_outputs
 
     @abstractmethod
-    def _get_inference_input(self, tensors, **kwargs):
+    def _get_inference_input(self, tensors: Dict[str, torch.Tensor], **kwargs):
+        """Parse tensors dictionary for inference related values."""
         pass
 
     @abstractmethod
-    def _get_generative_input(self, tensors, inference_outputs, **kwargs):
+    def _get_generative_input(
+        self,
+        tensors: Dict[str, torch.Tensor],
+        inference_outputs: Dict[str, torch.Tensor],
+        **kwargs,
+    ):
+        """Parse tensors dictionary for inference related values."""
         pass
 
     @abstractmethod
@@ -124,19 +159,39 @@ class AbstractVAE(nn.Module):
         self,
         *args,
         **kwargs,
-    ):
+    ) -> dict:
+        """
+        Run the inference (recognition) model.
+
+        In the case of variational inference, this function will perform steps related to
+        computing variational distribution parameters. In a VAE, this will involve running
+        data through encoder networks.
+        """
         pass
 
     @abstractmethod
-    def generative(self, *args, **kwargs):
+    def generative(self, *args, **kwargs) -> dict:
+        """
+        Run the generative model.
+
+        This function should return the parameters associated with the likelihood of the data.
+        This is typically written as :math:`p(x|z)`.
+        """
         pass
 
     @abstractmethod
-    def loss(self, *args, **kwargs):
+    def loss(self, *args, **kwargs) -> SCVILoss:
+        """
+        Compute the loss for a minibatch of data.
+
+        This function uses the outputs of the inference and generative functions to compute
+        a loss. This many optionally include other penalty terms, which should be computed here.
+        """
         pass
 
     @abstractmethod
     def sample(self, *args, **kwargs):
+        """Generate samples from the learned model."""
         pass
 
 
