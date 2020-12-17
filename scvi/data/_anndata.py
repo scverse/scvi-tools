@@ -1114,8 +1114,8 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
     """
     Checks if target setup is equivalent to source.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     adata_source
         Either AnnData already setup or scvi_setup_dict as the source
     adata_target
