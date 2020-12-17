@@ -4,7 +4,7 @@ New in 0.8.0 (2020-MM-DD)
 Enhancements
 ~~~~~~~~~~~~
 
-Online updates of `SCVI`, `SCANVI`, and `TOTALVI` with the scArches method
+Online updates of :class:`~scvi.model.SCVI`, :class:`~scvi.model.SCANVI`, and :class:`~scvi.model.TOTALVI` with the scArches method
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It is now possible to iteratively update these models with new samples, without altering the model for the "reference" population.
@@ -27,13 +27,21 @@ per batch, if the `batch_key` was registered. We emphasize this is just for the 
 Use observed library size option
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Many of our models like `SCVI`, `SCANVI`, and `TOTALVI` learn a latent library size variable.
+Many of our models like `SCVI`, `SCANVI`, and :class:`~scvi.model.TOTALVI` learn a latent library size variable.
 The option `use_observed_lib_size` may now be passed on model initialization. We have set this as `True` by default,
 as we see no regression in performance, and training is a bit faster.
 
 Important changes
 ~~~~~~~~~~~~~~~~~
 
-- To facilitate these enhancements, saved models from previous versions will not load properly.
-- The default latent distribtuion for `TOTALVI` is now `"normal"`.
+- To facilitate these enhancements, saved :class:`~scvi.model.TOTALVI` models from previous versions will not load properly. This is due to an architecture change of the totalVI encoder, related to latent library size handling.
+- The default latent distribtuion for :class:`~scvi.model.TOTALVI` is now `"normal"`.
+- Autotune was removed from this release. We could not maintain the code given the new API changes and we will soon have alternative ways to tune hyperparameters.
+- Protein names during :func:`~scvi.data.setup_anndata` are now stored in `adata.uns["_scvi"]["protein_names"]`, instead of `adata.uns["scvi_protein_names"]`.
+-
+
+Bug fixes
+~~~~~~~~~
+
+- Fixed an issue where the unlabeled category affected the SCANVI architecture prior distribution. Unfortunately, by fixing this bug, loading previously trained (<v0.8.0) :class:`~scvi.model.SCANVI` models will fail.
 

@@ -136,6 +136,8 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
 
     """
 
+    default_metrics_to_monitor = ["reconstruction_error"]
+
     def __init__(
         self,
         model,
@@ -198,7 +200,8 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         self.unlabelled_set = self.create_scvi_dl(indices=indices_unlabelled)
 
         for scdl in [self.labelled_set, self.unlabelled_set]:
-            scdl.to_monitor = ["reconstruction_error", "accuracy"]
+            scdl.to_monitor = ["elbo", "reconstruction_error", "accuracy"]
+        self.unlabelled_set.unlabeled = True
 
     @property
     def scvi_data_loaders_loop(self):

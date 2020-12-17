@@ -16,7 +16,7 @@ from rich.console import Console
 import scvi
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.data._utils import (
+from ._utils import (
     _check_nonnegative_integers,
     _compute_library_size_batch,
     _get_batch_mask_protein_data,
@@ -1108,3 +1108,98 @@ def _categorical_mappings_table(title: str, scvi_column: str, mappings: dict):
         else:
             t.add_row("", str(cat), str(i))
     return t
+
+
+def _check_anndata_setup_equivalence(adata_source, adata_target):
+    """
+    Checks if target setup is equivalent to source.
+
+    Parameters
+    ----------
+    adata_source
+        Either AnnData already setup or scvi_setup_dict as the source
+    adata_target
+        Target AnnData to check setup equivalence
+    """
+    if isinstance(adata_source, anndata.AnnData):
+        _scvi_dict = adata_source.uns["_scvi"]
+    else:
+        _scvi_dict = adata_source
+    adata = adata_target
+
+    stats = _scvi_dict["summary_stats"]
+
+    target_n_vars = adata.shape[1]
+    error_msg = (
+        "Number of {} in anndata different from initial anndata used for training."
+    )
+    if target_n_vars != stats["n_vars"]:
+        raise ValueError(error_msg.format("vars"))
+
+    error_msg = (
+        "There are more {} categories in the data than were originally registered. "
+        + "Please check your {} categories as well as adata.uns['_scvi']['categorical_mappings']."
+    )
+    self_categoricals = _scvi_dict["categorical_mappings"]
+    self_batch_mapping = self_categoricals["_scvi_batch"]["mapping"]
+
+    adata_categoricals = adata.uns["_scvi"]["categorical_mappings"]
+    adata_batch_mapping = adata_categoricals["_scvi_batch"]["mapping"]
+
+    # check if mappings are equal or needs transfer
+    transfer_setup = _needs_transfer(self_batch_mapping, adata_batch_mapping, "batch")
+    self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
+    adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
+
+    transfer_setup = transfer_setup or _needs_transfer(
+        self_labels_mapping, adata_labels_mapping, "label"
+    )
+
+    # validate any extra categoricals
+    if "extra_categorical_mappings" in _scvi_dict.keys():
+        target_extra_cat_maps = adata.uns["_scvi"]["extra_categorical_mappings"]
+        for key, val in _scvi_dict["extra_categorical_mappings"].items():
+            target_map = target_extra_cat_maps[key]
+            transfer_setup = transfer_setup or _needs_transfer(val, target_map, key)
+    # validate any extra continuous covs
+    if "extra_continuous_keys" in _scvi_dict.keys():
+        if "extra_continuous_keys" not in adata.uns["_scvi"].keys():
+            raise ValueError('extra_continuous_keys not in adata.uns["_scvi"]')
+        target_cont_keys = adata.uns["_scvi"]["extra_continuous_keys"]
+        if not _scvi_dict["extra_continuous_keys"].equals(target_cont_keys):
+            raise ValueError(
+                "extra_continous_keys are not the same between source and target"
+            )
+    if transfer_setup:
+        transfer_anndata_setup(adata_source, adata_target)
+
+
+def _needs_transfer(mapping1, mapping2, category):
+    needs_transfer = False
+    error_msg = (
+        "Categorial encoding for {} is not the same between "
+        + "the anndata used to train and the anndata passed in. "
+        + "Categorical encoding needs to be same elements, same order, and same datatype.\n"
+        + "Expected categories: {}. Received categories: {}.\n"
+    )
+    warning_msg = (
+        "Categorical encoding for {} is similar but not equal between "
+        + "the anndata used to train and the anndata passed in. "
+        + "Will attempt transfer. Expected categories: {}. Received categories: {}.\n "
+    )
+    if _is_equal_mapping(mapping1, mapping2):
+        needs_transfer = False
+    elif _is_similar_mapping(mapping1, mapping2):
+        needs_transfer = True
+        logger.warning(warning_msg.format(category, mapping1, mapping2))
+    else:
+        raise ValueError(error_msg.format(category, mapping1, mapping2))
+    return needs_transfer
+
+
+def _is_similar_mapping(mapping1, mapping2):
+    return (set(mapping1) == set(mapping2)) and (len(mapping1) == len(mapping2))
+
+
+def _is_equal_mapping(mapping1, mapping2):
+    return pd.Index(mapping1).equals(pd.Index(mapping2))
