@@ -136,8 +136,6 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
 
     """
 
-    default_metrics_to_monitor = ["reconstruction_error"]
-
     def __init__(
         self,
         model,
@@ -201,7 +199,9 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
 
         for scdl in [self.labelled_set, self.unlabelled_set]:
             scdl.to_monitor = ["elbo", "reconstruction_error", "accuracy"]
+        # allow to track ELBO
         self.unlabelled_set.unlabeled = True
+        self.full_dataset.unlabeled = True
 
     @property
     def scvi_data_loaders_loop(self):
