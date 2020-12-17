@@ -37,6 +37,7 @@ Important changes
 - To facilitate these enhancements, saved `TOTALVI` models from previous versions will not load properly. This is due to an architecture change of the totalVI encoder, related to latent library size handling.
 - The default latent distribtuion for `TOTALVI` is now `"normal"`.
 - Autotune was removed from this release. We could not maintain the code given the new API changes and we will soon have alternative ways to tune hyperparameters.
+- Protein names during :func:`~scvi.data.setup_anndata` are now stored in `adata.uns["_scvi"]["protein_names"]`, instead of `adata.uns["scvi_protein_names"]`.
 
 Bug fixes
 ~~~~~~~~~
