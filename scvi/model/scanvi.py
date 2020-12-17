@@ -9,6 +9,7 @@ from pandas.api.types import CategoricalDtype
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
+from scvi.data._anndata import _make_obs_column_categorical
 from scvi.core.data_loaders import AnnotationDataLoader
 from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.modules import SCANVAE, VAE
@@ -85,7 +86,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     ):
         super(SCANVI, self).__init__(adata, use_cuda=use_cuda)
         self.unlabeled_category_ = unlabeled_category
-        remapped_labels = self._set_indices_reset_label_mapping()
+        has_unlabeled = self._set_indices_and_labels()
 
         if pretrained_model is not None:
             if pretrained_model.is_trained is False:
@@ -109,7 +110,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         # ignores unlabelled catgegory
         n_labels = (
             self.summary_stats["n_labels"] - 1
-            if remapped_labels
+            if has_unlabeled
             else self.summary_stats["n_labels"]
         )
         self.model = SCANVAE(
@@ -142,7 +143,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
-    def _set_indices_reset_label_mapping(self):
+    def _set_indices_and_labels(self):
         """
         Set indices and make unlabeled cat as the last cat.
 
@@ -152,49 +153,37 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         """
         # get indices for labeled and unlabeled cells
         key = self.scvi_setup_dict_["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
-        self._label_mapping = self.scvi_setup_dict_["categorical_mappings"][key][
-            "mapping"
-        ]
+        mapping = self.scvi_setup_dict_["categorical_mappings"][key]["mapping"]
         original_key = self.scvi_setup_dict_["categorical_mappings"][key][
             "original_key"
         ]
         labels = np.asarray(self.adata.obs[original_key]).ravel()
-        # set unlabeled and labeled indices
-        self._unlabeled_indices = np.argwhere(
-            labels == self.unlabeled_category_
-        ).ravel()
-        self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
 
-        # reset mapping
-        unlabeled_ind = None
-        for i, m in enumerate(self._label_mapping):
-            if m == self.unlabeled_category_:
-                unlabeled_ind = i
-
-        if unlabeled_ind is not None:
-            # exchange last category with unknown and remap
-            last_cat = self._label_mapping[-1]
-            self._label_mapping[-1] = self.unlabeled_category_
-            self._label_mapping[unlabeled_ind] = last_cat
-            self.scvi_setup_dict_["categorical_mappings"][key][
-                "mapping"
-            ] = self._label_mapping
-            self.adata.uns["_scvi"]["categorical_mappings"][key][
-                "mapping"
-            ] = self._label_mapping
-
-            # place new codes in same location
-            self.adata.obs[key] = (
-                self.adata.obs[original_key]
-                .astype(CategoricalDtype(categories=self._label_mapping, ordered=True))
-                .cat.codes
+        if self.unlabeled_category_ in labels:
+            unlabeled_idx = np.where(mapping == self.unlabeled_category_)
+            unlabeled_idx = unlabeled_idx[0][0]
+            # move unlabelled category to be the last position
+            mapping[unlabeled_idx], mapping[-1] = mapping[-1], mapping[unlabeled_idx]
+            cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
+            # rerun setup for the batch column
+            _make_obs_column_categorical(
+                self.adata,
+                original_key,
+                "_scvi_labels",
+                categorical_dtype=cat_dtype,
             )
             remapped = True
         else:
             remapped = False
 
+        self.scvi_setup_dict_ = self.adata.uns["_scvi"]
+        self._label_mapping = mapping
+        # set unlabeled and labeled indices
+        self._unlabeled_indices = np.argwhere(
+            labels == self.unlabeled_category_
+        ).ravel()
+        self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
         self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
-
         return remapped
 
     @property
@@ -321,7 +310,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             n_epochs=n_epochs_semisupervised,
             **semisupervised_train_kwargs,
         )
-
         self.is_trained_ = True
 
     def predict(
@@ -361,9 +349,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
             return np.array(predictions)
         else:
+            n_labels = len(pred[0])
             pred = pd.DataFrame(
                 pred,
-                columns=self._label_mapping,
+                columns=self._label_mapping[:n_labels],
                 index=adata.obs_names[indices],
             )
             return pred
