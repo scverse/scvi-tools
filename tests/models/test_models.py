@@ -101,10 +101,19 @@ def test_scvi():
     adata2 = synthetic_iid(run_setup_anndata=False)
     transfer_anndata_setup(adata, adata2)
     adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = np.array(
-        ["label_1", "label_0", "label_2"]
+        ["label_4", "label_0", "label_2"]
     )
     with pytest.raises(ValueError):
         model.get_elbo(adata2)
+
+    # test that same mapping different order doesn't raise error
+    adata = synthetic_iid()
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    transfer_anndata_setup(adata, adata2)
+    adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = np.array(
+        ["label_1", "label_0", "label_2"]
+    )
+    model.get_elbo(adata2)  # should automatically transfer setup
 
     # test mismatched categories raises ValueError
     adata2 = synthetic_iid(run_setup_anndata=False)
@@ -381,10 +390,19 @@ def test_totalvi(save_path):
     adata2 = synthetic_iid(run_setup_anndata=False)
     transfer_anndata_setup(adata, adata2)
     adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = np.array(
-        ["label_1", "label_0", "label_2"]
+        ["label_1", "label_0", "label_8"]
     )
     with pytest.raises(ValueError):
         model.get_elbo(adata2)
+
+    # test that same mapping different order is okay
+    adata = synthetic_iid()
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    transfer_anndata_setup(adata, adata2)
+    adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = np.array(
+        ["label_1", "label_0", "label_2"]
+    )
+    model.get_elbo(adata2)  # should automatically transfer setup
 
     # test that we catch missing proteins
     adata2 = synthetic_iid(run_setup_anndata=False)
@@ -549,6 +567,21 @@ def test_scanvi_online_update(save_path):
     )
     model.get_latent_representation()
     model.predict()
+
+    # test saving and loading of online scanvi
+    a = scvi.data.synthetic_iid(run_setup_anndata=False)
+    ref = a[a.obs["labels"] != "label_2"].copy()  # only has labels 0 and 1
+    scvi.data.setup_anndata(ref, batch_key="batch", labels_key="labels")
+    m = scvi.model.SCANVI(ref, "label_2")
+    m.train(1, 1)
+    m.save(save_path, overwrite=True)
+    query = a[a.obs["labels"] != "label_0"].copy()
+    query = scvi.data.synthetic_iid()  # has labels 0 and 2. 2 is unknown
+    m_q = scvi.model.SCANVI.load_query_data(query, save_path)
+    m_q.save(save_path, overwrite=True)
+    m_q = scvi.model.SCANVI.load(save_path, query)
+    m_q.predict()
+    # TODO fix: m_q.get_elbo()
 
 
 def test_totalvi_online_update(save_path):
