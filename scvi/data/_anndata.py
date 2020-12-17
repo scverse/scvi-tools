@@ -1111,7 +1111,9 @@ def _categorical_mappings_table(title: str, scvi_column: str, mappings: dict):
 
 
 def _check_anndata_setup_equivalence(adata_source, adata_target):
-    """Checks if target setup is equivalent to source.
+    """
+    Checks if target setup is equivalent to source.
+
     Parameters:
     -----------
     adata_source
@@ -1143,8 +1145,8 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
 
     adata_categoricals = adata.uns["_scvi"]["categorical_mappings"]
     adata_batch_mapping = adata_categoricals["_scvi_batch"]["mapping"]
-    # check if the categories are the same
 
+    # check if mappings are equal or needs transfer
     transfer_setup = _needs_transfer(self_batch_mapping, adata_batch_mapping, "batch")
     self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
     adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
