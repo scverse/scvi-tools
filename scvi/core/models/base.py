@@ -13,10 +13,8 @@ from rich.text import Text
 
 from scvi import _CONSTANTS, settings
 from scvi.data import get_from_registry, transfer_anndata_setup
-from scvi.data._utils import (
-    _check_anndata_setup_equivalence,
-    _check_nonnegative_integers,
-)
+from scvi.data._anndata import _check_anndata_setup_equivalence
+from scvi.data._utils import _check_nonnegative_integers
 from scvi.core.models._utils import (
     _initialize_model,
     _load_saved_files,
