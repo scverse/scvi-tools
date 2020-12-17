@@ -87,6 +87,11 @@ class ArchesMixin:
             adata._inplace_subset_var(var_names)
         _validate_var_names(adata, var_names)
 
+        if scvi_setup_dict["scvi_version"] < "0.8":
+            logger.warning(
+                "Query integration should be performed using models trained with version >= 0.8"
+            )
+
         transfer_anndata_setup(scvi_setup_dict, adata, extend_categories=True)
 
         model = _initialize_model(cls, adata, attr_dict, use_cuda)

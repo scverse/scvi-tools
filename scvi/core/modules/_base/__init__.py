@@ -1,5 +1,4 @@
 import collections
-from functools import partial
 from typing import Iterable, List
 
 import torch
@@ -82,7 +81,7 @@ class FCLayers(nn.Module):
             collections.OrderedDict(
                 [
                     (
-                        "Layer_{}".format(i),
+                        "Layer {}".format(i),
                         nn.Sequential(
                             nn.Linear(
                                 n_in + cat_dim * self.inject_into_layer(i),
@@ -315,8 +314,6 @@ class DecoderSCVI(nn.Module):
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
-    use_softmax
-        Whether to softmax expression
     """
 
     def __init__(
@@ -329,10 +326,8 @@ class DecoderSCVI(nn.Module):
         inject_covariates: bool = True,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
-        use_softmax: bool = True,
     ):
         super().__init__()
-        self.use_softmax = use_softmax
         self.px_decoder = FCLayers(
             n_in=n_input,
             n_out=n_hidden,
@@ -346,7 +341,9 @@ class DecoderSCVI(nn.Module):
         )
 
         # mean gamma
-        self.px_scale_decoder = nn.Linear(n_hidden, n_output)
+        self.px_scale_decoder = nn.Sequential(
+            nn.Linear(n_hidden, n_output), nn.Softmax(dim=-1)
+        )
 
         # dispersion: here we only deal with gene-cell dispersion case
         self.px_r_decoder = nn.Linear(n_hidden, n_output)
@@ -389,10 +386,6 @@ class DecoderSCVI(nn.Module):
         # The decoder returns values for the parameters of the ZINB distribution
         px = self.px_decoder(z, *cat_list)
         px_scale = self.px_scale_decoder(px)
-        if self.use_softmax:
-            px_scale = nn.Softmax(dim=-1)(px_scale)
-        else:
-            px_scale = torch.exp(px_scale)
         px_dropout = self.px_dropout_decoder(px)
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
         px_rate = torch.exp(library) * px_scale  # torch.clamp( , max=12)
@@ -409,10 +402,8 @@ class LinearDecoderSCVI(nn.Module):
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         bias: bool = False,
-        use_softmax: bool = True,
     ):
         super(LinearDecoderSCVI, self).__init__()
-        self.use_softmax = use_softmax
 
         # mean gamma
         self.factor_regressor = FCLayers(
@@ -445,8 +436,7 @@ class LinearDecoderSCVI(nn.Module):
     ):
         # The decoder returns values for the parameters of the ZINB distribution
         raw_px_scale = self.factor_regressor(z, *cat_list)
-        act = partial(torch.softmax, dim=-1) if self.use_softmax else torch.exp
-        px_scale = act(raw_px_scale)
+        px_scale = torch.softmax(raw_px_scale, dim=-1)
         px_dropout = self.px_dropout_decoder(z, *cat_list)
         px_rate = torch.exp(library) * px_scale
         px_r = None
@@ -680,8 +670,6 @@ class DecoderTOTALVI(nn.Module):
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
-    use_softmax
-        Whether to use softmax for px_scale
     """
 
     def __init__(
@@ -695,12 +683,10 @@ class DecoderTOTALVI(nn.Module):
         dropout_rate: float = 0,
         use_batch_norm: float = True,
         use_layer_norm: float = False,
-        use_softmax: bool = True,
     ):
         super().__init__()
         self.n_output_genes = n_output_genes
         self.n_output_proteins = n_output_proteins
-        self.use_softmax = use_softmax
 
         linear_args = dict(
             n_layers=1,
@@ -843,10 +829,7 @@ class DecoderTOTALVI(nn.Module):
         px = self.px_decoder(z, *cat_list)
         px_cat_z = torch.cat([px, z], dim=-1)
         unnorm_px_scale = self.px_scale_decoder(px_cat_z, *cat_list)
-        if self.use_softmax:
-            px_["scale"] = nn.Softmax(dim=-1)(unnorm_px_scale)
-        else:
-            px_["scale"] = torch.exp(unnorm_px_scale)
+        px_["scale"] = nn.Softmax(dim=-1)(unnorm_px_scale)
         px_["rate"] = library_gene * px_["scale"]
 
         py_back = self.py_back_decoder(z, *cat_list)
