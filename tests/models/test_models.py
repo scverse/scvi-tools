@@ -563,7 +563,10 @@ def test_scanvi_online_update(save_path):
     model2._unlabeled_indices = np.arange(adata2.n_obs)
     model2._labeled_indices = []
     model2.train(
-        n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
+        n_epochs_unsupervised=1,
+        n_epochs_semisupervised=1,
+        train_base_model=False,
+        semisupervised_trainer_kwargs=dict(weight_decay=0.0),
     )
     model2.get_latent_representation()
     model2.predict()
