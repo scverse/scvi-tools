@@ -449,7 +449,7 @@ def test_scvi_online_update(save_path):
         .weight.detach()
         .numpy()[:, : adata1.shape[1]]
     )
-    np.testing.assert_allclose(one, two, atol=1e-07)
+    np.testing.assert_equal(one, two)
     assert (
         np.sum(
             model2.model.z_encoder.encoder.fc_layers[0][0].weight.grad.numpy()[
@@ -559,14 +559,40 @@ def test_scanvi_online_update(save_path):
     new_labels[0] = "Unknown"
     adata2.obs["labels"] = pd.Categorical(new_labels)
 
-    model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
-    model._unlabeled_indices = np.arange(adata2.n_obs)
-    model._labeled_indices = []
-    model.train(
+    model2 = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
+    model2._unlabeled_indices = np.arange(adata2.n_obs)
+    model2._labeled_indices = []
+    model2.train(
         n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
     )
-    model.get_latent_representation()
-    model.predict()
+    model2.get_latent_representation()
+    model2.predict()
+
+    # test classifier frozen
+    class_query_weight = (
+        model2.model.classifier.classifier[0].fc_layers[0][0].weight.detach().numpy()
+    )
+    class_ref_weight = (
+        model.model.classifier.classifier[0].fc_layers[0][0].weight.detach().numpy()
+    )
+    # weight decay makes difference
+    np.testing.assert_allclose(class_query_weight, class_ref_weight, atol=1e-07)
+
+    # test classifier unfrozen
+    model2 = SCANVI.load_query_data(adata2, dir_path, freeze_classifier=False)
+    model2._unlabeled_indices = np.arange(adata2.n_obs)
+    model2._labeled_indices = []
+    model2.train(
+        n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
+    )
+    class_query_weight = (
+        model2.model.classifier.classifier[0].fc_layers[0][0].weight.detach().numpy()
+    )
+    class_ref_weight = (
+        model.model.classifier.classifier[0].fc_layers[0][0].weight.detach().numpy()
+    )
+    with pytest.raises(AssertionError):
+        np.testing.assert_allclose(class_query_weight, class_ref_weight, atol=1e-07)
 
     # test saving and loading of online scanvi
     a = scvi.data.synthetic_iid(run_setup_anndata=False)
