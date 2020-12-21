@@ -238,6 +238,8 @@ def test_extra_covariates():
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )
+    m = scvi.model.SCVI(adata)
+    m.train(1)
     df1 = adata.obsm["_scvi_extra_continuous"]
     df2 = adata.obs[["cont1", "cont2"]]
     pd.testing.assert_frame_equal(df1, df2)
