@@ -1179,7 +1179,9 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
         if "extra_continuous_keys" not in adata.uns["_scvi"].keys():
             raise ValueError('extra_continuous_keys not in adata.uns["_scvi"]')
         target_cont_keys = adata.uns["_scvi"]["extra_continuous_keys"]
-        if not _scvi_dict["extra_continuous_keys"].equals(target_cont_keys):
+        source_cont_keys = _scvi_dict["extra_continuous_keys"]
+        n_keys = len(target_cont_keys)
+        if np.sum(source_cont_keys == target_cont_keys) != n_keys:
             raise ValueError(
                 "extra_continous_keys are not the same between source and target"
             )
