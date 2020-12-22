@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Sequence
+from typing import Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -88,7 +88,7 @@ class VAEMixin:
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
-    ) -> float:
+    ) -> Union[float, Dict[str, float]]:
         r"""
         Return the reconstruction error for the data.
 
