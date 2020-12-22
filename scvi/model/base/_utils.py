@@ -56,14 +56,26 @@ def _initialize_model(cls, adata, attr_dict, use_gpu):
     # get the parameters for the class init signiture
     init_params = attr_dict.pop("init_params_")
 
-    # update use_gpu from the saved model
-    init_params["use_gpu"] = use_gpu
+    # new saving and loading, enable backwards compatibility
+    if "non_kwargs" in init_params.keys():
+        # grab all the parameters execept for kwargs (is a dict)
+        non_kwargs = init_params["non_kwargs"]
+        kwargs = init_params["kwargs"]
 
-    # grab all the parameters execept for kwargs (is a dict)
-    non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
-    # expand out kwargs
-    kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
-    kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+        # update use_gpu from the saved model
+        # we assume use_gpu is exposed and not a kwarg
+        non_kwargs["use_gpu"] = use_gpu
+
+        # expand out kwargs
+        kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+    else:
+        init_params["use_gpu"] = use_gpu
+
+        # grab all the parameters execept for kwargs (is a dict)
+        non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
+        kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
+        kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+
     model = cls(adata, **non_kwargs, **kwargs)
 
     return model
