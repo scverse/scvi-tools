@@ -192,6 +192,7 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
             silent=True,
             frequency=0,
             sampling_model=self.model,
+            **kwargs,
         )
         self.full_dataset = self.create_scvi_dl(shuffle=True)
         self.labelled_set = self.create_scvi_dl(indices=indices_labelled)
