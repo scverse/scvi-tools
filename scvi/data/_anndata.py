@@ -1198,7 +1198,11 @@ def _needs_transfer(mapping1, mapping2, category):
 
 
 def _is_similar_mapping(mapping1, mapping2):
-    return (set(mapping1) == set(mapping2)) and (len(mapping1) == len(mapping2))
+    """Returns True if mapping2 is a subset of mapping1."""
+    if len(set(mapping2) - set(mapping1)) == 0:
+        return True
+    else:
+        return False
 
 
 def _is_equal_mapping(mapping1, mapping2):

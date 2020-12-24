@@ -96,6 +96,16 @@ def test_transfer_anndata_setup():
     assert adata2.obs["_scvi_batch"][0] == 0
     assert adata2.obs["_scvi_labels"][0] == 0
 
+    # test that if a category mapping is a subset, transfer anndata is called
+    a1 = scvi.data.synthetic_iid()
+    a2 = scvi.data.synthetic_iid(run_setup_anndata=False)
+    a2.obs["batch"] = "batch_1"
+    scvi.data.setup_anndata(a2, batch_key="batch")
+    m = scvi.model.SCVI(a1)
+    m.train(1)
+    m.get_latent_representation(a2)
+    assert a2.obs["_scvi_batch"].all() == 1
+
 
 def test_data_format():
     # if data was dense np array, check after setup_anndata, data is C_CONTIGUOUS

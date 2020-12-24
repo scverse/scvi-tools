@@ -185,6 +185,9 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
             indices_labelled = permutation_idx[indices[:total_labelled]]
             indices_unlabelled = permutation_idx[indices[total_labelled:]]
 
+        class_kwargs = {}
+        if "weight_decay" in kwargs.keys():
+            class_kwargs["weight_decay"] = kwargs["weight_decay"]
         self.classifier_trainer = ClassifierTrainer(
             model.classifier,
             self.adata,
@@ -192,6 +195,7 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
             silent=True,
             frequency=0,
             sampling_model=self.model,
+            **class_kwargs,
         )
         self.full_dataset = self.create_scvi_dl(shuffle=True)
         self.labelled_set = self.create_scvi_dl(indices=indices_labelled)
