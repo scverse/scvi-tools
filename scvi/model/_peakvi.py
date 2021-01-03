@@ -114,7 +114,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
         max_epochs=2000,
         train_size=0.9,
         validation_size=None,
-        lr=1e-4,
+        lr=1e-3,
         n_steps_kl_warmup=None,
         n_epochs_kl_warmup=50,
         **kwargs,

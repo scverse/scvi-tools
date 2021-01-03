@@ -226,7 +226,7 @@ class PEAKVAE(AbstractVAE):
         f = torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
         rl = self.get_reconstruction_loss(p, d, f, x)
 
-        loss = (rl + kld * kl_weight).sum()
+        loss = (rl + kld * kl_weight).mean()
 
         # last term is for potential global KL terms
         return SCVILoss(loss, rl, kld, 0.0)
