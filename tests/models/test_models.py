@@ -4,7 +4,7 @@ import pytest
 
 import scvi
 from scvi.data import synthetic_iid, transfer_anndata_setup, setup_anndata
-from scvi.model import SCVI, SCANVI, TOTALVI, LinearSCVI, AUTOZI
+from scvi.model import SCVI, SCANVI, TOTALVI, LinearSCVI, AUTOZI, PEAKVI
 from scvi.dataloaders import SemiSupervisedDataLoader
 
 from scipy.sparse import csr_matrix
@@ -470,3 +470,14 @@ def test_multiple_covariates(save_path):
 
     m = TOTALVI(adata)
     m.train(1)
+
+def test_peakvi():
+    data = synthetic_iid(n_batches=1)
+    vae = PEAKVI(
+        data,
+    )
+    vae.train(1)
+    vae.get_elbo(indices=vae.validation_indices)
+    vae.get_imputed_values()
+    vae.get_reconstruction_error(indices=vae.validation_indices)
+    vae.get_latent_representation()

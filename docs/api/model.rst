@@ -4,6 +4,14 @@ Model
 
 .. currentmodule:: scvi
 
+peakVI
+~~~~~~
+
+.. autosummary::
+   :toctree: reference/
+
+   model.PEAKVI
+
 scVI
 ~~~~
 
