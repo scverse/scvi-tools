@@ -111,31 +111,66 @@ class PEAKVI(VAEMixin, BaseModelClass):
 
     def train(
         self,
-        max_epochs=2000,
-        train_size=0.9,
-        validation_size=None,
-        lr=1e-3,
-        n_steps_kl_warmup=None,
-        n_epochs_kl_warmup=50,
+        max_epochs: int = 2000,
+        lr: float = 1e-3,
+        use_gpu: Optional[bool] = None,
+        train_size: float = 0.9,
+        validation_size: Optional[float] = None,
+        n_steps_kl_warmup: Union[int, None] = None,
+        n_epochs_kl_warmup: Union[int, None] = 50,
+        vae_task_kwargs: Optional[dict] = None,
         **kwargs,
     ):
-        task_kwargs = dict(
+        """
+        Trains the model using amortized variational inference.
+
+        Parameters
+        ----------
+        max_epochs
+            Number of passes through the dataset.
+        lr
+            Learning rate for optimization.
+        use_gpu
+            If `True`, use the GPU if available.
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        validation_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        n_steps_kl_warmup
+            Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
+            Only activated when `n_epochs_kl_warmup` is set to None. If `None`, defaults
+            to `floor(0.75 * adata.n_obs)`.
+        n_epochs_kl_warmup
+            Number of epochs to scale weight on KL divergences from 0 to 1.
+            Overrides `n_steps_kl_warmup` when both are not `None`.
+        vae_task_kwargs
+            Keyword args for :class:`~scvi.lightning.VAETask`. Keyword arguments passed to
+            `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
+        **kwargs
+            Other keyword args for :class:`~scvi.lightning.Trainer`.
+        """
+        update_dict = dict(
             weight_decay=1e-3,
             lr=lr,
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             n_steps_kl_warmup=n_steps_kl_warmup,
         )
+        if vae_task_kwargs is not None:
+            vae_task_kwargs.update(update_dict)
+        else:
+            vae_task_kwargs = update_dict
         super().train(
             max_epochs=max_epochs,
             train_size=train_size,
+            use_gpu=use_gpu,
             validation_size=validation_size,
             early_stopping=True,
             early_stopping_monitor="reconstruction_loss_validation",
             early_stopping_patience=100,
-            vae_task_kwargs=task_kwargs,
+            vae_task_kwargs=vae_task_kwargs,
             **kwargs,
         )
-        self.is_trained_ = True
 
     @torch.no_grad()
     def get_library_size_factors(
