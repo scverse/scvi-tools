@@ -1,24 +1,27 @@
 import logging
+from functools import partial
+from typing import Iterable, Optional, Sequence, Union
+
+import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-import numpy as np
-from functools import partial
-from typing import Optional, Sequence, Union
+from scipy.sparse import csr_matrix, vstack
 
 from scvi._compat import Literal
+from scvi._docs import doc_differential_expression
+from scvi._utils import _doc_params
+from scvi.dataloaders import ScviDataLoader
+from scvi.lightning import VAETask
 from scvi.modules import PEAKVAE
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
+    scrna_raw_counts_properties,
 )
+
 from .base import BaseModelClass, VAEMixin
-
-from scipy.sparse import csr_matrix, vstack
-from scvi.dataloaders import ScviDataLoader
-from scvi.lightning import VAETask
-from scvi.utils import DifferentialComputation
-
+from .base._utils import _de_core
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +208,6 @@ class PEAKVI(VAEMixin, BaseModelClass):
 
         # TODO: enable depth correction
         # TODO: remove technical effects? Zero-out some parts of the s tensor.
-        # TODO: user-defined batch size
         imputed = []
         for tensors in post:
             # TODO implement iteration over multiple batches like in RNAMixin
@@ -228,30 +230,85 @@ class PEAKVI(VAEMixin, BaseModelClass):
             imputed = torch.cat(imputed).numpy()
         return imputed
 
+    @_doc_params(
+        doc_differential_expression=doc_differential_expression,
+    )
     def differential_accessibility(
         self,
-        groupby,
-        group1,
-        group2=None,
-        adata=None,
-        mode="vanilla",
-        use_permutation=False,
-    ):
-        adata = self._validate_anndata(adata)
-        cell_idx1 = adata.obs[groupby] == group1
-        if group2 is None:
-            cell_idx2 = ~cell_idx1
-        else:
-            cell_idx2 = adata.obs[groupby] == group2
+        adata: Optional[AnnData] = None,
+        groupby: Optional[str] = None,
+        group1: Optional[Iterable[str]] = None,
+        group2: Optional[str] = None,
+        idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
+        idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
+        mode: Literal["vanilla", "change"] = "change",
+        delta: float = 0.25,
+        batch_size: Optional[int] = None,
+        all_stats: bool = True,
+        batch_correction: bool = False,
+        batchid1: Optional[Iterable[str]] = None,
+        batchid2: Optional[Iterable[str]] = None,
+        fdr_target: float = 0.05,
+        two_sided: bool = True,
+        **kwargs,
+    ) -> pd.DataFrame:
+        r"""
+        A unified method for differential expression analysis.
 
-        model_fn = partial(self.get_imputed_values, use_z_mean=False)
-        dc = DifferentialComputation(model_fn, adata)
-        all_info = dc.get_bayes_factors(
-            cell_idx1, cell_idx2, mode=mode, use_permutation=use_permutation
+        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
+
+        Parameters
+        ----------
+        {doc_differential_expression}
+        two_sided
+            Whether to perform a two-sided test, or a one-sided test
+        **kwargs
+            Keyword args for :func:`scvi.utils.DifferentialComputation.get_bayes_factors`
+
+        Returns
+        -------
+        Differential accessibility DataFrame.
+        """
+        adata = self._validate_anndata(adata)
+        col_names = _get_var_names_from_setup_anndata(adata)
+        model_fn = partial(
+            self.get_imputed_values, use_z_mean=False, batch_size=batch_size
         )
 
-        region_names = _get_var_names_from_setup_anndata(adata)
-        res = pd.DataFrame(all_info, index=region_names)
-        sort_key = "proba_de" if mode == "change" else "bayes_factor"
-        res = res.sort_values(by=sort_key, ascending=False)
-        return res
+        # TODO check if change_fn in kwargs and raise error if so
+        def change_fn(a, b):
+            return a - b
+
+        if two_sided:
+
+            def m1_domain_fn(samples):
+                return np.abs(samples) >= delta
+
+        else:
+
+            def m1_domain_fn(samples):
+                return samples >= delta
+
+        result = _de_core(
+            adata,
+            model_fn,
+            groupby,
+            group1,
+            group2,
+            idx1,
+            idx2,
+            all_stats,
+            scrna_raw_counts_properties,
+            col_names,
+            mode,
+            batchid1,
+            batchid2,
+            delta,
+            batch_correction,
+            fdr_target,
+            change_fn=change_fn,
+            m1_domain_fn=m1_domain_fn,
+            **kwargs,
+        )
+
+        return result

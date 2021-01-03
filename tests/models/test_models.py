@@ -472,7 +472,7 @@ def test_multiple_covariates(save_path):
     m.train(1)
 
 def test_peakvi():
-    data = synthetic_iid(n_batches=1)
+    data = synthetic_iid()
     vae = PEAKVI(
         data,
     )
@@ -481,3 +481,4 @@ def test_peakvi():
     vae.get_imputed_values()
     vae.get_reconstruction_error(indices=vae.validation_indices)
     vae.get_latent_representation()
+    vae.differential_accessibility(groupby="labels", group1="label_1")
