@@ -194,6 +194,7 @@ class SCANVAE(VAE):
             w_y = self.classifier(z)
         return w_y
 
+    @auto_move_data
     def classification_loss(self, labelled_dataset):
         x = labelled_dataset[_CONSTANTS.X_KEY]
         y = labelled_dataset[_CONSTANTS.LABELS_KEY]
