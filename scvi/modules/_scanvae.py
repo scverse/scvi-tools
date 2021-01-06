@@ -18,7 +18,7 @@ class SCANVAE(VAE):
     """
     Single-cell annotation using variational inference.
 
-    This is an implementation of the scANVI model described in [Xu19]_,
+    This is an implementation of the scANVI model described in [Xu20]_,
     inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
 
     Parameters

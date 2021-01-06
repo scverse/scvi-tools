@@ -292,7 +292,11 @@ class BaseModelClass(ABC):
         task_kwargs = vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
         self._pl_task = task_class(self.model, len(self.train_indices_), **task_kwargs)
 
-        self.trainer.fit(self._pl_task, train_dl, val_dl)
+        if train_size == 1.0:
+            # circumvent the empty data loader problem if all dataset used for training
+            self.trainer.fit(self._pl_task, train_dl)
+        else:
+            self.trainer.fit(self._pl_task, train_dl, val_dl)
         try:
             self.history_ = self.trainer.logger.history
         except AttributeError:
