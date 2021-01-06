@@ -12,7 +12,8 @@ from scvi.compose import AbstractVAE, SCVILoss, auto_move_data
 class RNADeconv(AbstractVAE):
     """
     Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics:
-    Reimplementation of the ScModel module of Stereoscope : https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
+    Reimplementation of the ScModel module of Stereoscope [Anderssen20]_
+    https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
 
     Parameters
     ----------
@@ -20,12 +21,15 @@ class RNADeconv(AbstractVAE):
         Number of input genes
     n_labels
         Number of input cell types
+    model_kwargs
+        Additional kwargs
     """
 
     def __init__(
         self,
         n_genes: int,
         n_labels: int,
+        **model_kwargs,
     ):
         super().__init__()
         self.n_genes = n_genes
@@ -36,6 +40,12 @@ class RNADeconv(AbstractVAE):
         self.W = torch.nn.Parameter(
             torch.randn(self.n_genes, self.n_labels)
         )  # n_genes, n_cell types
+
+        if "ct_weight" in model_kwargs:
+            ct_weight = torch.tensor(model_kwargs["ct_prop"], dtype=torch.float32)
+        else:
+            ct_weight = torch.ones((self.n_labels,), dtype=torch.float32)
+        self.register_buffer("ct_weight", ct_weight)
 
     @torch.no_grad()
     def get_params(self) -> Tuple[np.ndarray]:
@@ -70,12 +80,14 @@ class RNADeconv(AbstractVAE):
         ].T  # cells per gene
         library = torch.sum(x, dim=1, keepdim=True)
         px_rate = library * px_scale
+        scaling_factor = self.ct_weight[y.long()[:, 0]]
 
         return dict(
             px_scale=px_scale,
             px_o=self.px_o,
             px_rate=px_rate,
             library=library,
+            scaling_factor=scaling_factor,
         )
 
     def loss(
@@ -88,9 +100,10 @@ class RNADeconv(AbstractVAE):
         x = tensors[_CONSTANTS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
+        scaling_factor = generative_outputs["scaling_factor"]
 
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
-        loss = torch.mean(reconst_loss)
+        loss = torch.mean(scaling_factor * reconst_loss)
 
         return SCVILoss(loss, reconst_loss, torch.zeros((1,)), 0.0)
 
@@ -107,7 +120,8 @@ class RNADeconv(AbstractVAE):
 class SpatialDeconv(AbstractVAE):
     """
     Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics:
-    Reimplementation of the STModel module of Stereoscope : https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
+    Reimplementation of the STModel module of Stereoscope [Anderssen20]_
+    https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
 
     Parameters
     ----------
@@ -115,6 +129,8 @@ class SpatialDeconv(AbstractVAE):
         Number of input spots
     params
         Tuple of ndarray of shapes [(n_genes, n_labels), (n_genes)] containing the dictionnary and log dispersion parameters
+    prior_weight
+        Whether to sample the minibatch by the number of total observations or the monibatch size
     """
 
     def __init__(

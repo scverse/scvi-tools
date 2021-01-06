@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     """
-    Single-cell annotation using variational inference [Xu19]_.
+    Single-cell annotation using variational inference [Xu20]_.
 
     Inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
 

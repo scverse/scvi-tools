@@ -265,10 +265,6 @@ class BaseModelClass(ABC):
         else:
             gpus = None
             pin_memory = False
-        if frequency is None or train_size == 1.0:
-            check_val_every_n_epoch = np.inf
-        else:
-            check_val_every_n_epoch = frequency
 
         if max_epochs is None:
             n_cells = self.adata.n_obs
