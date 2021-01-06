@@ -13,7 +13,7 @@ from scvi.model.base import BaseModelClass
 
 class RNAStereoscope(BaseModelClass):
     """
-    Reimplementation of Stereoscope [Anderssen20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
+    Reimplementation of Stereoscope [Andersson20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
     https://github.com/almaan/stereoscope.
 
@@ -78,7 +78,7 @@ class RNAStereoscope(BaseModelClass):
 
 class SpatialStereoscope(BaseModelClass):
     """
-    Reimplementation of Stereoscope [Anderssen20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
+    Reimplementation of Stereoscope [Andersson20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
     https://github.com/almaan/stereoscope.
 
