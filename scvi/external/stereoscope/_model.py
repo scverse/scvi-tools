@@ -16,6 +16,7 @@ class RNAStereoscope(BaseModelClass):
     Reimplementation of Stereoscope [Anderssen20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
     https://github.com/almaan/stereoscope.
+
     Parameters
     ----------
     sc_adata
@@ -24,6 +25,7 @@ class RNAStereoscope(BaseModelClass):
         Use the GPU or not.
     **model_kwargs
         Keyword args for :class:`~scvi.external.RNADeconv`
+
     Examples
     --------
     >>> sc_adata = anndata.read_h5ad(path_to_sc_anndata)
@@ -58,8 +60,9 @@ class RNAStereoscope(BaseModelClass):
 
     def get_params(self) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Returns the parameters of the RNA model used for deconvolution
-        -px_o is the second parameter of the NB distribution (n_genes)
+        Returns the parameters of the RNA model used for deconvolution.
+
+        - px_o is the second parameter of the NB distribution (n_genes)
         - W is the first parameter of the NB distribution for each cell type (n_labels x n_genes).
         """
         return self.model.get_params()
@@ -78,6 +81,7 @@ class SpatialStereoscope(BaseModelClass):
     Reimplementation of Stereoscope [Anderssen20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
     https://github.com/almaan/stereoscope.
+
     Parameters
     ----------
     st_adata
@@ -87,9 +91,11 @@ class SpatialStereoscope(BaseModelClass):
     use_gpu
         Use the GPU or not.
     prior_weight
-        how to reweight the minibatches for stochastic optimization. "n_obs" is the valid procedure, "minibatch" is the procedure implemented in Stereoscope.
+        how to reweight the minibatches for stochastic optimization. "n_obs" is the valid
+        procedure, "minibatch" is the procedure implemented in Stereoscope.
     **model_kwargs
         Keyword args for :class:`~scvi.external.SpatialDeconv`
+
     Examples
     --------
     >>> st_adata = anndata.read_h5ad(path_to_st_anndata)

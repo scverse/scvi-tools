@@ -11,8 +11,9 @@ from scvi.compose import AbstractVAE, SCVILoss, auto_move_data
 
 class RNADeconv(AbstractVAE):
     """
-    Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics:
-    Reimplementation of the ScModel module of Stereoscope [Anderssen20]_
+    Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
+
+    Reimplementation of the ScModel module of Stereoscope [Anderssen20]_:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
 
     Parameters
@@ -21,7 +22,7 @@ class RNADeconv(AbstractVAE):
         Number of input genes
     n_labels
         Number of input cell types
-    model_kwargs
+    **model_kwargs
         Additional kwargs
     """
 
@@ -119,8 +120,9 @@ class RNADeconv(AbstractVAE):
 
 class SpatialDeconv(AbstractVAE):
     """
-    Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics:
-    Reimplementation of the STModel module of Stereoscope [Anderssen20]_
+    Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
+
+    Reimplementation of the STModel module of Stereoscope [Anderssen20]_:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
 
     Parameters
@@ -158,13 +160,7 @@ class SpatialDeconv(AbstractVAE):
 
     @torch.no_grad()
     def get_proportions(self, keep_noise=False) -> np.ndarray:
-        """
-        Returns the loadings.
-        Returns
-        -------
-        type
-            tensor
-        """
+        """Returns the loadings."""
         # get estimated unadjusted proportions
         res = (
             torch.nn.functional.softplus(self.V).cpu().numpy().T
