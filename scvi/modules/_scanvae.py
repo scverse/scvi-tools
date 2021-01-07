@@ -201,7 +201,7 @@ class SCANVAE(VAE):
         batch_idx = labelled_dataset[_CONSTANTS.BATCH_KEY]
         classification_loss = F.cross_entropy(
             self.classify(x, batch_idx),
-            y.view(-1).type(torch.LongTensor),
+            y.view(-1).long(),
         )
         return classification_loss
 
