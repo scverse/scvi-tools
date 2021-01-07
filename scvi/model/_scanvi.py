@@ -84,14 +84,23 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         use_gpu: bool = True,
+        encode_covariates: bool = False,
         vae_model_kwargs: dict = {},
         scanvae_model_kwargs: dict = {},
     ):
         super(SCANVI, self).__init__(adata, use_gpu=use_gpu)
         vae_model_kwargs = dict(vae_model_kwargs)
         scanvae_model_kwargs = dict(scanvae_model_kwargs)
+
         self.unlabeled_category_ = unlabeled_category
         has_unlabeled = self._set_indices_and_labels()
+
+        # ignores unlabelled catgegory
+        n_labels = (
+            self.summary_stats["n_labels"] - 1
+            if has_unlabeled
+            else self.summary_stats["n_labels"]
+        )
 
         if pretrained_model is not None:
             if pretrained_model.is_trained is False:
@@ -108,16 +117,11 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 dropout_rate=dropout_rate,
                 dispersion=dispersion,
                 gene_likelihood=gene_likelihood,
+                encode_covariates=encode_covariates,
                 **vae_model_kwargs,
             )
             self._is_trained_base = False
 
-        # ignores unlabelled catgegory
-        n_labels = (
-            self.summary_stats["n_labels"] - 1
-            if has_unlabeled
-            else self.summary_stats["n_labels"]
-        )
         self.model = SCANVAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
@@ -128,6 +132,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             dropout_rate=dropout_rate,
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
+            encode_covariates=encode_covariates,
             **scanvae_model_kwargs,
         )
 
