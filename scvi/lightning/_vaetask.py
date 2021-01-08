@@ -189,7 +189,7 @@ class VAETask(pl.LightningModule):
         return kl_weight
 
 
-class AdvesarialTask(VAETask):
+class AdversarialTask(VAETask):
     """
     Train vaes with adversarial loss option to encourage latent space mixing.
 
@@ -250,7 +250,7 @@ class AdvesarialTask(VAETask):
         scale_adversarial_loss: Union[float, Literal["auto"]] = "auto",
         **loss_kwargs,
     ):
-        super(AdvesarialTask, self).__init__(
+        super(AdversarialTask, self).__init__(
             vae_model=vae_model,
             n_obs_training=n_obs_training,
             lr=lr,

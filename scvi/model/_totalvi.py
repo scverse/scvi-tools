@@ -15,7 +15,7 @@ from scvi._utils import _doc_params
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import ScviDataLoader
-from scvi.lightning import AdvesarialTask
+from scvi.lightning import AdversarialTask
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
@@ -971,7 +971,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     @property
     def _task_class(self):
-        return AdvesarialTask
+        return AdversarialTask
 
     @property
     def _data_loader_cls(self):
