@@ -8,14 +8,16 @@ from scvi import _CONSTANTS
 from scvi.core import unsupervised_clustering_accuracy
 
 from .scvi_data_loader import ScviDataLoader
+from scvi.core._log_likelihood import compute_elbo
 
 logger = logging.getLogger(__name__)
 
 
 class AnnotationDataLoader(ScviDataLoader):
-    def __init__(self, *args, model_zl=False, **kwargs):
+    def __init__(self, *args, unlabeled=False, model_zl=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.model_zl = model_zl
+        self.unlabeled = unlabeled
 
     def accuracy(self):
         model, cls = (
@@ -76,6 +78,15 @@ class AnnotationDataLoader(ScviDataLoader):
     unsupervised_classification_accuracy.mode = "max"
 
     @torch.no_grad()
+    def elbo(self) -> torch.Tensor:
+        """Returns the Evidence Lower Bound associated to the object."""
+        elbo = compute_elbo(self.model, self, feed_labels=not self.unlabeled)
+        logger.debug("ELBO : %.4f" % elbo)
+        return elbo
+
+    elbo.mode = "min"
+
+    @torch.no_grad()
     def nn_latentspace(self, data_loader):
         data_train, _, labels_train = self.get_latent()
         data_test, _, labels_test = data_loader.get_latent()
@@ -102,23 +113,24 @@ def compute_predictions(
 
     for _, tensors in enumerate(data_loader):
         sample_batch = tensors[_CONSTANTS.X_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
         labels = tensors[_CONSTANTS.LABELS_KEY]
 
         all_y += [labels.view(-1).cpu()]
 
         if hasattr(model, "classify"):
-            y_pred = model.classify(sample_batch)
+            y_pred = model.classify(sample_batch, batch_index)
         elif classifier is not None:
             # Then we use the specified classifier
             if model is not None:
                 if model.log_variational:
                     sample_batch = torch.log(1 + sample_batch)
                 if model_zl:
-                    sample_z = model.z_encoder(sample_batch)[0]
-                    sample_l = model.l_encoder(sample_batch)[0]
+                    sample_z = model.z_encoder(sample_batch, batch_index)[0]
+                    sample_l = model.l_encoder(sample_batch, batch_index)[0]
                     sample_batch = torch.cat((sample_z, sample_l), dim=-1)
                 else:
-                    sample_batch, _, _ = model.z_encoder(sample_batch)
+                    sample_batch, _, _ = model.z_encoder(sample_batch, batch_index)
             y_pred = classifier(sample_batch)
         else:  # The model is the raw classifier
             y_pred = model(sample_batch)

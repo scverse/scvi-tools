@@ -5,6 +5,7 @@ import torch
 from torch.nn import functional as F
 
 from scvi import _CONSTANTS
+from scvi._compat import Literal
 from scvi.core.data_loaders import AnnotationDataLoader
 from scvi.data._anndata import get_from_registry
 
@@ -58,7 +59,7 @@ class ClassifierTrainer(Trainer):
         sampling_model=None,
         sampling_zl=False,
         use_cuda=True,
-        **kwargs
+        **kwargs,
     ):
         train_size = float(train_size)
         if train_size > 1.0 or train_size <= 0.0:
@@ -93,21 +94,22 @@ class ClassifierTrainer(Trainer):
 
     def loss(self, tensors_labelled):
         x = tensors_labelled[_CONSTANTS.X_KEY]
+        b = tensors_labelled[_CONSTANTS.BATCH_KEY]
         labels_train = tensors_labelled[_CONSTANTS.LABELS_KEY]
         if self.sampling_model:
             if hasattr(self.sampling_model, "classify"):
                 return F.cross_entropy(
-                    self.sampling_model.classify(x), labels_train.view(-1)
+                    self.sampling_model.classify(x, b), labels_train.view(-1)
                 )
             else:
                 if self.sampling_model.log_variational:
                     x = torch.log(1 + x)
                 if self.sampling_zl:
-                    x_z = self.sampling_model.z_encoder(x)[0]
-                    x_l = self.sampling_model.l_encoder(x)[0]
+                    x_z = self.sampling_model.z_encoder(x, b)[0]
+                    x_l = self.sampling_model.l_encoder(x, b)[0]
                     x = torch.cat((x_z, x_l), dim=-1)
                 else:
-                    x = self.sampling_model.z_encoder(x)[0]
+                    x = self.sampling_model.z_encoder(x, b)[0]
         return F.cross_entropy(self.model(x), labels_train.view(-1))
 
     def create_scvi_dl(
@@ -119,7 +121,9 @@ class ClassifierTrainer(Trainer):
         sample_weights=None,
         type_class=AnnotationDataLoader,
     ):
-        return super().create_scvi_dl(model, adata, shuffle, indices, sample_weights, type_class)
+        return super().create_scvi_dl(
+            model, adata, shuffle, indices, sample_weights, type_class
+        )
 
 
 class SemiSupervisedTrainer(UnsupervisedTrainer):
@@ -140,11 +144,15 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         model,
         adata,
         n_labelled_samples_per_class=50,
+        indices_labelled=None,
+        indices_unlabelled=None,
         n_epochs_classifier=1,
         lr_classification=5 * 1e-3,
         classification_ratio=50,
         seed=0,
-        **kwargs
+        sample_weights=None,
+        scheme: Literal["joint", "alternate", "both"] = "both",
+        **kwargs,
     ):
         super().__init__(model, adata, **kwargs)
         self.model = model
@@ -152,27 +160,38 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         self.n_epochs_classifier = n_epochs_classifier
         self.lr_classification = lr_classification
         self.classification_ratio = classification_ratio
-        n_labelled_samples_per_class_array = [
-            n_labelled_samples_per_class
-        ] * self.adata.uns["_scvi"]["summary_stats"]["n_labels"]
-        labels = np.array(get_from_registry(self.adata, _CONSTANTS.LABELS_KEY)).ravel()
-        np.random.seed(seed=seed)
-        permutation_idx = np.random.permutation(len(labels))
-        labels = labels[permutation_idx]
-        indices = []
-        current_nbrs = np.zeros(len(n_labelled_samples_per_class_array))
-        for idx, (label) in enumerate(labels):
-            label = int(label)
-            if current_nbrs[label] < n_labelled_samples_per_class_array[label]:
-                indices.insert(0, idx)
-                current_nbrs[label] += 1
-            else:
-                indices.append(idx)
-        indices = np.array(indices)
-        total_labelled = sum(n_labelled_samples_per_class_array)
-        indices_labelled = permutation_idx[indices[:total_labelled]]
-        indices_unlabelled = permutation_idx[indices[total_labelled:]]
+        self.scheme = scheme
 
+        if scheme == "joint":
+            self.n_epochs_classifier = 0
+
+        if indices_labelled is None and indices_unlabelled is None:
+            n_labelled_samples_per_class_array = [
+                n_labelled_samples_per_class
+            ] * self.adata.uns["_scvi"]["summary_stats"]["n_labels"]
+            labels = np.array(
+                get_from_registry(self.adata, _CONSTANTS.LABELS_KEY)
+            ).ravel()
+            np.random.seed(seed=seed)
+            permutation_idx = np.random.permutation(len(labels))
+            labels = labels[permutation_idx]
+            indices = []
+            current_nbrs = np.zeros(len(n_labelled_samples_per_class_array))
+            for idx, (label) in enumerate(labels):
+                label = int(label)
+                if current_nbrs[label] < n_labelled_samples_per_class_array[label]:
+                    indices.insert(0, idx)
+                    current_nbrs[label] += 1
+                else:
+                    indices.append(idx)
+            indices = np.array(indices)
+            total_labelled = sum(n_labelled_samples_per_class_array)
+            indices_labelled = permutation_idx[indices[:total_labelled]]
+            indices_unlabelled = permutation_idx[indices[total_labelled:]]
+
+        class_kwargs = {}
+        if "weight_decay" in kwargs.keys():
+            class_kwargs["weight_decay"] = kwargs["weight_decay"]
         self.classifier_trainer = ClassifierTrainer(
             model.classifier,
             self.adata,
@@ -180,31 +199,49 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
             silent=True,
             frequency=0,
             sampling_model=self.model,
+            **class_kwargs,
         )
         self.full_dataset = self.create_scvi_dl(shuffle=True)
-        self.labelled_set = self.create_scvi_dl(indices=indices_labelled)
+
+        shuffle_labeled_cells = sample_weights is None
+        self.labelled_set = self.create_scvi_dl(
+            indices=indices_labelled,
+            sample_weights=sample_weights,
+            shuffle=shuffle_labeled_cells,
+        )
         self.unlabelled_set = self.create_scvi_dl(indices=indices_unlabelled)
 
         for scdl in [self.labelled_set, self.unlabelled_set]:
-            scdl.to_monitor = ["reconstruction_error", "accuracy"]
+            scdl.to_monitor = ["elbo", "reconstruction_error", "accuracy"]
+        # allow to track ELBO
+        self.unlabelled_set.unlabeled = True
+        self.full_dataset.unlabeled = True
 
     @property
     def scvi_data_loaders_loop(self):
-        return ["full_dataset", "labelled_set"]
+
+        joint = ["full_dataset", "labelled_set"]
+        full = ["full_dataset"]
+        if len(self.labelled_set.indices) == 0 or self.scheme == "alternate":
+            return full
+        else:
+            return joint
 
     def __setattr__(self, key, value):
         if key == "labelled_set":
             self.classifier_trainer.train_set = value
         super().__setattr__(key, value)
 
-    def loss(self, tensors_all, tensors_labelled):
+    def loss(self, tensors_all, tensors_labelled=None):
         loss = super().loss(tensors_all, feed_labels=False)
-        sample_batch = tensors_labelled[_CONSTANTS.X_KEY]
-        y = tensors_labelled[_CONSTANTS.LABELS_KEY]
-        classification_loss = F.cross_entropy(
-            self.model.classify(sample_batch), y.view(-1)
-        )
-        loss += classification_loss * self.classification_ratio
+        if tensors_labelled is not None:
+            sample_batch = tensors_labelled[_CONSTANTS.X_KEY]
+            batch_index = tensors_labelled[_CONSTANTS.BATCH_KEY]
+            y = tensors_labelled[_CONSTANTS.LABELS_KEY]
+            classification_loss = F.cross_entropy(
+                self.model.classify(sample_batch, batch_index), y.view(-1)
+            )
+            loss += classification_loss * self.classification_ratio
         return loss
 
     def on_epoch_end(self):
@@ -224,22 +261,6 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         sample_weights=None,
         type_class=AnnotationDataLoader,
     ):
-        return super().create_scvi_dl(model, adata, shuffle, indices, sample_weights, type_class)
-
-
-class JointSemiSupervisedTrainer(SemiSupervisedTrainer):
-    def __init__(self, model, adata, **kwargs):
-        kwargs.update({"n_epochs_classifier": 0})
-        super().__init__(model, adata, **kwargs)
-
-
-class AlternateSemiSupervisedTrainer(SemiSupervisedTrainer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def loss(self, all_tensor):
-        return UnsupervisedTrainer.loss(self, all_tensor)
-
-    @property
-    def scvi_data_loaders_loop(self):
-        return ["full_dataset"]
+        return super().create_scvi_dl(
+            model, adata, shuffle, indices, sample_weights, type_class
+        )

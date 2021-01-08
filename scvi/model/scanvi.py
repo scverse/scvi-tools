@@ -5,11 +5,14 @@ import numpy as np
 import pandas as pd
 import numpy as np
 from anndata import AnnData
+from pandas.api.types import CategoricalDtype
+
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
+from scvi.data._anndata import _make_obs_column_categorical
 from scvi.core.data_loaders import AnnotationDataLoader
-from scvi.core.models import BaseModelClass, RNASeqMixin, VAEMixin
+from scvi.core.models import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.core.modules import SCANVAE, VAE
 from scvi.core.trainers import SemiSupervisedTrainer, UnsupervisedTrainer
 
@@ -18,7 +21,7 @@ from .scvi import SCVI
 logger = logging.getLogger(__name__)
 
 
-class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
+class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     """
     Single-cell annotation using variational inference [Xu19]_.
 
@@ -83,7 +86,8 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         **model_kwargs,
     ):
         super(SCANVI, self).__init__(adata, use_cuda=use_cuda)
-        self.unlabeled_category = unlabeled_category
+        self.unlabeled_category_ = unlabeled_category
+        has_unlabeled = self._set_indices_and_labels()
 
         if pretrained_model is not None:
             if pretrained_model.is_trained is False:
@@ -103,10 +107,17 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
                 **model_kwargs,
             )
             self._is_trained_base = False
+
+        # ignores unlabelled catgegory
+        n_labels = (
+            self.summary_stats["n_labels"] - 1
+            if has_unlabeled
+            else self.summary_stats["n_labels"]
+        )
         self.model = SCANVAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
-            n_labels=self.summary_stats["n_labels"],
+            n_labels=n_labels,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
@@ -116,18 +127,6 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             **model_kwargs,
         )
 
-        # get indices for labeled and unlabeled cells
-        key = self.scvi_setup_dict_["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
-        self._label_mapping = self.scvi_setup_dict_["categorical_mappings"][key][
-            "mapping"
-        ]
-        original_key = self.scvi_setup_dict_["categorical_mappings"][key][
-            "original_key"
-        ]
-        self._labels = np.asarray(self.adata.obs[original_key]).ravel()
-        self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
-        self._unlabeled_indices = np.argwhere(self._labels == self.unlabeled_category).ravel()
-        self._labeled_indices = np.argwhere(self._labels != self.unlabeled_category).ravel()
         self.unsupervised_history_ = None
         self.semisupervised_history_ = None
 
@@ -144,6 +143,50 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             gene_likelihood,
         )
         self.init_params_ = self._get_init_params(locals())
+
+    def _set_indices_and_labels(self):
+        """
+        Set indices and make unlabeled cat as the last cat.
+
+        Returns
+        -------
+        True is categories reordered else False
+        """
+        # get indices for labeled and unlabeled cells
+        key = self.scvi_setup_dict_["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
+        mapping = self.scvi_setup_dict_["categorical_mappings"][key]["mapping"]
+        original_key = self.scvi_setup_dict_["categorical_mappings"][key][
+            "original_key"
+        ]
+        labels = np.asarray(self.adata.obs[original_key]).ravel()
+
+        if self.unlabeled_category_ in labels:
+            unlabeled_idx = np.where(mapping == self.unlabeled_category_)
+            unlabeled_idx = unlabeled_idx[0][0]
+            # move unlabelled category to be the last position
+            mapping[unlabeled_idx], mapping[-1] = mapping[-1], mapping[unlabeled_idx]
+            cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
+            # rerun setup for the batch column
+            _make_obs_column_categorical(
+                self.adata,
+                original_key,
+                "_scvi_labels",
+                categorical_dtype=cat_dtype,
+            )
+            remapped = True
+        else:
+            remapped = False
+
+        self.scvi_setup_dict_ = self.adata.uns["_scvi"]
+        self._label_mapping = mapping
+        self._labels = labels
+        # set unlabeled and labeled indices
+        self._unlabeled_indices = np.argwhere(
+            labels == self.unlabeled_category_
+        ).ravel()
+        self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
+        self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
+        return remapped
 
     @property
     def _trainer_class(self):
@@ -165,6 +208,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self,
         n_epochs_unsupervised: Optional[int] = None,
         n_epochs_semisupervised: Optional[int] = None,
+        train_base_model: bool = True,
         train_size: float = 0.9,
         test_size: float = None,
         lr: float = 1e-3,
@@ -186,6 +230,8 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             Number of passes through the dataset for unsupervised pre-training.
         n_epochs_semisupervised
             Number of passes through the dataset for semisupervised training.
+        train_base_model
+            Pretrain an SCVI base model first before semisupervised training.
         train_size
             Size of training set in the range [0.0, 1.0].
         test_size
@@ -235,7 +281,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             )
         )
 
-        if self._is_trained_base is not True:
+        if self._is_trained_base is not True and train_base_model:
             self._unsupervised_trainer = UnsupervisedTrainer(
                 self._base_model,
                 self.adata,
@@ -253,25 +299,13 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             self.unsupervised_history_ = self._unsupervised_trainer.history
             self._is_trained_base = True
 
-        self.model.load_state_dict(self._base_model.state_dict(), strict=False)
+            self.model.load_state_dict(self._base_model.state_dict(), strict=False)
 
         if "frequency" not in semisupervised_trainer_kwargs and frequency is not None:
             semisupervised_trainer_kwargs["frequency"] = frequency
 
-        self.trainer = SemiSupervisedTrainer(
-            self.model,
-            self.adata,
-            use_cuda=self.use_cuda,
-            **semisupervised_trainer_kwargs,
-        )
-        self.trainer.unlabelled_set = self.trainer.create_scvi_dl(
-            indices=self._unlabeled_indices
-        )
-
         if not balanced_sampling:
-            self.trainer.labelled_set = self.trainer.create_scvi_dl(
-                indices=self._labeled_indices
-            )
+            sample_weights = None
         else:
 
             # Grab the labels of only labeled indices
@@ -307,18 +341,20 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             # Normalize the weights so the probabilities sum to 1
             sample_weights = sample_weights/sum(sample_weights)
 
-            self.trainer.labelled_set = self.trainer.create_scvi_dl(
-                indices=self._labeled_indices,
-                sample_weights=sample_weights,
-                shuffle=True
-            )
+        self.trainer = SemiSupervisedTrainer(
+            self.model,
+            self.adata,
+            use_cuda=self.use_cuda,
+            indices_labelled=self._labeled_indices,
+            indices_unlabelled=self._unlabeled_indices,
+            **semisupervised_trainer_kwargs,
+        )
 
         self.semisupervised_history_ = self.trainer.history
         self.trainer.train(
             n_epochs=n_epochs_semisupervised,
             **semisupervised_train_kwargs,
         )
-
         self.is_trained_ = True
 
     def predict(
@@ -358,9 +394,10 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
             return np.array(predictions)
         else:
+            n_labels = len(pred[0])
             pred = pd.DataFrame(
                 pred,
-                columns=self._label_mapping,
+                columns=self._label_mapping[:n_labels],
                 index=adata.obs_names[indices],
             )
             return pred

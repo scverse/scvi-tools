@@ -1,0 +1,9 @@
+New in 0.8.1 (2020-MM-DD)
+-------------------------
+
+Enhancements
+~~~~~~~~~~~~
+
+- `freeze_classifier` option in :func:`~scvi.model.SCANVI.load_query_data` for the case when
+- `weight_decay` passed to :func:`~scvi.model.SCANVI.train` also passes to `ClassifierTrainer`
+

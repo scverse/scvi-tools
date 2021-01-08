@@ -1,19 +1,10 @@
 ---
 name: Usage question
-about: For questions related to using scvi-tools models, please see discourse.scvi-tools.org
-title: ''
+about: Please raise usage questions at https://discourse.scvi-tools.org/
+title: Please raise usage questions at https://discourse.scvi-tools.org/
 labels: question
 assignees: ''
 
 ---
 
-<!-- Please raise usage questions at discourse.scvi-tools.org --> 
-
-<!-- Describe the question, be sure to specify which model you're referring to -->
-[TEXT HERE]
-
-
-<!-- Code to reproduce (if applicable, else delete the block): -->
-```python
-[CODE HERE]
-```
+Please raise usage questions at [discourse.scvi-tools.org](https://discourse.scvi-tools.org/)

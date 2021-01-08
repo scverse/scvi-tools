@@ -16,7 +16,7 @@ from rich.console import Console
 import scvi
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.data._utils import (
+from ._utils import (
     _check_nonnegative_integers,
     _compute_library_size_batch,
     _get_batch_mask_protein_data,
@@ -368,7 +368,9 @@ def register_tensor_from_anndata(
 
 
 def transfer_anndata_setup(
-    adata_source: Union[anndata.AnnData, dict], adata_target: anndata.AnnData
+    adata_source: Union[anndata.AnnData, dict],
+    adata_target: anndata.AnnData,
+    extend_categories: bool = False,
 ):
     """
     Transfer anndata setup from a source object to a target object.
@@ -383,6 +385,8 @@ def transfer_anndata_setup(
         from source anndata containing scvi setup parameters.
     adata_target
         AnnData with equivalent organization as source, but possibly subsetted.
+    extend_categories
+        New categories in `adata_target` are added to the registry.
     """
     adata_target.uns["_scvi"] = {}
 
@@ -409,39 +413,18 @@ def transfer_anndata_setup(
             "Number of vars in adata_target not the same as source. "
             + "Expected: {} Received: {}".format(target_n_vars, summary_stats["n_vars"])
         )
-    # transfer protein_expression
-    protein_expression_obsm_key = _transfer_protein_expression(_scvi_dict, adata_target)
 
     # transfer batch and labels
     categorical_mappings = _scvi_dict["categorical_mappings"]
-    for key, val in categorical_mappings.items():
-        original_key = val["original_key"]
-        if (key == original_key) and (original_key not in adata_target.obs.keys()):
-            # case where original key and key are equal
-            # caused when no batch or label key were given
-            # when anndata_source was setup
-            logger.info(
-                ".obs[{}] not found in target, assuming every cell is same category".format(
-                    original_key
-                )
-            )
-            adata_target.obs[original_key] = np.zeros(
-                adata_target.shape[0], dtype=np.int64
-            )
-        elif (key != original_key) and (original_key not in adata_target.obs.keys()):
-            raise KeyError(
-                '.obs["{}"] was used to setup source, but not found in target.'.format(
-                    original_key
-                )
-            )
-        mapping = val["mapping"]
-        cat_dtype = CategoricalDtype(categories=mapping)
-        _make_obs_column_categorical(
-            adata_target, original_key, key, categorical_dtype=cat_dtype
-        )
+    _transfer_batch_and_labels(adata_target, categorical_mappings, extend_categories)
 
     batch_key = "_scvi_batch"
     labels_key = "_scvi_labels"
+
+    # transfer protein_expression
+    protein_expression_obsm_key = _transfer_protein_expression(
+        _scvi_dict, adata_target, batch_key
+    )
 
     # transfer X
     x_loc, x_key = _setup_x(adata_target, layer)
@@ -455,7 +438,14 @@ def transfer_anndata_setup(
     # transfer extra categorical covs
     has_cat_cov = True if _CONSTANTS.CAT_COVS_KEY in data_registry.keys() else False
     if has_cat_cov:
-        source_cat_dict = _scvi_dict["extra_categorical_mappings"]
+        source_cat_dict = _scvi_dict["extra_categorical_mappings"].copy()
+        # extend categories
+        if extend_categories:
+            for key, mapping in source_cat_dict:
+                for c in np.unique(adata_target.obs[key]):
+                    if c not in mapping:
+                        mapping = np.concatenate([mapping, [c]])
+                source_cat_dict[key] = mapping
         cat_loc, cat_key = _setup_extra_categorical_covs(
             adata_target, list(source_cat_dict.keys()), category_dict=source_cat_dict
         )
@@ -492,7 +482,41 @@ def transfer_anndata_setup(
     _verify_and_correct_data_format(adata_target, data_registry)
 
 
-def _transfer_protein_expression(_scvi_dict, adata_target):
+def _transfer_batch_and_labels(adata_target, categorical_mappings, extend_categories):
+
+    for key, val in categorical_mappings.items():
+        original_key = val["original_key"]
+        if (key == original_key) and (original_key not in adata_target.obs.keys()):
+            # case where original key and key are equal
+            # caused when no batch or label key were given
+            # when anndata_source was setup
+            logger.info(
+                ".obs[{}] not found in target, assuming every cell is same category".format(
+                    original_key
+                )
+            )
+            adata_target.obs[original_key] = np.zeros(
+                adata_target.shape[0], dtype=np.int64
+            )
+        elif (key != original_key) and (original_key not in adata_target.obs.keys()):
+            raise KeyError(
+                '.obs["{}"] was used to setup source, but not found in target.'.format(
+                    original_key
+                )
+            )
+        mapping = val["mapping"].copy()
+        # extend mapping for new categories
+        if extend_categories:
+            for c in np.unique(adata_target.obs[original_key]):
+                if c not in mapping:
+                    mapping = np.concatenate([mapping, [c]])
+        cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
+        _make_obs_column_categorical(
+            adata_target, original_key, key, categorical_dtype=cat_dtype
+        )
+
+
+def _transfer_protein_expression(_scvi_dict, adata_target, batch_key):
     data_registry = _scvi_dict["data_registry"]
     summary_stats = _scvi_dict["summary_stats"]
 
@@ -511,6 +535,17 @@ def _transfer_protein_expression(_scvi_dict, adata_target):
                 == adata_target.obsm[prev_protein_obsm_key].shape[1]
             )
             protein_expression_obsm_key = prev_protein_obsm_key
+
+            adata_target.uns["_scvi"]["protein_names"] = _scvi_dict["protein_names"]
+            # batch mask totalVI
+            batch_mask = _get_batch_mask_protein_data(
+                adata_target, protein_expression_obsm_key, batch_key
+            )
+
+            # check if it's actually needed
+            if np.sum([~b[1] for b in batch_mask.items()]) > 0:
+                logger.info("Found batches with missing protein expression")
+                adata_target.uns["_scvi"]["totalvi_batch_mask"] = batch_mask
     else:
         protein_expression_obsm_key = None
 
@@ -722,7 +757,7 @@ def _setup_protein_expression(
         logger.info("Generating sequential protein names")
         protein_names = np.arange(adata.obsm[protein_expression_obsm_key].shape[1])
 
-    adata.uns["scvi_protein_names"] = protein_names
+    adata.uns["_scvi"]["protein_names"] = protein_names
 
     # batch mask totalVI
     batch_mask = _get_batch_mask_protein_data(
@@ -730,7 +765,7 @@ def _setup_protein_expression(
     )
 
     # check if it's actually needed
-    if np.sum([~b for b in batch_mask]) > 0:
+    if np.sum([~b[1] for b in batch_mask.items()]) > 0:
         logger.info("Found batches with missing protein expression")
         adata.uns["_scvi"]["totalvi_batch_mask"] = batch_mask
     return protein_expression_obsm_key
@@ -1073,3 +1108,102 @@ def _categorical_mappings_table(title: str, scvi_column: str, mappings: dict):
         else:
             t.add_row("", str(cat), str(i))
     return t
+
+
+def _check_anndata_setup_equivalence(adata_source, adata_target):
+    """
+    Checks if target setup is equivalent to source.
+
+    Parameters
+    ----------
+    adata_source
+        Either AnnData already setup or scvi_setup_dict as the source
+    adata_target
+        Target AnnData to check setup equivalence
+    """
+    if isinstance(adata_source, anndata.AnnData):
+        _scvi_dict = adata_source.uns["_scvi"]
+    else:
+        _scvi_dict = adata_source
+    adata = adata_target
+
+    stats = _scvi_dict["summary_stats"]
+
+    target_n_vars = adata.shape[1]
+    error_msg = (
+        "Number of {} in anndata different from initial anndata used for training."
+    )
+    if target_n_vars != stats["n_vars"]:
+        raise ValueError(error_msg.format("vars"))
+
+    error_msg = (
+        "There are more {} categories in the data than were originally registered. "
+        + "Please check your {} categories as well as adata.uns['_scvi']['categorical_mappings']."
+    )
+    self_categoricals = _scvi_dict["categorical_mappings"]
+    self_batch_mapping = self_categoricals["_scvi_batch"]["mapping"]
+
+    adata_categoricals = adata.uns["_scvi"]["categorical_mappings"]
+    adata_batch_mapping = adata_categoricals["_scvi_batch"]["mapping"]
+
+    # check if mappings are equal or needs transfer
+    transfer_setup = _needs_transfer(self_batch_mapping, adata_batch_mapping, "batch")
+    self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
+    adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
+
+    transfer_setup = transfer_setup or _needs_transfer(
+        self_labels_mapping, adata_labels_mapping, "label"
+    )
+
+    # validate any extra categoricals
+    if "extra_categorical_mappings" in _scvi_dict.keys():
+        target_extra_cat_maps = adata.uns["_scvi"]["extra_categorical_mappings"]
+        for key, val in _scvi_dict["extra_categorical_mappings"].items():
+            target_map = target_extra_cat_maps[key]
+            transfer_setup = transfer_setup or _needs_transfer(val, target_map, key)
+    # validate any extra continuous covs
+    if "extra_continuous_keys" in _scvi_dict.keys():
+        if "extra_continuous_keys" not in adata.uns["_scvi"].keys():
+            raise ValueError('extra_continuous_keys not in adata.uns["_scvi"]')
+        target_cont_keys = adata.uns["_scvi"]["extra_continuous_keys"]
+        if not _scvi_dict["extra_continuous_keys"].equals(target_cont_keys):
+            raise ValueError(
+                "extra_continous_keys are not the same between source and target"
+            )
+    if transfer_setup:
+        transfer_anndata_setup(adata_source, adata_target)
+
+
+def _needs_transfer(mapping1, mapping2, category):
+    needs_transfer = False
+    error_msg = (
+        "Categorial encoding for {} is not the same between "
+        + "the anndata used to train and the anndata passed in. "
+        + "Categorical encoding needs to be same elements, same order, and same datatype.\n"
+        + "Expected categories: {}. Received categories: {}.\n"
+    )
+    warning_msg = (
+        "Categorical encoding for {} is similar but not equal between "
+        + "the anndata used to train and the anndata passed in. "
+        + "Will attempt transfer. Expected categories: {}. Received categories: {}.\n "
+    )
+    if _is_equal_mapping(mapping1, mapping2):
+        needs_transfer = False
+    elif _is_similar_mapping(mapping1, mapping2):
+        needs_transfer = True
+        logger.warning(warning_msg.format(category, mapping1, mapping2))
+    else:
+        raise ValueError(error_msg.format(category, mapping1, mapping2))
+    return needs_transfer
+
+
+def _is_similar_mapping(mapping1, mapping2):
+    """Returns True if mapping2 is a subset of mapping1."""
+    if len(set(mapping2) - set(mapping1)) == 0:
+        return True
+    else:
+        return False
+
+
+def _is_equal_mapping(mapping1, mapping2):
+    return pd.Index(mapping1).equals(pd.Index(mapping2))

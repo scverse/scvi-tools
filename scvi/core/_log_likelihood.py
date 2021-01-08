@@ -8,7 +8,7 @@ from torch.distributions import Beta, Normal
 from scvi import _CONSTANTS
 
 
-def compute_elbo(vae, data_loader, **kwargs):
+def compute_elbo(vae, data_loader, feed_labels=True, **kwargs):
     """
     Computes the ELBO.
 
@@ -26,7 +26,10 @@ def compute_elbo(vae, data_loader, **kwargs):
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
         local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        labels = tensors[_CONSTANTS.LABELS_KEY]
+        if feed_labels:
+            labels = tensors[_CONSTANTS.LABELS_KEY]
+        else:
+            labels = None
 
         # kl_divergence_global (scalar) should be common across all batches after training
         reconst_loss, kl_divergence, kl_divergence_global = vae(

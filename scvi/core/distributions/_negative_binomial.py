@@ -108,13 +108,13 @@ def log_mixture_nb(
     mu_2: torch.Tensor,
     theta_1: torch.Tensor,
     theta_2: torch.Tensor,
-    pi: torch.Tensor,
+    pi_logits: torch.Tensor,
     eps=1e-8,
 ):
     """
     Log likelihood (scalar) of a minibatch according to a mixture nb model.
 
-    pi is the probability to be in the first component.
+    pi_logits is the probability (logits) to be in the first component.
     For totalVI, the first component should be background.
 
     Parameters
@@ -130,8 +130,8 @@ def log_mixture_nb(
     theta_2
         Second inverse dispersion parameter (has to be positive support) (shape: minibatch x features)
         If None, assume one shared inverse dispersion parameter.
-    pi
-        Probability of belonging to mixture component 1
+    pi_logits
+        Probability of belonging to mixture component 1 (logits scale)
     eps
         Numerical stability constant
     """
@@ -167,8 +167,8 @@ def log_mixture_nb(
             - lgamma_x_plus_1
         )
 
-    logsumexp = torch.logsumexp(torch.stack((log_nb_1, log_nb_2 - pi)), dim=0)
-    softplus_pi = F.softplus(-pi)
+    logsumexp = torch.logsumexp(torch.stack((log_nb_1, log_nb_2 - pi_logits)), dim=0)
+    softplus_pi = F.softplus(-pi_logits)
 
     log_mixture_nb = logsumexp - softplus_pi
 
@@ -234,15 +234,20 @@ def _gamma(theta, mu):
 
 
 class NegativeBinomial(Distribution):
-    """
+    r"""
     Negative binomial distribution.
 
     One of the following parameterizations must be provided:
 
-    - (`total_count`, `probs`) where `total_count` is the number of failures until
-    the experiment is stopped and `probs` the success probability.
-    - The (`mu`, `theta`) parameterization is the one used by scvi-tools. These parameters respectively
+    (1), (`total_count`, `probs`) where `total_count` is the number of failures until
+    the experiment is stopped and `probs` the success probability. (2), (`mu`, `theta`)
+    parameterization, which is the one used by scvi-tools. These parameters respectively
     control the mean and inverse dispersion of the distribution.
+
+    In the (`mu`, `theta`) parameterization, samples from the negative binomial are generated as follows:
+
+    1. :math:`w \sim \textrm{Gamma}(\underbrace{\theta}_{\text{shape}}, \underbrace{\theta/\mu}_{\text{rate}})`
+    2. :math:`x \sim \textrm{Poisson}(w)`
 
     Parameters
     ----------
@@ -271,7 +276,7 @@ class NegativeBinomial(Distribution):
         logits: Optional[torch.Tensor] = None,
         mu: Optional[torch.Tensor] = None,
         theta: Optional[torch.Tensor] = None,
-        validate_args: bool = True,
+        validate_args: bool = False,
     ):
         self._eps = 1e-8
         if (mu is None) == (total_count is None):
@@ -332,15 +337,20 @@ class NegativeBinomial(Distribution):
 
 
 class ZeroInflatedNegativeBinomial(NegativeBinomial):
-    """
+    r"""
     Zero-inflated negative binomial distribution.
 
     One of the following parameterizations must be provided:
 
-    - (`total_count`, `probs`) where `total_count` is the number of failures until
-    the experiment is stopped and `probs` the success probability.
-    - The (`mu`, `theta`) parameterization is the one used by scvi-tools. These parameters respectively
+    (1), (`total_count`, `probs`) where `total_count` is the number of failures until
+    the experiment is stopped and `probs` the success probability. (2), (`mu`, `theta`)
+    parameterization, which is the one used by scvi-tools. These parameters respectively
     control the mean and inverse dispersion of the distribution.
+
+    In the (`mu`, `theta`) parameterization, samples from the negative binomial are generated as follows:
+
+    1. :math:`w \sim \textrm{Gamma}(\underbrace{\theta}_{\text{shape}}, \underbrace{\theta/\mu}_{\text{rate}})`
+    2. :math:`x \sim \textrm{Poisson}(w)`
 
     Parameters
     ----------
@@ -374,7 +384,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         mu: Optional[torch.Tensor] = None,
         theta: Optional[torch.Tensor] = None,
         zi_logits: Optional[torch.Tensor] = None,
-        validate_args: bool = True,
+        validate_args: bool = False,
     ):
 
         super().__init__(
@@ -430,6 +440,9 @@ class NegativeBinomialMixture(Distribution):
     """
     Negative binomial mixture distribution.
 
+    See :class:`~scvi.core.distributions.NegativeBinomial` for further description
+    of parameters.
+
     Parameters
     ----------
     mu1
@@ -462,7 +475,7 @@ class NegativeBinomialMixture(Distribution):
         theta1: torch.Tensor,
         mixture_logits: torch.Tensor,
         theta2: Optional[torch.Tensor] = None,
-        validate_args: bool = True,
+        validate_args: bool = False,
     ):
 
         (

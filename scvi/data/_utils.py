@@ -124,79 +124,11 @@ def _get_batch_mask_protein_data(
     pro_exp = adata.obsm[protein_expression_obsm_key]
     pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
     batches = adata.obs[batch_key].values
-    batch_mask = []
+    batch_mask = {}
     for b in np.unique(batches):
         b_inds = np.where(batches.ravel() == b)[0]
         batch_sum = pro_exp[b_inds, :].sum(axis=0)
         all_zero = batch_sum == 0
-        batch_mask.append(~all_zero)
+        batch_mask[b] = ~all_zero
 
     return batch_mask
-
-
-def _check_anndata_setup_equivalence(adata_source, adata_target):
-    """Checks if target setup is equivalent to source."""
-    if isinstance(adata_source, anndata.AnnData):
-        _scvi_dict = adata_source.uns["_scvi"]
-    else:
-        _scvi_dict = adata_source
-    adata = adata_target
-
-    stats = _scvi_dict["summary_stats"]
-
-    target_n_vars = adata.shape[1]
-    error_msg = (
-        "Number of {} in anndata different from initial anndata used for training."
-    )
-    if target_n_vars != stats["n_vars"]:
-        raise ValueError(error_msg.format("vars"))
-
-    error_msg = (
-        "There are more {} categories in the data than were originally registered. "
-        + "Please check your {} categories as well as adata.uns['_scvi']['categorical_mappings']."
-    )
-    self_categoricals = _scvi_dict["categorical_mappings"]
-    self_batch_mapping = self_categoricals["_scvi_batch"]["mapping"]
-
-    adata_categoricals = adata.uns["_scvi"]["categorical_mappings"]
-    adata_batch_mapping = adata_categoricals["_scvi_batch"]["mapping"]
-    # check if the categories are the same
-    error_msg = (
-        "Categorial encoding for {} is not the same between "
-        + "the anndata used to train the model and the anndata just passed in. "
-        + "Categorical encoding needs to be same elements, same order, and same datatype.\n"
-        + "Expected categories: {}. Received categories: {}.\n"
-        + "Try running `dataset.transfer_anndata_setup()` or deleting `adata.uns['_scvi']."
-    )
-    if not _assert_equal_mapping(self_batch_mapping, adata_batch_mapping):
-        raise ValueError(
-            error_msg.format("batch", self_batch_mapping, adata_batch_mapping)
-        )
-    self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
-    adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
-    if not _assert_equal_mapping(self_labels_mapping, adata_labels_mapping):
-        raise ValueError(
-            error_msg.format("label", self_labels_mapping, adata_labels_mapping)
-        )
-
-    # validate any extra categoricals
-    if "extra_categorical_mappings" in _scvi_dict.keys():
-        target_extra_cat_maps = adata.uns["_scvi"]["extra_categorical_mappings"]
-        for key, val in _scvi_dict["extra_categorical_mappings"].items():
-            target_map = target_extra_cat_maps[key]
-            if not _assert_equal_mapping(val, target_map):
-                raise ValueError(error_msg.format(key, val, target_map))
-    # validate any extra continuous covs
-    if "extra_continuous_keys" in _scvi_dict.keys():
-        if "extra_continuous_keys" not in adata.uns["_scvi"].keys():
-            raise ValueError('extra_continuous_keys not in adata.uns["_scvi"]')
-        target_cont_keys = adata.uns["_scvi"]["extra_continuous_keys"]
-        if not _scvi_dict["extra_continuous_keys"].equals(target_cont_keys):
-            raise ValueError(
-                "extra_continous_keys are not the same between source and target"
-            )
-
-
-def _assert_equal_mapping(mapping1, mapping2):
-
-    return pd.Index(mapping1).equals(pd.Index(mapping2))

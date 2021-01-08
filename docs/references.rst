@@ -10,16 +10,20 @@ References
    `Machine Learning in Computational Biology (MLCB) <https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf>`__.
 
 .. [GayosoSteier20] Adam Gayoso*, Zoë Steier*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2020),
-   *Joint probabilistic modeling of paired transcriptome and proteome measurements in single cells*,
-   `bioRxiv <https://www.biorxiv.org/content/10.1101/2020.05.08.083337v1.full.pdf>`__.
+   * Joint probabilistic modeling of single-cell multi-omic data with totalVI.*,
+   `Nature Methods (in press) <https://www.biorxiv.org/content/10.1101/2020.05.08.083337v1.full.pdf>`__.
 
 .. [Lopez18] Romain Lopez, Jeffrey Regier, Michael Cole, Michael I. Jordan, Nir Yosef (2018),
    *Deep generative modeling for single-cell transcriptomics*,
    `Nature Methods <https://www.nature.com/articles/s41592-018-0229-2.epdf?author_access_token=5sMbnZl1iBFitATlpKkddtRgN0jAjWel9jnR3ZoTv0P1-tTjoP-mBfrGiMqpQx63aBtxToJssRfpqQ482otMbBw2GIGGeinWV4cULBLPg4L4DpCg92dEtoMaB1crCRDG7DgtNrM_1j17VfvHfoy1cQ%3D%3D>`__.
 
-.. [Lopez19] Romain Lopez∗, Achille Nazaret∗, Maxime Langevin*, Jules Samaran*, Jeffrey Regier*, Michael I. Jordan, Nir Yosef (2019),
+.. [Lopez19] Romain Lopez*, Achille Nazaret*, Maxime Langevin*, Jules Samaran*, Jeffrey Regier*, Michael I. Jordan, Nir Yosef (2019),
    *A joint model of unpaired data from scRNA-seq and spatial transcriptomics for imputing missing gene expression measurements*,
    `ICML Workshop on Computational Biology <https://arxiv.org/pdf/1905.02269.pdf>`__.
+
+.. [Lotfollahi20] Mohammad Lotfollahi*, Mohsen Naghipourfar*, Malte D. Luecken, Matin Khajavi, Maren Büttner, Ziga Avsec, Alexander V. Misharin, Fabian J. Theis (2020),
+   *Query to reference single-cell integration with transfer learning*,
+   `bioRxiv <https://www.biorxiv.org/content/10.1101/2020.07.16.205997v1>`__.
 
 .. [Svensson20] Valentine Svensson, Adam Gayoso, Nir Yosef, Lior Pachter (2020),
    *Interpretable factor models of single-cell RNA-seq via variational autoencoders*,
