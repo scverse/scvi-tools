@@ -399,6 +399,7 @@ class Trainer:
         adata: anndata.AnnData = None,
         shuffle=False,
         indices=None,
+        sample_weights=None,
         type_class=ScviDataLoader,
     ):
         model = self.model if model is None and hasattr(self, "model") else model
@@ -410,6 +411,7 @@ class Trainer:
             indices=indices,
             use_cuda=self.use_cuda,
             batch_size=self.batch_size,
+            sample_weights=sample_weights,
             data_loader_kwargs=self.data_loader_kwargs,
         )
 

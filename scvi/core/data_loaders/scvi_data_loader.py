@@ -31,17 +31,36 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         batch size of each iteration
     shuffle
         if ``True``, shuffles indices before sampling
+    sample_weights
+        if not None and shuffle==True, samples according to the weights provided
 
     """
 
-    def __init__(self, indices: np.ndarray, batch_size: int, shuffle: bool):
+    def __init__(
+        self, indices: np.ndarray,
+        batch_size: int,
+        shuffle: bool,
+        sample_weights: Optional[np.ndarray] = None
+    ):
+
+        if shuffle == False and sample_weights is not None:
+            raise ValueError("Cannot use sample weights unless shuffle is true")
+        
+        if sample_weights is not None and len(sample_weights) != len(indices):
+            raise ValueError("sample_weights must match the size of indices")
+
         self.indices = indices
         self.batch_size = batch_size
         self.shuffle = shuffle
+        self.sample_weights = sample_weights
 
     def __iter__(self):
+        
         if self.shuffle is True:
-            idx = torch.randperm(len(self.indices)).tolist()
+            if self.sample_weights is None:
+                idx = torch.randperm(len(self.indices)).tolist()
+            else:
+                idx = np.random.choice(list(range(len(self.indices))), p=self.sample_weights, size=len(self.indices))
         else:
             idx = torch.arange(len(self.indices)).tolist()
 
@@ -75,6 +94,8 @@ class ScviDataLoader:
         A gene_dataset instance like ``CortexDataset()``
     shuffle
         Specifies if a `RandomSampler` or a `SequentialSampler` should be used
+    sample_weights
+        Weight of each sample, if using shuffle=True
     indices
         Specifies how the data should be split with regards to train/test or labelled/unlabelled
     use_cuda
@@ -92,6 +113,7 @@ class ScviDataLoader:
         indices=None,
         use_cuda=True,
         batch_size=128,
+        sample_weights=None,
         data_loader_kwargs=dict(),
     ):
         self.model = model
@@ -115,12 +137,14 @@ class ScviDataLoader:
                     "indices": inds,
                     "batch_size": batch_size,
                     "shuffle": True,
+                    "sample_weights": sample_weights
                 }
             else:
                 sampler_kwargs = {
                     "indices": inds,
                     "batch_size": batch_size,
                     "shuffle": False,
+                    "sample_weights": sample_weights
                 }
         else:
             if hasattr(indices, "dtype") and indices.dtype is np.dtype("bool"):
@@ -130,6 +154,7 @@ class ScviDataLoader:
                 "indices": indices,
                 "batch_size": batch_size,
                 "shuffle": True,
+                "sample_weights": sample_weights
             }
 
         self.sampler_kwargs = sampler_kwargs

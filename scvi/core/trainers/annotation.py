@@ -116,9 +116,10 @@ class ClassifierTrainer(Trainer):
         adata=None,
         shuffle=False,
         indices=None,
+        sample_weights=None,
         type_class=AnnotationDataLoader,
     ):
-        return super().create_scvi_dl(model, adata, shuffle, indices, type_class)
+        return super().create_scvi_dl(model, adata, shuffle, indices, sample_weights, type_class)
 
 
 class SemiSupervisedTrainer(UnsupervisedTrainer):
@@ -220,9 +221,10 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
         adata=None,
         shuffle=False,
         indices=None,
+        sample_weights=None,
         type_class=AnnotationDataLoader,
     ):
-        return super().create_scvi_dl(model, adata, shuffle, indices, type_class)
+        return super().create_scvi_dl(model, adata, shuffle, indices, sample_weights, type_class)
 
 
 class JointSemiSupervisedTrainer(SemiSupervisedTrainer):

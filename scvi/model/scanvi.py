@@ -3,6 +3,7 @@ from typing import Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
+import numpy as np
 from anndata import AnnData
 
 from scvi import _CONSTANTS
@@ -123,10 +124,10 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         original_key = self.scvi_setup_dict_["categorical_mappings"][key][
             "original_key"
         ]
-        labels = np.asarray(self.adata.obs[original_key]).ravel()
+        self._labels = np.asarray(self.adata.obs[original_key]).ravel()
         self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
-        self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
-        self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
+        self._unlabeled_indices = np.argwhere(self._labels == self.unlabeled_category).ravel()
+        self._labeled_indices = np.argwhere(self._labels != self.unlabeled_category).ravel()
         self.unsupervised_history_ = None
         self.semisupervised_history_ = None
 
@@ -170,6 +171,7 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         n_epochs_kl_warmup: int = 400,
         n_iter_kl_warmup: Optional[int] = None,
         frequency: Optional[int] = None,
+        balanced_sampling: Optional[bool] = False,
         unsupervised_trainer_kwargs: dict = {},
         semisupervised_trainer_kwargs: dict = {},
         unsupervised_train_kwargs: dict = {},
@@ -200,6 +202,10 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
             Frequency with which metrics are computed on the data for train/test/val sets for both
             the unsupervised and semisupervised trainers. If you'd like a different frequency for
             the semisupervised trainer, set frequency in semisupervised_train_kwargs.
+        balanced_sampling
+            Whether to balance the sampling of cells for supervised training so that each label
+            is presented equivalently. Note that this means each epoch will see different cells,
+            and that rare cell labels will be shown repeatedly to the trainer.
         unsupervised_trainer_kwargs
             Other keyword args for :class:`~scvi.core.trainers.UnsupervisedTrainer`.
         semisupervised_trainer_kwargs
@@ -261,9 +267,52 @@ class SCANVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self.trainer.unlabelled_set = self.trainer.create_scvi_dl(
             indices=self._unlabeled_indices
         )
-        self.trainer.labelled_set = self.trainer.create_scvi_dl(
-            indices=self._labeled_indices
-        )
+
+        if not balanced_sampling:
+            self.trainer.labelled_set = self.trainer.create_scvi_dl(
+                indices=self._labeled_indices
+            )
+        else:
+
+            # Grab the labels of only labeled indices
+            labelled_labels = self._labels[self._labeled_indices]
+
+            # Get each unique label for iterating
+            unique_labels = np.unique(labelled_labels)
+
+            # Get the indices (within the self._labeled_indices array) associated with each label
+            label_indices = {
+                label: np.argwhere(labelled_labels==label)
+                for label in unique_labels
+            }
+
+            # Count how many times we see each label
+            label_counts = {
+                label: indices.shape[0]
+                for label, indices in label_indices.items()
+            }
+
+            # Weight each label inversely to its proprtion of the data
+            label_weights = {
+                label: 1/(count/self._labeled_indices.shape[0])
+                for label, count in label_counts.items()
+            }
+
+            # Generate weights for each sample in accordance with their label
+            sample_weights = np.zeros(self._labeled_indices.shape, dtype=np.float32)
+
+            for label in unique_labels:
+                sample_weights[label_indices[label]] = label_weights[label]
+
+            # Normalize the weights so the probabilities sum to 1
+            sample_weights = sample_weights/sum(sample_weights)
+
+            self.trainer.labelled_set = self.trainer.create_scvi_dl(
+                indices=self._labeled_indices,
+                sample_weights=sample_weights,
+                shuffle=True
+            )
+
         self.semisupervised_history_ = self.trainer.history
         self.trainer.train(
             n_epochs=n_epochs_semisupervised,
