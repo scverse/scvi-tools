@@ -3,7 +3,6 @@ from typing import Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
-import numpy as np
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
@@ -316,19 +315,17 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
             # Get the indices (within the self._labeled_indices array) associated with each label
             label_indices = {
-                label: np.argwhere(labelled_labels==label)
-                for label in unique_labels
+                label: np.argwhere(labelled_labels == label) for label in unique_labels
             }
 
             # Count how many times we see each label
             label_counts = {
-                label: indices.shape[0]
-                for label, indices in label_indices.items()
+                label: indices.shape[0] for label, indices in label_indices.items()
             }
 
             # Weight each label inversely to its proprtion of the data
             label_weights = {
-                label: 1/(count/self._labeled_indices.shape[0])
+                label: 1 / (count / self._labeled_indices.shape[0])
                 for label, count in label_counts.items()
             }
 
@@ -339,7 +336,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 sample_weights[label_indices[label]] = label_weights[label]
 
             # Normalize the weights so the probabilities sum to 1
-            sample_weights = sample_weights/sum(sample_weights)
+            sample_weights = sample_weights / sum(sample_weights)
 
         self.trainer = SemiSupervisedTrainer(
             self.model,
@@ -347,6 +344,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             use_cuda=self.use_cuda,
             indices_labelled=self._labeled_indices,
             indices_unlabelled=self._unlabeled_indices,
+            sample_weights=sample_weights,
             **semisupervised_trainer_kwargs,
         )
 
