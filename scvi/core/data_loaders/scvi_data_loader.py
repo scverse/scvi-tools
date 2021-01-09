@@ -124,7 +124,7 @@ class ScviDataLoader:
     shuffle
         Specifies if a `RandomSampler` or a `SequentialSampler` should be used
     sample_weights
-        Weight of each sample, if using shuffle=True
+        Relative weight of each sample, or None if all samples have equal weight
     indices
         Specifies how the data should be split with regards to train/test or labelled/unlabelled
     use_cuda
@@ -158,29 +158,22 @@ class ScviDataLoader:
         self.dataset = ScviDataset(adata, getitem_tensors=self._data_and_attributes)
         self.to_monitor = []
         self.use_cuda = use_cuda
-        self.sample_weights = sample_weights
 
         if indices is None:
-            inds = np.arange(len(self.dataset))
-            sampler_kwargs = {
-                "indices": inds,
-                "batch_size": batch_size,
-                "shuffle": shuffle,
-            }
+            indices = np.arange(len(self.dataset))
         else:
             if hasattr(indices, "dtype") and indices.dtype is np.dtype("bool"):
                 indices = np.where(indices)[0].ravel()
             indices = np.asarray(indices)
-            sampler_kwargs = {
-                "indices": indices,
-                "batch_size": batch_size,
-                "shuffle": True,
-            }
+            shuffle = True
+
+        sampler_kwargs = {"indices": indices, "batch_size": batch_size}
 
         if sample_weights is not None:
             sampler_kwargs["sample_weights"] = sample_weights
             self.sampler_type = WeightedRandomSampler
         else:
+            sampler_kwargs["shuffle"] = shuffle
             self.sampler_type = BatchSampler
 
         self.sampler_kwargs = sampler_kwargs

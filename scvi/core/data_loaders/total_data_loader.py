@@ -54,6 +54,7 @@ class TotalDataLoader(ScviDataLoader):
         use_cuda: bool = True,
         batch_size: int = 256,
         data_loader_kwargs=dict(),
+        **kwargs
     ):
         super().__init__(
             model,
@@ -63,6 +64,7 @@ class TotalDataLoader(ScviDataLoader):
             use_cuda=use_cuda,
             batch_size=batch_size,
             data_loader_kwargs=data_loader_kwargs,
+            **kwargs,
         )
 
     @property
