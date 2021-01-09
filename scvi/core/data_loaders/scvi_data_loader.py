@@ -183,8 +183,8 @@ class ScviDataLoader:
         else:
             self.sampler_type = BatchSampler
 
-        sampler = self.sampler_type(**self.sampler_kwargs)
         self.sampler_kwargs = sampler_kwargs
+        sampler = self.sampler_type(**self.sampler_kwargs)
         self.data_loader_kwargs = copy.copy(data_loader_kwargs)
         # do not touch batch size here, sampler gives batched indices
         self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
