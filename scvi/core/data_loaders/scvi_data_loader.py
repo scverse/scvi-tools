@@ -43,11 +43,7 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
     def __iter__(self):
 
         if self.shuffle is True:
-            idx = np.random.choice(
-                list(range(len(self.indices))),
-                p=self.sample_weights,
-                size=len(self.indices),
-            )
+            idx = torch.randperm(len(self.indices)).tolist()
         else:
             idx = torch.arange(len(self.indices)).tolist()
 
@@ -162,6 +158,7 @@ class ScviDataLoader:
         self.dataset = ScviDataset(adata, getitem_tensors=self._data_and_attributes)
         self.to_monitor = []
         self.use_cuda = use_cuda
+        self.sample_weights = sample_weights
 
         if indices is None:
             inds = np.arange(len(self.dataset))
@@ -180,13 +177,14 @@ class ScviDataLoader:
                 "shuffle": True,
             }
 
-        self.sampler_kwargs = sampler_kwargs
-
         if sample_weights is not None:
             sampler_kwargs["sample_weights"] = sample_weights
-            sampler = WeightedRandomSampler(**self.sampler_kwargs)
+            self.sampler_class = WeightedRandomSampler
         else:
-            sampler = BatchSampler(**self.sampler_kwargs)
+            self.sampler_type = BatchSampler
+
+        sampler = self.sampler_type(**self.sampler_kwargs)
+        self.sampler_kwargs = sampler_kwargs
         self.data_loader_kwargs = copy.copy(data_loader_kwargs)
         # do not touch batch size here, sampler gives batched indices
         self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
@@ -272,7 +270,7 @@ class ScviDataLoader:
 
     def update_batch_size(self, batch_size):
         self.sampler_kwargs.update({"batch_size": batch_size})
-        sampler = BatchSampler(**self.sampler_kwargs)
+        sampler = self.sampler_class(**self.sampler_kwargs)
         return self.update({"sampler": sampler, "batch_size": None})
 
     def sequential(self, batch_size: Optional[int] = 128) -> "ScviDataLoader":
@@ -290,7 +288,7 @@ class ScviDataLoader:
             "batch_size": batch_size,
             "shuffle": False,
         }
-        return self.update({"sampler": BatchSampler(**self.sampler_kwargs)})
+        return self.update({"sampler": self.sampler_class(**self.sampler_kwargs)})
 
     @torch.no_grad()
     def elbo(self) -> torch.Tensor:
@@ -363,6 +361,7 @@ class ScviDataLoader:
 
         """
         self.sampler_kwargs.update({"indices": idx})
-        sampler = BatchSampler(**self.sampler_kwargs)
+
+        sampler = self.sampler_class(**self.sampler_kwargs)
         self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
         self.data_loader = DataLoader(self.dataset, **self.data_loader_kwargs)
