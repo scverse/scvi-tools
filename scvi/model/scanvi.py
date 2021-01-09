@@ -323,7 +323,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 label: indices.shape[0] for label, indices in label_indices.items()
             }
 
-            # Weight each label inversely to its proprtion of the data
+            # Weight each label inversely to its proportion of the data
             label_weights = {
                 label: 1 / (count / self._labeled_indices.shape[0])
                 for label, count in label_counts.items()

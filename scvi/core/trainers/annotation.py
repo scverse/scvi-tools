@@ -201,14 +201,19 @@ class SemiSupervisedTrainer(UnsupervisedTrainer):
             sampling_model=self.model,
             **class_kwargs,
         )
+
         self.full_dataset = self.create_scvi_dl(shuffle=True)
 
+        # Only shuffle cells of the labeled data if this is using
+        # sample weights; otherwise we do sequential batch sampling
         shuffle_labeled_cells = sample_weights is None
+
         self.labelled_set = self.create_scvi_dl(
             indices=indices_labelled,
             sample_weights=sample_weights,
             shuffle=shuffle_labeled_cells,
         )
+
         self.unlabelled_set = self.create_scvi_dl(indices=indices_unlabelled)
 
         for scdl in [self.labelled_set, self.unlabelled_set]:

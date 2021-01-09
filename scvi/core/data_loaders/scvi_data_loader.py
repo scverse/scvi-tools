@@ -61,7 +61,9 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
 
 class WeightedRandomSampler(torch.utils.data.sampler.Sampler):
     """
-    Custom torch Sampler that returns a list of indices of size batch_size.
+    Custom torch Sampler that returns a list of indices of size batch_size,
+    randomly sampled from the set of indices in accordance with the given
+    sample_weights.
 
     Parameters
     ----------
@@ -70,7 +72,8 @@ class WeightedRandomSampler(torch.utils.data.sampler.Sampler):
     batch_size
         batch size of each iteration
     sample_weights
-        samples according to the weights provided. Must be same length as indices
+        probabilities of sampling each element. Must be same length as indices
+        and sum to 1
 
     """
 
@@ -78,8 +81,8 @@ class WeightedRandomSampler(torch.utils.data.sampler.Sampler):
         self, indices: np.ndarray, batch_size: int, sample_weights: np.ndarray
     ):
 
-        if len(sample_weights) != len(indices):
-            raise ValueError("sample_weights must match the size of indices")
+        if sample_weights.shape != indices.shape:
+            raise ValueError("sample_weights and indices must be the same shape")
 
         self.indices = indices
         self.batch_size = batch_size
@@ -87,12 +90,16 @@ class WeightedRandomSampler(torch.utils.data.sampler.Sampler):
 
     def __iter__(self):
 
+        # Randomly sample from the list of indices (with replacement)
+        # based on the sample weights
         idx = np.random.choice(
             list(range(len(self.indices))),
             p=self.sample_weights,
             size=len(self.indices),
         )
 
+        # Create a data iterator to iterate through an array of indices
+        # per batch
         data_iter = iter(
             [
                 self.indices[idx[i : i + self.batch_size]]
@@ -124,7 +131,8 @@ class ScviDataLoader:
     shuffle
         Specifies if a `RandomSampler` or a `SequentialSampler` should be used
     sample_weights
-        Relative weight of each sample, or None if all samples have equal weight
+        Probabilities of sampling each element for random sampling. Must be same length as indices
+        and sum to 1, or be None if doing sequential batch sampling
     indices
         Specifies how the data should be split with regards to train/test or labelled/unlabelled
     use_cuda
@@ -159,6 +167,8 @@ class ScviDataLoader:
         self.to_monitor = []
         self.use_cuda = use_cuda
 
+        # If the indices are not specified, assume sequential list of all
+        # samples in the dataset
         if indices is None:
             indices = np.arange(len(self.dataset))
         else:
@@ -167,8 +177,12 @@ class ScviDataLoader:
             indices = np.asarray(indices)
             shuffle = True
 
+        # Start a dictionary of keyword arguments to pass on to the sampler;
+        # this will be refined dependent on the type of sampling
         sampler_kwargs = {"indices": indices, "batch_size": batch_size}
 
+        # If sample_weights is specified, this will use a weighted random
+        # sampler; otherwise, it will use the standard batch sampler
         if sample_weights is not None:
             sampler_kwargs["sample_weights"] = sample_weights
             self.sampler_type = WeightedRandomSampler
@@ -176,6 +190,8 @@ class ScviDataLoader:
             sampler_kwargs["shuffle"] = shuffle
             self.sampler_type = BatchSampler
 
+        # Store the sampler keyword arguments in case we need
+        # to reinitialize the sampler
         self.sampler_kwargs = sampler_kwargs
         sampler = self.sampler_type(**self.sampler_kwargs)
         self.data_loader_kwargs = copy.copy(data_loader_kwargs)
