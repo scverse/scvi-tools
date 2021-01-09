@@ -179,7 +179,7 @@ class ScviDataLoader:
 
         if sample_weights is not None:
             sampler_kwargs["sample_weights"] = sample_weights
-            self.sampler_class = WeightedRandomSampler
+            self.sampler_type = WeightedRandomSampler
         else:
             self.sampler_type = BatchSampler
 
