@@ -270,7 +270,7 @@ class ScviDataLoader:
 
     def update_batch_size(self, batch_size):
         self.sampler_kwargs.update({"batch_size": batch_size})
-        sampler = self.sampler_class(**self.sampler_kwargs)
+        sampler = self.sampler_type(**self.sampler_kwargs)
         return self.update({"sampler": sampler, "batch_size": None})
 
     def sequential(self, batch_size: Optional[int] = 128) -> "ScviDataLoader":
@@ -288,7 +288,7 @@ class ScviDataLoader:
             "batch_size": batch_size,
             "shuffle": False,
         }
-        return self.update({"sampler": self.sampler_class(**self.sampler_kwargs)})
+        return self.update({"sampler": self.sampler_type(**self.sampler_kwargs)})
 
     @torch.no_grad()
     def elbo(self) -> torch.Tensor:
@@ -362,6 +362,6 @@ class ScviDataLoader:
         """
         self.sampler_kwargs.update({"indices": idx})
 
-        sampler = self.sampler_class(**self.sampler_kwargs)
+        sampler = self.sampler_type(**self.sampler_kwargs)
         self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
         self.data_loader = DataLoader(self.dataset, **self.data_loader_kwargs)
