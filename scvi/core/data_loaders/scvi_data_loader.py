@@ -31,38 +31,71 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         batch size of each iteration
     shuffle
         if ``True``, shuffles indices before sampling
-    sample_weights
-        if not None and shuffle==True, samples according to the weights provided
 
     """
 
-    def __init__(
-        self, indices: np.ndarray,
-        batch_size: int,
-        shuffle: bool,
-        sample_weights: Optional[np.ndarray] = None
-    ):
-
-        if shuffle == False and sample_weights is not None:
-            raise ValueError("Cannot use sample weights unless shuffle is true")
-        
-        if sample_weights is not None and len(sample_weights) != len(indices):
-            raise ValueError("sample_weights must match the size of indices")
+    def __init__(self, indices: np.ndarray, batch_size: int, shuffle: bool):
 
         self.indices = indices
         self.batch_size = batch_size
         self.shuffle = shuffle
+
+    def __iter__(self):
+
+        if self.shuffle is True:
+            idx = np.random.choice(
+                list(range(len(self.indices))),
+                p=self.sample_weights,
+                size=len(self.indices),
+            )
+        else:
+            idx = torch.arange(len(self.indices)).tolist()
+
+        data_iter = iter(
+            [
+                self.indices[idx[i : i + self.batch_size]]
+                for i in range(0, len(idx), self.batch_size)
+            ]
+        )
+        return data_iter
+
+    def __len__(self):
+        return len(self.indices) // self.batch_size
+
+
+class WeightedRandomSampler(torch.utils.data.sampler.Sampler):
+    """
+    Custom torch Sampler that returns a list of indices of size batch_size.
+
+    Parameters
+    ----------
+    indices
+        list of indices to sample from
+    batch_size
+        batch size of each iteration
+    sample_weights
+        samples according to the weights provided. Must be same length as indices
+
+    """
+
+    def __init__(
+        self, indices: np.ndarray, batch_size: int, sample_weights: np.ndarray
+    ):
+
+        if len(sample_weights) != len(indices):
+            raise ValueError("sample_weights must match the size of indices")
+
+        self.indices = indices
+        self.batch_size = batch_size
         self.sample_weights = sample_weights
 
     def __iter__(self):
-        
-        if self.shuffle is True:
-            if self.sample_weights is None:
-                idx = torch.randperm(len(self.indices)).tolist()
-            else:
-                idx = np.random.choice(list(range(len(self.indices))), p=self.sample_weights, size=len(self.indices))
-        else:
-            idx = torch.arange(len(self.indices)).tolist()
+
+        idx = np.random.choice(
+            list(range(len(self.indices))),
+            p=self.sample_weights,
+            size=len(self.indices),
+        )
 
         data_iter = iter(
             [
@@ -132,20 +165,11 @@ class ScviDataLoader:
 
         if indices is None:
             inds = np.arange(len(self.dataset))
-            if shuffle:
-                sampler_kwargs = {
-                    "indices": inds,
-                    "batch_size": batch_size,
-                    "shuffle": True,
-                    "sample_weights": sample_weights
-                }
-            else:
-                sampler_kwargs = {
-                    "indices": inds,
-                    "batch_size": batch_size,
-                    "shuffle": False,
-                    "sample_weights": sample_weights
-                }
+            sampler_kwargs = {
+                "indices": inds,
+                "batch_size": batch_size,
+                "shuffle": shuffle,
+            }
         else:
             if hasattr(indices, "dtype") and indices.dtype is np.dtype("bool"):
                 indices = np.where(indices)[0].ravel()
@@ -154,11 +178,15 @@ class ScviDataLoader:
                 "indices": indices,
                 "batch_size": batch_size,
                 "shuffle": True,
-                "sample_weights": sample_weights
             }
 
         self.sampler_kwargs = sampler_kwargs
-        sampler = BatchSampler(**self.sampler_kwargs)
+
+        if sample_weights is not None:
+            sampler_kwargs["sample_weights"] = sample_weights
+            sampler = WeightedRandomSampler(**self.sampler_kwargs)
+        else:
+            sampler = BatchSampler(**self.sampler_kwargs)
         self.data_loader_kwargs = copy.copy(data_loader_kwargs)
         # do not touch batch size here, sampler gives batched indices
         self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
