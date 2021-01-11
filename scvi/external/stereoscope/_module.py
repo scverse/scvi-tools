@@ -156,7 +156,7 @@ class SpatialDeconv(AbstractVAE):
         # factor loadings
         self.V = torch.nn.Parameter(torch.randn(self.n_labels + 1, self.n_spots))
         # additive gene bias
-        self.beta = torch.nn.Parameter(0.1 * torch.randn(self.n_genes))
+        self.beta = torch.nn.Parameter(0.01 * torch.randn(self.n_genes))
 
     @torch.no_grad()
     def get_proportions(self, keep_noise=False) -> np.ndarray:
