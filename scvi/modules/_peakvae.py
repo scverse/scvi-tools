@@ -1,4 +1,5 @@
 from typing import Optional, Iterable, Dict
+from scvi._compat import Literal
 
 import numpy as np
 import torch
@@ -23,6 +24,8 @@ class Decoder(torch.nn.Module):
         n_cat_list: Iterable[int] = None,
         n_layers: int = 2,
         n_hidden: int = 128,
+        use_batch_norm: bool = False,
+        use_layer_norm: bool = True,
     ):
         super().__init__()
         self.net = FCLayers(
@@ -33,6 +36,8 @@ class Decoder(torch.nn.Module):
             n_hidden=n_hidden,
             dropout_rate=0,
             activation_fn=torch.nn.LeakyReLU,
+            use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
         )
         self.output = torch.nn.Sequential(
             torch.nn.Linear(n_hidden, n_output), torch.nn.Sigmoid()
@@ -51,7 +56,7 @@ class PEAKVAE(AbstractVAE):
 
     Parameters
     ----------
-    n_input
+    n_input_regions
         Number of input regions.
     n_batch
         Number of batches, if 0, no batch correction is performed.
@@ -61,69 +66,106 @@ class PEAKVAE(AbstractVAE):
     n_latent
         Dimensionality of the latent space. If `None`, defaults to square root
         of `n_hidden`.
-    n_layers
-        Number of hidden layers used for encoder and decoder NNs.
+    n_layers_encoder
+        Number of hidden layers used for encoder NN.
+    n_layers_decoder
+        Number of hidden layers used for decoder NN.
     dropout_rate
         Dropout rate for neural networks
     model_depth
-        Model sequencing depth / library size or not.
+        Model library size factors or not.
     region_factors
         Include region-specific factors in the model
+    use_batch_norm
+        One of the following
+
+        * ``'encoder'`` - use batch normalization in the encoder only
+        * ``'decoder'`` - use batch normalization in the decoder only
+        * ``'none'`` - do not use batch normalization (default)
+        * ``'both'`` - use batch normalization in both the encoder and decoder
+    use_layer_norm
+        One of the following
+
+        * ``'encoder'`` - use layer normalization in the encoder only
+        * ``'decoder'`` - use layer normalization in the decoder only
+        * ``'none'`` - do not use layer normalization
+        * ``'both'`` - use layer normalization in both the encoder and decoder (default)
+    latent_distribution
+        which latent distribution to use, options are
+
+        * ``'normal'`` - Normal distribution (default)
+        * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     """
 
     def __init__(
         self,
-        n_input: int,
+        n_input_regions: int,
         n_batch: int = 0,
         n_hidden: Optional[int] = None,
-        n_layers: int = 2,
         n_latent: Optional[int] = None,
+        n_layers_encoder: int = 2,
+        n_layers_decoder: int = 2,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Iterable[int] = [],
+        n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: float = 0.1,
         model_depth: bool = True,
         region_factors: bool = True,
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         latent_distribution: str = "normal",
     ):
         super().__init__()
 
-        self.n_input = n_input
-        self.n_hidden = int(np.sqrt(self.n_input)) if n_hidden is None else n_hidden
+        self.n_input_regions = n_input_regions
+        self.n_hidden = int(np.sqrt(self.n_input_regions)) if n_hidden is None else n_hidden
         self.n_latent = int(np.sqrt(self.n_hidden)) if n_latent is None else n_latent
-        self.n_layers = n_layers
+        self.n_layers_encoder = n_layers_encoder
+        self.n_layers_decoder = n_layers_decoder
+        self.n_cats_per_cov = n_cats_per_cov
+        self.n_continuous_cov = n_continuous_cov
         self.model_depth = model_depth
+        self.dropout_rate = dropout_rate
         self.latent_distribution = latent_distribution
+        self.use_batch_norm_encoder = use_batch_norm in ('encoder', 'both')
+        self.use_batch_norm_decoder = use_batch_norm in ('decoder', 'both')
+        self.use_layer_norm_encoder = use_layer_norm in ('encoder', 'both')
+        self.use_layer_norm_decoder = use_layer_norm in ('decoder', 'both')
 
         self.z_encoder = Encoder(
-            n_input=n_input,
-            n_layers=self.n_layers,
+            n_input=self.n_input_regions,
+            n_layers=self.n_layers_encoder,
             n_output=self.n_latent,
             n_hidden=self.n_hidden,
-            dropout_rate=dropout_rate,
+            dropout_rate=self.dropout_rate,
             activation_fn=torch.nn.LeakyReLU,
-            distribution=latent_distribution,
+            distribution=self.latent_distribution, 
+            use_batch_norm=self.use_batch_norm_encoder,
+            use_layer_norm=self.use_layer_norm_encoder,
         )
 
+        cat_list = [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
         self.z_decoder = Decoder(
-            n_input=self.n_latent,
-            n_output=n_input,
+            n_input=self.n_latent + self.n_continuous_cov,
+            n_output=n_input_regions,
             n_hidden=self.n_hidden,
-            n_cat_list=[n_batch],
-            n_layers=self.n_layers,
+            n_cat_list=cat_list,
+            n_layers=self.n_layers_decoder,
+            use_batch_norm=self.use_batch_norm_decoder,
+            use_layer_norm=self.use_layer_norm_decoder,
         )
 
         self.d_encoder = None
         if self.model_depth:
             # Decoder class to avoid variational split
             self.d_encoder = Decoder(
-                n_input=n_input,
+                n_input=n_input_regions,
                 n_output=1,
                 n_hidden=self.n_hidden,
-                n_layers=self.n_layers,
+                n_layers=self.n_layers_encoder,
             )
         self.region_factors = None
         if region_factors:
-            self.region_factors = torch.nn.Parameter(torch.zeros(self.n_input))
+            self.region_factors = torch.nn.Parameter(torch.zeros(self.n_input_regions))
 
     def _get_inference_input(self, tensors):
         x = tensors[_CONSTANTS.X_KEY]
@@ -137,12 +179,11 @@ class PEAKVAE(AbstractVAE):
         qz_m = inference_outputs["qz_m"]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
-        cont_key = _CONSTANTS.CONT_COVS_KEY
-        cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
+        cont_covs = tensors.get(_CONSTANTS.CONT_COVS_KEY)
 
-        cat_key = _CONSTANTS.CAT_COVS_KEY
-        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
+        cat_covs = tensors.get(_CONSTANTS.CAT_COVS_KEY)
 
+        # TODO: figure out what this is
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
         input_dict = {
@@ -156,11 +197,10 @@ class PEAKVAE(AbstractVAE):
 
     def get_reconstruction_loss(self, p, d, f, x):
         rl = (
-            -Bernoulli(p * d * f)
-            .log_prob(torch.min(x, torch.ones_like(x)))  # ZI probabilities
-            .sum(1)
-        )  # binarized data
-
+            -Bernoulli(p * d * f) 
+            .log_prob((x > 0).float())  # binarized data
+            .sum(dim=-1)
+        )
         return rl
 
     @auto_move_data
@@ -228,5 +268,4 @@ class PEAKVAE(AbstractVAE):
 
         loss = (rl + kld * kl_weight).mean()
 
-        # last term is for potential global KL terms
-        return SCVILoss(loss, rl, kld, 0.0)
+        return SCVILoss(loss, rl, kld, kl_global=0.0)

@@ -33,25 +33,27 @@ class PEAKVI(VAEMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered with scvi
+        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer. If `None`, defaults to square root
         of number of regions.
     n_latent
         Dimensionality of the latent space. If `None`, defaults to square root
         of `n_hidden`.
-    n_layers
-        Number of hidden layers used for encoder NN
+    n_layers_encoder
+        Number of hidden layers used for encoder NN.
+    n_layers_decoder
+        Number of hidden layers used for decoder NN.
     dropout_rate
         Dropout rate for neural networks
     model_depth
-        Model sequencing depth / library size or not.
+        Model sequencing depth / library size (default: True)
     region_factors
-        Include region-specific factors in the model
+        Include region-specific factors in the model (default: True)
     latent_distribution
         One of
 
-        * ``'normal'`` - Normal distribution
+        * ``'normal'`` - Normal distribution (Default)
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
 
     Examples
@@ -67,34 +69,50 @@ class PEAKVI(VAEMixin, BaseModelClass):
         adata: AnnData,
         n_hidden: Optional[int] = 128,
         n_latent: Optional[int] = None,
-        n_layers: int = 2,
+        n_layers_encoder: int = 2,
+        n_layers_decoder: int = 2,
         dropout_rate: float = 0.1,
         model_depth: bool = True,
         region_factors: bool = True,
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         latent_distribution: Literal["normal", "ln"] = "normal",
         use_gpu: bool = True,
         **model_kwargs,
     ):
         super(PEAKVI, self).__init__(adata, use_gpu=use_gpu)
+
+        n_cats_per_cov = (
+            self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
+            if "extra_categoricals" in self.scvi_setup_dict_
+            else []
+        )
+
         self.model = PEAKVAE(
-            n_input=self.summary_stats["n_vars"],
+            n_input_regions=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
             n_hidden=n_hidden,
             n_latent=n_latent,
-            n_layers=n_layers,
+            n_layers_encoder=n_layers_encoder,
+            n_layers_decoder=n_layers_decoder,
+            n_continuous_cov=self.summary_stats["n_continuous_covs"],
+            n_cats_per_cov=n_cats_per_cov,
             dropout_rate=dropout_rate,
-            latent_distribution=latent_distribution,
             model_depth=model_depth,
             region_factors=region_factors,
+            use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
+            latent_distribution=latent_distribution,
             **model_kwargs,
         )
         self._model_summary_string = (
-            "PeakVI Model with params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
-            "{}, latent_distribution: {}"
+            "PeakVI Model with params: \nn_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
+            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}"
         ).format(
-            n_hidden,
-            n_latent,
-            n_layers,
+            self.model.n_hidden,
+            self.model.n_latent,
+            n_layers_encoder,
+            n_layers_decoder,
             dropout_rate,
             latent_distribution,
         )
@@ -111,11 +129,15 @@ class PEAKVI(VAEMixin, BaseModelClass):
 
     def train(
         self,
-        max_epochs: int = 2000,
+        max_epochs: int = 500,
         lr: float = 1e-3,
         use_gpu: Optional[bool] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
+        batch_size: int = 256,
+        weight_decay: float = 1e-3,
+        early_stopping: bool = True,
+        check_val_every_n_epoch: Optional[int] = None,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 50,
         vae_task_kwargs: Optional[dict] = None,
@@ -137,6 +159,15 @@ class PEAKVI(VAEMixin, BaseModelClass):
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        batch_size
+            Minibatch size to use during training.
+        weight_decay
+            weight decay regularization term for optimization
+        early_stopping
+            Whether to perform early stopping with respect to the validation set.
+        check_val_every_n_epoch
+            Check val every n train epochs. By default, val is not checked, unless `early_stopping` is `True`.
+            If so, val is checked every epoch.
         n_steps_kl_warmup
             Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
             Only activated when `n_epochs_kl_warmup` is set to None. If `None`, defaults
@@ -190,10 +221,11 @@ class PEAKVI(VAEMixin, BaseModelClass):
 
         return torch.cat(library_sizes).numpy().squeeze()
 
+    @torch.no_grad()
     def get_region_factors(self):
         if self.region_factors is None:
             raise RuntimeError("region factors were not included in this model")
-        return torch.sigmoid(self.region_factors).detach().numpy()
+        return torch.sigmoid(self.region_factors).cpu().numpy()
 
     @torch.no_grad()
     def get_imputed_values(
@@ -203,6 +235,8 @@ class PEAKVI(VAEMixin, BaseModelClass):
         transform_batch: Optional[Union[str, int]] = None,
         use_z_mean: bool = True,
         threshold: Optional[float] = None,
+        scale_cells: bool = False,
+        scale_regions: bool = False,
         batch_size: int = 128,
     ) -> Union[np.ndarray, csr_matrix]:
         """
@@ -225,11 +259,19 @@ class PEAKVI(VAEMixin, BaseModelClass):
             - None, then real observed batch is used
             - int, then batch transform_batch is used
         use_z_mean
-            Should the model sample from the latent space or use the distribution means.
+            If True (default), use the distribution mean. Otherwise, sample from the distribution.
         threshold
-            If provided, the matrix is thresholded and a binary accessibility
+            If provided, the matrix is thresholded and a sparse binary accessibility
             matrix is returned instead. This is recommended if the matrix is very big
             and needs to be saved to file.
+        normalize_cells
+            Whether to reintroduce library size factors to scale the normalized probabilities.
+            This makes the estimates closer to the input, but removes the library size correction.
+            False by default.
+        normalize_regions
+            Whether to reintroduce region factors to scale the normalized probabilities. This makes
+            the estimates closer to the input, but removes the region-level bias correction. False by 
+            default.
         batch_size
             Minibatch size for data loading into model
 
@@ -241,8 +283,6 @@ class PEAKVI(VAEMixin, BaseModelClass):
         if threshold is not None:
             assert 0 <= threshold <= 1
 
-        # TODO: enable depth correction
-        # TODO: remove technical effects? Zero-out some parts of the s tensor.
         imputed = []
         for tensors in post:
             # TODO implement iteration over multiple batches like in RNAMixin
@@ -254,7 +294,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
                 generative_kwargs=generative_kwargs,
                 compute_loss=False,
             )
-            p = generative_outputs["p"]
+            p = generative_outputs["p"].cpu()
             if threshold:
                 p = csr_matrix((p >= threshold).numpy())
             imputed.append(p)
@@ -263,6 +303,12 @@ class PEAKVI(VAEMixin, BaseModelClass):
             imputed = vstack(imputed, format="csr")
         else:  # imputed is a list of tensors
             imputed = torch.cat(imputed).numpy()
+
+        if scale_cells:
+            imputed = imputed * self.get_library_size_factors(adata, indices, batch_size)
+        if scale_regions:
+            imputed = imputed * self.get_region_factors()
+        
         return imputed
 
     @_doc_params(
@@ -277,7 +323,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
         idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         mode: Literal["vanilla", "change"] = "change",
-        delta: float = 0.25,
+        delta: float = 0.1,
         batch_size: Optional[int] = None,
         all_stats: bool = True,
         batch_correction: bool = False,
@@ -288,7 +334,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
         **kwargs,
     ) -> pd.DataFrame:
         r"""
-        A unified method for differential expression analysis.
+        A unified method for differential accessibility analysis.
 
         Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
 
@@ -296,7 +342,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
         ----------
         {doc_differential_expression}
         two_sided
-            Whether to perform a two-sided test, or a one-sided test
+            Whether to perform a two-sided test, or a one-sided test. 
         **kwargs
             Keyword args for :func:`scvi.utils.DifferentialComputation.get_bayes_factors`
 
@@ -315,12 +361,9 @@ class PEAKVI(VAEMixin, BaseModelClass):
             return a - b
 
         if two_sided:
-
             def m1_domain_fn(samples):
                 return np.abs(samples) >= delta
-
         else:
-
             def m1_domain_fn(samples):
                 return samples >= delta
 
