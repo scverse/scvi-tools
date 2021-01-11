@@ -18,15 +18,28 @@ def read_10x_atac(base_path: Union[str, Path]) -> AnnData:
     """
     data = mmread(os.path.join(base_path, "matrix.mtx")).transpose()
     coords = pd.read_csv(
-        os.path.join(base_path, "peaks.bed"), sep="\t", header=None, index_col=None
+        os.path.join(base_path, "peaks.bed"), 
+        sep='\t', 
+        header=None, 
+        index_col=None,
     )
-    coords.rename({0: "Chromosome", 1: "Start", 2: "End"}, axis="columns", inplace=True)
-    cell_annot = pd.DataFrame(
-        [
-            line.strip().split("-")
-            for line in open(os.path.join(base_path, "barcodes.tsv"), "r").readlines()
-        ]
+    coords.rename({0: "chr", 1: "start", 2: "end"}, axis="columns", inplace=True)
+    coords.set_index(
+        coords.chr.astype(str) + ':' + 
+        coords.start.astype(str) + '-' + 
+        coords.end.astype(str),
+        inplace=True,
     )
-    cell_annot.rename({0: "cell_barcode", 1: "batch_id"}, axis="columns", inplace=True)
-    cell_annot = cell_annot.set_index("cell_barcode")
+    coords.index = coords.index.astype(str)
+
+    cell_annot = pd.read_csv(
+        os.path.join(base_path, "barcodes.tsv"), 
+        sep='-', 
+        header=None, 
+        index_col=None
+    )
+    cell_annot.rename({0: "barcode", 1: "batch_id"}, axis="columns", inplace=True)
+    cell_annot.set_index("barcode", inplace=True)
+    cell_annot.index = cell_annot.index.astype(str)
+    
     return AnnData(data.tocsr(), var=coords, obs=cell_annot)
