@@ -446,8 +446,11 @@ def transfer_anndata_setup(
                     if c not in mapping:
                         mapping = np.concatenate([mapping, [c]])
                 source_cat_dict[key] = mapping
+        # use ["keys"] to maintain correct order
         cat_loc, cat_key = _setup_extra_categorical_covs(
-            adata_target, list(source_cat_dict.keys()), category_dict=source_cat_dict
+            adata_target,
+            _scvi_dict["extra_categoricals"]["keys"],
+            category_dict=source_cat_dict,
         )
         target_data_registry.update(
             {_CONSTANTS.CAT_COVS_KEY: {"attr_name": cat_loc, "attr_key": cat_key}}
@@ -1169,9 +1172,20 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
     )
 
     # validate any extra categoricals
-    if "extra_categorical_mappings" in _scvi_dict.keys():
-        target_extra_cat_maps = adata.uns["_scvi"]["extra_categorical_mappings"]
-        for key, val in _scvi_dict["extra_categorical_mappings"].items():
+    if "extra_categoricals" in _scvi_dict.keys():
+        target_dict = adata.uns["_scvi"]["extra_categoricals"]
+        source_dict = _scvi_dict["extra_categoricals"]
+        # check that order of keys setup is same
+        if not np.array_equal(target_dict["keys"], source_dict["keys"]):
+            error_msg = (
+                "Registered categorical key order mismatch between "
+                + "the anndata used to train and the anndata passed in."
+                + "Expected categories & order {}. Received {}.\n"
+            )
+            raise ValueError(error_msg.format(source_dict["keys"], target_dict["keys"]))
+        # check mappings are equivalent
+        target_extra_cat_maps = adata.uns["_scvi"]["extra_categoricals"]["mappings"]
+        for key, val in source_dict["mappings"].items():
             target_map = target_extra_cat_maps[key]
             transfer_setup = transfer_setup or _needs_transfer(val, target_map, key)
     # validate any extra continuous covs
