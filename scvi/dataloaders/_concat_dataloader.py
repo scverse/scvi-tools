@@ -46,29 +46,38 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
     def __init__(
         self,
         adata,
-        full_indices,
         labels_obs_key,
         unlabeled_category,
         n_samples_per_label,
+        indices=None,
         shuffle=False,
         batch_size=128,
         data_and_attributes: Optional[dict] = None,
         **data_loader_kwargs,
     ):
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+
+        self.indices = indices
+
+        if len(indices) == 0:
+            return None
+
         self.n_samples_per_label = n_samples_per_label
 
         # save a nested list of the indices per labeled category
         self.labeled_locs = []
-        labels = np.unique(adata.obs[labels_obs_key])
+        labels = np.unique(adata.obs[labels_obs_key][indices])
         for label in labels:
             if label != unlabeled_category:
-                label_loc = np.where(adata.obs[labels_obs_key] == label)[0]
+                label_loc_idx = np.where(adata.obs[labels_obs_key][indices] == label)[0]
+                label_loc = indices[label_loc_idx]
                 self.labeled_locs.append(label_loc)
         labelled_idx = self.subsample_labels()
 
         super().__init__(
             adata=adata,
-            indices_list=[full_indices, labelled_idx],
+            indices_list=[indices, labelled_idx],
             shuffle=shuffle,
             batch_size=batch_size,
             data_and_attributes=data_and_attributes,
