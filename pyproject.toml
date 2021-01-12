@@ -32,6 +32,7 @@ hyperopt = "==0.1.2"
 importlib-metadata = {version = "^1.0", python = "<3.8"}
 ipython = {version = ">=7.1.1", optional = true}
 ipywidgets = "*"
+isort = {version = "*", optional = true}
 jupyter = {version = ">=1.0", optional = true}
 leidenalg = {version = "*", optional = true}
 loompy = {version = ">=3.0.6", optional = true}
@@ -62,7 +63,7 @@ tqdm = ">=4.31.1"
 typing_extensions = {version = "*", python = "<3.8"}
 
 [tool.poetry.extras]
-dev = ["black", "pytest", "flake8", "codecov", "scanpy", "loompy", "jupyter", "nbformat", "nbconvert", "pre-commit", "prospector"]
+dev = ["black", "pytest", "isort", "flake8", "codecov", "scanpy", "loompy", "jupyter", "nbformat", "nbconvert", "pre-commit", "prospector"]
 docs = ["sphinx", "scanpydoc", "nbsphinx", "nbsphinx-link", "ipython", "pydata-sphinx-theme", "typing_extensions", "sphinx-autodoc-typehints"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc"]
 
