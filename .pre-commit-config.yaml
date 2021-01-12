@@ -1,11 +1,14 @@
+minimum_pre_commit_version: 2.9.2
 repos:
     - repo: https://github.com/python/black
       rev: 20.8b1
       hooks:
           - id: black
-            language_version: python3.7
     - repo: https://gitlab.com/pycqa/flake8
       rev: 3.8.3
       hooks:
           - id: flake8
-            language: python_venv
+    - repo: https://github.com/PyCQA/isort
+      rev: 5.7.0
+      hooks:
+         -  id: isort
