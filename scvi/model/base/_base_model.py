@@ -51,6 +51,7 @@ class BaseModelClass(ABC):
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
         shuffle=False,
+        scvi_dl_class=None,
         **data_loader_kwargs,
     ):
         """
@@ -74,7 +75,10 @@ class BaseModelClass(ABC):
             batch_size = settings.batch_size
         if indices is None:
             indices = np.arange(adata.n_obs)
-        dl = self._data_loader_cls(
+        if scvi_dl_class is None:
+            scvi_dl_class = self._data_loader_cls
+
+        dl = scvi_dl_class(
             adata,
             shuffle=shuffle,
             indices=indices,

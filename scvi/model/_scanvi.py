@@ -12,12 +12,12 @@ from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.data._anndata import _make_obs_column_categorical
 from scvi.dataloaders import SemiSupervisedDataLoader, ScviDataLoader
-from scvi.lightning import SemiSupervisedTask, Trainer, VAETask
-from scvi.modules import SCANVAE, VAE
+from scvi.lightning import SemiSupervisedTask, Trainer
+from scvi.modules import SCANVAE
 
-from ._scvi import SCVI
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.lightning._sampling import SubSampleLabels
+from sklearn.model_selection._split import _validate_shuffle_split
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         adata: AnnData,
         unlabeled_category: Union[str, int, float],
-        pretrained_model: Optional[SCVI] = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
@@ -95,32 +94,17 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.unlabeled_category_ = unlabeled_category
         has_unlabeled = self._set_indices_and_labels()
 
-        # ignores unlabelled catgegory
+        if len(self._labeled_indices) != 0:
+            self._dl_cls = SemiSupervisedDataLoader
+        else:
+            self._dl_cls = ScviDataLoader
+
+        # ignores unlabeled catgegory
         n_labels = (
             self.summary_stats["n_labels"] - 1
             if has_unlabeled
             else self.summary_stats["n_labels"]
         )
-
-        if pretrained_model is not None:
-            if pretrained_model.is_trained is False:
-                raise ValueError("pretrained model has not been trained")
-            self._base_model = pretrained_model.model
-            self._is_trained_base = True
-        else:
-            self._base_model = VAE(
-                n_input=self.summary_stats["n_vars"],
-                n_batch=self.summary_stats["n_batch"],
-                n_hidden=n_hidden,
-                n_latent=n_latent,
-                n_layers=n_layers,
-                dropout_rate=dropout_rate,
-                dispersion=dispersion,
-                gene_likelihood=gene_likelihood,
-                encode_covariates=encode_covariates,
-                **vae_model_kwargs,
-            )
-            self._is_trained_base = False
 
         self.model = SCANVAE(
             n_input=self.summary_stats["n_vars"],
@@ -172,7 +156,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if self.unlabeled_category_ in labels:
             unlabeled_idx = np.where(mapping == self.unlabeled_category_)
             unlabeled_idx = unlabeled_idx[0][0]
-            # move unlabelled category to be the last position
+            # move unlabeled category to be the last position
             mapping[unlabeled_idx], mapping[-1] = mapping[-1], mapping[unlabeled_idx]
             cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
             # rerun setup for the batch column
@@ -195,6 +179,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
         self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
         self.original_label_key = original_key
+
         return remapped
 
     @property
@@ -208,16 +193,13 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     @property
     def history(self):
         """Returns computed metrics during training."""
-        return {
-            "unsupervised_trainer_history": self.unsupervised_history_,
-            "semisupervised_trainer_history": self.semisupervised_history_,
-        }
+        return self._trainer.logger.history
 
     def train(
         self,
-        n_epochs_unsupervised: Optional[int] = None,
-        n_epochs_semisupervised: Optional[int] = None,
+        max_epochs: Optional[int] = None,
         n_samples_per_label: Optional[float] = None,
+        train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 512,
         use_gpu: Optional[bool] = None,
@@ -227,19 +209,15 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         n_epochs_kl_warmup: int = 400,
         n_iter_kl_warmup: Optional[int] = None,
         check_val_every_n_epoch: Optional[int] = None,
-        unsupervised_trainer_kwargs: dict = {},
-        semisupervised_trainer_kwargs: dict = {},
-        unsupervised_task_kwargs: dict = {},
-        semisupervised_task_kwargs: dict = {},
+        trainer_kwargs: dict = {},
+        task_kwargs: dict = {},
     ):
         """
         Train the model.
 
         Parameters
         ----------
-        n_epochs_unsupervised
-            Number of passes through the dataset for unsupervised pre-training.
-        n_epochs_semisupervised
+        max_epochs
             Number of passes through the dataset for semisupervised training.
         train_base_model
             Pretrain an SCVI base model first before semisupervised training.
@@ -266,31 +244,16 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         semisupervised_train_kwargs
             Keyword args for the train method of :class:`~scvi.trainers.SemiSupervisedTrainer`.
         """
-        unsupervised_trainer_kwargs = dict(unsupervised_trainer_kwargs)
-        semisupervised_trainer_kwargs = dict(semisupervised_trainer_kwargs)
-        unsupervised_task_kwargs = dict(unsupervised_task_kwargs)
-        semisupervised_task_kwargs = dict(semisupervised_task_kwargs)
+        trainer_kwargs = dict(trainer_kwargs)
+        task_kwargs = dict(task_kwargs)
 
-        if n_epochs_unsupervised is None:
-            n_epochs_unsupervised = np.min(
-                [round((20000 / self.adata.shape[0]) * 400), 400]
-            )
-        if n_epochs_semisupervised is None:
-            n_epochs_semisupervised = int(
-                np.min([10, np.max([2, round(n_epochs_unsupervised / 3.0)])])
-            )
-        logger.info(
-            "Training Unsupervised Trainer for {} epochs.".format(n_epochs_unsupervised)
-        )
-        logger.info(
-            "Training SemiSupervised Trainer for {} epochs.".format(
-                n_epochs_semisupervised
-            )
-        )
-        if use_gpu is not None:
-            use_gpu = use_gpu
-        else:
-            use_gpu = self.use_gpu
+        if max_epochs is None:
+            n_cells = self.adata.n_obs
+            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+
+        logger.info("Training for {} epochs.".format(max_epochs))
+
+        use_gpu = use_gpu if use_gpu is not None else self.use_gpu
 
         if use_gpu:
             gpus = 1
@@ -298,69 +261,40 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         else:
             gpus = None
             pin_memory = False
-        self.trainer = Trainer(
-            max_epochs=n_epochs_unsupervised,
-            gpus=gpus,
-            **unsupervised_trainer_kwargs,
-        )
 
-        # self.test_indices_ = test_dl.indices
-        # self.validation_indices_ = val_dl.indices
-        full_idx = np.arange(self.adata.n_obs)
-        train_dl = ScviDataLoader(
+        train_dl, val_dl, test_dl = self._train_test_val_split(
             self.adata,
-            shuffle=True,
-            indices=full_idx,
-            batch_size=batch_size,
+            train_size=train_size,
+            validation_size=validation_size,
             pin_memory=pin_memory,
+            batch_size=batch_size,
             num_workers=num_workers,
+            labels_obs_key=self.original_label_key,
+            unlabeled_category=self.unlabeled_category_,
+            n_samples_per_label=n_samples_per_label,
         )
+
         self.train_indices_ = train_dl.indices
+        self.validation_indices_ = val_dl.indices
+        self.test_indices_ = test_dl.indices
 
-        if train_base_model:
-            self._unsupervised_task = VAETask(
-                self._base_model, len(self.train_indices), **unsupervised_task_kwargs
-            )
-            self.trainer.fit(self._unsupervised_task, train_dl)
-        self._base_model.eval()
+        self._task = SemiSupervisedTask(self.model)
 
-        self.model.load_state_dict(self._base_model.state_dict(), strict=False)
-
-        self._semisupervised_task = SemiSupervisedTask(self.model)
-
-        # if we have labelled cells, we want to pass them through the classifier
-        # else we only pass the full dataset
-        if len(self._labeled_indices) != 0:
-            semisupervised_train_dl = SemiSupervisedDataLoader(
-                self.adata,
-                full_idx,
-                self.original_label_key,
-                self.unlabeled_category_,
-                n_samples_per_label,
-                shuffle=True,
-                batch_size=batch_size,
-                pin_memory=pin_memory,
-                num_workers=num_workers,
-            )
-            sampler_callback = [SubSampleLabels()]
-        else:
-            semisupervised_train_dl = ScviDataLoader(
-                self.adata,
-                shuffle=True,
-                indices=full_idx,
-                batch_size=batch_size,
-                pin_memory=pin_memory,
-                num_workers=num_workers,
-            )
-            sampler_callback = []
-        self._semisupervised_trainer = Trainer(
-            max_epochs=n_epochs_semisupervised,
+        # if we have labeled cells, we want to subsample labels each epoch
+        sampler_callback = (
+            [SubSampleLabels()] if len(self._labeled_indices) != 0 else []
+        )
+        self._trainer = Trainer(
+            max_epochs=max_epochs,
             gpus=gpus,
             callbacks=sampler_callback,
+            check_val_every_n_epoch=check_val_every_n_epoch,
+            **trainer_kwargs,
         )
-        self._semisupervised_trainer.fit(
-            self._semisupervised_task, semisupervised_train_dl
-        )
+        if len(self.validation_indices_) != 0:
+            self._trainer.fit(self._task, train_dl, val_dl)
+        else:
+            self._trainer.fit(self._task, train_dl)
         self.model.eval()
         self.is_trained_ = True
 
@@ -379,8 +313,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         adata
             AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
         indices
-            Indices of cells in adata to use. If `None`, all cells are used.
-        soft
             Return probabilities for each class label.
         batch_size
             Minibatch size to use.
@@ -390,7 +322,11 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if indices is None:
             indices = np.arange(adata.n_obs)
 
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_scvi_dl(
+            adata=adata,
+            indices=indices,
+            batch_size=batch_size,
+        )
         y_pred = []
         for _, tensors in enumerate(scdl):
             x = tensors[_CONSTANTS.X_KEY]
@@ -410,8 +346,128 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         else:
             n_labels = len(pred[0])
             pred = pd.DataFrame(
-                pred,
+                y_pred,
                 columns=self._label_mapping[:n_labels],
                 index=adata.obs_names[indices],
             )
             return y_pred
+
+    def _train_test_val_split(
+        self,
+        adata: AnnData,
+        train_size: float = 0.9,
+        validation_size: Optional[float] = None,
+        batch_size: Optional[int] = None,
+        pin_memory: bool = False,
+        num_workers: int = 4,
+        **kwargs,
+    ):
+        """
+        Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
+
+        If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
+
+        Parameters
+        ----------
+        train_size
+            float, or None (default is 0.9)
+        validation_size
+            float, or None (default is None)
+        **kwargs
+            Keyword args for `_make_scvi_dl()`
+        """
+        train_size = float(train_size)
+        if train_size > 1.0 or train_size <= 0.0:
+            raise ValueError(
+                "train_size needs to be greater than 0 and less than or equal to 1"
+            )
+
+        n_labeled_idx = len(self._labeled_indices)
+        n_unlabeled_idx = len(self._unlabeled_indices)
+
+        def get_train_val_split(n_samples, test_size, train_size):
+            try:
+                n_train, n_val = _validate_shuffle_split(
+                    n_samples, test_size, train_size
+                )
+            except ValueError:
+                raise ValueError(
+                    "Choice of train_size={} and validation_size={} not understood".format(
+                        train_size, test_size
+                    )
+                )
+            return n_train, n_val
+
+        if n_labeled_idx != 0:
+            n_labeled_train, n_labeled_val = get_train_val_split(
+                n_labeled_idx, validation_size, train_size
+            )
+
+            labeled_permutation = np.random.choice(
+                self._labeled_indices, len(self._labeled_indices), replace=False
+            )
+            labeled_idx_val = labeled_permutation[:n_labeled_val]
+            labeled_idx_train = labeled_permutation[
+                n_labeled_val : (n_labeled_val + n_labeled_train)
+            ]
+            labeled_idx_test = labeled_permutation[(n_labeled_val + n_labeled_train) :]
+        else:
+            labeled_idx_test = []
+            labeled_idx_train = []
+            labeled_idx_val = []
+
+        if n_unlabeled_idx != 0:
+            n_unlabeled_train, n_unlabeled_val = get_train_val_split(
+                n_unlabeled_idx, validation_size, train_size
+            )
+            unlabeled_permutation = np.random.choice(
+                self._unlabeled_indices, len(self._unlabeled_indices)
+            )
+            unlabeled_idx_val = unlabeled_permutation[:n_unlabeled_val]
+            unlabeled_idx_train = unlabeled_permutation[
+                n_unlabeled_val : (n_unlabeled_val + n_unlabeled_train)
+            ]
+            unlabeled_idx_test = unlabeled_permutation[
+                (n_unlabeled_val + n_unlabeled_train) :
+            ]
+        else:
+            unlabeled_idx_train = []
+            unlabeled_idx_val = []
+            unlabeled_idx_test = []
+
+        indices_train = np.concatenate((labeled_idx_train, unlabeled_idx_train))
+        indices_val = np.concatenate((labeled_idx_val, unlabeled_idx_val))
+        indices_test = np.concatenate((labeled_idx_test, unlabeled_idx_test))
+
+        indices_train = indices_train.astype(int)
+        indices_val = indices_val.astype(int)
+        indices_test = indices_test.astype(int)
+
+        if len(self._labeled_indices) != 0:
+            dataloader_class = SemiSupervisedDataLoader
+        else:
+            dataloader_class = ScviDataLoader
+
+        scanvi_train_dl = self._make_scvi_dl(
+            adata,
+            indices=indices_train,
+            shuffle=True,
+            scvi_dl_class=dataloader_class,
+            **kwargs,
+        )
+        scanvi_val_dl = self._make_scvi_dl(
+            adata,
+            indices=indices_val,
+            shuffle=True,
+            scvi_dl_class=dataloader_class,
+            **kwargs,
+        )
+        scanvi_test_dl = self._make_scvi_dl(
+            adata,
+            indices=indices_test,
+            shuffle=True,
+            scvi_dl_class=dataloader_class,
+            **kwargs,
+        )
+
+        return scanvi_train_dl, scanvi_val_dl, scanvi_test_dl
