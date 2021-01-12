@@ -202,7 +202,7 @@ def test_saving_and_loading(save_path):
 
     # SCANVI
     model = SCANVI(adata, "label_0")
-    model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_size=0.5)
+    model.train(max_epochs=1, train_size=0.5)
     p1 = model.predict()
     model.save(save_path, overwrite=True, save_anndata=True)
     model = SCANVI.load(save_path)
@@ -237,8 +237,13 @@ def test_scanvi(save_path):
     adata = synthetic_iid()
     model = SCANVI(adata, "label_0", n_latent=10)
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
-    assert len(model.history["unsupervised_trainer_history"]) == 2
-    assert len(model.history["semisupervised_trainer_history"]) == 7
+    logged_keys = model.history.keys()
+    assert "elbo_validation" in logged_keys
+    assert "reconstruction_loss_validation" in logged_keys
+    assert "kl_local_validation" in logged_keys
+    assert "elbo_train" in logged_keys
+    assert "reconstruction_loss_train" in logged_keys
+    assert "kl_local_train" in logged_keys
     adata2 = synthetic_iid()
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3
@@ -536,9 +541,7 @@ def test_scanvi_online_update(save_path):
     adata1.obs["labels"] = pd.Categorical(new_labels)
     setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCANVI(adata1, "Unknown", n_latent=n_latent, encode_covariates=True)
-    model.train(
-        n_epochs_unsupervised=1, n_epochs_semisupervised=1, check_val_every_n_epoch=1
-    )
+    model.train(max_epochs=1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
@@ -547,9 +550,7 @@ def test_scanvi_online_update(save_path):
     adata2.obs["labels"] = "Unknown"
 
     model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
-    model.train(
-        n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
-    )
+    model.train(max_epochs=1)
     model.get_latent_representation()
     model.predict()
 
@@ -576,12 +577,7 @@ def test_scanvi_online_update(save_path):
     model2 = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
     model2._unlabeled_indices = np.arange(adata2.n_obs)
     model2._labeled_indices = []
-    model2.train(
-        n_epochs_unsupervised=1,
-        n_epochs_semisupervised=1,
-        train_base_model=False,
-        semisupervised_trainer_kwargs=dict(weight_decay=0.0),
-    )
+    model2.train(max_epochs=1, trainer_kwargs=dict(weight_decay=0.0))
     model2.get_latent_representation()
     model2.predict()
 
