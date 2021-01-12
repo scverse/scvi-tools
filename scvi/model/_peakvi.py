@@ -182,8 +182,8 @@ class PEAKVI(VAEMixin, BaseModelClass):
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
         update_dict = dict(
-            weight_decay=1e-3,
             lr=lr,
+            weight_decay=weight_decay,
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             n_steps_kl_warmup=n_steps_kl_warmup,
         )
@@ -198,7 +198,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
             validation_size=validation_size,
             early_stopping=True,
             early_stopping_monitor="reconstruction_loss_validation",
-            early_stopping_patience=100,
+            early_stopping_patience=50,
             vae_task_kwargs=vae_task_kwargs,
             **kwargs,
         )
