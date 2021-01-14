@@ -353,12 +353,14 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     def _train_test_val_split(
         self,
         adata: AnnData,
+        unlabeled_category,
+        labels_obs_key,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: Optional[int] = None,
+        n_samples_per_label=100,
         pin_memory: bool = False,
         num_workers: int = 4,
-        **kwargs,
     ):
         """
         Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
@@ -445,8 +447,14 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         if len(self._labeled_indices) != 0:
             dataloader_class = SemiSupervisedDataLoader
+            dl_kwargs = {
+                "labels_obs_key": labels_obs_key,
+                "unlabeled_category": unlabeled_category,
+                "n_samples_per_label": n_samples_per_label,
+            }
         else:
             dataloader_class = ScviDataLoader
+            dl_kwargs = {}
 
         scanvi_train_dl = self._make_scvi_dl(
             adata,
@@ -454,7 +462,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             shuffle=True,
             scvi_dl_class=dataloader_class,
             num_workers=num_workers,
-            **kwargs,
+            **dl_kwargs,
         )
         scanvi_val_dl = self._make_scvi_dl(
             adata,
@@ -462,7 +470,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             shuffle=True,
             scvi_dl_class=dataloader_class,
             num_workers=num_workers,
-            **kwargs,
+            **dl_kwargs,
         )
         scanvi_test_dl = self._make_scvi_dl(
             adata,
@@ -470,7 +478,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             shuffle=True,
             scvi_dl_class=dataloader_class,
             num_workers=num_workers,
-            **kwargs,
+            **dl_kwargs,
         )
 
         return scanvi_train_dl, scanvi_val_dl, scanvi_test_dl
