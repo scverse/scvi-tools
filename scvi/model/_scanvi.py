@@ -389,11 +389,13 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     n_samples, test_size, train_size
                 )
             except ValueError:
-                raise ValueError(
-                    "Choice of train_size={} and validation_size={} not understood".format(
-                        train_size, test_size
+                if train_size != 1.0:
+                    raise ValueError(
+                        "Choice of train_size={} and validation_size={} not understood".format(
+                            train_size, test_size
+                        )
                     )
-                )
+                n_train, n_val = n_samples, 0
             return n_train, n_val
 
         if n_labeled_idx != 0:
