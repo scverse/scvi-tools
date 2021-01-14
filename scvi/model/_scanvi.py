@@ -84,11 +84,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         use_gpu: bool = True,
         encode_covariates: bool = False,
-        vae_model_kwargs: dict = {},
         scanvae_model_kwargs: dict = {},
     ):
         super(SCANVI, self).__init__(adata, use_gpu=use_gpu)
-        vae_model_kwargs = dict(vae_model_kwargs)
         scanvae_model_kwargs = dict(scanvae_model_kwargs)
 
         self.unlabeled_category_ = unlabeled_category
@@ -453,6 +451,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             indices=indices_train,
             shuffle=True,
             scvi_dl_class=dataloader_class,
+            num_workers=num_workers,
             **kwargs,
         )
         scanvi_val_dl = self._make_scvi_dl(
@@ -460,6 +459,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             indices=indices_val,
             shuffle=True,
             scvi_dl_class=dataloader_class,
+            num_workers=num_workers,
             **kwargs,
         )
         scanvi_test_dl = self._make_scvi_dl(
@@ -467,6 +467,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             indices=indices_test,
             shuffle=True,
             scvi_dl_class=dataloader_class,
+            num_workers=num_workers,
             **kwargs,
         )
 

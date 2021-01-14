@@ -50,7 +50,7 @@ class BaseModelClass(ABC):
         adata: AnnData,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
-        shuffle=False,
+        shuffle: bool = False,
         scvi_dl_class=None,
         **data_loader_kwargs,
     ):
