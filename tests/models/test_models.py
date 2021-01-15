@@ -6,6 +6,8 @@ import pytest
 import scvi
 from scvi.data import synthetic_iid, transfer_anndata_setup, setup_anndata
 from scvi.model import SCVI, SCANVI, GIMVI, TOTALVI, LinearSCVI, AUTOZI
+from scvi.dataloaders import SemiSupervisedDataLoader
+
 from scipy.sparse import csr_matrix
 
 
@@ -233,6 +235,27 @@ def test_saving_and_loading(save_path):
     assert model.is_trained is True
 
 
+def test_SemiSupervisedDataLoader():
+    # test label resampling
+    n_samples_per_label = 10
+    a = synthetic_iid()
+    dl = SemiSupervisedDataLoader(
+        a,
+        indices=np.arange(a.n_obs),
+        labels_obs_key="labels",
+        unlabeled_category="label_0",
+        n_samples_per_label=n_samples_per_label,
+    )
+    labeled_dl_idx = dl.dataloaders[1].indices
+    n_labels = 2
+    assert len(labeled_dl_idx) == n_samples_per_label * n_labels
+    dl.resample_labels()
+    resampled_labeled_dl_idx = dl.dataloaders[1].indices
+    assert len(resampled_labeled_dl_idx) == n_samples_per_label * n_labels
+    # check labeled indices was actually resampled
+    assert np.sum(labeled_dl_idx == resampled_labeled_dl_idx) != len(labeled_dl_idx)
+
+
 def test_scanvi(save_path):
     adata = synthetic_iid()
     model = SCANVI(adata, "label_0", n_latent=10)
@@ -253,6 +276,52 @@ def test_scanvi(save_path):
     model.get_normalized_expression(adata2)
     model.differential_expression(groupby="labels", group1="label_1")
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
+
+    # test that all data labeled runs
+    unknown_label = "asdf"
+    a = scvi.data.synthetic_iid()
+    scvi.data.setup_anndata(a, batch_key="batch", labels_key="labels")
+    m = scvi.model.SCANVI(a, unknown_label)
+    m.train(1)
+
+    # check the number of indices
+    n_train_idx = len(m.train_indices)
+    n_validation_idx = len(m.validation_indices)
+    n_test_idx = len(m.test_indices)
+    assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
+    assert np.isclose(n_train_idx / a.n_obs, 0.9)
+    assert np.isclose(n_validation_idx / a.n_obs, 0.1)
+    assert np.isclose(n_test_idx / a.n_obs, 0)
+
+    # test mix of labeled and unlabeled data
+    unknown_label = "label_0"
+    a = scvi.data.synthetic_iid()
+    scvi.data.setup_anndata(a, batch_key="batch", labels_key="labels")
+    m = scvi.model.SCANVI(a, unknown_label)
+    m.train(1, train_size=0.9)
+    # check the number of indices
+    n_train_idx = len(m.train_indices)
+    n_validation_idx = len(m.validation_indices)
+    n_test_idx = len(m.test_indices)
+    assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
+    assert np.isclose(n_train_idx / a.n_obs, 0.9, rtol=0.05)
+    assert np.isclose(n_validation_idx / a.n_obs, 0.1, rtol=0.05)
+    assert np.isclose(n_test_idx / a.n_obs, 0, rtol=0.05)
+
+    # check that training indices have proper mix of labeled and unlabeled data
+    labelled_idx = np.where(a.obs["labels"] != unknown_label)[0]
+    unlabelled_idx = np.where(a.obs["labels"] == unknown_label)[0]
+    # labeled training idx
+    labeled_train_idx = [i for i in m.train_indices if i in labelled_idx]
+    # unlabeled training idx
+    unlabeled_train_idx = [i for i in m.train_indices if i in unlabelled_idx]
+    n_labeled_idx = len(m._labeled_indices)
+    n_unlabeled_idx = len(m._unlabeled_indices)
+    # labeled vs unlabeled ratio in adata
+    adata_ratio = n_unlabeled_idx / n_labeled_idx
+    # labeled vs unlabeled ratio in train set
+    train_ratio = len(unlabeled_train_idx) / len(labeled_train_idx)
+    assert np.isclose(adata_ratio, train_ratio, atol=0.05)
 
 
 def test_linear_scvi(save_path):
