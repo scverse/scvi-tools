@@ -34,8 +34,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
     unlabeled_category
         Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
-    pretrained_model
-        Instance of SCVI model that has already been trained.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -60,7 +58,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     use_gpu
         Use the GPU or not.
     **model_kwargs
-        Keyword args for :class:`~scvi.modules.VAE` and :class:`~scvi.modules.SCANVAE`
+        Keyword args for :class:`~scvi.modules.SCANVAE`
 
     Examples
     --------
@@ -83,11 +81,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         use_gpu: bool = True,
-        encode_covariates: bool = False,
         **model_kwargs,
     ):
         super(SCANVI, self).__init__(adata, use_gpu=use_gpu)
-        scanvae_model_kwargs = dict(scanvae_model_kwargs)
+        scanvae_model_kwargs = dict(model_kwargs)
 
         self.unlabeled_category_ = unlabeled_category
         has_unlabeled = self._set_indices_and_labels()
@@ -114,7 +111,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             dropout_rate=dropout_rate,
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
-            encode_covariates=encode_covariates,
             **scanvae_model_kwargs,
         )
 
@@ -197,16 +193,14 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         max_epochs: Optional[int] = None,
         n_samples_per_label: Optional[float] = None,
+        check_val_every_n_epoch: Optional[int] = None,
+        n_epochs_kl_warmup: int = 400,
+        n_iter_kl_warmup: Optional[int] = None,
+        lr: float = 1e-3,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 512,
         use_gpu: Optional[bool] = None,
-        num_workers: int = 4,
-        train_base_model: bool = True,
-        lr: float = 1e-3,
-        n_epochs_kl_warmup: int = 400,
-        n_iter_kl_warmup: Optional[int] = None,
-        check_val_every_n_epoch: Optional[int] = None,
         trainer_kwargs: dict = {},
         task_kwargs: dict = {},
     ):
@@ -217,30 +211,32 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         ----------
         max_epochs
             Number of passes through the dataset for semisupervised training.
-        train_base_model
-            Pretrain an SCVI base model first before semisupervised training.
-        train_size
-            Size of training set in the range [0.0, 1.0].
-        test_size
-            Size of the test set. If `None`, defaults to 1 - `train_size`. If
-            `train_size + test_size < 1`, the remaining cells belong to a validation set.
-        lr
-            Learning rate for optimization.
+        n_samples_per_label
+            Number of subsamples for each label class to sample per epoch
+        check_val_every_n_epoch
+            Frequency with which metrics are computed on the data for validation set for both
+            the unsupervised and semisupervised trainers. If you'd like a different frequency for
+            the semisupervised trainer, set check_val_every_n_epoch in semisupervised_train_kwargs.
         n_epochs_kl_warmup
             Number of passes through dataset for scaling term on KL divergence to go from 0 to 1.
         n_iter_kl_warmup
             Number of minibatches for scaling term on KL divergence to go from 0 to 1.
             To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
-        check_val_every_n_epoch
-            Frequency with which metrics are computed on the data for validation set for both
-            the unsupervised and semisupervised trainers. If you'd like a different frequency for
-            the semisupervised trainer, set check_val_every_n_epoch in semisupervised_train_kwargs.
-        unsupervised_trainer_kwargs
-            Other keyword args for :class:`~scvi.trainers.UnsupervisedTrainer`.
-        semisupervised_trainer_kwargs
-            Other keyword args for :class:`~scvi.trainers.SemiSupervisedTrainer`.
-        semisupervised_train_kwargs
-            Keyword args for the train method of :class:`~scvi.trainers.SemiSupervisedTrainer`.
+        lr
+            Learning rate for optimization.
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        validation_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        batch_size
+            Minibatch size to use during training.
+        use_gpu
+            If `True`, use the GPU if available. Will override the use_gpu option when initializing model
+        trainer_kwargs
+            Keyword args for :class:`~scvi.lightning.Trainer`.
+        task_kwargs
+            Keyword args for the train method of :class:`~scvi.lightning.SemiSupervisedTask`.
         """
         trainer_kwargs = dict(trainer_kwargs)
         task_kwargs = dict(task_kwargs)
@@ -266,7 +262,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             validation_size=validation_size,
             pin_memory=pin_memory,
             batch_size=batch_size,
-            num_workers=num_workers,
             labels_obs_key=self.original_label_key,
             unlabeled_category=self.unlabeled_category_,
             n_samples_per_label=n_samples_per_label,
@@ -312,6 +307,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
         indices
             Return probabilities for each class label.
+        soft
+            If True, returns per class probabilities
         batch_size
             Minibatch size to use.
         """
@@ -360,21 +357,32 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         batch_size: Optional[int] = None,
         n_samples_per_label=100,
         pin_memory: bool = False,
-        num_workers: int = 4,
     ):
         """
         Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
 
         If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
+        The ratio between labeled and unlabeled data in adata will be preserved
+        in the train/test/val sets.
 
         Parameters
         ----------
+        adata
+            AnnData to split into train/test/val sets
+        unlabeled_category
+            Category to treat as unlabeled
+        labels_obs_key
+            key in adata.obs for label data
         train_size
             float, or None (default is 0.9)
         validation_size
             float, or None (default is None)
-        **kwargs
-            Keyword args for `_make_scvi_dl()`
+        batch_size
+            Minibatch size to use during training.
+        n_samples_per_label
+            Number of subsamples for each label class to sample per epoch
+        pin_memory
+            If True, the data loader will copy Tensors into CUDA pinned memory before returning them.
         """
         train_size = float(train_size)
         if train_size > 1.0 or train_size <= 0.0:
@@ -460,7 +468,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             indices=indices_train,
             shuffle=True,
             scvi_dl_class=dataloader_class,
-            num_workers=num_workers,
             **dl_kwargs,
         )
         scanvi_val_dl = self._make_scvi_dl(
@@ -468,7 +475,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             indices=indices_val,
             shuffle=True,
             scvi_dl_class=dataloader_class,
-            num_workers=num_workers,
             **dl_kwargs,
         )
         scanvi_test_dl = self._make_scvi_dl(
@@ -476,7 +482,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             indices=indices_test,
             shuffle=True,
             scvi_dl_class=dataloader_class,
-            num_workers=num_workers,
             **dl_kwargs,
         )
 

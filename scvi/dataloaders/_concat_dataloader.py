@@ -7,6 +7,27 @@ from itertools import cycle
 
 
 class ConcatDataLoader(DataLoader):
+    """
+    DataLoader that supports a list of list of indices to load.
+
+    Parameters
+    ----------
+    adata
+        AnnData object that have been registered via :func:`~scvi.data.setup_anndata`.
+    indices_list
+        List where each element is a list of indices in the adata to load
+    shuffle
+        Whether the data should be shuffled
+    batch_size
+        minibatch size to load each iteration
+    data_and_attributes
+        Dictionary with keys representing keys in data registry (`adata.uns["_scvi"]`)
+        and value equal to desired numpy loading type (later made into torch tensor).
+        If `None`, defaults to all registered data.
+    data_loader_kwargs
+        Keyword arguments for :class:`~torch.utils.data.DataLoader`
+    """
+
     def __init__(
         self,
         adata,
@@ -36,6 +57,11 @@ class ConcatDataLoader(DataLoader):
         return len(self.largest_dl)
 
     def __iter__(self):
+        """
+        Will iter over the dataloader with the most data while cycling through
+        the data in the other dataloaders. The order of data in returned iter_list
+        is the same as indices_list.
+        """
         iter_list = [
             cycle(dl) if dl != self.largest_dl else dl for dl in self.dataloaders
         ]
@@ -43,6 +69,31 @@ class ConcatDataLoader(DataLoader):
 
 
 class SemiSupervisedDataLoader(ConcatDataLoader):
+    """
+    DataLoader that supports semisupervised training.
+
+    Parameters
+    ----------
+    adata
+        AnnData object that have been registered via :func:`~scvi.data.setup_anndata`.
+    unlabeled_category
+        Category to treat as unlabeled
+    n_samples_per_label
+        Number of subsamples for each label class to sample per epoch
+    indices
+        The indices of the observations in the adata to load
+    shuffle
+        Whether the data should be shuffled
+    batch_size
+        minibatch size to load each iteration
+    data_and_attributes
+        Dictionary with keys representing keys in data registry (`adata.uns["_scvi"]`)
+        and value equal to desired numpy loading type (later made into torch tensor).
+        If `None`, defaults to all registered data.
+    data_loader_kwargs
+        Keyword arguments for :class:`~torch.utils.data.DataLoader`
+    """
+
     def __init__(
         self,
         adata,
@@ -85,6 +136,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         )
 
     def resample_labels(self):
+        """Resamples the labeled data."""
         labelled_idx = self.subsample_labels()
         # self.dataloaders[0] iterates over full_indices
         # self.dataloaders[1] iterates over the labelled_indices
@@ -92,6 +144,9 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         self.dataloaders[1].indices = labelled_idx
 
     def subsample_labels(self):
+        """
+        Subsamples each label class by taking up to n samples per class where n = self.n_samples_per_label.
+        """
         if self.n_samples_per_label is None:
             return np.concatenate(self.labeled_locs)
 
