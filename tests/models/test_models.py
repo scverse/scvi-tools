@@ -235,7 +235,7 @@ def test_saving_and_loading(save_path):
     assert model.is_trained is True
 
 
-def test_SemiSupervisedDataLoader():
+def test_semisupervised_dataloader():
     # test label resampling
     n_samples_per_label = 10
     a = synthetic_iid()
