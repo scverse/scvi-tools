@@ -84,7 +84,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         use_gpu: bool = True,
         encode_covariates: bool = False,
-        scanvae_model_kwargs: dict = {},
+        **model_kwargs,
     ):
         super(SCANVI, self).__init__(adata, use_gpu=use_gpu)
         scanvae_model_kwargs = dict(scanvae_model_kwargs)
