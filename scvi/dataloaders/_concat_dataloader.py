@@ -88,7 +88,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         labelled_idx = self.subsample_labels()
         # self.dataloaders[0] iterates over full_indices
         # self.dataloaders[1] iterates over the labelled_indices
-        # change the indicees of the labelled set
+        # change the indices of the labelled set
         self.dataloaders[1].indices = labelled_idx
 
     def subsample_labels(self):
