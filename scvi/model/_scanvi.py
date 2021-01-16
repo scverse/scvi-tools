@@ -276,7 +276,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.validation_indices_ = val_dl.indices
         self.test_indices_ = test_dl.indices
 
-        self._task = SemiSupervisedTask(self.model)
+        self._task = SemiSupervisedTask(self.model, **task_kwargs)
 
         # if we have labeled cells, we want to subsample labels each epoch
         sampler_callback = (
@@ -391,7 +391,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     n_samples, test_size, train_size
                 )
             except ValueError:
-                if train_size != 1.0:
+                if train_size != 1.0 and n_samples != 1:
                     raise ValueError(
                         "Choice of train_size={} and validation_size={} not understood".format(
                             train_size, test_size
@@ -404,7 +404,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             n_labeled_train, n_labeled_val = get_train_val_split(
                 n_labeled_idx, validation_size, train_size
             )
-
             labeled_permutation = np.random.choice(
                 self._labeled_indices, len(self._labeled_indices), replace=False
             )

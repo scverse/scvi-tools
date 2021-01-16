@@ -630,9 +630,7 @@ def test_scanvi_online_update(save_path):
     adata1.obs["labels"] = pd.Categorical(new_labels)
     setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCANVI(adata1, "Unknown", n_latent=n_latent, encode_covariates=True)
-    model.train(
-        n_epochs_unsupervised=1, n_epochs_semisupervised=1, check_val_every_n_epoch=1
-    )
+    model.train(max_epochs=1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
@@ -646,7 +644,7 @@ def test_scanvi_online_update(save_path):
     model2 = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
     model2._unlabeled_indices = np.arange(adata2.n_obs)
     model2._labeled_indices = []
-    model2.train(max_epochs=1, trainer_kwargs=dict(weight_decay=0.0))
+    model2.train(max_epochs=1, task_kwargs=dict(weight_decay=0.0))
     model2.get_latent_representation()
     model2.predict()
 
@@ -664,9 +662,7 @@ def test_scanvi_online_update(save_path):
     model2 = SCANVI.load_query_data(adata2, dir_path, freeze_classifier=False)
     model2._unlabeled_indices = np.arange(adata2.n_obs)
     model2._labeled_indices = []
-    model2.train(
-        n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
-    )
+    model2.train(max_epochs=1)
     class_query_weight = (
         model2.model.classifier.classifier[0].fc_layers[0][0].weight.detach().numpy()
     )
@@ -689,7 +685,7 @@ def test_scanvi_online_update(save_path):
     m_q.save(save_path, overwrite=True)
     m_q = scvi.model.SCANVI.load(save_path, query)
     m_q.predict()
-    # TODO fix: m_q.get_elbo()
+    m_q.get_elbo()
 
 
 def test_totalvi_online_update(save_path):
