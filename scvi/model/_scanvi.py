@@ -209,7 +209,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         max_epochs
             Number of passes through the dataset for semisupervised training.
         n_samples_per_label
-            Number of subsamples for each label class to sample per epoch
+            Number of subsamples for each label class to sample per epoch. By default, there
+            is no label subsampling.
         check_val_every_n_epoch
             Frequency with which metrics are computed on the data for validation set for both
             the unsupervised and semisupervised trainers. If you'd like a different frequency for
@@ -338,7 +339,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         labels_obs_key,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
-        n_samples_per_label=100,
+        n_samples_per_label: Optional[int] = None,
         **kwargs,
     ):
         """

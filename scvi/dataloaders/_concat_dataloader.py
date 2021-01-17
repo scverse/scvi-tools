@@ -82,7 +82,8 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
     unlabeled_category
         Category to treat as unlabeled
     n_samples_per_label
-        Number of subsamples for each label class to sample per epoch
+        Number of subsamples for each label class to sample per epoch. By default, there
+        is no label subsampling.
     indices
         The indices of the observations in the adata to load
     shuffle
@@ -102,7 +103,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         adata: AnnData,
         labels_obs_key: str,
         unlabeled_category: str,
-        n_samples_per_label: int,
+        n_samples_per_label: Optional[int] = None,
         indices: Optional[List[int]] = None,
         shuffle: bool = False,
         batch_size: int = 128,
