@@ -127,7 +127,7 @@ class VAETask(pl.LightningModule):
         self.log("kl_global_train", kl_global)
 
     def validation_step(self, batch, batch_idx):
-        _, _, scvi_loss = self.forward(batch)
+        _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         reconstruction_loss = scvi_loss.reconstruction_loss
         return {
             "reconstruction_loss_sum": reconstruction_loss.sum(),
@@ -391,7 +391,7 @@ class SemiSupervisedTask(VAETask):
         weight_decay=1e-6,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
-        classification_ratio=50,
+        classification_ratio: int = 50,
         reduce_lr_on_plateau: bool = False,
         lr_factor: float = 0.6,
         lr_patience: int = 30,
@@ -399,8 +399,7 @@ class SemiSupervisedTask(VAETask):
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
-        scheme: Literal["joint"] = "joint",
-        **kwargs,
+        **loss_kwargs,
     ):
         super(SemiSupervisedTask, self).__init__(
             vae_model=vae_model,
@@ -414,9 +413,9 @@ class SemiSupervisedTask(VAETask):
             lr_patience=lr_patience,
             lr_threshold=lr_threshold,
             lr_scheduler_metric=lr_scheduler_metric,
+            **loss_kwargs,
         )
-        self.classification_ratio = classification_ratio
-        self.scheme = scheme
+        self.loss_kwargs.update({"classification_ratio": classification_ratio})
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
@@ -431,11 +430,13 @@ class SemiSupervisedTask(VAETask):
         if full_dataset[_CONSTANTS.X_KEY].shape[0] < 3:
             return None
 
+        if "kl_weight" in self.loss_kwargs:
+            self.loss_kwargs.update({"kl_weight": self.kl_weight})
         input_kwargs = dict(
             feed_labels=False,
             labelled_tensors=labelled_dataset,
-            classification_ratio=self.classification_ratio,
         )
+        input_kwargs.update(self.loss_kwargs)
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         reconstruction_loss = scvi_losses.reconstruction_loss
@@ -459,8 +460,8 @@ class SemiSupervisedTask(VAETask):
         input_kwargs = dict(
             feed_labels=False,
             labelled_tensors=labelled_dataset,
-            classification_ratio=self.classification_ratio,
         )
+        input_kwargs.update(self.loss_kwargs)
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         reconstruction_loss = scvi_losses.reconstruction_loss
