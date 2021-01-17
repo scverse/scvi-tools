@@ -77,7 +77,6 @@ def _initialize_model(cls, adata, attr_dict, use_gpu):
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
 
     model = cls(adata, **non_kwargs, **kwargs)
-
     return model
 
 

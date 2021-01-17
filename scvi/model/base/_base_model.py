@@ -50,7 +50,8 @@ class BaseModelClass(ABC):
         adata: AnnData,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
-        shuffle=False,
+        shuffle: bool = False,
+        scvi_dl_class=None,
         **data_loader_kwargs,
     ):
         """
@@ -74,7 +75,10 @@ class BaseModelClass(ABC):
             batch_size = settings.batch_size
         if indices is None:
             indices = np.arange(adata.n_obs)
-        dl = self._data_loader_cls(
+        if scvi_dl_class is None:
+            scvi_dl_class = self._data_loader_cls
+
+        dl = scvi_dl_class(
             adata,
             shuffle=shuffle,
             indices=indices,
@@ -214,11 +218,22 @@ class BaseModelClass(ABC):
         """
         init = self.__init__
         sig = inspect.signature(init)
-        init_params = [p for p in sig.parameters]
-        user_params = {p: locals[p] for p in locals if p in init_params}
-        user_params = {
-            k: v for (k, v) in user_params.items() if not isinstance(v, AnnData)
+        parameters = sig.parameters.values()
+
+        init_params = [p.name for p in parameters]
+        all_params = {p: locals[p] for p in locals if p in init_params}
+        all_params = {
+            k: v for (k, v) in all_params.items() if not isinstance(v, AnnData)
         }
+        # not very efficient but is explicit
+        # seperates variable params (**kwargs) from non variable params into two dicts
+        non_var_params = [p.name for p in parameters if p.kind != p.VAR_KEYWORD]
+        non_var_params = {k: v for (k, v) in all_params.items() if k in non_var_params}
+        var_params = [p.name for p in parameters if p.kind == p.VAR_KEYWORD]
+        var_params = {k: v for (k, v) in all_params.items() if k in var_params}
+
+        user_params = {"kwargs": var_params, "non_kwargs": non_var_params}
+
         return user_params
 
     def train(
@@ -230,6 +245,8 @@ class BaseModelClass(ABC):
         batch_size: int = 128,
         vae_task_kwargs: Optional[dict] = None,
         task_class: Optional[None] = None,
+        num_workers: int = 4,
+        frequency=None,
         **kwargs,
     ):
         """
@@ -281,6 +298,7 @@ class BaseModelClass(ABC):
             validation_size=validation_size,
             pin_memory=pin_memory,
             batch_size=batch_size,
+            num_workers=num_workers,
         )
         self.train_indices_ = train_dl.indices
         self.test_indices_ = test_dl.indices

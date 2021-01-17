@@ -33,7 +33,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install pytest-cov
-        pip install --quiet .[dev]
+        pip install .[dev]
     - name: Lint with flake8
       run: |
         flake8

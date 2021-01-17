@@ -64,7 +64,7 @@ class ArchesMixin:
         use_gpu = use_gpu and torch.cuda.is_available()
 
         if isinstance(reference_model, str):
-            map_location = torch.device("cpu") if use_gpu is False else None
+            map_location = torch.device("cuda") if use_gpu is True else None
             (
                 scvi_setup_dict,
                 attr_dict,

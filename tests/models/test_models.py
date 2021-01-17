@@ -6,6 +6,8 @@ import pytest
 import scvi
 from scvi.data import synthetic_iid, transfer_anndata_setup, setup_anndata
 from scvi.model import SCVI, SCANVI, GIMVI, TOTALVI, LinearSCVI, AUTOZI
+from scvi.dataloaders import SemiSupervisedDataLoader
+
 from scipy.sparse import csr_matrix
 
 
@@ -202,7 +204,7 @@ def test_saving_and_loading(save_path):
 
     # SCANVI
     model = SCANVI(adata, "label_0")
-    model.train(n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_size=0.5)
+    model.train(max_epochs=1, train_size=0.5)
     p1 = model.predict()
     model.save(save_path, overwrite=True, save_anndata=True)
     model = SCANVI.load(save_path)
@@ -233,12 +235,38 @@ def test_saving_and_loading(save_path):
     assert model.is_trained is True
 
 
+def test_semisupervised_dataloader():
+    # test label resampling
+    n_samples_per_label = 10
+    a = synthetic_iid()
+    dl = SemiSupervisedDataLoader(
+        a,
+        indices=np.arange(a.n_obs),
+        labels_obs_key="labels",
+        unlabeled_category="label_0",
+        n_samples_per_label=n_samples_per_label,
+    )
+    labeled_dl_idx = dl.dataloaders[1].indices
+    n_labels = 2
+    assert len(labeled_dl_idx) == n_samples_per_label * n_labels
+    dl.resample_labels()
+    resampled_labeled_dl_idx = dl.dataloaders[1].indices
+    assert len(resampled_labeled_dl_idx) == n_samples_per_label * n_labels
+    # check labeled indices was actually resampled
+    assert np.sum(labeled_dl_idx == resampled_labeled_dl_idx) != len(labeled_dl_idx)
+
+
 def test_scanvi(save_path):
     adata = synthetic_iid()
     model = SCANVI(adata, "label_0", n_latent=10)
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
-    assert len(model.history["unsupervised_trainer_history"]) == 2
-    assert len(model.history["semisupervised_trainer_history"]) == 7
+    logged_keys = model.history.keys()
+    assert "elbo_validation" in logged_keys
+    assert "reconstruction_loss_validation" in logged_keys
+    assert "kl_local_validation" in logged_keys
+    assert "elbo_train" in logged_keys
+    assert "reconstruction_loss_train" in logged_keys
+    assert "kl_local_train" in logged_keys
     adata2 = synthetic_iid()
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3
@@ -248,6 +276,52 @@ def test_scanvi(save_path):
     model.get_normalized_expression(adata2)
     model.differential_expression(groupby="labels", group1="label_1")
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
+
+    # test that all data labeled runs
+    unknown_label = "asdf"
+    a = scvi.data.synthetic_iid()
+    scvi.data.setup_anndata(a, batch_key="batch", labels_key="labels")
+    m = scvi.model.SCANVI(a, unknown_label)
+    m.train(1)
+
+    # check the number of indices
+    n_train_idx = len(m.train_indices)
+    n_validation_idx = len(m.validation_indices)
+    n_test_idx = len(m.test_indices)
+    assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
+    assert np.isclose(n_train_idx / a.n_obs, 0.9)
+    assert np.isclose(n_validation_idx / a.n_obs, 0.1)
+    assert np.isclose(n_test_idx / a.n_obs, 0)
+
+    # test mix of labeled and unlabeled data
+    unknown_label = "label_0"
+    a = scvi.data.synthetic_iid()
+    scvi.data.setup_anndata(a, batch_key="batch", labels_key="labels")
+    m = scvi.model.SCANVI(a, unknown_label)
+    m.train(1, train_size=0.9)
+    # check the number of indices
+    n_train_idx = len(m.train_indices)
+    n_validation_idx = len(m.validation_indices)
+    n_test_idx = len(m.test_indices)
+    assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
+    assert np.isclose(n_train_idx / a.n_obs, 0.9, rtol=0.05)
+    assert np.isclose(n_validation_idx / a.n_obs, 0.1, rtol=0.05)
+    assert np.isclose(n_test_idx / a.n_obs, 0, rtol=0.05)
+
+    # check that training indices have proper mix of labeled and unlabeled data
+    labelled_idx = np.where(a.obs["labels"] != unknown_label)[0]
+    unlabelled_idx = np.where(a.obs["labels"] == unknown_label)[0]
+    # labeled training idx
+    labeled_train_idx = [i for i in m.train_indices if i in labelled_idx]
+    # unlabeled training idx
+    unlabeled_train_idx = [i for i in m.train_indices if i in unlabelled_idx]
+    n_labeled_idx = len(m._labeled_indices)
+    n_unlabeled_idx = len(m._unlabeled_indices)
+    # labeled vs unlabeled ratio in adata
+    adata_ratio = n_unlabeled_idx / n_labeled_idx
+    # labeled vs unlabeled ratio in train set
+    train_ratio = len(unlabeled_train_idx) / len(labeled_train_idx)
+    assert np.isclose(adata_ratio, train_ratio, atol=0.05)
 
 
 def test_linear_scvi(save_path):
@@ -536,9 +610,7 @@ def test_scanvi_online_update(save_path):
     adata1.obs["labels"] = pd.Categorical(new_labels)
     setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCANVI(adata1, "Unknown", n_latent=n_latent, encode_covariates=True)
-    model.train(
-        n_epochs_unsupervised=1, n_epochs_semisupervised=1, check_val_every_n_epoch=1
-    )
+    model.train(max_epochs=1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
@@ -547,9 +619,7 @@ def test_scanvi_online_update(save_path):
     adata2.obs["labels"] = "Unknown"
 
     model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
-    model.train(
-        n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
-    )
+    model.train(max_epochs=1)
     model.get_latent_representation()
     model.predict()
 
@@ -560,9 +630,7 @@ def test_scanvi_online_update(save_path):
     adata1.obs["labels"] = pd.Categorical(new_labels)
     setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCANVI(adata1, "Unknown", n_latent=n_latent, encode_covariates=True)
-    model.train(
-        n_epochs_unsupervised=1, n_epochs_semisupervised=1, check_val_every_n_epoch=1
-    )
+    model.train(max_epochs=1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
@@ -576,12 +644,7 @@ def test_scanvi_online_update(save_path):
     model2 = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
     model2._unlabeled_indices = np.arange(adata2.n_obs)
     model2._labeled_indices = []
-    model2.train(
-        n_epochs_unsupervised=1,
-        n_epochs_semisupervised=1,
-        train_base_model=False,
-        semisupervised_trainer_kwargs=dict(weight_decay=0.0),
-    )
+    model2.train(max_epochs=1, task_kwargs=dict(weight_decay=0.0))
     model2.get_latent_representation()
     model2.predict()
 
@@ -599,9 +662,7 @@ def test_scanvi_online_update(save_path):
     model2 = SCANVI.load_query_data(adata2, dir_path, freeze_classifier=False)
     model2._unlabeled_indices = np.arange(adata2.n_obs)
     model2._labeled_indices = []
-    model2.train(
-        n_epochs_unsupervised=1, n_epochs_semisupervised=1, train_base_model=False
-    )
+    model2.train(max_epochs=1)
     class_query_weight = (
         model2.model.classifier.classifier[0].fc_layers[0][0].weight.detach().numpy()
     )
@@ -624,7 +685,7 @@ def test_scanvi_online_update(save_path):
     m_q.save(save_path, overwrite=True)
     m_q = scvi.model.SCANVI.load(save_path, query)
     m_q.predict()
-    # TODO fix: m_q.get_elbo()
+    m_q.get_elbo()
 
 
 def test_totalvi_online_update(save_path):

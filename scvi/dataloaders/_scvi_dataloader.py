@@ -73,6 +73,8 @@ class ScviDataLoader(DataLoader):
         Whether the data should be shuffled
     indices
         The indices of the observations in the adata to load
+    batch_size
+        minibatch size to load each iteration
     data_and_attributes
         Dictionary with keys representing keys in data registry (`adata.uns["_scvi"]`)
         and value equal to desired numpy loading type (later made into torch tensor).

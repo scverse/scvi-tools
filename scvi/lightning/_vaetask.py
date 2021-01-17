@@ -3,8 +3,8 @@ from typing import Union
 
 import pytorch_lightning as pl
 import torch
-from torch.nn import functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
@@ -14,7 +14,7 @@ from scvi.modules import Classifier
 
 class VAETask(pl.LightningModule):
     """
-    Lightning module task to train scvi-tools modules
+    Lightning module task to train scvi-tools modules.
 
     Parameters
     ----------
@@ -127,7 +127,7 @@ class VAETask(pl.LightningModule):
         self.log("kl_global_train", kl_global)
 
     def validation_step(self, batch, batch_idx):
-        _, _, scvi_loss = self.forward(batch)
+        _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         reconstruction_loss = scvi_loss.reconstruction_loss
         return {
             "reconstruction_loss_sum": reconstruction_loss.sum(),
@@ -383,31 +383,6 @@ class AdversarialTask(VAETask):
         return config1
 
 
-class ClassifierTask(VAETask):
-    def __init__(self, vae_model: AbstractVAE):
-        self.model = vae_model
-
-    def training_step(self, batch, batch_idx):
-        x = batch[_CONSTANTS.X_KEY]
-        b = batch[_CONSTANTS.BATCH_KEY]
-        labels_train = batch[_CONSTANTS.LABELS_KEY]
-        return F.cross_entropy(
-            self.sampling_model.classify(x, b), labels_train.view(-1)
-        )
-        #     # TODO: we need to document that it looks for classify
-        #     if hasattr(self.sampling_model, "classify"):
-        #     else:
-        #         if self.sampling_model.log_variational:
-        #             x = torch.log(1 + x)
-        #         if self.sampling_zl:
-        #             x_z = self.sampling_model.z_encoder(x, b)[0]
-        #             x_l = self.sampling_model.l_encoder(x, b)[0]
-        #             x = torch.cat((x_z, x_l), dim=-1)
-        #         else:
-        #             x = self.sampling_model.z_encoder(x, b)[0]
-        # return F.cross_entropy(self.model(x), labels_train.view(-1))
-
-
 class SemiSupervisedTask(VAETask):
     def __init__(
         self,
@@ -416,12 +391,7 @@ class SemiSupervisedTask(VAETask):
         weight_decay=1e-6,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
-        n_labelled_samples_per_class=50,
-        indices_labelled=None,
-        indices_unlabelled=None,
-        n_epochs_classifier=1,
-        lr_classification=5 * 1e-3,
-        classification_ratio=50,
+        classification_ratio: int = 50,
         reduce_lr_on_plateau: bool = False,
         lr_factor: float = 0.6,
         lr_patience: int = 30,
@@ -429,9 +399,7 @@ class SemiSupervisedTask(VAETask):
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
-        seed=0,
-        scheme: Literal["joint"] = "joint",
-        **kwargs,
+        **loss_kwargs,
     ):
         super(SemiSupervisedTask, self).__init__(
             vae_model=vae_model,
@@ -445,11 +413,9 @@ class SemiSupervisedTask(VAETask):
             lr_patience=lr_patience,
             lr_threshold=lr_threshold,
             lr_scheduler_metric=lr_scheduler_metric,
+            **loss_kwargs,
         )
-        self.n_epochs_classifier = n_epochs_classifier
-        self.lr_classification = lr_classification
-        self.classification_ratio = classification_ratio
-        self.scheme = scheme
+        self.loss_kwargs.update({"classification_ratio": classification_ratio})
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
@@ -464,19 +430,40 @@ class SemiSupervisedTask(VAETask):
         if full_dataset[_CONSTANTS.X_KEY].shape[0] < 3:
             return None
 
-        input_kwargs = dict(feed_labels=False)
+        if "kl_weight" in self.loss_kwargs:
+            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+        input_kwargs = dict(
+            feed_labels=False,
+            labelled_tensors=labelled_dataset,
+        )
+        input_kwargs.update(self.loss_kwargs)
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
+        reconstruction_loss = scvi_losses.reconstruction_loss
+        return {
+            "loss": loss,
+            "reconstruction_loss_sum": reconstruction_loss.sum(),
+            "kl_local_sum": scvi_losses.kl_local.sum(),
+            "kl_global": scvi_losses.kl_global,
+            "n_obs": reconstruction_loss.shape[0],
+        }
 
-        if labelled_dataset is not None:
-            x = labelled_dataset[_CONSTANTS.X_KEY]
-            y = labelled_dataset[_CONSTANTS.LABELS_KEY]
-            batch_idx = labelled_dataset[_CONSTANTS.BATCH_KEY]
-            classification_loss = F.cross_entropy(
-                self.model.classify(x, batch_idx), y.view(-1).type(torch.LongTensor)
-            )
-            loss += classification_loss * self.classification_ratio
+    def validation_step(self, batch, batch_idx, optimizer_idx=0):
+        # Potentially dangerous if batch is from a single dataloader with two keys
+        if len(batch) == 2:
+            full_dataset = batch[0]
+            labelled_dataset = batch[1]
+        else:
+            full_dataset = batch
+            labelled_dataset = None
 
+        input_kwargs = dict(
+            feed_labels=False,
+            labelled_tensors=labelled_dataset,
+        )
+        input_kwargs.update(self.loss_kwargs)
+        _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
+        loss = scvi_losses.loss
         reconstruction_loss = scvi_losses.reconstruction_loss
         return {
             "loss": loss,
