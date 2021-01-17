@@ -1,3 +1,4 @@
+import warnings
 from typing import Optional, Union
 
 import numpy as np
@@ -112,3 +113,11 @@ class Trainer(pl.Trainer):
             logger=logger,
             **kwargs,
         )
+
+    def fit(self, *args, **kwargs):
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                action="ignore", category=UserWarning, message="The dataloader,"
+            )
+            super().fit(*args, **kwargs)
