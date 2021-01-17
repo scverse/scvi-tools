@@ -198,8 +198,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         validation_size: Optional[float] = None,
         batch_size: int = 512,
         use_gpu: Optional[bool] = None,
-        trainer_kwargs: dict = {},
-        task_kwargs: dict = {},
+        vae_task_kwargs: Optional[dict] = None,
+        **kwargs,
     ):
         """
         Train the model.
@@ -223,14 +223,12 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Minibatch size to use during training.
         use_gpu
             If `True`, use the GPU if available. Will override the use_gpu option when initializing model
-        trainer_kwargs
-            Keyword args for :class:`~scvi.lightning.Trainer`.
-        task_kwargs
-            Keyword args for the train method of :class:`~scvi.lightning.SemiSupervisedTask`.
+        vae_task_kwargs
+            Keyword args for :class:`~scvi.lightning.SemiSupervisedTask`. Keyword arguments passed to
+            `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
+        **kwargs
+            Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
-        trainer_kwargs = dict(trainer_kwargs)
-        task_kwargs = dict(task_kwargs)
-
         if max_epochs is None:
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
@@ -261,7 +259,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.validation_indices_ = val_dl.indices
         self.test_indices_ = test_dl.indices
 
-        self._task = SemiSupervisedTask(self.model, **task_kwargs)
+        vae_task_kwargs = {} if vae_task_kwargs is None else vae_task_kwargs
+        self._task = SemiSupervisedTask(self.model, **vae_task_kwargs)
 
         # if we have labeled cells, we want to subsample labels each epoch
         sampler_callback = (
@@ -272,7 +271,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             gpus=gpus,
             callbacks=sampler_callback,
             check_val_every_n_epoch=check_val_every_n_epoch,
-            **trainer_kwargs,
+            **kwargs,
         )
         if len(self.validation_indices_) != 0:
             self._trainer.fit(self._task, train_dl, val_dl)
