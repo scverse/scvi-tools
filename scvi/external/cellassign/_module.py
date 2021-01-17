@@ -68,6 +68,11 @@ class CellAssignModule(AbstractVAE):
             )
         )
 
+        self.delta_log_mean = torch.Parameter(0, dtype=torch.float64)
+        self.delta_log_variance = torch.Parameter(1, dtype=torch.float64)
+
+        self.log_a = torch.Parameter(torch.zeros(self.B, dtype=torch.float64))
+
     def _get_inference_input(self, tensors):
         return {}
 
@@ -113,7 +118,7 @@ class CellAssignModule(AbstractVAE):
         basis_means = torch.tensor(basis_means_fixed, dtype=torch.float64)
 
         # compute phi of NegBin
-        a = torch.exp(torch.zeros(self.B, dtype=torch.float64))
+        a = torch.exp(self.log_a)
         b_init = 2 * ((basis_means_fixed[1] - basis_means_fixed[0]) ** 2)
         b = torch.exp(torch.ones(self.B, dtype=torch.float64) * (-np.log(b_init)))
         phi_cng = (
@@ -172,7 +177,9 @@ class CellAssignModule(AbstractVAE):
         theta_log_prob = -theta_log_prior.log_prob(
             torch.exp(self.theta_log) + self.THETA_LOWER_BOUND
         )
-        delta_log_prior = torch.Normal(0 * self.rho, 1)
+        delta_log_prior = torch.Normal(
+            self.delta_log_mean * self.rho, self.delta_log_variance
+        )
         delta_log_prob = -torch.reduce_sum(delta_log_prior.log_prob(self.delta_log))
         prior_log_prob = theta_log_prob + delta_log_prob
 
