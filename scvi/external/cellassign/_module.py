@@ -3,6 +3,7 @@ import torch
 
 from scvi import _CONSTANTS
 from scvi.compose import AbstractVAE, SCVILoss, auto_move_data
+from scvi.distributions import NegativeBinomial
 
 
 class CellAssignModule(AbstractVAE):
@@ -89,14 +90,14 @@ class CellAssignModule(AbstractVAE):
         # compute mean of NegBin
         s = x.sum(1, keepDim=True)
         base_mean = torch.transpose(torch.log(s))
-        base_mean_list = torch.empty(size=self.n_labels)
-        for c in range(self.n_labels):
-            base_mean_list[c] = base_mean
+        base_mean_list = []
+        for _ in range(self.n_labels):
+            base_mean_list += [base_mean]
         mu_ngc = torch.add(
             torch.stack(base_mean_list, 2), torch.multiply(delta, self.rho)
         )
         mu_cng = torch.transpose(mu_ngc, (2, 0, 1))
-        mu_cngb = torch.tile(torch.expand_dims(mu_cng, axis=3), c(1, 1, 1, self.B))
+        mu_cngb = torch.tile(torch.expand_dims(mu_cng, axis=3), (1, 1, 1, self.B))
         mu_ngc = torch.transpose(mu_cng, (1, 2, 0))
         mu_ngc = torch.exp(mu_ngc)
 
@@ -115,17 +116,17 @@ class CellAssignModule(AbstractVAE):
         phi = torch.transpose(phi_cng, (1, 2, 0))
 
         # compute theta
-        theta_logit = torch.randn(self.n_cells, dtype=torch.float64)
-        self.theta_log = torch.log_softmax(theta_logit)
+        theta_logit = torch.randn(self.n_labels, dtype=torch.float64)
+        self.theta_log = torch.nn.LogSoftmax(theta_logit)
 
         # compute gamma
         p = mu_ngc / (mu_ngc + phi)
-        nb_pdf = torch.NegativeBinomial(p, phi)
-        y_tensor_list = torch.empty(size=self.n_labels)
-        for c in range(self.n_labels):
-            y_tensor_list[c] = x
+        nb_pdf = NegativeBinomial(probs=p, total_count=phi)
+        y_tensor_list = []
+        for _ in range(self.n_labels):
+            y_tensor_list += [x]
         y_ = torch.stack(y_tensor_list, axis=2)
-        y_log_prob_raw = nb_pdf(y_).log_prob()
+        y_log_prob_raw = nb_pdf.log_prob(y_)
         y_log_prob = torch.transpose(y_log_prob_raw, (0, 2, 1))
         y_log_prob_sum = torch.reduce_sum(y_log_prob, 2) + self.theta_log
         p_y_on_c_unorm = torch.transpose(y_log_prob_sum, (1, 0))
@@ -156,7 +157,7 @@ class CellAssignModule(AbstractVAE):
         p_y_on_c_unorm = generative_outputs["p_y_on_c_unorm"]
 
         # compute Q and put it in loss
-        gamma_fixed = torch.empty((self.n_cells, self.n_labels))
+        gamma_fixed = torch.empty((None, self.n_labels))
         Q = -torch.einsum("nc,cn->", gamma_fixed, p_y_on_c_unorm)
 
         # second term in SCVILoss is Q per cell without prior terms. shape is (n_cells,)
@@ -165,14 +166,14 @@ class CellAssignModule(AbstractVAE):
         # third term is log prob of prior terms in Q
         # see the VAE class for how to compute NegBin log probability
         theta_log_prior = torch.Dirichlet(self.dirichlet_concentration)
-        theta_log_prob = -theta_log_prior(
+        theta_log_prob = -theta_log_prior.log_prob(
             torch.exp(self.theta_log) + self.THETA_LOWER_BOUND
         )
         delta_log_prior = torch.Normal(0 * self.rho, 1)
-        delta_log_prob = -torch.reduce_sum(delta_log_prior(self.delta_log).log_prob())
+        delta_log_prob = -torch.reduce_sum(delta_log_prior.log_prob(self.delta_log))
         prior_log_prob = theta_log_prob + delta_log_prob
 
-        return SCVILoss(Q, loss, prior_log_prob, 0.0)
+        return SCVILoss(loss, Q, prior_log_prob, 0.0)
 
     @torch.no_grad()
     def sample(
