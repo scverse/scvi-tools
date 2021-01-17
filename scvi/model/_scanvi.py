@@ -238,8 +238,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         use_gpu = use_gpu if use_gpu is not None else self.use_gpu
         gpus = 1 if use_gpu else None
-        pin_memory = True if settings.dl_pin_memory_gpu_training else False
-
+        pin_memory = (
+            True if (settings.dl_pin_memory_gpu_training and use_gpu) else False
+        )
         train_dl, val_dl, test_dl = self._train_test_val_split(
             self.adata,
             unlabeled_category=self.unlabeled_category_,

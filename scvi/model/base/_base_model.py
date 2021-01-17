@@ -278,7 +278,9 @@ class BaseModelClass(ABC):
         else:
             use_gpu = use_gpu and torch.cuda.is_available()
         gpus = 1 if use_gpu else None
-        pin_memory = True if settings.dl_pin_memory_gpu_training else False
+        pin_memory = (
+            True if (settings.dl_pin_memory_gpu_training and use_gpu) else False
+        )
 
         if max_epochs is None:
             n_cells = self.adata.n_obs
