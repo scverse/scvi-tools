@@ -57,6 +57,17 @@ class CellAssignModule(AbstractVAE):
         # self.random_seed = None
         # self.threads = 0
 
+        # compute theta
+        theta_logit = torch.randn(self.n_labels, dtype=torch.float64)
+        self.theta_log = torch.Parameter(torch.nn.LogSoftmax(theta_logit))
+
+        # compute delta (cell type specific overexpression parameter)
+        self.delta_log = torch.Parameter(
+            torch.FloatTensor(self.n_genes, self.n_labels).uniform_(
+                np.log(self.min_delta), 2
+            )
+        )
+
     def _get_inference_input(self, tensors):
         return {}
 
@@ -81,10 +92,6 @@ class CellAssignModule(AbstractVAE):
         # beta_init = torch.zeros([self.n_genes, self.n_covariates - 1], dtype=torch.float64)
         # beta = torch.cat((beta_0_init, beta_init), 1)
 
-        # compute delta (cell type specific overexpression parameter)
-        self.delta_log = torch.FloatTensor(self.n_genes, self.n_labels).uniform_(
-            np.log(self.min_delta), 2
-        )
         delta = torch.exp(self.delta_log)
 
         # compute mean of NegBin
@@ -114,10 +121,6 @@ class CellAssignModule(AbstractVAE):
             + self.LOWER_BOUND
         )
         phi = torch.transpose(phi_cng, (1, 2, 0))
-
-        # compute theta
-        theta_logit = torch.randn(self.n_labels, dtype=torch.float64)
-        self.theta_log = torch.nn.LogSoftmax(theta_logit)
 
         # compute gamma
         p = mu_ngc / (mu_ngc + phi)
