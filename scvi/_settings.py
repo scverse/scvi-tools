@@ -76,13 +76,13 @@ class ScviConfig:
 
     @property
     def dl_pin_memory_gpu_training(self) -> int:
-        """Set `pin_memory=True` in data loaders when using a GPU for training."""
-        return self._dl_num_workers
+        """Set `pin_memory` in data loaders when using a GPU for training."""
+        return self._dl_pin_memory_gpu_training
 
     @dl_pin_memory_gpu_training.setter
     def dl_pin_memory_gpu_training(self, dl_pin_memory_gpu_training: int):
-        """Set `pin_memory=True` in data loaders when using a GPU for training."""
-        self.dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
+        """Set `pin_memory` in data loaders when using a GPU for training."""
+        self._dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
 
     @property
     def logging_dir(self) -> Path:
