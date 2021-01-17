@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import List, Optional
 
 import numpy as np
+from anndata import AnnData
 from torch.utils.data import DataLoader
 from ._scvi_dataloader import ScviDataLoader
 from itertools import cycle
@@ -30,10 +31,10 @@ class ConcatDataLoader(DataLoader):
 
     def __init__(
         self,
-        adata,
-        indices_list,
-        shuffle=False,
-        batch_size=128,
+        adata: AnnData,
+        indices_list: List[List[int]],
+        shuffle: bool = False,
+        batch_size: int = 128,
         data_and_attributes: Optional[dict] = None,
         **data_loader_kwargs,
     ):
@@ -58,6 +59,8 @@ class ConcatDataLoader(DataLoader):
 
     def __iter__(self):
         """
+        Iter method for concat data loader.
+
         Will iter over the dataloader with the most data while cycling through
         the data in the other dataloaders. The order of data in returned iter_list
         is the same as indices_list.
@@ -96,13 +99,13 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
     def __init__(
         self,
-        adata,
-        labels_obs_key,
-        unlabeled_category,
-        n_samples_per_label,
-        indices=None,
-        shuffle=False,
-        batch_size=128,
+        adata: AnnData,
+        labels_obs_key: str,
+        unlabeled_category: str,
+        n_samples_per_label: int,
+        indices: Optional[List[int]] = None,
+        shuffle: bool = False,
+        batch_size: int = 128,
         data_and_attributes: Optional[dict] = None,
         **data_loader_kwargs,
     ):
@@ -144,9 +147,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         self.dataloaders[1].indices = labelled_idx
 
     def subsample_labels(self):
-        """
-        Subsamples each label class by taking up to n samples per class where n = self.n_samples_per_label.
-        """
+        """Subsamples each label class by taking up to n_samples_per_label samples per class."""
         if self.n_samples_per_label is None:
             return np.concatenate(self.labeled_locs)
 

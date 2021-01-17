@@ -194,9 +194,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         max_epochs: Optional[int] = None,
         n_samples_per_label: Optional[float] = None,
         check_val_every_n_epoch: Optional[int] = None,
-        n_epochs_kl_warmup: int = 400,
-        n_iter_kl_warmup: Optional[int] = None,
-        lr: float = 1e-3,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 512,
@@ -217,13 +214,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Frequency with which metrics are computed on the data for validation set for both
             the unsupervised and semisupervised trainers. If you'd like a different frequency for
             the semisupervised trainer, set check_val_every_n_epoch in semisupervised_train_kwargs.
-        n_epochs_kl_warmup
-            Number of passes through dataset for scaling term on KL divergence to go from 0 to 1.
-        n_iter_kl_warmup
-            Number of minibatches for scaling term on KL divergence to go from 0 to 1.
-            To use, set to not `None` and set `n_epochs_kl_warmup` to `None`.
-        lr
-            Learning rate for optimization.
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -296,7 +286,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         soft: bool = False,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
     ) -> Union[np.ndarray, pd.DataFrame]:
         """
         Return cell label predictions.
@@ -310,7 +300,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         soft
             If True, returns per class probabilities
         batch_size
-            Minibatch size to use.
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
 
@@ -354,9 +344,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         labels_obs_key,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
-        batch_size: Optional[int] = None,
         n_samples_per_label=100,
-        pin_memory: bool = False,
+        **kwargs,
     ):
         """
         Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
@@ -377,12 +366,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             float, or None (default is 0.9)
         validation_size
             float, or None (default is None)
-        batch_size
-            Minibatch size to use during training.
         n_samples_per_label
             Number of subsamples for each label class to sample per epoch
-        pin_memory
-            If True, the data loader will copy Tensors into CUDA pinned memory before returning them.
+        **kwargs
+            Keyword args for `_make_scvi_dl()`
         """
         train_size = float(train_size)
         if train_size > 1.0 or train_size <= 0.0:
@@ -462,6 +449,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         else:
             dataloader_class = ScviDataLoader
             dl_kwargs = {}
+        dl_kwargs.update(kwargs)
 
         scanvi_train_dl = self._make_scvi_dl(
             adata,

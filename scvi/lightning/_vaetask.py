@@ -3,7 +3,6 @@ from typing import Union
 
 import pytorch_lightning as pl
 import torch
-from torch.nn import functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
@@ -15,7 +14,7 @@ from scvi.modules import Classifier
 
 class VAETask(pl.LightningModule):
     """
-    Lightning module task to train scvi-tools modules
+    Lightning module task to train scvi-tools modules.
 
     Parameters
     ----------
@@ -384,31 +383,6 @@ class AdvesarialTask(VAETask):
         return config1
 
 
-class ClassifierTask(VAETask):
-    def __init__(self, vae_model: AbstractVAE):
-        self.model = vae_model
-
-    def training_step(self, batch, batch_idx):
-        x = batch[_CONSTANTS.X_KEY]
-        b = batch[_CONSTANTS.BATCH_KEY]
-        labels_train = batch[_CONSTANTS.LABELS_KEY]
-        return F.cross_entropy(
-            self.sampling_model.classify(x, b), labels_train.view(-1)
-        )
-        #     # TODO: we need to document that it looks for classify
-        #     if hasattr(self.sampling_model, "classify"):
-        #     else:
-        #         if self.sampling_model.log_variational:
-        #             x = torch.log(1 + x)
-        #         if self.sampling_zl:
-        #             x_z = self.sampling_model.z_encoder(x, b)[0]
-        #             x_l = self.sampling_model.l_encoder(x, b)[0]
-        #             x = torch.cat((x_z, x_l), dim=-1)
-        #         else:
-        #             x = self.sampling_model.z_encoder(x, b)[0]
-        # return F.cross_entropy(self.model(x), labels_train.view(-1))
-
-
 class SemiSupervisedTask(VAETask):
     def __init__(
         self,
@@ -417,11 +391,6 @@ class SemiSupervisedTask(VAETask):
         weight_decay=1e-6,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
-        n_labelled_samples_per_class=50,
-        indices_labelled=None,
-        indices_unlabelled=None,
-        n_epochs_classifier=1,
-        lr_classification=5 * 1e-3,
         classification_ratio=50,
         reduce_lr_on_plateau: bool = False,
         lr_factor: float = 0.6,
@@ -430,7 +399,6 @@ class SemiSupervisedTask(VAETask):
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
-        seed=0,
         scheme: Literal["joint"] = "joint",
         **kwargs,
     ):
@@ -447,8 +415,6 @@ class SemiSupervisedTask(VAETask):
             lr_threshold=lr_threshold,
             lr_scheduler_metric=lr_scheduler_metric,
         )
-        self.n_epochs_classifier = n_epochs_classifier
-        self.lr_classification = lr_classification
         self.classification_ratio = classification_ratio
         self.scheme = scheme
 

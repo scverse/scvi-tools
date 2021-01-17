@@ -285,7 +285,6 @@ class SCANVAE(VAE):
 
         loss = torch.mean(reconst_loss + kl_divergence)
 
-        # reconstruction_loss probably isnt correct
         if labelled_tensors is not None:
             loss += self.classification_loss(labelled_tensors) * classification_ratio
         return SCVILoss(loss, reconst_loss, kl_divergence, kl_global=0.0)
