@@ -67,7 +67,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
     def __init__(
         self,
         adata: AnnData,
-        n_hidden: Optional[int] = 128,
+        n_hidden: Optional[int] = None,
         n_latent: Optional[int] = None,
         n_layers_encoder: int = 2,
         n_layers_decoder: int = 2,
@@ -225,10 +225,10 @@ class PEAKVI(VAEMixin, BaseModelClass):
     def get_region_factors(self):
         if self.region_factors is None:
             raise RuntimeError("region factors were not included in this model")
-        return torch.sigmoid(self.region_factors).cpu().numpy()
+        return torch.sigmoid(self.model.region_factors).cpu().numpy()
 
     @torch.no_grad()
-    def get_imputed_values(
+    def get_accessibility_estimates(
         self,
         adata: Optional[AnnData] = None,
         indices: Sequence[int] = None,

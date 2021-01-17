@@ -9,7 +9,7 @@ from scipy.io import mmread
 
 def read_10x_atac(base_path: Union[str, Path]) -> AnnData:
     """
-    Read scATAC-seq data ouputted by 10x Genomics software.
+    Read scATAC-seq data outputted by 10x Genomics software.
 
     Parameters
     ----------
