@@ -8,7 +8,7 @@ from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
 
-from scvi import _CONSTANTS
+from scvi import _CONSTANTS, settings
 from scvi._compat import Literal
 from scvi.data._anndata import _make_obs_column_categorical
 from scvi.dataloaders import SemiSupervisedDataLoader, ScviDataLoader
@@ -196,7 +196,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         check_val_every_n_epoch: Optional[int] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
-        batch_size: int = 512,
+        batch_size: int = 128,
         use_gpu: Optional[bool] = None,
         vae_task_kwargs: Optional[dict] = None,
         **kwargs,
@@ -236,23 +236,18 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         logger.info("Training for {} epochs.".format(max_epochs))
 
         use_gpu = use_gpu if use_gpu is not None else self.use_gpu
-
-        if use_gpu:
-            gpus = 1
-            pin_memory = True
-        else:
-            gpus = None
-            pin_memory = False
+        gpus = 1 if use_gpu else None
+        pin_memory = True if settings.dl_pin_memory_gpu_training else False
 
         train_dl, val_dl, test_dl = self._train_test_val_split(
             self.adata,
+            unlabeled_category=self.unlabeled_category_,
+            labels_obs_key=self.original_label_key,
             train_size=train_size,
             validation_size=validation_size,
+            n_samples_per_label=n_samples_per_label,
             pin_memory=pin_memory,
             batch_size=batch_size,
-            labels_obs_key=self.original_label_key,
-            unlabeled_category=self.unlabeled_category_,
-            n_samples_per_label=n_samples_per_label,
         )
 
         self.train_indices_ = train_dl.indices

@@ -78,6 +78,9 @@ class BaseModelClass(ABC):
         if scvi_dl_class is None:
             scvi_dl_class = self._data_loader_cls
 
+        if "num_workers" not in data_loader_kwargs:
+            data_loader_kwargs.update({"num_workers": settings.dl_num_workers})
+
         dl = scvi_dl_class(
             adata,
             shuffle=shuffle,
@@ -245,8 +248,6 @@ class BaseModelClass(ABC):
         batch_size: int = 128,
         vae_task_kwargs: Optional[dict] = None,
         task_class: Optional[None] = None,
-        num_workers: int = 4,
-        frequency=None,
         **kwargs,
     ):
         """
@@ -276,12 +277,8 @@ class BaseModelClass(ABC):
             use_gpu = self.use_gpu
         else:
             use_gpu = use_gpu and torch.cuda.is_available()
-        if use_gpu:
-            gpus = 1
-            pin_memory = True
-        else:
-            gpus = None
-            pin_memory = False
+        gpus = 1 if use_gpu else None
+        pin_memory = True if settings.dl_pin_memory_gpu_training else False
 
         if max_epochs is None:
             n_cells = self.adata.n_obs
@@ -298,7 +295,6 @@ class BaseModelClass(ABC):
             validation_size=validation_size,
             pin_memory=pin_memory,
             batch_size=batch_size,
-            num_workers=num_workers,
         )
         self.train_indices_ = train_dl.indices
         self.test_indices_ = test_dl.indices
