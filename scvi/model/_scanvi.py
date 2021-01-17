@@ -16,7 +16,7 @@ from scvi.lightning import SemiSupervisedTask, Trainer
 from scvi.modules import SCANVAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
-from scvi.lightning._sampling import SubSampleLabels
+from scvi.lightning._callbacks import SubSampleLabels
 from sklearn.model_selection._split import _validate_shuffle_split
 
 logger = logging.getLogger(__name__)
