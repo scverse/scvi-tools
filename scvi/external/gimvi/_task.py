@@ -14,7 +14,7 @@ class GIMVITask(AdversarialTask):
                 n_input=self.model.n_latent,
                 n_hidden=32,
                 n_labels=self.n_output_classifier,
-                n_layers=2,
+                n_layers=3,
                 logits=True,
             )
         else:
