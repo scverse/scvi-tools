@@ -493,12 +493,29 @@ class GIMVI(VAEMixin, BaseModelClass):
         use_gpu = use_gpu and torch.cuda.is_available()
         init_params["use_gpu"] = use_gpu
 
-        # grab all the parameters execept for kwargs (is a dict)
-        non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
-        # expand out kwargs
-        kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
-        kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+        # new saving and loading, enable backwards compatibility
+        if "non_kwargs" in init_params.keys():
+            # grab all the parameters execept for kwargs (is a dict)
+            non_kwargs = init_params["non_kwargs"]
+            kwargs = init_params["kwargs"]
+
+            # update use_gpu from the saved model
+            # we assume use_gpu is exposed and not a kwarg
+            non_kwargs["use_gpu"] = use_gpu
+
+            # expand out kwargs
+            kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+        else:
+            init_params["use_gpu"] = use_gpu
+
+            # grab all the parameters execept for kwargs (is a dict)
+            non_kwargs = {
+                k: v for k, v in init_params.items() if not isinstance(v, dict)
+            }
+            kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
+            kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         model = cls(adata_seq, adata_spatial, **non_kwargs, **kwargs)
+
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
