@@ -1,19 +1,22 @@
 import logging
 import os
 import pickle
+from itertools import cycle
 from typing import List, Optional
 
 import numpy as np
 import torch
 from anndata import AnnData, read
 
-from scvi import _CONSTANTS
+from scvi import _CONSTANTS, settings
 from scvi.data import transfer_anndata_setup
+from scvi.dataloaders import ScviDataLoader
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.model._utils import _get_var_names_from_setup_anndata
+from scvi.lightning import Trainer
 
 from ._module import JVAE
-
+from ._task import GIMVITask
 
 logger = logging.getLogger(__name__)
 
@@ -120,64 +123,103 @@ class GIMVI(VAEMixin, BaseModelClass):
         ).format(n_latent, n_inputs, total_genes, n_batches, generative_distributions)
         self.init_params_ = self._get_init_params(locals())
 
-    # def train(
-    #     self,
-    #     n_epochs: Optional[int] = 200,
-    #     kappa: Optional[int] = 5,
-    #     discriminator: Optional[Classifier] = None,
-    #     train_size: float = 0.9,
-    #     frequency: int = 1,
-    #     n_epochs_kl_warmup: int = 400,
-    #     train_fun_kwargs: dict = {},
-    #     **kwargs,
-    # ):
-    #     """
-    #     Train the model.
+    def train(
+        self,
+        max_epochs: int = 200,
+        use_gpu: Optional[bool] = None,
+        train_size: float = 0.9,
+        validation_size: Optional[float] = None,
+        batch_size: int = 128,
+        vae_task_kwargs: Optional[dict] = None,
+        task_class: Optional[None] = None,
+        **kwargs,
+    ):
+        """
+        Train the model.
 
-    #     Parameters
-    #     ----------
-    #     n_epochs
-    #         Number of passes through the dataset.
-    #     kappa
-    #         Scaling parameter for the discriminator loss.
-    #     discriminator
-    #         :class:`~scvi.core.modules.Classifier` object.
-    #     train_size
-    #         Size of training set in the range [0.0, 1.0].
-    #     frequency
-    #         Frequency with which metrics are computed on the data for train/test/val sets.
-    #     n_epochs_kl_warmup
-    #         Number of passes through dataset for scaling term on KL divergence to go from 0 to 1.
-    #     train_fun_kwargs
-    #         Keyword args for the train method of :class:`~scvi.core.trainers.trainer.Trainer`.
-    #     **kwargs
-    #         Other keyword args for :class:`~scvi.core.trainers.trainer.Trainer`.
-    #     """
-    #     train_fun_kwargs = dict(train_fun_kwargs)
-    #     if discriminator is None:
-    #         discriminator = Classifier(self.model.n_latent, 32, 2, 3, logits=True)
-    #     self.trainer = JVAETrainer(
-    #         self.model,
-    #         discriminator,
-    #         self.adatas,
-    #         train_size,
-    #         frequency=frequency,
-    #         kappa=kappa,
-    #         n_epochs_kl_warmup=n_epochs_kl_warmup,
-    #     )
+        Parameters
+        ----------
+        max_epochs
+            Number of passes through the dataset. If `None`, defaults to
+            `np.min([round((20000 / n_cells) * 400), 400])`
+        use_gpu
+            If `True`, use the GPU if available. Will override the use_gpu option when initializing model
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        validation_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        batch_size
+            Minibatch size to use during training.
+        vae_task_kwargs
+            Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed to
+            `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
+        **kwargs
+            Other keyword args for :class:`~scvi.lightning.Trainer`.
+        """
+        if use_gpu is None:
+            use_gpu = self.use_gpu
+        else:
+            use_gpu = use_gpu and torch.cuda.is_available()
+        gpus = 1 if use_gpu else None
+        pin_memory = (
+            True if (settings.dl_pin_memory_gpu_training and use_gpu) else False
+        )
 
-    #     logger.info("Training for {} epochs.".format(n_epochs))
-    #     self.trainer.train(n_epochs=n_epochs, **train_fun_kwargs)
+        self.trainer = Trainer(
+            max_epochs=max_epochs,
+            gpus=gpus,
+            **kwargs,
+        )
+        self.train_indices_, self.test_indices_, self.validation_indices_ = [], [], []
+        train_dls, test_dls, val_dls = [], [], []
+        for i, ad in enumerate(self.adatas):
+            train, val, test = self._train_test_val_split(
+                ad,
+                train_size=train_size,
+                validation_size=validation_size,
+                pin_memory=pin_memory,
+                batch_size=batch_size,
+            )
+            train_dls.append(train)
+            test_dls.append(test)
+            val.mode = i
+            val_dls.append(val)
+            self.train_indices_.append(train.indices)
+            self.test_indices_.append(test.indices)
+            self.validation_indices_.append(val.indices)
+        largest_train_dl = np.argmax([len(dl.indices) for dl in train_dls])
+        train_dls = [
+            dl if i == largest_train_dl else cycle(dl) for i, dl in enumerate(train_dls)
+        ]
+        train_dl = zip(*train_dls)
 
-    #     self.is_trained_ = True
-    #     self.history_ = self.trainer.history
+        task_kwargs = vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
+        self._pl_task = self._task_class(
+            self.model, len(self.train_indices_), **task_kwargs
+        )
+
+        if train_size == 1.0:
+            # circumvent the empty data loader problem if all dataset used for training
+            self.trainer.fit(self._pl_task, train_dl)
+        else:
+            # accepts list of val dataloaders
+            self.trainer.fit(self._pl_task, train_dl, val_dls)
+        try:
+            self.history_ = self.trainer.logger.history
+        except AttributeError:
+            self.history_ = None
+        self.model.eval()
+        if use_gpu:
+            self.model.cuda()
+        self.is_trained_ = True
 
     def _make_scvi_dls(self, adatas: List[AnnData] = None, batch_size=128):
         if adatas is None:
             adatas = self.adatas
-        post_list = [
-            self._make_scvi_dl(adata, mode=i) for i, adata in enumerate(adatas)
-        ]
+        post_list = [self._make_scvi_dl(ad) for ad in adatas]
+        for i, dl in enumerate(post_list):
+            dl.mode = i
 
         return post_list
 
@@ -461,3 +503,11 @@ class GIMVI(VAEMixin, BaseModelClass):
             model.model.load_state_dict(torch.load(model_path, map_location=device))
         model.model.eval()
         return model
+
+    @property
+    def _data_loader_cls(self):
+        return ScviDataLoader
+
+    @property
+    def _task_class(self):
+        return GIMVITask

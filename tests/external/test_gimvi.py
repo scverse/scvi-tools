@@ -32,11 +32,11 @@ def test_gimvi():
     adata_seq = synthetic_iid()
     adata_spatial = synthetic_iid()
     model = GIMVI(adata_seq, adata_spatial, n_latent=10)
-    model.get_latent_representation()
-    model.get_imputed_values()
     model.train(
         1, check_val_every_n_epoch=1, early_stopping_kwargs=None, train_size=0.5
     )
+    model.get_latent_representation()
+    model.get_imputed_values()
 
     assert len(model.history["elbo_train_0"]) == 2
     assert len(model.history["elbo_train_1"]) == 2
