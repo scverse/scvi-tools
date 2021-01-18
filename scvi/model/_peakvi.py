@@ -130,7 +130,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
     def train(
         self,
         max_epochs: int = 500,
-        lr: float = 1e-3,
+        lr: float = 1e-4,
         use_gpu: Optional[bool] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
