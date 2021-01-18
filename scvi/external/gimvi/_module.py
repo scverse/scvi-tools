@@ -17,6 +17,7 @@ from scvi.compose import (
     MultiEncoder,
     SCVILoss,
     one_hot,
+    auto_move_data,
 )
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 
@@ -354,6 +355,7 @@ class JVAE(AbstractVAE):
         y = tensors[_CONSTANTS.LABELS_KEY]
         return dict(z=z, library=library, batch_index=batch_index, y=y)
 
+    @auto_move_data
     def inference(self, x: torch.Tensor, mode: Optional[int] = None) -> dict:
         x_ = x
         if self.log_variational:
@@ -368,6 +370,7 @@ class JVAE(AbstractVAE):
 
         return dict(qz_m=qz_m, qz_v=qz_v, z=z, ql_m=ql_m, ql_v=ql_v, library=library)
 
+    @auto_move_data
     def generative(
         self,
         z: torch.Tensor,

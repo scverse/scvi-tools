@@ -127,6 +127,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         self,
         max_epochs: int = 200,
         use_gpu: Optional[bool] = None,
+        kappa: int = 5,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -144,6 +145,8 @@ class GIMVI(VAEMixin, BaseModelClass):
             `np.min([round((20000 / n_cells) * 400), 400])`
         use_gpu
             If `True`, use the GPU if available. Will override the use_gpu option when initializing model
+        kappa
+            Scaling parameter for the discriminator loss.
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -199,6 +202,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             self.model,
             len(self.train_indices_),
             adversarial_classifier=True,
+            scale_adversarial_loss=kappa,
             **task_kwargs,
         )
 

@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 import pytest
 
@@ -36,20 +35,6 @@ def test_gimvi():
     model.get_latent_representation()
     model.get_imputed_values()
 
-    assert len(model.history["elbo_train_0"]) == 2
-    assert len(model.history["elbo_train_1"]) == 2
-    assert len(model.history["elbo_test_0"]) == 2
-    assert len(model.history["elbo_test_1"]) == 2
-
-    trainer = model.trainer
-    results = pd.DataFrame(
-        trainer.get_loss_magnitude(),
-        index=["reconstruction", "kl_divergence", "discriminator"],
-        columns=["Sequencing", "Spatial"],
-    )
-    results.columns.name = "Dataset"
-    results.index.name = "Loss"
-    trainer.get_discriminator_confusion()
     adata_spatial.var_names += "asdf"
     with pytest.raises(ValueError):
         model = GIMVI(adata_seq, adata_spatial)
