@@ -351,7 +351,7 @@ class JVAE(AbstractVAE):
         y = tensors[_CONSTANTS.LABELS_KEY]
         return dict(z=z, library=library, batch_index=batch_index, y=y)
 
-    def inference(self, x: torch.Tensor, mode: int) -> dict:
+    def inference(self, x: torch.Tensor, mode: Optional[int] = None) -> dict:
         x_ = x
         if self.log_variational:
             x_ = torch.log(1 + x_)
@@ -368,10 +368,10 @@ class JVAE(AbstractVAE):
     def generative(
         self,
         z: torch.Tensor,
-        mode: int,
         library: torch.Tensor,
         batch_index: Optional[torch.Tensor] = None,
         y: Optional[torch.Tensor] = None,
+        mode: Optional[int] = None,
     ) -> dict:
         px_scale, px_r, px_rate, px_dropout = self.decoder(
             z, mode, library, self.dispersion, batch_index, y

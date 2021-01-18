@@ -196,7 +196,10 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         task_kwargs = vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
         self._pl_task = self._task_class(
-            self.model, len(self.train_indices_), **task_kwargs
+            self.model,
+            len(self.train_indices_),
+            adversarial_classifier=True,
+            **task_kwargs,
         )
 
         if train_size == 1.0:

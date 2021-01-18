@@ -264,10 +264,11 @@ class AdversarialTask(VAETask):
             lr_scheduler_metric=lr_scheduler_metric,
         )
         if adversarial_classifier is True:
+            self.n_output_classifier = self.model.n_batch
             self.adversarial_classifier = Classifier(
                 n_input=self.model.n_latent,
                 n_hidden=32,
-                n_labels=self.model.n_batch,
+                n_labels=self.n_output_classifier,
                 n_layers=2,
                 logits=True,
             )
@@ -276,7 +277,7 @@ class AdversarialTask(VAETask):
         self.scale_adversarial_loss = scale_adversarial_loss
 
     def loss_adversarial_classifier(self, z, batch_index, predict_true_class=True):
-        n_classes = self.model.n_batch
+        n_classes = self.n_output_classifier
         cls_logits = torch.nn.LogSoftmax(dim=1)(self.adversarial_classifier(z))
 
         if predict_true_class:
@@ -376,9 +377,12 @@ class AdversarialTask(VAETask):
 
             # bug in pytorch lightning requires this way to return
             opts = [config1.pop("optimizer"), config2["optimizer"]]
-            config1["scheduler"] = config1.pop("lr_scheduler")
-            scheds = [config1]
-            return opts, scheds
+            if "lr_scheduler" in config1:
+                config1["scheduler"] = config1.pop("lr_scheduler")
+                scheds = [config1]
+                return opts, scheds
+            else:
+                return opts
 
         return config1
 
