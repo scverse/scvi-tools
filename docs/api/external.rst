@@ -4,6 +4,14 @@ External
 
 .. currentmodule:: scvi
 
+gimVI
+~~~~~~
+
+.. autosummary::
+   :toctree: reference/
+
+   external.GIMVI
+
 Stereoscope
 ~~~~~~~~~~~
 
