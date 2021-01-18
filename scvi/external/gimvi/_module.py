@@ -254,16 +254,19 @@ class JVAE(AbstractVAE):
         """
         if decode_mode is None:
             decode_mode = mode
-        qz_m, qz_v, z, ql_m, ql_v, library = self.encode(x, mode)
+        inference_out = self.inference(x, mode)
         if deterministic:
-            z = qz_m
-            if ql_m is not None:
-                library = ql_m
-        px_scale, px_r, px_rate, px_dropout = self.decode(
-            z, decode_mode, library, batch_index, y
-        )
+            z = inference_out["qz_m"]
+            if inference_out["ql_m"] is not None:
+                library = inference_out["ql_m"]
+            else:
+                library = inference_out["library"]
+        else:
+            z = inference_out["z"]
+            library = inference_out["library"]
+        gen_out = self.generative(z, library, batch_index, y, decode_mode)
 
-        return px_scale
+        return gen_out["px_scale"]
 
     # This is a potential wrapper for a vae like get_sample_rate
     def get_sample_rate(self, x, batch_index, *_, **__):
