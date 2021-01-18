@@ -329,9 +329,9 @@ def test_autozi():
             dispersion=disp_zi,
             zero_inflation=disp_zi,
         )
-        autozivae.train(1, lr=1e-2, check_val_every_n_epoch=1)
+        autozivae.train(1, vae_task_kwargs=dict(lr=1e-2), check_val_every_n_epoch=1)
         assert len(autozivae.history["elbo_train"]) == 1
-        assert len(autozivae.history["elbo_test"]) == 1
+        assert len(autozivae.history["elbo_validation"]) == 1
         autozivae.get_elbo(indices=autozivae.validation_indices)
         autozivae.get_reconstruction_error(indices=autozivae.validation_indices)
         autozivae.get_marginal_ll(indices=autozivae.validation_indices)
@@ -598,7 +598,7 @@ def test_scanvi_online_update(save_path):
     model2 = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
     model2._unlabeled_indices = np.arange(adata2.n_obs)
     model2._labeled_indices = []
-    model2.train(max_epochs=1, task_kwargs=dict(weight_decay=0.0))
+    model2.train(max_epochs=1, vae_task_kwargs=dict(weight_decay=0.0))
     model2.get_latent_representation()
     model2.predict()
 
