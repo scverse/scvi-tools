@@ -27,16 +27,12 @@ class CellAssignModule(AbstractVAE):
         n_genes: int,
         n_labels: int,
         rho: torch.Tensor,
-        # n_cells: int,
-        # n_covariates: int,
         **model_kwargs,
     ):
         super().__init__()
         self.n_genes = n_genes
         self.n_labels = n_labels
         self.rho = rho
-        # self.n_cells = n_cells
-        # self.n_covariates = n_covariates
 
         self.register_buffer("rho", rho)
 
@@ -46,20 +42,12 @@ class CellAssignModule(AbstractVAE):
         self.B = 10
         self.min_delta = 2
         self.dirichlet_concentration = [1e-2] * self.n_labels
-        # self.shrinkage = True
-        # self.verbose = False
-        # self.n_batches = 1
-        # self.rel_tol_adam = 1e-4
-        # self.rel_tol_em = 1e-4
-        # self.max_iter_adam = 1e5
-        # self.max_iter_em = 20
-        # self.learning_rate = 1e-4
-        # self.random_seed = None
-        # self.threads = 0
+        self.shrinkage = True
 
         # compute theta
-        theta_logit = torch.randn(self.n_labels, dtype=torch.float64)
-        self.theta_log = torch.Parameter(torch.nn.LogSoftmax(theta_logit))
+        self.theta_logit = torch.Parameter(
+            torch.randn(self.n_labels, dtype=torch.float64)
+        )
 
         # compute delta (cell type specific overexpression parameter)
         self.delta_log = torch.Parameter(
@@ -68,8 +56,10 @@ class CellAssignModule(AbstractVAE):
             )
         )
 
-        self.delta_log_mean = torch.Parameter(0, dtype=torch.float64)
-        self.delta_log_variance = torch.Parameter(1, dtype=torch.float64)
+        # shrinkage prior on delta
+        if self.shrinkage:
+            self.delta_log_mean = torch.Parameter(0, dtype=torch.float64)
+            self.delta_log_variance = torch.Parameter(1, dtype=torch.float64)
 
         self.log_a = torch.Parameter(torch.zeros(self.B, dtype=torch.float64))
 
@@ -89,15 +79,8 @@ class CellAssignModule(AbstractVAE):
 
     @auto_move_data
     def generative(self, x, y):
-
-        # compute beta (covariate coefficent)
-        # col_means = torch.mean(x, 0)
-        # col_means_mu, col_means_std = torch.std_mean(col_means)
-        # beta_0_init = torch.div(torch.sub(col_means, col_means_mu), col_means_std)
-        # beta_init = torch.zeros([self.n_genes, self.n_covariates - 1], dtype=torch.float64)
-        # beta = torch.cat((beta_0_init, beta_init), 1)
-
         delta = torch.exp(self.delta_log)
+        theta_log = torch.nn.LogSoftmax(self.theta_logit)
 
         # compute mean of NegBin
         s = x.sum(1, keepDim=True)
@@ -136,7 +119,7 @@ class CellAssignModule(AbstractVAE):
         y_ = torch.stack(y_tensor_list, axis=2)
         y_log_prob_raw = nb_pdf.log_prob(y_)
         y_log_prob = torch.transpose(y_log_prob_raw, (0, 2, 1))
-        y_log_prob_sum = torch.reduce_sum(y_log_prob, 2) + self.theta_log
+        y_log_prob_sum = torch.reduce_sum(y_log_prob, 2) + theta_log
         p_y_on_c_unorm = torch.transpose(y_log_prob_sum, (1, 0))
         p_y_on_c_norm = torch.reshape(
             torch.reduce_logsumexp(p_y_on_c_unorm, 0), (1, -1)
@@ -159,9 +142,6 @@ class CellAssignModule(AbstractVAE):
     ):
         # generative_outputs is a dict of the return value from `generative(...)`
         # assume that `n_obs` is the number of training data points
-        # mu = generative_outputs['mu']
-        # phi = generative_outputs['phi']
-        # gamma = generative_outputs['gamma']
         p_y_on_c_unorm = generative_outputs["p_y_on_c_unorm"]
 
         # compute Q and put it in loss
@@ -172,16 +152,18 @@ class CellAssignModule(AbstractVAE):
         loss = torch.reduce_sum(torch.reduce_logsumexp(p_y_on_c_unorm, 0))
 
         # third term is log prob of prior terms in Q
-        # see the VAE class for how to compute NegBin log probability
+        theta_log = torch.nn.LogSoftmax(self.theta_logit)
         theta_log_prior = torch.Dirichlet(self.dirichlet_concentration)
         theta_log_prob = -theta_log_prior.log_prob(
-            torch.exp(self.theta_log) + self.THETA_LOWER_BOUND
+            torch.exp(theta_log) + self.THETA_LOWER_BOUND
         )
         delta_log_prior = torch.Normal(
             self.delta_log_mean * self.rho, self.delta_log_variance
         )
         delta_log_prob = -torch.reduce_sum(delta_log_prior.log_prob(self.delta_log))
-        prior_log_prob = theta_log_prob + delta_log_prob
+        prior_log_prob = theta_log_prob
+        if self.shrinkage:
+            prior_log_prob += delta_log_prob
 
         return SCVILoss(loss, Q, prior_log_prob, 0.0)
 
