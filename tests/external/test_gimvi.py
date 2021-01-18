@@ -11,7 +11,7 @@ def test_saving_and_loading(save_path):
 
     # GIMVI
     model = GIMVI(adata, adata)
-    model.train(1, train_size=0.5)
+    model.train(3, train_size=0.5)
     z1 = model.get_latent_representation([adata])
     z2 = model.get_latent_representation([adata])
     np.testing.assert_array_equal(z1, z2)

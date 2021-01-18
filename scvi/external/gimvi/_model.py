@@ -7,6 +7,7 @@ from typing import List, Optional
 import numpy as np
 import torch
 from anndata import AnnData, read
+from torch.utils.data import DataLoader
 
 from scvi import _CONSTANTS, settings
 from scvi.data import transfer_anndata_setup
@@ -191,11 +192,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             self.train_indices_.append(train.indices)
             self.test_indices_.append(test.indices)
             self.validation_indices_.append(val.indices)
-        largest_train_dl = np.argmax([len(dl.indices) for dl in train_dls])
-        train_dls = [
-            dl if i == largest_train_dl else cycle(dl) for i, dl in enumerate(train_dls)
-        ]
-        train_dl = zip(*train_dls)
+        train_dl = TrainDL(train_dls)
 
         task_kwargs = vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
         self._pl_task = self._task_class(
@@ -535,3 +532,23 @@ class GIMVI(VAEMixin, BaseModelClass):
     @property
     def _task_class(self):
         return GIMVITask
+
+
+class TrainDL(DataLoader):
+    def __init__(self, data_loader_list, **kwargs):
+        self.data_loader_list = data_loader_list
+        self.largest_train_dl_idx = np.argmax(
+            [len(dl.indices) for dl in data_loader_list]
+        )
+        self.largest_dl = self.data_loader_list[self.largest_train_dl_idx]
+        super().__init__(self.largest_dl, **kwargs)
+
+    def __len__(self):
+        return len(self.largest_dl)
+
+    def __iter__(self):
+        train_dls = [
+            dl if i == self.largest_train_dl_idx else cycle(dl)
+            for i, dl in enumerate(self.data_loader_list)
+        ]
+        return zip(*train_dls)
