@@ -319,7 +319,7 @@ class AdversarialTask(VAETask):
 
             reconstruction_loss = scvi_loss.reconstruction_loss
             return {
-                "loss": scvi_loss.loss,
+                "loss": loss,
                 "reconstruction_loss_sum": reconstruction_loss.sum(),
                 "kl_local_sum": scvi_loss.kl_local.sum(),
                 "kl_global": scvi_loss.kl_global,
