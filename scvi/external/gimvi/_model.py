@@ -9,10 +9,11 @@ from anndata import AnnData, read
 
 from scvi import _CONSTANTS
 from scvi.data import transfer_anndata_setup
+from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.model._utils import _get_var_names_from_setup_anndata
-from scvi.modules import JVAE
 
-from .base import BaseModelClass, VAEMixin
+from ._module import JVAE
+
 
 logger = logging.getLogger(__name__)
 

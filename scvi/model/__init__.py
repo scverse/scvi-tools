@@ -1,5 +1,4 @@
 from ._autozi import AUTOZI
-from ._gimvi import GIMVI
 from ._linear_scvi import LinearSCVI
 from ._scanvi import SCANVI
 from ._scvi import SCVI
@@ -11,5 +10,4 @@ __all__ = [
     "LinearSCVI",
     "AUTOZI",
     "SCANVI",
-    "GIMVI",
 ]
