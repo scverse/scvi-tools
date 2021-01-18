@@ -223,7 +223,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
 
     @torch.no_grad()
     def get_region_factors(self):
-        if self.region_factors is None:
+        if self.model.region_factors is None:
             raise RuntimeError("region factors were not included in this model")
         return torch.sigmoid(self.model.region_factors).cpu().numpy()
 
