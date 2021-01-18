@@ -119,7 +119,7 @@ class VAETask(pl.LightningModule):
             kl_local += tensors["kl_local_sum"]
             n_obs += tensors["n_obs"]
         # kl global same for each minibatch
-        kl_global = tensors["kl_global"]
+        kl_global = outputs[0]["kl_global"]
         elbo += kl_global
         self.log("elbo_train", elbo / n_obs)
         self.log("reconstruction_loss_train", rec_loss / n_obs)
@@ -145,7 +145,7 @@ class VAETask(pl.LightningModule):
             kl_local += tensors["kl_local_sum"]
             n_obs += tensors["n_obs"]
         # kl global same for each minibatch
-        kl_global = tensors["kl_global"]
+        kl_global = outputs[0]["kl_global"]
         elbo += kl_global
         self.log("elbo_validation", elbo / n_obs)
         self.log("reconstruction_loss_validation", rec_loss / n_obs)
