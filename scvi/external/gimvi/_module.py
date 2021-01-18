@@ -17,6 +17,7 @@ from scvi.compose import (
     MultiEncoder,
     SCVILoss,
     one_hot,
+    auto_move_data,
 )
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 
@@ -254,16 +255,19 @@ class JVAE(AbstractVAE):
         """
         if decode_mode is None:
             decode_mode = mode
-        qz_m, qz_v, z, ql_m, ql_v, library = self.encode(x, mode)
+        inference_out = self.inference(x, mode)
         if deterministic:
-            z = qz_m
-            if ql_m is not None:
-                library = ql_m
-        px_scale, px_r, px_rate, px_dropout = self.decode(
-            z, decode_mode, library, batch_index, y
-        )
+            z = inference_out["qz_m"]
+            if inference_out["ql_m"] is not None:
+                library = inference_out["ql_m"]
+            else:
+                library = inference_out["library"]
+        else:
+            z = inference_out["z"]
+            library = inference_out["library"]
+        gen_out = self.generative(z, library, batch_index, y, decode_mode)
 
-        return px_scale
+        return gen_out["px_scale"]
 
     # This is a potential wrapper for a vae like get_sample_rate
     def get_sample_rate(self, x, batch_index, *_, **__):
@@ -351,7 +355,8 @@ class JVAE(AbstractVAE):
         y = tensors[_CONSTANTS.LABELS_KEY]
         return dict(z=z, library=library, batch_index=batch_index, y=y)
 
-    def inference(self, x: torch.Tensor, mode: int) -> dict:
+    @auto_move_data
+    def inference(self, x: torch.Tensor, mode: Optional[int] = None) -> dict:
         x_ = x
         if self.log_variational:
             x_ = torch.log(1 + x_)
@@ -365,13 +370,14 @@ class JVAE(AbstractVAE):
 
         return dict(qz_m=qz_m, qz_v=qz_v, z=z, ql_m=ql_m, ql_v=ql_v, library=library)
 
+    @auto_move_data
     def generative(
         self,
         z: torch.Tensor,
-        mode: int,
         library: torch.Tensor,
         batch_index: Optional[torch.Tensor] = None,
         y: Optional[torch.Tensor] = None,
+        mode: Optional[int] = None,
     ) -> dict:
         px_scale, px_r, px_rate, px_dropout = self.decoder(
             z, mode, library, self.dispersion, batch_index, y

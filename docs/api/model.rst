@@ -47,14 +47,6 @@ AutoZI
    model.AUTOZI
 
 
-gimVI
-~~~~~~
-
-.. autosummary::
-   :toctree: reference/
-
-   model.GIMVI
-
 Base
 ~~~~
 
