@@ -175,7 +175,6 @@ class AutoZIVAE(VAE):
 
         return outputs
 
-    @staticmethod
     def sample_from_beta_distribution(
         self,
         alpha: torch.Tensor,
