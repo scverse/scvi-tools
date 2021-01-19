@@ -386,14 +386,49 @@ class AdversarialTask(VAETask):
 
 
 class SemiSupervisedTask(VAETask):
+    """
+    Lightning module task for SemiSupervised Training.
+
+    Parameters
+    ----------
+    vae_model
+        A model instance from class ``AbstractVAE``.
+    classification_ratio
+        Weight of the classification_loss in loss function
+    lr
+        Learning rate used for optimization :class:`~torch.optim.Adam`.
+    weight_decay
+        Weight decay used in :class:`~torch.optim.Adam`.
+    n_steps_kl_warmup
+        Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
+        Only activated when `n_epochs_kl_warmup` is set to None.
+    n_epochs_kl_warmup
+        Number of epochs to scale weight on KL divergences from 0 to 1.
+        Overrides `n_steps_kl_warmup` when both are not `None`.
+    reduce_lr_on_plateau
+        Whether to monitor validation loss and reduce learning rate when validation set
+        `lr_scheduler_metric` plateaus.
+    lr_factor
+        Factor to reduce learning rate.
+    lr_patience
+        Number of epochs with no improvement after which learning rate will be reduced.
+    lr_threshold
+        Threshold for measuring the new optimum.
+    lr_scheduler_metric
+        Which metric to track for learning rate reduction.
+    **loss_kwargs
+        Keyword args to pass to the loss method of the `vae_model`.
+        `kl_weight` should not be passed here and is handled automatically.
+    """
+
     def __init__(
         self,
         vae_model: AbstractVAE,
+        classification_ratio: int = 50,
         lr=1e-3,
         weight_decay=1e-6,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
-        classification_ratio: int = 50,
         reduce_lr_on_plateau: bool = False,
         lr_factor: float = 0.6,
         lr_patience: int = 30,
