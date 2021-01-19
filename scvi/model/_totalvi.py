@@ -105,11 +105,19 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             prior_mean, prior_scale = _get_totalvi_protein_priors(adata)
         else:
             prior_mean, prior_scale = None, None
+
+        n_cats_per_cov = (
+            self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
+            if "extra_categoricals" in self.scvi_setup_dict_
+            else None
+        )
         self.model = TOTALVAE(
             n_input_genes=self.summary_stats["n_vars"],
             n_input_proteins=self.summary_stats["n_proteins"],
             n_batch=self.summary_stats["n_batch"],
             n_latent=n_latent,
+            n_continuous_cov=self.summary_stats["n_continuous_covs"],
+            n_cats_per_cov=n_cats_per_cov,
             gene_dispersion=gene_dispersion,
             protein_dispersion=protein_dispersion,
             gene_likelihood=gene_likelihood,

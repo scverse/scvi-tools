@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Main module."""
-from typing import Iterable
+from typing import Iterable, Optional
 
 import numpy as np
 import torch
@@ -92,7 +92,7 @@ class VAE(AbstractVAE):
         n_latent: int = 10,
         n_layers: int = 1,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Iterable[int] = [],
+        n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: float = 0.1,
         dispersion: str = "gene",
         log_variational: bool = True,
@@ -139,7 +139,7 @@ class VAE(AbstractVAE):
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         # latent space representation
         n_input_encoder = n_input + n_continuous_cov * encode_covariates
-        cat_list = [n_batch] + list(n_cats_per_cov)
+        cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
         encoder_cat_list = cat_list if encode_covariates else None
         self.z_encoder = Encoder(
             n_input_encoder,
@@ -266,9 +266,7 @@ class VAE(AbstractVAE):
         self, z, library, batch_index, cont_covs=None, cat_covs=None, y=None
     ):
         """Runs the generative model."""
-        # make random y since its not used
         # TODO: refactor forward function to not rely on y
-        # y = torch.zeros(z.shape[0], 1)
         decoder_input = z if cont_covs is None else torch.cat([z, cont_covs], dim=-1)
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
