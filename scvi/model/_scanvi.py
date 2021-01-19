@@ -250,7 +250,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         train_dl, val_dl, test_dl = self._train_test_val_split(
             self.adata,
             unlabeled_category=self.unlabeled_category_,
-            labels_obs_key=self.original_label_key,
             train_size=train_size,
             validation_size=validation_size,
             n_samples_per_label=n_samples_per_label,
@@ -343,7 +342,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         adata: AnnData,
         unlabeled_category,
-        labels_obs_key,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         n_samples_per_label: Optional[int] = None,
@@ -362,8 +360,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             AnnData to split into train/test/val sets
         unlabeled_category
             Category to treat as unlabeled
-        labels_obs_key
-            key in adata.obs for label data
         train_size
             float, or None (default is 0.9)
         validation_size
@@ -444,7 +440,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if len(self._labeled_indices) != 0:
             dataloader_class = SemiSupervisedDataLoader
             dl_kwargs = {
-                "labels_obs_key": labels_obs_key,
                 "unlabeled_category": unlabeled_category,
                 "n_samples_per_label": n_samples_per_label,
             }
