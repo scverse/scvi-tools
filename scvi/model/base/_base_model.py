@@ -104,6 +104,8 @@ class BaseModelClass(ABC):
 
         Parameters
         ----------
+        adata
+            Setup AnnData to be split into train, test, validation sets
         train_size
             float, or None (default is 0.9)
         validation_size

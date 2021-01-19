@@ -405,6 +405,25 @@ class TOTALVAE(AbstractVAE):
         factor that enforces `rate_fore` > `rate_back`.
 
         ``px_["r"]`` and ``py_["r"]`` are the inverse dispersion parameters for genes and protein, respectively.
+
+        Parameters
+        ----------
+        x
+            tensor of values with shape ``(batch_size, n_input_genes)``
+        y
+            tensor of values with shape ``(batch_size, n_input_proteins)``
+        batch_index
+            array that indicates which batch the cells belong to with shape ``batch_size``
+        label
+            tensor of cell-types labels with shape (batch_size, n_labels)
+        n_samples
+            Number of samples to sample from approximate posterior
+        transform_batch
+            If not None, will override batch_index
+        cont_covs
+            Continuous covariates to condition on
+        cat_covs
+            Categorical covariates to condition on
         """
         x_ = x
         y_ = y

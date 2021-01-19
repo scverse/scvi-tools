@@ -354,9 +354,11 @@ class VAE(AbstractVAE):
         Parameters
         ----------
         tensors
-            tensors dict
+            Tensors dict
         n_samples
             Number of required samples for each cell
+        library_size
+            Library size to scale scamples to
 
         Returns
         -------

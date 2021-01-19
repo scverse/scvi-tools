@@ -161,10 +161,12 @@ class SCANVAE(VAE):
             np.array(labels_groups) if labels_groups is not None else None
         )
         if self.use_labels_groups:
-            assert labels_groups is not None, "Specify label groups"
+            if labels_groups is None:
+                raise ValueError("Specify label groups")
             unique_groups = np.unique(self.labels_groups)
             self.n_groups = len(unique_groups)
-            assert (unique_groups == np.arange(self.n_groups)).all()
+            if not (unique_groups == np.arange(self.n_groups)).all():
+                raise ValueError()
             self.classifier_groups = Classifier(
                 n_latent, n_hidden, self.n_groups, n_layers, dropout_rate
             )

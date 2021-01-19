@@ -86,9 +86,7 @@ class ScviConfig:
 
     @property
     def logging_dir(self) -> Path:
-        """\
-        Directory for training logs (default `'./scvi_log/'`).
-        """
+        """Directory for training logs (default `'./scvi_log/'`)."""
         return self._logging_dir
 
     @logging_dir.setter

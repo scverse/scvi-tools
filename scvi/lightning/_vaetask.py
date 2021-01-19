@@ -98,9 +98,7 @@ class VAETask(pl.LightningModule):
 
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
-        inference_outputs, _, scvi_loss = self.forward(
-            batch, loss_kwargs=self.loss_kwargs
-        )
+        _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         reconstruction_loss = scvi_loss.reconstruction_loss
         # pytorch lightning automatically backprops on "loss"
         return {

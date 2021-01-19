@@ -10,7 +10,6 @@ def auto_move_data(fn: Callable) -> Callable:
     """
     Decorator for :class:`~torch.nn.Module methods to move data to correct device.
 
-
     Input arguments are moved automatically to the correct device.
     It has no effect if applied to a method of an object that is not an instance of
     :class:`~torch.nn.Module` and is typically applied to ``__call__``
@@ -46,17 +45,22 @@ def auto_move_data(fn: Callable) -> Callable:
 
 def _move_data_to_device(batch: Any, device: torch.device):
     """
-    Transfers a collection of data to the given device. Any object that defines a method
-    ``to(device)`` will be moved and all other objects in the collection will be left untouched.
-    Args:
-        batch: A tensor or collection of tensors or anything that has a method `.to(...)`.
-            See :func:`apply_to_collection` for a list of supported collection types.
-        device: The device to which the data should be moved
-    Return:
-        the same collection but with all contained tensors residing on the new device.
-    See Also:
-        - :meth:`torch.Tensor.to`
-        - :class:`torch.device`
+    Transfers a collection of data to the given device.
+
+    Any object that defines a method ``to(device)`` will be moved and all other objects
+    in the collection will be left untouched.
+
+    Parameters
+    ----------
+    batch
+        A tensor or collection of tensors or anything that has a method `.to(...)`.
+        See :func:`apply_to_collection` for a list of supported collection types.
+    device
+        The device to which the data should be moved
+
+    Returns
+    -------
+        The same collection but with all contained tensors residing on the new device.
     """
 
     def batch_to(data):
@@ -76,8 +80,10 @@ def _apply_to_collection(
     ----------
     data
         The collection to apply the function to
-        dtype: the given function will be applied to all elements of this dtype
-        function: the function to apply
+    dtype
+        The given function will be applied to all elements of this dtype
+    function
+        The function to apply
     *args
         positional arguments (will be forwarded to calls of ``function``)
     **kwargs

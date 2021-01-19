@@ -199,7 +199,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
-
         if adversarial_classifier is None:
             imputation = (
                 True if "totalvi_batch_mask" in self.scvi_setup_dict_.keys() else False

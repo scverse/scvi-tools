@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class AUTOZI(VAEMixin, BaseModelClass):
     """
-    Automatic identification of ZI genes [Clivio19]_
+    Automatic identification of ZI genes [Clivio19]_.
 
     Parameters
     ----------
@@ -184,7 +184,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
             bernoulli_params = self.model.sample_from_beta_distribution(
                 alpha_posterior, beta_posterior
             )
-            for i_batch, tensors in enumerate(scdl):
+            for tensors in scdl:
                 sample_batch = tensors[_CONSTANTS.X_KEY]
                 local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
                 local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]

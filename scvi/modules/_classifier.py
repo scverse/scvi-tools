@@ -5,11 +5,10 @@ from scvi.compose import FCLayers
 
 class Classifier(nn.Module):
     """
-    Basic fully-connected NN classifier
+    Basic fully-connected NN classifier.
 
     Parameters
     ----------
-
     n_input
         Number of input dimensions
     n_hidden

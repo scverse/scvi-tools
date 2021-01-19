@@ -51,10 +51,10 @@ class SCVILoss:
 
     @staticmethod
     def _get_dict_sum(dictionary):
-        sum = 0.0
+        total = 0.0
         for value in dictionary.values():
-            sum += value
-        return sum
+            total += value
+        return total
 
     @property
     def loss(self) -> torch.Tensor:
@@ -142,7 +142,6 @@ class AbstractVAE(nn.Module):
     @abstractmethod
     def _get_inference_input(self, tensors: Dict[str, torch.Tensor], **kwargs):
         """Parse tensors dictionary for inference related values."""
-        pass
 
     @abstractmethod
     def _get_generative_input(
@@ -152,7 +151,6 @@ class AbstractVAE(nn.Module):
         **kwargs,
     ):
         """Parse tensors dictionary for inference related values."""
-        pass
 
     @abstractmethod
     def inference(
@@ -167,7 +165,6 @@ class AbstractVAE(nn.Module):
         computing variational distribution parameters. In a VAE, this will involve running
         data through encoder networks.
         """
-        pass
 
     @abstractmethod
     def generative(self, *args, **kwargs) -> dict:
@@ -177,7 +174,6 @@ class AbstractVAE(nn.Module):
         This function should return the parameters associated with the likelihood of the data.
         This is typically written as :math:`p(x|z)`.
         """
-        pass
 
     @abstractmethod
     def loss(self, *args, **kwargs) -> SCVILoss:
@@ -187,12 +183,10 @@ class AbstractVAE(nn.Module):
         This function uses the outputs of the inference and generative functions to compute
         a loss. This many optionally include other penalty terms, which should be computed here.
         """
-        pass
 
     @abstractmethod
     def sample(self, *args, **kwargs):
         """Generate samples from the learned model."""
-        pass
 
 
 def _get_dict_if_none(param):
