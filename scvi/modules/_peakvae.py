@@ -196,11 +196,12 @@ class PEAKVAE(AbstractVAE):
         return input_dict
 
     def get_reconstruction_loss(self, p, d, f, x):
-        rl = (
-            -Bernoulli(p * d * f) 
-            .log_prob((x > 0).float())  # binarized data
-            .sum(dim=-1)
-        )
+        rl = torch.nn.BCELoss(reduction='none')(p * d * f, (x > 0).float()).sum(dim=-1)
+        # rl = (
+        #     -Bernoulli(p * d * f) 
+        #     .log_prob((x > 0).float())  # binarized data
+        #     .sum(dim=-1)
+        # )
         return rl
 
     @auto_move_data
@@ -266,6 +267,6 @@ class PEAKVAE(AbstractVAE):
         f = torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
         rl = self.get_reconstruction_loss(p, d, f, x)
 
-        loss = (rl + kld * (kl_weight / 128)).sum()
+        loss = ((rl * 128) + kld * kl_weight).sum()
 
         return SCVILoss(loss, rl, kld, kl_global=0.0)

@@ -288,13 +288,19 @@ class PEAKVI(VAEMixin, BaseModelClass):
             # TODO implement iteration over multiple batches like in RNAMixin
             get_generative_input_kwargs = dict(transform_batch=transform_batch[0])
             generative_kwargs = dict(use_z_mean=use_z_mean)
-            _, generative_outputs = self.model.forward(
+            inference_outputs, generative_outputs = self.model.forward(
                 tensors=tensors,
                 get_generative_input_kwargs=get_generative_input_kwargs,
                 generative_kwargs=generative_kwargs,
                 compute_loss=False,
             )
             p = generative_outputs["p"].cpu()
+
+            if scale_cells:
+                p *= inference_outputs["d"].cpu()
+            if scale_regions:
+                p *= torch.sigmoid(self.model.region_factors).cpu()
+
             if threshold:
                 p = csr_matrix((p >= threshold).numpy())
             imputed.append(p)
@@ -303,11 +309,6 @@ class PEAKVI(VAEMixin, BaseModelClass):
             imputed = vstack(imputed, format="csr")
         else:  # imputed is a list of tensors
             imputed = torch.cat(imputed).numpy()
-
-        if scale_cells:
-            imputed = imputed * self.get_library_size_factors(adata, indices, batch_size)
-        if scale_regions:
-            imputed = imputed * self.get_region_factors()
         
         return imputed
 
