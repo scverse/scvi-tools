@@ -1,6 +1,6 @@
 import logging
-from typing import Dict, List, Union, Sequence
 from collections.abc import Iterable as IterableClass
+from typing import Dict, List, Sequence, Union
 
 import anndata
 import numpy as np

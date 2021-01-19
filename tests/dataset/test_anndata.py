@@ -238,6 +238,8 @@ def test_extra_covariates():
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )
+    m = scvi.model.SCVI(adata)
+    m.train(1)
     df1 = adata.obsm["_scvi_extra_continuous"]
     df2 = adata.obs[["cont1", "cont2"]]
     pd.testing.assert_frame_equal(df1, df2)
@@ -278,7 +280,7 @@ def test_scvidataset_getitem():
     bd = ScviDataset(adata)
     all_registered_tensors = list(adata.uns["_scvi"]["data_registry"].keys())
     np.testing.assert_array_equal(all_registered_tensors, list(bd[1].keys()))
-    assert bd[1]["X"].shape[0] == bd.n_vars
+    assert bd[1]["X"].shape[0] == bd.adata.uns["_scvi"]["summary_stats"]["n_vars"]
 
     # check that ScviDataset returns numpy array
     adata1 = synthetic_iid()

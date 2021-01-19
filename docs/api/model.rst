@@ -47,10 +47,13 @@ AutoZI
    model.AUTOZI
 
 
-gimVI
-~~~~~~
+Base
+~~~~
 
 .. autosummary::
-   :toctree: reference/
+    :toctree: reference/
 
-   model.GIMVI
+    model.base.BaseModelClass
+    model.base.VAEMixin
+    model.base.RNASeqMixin
+    model.base.ArchesMixin

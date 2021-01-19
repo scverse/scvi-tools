@@ -28,7 +28,6 @@ black = {version = ">=20.8b1", optional = true}
 codecov = {version = ">=2.0.8", optional = true}
 flake8 = {version = ">=3.7.7", optional = true}
 h5py = ">=2.9.0"
-hyperopt = "==0.1.2"
 importlib-metadata = {version = "^1.0", python = "<3.8"}
 ipython = {version = ">=7.1.1", optional = true}
 ipywidgets = "*"
@@ -49,6 +48,7 @@ pydata-sphinx-theme = {version = ">=0.4.0", optional = true}
 pytest = {version = ">=4.4", optional = true}
 python = ">=3.6.1,<4.0"
 python-igraph = {version = "*", optional = true}
+pytorch-lightning = ">1.0"
 rich = ">=6.2.0"
 scanpy = {version = ">=1.6", optional = true}
 scanpydoc = {version = ">=0.5", optional = true}

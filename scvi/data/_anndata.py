@@ -1,17 +1,17 @@
 import logging
 import os
-import warnings
+import pickle
 import sys
+import warnings
 from typing import Dict, List, Optional, Tuple, Union
 
 import anndata
-import pickle
-import rich
 import numpy as np
 import pandas as pd
+import rich
 from pandas.api.types import CategoricalDtype
-from scipy.sparse import isspmatrix
 from rich.console import Console
+from scipy.sparse import isspmatrix
 
 import scvi
 from scvi import _CONSTANTS
@@ -438,7 +438,7 @@ def transfer_anndata_setup(
     # transfer extra categorical covs
     has_cat_cov = True if _CONSTANTS.CAT_COVS_KEY in data_registry.keys() else False
     if has_cat_cov:
-        source_cat_dict = _scvi_dict["extra_categorical_mappings"].copy()
+        source_cat_dict = _scvi_dict["extra_categoricals"]["mappings"].copy()
         # extend categories
         if extend_categories:
             for key, mapping in source_cat_dict:
@@ -446,8 +446,11 @@ def transfer_anndata_setup(
                     if c not in mapping:
                         mapping = np.concatenate([mapping, [c]])
                 source_cat_dict[key] = mapping
+        # use ["keys"] to maintain correct order
         cat_loc, cat_key = _setup_extra_categorical_covs(
-            adata_target, list(source_cat_dict.keys()), category_dict=source_cat_dict
+            adata_target,
+            _scvi_dict["extra_categoricals"]["keys"],
+            category_dict=source_cat_dict,
         )
         target_data_registry.update(
             {_CONSTANTS.CAT_COVS_KEY: {"attr_name": cat_loc, "attr_key": cat_key}}
@@ -615,24 +618,36 @@ def _setup_extra_categorical_covs(
     cat_loc = "obsm"
     cat_key = "_scvi_extra_categoricals"
 
-    one_hots = []
+    adata.uns["_scvi"]["extra_categoricals"] = {}
 
     categories = {}
+    df = pd.DataFrame(index=adata.obs_names)
     for key in categorical_covariate_keys:
-        cat = adata.obs[key]
-        if category_dict is not None:
-            possible_cats = category_dict[key]
-            cat = cat.astype(CategoricalDtype(categories=possible_cats))
+        if category_dict is None:
+            categorical_obs = adata.obs[key].astype("category")
+            mapping = categorical_obs.cat.categories.to_numpy(copy=True)
+            categories[key] = mapping
         else:
-            categories[key] = cat.astype("category").cat.categories.to_numpy(copy=True)
+            possible_cats = category_dict[key]
+            categorical_obs = adata.obs[key].astype(
+                CategoricalDtype(categories=possible_cats)
+            )
+        codes = categorical_obs.cat.codes
+        df[key] = codes
 
-        one_hot_rep = pd.get_dummies(cat, prefix=key)
-        one_hots.append(one_hot_rep)
-
-    adata.obsm[cat_key] = pd.concat(one_hots, axis=1)
+    adata.obsm[cat_key] = df
 
     store_cats = categories if category_dict is None else category_dict
-    adata.uns["_scvi"]["extra_categorical_mappings"] = store_cats
+    adata.uns["_scvi"]["extra_categoricals"]["mappings"] = store_cats
+    # this preserves the order of the keys added to the df
+    adata.uns["_scvi"]["extra_categoricals"]["keys"] = categorical_covariate_keys
+
+    # how many cats per key, in the preserved order
+    n_cats_per_key = []
+    for k in categorical_covariate_keys:
+        n_cats_per_key.append(len(store_cats[k]))
+    adata.uns["_scvi"]["extra_categoricals"]["n_cats_per_key"] = n_cats_per_key
+
     return cat_loc, cat_key
 
 
@@ -849,6 +864,7 @@ def _setup_summary_stats(
         "n_vars": n_vars,
         "n_labels": n_labels,
         "n_proteins": n_proteins,
+        "n_continuous_covs": n_cont_covs,
     }
     adata.uns["_scvi"]["summary_stats"] = summary_stats
     logger.info(
@@ -940,7 +956,7 @@ def view_anndata_setup(source: Union[anndata.AnnData, dict, str]):
     n_cat = 0
     n_covs = 0
     if "extra_categorical_mappings" in setup_dict.keys():
-        n_cat = len(setup_dict["extra_categorical_mappings"])
+        n_cat = len(setup_dict["extra_categoricals"]["mappings"])
     if "extra_continuous_keys" in setup_dict.keys():
         n_covs = len(setup_dict["extra_continuous_keys"])
 
@@ -996,7 +1012,7 @@ def view_anndata_setup(source: Union[anndata.AnnData, dict, str]):
     t = _categorical_mappings_table("Batch Categories", "_scvi_batch", mappings)
     console.print(t)
 
-    if "extra_categorical_mappings" in setup_dict.keys():
+    if "extra_categoricals" in setup_dict.keys():
         t = _extra_categoricals_table(setup_dict)
         console.print(t)
 
@@ -1025,7 +1041,7 @@ def _extra_categoricals_table(setup_dict: dict):
         no_wrap=True,
         overflow="fold",
     )
-    for key, mappings in setup_dict["extra_categorical_mappings"].items():
+    for key, mappings in setup_dict["extra_categoricals"]["mappings"].items():
         for i, mapping in enumerate(mappings):
             if i == 0:
                 t.add_row("adata.obs['{}']".format(key), str(mapping), str(i))
@@ -1156,9 +1172,20 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
     )
 
     # validate any extra categoricals
-    if "extra_categorical_mappings" in _scvi_dict.keys():
-        target_extra_cat_maps = adata.uns["_scvi"]["extra_categorical_mappings"]
-        for key, val in _scvi_dict["extra_categorical_mappings"].items():
+    if "extra_categoricals" in _scvi_dict.keys():
+        target_dict = adata.uns["_scvi"]["extra_categoricals"]
+        source_dict = _scvi_dict["extra_categoricals"]
+        # check that order of keys setup is same
+        if not np.array_equal(target_dict["keys"], source_dict["keys"]):
+            error_msg = (
+                "Registered categorical key order mismatch between "
+                + "the anndata used to train and the anndata passed in."
+                + "Expected categories & order {}. Received {}.\n"
+            )
+            raise ValueError(error_msg.format(source_dict["keys"], target_dict["keys"]))
+        # check mappings are equivalent
+        target_extra_cat_maps = adata.uns["_scvi"]["extra_categoricals"]["mappings"]
+        for key, val in source_dict["mappings"].items():
             target_map = target_extra_cat_maps[key]
             transfer_setup = transfer_setup or _needs_transfer(val, target_map, key)
     # validate any extra continuous covs
@@ -1166,7 +1193,9 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
         if "extra_continuous_keys" not in adata.uns["_scvi"].keys():
             raise ValueError('extra_continuous_keys not in adata.uns["_scvi"]')
         target_cont_keys = adata.uns["_scvi"]["extra_continuous_keys"]
-        if not _scvi_dict["extra_continuous_keys"].equals(target_cont_keys):
+        source_cont_keys = _scvi_dict["extra_continuous_keys"]
+        n_keys = len(target_cont_keys)
+        if np.sum(source_cont_keys == target_cont_keys) != n_keys:
             raise ValueError(
                 "extra_continous_keys are not the same between source and target"
             )

@@ -18,7 +18,7 @@ def poisson_gene_selection(
     adata,
     layer: Optional[str] = None,
     n_top_genes: int = 4000,
-    use_cuda: bool = True,
+    use_gpu: bool = True,
     subset: bool = False,
     inplace: bool = True,
     n_samples: int = 10000,
@@ -46,7 +46,7 @@ def poisson_gene_selection(
         If provided, use `adata.layers[layer]` for expression values instead of `adata.X`.
     n_top_genes
         How many variable genes to select.
-    use_cuda
+    use_gpu
         Whether to use GPU
     subset
         Inplace subset to highly-variable genes if `True` otherwise merely indicate
@@ -89,7 +89,7 @@ def poisson_gene_selection(
     if _check_nonnegative_integers(data) is False:
         raise ValueError("`poisson_gene_selection` expects " "raw count data.")
 
-    use_cuda = use_cuda and torch.cuda.is_available()
+    use_gpu = use_gpu and torch.cuda.is_available()
 
     if batch_key is None:
         batch_info = pd.Categorical(np.zeros(adata.shape[0], dtype=int))
@@ -106,7 +106,7 @@ def poisson_gene_selection(
 
         # Calculate empirical statistics.
         scaled_means = torch.from_numpy(np.asarray(data.sum(0) / data.sum()).ravel())
-        if use_cuda is True:
+        if use_gpu is True:
             scaled_means = scaled_means.cuda()
         dev = scaled_means.device
         total_counts = torch.from_numpy(np.asarray(data.sum(1)).ravel()).to(dev)
@@ -162,7 +162,7 @@ def poisson_gene_selection(
         del observed_fraction_zeros
         del extra_zeros
 
-        if use_cuda:
+        if use_gpu:
             torch.cuda.empty_cache()
 
         prob_zero_enrichments.append(prob_zero_enrichment.reshape(1, -1))

@@ -6,7 +6,7 @@ scvi-tools (single-cell variational inference tools) is a package for end-to-end
 <https://yoseflab.github.io/>`_ at UC Berkeley and is composed of several deep generative models for omics data analysis:
 
 * scVI for analysis of single-cell RNA-seq data [Lopez18]_
-* scANVI for cell annotation of scRNA-seq data using semi-labeled examples [Xu19]_
+* scANVI for cell annotation of scRNA-seq data using semi-labeled examples [Xu20]_
 * totalVI for analysis of CITE-seq data [GayosoSteier20]_
 * gimVI for imputation of missing genes in spatial transcriptomics from scRNA-seq data [Lopez19]_
 * AutoZI for assessing gene-specific levels of zero-inflation in scRNA-seq data [Clivio19]_

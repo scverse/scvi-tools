@@ -2,17 +2,17 @@ import numpy as np
 import pytest
 import torch
 
-from scvi.core import unsupervised_clustering_accuracy
-from scvi.core.distributions import (
+from scvi.model._metrics import unsupervised_clustering_accuracy
+from scvi.distributions import (
     ZeroInflatedNegativeBinomial,
     NegativeBinomial,
 )
-from scvi.core.distributions._negative_binomial import (
+from scvi.distributions._negative_binomial import (
     log_zinb_positive,
     log_nb_positive,
 )
 
-use_cuda = True
+use_gpu = True
 
 
 def test_deprecated_munkres():
