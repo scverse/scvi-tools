@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Iterable, Optional, Sequence
 
 import numpy as np
 import torch
@@ -36,6 +36,10 @@ class SCANVAE(VAE):
         Dimensionality of the latent space
     n_layers
         Number of hidden layers used for encoder and decoder NNs
+    n_continuous_cov
+        Number of continuous covarites
+    n_cats_per_cov
+        Number of categories for each extra categorical covariate
     dropout_rate
         Dropout rate for neural networks
     dispersion
@@ -74,6 +78,8 @@ class SCANVAE(VAE):
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
+        n_continuous_cov: int = 0,
+        n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: float = 0.1,
         dispersion: str = "gene",
         log_variational: bool = True,
@@ -91,6 +97,8 @@ class SCANVAE(VAE):
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
+            n_continuous_cov=n_continuous_cov,
+            n_cats_per_cov=n_cats_per_cov,
             dropout_rate=dropout_rate,
             n_batch=n_batch,
             dispersion=dispersion,
