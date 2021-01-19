@@ -224,7 +224,6 @@ def test_semisupervised_dataloader():
     dl = SemiSupervisedDataLoader(
         a,
         indices=np.arange(a.n_obs),
-        labels_obs_key="labels",
         unlabeled_category="label_0",
         n_samples_per_label=n_samples_per_label,
     )
@@ -467,8 +466,8 @@ def test_multiple_covariates(save_path):
     m = SCVI(adata)
     m.train(1)
 
-    # m = SCANVI(adata, unlabeled_category="Unknown")
-    # m.train(1)
+    m = SCANVI(adata, unlabeled_category="Unknown")
+    m.train(1)
 
     m = TOTALVI(adata)
     m.train(1)

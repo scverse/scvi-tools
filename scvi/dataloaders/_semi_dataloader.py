@@ -54,8 +54,8 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
         self.n_samples_per_label = n_samples_per_label
 
-        key = adata["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
-        labels_obs_key = adata["categorical_mappings"][key]["original_key"]
+        key = adata.uns["_scvi"]["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
+        labels_obs_key = adata.uns["_scvi"]["categorical_mappings"][key]["original_key"]
 
         # save a nested list of the indices per labeled category
         self.labeled_locs = []
