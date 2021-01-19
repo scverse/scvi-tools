@@ -446,3 +446,29 @@ def test_totalvi(save_path):
     model = TOTALVI(adata)
     assert model.model.protein_batch_mask is not None
     model.train(1, train_size=0.5)
+
+
+def test_multiple_covariates(save_path):
+    adata = synthetic_iid()
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+
+    m = SCVI(adata)
+    m.train(1)
+
+    # m = SCANVI(adata, unlabeled_category="Unknown")
+    # m.train(1)
+
+    # m = TOTALVI(adata)
+    # m.train(1)
