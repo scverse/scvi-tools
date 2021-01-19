@@ -100,11 +100,17 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if has_unlabeled
             else self.summary_stats["n_labels"]
         )
-
+        n_cats_per_cov = (
+            self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
+            if "extra_categoricals" in self.scvi_setup_dict_
+            else None
+        )
         self.model = SCANVAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
             n_labels=n_labels,
+            n_continuous_cov=self.summary_stats["n_continuous_covs"],
+            n_cats_per_cov=n_cats_per_cov,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,

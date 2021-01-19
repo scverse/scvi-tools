@@ -470,5 +470,5 @@ def test_multiple_covariates(save_path):
     # m = SCANVI(adata, unlabeled_category="Unknown")
     # m.train(1)
 
-    # m = TOTALVI(adata)
-    # m.train(1)
+    m = TOTALVI(adata)
+    m.train(1)
