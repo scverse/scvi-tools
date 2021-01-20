@@ -38,7 +38,8 @@ class BaseModelClass(ABC):
             self._validate_anndata(adata, copy_if_view=False)
 
         self.is_trained_ = False
-        self.use_gpu = use_gpu and torch.cuda.is_available()
+        cuda_avail = torch.cuda.is_available()
+        self.use_gpu = cuda_avail if use_gpu is None else (use_gpu and cuda_avail)
         self._model_summary_string = ""
         self.train_indices_ = None
         self.test_indices_ = None
