@@ -9,7 +9,6 @@ from torch.distributions import Bernoulli, Normal, kl_divergence
 from scvi import _CONSTANTS
 from scvi.compose import (
     AbstractVAE,
-    Encoder,
     FCLayers,
     SCVILoss,
     auto_move_data,
@@ -46,6 +45,94 @@ class Decoder(torch.nn.Module):
     def forward(self, z: torch.Tensor, *cat_list: int):
         x = self.output(self.net(z, *cat_list))
         return x
+
+    
+class Encoder(torch.nn.Module):
+    """
+    Encodes data of ``n_input`` dimensions into a latent space of ``n_output`` dimensions.
+
+    Uses a fully-connected neural network of ``n_hidden`` layers.
+
+    Parameters
+    ----------
+    n_input
+        The dimensionality of the input (data space)
+    n_output
+        The dimensionality of the output (latent space)
+    n_cat_list
+        A list containing the number of categories
+        for each category of interest. Each category will be
+        included using a one-hot encoding
+    n_layers
+        The number of fully-connected hidden layers
+    n_hidden
+        The number of nodes per hidden layer
+    dropout_rate
+        Dropout rate to apply to each of the hidden layers
+    distribution
+        Distribution of z
+    **kwargs
+        Keyword args for :class:`~scvi.modules._base.FCLayers`
+    """
+
+    def __init__(
+        self,
+        n_input: int,
+        n_output: int,
+        n_cat_list: Iterable[int] = None,
+        n_layers: int = 2,
+        n_hidden: int = 128,
+        dropout_rate: float = 0.1,
+        distribution: str = "normal",
+        **kwargs,
+    ):
+        super().__init__()
+
+        self.distribution = distribution
+        self.encoder = FCLayers(
+            n_in=n_input,
+            n_out=n_hidden,
+            n_cat_list=n_cat_list,
+            n_layers=n_layers,
+            n_hidden=n_hidden,
+            dropout_rate=dropout_rate,
+            **kwargs,
+        )
+        self.mean_encoder = nn.Linear(n_hidden, n_output)
+        self.var_encoder = nn.Linear(n_hidden, n_output)
+
+        if distribution == "ln":
+            self.z_transformation = nn.Softmax(dim=-1)
+        else:
+            self.z_transformation = lambda x: x
+
+    def forward(self, x: torch.Tensor, *cat_list: int):
+        r"""
+        The forward computation for a single sample.
+
+         #. Encodes the data into latent space using the encoder network
+         #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
+         #. Samples a new value from an i.i.d. multivariate normal \\( \\sim Ne(q_m, \\mathbf{I}q_v) \\)
+
+        Parameters
+        ----------
+        x
+            tensor with shape (n_input,)
+        cat_list
+            list of category membership(s) for this sample
+
+        Returns
+        -------
+        3-tuple of :py:class:`torch.Tensor`
+            tensors of shape ``(n_latent,)`` for mean and var, and sample
+
+        """
+        # Parameters for latent distribution
+        q = self.encoder(x, *cat_list)
+        q_m = self.mean_encoder(q)
+        q_v = torch.exp(self.var_encoder(q))
+        z = self.z_transformation(Normal(q_m, q_v.sqrt()).rsample())
+        return q_m, q_v, z
 
 
 class PEAKVAE(AbstractVAE):
@@ -110,8 +197,8 @@ class PEAKVAE(AbstractVAE):
         dropout_rate: float = 0.1,
         model_depth: bool = True,
         region_factors: bool = True,
-        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
-        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: str = "normal",
     ):
         super().__init__()
