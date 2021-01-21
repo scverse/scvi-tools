@@ -4,7 +4,7 @@ from scvi._compat import Literal
 import numpy as np
 import torch
 
-from torch.distributions import Bernoulli, Normal, kl_divergence
+from torch.distributions import Normal, kl_divergence
 
 from scvi import _CONSTANTS
 from scvi.compose import (
@@ -48,7 +48,7 @@ class Decoder(torch.nn.Module):
         x = self.output(self.net(z, *cat_list))
         return x
 
-    
+
 class Encoder(torch.nn.Module):
     """
     Encodes data of ``n_input`` dimensions into a latent space of ``n_output`` dimensions.
@@ -209,7 +209,9 @@ class PEAKVAE(AbstractVAE):
         super().__init__()
 
         self.n_input_regions = n_input_regions
-        self.n_hidden = int(np.sqrt(self.n_input_regions)) if n_hidden is None else n_hidden
+        self.n_hidden = (
+            int(np.sqrt(self.n_input_regions)) if n_hidden is None else n_hidden
+        )
         self.n_latent = int(np.sqrt(self.n_hidden)) if n_latent is None else n_latent
         self.n_layers_encoder = n_layers_encoder
         self.n_layers_decoder = n_layers_decoder
@@ -218,10 +220,10 @@ class PEAKVAE(AbstractVAE):
         self.model_depth = model_depth
         self.dropout_rate = dropout_rate
         self.latent_distribution = latent_distribution
-        self.use_batch_norm_encoder = use_batch_norm in ('encoder', 'both')
-        self.use_batch_norm_decoder = use_batch_norm in ('decoder', 'both')
-        self.use_layer_norm_encoder = use_layer_norm in ('encoder', 'both')
-        self.use_layer_norm_decoder = use_layer_norm in ('decoder', 'both')
+        self.use_batch_norm_encoder = use_batch_norm in ("encoder", "both")
+        self.use_batch_norm_decoder = use_batch_norm in ("decoder", "both")
+        self.use_layer_norm_encoder = use_layer_norm in ("encoder", "both")
+        self.use_layer_norm_decoder = use_layer_norm in ("decoder", "both")
         self.deep_inject_covariates = deep_inject_covariates
 
         self.z_encoder = Encoder(
@@ -231,12 +233,14 @@ class PEAKVAE(AbstractVAE):
             n_hidden=self.n_hidden,
             dropout_rate=self.dropout_rate,
             activation_fn=torch.nn.LeakyReLU,
-            distribution=self.latent_distribution, 
+            distribution=self.latent_distribution,
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
         )
 
-        cat_list = [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
+        cat_list = (
+            [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
+        )
         self.z_decoder = Decoder(
             n_input=self.n_latent + self.n_continuous_cov,
             n_output=n_input_regions,
@@ -289,7 +293,7 @@ class PEAKVAE(AbstractVAE):
         return input_dict
 
     def get_reconstruction_loss(self, p, d, f, x):
-        rl = torch.nn.BCELoss(reduction='none')(p * d * f, (x > 0).float()).sum(dim=-1)
+        rl = torch.nn.BCELoss(reduction="none")(p * d * f, (x > 0).float()).sum(dim=-1)
         return rl
 
     @auto_move_data
