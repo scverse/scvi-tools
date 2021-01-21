@@ -471,14 +471,15 @@ def test_multiple_covariates(save_path):
     m = TOTALVI(adata)
     m.train(1)
 
+
 def test_peakvi():
     data = synthetic_iid()
     vae = PEAKVI(
         data,
     )
-    vae.train(1)
+    vae.train(3)
     vae.get_elbo(indices=vae.validation_indices)
-    vae.get_imputed_values()
+    vae.get_accessibility_estimates()
     vae.get_reconstruction_error(indices=vae.validation_indices)
     vae.get_latent_representation()
     vae.differential_accessibility(groupby="labels", group1="label_1")

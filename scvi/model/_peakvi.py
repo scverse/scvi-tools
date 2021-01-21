@@ -137,6 +137,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         weight_decay: float = 1e-3,
+        eps: float = 1e-08,
         early_stopping: bool = True,
         check_val_every_n_epoch: Optional[int] = None,
         n_steps_kl_warmup: Union[int, None] = None,
@@ -164,6 +165,8 @@ class PEAKVI(VAEMixin, BaseModelClass):
             Minibatch size to use during training.
         weight_decay
             weight decay regularization term for optimization
+        eps
+            Optimizer eps
         early_stopping
             Whether to perform early stopping with respect to the validation set.
         check_val_every_n_epoch
@@ -185,8 +188,10 @@ class PEAKVI(VAEMixin, BaseModelClass):
         update_dict = dict(
             lr=lr,
             weight_decay=weight_decay,
+            eps=eps,
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             n_steps_kl_warmup=n_steps_kl_warmup,
+            optimizer="AdamW",
         )
         if vae_task_kwargs is not None:
             vae_task_kwargs.update(update_dict)
@@ -195,8 +200,10 @@ class PEAKVI(VAEMixin, BaseModelClass):
         if early_stopping:
             if "callbacks" not in kwargs.keys():
                 kwargs["callbacks"] = []
-            kwargs["callbacks"].append(SaveBestState(monitor="reconstruction_loss_validation"))
-            
+            kwargs["callbacks"].append(
+                SaveBestState(monitor="reconstruction_loss_validation")
+            )
+
         super().train(
             max_epochs=max_epochs,
             train_size=train_size,
@@ -276,7 +283,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
             False by default.
         normalize_regions
             Whether to reintroduce region factors to scale the normalized probabilities. This makes
-            the estimates closer to the input, but removes the region-level bias correction. False by 
+            the estimates closer to the input, but removes the region-level bias correction. False by
             default.
         batch_size
             Minibatch size for data loading into model
@@ -315,7 +322,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
             imputed = vstack(imputed, format="csr")
         else:  # imputed is a list of tensors
             imputed = torch.cat(imputed).numpy()
-        
+
         return imputed
 
     @_doc_params(
@@ -349,7 +356,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
         ----------
         {doc_differential_expression}
         two_sided
-            Whether to perform a two-sided test, or a one-sided test. 
+            Whether to perform a two-sided test, or a one-sided test.
         **kwargs
             Keyword args for :func:`scvi.utils.DifferentialComputation.get_bayes_factors`
 
@@ -360,7 +367,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
         adata = self._validate_anndata(adata)
         col_names = _get_var_names_from_setup_anndata(adata)
         model_fn = partial(
-            self.get_imputed_values, use_z_mean=False, batch_size=batch_size
+            self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
         )
 
         # TODO check if change_fn in kwargs and raise error if so
@@ -368,9 +375,12 @@ class PEAKVI(VAEMixin, BaseModelClass):
             return a - b
 
         if two_sided:
+
             def m1_domain_fn(samples):
                 return np.abs(samples) >= delta
+
         else:
+
             def m1_domain_fn(samples):
                 return samples >= delta
 
