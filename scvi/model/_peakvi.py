@@ -191,6 +191,11 @@ class PEAKVI(VAEMixin, BaseModelClass):
             vae_task_kwargs.update(update_dict)
         else:
             vae_task_kwargs = update_dict
+        if early_stopping:
+            if "callbacks" not in kwargs.keys():
+                kwargs["callbacks"] = []
+            kwargs["callbacks"].append(SaveBestState(monitor="reconstruction_loss_validation"))
+            
         super().train(
             max_epochs=max_epochs,
             train_size=train_size,
