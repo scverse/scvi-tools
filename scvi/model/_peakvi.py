@@ -139,6 +139,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
         weight_decay: float = 1e-3,
         eps: float = 1e-08,
         early_stopping: bool = True,
+        save_best: bool = True,
         check_val_every_n_epoch: Optional[int] = None,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 50,
@@ -169,6 +170,9 @@ class PEAKVI(VAEMixin, BaseModelClass):
             Optimizer eps
         early_stopping
             Whether to perform early stopping with respect to the validation set.
+        save_best
+            Save the best model state with respect to the validation loss (default), or use the final 
+            state in the training procedure
         check_val_every_n_epoch
             Check val every n train epochs. By default, val is not checked, unless `early_stopping` is `True`.
             If so, val is checked every epoch.
@@ -197,7 +201,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
             vae_task_kwargs.update(update_dict)
         else:
             vae_task_kwargs = update_dict
-        if early_stopping:
+        if save_best:
             if "callbacks" not in kwargs.keys():
                 kwargs["callbacks"] = []
             kwargs["callbacks"].append(
