@@ -3,7 +3,7 @@ from scvi._compat import Literal
 
 import numpy as np
 import torch
-import torch.nn
+
 from torch.distributions import Bernoulli, Normal, kl_divergence
 
 from scvi import _CONSTANTS
@@ -25,6 +25,7 @@ class Decoder(torch.nn.Module):
         n_hidden: int = 128,
         use_batch_norm: bool = False,
         use_layer_norm: bool = True,
+        deep_inject_covariates: bool = False,
     ):
         super().__init__()
         self.net = FCLayers(
@@ -37,6 +38,7 @@ class Decoder(torch.nn.Module):
             activation_fn=torch.nn.LeakyReLU,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
+            inject_covariates=deep_inject_covariates,
         )
         self.output = torch.nn.Sequential(
             torch.nn.Linear(n_hidden, n_output), torch.nn.Sigmoid()
@@ -84,6 +86,7 @@ class Encoder(torch.nn.Module):
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
         distribution: str = "normal",
+        deep_inject_covariates: bool = False,
         **kwargs,
     ):
         super().__init__()
@@ -96,13 +99,14 @@ class Encoder(torch.nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            inject_covariates=deep_inject_covariates,
             **kwargs,
         )
-        self.mean_encoder = nn.Linear(n_hidden, n_output)
-        self.var_encoder = nn.Linear(n_hidden, n_output)
+        self.mean_encoder = torch.nn.Linear(n_hidden, n_output)
+        self.var_encoder = torch.nn.Linear(n_hidden, n_output)
 
         if distribution == "ln":
-            self.z_transformation = nn.Softmax(dim=-1)
+            self.z_transformation = torch.nn.Softmax(dim=-1)
         else:
             self.z_transformation = lambda x: x
 
@@ -200,6 +204,7 @@ class PEAKVAE(AbstractVAE):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: str = "normal",
+        deep_inject_covariates: bool = False,
     ):
         super().__init__()
 
@@ -217,6 +222,7 @@ class PEAKVAE(AbstractVAE):
         self.use_batch_norm_decoder = use_batch_norm in ('decoder', 'both')
         self.use_layer_norm_encoder = use_layer_norm in ('encoder', 'both')
         self.use_layer_norm_decoder = use_layer_norm in ('decoder', 'both')
+        self.deep_inject_covariates = deep_inject_covariates
 
         self.z_encoder = Encoder(
             n_input=self.n_input_regions,
@@ -239,6 +245,7 @@ class PEAKVAE(AbstractVAE):
             n_layers=self.n_layers_decoder,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
+            deep_inject_covariates=self.deep_inject_covariates,
         )
 
         self.d_encoder = None
@@ -270,7 +277,6 @@ class PEAKVAE(AbstractVAE):
 
         cat_covs = tensors.get(_CONSTANTS.CAT_COVS_KEY)
 
-        # TODO: figure out what this is
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
         input_dict = {
@@ -284,11 +290,6 @@ class PEAKVAE(AbstractVAE):
 
     def get_reconstruction_loss(self, p, d, f, x):
         rl = torch.nn.BCELoss(reduction='none')(p * d * f, (x > 0).float()).sum(dim=-1)
-        # rl = (
-        #     -Bernoulli(p * d * f) 
-        #     .log_prob((x > 0).float())  # binarized data
-        #     .sum(dim=-1)
-        # )
         return rl
 
     @auto_move_data
@@ -354,6 +355,6 @@ class PEAKVAE(AbstractVAE):
         f = torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
         rl = self.get_reconstruction_loss(p, d, f, x)
 
-        loss = ((rl * 128) + kld * kl_weight).sum()
+        loss = (rl.sum() + kld * kl_weight).sum()
 
         return SCVILoss(loss, rl, kld, kl_global=0.0)
