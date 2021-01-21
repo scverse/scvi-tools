@@ -38,9 +38,9 @@ class SaveBestState(Callback):
 
     def __init__(
         self,
-        monitor="val_loss",
+        monitor: str = "elbo_validation",
+        mode: str = "min",
         verbose=False,
-        mode="auto",
         period=1,
     ):
         super().__init__()
@@ -100,8 +100,8 @@ class SaveBestState(Callback):
 
                     if self.verbose:
                         rank_zero_info(
-                            f"\nEpoch {trainer.current_epoch:05d}: {self.monitor} reached"
-                            f" {current:0.5f} (best {self.best_model_metric_val:0.5f})"
+                            f"\nEpoch {trainer.current_epoch:05d}: {self.monitor} reached."
+                            f" Model best state updated."
                         )
 
     def on_train_end(self, trainer, pl_module):
