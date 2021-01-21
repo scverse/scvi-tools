@@ -13,6 +13,7 @@ from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
 from scvi.dataloaders import ScviDataLoader
 from scvi.lightning import VAETask
+from scvi.lightning._callbacks import SaveBestState
 from scvi.modules import PEAKVAE
 from scvi.model._utils import (
     _get_batch_code_from_category,

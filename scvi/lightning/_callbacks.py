@@ -2,6 +2,7 @@ import warnings
 
 import numpy as np
 import torch
+from copy import deepcopy
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities import rank_zero_info
 
@@ -95,7 +96,7 @@ class SaveBestState(Callback):
                 if isinstance(current, torch.Tensor):
                     current = current.item()
                 if self.check_monitor_top(current):
-                    self.best_module_state = pl_module.module.state_dict()
+                    self.best_module_state = deepcopy(pl_module.module.state_dict())
                     self.best_module_metric_val = current
 
                     if self.verbose:
