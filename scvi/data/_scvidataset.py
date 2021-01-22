@@ -12,7 +12,7 @@ from scvi.data._anndata import get_from_registry
 logger = logging.getLogger(__name__)
 
 
-class ScviDataset(Dataset):
+class AnnTorchDataset(Dataset):
     """Extension of torch dataset to get tensors from anndata."""
 
     def __init__(

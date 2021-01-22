@@ -7,7 +7,7 @@ import torch.nn as nn
 from ._decorators import auto_move_data
 
 
-class SCVILoss:
+class LossRecorder:
     """
     Loss signature for models.
 
@@ -34,7 +34,7 @@ class SCVILoss:
         loss: torch.Tensor,
         reconstruction_loss: torch.Tensor,
         kl_local: torch.Tensor,
-        kl_global: torch.Tensor,
+        kl_global: torch.Tensor = torch.Tensor([0]),
     ):
         self._loss = loss if isinstance(loss, dict) else dict(loss=loss)
         self._reconstruction_loss = (
@@ -77,7 +77,7 @@ class SCVILoss:
         return
 
 
-class AbstractVAE(nn.Module):
+class BaseModuleClass(nn.Module):
     def __init__(
         self,
     ):
@@ -94,7 +94,8 @@ class AbstractVAE(nn.Module):
         loss_kwargs: Optional[dict] = None,
         compute_loss=True,
     ) -> Union[
-        Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor, SCVILoss]
+        Tuple[torch.Tensor, torch.Tensor],
+        Tuple[torch.Tensor, torch.Tensor, LossRecorder],
     ]:
         """
         Forward pass through the network.

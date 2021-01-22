@@ -12,7 +12,7 @@ from scvi import _CONSTANTS, settings
 from scvi._compat import Literal
 from scvi.data._anndata import _make_obs_column_categorical
 from scvi.dataloaders import SemiSupervisedDataLoader, ScviDataLoader
-from scvi.lightning import SemiSupervisedTask, Trainer
+from scvi.lightning import SemiSupervisedTrainingPlan, Trainer
 from scvi.modules import SCANVAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin

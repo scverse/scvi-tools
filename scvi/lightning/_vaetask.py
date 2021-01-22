@@ -12,7 +12,7 @@ from scvi.compose import AbstractVAE, one_hot
 from scvi.modules import Classifier
 
 
-class VAETask(pl.LightningModule):
+class TrainingPlan(pl.LightningModule):
     """
     Lightning module task to train scvi-tools modules.
 
@@ -187,7 +187,7 @@ class VAETask(pl.LightningModule):
         return kl_weight
 
 
-class AdversarialTask(VAETask):
+class AdversarialTrainingPlan(TrainingPlan):
     """
     Train vaes with adversarial loss option to encourage latent space mixing.
 
@@ -248,7 +248,7 @@ class AdversarialTask(VAETask):
         scale_adversarial_loss: Union[float, Literal["auto"]] = "auto",
         **loss_kwargs,
     ):
-        super(AdversarialTask, self).__init__(
+        super().__init__(
             vae_model=vae_model,
             n_obs_training=n_obs_training,
             lr=lr,
@@ -385,7 +385,7 @@ class AdversarialTask(VAETask):
         return config1
 
 
-class SemiSupervisedTask(VAETask):
+class SemiSupervisedTrainingPlan(TrainingPlan):
     """
     Lightning module task for SemiSupervised Training.
 

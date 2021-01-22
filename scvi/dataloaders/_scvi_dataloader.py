@@ -61,7 +61,7 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         return length
 
 
-class ScviDataLoader(DataLoader):
+class AnnDataLoader(DataLoader):
     """
     Scvi Data Loader for loading tensors from AnnData objects.
 

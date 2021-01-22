@@ -12,11 +12,11 @@ from torch.distributions import kl_divergence as kl
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.compose import (
-    AbstractVAE,
+    BaseModuleClass,
     DecoderSCVI,
     Encoder,
     LinearDecoderSCVI,
-    SCVILoss,
+    LossRecorder,
     auto_move_data,
     one_hot,
 )
@@ -26,7 +26,7 @@ torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class VAE(AbstractVAE):
+class VAE(BaseModuleClass):
     """
     Variational auto-encoder model.
 
