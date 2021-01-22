@@ -56,6 +56,14 @@ class PEAKVI(VAEMixin, BaseModelClass):
 
         * ``'normal'`` - Normal distribution (Default)
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
+    deeply_inject_covariates
+        Whether to deeply inject covariates, meaning include covariates in the input to all hidden
+        layers. If `none`, covariates are only included in the decoder's input. One of the following:
+
+        * ``'none'`` - do not deeply inject covariates (default)
+        * ``'encoder'`` - only deeply inject in the encoder
+        * ``'decoder'`` - only deeply inject in the decoder
+        * ``'both'`` - deeply inject in both encoder and decoder
 
     Examples
     --------
@@ -78,6 +86,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
+        deeply_inject_covariates: Literal["encoder", "decoder", "none", "both"] = "none",
         use_gpu: bool = True,
         **model_kwargs,
     ):
@@ -104,11 +113,12 @@ class PEAKVI(VAEMixin, BaseModelClass):
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
             latent_distribution=latent_distribution,
+            deeply_inject_covariates=deeply_inject_covariates,
             **model_kwargs,
         )
         self._model_summary_string = (
             "PeakVI Model with params: \nn_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
-            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}"
+            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}"
         ).format(
             self.model.n_hidden,
             self.model.n_latent,
@@ -116,6 +126,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
             n_layers_decoder,
             dropout_rate,
             latent_distribution,
+            deeply_inject_covariates,
         )
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())

@@ -186,6 +186,15 @@ class PEAKVAE(AbstractVAE):
 
         * ``'normal'`` - Normal distribution (default)
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
+    deeply_inject_covariates
+        Whether to deeply inject covariates, meaning include covariates in the input to all hidden
+        layers. If `none`, covariates are only included in the decoder's input. One of the following:
+
+        * ``'none'`` - do not deeply inject covariates (default)
+        * ``'encoder'`` - only deeply inject in the encoder
+        * ``'decoder'`` - only deeply inject in the decoder
+        * ``'both'`` - deeply inject in both encoder and decoder
+
     """
 
     def __init__(
@@ -204,7 +213,7 @@ class PEAKVAE(AbstractVAE):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: str = "normal",
-        deep_inject_covariates: bool = False,
+        deeply_inject_covariates: Literal["encoder", "decoder", "none", "both"] = "none",
     ):
         super().__init__()
 
@@ -224,23 +233,27 @@ class PEAKVAE(AbstractVAE):
         self.use_batch_norm_decoder = use_batch_norm in ("decoder", "both")
         self.use_layer_norm_encoder = use_layer_norm in ("encoder", "both")
         self.use_layer_norm_decoder = use_layer_norm in ("decoder", "both")
-        self.deep_inject_covariates = deep_inject_covariates
+        self.deeply_inject_decoder = deeply_inject_covariates in ("decoder", "both")
+        self.deeply_inject_encoder = deeply_inject_covariates in ("encoder", "both")
+
+        cat_list = (
+            [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
+        )
 
         self.z_encoder = Encoder(
             n_input=self.n_input_regions,
             n_layers=self.n_layers_encoder,
             n_output=self.n_latent,
             n_hidden=self.n_hidden,
+            n_cat_list=cat_list if self.deeply_inject_encoder else [],
             dropout_rate=self.dropout_rate,
             activation_fn=torch.nn.LeakyReLU,
             distribution=self.latent_distribution,
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
+            deep_inject_covariates=self.deeply_inject_encoder,
         )
 
-        cat_list = (
-            [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
-        )
         self.z_decoder = Decoder(
             n_input=self.n_latent + self.n_continuous_cov,
             n_output=n_input_regions,
@@ -249,7 +262,7 @@ class PEAKVAE(AbstractVAE):
             n_layers=self.n_layers_decoder,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
-            deep_inject_covariates=self.deep_inject_covariates,
+            deep_inject_covariates=self.deeply_inject_decoder,
         )
 
         self.d_encoder = None
