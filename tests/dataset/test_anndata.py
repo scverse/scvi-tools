@@ -272,7 +272,9 @@ def test_anntorchdataset_getitem():
     np.testing.assert_array_equal(tensors_to_get, list(bd[1].keys()))
 
     # check that we can successfully pass in a dict of tensors and their associated types
-    bd = AnnTorchDataset(adata, getitem_tensors={"X": np.int, "local_l_var": np.float64})
+    bd = AnnTorchDataset(
+        adata, getitem_tensors={"X": np.int, "local_l_var": np.float64}
+    )
     assert bd[1]["X"].dtype == np.int64
     assert bd[1]["local_l_var"].dtype == np.float64
 

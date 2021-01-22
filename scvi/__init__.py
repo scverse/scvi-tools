@@ -6,6 +6,7 @@ from logging import NullHandler
 
 from ._constants import _CONSTANTS
 from ._settings import settings
+
 # this import needs to come after prior imports to prevent circular import
 from . import data, model
 

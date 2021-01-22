@@ -750,7 +750,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         scdl_list = []
         for tensors in scdl:
-            rna_sample, protein_sample = self.module.sample(tensors, n_samples=n_samples)
+            rna_sample, protein_sample = self.module.sample(
+                tensors, n_samples=n_samples
+            )
             rna_sample = rna_sample[..., gene_mask]
             protein_sample = protein_sample[..., protein_mask]
             data = torch.cat([rna_sample, protein_sample], dim=-1).numpy()
