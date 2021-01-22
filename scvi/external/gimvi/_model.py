@@ -227,6 +227,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         return post_list
 
+    @torch.no_grad()
     def get_latent_representation(
         self,
         adatas: List[AnnData] = None,
@@ -272,6 +273,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         return latents
 
+    @torch.no_grad()
     def get_imputed_values(
         self,
         adatas: List[AnnData] = None,
