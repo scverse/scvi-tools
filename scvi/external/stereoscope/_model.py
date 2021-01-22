@@ -180,21 +180,27 @@ class SpatialStereoscope(BaseModelClass):
 
     @classmethod
     def from_rna_model(
-        cls, 
-        st_adata: AnnData, 
+        cls,
+        st_adata: AnnData,
         sc_model: RNAStereoscope,
     ):
-        '''
+        """
         Alternate constructor for exploiting a pre-trained model on RNA-seq data
-        
+
         Parameters
         -----------
         st_adata
             registed anndata object
         sc_model
             trained RNADeconv model
-        '''
-        return cls(st_adata, sc_model.model.get_params(), sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"]["mapping"])
+        """
+        return cls(
+            st_adata,
+            sc_model.model.get_params(),
+            sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
+                "mapping"
+            ],
+        )
 
     def get_proportions(self, keep_noise=False) -> np.ndarray:
         """
@@ -205,11 +211,12 @@ class SpatialStereoscope(BaseModelClass):
         keep_noise
             whether to account for the noise term as a standalone cell type in the proportion estimate.
         """
+        column_names = self.cell_type_mapping
         if keep_noise:
             column_names = column_names.append("noise_term")
         return pd.DataFrame(
             data=self.model.get_proportions(keep_noise),
-            columns=self.cell_type_mapping,
+            columns=column_names,
             index=self.adata.obs.index,
         )
 
