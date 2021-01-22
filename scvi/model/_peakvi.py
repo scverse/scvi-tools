@@ -278,9 +278,8 @@ class PEAKVI(VAEMixin, BaseModelClass):
         use_z_mean
             If True (default), use the distribution mean. Otherwise, sample from the distribution.
         threshold
-            If provided, the matrix is thresholded and a sparse binary accessibility
-            matrix is returned instead. This is recommended if the matrix is very big
-            and needs to be saved to file.
+            If provided, values below the threshold are replaced with 0 and a sparse matrix
+            is returned instead. This is recommended for very large matrices. Must be between 0 and 1.
         normalize_cells
             Whether to reintroduce library size factors to scale the normalized probabilities.
             This makes the estimates closer to the input, but removes the library size correction.
@@ -316,9 +315,9 @@ class PEAKVI(VAEMixin, BaseModelClass):
                 p *= inference_outputs["d"].cpu()
             if normalize_regions:
                 p *= torch.sigmoid(self.model.region_factors).cpu()
-
             if threshold:
-                p = csr_matrix((p >= threshold).numpy())
+                p[p < threshold] = 0
+                p = csr_matrix(p.numpy())
             imputed.append(p)
 
         if threshold:  # imputed is a list of csr_matrix objects
