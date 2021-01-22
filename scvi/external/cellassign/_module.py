@@ -80,11 +80,10 @@ class CellAssignModule(AbstractVAE):
         return {}
 
     @auto_move_data
-    def generative(self, x, y):
+    def generative(self, x, y):  # x has shape (128, 100)
         # n = 128
         # g = 100
         # c = 5
-        pdb.set_trace()
         delta = torch.exp(self.delta_log)  # (100, 5)
         log_softmax = torch.nn.LogSoftmax()
         theta_log = log_softmax(self.theta_logit)  # (5)
@@ -101,7 +100,6 @@ class CellAssignModule(AbstractVAE):
         delta_rho_e = delta_rho.expand(
             s.shape[0], self.n_genes, self.n_labels
         )  # (128, 100, 5)
-
         log_mu_ngc = base_mean_e + delta_rho_e
         mu_ngc = torch.exp(log_mu_ngc)  # (128, 100, 5)
 
@@ -128,12 +126,9 @@ class CellAssignModule(AbstractVAE):
         )
 
         # compute gamma
-        p = mu_ngc / (mu_ngc + phi)
-        nb_pdf = NegativeBinomial(probs=p, total_count=phi)
-        y_tensor_list = []
-        for _ in range(self.n_labels):
-            y_tensor_list += [x]
-        y_ = torch.stack(y_tensor_list, axis=2)
+        pdb.set_trace()
+        nb_pdf = NegativeBinomial(probs=mu_ngc, total_count=phi)
+        y_ = x.unsqueeze(-1).expand(s.shape[0], self.n_genes, self.n_labels)
         y_log_prob_raw = nb_pdf.log_prob(y_)  # (128, 100, 5)
         theta_log_e = theta_log.expand(128, 5)
         p_y_unorm = torch.sum(y_log_prob_raw, 1) + theta_log_e  # (128, 5)
