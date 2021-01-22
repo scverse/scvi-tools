@@ -233,7 +233,9 @@ class SpatialDeconv(BaseModuleClass):
         else:
             # the original way it is done in Stereoscope; we use this option to show reproducibility of their codebase
             loss = torch.sum(reconst_loss) + neg_log_likelihood_prior
-        return LossRecorder(loss, reconst_loss, torch.zeros((1,)), neg_log_likelihood_prior)
+        return LossRecorder(
+            loss, reconst_loss, torch.zeros((1,)), neg_log_likelihood_prior
+        )
 
     @torch.no_grad()
     def sample(

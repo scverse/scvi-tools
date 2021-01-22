@@ -4,9 +4,9 @@
 import logging
 from logging import NullHandler
 
+from . import data, model
 from ._constants import _CONSTANTS
 from ._settings import settings
-from . import data, model
 
 # https://github.com/python-poetry/poetry/pull/2366#issuecomment-652418094
 # https://github.com/python-poetry/poetry/issues/144#issuecomment-623927302

@@ -13,10 +13,9 @@ from scvi import _CONSTANTS
 from scvi.compose import (
     BaseModuleClass,
     Encoder,
+    LossRecorder,
     MultiDecoder,
     MultiEncoder,
-    LossRecorder,
-    one_hot,
     auto_move_data,
     one_hot,
 )

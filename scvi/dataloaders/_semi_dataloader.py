@@ -1,9 +1,11 @@
-from ._concat_dataloader import ConcatDataLoader
+from typing import List, Optional
 
-from scvi import _CONSTANTS
 import numpy as np
 from anndata import AnnData
-from typing import List, Optional
+
+from scvi import _CONSTANTS
+
+from ._concat_dataloader import ConcatDataLoader
 
 
 class SemiSupervisedDataLoader(ConcatDataLoader):

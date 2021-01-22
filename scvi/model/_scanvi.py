@@ -6,18 +6,17 @@ import pandas as pd
 import torch
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
-
+from sklearn.model_selection._split import _validate_shuffle_split
 
 from scvi import _CONSTANTS, settings
 from scvi._compat import Literal
 from scvi.data._anndata import _make_obs_column_categorical
-from scvi.dataloaders import SemiSupervisedDataLoader, AnnDataLoader
+from scvi.dataloaders import AnnDataLoader, SemiSupervisedDataLoader
 from scvi.lightning import SemiSupervisedTrainingPlan, Trainer
+from scvi.lightning._callbacks import SubSampleLabels
 from scvi.modules import SCANVAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
-from scvi.lightning._callbacks import SubSampleLabels
-from sklearn.model_selection._split import _validate_shuffle_split
 
 logger = logging.getLogger(__name__)
 

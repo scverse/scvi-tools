@@ -5,7 +5,6 @@ import pytorch_lightning as pl
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.compose import BaseModuleClass, one_hot

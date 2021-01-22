@@ -1,10 +1,11 @@
+from itertools import cycle
 from typing import List, Optional
 
 import numpy as np
 from anndata import AnnData
 from torch.utils.data import DataLoader
+
 from ._ann_dataloader import AnnDataLoader
-from itertools import cycle
 
 
 class ConcatDataLoader(DataLoader):
