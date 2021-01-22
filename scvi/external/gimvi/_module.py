@@ -10,8 +10,15 @@ from torch.distributions import kl_divergence as kl
 from torch.nn import ModuleList
 
 from scvi import _CONSTANTS
-from scvi.compose import (AbstractVAE, Encoder, MultiDecoder, MultiEncoder,
-                          SCVILoss, auto_move_data, one_hot)
+from scvi.compose import (
+    AbstractVAE,
+    Encoder,
+    MultiDecoder,
+    MultiEncoder,
+    SCVILoss,
+    auto_move_data,
+    one_hot,
+)
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 
 torch.backends.cudnn.benchmark = True
