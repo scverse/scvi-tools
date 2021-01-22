@@ -172,6 +172,7 @@ class SpatialStereoscope(BaseModelClass):
         ).format(
             st_adata.n_obs,
         )
+        self.cell_type_mapping = sc_model.scvi_setup_dict_
         self.init_params_ = self._get_init_params(locals())
 
     def get_proportions(self, keep_noise=False) -> np.ndarray:
@@ -183,7 +184,7 @@ class SpatialStereoscope(BaseModelClass):
         keep_noise
             whether to account for the noise term as a standalone cell type in the proportion estimate.
         """
-        column_names = self.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
+        column_names = self.cell_type_mapping["categorical_mappings"]["_scvi_labels"][
             "mapping"
         ]
         if keep_noise:
