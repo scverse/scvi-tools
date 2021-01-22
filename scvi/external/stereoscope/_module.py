@@ -129,8 +129,8 @@ class SpatialDeconv(AbstractVAE):
     ----------
     n_spots
         Number of input spots
-    sc_model
-        Model learned on the single-cell RNA sequencing data
+    sc_params
+        Tuple of ndarray of shapes [(n_genes, n_labels), (n_genes)] containing the dictionnary and log dispersion parameters
     prior_weight
         Whether to sample the minibatch by the number of total observations or the monibatch size
     """
