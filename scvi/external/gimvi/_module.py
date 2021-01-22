@@ -16,8 +16,8 @@ from scvi.compose import (
     MultiDecoder,
     MultiEncoder,
     SCVILoss,
-    one_hot,
     auto_move_data,
+    one_hot,
 )
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 

@@ -129,7 +129,7 @@ class SpatialDeconv(AbstractVAE):
     ----------
     n_spots
         Number of input spots
-    params
+    sc_params
         Tuple of ndarray of shapes [(n_genes, n_labels), (n_genes)] containing the dictionnary and log dispersion parameters
     prior_weight
         Whether to sample the minibatch by the number of total observations or the monibatch size
@@ -138,13 +138,14 @@ class SpatialDeconv(AbstractVAE):
     def __init__(
         self,
         n_spots: int,
-        params: Tuple[np.ndarray],
+        sc_params: Tuple[np.ndarray],
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
     ):
         super().__init__()
-        # copy parameters
-        self.register_buffer("W", torch.tensor(params[0]))
-        self.register_buffer("px_o", torch.tensor(params[1]))
+        # unpack and copy parameters
+        w, px_o = sc_params
+        self.register_buffer("W", torch.tensor(w))
+        self.register_buffer("px_o", torch.tensor(px_o))
 
         # setup constants
         self.n_spots = n_spots

@@ -1,6 +1,7 @@
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
+import pandas as pd
 from anndata import AnnData
 
 from scvi._compat import Literal
@@ -32,7 +33,6 @@ class RNAStereoscope(BaseModelClass):
     >>> scvi.data.setup_anndata(sc_adata, label_key="labels")
     >>> stereo = scvi.external.RNAStereoscope(sc_adata)
     >>> stereo.train()
-    >>> stereo_params = stereo.get_params()
     """
 
     def __init__(
@@ -58,14 +58,57 @@ class RNAStereoscope(BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
-    def get_params(self) -> Tuple[np.ndarray, np.ndarray]:
+    def train(
+        self,
+        max_epochs: int = 400,
+        lr: float = 0.01,
+        use_gpu: Optional[bool] = None,
+        train_size: float = 1,
+        validation_size: Optional[float] = None,
+        batch_size: int = 128,
+        vae_task_kwargs: Optional[dict] = None,
+        **kwargs,
+    ):
         """
-        Returns the parameters of the RNA model used for deconvolution.
+        Trains the model using amortized variational inference.
 
-        - px_o is the second parameter of the NB distribution (n_genes)
-        - W is the first parameter of the NB distribution for each cell type (n_labels x n_genes).
+        Parameters
+        ----------
+        max_epochs
+            Number of epochs to train for
+        lr
+            Learning rate for optimization.
+        use_gpu
+            If `True`, use the GPU if available.
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        validation_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        batch_size
+            Minibatch size to use during training.
+        vae_task_kwargs
+            Keyword args for :class:`~scvi.lightning.VAETask`. Keyword arguments passed to
+            `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
+        **kwargs
+            Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
-        return self.model.get_params()
+        update_dict = {
+            "lr": lr,
+        }
+        if vae_task_kwargs is not None:
+            vae_task_kwargs.update(update_dict)
+        else:
+            vae_task_kwargs = update_dict
+        super().train(
+            max_epochs=max_epochs,
+            use_gpu=use_gpu,
+            train_size=train_size,
+            validation_size=validation_size,
+            batch_size=batch_size,
+            vae_task_kwargs=vae_task_kwargs,
+            **kwargs,
+        )
 
     @property
     def _task_class(self):
@@ -86,8 +129,10 @@ class SpatialStereoscope(BaseModelClass):
     ----------
     st_adata
         spatial transcriptomics AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
-    params
-        parameters learned from the single-cell RNA seq data for deconvolution.
+    sc_params
+        parameters of the model learned from the single-cell RNA seq data for deconvolution.
+    cell_type_mapping
+        numpy array mapping for the cell types used in the deconvolution
     use_gpu
         Use the GPU or not.
     prior_weight
@@ -102,7 +147,7 @@ class SpatialStereoscope(BaseModelClass):
     >>> scvi.data.setup_anndata(st_adata)
     >>> st_adata.obs["indices"] = np.arange(st_adata.n_obs)
     >>> register_tensor_from_anndata(st_adata, "ind_x", "obs", "indices")
-    >>> stereo = scvi.external.SpatialStereoscope(st_adata, sc_params)
+    >>> stereo = scvi.external.SpatialStereoscope(st_adata, sc_params, cell_type_mapping)
     >>> stereo.train()
     >>> st_adata.obs["deconv"] = stereo.get_proportions()
     """
@@ -110,7 +155,8 @@ class SpatialStereoscope(BaseModelClass):
     def __init__(
         self,
         st_adata: AnnData,
-        params: Tuple[np.ndarray],
+        sc_params: Tuple[np.ndarray],
+        cell_type_mapping: np.ndarray,
         use_gpu: bool = True,
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
         **model_kwargs,
@@ -118,10 +164,9 @@ class SpatialStereoscope(BaseModelClass):
         st_adata.obs["_indices"] = np.arange(st_adata.n_obs)
         register_tensor_from_anndata(st_adata, "ind_x", "obs", "_indices")
         super().__init__(st_adata, use_gpu=use_gpu)
-
         self.model = SpatialDeconv(
             n_spots=st_adata.n_obs,
-            params=params,
+            sc_params=sc_params,
             prior_weight=prior_weight,
             **model_kwargs,
         )
@@ -130,7 +175,45 @@ class SpatialStereoscope(BaseModelClass):
         ).format(
             st_adata.n_obs,
         )
+        self.cell_type_mapping = cell_type_mapping
         self.init_params_ = self._get_init_params(locals())
+
+    @classmethod
+    def from_rna_model(
+        cls,
+        st_adata: AnnData,
+        sc_model: RNAStereoscope,
+        use_gpu: bool = True,
+        prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
+        **model_kwargs,
+    ):
+        """
+        Alternate constructor for exploiting a pre-trained model on RNA-seq data
+
+        Parameters
+        -----------
+        st_adata
+            registed anndata object
+        sc_model
+            trained RNADeconv model
+        use_gpu
+            Use the GPU or not.
+        prior_weight
+            how to reweight the minibatches for stochastic optimization. "n_obs" is the valid
+            procedure, "minibatch" is the procedure implemented in Stereoscope.
+        **model_kwargs
+            Keyword args for :class:`~scvi.external.SpatialDeconv`
+        """
+        return cls(
+            st_adata,
+            sc_model.model.get_params(),
+            sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
+                "mapping"
+            ],
+            use_gpu=use_gpu,
+            prior_weight=prior_weight,
+            **model_kwargs,
+        )
 
     def get_proportions(self, keep_noise=False) -> np.ndarray:
         """
@@ -141,7 +224,59 @@ class SpatialStereoscope(BaseModelClass):
         keep_noise
             whether to account for the noise term as a standalone cell type in the proportion estimate.
         """
-        return self.model.get_proportions(keep_noise)
+        column_names = self.cell_type_mapping
+        if keep_noise:
+            column_names = column_names.append("noise_term")
+        return pd.DataFrame(
+            data=self.model.get_proportions(keep_noise),
+            columns=column_names,
+            index=self.adata.obs.index,
+        )
+
+    def train(
+        self,
+        max_epochs: int = 400,
+        lr: float = 0.01,
+        use_gpu: Optional[bool] = None,
+        batch_size: int = 128,
+        vae_task_kwargs: Optional[dict] = None,
+        **kwargs,
+    ):
+        """
+        Trains the model using amortized variational inference.
+
+        Parameters
+        ----------
+        max_epochs
+            Number of epochs to train for
+        lr
+            Learning rate for optimization.
+        use_gpu
+            If `True`, use the GPU if available.
+        batch_size
+            Minibatch size to use during training.
+        vae_task_kwargs
+            Keyword args for :class:`~scvi.lightning.VAETask`. Keyword arguments passed to
+            `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
+        **kwargs
+            Other keyword args for :class:`~scvi.lightning.Trainer`.
+        """
+        update_dict = {
+            "lr": lr,
+        }
+        if vae_task_kwargs is not None:
+            vae_task_kwargs.update(update_dict)
+        else:
+            vae_task_kwargs = update_dict
+        super().train(
+            max_epochs=max_epochs,
+            use_gpu=use_gpu,
+            train_size=1,
+            validation_size=None,
+            batch_size=batch_size,
+            vae_task_kwargs=vae_task_kwargs,
+            **kwargs,
+        )
 
     @property
     def _task_class(self):
