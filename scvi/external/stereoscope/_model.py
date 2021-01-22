@@ -183,7 +183,9 @@ class SpatialStereoscope(BaseModelClass):
         cls,
         st_adata: AnnData,
         sc_model: RNAStereoscope,
-        **kwargs,
+        use_gpu: bool = True,
+        prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
+        **model_kwargs,
     ):
         """
         Alternate constructor for exploiting a pre-trained model on RNA-seq data
@@ -194,6 +196,13 @@ class SpatialStereoscope(BaseModelClass):
             registed anndata object
         sc_model
             trained RNADeconv model
+        use_gpu
+            Use the GPU or not.
+        prior_weight
+            how to reweight the minibatches for stochastic optimization. "n_obs" is the valid
+            procedure, "minibatch" is the procedure implemented in Stereoscope.
+        **model_kwargs
+            Keyword args for :class:`~scvi.external.SpatialDeconv`
         """
         return cls(
             st_adata,
@@ -201,7 +210,9 @@ class SpatialStereoscope(BaseModelClass):
             sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
                 "mapping"
             ],
-            **kwargs,
+            use_gpu=use_gpu,
+            prior_weight=prior_weight,
+            **model_kwargs,
         )
 
     def get_proportions(self, keep_noise=False) -> np.ndarray:
