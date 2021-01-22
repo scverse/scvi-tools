@@ -474,7 +474,6 @@ def test_multiple_covariates(save_path):
 
 def test_peakvi():
     data = synthetic_iid()
-    vae.train(1, save_best=False)
     vae = PEAKVI(
         data,
         model_depth=False,
