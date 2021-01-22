@@ -129,8 +129,8 @@ class SpatialDeconv(AbstractVAE):
     ----------
     n_spots
         Number of input spots
-    params
-        Tuple of ndarray of shapes [(n_genes, n_labels), (n_genes)] containing the dictionnary and log dispersion parameters
+    sc_model
+        Model learned on the single-cell RNA sequencing data
     prior_weight
         Whether to sample the minibatch by the number of total observations or the monibatch size
     """
@@ -138,13 +138,14 @@ class SpatialDeconv(AbstractVAE):
     def __init__(
         self,
         n_spots: int,
-        params: Tuple[np.ndarray],
+        sc_model: RNADeconv,
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
     ):
         super().__init__()
-        # copy parameters
-        self.register_buffer("W", torch.tensor(params[0]))
-        self.register_buffer("px_o", torch.tensor(params[1]))
+        # unpack and copy parameters
+        W, px_o = sc_model.model.get_params()
+        self.register_buffer("W", torch.tensor(W))
+        self.register_buffer("px_o", torch.tensor(px_o))
 
         # setup constants
         self.n_spots = n_spots
