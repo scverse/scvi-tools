@@ -143,8 +143,8 @@ class SpatialDeconv(AbstractVAE):
     ):
         super().__init__()
         # unpack and copy parameters
-        W, px_o = sc_model.model.get_params()
-        self.register_buffer("W", torch.tensor(W))
+        w, px_o = sc_model.model.get_params()
+        self.register_buffer("W", torch.tensor(w))
         self.register_buffer("px_o", torch.tensor(px_o))
 
         # setup constants
