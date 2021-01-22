@@ -474,10 +474,6 @@ def test_multiple_covariates(save_path):
 
 def test_peakvi():
     data = synthetic_iid()
-    vae = PEAKVI(
-        data,
-        deeply_inject_covariates="both",
-    )
     vae.train(1, save_best=False)
     vae = PEAKVI(
         data,

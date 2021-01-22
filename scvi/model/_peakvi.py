@@ -58,14 +58,8 @@ class PEAKVI(VAEMixin, BaseModelClass):
         * ``'normal'`` - Normal distribution (Default)
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     deeply_inject_covariates
-        Whether to deeply inject covariates, meaning include covariates in the input to all hidden
-        layers. If `none`, covariates are only included in the decoder's input.
-        One of the following:
-
-        * ``'none'`` - do not deeply inject covariates (default)
-        * ``'encoder'`` - only deeply inject in the encoder
-        * ``'decoder'`` - only deeply inject in the decoder
-        * ``'both'`` - deeply inject in both encoder and decoder
+        Whether to deeply inject covariates into all layers of the decoder. If False (default),
+        covairates will only be included in the input layer.
 
     Examples
     --------
@@ -88,9 +82,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        deeply_inject_covariates: Literal[
-            "encoder", "decoder", "none", "both"
-        ] = "none",
+        deeply_inject_covariates: bool = False,
         use_gpu: bool = True,
         **model_kwargs,
     ):

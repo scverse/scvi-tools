@@ -8,6 +8,7 @@ from torch.distributions import Normal, kl_divergence
 
 from scvi import _CONSTANTS
 from scvi.compose import (
+    Encoder,
     AbstractVAE,
     FCLayers,
     SCVILoss,
@@ -16,6 +17,36 @@ from scvi.compose import (
 
 
 class Decoder(torch.nn.Module):
+    """
+    Decodes data from latent space of ``n_input`` dimensions ``n_output``dimensions.
+
+    Uses a fully-connected neural network of ``n_hidden`` layers.
+
+    Parameters
+    ----------
+    n_input
+        The dimensionality of the input (latent space)
+    n_output
+        The dimensionality of the output (data space)
+    n_cat_list
+        A list containing the number of categories
+        for each category of interest. Each category will be
+        included using a one-hot encoding
+    n_layers
+        The number of fully-connected hidden layers
+    n_hidden
+        The number of nodes per hidden layer
+    inject_covariates
+        Whether to inject covariates in each layer, or just the first (default).
+    use_batch_norm
+        Whether to use batch norm in layers
+    use_layer_norm
+        Whether to use layer norm in layers
+    deeply_inject_covariates
+        Whether to deeply inject covariates into all layers. If False (default),
+        covairates will only be included in the input layer.
+    """
+
     def __init__(
         self,
         n_input: int,
@@ -47,96 +78,6 @@ class Decoder(torch.nn.Module):
     def forward(self, z: torch.Tensor, *cat_list: int):
         x = self.output(self.net(z, *cat_list))
         return x
-
-
-class Encoder(torch.nn.Module):
-    """
-    Encodes data of ``n_input`` dimensions into a latent space of ``n_output`` dimensions.
-
-    Uses a fully-connected neural network of ``n_hidden`` layers.
-
-    Parameters
-    ----------
-    n_input
-        The dimensionality of the input (data space)
-    n_output
-        The dimensionality of the output (latent space)
-    n_cat_list
-        A list containing the number of categories
-        for each category of interest. Each category will be
-        included using a one-hot encoding
-    n_layers
-        The number of fully-connected hidden layers
-    n_hidden
-        The number of nodes per hidden layer
-    dropout_rate
-        Dropout rate to apply to each of the hidden layers
-    distribution
-        Distribution of z
-    **kwargs
-        Keyword args for :class:`~scvi.modules._base.FCLayers`
-    """
-
-    def __init__(
-        self,
-        n_input: int,
-        n_output: int,
-        n_cat_list: Iterable[int] = None,
-        n_layers: int = 2,
-        n_hidden: int = 128,
-        dropout_rate: float = 0.1,
-        distribution: str = "normal",
-        deep_inject_covariates: bool = False,
-        **kwargs,
-    ):
-        super().__init__()
-
-        self.distribution = distribution
-        self.encoder = FCLayers(
-            n_in=n_input,
-            n_out=n_hidden,
-            n_cat_list=n_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
-            dropout_rate=dropout_rate,
-            inject_covariates=deep_inject_covariates,
-            **kwargs,
-        )
-        self.mean_encoder = torch.nn.Linear(n_hidden, n_output)
-        self.var_encoder = torch.nn.Linear(n_hidden, n_output)
-
-        if distribution == "ln":
-            self.z_transformation = torch.nn.Softmax(dim=-1)
-        else:
-            self.z_transformation = lambda x: x
-
-    def forward(self, x: torch.Tensor, *cat_list: int):
-        r"""
-        The forward computation for a single sample.
-
-         #. Encodes the data into latent space using the encoder network
-         #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
-         #. Samples a new value from an i.i.d. multivariate normal \\( \\sim Ne(q_m, \\mathbf{I}q_v) \\)
-
-        Parameters
-        ----------
-        x
-            tensor with shape (n_input,)
-        cat_list
-            list of category membership(s) for this sample
-
-        Returns
-        -------
-        3-tuple of :py:class:`torch.Tensor`
-            tensors of shape ``(n_latent,)`` for mean and var, and sample
-
-        """
-        # Parameters for latent distribution
-        q = self.encoder(x, *cat_list)
-        q_m = self.mean_encoder(q)
-        q_v = torch.exp(self.var_encoder(q))
-        z = self.z_transformation(Normal(q_m, q_v.sqrt()).rsample())
-        return q_m, q_v, z
 
 
 class PEAKVAE(AbstractVAE):
@@ -187,13 +128,8 @@ class PEAKVAE(AbstractVAE):
         * ``'normal'`` - Normal distribution (default)
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     deeply_inject_covariates
-        Whether to deeply inject covariates, meaning include covariates in the input to all hidden
-        layers. If `none`, covariates are only included in the decoder's input. One of the following:
-
-        * ``'none'`` - do not deeply inject covariates (default)
-        * ``'encoder'`` - only deeply inject in the encoder
-        * ``'decoder'`` - only deeply inject in the decoder
-        * ``'both'`` - deeply inject in both encoder and decoder
+        Whether to deeply inject covariates into all layers of the decoder. If False (default),
+        covairates will only be included in the input layer.
 
     """
 
@@ -213,9 +149,7 @@ class PEAKVAE(AbstractVAE):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: str = "normal",
-        deeply_inject_covariates: Literal[
-            "encoder", "decoder", "none", "both"
-        ] = "none",
+        deeply_inject_covariates: bool = False,
     ):
         super().__init__()
 
@@ -235,8 +169,7 @@ class PEAKVAE(AbstractVAE):
         self.use_batch_norm_decoder = use_batch_norm in ("decoder", "both")
         self.use_layer_norm_encoder = use_layer_norm in ("encoder", "both")
         self.use_layer_norm_decoder = use_layer_norm in ("decoder", "both")
-        self.deeply_inject_decoder = deeply_inject_covariates in ("decoder", "both")
-        self.deeply_inject_encoder = deeply_inject_covariates in ("encoder", "both")
+        self.deeply_inject_covariates = deeply_inject_covariates
 
         cat_list = (
             [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
@@ -247,13 +180,12 @@ class PEAKVAE(AbstractVAE):
             n_layers=self.n_layers_encoder,
             n_output=self.n_latent,
             n_hidden=self.n_hidden,
-            n_cat_list=cat_list if self.deeply_inject_encoder else [],
             dropout_rate=self.dropout_rate,
             activation_fn=torch.nn.LeakyReLU,
             distribution=self.latent_distribution,
+            var_eps=0,
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
-            deep_inject_covariates=self.deeply_inject_encoder,
         )
 
         self.z_decoder = Decoder(
@@ -264,7 +196,7 @@ class PEAKVAE(AbstractVAE):
             n_layers=self.n_layers_decoder,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
-            deep_inject_covariates=self.deeply_inject_decoder,
+            deep_inject_covariates=self.deeply_inject_covariates,
         )
 
         self.d_encoder = None
