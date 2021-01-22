@@ -116,7 +116,7 @@ class RNASeqMixin:
                         torch.ones_like(batch_indices) * batch
                     )
                 inference_kwargs = dict(n_samples=n_samples)
-                _, generative_outputs = self.model.forward(
+                _, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
                     compute_loss=False,
@@ -248,7 +248,7 @@ class RNASeqMixin:
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
         """
-        if self.model.gene_likelihood not in ["zinb", "nb", "poisson"]:
+        if self.module.gene_likelihood not in ["zinb", "nb", "poisson"]:
             raise ValueError("Invalid gene_likelihood.")
 
         adata = self._validate_anndata(adata)
@@ -265,7 +265,7 @@ class RNASeqMixin:
 
         x_new = []
         for tensors in scdl:
-            samples = self.model.sample(tensors, n_samples=n_samples)
+            samples = self.module.sample(tensors, n_samples=n_samples)
             if gene_list is not None:
                 samples = samples[:, gene_mask, ...]
             x_new.append(samples)
@@ -319,7 +319,7 @@ class RNASeqMixin:
                     torch.ones_like(batch_indices) * transform_batch
                 )
             inference_kwargs = dict(n_samples=n_samples)
-            _, generative_outputs = self.model.forward(
+            _, generative_outputs = self.module.forward(
                 tensors=tensors,
                 inference_kwargs=inference_kwargs,
                 compute_loss=False,
@@ -459,7 +459,7 @@ class RNASeqMixin:
         dispersion_list = []
         for tensors in scdl:
             inference_kwargs = dict(n_samples=n_samples)
-            _, generative_outputs = self.model.forward(
+            _, generative_outputs = self.module.forward(
                 tensors=tensors,
                 inference_kwargs=inference_kwargs,
                 compute_loss=False,
@@ -485,10 +485,10 @@ class RNASeqMixin:
         return_dict = {}
         return_dict["mean"] = means
 
-        if self.model.gene_likelihood == "zinb":
+        if self.module.gene_likelihood == "zinb":
             return_dict["dropout"] = dropout
             return_dict["dispersions"] = dispersions
-        if self.model.gene_likelihood == "nb":
+        if self.module.gene_likelihood == "nb":
             return_dict["dispersions"] = dispersions
 
         return return_dict
@@ -524,8 +524,8 @@ class RNASeqMixin:
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         libraries = []
         for tensors in scdl:
-            inference_inputs = self.model._get_inference_input(tensors)
-            outputs = self.model.inference(**inference_inputs)
+            inference_inputs = self.module._get_inference_input(tensors)
+            outputs = self.module.inference(**inference_inputs)
 
             ql_m = outputs["ql_m"]
             ql_v = outputs["ql_v"]

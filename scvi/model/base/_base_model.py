@@ -307,7 +307,7 @@ class BaseModelClass(ABC):
             task_class = self._task_class
 
         task_kwargs = vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
-        self._pl_task = task_class(self.model, len(self.train_indices_), **task_kwargs)
+        self._pl_task = task_class(self.module, len(self.train_indices_), **task_kwargs)
 
         if train_size == 1.0:
             # circumvent the empty data loader problem if all dataset used for training
@@ -318,9 +318,9 @@ class BaseModelClass(ABC):
             self.history_ = self.trainer.logger.history
         except AttributeError:
             self.history_ = None
-        self.model.eval()
+        self.module.eval()
         if use_gpu:
-            self.model.cuda()
+            self.module.cuda()
         self.is_trained_ = True
 
     def save(
@@ -376,7 +376,7 @@ class BaseModelClass(ABC):
         var_names = var_names.to_numpy()
         np.savetxt(varnames_save_path, var_names, fmt="%s")
 
-        torch.save(self.model.state_dict(), model_save_path)
+        torch.save(self.module.state_dict(), model_save_path)
         with open(attr_save_path, "wb") as f:
             pickle.dump(user_attributes, f)
 

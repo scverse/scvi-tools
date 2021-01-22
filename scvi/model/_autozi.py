@@ -100,7 +100,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
     ):
         super(AUTOZI, self).__init__(adata, use_gpu=use_gpu)
 
-        self.model = AutoZIVAE(
+        self.module = AutoZIVAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
             n_labels=self.summary_stats["n_labels"],
@@ -138,7 +138,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
         self, as_numpy: bool = True
     ) -> Dict[str, Union[torch.Tensor, np.ndarray]]:
         """Return parameters of Bernoulli Beta distributions in a dictionary."""
-        return self.model.get_alphas_betas(as_numpy=as_numpy)
+        return self.module.get_alphas_betas(as_numpy=as_numpy)
 
     @torch.no_grad()
     def get_marginal_ll(
@@ -174,14 +174,14 @@ class AUTOZI(VAEMixin, BaseModelClass):
 
         log_lkl = 0
         to_sum = torch.zeros((n_mc_samples,))
-        alphas_betas = self.model.get_alphas_betas(as_numpy=False)
+        alphas_betas = self.module.get_alphas_betas(as_numpy=False)
         alpha_prior = alphas_betas["alpha_prior"]
         alpha_posterior = alphas_betas["alpha_posterior"]
         beta_prior = alphas_betas["beta_prior"]
         beta_posterior = alphas_betas["beta_posterior"]
 
         for i in range(n_mc_samples):
-            bernoulli_params = self.model.sample_from_beta_distribution(
+            bernoulli_params = self.module.sample_from_beta_distribution(
                 alpha_posterior, beta_posterior
             )
             for tensors in scdl:
@@ -192,7 +192,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
                 labels = tensors[_CONSTANTS.LABELS_KEY]
 
                 # Distribution parameters and sampled variables
-                inf_outputs, gen_outputs, losses = self.model.forward(tensors)
+                inf_outputs, gen_outputs, losses = self.module.forward(tensors)
 
                 px_r = gen_outputs["px_r"]
                 px_rate = gen_outputs["px_rate"]
@@ -205,10 +205,10 @@ class AUTOZI(VAEMixin, BaseModelClass):
                 library = inf_outputs["library"]
 
                 # Reconstruction Loss
-                bernoulli_params_batch = self.model.reshape_bernoulli(
+                bernoulli_params_batch = self.module.reshape_bernoulli(
                     bernoulli_params, batch_index, labels
                 )
-                reconst_loss = self.model.get_reconstruction_loss(
+                reconst_loss = self.module.get_reconstruction_loss(
                     sample_batch, px_rate, px_r, px_dropout, bernoulli_params_batch
                 )
 

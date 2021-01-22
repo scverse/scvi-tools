@@ -76,7 +76,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
         **model_kwargs,
     ):
         super(LinearSCVI, self).__init__(adata, use_gpu=use_gpu)
-        self.model = LDVAE(
+        self.module = LDVAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
             n_hidden=n_hidden,
@@ -121,7 +121,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
         cols = ["Z_{}".format(i) for i in range(self.n_latent)]
         var_names = _get_var_names_from_setup_anndata(self.adata)
         loadings = pd.DataFrame(
-            self.model.get_loadings(), index=var_names, columns=cols
+            self.module.get_loadings(), index=var_names, columns=cols
         )
 
         return loadings

@@ -81,7 +81,7 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if "extra_categoricals" in self.scvi_setup_dict_
             else None
         )
-        self.model = VAE(
+        self.module = VAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
             n_continuous_cov=self.summary_stats["n_continuous_covs"],

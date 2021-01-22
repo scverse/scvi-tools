@@ -111,7 +111,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if "extra_categoricals" in self.scvi_setup_dict_
             else None
         )
-        self.model = TOTALVAE(
+        self.module = TOTALVAE(
             n_input_genes=self.summary_stats["n_vars"],
             n_input_proteins=self.summary_stats["n_proteins"],
             n_batch=self.summary_stats["n_batch"],
@@ -267,8 +267,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         libraries = []
         for tensors in post:
-            inference_inputs = self.model._get_inference_input(tensors)
-            outputs = self.model.inference(**inference_inputs)
+            inference_inputs = self.module._get_inference_input(tensors)
+            outputs = self.module.inference(**inference_inputs)
             ql_m = outputs["ql_m"]
             ql_v = outputs["ql_v"]
             if give_mean is True:
@@ -396,7 +396,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     batch_indices = tensors[_CONSTANTS.BATCH_KEY]
                     tensors[_CONSTANTS.BATCH_KEY] = torch.ones_like(batch_indices) * b
                 inference_kwargs = dict(n_samples=n_samples)
-                inference_outputs, generative_outputs = self.model.forward(
+                inference_outputs, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
                     compute_loss=False,
@@ -548,7 +548,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     batch_indices = tensors[_CONSTANTS.BATCH_KEY]
                     tensors[_CONSTANTS.BATCH_KEY] = torch.ones_like(batch_indices) * b
                 inference_kwargs = dict(n_samples=n_samples)
-                inference_outputs, generative_outputs = self.model.forward(
+                inference_outputs, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
                     compute_loss=False,
@@ -731,7 +731,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         x_new : :class:`~numpy.ndarray`
             tensor with shape (n_cells, n_genes, n_samples)
         """
-        if self.model.gene_likelihood not in ["nb"]:
+        if self.module.gene_likelihood not in ["nb"]:
             raise ValueError("Invalid gene_likelihood")
 
         adata = self._validate_anndata(adata)
@@ -750,7 +750,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         scdl_list = []
         for tensors in scdl:
-            rna_sample, protein_sample = self.model.sample(tensors, n_samples=n_samples)
+            rna_sample, protein_sample = self.module.sample(tensors, n_samples=n_samples)
             rna_sample = rna_sample[..., gene_mask]
             protein_sample = protein_sample[..., protein_mask]
             data = torch.cat([rna_sample, protein_sample], dim=-1).numpy()
@@ -805,7 +805,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 )
             inference_kwargs = dict(n_samples=n_samples)
             with torch.no_grad():
-                inference_outputs, generative_outputs, = self.model.forward(
+                inference_outputs, generative_outputs, = self.module.forward(
                     tensors,
                     inference_kwargs=inference_kwargs,
                     compute_loss=False,
@@ -990,7 +990,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         background_mean = []
         for tensors in scdl:
-            _, inference_outputs, _ = self.model.forward(tensors)
+            _, inference_outputs, _ = self.module.forward(tensors)
             b_mean = inference_outputs["py_"]["rate_back"]
             background_mean += [np.array(b_mean.cpu())]
         return np.concatenate(background_mean)

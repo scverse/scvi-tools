@@ -45,7 +45,7 @@ class RNAStereoscope(BaseModelClass):
         self.n_genes = self.summary_stats["n_vars"]
         self.n_labels = self.summary_stats["n_labels"]
         # first we have the scRNA-seq model
-        self.model = RNADeconv(
+        self.module = RNADeconv(
             n_genes=self.n_genes,
             n_labels=self.n_labels,
             **model_kwargs,
@@ -164,7 +164,7 @@ class SpatialStereoscope(BaseModelClass):
         st_adata.obs["_indices"] = np.arange(st_adata.n_obs)
         register_tensor_from_anndata(st_adata, "ind_x", "obs", "_indices")
         super().__init__(st_adata, use_gpu=use_gpu)
-        self.model = SpatialDeconv(
+        self.module = SpatialDeconv(
             n_spots=st_adata.n_obs,
             sc_params=sc_params,
             prior_weight=prior_weight,
@@ -228,7 +228,7 @@ class SpatialStereoscope(BaseModelClass):
         if keep_noise:
             column_names = column_names.append("noise_term")
         return pd.DataFrame(
-            data=self.model.get_proportions(keep_noise),
+            data=self.module.get_proportions(keep_noise),
             columns=column_names,
             index=self.adata.obs.index,
         )

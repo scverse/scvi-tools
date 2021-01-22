@@ -104,7 +104,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if "extra_categoricals" in self.scvi_setup_dict_
             else None
         )
-        self.model = SCANVAE(
+        self.module = SCANVAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
             n_labels=n_labels,
@@ -261,7 +261,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.test_indices_ = test_dl.indices
 
         vae_task_kwargs = {} if vae_task_kwargs is None else vae_task_kwargs
-        self._task = SemiSupervisedTrainingPlan(self.model, **vae_task_kwargs)
+        self._task = SemiSupervisedTrainingPlan(self.module, **vae_task_kwargs)
 
         # if we have labeled cells, we want to subsample labels each epoch
         sampler_callback = (
@@ -278,7 +278,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             self._trainer.fit(self._task, train_dl, val_dl)
         else:
             self._trainer.fit(self._task, train_dl)
-        self.model.eval()
+        self.module.eval()
         self.is_trained_ = True
 
     def predict(
@@ -316,7 +316,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for _, tensors in enumerate(scdl):
             x = tensors[_CONSTANTS.X_KEY]
             batch = tensors[_CONSTANTS.BATCH_KEY]
-            pred = self.model.classify(x, batch)
+            pred = self.module.classify(x, batch)
             if not soft:
                 pred = pred.argmax(dim=1)
             y_pred.append(pred.detach().cpu())

@@ -391,7 +391,7 @@ class VAE(BaseModuleClass):
         else:
             raise ValueError(
                 "{} reconstruction error not handled right now".format(
-                    self.model.gene_likelihood
+                    self.module.gene_likelihood
                 )
             )
         if n_samples > 1:

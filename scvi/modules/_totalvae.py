@@ -647,7 +647,7 @@ class TOTALVAE(BaseModuleClass):
         for i in range(n_mc_samples):
             # Distribution parameters and sampled variables
             inference_outputs, generative_outputs, losses = self.forward(tensors)
-            # outputs = self.model.inference(x, y, batch_index, labels)
+            # outputs = self.module.inference(x, y, batch_index, labels)
             qz_m = inference_outputs["qz_m"]
             qz_v = inference_outputs["qz_v"]
             ql_m = inference_outputs["ql_m"]
