@@ -138,12 +138,12 @@ class SpatialDeconv(AbstractVAE):
     def __init__(
         self,
         n_spots: int,
-        sc_model: RNADeconv,
+        sc_params: Tuple[np.ndarray],
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
     ):
         super().__init__()
         # unpack and copy parameters
-        w, px_o = sc_model.model.get_params()
+        w, px_o = sc_params
         self.register_buffer("W", torch.tensor(w))
         self.register_buffer("px_o", torch.tensor(px_o))
 

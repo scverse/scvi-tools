@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -129,8 +129,10 @@ class SpatialStereoscope(BaseModelClass):
     ----------
     st_adata
         spatial transcriptomics AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
-    sc_model
-        model learned from the single-cell RNA seq data for deconvolution.
+    sc_params
+        parameters of the model learned from the single-cell RNA seq data for deconvolution.
+    cell_type_mapping
+        numpy array mapping for the cell types used in the deconvolution
     use_gpu
         Use the GPU or not.
     prior_weight
@@ -145,7 +147,7 @@ class SpatialStereoscope(BaseModelClass):
     >>> scvi.data.setup_anndata(st_adata)
     >>> st_adata.obs["indices"] = np.arange(st_adata.n_obs)
     >>> register_tensor_from_anndata(st_adata, "ind_x", "obs", "indices")
-    >>> stereo = scvi.external.SpatialStereoscope(st_adata, sc_model)
+    >>> stereo = scvi.external.SpatialStereoscope(st_adata, sc_params, cell_type_mapping)
     >>> stereo.train()
     >>> st_adata.obs["deconv"] = stereo.get_proportions()
     """
@@ -153,7 +155,8 @@ class SpatialStereoscope(BaseModelClass):
     def __init__(
         self,
         st_adata: AnnData,
-        sc_model: RNAStereoscope,
+        sc_params: Tuple[np.ndarray],
+        cell_type_mapping: np.ndarray,
         use_gpu: bool = True,
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
         **model_kwargs,
@@ -163,7 +166,7 @@ class SpatialStereoscope(BaseModelClass):
         super().__init__(st_adata, use_gpu=use_gpu)
         self.model = SpatialDeconv(
             n_spots=st_adata.n_obs,
-            sc_model=sc_model,
+            sc_params=sc_params,
             prior_weight=prior_weight,
             **model_kwargs,
         )
@@ -172,8 +175,26 @@ class SpatialStereoscope(BaseModelClass):
         ).format(
             st_adata.n_obs,
         )
-        self.cell_type_mapping = sc_model.scvi_setup_dict_
+        self.cell_type_mapping = cell_type_mapping
         self.init_params_ = self._get_init_params(locals())
+
+    @classmethod
+    def from_rna_model(
+        cls, 
+        st_adata: AnnData, 
+        sc_model: RNAStereoscope,
+    ):
+        '''
+        Alternate constructor for exploiting a pre-trained model on RNA-seq data
+        
+        Parameters
+        -----------
+        st_adata
+            registed anndata object
+        sc_model
+            trained RNADeconv model
+        '''
+        return cls(st_adata, sc_model.model.get_params(), sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"]["mapping"])
 
     def get_proportions(self, keep_noise=False) -> np.ndarray:
         """
@@ -184,14 +205,11 @@ class SpatialStereoscope(BaseModelClass):
         keep_noise
             whether to account for the noise term as a standalone cell type in the proportion estimate.
         """
-        column_names = self.cell_type_mapping["categorical_mappings"]["_scvi_labels"][
-            "mapping"
-        ]
         if keep_noise:
             column_names = column_names.append("noise_term")
         return pd.DataFrame(
             data=self.model.get_proportions(keep_noise),
-            columns=column_names,
+            columns=self.cell_type_mapping,
             index=self.adata.obs.index,
         )
 

@@ -18,9 +18,9 @@ def test_stereoscope(save_path):
     sc_model.save(save_path, overwrite=True, save_anndata=True)
     sc_model = RNAStereoscope.load(save_path)
 
-    st_model = SpatialStereoscope(dataset, sc_model)
+    st_model = SpatialStereoscope.from_rna_model(dataset, sc_model)
     st_model.train(max_epochs=1)
-    print(st_model.get_proportions())
+    st_model.get_proportions()
     # test save/load
     st_model.save(save_path, overwrite=True, save_anndata=True)
     st_model = SpatialStereoscope.load(save_path)
