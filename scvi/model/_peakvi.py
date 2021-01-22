@@ -4,6 +4,7 @@ from typing import Iterable, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
+
 import torch
 from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
@@ -58,7 +59,8 @@ class PEAKVI(VAEMixin, BaseModelClass):
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     deeply_inject_covariates
         Whether to deeply inject covariates, meaning include covariates in the input to all hidden
-        layers. If `none`, covariates are only included in the decoder's input. One of the following:
+        layers. If `none`, covariates are only included in the decoder's input.
+        One of the following:
 
         * ``'none'`` - do not deeply inject covariates (default)
         * ``'encoder'`` - only deeply inject in the encoder
@@ -86,7 +88,9 @@ class PEAKVI(VAEMixin, BaseModelClass):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        deeply_inject_covariates: Literal["encoder", "decoder", "none", "both"] = "none",
+        deeply_inject_covariates: Literal[
+            "encoder", "decoder", "none", "both"
+        ] = "none",
         use_gpu: bool = True,
         **model_kwargs,
     ):
@@ -224,10 +228,11 @@ class PEAKVI(VAEMixin, BaseModelClass):
             train_size=train_size,
             use_gpu=use_gpu,
             validation_size=validation_size,
-            early_stopping=True,
+            early_stopping=early_stopping,
             early_stopping_monitor="reconstruction_loss_validation",
             early_stopping_patience=50,
             vae_task_kwargs=vae_task_kwargs,
+            check_val_every_n_epoch=check_val_every_n_epoch,
             **kwargs,
         )
 

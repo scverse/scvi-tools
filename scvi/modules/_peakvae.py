@@ -213,7 +213,9 @@ class PEAKVAE(AbstractVAE):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: str = "normal",
-        deeply_inject_covariates: Literal["encoder", "decoder", "none", "both"] = "none",
+        deeply_inject_covariates: Literal[
+            "encoder", "decoder", "none", "both"
+        ] = "none",
     ):
         super().__init__()
 
