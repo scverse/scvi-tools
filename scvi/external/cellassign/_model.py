@@ -1,12 +1,8 @@
-from typing import Tuple
-
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi._compat import Literal
-from scvi.data import register_tensor_from_anndata
 from scvi.dataloaders import ScviDataLoader
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.lightning import VAETask
@@ -46,7 +42,7 @@ class CellAssign(BaseModelClass):
 
         # might need to reorganize the df to correspond to the
         # correct order of labels
-        rho = torch.Tensor(cell_type_markers.numpy())
+        rho = torch.Tensor(cell_type_markers.to_numpy())
         self.model = CellAssignModule(
             n_genes=self.n_genes,
             n_labels=self.n_labels,
