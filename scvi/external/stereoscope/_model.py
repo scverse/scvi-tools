@@ -183,6 +183,7 @@ class SpatialStereoscope(BaseModelClass):
         cls,
         st_adata: AnnData,
         sc_model: RNAStereoscope,
+        **kwargs,
     ):
         """
         Alternate constructor for exploiting a pre-trained model on RNA-seq data
@@ -200,6 +201,7 @@ class SpatialStereoscope(BaseModelClass):
             sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
                 "mapping"
             ],
+            **kwargs,
         )
 
     def get_proportions(self, keep_noise=False) -> np.ndarray:
