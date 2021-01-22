@@ -252,8 +252,8 @@ class PEAKVI(VAEMixin, BaseModelClass):
         transform_batch: Optional[Union[str, int]] = None,
         use_z_mean: bool = True,
         threshold: Optional[float] = None,
-        scale_cells: bool = False,
-        scale_regions: bool = False,
+        normalize_cells: bool = False,
+        normalize_regions: bool = False,
         batch_size: int = 128,
     ) -> Union[np.ndarray, csr_matrix]:
         """
@@ -297,12 +297,11 @@ class PEAKVI(VAEMixin, BaseModelClass):
         post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
 
-        if threshold is not None:
-            assert 0 <= threshold <= 1
+        if threshold is not None and (threshold < 0 or threshold > 1):
+            raise ValueError("the provided threshold must be between 0 and 1")
 
         imputed = []
         for tensors in post:
-            # TODO implement iteration over multiple batches like in RNAMixin
             get_generative_input_kwargs = dict(transform_batch=transform_batch[0])
             generative_kwargs = dict(use_z_mean=use_z_mean)
             inference_outputs, generative_outputs = self.model.forward(
@@ -313,9 +312,9 @@ class PEAKVI(VAEMixin, BaseModelClass):
             )
             p = generative_outputs["p"].cpu()
 
-            if scale_cells:
+            if normalize_cells:
                 p *= inference_outputs["d"].cpu()
-            if scale_regions:
+            if normalize_regions:
                 p *= torch.sigmoid(self.model.region_factors).cpu()
 
             if threshold:
