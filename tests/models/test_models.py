@@ -478,17 +478,17 @@ def test_peakvi():
         data,
         deeply_inject_covariates="both",
     )
-    vae.train(1)
+    vae.train(1, save_best=False)
     vae = PEAKVI(
         data,
         model_depth=False,
     )
-    vae.train(1)
+    vae.train(1, save_best=False)
     vae = PEAKVI(
         data,
         region_factors=False,
     )
-    vae.train(1)
+    vae.train(1, save_best=False)
     vae = PEAKVI(
         data,
     )
