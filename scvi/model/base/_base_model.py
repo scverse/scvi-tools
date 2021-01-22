@@ -56,7 +56,7 @@ class BaseModelClass(ABC):
         **data_loader_kwargs,
     ):
         """
-        Create a ScviDataLoader object for data iteration.
+        Create a AnnDataLoader object for data iteration.
 
         Parameters
         ----------

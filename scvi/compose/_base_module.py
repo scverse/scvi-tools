@@ -177,7 +177,7 @@ class BaseModuleClass(nn.Module):
         """
 
     @abstractmethod
-    def loss(self, *args, **kwargs) -> SCVILoss:
+    def loss(self, *args, **kwargs) -> LossRecorder:
         """
         Compute the loss for a minibatch of data.
 

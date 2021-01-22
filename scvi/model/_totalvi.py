@@ -194,7 +194,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             there are missing proteins in any of the batches. Defaults to `True` is missing proteins
             are detected.
         vae_task_kwargs
-            Keyword args for :class:`~scvi.lightning.AdversarialTask`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.lightning.AdversarialTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
@@ -978,11 +978,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     @property
     def _task_class(self):
-        return AdversarialTask
+        return AdversarialTrainingPlan
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader
 
     @torch.no_grad()
     def get_protein_background_mean(self, adata, indices, batch_size):

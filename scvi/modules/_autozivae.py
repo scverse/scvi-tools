@@ -8,7 +8,7 @@ from torch.distributions import Beta, Gamma, Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import _CONSTANTS
-from scvi.compose import SCVILoss, one_hot
+from scvi.compose import LossRecorder, one_hot
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 
 from ._vae import VAE
@@ -408,4 +408,4 @@ class AutoZIVAE(VAE):
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )
-        return SCVILoss(loss, reconst_loss, kl_local, kl_global)
+        return LossRecorder(loss, reconst_loss, kl_local, kl_global)

@@ -11,10 +11,10 @@ from torch.distributions import kl_divergence as kl
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.compose import (
-    AbstractVAE,
+    BaseModuleClass,
     DecoderTOTALVI,
     EncoderTOTALVI,
-    SCVILoss,
+    LossRecorder,
     auto_move_data,
     one_hot,
 )
@@ -28,7 +28,7 @@ torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class TOTALVAE(AbstractVAE):
+class TOTALVAE(BaseModuleClass):
     """
     Total variational inference for CITE-seq data.
 
@@ -610,7 +610,7 @@ class TOTALVAE(AbstractVAE):
             kl_div_back_pro=kl_div_back_pro,
         )
 
-        return SCVILoss(loss, reconst_losses, kl_local, kl_global=0.0)
+        return LossRecorder(loss, reconst_losses, kl_local, kl_global=0.0)
 
     @torch.no_grad()
     def sample(self, tensors, n_samples=1):

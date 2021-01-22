@@ -8,7 +8,7 @@ import anndata
 import pytest
 import scvi
 
-from scvi.data._scvidataset import ScviDataset
+from scvi.data._anntorchdataset import AnnTorchDataset
 from scvi.data import synthetic_iid
 from scvi.data import (
     setup_anndata,
@@ -257,7 +257,7 @@ def test_register_tensor_from_anndata():
     )
 
 
-def test_scvidataset_getitem():
+def test_anntorchdataset_getitem():
     adata = synthetic_iid()
     setup_anndata(
         adata,
@@ -268,35 +268,35 @@ def test_scvidataset_getitem():
     )
     # check that we can successfully pass in a list of tensors to get
     tensors_to_get = ["batch_indices", "local_l_var"]
-    bd = ScviDataset(adata, getitem_tensors=tensors_to_get)
+    bd = AnnTorchDataset(adata, getitem_tensors=tensors_to_get)
     np.testing.assert_array_equal(tensors_to_get, list(bd[1].keys()))
 
     # check that we can successfully pass in a dict of tensors and their associated types
-    bd = ScviDataset(adata, getitem_tensors={"X": np.int, "local_l_var": np.float64})
+    bd = AnnTorchDataset(adata, getitem_tensors={"X": np.int, "local_l_var": np.float64})
     assert bd[1]["X"].dtype == np.int64
     assert bd[1]["local_l_var"].dtype == np.float64
 
     # check that by default we get all the registered tensors
-    bd = ScviDataset(adata)
+    bd = AnnTorchDataset(adata)
     all_registered_tensors = list(adata.uns["_scvi"]["data_registry"].keys())
     np.testing.assert_array_equal(all_registered_tensors, list(bd[1].keys()))
     assert bd[1]["X"].shape[0] == bd.adata.uns["_scvi"]["summary_stats"]["n_vars"]
 
-    # check that ScviDataset returns numpy array
+    # check that AnnTorchDataset returns numpy array
     adata1 = synthetic_iid()
-    bd = ScviDataset(adata1)
+    bd = AnnTorchDataset(adata1)
     for key, value in bd[1].items():
         assert type(value) == np.ndarray
 
-    # check ScviDataset returns numpy array counts were sparse
+    # check AnnTorchDataset returns numpy array counts were sparse
     adata = synthetic_iid(run_setup_anndata=False)
     adata.X = sparse.csr_matrix(adata.X)
     setup_anndata(adata)
-    bd = ScviDataset(adata)
+    bd = AnnTorchDataset(adata)
     for key, value in bd[1].items():
         assert type(value) == np.ndarray
 
-    # check ScviDataset returns numpy array if pro exp was sparse
+    # check AnnTorchDataset returns numpy array if pro exp was sparse
     adata = synthetic_iid(run_setup_anndata=False)
     adata.obsm["protein_expression"] = sparse.csr_matrix(
         adata.obsm["protein_expression"]
@@ -304,7 +304,7 @@ def test_scvidataset_getitem():
     setup_anndata(
         adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
     )
-    bd = ScviDataset(adata)
+    bd = AnnTorchDataset(adata)
     for key, value in bd[1].items():
         assert type(value) == np.ndarray
 
@@ -316,7 +316,7 @@ def test_scvidataset_getitem():
     setup_anndata(
         adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
     )
-    bd = ScviDataset(adata)
+    bd = AnnTorchDataset(adata)
     for key, value in bd[1].items():
         assert type(value) == np.ndarray
 

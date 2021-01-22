@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.compose import AbstractVAE, one_hot
+from scvi.compose import BaseModuleClass, one_hot
 from scvi.modules import Classifier
 
 
@@ -19,7 +19,7 @@ class TrainingPlan(pl.LightningModule):
     Parameters
     ----------
     vae_model
-        A model instance from class ``AbstractVAE``.
+        A model instance from class ``BaseModuleClass``.
     n_obs_training
         Number of observations in the training set.
     lr
@@ -50,7 +50,7 @@ class TrainingPlan(pl.LightningModule):
 
     def __init__(
         self,
-        vae_model: AbstractVAE,
+        vae_model: BaseModuleClass,
         n_obs_training: int,
         lr=1e-3,
         weight_decay=1e-6,
@@ -65,7 +65,7 @@ class TrainingPlan(pl.LightningModule):
         ] = "elbo_validation",
         **loss_kwargs,
     ):
-        super(VAETask, self).__init__()
+        super(TrainingPlan, self).__init__()
         self.model = vae_model
         self.n_obs_training = n_obs_training
         self.lr = lr
@@ -194,7 +194,7 @@ class AdversarialTrainingPlan(TrainingPlan):
     Parameters
     ----------
     vae_model
-        A model instance from class ``AbstractVAE``.
+        A model instance from class ``BaseModuleClass``.
     n_obs_training
         Number of observations in the training set.
     lr
@@ -231,7 +231,7 @@ class AdversarialTrainingPlan(TrainingPlan):
 
     def __init__(
         self,
-        vae_model: AbstractVAE,
+        vae_model: BaseModuleClass,
         n_obs_training,
         lr=1e-3,
         weight_decay=1e-6,
@@ -392,7 +392,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     Parameters
     ----------
     vae_model
-        A model instance from class ``AbstractVAE``.
+        A model instance from class ``BaseModuleClass``.
     classification_ratio
         Weight of the classification_loss in loss function
     lr
@@ -423,7 +423,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
 
     def __init__(
         self,
-        vae_model: AbstractVAE,
+        vae_model: BaseModuleClass,
         classification_ratio: int = 50,
         lr=1e-3,
         weight_decay=1e-6,
@@ -438,7 +438,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         ] = "elbo_validation",
         **loss_kwargs,
     ):
-        super(SemiSupervisedTask, self).__init__(
+        super(SemiSupervisedTrainingPlan, self).__init__(
             vae_model=vae_model,
             n_obs_training=1,  # no impact with choice
             lr=lr,

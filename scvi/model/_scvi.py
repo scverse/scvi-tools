@@ -3,8 +3,8 @@ import logging
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.dataloaders import ScviDataLoader
-from scvi.lightning import VAETask
+from scvi.dataloaders import AnnDataLoader
+from scvi.lightning import TrainingPlan
 from scvi.modules import VAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
@@ -111,8 +111,8 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     @property
     def _task_class(self):
-        return VAETask
+        return TrainingPlan
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader

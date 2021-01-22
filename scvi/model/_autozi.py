@@ -9,8 +9,8 @@ from torch.distributions import Beta, Normal
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.dataloaders import ScviDataLoader
-from scvi.lightning import VAETask
+from scvi.dataloaders import AnnDataLoader
+from scvi.lightning import TrainingPlan
 from scvi.modules import AutoZIVAE
 
 from .base import BaseModelClass, VAEMixin
@@ -241,8 +241,8 @@ class AUTOZI(VAEMixin, BaseModelClass):
 
     @property
     def _task_class(self):
-        return VAETask
+        return TrainingPlan
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader

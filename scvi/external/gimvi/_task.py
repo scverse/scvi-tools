@@ -1,11 +1,11 @@
 import torch
 
 from scvi import _CONSTANTS
-from scvi.lightning import AdversarialTask
+from scvi.lightning import AdversarialTrainingPlan
 from scvi.modules import Classifier
 
 
-class GIMVITask(AdversarialTask):
+class GIMVITrainingPlan(AdversarialTrainingPlan):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if kwargs["adversarial_classifier"] is True:

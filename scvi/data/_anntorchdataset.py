@@ -61,7 +61,7 @@ class AnnTorchDataset(Dataset):
 
         Examples
         --------
-        >>> sd = ScviDataset(adata)
+        >>> sd = AnnTorchDataset(adata)
 
         # following will only return the X and batch_indices both by defualt as np.float32
         >>> sd.setup_getitem(getitem_tensors  = ['X,'batch_indices'])

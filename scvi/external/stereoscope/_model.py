@@ -6,9 +6,9 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.data import register_tensor_from_anndata
-from scvi.dataloaders import ScviDataLoader
+from scvi.dataloaders import AnnDataLoader
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
-from scvi.lightning import VAETask
+from scvi.lightning import TrainingPlan
 from scvi.model.base import BaseModelClass
 
 
@@ -112,11 +112,11 @@ class RNAStereoscope(BaseModelClass):
 
     @property
     def _task_class(self):
-        return VAETask
+        return TrainingPlan
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader
 
 
 class SpatialStereoscope(BaseModelClass):
@@ -280,8 +280,8 @@ class SpatialStereoscope(BaseModelClass):
 
     @property
     def _task_class(self):
-        return VAETask
+        return TrainingPlan
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader

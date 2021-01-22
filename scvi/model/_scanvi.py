@@ -11,7 +11,7 @@ from pandas.api.types import CategoricalDtype
 from scvi import _CONSTANTS, settings
 from scvi._compat import Literal
 from scvi.data._anndata import _make_obs_column_categorical
-from scvi.dataloaders import SemiSupervisedDataLoader, ScviDataLoader
+from scvi.dataloaders import SemiSupervisedDataLoader, AnnDataLoader
 from scvi.lightning import SemiSupervisedTrainingPlan, Trainer
 from scvi.modules import SCANVAE
 
@@ -92,7 +92,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if len(self._labeled_indices) != 0:
             self._dl_cls = SemiSupervisedDataLoader
         else:
-            self._dl_cls = ScviDataLoader
+            self._dl_cls = AnnDataLoader
 
         # ignores unlabeled catgegory
         n_labels = (
@@ -184,11 +184,11 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     @property
     def _task_class(self):
-        return SemiSupervisedTask
+        return SemiSupervisedTrainingPlan
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader
 
     @property
     def history(self):
@@ -231,7 +231,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         use_gpu
             If `True`, use the GPU if available. Will override the use_gpu option when initializing model
         vae_task_kwargs
-            Keyword args for :class:`~scvi.lightning.SemiSupervisedTask`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.lightning.SemiSupervisedTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
@@ -262,7 +262,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.test_indices_ = test_dl.indices
 
         vae_task_kwargs = {} if vae_task_kwargs is None else vae_task_kwargs
-        self._task = SemiSupervisedTask(self.model, **vae_task_kwargs)
+        self._task = SemiSupervisedTrainingPlan(self.model, **vae_task_kwargs)
 
         # if we have labeled cells, we want to subsample labels each epoch
         sampler_callback = (
@@ -444,7 +444,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 "n_samples_per_label": n_samples_per_label,
             }
         else:
-            dataloader_class = ScviDataLoader
+            dataloader_class = AnnDataLoader
             dl_kwargs = {}
         dl_kwargs.update(kwargs)
 

@@ -12,8 +12,8 @@ Compose
 
    compose.FCLayers
    compose.Encoder
-   compose.SCVILoss
-   compose.AbstractVAE
+   compose.LossRecorder
+   compose.BaseModuleClass
 
 .. autosummary::
    :toctree: reference/
@@ -52,22 +52,22 @@ Data Loaders
 .. autosummary::
    :toctree: reference/
 
-   dataloaders.ScviDataLoader
+   dataloaders.AnnDataLoader
    dataloaders.ConcatDataLoader
 
 Lightning
 ~~~~~~~~~
 
-PyTorch lightning is used to train our modules. Tasks define train/test/val optimization
+PyTorch lightning is used to train our modules. TrainingPlans define train/test/val optimization
 steps for modules like `TOTALVAE`, `SCANVAE`, etc.
 
 .. autosummary::
    :toctree: reference/
    :template: class_no_inherited.rst
 
-   lightning.VAETask
-   lightning.SemiSupervisedTask
-   lightning.AdversarialTask
+   lightning.TrainingPlan
+   lightning.SemiSupervisedTrainingPlan
+   lightning.AdversarialTrainingPlan
    lightning.Trainer
 
 Utilities
