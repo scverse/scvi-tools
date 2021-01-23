@@ -4,7 +4,6 @@ from typing import Iterable, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
-
 import torch
 from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
@@ -12,15 +11,15 @@ from scipy.sparse import csr_matrix, vstack
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
-from scvi.dataloaders import ScviDataLoader
-from scvi.lightning import VAETask
+from scvi.dataloaders import AnnDataLoader
+from scvi.lightning import TrainingPlan
 from scvi.lightning._callbacks import SaveBestState
-from scvi.modules import PEAKVAE
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
     scrna_raw_counts_properties,
 )
+from scvi.modules import PEAKVAE
 
 from .base import BaseModelClass, VAEMixin
 from .base._utils import _de_core
@@ -129,11 +128,11 @@ class PEAKVI(VAEMixin, BaseModelClass):
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader
 
     @property
     def _task_class(self):
-        return VAETask
+        return TrainingPlan
 
     def train(
         self,

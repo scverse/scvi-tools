@@ -1,17 +1,16 @@
-from typing import Optional, Iterable, Dict
-from scvi._compat import Literal
+from typing import Dict, Iterable, Optional
 
 import numpy as np
 import torch
-
 from torch.distributions import Normal, kl_divergence
 
 from scvi import _CONSTANTS
+from scvi._compat import Literal
 from scvi.compose import (
+    BaseModuleClass,
     Encoder,
-    AbstractVAE,
     FCLayers,
-    SCVILoss,
+    LossRecorder,
     auto_move_data,
 )
 
@@ -80,7 +79,7 @@ class Decoder(torch.nn.Module):
         return x
 
 
-class PEAKVAE(AbstractVAE):
+class PEAKVAE(BaseModuleClass):
     """
     Variational auto-encoder model for ATAC-seq data.
 
@@ -308,4 +307,4 @@ class PEAKVAE(AbstractVAE):
 
         loss = (rl.sum() + kld * kl_weight).sum()
 
-        return SCVILoss(loss, rl, kld, kl_global=0.0)
+        return LossRecorder(loss, rl, kld, kl_global=0.0)
