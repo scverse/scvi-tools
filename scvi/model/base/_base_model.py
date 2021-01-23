@@ -385,7 +385,7 @@ class BaseModelClass(ABC):
         cls,
         dir_path: str,
         adata: Optional[AnnData] = None,
-        use_gpu: Optional[bool ]= None,
+        use_gpu: Optional[bool] = None,
     ):
         """
         Instantiate a model from the saved output.

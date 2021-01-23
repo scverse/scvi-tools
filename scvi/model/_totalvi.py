@@ -25,7 +25,6 @@ from scvi.model.base._utils import _de_core
 from scvi.modules import TOTALVAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
-from scvi.compose import auto_move_data
 
 logger = logging.getLogger(__name__)
 Number = TypeVar("Number", int, float)
