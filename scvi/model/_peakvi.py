@@ -64,7 +64,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.dataset.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.models.PeakVI(adata)
+    >>> vae = scvi.model.PEAKVI(adata)
     >>> vae.train()
     """
 
@@ -93,7 +93,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
             else []
         )
 
-        self.model = PEAKVAE(
+        self.module = PEAKVAE(
             n_input_regions=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
             n_hidden=n_hidden,
@@ -115,8 +115,8 @@ class PEAKVI(VAEMixin, BaseModelClass):
             "PeakVI Model with params: \nn_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
             "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}"
         ).format(
-            self.model.n_hidden,
-            self.model.n_latent,
+            self.module.n_hidden,
+            self.module.n_latent,
             n_layers_encoder,
             n_layers_decoder,
             dropout_rate,
@@ -239,17 +239,17 @@ class PEAKVI(VAEMixin, BaseModelClass):
 
         library_sizes = []
         for tensors in scdl:
-            inference_inputs = self.model._get_inference_input(tensors)
-            outputs = self.model.inference(**inference_inputs)
+            inference_inputs = self.module._get_inference_input(tensors)
+            outputs = self.module.inference(**inference_inputs)
             library_sizes.append(outputs["d"].cpu())
 
         return torch.cat(library_sizes).numpy().squeeze()
 
     @torch.no_grad()
     def get_region_factors(self):
-        if self.model.region_factors is None:
+        if self.module.region_factors is None:
             raise RuntimeError("region factors were not included in this model")
-        return torch.sigmoid(self.model.region_factors).cpu().numpy()
+        return torch.sigmoid(self.module.region_factors).cpu().numpy()
 
     @torch.no_grad()
     def get_accessibility_estimates(
@@ -310,7 +310,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
         for tensors in post:
             get_generative_input_kwargs = dict(transform_batch=transform_batch[0])
             generative_kwargs = dict(use_z_mean=use_z_mean)
-            inference_outputs, generative_outputs = self.model.forward(
+            inference_outputs, generative_outputs = self.module.forward(
                 tensors=tensors,
                 get_generative_input_kwargs=get_generative_input_kwargs,
                 generative_kwargs=generative_kwargs,
@@ -321,7 +321,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
             if normalize_cells:
                 p *= inference_outputs["d"].cpu()
             if normalize_regions:
-                p *= torch.sigmoid(self.model.region_factors).cpu()
+                p *= torch.sigmoid(self.module.region_factors).cpu()
             if threshold:
                 p[p < threshold] = 0
                 p = csr_matrix(p.numpy())

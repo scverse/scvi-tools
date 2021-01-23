@@ -22,9 +22,13 @@ class TrainingPlan(pl.LightningModule):
     n_obs_training
         Number of observations in the training set.
     lr
-        Learning rate used for optimization :class:`~torch.optim.Adam`.
+        Learning rate used for optimization.
     weight_decay
-        Weight decay used in :class:`~torch.optim.Adam`.
+        Weight decay used in optimizatoin.
+    eps
+        eps used for optimization.
+    optimizer
+        One of "Adam", "AdamW"
     n_steps_kl_warmup
         Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
         Only activated when `n_epochs_kl_warmup` is set to None.
@@ -51,8 +55,10 @@ class TrainingPlan(pl.LightningModule):
         self,
         vae_model: BaseModuleClass,
         n_obs_training: int,
-        lr=1e-3,
-        weight_decay=1e-6,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
+        eps: float = 0.01,
+        optimizer: Literal["Adam", "AdamW"] = "Adam",
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         reduce_lr_on_plateau: bool = False,
@@ -69,6 +75,8 @@ class TrainingPlan(pl.LightningModule):
         self.n_obs_training = n_obs_training
         self.lr = lr
         self.weight_decay = weight_decay
+        self.eps = eps
+        self.optimizer_name = optimizer
         self.n_steps_kl_warmup = n_steps_kl_warmup
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.reduce_lr_on_plateau = reduce_lr_on_plateau
@@ -151,8 +159,14 @@ class TrainingPlan(pl.LightningModule):
 
     def configure_optimizers(self):
         params = filter(lambda p: p.requires_grad, self.module.parameters())
-        optimizer = torch.optim.Adam(
-            params, lr=self.lr, eps=0.01, weight_decay=self.weight_decay
+        if self.optimizer_name == "Adam":
+            optim_cls = torch.optim.Adam
+        elif self.optimizer_name == "AdamW":
+            optim_cls = torch.optim.AdamW
+        else:
+            raise ValueError("Optimizer not understood.")
+        optimizer = optim_cls(
+            params, lr=self.lr, eps=self.eps, weight_decay=self.weight_decay
         )
         config = {"optimizer": optimizer}
         if self.reduce_lr_on_plateau:
