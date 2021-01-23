@@ -66,7 +66,7 @@ class RNAStereoscope(BaseModelClass):
         train_size: float = 1,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
-        vae_task_kwargs: Optional[dict] = None,
+        plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
         """
@@ -87,26 +87,26 @@ class RNAStereoscope(BaseModelClass):
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         batch_size
             Minibatch size to use during training.
-        vae_task_kwargs
-            Keyword args for :class:`~scvi.lightning.VAETask`. Keyword arguments passed to
-            `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
+        plan_kwargs
+            Keyword args for :class:`~scvi.lightning.TrainingPlan`. Keyword arguments passed to
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
         update_dict = {
             "lr": lr,
         }
-        if vae_task_kwargs is not None:
-            vae_task_kwargs.update(update_dict)
+        if plan_kwargs is not None:
+            plan_kwargs.update(update_dict)
         else:
-            vae_task_kwargs = update_dict
+            plan_kwargs = update_dict
         super().train(
             max_epochs=max_epochs,
             use_gpu=use_gpu,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            vae_task_kwargs=vae_task_kwargs,
+            plan_kwargs=plan_kwargs,
             **kwargs,
         )
 
@@ -239,7 +239,7 @@ class SpatialStereoscope(BaseModelClass):
         lr: float = 0.01,
         use_gpu: Optional[bool] = None,
         batch_size: int = 128,
-        vae_task_kwargs: Optional[dict] = None,
+        plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
         """
@@ -255,26 +255,26 @@ class SpatialStereoscope(BaseModelClass):
             If `True`, use the GPU if available.
         batch_size
             Minibatch size to use during training.
-        vae_task_kwargs
-            Keyword args for :class:`~scvi.lightning.VAETask`. Keyword arguments passed to
-            `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
+        plan_kwargs
+            Keyword args for :class:`~scvi.lightning.TrainingPlan`. Keyword arguments passed to
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
         update_dict = {
             "lr": lr,
         }
-        if vae_task_kwargs is not None:
-            vae_task_kwargs.update(update_dict)
+        if plan_kwargs is not None:
+            plan_kwargs.update(update_dict)
         else:
-            vae_task_kwargs = update_dict
+            plan_kwargs = update_dict
         super().train(
             max_epochs=max_epochs,
             use_gpu=use_gpu,
             train_size=1,
             validation_size=None,
             batch_size=batch_size,
-            vae_task_kwargs=vae_task_kwargs,
+            plan_kwargs=plan_kwargs,
             **kwargs,
         )
 

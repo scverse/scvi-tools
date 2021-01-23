@@ -203,7 +203,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         use_gpu: Optional[bool] = None,
-        vae_task_kwargs: Optional[dict] = None,
+        plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
         """
@@ -229,9 +229,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Minibatch size to use during training.
         use_gpu
             If `True`, use the GPU if available. Will override the use_gpu option when initializing model
-        vae_task_kwargs
+        plan_kwargs
             Keyword args for :class:`~scvi.lightning.SemiSupervisedTrainingPlan`. Keyword arguments passed to
-            `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
@@ -260,8 +260,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.validation_indices_ = val_dl.indices
         self.test_indices_ = test_dl.indices
 
-        vae_task_kwargs = {} if vae_task_kwargs is None else vae_task_kwargs
-        self._task = SemiSupervisedTrainingPlan(self.module, **vae_task_kwargs)
+        plan_kwargs = {} if plan_kwargs is None else plan_kwargs
+        self._task = SemiSupervisedTrainingPlan(self.module, **plan_kwargs)
 
         # if we have labeled cells, we want to subsample labels each epoch
         sampler_callback = (

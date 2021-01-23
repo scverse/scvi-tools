@@ -153,7 +153,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = None,
         adversarial_classifier: Optional[bool] = None,
-        vae_task_kwargs: Optional[dict] = None,
+        plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
         """
@@ -193,9 +193,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Whether to use adversarial classifier in the latent space. This helps mixing when
             there are missing proteins in any of the batches. Defaults to `True` is missing proteins
             are detected.
-        vae_task_kwargs
+        plan_kwargs
             Keyword args for :class:`~scvi.lightning.AdversarialTrainingPlan`. Keyword arguments passed to
-            `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
@@ -220,10 +220,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             "n_steps_kl_warmup": n_steps_kl_warmup,
             "check_val_every_n_epoch": check_val_every_n_epoch,
         }
-        if vae_task_kwargs is not None:
-            vae_task_kwargs.update(update_dict)
+        if plan_kwargs is not None:
+            plan_kwargs.update(update_dict)
         else:
-            vae_task_kwargs = update_dict
+            plan_kwargs = update_dict
         super().train(
             max_epochs=max_epochs,
             use_gpu=use_gpu,
@@ -231,7 +231,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             validation_size=validation_size,
             batch_size=batch_size,
             early_stopping=early_stopping,
-            vae_task_kwargs=vae_task_kwargs,
+            plan_kwargs=plan_kwargs,
             **kwargs,
         )
 
