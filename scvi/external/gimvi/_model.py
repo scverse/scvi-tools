@@ -132,8 +132,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
-        vae_task_kwargs: Optional[dict] = None,
-        task_class: Optional[None] = None,
+        plan_kwargs: Optional[dict] = None,
+        plan_class: Optional[None] = None,
         **kwargs,
     ):
         """
@@ -155,9 +155,9 @@ class GIMVI(VAEMixin, BaseModelClass):
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         batch_size
             Minibatch size to use during training.
-        vae_task_kwargs
+        plan_kwargs
             Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed to
-            `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
@@ -194,13 +194,13 @@ class GIMVI(VAEMixin, BaseModelClass):
             self.validation_indices_.append(val.indices)
         train_dl = TrainDL(train_dls)
 
-        task_kwargs = vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
-        self._pl_task = self._task_class(
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        self._pl_task = self._plan_class(
             self.module,
             len(self.train_indices_),
             adversarial_classifier=True,
             scale_adversarial_loss=kappa,
-            **task_kwargs,
+            **plan_kwargs,
         )
 
         if train_size == 1.0:
@@ -534,7 +534,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         return AnnDataLoader
 
     @property
-    def _task_class(self):
+    def _plan_class(self):
         return GIMVITrainingPlan
 
 

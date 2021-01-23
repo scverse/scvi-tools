@@ -326,7 +326,7 @@ def test_autozi():
             dispersion=disp_zi,
             zero_inflation=disp_zi,
         )
-        autozivae.train(1, vae_task_kwargs=dict(lr=1e-2), check_val_every_n_epoch=1)
+        autozivae.train(1, plan_kwargs=dict(lr=1e-2), check_val_every_n_epoch=1)
         assert len(autozivae.history["elbo_train"]) == 1
         assert len(autozivae.history["elbo_validation"]) == 1
         autozivae.get_elbo(indices=autozivae.validation_indices)

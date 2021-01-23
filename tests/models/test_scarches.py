@@ -28,7 +28,7 @@ def test_scvi_online_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path, inplace_subset_query_vars=True)
-    model2.train(max_epochs=1, vae_task_kwargs=dict(weight_decay=0.0))
+    model2.train(max_epochs=1, plan_kwargs=dict(weight_decay=0.0))
     model2.get_latent_representation()
 
     # encoder linear layer equal
@@ -78,7 +78,7 @@ def test_scvi_online_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path, freeze_expression=True)
-    model2.train(max_epochs=1, vae_task_kwargs=dict(weight_decay=0.0))
+    model2.train(max_epochs=1, plan_kwargs=dict(weight_decay=0.0))
     # deactivate no grad decorator
     model2.get_latent_representation()
     # pytorch lightning zeros the grad, so this will get a grad to inspect
@@ -159,7 +159,7 @@ def test_scanvi_online_update(save_path):
     model2 = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
     model2._unlabeled_indices = np.arange(adata2.n_obs)
     model2._labeled_indices = []
-    model2.train(max_epochs=1, vae_task_kwargs=dict(weight_decay=0.0))
+    model2.train(max_epochs=1, plan_kwargs=dict(weight_decay=0.0))
     model2.get_latent_representation()
     model2.predict()
 
