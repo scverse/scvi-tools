@@ -131,7 +131,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
         return AnnDataLoader
 
     @property
-    def _task_class(self):
+    def _plan_class(self):
         return TrainingPlan
 
     def train(
@@ -149,7 +149,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
         check_val_every_n_epoch: Optional[int] = None,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 50,
-        vae_task_kwargs: Optional[dict] = None,
+        plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
         """
@@ -189,9 +189,9 @@ class PEAKVI(VAEMixin, BaseModelClass):
         n_epochs_kl_warmup
             Number of epochs to scale weight on KL divergences from 0 to 1.
             Overrides `n_steps_kl_warmup` when both are not `None`.
-        vae_task_kwargs
+        plan_kwargs
             Keyword args for :class:`~scvi.lightning.VAETask`. Keyword arguments passed to
-            `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
@@ -203,10 +203,10 @@ class PEAKVI(VAEMixin, BaseModelClass):
             n_steps_kl_warmup=n_steps_kl_warmup,
             optimizer="AdamW",
         )
-        if vae_task_kwargs is not None:
-            vae_task_kwargs.update(update_dict)
+        if plan_kwargs is not None:
+            plan_kwargs.update(update_dict)
         else:
-            vae_task_kwargs = update_dict
+            plan_kwargs = update_dict
         if save_best:
             if "callbacks" not in kwargs.keys():
                 kwargs["callbacks"] = []
@@ -222,7 +222,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
             early_stopping=early_stopping,
             early_stopping_monitor="reconstruction_loss_validation",
             early_stopping_patience=50,
-            vae_task_kwargs=vae_task_kwargs,
+            plan_kwargs=plan_kwargs,
             check_val_every_n_epoch=check_val_every_n_epoch,
             **kwargs,
         )
