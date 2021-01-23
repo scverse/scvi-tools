@@ -1,10 +1,11 @@
+from itertools import cycle
 from typing import List, Optional
 
 import numpy as np
 from anndata import AnnData
 from torch.utils.data import DataLoader
-from ._scvi_dataloader import ScviDataLoader
-from itertools import cycle
+
+from ._ann_dataloader import AnnDataLoader
 
 
 class ConcatDataLoader(DataLoader):
@@ -41,7 +42,7 @@ class ConcatDataLoader(DataLoader):
         self.dataloaders = []
         for indices in indices_list:
             self.dataloaders.append(
-                ScviDataLoader(
+                AnnDataLoader(
                     adata,
                     indices=indices,
                     shuffle=shuffle,

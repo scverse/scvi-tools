@@ -6,9 +6,9 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.data import register_tensor_from_anndata
-from scvi.dataloaders import ScviDataLoader
+from scvi.dataloaders import AnnDataLoader
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
-from scvi.lightning import VAETask
+from scvi.lightning import TrainingPlan
 from scvi.model.base import BaseModelClass
 
 
@@ -45,7 +45,7 @@ class RNAStereoscope(BaseModelClass):
         self.n_genes = self.summary_stats["n_vars"]
         self.n_labels = self.summary_stats["n_labels"]
         # first we have the scRNA-seq model
-        self.model = RNADeconv(
+        self.module = RNADeconv(
             n_genes=self.n_genes,
             n_labels=self.n_labels,
             **model_kwargs,
@@ -112,11 +112,11 @@ class RNAStereoscope(BaseModelClass):
 
     @property
     def _task_class(self):
-        return VAETask
+        return TrainingPlan
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader
 
 
 class SpatialStereoscope(BaseModelClass):
@@ -164,7 +164,7 @@ class SpatialStereoscope(BaseModelClass):
         st_adata.obs["_indices"] = np.arange(st_adata.n_obs)
         register_tensor_from_anndata(st_adata, "ind_x", "obs", "_indices")
         super().__init__(st_adata, use_gpu=use_gpu)
-        self.model = SpatialDeconv(
+        self.module = SpatialDeconv(
             n_spots=st_adata.n_obs,
             sc_params=sc_params,
             prior_weight=prior_weight,
@@ -206,7 +206,7 @@ class SpatialStereoscope(BaseModelClass):
         """
         return cls(
             st_adata,
-            sc_model.model.get_params(),
+            sc_model.module.get_params(),
             sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
                 "mapping"
             ],
@@ -228,7 +228,7 @@ class SpatialStereoscope(BaseModelClass):
         if keep_noise:
             column_names = column_names.append("noise_term")
         return pd.DataFrame(
-            data=self.model.get_proportions(keep_noise),
+            data=self.module.get_proportions(keep_noise),
             columns=column_names,
             index=self.adata.obs.index,
         )
@@ -280,8 +280,8 @@ class SpatialStereoscope(BaseModelClass):
 
     @property
     def _task_class(self):
-        return VAETask
+        return TrainingPlan
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader

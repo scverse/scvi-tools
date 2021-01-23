@@ -1,17 +1,17 @@
 import torch
 
 from scvi import _CONSTANTS
-from scvi.lightning import AdversarialTask
+from scvi.lightning import AdversarialTrainingPlan
 from scvi.modules import Classifier
 
 
-class GIMVITask(AdversarialTask):
+class GIMVITrainingPlan(AdversarialTrainingPlan):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if kwargs["adversarial_classifier"] is True:
             self.n_output_classifier = 2
             self.adversarial_classifier = Classifier(
-                n_input=self.model.n_latent,
+                n_input=self.module.n_latent,
                 n_hidden=32,
                 n_labels=self.n_output_classifier,
                 n_layers=3,
@@ -77,9 +77,9 @@ class GIMVITask(AdversarialTask):
         if optimizer_idx == 1:
             zs = []
             for (i, tensors) in enumerate(batch):
-                inference_inputs = self.model._get_inference_input(tensors)
+                inference_inputs = self.module._get_inference_input(tensors)
                 inference_inputs.update({"mode": i})
-                outputs = self.model.inference(**inference_inputs)
+                outputs = self.module.inference(**inference_inputs)
                 zs.append(outputs["z"])
 
             batch_tensor = [

@@ -11,10 +11,10 @@ from torch.distributions import kl_divergence as kl
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.compose import (
-    AbstractVAE,
+    BaseModuleClass,
     DecoderTOTALVI,
     EncoderTOTALVI,
-    SCVILoss,
+    LossRecorder,
     auto_move_data,
     one_hot,
 )
@@ -28,7 +28,7 @@ torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class TOTALVAE(AbstractVAE):
+class TOTALVAE(BaseModuleClass):
     """
     Total variational inference for CITE-seq data.
 
@@ -610,7 +610,7 @@ class TOTALVAE(AbstractVAE):
             kl_div_back_pro=kl_div_back_pro,
         )
 
-        return SCVILoss(loss, reconst_losses, kl_local, kl_global=0.0)
+        return LossRecorder(loss, reconst_losses, kl_local, kl_global=0.0)
 
     @torch.no_grad()
     def sample(self, tensors, n_samples=1):
@@ -638,6 +638,7 @@ class TOTALVAE(AbstractVAE):
         return rna_sample, protein_sample
 
     @torch.no_grad()
+    @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
         x = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
@@ -647,7 +648,7 @@ class TOTALVAE(AbstractVAE):
         for i in range(n_mc_samples):
             # Distribution parameters and sampled variables
             inference_outputs, generative_outputs, losses = self.forward(tensors)
-            # outputs = self.model.inference(x, y, batch_index, labels)
+            # outputs = self.module.inference(x, y, batch_index, labels)
             qz_m = inference_outputs["qz_m"]
             qz_v = inference_outputs["qz_v"]
             ql_m = inference_outputs["ql_m"]

@@ -17,7 +17,7 @@ class SubSampleLabels(Callback):
 
 class SaveBestState(Callback):
     r"""
-    Save the best model state and restore into model.
+    Save the best module state and restore into model.
 
     Parameters
     ----------
@@ -49,7 +49,7 @@ class SaveBestState(Callback):
         self.verbose = verbose
         self.period = period
         self.epochs_since_last_check = 0
-        self.best_model_state = None
+        self.best_module_state = None
 
         if mode not in ["min", "max"]:
             raise ValueError(
@@ -58,24 +58,24 @@ class SaveBestState(Callback):
 
         if mode == "min":
             self.monitor_op = np.less
-            self.best_model_metric_val = np.Inf
+            self.best_module_metric_val = np.Inf
             self.mode = "min"
         elif mode == "max":
             self.monitor_op = np.greater
-            self.best_model_metric_val = -np.Inf
+            self.best_module_metric_val = -np.Inf
             self.mode = "max"
         else:
             if "acc" in self.monitor or self.monitor.startswith("fmeasure"):
                 self.monitor_op = np.greater
-                self.best_model_metric_val = -np.Inf
+                self.best_module_metric_val = -np.Inf
                 self.mode = "max"
             else:
                 self.monitor_op = np.less
-                self.best_model_metric_val = np.Inf
+                self.best_module_metric_val = np.Inf
                 self.mode = "min"
 
     def check_monitor_top(self, current):
-        return self.monitor_op(current, self.best_model_metric_val)
+        return self.monitor_op(current, self.best_module_metric_val)
 
     def on_epoch_end(self, trainer, pl_module):
         logs = trainer.callback_metrics
@@ -87,7 +87,7 @@ class SaveBestState(Callback):
 
             if current is None:
                 warnings.warn(
-                    f"Can save best model state only with {self.monitor} available,"
+                    f"Can save best module state only with {self.monitor} available,"
                     " skipping.",
                     RuntimeWarning,
                 )
@@ -95,15 +95,14 @@ class SaveBestState(Callback):
                 if isinstance(current, torch.Tensor):
                     current = current.item()
                 if self.check_monitor_top(current):
-                    self.best_model_state = pl_module.model.state_dict()
-                    self.best_model_metric_val = current
+                    self.best_module_state = pl_module.module.state_dict()
+                    self.best_module_metric_val = current
 
                     if self.verbose:
                         rank_zero_info(
                             f"\nEpoch {trainer.current_epoch:05d}: {self.monitor} reached."
-                            f" Model best state updated."
+                            f" Module best state updated."
                         )
 
     def on_train_end(self, trainer, pl_module):
-
-        pl_module.model.load_state_dict(self.best_model_state)
+        pl_module.module.load_state_dict(self.best_module_state)

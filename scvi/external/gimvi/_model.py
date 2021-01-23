@@ -11,13 +11,13 @@ from torch.utils.data import DataLoader
 
 from scvi import _CONSTANTS, settings
 from scvi.data import transfer_anndata_setup
-from scvi.dataloaders import ScviDataLoader
+from scvi.dataloaders import AnnDataLoader
 from scvi.lightning import Trainer
 from scvi.model._utils import _get_var_names_from_setup_anndata
 from scvi.model.base import BaseModelClass, VAEMixin
 
 from ._module import JVAE
-from ._task import GIMVITask
+from ._task import GIMVITrainingPlan
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         n_batches = sum([s["n_batch"] for s in sum_stats])
 
-        self.model = JVAE(
+        self.module = JVAE(
             n_inputs,
             total_genes,
             gene_mappings,
@@ -196,7 +196,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         task_kwargs = vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
         self._pl_task = self._task_class(
-            self.model,
+            self.module,
             len(self.train_indices_),
             adversarial_classifier=True,
             scale_adversarial_loss=kappa,
@@ -213,9 +213,9 @@ class GIMVI(VAEMixin, BaseModelClass):
             self.history_ = self.trainer.logger.history
         except AttributeError:
             self.history_ = None
-        self.model.eval()
+        self.module.eval()
         if use_gpu:
-            self.model.cuda()
+            self.module.cuda()
         self.is_trained_ = True
 
     def _make_scvi_dls(self, adatas: List[AnnData] = None, batch_size=128):
@@ -249,7 +249,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         if adatas is None:
             adatas = self.adatas
         scdls = self._make_scvi_dls(adatas, batch_size=batch_size)
-        self.model.eval()
+        self.module.eval()
         latents = []
         for mode, scdl in enumerate(scdls):
             latent = []
@@ -263,7 +263,7 @@ class GIMVI(VAEMixin, BaseModelClass):
                     *_,
                 ) = _unpack_tensors(tensors)
                 latent.append(
-                    self.model.sample_from_posterior_z(
+                    self.module.sample_from_posterior_z(
                         sample_batch, mode, deterministic=deterministic
                     )
                 )
@@ -299,7 +299,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         batch_size
             Minibatch size for data loading into model.
         """
-        self.model.eval()
+        self.module.eval()
 
         if adatas is None:
             adatas = self.adatas
@@ -319,7 +319,7 @@ class GIMVI(VAEMixin, BaseModelClass):
                 ) = _unpack_tensors(tensors)
                 if normalized:
                     imputed_value.append(
-                        self.model.sample_scale(
+                        self.module.sample_scale(
                             sample_batch,
                             mode,
                             batch_index,
@@ -330,7 +330,7 @@ class GIMVI(VAEMixin, BaseModelClass):
                     )
                 else:
                     imputed_value.append(
-                        self.model.sample_rate(
+                        self.module.sample_rate(
                             sample_batch,
                             mode,
                             batch_index,
@@ -402,7 +402,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         model_save_path = os.path.join(dir_path, "model_params.pt")
         attr_save_path = os.path.join(dir_path, "attr.pkl")
 
-        torch.save(self.model.state_dict(), model_save_path)
+        torch.save(self.module.state_dict(), model_save_path)
         with open(attr_save_path, "wb") as f:
             pickle.dump(user_attributes, f)
 
@@ -412,7 +412,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         dir_path: str,
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
-        use_gpu: bool = False,
+        use_gpu: Optional[bool] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -489,7 +489,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         init_params = attr_dict.pop("init_params_")
 
         # update use_gpu from the saved model
-        use_gpu = use_gpu and torch.cuda.is_available()
+        if use_gpu is None:
+            use_gpu = torch.cuda.is_available()
+
         init_params["use_gpu"] = use_gpu
 
         # new saving and loading, enable backwards compatibility
@@ -519,21 +521,21 @@ class GIMVI(VAEMixin, BaseModelClass):
             setattr(model, attr, val)
 
         if use_gpu:
-            model.model.load_state_dict(torch.load(model_path))
-            model.model.cuda()
+            model.module.load_state_dict(torch.load(model_path))
+            model.module.cuda()
         else:
             device = torch.device("cpu")
-            model.model.load_state_dict(torch.load(model_path, map_location=device))
-        model.model.eval()
+            model.module.load_state_dict(torch.load(model_path, map_location=device))
+        model.module.eval()
         return model
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader
 
     @property
     def _task_class(self):
-        return GIMVITask
+        return GIMVITrainingPlan
 
 
 class TrainDL(DataLoader):

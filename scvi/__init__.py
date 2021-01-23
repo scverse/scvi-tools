@@ -6,6 +6,8 @@ from logging import NullHandler
 
 from ._constants import _CONSTANTS
 from ._settings import settings
+
+# this import needs to come after prior imports to prevent circular import
 from . import data, model
 
 # https://github.com/python-poetry/poetry/pull/2366#issuecomment-652418094

@@ -14,8 +14,8 @@ from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.dataloaders import ScviDataLoader
-from scvi.lightning import AdversarialTask
+from scvi.dataloaders import AnnDataLoader
+from scvi.lightning import AdversarialTrainingPlan
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
@@ -111,7 +111,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if "extra_categoricals" in self.scvi_setup_dict_
             else None
         )
-        self.model = TOTALVAE(
+        self.module = TOTALVAE(
             n_input_genes=self.summary_stats["n_vars"],
             n_input_proteins=self.summary_stats["n_proteins"],
             n_batch=self.summary_stats["n_batch"],
@@ -194,7 +194,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             there are missing proteins in any of the batches. Defaults to `True` is missing proteins
             are detected.
         vae_task_kwargs
-            Keyword args for :class:`~scvi.lightning.AdversarialTask`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.lightning.AdversarialTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
@@ -267,8 +267,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         libraries = []
         for tensors in post:
-            inference_inputs = self.model._get_inference_input(tensors)
-            outputs = self.model.inference(**inference_inputs)
+            inference_inputs = self.module._get_inference_input(tensors)
+            outputs = self.module.inference(**inference_inputs)
             ql_m = outputs["ql_m"]
             ql_v = outputs["ql_v"]
             if give_mean is True:
@@ -396,7 +396,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     batch_indices = tensors[_CONSTANTS.BATCH_KEY]
                     tensors[_CONSTANTS.BATCH_KEY] = torch.ones_like(batch_indices) * b
                 inference_kwargs = dict(n_samples=n_samples)
-                inference_outputs, generative_outputs = self.model.forward(
+                inference_outputs, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
                     compute_loss=False,
@@ -548,7 +548,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     batch_indices = tensors[_CONSTANTS.BATCH_KEY]
                     tensors[_CONSTANTS.BATCH_KEY] = torch.ones_like(batch_indices) * b
                 inference_kwargs = dict(n_samples=n_samples)
-                inference_outputs, generative_outputs = self.model.forward(
+                inference_outputs, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
                     compute_loss=False,
@@ -731,7 +731,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         x_new : :class:`~numpy.ndarray`
             tensor with shape (n_cells, n_genes, n_samples)
         """
-        if self.model.gene_likelihood not in ["nb"]:
+        if self.module.gene_likelihood not in ["nb"]:
             raise ValueError("Invalid gene_likelihood")
 
         adata = self._validate_anndata(adata)
@@ -750,7 +750,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         scdl_list = []
         for tensors in scdl:
-            rna_sample, protein_sample = self.model.sample(tensors, n_samples=n_samples)
+            rna_sample, protein_sample = self.module.sample(
+                tensors, n_samples=n_samples
+            )
             rna_sample = rna_sample[..., gene_mask]
             protein_sample = protein_sample[..., protein_mask]
             data = torch.cat([rna_sample, protein_sample], dim=-1).numpy()
@@ -798,6 +800,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for tensors in scdl:
             x = tensors[_CONSTANTS.X_KEY]
             y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+
             if transform_batch is not None:
                 batch_indices = tensors[_CONSTANTS.BATCH_KEY]
                 tensors[_CONSTANTS.BATCH_KEY] = (
@@ -805,13 +808,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 )
             inference_kwargs = dict(n_samples=n_samples)
             with torch.no_grad():
-                inference_outputs, generative_outputs, = self.model.forward(
+                inference_outputs, generative_outputs, = self.module.forward(
                     tensors,
                     inference_kwargs=inference_kwargs,
                     compute_loss=False,
                 )
             px_ = generative_outputs["px_"]
             py_ = generative_outputs["py_"]
+            device = px_["r"].device
 
             pi = 1 / (1 + torch.exp(-py_["mixing"]))
             mixing_sample = torch.distributions.Bernoulli(pi).sample()
@@ -820,11 +824,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if len(px_["r"].size()) == 2:
                 px_dispersion = px_["r"]
             else:
-                px_dispersion = torch.ones_like(x) * px_["r"]
+                px_dispersion = torch.ones_like(x).to(device) * px_["r"]
             if len(py_["r"].size()) == 2:
                 py_dispersion = py_["r"]
             else:
-                py_dispersion = torch.ones_like(y) * py_["r"]
+                py_dispersion = torch.ones_like(y).to(device) * py_["r"]
 
             dispersion = torch.cat((px_dispersion, py_dispersion), dim=-1)
 
@@ -978,11 +982,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     @property
     def _task_class(self):
-        return AdversarialTask
+        return AdversarialTrainingPlan
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader
 
     @torch.no_grad()
     def get_protein_background_mean(self, adata, indices, batch_size):
@@ -990,7 +994,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         background_mean = []
         for tensors in scdl:
-            _, inference_outputs, _ = self.model.forward(tensors)
+            _, inference_outputs, _ = self.module.forward(tensors)
             b_mean = inference_outputs["py_"]["rate_back"]
             background_mean += [np.array(b_mean.cpu())]
         return np.concatenate(background_mean)

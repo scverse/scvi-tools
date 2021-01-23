@@ -16,6 +16,7 @@ from scipy.sparse import isspmatrix
 import scvi
 from scvi import _CONSTANTS
 from scvi._compat import Literal
+
 from ._utils import (
     _check_nonnegative_integers,
     _compute_library_size_batch,

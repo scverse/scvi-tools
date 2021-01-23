@@ -6,18 +6,17 @@ import pandas as pd
 import torch
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
-
+from sklearn.model_selection._split import _validate_shuffle_split
 
 from scvi import _CONSTANTS, settings
 from scvi._compat import Literal
 from scvi.data._anndata import _make_obs_column_categorical
-from scvi.dataloaders import SemiSupervisedDataLoader, ScviDataLoader
-from scvi.lightning import SemiSupervisedTask, Trainer
+from scvi.dataloaders import AnnDataLoader, SemiSupervisedDataLoader
+from scvi.lightning import SemiSupervisedTrainingPlan, Trainer
+from scvi.lightning._callbacks import SubSampleLabels
 from scvi.modules import SCANVAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
-from scvi.lightning._callbacks import SubSampleLabels
-from sklearn.model_selection._split import _validate_shuffle_split
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +91,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if len(self._labeled_indices) != 0:
             self._dl_cls = SemiSupervisedDataLoader
         else:
-            self._dl_cls = ScviDataLoader
+            self._dl_cls = AnnDataLoader
 
         # ignores unlabeled catgegory
         n_labels = (
@@ -105,7 +104,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if "extra_categoricals" in self.scvi_setup_dict_
             else None
         )
-        self.model = SCANVAE(
+        self.module = SCANVAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
             n_labels=n_labels,
@@ -184,11 +183,11 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     @property
     def _task_class(self):
-        return SemiSupervisedTask
+        return SemiSupervisedTrainingPlan
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader
 
     @property
     def history(self):
@@ -231,7 +230,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         use_gpu
             If `True`, use the GPU if available. Will override the use_gpu option when initializing model
         vae_task_kwargs
-            Keyword args for :class:`~scvi.lightning.SemiSupervisedTask`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.lightning.SemiSupervisedTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
@@ -262,7 +261,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.test_indices_ = test_dl.indices
 
         vae_task_kwargs = {} if vae_task_kwargs is None else vae_task_kwargs
-        self._task = SemiSupervisedTask(self.model, **vae_task_kwargs)
+        self._task = SemiSupervisedTrainingPlan(self.module, **vae_task_kwargs)
 
         # if we have labeled cells, we want to subsample labels each epoch
         sampler_callback = (
@@ -279,7 +278,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             self._trainer.fit(self._task, train_dl, val_dl)
         else:
             self._trainer.fit(self._task, train_dl)
-        self.model.eval()
+        self.module.eval()
         self.is_trained_ = True
 
     def predict(
@@ -317,7 +316,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for _, tensors in enumerate(scdl):
             x = tensors[_CONSTANTS.X_KEY]
             batch = tensors[_CONSTANTS.BATCH_KEY]
-            pred = self.model.classify(x, batch)
+            pred = self.module.classify(x, batch)
             if not soft:
                 pred = pred.argmax(dim=1)
             y_pred.append(pred.detach().cpu())
@@ -444,7 +443,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 "n_samples_per_label": n_samples_per_label,
             }
         else:
-            dataloader_class = ScviDataLoader
+            dataloader_class = AnnDataLoader
             dl_kwargs = {}
         dl_kwargs.update(kwargs)
 

@@ -1,4 +1,13 @@
 from ._trainer import Trainer
-from ._vaetask import AdversarialTask, SemiSupervisedTask, VAETask
+from ._trainingplans import (
+    AdversarialTrainingPlan,
+    SemiSupervisedTrainingPlan,
+    TrainingPlan,
+)
 
-__all__ = ["VAETask", "Trainer", "SemiSupervisedTask", "AdversarialTask"]
+__all__ = [
+    "TrainingPlan",
+    "Trainer",
+    "SemiSupervisedTrainingPlan",
+    "AdversarialTrainingPlan",
+]

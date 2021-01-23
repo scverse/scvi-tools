@@ -5,21 +5,20 @@ import pytorch_lightning as pl
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.compose import AbstractVAE, one_hot
+from scvi.compose import BaseModuleClass, one_hot
 from scvi.modules import Classifier
 
 
-class VAETask(pl.LightningModule):
+class TrainingPlan(pl.LightningModule):
     """
     Lightning module task to train scvi-tools modules.
 
     Parameters
     ----------
     vae_model
-        A model instance from class ``AbstractVAE``.
+        A model instance from class ``BaseModuleClass``.
     n_obs_training
         Number of observations in the training set.
     lr
@@ -50,7 +49,7 @@ class VAETask(pl.LightningModule):
 
     def __init__(
         self,
-        vae_model: AbstractVAE,
+        vae_model: BaseModuleClass,
         n_obs_training: int,
         lr=1e-3,
         weight_decay=1e-6,
@@ -65,8 +64,8 @@ class VAETask(pl.LightningModule):
         ] = "elbo_validation",
         **loss_kwargs,
     ):
-        super(VAETask, self).__init__()
-        self.model = vae_model
+        super(TrainingPlan, self).__init__()
+        self.module = vae_model
         self.n_obs_training = n_obs_training
         self.lr = lr
         self.weight_decay = weight_decay
@@ -80,7 +79,7 @@ class VAETask(pl.LightningModule):
         self.loss_kwargs = loss_kwargs
 
         # automatic handling of kl weight
-        loss_args = getfullargspec(self.model.loss)[0]
+        loss_args = getfullargspec(self.module.loss)[0]
         if "kl_weight" in loss_args:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
 
@@ -89,7 +88,7 @@ class VAETask(pl.LightningModule):
 
     def forward(self, *args, **kwargs):
         """Passthrough to `model.forward()`."""
-        return self.model(*args, **kwargs)
+        return self.module(*args, **kwargs)
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         # do not remove, skips over small minibatches
@@ -151,7 +150,7 @@ class VAETask(pl.LightningModule):
         self.log("kl_global_validation", kl_global)
 
     def configure_optimizers(self):
-        params = filter(lambda p: p.requires_grad, self.model.parameters())
+        params = filter(lambda p: p.requires_grad, self.module.parameters())
         optimizer = torch.optim.Adam(
             params, lr=self.lr, eps=0.01, weight_decay=self.weight_decay
         )
@@ -187,14 +186,14 @@ class VAETask(pl.LightningModule):
         return kl_weight
 
 
-class AdversarialTask(VAETask):
+class AdversarialTrainingPlan(TrainingPlan):
     """
     Train vaes with adversarial loss option to encourage latent space mixing.
 
     Parameters
     ----------
     vae_model
-        A model instance from class ``AbstractVAE``.
+        A model instance from class ``BaseModuleClass``.
     n_obs_training
         Number of observations in the training set.
     lr
@@ -231,7 +230,7 @@ class AdversarialTask(VAETask):
 
     def __init__(
         self,
-        vae_model: AbstractVAE,
+        vae_model: BaseModuleClass,
         n_obs_training,
         lr=1e-3,
         weight_decay=1e-6,
@@ -248,7 +247,7 @@ class AdversarialTask(VAETask):
         scale_adversarial_loss: Union[float, Literal["auto"]] = "auto",
         **loss_kwargs,
     ):
-        super(AdversarialTask, self).__init__(
+        super().__init__(
             vae_model=vae_model,
             n_obs_training=n_obs_training,
             lr=lr,
@@ -262,9 +261,9 @@ class AdversarialTask(VAETask):
             lr_scheduler_metric=lr_scheduler_metric,
         )
         if adversarial_classifier is True:
-            self.n_output_classifier = self.model.n_batch
+            self.n_output_classifier = self.module.n_batch
             self.adversarial_classifier = Classifier(
-                n_input=self.model.n_latent,
+                n_input=self.module.n_latent,
                 n_hidden=32,
                 n_labels=self.n_output_classifier,
                 n_layers=2,
@@ -327,8 +326,8 @@ class AdversarialTask(VAETask):
         # train adversarial classifier
         # this condition will not be met unless self.adversarial_classifier is not False
         if optimizer_idx == 1:
-            inference_inputs = self.model._get_inference_input(batch)
-            outputs = self.model.inference(**inference_inputs)
+            inference_inputs = self.module._get_inference_input(batch)
+            outputs = self.module.inference(**inference_inputs)
             z = outputs["z"]
             loss = self.loss_adversarial_classifier(z.detach(), batch_tensor, True)
             loss *= kappa
@@ -343,7 +342,7 @@ class AdversarialTask(VAETask):
             super().training_epoch_end(outputs)
 
     def configure_optimizers(self):
-        params1 = filter(lambda p: p.requires_grad, self.model.parameters())
+        params1 = filter(lambda p: p.requires_grad, self.module.parameters())
         optimizer1 = torch.optim.Adam(
             params1, lr=self.lr, eps=0.01, weight_decay=self.weight_decay
         )
@@ -385,14 +384,14 @@ class AdversarialTask(VAETask):
         return config1
 
 
-class SemiSupervisedTask(VAETask):
+class SemiSupervisedTrainingPlan(TrainingPlan):
     """
     Lightning module task for SemiSupervised Training.
 
     Parameters
     ----------
     vae_model
-        A model instance from class ``AbstractVAE``.
+        A model instance from class ``BaseModuleClass``.
     classification_ratio
         Weight of the classification_loss in loss function
     lr
@@ -423,7 +422,7 @@ class SemiSupervisedTask(VAETask):
 
     def __init__(
         self,
-        vae_model: AbstractVAE,
+        vae_model: BaseModuleClass,
         classification_ratio: int = 50,
         lr=1e-3,
         weight_decay=1e-6,
@@ -438,7 +437,7 @@ class SemiSupervisedTask(VAETask):
         ] = "elbo_validation",
         **loss_kwargs,
     ):
-        super(SemiSupervisedTask, self).__init__(
+        super(SemiSupervisedTrainingPlan, self).__init__(
             vae_model=vae_model,
             n_obs_training=1,  # no impact with choice
             lr=lr,

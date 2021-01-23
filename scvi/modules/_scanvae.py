@@ -8,7 +8,7 @@ from torch.nn import functional as F
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.compose import Decoder, Encoder, SCVILoss, auto_move_data
+from scvi.compose import Decoder, Encoder, LossRecorder, auto_move_data
 
 from ._classifier import Classifier
 from ._utils import broadcast_labels
@@ -277,7 +277,7 @@ class SCANVAE(VAE):
                 loss += (
                     self.classification_loss(labelled_tensors) * classification_ratio
                 )
-            return SCVILoss(loss, reconst_loss, kl_locals, kl_global=0.0)
+            return LossRecorder(loss, reconst_loss, kl_locals, kl_global=0.0)
 
         probs = self.classifier(z1)
         reconst_loss += loss_z1_weight + (
@@ -297,4 +297,4 @@ class SCANVAE(VAE):
 
         if labelled_tensors is not None:
             loss += self.classification_loss(labelled_tensors) * classification_ratio
-        return SCVILoss(loss, reconst_loss, kl_divergence, kl_global=0.0)
+        return LossRecorder(loss, reconst_loss, kl_divergence, kl_global=0.0)

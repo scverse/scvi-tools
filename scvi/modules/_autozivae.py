@@ -8,7 +8,7 @@ from torch.distributions import Beta, Gamma, Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import _CONSTANTS
-from scvi.compose import SCVILoss, one_hot
+from scvi.compose import LossRecorder, one_hot, auto_move_data
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 
 from ._vae import VAE
@@ -86,16 +86,18 @@ class AutoZIVAE(VAE):
         if self.zero_inflation == "gene":
             self.alpha_posterior_logit = torch.nn.Parameter(torch.randn(n_input))
             self.beta_posterior_logit = torch.nn.Parameter(torch.randn(n_input))
-            self.alpha_prior_logit = (
-                torch.nn.Parameter(torch.randn(1))
-                if alpha_prior is None
-                else torch.Tensor([logit(alpha_prior)])
-            )
-            self.beta_prior_logit = (
-                torch.nn.Parameter(torch.randn(1))
-                if beta_prior is None
-                else torch.Tensor([logit(beta_prior)])
-            )
+            if alpha_prior is None:
+                self.alpha_prior_logit = torch.nn.Parameter(torch.randn(1))
+            else:
+                self.register_buffer(
+                    "alpha_prior_logit", torch.tensor([logit(alpha_prior)])
+                )
+            if beta_prior is None:
+                self.beta_prior_logit = torch.nn.Parameter(torch.randn(1))
+            else:
+                self.register_buffer(
+                    "beta_prior_logit", torch.tensor([logit(alpha_prior)])
+                )
 
         elif self.zero_inflation == "gene-batch":
             self.alpha_posterior_logit = torch.nn.Parameter(
@@ -104,16 +106,20 @@ class AutoZIVAE(VAE):
             self.beta_posterior_logit = torch.nn.Parameter(
                 torch.randn(n_input, self.n_batch)
             )
-            self.alpha_prior_logit = (
-                torch.nn.Parameter(torch.randn(1, self.n_batch))
-                if alpha_prior is None
-                else torch.Tensor([logit(alpha_prior)])
-            )
-            self.beta_prior_logit = (
-                torch.nn.Parameter(torch.randn(1, self.n_batch))
-                if beta_prior is None
-                else torch.Tensor([logit(beta_prior)])
-            )
+            if alpha_prior is None:
+                self.alpha_prior_logit = torch.nn.parameter(
+                    torch.randn(1, self.n_batch)
+                )
+            else:
+                self.register_buffer(
+                    "alpha_prior_logit", torch.tensor([logit(alpha_prior)])
+                )
+            if beta_prior is None:
+                self.beta_prior_logit = torch.nn.parameter(torch.randn(1, self.n_batch))
+            else:
+                self.register_buffer(
+                    "beta_prior_logit", torch.tensor([logit(beta_prior)])
+                )
 
         elif self.zero_inflation == "gene-label":
             self.alpha_posterior_logit = torch.nn.Parameter(
@@ -122,43 +128,30 @@ class AutoZIVAE(VAE):
             self.beta_posterior_logit = torch.nn.Parameter(
                 torch.randn(n_input, self.n_labels)
             )
-            self.alpha_prior_logit = (
-                torch.nn.Parameter(torch.randn(1, self.n_labels))
-                if alpha_prior is None
-                else torch.Tensor([logit(alpha_prior)])
-            )
-            self.beta_prior_logit = (
-                torch.nn.Parameter(torch.randn(1, self.n_labels))
-                if beta_prior is None
-                else torch.Tensor([logit(beta_prior)])
-            )
+            if alpha_prior is None:
+                self.alpha_prior_logit = torch.nn.parameter(
+                    torch.randn(1, self.n_labels)
+                )
+            else:
+                self.register_buffer(
+                    "alpha_prior_logit", torch.tensor([logit(alpha_prior)])
+                )
+            if beta_prior is None:
+                self.beta_prior_logit = torch.nn.parameter(
+                    torch.randn(1, self.n_labels)
+                )
+            else:
+                self.register_buffer(
+                    "beta_prior_logit", torch.tensor([logit(beta_prior)])
+                )
 
         else:  # gene-cell
             raise Exception("Gene-cell not implemented yet for AutoZI")
 
-    def cuda(self, device: Optional[str] = None) -> torch.nn.Module:
-        r"""
-        Moves relevant parameters to the GPU.
-
-        Parameters
-        ----------
-        device
-            string denoting the GPU device on which parameters and prior distribution values are copied.
-
-        """
-        self = super().cuda(device)
-        if isinstance(self.alpha_prior_logit, torch.Tensor):
-            self.alpha_prior_logit = self.alpha_prior_logit.cuda(device)
-        if isinstance(self.beta_prior_logit, torch.Tensor):
-            self.beta_prior_logit = self.beta_prior_logit.cuda(device)
-        return self
-
     def get_alphas_betas(
         self, as_numpy: bool = True
     ) -> Dict[str, Union[torch.Tensor, np.ndarray]]:
-
         # Return parameters of Bernoulli Beta distributions in a dictionary
-
         outputs = {}
         outputs["alpha_posterior"] = torch.sigmoid(self.alpha_posterior_logit)
         outputs["beta_posterior"] = torch.sigmoid(self.beta_posterior_logit)
@@ -322,6 +315,7 @@ class AutoZIVAE(VAE):
         beta_posterior = outputs["beta_posterior"]
         alpha_prior = outputs["alpha_prior"]
         beta_prior = outputs["beta_prior"]
+
         return kl(
             Beta(alpha_posterior, beta_posterior), Beta(alpha_prior, beta_prior)
         ).sum()
@@ -358,6 +352,7 @@ class AutoZIVAE(VAE):
 
         return reconst_loss
 
+    @auto_move_data
     def loss(
         self,
         tensors,
@@ -408,4 +403,4 @@ class AutoZIVAE(VAE):
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )
-        return SCVILoss(loss, reconst_loss, kl_local, kl_global)
+        return LossRecorder(loss, reconst_loss, kl_local, kl_global)

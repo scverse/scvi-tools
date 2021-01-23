@@ -11,11 +11,11 @@ from torch.nn import ModuleList
 
 from scvi import _CONSTANTS
 from scvi.compose import (
-    AbstractVAE,
+    BaseModuleClass,
     Encoder,
+    LossRecorder,
     MultiDecoder,
     MultiEncoder,
-    SCVILoss,
     auto_move_data,
     one_hot,
 )
@@ -24,7 +24,7 @@ from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 torch.backends.cudnn.benchmark = True
 
 
-class JVAE(AbstractVAE):
+class JVAE(BaseModuleClass):
     """
     Joint variational auto-encoder for imputing missing genes in spatial data.
 
@@ -481,4 +481,4 @@ class JVAE(AbstractVAE):
 
         loss = torch.mean(reconstruction_loss + kl_weight * kl_local) * x.size(0)
 
-        return SCVILoss(loss, reconstruction_loss, kl_local, kl_global)
+        return LossRecorder(loss, reconstruction_loss, kl_local, kl_global)

@@ -79,7 +79,7 @@ class ArchesMixin:
             attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
             scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
             var_names = reference_model.adata.var_names
-            load_state_dict = reference_model.model.state_dict().copy()
+            load_state_dict = reference_model.module.state_dict().copy()
 
         if inplace_subset_query_vars:
             logger.debug("Subsetting query vars to reference vars.")
@@ -100,10 +100,10 @@ class ArchesMixin:
             setattr(model, attr, val)
 
         if use_gpu:
-            model.model.cuda()
+            model.module.cuda()
 
         # model tweaking
-        new_state_dict = model.model.state_dict()
+        new_state_dict = model.module.state_dict()
         for key, load_ten in load_state_dict.items():
             new_ten = new_state_dict[key]
             if new_ten.size() == load_ten.size():
@@ -114,11 +114,11 @@ class ArchesMixin:
                 fixed_ten = torch.cat([load_ten, new_ten[..., -dim_diff:]], dim=-1)
                 load_state_dict[key] = fixed_ten
 
-        model.model.load_state_dict(load_state_dict)
-        model.model.eval()
+        model.module.load_state_dict(load_state_dict)
+        model.module.eval()
 
         _set_params_online_update(
-            model.model,
+            model.module,
             unfrozen=unfrozen,
             freeze_decoder_first_layer=freeze_decoder_first_layer,
             freeze_batchnorm_encoder=freeze_batchnorm_encoder,
@@ -133,7 +133,7 @@ class ArchesMixin:
 
 
 def _set_params_online_update(
-    model,
+    module,
     unfrozen,
     freeze_decoder_first_layer,
     freeze_batchnorm_encoder,
@@ -183,7 +183,7 @@ def _set_params_online_update(
         else:
             return False
 
-    for key, mod in model.named_modules():
+    for key, mod in module.named_modules():
         # skip over protected modules
         if key.split(".")[0] in mod_no_hooks_yes_grad:
             continue
@@ -200,7 +200,7 @@ def _set_params_online_update(
         if isinstance(mod, torch.nn.BatchNorm1d) and freeze_batchnorm:
             mod.momentum = 0
 
-    for key, par in model.named_parameters():
+    for key, par in module.named_parameters():
         if requires_grad(key):
             par.requires_grad = True
         else:

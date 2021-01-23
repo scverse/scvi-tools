@@ -12,11 +12,11 @@ from torch.distributions import kl_divergence as kl
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.compose import (
-    AbstractVAE,
+    BaseModuleClass,
     DecoderSCVI,
     Encoder,
     LinearDecoderSCVI,
-    SCVILoss,
+    LossRecorder,
     auto_move_data,
     one_hot,
 )
@@ -26,7 +26,7 @@ torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class VAE(AbstractVAE):
+class VAE(BaseModuleClass):
     """
     Variational auto-encoder model.
 
@@ -337,7 +337,7 @@ class VAE(AbstractVAE):
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )
         kl_global = 0.0
-        return SCVILoss(loss, reconst_loss, kl_local, kl_global)
+        return LossRecorder(loss, reconst_loss, kl_local, kl_global)
 
     @torch.no_grad()
     def sample(
@@ -391,7 +391,7 @@ class VAE(AbstractVAE):
         else:
             raise ValueError(
                 "{} reconstruction error not handled right now".format(
-                    self.model.gene_likelihood
+                    self.module.gene_likelihood
                 )
             )
         if n_samples > 1:
@@ -421,6 +421,7 @@ class VAE(AbstractVAE):
         return reconst_loss
 
     @torch.no_grad()
+    @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
         sample_batch = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]

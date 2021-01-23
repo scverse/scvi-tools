@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from scvi.data._scvidataset import ScviDataset
+from scvi.data._anntorchdataset import AnnTorchDataset
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         return length
 
 
-class ScviDataLoader(DataLoader):
+class AnnDataLoader(DataLoader):
     """
     Scvi Data Loader for loading tensors from AnnData objects.
 
@@ -106,7 +106,7 @@ class ScviDataLoader(DataLoader):
                         )
                     )
 
-        self.dataset = ScviDataset(adata, getitem_tensors=data_and_attributes)
+        self.dataset = AnnTorchDataset(adata, getitem_tensors=data_and_attributes)
 
         sampler_kwargs = {
             "batch_size": batch_size,

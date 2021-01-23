@@ -4,7 +4,6 @@ from scvi.lightning._callbacks import SaveBestState
 
 
 def test_save_best_state_callback(save_path):
-
     n_latent = 5
     adata = synthetic_iid()
     model = SCVI(adata, n_latent=n_latent)

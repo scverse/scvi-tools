@@ -37,7 +37,7 @@ class VAEMixin:
         """
         adata = self._validate_anndata(adata)
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
-        elbo = compute_elbo(self.model, scdl)
+        elbo = compute_elbo(self.module, scdl)
         return -elbo
 
     @torch.no_grad()
@@ -70,10 +70,10 @@ class VAEMixin:
         if indices is None:
             indices = np.arange(adata.n_obs)
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
-        if hasattr(self.model, "marginal_ll"):
+        if hasattr(self.module, "marginal_ll"):
             log_lkl = 0
             for tensors in scdl:
-                log_lkl = self.model.marginal_ll(tensors, n_mc_samples=n_mc_samples)
+                log_lkl = self.module.marginal_ll(tensors, n_mc_samples=n_mc_samples)
         else:
             raise NotImplementedError(
                 "marginal_ll is not implemented for current model. "
@@ -107,7 +107,7 @@ class VAEMixin:
         """
         adata = self._validate_anndata(adata)
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
-        reconstruction_error = compute_reconstruction_error(self.model, scdl)
+        reconstruction_error = compute_reconstruction_error(self.module, scdl)
         return reconstruction_error
 
     @torch.no_grad()
@@ -151,15 +151,15 @@ class VAEMixin:
         scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
         for tensors in scdl:
-            inference_inputs = self.model._get_inference_input(tensors)
-            outputs = self.model.inference(**inference_inputs)
+            inference_inputs = self.module._get_inference_input(tensors)
+            outputs = self.module.inference(**inference_inputs)
             qz_m = outputs["qz_m"]
             qz_v = outputs["qz_v"]
             z = outputs["z"]
 
             if give_mean:
                 # does each model need to have this latent distribution param?
-                if self.model.latent_distribution == "ln":
+                if self.module.latent_distribution == "ln":
                     samples = Normal(qz_m, qz_v.sqrt()).sample([mc_samples])
                     z = torch.nn.functional.softmax(samples, dim=-1)
                     z = z.mean(dim=0)

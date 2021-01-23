@@ -6,10 +6,10 @@ from torch.distributions import NegativeBinomial, Normal
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.compose import AbstractVAE, SCVILoss, auto_move_data
+from scvi.compose import BaseModuleClass, LossRecorder, auto_move_data
 
 
-class RNADeconv(AbstractVAE):
+class RNADeconv(BaseModuleClass):
     """
     Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
 
@@ -106,7 +106,7 @@ class RNADeconv(AbstractVAE):
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
         loss = torch.mean(scaling_factor * reconst_loss)
 
-        return SCVILoss(loss, reconst_loss, torch.zeros((1,)), 0.0)
+        return LossRecorder(loss, reconst_loss, torch.zeros((1,)), 0.0)
 
     @torch.no_grad()
     def sample(
@@ -118,7 +118,7 @@ class RNADeconv(AbstractVAE):
         raise NotImplementedError("No sampling method for Stereoscope")
 
 
-class SpatialDeconv(AbstractVAE):
+class SpatialDeconv(BaseModuleClass):
     """
     Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
 
@@ -233,7 +233,9 @@ class SpatialDeconv(AbstractVAE):
         else:
             # the original way it is done in Stereoscope; we use this option to show reproducibility of their codebase
             loss = torch.sum(reconst_loss) + neg_log_likelihood_prior
-        return SCVILoss(loss, reconst_loss, torch.zeros((1,)), neg_log_likelihood_prior)
+        return LossRecorder(
+            loss, reconst_loss, torch.zeros((1,)), neg_log_likelihood_prior
+        )
 
     @torch.no_grad()
     def sample(

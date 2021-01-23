@@ -15,9 +15,7 @@ from sklearn.model_selection._split import _validate_shuffle_split
 from scvi import _CONSTANTS, settings
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
-from scvi.data._utils import (
-    _check_nonnegative_integers,
-)
+from scvi.data._utils import _check_nonnegative_integers
 from scvi.lightning import Trainer
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
@@ -56,7 +54,7 @@ class BaseModelClass(ABC):
         **data_loader_kwargs,
     ):
         """
-        Create a ScviDataLoader object for data iteration.
+        Create a AnnDataLoader object for data iteration.
 
         Parameters
         ----------
@@ -309,7 +307,7 @@ class BaseModelClass(ABC):
             task_class = self._task_class
 
         task_kwargs = vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
-        self._pl_task = task_class(self.model, len(self.train_indices_), **task_kwargs)
+        self._pl_task = task_class(self.module, len(self.train_indices_), **task_kwargs)
 
         if train_size == 1.0:
             # circumvent the empty data loader problem if all dataset used for training
@@ -320,9 +318,9 @@ class BaseModelClass(ABC):
             self.history_ = self.trainer.logger.history
         except AttributeError:
             self.history_ = None
-        self.model.eval()
+        self.module.eval()
         if use_gpu:
-            self.model.cuda()
+            self.module.cuda()
         self.is_trained_ = True
 
     def save(
@@ -378,7 +376,7 @@ class BaseModelClass(ABC):
         var_names = var_names.to_numpy()
         np.savetxt(varnames_save_path, var_names, fmt="%s")
 
-        torch.save(self.model.state_dict(), model_save_path)
+        torch.save(self.module.state_dict(), model_save_path)
         with open(attr_save_path, "wb") as f:
             pickle.dump(user_attributes, f)
 
@@ -387,7 +385,7 @@ class BaseModelClass(ABC):
         cls,
         dir_path: str,
         adata: Optional[AnnData] = None,
-        use_gpu: bool = False,
+        use_gpu: Optional[bool] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -414,9 +412,9 @@ class BaseModelClass(ABC):
         >>> vae.get_latent_representation()
         """
         load_adata = adata is None
-        use_gpu = use_gpu and torch.cuda.is_available()
+        if use_gpu is None:
+            use_gpu = torch.cuda.is_available()
         map_location = torch.device("cpu") if use_gpu is False else None
-
         (
             scvi_setup_dict,
             attr_dict,
@@ -434,11 +432,11 @@ class BaseModelClass(ABC):
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
-        model.model.load_state_dict(model_state_dict)
+        model.module.load_state_dict(model_state_dict)
         if use_gpu:
-            model.model.cuda()
+            model.module.cuda()
 
-        model.model.eval()
+        model.module.eval()
         model._validate_anndata(adata)
 
         return model
