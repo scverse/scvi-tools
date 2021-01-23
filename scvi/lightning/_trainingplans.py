@@ -28,7 +28,7 @@ class TrainingPlan(pl.LightningModule):
     eps
         eps used for optimization.
     optimizer
-        One of "Adam", "AdamW"
+        One of "Adam" (:class:`~torch.optim.Adam`), "AdamW" (:class:`~torch.optim.AdamW`).
     n_steps_kl_warmup
         Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
         Only activated when `n_epochs_kl_warmup` is set to None.
