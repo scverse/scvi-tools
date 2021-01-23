@@ -205,16 +205,25 @@ class AUTOZI(VAEMixin, BaseModelClass):
                 library = inf_outputs["library"]
 
                 # Reconstruction Loss
+                current_dev = px_rate.device
                 bernoulli_params_batch = self.module.reshape_bernoulli(
-                    bernoulli_params, batch_index, labels
+                    bernoulli_params,
+                    batch_index.to(current_dev),
+                    labels.to(current_dev),
                 )
                 reconst_loss = self.module.get_reconstruction_loss(
-                    sample_batch, px_rate, px_r, px_dropout, bernoulli_params_batch
+                    sample_batch.to(current_dev),
+                    px_rate,
+                    px_r,
+                    px_dropout,
+                    bernoulli_params_batch,
                 )
 
                 # Log-probabilities
                 p_l = (
-                    Normal(local_l_mean, local_l_var.sqrt())
+                    Normal(
+                        local_l_mean.to(current_dev), local_l_var.to(current_dev).sqrt()
+                    )
                     .log_prob(library)
                     .sum(dim=-1)
                 )
@@ -223,17 +232,17 @@ class AUTOZI(VAEMixin, BaseModelClass):
                     .log_prob(z)
                     .sum(dim=-1)
                 )
-                p_x_zld = -reconst_loss
+                p_x_zld = -reconst_loss.to(p_z.device)
                 q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
                 q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
 
                 batch_log_lkl = torch.sum(p_x_zld + p_l + p_z - q_z_x - q_l_x, dim=0)
-                to_sum[i] += batch_log_lkl
+                to_sum[i] += batch_log_lkl.cpu()
 
             p_d = Beta(alpha_prior, beta_prior).log_prob(bernoulli_params).sum()
             q_d = Beta(alpha_posterior, beta_posterior).log_prob(bernoulli_params).sum()
 
-            to_sum[i] += p_d - q_d
+            to_sum[i] += (p_d - q_d).cpu()
 
         log_lkl = logsumexp(to_sum, dim=-1).item() - np.log(n_mc_samples)
         n_samples = len(scdl.indices)

@@ -93,7 +93,7 @@ class AutoZIVAE(VAE):
                     "alpha_prior_logit", torch.tensor([logit(alpha_prior)])
                 )
             if beta_prior is None:
-                self.beta_prior_logit= torch.nn.Parameter(torch.randn(1))
+                self.beta_prior_logit = torch.nn.Parameter(torch.randn(1))
             else:
                 self.register_buffer(
                     "beta_prior_logit", torch.tensor([logit(alpha_prior)])
@@ -106,7 +106,7 @@ class AutoZIVAE(VAE):
             self.beta_posterior_logit = torch.nn.Parameter(
                 torch.randn(n_input, self.n_batch)
             )
-            if alpha_prior is none:
+            if alpha_prior is None:
                 self.alpha_prior_logit = torch.nn.parameter(
                     torch.randn(1, self.n_batch)
                 )
@@ -114,7 +114,7 @@ class AutoZIVAE(VAE):
                 self.register_buffer(
                     "alpha_prior_logit", torch.tensor([logit(alpha_prior)])
                 )
-            if beta_prior is none:
+            if beta_prior is None:
                 self.beta_prior_logit = torch.nn.parameter(torch.randn(1, self.n_batch))
             else:
                 self.register_buffer(
@@ -128,7 +128,7 @@ class AutoZIVAE(VAE):
             self.beta_posterior_logit = torch.nn.Parameter(
                 torch.randn(n_input, self.n_labels)
             )
-            if alpha_prior is none:
+            if alpha_prior is None:
                 self.alpha_prior_logit = torch.nn.parameter(
                     torch.randn(1, self.n_labels)
                 )
@@ -136,8 +136,10 @@ class AutoZIVAE(VAE):
                 self.register_buffer(
                     "alpha_prior_logit", torch.tensor([logit(alpha_prior)])
                 )
-            if beta_prior is none:
-                self.beta_prior_logit = torch.nn.parameter(torch.randn(1, self.n_labels))
+            if beta_prior is None:
+                self.beta_prior_logit = torch.nn.parameter(
+                    torch.randn(1, self.n_labels)
+                )
             else:
                 self.register_buffer(
                     "beta_prior_logit", torch.tensor([logit(beta_prior)])
