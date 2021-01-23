@@ -981,7 +981,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         return adata
 
     @property
-    def _task_class(self):
+    def _plan_class(self):
         return AdversarialTrainingPlan
 
     @property

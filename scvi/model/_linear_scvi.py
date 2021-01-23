@@ -104,7 +104,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
         self.init_params_ = self._get_init_params(locals())
 
     @property
-    def _task_class(self):
+    def _plan_class(self):
         return TrainingPlan
 
     @property

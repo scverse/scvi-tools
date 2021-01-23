@@ -133,7 +133,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
-        task_class: Optional[None] = None,
+        plan_class: Optional[None] = None,
         **kwargs,
     ):
         """
@@ -195,7 +195,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         train_dl = TrainDL(train_dls)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-        self._pl_task = self._task_class(
+        self._pl_task = self._plan_class(
             self.module,
             len(self.train_indices_),
             adversarial_classifier=True,
@@ -534,7 +534,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         return AnnDataLoader
 
     @property
-    def _task_class(self):
+    def _plan_class(self):
         return GIMVITrainingPlan
 
 

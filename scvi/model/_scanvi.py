@@ -182,7 +182,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         return remapped
 
     @property
-    def _task_class(self):
+    def _plan_class(self):
         return SemiSupervisedTrainingPlan
 
     @property

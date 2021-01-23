@@ -111,7 +111,7 @@ class RNAStereoscope(BaseModelClass):
         )
 
     @property
-    def _task_class(self):
+    def _plan_class(self):
         return TrainingPlan
 
     @property
@@ -279,7 +279,7 @@ class SpatialStereoscope(BaseModelClass):
         )
 
     @property
-    def _task_class(self):
+    def _plan_class(self):
         return TrainingPlan
 
     @property

@@ -181,7 +181,7 @@ class BaseModelClass(ABC):
 
     @property
     @abstractmethod
-    def _task_class(self):
+    def _plan_class(self):
         pass
 
     @property
@@ -248,7 +248,7 @@ class BaseModelClass(ABC):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
-        task_class: Optional[None] = None,
+        plan_class: Optional[None] = None,
         **kwargs,
     ):
         """
@@ -271,6 +271,8 @@ class BaseModelClass(ABC):
         plan_kwargs
             Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        plan_class
+            Optional override to use a specific TrainingPlan-type class.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
@@ -303,11 +305,11 @@ class BaseModelClass(ABC):
         self.test_indices_ = test_dl.indices
         self.validation_indices_ = val_dl.indices
 
-        if task_class is None:
-            task_class = self._task_class
+        if plan_class is None:
+            plan_class = self._plan_class
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-        self._pl_task = task_class(self.module, len(self.train_indices_), **plan_kwargs)
+        self._pl_task = plan_class(self.module, len(self.train_indices_), **plan_kwargs)
 
         if train_size == 1.0:
             # circumvent the empty data loader problem if all dataset used for training

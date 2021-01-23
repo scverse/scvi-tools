@@ -249,7 +249,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
         return log_lkl / n_samples
 
     @property
-    def _task_class(self):
+    def _plan_class(self):
         return TrainingPlan
 
     @property
