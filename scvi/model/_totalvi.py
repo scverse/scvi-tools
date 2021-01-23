@@ -25,6 +25,7 @@ from scvi.model.base._utils import _de_core
 from scvi.modules import TOTALVAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
+from scvi.compose import auto_move_data
 
 logger = logging.getLogger(__name__)
 Number = TypeVar("Number", int, float)
@@ -800,6 +801,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for tensors in scdl:
             x = tensors[_CONSTANTS.X_KEY]
             y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+
             if transform_batch is not None:
                 batch_indices = tensors[_CONSTANTS.BATCH_KEY]
                 tensors[_CONSTANTS.BATCH_KEY] = (
@@ -814,6 +816,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 )
             px_ = generative_outputs["px_"]
             py_ = generative_outputs["py_"]
+            device = px_["r"].device
 
             pi = 1 / (1 + torch.exp(-py_["mixing"]))
             mixing_sample = torch.distributions.Bernoulli(pi).sample()
@@ -822,11 +825,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if len(px_["r"].size()) == 2:
                 px_dispersion = px_["r"]
             else:
-                px_dispersion = torch.ones_like(x) * px_["r"]
+                px_dispersion = torch.ones_like(x).to(device) * px_["r"]
             if len(py_["r"].size()) == 2:
                 py_dispersion = py_["r"]
             else:
-                py_dispersion = torch.ones_like(y) * py_["r"]
+                py_dispersion = torch.ones_like(y).to(device) * py_["r"]
 
             dispersion = torch.cat((px_dispersion, py_dispersion), dim=-1)
 

@@ -320,7 +320,6 @@ def test_linear_scvi(save_path):
 
 def test_autozi():
     data = synthetic_iid(n_batches=1)
-
     for disp_zi in ["gene", "gene-label"]:
         autozivae = AUTOZI(
             data,
@@ -443,7 +442,7 @@ def test_totalvi(save_path):
     # test with missing proteins
     adata = scvi.data.pbmcs_10x_cite_seq(save_path=save_path, protein_join="outer")
     model = TOTALVI(adata)
-    assert model.model.protein_batch_mask is not None
+    assert model.module.protein_batch_mask is not None
     model.train(1, train_size=0.5)
 
 

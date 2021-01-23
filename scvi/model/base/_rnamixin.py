@@ -326,12 +326,13 @@ class RNASeqMixin:
             )
             px_scale = generative_outputs["px_scale"]
             px_r = generative_outputs["px_r"]
+            device = px_r.device
 
             rate = rna_size_factor * px_scale
             if len(px_r.size()) == 2:
                 px_dispersion = px_r
             else:
-                px_dispersion = torch.ones_like(x) * px_r
+                px_dispersion = torch.ones_like(x).to(device) * px_r
 
             # This gamma is really l*w using scVI manuscript notation
             p = rate / (rate + px_dispersion)

@@ -412,7 +412,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         dir_path: str,
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
-        use_gpu: bool = False,
+        use_gpu: Optional[bool] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -489,7 +489,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         init_params = attr_dict.pop("init_params_")
 
         # update use_gpu from the saved model
-        use_gpu = use_gpu and torch.cuda.is_available()
+        if use_gpu is None:
+            use_gpu = torch.cuda.is_available()
+
         init_params["use_gpu"] = use_gpu
 
         # new saving and loading, enable backwards compatibility
@@ -519,12 +521,12 @@ class GIMVI(VAEMixin, BaseModelClass):
             setattr(model, attr, val)
 
         if use_gpu:
-            model.model.load_state_dict(torch.load(model_path))
-            model.model.cuda()
+            model.module.load_state_dict(torch.load(model_path))
+            model.module.cuda()
         else:
             device = torch.device("cpu")
-            model.model.load_state_dict(torch.load(model_path, map_location=device))
-        model.model.eval()
+            model.module.load_state_dict(torch.load(model_path, map_location=device))
+        model.module.eval()
         return model
 
     @property

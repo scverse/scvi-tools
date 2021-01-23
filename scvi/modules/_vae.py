@@ -421,6 +421,7 @@ class VAE(BaseModuleClass):
         return reconst_loss
 
     @torch.no_grad()
+    @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
         sample_batch = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]

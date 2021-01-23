@@ -24,6 +24,9 @@ def test_saving_and_loading(save_path):
     model = GIMVI.load(save_path, adata, adata)
     z2 = model.get_latent_representation([adata])
     np.testing.assert_array_equal(z1, z2)
+    model = GIMVI.load(save_path, adata, adata, use_gpu=False)
+    z2 = model.get_latent_representation([adata])
+    np.testing.assert_almost_equal(z1, z2, decimal=3)
     assert model.is_trained is True
 
 

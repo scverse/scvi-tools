@@ -206,7 +206,7 @@ class SpatialStereoscope(BaseModelClass):
         """
         return cls(
             st_adata,
-            sc_model.model.get_params(),
+            sc_model.module.get_params(),
             sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
                 "mapping"
             ],

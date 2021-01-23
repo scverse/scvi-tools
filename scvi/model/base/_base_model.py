@@ -385,7 +385,7 @@ class BaseModelClass(ABC):
         cls,
         dir_path: str,
         adata: Optional[AnnData] = None,
-        use_gpu: bool = False,
+        use_gpu: Optional[bool ]= None,
     ):
         """
         Instantiate a model from the saved output.
@@ -412,9 +412,9 @@ class BaseModelClass(ABC):
         >>> vae.get_latent_representation()
         """
         load_adata = adata is None
-        use_gpu = use_gpu and torch.cuda.is_available()
+        if use_gpu is None:
+            use_gpu = torch.cuda.is_available()
         map_location = torch.device("cpu") if use_gpu is False else None
-
         (
             scvi_setup_dict,
             attr_dict,
@@ -432,11 +432,11 @@ class BaseModelClass(ABC):
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
-        model.model.load_state_dict(model_state_dict)
+        model.module.load_state_dict(model_state_dict)
         if use_gpu:
-            model.model.cuda()
+            model.module.cuda()
 
-        model.model.eval()
+        model.module.eval()
         model._validate_anndata(adata)
 
         return model
