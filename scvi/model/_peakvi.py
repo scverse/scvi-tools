@@ -17,7 +17,7 @@ from scvi.lightning._callbacks import SaveBestState
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
-    scrna_raw_counts_properties,
+    scatac_raw_counts_properties,
 )
 from scvi.modules import PEAKVAE
 
@@ -348,7 +348,6 @@ class PEAKVI(VAEMixin, BaseModelClass):
         mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.1,
         batch_size: Optional[int] = None,
-        all_stats: bool = True,
         batch_correction: bool = False,
         batchid1: Optional[Iterable[str]] = None,
         batchid2: Optional[Iterable[str]] = None,
@@ -371,7 +370,28 @@ class PEAKVI(VAEMixin, BaseModelClass):
 
         Returns
         -------
-        Differential accessibility DataFrame.
+        Differential accessibility DataFrame with the following columns:
+        prob_da
+            the probability of the region being differentially accessible
+        is_da_fdr
+            whether the region passes a multiple hypothesis correction procedure with the target_fdr
+            threshold
+        bayes_factor
+            Bayes Factor indicating the level of significance of the analysis
+        effect_size
+            the effect size, computed as (accessibility in population 2) - (accessibility in population 1)
+        emp_effect
+            the empirical effect, based on observed detection rates instead of the estimated accessibility
+            scores from the PeakVI model
+        est_prob1
+            the estimated probability of accessibility in population 1
+        est_prob2
+            the estimated probability of accessibility in population 2
+        emp_prob1
+            the empirical (observed) probability of accessibility in population 1
+        emp_prob2
+            the empirical (observed) probability of accessibility in population 2
+
         """
         adata = self._validate_anndata(adata)
         col_names = _get_var_names_from_setup_anndata(adata)
@@ -394,25 +414,43 @@ class PEAKVI(VAEMixin, BaseModelClass):
                 return samples >= delta
 
         result = _de_core(
-            adata,
-            model_fn,
-            groupby,
-            group1,
-            group2,
-            idx1,
-            idx2,
-            all_stats,
-            scrna_raw_counts_properties,
-            col_names,
-            mode,
-            batchid1,
-            batchid2,
-            delta,
-            batch_correction,
-            fdr_target,
+            adata=adata,
+            model_fn=model_fn,
+            groupby=groupby,
+            group1=group1,
+            group2=group2,
+            idx1=idx1,
+            idx2=idx2,
+            all_stats=True,
+            all_stats_fn=scatac_raw_counts_properties,
+            col_names=col_names,
+            mode=mode,
+            batchid1=batchid1,
+            batchid2=batchid2,
+            delta=delta,
+            batch_correction=batch_correction,
+            fdr=fdr_target,
             change_fn=change_fn,
             m1_domain_fn=m1_domain_fn,
             **kwargs,
         )
 
+        # manually change the results DataFrame to fit a PeakVI differential accessibility results
+        result = pd.DataFrame(
+            {
+                "prob_da": result.proba_de,
+                "is_da_fdr_{}".format(fdr_target): result.loc[
+                    :, "is_de_fdr_{}".format(fdr_target)
+                ],
+                "bayes_factor": result.bayes_factor,
+                "effect_size": result.scale2 - result.scale1,
+                "emp_effect": result.emp_mean2 - result.emp_mean1,
+                "est_prob1": result.scale1,
+                "est_prob2": result.scale2,
+                "emp_prob1": result.emp_mean1,
+                "emp_prob2": result.emp_mean2,
+            },
+        )
+        result.index = result.index.astype(int)
+        result.sort_index(inplace=True)
         return result
