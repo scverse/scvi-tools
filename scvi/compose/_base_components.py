@@ -236,11 +236,13 @@ class Encoder(nn.Module):
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
         distribution: str = "normal",
+        var_eps: float = 1e-4,
         **kwargs,
     ):
         super().__init__()
 
         self.distribution = distribution
+        self.var_eps = var_eps
         self.encoder = FCLayers(
             n_in=n_input,
             n_out=n_hidden,
@@ -282,7 +284,7 @@ class Encoder(nn.Module):
         # Parameters for latent distribution
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
-        q_v = torch.exp(self.var_encoder(q)) + 1e-4
+        q_v = torch.exp(self.var_encoder(q)) + self.var_eps
         latent = self.z_transformation(reparameterize_gaussian(q_m, q_v))
         return q_m, q_v, latent
 
