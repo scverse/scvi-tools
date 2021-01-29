@@ -159,7 +159,7 @@ class CellAssignModule(BaseModuleClass):
         # compute Q
         # gamma_fixed = torch.empty((None, self.n_labels))
         # pdb.set_trace()
-        Q_per_cell = -torch.einsum("nc,cn->", gamma, p_y_unorm) / s.shape[0] * n_obs
+        q_per_cell = -torch.einsum("nc,cn->", gamma, p_y_unorm) / s.shape[0] * n_obs
         # Q = p_y_norm
         # take mean of number of cells and multiply by n_obs (instead of summing n)
 
@@ -176,10 +176,10 @@ class CellAssignModule(BaseModuleClass):
         if self.shrinkage:
             prior_log_prob += delta_log_prob
 
-        loss = torch.mean(Q_per_cell) * n_obs + prior_log_prob
+        loss = torch.mean(q_per_cell) * n_obs + prior_log_prob
 
         return LossRecorder(
-            loss, Q_per_cell, torch.zeros_like(Q_per_cell), prior_log_prob
+            loss, q_per_cell, torch.zeros_like(q_per_cell), prior_log_prob
         )
 
     @torch.no_grad()
