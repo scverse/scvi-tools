@@ -4,6 +4,14 @@ Model
 
 .. currentmodule:: scvi
 
+peakVI
+~~~~~~
+
+.. autosummary::
+   :toctree: reference/
+
+   model.PEAKVI
+
 scVI
 ~~~~
 
@@ -46,14 +54,6 @@ AutoZI
 
    model.AUTOZI
 
-
-gimVI
-~~~~~~
-
-.. autosummary::
-   :toctree: reference/
-
-   model.GIMVI
 
 Base
 ~~~~

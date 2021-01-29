@@ -12,7 +12,7 @@ from scvi.data._anndata import get_from_registry
 logger = logging.getLogger(__name__)
 
 
-class ScviDataset(Dataset):
+class AnnTorchDataset(Dataset):
     """Extension of torch dataset to get tensors from anndata."""
 
     def __init__(
@@ -61,7 +61,7 @@ class ScviDataset(Dataset):
 
         Examples
         --------
-        >>> sd = ScviDataset(adata)
+        >>> sd = AnnTorchDataset(adata)
 
         # following will only return the X and batch_indices both by defualt as np.float32
         >>> sd.setup_getitem(getitem_tensors  = ['X,'batch_indices'])

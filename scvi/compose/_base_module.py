@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Dict, Tuple, Optional, Union
+from typing import Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -7,7 +7,7 @@ import torch.nn as nn
 from ._decorators import auto_move_data
 
 
-class SCVILoss:
+class LossRecorder:
     """
     Loss signature for models.
 
@@ -34,7 +34,7 @@ class SCVILoss:
         loss: torch.Tensor,
         reconstruction_loss: torch.Tensor,
         kl_local: torch.Tensor,
-        kl_global: torch.Tensor,
+        kl_global: torch.Tensor = torch.Tensor([0]),
     ):
         self._loss = loss if isinstance(loss, dict) else dict(loss=loss)
         self._reconstruction_loss = (
@@ -51,10 +51,10 @@ class SCVILoss:
 
     @staticmethod
     def _get_dict_sum(dictionary):
-        sum = 0.0
+        total = 0.0
         for value in dictionary.values():
-            sum += value
-        return sum
+            total += value
+        return total
 
     @property
     def loss(self) -> torch.Tensor:
@@ -77,7 +77,7 @@ class SCVILoss:
         return
 
 
-class AbstractVAE(nn.Module):
+class BaseModuleClass(nn.Module):
     def __init__(
         self,
     ):
@@ -94,7 +94,8 @@ class AbstractVAE(nn.Module):
         loss_kwargs: Optional[dict] = None,
         compute_loss=True,
     ) -> Union[
-        Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor, SCVILoss]
+        Tuple[torch.Tensor, torch.Tensor],
+        Tuple[torch.Tensor, torch.Tensor, LossRecorder],
     ]:
         """
         Forward pass through the network.
@@ -142,7 +143,6 @@ class AbstractVAE(nn.Module):
     @abstractmethod
     def _get_inference_input(self, tensors: Dict[str, torch.Tensor], **kwargs):
         """Parse tensors dictionary for inference related values."""
-        pass
 
     @abstractmethod
     def _get_generative_input(
@@ -152,7 +152,6 @@ class AbstractVAE(nn.Module):
         **kwargs,
     ):
         """Parse tensors dictionary for inference related values."""
-        pass
 
     @abstractmethod
     def inference(
@@ -167,7 +166,6 @@ class AbstractVAE(nn.Module):
         computing variational distribution parameters. In a VAE, this will involve running
         data through encoder networks.
         """
-        pass
 
     @abstractmethod
     def generative(self, *args, **kwargs) -> dict:
@@ -177,22 +175,19 @@ class AbstractVAE(nn.Module):
         This function should return the parameters associated with the likelihood of the data.
         This is typically written as :math:`p(x|z)`.
         """
-        pass
 
     @abstractmethod
-    def loss(self, *args, **kwargs) -> SCVILoss:
+    def loss(self, *args, **kwargs) -> LossRecorder:
         """
         Compute the loss for a minibatch of data.
 
         This function uses the outputs of the inference and generative functions to compute
         a loss. This many optionally include other penalty terms, which should be computed here.
         """
-        pass
 
     @abstractmethod
     def sample(self, *args, **kwargs):
         """Generate samples from the learned model."""
-        pass
 
 
 def _get_dict_if_none(param):

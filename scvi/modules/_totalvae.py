@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Main module."""
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Iterable, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -11,10 +11,10 @@ from torch.distributions import kl_divergence as kl
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.compose import (
-    AbstractVAE,
+    BaseModuleClass,
     DecoderTOTALVI,
     EncoderTOTALVI,
-    SCVILoss,
+    LossRecorder,
     auto_move_data,
     one_hot,
 )
@@ -28,7 +28,7 @@ torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class TOTALVAE(AbstractVAE):
+class TOTALVAE(BaseModuleClass):
     """
     Total variational inference for CITE-seq data.
 
@@ -50,6 +50,10 @@ class TOTALVAE(AbstractVAE):
         Dimensionality of the latent space
     n_layers
         Number of hidden layers used for encoder and decoder NNs
+    n_continuous_cov
+        Number of continuous covarites
+    n_cats_per_cov
+        Number of categories for each extra categorical covariate
     dropout_rate
         Dropout rate for neural networks
     gene_dispersion
@@ -98,6 +102,8 @@ class TOTALVAE(AbstractVAE):
         n_latent: int = 20,
         n_layers_encoder: int = 2,
         n_layers_decoder: int = 1,
+        n_continuous_cov: int = 0,
+        n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate_decoder: float = 0.2,
         dropout_rate_encoder: float = 0.2,
         gene_dispersion: str = "gene",
@@ -126,6 +132,7 @@ class TOTALVAE(AbstractVAE):
         self.latent_distribution = latent_distribution
         self.protein_batch_mask = protein_batch_mask
         self.use_observed_lib_size = use_observed_lib_size
+        self.encode_covariates = encode_covariates
 
         # parameters for prior on rate_back (background protein mean)
         if protein_background_prior_mean is None:
@@ -186,11 +193,15 @@ class TOTALVAE(AbstractVAE):
 
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         # latent space representation
+        n_input = n_input_genes + self.n_input_proteins
+        n_input_encoder = n_input + n_continuous_cov * encode_covariates
+        cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
+        encoder_cat_list = cat_list if encode_covariates else None
         self.encoder = EncoderTOTALVI(
-            n_input_genes + self.n_input_proteins,
+            n_input_encoder,
             n_latent,
             n_layers=n_layers_encoder,
-            n_cat_list=[n_batch] if encode_covariates else None,
+            n_cat_list=encoder_cat_list,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate_encoder,
             distribution=latent_distribution,
@@ -198,11 +209,11 @@ class TOTALVAE(AbstractVAE):
             use_layer_norm=use_layer_norm_encoder,
         )
         self.decoder = DecoderTOTALVI(
-            n_latent,
+            n_latent + n_continuous_cov,
             n_input_genes,
             self.n_input_proteins,
             n_layers=n_layers_decoder,
-            n_cat_list=[n_batch],
+            n_cat_list=cat_list,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate_decoder,
             use_batch_norm=use_batch_norm_decoder,
@@ -296,7 +307,15 @@ class TOTALVAE(AbstractVAE):
         y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
-        input_dict = dict(x=x, y=y, batch_index=batch_index)
+        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
+
+        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
+
+        input_dict = dict(
+            x=x, y=y, batch_index=batch_index, cat_covs=cat_covs, cont_covs=cont_covs
+        )
         return input_dict
 
     def _get_generative_input(self, tensors, inference_outputs):
@@ -305,13 +324,33 @@ class TOTALVAE(AbstractVAE):
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
         label = tensors[_CONSTANTS.LABELS_KEY]
 
+        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
+
+        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
+
         return dict(
-            z=z, library_gene=library_gene, batch_index=batch_index, label=label
+            z=z,
+            library_gene=library_gene,
+            batch_index=batch_index,
+            label=label,
+            cat_covs=cat_covs,
+            cont_covs=cont_covs,
         )
 
     @auto_move_data
-    def generative(self, z, library_gene, batch_index, label):
-        px_, py_, log_pro_back_mean = self.decoder(z, library_gene, batch_index, label)
+    def generative(
+        self, z, library_gene, batch_index, label, cont_covs=None, cat_covs=None
+    ):
+        decoder_input = z if cont_covs is None else torch.cat([z, cont_covs], dim=-1)
+        if cat_covs is not None:
+            categorical_input = torch.split(cat_covs, 1, dim=1)
+        else:
+            categorical_input = tuple()
+        px_, py_, log_pro_back_mean = self.decoder(
+            decoder_input, library_gene, batch_index, *categorical_input
+        )
 
         if self.gene_dispersion == "gene-label":
             # px_r gets transposed - last dimension is nb genes
@@ -348,6 +387,8 @@ class TOTALVAE(AbstractVAE):
         label: Optional[torch.Tensor] = None,
         n_samples=1,
         transform_batch: Optional[int] = None,
+        cont_covs=None,
+        cat_covs=None,
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
         """
         Internal helper function to compute necessary inference quantities.
@@ -364,6 +405,25 @@ class TOTALVAE(AbstractVAE):
         factor that enforces `rate_fore` > `rate_back`.
 
         ``px_["r"]`` and ``py_["r"]`` are the inverse dispersion parameters for genes and protein, respectively.
+
+        Parameters
+        ----------
+        x
+            tensor of values with shape ``(batch_size, n_input_genes)``
+        y
+            tensor of values with shape ``(batch_size, n_input_proteins)``
+        batch_index
+            array that indicates which batch the cells belong to with shape ``batch_size``
+        label
+            tensor of cell-types labels with shape (batch_size, n_labels)
+        n_samples
+            Number of samples to sample from approximate posterior
+        transform_batch
+            If not None, will override batch_index
+        cont_covs
+            Continuous covariates to condition on
+        cat_covs
+            Categorical covariates to condition on
         """
         x_ = x
         y_ = y
@@ -373,9 +433,16 @@ class TOTALVAE(AbstractVAE):
             x_ = torch.log(1 + x_)
             y_ = torch.log(1 + y_)
 
-        # Sampling - Encoder gets concatenated genes + proteins
+        if cont_covs is not None and self.encode_covariates is True:
+            encoder_input = torch.cat((x_, y_, cont_covs), dim=-1)
+        else:
+            encoder_input = torch.cat((x_, y_), dim=-1)
+        if cat_covs is not None and self.encode_covariates is True:
+            categorical_input = torch.split(cat_covs, 1, dim=1)
+        else:
+            categorical_input = tuple()
         qz_m, qz_v, ql_m, ql_v, latent, untran_latent = self.encoder(
-            torch.cat((x_, y_), dim=-1), batch_index
+            encoder_input, batch_index, *categorical_input
         )
         z = latent["z"]
         untran_z = untran_latent["z"]
@@ -543,7 +610,7 @@ class TOTALVAE(AbstractVAE):
             kl_div_back_pro=kl_div_back_pro,
         )
 
-        return SCVILoss(loss, reconst_losses, kl_local, kl_global=0.0)
+        return LossRecorder(loss, reconst_losses, kl_local, kl_global=0.0)
 
     @torch.no_grad()
     def sample(self, tensors, n_samples=1):
@@ -571,6 +638,7 @@ class TOTALVAE(AbstractVAE):
         return rna_sample, protein_sample
 
     @torch.no_grad()
+    @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
         x = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
@@ -580,7 +648,7 @@ class TOTALVAE(AbstractVAE):
         for i in range(n_mc_samples):
             # Distribution parameters and sampled variables
             inference_outputs, generative_outputs, losses = self.forward(tensors)
-            # outputs = self.model.inference(x, y, batch_index, labels)
+            # outputs = self.module.inference(x, y, batch_index, labels)
             qz_m = inference_outputs["qz_m"]
             qz_v = inference_outputs["qz_v"]
             ql_m = inference_outputs["ql_m"]

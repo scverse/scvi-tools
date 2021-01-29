@@ -8,9 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class ProgressBar(ProgressBarBase):
-    """
-    Custom progress bar for scvi-tools models.
-    """
+    """Custom progress bar for scvi-tools models."""
 
     def __init__(self):
         super().__init__()
@@ -37,7 +35,7 @@ class ProgressBar(ProgressBarBase):
         self._enabled = True
 
     def init_train_tqdm(self, trainer):
-        """ Override this to customize the tqdm bar for training. """
+        """Override this to customize the tqdm bar for training."""
         bar = track(
             None,
             total=trainer.max_epochs,
@@ -73,7 +71,7 @@ class ProgressBar(ProgressBarBase):
 
 
 def convert_inf(x):
-    """ The tqdm doesn't support inf values. We have to convert it to None. """
+    """The tqdm doesn't support inf values. We have to convert it to None."""
     if x == float("inf"):
         return None
     return x

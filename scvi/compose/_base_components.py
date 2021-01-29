@@ -1,5 +1,4 @@
 import collections
-from functools import partial
 from typing import Iterable, List
 
 import torch
@@ -160,13 +159,13 @@ class FCLayers(nn.Module):
         """
         one_hot_cat_list = []  # for generality in this list many indices useless.
 
-        assert len(self.n_cat_list) <= len(
-            cat_list
-        ), "nb. categorical args provided doesn't match init. params."
+        if len(self.n_cat_list) > len(cat_list):
+            raise ValueError(
+                "nb. categorical args provided doesn't match init. params."
+            )
         for n_cat, cat in zip(self.n_cat_list, cat_list):
-            assert not (
-                n_cat and cat is None
-            ), "cat not provided while n_cat != 0 in init. params."
+            if n_cat and cat is None:
+                raise ValueError("cat not provided while n_cat != 0 in init. params.")
             if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
                 if cat.size(1) != n_cat:
                     one_hot_cat = one_hot(cat, n_cat)
@@ -237,11 +236,13 @@ class Encoder(nn.Module):
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
         distribution: str = "normal",
+        var_eps: float = 1e-4,
         **kwargs,
     ):
         super().__init__()
 
         self.distribution = distribution
+        self.var_eps = var_eps
         self.encoder = FCLayers(
             n_in=n_input,
             n_out=n_hidden,
@@ -283,7 +284,7 @@ class Encoder(nn.Module):
         # Parameters for latent distribution
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
-        q_v = torch.exp(self.var_encoder(q)) + 1e-4
+        q_v = torch.exp(self.var_encoder(q)) + self.var_eps
         latent = self.z_transformation(reparameterize_gaussian(q_m, q_v))
         return q_m, q_v, latent
 
@@ -317,8 +318,6 @@ class DecoderSCVI(nn.Module):
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
-    use_softmax
-        Whether to softmax expression
     """
 
     def __init__(
@@ -331,10 +330,8 @@ class DecoderSCVI(nn.Module):
         inject_covariates: bool = True,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
-        use_softmax: bool = True,
     ):
         super().__init__()
-        self.use_softmax = use_softmax
         self.px_decoder = FCLayers(
             n_in=n_input,
             n_out=n_hidden,
@@ -348,7 +345,10 @@ class DecoderSCVI(nn.Module):
         )
 
         # mean gamma
-        self.px_scale_decoder = nn.Linear(n_hidden, n_output)
+        self.px_scale_decoder = nn.Sequential(
+            nn.Linear(n_hidden, n_output),
+            nn.Softmax(dim=-1),
+        )
 
         # dispersion: here we only deal with gene-cell dispersion case
         self.px_r_decoder = nn.Linear(n_hidden, n_output)
@@ -391,10 +391,6 @@ class DecoderSCVI(nn.Module):
         # The decoder returns values for the parameters of the ZINB distribution
         px = self.px_decoder(z, *cat_list)
         px_scale = self.px_scale_decoder(px)
-        if self.use_softmax:
-            px_scale = nn.Softmax(dim=-1)(px_scale)
-        else:
-            px_scale = torch.exp(px_scale)
         px_dropout = self.px_dropout_decoder(px)
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
         px_rate = torch.exp(library) * px_scale  # torch.clamp( , max=12)
@@ -411,10 +407,8 @@ class LinearDecoderSCVI(nn.Module):
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         bias: bool = False,
-        use_softmax: bool = True,
     ):
         super(LinearDecoderSCVI, self).__init__()
-        self.use_softmax = use_softmax
 
         # mean gamma
         self.factor_regressor = FCLayers(
@@ -447,8 +441,7 @@ class LinearDecoderSCVI(nn.Module):
     ):
         # The decoder returns values for the parameters of the ZINB distribution
         raw_px_scale = self.factor_regressor(z, *cat_list)
-        act = partial(torch.softmax, dim=-1) if self.use_softmax else torch.exp
-        px_scale = act(raw_px_scale)
+        px_scale = torch.softmax(raw_px_scale, dim=-1)
         px_dropout = self.px_dropout_decoder(z, *cat_list)
         px_rate = torch.exp(library) * px_scale
         px_r = None
@@ -682,8 +675,6 @@ class DecoderTOTALVI(nn.Module):
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
-    use_softmax
-        Whether to use softmax for px_scale
     """
 
     def __init__(
@@ -697,12 +688,10 @@ class DecoderTOTALVI(nn.Module):
         dropout_rate: float = 0,
         use_batch_norm: float = True,
         use_layer_norm: float = False,
-        use_softmax: bool = True,
     ):
         super().__init__()
         self.n_output_genes = n_output_genes
         self.n_output_proteins = n_output_proteins
-        self.use_softmax = use_softmax
 
         linear_args = dict(
             n_layers=1,
@@ -845,10 +834,7 @@ class DecoderTOTALVI(nn.Module):
         px = self.px_decoder(z, *cat_list)
         px_cat_z = torch.cat([px, z], dim=-1)
         unnorm_px_scale = self.px_scale_decoder(px_cat_z, *cat_list)
-        if self.use_softmax:
-            px_["scale"] = nn.Softmax(dim=-1)(unnorm_px_scale)
-        else:
-            px_["scale"] = torch.exp(unnorm_px_scale)
+        px_["scale"] = nn.Softmax(dim=-1)(unnorm_px_scale)
         px_["rate"] = library_gene * px_["scale"]
 
         py_back = self.py_back_decoder(z, *cat_list)

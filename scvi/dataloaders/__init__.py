@@ -1,5 +1,5 @@
+from ._ann_dataloader import AnnDataLoader
 from ._concat_dataloader import ConcatDataLoader
-from ._scvi_dataloader import ScviDataLoader
+from ._semi_dataloader import SemiSupervisedDataLoader
 
-
-__all__ = ["ScviDataLoader", "ConcatDataLoader"]
+__all__ = ["AnnDataLoader", "ConcatDataLoader", "SemiSupervisedDataLoader"]

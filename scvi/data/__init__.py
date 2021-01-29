@@ -27,6 +27,7 @@ from ._datasets import (
     synthetic_iid,
 )
 from ._preprocessing import organize_cite_seq_10x, poisson_gene_selection
+from ._read import read_10x_atac
 
 __all__ = [
     "setup_anndata",
@@ -57,4 +58,5 @@ __all__ = [
     "read_csv",
     "read_loom",
     "read_text",
+    "read_10x_atac",
 ]

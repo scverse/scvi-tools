@@ -118,6 +118,37 @@ def cite_seq_raw_counts_properties(
     return properties
 
 
+def scatac_raw_counts_properties(
+    adata: anndata.AnnData,
+    idx1: Union[List[int], np.ndarray],
+    idx2: Union[List[int], np.ndarray],
+) -> Dict[str, np.ndarray]:
+    """
+    Computes and returns some statistics on the raw counts of two sub-populations.
+
+    Parameters
+    ----------
+    adata
+        AnnData object setup with `scvi`.
+    idx1
+        subset of indices describing the first population.
+    idx2
+        subset of indices describing the second population.
+
+    Returns
+    -------
+    type
+        Dict of ``np.ndarray`` containing, by pair (one for each sub-population).
+    """
+    data = get_from_registry(adata, _CONSTANTS.X_KEY)
+    data1 = data[idx1]
+    data2 = data[idx2]
+    mean1 = np.asarray((data1 > 0).mean(axis=0)).ravel()
+    mean2 = np.asarray((data2 > 0).mean(axis=0)).ravel()
+    properties = dict(emp_mean1=mean1, emp_mean2=mean2, emp_effect=(mean1 - mean2))
+    return properties
+
+
 def _get_var_names_from_setup_anndata(adata):
     """Gets var names by checking if using raw."""
     var_names = adata.var_names

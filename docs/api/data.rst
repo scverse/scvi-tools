@@ -19,6 +19,7 @@ Data loading
    data.read_csv
    data.read_loom
    data.read_text
+   data.read_10x_atac
 
 Basic preprocessing
 ~~~~~~~~~~~~~~~~~~~

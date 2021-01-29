@@ -1,13 +1,14 @@
-from typing import Sequence
+from typing import Iterable, Optional, Sequence
 
 import numpy as np
 import torch
 from torch.distributions import Categorical, Normal
 from torch.distributions import kl_divergence as kl
+from torch.nn import functional as F
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.compose import Decoder, Encoder, SCVILoss
+from scvi.compose import Decoder, Encoder, LossRecorder, auto_move_data
 
 from ._classifier import Classifier
 from ._utils import broadcast_labels
@@ -35,6 +36,10 @@ class SCANVAE(VAE):
         Dimensionality of the latent space
     n_layers
         Number of hidden layers used for encoder and decoder NNs
+    n_continuous_cov
+        Number of continuous covarites
+    n_cats_per_cov
+        Number of categories for each extra categorical covariate
     dropout_rate
         Dropout rate for neural networks
     dispersion
@@ -73,6 +78,8 @@ class SCANVAE(VAE):
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
+        n_continuous_cov: int = 0,
+        n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: float = 0.1,
         dispersion: str = "gene",
         log_variational: bool = True,
@@ -90,6 +97,8 @@ class SCANVAE(VAE):
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
+            n_continuous_cov=n_continuous_cov,
+            n_cats_per_cov=n_cats_per_cov,
             dropout_rate=dropout_rate,
             n_batch=n_batch,
             dispersion=dispersion,
@@ -152,10 +161,12 @@ class SCANVAE(VAE):
             np.array(labels_groups) if labels_groups is not None else None
         )
         if self.use_labels_groups:
-            assert labels_groups is not None, "Specify label groups"
+            if labels_groups is None:
+                raise ValueError("Specify label groups")
             unique_groups = np.unique(self.labels_groups)
             self.n_groups = len(unique_groups)
-            assert (unique_groups == np.arange(self.n_groups)).all()
+            if not (unique_groups == np.arange(self.n_groups)).all():
+                raise ValueError()
             self.classifier_groups = Classifier(
                 n_latent, n_hidden, self.n_groups, n_layers, dropout_rate
             )
@@ -172,6 +183,7 @@ class SCANVAE(VAE):
                 ]
             )
 
+    @auto_move_data
     def classify(self, x, batch_index=None):
         if self.log_variational:
             x = torch.log(1 + x)
@@ -192,6 +204,17 @@ class SCANVAE(VAE):
             w_y = self.classifier(z)
         return w_y
 
+    @auto_move_data
+    def classification_loss(self, labelled_dataset):
+        x = labelled_dataset[_CONSTANTS.X_KEY]
+        y = labelled_dataset[_CONSTANTS.LABELS_KEY]
+        batch_idx = labelled_dataset[_CONSTANTS.BATCH_KEY]
+        classification_loss = F.cross_entropy(
+            self.classify(x, batch_idx),
+            y.view(-1).long(),
+        )
+        return classification_loss
+
     def loss(
         self,
         tensors,
@@ -199,6 +222,8 @@ class SCANVAE(VAE):
         generative_ouputs,
         feed_labels=False,
         kl_weight=1,
+        labelled_tensors=None,
+        classification_ratio=None,
     ):
         px_r = generative_ouputs["px_r"]
         px_rate = generative_ouputs["px_rate"]
@@ -248,8 +273,11 @@ class SCANVAE(VAE):
                 "kl_divergence_z2": kl_divergence_z2,
                 "kl_divergence_l": kl_divergence_l,
             }
-            # need to fix loss output here
-            return SCVILoss(loss, reconst_loss, kl_locals, kl_global=0.0)
+            if labelled_tensors is not None:
+                loss += (
+                    self.classification_loss(labelled_tensors) * classification_ratio
+                )
+            return LossRecorder(loss, reconst_loss, kl_locals, kl_global=0.0)
 
         probs = self.classifier(z1)
         reconst_loss += loss_z1_weight + (
@@ -265,7 +293,8 @@ class SCANVAE(VAE):
         )
         kl_divergence += kl_divergence_l
 
-        loss = torch.mean(reconst_loss + kl_divergence)
+        loss = torch.mean(reconst_loss + kl_divergence * kl_weight)
 
-        # reconstruction_loss probably isnt correct
-        return SCVILoss(loss, reconst_loss, kl_divergence, kl_global=0.0)
+        if labelled_tensors is not None:
+            loss += self.classification_loss(labelled_tensors) * classification_ratio
+        return LossRecorder(loss, reconst_loss, kl_divergence, kl_global=0.0)

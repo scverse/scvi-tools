@@ -3,8 +3,8 @@ import logging
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.dataloaders import ScviDataLoader
-from scvi.lightning import VAETask
+from scvi.dataloaders import AnnDataLoader
+from scvi.lightning import TrainingPlan
 from scvi.modules import VAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
@@ -79,9 +79,9 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         n_cats_per_cov = (
             self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
             if "extra_categoricals" in self.scvi_setup_dict_
-            else []
+            else None
         )
-        self.model = VAE(
+        self.module = VAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
             n_continuous_cov=self.summary_stats["n_continuous_covs"],
@@ -110,9 +110,9 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.init_params_ = self._get_init_params(locals())
 
     @property
-    def _task_class(self):
-        return VAETask
+    def _plan_class(self):
+        return TrainingPlan
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader

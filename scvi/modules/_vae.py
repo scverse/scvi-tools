@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Main module."""
-from typing import Iterable
+from typing import Iterable, Optional
 
 import numpy as np
 import torch
@@ -12,11 +12,11 @@ from torch.distributions import kl_divergence as kl
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.compose import (
-    AbstractVAE,
+    BaseModuleClass,
     DecoderSCVI,
     Encoder,
     LinearDecoderSCVI,
-    SCVILoss,
+    LossRecorder,
     auto_move_data,
     one_hot,
 )
@@ -26,7 +26,7 @@ torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class VAE(AbstractVAE):
+class VAE(BaseModuleClass):
     """
     Variational auto-encoder model.
 
@@ -92,7 +92,7 @@ class VAE(AbstractVAE):
         n_latent: int = 10,
         n_layers: int = 1,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Iterable[int] = [],
+        n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: float = 0.1,
         dispersion: str = "gene",
         log_variational: bool = True,
@@ -139,7 +139,7 @@ class VAE(AbstractVAE):
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         # latent space representation
         n_input_encoder = n_input + n_continuous_cov * encode_covariates
-        cat_list = [n_batch] + list(n_cats_per_cov)
+        cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
         encoder_cat_list = cat_list if encode_covariates else None
         self.z_encoder = Encoder(
             n_input_encoder,
@@ -266,9 +266,7 @@ class VAE(AbstractVAE):
         self, z, library, batch_index, cont_covs=None, cat_covs=None, y=None
     ):
         """Runs the generative model."""
-        # make random y since its not used
         # TODO: refactor forward function to not rely on y
-        # y = torch.zeros(z.shape[0], 1)
         decoder_input = z if cont_covs is None else torch.cat([z, cont_covs], dim=-1)
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
@@ -339,7 +337,7 @@ class VAE(AbstractVAE):
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )
         kl_global = 0.0
-        return SCVILoss(loss, reconst_loss, kl_local, kl_global)
+        return LossRecorder(loss, reconst_loss, kl_local, kl_global)
 
     @torch.no_grad()
     def sample(
@@ -356,9 +354,11 @@ class VAE(AbstractVAE):
         Parameters
         ----------
         tensors
-            tensors dict
+            Tensors dict
         n_samples
             Number of required samples for each cell
+        library_size
+            Library size to scale scamples to
 
         Returns
         -------
@@ -391,7 +391,7 @@ class VAE(AbstractVAE):
         else:
             raise ValueError(
                 "{} reconstruction error not handled right now".format(
-                    self.model.gene_likelihood
+                    self.module.gene_likelihood
                 )
             )
         if n_samples > 1:
@@ -421,6 +421,7 @@ class VAE(AbstractVAE):
         return reconst_loss
 
     @torch.no_grad()
+    @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
         sample_batch = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]

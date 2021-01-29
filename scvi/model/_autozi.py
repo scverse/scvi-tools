@@ -9,8 +9,8 @@ from torch.distributions import Beta, Normal
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.dataloaders import ScviDataLoader
-from scvi.lightning import VAETask
+from scvi.dataloaders import AnnDataLoader
+from scvi.lightning import TrainingPlan
 from scvi.modules import AutoZIVAE
 
 from .base import BaseModelClass, VAEMixin
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class AUTOZI(VAEMixin, BaseModelClass):
     """
-    Automatic identification of ZI genes [Clivio19]_
+    Automatic identification of ZI genes [Clivio19]_.
 
     Parameters
     ----------
@@ -100,7 +100,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
     ):
         super(AUTOZI, self).__init__(adata, use_gpu=use_gpu)
 
-        self.model = AutoZIVAE(
+        self.module = AutoZIVAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
             n_labels=self.summary_stats["n_labels"],
@@ -138,7 +138,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
         self, as_numpy: bool = True
     ) -> Dict[str, Union[torch.Tensor, np.ndarray]]:
         """Return parameters of Bernoulli Beta distributions in a dictionary."""
-        return self.model.get_alphas_betas(as_numpy=as_numpy)
+        return self.module.get_alphas_betas(as_numpy=as_numpy)
 
     @torch.no_grad()
     def get_marginal_ll(
@@ -174,17 +174,17 @@ class AUTOZI(VAEMixin, BaseModelClass):
 
         log_lkl = 0
         to_sum = torch.zeros((n_mc_samples,))
-        alphas_betas = self.model.get_alphas_betas(as_numpy=False)
+        alphas_betas = self.module.get_alphas_betas(as_numpy=False)
         alpha_prior = alphas_betas["alpha_prior"]
         alpha_posterior = alphas_betas["alpha_posterior"]
         beta_prior = alphas_betas["beta_prior"]
         beta_posterior = alphas_betas["beta_posterior"]
 
         for i in range(n_mc_samples):
-            bernoulli_params = self.model.sample_from_beta_distribution(
+            bernoulli_params = self.module.sample_from_beta_distribution(
                 alpha_posterior, beta_posterior
             )
-            for i_batch, tensors in enumerate(scdl):
+            for tensors in scdl:
                 sample_batch = tensors[_CONSTANTS.X_KEY]
                 local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
                 local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
@@ -192,7 +192,7 @@ class AUTOZI(VAEMixin, BaseModelClass):
                 labels = tensors[_CONSTANTS.LABELS_KEY]
 
                 # Distribution parameters and sampled variables
-                inf_outputs, gen_outputs, losses = self.model.forward(tensors)
+                inf_outputs, gen_outputs, losses = self.module.forward(tensors)
 
                 px_r = gen_outputs["px_r"]
                 px_rate = gen_outputs["px_rate"]
@@ -205,16 +205,25 @@ class AUTOZI(VAEMixin, BaseModelClass):
                 library = inf_outputs["library"]
 
                 # Reconstruction Loss
-                bernoulli_params_batch = self.model.reshape_bernoulli(
-                    bernoulli_params, batch_index, labels
+                current_dev = px_rate.device
+                bernoulli_params_batch = self.module.reshape_bernoulli(
+                    bernoulli_params,
+                    batch_index.to(current_dev),
+                    labels.to(current_dev),
                 )
-                reconst_loss = self.model.get_reconstruction_loss(
-                    sample_batch, px_rate, px_r, px_dropout, bernoulli_params_batch
+                reconst_loss = self.module.get_reconstruction_loss(
+                    sample_batch.to(current_dev),
+                    px_rate,
+                    px_r,
+                    px_dropout,
+                    bernoulli_params_batch,
                 )
 
                 # Log-probabilities
                 p_l = (
-                    Normal(local_l_mean, local_l_var.sqrt())
+                    Normal(
+                        local_l_mean.to(current_dev), local_l_var.to(current_dev).sqrt()
+                    )
                     .log_prob(library)
                     .sum(dim=-1)
                 )
@@ -223,26 +232,26 @@ class AUTOZI(VAEMixin, BaseModelClass):
                     .log_prob(z)
                     .sum(dim=-1)
                 )
-                p_x_zld = -reconst_loss
+                p_x_zld = -reconst_loss.to(p_z.device)
                 q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
                 q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
 
                 batch_log_lkl = torch.sum(p_x_zld + p_l + p_z - q_z_x - q_l_x, dim=0)
-                to_sum[i] += batch_log_lkl
+                to_sum[i] += batch_log_lkl.cpu()
 
             p_d = Beta(alpha_prior, beta_prior).log_prob(bernoulli_params).sum()
             q_d = Beta(alpha_posterior, beta_posterior).log_prob(bernoulli_params).sum()
 
-            to_sum[i] += p_d - q_d
+            to_sum[i] += (p_d - q_d).cpu()
 
         log_lkl = logsumexp(to_sum, dim=-1).item() - np.log(n_mc_samples)
         n_samples = len(scdl.indices)
         return log_lkl / n_samples
 
     @property
-    def _task_class(self):
-        return VAETask
+    def _plan_class(self):
+        return TrainingPlan
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader

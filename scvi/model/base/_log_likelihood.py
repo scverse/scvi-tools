@@ -1,4 +1,4 @@
-"""File for computing log likelihood of the data"""
+"""File for computing log likelihood of the data."""
 import torch
 
 
@@ -15,7 +15,7 @@ def compute_elbo(vae, data_loader, feed_labels=True, **kwargs):
     """
     # Iterate once over the data and compute the elbo
     elbo = 0
-    for i_batch, tensors in enumerate(data_loader):
+    for tensors in data_loader:
         _, _, scvi_loss = vae(tensors, **kwargs)
 
         recon_loss = scvi_loss.reconstruction_loss
@@ -38,7 +38,7 @@ def compute_reconstruction_error(vae, data_loader, **kwargs):
     """
     # Iterate once over the data and computes the reconstruction error
     log_lkl = {}
-    for i_batch, tensors in enumerate(data_loader):
+    for tensors in data_loader:
         loss_kwargs = dict(kl_weight=1)
         _, _, losses = vae(tensors, loss_kwargs=loss_kwargs)
         for key, value in losses._reconstruction_loss.items():

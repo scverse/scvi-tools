@@ -9,7 +9,7 @@ from ._base_components import (
     MultiDecoder,
     MultiEncoder,
 )
-from ._base_module import AbstractVAE, SCVILoss
+from ._base_module import BaseModuleClass, LossRecorder
 from ._decorators import auto_move_data
 from ._utils import one_hot  # Do we want one_hot here?
 
@@ -23,8 +23,8 @@ __all__ = [
     "LinearDecoderSCVI",
     "MultiEncoder",
     "MultiDecoder",
-    "SCVILoss",
-    "AbstractVAE",
+    "LossRecorder",
+    "BaseModuleClass",
     "one_hot",
     "auto_move_data",
 ]

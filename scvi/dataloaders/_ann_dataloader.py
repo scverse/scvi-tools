@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from scvi.data._scvidataset import ScviDataset
+from scvi.data._anntorchdataset import AnnTorchDataset
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         return length
 
 
-class ScviDataLoader(DataLoader):
+class AnnDataLoader(DataLoader):
     """
     Scvi Data Loader for loading tensors from AnnData objects.
 
@@ -73,6 +73,8 @@ class ScviDataLoader(DataLoader):
         Whether the data should be shuffled
     indices
         The indices of the observations in the adata to load
+    batch_size
+        minibatch size to load each iteration
     data_and_attributes
         Dictionary with keys representing keys in data registry (`adata.uns["_scvi"]`)
         and value equal to desired numpy loading type (later made into torch tensor).
@@ -104,7 +106,7 @@ class ScviDataLoader(DataLoader):
                         )
                     )
 
-        self.dataset = ScviDataset(adata, getitem_tensors=data_and_attributes)
+        self.dataset = AnnTorchDataset(adata, getitem_tensors=data_and_attributes)
 
         sampler_kwargs = {
             "batch_size": batch_size,

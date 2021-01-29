@@ -15,9 +15,7 @@ from sklearn.model_selection._split import _validate_shuffle_split
 from scvi import _CONSTANTS, settings
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
-from scvi.data._utils import (
-    _check_nonnegative_integers,
-)
+from scvi.data._utils import _check_nonnegative_integers
 from scvi.lightning import Trainer
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
@@ -38,7 +36,8 @@ class BaseModelClass(ABC):
             self._validate_anndata(adata, copy_if_view=False)
 
         self.is_trained_ = False
-        self.use_gpu = use_gpu and torch.cuda.is_available()
+        cuda_avail = torch.cuda.is_available()
+        self.use_gpu = cuda_avail if use_gpu is None else (use_gpu and cuda_avail)
         self._model_summary_string = ""
         self.train_indices_ = None
         self.test_indices_ = None
@@ -50,11 +49,12 @@ class BaseModelClass(ABC):
         adata: AnnData,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
-        shuffle=False,
+        shuffle: bool = False,
+        scvi_dl_class=None,
         **data_loader_kwargs,
     ):
         """
-        Create a ScviDataLoader object for data iteration.
+        Create a AnnDataLoader object for data iteration.
 
         Parameters
         ----------
@@ -74,7 +74,13 @@ class BaseModelClass(ABC):
             batch_size = settings.batch_size
         if indices is None:
             indices = np.arange(adata.n_obs)
-        dl = self._data_loader_cls(
+        if scvi_dl_class is None:
+            scvi_dl_class = self._data_loader_cls
+
+        if "num_workers" not in data_loader_kwargs:
+            data_loader_kwargs.update({"num_workers": settings.dl_num_workers})
+
+        dl = scvi_dl_class(
             adata,
             shuffle=shuffle,
             indices=indices,
@@ -97,6 +103,8 @@ class BaseModelClass(ABC):
 
         Parameters
         ----------
+        adata
+            Setup AnnData to be split into train, test, validation sets
         train_size
             float, or None (default is 0.9)
         validation_size
@@ -173,7 +181,7 @@ class BaseModelClass(ABC):
 
     @property
     @abstractmethod
-    def _task_class(self):
+    def _plan_class(self):
         pass
 
     @property
@@ -214,11 +222,22 @@ class BaseModelClass(ABC):
         """
         init = self.__init__
         sig = inspect.signature(init)
-        init_params = [p for p in sig.parameters]
-        user_params = {p: locals[p] for p in locals if p in init_params}
-        user_params = {
-            k: v for (k, v) in user_params.items() if not isinstance(v, AnnData)
+        parameters = sig.parameters.values()
+
+        init_params = [p.name for p in parameters]
+        all_params = {p: locals[p] for p in locals if p in init_params}
+        all_params = {
+            k: v for (k, v) in all_params.items() if not isinstance(v, AnnData)
         }
+        # not very efficient but is explicit
+        # seperates variable params (**kwargs) from non variable params into two dicts
+        non_var_params = [p.name for p in parameters if p.kind != p.VAR_KEYWORD]
+        non_var_params = {k: v for (k, v) in all_params.items() if k in non_var_params}
+        var_params = [p.name for p in parameters if p.kind == p.VAR_KEYWORD]
+        var_params = {k: v for (k, v) in all_params.items() if k in var_params}
+
+        user_params = {"kwargs": var_params, "non_kwargs": non_var_params}
+
         return user_params
 
     def train(
@@ -228,8 +247,8 @@ class BaseModelClass(ABC):
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
-        vae_task_kwargs: Optional[dict] = None,
-        task_class: Optional[None] = None,
+        plan_kwargs: Optional[dict] = None,
+        plan_class: Optional[None] = None,
         **kwargs,
     ):
         """
@@ -249,9 +268,11 @@ class BaseModelClass(ABC):
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         batch_size
             Minibatch size to use during training.
-        vae_task_kwargs
+        plan_kwargs
             Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed to
-            `train()` will overwrite values present in `vae_task_kwargs`, when appropriate.
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        plan_class
+            Optional override to use a specific TrainingPlan-type class.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
@@ -259,12 +280,10 @@ class BaseModelClass(ABC):
             use_gpu = self.use_gpu
         else:
             use_gpu = use_gpu and torch.cuda.is_available()
-        if use_gpu:
-            gpus = 1
-            pin_memory = True
-        else:
-            gpus = None
-            pin_memory = False
+        gpus = 1 if use_gpu else None
+        pin_memory = (
+            True if (settings.dl_pin_memory_gpu_training and use_gpu) else False
+        )
 
         if max_epochs is None:
             n_cells = self.adata.n_obs
@@ -286,11 +305,11 @@ class BaseModelClass(ABC):
         self.test_indices_ = test_dl.indices
         self.validation_indices_ = val_dl.indices
 
-        if task_class is None:
-            task_class = self._task_class
+        if plan_class is None:
+            plan_class = self._plan_class
 
-        task_kwargs = vae_task_kwargs if isinstance(vae_task_kwargs, dict) else dict()
-        self._pl_task = task_class(self.model, len(self.train_indices_), **task_kwargs)
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        self._pl_task = plan_class(self.module, len(self.train_indices_), **plan_kwargs)
 
         if train_size == 1.0:
             # circumvent the empty data loader problem if all dataset used for training
@@ -301,9 +320,9 @@ class BaseModelClass(ABC):
             self.history_ = self.trainer.logger.history
         except AttributeError:
             self.history_ = None
-        self.model.eval()
+        self.module.eval()
         if use_gpu:
-            self.model.cuda()
+            self.module.cuda()
         self.is_trained_ = True
 
     def save(
@@ -359,7 +378,7 @@ class BaseModelClass(ABC):
         var_names = var_names.to_numpy()
         np.savetxt(varnames_save_path, var_names, fmt="%s")
 
-        torch.save(self.model.state_dict(), model_save_path)
+        torch.save(self.module.state_dict(), model_save_path)
         with open(attr_save_path, "wb") as f:
             pickle.dump(user_attributes, f)
 
@@ -368,7 +387,7 @@ class BaseModelClass(ABC):
         cls,
         dir_path: str,
         adata: Optional[AnnData] = None,
-        use_gpu: bool = False,
+        use_gpu: Optional[bool] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -395,9 +414,9 @@ class BaseModelClass(ABC):
         >>> vae.get_latent_representation()
         """
         load_adata = adata is None
-        use_gpu = use_gpu and torch.cuda.is_available()
+        if use_gpu is None:
+            use_gpu = torch.cuda.is_available()
         map_location = torch.device("cpu") if use_gpu is False else None
-
         (
             scvi_setup_dict,
             attr_dict,
@@ -415,11 +434,11 @@ class BaseModelClass(ABC):
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
-        model.model.load_state_dict(model_state_dict)
+        model.module.load_state_dict(model_state_dict)
         if use_gpu:
-            model.model.cuda()
+            model.module.cuda()
 
-        model.model.eval()
+        model.module.eval()
         model._validate_anndata(adata)
 
         return model

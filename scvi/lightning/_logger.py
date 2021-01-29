@@ -8,16 +8,9 @@ class SimpleLogger(LightningLoggerBase):
         super().__init__()
         self._data = {}
 
-    def name(self):
-        return "SimipleLogger"
-
     def experiment(self):
         # Return the experiment object associated with this logger.
         pass
-
-    @property
-    def version(self):
-        return "1"
 
     @rank_zero_only
     def log_hyperparams(self, params):
@@ -42,3 +35,11 @@ class SimpleLogger(LightningLoggerBase):
     @property
     def history(self):
         return self._data
+
+    @property
+    def version(self):
+        return "1"
+
+    @property
+    def name(self):
+        return "SimpleLogger"

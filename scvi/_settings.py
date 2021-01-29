@@ -30,6 +30,8 @@ class ScviConfig:
         batch_size: int = 128,
         seed: int = 0,
         logging_dir: str = "./scvi_log/",
+        dl_num_workers: int = 0,
+        dl_pin_memory_gpu_training: bool = True,
     ):
 
         self.verbosity = verbosity
@@ -39,6 +41,8 @@ class ScviConfig:
             raise ValueError("Progress bar style must be in ['rich', 'tqdm']")
         self.progress_bar_style = progress_bar_style
         self.logging_dir = logging_dir
+        self.dl_num_workers = dl_num_workers
+        self.dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
 
     @property
     def batch_size(self) -> int:
@@ -61,10 +65,28 @@ class ScviConfig:
         self._batch_size = batch_size
 
     @property
+    def dl_num_workers(self) -> int:
+        """Number of workers for PyTorch data loaders (Default is 0)."""
+        return self._dl_num_workers
+
+    @dl_num_workers.setter
+    def dl_num_workers(self, dl_num_workers: int):
+        """Number of workers for PyTorch data loaders (Default is 0)."""
+        self._dl_num_workers = dl_num_workers
+
+    @property
+    def dl_pin_memory_gpu_training(self) -> int:
+        """Set `pin_memory` in data loaders when using a GPU for training."""
+        return self._dl_pin_memory_gpu_training
+
+    @dl_pin_memory_gpu_training.setter
+    def dl_pin_memory_gpu_training(self, dl_pin_memory_gpu_training: int):
+        """Set `pin_memory` in data loaders when using a GPU for training."""
+        self._dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
+
+    @property
     def logging_dir(self) -> Path:
-        """\
-        Directory for training logs (default `'./scvi_log/'`).
-        """
+        """Directory for training logs (default `'./scvi_log/'`)."""
         return self._logging_dir
 
     @logging_dir.setter
