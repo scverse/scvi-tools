@@ -38,7 +38,7 @@ class CellAssignModule(BaseModuleClass):
         self.n_labels = n_labels
         self.rho = rho
 
-        self.register_buffer("rho", rho)
+        self.register_buffer("cell_type_markers", rho)
 
         # perform all other initialization
         self.LOWER_BOUND = 1e-10
@@ -154,14 +154,10 @@ class CellAssignModule(BaseModuleClass):
         # assume that `n_obs` is the number of training data points
         p_y_unorm = generative_outputs["p_y_unorm"]
         gamma = generative_outputs["gamma"]
-        s = generative_outputs["s"]
 
         # compute Q
-        # gamma_fixed = torch.empty((None, self.n_labels))
-        # pdb.set_trace()
-        q_per_cell = -torch.einsum("nc,cn->", gamma, p_y_unorm) / s.shape[0] * n_obs
-        # Q = p_y_norm
         # take mean of number of cells and multiply by n_obs (instead of summing n)
+        q_per_cell = torch.mean(torch.sum(gamma * p_y_unorm, 1)) * n_obs
 
         # third term is log prob of prior terms in Q
         theta_log = F.log_softmax(self.theta_logit)

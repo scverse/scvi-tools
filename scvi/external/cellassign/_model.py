@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import torch
+
+# import pdb
 from anndata import AnnData
 
 from scvi.dataloaders import AnnDataLoader
@@ -52,7 +54,7 @@ class CellAssign(BaseModelClass):
         # might need to reorganize the df to correspond to the
         # correct order of labels
         rho = torch.Tensor(cell_type_markers.to_numpy())
-        self.model = CellAssignModule(
+        self.module = CellAssignModule(
             n_genes=self.n_genes,
             n_labels=self.n_labels,
             rho=rho,
@@ -86,3 +88,7 @@ class CellAssign(BaseModelClass):
     @property
     def _data_loader_cls(self):
         return AnnDataLoader
+
+    @property
+    def _plan_class(self):
+        return TrainingPlan
