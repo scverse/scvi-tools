@@ -45,18 +45,21 @@ class BayesianRegression(PyroModule, PyroBaseModuleClass):
 
 
 def test_pyro_bayesian_regression():
+    use_gpu = int(torch.cuda.is_available())
     adata = synthetic_iid()
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     pyro.clear_param_store()
     model = BayesianRegression(adata.shape[1], 1)
     plan = PyroTrainingPlan(model)
     trainer = Trainer(
+        gpus=use_gpu,
         max_epochs=2,
     )
     trainer.fit(plan, train_dl)
 
 
 def test_pyro_bayesian_regression_jit():
+    use_gpu = int(torch.cuda.is_available())
     adata = synthetic_iid()
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     pyro.clear_param_store()
@@ -68,6 +71,7 @@ def test_pyro_bayesian_regression_jit():
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
     trainer = Trainer(
+        gpus=use_gpu,
         max_epochs=2,
     )
     trainer.fit(plan, train_dl)
