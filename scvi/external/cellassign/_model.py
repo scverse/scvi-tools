@@ -3,9 +3,9 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi.dataloaders import ScviDataLoader
+from scvi.dataloaders import AnnDataLoader
 from scvi.external.cellassign._module import CellAssignModule
-from scvi.lightning import VAETask
+from scvi.lightning import TrainingPlan
 from scvi.model.base import BaseModelClass
 
 
@@ -36,6 +36,15 @@ class CellAssign(BaseModelClass):
         use_gpu: bool = True,
         **model_kwargs,
     ):
+        # check that genes are the same in sc_adata and cell_type_markers
+        if not sc_adata.var.index.equals(cell_type_markers.index):
+            raise ValueError(
+                "Genes must be the same in sc_adata and cell_type_markers (rho matrix)."
+            )
+
+        # reorder cell_type_markers according to order of genes in sc_adata.var.index
+        cell_type_markers.reindex(sc_adata.var.index)
+
         super().__init__(sc_adata, use_gpu=use_gpu)
         self.n_genes = self.summary_stats["n_vars"]
         self.n_labels = self.summary_stats["n_labels"]
@@ -57,14 +66,23 @@ class CellAssign(BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
-    def predict(self) -> np.ndarray:
+    def predict(self, adata: AnnData) -> np.ndarray:
         """Predict soft cell type assignment probability for each cell."""
-        raise NotImplementedError
+        adata = self._validate_anndata(adata)
+        scdl = self._make_scvi_dl(adata=adata)
+        latent = []
+        for tensors in scdl:
+            inference_inputs = self.model._get_inference_input(tensors)
+            x, y = self.model.inference(**inference_inputs)
+            outputs = self.model.generative(self, x, y)
+            gamma = outputs["gamma"]
+            latent += [gamma.cpu()]
+        return np.array(torch.cat(latent))
 
     @property
     def _task_class(self):
-        return VAETask
+        return TrainingPlan
 
     @property
     def _data_loader_cls(self):
-        return ScviDataLoader
+        return AnnDataLoader
