@@ -222,7 +222,9 @@ class PyroBaseModuleClass(nn.Module):
         super().__init__()
 
     @abstractmethod
-    def _get_guide_tensors(tensors: Dict[str, torch.Tensor]) -> List[torch.Tensor]:
+    def _get_guide_tensors(
+        self, tensors: Dict[str, torch.Tensor]
+    ) -> List[torch.Tensor]:
         pass
 
     @abstractmethod
@@ -239,7 +241,9 @@ class PyroBaseModuleClass(nn.Module):
         self._guide(*self._get_guide_tensors(tensors))
 
     @abstractmethod
-    def _get_forward_tensors(tensors: Dict[str, torch.Tensor]) -> List[torch.Tensor]:
+    def _get_forward_tensors(
+        self, tensors: Dict[str, torch.Tensor]
+    ) -> List[torch.Tensor]:
         pass
 
     @abstractmethod
