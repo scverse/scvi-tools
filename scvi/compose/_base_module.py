@@ -228,7 +228,7 @@ class PyroBaseModuleClass(nn.Module):
         pass
 
     @abstractmethod
-    def _guide(*args, **kwargs):
+    def _guide(self, *args, **kwargs):
         pass
 
     def guide(self, tensors: Dict[str, torch.Tensor]) -> dict:
@@ -247,7 +247,7 @@ class PyroBaseModuleClass(nn.Module):
         pass
 
     @abstractmethod
-    def _forward(*args, **kwargs):
+    def _forward(self, *args, **kwargs):
         pass
 
     def forward(self, tensors: Dict[str, torch.Tensor]) -> dict:
