@@ -1,4 +1,4 @@
-from abc import abstractmethod, ABC
+from abc import abstractmethod
 from typing import Dict, Optional, List, Tuple, Union
 
 import torch
@@ -196,42 +196,61 @@ def _get_dict_if_none(param):
     return param
 
 
-class PyroBaseModuleClass(nn.Module, ABC):
+class PyroBaseModuleClass(nn.Module):
+    """
+    Base module class for Pyro models.
+
+    We use the forward method of this class as the "model" in Pyro terms,
+    and also implement the guide here, through the guide method.
+
+    Parameters
+    ----------
+    loss
+        Tensor with loss for minibatch. Should be one dimensional with one value.
+        Note that loss should be a :class:`~torch.Tensor` and not the result of `.item()`.
+    reconstruction_loss
+        Reconstruction loss for each observation in the minibatch.
+    kl_local
+        KL divergence associated with each observation in the minibatch.
+    kl_global
+        Global kl divergence term. Should be one dimensional with one value.
+    """
+
     def __init__(
         self,
     ):
         super().__init__()
 
     @abstractmethod
-    def _get_guide_tensors(tensors: Dict[torch.Tensor]) -> List[torch.Tensor]:
+    def _get_guide_tensors(tensors: Dict[str, torch.Tensor]) -> List[torch.Tensor]:
         pass
 
     @abstractmethod
     def _guide(*args, **kwargs):
         pass
 
-    def guide(self, tensors: Dict[torch.Tensor]) -> dict:
+    def guide(self, tensors: Dict[str, torch.Tensor]) -> dict:
         """
         Pyro Guide method.
 
         This is a wrapper for the `_guide` method. This function parses
         the tensors dictionary and passes to `_guide` as positional arguments.
         """
-        self._guide(*self._get_guide_tensors())
+        self._guide(*self._get_guide_tensors(tensors))
 
     @abstractmethod
-    def _get_model_tensors(tensor: Dict[torch.Tensor]) -> List[torch.Tensor]:
+    def _get_forward_tensors(tensors: Dict[str, torch.Tensor]) -> List[torch.Tensor]:
         pass
 
     @abstractmethod
-    def _model(*args, **kwargs):
+    def _forward(*args, **kwargs):
         pass
 
-    def model(self, tensors: Dict[torch.Tensor]) -> dict:
+    def forward(self, tensors: Dict[str, torch.Tensor]) -> dict:
         """
         Pyro model method.
 
         This is a wrapper for the `_model` method. This function parses
         the tensors dictionary and passes to `_model` as positional arguments.
         """
-        self._model(*self._get_model_tensors())
+        self._forward(*self._get_forward_tensors(tensors))

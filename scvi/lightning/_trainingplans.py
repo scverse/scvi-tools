@@ -541,12 +541,22 @@ class PyroTrainingPlan(pl.LightningModule):
         self,
         pyro_module: PyroBaseModuleClass,
         lr: float = 1e-3,
-        loss_fn: Callable = pyro.infer.Trace_ELBO().differentiable_loss,
+        loss_fn: Callable = pyro.infer.Trace_ELBO(),
     ):
-        super(TrainingPlan, self).__init__()
+        super().__init__()
         self.module = pyro_module
         self.loss_fn = loss_fn
         self.lr = lr
+
+        self.automatic_optimization = False
+        self.guide = self.module.guide
+
+        self.svi = pyro.infer.SVI(
+            model=self.module,
+            guide=self.guide,
+            optim=pyro.optim.Adam({"lr": self.lr}),
+            loss=self.loss_fn,
+        )
 
     def forward(self, *args, **kwargs):
         """Passthrough to `model.forward()`."""
@@ -554,19 +564,14 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
 
-        loss = self.loss_fn(self.module.model, self.module.guide, batch)
-        # pytorch lightning automatically backprops on "loss"
-        return {
-            "loss": loss,
-        }
-
-    def validation_step(self, batch, batch_idx):
-        loss = self.loss_fn(self.module.model, self.module.guide, batch)
-        self.log("loss_validation", loss)
+        loss = self.svi.step(batch)
+        self.log("train_loss", loss, prog_bar=True, on_epoch=True)
 
     def configure_optimizers(self):
-        params = filter(lambda p: p.requires_grad, self.module.parameters())
-        optimizer = torch.optim.Adam(
-            params,
-        )
-        return optimizer
+        return None
+
+    def optimizer_step(self, *args, **kwargs):
+        pass
+
+    def backward(self, *args, **kwargs):
+        pass
