@@ -231,6 +231,7 @@ class PyroBaseModuleClass(nn.Module):
     def _guide(self, *args, **kwargs):
         pass
 
+    @abstractmethod
     def guide(self, tensors: Dict[str, torch.Tensor]) -> dict:
         """
         Pyro Guide method.
