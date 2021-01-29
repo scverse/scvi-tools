@@ -1,5 +1,5 @@
-from abc import abstractmethod
-from typing import Dict, Optional, Tuple, Union
+from abc import abstractmethod, ABC
+from typing import Dict, Optional, List, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -194,3 +194,44 @@ def _get_dict_if_none(param):
     param = {} if not isinstance(param, dict) else param
 
     return param
+
+
+class PyroBaseModuleClass(nn.Module, ABC):
+    def __init__(
+        self,
+    ):
+        super().__init__()
+
+    @abstractmethod
+    def _get_guide_tensors(tensors: Dict[torch.Tensor]) -> List[torch.Tensor]:
+        pass
+
+    @abstractmethod
+    def _guide(*args, **kwargs):
+        pass
+
+    def guide(self, tensors: Dict[torch.Tensor]) -> dict:
+        """
+        Pyro Guide method.
+
+        This is a wrapper for the `_guide` method. This function parses
+        the tensors dictionary and passes to `_guide` as positional arguments.
+        """
+        self._guide(*self._get_guide_tensors())
+
+    @abstractmethod
+    def _get_model_tensors(tensor: Dict[torch.Tensor]) -> List[torch.Tensor]:
+        pass
+
+    @abstractmethod
+    def _model(*args, **kwargs):
+        pass
+
+    def model(self, tensors: Dict[torch.Tensor]) -> dict:
+        """
+        Pyro model method.
+
+        This is a wrapper for the `_model` method. This function parses
+        the tensors dictionary and passes to `_model` as positional arguments.
+        """
+        self._model(*self._get_model_tensors())

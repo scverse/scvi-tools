@@ -1,13 +1,14 @@
 from inspect import getfullargspec
-from typing import Union
+from typing import Callable, Union
 
+import pyro
 import pytorch_lightning as pl
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.compose import BaseModuleClass, one_hot
+from scvi.compose import PyroBaseModuleClass, BaseModuleClass, one_hot
 from scvi.modules import Classifier
 
 
@@ -522,3 +523,50 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             "kl_global": scvi_losses.kl_global,
             "n_obs": reconstruction_loss.shape[0],
         }
+
+
+class PyroTrainingPlan(pl.LightningModule):
+    """
+    Lightning module task to train Pyro scvi-tools modules.
+
+    Parameters
+    ----------
+    pyro_module
+        A model instance from class ``PyroBaseModuleClass``.
+    lr
+        Learning rate used for optimization.
+    """
+
+    def __init__(
+        self,
+        pyro_module: PyroBaseModuleClass,
+        lr: float = 1e-3,
+        loss_fn: Callable = pyro.infer.Trace_ELBO().differentiable_loss,
+    ):
+        super(TrainingPlan, self).__init__()
+        self.module = pyro_module
+        self.loss_fn = loss_fn
+        self.lr = lr
+
+    def forward(self, *args, **kwargs):
+        """Passthrough to `model.forward()`."""
+        return self.module(*args, **kwargs)
+
+    def training_step(self, batch, batch_idx, optimizer_idx=0):
+
+        loss = self.loss_fn(self.module.model, self.module.guide, batch)
+        # pytorch lightning automatically backprops on "loss"
+        return {
+            "loss": loss,
+        }
+
+    def validation_step(self, batch, batch_idx):
+        loss = self.loss_fn(self.module.model, self.module.guide, batch)
+        self.log("loss_validation", loss)
+
+    def configure_optimizers(self):
+        params = filter(lambda p: p.requires_grad, self.module.parameters())
+        optimizer = torch.optim.Adam(
+            params,
+        )
+        return optimizer
