@@ -18,30 +18,28 @@ class BayesianRegression(PyroModule, PyroBaseModuleClass):
 
         self._auto_guide = AutoDiagonalNormal(self)
 
-        self.register_buffer("zero", torch.tensor(0.0, requires_grad=False))
-        self.register_buffer("one", torch.tensor(1.0, requires_grad=False))
-        self.register_buffer("ten", torch.tensor(10.0, requires_grad=False))
+        self.register_buffer("zero", torch.tensor(0.0))
+        self.register_buffer("one", torch.tensor(1.0))
+        self.register_buffer("ten", torch.tensor(10.0))
 
         self.linear = nn.Linear(in_features, out_features)
 
-    def _get_forward_tensors(self, tensors):
-        x = tensors[_CONSTANTS.X_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+    @staticmethod
+    def _get_fn_signature_from_minibatch(tensor_dict):
+        x = tensor_dict[_CONSTANTS.X_KEY]
+        y = tensor_dict[_CONSTANTS.LABELS_KEY]
 
-        return x, y
+        return [x, y], {}
 
-    def _forward(self, x, y):
+    def forward(self, x, y):
         sigma = pyro.sample("sigma", dist.Uniform(self.zero, self.ten))
         mean = self.linear(x).squeeze(-1)
         with pyro.plate("data", x.shape[0]):
             pyro.sample("obs", dist.Normal(mean, sigma), obs=y)
         return mean
 
-    def _get_guide_tensors(self, tensors):
-        return [tensors]
-
-    def _guide(self, tensors):
-        return self._auto_guide(tensors)
+    def guide(self, x, y):
+        return self._auto_guide(x, y)
 
 
 def test_pyro_bayesian_regression():
@@ -66,7 +64,8 @@ def test_pyro_bayesian_regression_jit():
     model = BayesianRegression(adata.shape[1], 1)
     # warmup guide for JIT
     for tensors in train_dl:
-        model.guide(tensors)
+        args, kwargs = model._get_fn_signature_from_minibatch(tensors)
+        model.guide(*args, **kwargs)
         break
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
