@@ -11,10 +11,9 @@ from torch.utils.data import DataLoader
 
 from scvi import _CONSTANTS, settings
 from scvi.data import transfer_anndata_setup
-from scvi.dataloaders import AnnDataLoader
 from scvi.lightning import Trainer
 from scvi.model._utils import _get_var_names_from_setup_anndata
-from scvi.model.base import BaseModelClass, VAEMixin
+from scvi.model.base import BaseModelClass, VAEMixin, UnsupervisedTrainingMixin
 
 from ._module import JVAE
 from ._task import GIMVITrainingPlan
@@ -31,7 +30,7 @@ def _unpack_tensors(tensors):
     return x, local_l_mean, local_l_var, batch_index, y
 
 
-class GIMVI(VAEMixin, BaseModelClass):
+class GIMVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     Joint VAE for imputing missing genes in spatial data [Lopez19]_.
 
@@ -193,7 +192,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         train_dl = TrainDL(train_dls)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-        self._pl_task = self._plan_class(
+        self._pl_task = GIMVITrainingPlan(
             self.module,
             len(self.train_indices_),
             adversarial_classifier=True,
@@ -526,14 +525,6 @@ class GIMVI(VAEMixin, BaseModelClass):
             model.module.load_state_dict(torch.load(model_path, map_location=device))
         model.module.eval()
         return model
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
-
-    @property
-    def _plan_class(self):
-        return GIMVITrainingPlan
 
 
 class TrainDL(DataLoader):

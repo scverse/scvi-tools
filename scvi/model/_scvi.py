@@ -3,16 +3,21 @@ import logging
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.dataloaders import AnnDataLoader
-from scvi.lightning import TrainingPlan
 from scvi.modules import VAE
-
-from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
+from .base import (
+    ArchesMixin,
+    BaseModelClass,
+    RNASeqMixin,
+    VAEMixin,
+    UnsupervisedTrainingMixin,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
+class SCVI(
+    RNASeqMixin, VAEMixin, ArchesMixin, UnsupervisedTrainingMixin, BaseModelClass
+):
     """
     single-cell Variational Inference [Lopez18]_.
 
@@ -108,11 +113,3 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())
-
-    @property
-    def _plan_class(self):
-        return TrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader

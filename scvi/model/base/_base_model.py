@@ -2,7 +2,7 @@ import inspect
 import logging
 import os
 import pickle
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Optional, Sequence
 
 import numpy as np
@@ -10,13 +10,13 @@ import rich
 import torch
 from anndata import AnnData
 from rich.text import Text
-from sklearn.model_selection._split import _validate_shuffle_split
+from torch.utils.data import DataLoader
 
 from scvi import _CONSTANTS, settings
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.lightning import Trainer
+from scvi.dataloaders._ann_dataloader import AnnDataLoader
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -50,7 +50,7 @@ class BaseModelClass(ABC):
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
         shuffle: bool = False,
-        scvi_dl_class=None,
+        scvi_dl_class: DataLoader = AnnDataLoader,
         **data_loader_kwargs,
     ):
         """
@@ -74,8 +74,6 @@ class BaseModelClass(ABC):
             batch_size = settings.batch_size
         if indices is None:
             indices = np.arange(adata.n_obs)
-        if scvi_dl_class is None:
-            scvi_dl_class = self._data_loader_cls
 
         if "num_workers" not in data_loader_kwargs:
             data_loader_kwargs.update({"num_workers": settings.dl_num_workers})
@@ -88,60 +86,6 @@ class BaseModelClass(ABC):
             **data_loader_kwargs,
         )
         return dl
-
-    def _train_test_val_split(
-        self,
-        adata: AnnData,
-        train_size: float = 0.9,
-        validation_size: Optional[float] = None,
-        **kwargs,
-    ):
-        """
-        Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
-
-        If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
-
-        Parameters
-        ----------
-        adata
-            Setup AnnData to be split into train, test, validation sets
-        train_size
-            float, or None (default is 0.9)
-        validation_size
-            float, or None (default is None)
-        **kwargs
-            Keyword args for `_make_scvi_dl()`
-        """
-        train_size = float(train_size)
-        if train_size > 1.0 or train_size <= 0.0:
-            raise ValueError(
-                "train_size needs to be greater than 0 and less than or equal to 1"
-            )
-
-        n = len(adata)
-        try:
-            n_train, n_val = _validate_shuffle_split(n, validation_size, train_size)
-        except ValueError:
-            if train_size != 1.0:
-                raise ValueError(
-                    "Choice of train_size={} and validation_size={} not understood".format(
-                        train_size, validation_size
-                    )
-                )
-            n_train, n_val = n, 0
-        random_state = np.random.RandomState(seed=settings.seed)
-        permutation = random_state.permutation(n)
-        indices_validation = permutation[:n_val]
-        indices_train = permutation[n_val : (n_val + n_train)]
-        indices_test = permutation[(n_val + n_train) :]
-
-        return (
-            self._make_scvi_dl(adata, indices=indices_train, shuffle=True, **kwargs),
-            self._make_scvi_dl(
-                adata, indices=indices_validation, shuffle=True, **kwargs
-            ),
-            self._make_scvi_dl(adata, indices=indices_test, shuffle=True, **kwargs),
-        )
 
     def _validate_anndata(
         self, adata: Optional[AnnData] = None, copy_if_view: bool = True
@@ -169,20 +113,8 @@ class BaseModelClass(ABC):
             logger.warning(
                 "Make sure the registered X field in anndata contains unnormalized count data."
             )
-
         _check_anndata_setup_equivalence(self.scvi_setup_dict_, adata)
-
         return adata
-
-    @property
-    @abstractmethod
-    def _data_loader_cls(self):
-        pass
-
-    @property
-    @abstractmethod
-    def _plan_class(self):
-        pass
 
     @property
     def is_trained(self):
@@ -239,91 +171,6 @@ class BaseModelClass(ABC):
         user_params = {"kwargs": var_params, "non_kwargs": non_var_params}
 
         return user_params
-
-    def train(
-        self,
-        max_epochs: Optional[int] = None,
-        use_gpu: Optional[bool] = None,
-        train_size: float = 0.9,
-        validation_size: Optional[float] = None,
-        batch_size: int = 128,
-        plan_kwargs: Optional[dict] = None,
-        plan_class: Optional[None] = None,
-        **kwargs,
-    ):
-        """
-        Train the model.
-
-        Parameters
-        ----------
-        max_epochs
-            Number of passes through the dataset. If `None`, defaults to
-            `np.min([round((20000 / n_cells) * 400), 400])`
-        use_gpu
-            If `True`, use the GPU if available. Will override the use_gpu option when initializing model
-        train_size
-            Size of training set in the range [0.0, 1.0].
-        validation_size
-            Size of the test set. If `None`, defaults to 1 - `train_size`. If
-            `train_size + validation_size < 1`, the remaining cells belong to a test set.
-        batch_size
-            Minibatch size to use during training.
-        plan_kwargs
-            Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed to
-            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        plan_class
-            Optional override to use a specific TrainingPlan-type class.
-        **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
-        """
-        if use_gpu is None:
-            use_gpu = self.use_gpu
-        else:
-            use_gpu = use_gpu and torch.cuda.is_available()
-        gpus = 1 if use_gpu else None
-        pin_memory = (
-            True if (settings.dl_pin_memory_gpu_training and use_gpu) else False
-        )
-
-        if max_epochs is None:
-            n_cells = self.adata.n_obs
-            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
-
-        self.trainer = Trainer(
-            max_epochs=max_epochs,
-            gpus=gpus,
-            **kwargs,
-        )
-        train_dl, val_dl, test_dl = self._train_test_val_split(
-            self.adata,
-            train_size=train_size,
-            validation_size=validation_size,
-            pin_memory=pin_memory,
-            batch_size=batch_size,
-        )
-        self.train_indices_ = train_dl.indices
-        self.test_indices_ = test_dl.indices
-        self.validation_indices_ = val_dl.indices
-
-        if plan_class is None:
-            plan_class = self._plan_class
-
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-        self._pl_task = plan_class(self.module, len(self.train_indices_), **plan_kwargs)
-
-        if train_size == 1.0:
-            # circumvent the empty data loader problem if all dataset used for training
-            self.trainer.fit(self._pl_task, train_dl)
-        else:
-            self.trainer.fit(self._pl_task, train_dl, val_dl)
-        try:
-            self.history_ = self.trainer.logger.history
-        except AttributeError:
-            self.history_ = None
-        self.module.eval()
-        if use_gpu:
-            self.module.cuda()
-        self.is_trained_ = True
 
     def save(
         self,

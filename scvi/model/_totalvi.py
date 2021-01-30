@@ -24,13 +24,21 @@ from scvi.model._utils import (
 from scvi.model.base._utils import _de_core
 from scvi.modules import TOTALVAE
 
-from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
+from .base import (
+    ArchesMixin,
+    BaseModelClass,
+    RNASeqMixin,
+    VAEMixin,
+    AdversarialTrainingMixin,
+)
 
 logger = logging.getLogger(__name__)
 Number = TypeVar("Number", int, float)
 
 
-class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
+class TOTALVI(
+    RNASeqMixin, VAEMixin, ArchesMixin, AdversarialTrainingMixin, BaseModelClass
+):
     """
     total Variational Inference [GayosoSteier20]_.
 
@@ -138,102 +146,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())
-
-    def train(
-        self,
-        max_epochs: Optional[int] = 400,
-        lr: float = 4e-3,
-        use_gpu: Optional[bool] = None,
-        train_size: float = 0.9,
-        validation_size: Optional[float] = None,
-        batch_size: int = 256,
-        early_stopping: bool = True,
-        check_val_every_n_epoch: Optional[int] = None,
-        reduce_lr_on_plateau: bool = True,
-        n_steps_kl_warmup: Union[int, None] = None,
-        n_epochs_kl_warmup: Union[int, None] = None,
-        adversarial_classifier: Optional[bool] = None,
-        plan_kwargs: Optional[dict] = None,
-        **kwargs,
-    ):
-        """
-        Trains the model using amortized variational inference.
-
-        Parameters
-        ----------
-        max_epochs
-            Number of passes through the dataset.
-        lr
-            Learning rate for optimization.
-        use_gpu
-            If `True`, use the GPU if available.
-        train_size
-            Size of training set in the range [0.0, 1.0].
-        validation_size
-            Size of the test set. If `None`, defaults to 1 - `train_size`. If
-            `train_size + validation_size < 1`, the remaining cells belong to a test set.
-        batch_size
-            Minibatch size to use during training.
-        early_stopping
-            Whether to perform early stopping with respect to the validation set.
-        check_val_every_n_epoch
-            Check val every n train epochs. By default, val is not checked, unless `early_stopping` is `True`
-            or `reduce_lr_on_plateau` is `True`. If either of the latter conditions are met, val is checked
-            every epoch.
-        reduce_lr_on_plateau
-            Reduce learning rate on plateau of validation metric (default is ELBO).
-        n_steps_kl_warmup
-            Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
-            Only activated when `n_epochs_kl_warmup` is set to None. If `None`, defaults
-            to `floor(0.75 * adata.n_obs)`.
-        n_epochs_kl_warmup
-            Number of epochs to scale weight on KL divergences from 0 to 1.
-            Overrides `n_steps_kl_warmup` when both are not `None`.
-        adversarial_classifier
-            Whether to use adversarial classifier in the latent space. This helps mixing when
-            there are missing proteins in any of the batches. Defaults to `True` is missing proteins
-            are detected.
-        plan_kwargs
-            Keyword args for :class:`~scvi.lightning.AdversarialTrainingPlan`. Keyword arguments passed to
-            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
-        """
-        if adversarial_classifier is None:
-            imputation = (
-                True if "totalvi_batch_mask" in self.scvi_setup_dict_.keys() else False
-            )
-            adversarial_classifier = True if imputation else False
-        n_steps_kl_warmup = (
-            n_steps_kl_warmup
-            if n_steps_kl_warmup is not None
-            else int(0.75 * self.adata.n_obs)
-        )
-        if reduce_lr_on_plateau:
-            check_val_every_n_epoch = 1
-
-        update_dict = {
-            "lr": lr,
-            "adversarial_classifier": adversarial_classifier,
-            "reduce_lr_on_plateau": reduce_lr_on_plateau,
-            "n_epochs_kl_warmup": n_epochs_kl_warmup,
-            "n_steps_kl_warmup": n_steps_kl_warmup,
-            "check_val_every_n_epoch": check_val_every_n_epoch,
-        }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
-        super().train(
-            max_epochs=max_epochs,
-            use_gpu=use_gpu,
-            train_size=train_size,
-            validation_size=validation_size,
-            batch_size=batch_size,
-            early_stopping=early_stopping,
-            plan_kwargs=plan_kwargs,
-            **kwargs,
-        )
 
     @torch.no_grad()
     def get_latent_library_size(
