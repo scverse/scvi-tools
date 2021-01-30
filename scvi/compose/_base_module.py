@@ -204,18 +204,6 @@ class PyroBaseModuleClass(nn.Module):
     and also implement the guide here, through the guide method.
 
     In Pyro, `forward` and `guide` should have the same signature.
-
-    Parameters
-    ----------
-    loss
-        Tensor with loss for minibatch. Should be one dimensional with one value.
-        Note that loss should be a :class:`~torch.Tensor` and not the result of `.item()`.
-    reconstruction_loss
-        Reconstruction loss for each observation in the minibatch.
-    kl_local
-        KL divergence associated with each observation in the minibatch.
-    kl_global
-        Global kl divergence term. Should be one dimensional with one value.
     """
 
     def __init__(
@@ -234,6 +222,10 @@ class PyroBaseModuleClass(nn.Module):
         that gets the args and kwargs for these two methods. This helper method aids `forward` and
         `guide` in having transparent signatures, as well as allows use of our generic
         :class:`~scvi.dataloaders.AnnDataLoader`.
+
+        Returns
+        -------
+        args and kwargs for the functions, args should be an Iterable and kwargs a dictionary.
         """
         pass
 
