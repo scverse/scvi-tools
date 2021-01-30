@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Iterable, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -225,9 +225,9 @@ class PyroBaseModuleClass(nn.Module):
 
     @staticmethod
     @abstractmethod
-    def _get_fn_signature_from_minibatch(
+    def _get_fn_args_from_batch(
         tensor_dict: Dict[str, torch.Tensor]
-    ) -> Union[list, dict]:
+    ) -> Union[Iterable, dict]:
         """Parse the minibatched data to get the correct inputs for `forward` and `guide`.
 
         In Pyro, `forward` and `guide` should have the same signature. This is a helper method

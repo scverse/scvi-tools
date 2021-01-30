@@ -25,11 +25,11 @@ class BayesianRegression(PyroModule, PyroBaseModuleClass):
         self.linear = nn.Linear(in_features, out_features)
 
     @staticmethod
-    def _get_fn_signature_from_minibatch(tensor_dict):
+    def _get_fn_args_from_batch(tensor_dict):
         x = tensor_dict[_CONSTANTS.X_KEY]
         y = tensor_dict[_CONSTANTS.LABELS_KEY]
 
-        return [x, y], {}
+        return (x, y), {}
 
     def forward(self, x, y):
         sigma = pyro.sample("sigma", dist.Uniform(self.zero, self.ten))
@@ -64,7 +64,7 @@ def test_pyro_bayesian_regression_jit():
     model = BayesianRegression(adata.shape[1], 1)
     # warmup guide for JIT
     for tensors in train_dl:
-        args, kwargs = model._get_fn_signature_from_minibatch(tensors)
+        args, kwargs = model._get_fn_args_from_batch(tensors)
         model.guide(*args, **kwargs)
         break
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)

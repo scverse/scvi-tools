@@ -563,7 +563,7 @@ class PyroTrainingPlan(pl.LightningModule):
         return self.module(*args, **kwargs)
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
-        args, kwargs = self.module._get_fn_signature_from_minibatch(batch)
+        args, kwargs = self.module._get_fn_args_from_batch(batch)
         loss = self.svi.step(*args, **kwargs)
         self.log("train_loss", loss, prog_bar=True, on_epoch=True)
 
