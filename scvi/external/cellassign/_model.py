@@ -38,6 +38,7 @@ class CellAssign(BaseModelClass):
         use_gpu: bool = True,
         **model_kwargs,
     ):
+        super().__init__(sc_adata, use_gpu=use_gpu)
         # check that genes are the same in sc_adata and cell_type_markers
         if not sc_adata.var.index.equals(cell_type_markers.index):
             raise ValueError(
@@ -47,24 +48,27 @@ class CellAssign(BaseModelClass):
         # reorder cell_type_markers according to order of genes in sc_adata.var.index
         cell_type_markers.reindex(sc_adata.var.index)
 
-        super().__init__(sc_adata, use_gpu=use_gpu)
         self.n_genes = self.summary_stats["n_vars"]
-        self.n_labels = self.summary_stats["n_labels"]
-
-        # might need to reorganize the df to correspond to the
-        # correct order of labels
         rho = torch.Tensor(cell_type_markers.to_numpy())
+        n_cats_per_cov = (
+            self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
+            if "extra_categoricals" in self.scvi_setup_dict_
+            else None
+        )
+
         self.module = CellAssignModule(
             n_genes=self.n_genes,
-            n_labels=self.n_labels,
             rho=rho,
+            n_batch=self.summary_stats["n_batch"],
+            n_cats_per_cov=n_cats_per_cov,
+            n_continuous_cov=self.summary_stats["n_continuous_covs"],
             **model_kwargs,
         )
         self._model_summary_string = (
             "CellAssign Model with params: \nn_genes: {}, n_labels: {}"
         ).format(
             self.n_genes,
-            self.n_labels,
+            rho.shape[1],
         )
         self.init_params_ = self._get_init_params(locals())
 

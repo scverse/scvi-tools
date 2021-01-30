@@ -1,13 +1,14 @@
+from typing import Iterable, Optional
+
 import numpy as np
 import torch
-
-# import pdb
 import torch.nn.functional as F
+from torch.distributions import Dirichlet, Normal
 
 from scvi import _CONSTANTS
 from scvi.compose import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.distributions import NegativeBinomial
-from torch.distributions import Dirichlet, Normal
+from scvi.modules._utils import one_hot
 
 
 class CellAssignModule(BaseModuleClass):
@@ -22,23 +23,36 @@ class CellAssignModule(BaseModuleClass):
         Number of input cell types
     rho
         Binary matrix of cell type markers
-    **model_kwargs
-        Additional kwargs
+    n_batch
+        Number of batches, if 0, no batch correction is performed.
+    n_cats_per_cov
+        Number of categories for each extra categorical covariate
+    n_continuous_cov
+        Number of continuous covarites
     """
 
     def __init__(
         self,
         n_genes: int,
-        n_labels: int,
         rho: torch.Tensor,
-        **model_kwargs,
+        n_batch: int = 0,
+        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_continuous_cov: int = 0,
     ):
         super().__init__()
         self.n_genes = n_genes
-        self.n_labels = n_labels
-        self.rho = rho
+        self.n_labels = rho.shape[1]
+        self.n_batch = n_batch
+        self.n_cats_per_cov = n_cats_per_cov
+        self.n_continuous_cov = n_continuous_cov
 
-        self.register_buffer("cell_type_markers", rho)
+        # this would be P in their code
+        # if it's zero, let's ignore
+        # though we do need the base expression intercept either way
+        design_matrix_col_dim = n_batch + n_continuous_cov
+        design_matrix_col_dim += 0 if n_cats_per_cov is None else sum(n_cats_per_cov)
+
+        self.register_buffer("rho", rho)
 
         # perform all other initialization
         self.LOWER_BOUND = 1e-10
@@ -70,9 +84,25 @@ class CellAssignModule(BaseModuleClass):
 
     def _get_generative_input(self, tensors, inference_outputs):
         x = tensors[_CONSTANTS.X_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
 
-        input_dict = dict(x=x, y=y)
+        to_cat = []
+        if self.n_batch > 0:
+            to_cat.append(one_hot(tensors[_CONSTANTS.BATCH_KEY], self.n_batch))
+
+        cont_key = _CONSTANTS.CONT_COVS_KEY
+        if cont_key in tensors.keys():
+            to_cat.append(tensors[cont_key])
+
+        cat_key = _CONSTANTS.CAT_COVS_KEY
+        if cat_key in tensors.keys():
+            for cat_input, n_cat in zip(
+                torch.split(tensors[cat_key], 1, dim=1), self.n_cats_per_cov
+            ):
+                to_cat.append(one_hot(cat_input, n_cat))
+
+        design_matrix = torch.cat(to_cat) if len(to_cat) > 0 else None
+
+        input_dict = dict(x=x, design_matrix=design_matrix)
         return input_dict
 
     @auto_move_data
@@ -80,7 +110,7 @@ class CellAssignModule(BaseModuleClass):
         return {}
 
     @auto_move_data
-    def generative(self, x, y):
+    def generative(self, x, design_matrix=None):
         # x has shape (n, g)
         # n = 128
         # g = 100
