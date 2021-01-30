@@ -157,7 +157,7 @@ class CellAssignModule(BaseModuleClass):
 
         # compute Q
         # take mean of number of cells and multiply by n_obs (instead of summing n)
-        q_per_cell = torch.mean(torch.sum(gamma * p_y_unorm, 1)) * n_obs
+        q_per_cell = torch.sum(gamma * p_y_unorm, 1)
 
         # third term is log prob of prior terms in Q
         theta_log = F.log_softmax(self.theta_logit)
