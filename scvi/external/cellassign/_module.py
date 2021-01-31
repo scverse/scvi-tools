@@ -10,6 +10,10 @@ from scvi.compose import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.distributions import NegativeBinomial
 from scvi.modules._utils import one_hot
 
+LOWER_BOUND = 1e-10
+THETA_LOWER_BOUND = 1e-20
+B = 10
+
 
 class CellAssignModule(BaseModuleClass):
     """
@@ -51,15 +55,14 @@ class CellAssignModule(BaseModuleClass):
         # though we do need the base expression intercept either way
         design_matrix_col_dim = n_batch + n_continuous_cov
         design_matrix_col_dim += 0 if n_cats_per_cov is None else sum(n_cats_per_cov)
+        self.rho = rho
 
-        self.register_buffer("rho", rho)
+        self.register_buffer("cell_type_markers", self.rho)
 
         # perform all other initialization
-        self.LOWER_BOUND = 1e-10
-        self.THETA_LOWER_BOUND = 1e-20
-        self.B = 10
         self.min_delta = 2
-        self.dirichlet_concentration = [1e-2] * self.n_labels
+        self.dirichlet_concentration = torch.tensor([1e-2] * self.n_labels)
+        self.register_buffer("dirichlet", self.dirichlet_concentration)
         self.shrinkage = True
 
         # compute theta
@@ -77,7 +80,7 @@ class CellAssignModule(BaseModuleClass):
             self.delta_log_mean = torch.nn.Parameter(torch.Tensor(0))
             self.delta_log_variance = torch.nn.Parameter(torch.Tensor(1))
 
-        self.log_a = torch.nn.Parameter(torch.zeros(self.B, dtype=torch.float64))
+        self.log_a = torch.nn.Parameter(torch.zeros(B, dtype=torch.float64))
 
     def _get_inference_input(self, tensors):
         return {}
@@ -112,9 +115,6 @@ class CellAssignModule(BaseModuleClass):
     @auto_move_data
     def generative(self, x, design_matrix=None):
         # x has shape (n, g)
-        # n = 128
-        # g = 100
-        # c = 5
         delta = torch.exp(self.delta_log)  # (g, c)
         theta_log = F.log_softmax(self.theta_logit)  # (c)
 
@@ -134,42 +134,45 @@ class CellAssignModule(BaseModuleClass):
         mu_ngc = torch.exp(log_mu_ngc)  # (n, g, c)
 
         # compute basis means for phi - shape (B)
-        basis_means_fixed = np.linspace(torch.min(x), torch.max(x), self.B)
-        basis_means = torch.tensor(basis_means_fixed)  # (B)
+        basis_means = torch.linspace(
+            torch.min(x), torch.max(x), B, device=x.device
+        )  # (B)
 
         # compute phi of NegBin - shape (n_cells, n_genes, n_labels)
         a = torch.exp(self.log_a)  # (B)
-        a_e = a.expand(s.shape[0], self.n_genes, self.n_labels, self.B)
-        b_init = 2 * ((basis_means_fixed[1] - basis_means_fixed[0]) ** 2)
-        b = torch.exp(torch.ones(self.B) * (-np.log(b_init)))  # (B)
-        b_e = b.expand(s.shape[0], self.n_genes, self.n_labels, self.B)
+        a_e = a.expand(s.shape[0], self.n_genes, self.n_labels, B)
+        b_init = 2 * ((basis_means[1] - basis_means[0]) ** 2)
+        b = torch.exp(torch.ones(B) * (-np.log(b_init)))  # (B)
+        b_e = b.expand(s.shape[0], self.n_genes, self.n_labels, B)
         mu_ngc_u = mu_ngc.unsqueeze(-1)
         mu_ngcb = mu_ngc_u.expand(
-            s.shape[0], self.n_genes, self.n_labels, self.B
+            s.shape[0], self.n_genes, self.n_labels, B
         )  # (n, g, c, B)
         basis_means_e = basis_means.expand(
-            s.shape[0], self.n_genes, self.n_labels, self.B
+            s.shape[0], self.n_genes, self.n_labels, B
         )  # (n, g, c, B)
         phi = (  # (n, g, c)
             torch.sum(a_e * torch.exp(-b_e * torch.square(mu_ngcb - basis_means_e)), 3)
-            + self.LOWER_BOUND
+            + LOWER_BOUND
         )
 
         # compute gamma
-        nb_pdf = NegativeBinomial(probs=mu_ngc, total_count=phi)
+        nb_pdf = NegativeBinomial(mu=mu_ngc, theta=phi)
         y_ = x.unsqueeze(-1).expand(s.shape[0], self.n_genes, self.n_labels)
         y_log_prob_raw = nb_pdf.log_prob(y_)  # (n, g, c)
         theta_log_e = theta_log.expand(s.shape[0], self.n_labels)
-        p_y_unorm = torch.sum(y_log_prob_raw, 1) + theta_log_e  # (n, c)
-        p_y_norm = torch.logsumexp(p_y_unorm, 1)
-        p_y_norm_e = p_y_norm.unsqueeze(-1).expand(s.shape[0], self.n_labels)
-        gamma = torch.exp(p_y_unorm - p_y_norm_e)  # (n, c)
+        p_y_c = torch.sum(y_log_prob_raw, 1) + theta_log_e  # (n, c)
+        normalizer_over_c = torch.logsumexp(p_y_c, 1)
+        normalizer_over_c_e = normalizer_over_c.unsqueeze(-1).expand(
+            s.shape[0], self.n_labels
+        )
+        gamma = torch.exp(p_y_c - normalizer_over_c_e)  # (n, c)
 
         return dict(
             mu=mu_ngc,
             phi=phi,
             gamma=gamma,
-            p_y_unorm=p_y_unorm,
+            p_y_c=p_y_c,
             s=s,
         )
 
@@ -182,24 +185,24 @@ class CellAssignModule(BaseModuleClass):
     ):
         # generative_outputs is a dict of the return value from `generative(...)`
         # assume that `n_obs` is the number of training data points
-        p_y_unorm = generative_outputs["p_y_unorm"]
+        p_y_c = generative_outputs["p_y_c"]
         gamma = generative_outputs["gamma"]
 
         # compute Q
         # take mean of number of cells and multiply by n_obs (instead of summing n)
-        q_per_cell = torch.sum(gamma * p_y_unorm, 1)
+        q_per_cell = torch.sum(gamma * p_y_c, 1)
 
         # third term is log prob of prior terms in Q
         theta_log = F.log_softmax(self.theta_logit)
         theta_log_prior = Dirichlet(torch.tensor(self.dirichlet_concentration))
         theta_log_prob = -theta_log_prior.log_prob(
-            torch.exp(theta_log) + self.THETA_LOWER_BOUND
+            torch.exp(theta_log) + THETA_LOWER_BOUND
         )
-        delta_log_prior = Normal(self.delta_log_mean, self.delta_log_variance)
-        summed_delta_log = torch.sum(self.delta_log)
-        delta_log_prob = -torch.sum(delta_log_prior.log_prob(summed_delta_log))
         prior_log_prob = theta_log_prob
         if self.shrinkage:
+            delta_log_prior = Normal(self.delta_log_mean, self.delta_log_variance)
+            summed_delta_log = torch.sum(self.delta_log)
+            delta_log_prob = -torch.sum(delta_log_prior.log_prob(summed_delta_log))
             prior_log_prob += delta_log_prob
 
         loss = torch.mean(q_per_cell) * n_obs + prior_log_prob
