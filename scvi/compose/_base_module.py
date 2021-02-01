@@ -200,15 +200,18 @@ class PyroBaseModuleClass(nn.Module):
     """
     Base module class for Pyro models.
 
-    We use the forward method of this class as the "model" in Pyro terms,
-    and also implement the guide here, through the guide method.
+    In Pyro, `model` and `guide` should have the same signature. Out of convenience,
+    the forward function of this class passes through to the forward of the `model`.
 
-    In Pyro, `forward` and `guide` should have the same signature.
+    Parameters
+    ----------
+    model
+        model instance
+    guide
+        guide instance
     """
 
-    def __init__(
-        self,
-    ):
+    def __init__(self):
         super().__init__()
 
     @staticmethod
@@ -216,9 +219,9 @@ class PyroBaseModuleClass(nn.Module):
     def _get_fn_args_from_batch(
         tensor_dict: Dict[str, torch.Tensor]
     ) -> Union[Iterable, dict]:
-        """Parse the minibatched data to get the correct inputs for `forward` and `guide`.
+        """Parse the minibatched data to get the correct inputs for `model` and `guide`.
 
-        In Pyro, `forward` and `guide` should have the same signature. This is a helper method
+        In Pyro, `model` and `guide` must have the same signature. This is a helper method
         that gets the args and kwargs for these two methods. This helper method aids `forward` and
         `guide` in having transparent signatures, as well as allows use of our generic
         :class:`~scvi.dataloaders.AnnDataLoader`.
@@ -229,11 +232,6 @@ class PyroBaseModuleClass(nn.Module):
         """
         pass
 
-    @abstractmethod
-    def guide(self, *args, **kwargs):
-        """Pyro guide method."""
-        pass
-
-    @abstractmethod
-    def forward(self, *args, **kwargs) -> dict:
-        """Pyro model method."""
+    def forward(self, *args, **kwargs):
+        """Passthrough to Pyro model."""
+        return self.model(*args, **kwargs)

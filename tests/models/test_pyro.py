@@ -6,7 +6,7 @@ import pyro.distributions as dist
 import torch
 import torch.nn as nn
 from pyro.infer.autoguide import AutoDiagonalNormal
-from pyro.nn import PyroModule, pyro_method
+from pyro.nn import PyroModule
 
 from scvi import _CONSTANTS
 from scvi.compose import DecoderSCVI, Encoder, PyroBaseModuleClass
@@ -15,11 +15,9 @@ from scvi.dataloaders import AnnDataLoader
 from scvi.lightning import PyroTrainingPlan, Trainer
 
 
-class BayesianRegression(PyroModule, PyroBaseModuleClass):
+class BayesianRegressionPyroModel(PyroModule):
     def __init__(self, in_features, out_features):
         super().__init__()
-
-        self._auto_guide = AutoDiagonalNormal(self)
 
         self.register_buffer("zero", torch.tensor(0.0))
         self.register_buffer("one", torch.tensor(1.0))
@@ -36,13 +34,6 @@ class BayesianRegression(PyroModule, PyroBaseModuleClass):
         #     dist.Normal(self.zero, self.ten).expand([out_features]).to_event(1)
         # )
 
-    @staticmethod
-    def _get_fn_args_from_batch(tensor_dict):
-        x = tensor_dict[_CONSTANTS.X_KEY]
-        y = tensor_dict[_CONSTANTS.LABELS_KEY]
-
-        return (x, y.squeeze(1)), {}
-
     def forward(self, x, y):
         sigma = pyro.sample("sigma", dist.Uniform(self.zero, self.ten))
         mean = self.linear(x).squeeze(-1)
@@ -50,11 +41,23 @@ class BayesianRegression(PyroModule, PyroBaseModuleClass):
             pyro.sample("obs", dist.Normal(mean, sigma), obs=y)
         return mean
 
-    def guide(self, x, y):
-        return self._auto_guide(x, y)
+
+class BayesianRegressionModule(PyroBaseModuleClass):
+    def __init__(self, in_features, out_features):
+
+        super().__init__()
+        self.model = BayesianRegressionPyroModel(in_features, out_features)
+        self.guide = AutoDiagonalNormal(self.model)
+
+    @staticmethod
+    def _get_fn_args_from_batch(tensor_dict):
+        x = tensor_dict[_CONSTANTS.X_KEY]
+        y = tensor_dict[_CONSTANTS.LABELS_KEY]
+
+        return (x, y.squeeze(1)), {}
 
 
-class SCVIPyro(PyroModule, PyroBaseModuleClass):
+class SCVIPyro(PyroBaseModuleClass):
     def __init__(self, n_input, n_latent):
 
         super().__init__()
@@ -86,9 +89,9 @@ class SCVIPyro(PyroModule, PyroBaseModuleClass):
         log_library = torch.log(torch.sum(x, dim=1, keepdim=True) + 1e-6)
         return (x, log_library), {}
 
-    def forward(self, x, log_library):
+    def model(self, x, log_library):
         # register PyTorch module `decoder` with Pyro
-        # pyro.module("scvi", self)
+        pyro.module("scvi", self)
         with pyro.plate("data", x.shape[0]):
             # setup hyperparameters for prior p(z)
             z_loc = x.new_zeros(torch.Size((x.shape[0], self.n_latent)))
@@ -107,10 +110,9 @@ class SCVIPyro(PyroModule, PyroBaseModuleClass):
             # score against actual counts
             pyro.sample("obs", x_dist.to_event(1), obs=x)
 
-    @pyro_method
     def guide(self, x, log_library):
         # define the guide (i.e. variational distribution) q(z|x)
-        # pyro.module("scvi", self)
+        pyro.module("scvi", self)
         with pyro.plate("data", x.shape[0]):
             # use the encoder to get the parameters used to define q(z|x)
             x_ = torch.log(1 + x)
@@ -124,7 +126,7 @@ def test_pyro_bayesian_regression(save_path):
     adata = synthetic_iid()
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     pyro.clear_param_store()
-    model = BayesianRegression(adata.shape[1], 1)
+    model = BayesianRegressionModule(adata.shape[1], 1)
     plan = PyroTrainingPlan(model)
     trainer = Trainer(
         gpus=use_gpu,
@@ -145,7 +147,7 @@ def test_pyro_bayesian_regression(save_path):
     torch.save(model.state_dict(), model_save_path)
 
     pyro.clear_param_store()
-    new_model = BayesianRegression(adata.shape[1], 1)
+    new_model = BayesianRegressionModule(adata.shape[1], 1)
     # warmup guide
     for tensors in train_dl:
         args, kwargs = new_model._get_fn_args_from_batch(tensors)
@@ -167,7 +169,7 @@ def test_pyro_bayesian_regression_jit():
     adata = synthetic_iid()
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     pyro.clear_param_store()
-    model = BayesianRegression(adata.shape[1], 1)
+    model = BayesianRegressionModule(adata.shape[1], 1)
     # warmup guide for JIT
     for tensors in train_dl:
         args, kwargs = model._get_fn_args_from_batch(tensors)

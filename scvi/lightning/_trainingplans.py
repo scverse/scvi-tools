@@ -1,5 +1,5 @@
 from inspect import getfullargspec
-from typing import Callable, Union
+from typing import Callable, Optional, Union
 
 import pyro
 import pytorch_lightning as pl
@@ -541,19 +541,23 @@ class PyroTrainingPlan(pl.LightningModule):
         self,
         pyro_module: PyroBaseModuleClass,
         lr: float = 1e-3,
-        loss_fn: Callable = pyro.infer.Trace_ELBO(),
+        loss_fn: Optional[Callable] = None,
     ):
         super().__init__()
         self.module = pyro_module
         self.loss_fn = loss_fn
         self.lr = lr
 
+        if loss_fn is None:
+            self.loss_fn = pyro.infer.Trace_ELBO()
+
         self.automatic_optimization = False
-        self.guide = self.module.guide
+        self.pyro_guide = self.module.guide
+        self.pyro_model = self.module.model
 
         self.svi = pyro.infer.SVI(
-            model=self.module,
-            guide=self.guide,
+            model=self.pyro_model,
+            guide=self.pyro_guide,
             optim=pyro.optim.Adam({"lr": self.lr}),
             loss=self.loss_fn,
         )
