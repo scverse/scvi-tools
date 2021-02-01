@@ -19,6 +19,7 @@ from .base import (
     VAEMixin,
     SemiSupervisedTrainingMixin,
 )
+from .base._utils import _load_torch_weights
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +190,11 @@ class SCANVI(
     def history(self):
         """Returns computed metrics during training."""
         return self._trainer.logger.history
+
+    def load_pretrained_scvi(self, dir_path: str):
+        map_location = torch.device("cpu") if self.use_gpu is False else None
+        scvi_state_dict = _load_torch_weights(dir_path, map_location)
+        self.module.load_state_dict(scvi_state_dict, strict=False)
 
     def predict(
         self,

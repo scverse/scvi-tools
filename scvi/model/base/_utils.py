@@ -25,7 +25,6 @@ def _load_saved_files(
     setup_dict_path = os.path.join(dir_path, "attr.pkl")
     adata_path = os.path.join(dir_path, "adata.h5ad")
     varnames_path = os.path.join(dir_path, "var_names.csv")
-    model_path = os.path.join(dir_path, "model_params.pt")
 
     if os.path.exists(adata_path) and load_adata:
         adata = read(adata_path)
@@ -41,9 +40,16 @@ def _load_saved_files(
 
     scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
 
-    model_state_dict = torch.load(model_path, map_location=map_location)
-
+    model_state_dict = _load_torch_weights(dir_path)
     return scvi_setup_dict, attr_dict, var_names, model_state_dict, adata
+
+
+def _load_torch_weights(
+    dir_path: str, map_location: Optional[Literal["cpu", "cuda"]] = None
+):
+    model_path = os.path.join(dir_path, "model_params.pt")
+    model_state_dict = torch.load(model_path, map_location=map_location)
+    return model_state_dict
 
 
 def _initialize_model(cls, adata, attr_dict, use_gpu):
