@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import pyro
 import pyro.distributions as dist
 import torch
@@ -26,6 +27,7 @@ class BayesianRegression(PyroModule, PyroBaseModuleClass):
         self.register_buffer("ten", torch.tensor(10.0))
 
         self.linear = PyroModule[nn.Linear](in_features, out_features)
+        # sets a prior over the weight vector
         # self.linear.weight = PyroSample(
         #     dist.Normal(self.zero, self.one)
         #     .expand([out_features, in_features])
@@ -123,7 +125,7 @@ class SCVIPyro(PyroModule, PyroBaseModuleClass):
 
 
 def test_pyro_bayesian_regression(save_path):
-    use_gpu = int(torch.cuda.is_available())
+    use_gpu = 0
     adata = synthetic_iid()
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     pyro.clear_param_store()
@@ -136,14 +138,37 @@ def test_pyro_bayesian_regression(save_path):
     trainer.fit(plan, train_dl)
 
     # test save and load
+    post_dl = AnnDataLoader(adata, shuffle=False, batch_size=128)
+    mean1 = []
+    with torch.no_grad():
+        for tensors in post_dl:
+            args, kwargs = model._get_fn_args_from_batch(tensors)
+            mean1.append(model(*args, **kwargs).cpu().numpy())
+    mean1 = np.concatenate(mean1)
+
     model_save_path = os.path.join(save_path, "model_params.pt")
     torch.save(model.state_dict(), model_save_path)
+
+    pyro.clear_param_store()
     new_model = BayesianRegression(adata.shape[1], 1)
+    # warmup guide
+    for tensors in train_dl:
+        args, kwargs = new_model._get_fn_args_from_batch(tensors)
+        new_model.guide(*args, **kwargs)
+        break
     new_model.load_state_dict(torch.load(model_save_path))
+    mean2 = []
+    with torch.no_grad():
+        for tensors in post_dl:
+            args, kwargs = new_model._get_fn_args_from_batch(tensors)
+            mean2.append(new_model(*args, **kwargs).cpu().numpy())
+    mean2 = np.concatenate(mean2)
+
+    np.testing.assert_array_equal(mean1, mean2)
 
 
 def test_pyro_bayesian_regression_jit():
-    use_gpu = int(torch.cuda.is_available())
+    use_gpu = 0
     adata = synthetic_iid()
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     pyro.clear_param_store()
