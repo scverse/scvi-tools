@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 from pyro.infer.autoguide import AutoDiagonalNormal
 from pyro.nn import PyroModule
-from torch.distributions import constraints
 
 from scvi import _CONSTANTS
 from scvi.compose import DecoderSCVI, Encoder, PyroBaseModuleClass
@@ -55,7 +54,7 @@ class BayesianRegression(PyroModule, PyroBaseModuleClass):
         return self._auto_guide(x, y)
 
 
-class SCVIPyro(PyroModule, PyroBaseModuleClass):
+class SCVIPyro(PyroBaseModuleClass):
     def __init__(self, n_input, n_latent):
 
         super().__init__()
@@ -78,6 +77,8 @@ class SCVIPyro(PyroModule, PyroBaseModuleClass):
             n_layers=1,
             n_hidden=128,
         )
+        # This gene-level parameter modulates the variance of the observation distribution
+        self.px_r = torch.nn.Parameter(torch.ones(self.n_input))
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
@@ -87,14 +88,7 @@ class SCVIPyro(PyroModule, PyroBaseModuleClass):
 
     def forward(self, x, log_library):
         # register PyTorch module `decoder` with Pyro
-        pyro.module("decoder", self.decoder)
-
-        # This gene-level parameter modulates the variance of the observation distribution
-        px_r = pyro.param(
-            "inverse_dispersion",
-            10.0 * x.new_ones(self.n_input),
-            constraint=constraints.positive,
-        )
+        pyro.module("scvi", self)
         with pyro.plate("data", x.shape[0]):
             # setup hyperparameters for prior p(z)
             z_loc = x.new_zeros(torch.Size((x.shape[0], self.n_latent)))
@@ -104,24 +98,24 @@ class SCVIPyro(PyroModule, PyroBaseModuleClass):
             # decode the latent code z
             px_scale, _, px_rate, px_dropout = self.decoder("gene", z, log_library)
             # build count distribution
-            nb_logits = (px_rate + self.epsilon).log() - (px_r + self.epsilon).log()
+            nb_logits = (px_rate + self.epsilon).log() - (
+                self.px_r.exp() + self.epsilon
+            ).log()
             x_dist = dist.ZeroInflatedNegativeBinomial(
-                gate_logits=px_dropout, total_count=px_r, logits=nb_logits
+                gate_logits=px_dropout, total_count=self.px_r.exp(), logits=nb_logits
             )
             # score against actual counts
             pyro.sample("obs", x_dist.to_event(1), obs=x)
-        return None
 
     def guide(self, x, log_library):
         # define the guide (i.e. variational distribution) q(z|x)
-        pyro.module("encoder", self.encoder)
+        pyro.module("scvi", self)
         with pyro.plate("data", x.shape[0]):
             # use the encoder to get the parameters used to define q(z|x)
             x_ = torch.log(1 + x)
             z_loc, z_scale, _ = self.encoder(x_)
             # sample the latent code z
             pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))
-        return None
 
 
 def test_pyro_bayesian_regression(save_path):
