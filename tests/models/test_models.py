@@ -4,6 +4,7 @@ import pytest
 
 import scvi
 from scvi.data import synthetic_iid, transfer_anndata_setup, setup_anndata
+from scvi.dataloaders._ann_dataloader import AnnDataLoader
 from scvi.model import SCVI, SCANVI, TOTALVI, LinearSCVI, AUTOZI, PEAKVI
 from scvi.dataloaders import SemiSupervisedDataLoader
 
@@ -215,6 +216,24 @@ def test_saving_and_loading(save_path):
     p2 = model.predict()
     np.testing.assert_array_equal(p1, p2)
     assert model.is_trained is True
+
+
+def test_ann_dataloader():
+    a = scvi.data.synthetic_iid()
+
+    # test that batch sampler drops the last batch if it has less than 3 cells
+    # FYI, less than 3 condition is hardcoded in
+    assert a.n_obs == 400
+    adl = AnnDataLoader(a, batch_size=397)
+    assert len(adl) == 2
+    for i, x in enumerate(adl):
+        pass
+    assert i == 1
+    adl = AnnDataLoader(a, batch_size=398)
+    assert len(adl) == 1
+    for i, x in enumerate(adl):
+        pass
+    assert i == 0
 
 
 def test_semisupervised_dataloader():

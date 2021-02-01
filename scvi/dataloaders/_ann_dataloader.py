@@ -1,6 +1,6 @@
 import copy
 import logging
-from typing import Optional
+from typing import Optional, Union
 
 import anndata
 import numpy as np
@@ -24,6 +24,8 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         batch size of each iteration
     shuffle
         if ``True``, shuffles indices before sampling
+    drop_last
+        if int, drops the last batch is less than
 
     """
 
@@ -32,18 +34,32 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         indices: np.ndarray,
         batch_size: int,
         shuffle: bool,
-        drop_last: bool = False,
+        drop_last: Union[bool, int] = False,
     ):
         self.indices = indices
         self.n_obs = len(indices)
         self.batch_size = batch_size
         self.shuffle = shuffle
 
+        last_batch_len = self.n_obs % self.batch_size
+
+        if (drop_last == True) or (last_batch_len < drop_last):
+            drop_last_n = last_batch_len
+        elif (drop_last == False) or (last_batch_len >= drop_last):
+            drop_last_n = 0
+        else:
+            raise ValueError("Invalid input for drop_last param. Must be bool or int.")
+
+        self.drop_last_n = drop_last_n
+
     def __iter__(self):
         if self.shuffle is True:
             idx = torch.randperm(len(self.indices)).tolist()
         else:
             idx = torch.arange(len(self.indices)).tolist()
+
+        if self.drop_last_n != 0:
+            idx = idx[: -self.drop_last_n]
 
         data_iter = iter(
             [
@@ -56,8 +72,10 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
     def __len__(self):
         from math import ceil
 
-        length = ceil(self.n_obs / self.batch_size)
-
+        if self.drop_last_n != 0:
+            length = int(self.n_obs / self.batch_size)
+        else:
+            length = ceil(self.n_obs / self.batch_size)
         return length
 
 
@@ -121,6 +139,9 @@ class AnnDataLoader(DataLoader):
                 indices = np.where(indices)[0].ravel()
             indices = np.asarray(indices)
             sampler_kwargs["indices"] = indices
+
+        # do not remove, skips over small minibatches
+        sampler_kwargs["drop_last"] = 3
 
         self.indices = indices
         self.sampler_kwargs = sampler_kwargs
