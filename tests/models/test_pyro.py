@@ -1,3 +1,5 @@
+import os
+
 import pyro
 import pyro.distributions as dist
 import torch
@@ -23,14 +25,22 @@ class BayesianRegression(PyroModule, PyroBaseModuleClass):
         self.register_buffer("one", torch.tensor(1.0))
         self.register_buffer("ten", torch.tensor(10.0))
 
-        self.linear = nn.Linear(in_features, out_features)
+        self.linear = PyroModule[nn.Linear](in_features, out_features)
+        # self.linear.weight = PyroSample(
+        #     dist.Normal(self.zero, self.one)
+        #     .expand([out_features, in_features])
+        #     .to_event(2)
+        # )
+        # self.linear.bias = PyroSample(
+        #     dist.Normal(self.zero, self.ten).expand([out_features]).to_event(1)
+        # )
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
         x = tensor_dict[_CONSTANTS.X_KEY]
         y = tensor_dict[_CONSTANTS.LABELS_KEY]
 
-        return (x, y), {}
+        return (x, y.squeeze(1)), {}
 
     def forward(self, x, y):
         sigma = pyro.sample("sigma", dist.Uniform(self.zero, self.ten))
@@ -112,7 +122,7 @@ class SCVIPyro(PyroModule, PyroBaseModuleClass):
         return None
 
 
-def test_pyro_bayesian_regression():
+def test_pyro_bayesian_regression(save_path):
     use_gpu = int(torch.cuda.is_available())
     adata = synthetic_iid()
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
@@ -124,6 +134,12 @@ def test_pyro_bayesian_regression():
         max_epochs=2,
     )
     trainer.fit(plan, train_dl)
+
+    # test save and load
+    model_save_path = os.path.join(save_path, "model_params.pt")
+    torch.save(model.state_dict(), model_save_path)
+    new_model = BayesianRegression(adata.shape[1], 1)
+    new_model.load_state_dict(torch.load(model_save_path))
 
 
 def test_pyro_bayesian_regression_jit():
