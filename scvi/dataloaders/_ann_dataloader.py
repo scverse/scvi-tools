@@ -25,7 +25,9 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
     shuffle
         if ``True``, shuffles indices before sampling
     drop_last
-        if int, drops the last batch is less than
+        if int, drops the last batch if its length is less than drop_last.
+        if drop_last == True, drops last non-full batch.
+        if drop_last == False, iterate over all batches.
 
     """
 
