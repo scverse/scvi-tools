@@ -6,7 +6,7 @@ import pyro.distributions as dist
 import torch
 import torch.nn as nn
 from pyro.infer.autoguide import AutoDiagonalNormal
-from pyro.nn import PyroModule
+from pyro.nn import PyroModule, pyro_method
 
 from scvi import _CONSTANTS
 from scvi.compose import DecoderSCVI, Encoder, PyroBaseModuleClass
@@ -54,7 +54,7 @@ class BayesianRegression(PyroModule, PyroBaseModuleClass):
         return self._auto_guide(x, y)
 
 
-class SCVIPyro(PyroBaseModuleClass):
+class SCVIPyro(PyroModule, PyroBaseModuleClass):
     def __init__(self, n_input, n_latent):
 
         super().__init__()
@@ -88,7 +88,7 @@ class SCVIPyro(PyroBaseModuleClass):
 
     def forward(self, x, log_library):
         # register PyTorch module `decoder` with Pyro
-        pyro.module("scvi", self)
+        # pyro.module("scvi", self)
         with pyro.plate("data", x.shape[0]):
             # setup hyperparameters for prior p(z)
             z_loc = x.new_zeros(torch.Size((x.shape[0], self.n_latent)))
@@ -107,9 +107,10 @@ class SCVIPyro(PyroBaseModuleClass):
             # score against actual counts
             pyro.sample("obs", x_dist.to_event(1), obs=x)
 
+    @pyro_method
     def guide(self, x, log_library):
         # define the guide (i.e. variational distribution) q(z|x)
-        pyro.module("scvi", self)
+        # pyro.module("scvi", self)
         with pyro.plate("data", x.shape[0]):
             # use the encoder to get the parameters used to define q(z|x)
             x_ = torch.log(1 + x)
