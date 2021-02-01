@@ -40,7 +40,7 @@ def _load_saved_files(
 
     scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
 
-    model_state_dict = _load_torch_weights(dir_path)
+    model_state_dict = _load_torch_weights(dir_path, map_location)
     return scvi_setup_dict, attr_dict, var_names, model_state_dict, adata
 
 
