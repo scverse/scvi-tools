@@ -55,14 +55,12 @@ class CellAssignModule(BaseModuleClass):
         # though we do need the base expression intercept either way
         design_matrix_col_dim = n_batch + n_continuous_cov
         design_matrix_col_dim += 0 if n_cats_per_cov is None else sum(n_cats_per_cov)
-        self.rho = rho
-
-        self.register_buffer("cell_type_markers", self.rho)
+        self.register_buffer("rho", rho)
 
         # perform all other initialization
         self.min_delta = 2
-        self.dirichlet_concentration = torch.tensor([1e-2] * self.n_labels)
-        self.register_buffer("dirichlet", self.dirichlet_concentration)
+        dirichlet_concentration = torch.tensor([1e-2] * self.n_labels)
+        self.register_buffer("dirichlet_concentration", dirichlet_concentration)
         self.shrinkage = True
 
         # compute theta
@@ -142,7 +140,7 @@ class CellAssignModule(BaseModuleClass):
         a = torch.exp(self.log_a)  # (B)
         a_e = a.expand(s.shape[0], self.n_genes, self.n_labels, B)
         b_init = 2 * ((basis_means[1] - basis_means[0]) ** 2)
-        b = torch.exp(torch.ones(B) * (-np.log(b_init)))  # (B)
+        b = torch.exp(torch.ones(B, device=x.device) * (-torch.log(b_init)))  # (B)
         b_e = b.expand(s.shape[0], self.n_genes, self.n_labels, B)
         mu_ngc_u = mu_ngc.unsqueeze(-1)
         mu_ngcb = mu_ngc_u.expand(
