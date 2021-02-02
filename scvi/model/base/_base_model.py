@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, Sequence
 
 import numpy as np
+import pyro
 import rich
 import torch
 from anndata import AnnData
@@ -442,6 +443,7 @@ class BaseModelClass(ABC):
             if isinstance(model.module, PyroBaseModuleClass):
                 logger.info("Preparing underlying module for load")
                 model.train(max_steps=1)
+                pyro.clear_param_store()
                 model.module.load_state_dict(model_state_dict)
             else:
                 raise err
