@@ -148,12 +148,21 @@ def test_pyro_bayesian_regression(save_path):
 
     pyro.clear_param_store()
     new_model = BayesianRegressionModule(adata.shape[1], 1)
-    # warmup guide
-    for tensors in train_dl:
-        args, kwargs = new_model._get_fn_args_from_batch(tensors)
-        new_model.guide(*args, **kwargs)
-        break
-    new_model.load_state_dict(torch.load(model_save_path))
+    # run model one step to get autoguide params
+    try:
+        new_model.load_state_dict(torch.load(model_save_path))
+    except RuntimeError as err:
+        if isinstance(new_model, PyroBaseModuleClass):
+            plan = PyroTrainingPlan(new_model)
+            trainer = Trainer(
+                gpus=use_gpu,
+                max_steps=1,
+            )
+            trainer.fit(plan, train_dl)
+            new_model.load_state_dict(torch.load(model_save_path))
+        else:
+            raise err
+
     mean2 = []
     with torch.no_grad():
         for tensors in post_dl:

@@ -13,6 +13,7 @@ from rich.text import Text
 from sklearn.model_selection._split import _validate_shuffle_split
 
 from scvi import _CONSTANTS, settings
+from scvi.compose import PyroBaseModuleClass
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
@@ -434,7 +435,17 @@ class BaseModelClass(ABC):
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
-        model.module.load_state_dict(model_state_dict)
+        # some Pyro modules with AutoGuides may need one training step
+        try:
+            model.module.load_state_dict(model_state_dict)
+        except RuntimeError as err:
+            if isinstance(model.module, PyroBaseModuleClass):
+                logger.info("Preparing underlying module for load")
+                model.train(max_steps=1)
+                model.module.load_state_dict(model_state_dict)
+            else:
+                raise err
+
         if use_gpu:
             model.module.cuda()
 

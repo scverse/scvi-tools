@@ -203,12 +203,10 @@ class PyroBaseModuleClass(nn.Module):
     In Pyro, `model` and `guide` should have the same signature. Out of convenience,
     the forward function of this class passes through to the forward of the `model`.
 
-    Parameters
-    ----------
-    model
-        model instance
-    guide
-        guide instance
+    There are two ways this class can be equipped with a model and a guide. First,
+    `model` and `guide` can be class attributes that are :class:`~pyro.nn.PyroModule`
+    instances. Second, `model` and `guide` methods can be written (see Pyro scANVI example)
+    https://pyro.ai/examples/scanvi.html
     """
 
     def __init__(self):
