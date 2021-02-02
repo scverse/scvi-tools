@@ -62,6 +62,7 @@ class CellAssignModule(BaseModuleClass):
         dirichlet_concentration = torch.tensor([1e-2] * self.n_labels)
         self.register_buffer("dirichlet_concentration", dirichlet_concentration)
         self.shrinkage = True
+        self.b_g_0 = torch.nn.Parameter(torch.randn(n_genes))
 
         # compute theta
         self.theta_logit = torch.nn.Parameter(torch.randn(self.n_labels))
@@ -124,11 +125,16 @@ class CellAssignModule(BaseModuleClass):
             s.shape[0], self.n_genes, self.n_labels
         )  # (n, g, c)
 
+        # base gene expression
+        b_g_0_e = self.b_g_0.unsqueeze(-1).expand(
+            s.shape[0], self.n_genes, self.n_labels
+        )
+
         delta_rho = delta * self.rho
         delta_rho_e = delta_rho.expand(
             s.shape[0], self.n_genes, self.n_labels
         )  # (n, g, c)
-        log_mu_ngc = base_mean_e + delta_rho_e
+        log_mu_ngc = base_mean_e + delta_rho_e + b_g_0_e
         mu_ngc = torch.exp(log_mu_ngc)  # (n, g, c)
 
         # compute basis means for phi - shape (B)
