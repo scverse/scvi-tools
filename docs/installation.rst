@@ -4,7 +4,7 @@ Installation
 Prerequisites
 ~~~~~~~~~~~~~~
 
-scvi-tools can be installed via conda or pip. If you don't know which to choose, we recommend conda for beginner users. 
+scvi-tools can be installed via conda or pip. If you don't know which to choose, we recommend conda for beginner users.
 
 conda prerequisites
 ###################
@@ -19,8 +19,8 @@ conda prerequisites
 
     source activate scvi-env
 
-pip prerequisites:
-##################
+pip prerequisites
+#################
 
 1. Install Python_, we prefer the `pyenv <https://github.com/pyenv/pyenv/>`_ version management system, along with `pyenv-virtualenv <https://github.com/pyenv/pyenv-virtualenv/>`_.
 
@@ -31,16 +31,17 @@ pip prerequisites:
 .. _PyTorch: http://pytorch.org
 
 
-scvi-tools installation
-~~~~~~~~~~~~~~~~~~~~~~~
+Conda
+~~~~~
 
-Install scvi-tools in one of the following ways:
-
-Through **conda**::
+::
 
     conda install scvi-tools -c bioconda -c conda-forge
 
-Through **pip**::
+Pip
+~~~
+
+::
 
     pip install scvi-tools
 
@@ -52,21 +53,21 @@ Nightly version - clone this repo and run::
 
     pip install .
 
+Development
+~~~~~~~~~~~
+
 For development - clone this repo and run::
 
     pip install -e .[dev,docs]
 
-If you wish to use multiple GPUs for hyperparameter tuning, install MongoDb_.
+R
+~
 
+scvi-tools can be called from R via Reticulate.
 
-scvi-tools installation for R
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This is only recommended for basic functionality (getting the latent space, normalized expression, differential expression). For more involved analyses with scvi-tools, we highly recommend using it from Python.
 
-scvi-tools can be called from R via Reticulate. 
-
-This is only recommended for basic scvi-tools functionality (getting the latent space, normalized expression, differential expression). For more involved analyses with scvi-tools, we highly recommend using it from Python. 
-
-The easiest way to install scvi-tools for R is via conda. 
+The easiest way to install scvi-tools for R is via conda.
 
 1. Install Conda Prerequisites (see above).
 2. Install Reticulate::
@@ -76,7 +77,6 @@ The easiest way to install scvi-tools for R is via conda.
 3. Then in your R code::
 
     library(reticulate)
-    use_condaenv("scvi-env", required=TRUE) 
+    use_condaenv("scvi-env", required=TRUE)
 
-.. _MongoDb: https://docs.mongodb.com/manual/installation/
 .. _Reticulate: https://rstudio.github.io/reticulate/
