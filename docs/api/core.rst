@@ -31,6 +31,18 @@ Distributions
    distributions.NegativeBinomialMixture
    distributions.ZeroInflatedNegativeBinomial
 
+
+Model (Base)
+~~~~~~~~~~~~
+
+.. autosummary::
+    :toctree: reference/
+
+    model.base.BaseModelClass
+    model.base.VAEMixin
+    model.base.RNASeqMixin
+    model.base.ArchesMixin
+
 Modules
 ~~~~~~~
 
