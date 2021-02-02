@@ -28,10 +28,10 @@ def poisson_gene_selection(
     **kwargs,
 ):
     """
-    Rank and select genes based on the enrichment of zero counts in data compared to a Poisson count model.
+    Rank and select genes based on the enrichment of zero counts.
 
+    Enrichment is considered by comparing data to a Poisson count model.
     This is based on M3Drop: https://github.com/tallulandrews/M3Drop
-
     The method accounts for library size internally, a raw count matrix should be provided.
 
     Instead of Z-test, enrichment of zeros is quantified by posterior

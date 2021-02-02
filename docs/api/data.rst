@@ -21,6 +21,21 @@ Data loading
    data.read_text
    data.read_10x_atac
 
+
+Data preparation
+~~~~~~~~~~~~~~~~
+
+Setting up an AnnData object is a prerequisite for running any ``scvi-tools`` model.
+
+.. autosummary::
+   :toctree: reference/
+
+   data.setup_anndata
+   data.transfer_anndata_setup
+   data.register_tensor_from_anndata
+   data.view_anndata_setup
+
+
 Basic preprocessing
 ~~~~~~~~~~~~~~~~~~~
 
@@ -40,19 +55,6 @@ Here we maintain a few package specific utilities for feature selection, etc.
    data.poisson_gene_selection
    data.organize_cite_seq_10x
 
-
-Data preparation
-~~~~~~~~~~~~~~~~
-
-Setting up an AnnData object is a prerequisite for running any ``scvi-tools`` model.
-
-.. autosummary::
-   :toctree: reference/
-
-   data.setup_anndata
-   data.transfer_anndata_setup
-   data.register_tensor_from_anndata
-   data.view_anndata_setup
 
 Built in data
 ~~~~~~~~~~~~~

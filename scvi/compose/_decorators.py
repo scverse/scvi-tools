@@ -8,7 +8,7 @@ from torch.nn import Module
 
 def auto_move_data(fn: Callable) -> Callable:
     """
-    Decorator for :class:`~torch.nn.Module methods to move data to correct device.
+    Decorator for :class:`~torch.nn.Module` methods to move data to correct device.
 
     Input arguments are moved automatically to the correct device.
     It has no effect if applied to a method of an object that is not an instance of
