@@ -217,7 +217,8 @@ class PyroBaseModuleClass(nn.Module):
     def _get_fn_args_from_batch(
         tensor_dict: Dict[str, torch.Tensor]
     ) -> Union[Iterable, dict]:
-        """Parse the minibatched data to get the correct inputs for `model` and `guide`.
+        """
+        Parse the minibatched data to get the correct inputs for `model` and `guide`.
 
         In Pyro, `model` and `guide` must have the same signature. This is a helper method
         that gets the args and kwargs for these two methods. This helper method aids `forward` and
@@ -228,7 +229,6 @@ class PyroBaseModuleClass(nn.Module):
         -------
         args and kwargs for the functions, args should be an Iterable and kwargs a dictionary.
         """
-        pass
 
     def forward(self, *args, **kwargs):
         """Passthrough to Pyro model."""
