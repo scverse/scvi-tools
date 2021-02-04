@@ -184,8 +184,8 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
 
             c2f_shape = K_r_factors_per_combs / self.n_fact
             
-            with factor_axis:
-                x_fr_comb2fact = pyro.sample('x_fr_comb2fact',
+        with factor_axis, combination_axis:
+            x_fr_comb2fact = pyro.sample('x_fr_comb2fact',
                                              Gamma(alpha=c2f_shape,
                                                    beta=K_r_factors_per_combs,
                                                    shape=(self.n_fact, self.n_comb)))
@@ -194,7 +194,7 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
             with factor_axis:
                 w_sf_mu = z_sr_combs_factors @ x_fr_comb2fact.T
                 w_sf_sigma = w_sf_mu / self.w_sf_mean_var_ratio
-                w_sf = pyro.sample('w_sf', Gamma(mu=w_sf_mu, sigma=w_sf_sigma))
+                w_sf = pyro.sample('w_sf', Gamma(mu=w_sf_mu, sigma=w_sf_sigma)) # (self.n_obs, self.n_fact)
 
         # =====================Location-specific additive component======================= #
         l_s_add_alpha = pyro.sample('l_s_add_alpha', Gamma(alpha=1, beta=1, shape=(1, 1)))
