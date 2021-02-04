@@ -1,5 +1,5 @@
 from inspect import getfullargspec
-from typing import Callable, Optional, Union
+from typing import Optional, Union
 
 import pyro
 import pytorch_lightning as pl
@@ -533,23 +533,28 @@ class PyroTrainingPlan(pl.LightningModule):
     ----------
     pyro_module
         A model instance from class ``PyroBaseModuleClass``.
-    lr
-        Learning rate used for optimization.
+    loss_fn
+        A Pyro loss. Should be a subclass of :class:`pyro.infer.ELBO`.
+        If `None`, defaults to :class:`pyro.infer.Trace_ELBO`.
+    optim
+        A Pyro optimizer, e.g., :class:`~pyro.optim.Adam`. If `None`,
+        defaults to Adam optimizer with a learning rate of `1e-3`.
     """
 
     def __init__(
         self,
         pyro_module: PyroBaseModuleClass,
-        lr: float = 1e-3,
-        loss_fn: Optional[Callable] = None,
+        loss_fn: Optional[pyro.infer.ELBO] = None,
+        optim: Optional[pyro.optim.PyroOptim] = None,
     ):
         super().__init__()
         self.module = pyro_module
         self.loss_fn = loss_fn
-        self.lr = lr
 
         if loss_fn is None:
             self.loss_fn = pyro.infer.Trace_ELBO()
+        if optim is None:
+            self.optim = pyro.optim.Adam({"lr": 1e-3})
 
         self.automatic_optimization = False
         self.pyro_guide = self.module.guide
@@ -558,7 +563,7 @@ class PyroTrainingPlan(pl.LightningModule):
         self.svi = pyro.infer.SVI(
             model=self.pyro_model,
             guide=self.pyro_guide,
-            optim=pyro.optim.Adam({"lr": self.lr}),
+            optim=self.optim,
             loss=self.loss_fn,
         )
 
