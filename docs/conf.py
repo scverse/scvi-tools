@@ -122,6 +122,7 @@ intersphinx_mapping = dict(
     torch=("https://pytorch.org/docs/master/", None),
     scanpy=("https://scanpy.readthedocs.io/en/stable/", None),
     pytorch_lightning=("https://pytorch-lightning.readthedocs.io/en/stable/", None),
+    pyro=("http://docs.pyro.ai/en/stable/", None),
 )
 qualname_overrides = {
     "scvi.data.dataset.GeneExpressionDataset": "scvi.data.GeneExpressionDataset"
