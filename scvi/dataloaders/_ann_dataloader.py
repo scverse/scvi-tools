@@ -56,9 +56,9 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
 
     def __iter__(self):
         if self.shuffle is True:
-            idx = torch.randperm(len(self.indices)).tolist()
+            idx = torch.randperm(self.n_obs).tolist()
         else:
-            idx = torch.arange(len(self.indices)).tolist()
+            idx = torch.arange(self.n_obs).tolist()
 
         if self.drop_last_n != 0:
             idx = idx[: -self.drop_last_n]
