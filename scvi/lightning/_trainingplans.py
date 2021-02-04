@@ -532,10 +532,11 @@ class PyroTrainingPlan(pl.LightningModule):
     Parameters
     ----------
     pyro_module
-        A model instance from class ``PyroBaseModuleClass``.
+        An instance of :class:`~scvi.compose.PyroBaseModuleClass`. This object
+        should have callable `model` and `guide` attributes or methods.
     loss_fn
-        A Pyro loss. Should be a subclass of :class:`pyro.infer.ELBO`.
-        If `None`, defaults to :class:`pyro.infer.Trace_ELBO`.
+        A Pyro loss. Should be a subclass of :class:`~pyro.infer.ELBO`.
+        If `None`, defaults to :class:`~pyro.infer.Trace_ELBO`.
     optim
         A Pyro optimizer, e.g., :class:`~pyro.optim.Adam`. If `None`,
         defaults to Adam optimizer with a learning rate of `1e-3`.
