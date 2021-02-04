@@ -8,10 +8,19 @@ logger = logging.getLogger(__name__)
 
 
 class ProgressBar(ProgressBarBase):
-    """Custom progress bar for scvi-tools models."""
+    """
+    Custom progress bar for scvi-tools models.
 
-    def __init__(self):
+    Parameters
+    ----------
+    refresh_rate
+        Determines at which rate (in number of epochs) the progress bars get updated.
+        Set it to ``0`` to disable the display.
+    """
+
+    def __init__(self, refresh_rate: int = 1):
         super().__init__()
+        self._refresh_rate = refresh_rate
         self._enabled = True
 
     def __getstate__(self):
@@ -22,7 +31,11 @@ class ProgressBar(ProgressBarBase):
 
     @property
     def is_enabled(self) -> bool:
-        return self._enabled
+        return self._enabled and self.refresh_rate > 0
+
+    @property
+    def refresh_rate(self) -> int:
+        return self._refresh_rate
 
     @property
     def is_disabled(self) -> bool:
@@ -59,9 +72,14 @@ class ProgressBar(ProgressBarBase):
         epoch = trainer.current_epoch + 1
         self.main_progress_bar.set_description(f"Epoch {epoch}/{trainer.max_epochs}")
 
+    def _should_update(self, current, total):
+        return self.is_enabled and (
+            current % self.refresh_rate == 0 or current == total
+        )
+
     def on_train_epoch_end(self, trainer, pl_module, outputs):
         super().on_train_epoch_end(trainer, pl_module, outputs)
-        if self.is_enabled:
+        if self._should_update(self.trainer.current_epoch, self.trainer.max_epochs):
             self.main_progress_bar.update()
             self.main_progress_bar.set_postfix(trainer.progress_bar_dict)
 
