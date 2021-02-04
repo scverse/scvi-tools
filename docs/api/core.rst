@@ -14,6 +14,7 @@ Compose
    compose.Encoder
    compose.LossRecorder
    compose.BaseModuleClass
+   compose.PyroBaseModuleClass
 
 .. autosummary::
    :toctree: reference/
@@ -80,6 +81,7 @@ steps for modules like `TOTALVAE`, `SCANVAE`, etc.
    lightning.TrainingPlan
    lightning.SemiSupervisedTrainingPlan
    lightning.AdversarialTrainingPlan
+   lightning.PyroTrainingPlan
    lightning.Trainer
 
 Utilities

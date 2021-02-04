@@ -1,13 +1,14 @@
 from inspect import getfullargspec
-from typing import Union
+from typing import Callable, Optional, Union
 
+import pyro
 import pytorch_lightning as pl
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.compose import BaseModuleClass, one_hot
+from scvi.compose import PyroBaseModuleClass, BaseModuleClass, one_hot
 from scvi.modules import Classifier
 
 
@@ -522,3 +523,59 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             "kl_global": scvi_losses.kl_global,
             "n_obs": reconstruction_loss.shape[0],
         }
+
+
+class PyroTrainingPlan(pl.LightningModule):
+    """
+    Lightning module task to train Pyro scvi-tools modules.
+
+    Parameters
+    ----------
+    pyro_module
+        A model instance from class ``PyroBaseModuleClass``.
+    lr
+        Learning rate used for optimization.
+    """
+
+    def __init__(
+        self,
+        pyro_module: PyroBaseModuleClass,
+        lr: float = 1e-3,
+        loss_fn: Optional[Callable] = None,
+    ):
+        super().__init__()
+        self.module = pyro_module
+        self.loss_fn = loss_fn
+        self.lr = lr
+
+        if loss_fn is None:
+            self.loss_fn = pyro.infer.Trace_ELBO()
+
+        self.automatic_optimization = False
+        self.pyro_guide = self.module.guide
+        self.pyro_model = self.module.model
+
+        self.svi = pyro.infer.SVI(
+            model=self.pyro_model,
+            guide=self.pyro_guide,
+            optim=pyro.optim.Adam({"lr": self.lr}),
+            loss=self.loss_fn,
+        )
+
+    def forward(self, *args, **kwargs):
+        """Passthrough to `model.forward()`."""
+        return self.module(*args, **kwargs)
+
+    def training_step(self, batch, batch_idx, optimizer_idx=0):
+        args, kwargs = self.module._get_fn_args_from_batch(batch)
+        loss = self.svi.step(*args, **kwargs)
+        self.log("train_loss", loss, prog_bar=True, on_epoch=True)
+
+    def configure_optimizers(self):
+        return None
+
+    def optimizer_step(self, *args, **kwargs):
+        pass
+
+    def backward(self, *args, **kwargs):
+        pass

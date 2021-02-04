@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Iterable, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -194,3 +194,42 @@ def _get_dict_if_none(param):
     param = {} if not isinstance(param, dict) else param
 
     return param
+
+
+class PyroBaseModuleClass(nn.Module):
+    """
+    Base module class for Pyro models.
+
+    In Pyro, `model` and `guide` should have the same signature. Out of convenience,
+    the forward function of this class passes through to the forward of the `model`.
+
+    There are two ways this class can be equipped with a model and a guide. First,
+    `model` and `guide` can be class attributes that are :class:`~pyro.nn.PyroModule`
+    instances. Second, `model` and `guide` methods can be written (see Pyro scANVI example)
+    https://pyro.ai/examples/scanvi.html
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    @staticmethod
+    @abstractmethod
+    def _get_fn_args_from_batch(
+        tensor_dict: Dict[str, torch.Tensor]
+    ) -> Union[Iterable, dict]:
+        """
+        Parse the minibatched data to get the correct inputs for `model` and `guide`.
+
+        In Pyro, `model` and `guide` must have the same signature. This is a helper method
+        that gets the args and kwargs for these two methods. This helper method aids `forward` and
+        `guide` in having transparent signatures, as well as allows use of our generic
+        :class:`~scvi.dataloaders.AnnDataLoader`.
+
+        Returns
+        -------
+        args and kwargs for the functions, args should be an Iterable and kwargs a dictionary.
+        """
+
+    def forward(self, *args, **kwargs):
+        """Passthrough to Pyro model."""
+        return self.model(*args, **kwargs)
