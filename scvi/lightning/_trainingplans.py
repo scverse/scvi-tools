@@ -550,12 +550,9 @@ class PyroTrainingPlan(pl.LightningModule):
     ):
         super().__init__()
         self.module = pyro_module
-        self.loss_fn = loss_fn
 
-        if loss_fn is None:
-            self.loss_fn = pyro.infer.Trace_ELBO()
-        if optim is None:
-            self.optim = pyro.optim.Adam({"lr": 1e-3})
+        self.loss_fn = pyro.infer.Trace_ELBO() if loss_fn is None else loss_fn
+        self.optim = pyro.optim.Adam({"lr": 1e-3}) if optim is None else optim
 
         self.automatic_optimization = False
         self.pyro_guide = self.module.guide
