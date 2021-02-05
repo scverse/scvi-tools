@@ -12,3 +12,4 @@ def test_cellassign(save_path):
 
     model = CellAssign(adata, marker_df)
     model.train(max_epochs=1)
+    model.predict(adata)
