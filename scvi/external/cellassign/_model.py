@@ -78,9 +78,9 @@ class CellAssign(BaseModelClass):
         scdl = self._make_scvi_dl(adata=adata)
         latent = []
         for tensors in scdl:
-            # inference_inputs = self.model._get_inference_input(tensors)
+            generative_inputs = self.module._get_generative_input(tensors, None)
             # x, y = self.model.inference(**inference_inputs)
-            outputs = self.module.generative(self, adata)
+            outputs = self.module.generative(self, generative_inputs)
             gamma = outputs["gamma"]
             latent += [gamma.cpu()]
         return np.array(torch.cat(latent))
