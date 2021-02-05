@@ -68,7 +68,7 @@ class CellAssignModule(BaseModuleClass):
         self.theta_logit = torch.nn.Parameter(torch.randn(self.n_labels))
 
         # compute delta (cell type specific overexpression parameter)
-        self.delta_log = torch.nn.Parameter(
+        self.delta_log_unclamped = torch.nn.Parameter(
             torch.FloatTensor(self.n_genes, self.n_labels).uniform_(-2, 2)
         )
 
@@ -111,7 +111,9 @@ class CellAssignModule(BaseModuleClass):
 
     @auto_move_data
     def generative(self, x, design_matrix=None):
-        torch.clamp(self.delta_log, min=np.log(self.min_delta))
+        self.delta_log = torch.clamp(
+            self.delta_log_unclamped, min=np.log(self.min_delta)
+        )
         # x has shape (n, g)
         delta = torch.exp(self.delta_log)  # (g, c)
         theta_log = F.log_softmax(self.theta_logit)  # (c)
