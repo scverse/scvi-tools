@@ -44,6 +44,10 @@ class Trainer(pl.Trainer):
         Set it to -1 to run all batches in all validation dataloaders.
     weights_summary
         Prints a summary of the weights when training begins.
+    progress_bar_refresh_rate
+        How often to refresh progress bar (in steps). Value 0 disables progress bar.
+    simple_progress_bar
+        Use custom scvi-tools simple progress bar (per epoch rather than per batch)
     logger
         A valid pytorch lightning logger. Defaults to a simple dictionary logger.
         If `True`, defaults to the default pytorch lightning logger.
@@ -69,6 +73,8 @@ class Trainer(pl.Trainer):
         early_stopping_min_delta: float = 0.00,
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
+        progress_bar_refresh_rate: int = 1,
+        simple_progress_bar: bool = True,
         logger: Union[Optional[LightningLoggerBase], bool] = None,
         **kwargs
     ):
@@ -94,8 +100,9 @@ class Trainer(pl.Trainer):
                 else np.inf
             )
 
-        bar = ProgressBar()
-        kwargs["callbacks"] += [bar]
+        if simple_progress_bar:
+            bar = ProgressBar(refresh_rate=progress_bar_refresh_rate)
+            kwargs["callbacks"] += [bar]
 
         if logger is None:
             logger = SimpleLogger()
@@ -111,6 +118,7 @@ class Trainer(pl.Trainer):
             num_sanity_val_steps=num_sanity_val_steps,
             weights_summary=weights_summary,
             logger=logger,
+            progress_bar_refresh_rate=progress_bar_refresh_rate,
             **kwargs,
         )
 

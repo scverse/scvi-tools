@@ -2,7 +2,6 @@
 
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
-from logging import NullHandler
 
 from ._constants import _CONSTANTS
 from ._settings import settings
@@ -19,12 +18,7 @@ except ModuleNotFoundError:
 package_name = "scvi-tools"
 __version__ = importlib_metadata.version(package_name)
 
-logger = logging.getLogger(__name__)
-logger.addHandler(NullHandler())
-
-# this prevents double outputs
-logger.propagate = False
-
+settings.verbosity = logging.INFO
 test_var = "test"
 
 __all__ = ["settings", "_CONSTANTS", "data", "model"]

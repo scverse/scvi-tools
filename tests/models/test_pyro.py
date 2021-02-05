@@ -9,7 +9,7 @@ from pyro.infer.autoguide import AutoDiagonalNormal
 from pyro.nn import PyroModule
 
 from scvi import _CONSTANTS
-from scvi.compose import DecoderSCVI, Encoder, PyroBaseModuleClass
+from scvi.compose import PyroBaseModuleClass
 from scvi.data import synthetic_iid
 from scvi.dataloaders import AnnDataLoader
 from scvi.lightning import PyroTrainingPlan, Trainer
@@ -24,15 +24,6 @@ class BayesianRegressionPyroModel(PyroModule):
         self.register_buffer("ten", torch.tensor(10.0))
 
         self.linear = PyroModule[nn.Linear](in_features, out_features)
-        # sets a prior over the weight vector
-        # self.linear.weight = PyroSample(
-        #     dist.Normal(self.zero, self.one)
-        #     .expand([out_features, in_features])
-        #     .to_event(2)
-        # )
-        # self.linear.bias = PyroSample(
-        #     dist.Normal(self.zero, self.ten).expand([out_features]).to_event(1)
-        # )
 
     def forward(self, x, y):
         sigma = pyro.sample("sigma", dist.Uniform(self.zero, self.ten))
@@ -55,70 +46,6 @@ class BayesianRegressionModule(PyroBaseModuleClass):
         y = tensor_dict[_CONSTANTS.LABELS_KEY]
 
         return (x, y.squeeze(1)), {}
-
-
-class SCVIPyro(PyroBaseModuleClass):
-    def __init__(self, n_input, n_latent):
-
-        super().__init__()
-        self.n_input = n_input
-        self.n_latent = n_latent
-        self.epsilon = 5.0e-3
-        # z encoder goes from the n_input-dimensional data to an n_latent-d
-        # latent space representation
-        self.encoder = Encoder(
-            n_input,
-            n_latent,
-            n_layers=1,
-            n_hidden=128,
-            dropout_rate=0.1,
-        )
-        # decoder goes from n_latent-dimensional space to n_input-d data
-        self.decoder = DecoderSCVI(
-            n_latent,
-            n_input,
-            n_layers=1,
-            n_hidden=128,
-        )
-        # This gene-level parameter modulates the variance of the observation distribution
-        self.px_r = torch.nn.Parameter(torch.ones(self.n_input))
-
-    @staticmethod
-    def _get_fn_args_from_batch(tensor_dict):
-        x = tensor_dict[_CONSTANTS.X_KEY]
-        log_library = torch.log(torch.sum(x, dim=1, keepdim=True) + 1e-6)
-        return (x, log_library), {}
-
-    def model(self, x, log_library):
-        # register PyTorch module `decoder` with Pyro
-        pyro.module("scvi", self)
-        with pyro.plate("data", x.shape[0]):
-            # setup hyperparameters for prior p(z)
-            z_loc = x.new_zeros(torch.Size((x.shape[0], self.n_latent)))
-            z_scale = x.new_ones(torch.Size((x.shape[0], self.n_latent)))
-            # sample from prior (value will be sampled by guide when computing the ELBO)
-            z = pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))
-            # decode the latent code z
-            px_scale, _, px_rate, px_dropout = self.decoder("gene", z, log_library)
-            # build count distribution
-            nb_logits = (px_rate + self.epsilon).log() - (
-                self.px_r.exp() + self.epsilon
-            ).log()
-            x_dist = dist.ZeroInflatedNegativeBinomial(
-                gate_logits=px_dropout, total_count=self.px_r.exp(), logits=nb_logits
-            )
-            # score against actual counts
-            pyro.sample("obs", x_dist.to_event(1), obs=x)
-
-    def guide(self, x, log_library):
-        # define the guide (i.e. variational distribution) q(z|x)
-        pyro.module("scvi", self)
-        with pyro.plate("data", x.shape[0]):
-            # use the encoder to get the parameters used to define q(z|x)
-            x_ = torch.log(1 + x)
-            z_loc, z_scale, _ = self.encoder(x_)
-            # sample the latent code z
-            pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))
 
 
 def test_pyro_bayesian_regression(save_path):
@@ -186,20 +113,6 @@ def test_pyro_bayesian_regression_jit():
         break
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
-    trainer = Trainer(
-        gpus=use_gpu,
-        max_epochs=2,
-    )
-    trainer.fit(plan, train_dl)
-
-
-def test_pyro_scvi():
-    use_gpu = int(torch.cuda.is_available())
-    adata = synthetic_iid()
-    train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
-    pyro.clear_param_store()
-    model = SCVIPyro(adata.n_vars, 10)
-    plan = PyroTrainingPlan(model)
     trainer = Trainer(
         gpus=use_gpu,
         max_epochs=2,
