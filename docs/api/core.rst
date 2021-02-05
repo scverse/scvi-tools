@@ -14,6 +14,7 @@ Compose
    compose.Encoder
    compose.LossRecorder
    compose.BaseModuleClass
+   compose.PyroBaseModuleClass
 
 .. autosummary::
    :toctree: reference/
@@ -30,6 +31,18 @@ Distributions
    distributions.NegativeBinomial
    distributions.NegativeBinomialMixture
    distributions.ZeroInflatedNegativeBinomial
+
+
+Model (Base)
+~~~~~~~~~~~~
+
+.. autosummary::
+    :toctree: reference/
+
+    model.base.BaseModelClass
+    model.base.VAEMixin
+    model.base.RNASeqMixin
+    model.base.ArchesMixin
 
 Modules
 ~~~~~~~
@@ -68,6 +81,7 @@ steps for modules like `TOTALVAE`, `SCANVAE`, etc.
    lightning.TrainingPlan
    lightning.SemiSupervisedTrainingPlan
    lightning.AdversarialTrainingPlan
+   lightning.PyroTrainingPlan
    lightning.Trainer
 
 Utilities

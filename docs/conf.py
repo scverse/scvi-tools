@@ -122,6 +122,7 @@ intersphinx_mapping = dict(
     torch=("https://pytorch.org/docs/master/", None),
     scanpy=("https://scanpy.readthedocs.io/en/stable/", None),
     pytorch_lightning=("https://pytorch-lightning.readthedocs.io/en/stable/", None),
+    pyro=("http://docs.pyro.ai/en/stable/", None),
 )
 qualname_overrides = {
     "scvi.data.dataset.GeneExpressionDataset": "scvi.data.GeneExpressionDataset"
@@ -155,7 +156,7 @@ language = None
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = "sphinx"
+pygments_style = "default"
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
@@ -163,24 +164,12 @@ todo_include_todos = False
 
 # -- Options for HTML output -------------------------------------------
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-#
-html_theme = "pydata_sphinx_theme"
-
-# Theme options are theme-specific and customize the look and feel of a
-# theme further.  For a list of options available for each theme, see the
-# documentation.
-#
-# html_theme_options = {}
-
-html_logo = "_static/logo.png"
-
-html_theme_options = {
-    "github_url": "https://github.com/YosefLab/scvi-tools",
-    "twitter_url": "https://twitter.com/YosefLab",
-    # "use_edit_page_button": True,
+html_show_sourcelink = True
+html_sidebars = {
+    "**": ["logo-text.html", "globaltoc.html", "localtoc.html", "searchbox.html"]
 }
+html_theme = "sphinx_material"
+
 html_context = dict(
     # display_github=True,  # Integrate GitHub
     github_user="YosefLab",  # Username
@@ -188,12 +177,48 @@ html_context = dict(
     github_version="master",  # Version
     doc_path="docs/",  # Path in the checkout to the docs root
 )
+# Set link name generated in the top bar.
+html_title = "scvi-tools"
+
+html_logo = "_static/logo.svg"
+
+# Material theme options (see theme.conf for more information)
+html_theme_options = {
+    "base_url": "https://scvi-tools.org",
+    # Set the color and the accent color
+    "color_primary": "white",
+    "color_accent": "light-blue",
+    "repo_type": "github",
+    # Set the repo location to get a badge with stats
+    "repo_url": "https://github.com/YosefLab/scvi-tools",
+    "repo_name": "scvi-tools",
+    "nav_links": [
+        {"href": "installation", "title": "Installation", "internal": True},
+        {"href": "user_guide/index", "title": "User guide", "internal": True},
+        {"href": "api/index", "title": "API", "internal": True},
+        {"href": "development", "title": "Development", "internal": True},
+        {"href": "authors", "title": "Authors", "internal": True},
+        {"href": "references", "title": "References", "internal": True},
+        {
+            "href": "https://discourse.scvi-tools.org",
+            "title": "Discussion",
+            "internal": False,
+        },
+    ],
+    "html_minify": True,
+    "css_minify": True,
+    "nav_title": "scvi-tools",
+    "globaltoc_depth": 3,
+    "globaltoc_collapse": True,
+    "globaltoc_includehidden": True,
+    "master_doc": False,
+}
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
-html_css_files = ["css/user_guide.css", "css/custom.css"]
+html_css_files = ["override.css"]
 
 html_show_sphinx = False
 

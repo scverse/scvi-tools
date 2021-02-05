@@ -1,13 +1,14 @@
 from inspect import getfullargspec
-from typing import Union
+from typing import Optional, Union
 
+import pyro
 import pytorch_lightning as pl
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.compose import BaseModuleClass, one_hot
+from scvi.compose import PyroBaseModuleClass, BaseModuleClass, one_hot
 from scvi.modules import Classifier
 
 
@@ -522,3 +523,62 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             "kl_global": scvi_losses.kl_global,
             "n_obs": reconstruction_loss.shape[0],
         }
+
+
+class PyroTrainingPlan(pl.LightningModule):
+    """
+    Lightning module task to train Pyro scvi-tools modules.
+
+    Parameters
+    ----------
+    pyro_module
+        An instance of :class:`~scvi.compose.PyroBaseModuleClass`. This object
+        should have callable `model` and `guide` attributes or methods.
+    loss_fn
+        A Pyro loss. Should be a subclass of :class:`~pyro.infer.ELBO`.
+        If `None`, defaults to :class:`~pyro.infer.Trace_ELBO`.
+    optim
+        A Pyro optimizer, e.g., :class:`~pyro.optim.Adam`. If `None`,
+        defaults to Adam optimizer with a learning rate of `1e-3`.
+    """
+
+    def __init__(
+        self,
+        pyro_module: PyroBaseModuleClass,
+        loss_fn: Optional[pyro.infer.ELBO] = None,
+        optim: Optional[pyro.optim.PyroOptim] = None,
+    ):
+        super().__init__()
+        self.module = pyro_module
+
+        self.loss_fn = pyro.infer.Trace_ELBO() if loss_fn is None else loss_fn
+        self.optim = pyro.optim.Adam({"lr": 1e-3}) if optim is None else optim
+
+        self.automatic_optimization = False
+        self.pyro_guide = self.module.guide
+        self.pyro_model = self.module.model
+
+        self.svi = pyro.infer.SVI(
+            model=self.pyro_model,
+            guide=self.pyro_guide,
+            optim=self.optim,
+            loss=self.loss_fn,
+        )
+
+    def forward(self, *args, **kwargs):
+        """Passthrough to `model.forward()`."""
+        return self.module(*args, **kwargs)
+
+    def training_step(self, batch, batch_idx, optimizer_idx=0):
+        args, kwargs = self.module._get_fn_args_from_batch(batch)
+        loss = self.svi.step(*args, **kwargs)
+        self.log("train_loss", loss, prog_bar=True, on_epoch=True)
+
+    def configure_optimizers(self):
+        return None
+
+    def optimizer_step(self, *args, **kwargs):
+        pass
+
+    def backward(self, *args, **kwargs):
+        pass
