@@ -82,7 +82,7 @@ class CellAssignModule(BaseModuleClass):
     def _get_inference_input(self, tensors):
         return {}
 
-    def _get_generative_input(self, tensors):
+    def _get_generative_input(self, tensors, inference_outputs):
         x = tensors[_CONSTANTS.X_KEY]
 
         to_cat = []
