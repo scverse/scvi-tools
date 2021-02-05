@@ -72,6 +72,7 @@ class CellAssign(BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
+    @torch.no_grad()
     def predict(self, adata: AnnData) -> np.ndarray:
         """Predict soft cell type assignment probability for each cell."""
         adata = self._validate_anndata(adata)
