@@ -73,3 +73,8 @@ Resources
 .. _scArches: https://www.biorxiv.org/content/10.1101/2020.07.16.205997v1
 .. _framework: https://www.biorxiv.org/content/biorxiv/early/2019/10/04/794289.full.pdf
 .. _forum: https://discourse.scvi-tools.org
+
+
+.. image:: https://badges.gitter.im/scvi-tools/development.svg
+   :alt: Join the chat at https://gitter.im/scvi-tools/development
+   :target: https://gitter.im/scvi-tools/development?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
