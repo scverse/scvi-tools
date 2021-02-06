@@ -193,7 +193,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         train_dl = TrainDL(train_dls)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-        self._pl_task = self._plan_class(
+        self._training_plan = self._plan_class(
             self.module,
             len(self.train_indices_),
             adversarial_classifier=True,
@@ -203,10 +203,10 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         if train_size == 1.0:
             # circumvent the empty data loader problem if all dataset used for training
-            self.trainer.fit(self._pl_task, train_dl)
+            self.trainer.fit(self._training_plan, train_dl)
         else:
             # accepts list of val dataloaders
-            self.trainer.fit(self._pl_task, train_dl, val_dls)
+            self.trainer.fit(self._training_plan, train_dl, val_dls)
         try:
             self.history_ = self.trainer.logger.history
         except AttributeError:
