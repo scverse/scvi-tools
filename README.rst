@@ -49,7 +49,7 @@ Fast prototyping of novel probabilistic models
 
 scvi-tools contains the building blocks to prototype novel probablistic models. These building blocks are powered by popular probabilistic and machine learning frameworks such as `PyTorch lightning <https://www.pytorchlightning.ai/>`_, and `Pyro <https://pyro.ai/>`_.
 
-We recommend checking out the `skeleton repository <https://github.com/YosefLab/scvi-tools-skeleton>`_, as a starting point for developping new models into scvi-tools.
+We recommend checking out the `skeleton repository <https://github.com/YosefLab/scvi-tools-skeleton>`_, as a starting point for developing new models into scvi-tools.
 
 Resources
 ----------
