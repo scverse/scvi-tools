@@ -19,7 +19,7 @@ from scvi.compose import PyroBaseModuleClass
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.lightning import Trainer
+from scvi.lightning import PyroTrainingPlan, Trainer
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -330,9 +330,13 @@ class BaseModelClass(ABC):
             plan_class = self._plan_class
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-        self._training_plan = plan_class(
-            self.module, len(self.train_indices_), **plan_kwargs
-        )
+
+        if plan_class != PyroTrainingPlan:
+            self._training_plan = plan_class(
+                self.module, len(self.train_indices_), **plan_kwargs
+            )
+        else:
+            self._training_plan = plan_class(self.module, **plan_kwargs)
 
     def save(
         self,
