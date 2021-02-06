@@ -7,6 +7,7 @@ from typing import Optional, Sequence
 
 import numpy as np
 import pyro
+import pytorch_lightning as pl
 import rich
 import torch
 from anndata import AnnData
@@ -250,7 +251,7 @@ class BaseModelClass(ABC):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
-        plan_class: Optional[None] = None,
+        plan_class: Optional[pl.LightningModule] = None,
         **kwargs,
     ):
         """
@@ -307,17 +308,13 @@ class BaseModelClass(ABC):
         self.test_indices_ = test_dl.indices
         self.validation_indices_ = val_dl.indices
 
-        if plan_class is None:
-            plan_class = self._plan_class
-
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-        self._pl_task = plan_class(self.module, len(self.train_indices_), **plan_kwargs)
+        self._set_training_plan(plan_class, plan_kwargs)
 
         if train_size == 1.0:
             # circumvent the empty data loader problem if all dataset used for training
-            self.trainer.fit(self._pl_task, train_dl)
+            self.trainer.fit(self._training_plan, train_dl)
         else:
-            self.trainer.fit(self._pl_task, train_dl, val_dl)
+            self.trainer.fit(self._training_plan, train_dl, val_dl)
         try:
             self.history_ = self.trainer.logger.history
         except AttributeError:
@@ -326,6 +323,16 @@ class BaseModelClass(ABC):
         if use_gpu:
             self.module.cuda()
         self.is_trained_ = True
+
+    def _set_training_plan(self, plan_class, plan_kwargs):
+        """Set the _training_plan attribute."""
+        if plan_class is None:
+            plan_class = self._plan_class
+
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        self._training_plan = plan_class(
+            self.module, len(self.train_indices_), **plan_kwargs
+        )
 
     def save(
         self,
