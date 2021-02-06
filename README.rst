@@ -28,22 +28,22 @@
    :target: https://gitter.im/scvi-tools/development?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
 scvi-tools_ (single-cell variational inference tools) is a package for probabilistic modeling of single-cell omics data, built on top of `PyTorch
-<https://pytorch.org>`_ and `Anndata <https://anndata.readthedocs.io/en/latest/>`_
+<https://pytorch.org>`_ and `Anndata <https://anndata.readthedocs.io/en/latest/>`_.
 
 Available implementations of single-cell omics models
 -----------------------------------------------------
 
 scvi-tools contains scalable implementations of several models that facilitate a broad number of tasks across many omics, including:
 
-* scVI_ for analysis of single-cell RNA-seq data, as well as its improved differential expression framework_
-* scANVI_ for cell annotation of scRNA-seq data using semi-labeled examples
-* totalVI_ for analysis of CITE-seq data
-* gimVI_ for imputation of missing genes in spatial transcriptomics from scRNA-seq data
-* AutoZI_ for assessing gene-specific levels of zero-inflation in scRNA-seq data
-* LDVAE_ for an interpretable linear factor model version of scVI
-* Stereoscope_ for deconvolution of spatial transcriptomics data
-* peakVI for analysis of ATAC-seq data
-* scArches_ for transfer learning from one single-cell atlas to a query dataset (currently supports scVI, scANVI and TotalVI)
+* scVI_ for analysis of single-cell RNA-seq data, as well as its improved differential expression framework_.
+* scANVI_ for cell annotation of scRNA-seq data using semi-labeled examples.
+* totalVI_ for analysis of CITE-seq data.
+* gimVI_ for imputation of missing genes in spatial transcriptomics from scRNA-seq data.
+* AutoZI_ for assessing gene-specific levels of zero-inflation in scRNA-seq data.
+* LDVAE_ for an interpretable linear factor model version of scVI.
+* Stereoscope_ for deconvolution of spatial transcriptomics data.
+* peakVI for analysis of ATAC-seq data.
+* scArches_ for transfer learning from one single-cell atlas to a query dataset (currently supports scVI, scANVI and TotalVI).
 
 All these implementations have a high-level API that interacts with `scanpy <http://scanpy.readthedocs.io/>`_, standard save/load functions, and support GPU acceleration.
 
