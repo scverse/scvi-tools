@@ -2,17 +2,17 @@
 
     <img src="https://github.com/YosefLab/scvi-tools/blob/master/docs/_static/scvi-tools-horizontal.svg?raw=true" alt="scvi-tools" width="400px">
 
-|Stars| |PyPI| |BioConda| |Docs| |Build Status| |Coverage| |Code Style| |Downloads|
+|Stars| |PyPI| |Docs| |Build Status| |Coverage| |Code Style| |Downloads| |Gitter|
 
 .. |scvi-tools| image:: https://github.com/YosefLab/scvi-tools/blob/master/docs/_static/scvi-tools-horizontal.svg?raw=true
   :width: 50
   :alt: scvi-tools
-.. |Stars| image:: https://img.shields.io/github/stars/YosefLab/scvi-tools?logo=GitHub&color=yellow
-   :target: https://github.com/YosefLab/scvi-tools/stargazers
 .. |PyPI| image:: https://img.shields.io/pypi/v/scvi-tools.svg
     :target: https://pypi.org/project/scvi-tools
 .. |BioConda| image:: https://img.shields.io/conda/vn/bioconda/scvi-tools
    :target: https://bioconda.github.io/recipes/scvi-tools/README.html
+.. |Stars| image:: https://img.shields.io/github/stars/YosefLab/scvi-tools?logo=GitHub&color=yellow
+   :target: https://github.com/YosefLab/scvi-tools/stargazers
 .. |Docs| image:: https://readthedocs.org/projects/scvi/badge/?version=latest
     :target: https://scvi.readthedocs.io/en/stable/?badge=stable
     :alt: Documentation Status
@@ -23,6 +23,9 @@
     :target: https://github.com/python/black
 .. |Downloads| image:: https://pepy.tech/badge/scvi-tools
    :target: https://pepy.tech/project/scvi-tools
+.. |Gitter| image:: https://badges.gitter.im/scvi-tools/development.svg
+   :alt: Join the chat at https://gitter.im/scvi-tools/development
+   :target: https://gitter.im/scvi-tools/development?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
 scvi-tools_ (single-cell variational inference tools) is a package for probabilistic modeling of single-cell omics data, built on top of `PyTorch
 <https://pytorch.org>`_ and `Anndata <https://anndata.readthedocs.io/en/latest/>`_
