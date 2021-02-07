@@ -1,10 +1,10 @@
 import sys
-import warnings
 from textwrap import dedent
 from typing import Iterable
 
+from rich.console import Console
+from rich.progress import track as track_base
 from tqdm import tqdm as tqdm_base
-from tqdm.rich import tqdm as tqdm_rich
 
 from scvi import settings
 from scvi._compat import Literal
@@ -32,9 +32,10 @@ def track(
                 tqdm_base._decr_instances(instance)
         return tqdm_base(sequence, desc=description, file=sys.stdout, **kwargs)
     else:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            return tqdm_rich(sequence, desc=description, **kwargs)
+        in_colab = "google.colab" in sys.modules
+        force_jupyter = None if not in_colab else True
+        console = Console(force_jupyter=force_jupyter)
+        return track_base(sequence, description=description, console=console, **kwargs)
 
 
 def _doc_params(**kwds):
