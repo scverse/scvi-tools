@@ -423,7 +423,7 @@ class BaseModelClass(ABC):
 
         Examples
         --------
-        >>> vae = SCVI.load(adata, save_path)
+        >>> vae = SCVI.load(save_path, adata)
         >>> vae.get_latent_representation()
         """
         load_adata = adata is None
