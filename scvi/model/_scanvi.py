@@ -161,9 +161,11 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         scanvi_kwargs
             kwargs for scanVI model
         """
+        if scvi_model.is_trained_ is False:
+            logger.warning("Passed in scvi model hasn't been trained yet.")
+
         init_params = scvi_model.init_params_
         non_kwargs = init_params["non_kwargs"]
-
         if use_gpu is not None:
             non_kwargs["use_gpu"] = use_gpu
         if adata is None:
