@@ -136,6 +136,25 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
+    @classmethod
+    def load_pretrained_scvi(
+        cls,
+        scvi_model,
+        unlabeled_category,
+        adata=None,
+        use_gpu=None,
+        **scanvi_kwargs,
+    ):
+        init_params = scvi_model.init_params_
+        non_kwargs = init_params["non_kwargs"]
+
+        if use_gpu is not None:
+            non_kwargs["use_gpu"] = use_gpu
+        if adata is None:
+            adata = scvi_model.adata
+
+        return cls(adata, unlabeled_category, **non_kwargs, **scanvi_kwargs)
+
     def _set_indices_and_labels(self):
         """
         Set indices and make unlabeled cat as the last cat.
