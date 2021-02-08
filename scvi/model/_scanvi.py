@@ -137,7 +137,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.init_params_ = self._get_init_params(locals())
 
     @classmethod
-    def load_pretrained_scvi(
+    def from_scvi_model(
         cls,
         scvi_model,
         unlabeled_category,
@@ -145,6 +145,22 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         use_gpu=None,
         **scanvi_kwargs,
     ):
+        """
+        Initialize scanVI model with weights from pretrained scVI model.
+
+        Parameters
+        ----------
+        scvi_model
+            Pretrained scvi model
+        unlabeled_category
+            Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
+        adata
+            AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        use_gpu
+            Use the GPU or not.
+        scanvi_kwargs
+            kwargs for scanVI model
+        """
         init_params = scvi_model.init_params_
         non_kwargs = init_params["non_kwargs"]
 

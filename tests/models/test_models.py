@@ -304,12 +304,12 @@ def test_scanvi(save_path):
     train_ratio = len(unlabeled_train_idx) / len(labeled_train_idx)
     assert np.isclose(adata_ratio, train_ratio, atol=0.05)
 
-    # test load_pretrained_scvi
+    # test from_scvi_model
     a = scvi.data.synthetic_iid()
     m = scvi.model.SCVI(a, use_observed_lib_size=False)
     a2 = scvi.data.synthetic_iid()
-    scanvi_model = scvi.model.SCANVI.load_pretrained_scvi(m, "label_0", adata=a2)
-    scanvi_model = scvi.model.SCANVI.load_pretrained_scvi(
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(m, "label_0", adata=a2)
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(
         m, "label_0", use_gpu=False, use_labels_groups=False
     )
     scanvi_model.train(1)
