@@ -15,6 +15,7 @@ from scvi.dataloaders import AnnDataLoader, SemiSupervisedDataLoader
 from scvi.lightning import SemiSupervisedTrainingPlan, Trainer
 from scvi.lightning._callbacks import SubSampleLabels
 from scvi.modules import SCANVAE
+from scvi.model._scvi import SCVI
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
@@ -139,10 +140,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     @classmethod
     def from_scvi_model(
         cls,
-        scvi_model,
-        unlabeled_category,
-        adata=None,
-        use_gpu=None,
+        scvi_model: SCVI,
+        unlabeled_category: str,
+        adata: Optional[AnnData] = None,
+        use_gpu: bool = None,
         **scanvi_kwargs,
     ):
         """
