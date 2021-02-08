@@ -138,12 +138,17 @@ class BaseModelClass(ABC):
         indices_train = permutation[n_val : (n_val + n_train)]
         indices_test = permutation[(n_val + n_train) :]
 
+        # do not remove drop_last=3, skips over small minibatches
         return (
-            self._make_scvi_dl(adata, indices=indices_train, shuffle=True, **kwargs),
             self._make_scvi_dl(
-                adata, indices=indices_validation, shuffle=True, **kwargs
+                adata, indices=indices_train, shuffle=True, drop_last=3, **kwargs
             ),
-            self._make_scvi_dl(adata, indices=indices_test, shuffle=True, **kwargs),
+            self._make_scvi_dl(
+                adata, indices=indices_validation, shuffle=True, drop_last=3, **kwargs
+            ),
+            self._make_scvi_dl(
+                adata, indices=indices_test, shuffle=True, drop_last=3, **kwargs
+            ),
         )
 
     def _validate_anndata(

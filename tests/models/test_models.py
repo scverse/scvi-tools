@@ -222,14 +222,13 @@ def test_ann_dataloader():
     a = scvi.data.synthetic_iid()
 
     # test that batch sampler drops the last batch if it has less than 3 cells
-    # FYI, less than 3 condition is hardcoded in
     assert a.n_obs == 400
-    adl = AnnDataLoader(a, batch_size=397)
+    adl = AnnDataLoader(a, batch_size=397, drop_last=3)
     assert len(adl) == 2
     for i, x in enumerate(adl):
         pass
     assert i == 1
-    adl = AnnDataLoader(a, batch_size=398)
+    adl = AnnDataLoader(a, batch_size=398, drop_last=3)
     assert len(adl) == 1
     for i, x in enumerate(adl):
         pass

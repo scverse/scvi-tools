@@ -28,7 +28,6 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         if int, drops the last batch if its length is less than drop_last.
         if drop_last == True, drops last non-full batch.
         if drop_last == False, iterate over all batches.
-
     """
 
     def __init__(
@@ -45,9 +44,9 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
 
         last_batch_len = self.n_obs % self.batch_size
 
-        if (drop_last == True) or (last_batch_len < drop_last):
+        if (drop_last is True) or (last_batch_len < drop_last):
             drop_last_n = last_batch_len
-        elif (drop_last == False) or (last_batch_len >= drop_last):
+        elif (drop_last is False) or (last_batch_len >= drop_last):
             drop_last_n = 0
         else:
             raise ValueError("Invalid input for drop_last param. Must be bool or int.")
@@ -110,6 +109,7 @@ class AnnDataLoader(DataLoader):
         indices=None,
         batch_size=128,
         data_and_attributes: Optional[dict] = None,
+        drop_last: Union[bool, int] = False,
         **data_loader_kwargs,
     ):
 
@@ -131,6 +131,7 @@ class AnnDataLoader(DataLoader):
         sampler_kwargs = {
             "batch_size": batch_size,
             "shuffle": shuffle,
+            "drop_last": drop_last,
         }
 
         if indices is None:
@@ -141,9 +142,6 @@ class AnnDataLoader(DataLoader):
                 indices = np.where(indices)[0].ravel()
             indices = np.asarray(indices)
             sampler_kwargs["indices"] = indices
-
-        # do not remove, skips over small minibatches
-        sampler_kwargs["drop_last"] = 3
 
         self.indices = indices
         self.sampler_kwargs = sampler_kwargs
