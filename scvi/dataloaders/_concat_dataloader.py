@@ -1,5 +1,5 @@
 from itertools import cycle
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import numpy as np
 from anndata import AnnData
@@ -37,6 +37,7 @@ class ConcatDataLoader(DataLoader):
         shuffle: bool = False,
         batch_size: int = 128,
         data_and_attributes: Optional[dict] = None,
+        drop_last: Union[bool, int] = False,
         **data_loader_kwargs,
     ):
         self.dataloaders = []
@@ -48,6 +49,7 @@ class ConcatDataLoader(DataLoader):
                     shuffle=shuffle,
                     batch_size=batch_size,
                     data_and_attributes=data_and_attributes,
+                    drop_last=drop_last,
                     **data_loader_kwargs,
                 )
             )
