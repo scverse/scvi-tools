@@ -63,17 +63,24 @@ def _initialize_model(cls, adata, attr_dict, use_gpu):
 
         # update use_gpu from the saved model
         # we assume use_gpu is exposed and not a kwarg
+        saved_use_gpu = non_kwargs["use_gpu"]
         non_kwargs["use_gpu"] = use_gpu
 
         # expand out kwargs
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
     else:
+        saved_use_gpu = non_kwargs["use_gpu"]
         init_params["use_gpu"] = use_gpu
 
         # grab all the parameters execept for kwargs (is a dict)
         non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
         kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+    if saved_use_gpu is True and use_gpu is False:
+        logger.warning(
+            "Model was trained on GPU but now loading on CPU. This may lead to "
+            + "numerical instabilities. See: https://github.com/pytorch/pytorch/issues/23538"
+        )
 
     model = cls(adata, **non_kwargs, **kwargs)
     return model
