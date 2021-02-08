@@ -74,7 +74,7 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         from math import ceil
 
         if self.drop_last_n != 0:
-            length = int(self.n_obs / self.batch_size)
+            length = self.n_obs // self.batch_size
         else:
             length = ceil(self.n_obs / self.batch_size)
         return length
