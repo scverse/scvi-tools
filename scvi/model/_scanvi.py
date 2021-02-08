@@ -15,6 +15,7 @@ from scvi.dataloaders import AnnDataLoader, SemiSupervisedDataLoader
 from scvi.lightning import SemiSupervisedTrainingPlan, Trainer
 from scvi.lightning._callbacks import SubSampleLabels
 from scvi.modules import SCANVAE
+from scvi.model._scvi import SCVI
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
@@ -135,6 +136,43 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             gene_likelihood,
         )
         self.init_params_ = self._get_init_params(locals())
+
+    @classmethod
+    def from_scvi_model(
+        cls,
+        scvi_model: SCVI,
+        unlabeled_category: str,
+        adata: Optional[AnnData] = None,
+        use_gpu: bool = None,
+        **scanvi_kwargs,
+    ):
+        """
+        Initialize scanVI model with weights from pretrained scVI model.
+
+        Parameters
+        ----------
+        scvi_model
+            Pretrained scvi model
+        unlabeled_category
+            Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
+        adata
+            AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        use_gpu
+            Use the GPU or not.
+        scanvi_kwargs
+            kwargs for scanVI model
+        """
+        if scvi_model.is_trained_ is False:
+            logger.warning("Passed in scvi model hasn't been trained yet.")
+
+        init_params = scvi_model.init_params_
+        non_kwargs = init_params["non_kwargs"]
+        if use_gpu is not None:
+            non_kwargs["use_gpu"] = use_gpu
+        if adata is None:
+            adata = scvi_model.adata
+
+        return cls(adata, unlabeled_category, **non_kwargs, **scanvi_kwargs)
 
     def _set_indices_and_labels(self):
         """
