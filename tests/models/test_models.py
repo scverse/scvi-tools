@@ -233,6 +233,8 @@ def test_ann_dataloader():
     for i, x in enumerate(adl):
         pass
     assert i == 0
+    with pytest.raises(ValueError):
+        AnnDataLoader(a, batch_size=1, drop_last=2)
 
 
 def test_semisupervised_dataloader():
