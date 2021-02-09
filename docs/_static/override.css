@@ -5,14 +5,6 @@
 https://github.com/streamlink/streamlink/blob/17a4088c38709123c0bcab4a150549bd16d19e07/docs/_static/styles/custom.css
 */
 
-:root {
-    /* misc */
-    --sidebar-width: 18em;
-    --content-width: 65em;
-    --admonition-font-size: var(--font-size--small);
-    --admonition-title-font-size: var(--font-size--normal);
-  }
-
 
 dl.citation > dt {
     float: left;

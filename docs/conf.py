@@ -190,6 +190,10 @@ html_theme_options = {
     "light_css_variables": {
         "color-brand-primary": "#003262",
         "color-brand-content": "#2a5adf",
+        "sidebar-width": "18em",
+        "content-width": "65em",
+        "admonition-font-size": "var(--font-size--small)",
+        "admonition-title-font-size": "var(--font-size--normal)",
     },
     "dark_css_variables": {
         "color-problematic": "#b30000",
@@ -210,6 +214,10 @@ html_theme_options = {
         "color-highlighted-text": "var(--color-foreground-primary)",
         "color-api-highlight-on-target": "#ffffcc",
         "color-admonition-background": "transparent",
+        "sidebar-width": "18em",
+        "content-width": "65em",
+        "admonition-font-size": "var(--font-size--small)",
+        "admonition-title-font-size": "var(--font-size--normal)",
     },
 }
 # Add any paths that contain custom static files (such as style sheets) here,
