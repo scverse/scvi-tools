@@ -100,10 +100,6 @@ class TrainingPlan(pl.LightningModule):
         return self.module(*args, **kwargs)
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
-        # do not remove, skips over small minibatches
-        if batch[_CONSTANTS.X_KEY].shape[0] < 3:
-            return None
-
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
@@ -308,9 +304,6 @@ class AdversarialTrainingPlan(TrainingPlan):
         return loss
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
-        # do not remove, skips over small minibatches
-        if batch[_CONSTANTS.X_KEY].shape[0] < 3:
-            return None
         kappa = (
             1 - self.kl_weight
             if self.scale_adversarial_loss == "auto"
@@ -476,10 +469,6 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         else:
             full_dataset = batch
             labelled_dataset = None
-
-        # do not remove, skips over small minibatches
-        if full_dataset[_CONSTANTS.X_KEY].shape[0] < 3:
-            return None
 
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})

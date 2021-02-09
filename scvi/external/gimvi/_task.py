@@ -21,9 +21,6 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
             self.adversarial_classifier = kwargs["adversarial_classifier"]
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
-        # do not remove, skips over small minibatches
-        if batch[0][_CONSTANTS.X_KEY].shape[0] < 3:
-            return None
         kappa = (
             1 - self.kl_weight
             if self.scale_adversarial_loss == "auto"
