@@ -3,3 +3,7 @@ dl.citation > dt {
     margin-right: 15px;
     font-weight: bold;
 }
+
+.field_list dt {
+    font-size: var(--font-size--small)
+}
