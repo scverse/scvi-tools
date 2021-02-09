@@ -131,8 +131,8 @@ qualname_overrides = {
 
 
 # General information about the project.
-project = u"scvi"
-copyright = u"2020, Yosef Lab, UC Berkeley"
+project = u"scvi-tools"
+copyright = u"2021, Yosef Lab, UC Berkeley"
 author = u"Romain Lopez, Adam Gayoso, Pierre Boyeau, Galen Xing"
 
 # The version info for the project you're documenting, acts as replacement
@@ -187,6 +187,10 @@ html_logo = "_static/logo.png"
 # Material theme options (see theme.conf for more information)
 html_theme_options = {
     "sidebar_hide_name": True,
+    "light_css_variables": {
+        "color-brand-primary": "#003262",
+        "color-brand-content": "#2a5adf",
+    },
     "dark_css_variables": {
         "color-problematic": "#b30000",
         "color-foreground-primary": "black",
@@ -200,7 +204,7 @@ html_theme_options = {
         "color-background-border": "#eeebee",
         "color-announcement-background": "#000000dd",
         "color-announcement-text": "#eeebee",
-        "color-brand-primary": "#2962ff",
+        "color-brand-primary": "#003262",
         "color-brand-content": "#2a5adf",
         "color-highlighted-background": "#ddeeff",
         "color-highlighted-text": "var(--color-foreground-primary)",

@@ -10,8 +10,7 @@ If you find a model useful for your research, please consider citing the corresp
 
 
 .. toctree::
-   :maxdepth: 1
-   :hidden:
+   :maxdepth: 2
 
    installation
    user_guide/index
@@ -21,3 +20,4 @@ If you find a model useful for your research, please consider citing the corresp
    authors
    references
    Discussion <https://discourse.scvi-tools.org>
+   GitHub <https://github.com/yoseflab/scvi-tools>
