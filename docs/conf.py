@@ -157,6 +157,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "default"
+pygments_dark_style = "default"
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
@@ -185,8 +186,27 @@ html_logo = "_static/logo.png"
 # Material theme options (see theme.conf for more information)
 html_theme_options = {
     "sidebar_hide_name": True,
+    "dark_css_variables": {
+        "color-problematic": "#b30000",
+        "color-foreground-primary": "black",
+        "color-foreground-secondary": "#5a5c63",
+        "color-foreground-muted": "#72747e",
+        "color-foreground-border": "#878787",
+        "color-background-primary": "white",
+        "color-background-secondary": "#f8f9fb",
+        "color-background-hover": "#efeff4ff",
+        "color-background-hover--transparent": "#efeff400",
+        "color-background-border": "#eeebee",
+        "color-announcement-background": "#000000dd",
+        "color-announcement-text": "#eeebee",
+        "color-brand-primary": "#2962ff",
+        "color-brand-content": "#2a5adf",
+        "color-highlighted-background": "#ddeeff",
+        "color-highlighted-text": "var(--color-foreground-primary)",
+        "color-api-highlight-on-target": "#ffffcc",
+        "color-admonition-background": "transparent",
+    },
 }
-
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
