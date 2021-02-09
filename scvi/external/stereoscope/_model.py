@@ -70,7 +70,7 @@ class RNAStereoscope(BaseModelClass):
         **kwargs,
     ):
         """
-        Trains the model using amortized variational inference.
+        Trains the model using MAP inference.
 
         Parameters
         ----------
@@ -143,11 +143,13 @@ class SpatialStereoscope(BaseModelClass):
 
     Examples
     --------
+    >>> sc_adata = anndata.read_h5ad(path_to_sc_anndata)
+    >>> scvi.data.setup_anndata(sc_adata, label_key="labels")
+    >>> sc_model = scvi.external.RNAStereoscope(sc_adata)
+    >>> sc_model.train()
     >>> st_adata = anndata.read_h5ad(path_to_st_anndata)
     >>> scvi.data.setup_anndata(st_adata)
-    >>> st_adata.obs["indices"] = np.arange(st_adata.n_obs)
-    >>> register_tensor_from_anndata(st_adata, "ind_x", "obs", "indices")
-    >>> stereo = scvi.external.SpatialStereoscope(st_adata, sc_params, cell_type_mapping)
+    >>> stereo = scvi.external.SpatialStereoscope.from_rna_model(st_adata, sc_model)
     >>> stereo.train()
     >>> st_adata.obs["deconv"] = stereo.get_proportions()
     """
@@ -188,10 +190,10 @@ class SpatialStereoscope(BaseModelClass):
         **model_kwargs,
     ):
         """
-        Alternate constructor for exploiting a pre-trained model on RNA-seq data
+        Alternate constructor for exploiting a pre-trained model on RNA-seq data.
 
         Parameters
-        -----------
+        ----------
         st_adata
             registed anndata object
         sc_model
@@ -217,10 +219,12 @@ class SpatialStereoscope(BaseModelClass):
 
     def get_proportions(self, keep_noise=False) -> np.ndarray:
         """
-        Returns the estimated cell type proportion for the spatial data. Shape is n_cells x n_labels OR n_cells x (n_labels + 1) if keep_noise
+        Returns the estimated cell type proportion for the spatial data.
+        
+        Shape is n_cells x n_labels OR n_cells x (n_labels + 1) if keep_noise
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         keep_noise
             whether to account for the noise term as a standalone cell type in the proportion estimate.
         """
@@ -243,7 +247,7 @@ class SpatialStereoscope(BaseModelClass):
         **kwargs,
     ):
         """
-        Trains the model using amortized variational inference.
+        Trains the model using MAP inference.
 
         Parameters
         ----------

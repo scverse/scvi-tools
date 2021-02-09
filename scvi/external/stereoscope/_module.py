@@ -51,7 +51,9 @@ class RNADeconv(BaseModuleClass):
     @torch.no_grad()
     def get_params(self) -> Tuple[np.ndarray]:
         """
-        Returns the parameters for feeding into the spatial data
+        Returns the parameters for feeding into the spatial data.
+
+        Returns
         -------
         type
             list of tensor
@@ -191,7 +193,6 @@ class SpatialDeconv(BaseModuleClass):
     @auto_move_data
     def generative(self, x, ind_x):
         """Build the deconvolution model for every cell in the minibatch."""
-
         beta = torch.nn.functional.softplus(self.beta)  # n_genes
         v = torch.nn.functional.softplus(self.V)  # n_labels + 1, n_spots
         w = torch.nn.functional.softplus(self.W)  # n_genes, n_labels
