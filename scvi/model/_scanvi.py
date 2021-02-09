@@ -172,7 +172,11 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if adata is None:
             adata = scvi_model.adata
 
-        return cls(adata, unlabeled_category, **non_kwargs, **scanvi_kwargs)
+        scanvi_model = cls(adata, unlabeled_category, **non_kwargs, **scanvi_kwargs)
+        scvi_state_dict = scvi_model.module.state_dict()
+        scanvi_model.module.load_state_dict(scvi_state_dict, strict=False)
+
+        return scanvi_model
 
     def _set_indices_and_labels(self):
         """
