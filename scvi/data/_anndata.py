@@ -6,6 +6,7 @@ import warnings
 from typing import Dict, List, Optional, Tuple, Union
 
 import anndata
+from anndata._core.anndata import AnnData
 import numpy as np
 import pandas as pd
 import rich
@@ -1127,7 +1128,9 @@ def _categorical_mappings_table(title: str, scvi_column: str, mappings: dict):
     return t
 
 
-def _check_anndata_setup_equivalence(adata_source, adata_target):
+def _check_anndata_setup_equivalence(
+    adata_source: Union[AnnData, dict], adata_target: AnnData
+) -> bool:
     """
     Checks if target setup is equivalent to source.
 
@@ -1137,6 +1140,10 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
         Either AnnData already setup or scvi_setup_dict as the source
     adata_target
         Target AnnData to check setup equivalence
+
+    Returns
+    -------
+    Whether the adata_target should be run through `transfer_anndata_setup`
     """
     if isinstance(adata_source, anndata.AnnData):
         _scvi_dict = adata_source.uns["_scvi"]
@@ -1200,8 +1207,8 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
             raise ValueError(
                 "extra_continous_keys are not the same between source and target"
             )
-    if transfer_setup:
-        transfer_anndata_setup(adata_source, adata_target)
+
+    return transfer_setup
 
 
 def _needs_transfer(mapping1, mapping2, category):
