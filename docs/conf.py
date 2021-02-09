@@ -217,6 +217,11 @@ html_css_files = ["override.css"]
 html_show_sphinx = False
 
 
+def setup(app):
+    # https://github.com/pradyunsg/furo/issues/49
+    app.config.pygments_dark_style = "default"
+
+
 # -- Options for HTMLHelp output ---------------------------------------
 
 # Output file base name for HTML help builder.
