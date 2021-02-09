@@ -220,7 +220,7 @@ class SpatialStereoscope(BaseModelClass):
     def get_proportions(self, keep_noise=False) -> np.ndarray:
         """
         Returns the estimated cell type proportion for the spatial data.
-        
+
         Shape is n_cells x n_labels OR n_cells x (n_labels + 1) if keep_noise
 
         Parameters
