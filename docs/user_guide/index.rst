@@ -37,3 +37,12 @@ Tutorials
    notebooks/scarches_scvi_tools
    notebooks/gimvi_tutorial
    notebooks/AutoZI_tutorial
+
+
+Contributed tutorials
+---------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   notebooks/scVI_DE_worm

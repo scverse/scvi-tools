@@ -49,6 +49,7 @@ extensions = [
     "scanpydoc.definition_list_typed_field",
     "scanpydoc.autosummary_generate_imported",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
+    "sphinx_copybutton",
 ]
 
 # nbsphinx specific settings
@@ -130,8 +131,8 @@ qualname_overrides = {
 
 
 # General information about the project.
-project = u"scvi"
-copyright = u"2020, Yosef Lab, UC Berkeley"
+project = u"scvi-tools"
+copyright = u"2021, Yosef Lab, UC Berkeley"
 author = u"Romain Lopez, Adam Gayoso, Pierre Boyeau, Galen Xing"
 
 # The version info for the project you're documenting, acts as replacement
@@ -157,6 +158,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "default"
+pygments_dark_style = "default"
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
@@ -165,10 +167,10 @@ todo_include_todos = False
 # -- Options for HTML output -------------------------------------------
 
 html_show_sourcelink = True
-html_sidebars = {
-    "**": ["logo-text.html", "globaltoc.html", "localtoc.html", "searchbox.html"]
-}
-html_theme = "sphinx_material"
+# html_sidebars = {
+#     "**": ["logo-text.html", "globaltoc.html", "localtoc.html", "searchbox.html"]
+# }
+html_theme = "furo"
 
 html_context = dict(
     # display_github=True,  # Integrate GitHub
@@ -180,38 +182,35 @@ html_context = dict(
 # Set link name generated in the top bar.
 html_title = "scvi-tools"
 
-html_logo = "_static/logo.svg"
+html_logo = "_static/logo.png"
 
 # Material theme options (see theme.conf for more information)
 html_theme_options = {
-    "base_url": "https://scvi-tools.org",
-    # Set the color and the accent color
-    "color_primary": "white",
-    "color_accent": "light-blue",
-    "repo_type": "github",
-    # Set the repo location to get a badge with stats
-    "repo_url": "https://github.com/YosefLab/scvi-tools",
-    "repo_name": "scvi-tools",
-    "nav_links": [
-        {"href": "installation", "title": "Installation", "internal": True},
-        {"href": "user_guide/index", "title": "User guide", "internal": True},
-        {"href": "api/index", "title": "API", "internal": True},
-        {"href": "development", "title": "Development", "internal": True},
-        {"href": "authors", "title": "Authors", "internal": True},
-        {"href": "references", "title": "References", "internal": True},
-        {
-            "href": "https://discourse.scvi-tools.org",
-            "title": "Discussion",
-            "internal": False,
-        },
-    ],
-    "html_minify": True,
-    "css_minify": True,
-    "nav_title": "scvi-tools",
-    "globaltoc_depth": 3,
-    "globaltoc_collapse": True,
-    "globaltoc_includehidden": True,
-    "master_doc": False,
+    "sidebar_hide_name": True,
+    "light_css_variables": {
+        "color-brand-primary": "#003262",
+        "color-brand-content": "#2a5adf",
+    },
+    "dark_css_variables": {
+        "color-problematic": "#b30000",
+        "color-foreground-primary": "black",
+        "color-foreground-secondary": "#5a5c63",
+        "color-foreground-muted": "#72747e",
+        "color-foreground-border": "#878787",
+        "color-background-primary": "white",
+        "color-background-secondary": "#f8f9fb",
+        "color-background-hover": "#efeff4ff",
+        "color-background-hover--transparent": "#efeff400",
+        "color-background-border": "#eeebee",
+        "color-announcement-background": "#000000dd",
+        "color-announcement-text": "#eeebee",
+        "color-brand-primary": "#003262",
+        "color-brand-content": "#2a5adf",
+        "color-highlighted-background": "#ddeeff",
+        "color-highlighted-text": "var(--color-foreground-primary)",
+        "color-api-highlight-on-target": "#ffffcc",
+        "color-admonition-background": "transparent",
+    },
 }
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -221,6 +220,11 @@ html_static_path = ["_static"]
 html_css_files = ["override.css"]
 
 html_show_sphinx = False
+
+
+def setup(app):
+    # https://github.com/pradyunsg/furo/issues/49
+    app.config.pygments_dark_style = "default"
 
 
 # -- Options for HTMLHelp output ---------------------------------------

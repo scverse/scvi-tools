@@ -27,6 +27,7 @@ anndata = ">=0.7.5"
 black = {version = ">=20.8b1", optional = true}
 codecov = {version = ">=2.0.8", optional = true}
 flake8 = {version = ">=3.7.7", optional = true}
+furo = {version = "*", optional = true}
 h5py = ">=2.9.0"
 importlib-metadata = {version = "^1.0", python = "<3.8"}
 ipython = {version = ">=7.1.1", optional = true}
@@ -56,14 +57,14 @@ scikit-learn = ">=0.21.2"
 scikit-misc = {version = ">=0.1.3", optional = true}
 sphinx = {version = "^3.0", optional = true}
 sphinx-autodoc-typehints = {version = "*", optional = true}
-sphinx-material = {version = "*", optional = true}
+sphinx_copybutton = {version = "*", optional = true}
 torch = ">=1.6"
 tqdm = ">=4.56.0"
 typing_extensions = {version = "*", python = "<3.8"}
 
 [tool.poetry.extras]
 dev = ["black", "pytest", "flake8", "codecov", "scanpy", "loompy", "jupyter", "nbformat", "nbconvert", "pre-commit", "prospector"]
-docs = ["sphinx", "scanpydoc", "nbsphinx", "nbsphinx-link", "ipython", "sphinx-material", "typing_extensions", "sphinx-autodoc-typehints"]
+docs = ["sphinx", "scanpydoc", "nbsphinx", "nbsphinx-link", "ipython", "furo", "typing_extensions", "sphinx-autodoc-typehints", "sphinx_copybutton"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc"]
 
 [tool.poetry.dev-dependencies]

@@ -1,8 +1,3 @@
-.. image:: _static/scvi-tools-horizontal.svg
-   :width: 35%
-   :alt: scvi-tools
-   :align: left
-
 Documentation
 ~~~~~~~~~~~~~
 ``scvi-tools`` (single-cell variational inference tools) is a package for end-to-end analysis of single-cell omics data primarily developed and maintained by the `Yosef Lab
@@ -15,8 +10,7 @@ If you find a model useful for your research, please consider citing the corresp
 
 
 .. toctree::
-   :maxdepth: 1
-   :hidden:
+   :maxdepth: 2
 
    installation
    user_guide/index
@@ -26,3 +20,4 @@ If you find a model useful for your research, please consider citing the corresp
    authors
    references
    Discussion <https://discourse.scvi-tools.org>
+   GitHub <https://github.com/yoseflab/scvi-tools>
