@@ -178,7 +178,9 @@ class BaseModelClass(ABC):
                 "Make sure the registered X field in anndata contains unnormalized count data."
             )
 
-        _check_anndata_setup_equivalence(self.scvi_setup_dict_, adata)
+        needs_transfer = _check_anndata_setup_equivalence(self.scvi_setup_dict_, adata)
+        if needs_transfer:
+            transfer_anndata_setup(self.scvi_setup_dict_, adata)
 
         return adata
 
