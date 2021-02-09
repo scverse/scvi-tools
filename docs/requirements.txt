@@ -7,3 +7,4 @@ ipython
 scanpydoc>=0.4.5
 furo
 typing_extensions; python_version < '3.8'
+sphinx_copybutton
