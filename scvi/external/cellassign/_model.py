@@ -49,6 +49,7 @@ class CellAssign(BaseModelClass):
         cell_type_markers.reindex(sc_adata.var.index)
 
         self.n_genes = self.summary_stats["n_vars"]
+        self.cell_type_markers = cell_type_markers
         rho = torch.Tensor(cell_type_markers.to_numpy())
         n_cats_per_cov = (
             self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
@@ -77,14 +78,15 @@ class CellAssign(BaseModelClass):
         """Predict soft cell type assignment probability for each cell."""
         adata = self._validate_anndata(adata)
         scdl = self._make_scvi_dl(adata=adata)
-        latent = []
+        predictions = []
         for tensors in scdl:
             generative_inputs = self.module._get_generative_input(tensors, None)
-            # x, y = self.model.inference(**inference_inputs)
             outputs = self.module.generative(**generative_inputs)
             gamma = outputs["gamma"]
-            latent += [gamma.cpu()]
-        return np.array(torch.cat(latent))
+            predictions += [gamma.cpu()]
+        return pd.DataFrame(
+            np.array(torch.cat(predictions)), columns=self.cell_type_markers.columns
+        )
 
     @property
     def _task_class(self):

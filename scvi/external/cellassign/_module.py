@@ -195,7 +195,7 @@ class CellAssignModule(BaseModuleClass):
 
         # compute Q
         # take mean of number of cells and multiply by n_obs (instead of summing n)
-        q_per_cell = torch.sum(gamma * p_y_c, 1)
+        q_per_cell = torch.sum(gamma * -p_y_c, 1)
 
         # third term is log prob of prior terms in Q
         theta_log = F.log_softmax(self.theta_logit)
@@ -206,9 +206,10 @@ class CellAssignModule(BaseModuleClass):
         prior_log_prob = theta_log_prob
         if self.shrinkage:
             delta_log_prior = Normal(self.delta_log_mean, self.delta_log_variance)
-            summed_delta_log = torch.sum(self.delta_log)
-            delta_log_prob = -torch.sum(delta_log_prior.log_prob(summed_delta_log))
-            prior_log_prob += delta_log_prob
+            delta_log_prob = torch.masked_select(
+                delta_log_prior.log_prob(self.delta_log), self.rho
+            )
+            prior_log_prob += -torch.sum(delta_log_prob)
 
         loss = torch.mean(q_per_cell) * n_obs + prior_log_prob
 
