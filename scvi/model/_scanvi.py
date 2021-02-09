@@ -490,6 +490,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             indices=indices_train,
             shuffle=True,
             scvi_dl_class=dataloader_class,
+            drop_last=3,
             **dl_kwargs,
         )
         scanvi_val_dl = self._make_scvi_dl(
@@ -497,6 +498,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             indices=indices_val,
             shuffle=True,
             scvi_dl_class=dataloader_class,
+            drop_last=3,
             **dl_kwargs,
         )
         scanvi_test_dl = self._make_scvi_dl(
@@ -504,6 +506,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             indices=indices_test,
             shuffle=True,
             scvi_dl_class=dataloader_class,
+            drop_last=3,
             **dl_kwargs,
         )
 
