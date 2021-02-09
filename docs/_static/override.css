@@ -4,6 +4,7 @@ dl.citation > dt {
     font-weight: bold;
 }
 
-.field_list dt {
-    font-size: var(--font-size--small)
+dl.c .field-list dt, dl.cpp .field-list dt, dl.js .field-list dt, dl.py .field-list dt {
+    font-size: var(--font-size--normal);
+    text-transform: none;
 }
