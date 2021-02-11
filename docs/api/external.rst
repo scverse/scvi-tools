@@ -12,6 +12,15 @@ gimVI
 
    external.GIMVI
 
+
+Solo
+~~~~
+
+.. autosummary::
+   :toctree: reference/
+
+   external.SOLO
+
 Stereoscope
 ~~~~~~~~~~~
 
