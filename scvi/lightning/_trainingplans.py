@@ -573,7 +573,7 @@ class PyroTrainingPlan(pl.LightningModule):
         pass
 
 
-class ClassifierPlan(pl.LightningModule):
+class ClassifierTrainingPlan(pl.LightningModule):
     """
     Lightning module task to train a simple MLP classifier.
 
@@ -599,7 +599,7 @@ class ClassifierPlan(pl.LightningModule):
 
     def __init__(
         self,
-        vae_model: BaseModuleClass,
+        classifier: BaseModuleClass,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
@@ -609,7 +609,7 @@ class ClassifierPlan(pl.LightningModule):
         loss: Callable = torch.nn.CrossEntropyLoss,
     ):
         super(TrainingPlan, self).__init__()
-        self.module = vae_model
+        self.module = classifier
         self.lr = lr
         self.weight_decay = weight_decay
         self.eps = eps
@@ -617,6 +617,11 @@ class ClassifierPlan(pl.LightningModule):
         self.data_key = data_key
         self.labels_key = labels_key
         self.loss_fn = loss()
+
+        if self.module.logits is False and loss == torch.nn.CrossEntropyLoss:
+            raise UserWarning(
+                "classifier should return logits when using CrossEntropyLoss."
+            )
 
     def forward(self, *args, **kwargs):
         """Passthrough to `model.forward()`."""
@@ -631,6 +636,7 @@ class ClassifierPlan(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
+        self.log("loss_validation", loss)
 
         return loss
 
