@@ -20,7 +20,7 @@ LABELS_KEY = "_solo_doub_sim"
 
 class SOLO(BaseModelClass):
     """
-    Reimplementation of Solo for doublet detection.
+    Reimplementation of Solo for doublet detection [Bernstein19]_.
 
     Parameters
     ----------
