@@ -105,7 +105,7 @@ class SOLO(BaseModelClass):
         **kwargs,
     ):
         """
-        Trains the model using MAP inference.
+        Trains the model.
 
         Parameters
         ----------
@@ -123,7 +123,7 @@ class SOLO(BaseModelClass):
         batch_size
             Minibatch size to use during training.
         plan_kwargs
-            Keyword args for :class:`~scvi.lightning.TrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.lightning.ClassifierTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
