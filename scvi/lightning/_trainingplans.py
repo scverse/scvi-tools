@@ -1,5 +1,5 @@
 from inspect import getfullargspec
-from typing import Optional, Union
+from typing import Callable, Optional, Union
 
 import pyro
 import pytorch_lightning as pl
@@ -571,3 +571,79 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def backward(self, *args, **kwargs):
         pass
+
+
+class ClassifierPlan(pl.LightningModule):
+    """
+    Lightning module task to train a simple MLP classifier.
+
+    Parameters
+    ----------
+    classifier
+        A model instance from :class:`~scvi.modules.Classifier`.
+    lr
+        Learning rate used for optimization.
+    weight_decay
+        Weight decay used in optimizatoin.
+    eps
+        eps used for optimization.
+    optimizer
+        One of "Adam" (:class:`~torch.optim.Adam`), "AdamW" (:class:`~torch.optim.AdamW`).
+    data_key
+        Key for classifier input in tensor dict minibatch
+    labels_key
+        Key for classifier label in tensor dict minibatch
+    loss
+        PyTorch loss to use
+    """
+
+    def __init__(
+        self,
+        vae_model: BaseModuleClass,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
+        eps: float = 0.01,
+        optimizer: Literal["Adam", "AdamW"] = "Adam",
+        data_key: str = _CONSTANTS.X_KEY,
+        labels_key: str = _CONSTANTS.LABELS_KEY,
+        loss: Callable = torch.nn.CrossEntropyLoss,
+    ):
+        super(TrainingPlan, self).__init__()
+        self.module = vae_model
+        self.lr = lr
+        self.weight_decay = weight_decay
+        self.eps = eps
+        self.optimizer_name = optimizer
+        self.data_key = data_key
+        self.labels_key = labels_key
+        self.loss_fn = loss()
+
+    def forward(self, *args, **kwargs):
+        """Passthrough to `model.forward()`."""
+        return self.module(*args, **kwargs)
+
+    def training_step(self, batch, batch_idx, optimizer_idx=0):
+
+        soft_prediction = self.forward(batch[self.data_key])
+        loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        soft_prediction = self.forward(batch[self.data_key])
+        loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
+
+        return loss
+
+    def configure_optimizers(self):
+        params = filter(lambda p: p.requires_grad, self.module.parameters())
+        if self.optimizer_name == "Adam":
+            optim_cls = torch.optim.Adam
+        elif self.optimizer_name == "AdamW":
+            optim_cls = torch.optim.AdamW
+        else:
+            raise ValueError("Optimizer not understood.")
+        optimizer = optim_cls(
+            params, lr=self.lr, eps=self.eps, weight_decay=self.weight_decay
+        )
+
+        return optimizer
