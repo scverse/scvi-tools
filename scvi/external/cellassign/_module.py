@@ -76,8 +76,16 @@ class CellAssignModule(BaseModuleClass):
 
         # shrinkage prior on delta
         if self.shrinkage:
-            self.delta_log_mean = torch.nn.Parameter(torch.zeros(1, self.n_labels))
-            self.delta_log_variance = torch.nn.Parameter(torch.ones(1, self.n_labels))
+            self.delta_log_mean = torch.nn.Parameter(
+                torch.zeros(
+                    1,
+                )
+            )
+            self.delta_log_variance = torch.nn.Parameter(
+                torch.ones(
+                    1,
+                )
+            )
 
         self.log_a = torch.nn.Parameter(torch.zeros(B, dtype=torch.float64))
 
