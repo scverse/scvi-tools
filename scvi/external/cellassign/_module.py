@@ -5,6 +5,8 @@ import torch
 import torch.nn.functional as F
 from torch.distributions import Dirichlet, Normal
 
+# import pdb
+
 from scvi import _CONSTANTS
 from scvi.compose import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.distributions import NegativeBinomial
@@ -74,8 +76,8 @@ class CellAssignModule(BaseModuleClass):
 
         # shrinkage prior on delta
         if self.shrinkage:
-            self.delta_log_mean = torch.nn.Parameter(torch.Tensor(0))
-            self.delta_log_variance = torch.nn.Parameter(torch.Tensor(1))
+            self.delta_log_mean = torch.nn.Parameter(torch.zeros(1, self.n_labels))
+            self.delta_log_variance = torch.nn.Parameter(torch.ones(1, self.n_labels))
 
         self.log_a = torch.nn.Parameter(torch.zeros(B, dtype=torch.float64))
 
@@ -207,7 +209,7 @@ class CellAssignModule(BaseModuleClass):
         if self.shrinkage:
             delta_log_prior = Normal(self.delta_log_mean, self.delta_log_variance)
             delta_log_prob = torch.masked_select(
-                delta_log_prior.log_prob(self.delta_log), self.rho
+                delta_log_prior.log_prob(self.delta_log), (self.rho > 0)
             )
             prior_log_prob += -torch.sum(delta_log_prob)
 
