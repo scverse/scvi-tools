@@ -5,10 +5,8 @@ import pandas as pd
 import torch
 
 from anndata import AnnData
-from scipy.sparse import issparse
 
-from scvi import _CONSTANTS
-from scvi.data import get_from_registry, register_tensor_from_anndata
+from scvi.data import register_tensor_from_anndata
 from scvi.dataloaders import AnnDataLoader
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.lightning import TrainingPlan
@@ -41,6 +39,7 @@ class CellAssign(BaseModelClass):
         self,
         adata: AnnData,
         cell_type_markers: pd.DataFrame,
+        size_factor_key: str,
         use_gpu: bool = True,
         **model_kwargs,
     ):
@@ -48,13 +47,7 @@ class CellAssign(BaseModelClass):
         # check that genes are the same in cell_type_markers are present in the anndata
         # anndata may have more
 
-        counts = get_from_registry(adata, _CONSTANTS.X_KEY)
-        if issparse(counts):
-            size_factor = counts.sum(1).A.ravel()
-        else:
-            size_factor = counts.sum(1).ravel()
-        adata.obs["_size_factor"] = size_factor
-        register_tensor_from_anndata(adata, "_size_factor", "obs", "_size_factor")
+        register_tensor_from_anndata(adata, "_size_factor", "obs", size_factor_key)
 
         self.n_genes = self.summary_stats["n_vars"]
         self.cell_type_markers = cell_type_markers
@@ -64,11 +57,6 @@ class CellAssign(BaseModelClass):
             if "extra_categoricals" in self.scvi_setup_dict_
             else None
         )
-
-        # TODO proper check and remove the next line, only apply if necessary
-        self.adata.var_names_make_unique()
-        logger.info("Subsetting to cell type markers")
-        self.adata = adata[:, cell_type_markers.index].copy()
 
         self.module = CellAssignModule(
             n_genes=self.n_genes,
