@@ -5,6 +5,8 @@ import torch
 import torch.nn.functional as F
 from torch.distributions import Dirichlet, Normal
 
+# import pdb
+
 from scvi import _CONSTANTS
 from scvi.compose import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.distributions import NegativeBinomial
@@ -62,21 +64,20 @@ class CellAssignModule(BaseModuleClass):
         dirichlet_concentration = torch.tensor([1e-2] * self.n_labels)
         self.register_buffer("dirichlet_concentration", dirichlet_concentration)
         self.shrinkage = True
+        self.b_g_0 = torch.nn.Parameter(torch.randn(n_genes))
 
         # compute theta
         self.theta_logit = torch.nn.Parameter(torch.randn(self.n_labels))
 
         # compute delta (cell type specific overexpression parameter)
-        self.delta_log = torch.nn.Parameter(
-            torch.FloatTensor(self.n_genes, self.n_labels).uniform_(
-                np.log(self.min_delta), 2
-            )
+        self.delta_log_unclamped = torch.nn.Parameter(
+            torch.FloatTensor(self.n_genes, self.n_labels).uniform_(-2, 2)
         )
 
         # shrinkage prior on delta
         if self.shrinkage:
-            self.delta_log_mean = torch.nn.Parameter(torch.Tensor(0))
-            self.delta_log_variance = torch.nn.Parameter(torch.Tensor(1))
+            self.delta_log_mean = torch.nn.Parameter(torch.zeros(1, self.n_labels))
+            self.delta_log_variance = torch.nn.Parameter(torch.ones(1, self.n_labels))
 
         self.log_a = torch.nn.Parameter(torch.zeros(B, dtype=torch.float64))
 
@@ -112,6 +113,9 @@ class CellAssignModule(BaseModuleClass):
 
     @auto_move_data
     def generative(self, x, design_matrix=None):
+        self.delta_log = torch.clamp(
+            self.delta_log_unclamped, min=np.log(self.min_delta)
+        )
         # x has shape (n, g)
         delta = torch.exp(self.delta_log)  # (g, c)
         theta_log = F.log_softmax(self.theta_logit)  # (c)
@@ -124,11 +128,16 @@ class CellAssignModule(BaseModuleClass):
             s.shape[0], self.n_genes, self.n_labels
         )  # (n, g, c)
 
+        # base gene expression
+        b_g_0_e = self.b_g_0.unsqueeze(-1).expand(
+            s.shape[0], self.n_genes, self.n_labels
+        )
+
         delta_rho = delta * self.rho
         delta_rho_e = delta_rho.expand(
             s.shape[0], self.n_genes, self.n_labels
         )  # (n, g, c)
-        log_mu_ngc = base_mean_e + delta_rho_e
+        log_mu_ngc = base_mean_e + delta_rho_e + b_g_0_e
         mu_ngc = torch.exp(log_mu_ngc)  # (n, g, c)
 
         # compute basis means for phi - shape (B)
@@ -188,7 +197,7 @@ class CellAssignModule(BaseModuleClass):
 
         # compute Q
         # take mean of number of cells and multiply by n_obs (instead of summing n)
-        q_per_cell = torch.sum(gamma * p_y_c, 1)
+        q_per_cell = torch.sum(gamma * -p_y_c, 1)
 
         # third term is log prob of prior terms in Q
         theta_log = F.log_softmax(self.theta_logit)
@@ -199,11 +208,12 @@ class CellAssignModule(BaseModuleClass):
         prior_log_prob = theta_log_prob
         if self.shrinkage:
             delta_log_prior = Normal(self.delta_log_mean, self.delta_log_variance)
-            summed_delta_log = torch.sum(self.delta_log)
-            delta_log_prob = -torch.sum(delta_log_prior.log_prob(summed_delta_log))
-            prior_log_prob += delta_log_prob
+            delta_log_prob = torch.masked_select(
+                delta_log_prior.log_prob(self.delta_log), (self.rho > 0)
+            )
+            prior_log_prob += -torch.sum(delta_log_prob)
 
-        loss = torch.mean(q_per_cell) * n_obs + prior_log_prob
+        loss = torch.mean(q_per_cell) * n_obs + prior_log_prob / n_obs
 
         return LossRecorder(
             loss, q_per_cell, torch.zeros_like(q_per_cell), prior_log_prob

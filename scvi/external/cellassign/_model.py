@@ -40,7 +40,9 @@ class CellAssign(BaseModelClass):
     ):
         super().__init__(sc_adata, use_gpu=use_gpu)
         # check that genes are the same in sc_adata and cell_type_markers
-        if not sc_adata.var.index.equals(cell_type_markers.index):
+        if not sc_adata.var.index.sort_values().equals(
+            cell_type_markers.index.sort_values()
+        ):
             raise ValueError(
                 "Genes must be the same in sc_adata and cell_type_markers (rho matrix)."
             )
@@ -49,6 +51,7 @@ class CellAssign(BaseModelClass):
         cell_type_markers.reindex(sc_adata.var.index)
 
         self.n_genes = self.summary_stats["n_vars"]
+        self.cell_type_markers = cell_type_markers
         rho = torch.Tensor(cell_type_markers.to_numpy())
         n_cats_per_cov = (
             self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
@@ -72,18 +75,20 @@ class CellAssign(BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
+    @torch.no_grad()
     def predict(self, adata: AnnData) -> np.ndarray:
         """Predict soft cell type assignment probability for each cell."""
         adata = self._validate_anndata(adata)
         scdl = self._make_scvi_dl(adata=adata)
-        latent = []
+        predictions = []
         for tensors in scdl:
-            inference_inputs = self.model._get_inference_input(tensors)
-            x, y = self.model.inference(**inference_inputs)
-            outputs = self.model.generative(self, x, y)
+            generative_inputs = self.module._get_generative_input(tensors, None)
+            outputs = self.module.generative(**generative_inputs)
             gamma = outputs["gamma"]
-            latent += [gamma.cpu()]
-        return np.array(torch.cat(latent))
+            predictions += [gamma.cpu()]
+        return pd.DataFrame(
+            np.array(torch.cat(predictions)), columns=self.cell_type_markers.columns
+        )
 
     @property
     def _task_class(self):
