@@ -1,19 +1,23 @@
+import logging
+
 import numpy as np
 import pandas as pd
 import torch
 
-# import pdb
 from anndata import AnnData
 
+from scvi.data import register_tensor_from_anndata
 from scvi.dataloaders import AnnDataLoader
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.lightning import TrainingPlan
 from scvi.model.base import BaseModelClass
 
+logger = logging.getLogger(__name__)
+
 
 class CellAssign(BaseModelClass):
     """
-    Reimplementation of CellAssign for reference-based annotation.
+    Reimplementation of CellAssign for reference-based annotation [Zhang19]_.
 
     Parameters
     ----------
@@ -33,22 +37,17 @@ class CellAssign(BaseModelClass):
 
     def __init__(
         self,
-        sc_adata: AnnData,
+        adata: AnnData,
         cell_type_markers: pd.DataFrame,
+        size_factor_key: str,
         use_gpu: bool = True,
         **model_kwargs,
     ):
-        super().__init__(sc_adata, use_gpu=use_gpu)
-        # check that genes are the same in sc_adata and cell_type_markers
-        if not sc_adata.var.index.sort_values().equals(
-            cell_type_markers.index.sort_values()
-        ):
-            raise ValueError(
-                "Genes must be the same in sc_adata and cell_type_markers (rho matrix)."
-            )
+        super().__init__(adata, use_gpu=use_gpu)
+        # check that genes are the same in cell_type_markers are present in the anndata
+        # anndata may have more
 
-        # reorder cell_type_markers according to order of genes in sc_adata.var.index
-        cell_type_markers.reindex(sc_adata.var.index)
+        register_tensor_from_anndata(adata, "_size_factor", "obs", size_factor_key)
 
         self.n_genes = self.summary_stats["n_vars"]
         self.cell_type_markers = cell_type_markers
@@ -78,7 +77,7 @@ class CellAssign(BaseModelClass):
     @torch.no_grad()
     def predict(self, adata: AnnData) -> np.ndarray:
         """Predict soft cell type assignment probability for each cell."""
-        adata = self._validate_anndata(adata)
+        adata = self._validate_anndata(None)
         scdl = self._make_scvi_dl(adata=adata)
         predictions = []
         for tensors in scdl:

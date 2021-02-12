@@ -40,3 +40,8 @@ References
 .. [Bernstein19] Nicholas J. Bernstein, , Nicole L. Fong, Irene Lam, Margaret A. Roy, David G. Hendrickson, and David R. Kelley (2020),
     *Solo: doublet identification in single-cell RNA-Seq via semi-supervised deep learning*,
     `Cell Systems <https://www.sciencedirect.com/science/article/pii/S2405471220301952>`__.
+
+
+.. [Zhang19] Allen W. Zhang, Ciara O’Flanagan, Elizabeth A. Chavez, Jamie LP Lim, Nicholas Ceglia, Andrew McPherson, Matt Wiens et al. (2019),
+   *Probabilistic cell-type assignment of single-cell RNA-seq for tumor microenvironment profiling*,
+   `Nature methods <https://www.nature.com/articles/s41592-019-0529-1?elqTrackId=12c8cef68e0741ef8422778b61>`__.

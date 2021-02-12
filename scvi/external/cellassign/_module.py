@@ -76,8 +76,16 @@ class CellAssignModule(BaseModuleClass):
 
         # shrinkage prior on delta
         if self.shrinkage:
-            self.delta_log_mean = torch.nn.Parameter(torch.zeros(1, self.n_labels))
-            self.delta_log_variance = torch.nn.Parameter(torch.ones(1, self.n_labels))
+            self.delta_log_mean = torch.nn.Parameter(
+                torch.zeros(
+                    1,
+                )
+            )
+            self.delta_log_variance = torch.nn.Parameter(
+                torch.ones(
+                    1,
+                )
+            )
 
         self.log_a = torch.nn.Parameter(torch.zeros(B, dtype=torch.float64))
 
@@ -86,6 +94,7 @@ class CellAssignModule(BaseModuleClass):
 
     def _get_generative_input(self, tensors, inference_outputs):
         x = tensors[_CONSTANTS.X_KEY]
+        size_factor = tensors["_size_factor"]
 
         to_cat = []
         if self.n_batch > 0:
@@ -104,7 +113,7 @@ class CellAssignModule(BaseModuleClass):
 
         design_matrix = torch.cat(to_cat) if len(to_cat) > 0 else None
 
-        input_dict = dict(x=x, design_matrix=design_matrix)
+        input_dict = dict(x=x, size_factor=size_factor, design_matrix=design_matrix)
         return input_dict
 
     @auto_move_data
@@ -112,7 +121,7 @@ class CellAssignModule(BaseModuleClass):
         return {}
 
     @auto_move_data
-    def generative(self, x, design_matrix=None):
+    def generative(self, x, size_factor, design_matrix=None):
         self.delta_log = torch.clamp(
             self.delta_log_unclamped, min=np.log(self.min_delta)
         )
@@ -121,8 +130,8 @@ class CellAssignModule(BaseModuleClass):
         theta_log = F.log_softmax(self.theta_logit)  # (c)
 
         # compute mean of NegBin - shape (n_cells, n_genes, n_labels)
-        s = x.sum(1, keepdim=True)  # (n, 1)
-        base_mean = torch.log(s)
+        s = size_factor
+        base_mean = torch.log(s)  # (n, 1)
         base_mean_u = base_mean.unsqueeze(-1)  # (n, 1, 1)
         base_mean_e = base_mean_u.expand(
             s.shape[0], self.n_genes, self.n_labels
@@ -201,7 +210,7 @@ class CellAssignModule(BaseModuleClass):
 
         # third term is log prob of prior terms in Q
         theta_log = F.log_softmax(self.theta_logit)
-        theta_log_prior = Dirichlet(torch.tensor(self.dirichlet_concentration))
+        theta_log_prior = Dirichlet(self.dirichlet_concentration)
         theta_log_prob = -theta_log_prior.log_prob(
             torch.exp(theta_log) + THETA_LOWER_BOUND
         )
