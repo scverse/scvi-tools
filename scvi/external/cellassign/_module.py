@@ -213,7 +213,7 @@ class CellAssignModule(BaseModuleClass):
             )
             prior_log_prob += -torch.sum(delta_log_prob)
 
-        loss = torch.mean(q_per_cell) * n_obs + prior_log_prob
+        loss = torch.mean(q_per_cell) * n_obs + prior_log_prob / n_obs
 
         return LossRecorder(
             loss, q_per_cell, torch.zeros_like(q_per_cell), prior_log_prob
