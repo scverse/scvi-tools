@@ -4,7 +4,10 @@ import torch
 
 # import pdb
 from anndata import AnnData
+from scipy.sparse import issparse
 
+from scvi import _CONSTANTS
+from scvi.data import get_from_registry, register_tensor_from_anndata
 from scvi.dataloaders import AnnDataLoader
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.lightning import TrainingPlan
@@ -33,22 +36,27 @@ class CellAssign(BaseModelClass):
 
     def __init__(
         self,
-        sc_adata: AnnData,
+        adata: AnnData,
         cell_type_markers: pd.DataFrame,
         use_gpu: bool = True,
         **model_kwargs,
     ):
-        super().__init__(sc_adata, use_gpu=use_gpu)
-        # check that genes are the same in sc_adata and cell_type_markers
-        if not sc_adata.var.index.sort_values().equals(
+        super().__init__(adata, use_gpu=use_gpu)
+        # check that genes are the same in adata and cell_type_markers
+        if not adata.var.index.sort_values().equals(
             cell_type_markers.index.sort_values()
         ):
             raise ValueError(
-                "Genes must be the same in sc_adata and cell_type_markers (rho matrix)."
+                "Genes must be the same in adata and cell_type_markers (rho matrix)."
             )
 
-        # reorder cell_type_markers according to order of genes in sc_adata.var.index
-        cell_type_markers.reindex(sc_adata.var.index)
+        counts = get_from_registry(adata, _CONSTANTS.X_KEY)
+        if issparse(counts):
+            size_factor = counts.sum(1).A.ravel()
+        else:
+            size_factor = counts.sum(1).ravel()
+        adata.obs["_size_factor"] = size_factor
+        register_tensor_from_anndata(adata, "_size_factor", "obs", "_size_factor")
 
         self.n_genes = self.summary_stats["n_vars"]
         self.cell_type_markers = cell_type_markers
