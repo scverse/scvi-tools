@@ -1,8 +1,9 @@
+import logging
+
 import numpy as np
 import pandas as pd
 import torch
 
-# import pdb
 from anndata import AnnData
 from scipy.sparse import issparse
 
@@ -12,6 +13,8 @@ from scvi.dataloaders import AnnDataLoader
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.lightning import TrainingPlan
 from scvi.model.base import BaseModelClass
+
+logger = logging.getLogger(__name__)
 
 
 class CellAssign(BaseModelClass):
@@ -67,6 +70,11 @@ class CellAssign(BaseModelClass):
             else None
         )
 
+        # TODO proper check and remove the next line, only apply if necessary
+        self.adata.var_names_make_unique()
+        logger.info("Subsetting to cell type markers")
+        self.adata = adata[:, cell_type_markers.index].copy()
+
         self.module = CellAssignModule(
             n_genes=self.n_genes,
             rho=rho,
@@ -86,7 +94,7 @@ class CellAssign(BaseModelClass):
     @torch.no_grad()
     def predict(self, adata: AnnData) -> np.ndarray:
         """Predict soft cell type assignment probability for each cell."""
-        adata = self._validate_anndata(adata)
+        adata = self._validate_anndata(None)
         scdl = self._make_scvi_dl(adata=adata)
         predictions = []
         for tensors in scdl:
