@@ -40,7 +40,9 @@ class CellAssign(BaseModelClass):
     ):
         super().__init__(sc_adata, use_gpu=use_gpu)
         # check that genes are the same in sc_adata and cell_type_markers
-        if not sc_adata.var.index.equals(cell_type_markers.index):
+        if not sc_adata.var.index.sort_values().equals(
+            cell_type_markers.index.sort_values()
+        ):
             raise ValueError(
                 "Genes must be the same in sc_adata and cell_type_markers (rho matrix)."
             )
