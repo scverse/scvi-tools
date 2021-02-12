@@ -45,13 +45,8 @@ class CellAssign(BaseModelClass):
         **model_kwargs,
     ):
         super().__init__(adata, use_gpu=use_gpu)
-        # check that genes are the same in adata and cell_type_markers
-        if not adata.var.index.sort_values().equals(
-            cell_type_markers.index.sort_values()
-        ):
-            raise ValueError(
-                "Genes must be the same in adata and cell_type_markers (rho matrix)."
-            )
+        # check that genes are the same in cell_type_markers are present in the anndata
+        # anndata may have more
 
         counts = get_from_registry(adata, _CONSTANTS.X_KEY)
         if issparse(counts):
