@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class CellAssign(BaseModelClass):
     """
-    Reimplementation of CellAssign for reference-based annotation.
+    Reimplementation of CellAssign for reference-based annotation [Zhang19]_.
 
     Parameters
     ----------
