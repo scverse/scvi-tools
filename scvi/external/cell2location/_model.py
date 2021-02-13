@@ -50,7 +50,7 @@ class Cell2locationBaseModelClass(BaseModelClass):
     ):
         super(Cell2locationBaseModelClass, self).__init__(adata, use_gpu=use_gpu)
         
-        adata.obs["_indices"] = np.arange(adata.n_obs)
+        adata.obs["_indices"] = np.arange(adata.n_obs).astype('int64')
         register_tensor_from_anndata(adata, "ind_x", "obs", "_indices")
         
         self.adata = adata
@@ -304,8 +304,7 @@ class Cell2locationModelClass(Cell2locationBaseModelClass):
                                                       sample_id=sample_id,
                                                       use_gpu=use_gpu)
         
-        adata.obs["_indices"] = np.arange(adata.n_obs)
-        register_tensor_from_anndata(adata, "cell_state", "varm", "cell_state_varm")
+        #register_tensor_from_anndata(adata, "cell_state", "varm", "cell_state_varm")
         self.cell_state_df = cell_state_df
         
     def sample2df(self, node_name='w_sf'):
@@ -402,5 +401,6 @@ class Cell2location(Cell2locationModelClass):
             module = Cell2locationModule
             
         self.model = module(n_obs=self.n_obs, n_var=self.n_var, 
-                            n_fact=self.n_fact, n_exper=self.n_exper, batch_size=self.batch_size
+                            n_fact=self.n_fact, n_exper=self.n_exper, batch_size=self.batch_size,
+                            cell_state_mat=self.cell_state_df.values,
                             **model_kwargs)
