@@ -119,7 +119,7 @@ class CellAssignModule(BaseModuleClass):
         return {}
 
     @auto_move_data
-    def generative(self, x, size_factor, design_matrix):
+    def generative(self, x, size_factor, design_matrix=None):
         self.delta_log = torch.clamp(
             self.delta_log_unclamped, min=np.log(self.min_delta)
         )
