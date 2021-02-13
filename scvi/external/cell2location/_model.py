@@ -122,7 +122,9 @@ class Cell2locationBaseModelClass(BaseModelClass):
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
         
-        train_dl = AnnDataLoader(self.adata, shuffle=True, batch_size=self.batch_size)
+        train_dl = AnnDataLoader(self.adata, shuffle=True, 
+                                 batch_size=self.batch_size, 
+                                 drop_last=True)
         pyro.clear_param_store()
         model = self.model
         # warmup guide for JIT
@@ -131,9 +133,11 @@ class Cell2locationBaseModelClass(BaseModelClass):
             model.guide(*args, **kwargs)
             break
             
-        train_dl = AnnDataLoader(self.adata, shuffle=True, batch_size=self.batch_size)
+        train_dl = AnnDataLoader(self.adata, shuffle=True, 
+                                 batch_size=self.batch_size, 
+                                 drop_last=True)
         plan = PyroTrainingPlan(model,
-                                loss_fn=pyro.infer.JitTrace_ELBO(),
+                                loss_fn=pyro.infer.Trace_ELBO(), # for some reason JitTrace_ELBO does not work
                                 optim=pyro.optim.ClippedAdam({'lr': lr,
                                                         # limit the gradient step from becoming too large
                                                         'clip_norm': total_grad_norm_constraint}))

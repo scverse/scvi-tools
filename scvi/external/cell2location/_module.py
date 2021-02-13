@@ -301,7 +301,6 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
                                                obs=x_data)
 
         # =====================Compute mRNA count from each factor in locations  ======================= #
-        print(idx)
         mRNA = (w_sf * (self.cell_state * m_g).sum(-1))
         u_sf_mRNA_factors = pyro.deterministic('u_sf_mRNA_factors', mRNA)
 
