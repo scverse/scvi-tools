@@ -608,7 +608,7 @@ class ClassifierTrainingPlan(pl.LightningModule):
         labels_key: str = _CONSTANTS.LABELS_KEY,
         loss: Callable = torch.nn.CrossEntropyLoss,
     ):
-        super(TrainingPlan, self).__init__()
+        super().__init__()
         self.module = classifier
         self.lr = lr
         self.weight_decay = weight_decay
