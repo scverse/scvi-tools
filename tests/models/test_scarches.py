@@ -192,7 +192,7 @@ def test_scanvi_online_update(save_path):
     ref = a[a.obs["labels"] != "label_2"].copy()  # only has labels 0 and 1
     scvi.data.setup_anndata(ref, batch_key="batch", labels_key="labels")
     m = SCANVI(ref, "label_2")
-    m.train(1, 1)
+    m.train(max_epochs=1)
     m.save(save_path, overwrite=True)
     query = a[a.obs["labels"] != "label_0"].copy()
     query = scvi.data.synthetic_iid()  # has labels 0 and 2. 2 is unknown

@@ -7,6 +7,7 @@ from typing import Optional, Sequence
 
 import numpy as np
 import pyro
+import pytorch_lightning as pl
 import rich
 import torch
 from anndata import AnnData
@@ -18,7 +19,7 @@ from scvi.compose import PyroBaseModuleClass
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.lightning import Trainer
+from scvi.lightning import PyroTrainingPlan, Trainer
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -137,12 +138,17 @@ class BaseModelClass(ABC):
         indices_train = permutation[n_val : (n_val + n_train)]
         indices_test = permutation[(n_val + n_train) :]
 
+        # do not remove drop_last=3, skips over small minibatches
         return (
-            self._make_scvi_dl(adata, indices=indices_train, shuffle=True, **kwargs),
             self._make_scvi_dl(
-                adata, indices=indices_validation, shuffle=True, **kwargs
+                adata, indices=indices_train, shuffle=True, drop_last=3, **kwargs
             ),
-            self._make_scvi_dl(adata, indices=indices_test, shuffle=True, **kwargs),
+            self._make_scvi_dl(
+                adata, indices=indices_validation, shuffle=True, drop_last=3, **kwargs
+            ),
+            self._make_scvi_dl(
+                adata, indices=indices_test, shuffle=True, drop_last=3, **kwargs
+            ),
         )
 
     def _validate_anndata(
@@ -172,7 +178,9 @@ class BaseModelClass(ABC):
                 "Make sure the registered X field in anndata contains unnormalized count data."
             )
 
-        _check_anndata_setup_equivalence(self.scvi_setup_dict_, adata)
+        needs_transfer = _check_anndata_setup_equivalence(self.scvi_setup_dict_, adata)
+        if needs_transfer:
+            transfer_anndata_setup(self.scvi_setup_dict_, adata)
 
         return adata
 
@@ -250,7 +258,7 @@ class BaseModelClass(ABC):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
-        plan_class: Optional[None] = None,
+        plan_class: Optional[pl.LightningModule] = None,
         **kwargs,
     ):
         """
@@ -307,17 +315,13 @@ class BaseModelClass(ABC):
         self.test_indices_ = test_dl.indices
         self.validation_indices_ = val_dl.indices
 
-        if plan_class is None:
-            plan_class = self._plan_class
-
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-        self._pl_task = plan_class(self.module, len(self.train_indices_), **plan_kwargs)
+        self._set_training_plan(plan_class, plan_kwargs)
 
         if train_size == 1.0:
             # circumvent the empty data loader problem if all dataset used for training
-            self.trainer.fit(self._pl_task, train_dl)
+            self.trainer.fit(self._training_plan, train_dl)
         else:
-            self.trainer.fit(self._pl_task, train_dl, val_dl)
+            self.trainer.fit(self._training_plan, train_dl, val_dl)
         try:
             self.history_ = self.trainer.logger.history
         except AttributeError:
@@ -326,6 +330,20 @@ class BaseModelClass(ABC):
         if use_gpu:
             self.module.cuda()
         self.is_trained_ = True
+
+    def _set_training_plan(self, plan_class, plan_kwargs):
+        """Set the _training_plan attribute."""
+        if plan_class is None:
+            plan_class = self._plan_class
+
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+
+        if plan_class != PyroTrainingPlan:
+            self._training_plan = plan_class(
+                self.module, len(self.train_indices_), **plan_kwargs
+            )
+        else:
+            self._training_plan = plan_class(self.module, **plan_kwargs)
 
     def save(
         self,
@@ -412,7 +430,7 @@ class BaseModelClass(ABC):
 
         Examples
         --------
-        >>> vae = SCVI.load(adata, save_path)
+        >>> vae = SCVI.load(save_path, adata)
         >>> vae.get_latent_representation()
         """
         load_adata = adata is None

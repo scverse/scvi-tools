@@ -14,6 +14,5 @@ Import scvi-tools as::
    data
    model
    external
-   inference
    settings
    core

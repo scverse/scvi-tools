@@ -4,6 +4,7 @@ import pytest
 
 import scvi
 from scvi.data import synthetic_iid, transfer_anndata_setup, setup_anndata
+from scvi.dataloaders._ann_dataloader import AnnDataLoader
 from scvi.model import SCVI, SCANVI, TOTALVI, LinearSCVI, AUTOZI, PEAKVI
 from scvi.dataloaders import SemiSupervisedDataLoader
 
@@ -217,6 +218,25 @@ def test_saving_and_loading(save_path):
     assert model.is_trained is True
 
 
+def test_ann_dataloader():
+    a = scvi.data.synthetic_iid()
+
+    # test that batch sampler drops the last batch if it has less than 3 cells
+    assert a.n_obs == 400
+    adl = AnnDataLoader(a, batch_size=397, drop_last=3)
+    assert len(adl) == 2
+    for i, x in enumerate(adl):
+        pass
+    assert i == 1
+    adl = AnnDataLoader(a, batch_size=398, drop_last=3)
+    assert len(adl) == 1
+    for i, x in enumerate(adl):
+        pass
+    assert i == 0
+    with pytest.raises(ValueError):
+        AnnDataLoader(a, batch_size=1, drop_last=2)
+
+
 def test_semisupervised_dataloader():
     # test label resampling
     n_samples_per_label = 10
@@ -303,6 +323,16 @@ def test_scanvi(save_path):
     # labeled vs unlabeled ratio in train set
     train_ratio = len(unlabeled_train_idx) / len(labeled_train_idx)
     assert np.isclose(adata_ratio, train_ratio, atol=0.05)
+
+    # test from_scvi_model
+    a = scvi.data.synthetic_iid()
+    m = scvi.model.SCVI(a, use_observed_lib_size=False)
+    a2 = scvi.data.synthetic_iid()
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(m, "label_0", adata=a2)
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(
+        m, "label_0", use_gpu=False, use_labels_groups=False
+    )
+    scanvi_model.train(1)
 
 
 def test_linear_scvi(save_path):
