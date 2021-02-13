@@ -92,6 +92,7 @@ class Cell2locationBaseModelClass(BaseModelClass):
         self,
         max_epochs: int = 30000,
         lr: float = 0.001,
+        total_grad_norm_constraint: float = 200,
         use_gpu: Optional[bool] = None,
         train_size: float = 1,
         validation_size: Optional[float] = None,
@@ -131,12 +132,16 @@ class Cell2locationBaseModelClass(BaseModelClass):
             break
             
         train_dl = AnnDataLoader(self.adata, shuffle=True, batch_size=self.batch_size)
-        plan = PyroTrainingPlan(model, lr=lr, loss_fn=pyro.infer.JitTrace_ELBO())
+        plan = PyroTrainingPlan(model,
+                                loss_fn=pyro.infer.JitTrace_ELBO(),
+                                optim=pyro.optim.ClippedAdam({'lr': lr,
+                                                        # limit the gradient step from becoming too large
+                                                        'clip_norm': total_grad_norm_constraint}))
         trainer = Trainer(
             gpus=use_gpu,
-            max_epochs=max_epochs, train_size=train_size,
-            validation_size=validation_size,
-            batch_size=batch_size
+            max_epochs=max_epochs, #train_size=train_size,
+            #validation_size=validation_size,
+            #batch_size=batch_size
         )
         trainer.fit(plan, train_dl)
 
