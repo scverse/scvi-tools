@@ -120,8 +120,8 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
                            subsample_size=self.batch_size, 
                            subsample=idx),
                 pyro.plate("var_axis", self.n_var, dim=-1),
-                pyro.plate("factor_axis", self.n_fact, dim=-2),
-                pyro.plate("combination_axis", self.n_comb, dim=-1),
+                pyro.plate("factor_axis", self.n_fact, dim=-1),
+                pyro.plate("combination_axis", self.n_comb, dim=-3),
                 pyro.plate("experim_axis", self.n_experim, dim=-2)]
 
     def model(self, x_data, ind_x, obs2sample, cell_state):
@@ -174,13 +174,13 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
                 z_sr_combs_factors = pyro.sample('z_sr_combs_factors',
                                                  Gamma(alpha=shape,
                                                        beta=rate,
-                                                       shape=None)) # (n_obs, n_comb)
+                                                       shape=None)) # (n_comb, n_obs, 1)
         with combination_axis:
             K_r_factors_per_combs = pyro.sample('K_r_factors_per_combs',
                                                  Gamma(mu=self.cell_number_prior['factors_per_combs'],
                                                        sigma=self.cell_number_prior['factors_per_combs'] \
                                                                      / self.cell_number_prior['A_factors_mean_var_ratio'],
-                                                       shape=(1, self.n_comb)))
+                                                       shape=(self.n_comb, 1, 1)))
 
             c2f_shape = K_r_factors_per_combs / self.n_fact
             
@@ -188,11 +188,11 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
             x_fr_comb2fact = pyro.sample('x_fr_comb2fact',
                                              Gamma(alpha=c2f_shape,
                                                    beta=K_r_factors_per_combs,
-                                                   shape=(self.n_fact, self.n_comb)))
+                                                   shape=(self.n_comb, 1, self.n_fact)))
 
         with obs_axis:
             with factor_axis:
-                w_sf_mu = z_sr_combs_factors @ x_fr_comb2fact.T
+                w_sf_mu = z_sr_combs_factors.squeeze(-1).T @ x_fr_comb2fact.squeeze(-2)
                 w_sf_sigma = w_sf_mu / self.w_sf_mean_var_ratio
                 w_sf = pyro.sample('w_sf', Gamma(mu=w_sf_mu, sigma=w_sf_sigma)) # (self.n_obs, self.n_fact)
 
