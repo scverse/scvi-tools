@@ -32,7 +32,13 @@ class CellAssign(BaseModelClass):
 
     Examples
     --------
-    >>> # TODO
+    >>> adata = scvi.data.read_h5ad(path_to_anndata)
+    >>> marker_gene_mat = pd.read_csv(path_to_marker_gene_csv)
+    >>> bdata = adata[:, adata.var.index.isin(marker_gene_mat.index)].copy()
+    >>> scvi.data.setup_anndata(bdata)
+    >>> model = CellAssign(bdata, marker_gene_mat,size_factor_key='S')
+    >>> model.train(max_epochs=100, batch_size=1024)
+    >>> predictions = model.predict(bdata)
     """
 
     def __init__(
@@ -46,6 +52,13 @@ class CellAssign(BaseModelClass):
         super().__init__(adata, use_gpu=use_gpu)
         # check that genes are the same in cell_type_markers are present in the anndata
         # anndata may have more
+        adata.var = adata.var.sort_index()
+        cell_type_markers = cell_type_markers.sort_index()
+        if not adata.var.index.equals(cell_type_markers.index):
+            raise ValueError(
+                "Anndata and cell type markers do not contain the same genes."
+            )
+        cell_type_markers = cell_type_markers.loc[adata.var_names]
 
         register_tensor_from_anndata(adata, "_size_factor", "obs", size_factor_key)
 
@@ -75,7 +88,7 @@ class CellAssign(BaseModelClass):
         self.init_params_ = self._get_init_params(locals())
 
     @torch.no_grad()
-    def predict(self, adata: AnnData) -> np.ndarray:
+    def predict(self) -> np.ndarray:
         """Predict soft cell type assignment probability for each cell."""
         adata = self._validate_anndata(None)
         scdl = self._make_scvi_dl(adata=adata)
