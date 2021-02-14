@@ -31,7 +31,7 @@ import scvi  # noqa
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-needs_sphinx = "3.0"  # Nicer param docs
+needs_sphinx = "3.4"  # Nicer param docs
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
