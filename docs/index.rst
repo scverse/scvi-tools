@@ -15,9 +15,14 @@ If you find a model useful for your research, please consider citing the corresp
    installation
    user_guide/index
    api/index
-   development
    release_notes/index
    authors
    references
+
+.. toctree::
+   :caption: Community
+   :maxdepth: 1
+
+   development
    Discussion <https://discourse.scvi-tools.org>
    GitHub <https://github.com/yoseflab/scvi-tools>

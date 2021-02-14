@@ -22,4 +22,5 @@ dl.c .field-list dt, dl.cpp .field-list dt, dl.js .field-list dt, dl.py .field-l
 p.rubric {
     font-size: var(--font-size--normal);
     text-transform: none;
+    font-weight: 500;
 }

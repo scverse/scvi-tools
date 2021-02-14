@@ -68,7 +68,7 @@ source_suffix = ".rst"
 # Generate the API documentation when building
 autosummary_generate = True
 autodoc_member_order = "bysource"
-napoleon_google_docstring = False
+napoleon_google_docstring = True  # for pytorch lightning
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = False
 napoleon_use_rtype = True  # having a separate entry generally helps readability
@@ -84,9 +84,6 @@ nbsphinx_prolog = r"""
         .nbinput .prompt,
         .nboutput .prompt {
             display: none;
-        }
-        p {
-            padding-top: 5px;
         }
         .nboutput .stderr{
             display: none;
@@ -190,8 +187,8 @@ html_theme_options = {
     "light_css_variables": {
         "color-brand-primary": "#003262",
         "color-brand-content": "#2a5adf",
-        "sidebar-width": "18em",
-        "content-width": "65em",
+        "sidebar-width": "30em",
+        "content-width": "70em",
         "admonition-font-size": "var(--font-size--small)",
         "admonition-title-font-size": "var(--font-size--normal)",
     },
@@ -214,8 +211,8 @@ html_theme_options = {
         "color-highlighted-text": "var(--color-foreground-primary)",
         "color-api-highlight-on-target": "#ffffcc",
         "color-admonition-background": "transparent",
-        "sidebar-width": "18em",
-        "content-width": "65em",
+        "sidebar-width": "30em",
+        "content-width": "70em",
         "admonition-font-size": "var(--font-size--small)",
         "admonition-title-font-size": "var(--font-size--normal)",
     },
