@@ -8,7 +8,6 @@ import anndata
 import pytest
 import scvi
 
-from scvi.data._anntorchdataset import AnnTorchDataset
 from scvi.data import synthetic_iid
 from scvi.data import (
     setup_anndata,
@@ -18,6 +17,7 @@ from scvi.data import (
 )
 from scvi import _CONSTANTS
 from scvi.data._anndata import get_from_registry
+from scvi.dataloaders import AnnTorchDataset
 
 
 def test_transfer_anndata_setup():
