@@ -27,7 +27,7 @@ anndata = ">=0.7.5"
 black = {version = ">=20.8b1", optional = true}
 codecov = {version = ">=2.0.8", optional = true}
 flake8 = {version = ">=3.7.7", optional = true}
-furo = {version = "*", optional = true}
+furo = {version = ">=2020.12.30b24", optional = true}
 h5py = ">=2.9.0"
 importlib-metadata = {version = "^1.0", python = "<3.8"}
 ipython = {version = ">=7.1.1", optional = true}
