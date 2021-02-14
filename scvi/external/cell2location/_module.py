@@ -108,7 +108,7 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
                  alpha_g_phi_hyp_prior={'mean': 3, 'sd': 1},
                  gene_add_alpha_hyp_prior={'mean': 3, 'sd': 1},
                  gene_add_mean_hyp_prior={'alpha': 1, 'beta': 100},
-                 w_sf_mean_var_ratio=5, device='cuda'):
+                 w_sf_mean_var_ratio=5):
 
         super().__init__()
         
@@ -118,7 +118,6 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
         self.n_exper = n_exper
         self.batch_size = batch_size
         self.n_comb = n_comb
-        self.device = device
         
         for k in m_g_gene_level_var_prior.keys():
             m_g_gene_level_prior[k] = m_g_gene_level_var_prior[k]
@@ -154,15 +153,22 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
         obs2sample = tensor_dict["obs2sample"]
         return (x_data, ind_x, obs2sample), {}
     
+    @staticmethod
+    def _get_fn_args_for_predictive(adata):
+        x_data = torch.tensor(adata.layers['counts'][0:100,:].toarray().astype('float32'))
+        ind_x = torch.tensor(adata.obs['_indices'].values.astype('int64').squeeze()).long()
+        obs2sample = torch.tensor(adata.obsm['obs2sample_obsm'].astype('float32'))
+        return (x_data, ind_x, obs2sample), {}
+    
     
     def create_plates(self, x_data, idx, obs2sample):
         return [pyro.plate("obs_axis", self.n_obs, dim=-2, 
                            subsample_size=self.batch_size, 
-                           subsample=idx, device=self.device),
-                pyro.plate("var_axis", self.n_var, dim=-1, device=self.device),
-                pyro.plate("factor_axis", self.n_fact, dim=-1, device=self.device),
-                pyro.plate("combination_axis", self.n_comb, dim=-3, device=self.device),
-                pyro.plate("experim_axis", self.n_exper, dim=-2, device=self.device)]
+                           subsample=idx),
+                pyro.plate("var_axis", self.n_var, dim=-1),
+                pyro.plate("factor_axis", self.n_fact, dim=-1),
+                pyro.plate("combination_axis", self.n_comb, dim=-3),
+                pyro.plate("experim_axis", self.n_exper, dim=-2)]
 
     def model(self, x_data, idx, obs2sample):
         # register module with Pyro

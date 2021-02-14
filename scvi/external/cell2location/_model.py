@@ -11,6 +11,10 @@ from scvi.dataloaders import AnnDataLoader
 from scvi.lightning import PyroTrainingPlan, Trainer
 from scvi.model.base import BaseModelClass
 from scvi.external.cell2location._module import Cell2locationModule
+from pyro.infer import Predictive
+import torch
+
+from tqdm.auto import tqdm
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -88,7 +92,32 @@ class Cell2locationBaseModelClass(BaseModelClass):
         register_tensor_from_anndata(adata, "obs2sample", "obsm", "obs2sample_obsm")
         
 
-    def train(
+    def train_pyro_v2(self, max_epochs: Optional[int] = None,
+                   use_gpu: Optional[bool] = None,
+                   train_size: float = 1,
+                   validation_size: Optional[float] = None,
+                   batch_size: Optional[int] = None, lr: float = 0.001,
+                   total_grad_norm_constraint: float = 200,
+                   **kwargs):
+        
+        if use_gpu is True:
+            self.module.cuda()
+        
+        plan_kwargs = {'loss_fn': pyro.infer.Trace_ELBO(), # for some reason JitTrace_ELBO does not work
+                       'optim': pyro.optim.ClippedAdam({'lr': lr,
+                                                        # limit the gradient step from becoming too large
+                                                        'clip_norm': total_grad_norm_constraint})}
+        
+        if batch_size is None:
+            batch_size = self.batch_size
+        
+        self.train(max_epochs=max_epochs, use_gpu=use_gpu,
+                   train_size=train_size, validation_size=validation_size, batch_size=batch_size,
+                   plan_kwargs=plan_kwargs,
+                   plan_class=PyroTrainingPlan)
+    
+    
+    def train_pyro(
         self,
         max_epochs: int = 30000,
         lr: float = 0.001,
@@ -122,33 +151,162 @@ class Cell2locationBaseModelClass(BaseModelClass):
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
         
+        if use_gpu is None:
+            use_gpu = self.use_gpu
+        else:
+            use_gpu = use_gpu and torch.cuda.is_available()
+        gpus = 1 if use_gpu else None
+        
+        if self.use_gpu:
+            torch.set_default_tensor_type(torch.cuda.FloatTensor)
+        else:
+            torch.set_default_tensor_type(torch.FloatTensor)
+        
+        
+        if use_gpu:
+            self.module.cuda()
+        
         train_dl = AnnDataLoader(self.adata, shuffle=True, 
                                  batch_size=self.batch_size, 
                                  drop_last=True)
         pyro.clear_param_store()
-        model = self.model
+        module = self.module
         # warmup guide for JIT
         for tensors in train_dl:
-            args, kwargs = model._get_fn_args_from_batch(tensors)
-            model.guide(*args, **kwargs)
+            args, kwargs = module._get_fn_args_from_batch(tensors)
+            module.guide(*args, **kwargs)
             break
             
         train_dl = AnnDataLoader(self.adata, shuffle=True, 
                                  batch_size=self.batch_size, 
                                  drop_last=True)
-        plan = PyroTrainingPlan(model,
-                                loss_fn=pyro.infer.Trace_ELBO(), # for some reason JitTrace_ELBO does not work
+        plan = PyroTrainingPlan(module,
+                                loss_fn=pyro.infer.Trace_ELBO(), 
+                                # for some reason JitTrace_ELBO does not work (AssertionError)
                                 optim=pyro.optim.ClippedAdam({'lr': lr,
                                                         # limit the gradient step from becoming too large
                                                         'clip_norm': total_grad_norm_constraint}))
-        trainer = Trainer(
-            gpus=use_gpu,
-            max_epochs=max_epochs, #train_size=train_size,
-            #validation_size=validation_size,
-            #batch_size=batch_size
+        self.trainer = Trainer(
+            gpus=gpus,
+            max_epochs=max_epochs,
         )
-        trainer.fit(plan, train_dl)
+        self.trainer.fit(plan, train_dl)
+        
+        #try:
+        #    self.history = self.trainer.logger.history
+        #except AttributeError:
+        #    self.history = None
 
+        self.is_trained_ = True
+
+        
+    def sample_node1(self, node, num_samples_batch: int = 10):
+        
+        self.module.batch_size = self.adata.n_obs
+        
+        args, kwargs = self.module._get_fn_args_for_predictive(self.adata)
+
+        if self.use_gpu is True:
+            self.module.cuda()
+            
+        predictive = Predictive(self.module.model, guide=self.module.guide,
+                                num_samples=num_samples_batch)
+
+        post_samples = {k: v.detach().cpu().numpy()
+                        for k, v in predictive(*args, **kwargs).items()
+                        if k == node}
+
+        return (post_samples[node])
+
+    def sample_node(self, node, n_sampl_batches,
+                    num_samples_batch: int = 10, suff=''):
+
+        # sample first batch
+        self.samples[node + suff] = self.sample_node1(node, num_samples_batch=num_samples_batch)
+
+        for it in tqdm(range(n_sampl_batches - 1)):
+            # sample remaining batches
+            post_node = self.sample_node1(node, num_samples_batch=num_samples_batch)
+
+            # concatenate batches
+            self.samples[node + suff] = np.concatenate((self.samples[node + suff], post_node), axis=0)
+
+        # compute mean across samples
+        self.samples[node + suff] = self.samples[node + suff].mean(0)
+
+    def sample_all1(self, num_samples_batch: int = 10):
+
+        self.module.batch_size = self.adata.n_obs
+        
+        args, kwargs = self.module._get_fn_args_for_predictive(self.adata)
+        
+        if self.use_gpu is True:
+            self.module.cuda()
+
+        predictive = Predictive(self.module.model, guide=self.module.guide,
+                                num_samples=num_samples_batch)
+
+        post_samples = {k: v.detach().cpu().numpy()
+                        for k, v in predictive(*args, **kwargs).items()}
+
+        return (post_samples)
+
+    def sample_all(self, n_sampl_batches, num_samples_batch: int = 10):
+
+        self.adata.uns['mod'] = {}
+        
+        # sample first batch
+        self.adata.uns['mod']['post_samples'] = self.sample_all1(num_samples_batch=num_samples_batch)
+
+        for it in tqdm(range(n_sampl_batches - 1)):
+            # sample remaining batches
+            post_samples = self.sample_all1(num_samples_batch=num_samples_batch)
+
+            # concatenate batches
+            self.adata.uns['mod']['post_samples'] = {k: np.concatenate((self.adata.uns['mod']['post_samples'][k],
+                                                               post_samples[k]), axis=0)
+                                            for k in post_samples.keys()}
+
+    def sample_posterior(self, node='all',
+                         n_samples: int = 1000, num_samples_batch: int = 10,
+                         save_samples=False):
+        r""" Sample posterior distribution of parameters - either all or single parameter
+        :param node: pyro parameter to sample (e.g. default "all", self.spot_factors)
+        :param n_samples: number of posterior samples to generate (1000 is recommended, reduce if you get GPU memory error)
+        :param save_samples: save samples in addition to sample mean, 5% quantile, SD.
+        :param return_samples: return summarised samples in addition to saving them in `self.samples`
+        :param mean_field_slot: string, which mean_field slot to sample? 'init_1' by default
+        :return: nothing, a dictionary of dictionaries (mean, 5% quantile, SD, optionally all samples) with numpy arrays for each variables is added to self.adata.uns['mod'].
+        Optional dictionary of all samples contains parameters as numpy arrays of shape ``(n_samples, ...)``
+        """
+
+        self.n_samples = n_samples
+        self.n_sampl_batches = int(np.ceil(n_samples / num_samples_batch))
+        self.num_samples_batch = num_samples_batch
+
+        if (node == 'all'):
+            # Sample all parameters - might use a lot of GPU memory
+
+            self.sample_all(self.n_sampl_batches, num_samples_batch=self.num_samples_batch)
+
+            self.param_names = list(self.adata.uns['mod']['post_samples'].keys())
+
+            self.adata.uns['mod']['post_sample_means'] = {v: self.adata.uns['mod']['post_samples'][v].mean(axis=0)
+                                                 for v in self.param_names}
+            self.adata.uns['mod']['post_sample_q05'] = {v: np.quantile(self.adata.uns['mod']['post_samples'][v], 0.05, axis=0)
+                                               for v in self.param_names}
+            self.adata.uns['mod']['post_sample_q95'] = {v: np.quantile(self.adata.uns['mod']['post_samples'][v], 0.95, axis=0)
+                                               for v in self.param_names}
+            self.adata.uns['mod']['post_sample_sds'] = {v: self.adata.uns['mod']['post_samples'][v].std(axis=0)
+                                               for v in self.param_names}
+
+            if not save_samples:
+                del self.adata.uns['mod']['post_samples']
+
+        else:
+            self.sample_node(node, self.n_sampl_batches,
+                             batch_size=self.num_samples_batch, suff='')
+    
     @property
     def _plan_class(self):
         return PyroTrainingPlan
@@ -311,7 +469,7 @@ class Cell2locationModelClass(Cell2locationBaseModelClass):
                                                       var_names_read=var_names_read,
                                                       fact_names=cell_state_df.columns, 
                                                       sample_id=sample_id,
-                                                      use_gpu=use_gpu)
+                                                      use_gpu=use_gpu, batch_size=batch_size)
         
         #register_tensor_from_anndata(adata, "cell_state", "varm", "cell_state_varm")
         self.cell_state_df = cell_state_df
@@ -404,12 +562,11 @@ class Cell2location(Cell2locationModelClass):
         
         super(Cell2location, self).__init__(adata=adata, cell_state_df=cell_state_df, 
                                             var_names_read=var_names_read, sample_id=sample_id,
-                                            use_gpu=use_gpu)
+                                            use_gpu=use_gpu, batch_size=batch_size)
 
         if module is None:
             module = Cell2locationModule
             
-        self.model = module(n_obs=self.n_obs, n_var=self.n_var, 
-                            n_fact=self.n_fact, n_exper=self.n_exper, batch_size=self.batch_size,
-                            cell_state_mat=self.cell_state_df.values,
-                            **model_kwargs)
+        self.module = module(n_obs=self.n_obs, n_var=self.n_var,
+                             n_fact=self.n_fact, n_exper=self.n_exper, batch_size=self.batch_size,
+                             cell_state_mat=self.cell_state_df.values, **model_kwargs)
