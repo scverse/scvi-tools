@@ -64,6 +64,12 @@ class GIMVI(VAEMixin, BaseModelClass):
     >>> scvi.data.setup_anndata(adata_spatial)
     >>> vae = scvi.model.GIMVI(adata_seq, adata_spatial)
     >>> vae.train(n_epochs=400)
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/user_guide/notebooks/gimvi_tutorial`
     """
 
     def __init__(

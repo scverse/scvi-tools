@@ -80,6 +80,12 @@ class AUTOZI(VAEMixin, BaseModelClass):
     >>> scvi.data.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.model.AutoZIVAE(adata)
     >>> vae.train(n_epochs=400)
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/user_guide/notebooks/AutoZI_tutorial`
     """
 
     def __init__(

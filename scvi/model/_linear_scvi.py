@@ -60,6 +60,12 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
     >>> vae = scvi.model.LinearSCVI(adata)
     >>> vae.train()
     >>> adata.var["loadings"] = vae.get_loadings()
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/user_guide/notebooks/linear_decoder`
     """
 
     def __init__(
