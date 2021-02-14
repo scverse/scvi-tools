@@ -56,11 +56,17 @@ class _Positive(constraints.Constraint):
 def _transform_to_positive(constraint):
     return SoftplusTransform()
 
-class exp_to_softplus(pyro.poutine.messenger.Messenger):
+class ExpToSoftplus(pyro.poutine.messenger.Messenger):
     
-    def process_message(self, msg):
+    def __init__(self):
+        
+        super().__init__()
+    
+    def _process_message(self, msg):
         if msg["type"] == "param" and msg["name"].endswith("_scale"):
             msg["kwargs"]["constraint"] = _Positive()
+            
+_handler_name, ExpToSoftplusHandler = pyro.poutine.handlers._make_handler(ExpToSoftplus)
 
 # Define helper gamma distribution
 def Gamma(mu=None, sigma=None, alpha=None, beta=None, shape=None):
@@ -144,7 +150,7 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
         self.guide = AutoNormal(self.model, init_loc_fn=init_to_mean, 
                                 create_plates=self.create_plates)
         # replace exp transform with softplus https://github.com/pyro-ppl/numpyro/issues/855
-        #self.guide = exp_to_softplus(self.guide)
+        #self.guide = ExpToSoftplusHandler(self.guide)
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
