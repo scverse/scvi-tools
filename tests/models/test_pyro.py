@@ -16,28 +16,6 @@ from scvi.dataloaders import AnnDataLoader
 from scvi.lightning import PyroTrainingPlan, Trainer
 
 
-class PyroSampleCallback(Callback):
-    def on_train_start(self, trainer, pl_module):
-        """
-        Way to use PyroSample and have it be on GPU.
-
-        In this case, the PyroSample objects are added after the
-        model has already been moved to cuda.
-        """
-
-        pyro_model = pl_module.module.model
-        pyro_model.linear.weight = PyroSample(
-            dist.Normal(pyro_model.zero, pyro_model.one)
-            .expand([pyro_model.out_features, pyro_model.in_features])
-            .to_event(2)
-        )
-        pyro_model.linear.bias = PyroSample(
-            dist.Normal(pyro_model.zero, pyro_model.ten)
-            .expand([pyro_model.out_features])
-            .to_event(1)
-        )
-
-
 class PyroJitGuideWarmup(Callback):
     def __init__(self, train_dl) -> None:
         super().__init__()
@@ -51,19 +29,8 @@ class PyroJitGuideWarmup(Callback):
         model has already been moved to cuda.
         """
 
-        pyro_model = pl_module.module.model
-        pyro_model.linear.weight = PyroSample(
-            dist.Normal(pyro_model.zero, pyro_model.one)
-            .expand([pyro_model.out_features, pyro_model.in_features])
-            .to_event(2)
-        )
-        pyro_model.linear.bias = PyroSample(
-            dist.Normal(pyro_model.zero, pyro_model.ten)
-            .expand([pyro_model.out_features])
-            .to_event(1)
-        )
-
         # warmup guide for JIT
+        pyro_model = pl_module.module.model
         dev = pyro_model.linear.weight.device
         pyro_guide = pl_module.module.guide
         for tensors in self.dl:
@@ -84,6 +51,16 @@ class BayesianRegressionPyroModel(PyroModule):
         self.register_buffer("ten", torch.tensor(10.0))
 
         self.linear = PyroModule[nn.Linear](in_features, out_features)
+        self.linear.weight = PyroSample(
+            lambda prior: dist.Normal(self.zero, self.one)
+            .expand([self.out_features, self.in_features])
+            .to_event(2)
+        )
+        self.linear.bias = PyroSample(
+            lambda prior: dist.Normal(self.zero, self.ten)
+            .expand([self.out_features])
+            .to_event(1)
+        )
 
     def forward(self, x, y):
         sigma = pyro.sample("sigma", dist.Uniform(self.zero, self.ten))
@@ -115,7 +92,10 @@ def test_pyro_bayesian_regression(save_path):
     pyro.clear_param_store()
     model = BayesianRegressionModule(adata.shape[1], 1)
     plan = PyroTrainingPlan(model)
-    trainer = Trainer(gpus=use_gpu, max_epochs=2, callbacks=[PyroSampleCallback()])
+    trainer = Trainer(
+        gpus=use_gpu,
+        max_epochs=2,
+    )
     trainer.fit(plan, train_dl)
 
     # test save and load
@@ -135,7 +115,8 @@ def test_pyro_bayesian_regression(save_path):
         if isinstance(new_model, PyroBaseModuleClass):
             plan = PyroTrainingPlan(new_model)
             trainer = Trainer(
-                gpus=use_gpu, max_steps=1, callbacks=[PyroSampleCallback()]
+                gpus=use_gpu,
+                max_steps=1,
             )
             trainer.fit(plan, train_dl)
             new_model.load_state_dict(torch.load(model_save_path))
