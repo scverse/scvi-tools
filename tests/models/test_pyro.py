@@ -38,6 +38,41 @@ class PyroSampleCallback(Callback):
         )
 
 
+class PyroJitGuideWarmup(Callback):
+    def __init__(self, train_dl) -> None:
+        super().__init__()
+        self.dl = train_dl
+
+    def on_train_start(self, trainer, pl_module):
+        """
+        Way to use PyroSample and have it be on GPU.
+
+        In this case, the PyroSample objects are added after the
+        model has already been moved to cuda.
+        """
+
+        pyro_model = pl_module.module.model
+        pyro_model.linear.weight = PyroSample(
+            dist.Normal(pyro_model.zero, pyro_model.one)
+            .expand([pyro_model.out_features, pyro_model.in_features])
+            .to_event(2)
+        )
+        pyro_model.linear.bias = PyroSample(
+            dist.Normal(pyro_model.zero, pyro_model.ten)
+            .expand([pyro_model.out_features])
+            .to_event(1)
+        )
+
+        # warmup guide for JIT
+        dev = pyro_model.linear.weight.device
+        pyro_guide = pl_module.module.guide
+        for tensors in self.dl:
+            tens = {k: t.to(dev) for k, t in tensors.items()}
+            args, kwargs = pl_module.module._get_fn_args_from_batch(tens)
+            pyro_guide(*args, **kwargs)
+            break
+
+
 class BayesianRegressionPyroModel(PyroModule):
     def __init__(self, in_features, out_features):
         super().__init__()
@@ -121,15 +156,12 @@ def test_pyro_bayesian_regression_jit():
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     pyro.clear_param_store()
     model = BayesianRegressionModule(adata.shape[1], 1)
-    # warmup guide for JIT
-    for tensors in train_dl:
-        args, kwargs = model._get_fn_args_from_batch(tensors)
-        model.guide(*args, **kwargs)
-        break
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
     trainer = Trainer(
-        gpus=use_gpu,
-        max_epochs=2,
+        gpus=use_gpu, max_epochs=2, callbacks=[PyroJitGuideWarmup(train_dl)]
     )
     trainer.fit(plan, train_dl)
+
+    # 100 features, 1 for sigma, 1 for bias
+    assert list(model.guide.parameters())[0].shape[0] == 102
