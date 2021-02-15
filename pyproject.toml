@@ -1,3 +1,7 @@
+[tool.isort]
+multi_line_output = 3
+profile = "black"
+
 [tool.poetry]
 authors = ["Romain Lopez <romain_lopez@gmail.com>", "Adam Gayoso <adamgayoso@berkeley.edu>", "Galen Xing <gx2113@columbia.edu>"]
 classifiers = [
