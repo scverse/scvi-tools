@@ -1,14 +1,14 @@
 import os
+
 import numpy as np
 import pytest
+from scipy.sparse import csr_matrix
 
 import scvi
-from scvi.data import synthetic_iid, transfer_anndata_setup, setup_anndata
-from scvi.dataloaders._ann_dataloader import AnnDataLoader
-from scvi.model import SCVI, SCANVI, TOTALVI, LinearSCVI, AUTOZI, PEAKVI
+from scvi.data import setup_anndata, synthetic_iid, transfer_anndata_setup
 from scvi.dataloaders import SemiSupervisedDataLoader
-
-from scipy.sparse import csr_matrix
+from scvi.dataloaders._ann_dataloader import AnnDataLoader
+from scvi.model import AUTOZI, PEAKVI, SCANVI, SCVI, TOTALVI, LinearSCVI
 
 
 def test_scvi(save_path):

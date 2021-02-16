@@ -1,21 +1,21 @@
-import numpy as np
 import os
 import random
-import pandas as pd
-import scipy.sparse as sparse
 
 import anndata
+import numpy as np
+import pandas as pd
 import pytest
-import scvi
+import scipy.sparse as sparse
 
-from scvi.data import synthetic_iid
+import scvi
+from scvi import _CONSTANTS
 from scvi.data import (
-    setup_anndata,
-    transfer_anndata_setup,
     register_tensor_from_anndata,
+    setup_anndata,
+    synthetic_iid,
+    transfer_anndata_setup,
     view_anndata_setup,
 )
-from scvi import _CONSTANTS
 from scvi.data._anndata import get_from_registry
 from scvi.dataloaders import AnnTorchDataset
 
