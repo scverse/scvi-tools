@@ -9,14 +9,6 @@
     color: #003262!important;
 }
 
-.sphx-glr-thumbcontainer .headerlink {
-    display: none !important;
-}
-
-div.sphx-glr-thumbcontainer span {
-    font-style: normal !important;
-}
-
 p.sphx-glr-timing {
     margin: 0 !important;
     padding-top: 24px;
@@ -26,10 +18,20 @@ p.sphx-glr-timing {
 .sphx-glr-thumbcontainer:hover {
     box-shadow: 0 0 10px #003262!important
 }
+ */
+
+
+.sphx-glr-thumbcontainer .headerlink {
+    display: none !important;
+}
+
+div.sphx-glr-thumbcontainer span {
+    font-style: normal !important;
+}
 
 .sphx-glr-thumbcontainer a.internal {
     padding: 140px 10px 0!important;
-} */
+}
 
 .sphx-glr-thumbcontainer .figure.align-center {
     text-align: center;
