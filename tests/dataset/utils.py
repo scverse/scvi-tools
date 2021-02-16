@@ -1,5 +1,4 @@
 import torch
-
 from anndata import AnnData
 
 import scvi

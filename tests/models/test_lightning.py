@@ -1,6 +1,6 @@
 from scvi.data import synthetic_iid
-from scvi.model import SCVI
 from scvi.lightning._callbacks import SaveBestState
+from scvi.model import SCVI
 
 
 def test_save_best_state_callback(save_path):

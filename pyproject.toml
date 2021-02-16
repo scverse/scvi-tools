@@ -1,6 +1,8 @@
 [tool.isort]
+include_trailing_comma = true
 multi_line_output = 3
 profile = "black"
+skip_glob = ["docs/*", "scvi/__init__.py"]
 
 [tool.poetry]
 authors = ["Romain Lopez <romain_lopez@gmail.com>", "Adam Gayoso <adamgayoso@berkeley.edu>", "Galen Xing <gx2113@columbia.edu>"]
@@ -34,8 +36,9 @@ flake8 = {version = ">=3.7.7", optional = true}
 furo = {version = ">=2020.12.30b24", optional = true}
 h5py = ">=2.9.0"
 importlib-metadata = {version = "^1.0", python = "<3.8"}
-ipython = {version = ">=7.1.1", optional = true}
+ipython = {version = ">=7.20", optional = true, python = ">=3.7"}
 ipywidgets = "*"
+isort = {version = ">=5.7", optional = true}
 jupyter = {version = ">=1.0", optional = true}
 leidenalg = {version = "*", optional = true}
 loompy = {version = ">=3.0.6", optional = true}
@@ -67,7 +70,7 @@ tqdm = ">=4.56.0"
 typing_extensions = {version = "*", python = "<3.8"}
 
 [tool.poetry.extras]
-dev = ["black", "pytest", "flake8", "codecov", "scanpy", "loompy", "jupyter", "nbformat", "nbconvert", "pre-commit", "prospector"]
+dev = ["black", "pytest", "flake8", "codecov", "scanpy", "loompy", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort"]
 docs = ["sphinx", "scanpydoc", "nbsphinx", "nbsphinx-link", "ipython", "furo", "typing_extensions", "sphinx-autodoc-typehints", "sphinx_copybutton"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc"]
 

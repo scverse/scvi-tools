@@ -1,8 +1,11 @@
-import scvi
-import tarfile
 import os
-import scanpy as sc
+import tarfile
+
 import pytest
+import scanpy as sc
+
+import scvi
+
 from .utils import unsupervised_training_one_epoch
 
 

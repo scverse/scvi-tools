@@ -1011,6 +1011,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 def _get_totalvi_protein_priors(adata, n_cells=100):
     """Compute an empirical prior for protein background."""
     import warnings
+
     from sklearn.exceptions import ConvergenceWarning
     from sklearn.mixture import GaussianMixture
 
