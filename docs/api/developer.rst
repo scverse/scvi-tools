@@ -1,11 +1,20 @@
-====
-Core
-====
+=========
+Developer
+=========
+
+
+Import scvi-tools as::
+
+   import scvi
+
 
 .. currentmodule:: scvi
 
 Compose
 ~~~~~~~
+
+.. currentmodule:: scvi
+
 .. autosummary::
    :toctree: reference/
    :template: class_no_inherited.rst
@@ -23,7 +32,10 @@ Compose
    compose.auto_move_data
 
 Distributions
-~~~~~~~~~~~~
+~~~~~~~~~~~~~
+
+.. currentmodule:: scvi
+
 
 .. autosummary::
    :toctree: reference/
@@ -36,6 +48,9 @@ Distributions
 Model (Base)
 ~~~~~~~~~~~~
 
+.. currentmodule:: scvi
+
+
 .. autosummary::
     :toctree: reference/
 
@@ -46,6 +61,9 @@ Model (Base)
 
 Modules
 ~~~~~~~
+
+.. currentmodule:: scvi
+
 
 .. autosummary::
    :toctree: reference/
@@ -62,14 +80,22 @@ Modules
 Data Loaders
 ~~~~~~~~~~~~
 
+.. currentmodule:: scvi
+
+
 .. autosummary::
    :toctree: reference/
 
    dataloaders.AnnDataLoader
+   dataloaders.AnnTorchDataset
    dataloaders.ConcatDataLoader
+   dataloaders.SemiSupervisedDataLoader
 
 Lightning
 ~~~~~~~~~
+
+.. currentmodule:: scvi
+
 
 PyTorch lightning is used to train our modules. TrainingPlans define train/test/val optimization
 steps for modules like `TOTALVAE`, `SCANVAE`, etc.
@@ -86,6 +112,9 @@ steps for modules like `TOTALVAE`, `SCANVAE`, etc.
 
 Utilities
 ~~~~~~~~~
+
+.. currentmodule:: scvi
+
 
 .. autosummary::
    :toctree: reference/

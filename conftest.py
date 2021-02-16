@@ -1,6 +1,7 @@
-import pytest
-from distutils.dir_util import copy_tree
 import shutil
+from distutils.dir_util import copy_tree
+
+import pytest
 
 
 def pytest_addoption(parser):

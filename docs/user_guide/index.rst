@@ -39,6 +39,16 @@ Tutorials
    notebooks/AutoZI_tutorial
 
 
+Model development tutorials
+---------------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   notebooks/module_user_guide
+   notebooks/model_user_guide
+
+
 Contributed tutorials
 ---------------------
 
@@ -46,3 +56,5 @@ Contributed tutorials
    :maxdepth: 1
 
    notebooks/scVI_DE_worm
+   notebooks/stereoscope_public_LV
+

@@ -1,12 +1,50 @@
 ====
-Data
+User
 ====
+
+
+Import scvi-tools as::
+
+   import scvi
+
+
 .. currentmodule:: scvi
+
+
+Model
+~~~~~
+
+.. currentmodule:: scvi
+
+
+.. autosummary::
+   :toctree: reference/
+
+   model.AUTOZI
+   model.LinearSCVI
+   model.PEAKVI
+   model.SCANVI
+   model.SCVI
+   model.TOTALVI
+
+
+.. currentmodule:: scvi
+
+External
+~~~~~~~~
+
+.. autosummary::
+   :toctree: reference/
+
+   external.GIMVI
+   external.RNAStereoscope
+   external.SpatialStereoscope
+
 
 Data loading
 ~~~~~~~~~~~~
 
-``scvi-tools`` now relies entirely on the AnnData_ format. For convenience, we have included data loaders from the AnnData_ API. Scanpy_ also has utilities_ to load data that are outputted by 10x's Cell Ranger software.
+``scvi-tools`` relies entirely on the AnnData_ format. For convenience, we have included data loaders from the AnnData_ API. Scanpy_ also has utilities_ to load data that are outputted by 10x's Cell Ranger software.
 
 .. _AnnData: https://anndata.readthedocs.io/en/stable/
 .. _Scanpy: https://scanpy.readthedocs.io/en/stable/index.html
@@ -56,25 +94,12 @@ Here we maintain a few package specific utilities for feature selection, etc.
    data.organize_cite_seq_10x
 
 
-Built in data
+Configuration
 ~~~~~~~~~~~~~
+
+An instance of the :class:`~scvi._settings.ScviConfig` is available as ``scvi.settings`` and allows configuring scvi-tools.
 
 .. autosummary::
    :toctree: reference/
 
-   data.pbmcs_10x_cite_seq
-   data.spleen_lymph_cite_seq
-   data.purified_pbmc_dataset
-   data.dataset_10x
-   data.brainlarge_dataset
-   data.pbmc_dataset
-   data.cortex
-   data.seqfishplus
-   data.seqfish
-   data.smfish
-   data.breast_cancer_dataset
-   data.mouse_ob_dataset
-   data.retina
-   data.prefrontalcortex_starmap
-   data.frontalcortex_dropseq
-
+   _settings.ScviConfig

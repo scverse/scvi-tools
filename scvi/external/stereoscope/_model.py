@@ -152,6 +152,12 @@ class SpatialStereoscope(BaseModelClass):
     >>> stereo = scvi.external.SpatialStereoscope.from_rna_model(st_adata, sc_model)
     >>> stereo.train()
     >>> st_adata.obs["deconv"] = stereo.get_proportions()
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/user_guide/notebooks/stereoscope_public_LV`
     """
 
     def __init__(
