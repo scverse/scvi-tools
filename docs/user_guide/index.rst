@@ -27,8 +27,8 @@ Quick start
 Tutorials
 ---------
 
-.. toctree::
-   :maxdepth: 1
+.. nbgallery::
+   :name: rst-gallery
 
    notebooks/totalVI
    notebooks/harmonization

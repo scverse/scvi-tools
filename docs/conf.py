@@ -50,6 +50,7 @@ extensions = [
     "scanpydoc.autosummary_generate_imported",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
     "sphinx_copybutton",
+    "sphinx_gallery.load_style",
 ]
 
 # nbsphinx specific settings
