@@ -16,8 +16,7 @@ To download the tutorials:
 Quick start
 -----------
 
-.. toctree::
-   :maxdepth: 1
+.. nbgallery::
 
    notebooks/api_overview
    notebooks/data_loading
@@ -28,7 +27,6 @@ Tutorials
 ---------
 
 .. nbgallery::
-   :name: rst-gallery
 
    notebooks/totalVI
    notebooks/harmonization
@@ -42,8 +40,7 @@ Tutorials
 Model development tutorials
 ---------------------------
 
-.. toctree::
-   :maxdepth: 1
+.. nbgallery::
 
    notebooks/module_user_guide
    notebooks/model_user_guide
@@ -52,8 +49,7 @@ Model development tutorials
 Contributed tutorials
 ---------------------
 
-.. toctree::
-   :maxdepth: 1
+.. nbgallery::
 
    notebooks/scVI_DE_worm
    notebooks/stereoscope_public_LV
