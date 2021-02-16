@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from scvi.data._anntorchdataset import AnnTorchDataset
+from ._anntorchdataset import AnnTorchDataset
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
 
 class AnnDataLoader(DataLoader):
     """
-    Scvi Data Loader for loading tensors from AnnData objects.
+    DataLoader for loading tensors from AnnData objects.
 
     Parameters
     ----------

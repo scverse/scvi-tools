@@ -2,15 +2,9 @@ import numpy as np
 import pytest
 import torch
 
+from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
+from scvi.distributions._negative_binomial import log_nb_positive, log_zinb_positive
 from scvi.model._metrics import unsupervised_clustering_accuracy
-from scvi.distributions import (
-    ZeroInflatedNegativeBinomial,
-    NegativeBinomial,
-)
-from scvi.distributions._negative_binomial import (
-    log_zinb_positive,
-    log_nb_positive,
-)
 
 use_gpu = True
 

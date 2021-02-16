@@ -78,6 +78,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     >>> vae = scvi.model.TOTALVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_totalVI"] = vae.get_latent_representation()
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/user_guide/notebooks/totalVI`
+    2. :doc:`/user_guide/notebooks/cite_scrna_integration_w_totalVI`
+    3. :doc:`/user_guide/notebooks/scarches_scvi_tools`
     """
 
     def __init__(
@@ -1003,6 +1011,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 def _get_totalvi_protein_priors(adata, n_cells=100):
     """Compute an empirical prior for protein background."""
     import warnings
+
     from sklearn.exceptions import ConvergenceWarning
     from sklearn.mixture import GaussianMixture
 
