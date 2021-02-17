@@ -1,6 +1,6 @@
 from scvi.data import setup_anndata, synthetic_iid
-from scvi.model import SCVI
 from scvi.external import SOLO
+from scvi.model import SCVI
 
 
 def test_solo(save_path):
