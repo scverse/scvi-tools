@@ -1,9 +1,11 @@
+from functools import partial
+
+import numpy as np
+import pytest
+
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
 from scvi.utils import DifferentialComputation
-from functools import partial
-import numpy as np
-import pytest
 
 
 def test_differential_computation(save_path):

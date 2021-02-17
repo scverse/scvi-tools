@@ -14,8 +14,8 @@ from scvi.data._anndata import _make_obs_column_categorical
 from scvi.dataloaders import AnnDataLoader, SemiSupervisedDataLoader
 from scvi.lightning import SemiSupervisedTrainingPlan, Trainer
 from scvi.lightning._callbacks import SubSampleLabels
-from scvi.modules import SCANVAE
 from scvi.model._scvi import SCVI
+from scvi.modules import SCANVAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 

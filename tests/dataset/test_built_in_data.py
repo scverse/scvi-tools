@@ -1,7 +1,9 @@
+from unittest import TestCase
+
+import pytest
+
 import scvi
 
-from unittest import TestCase
-import pytest
 from .utils import unsupervised_training_one_epoch
 
 

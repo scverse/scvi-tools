@@ -40,6 +40,9 @@ jobs:
     - name: Format with black
       run: |
         black --check .
+    - name: Import sort
+      run: |
+        isort --check-only .
     - name: Test with pytest
       run: |
         pytest --cov-report=xml --cov=scvi --internet-tests
