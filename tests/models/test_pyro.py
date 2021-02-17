@@ -23,10 +23,9 @@ class PyroJitGuideWarmup(Callback):
 
     def on_train_start(self, trainer, pl_module):
         """
-        Way to use PyroSample and have it be on GPU.
+        Way to warmup Pyro Guide in an automated way.
 
-        In this case, the PyroSample objects are added after the
-        model has already been moved to cuda.
+        Also device agnostic.
         """
 
         # warmup guide for JIT
@@ -100,8 +99,8 @@ def test_pyro_bayesian_regression(save_path):
 
     # test save and load
     quants = model.guide.quantiles([0.5])
-    sigma_median = quants["sigma"][0].cpu().detach().numpy()
-    linear_median = quants["linear.weight"][0].cpu().detach().numpy()
+    sigma_median = quants["sigma"][0].detach().cpu().numpy()
+    linear_median = quants["linear.weight"][0].detach().cpu().numpy()
 
     model_save_path = os.path.join(save_path, "model_params.pt")
     torch.save(model.state_dict(), model_save_path)
@@ -124,8 +123,8 @@ def test_pyro_bayesian_regression(save_path):
             raise err
 
     quants = new_model.guide.quantiles([0.5])
-    sigma_median_new = quants["sigma"][0].cpu().detach().numpy()
-    linear_median_new = quants["linear.weight"][0].cpu().detach().numpy()
+    sigma_median_new = quants["sigma"][0].detach().cpu().numpy()
+    linear_median_new = quants["linear.weight"][0].detach().cpu().numpy()
 
     np.testing.assert_array_equal(sigma_median_new, sigma_median)
     np.testing.assert_array_equal(linear_median_new, linear_median)
