@@ -631,12 +631,13 @@ class ClassifierTrainingPlan(pl.LightningModule):
 
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
+        self.log("train_loss", loss, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
-        self.log("loss_validation", loss)
+        self.log("validation_loss", loss)
 
         return loss
 

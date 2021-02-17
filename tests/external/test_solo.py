@@ -11,5 +11,6 @@ def test_solo(save_path):
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     solo = SOLO.from_scvi_model(model)
-    solo.train(1)
+    solo.train(1, check_val_every_n_epoch=1, train_size=0.9)
+    assert "validation_loss" in solo.history.keys()
     solo.predict()
