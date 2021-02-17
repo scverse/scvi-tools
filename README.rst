@@ -64,7 +64,7 @@ Resources
 * If you find a model useful for your research, please consider citing the corresponding publication (linked above).
 
 .. _scvi-tools: https://scvi-tools.org/
-.. _documentation: https://scvi-tools.org/
+.. _documentation: https://docs.scvi-tools.org/
 .. _`development guide`: https://docs.scvi-tools.org/en/stable/development.html
 .. _scVI: https://rdcu.be/bdHYQ
 .. _scANVI: https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf
