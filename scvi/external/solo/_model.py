@@ -1,5 +1,6 @@
 import io
 import logging
+import warnings
 from contextlib import redirect_stdout
 from typing import Optional
 
@@ -241,5 +242,8 @@ class SOLO(BaseModelClass):
 
 
 def _validate_scvi_model(scvi_model: SCVI):
-    # check that it was trained on one batch
-    pass
+    if scvi_model.summary_stats["n_batch"] > 1:
+        warnings.warn(
+            "The SCVI model should only be trained on one lane of data. Performance may suffer.",
+            UserWarning,
+        )
