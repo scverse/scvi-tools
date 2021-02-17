@@ -1,8 +1,8 @@
 import warnings
+from copy import deepcopy
 
 import numpy as np
 import torch
-from copy import deepcopy
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities import rank_zero_info
 

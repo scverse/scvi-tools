@@ -14,8 +14,8 @@ from scvi.data._anndata import _make_obs_column_categorical
 from scvi.dataloaders import AnnDataLoader, SemiSupervisedDataLoader
 from scvi.lightning import SemiSupervisedTrainingPlan, Trainer
 from scvi.lightning._callbacks import SubSampleLabels
-from scvi.modules import SCANVAE
 from scvi.model._scvi import SCVI
+from scvi.modules import SCANVAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
@@ -68,6 +68,13 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     >>> adata.obs["pred_label"] = vae.predict()
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/user_guide/notebooks/harmonization`
+    2. :doc:`/user_guide/notebooks/scarches_scvi_tools`
     """
 
     def __init__(

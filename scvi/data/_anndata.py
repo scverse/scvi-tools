@@ -6,10 +6,10 @@ import warnings
 from typing import Dict, List, Optional, Tuple, Union
 
 import anndata
-from anndata._core.anndata import AnnData
 import numpy as np
 import pandas as pd
 import rich
+from anndata._core.anndata import AnnData
 from pandas.api.types import CategoricalDtype
 from rich.console import Console
 from scipy.sparse import isspmatrix

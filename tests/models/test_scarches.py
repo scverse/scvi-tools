@@ -1,11 +1,12 @@
 import os
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 import pytest
 
 import scvi
-from scvi.data import synthetic_iid, setup_anndata
-from scvi.model import SCVI, SCANVI, TOTALVI
+from scvi.data import setup_anndata, synthetic_iid
+from scvi.model import SCANVI, SCVI, TOTALVI
 
 
 def single_pass_for_online_update(model):

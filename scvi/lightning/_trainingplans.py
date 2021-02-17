@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.compose import PyroBaseModuleClass, BaseModuleClass, one_hot
+from scvi.compose import BaseModuleClass, PyroBaseModuleClass, one_hot
 from scvi.modules import Classifier
 
 

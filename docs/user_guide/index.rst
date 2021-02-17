@@ -16,8 +16,7 @@ To download the tutorials:
 Quick start
 -----------
 
-.. toctree::
-   :maxdepth: 1
+.. nbgallery::
 
    notebooks/api_overview
    notebooks/data_loading
@@ -27,8 +26,7 @@ Quick start
 Tutorials
 ---------
 
-.. toctree::
-   :maxdepth: 1
+.. nbgallery::
 
    notebooks/totalVI
    notebooks/harmonization
@@ -39,10 +37,20 @@ Tutorials
    notebooks/AutoZI_tutorial
 
 
+Model development tutorials
+---------------------------
+
+.. nbgallery::
+
+   notebooks/module_user_guide
+   notebooks/model_user_guide
+
+
 Contributed tutorials
 ---------------------
 
-.. toctree::
-   :maxdepth: 1
+.. nbgallery::
 
    notebooks/scVI_DE_worm
+   notebooks/stereoscope_public_LV
+

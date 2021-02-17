@@ -59,6 +59,15 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     >>> adata.obsm["X_normalized_scVI"] = vae.get_normalized_expression()
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/user_guide/notebooks/api_overview`
+    2. :doc:`/user_guide/notebooks/harmonization`
+    3. :doc:`/user_guide/notebooks/scarches_scvi_tools`
+    4. :doc:`/user_guide/notebooks/scvi_in_R`
     """
 
     def __init__(

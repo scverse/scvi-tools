@@ -19,6 +19,7 @@ class ScviConfig:
     Examples
     --------
     To set the seed
+
     >>> scvi.settings.seed = 1
 
     To set the batch size for functions like `SCVI.get_latent_representation`
