@@ -96,8 +96,22 @@ def test_pyro_bayesian_regression(save_path):
         max_epochs=2,
     )
     trainer.fit(plan, train_dl)
+    if use_gpu == 1:
+        model.cuda()
 
+    # test Predictive
+    num_samples = 5
+    predictive = model.create_predictive(num_samples=num_samples)
+    for tensor_dict in train_dl:
+        args, kwargs = model._get_fn_args_from_batch(tensor_dict)
+        _ = {
+            k: v.detach().cpu().numpy()
+            for k, v in predictive(*args, **kwargs).items()
+            if k != "obs"
+        }
     # test save and load
+    # cpu/gpu has minor difference
+    model.cpu()
     quants = model.guide.quantiles([0.5])
     sigma_median = quants["sigma"][0].detach().cpu().numpy()
     linear_median = quants["linear.weight"][0].detach().cpu().numpy()
@@ -145,3 +159,17 @@ def test_pyro_bayesian_regression_jit():
 
     # 100 features, 1 for sigma, 1 for bias
     assert list(model.guide.parameters())[0].shape[0] == 102
+
+    if use_gpu == 1:
+        model.cuda()
+
+    # test Predictive
+    num_samples = 5
+    predictive = model.create_predictive(num_samples=num_samples)
+    for tensor_dict in train_dl:
+        args, kwargs = model._get_fn_args_from_batch(tensor_dict)
+        _ = {
+            k: v.detach().cpu().numpy()
+            for k, v in predictive(*args, **kwargs).items()
+            if k != "obs"
+        }
