@@ -9,6 +9,7 @@ import torch
 from anndata import AnnData
 
 from scvi import _CONSTANTS
+from scvi.compose import auto_move_data
 from scvi.data import get_from_registry, setup_anndata
 from scvi.dataloaders import AnnDataLoader
 from scvi.lightning import ClassifierTrainingPlan
@@ -214,14 +215,14 @@ class SOLO(BaseModelClass):
             adata=adata,
         )
 
-        # TODO: figure out automovedata on module forward
-        # this moves classifier to cpu, should be fine though
-        self.module.cpu()
+        @auto_move_data
+        def auto_forward(module, x):
+            return module(x)
 
         y_pred = []
         for _, tensors in enumerate(scdl):
             x = tensors[_CONSTANTS.X_KEY]
-            pred = self.module(x)
+            pred = auto_forward(self.module, x)
             if not soft:
                 pred = pred.argmax(dim=1)
             y_pred.append(pred.cpu())
