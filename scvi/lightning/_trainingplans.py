@@ -49,7 +49,6 @@ class TrainingPlan(pl.LightningModule):
         Which metric to track for learning rate reduction.
     lr_min
         Minimum learning rate allowed
-
     **loss_kwargs
         Keyword args to pass to the loss method of the `vae_model`.
         `kl_weight` should not be passed here and is handled automatically.
