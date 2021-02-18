@@ -58,7 +58,7 @@ class Decoder(torch.nn.Module):
         deep_inject_covariates: bool = False,
     ):
         super().__init__()
-        self.net = FCLayers(
+        self.px_decoder = FCLayers(
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
@@ -75,7 +75,7 @@ class Decoder(torch.nn.Module):
         )
 
     def forward(self, z: torch.Tensor, *cat_list: int):
-        x = self.output(self.net(z, *cat_list))
+        x = self.output(self.px_decoder(z, *cat_list))
         return x
 
 
@@ -149,6 +149,7 @@ class PEAKVAE(BaseModuleClass):
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: str = "normal",
         deeply_inject_covariates: bool = False,
+        encode_covariates: bool = False,
     ):
         super().__init__()
 
@@ -169,16 +170,20 @@ class PEAKVAE(BaseModuleClass):
         self.use_layer_norm_encoder = use_layer_norm in ("encoder", "both")
         self.use_layer_norm_decoder = use_layer_norm in ("decoder", "both")
         self.deeply_inject_covariates = deeply_inject_covariates
+        self.encode_covariates = encode_covariates
 
         cat_list = (
             [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
         )
 
+        n_input_encoder = self.n_input_regions + n_continuous_cov * encode_covariates
+        encoder_cat_list = cat_list if encode_covariates else None
         self.z_encoder = Encoder(
-            n_input=self.n_input_regions,
+            n_input=n_input_encoder,
             n_layers=self.n_layers_encoder,
             n_output=self.n_latent,
             n_hidden=self.n_hidden,
+            n_cat_list=encoder_cat_list,
             dropout_rate=self.dropout_rate,
             activation_fn=torch.nn.LeakyReLU,
             distribution=self.latent_distribution,
@@ -202,9 +207,10 @@ class PEAKVAE(BaseModuleClass):
         if self.model_depth:
             # Decoder class to avoid variational split
             self.d_encoder = Decoder(
-                n_input=n_input_regions,
+                n_input=n_input_encoder,
                 n_output=1,
                 n_hidden=self.n_hidden,
+                n_cat_list=encoder_cat_list,
                 n_layers=self.n_layers_encoder,
             )
         self.region_factors = None
@@ -213,8 +219,14 @@ class PEAKVAE(BaseModuleClass):
 
     def _get_inference_input(self, tensors):
         x = tensors[_CONSTANTS.X_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        cont_covs = tensors.get(_CONSTANTS.CONT_COVS_KEY)
+        cat_covs = tensors.get(_CONSTANTS.CAT_COVS_KEY)
         input_dict = dict(
             x=x,
+            batch_index=batch_index,
+            cont_covs=cont_covs,
+            cat_covs=cat_covs,
         )
         return input_dict
 
@@ -246,12 +258,28 @@ class PEAKVAE(BaseModuleClass):
     def inference(
         self,
         x,
+        batch_index,
+        cont_covs,
+        cat_covs,
         n_samples=1,
     ) -> Dict[str, torch.Tensor]:
         """Helper function used in forward pass."""
-        # Sampling
-        qz_m, qz_v, z = self.z_encoder(x)
-        d = self.d_encoder(x) if self.model_depth else 1
+        if cat_covs is not None and self.encode_covariates is True:
+            categorical_input = torch.split(cat_covs, 1, dim=1)
+        else:
+            categorical_input = tuple()
+        if cont_covs is not None and self.encode_covariates is True:
+            encoder_input = torch.cat([x, cont_covs], dim=-1)
+        else:
+            encoder_input = x
+        # if encode_covariates is False, cat_list to init encoder is None, so
+        # batch_index is not used (or categorical_input, but it's empty)
+        qz_m, qz_v, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
+        d = (
+            self.d_encoder(encoder_input, batch_index, *categorical_input)
+            if self.model_depth
+            else 1
+        )
 
         if n_samples > 1:
             qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
