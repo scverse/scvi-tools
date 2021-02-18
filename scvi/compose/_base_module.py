@@ -1,10 +1,12 @@
 from abc import abstractmethod
-from typing import Dict, Iterable, Optional, Tuple, Union
+from typing import Callable, Dict, Iterable, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
+from pyro.infer.predictive import Predictive
 
 from ._decorators import auto_move_data
+from ._pyro import AutoMoveDataPredictive
 
 
 class LossRecorder:
@@ -229,6 +231,57 @@ class PyroBaseModuleClass(nn.Module):
         -------
         args and kwargs for the functions, args should be an Iterable and kwargs a dictionary.
         """
+
+    def create_predictive(
+        self,
+        model: Optional[Callable] = None,
+        posterior_samples: Optional[dict] = None,
+        guide: Optional[Callable] = None,
+        num_samples: Optional[int] = None,
+        return_sites: Tuple[str] = (),
+        parallel: bool = False,
+    ) -> Predictive:
+        """
+        Creates a :class:`~pyro.infer.Predictive` object.
+
+        Parameters
+        ----------
+        model
+            Python callable containing Pyro primitives. Defaults to `self.model`.
+        posterior_samples
+            Dictionary of samples from the posterior
+        guide
+            Optional guide to get posterior samples of sites not present
+            in `posterior_samples`. Defaults to `self.guide`
+        num_samples
+            Number of samples to draw from the predictive distribution.
+            This argument has no effect if ``posterior_samples`` is non-empty, in which case,
+            the leading dimension size of samples in ``posterior_samples`` is used.
+        return_sites
+            Sites to return; by default only sample sites not present
+            in `posterior_samples` are returned.
+        parallel
+            predict in parallel by wrapping the existing model
+            in an outermost `plate` messenger. Note that this requires that the model has
+            all batch dims correctly annotated via :class:`~pyro.plate`. Default is `False`.
+        """
+
+        if model is None:
+            model = self.model
+        if guide is None:
+            guide = self.guide
+        predictive = AutoMoveDataPredictive(
+            model=model,
+            posterior_samples=posterior_samples,
+            guide=guide,
+            num_samples=num_samples,
+            return_sites=return_sites,
+            parallel=parallel,
+        )
+        # necessary to comply with auto_move_data decorator
+        predictive.eval()
+
+        return predictive
 
     def forward(self, *args, **kwargs):
         """Passthrough to Pyro model."""
