@@ -24,7 +24,11 @@ LABELS_KEY = "_solo_doub_sim"
 
 class SOLO(BaseModelClass):
     """
-    Reimplementation of Solo for doublet detection [Bernstein19]_.
+    Doublet detection in scRNA-seq [Bernstein19]_.
+
+    Most users will initialize the model using the class method
+    :func:`~scvi.external.SOLO.from_scvi_model`, which takes as
+    input a pre-trained :class:`~scvi.model.SCVI` object.
 
     Parameters
     ----------
