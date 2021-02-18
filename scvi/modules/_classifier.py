@@ -42,6 +42,7 @@ class Classifier(nn.Module):
         activation_fn: nn.Module = nn.ReLU,
     ):
         super().__init__()
+        self.logits = logits
         layers = [
             FCLayers(
                 n_in=n_input,

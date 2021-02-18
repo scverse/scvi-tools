@@ -39,6 +39,7 @@ External
    external.GIMVI
    external.RNAStereoscope
    external.SpatialStereoscope
+   external.SOLO
 
 
 Data loading
