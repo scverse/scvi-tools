@@ -300,7 +300,7 @@ def test_peakvi_online_update(save_path):
     # expression part has zero grad
     assert np.sum(grad[:, :-4]) == 0
     # categorical part has non-zero grad
-    assert np.sum(grad[:, -4:].copy()) != 0
+    assert np.count_nonzero(grad[:, -4:]) > 0
 
     # do not freeze expression
     model3 = PEAKVI.load_query_data(
