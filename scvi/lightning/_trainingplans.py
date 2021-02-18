@@ -47,6 +47,8 @@ class TrainingPlan(pl.LightningModule):
         Threshold for measuring the new optimum.
     lr_scheduler_metric
         Which metric to track for learning rate reduction.
+    lr_min
+        Minimum learning rate allowed
     **loss_kwargs
         Keyword args to pass to the loss method of the `vae_model`.
         `kl_weight` should not be passed here and is handled automatically.
@@ -69,6 +71,7 @@ class TrainingPlan(pl.LightningModule):
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
+        lr_min: float = None
         **loss_kwargs,
     ):
         super(TrainingPlan, self).__init__()
@@ -85,6 +88,7 @@ class TrainingPlan(pl.LightningModule):
         self.lr_patience = lr_patience
         self.lr_scheduler_metric = lr_scheduler_metric
         self.lr_threshold = lr_threshold
+        self.lr_min = lr_min
         self.loss_kwargs = loss_kwargs
 
         # automatic handling of kl weight
@@ -172,6 +176,7 @@ class TrainingPlan(pl.LightningModule):
                 patience=self.lr_patience,
                 factor=self.lr_factor,
                 threshold=self.lr_threshold,
+                min_lr=self.lr_min, 
                 threshold_mode="abs",
                 verbose=True,
             )
@@ -228,6 +233,8 @@ class AdversarialTrainingPlan(TrainingPlan):
         Threshold for measuring the new optimum.
     lr_scheduler_metric
         Which metric to track for learning rate reduction.
+    lr_min
+        Minimum learning rate allowed
     adversarial_classifier
         Whether to use adversarial classifier in the latent space
     scale_adversarial_loss
@@ -254,6 +261,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
+        lr_min: float = None,
         adversarial_classifier: Union[bool, Classifier] = False,
         scale_adversarial_loss: Union[float, Literal["auto"]] = "auto",
         **loss_kwargs,
@@ -270,9 +278,10 @@ class AdversarialTrainingPlan(TrainingPlan):
             lr_patience=lr_patience,
             lr_threshold=lr_threshold,
             lr_scheduler_metric=lr_scheduler_metric,
+            lr_min=lr_min,
         )
         if adversarial_classifier is True:
-            self.n_output_classifier = self.module.n_batch
+            self.n_output_classifier = self.module.n_bcdatch
             self.adversarial_classifier = Classifier(
                 n_input=self.module.n_latent,
                 n_hidden=32,
@@ -361,6 +370,7 @@ class AdversarialTrainingPlan(TrainingPlan):
                 patience=self.lr_patience,
                 factor=self.lr_factor,
                 threshold=self.lr_threshold,
+                min_lr=self.lr_min,
                 threshold_mode="abs",
                 verbose=True,
             )
