@@ -7,6 +7,7 @@ from typing import Optional
 import numpy as np
 import torch
 from anndata import AnnData
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from scvi import _CONSTANTS
 from scvi.compose import auto_move_data
@@ -152,6 +153,10 @@ class SOLO(BaseModelClass):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
+        callbacks: list = [],
+        early_stopping: bool = True,
+        early_stopping_patience: int = 30,
+        early_stopping_min_delta: float = 0.,
         **kwargs,
     ):
         """
@@ -174,6 +179,11 @@ class SOLO(BaseModelClass):
             Minibatch size to use during training.
         plan_kwargs
             Keyword args for :class:`~scvi.lightning.ClassifierTrainingPlan`. Keyword arguments passed to
+        early_stopping_patience
+            Number of times early stopping metric can not improve over early_stopping_min_delta
+        early_stopping_min_delta
+            Threshold for counting an epoch torwards patience
+            
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
@@ -185,6 +195,22 @@ class SOLO(BaseModelClass):
             plan_kwargs.update(update_dict)
         else:
             plan_kwargs = update_dict
+        
+        if early_stopping:
+            callbacks += [EarlyStopping(
+                monitor="validation_loss",
+                min_delta=early_stopping_min_delta,
+                patience=early_stopping_patience,
+                mode='min',
+                )]
+            check_val_every_n_epoch = 1
+        else:
+            check_val_every_n_epoch = (
+                check_val_every_n_epoch
+                if check_val_every_n_epoch is not None
+                else np.inf
+            )
+            
         super().train(
             max_epochs=max_epochs,
             use_gpu=use_gpu,
@@ -192,6 +218,7 @@ class SOLO(BaseModelClass):
             validation_size=validation_size,
             batch_size=batch_size,
             plan_kwargs=plan_kwargs,
+            callbacks=callbacks,
             **kwargs,
         )
 

@@ -281,7 +281,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             lr_min=lr_min,
         )
         if adversarial_classifier is True:
-            self.n_output_classifier = self.module.n_bcdatch
+            self.n_output_classifier = self.module.n_batch
             self.adversarial_classifier = Classifier(
                 n_input=self.module.n_latent,
                 n_hidden=32,
