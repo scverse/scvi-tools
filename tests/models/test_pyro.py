@@ -5,12 +5,13 @@ import pyro
 import pyro.distributions as dist
 import torch
 import torch.nn as nn
+from pyro.infer import Predictive
 from pyro.infer.autoguide import AutoDiagonalNormal
 from pyro.nn import PyroModule, PyroSample
 from pytorch_lightning.callbacks import Callback
 
 from scvi import _CONSTANTS
-from scvi.compose import PyroBaseModuleClass
+from scvi.compose import PyroBaseModuleClass, auto_move_data
 from scvi.data import synthetic_iid
 from scvi.dataloaders import AnnDataLoader
 from scvi.lightning import PyroTrainingPlan, Trainer
@@ -96,8 +97,24 @@ def test_pyro_bayesian_regression(save_path):
         max_epochs=2,
     )
     trainer.fit(plan, train_dl)
+    if use_gpu == 1:
+        model.cuda()
 
+    # test Predictive
+    num_samples = 5
+    predictive = model.create_predictive(num_samples=num_samples)
+    for tensor_dict in train_dl:
+        args, kwargs = model._get_fn_args_from_batch(tensor_dict)
+        _ = {
+            k: v.detach().cpu().numpy()
+            for k, v in auto_move_data(Predictive.forward)(
+                predictive, *args, **kwargs
+            ).items()
+            if k != "obs"
+        }
     # test save and load
+    # cpu/gpu has minor difference
+    model.cpu()
     quants = model.guide.quantiles([0.5])
     sigma_median = quants["sigma"][0].detach().cpu().numpy()
     linear_median = quants["linear.weight"][0].detach().cpu().numpy()
