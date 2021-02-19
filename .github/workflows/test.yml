@@ -7,11 +7,10 @@ on:
   push:
     branches: [master]
   pull_request:
-    branches: [master, pytorch_lit]
+    branches: [master]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -47,9 +46,12 @@ jobs:
       run: |
         pytest --cov-report=xml --cov=scvi --internet-tests
     - name: After success
-      env:
-        CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
       run: |
         codecov
         pip list
+    - name: Codacy upload
+      env:
+        CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
+      run: |
         bash <(curl -Ls https://coverage.codacy.com/get.sh) report -l Python -r coverage.xml
+      continue-on-error: true
