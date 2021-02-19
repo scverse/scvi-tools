@@ -12,7 +12,7 @@ class SubSampleLabels(Callback):
         super().__init__()
 
     def on_epoch_start(self, trainer, pl_module):
-        trainer.train_dataloader.resample_labels()
+        trainer.train_dataloader.loaders.resample_labels()
         super().on_epoch_start(trainer, pl_module)
 
 
