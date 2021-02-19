@@ -235,7 +235,9 @@ class PEAKVI(ArchesMixin, VAEMixin, BaseModelClass):
         batch_size: int = 128,
     ):
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         library_sizes = []
         for tensors in scdl:
@@ -300,7 +302,9 @@ class PEAKVI(ArchesMixin, VAEMixin, BaseModelClass):
 
         """
         adata = self._validate_anndata(adata)
-        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        post = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
 
         if threshold is not None and (threshold < 0 or threshold > 1):

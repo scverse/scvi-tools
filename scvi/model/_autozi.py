@@ -176,7 +176,9 @@ class AUTOZI(VAEMixin, BaseModelClass):
         if indices is None:
             indices = np.arange(adata.n_obs)
 
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         log_lkl = 0
         to_sum = torch.zeros((n_mc_samples,))

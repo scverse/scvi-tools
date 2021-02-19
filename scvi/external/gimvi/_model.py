@@ -225,7 +225,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     def _make_scvi_dls(self, adatas: List[AnnData] = None, batch_size=128):
         if adatas is None:
             adatas = self.adatas
-        post_list = [self._make_scvi_dl(ad) for ad in adatas]
+        post_list = [self._make_data_loader(ad) for ad in adatas]
         for i, dl in enumerate(post_list):
             dl.mode = i
 
