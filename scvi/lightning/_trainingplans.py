@@ -71,7 +71,7 @@ class TrainingPlan(pl.LightningModule):
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
-        lr_min: float = None,
+        lr_min: float = 0,
         **loss_kwargs,
     ):
         super(TrainingPlan, self).__init__()
@@ -261,7 +261,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
-        lr_min: float = None,
+        lr_min: float = 0,
         adversarial_classifier: Union[bool, Classifier] = False,
         scale_adversarial_loss: Union[float, Literal["auto"]] = "auto",
         **loss_kwargs,
