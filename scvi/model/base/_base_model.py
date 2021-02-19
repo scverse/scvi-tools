@@ -47,13 +47,13 @@ class BaseModelClass(ABC):
         self.validation_indices_ = None
         self.history_ = None
 
-    def _make_scvi_dl(
+    def _make_data_loader(
         self,
         adata: AnnData,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
         shuffle: bool = False,
-        scvi_dl_class=None,
+        data_loader_class=None,
         **data_loader_kwargs,
     ):
         """
@@ -77,13 +77,13 @@ class BaseModelClass(ABC):
             batch_size = settings.batch_size
         if indices is None:
             indices = np.arange(adata.n_obs)
-        if scvi_dl_class is None:
-            scvi_dl_class = self._data_loader_cls
+        if data_loader_class is None:
+            data_loader_class = self._data_loader_cls
 
         if "num_workers" not in data_loader_kwargs:
             data_loader_kwargs.update({"num_workers": settings.dl_num_workers})
 
-        dl = scvi_dl_class(
+        dl = data_loader_class(
             adata,
             shuffle=shuffle,
             indices=indices,
@@ -113,7 +113,7 @@ class BaseModelClass(ABC):
         validation_size
             float, or None (default is None)
         **kwargs
-            Keyword args for `_make_scvi_dl()`
+            Keyword args for `_make_data_loader()`
         """
         train_size = float(train_size)
         if train_size > 1.0 or train_size <= 0.0:
@@ -140,13 +140,13 @@ class BaseModelClass(ABC):
 
         # do not remove drop_last=3, skips over small minibatches
         return (
-            self._make_scvi_dl(
+            self._make_data_loader(
                 adata, indices=indices_train, shuffle=True, drop_last=3, **kwargs
             ),
-            self._make_scvi_dl(
+            self._make_data_loader(
                 adata, indices=indices_validation, shuffle=True, drop_last=3, **kwargs
             ),
-            self._make_scvi_dl(
+            self._make_data_loader(
                 adata, indices=indices_test, shuffle=True, drop_last=3, **kwargs
             ),
         )

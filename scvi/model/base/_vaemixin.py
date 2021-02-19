@@ -36,7 +36,9 @@ class VAEMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         elbo = compute_elbo(self.module, scdl)
         return -elbo
 
@@ -69,7 +71,9 @@ class VAEMixin:
         adata = self._validate_anndata(adata)
         if indices is None:
             indices = np.arange(adata.n_obs)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         if hasattr(self.module, "marginal_ll"):
             log_lkl = 0
             for tensors in scdl:
@@ -106,7 +110,9 @@ class VAEMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         reconstruction_error = compute_reconstruction_error(self.module, scdl)
         return reconstruction_error
 
@@ -148,7 +154,9 @@ class VAEMixin:
             raise RuntimeError("Please train the model first.")
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         latent = []
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)

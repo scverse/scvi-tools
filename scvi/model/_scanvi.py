@@ -356,7 +356,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if indices is None:
             indices = np.arange(adata.n_obs)
 
-        scdl = self._make_scvi_dl(
+        scdl = self._make_data_loader(
             adata=adata,
             indices=indices,
             batch_size=batch_size,
@@ -415,7 +415,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         n_samples_per_label
             Number of subsamples for each label class to sample per epoch
         **kwargs
-            Keyword args for `_make_scvi_dl()`
+            Keyword args for `_make_data_loader()`
         """
         train_size = float(train_size)
         if train_size > 1.0 or train_size <= 0.0:
@@ -486,37 +486,37 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         indices_test = indices_test.astype(int)
 
         if len(self._labeled_indices) != 0:
-            dataloader_class = SemiSupervisedDataLoader
+            data_loader_class = SemiSupervisedDataLoader
             dl_kwargs = {
                 "unlabeled_category": unlabeled_category,
                 "n_samples_per_label": n_samples_per_label,
             }
         else:
-            dataloader_class = AnnDataLoader
+            data_loader_class = AnnDataLoader
             dl_kwargs = {}
         dl_kwargs.update(kwargs)
 
-        scanvi_train_dl = self._make_scvi_dl(
+        scanvi_train_dl = self._make_data_loader(
             adata,
             indices=indices_train,
             shuffle=True,
-            scvi_dl_class=dataloader_class,
+            data_loader_class=data_loader_class,
             drop_last=3,
             **dl_kwargs,
         )
-        scanvi_val_dl = self._make_scvi_dl(
+        scanvi_val_dl = self._make_data_loader(
             adata,
             indices=indices_val,
             shuffle=True,
-            scvi_dl_class=dataloader_class,
+            data_loader_class=data_loader_class,
             drop_last=3,
             **dl_kwargs,
         )
-        scanvi_test_dl = self._make_scvi_dl(
+        scanvi_test_dl = self._make_data_loader(
             adata,
             indices=indices_test,
             shuffle=True,
-            scvi_dl_class=dataloader_class,
+            data_loader_class=data_loader_class,
             drop_last=3,
             **dl_kwargs,
         )

@@ -215,7 +215,7 @@ class SOLO(BaseModelClass):
         """
         adata = self._validate_anndata(None)
 
-        scdl = self._make_scvi_dl(
+        scdl = self._make_data_loader(
             adata=adata,
         )
 
