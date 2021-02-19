@@ -26,9 +26,9 @@ jobs:
       uses: actions/cache@v2
       with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          key: ${{ runner.os }}-pip-v2-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-pip-
+            ${{ runner.os }}-pip-v2-
     - name: Install dependencies
       run: |
         pip install pytest-cov
