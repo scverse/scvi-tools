@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.distributions import Dirichlet, Normal
+import pdb
 
 from scvi import _CONSTANTS
 from scvi.compose import BaseModuleClass, LossRecorder, auto_move_data
@@ -39,6 +40,7 @@ class CellAssignModule(BaseModuleClass):
         self,
         n_genes: int,
         rho: torch.Tensor,
+        b_g_0: torch.Tensor,
         n_batch: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
         n_continuous_cov: int = 0,
@@ -57,12 +59,12 @@ class CellAssignModule(BaseModuleClass):
         design_matrix_col_dim += 0 if n_cats_per_cov is None else sum(n_cats_per_cov)
         self.register_buffer("rho", rho)
 
-        # perform all other initialization
+        # perform all other initializations
         self.min_delta = 2
         dirichlet_concentration = torch.tensor([1e-2] * self.n_labels)
         self.register_buffer("dirichlet_concentration", dirichlet_concentration)
         self.shrinkage = True
-        self.b_g_0 = torch.nn.Parameter(torch.randn(n_genes))
+        self.b_g_0 = torch.nn.Parameter(b_g_0)
 
         # compute theta
         self.theta_logit = torch.nn.Parameter(torch.randn(self.n_labels))
@@ -86,6 +88,16 @@ class CellAssignModule(BaseModuleClass):
             )
 
         self.log_a = torch.nn.Parameter(torch.zeros(B, dtype=torch.float64))
+
+        # pdb.set_trace()
+        # design_matrix_col_dim += 0 if n_cats_per_cov is None else sum(n_cats_per_cov)
+        # if design_matrix_col_dim == 0:
+        #     beta_init = None
+        # else:
+        #     beta_init = torch.zeros(
+        #         [self.n_genes, design_matrix_col_dim - 1]
+        #     )  # (g, p-1)
+        self.beta = torch.nn.Parameter(self.b_g_0)  # (g, p)
 
     def _get_inference_input(self, tensors):
         return {}
@@ -139,15 +151,7 @@ class CellAssignModule(BaseModuleClass):
         # compute beta (covariate coefficent)
         # design_matrix has shape (n,p)
         if design_matrix is not None:
-            col_means = torch.mean(x, 0)  # (g)
-            col_means_mu, col_means_std = torch.std_mean(col_means)
-            beta_0_init = torch.div(torch.sub(col_means, col_means_mu), col_means_std)
-            beta_init = torch.zeros(
-                [self.n_genes, design_matrix.shape[1] - 1]
-            )  # (g, p-1)
-            self.beta = torch.nn.Parameter(
-                torch.cat((beta_0_init.unsqueeze(-1), beta_init), 1)
-            )  # (g, p)
+            pdb.set_trace()
             covariates = torch.einsum("np,gp->gn", design_matrix, self.beta)  # (g, n)
             covariates_u = torch.transpose(covariates, 0, 1).unsqueeze(-1)  # (n, g, 1)
             covariates_e = covariates_u.expand(n_cells, self.n_genes, self.n_labels)
