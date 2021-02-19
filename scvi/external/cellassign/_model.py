@@ -6,6 +6,8 @@ import torch
 
 from anndata import AnnData
 
+import scvi
+from scvi import _CONSTANTS
 from scvi.data import register_tensor_from_anndata
 from scvi.dataloaders import AnnDataLoader
 from scvi.external.cellassign._module import CellAssignModule
@@ -71,9 +73,15 @@ class CellAssign(BaseModelClass):
             else None
         )
 
+        x = scvi.data.get_from_registry(adata, _CONSTANTS.X_KEY)
+        col_means = np.mean(x, 0)  # (g)
+        col_means_mu, col_means_std = np.mean(col_means), np.std(col_means)
+        col_means_normalized = torch.Tensor((col_means - col_means_mu) / col_means_std)
+
         self.module = CellAssignModule(
             n_genes=self.n_genes,
             rho=rho,
+            b_g_0=col_means_normalized,
             n_batch=self.summary_stats["n_batch"],
             n_cats_per_cov=n_cats_per_cov,
             n_continuous_cov=self.summary_stats["n_continuous_covs"],
