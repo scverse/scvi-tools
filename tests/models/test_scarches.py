@@ -10,7 +10,7 @@ from scvi.model import PEAKVI, SCANVI, SCVI, TOTALVI
 
 
 def single_pass_for_online_update(model):
-    dl = model._make_scvi_dl(model.adata, indices=range(0, 10))
+    dl = model._make_data_loader(model.adata, indices=range(0, 10))
     for i_batch, tensors in enumerate(dl):
         _, _, scvi_loss = model.module(tensors)
     scvi_loss.loss.backward()

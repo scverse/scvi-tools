@@ -4,7 +4,7 @@ import urllib
 
 import numpy as np
 
-from scvi._utils import track
+from scvi.utils import track
 
 logger = logging.getLogger(__name__)
 

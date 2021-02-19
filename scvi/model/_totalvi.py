@@ -272,7 +272,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             raise RuntimeError("Please train the model first.")
 
         adata = self._validate_anndata(adata)
-        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        post = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         libraries = []
         for tensors in post:
             inference_inputs = self.module._get_inference_input(tensors)
@@ -361,7 +363,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
         """
         adata = self._validate_anndata(adata)
-        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        post = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         if gene_list is None:
             gene_mask = slice(None)
@@ -524,7 +528,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
-        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        post = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         if protein_list is None:
             protein_mask = slice(None)
@@ -754,7 +760,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             all_proteins = self.scvi_setup_dict_["protein_names"]
             protein_mask = [True if p in protein_list else False for p in all_proteins]
 
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         scdl_list = []
         for tensors in scdl:
@@ -802,7 +810,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             int of which batch to condition on for all cells
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         scdl_list = []
         for tensors in scdl:
@@ -999,7 +1009,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     @torch.no_grad()
     def get_protein_background_mean(self, adata, indices, batch_size):
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         background_mean = []
         for tensors in scdl:
             _, inference_outputs, _ = self.module.forward(tensors)

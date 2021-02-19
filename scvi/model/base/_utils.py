@@ -10,8 +10,7 @@ import torch
 from anndata import read
 
 from scvi._compat import Literal
-from scvi._utils import track
-from scvi.utils import DifferentialComputation
+from scvi.utils import DifferentialComputation, track
 
 logger = logging.getLogger(__name__)
 
