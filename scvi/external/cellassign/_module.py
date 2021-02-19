@@ -4,7 +4,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.distributions import Dirichlet, Normal
-import pdb
 
 from scvi import _CONSTANTS
 from scvi.compose import BaseModuleClass, LossRecorder, auto_move_data
@@ -89,15 +88,16 @@ class CellAssignModule(BaseModuleClass):
 
         self.log_a = torch.nn.Parameter(torch.zeros(B, dtype=torch.float64))
 
-        # pdb.set_trace()
-        # design_matrix_col_dim += 0 if n_cats_per_cov is None else sum(n_cats_per_cov)
-        # if design_matrix_col_dim == 0:
-        #     beta_init = None
-        # else:
-        #     beta_init = torch.zeros(
-        #         [self.n_genes, design_matrix_col_dim - 1]
-        #     )  # (g, p-1)
-        self.beta = torch.nn.Parameter(self.b_g_0)  # (g, p)
+        design_matrix_col_dim += 0 if n_cats_per_cov is None else sum(n_cats_per_cov)
+        if design_matrix_col_dim == 0:
+            beta_init = None
+        else:
+            beta_init = torch.zeros(
+                [self.n_genes, design_matrix_col_dim - 1]
+            )  # (g, p-1)
+        self.beta = torch.nn.Parameter(
+            torch.cat((self.b_g_0.unsqueeze(-1), beta_init), 1)
+        )  # (g, p)
 
     def _get_inference_input(self, tensors):
         return {}
@@ -151,7 +151,6 @@ class CellAssignModule(BaseModuleClass):
         # compute beta (covariate coefficent)
         # design_matrix has shape (n,p)
         if design_matrix is not None:
-            pdb.set_trace()
             covariates = torch.einsum("np,gp->gn", design_matrix, self.beta)  # (g, n)
             covariates_u = torch.transpose(covariates, 0, 1).unsqueeze(-1)  # (n, g, 1)
             covariates_e = covariates_u.expand(n_cells, self.n_genes, self.n_labels)
