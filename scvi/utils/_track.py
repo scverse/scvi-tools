@@ -32,6 +32,12 @@ def track(
         and is not persistent after close.
     **kwargs
         Keyword args to tqdm or rich.
+
+    Examples
+    --------
+    >>> from scvi.utils import track
+    >>> my_list = [1, 2, 3]
+    >>> for i in track(my_list): print(i)
     """
     if style is None:
         style = settings.progress_bar_style
