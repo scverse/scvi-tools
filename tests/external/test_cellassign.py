@@ -13,4 +13,4 @@ def test_cellassign(save_path):
 
     model = CellAssign(adata, marker_df, "size_factor")
     model.train(max_epochs=1)
-    model.predict(adata)
+    model.predict()

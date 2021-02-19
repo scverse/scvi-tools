@@ -5,8 +5,6 @@ import torch
 import torch.nn.functional as F
 from torch.distributions import Dirichlet, Normal
 
-# import pdb
-
 from scvi import _CONSTANTS
 from scvi.compose import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.distributions import NegativeBinomial
@@ -131,20 +129,36 @@ class CellAssignModule(BaseModuleClass):
 
         # compute mean of NegBin - shape (n_cells, n_genes, n_labels)
         s = size_factor
+        n_cells = s.shape[0]
         base_mean = torch.log(s)  # (n, 1)
         base_mean_u = base_mean.unsqueeze(-1)  # (n, 1, 1)
         base_mean_e = base_mean_u.expand(
-            s.shape[0], self.n_genes, self.n_labels
+            n_cells, self.n_genes, self.n_labels
         )  # (n, g, c)
 
+        # compute beta (covariate coefficent)
+        # design_matrix has shape (n,p)
+        if design_matrix is not None:
+            col_means = torch.mean(x, 0)  # (g)
+            col_means_mu, col_means_std = torch.std_mean(col_means)
+            beta_0_init = torch.div(torch.sub(col_means, col_means_mu), col_means_std)
+            beta_init = torch.zeros(
+                [self.n_genes, design_matrix.shape[1] - 1]
+            )  # (g, p-1)
+            self.beta = torch.nn.Parameter(
+                torch.cat((beta_0_init.unsqueeze(-1), beta_init), 1)
+            )  # (g, p)
+            covariates = torch.einsum("np,gp->gn", design_matrix, self.beta)  # (g, n)
+            covariates_u = torch.transpose(covariates, 0, 1).unsqueeze(-1)  # (n, g, 1)
+            covariates_e = covariates_u.expand(n_cells, self.n_genes, self.n_labels)
+            base_mean_e = base_mean_e + covariates_e
+
         # base gene expression
-        b_g_0_e = self.b_g_0.unsqueeze(-1).expand(
-            s.shape[0], self.n_genes, self.n_labels
-        )
+        b_g_0_e = self.b_g_0.unsqueeze(-1).expand(n_cells, self.n_genes, self.n_labels)
 
         delta_rho = delta * self.rho
         delta_rho_e = delta_rho.expand(
-            s.shape[0], self.n_genes, self.n_labels
+            n_cells, self.n_genes, self.n_labels
         )  # (n, g, c)
         log_mu_ngc = base_mean_e + delta_rho_e + b_g_0_e
         mu_ngc = torch.exp(log_mu_ngc)  # (n, g, c)
@@ -156,16 +170,16 @@ class CellAssignModule(BaseModuleClass):
 
         # compute phi of NegBin - shape (n_cells, n_genes, n_labels)
         a = torch.exp(self.log_a)  # (B)
-        a_e = a.expand(s.shape[0], self.n_genes, self.n_labels, B)
+        a_e = a.expand(n_cells, self.n_genes, self.n_labels, B)
         b_init = 2 * ((basis_means[1] - basis_means[0]) ** 2)
         b = torch.exp(torch.ones(B, device=x.device) * (-torch.log(b_init)))  # (B)
-        b_e = b.expand(s.shape[0], self.n_genes, self.n_labels, B)
+        b_e = b.expand(n_cells, self.n_genes, self.n_labels, B)
         mu_ngc_u = mu_ngc.unsqueeze(-1)
         mu_ngcb = mu_ngc_u.expand(
-            s.shape[0], self.n_genes, self.n_labels, B
+            n_cells, self.n_genes, self.n_labels, B
         )  # (n, g, c, B)
         basis_means_e = basis_means.expand(
-            s.shape[0], self.n_genes, self.n_labels, B
+            n_cells, self.n_genes, self.n_labels, B
         )  # (n, g, c, B)
         phi = (  # (n, g, c)
             torch.sum(a_e * torch.exp(-b_e * torch.square(mu_ngcb - basis_means_e)), 3)
@@ -174,13 +188,13 @@ class CellAssignModule(BaseModuleClass):
 
         # compute gamma
         nb_pdf = NegativeBinomial(mu=mu_ngc, theta=phi)
-        y_ = x.unsqueeze(-1).expand(s.shape[0], self.n_genes, self.n_labels)
+        y_ = x.unsqueeze(-1).expand(n_cells, self.n_genes, self.n_labels)
         y_log_prob_raw = nb_pdf.log_prob(y_)  # (n, g, c)
-        theta_log_e = theta_log.expand(s.shape[0], self.n_labels)
+        theta_log_e = theta_log.expand(n_cells, self.n_labels)
         p_y_c = torch.sum(y_log_prob_raw, 1) + theta_log_e  # (n, c)
         normalizer_over_c = torch.logsumexp(p_y_c, 1)
         normalizer_over_c_e = normalizer_over_c.unsqueeze(-1).expand(
-            s.shape[0], self.n_labels
+            n_cells, self.n_labels
         )
         gamma = torch.exp(p_y_c - normalizer_over_c_e)  # (n, c)
 
