@@ -120,3 +120,4 @@ Utilities
    :toctree: reference/
 
    utils.DifferentialComputation
+   utils.track
