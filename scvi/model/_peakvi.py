@@ -21,13 +21,13 @@ from scvi.model._utils import (
 )
 from scvi.modules import PEAKVAE
 
-from .base import BaseModelClass, VAEMixin
+from .base import ArchesMixin, BaseModelClass, VAEMixin
 from .base._utils import _de_core
 
 logger = logging.getLogger(__name__)
 
 
-class PEAKVI(VAEMixin, BaseModelClass):
+class PEAKVI(ArchesMixin, VAEMixin, BaseModelClass):
     """
     PeakVI.
 
