@@ -78,10 +78,16 @@ class CellAssign(BaseModelClass):
         col_means_mu, col_means_std = np.mean(col_means), np.std(col_means)
         col_means_normalized = torch.Tensor((col_means - col_means_mu) / col_means_std)
 
+        # compute basis means for phi - shape (B)
+        basis_means = torch.linspace(
+            torch.min(x), torch.max(x), B, device=x.device
+        )  # (B)
+
         self.module = CellAssignModule(
             n_genes=self.n_genes,
             rho=rho,
             b_g_0=col_means_normalized,
+            basis_means=basis_means,
             n_batch=self.summary_stats["n_batch"],
             n_cats_per_cov=n_cats_per_cov,
             n_continuous_cov=self.summary_stats["n_continuous_covs"],

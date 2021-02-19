@@ -40,6 +40,7 @@ class CellAssignModule(BaseModuleClass):
         n_genes: int,
         rho: torch.Tensor,
         b_g_0: torch.Tensor,
+        basis_means: torch.Tensor,
         n_batch: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
         n_continuous_cov: int = 0,
@@ -91,13 +92,17 @@ class CellAssignModule(BaseModuleClass):
         design_matrix_col_dim += 0 if n_cats_per_cov is None else sum(n_cats_per_cov)
         if design_matrix_col_dim == 0:
             beta_init = None
+            self.beta = torch.nn.Parameter(beta_init) 
         else:
             beta_init = torch.zeros(
                 [self.n_genes, design_matrix_col_dim - 1]
             )  # (g, p-1)
-        self.beta = torch.nn.Parameter(
-            torch.cat((self.b_g_0.unsqueeze(-1), beta_init), 1)
-        )  # (g, p)
+            self.beta = torch.nn.Parameter(
+                torch.cat((self.b_g_0.unsqueeze(-1), beta_init), 1)
+            )  # (g, p)
+        
+        self.basis_means = basis_means
+        self.register_buffer("basis_means", basis_means)
 
     def _get_inference_input(self, tensors):
         return {}
@@ -166,22 +171,17 @@ class CellAssignModule(BaseModuleClass):
         log_mu_ngc = base_mean_e + delta_rho_e + b_g_0_e
         mu_ngc = torch.exp(log_mu_ngc)  # (n, g, c)
 
-        # compute basis means for phi - shape (B)
-        basis_means = torch.linspace(
-            torch.min(x), torch.max(x), B, device=x.device
-        )  # (B)
-
         # compute phi of NegBin - shape (n_cells, n_genes, n_labels)
         a = torch.exp(self.log_a)  # (B)
         a_e = a.expand(n_cells, self.n_genes, self.n_labels, B)
-        b_init = 2 * ((basis_means[1] - basis_means[0]) ** 2)
+        b_init = 2 * ((self.basis_means[1] - self.basis_means[0]) ** 2)
         b = torch.exp(torch.ones(B, device=x.device) * (-torch.log(b_init)))  # (B)
         b_e = b.expand(n_cells, self.n_genes, self.n_labels, B)
         mu_ngc_u = mu_ngc.unsqueeze(-1)
         mu_ngcb = mu_ngc_u.expand(
             n_cells, self.n_genes, self.n_labels, B
         )  # (n, g, c, B)
-        basis_means_e = basis_means.expand(
+        basis_means_e = self.basis_means.expand(
             n_cells, self.n_genes, self.n_labels, B
         )  # (n, g, c, B)
         phi = (  # (n, g, c)
@@ -239,7 +239,7 @@ class CellAssignModule(BaseModuleClass):
             )
             prior_log_prob += -torch.sum(delta_log_prob)
 
-        loss = torch.mean(q_per_cell) * n_obs + prior_log_prob / n_obs
+        loss = (torch.mean(q_per_cell) * n_obs + prior_log_prob) / n_obs
 
         return LossRecorder(
             loss, q_per_cell, torch.zeros_like(q_per_cell), prior_log_prob
