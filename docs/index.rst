@@ -30,6 +30,6 @@ If you find a model useful for your research, please consider citing the corresp
    :caption: Community
    :maxdepth: 1
 
-   development
+   contributing/index
    Discussion <https://discourse.scvi-tools.org>
    GitHub <https://github.com/yoseflab/scvi-tools>
