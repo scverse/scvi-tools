@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from scvi._utils import track
+from scvi.utils import track
 
 from ._utils import _check_nonnegative_integers
 
