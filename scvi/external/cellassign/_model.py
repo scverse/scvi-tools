@@ -16,6 +16,8 @@ from scvi.model.base import BaseModelClass
 
 logger = logging.getLogger(__name__)
 
+B = 10
+
 
 class CellAssign(BaseModelClass):
     """
@@ -79,8 +81,8 @@ class CellAssign(BaseModelClass):
         col_means_normalized = torch.Tensor((col_means - col_means_mu) / col_means_std)
 
         # compute basis means for phi - shape (B)
-        basis_means = torch.linspace(
-            torch.min(x), torch.max(x), B, device=x.device
+        basis_means = np.linspace(
+            np.min(x), np.max(x), B
         )  # (B)
 
         self.module = CellAssignModule(

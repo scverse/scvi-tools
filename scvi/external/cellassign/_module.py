@@ -14,7 +14,6 @@ LOWER_BOUND = 1e-10
 THETA_LOWER_BOUND = 1e-20
 B = 10
 
-
 class CellAssignModule(BaseModuleClass):
     """
     Model for CellAssign.
@@ -101,8 +100,8 @@ class CellAssignModule(BaseModuleClass):
                 torch.cat((self.b_g_0.unsqueeze(-1), beta_init), 1)
             )  # (g, p)
         
-        self.basis_means = basis_means
-        self.register_buffer("basis_means", basis_means)
+        self.basis_means = torch.tensor(basis_means)
+        self.register_buffer("b_means", self.basis_means)
 
     def _get_inference_input(self, tensors):
         return {}
