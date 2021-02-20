@@ -175,7 +175,7 @@ class UnsupervisedTrainingMixin:
             batch_size=batch_size,
         )
         training_plan = TrainingPlan(
-            self.module, len(data_splitter.test_idx), **plan_kwargs
+            self.module, len(data_splitter.train_idx), **plan_kwargs
         )
         trainer = Trainer(max_epochs=max_epochs, gpus=gpus, **trainer_kwargs)
         runner = TrainRunner(self, trainer, training_plan, data_splitter)
