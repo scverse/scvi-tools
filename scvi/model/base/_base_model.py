@@ -7,19 +7,17 @@ from typing import Optional, Sequence
 
 import numpy as np
 import pyro
-import pytorch_lightning as pl
 import rich
 import torch
 from anndata import AnnData
 from rich.text import Text
-from sklearn.model_selection._split import _validate_shuffle_split
 
 from scvi import _CONSTANTS, settings
 from scvi.compose import PyroBaseModuleClass
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.lightning import PyroTrainingPlan, Trainer
+from scvi.lightning import PyroTrainingPlan
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -115,41 +113,6 @@ class BaseModelClass(ABC):
         **kwargs
             Keyword args for `_make_data_loader()`
         """
-        train_size = float(train_size)
-        if train_size > 1.0 or train_size <= 0.0:
-            raise ValueError(
-                "train_size needs to be greater than 0 and less than or equal to 1"
-            )
-
-        n = len(adata)
-        try:
-            n_train, n_val = _validate_shuffle_split(n, validation_size, train_size)
-        except ValueError:
-            if train_size != 1.0:
-                raise ValueError(
-                    "Choice of train_size={} and validation_size={} not understood".format(
-                        train_size, validation_size
-                    )
-                )
-            n_train, n_val = n, 0
-        random_state = np.random.RandomState(seed=settings.seed)
-        permutation = random_state.permutation(n)
-        indices_validation = permutation[:n_val]
-        indices_train = permutation[n_val : (n_val + n_train)]
-        indices_test = permutation[(n_val + n_train) :]
-
-        # do not remove drop_last=3, skips over small minibatches
-        return (
-            self._make_data_loader(
-                adata, indices=indices_train, shuffle=True, drop_last=3, **kwargs
-            ),
-            self._make_data_loader(
-                adata, indices=indices_validation, shuffle=True, drop_last=3, **kwargs
-            ),
-            self._make_data_loader(
-                adata, indices=indices_test, shuffle=True, drop_last=3, **kwargs
-            ),
-        )
 
     def _validate_anndata(
         self, adata: Optional[AnnData] = None, copy_if_view: bool = True
@@ -210,6 +173,18 @@ class BaseModelClass(ABC):
     def validation_indices(self):
         return self.validation_indices_
 
+    @train_indices.setter
+    def train_indices(self, value):
+        self.train_indices_ = value
+
+    @test_indices.setter
+    def test_indices(self, value):
+        self.test_indices_ = value
+
+    @validation_indices.setter
+    def validation_indices(self, value):
+        self.validation_indices_ = value
+
     @property
     def history(self):
         """Returns computed metrics during training."""
@@ -250,86 +225,9 @@ class BaseModelClass(ABC):
 
         return user_params
 
-    def train(
-        self,
-        max_epochs: Optional[int] = None,
-        use_gpu: Optional[bool] = None,
-        train_size: float = 0.9,
-        validation_size: Optional[float] = None,
-        batch_size: int = 128,
-        plan_kwargs: Optional[dict] = None,
-        plan_class: Optional[pl.LightningModule] = None,
-        **kwargs,
-    ):
-        """
-        Train the model.
-
-        Parameters
-        ----------
-        max_epochs
-            Number of passes through the dataset. If `None`, defaults to
-            `np.min([round((20000 / n_cells) * 400), 400])`
-        use_gpu
-            If `True`, use the GPU if available. Will override the use_gpu option when initializing model
-        train_size
-            Size of training set in the range [0.0, 1.0].
-        validation_size
-            Size of the test set. If `None`, defaults to 1 - `train_size`. If
-            `train_size + validation_size < 1`, the remaining cells belong to a test set.
-        batch_size
-            Minibatch size to use during training.
-        plan_kwargs
-            Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed to
-            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        plan_class
-            Optional override to use a specific TrainingPlan-type class.
-        **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
-        """
-        if use_gpu is None:
-            use_gpu = self.use_gpu
-        else:
-            use_gpu = use_gpu and torch.cuda.is_available()
-        gpus = 1 if use_gpu else None
-        pin_memory = (
-            True if (settings.dl_pin_memory_gpu_training and use_gpu) else False
-        )
-
-        if max_epochs is None:
-            n_cells = self.adata.n_obs
-            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
-
-        self.trainer = Trainer(
-            max_epochs=max_epochs,
-            gpus=gpus,
-            **kwargs,
-        )
-        train_dl, val_dl, test_dl = self._train_test_val_split(
-            self.adata,
-            train_size=train_size,
-            validation_size=validation_size,
-            pin_memory=pin_memory,
-            batch_size=batch_size,
-        )
-        self.train_indices_ = train_dl.indices
-        self.test_indices_ = test_dl.indices
-        self.validation_indices_ = val_dl.indices
-
-        self._set_training_plan(plan_class, plan_kwargs)
-
-        if train_size == 1.0:
-            # circumvent the empty data loader problem if all dataset used for training
-            self.trainer.fit(self._training_plan, train_dl)
-        else:
-            self.trainer.fit(self._training_plan, train_dl, val_dl)
-        try:
-            self.history_ = self.trainer.logger.history
-        except AttributeError:
-            self.history_ = None
-        self.module.eval()
-        if use_gpu:
-            self.module.cuda()
-        self.is_trained_ = True
+    @abstractmethod
+    def train():
+        pass
 
     def _set_training_plan(self, plan_class, plan_kwargs):
         """Set the _training_plan attribute."""
