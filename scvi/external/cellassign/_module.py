@@ -42,6 +42,7 @@ class CellAssignModule(BaseModuleClass):
         b_g_0: torch.Tensor,
         basis_means: torch.Tensor,
         n_batch: int = 0,
+        random_b_g_0: bool = False,
         n_cats_per_cov: Optional[Iterable[int]] = None,
         n_continuous_cov: int = 0,
     ):
@@ -64,7 +65,10 @@ class CellAssignModule(BaseModuleClass):
         dirichlet_concentration = torch.tensor([1e-2] * self.n_labels)
         self.register_buffer("dirichlet_concentration", dirichlet_concentration)
         self.shrinkage = True
-        self.b_g_0 = torch.nn.Parameter(b_g_0)
+        if random_b_g_0:
+            self.b_g_0 = torch.nn.Parameter(torch.randn(n_genes))
+        else:
+            self.b_g_0 = torch.nn.Parameter(b_g_0)
 
         # compute theta
         self.theta_logit = torch.nn.Parameter(torch.randn(self.n_labels))
