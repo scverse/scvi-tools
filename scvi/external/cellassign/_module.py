@@ -14,6 +14,7 @@ LOWER_BOUND = 1e-10
 THETA_LOWER_BOUND = 1e-20
 B = 10
 
+
 class CellAssignModule(BaseModuleClass):
     """
     Model for CellAssign.
@@ -90,18 +91,12 @@ class CellAssignModule(BaseModuleClass):
 
         design_matrix_col_dim += 0 if n_cats_per_cov is None else sum(n_cats_per_cov)
         if design_matrix_col_dim == 0:
-            beta_init = None
-            self.beta = torch.nn.Parameter(beta_init) 
+            self.beta = None
         else:
-            beta_init = torch.zeros(
-                [self.n_genes, design_matrix_col_dim - 1]
-            )  # (g, p-1)
-            self.beta = torch.nn.Parameter(
-                torch.cat((self.b_g_0.unsqueeze(-1), beta_init), 1)
-            )  # (g, p)
-        
-        self.basis_means = torch.tensor(basis_means)
-        self.register_buffer("b_means", self.basis_means)
+            beta_init = torch.zeros(self.n_genes, design_matrix_col_dim)  # (g, p)
+            self.beta = torch.nn.Parameter(beta_init)  # (g, p)
+
+        self.register_buffer("basis_means", torch.tensor(basis_means))
 
     def _get_inference_input(self, tensors):
         return {}
