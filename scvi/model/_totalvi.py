@@ -242,7 +242,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             use_gpu = torch.cuda.is_available()
         else:
             use_gpu = use_gpu and torch.cuda.is_available()
-        gpus = 1 if use_gpu else None
+        gpus = 1 if use_gpu else 0
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 

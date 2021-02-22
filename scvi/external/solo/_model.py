@@ -11,12 +11,11 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from scvi import _CONSTANTS
 from scvi.compose import auto_move_data
-from scvi.compose._training import TrainRunner
 from scvi.data import get_from_registry, setup_anndata
 from scvi.dataloaders import DataSplitter
 from scvi.lightning import ClassifierTrainingPlan
 from scvi.model import SCVI
-from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
+from scvi.model.base import BaseModelClass, TrainRunner, UnsupervisedTrainingMixin
 from scvi.modules import Classifier
 
 logger = logging.getLogger(__name__)
@@ -220,7 +219,7 @@ class SOLO(UnsupervisedTrainingMixin, BaseModelClass):
             use_gpu = torch.cuda.is_available()
         else:
             use_gpu = use_gpu and torch.cuda.is_available()
-        gpus = 1 if use_gpu else None
+        gpus = 1 if use_gpu else 0
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 

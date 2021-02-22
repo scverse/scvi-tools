@@ -171,7 +171,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             use_gpu = self.use_gpu
         else:
             use_gpu = use_gpu and torch.cuda.is_available()
-        gpus = 1 if use_gpu else None
+        gpus = 1 if use_gpu else 0
 
         self.trainer = Trainer(
             max_epochs=max_epochs,

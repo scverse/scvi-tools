@@ -340,7 +340,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         plan_kwargs = {} if plan_kwargs is None else plan_kwargs
 
         use_gpu = use_gpu if use_gpu is not None else self.use_gpu
-        gpus = 1 if use_gpu else None
+        gpus = 1 if use_gpu else 0
         # pin_memory = (
         #     True if (settings.dl_pin_memory_gpu_training and use_gpu) else False
         # )
