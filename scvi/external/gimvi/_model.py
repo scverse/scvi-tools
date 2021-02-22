@@ -499,7 +499,6 @@ class GIMVI(VAEMixin, BaseModelClass):
 
             # expand out kwargs
             kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
-        else:
 
             # grab all the parameters execept for kwargs (is a dict)
             non_kwargs = {

@@ -273,7 +273,7 @@ class BaseModelClass(ABC):
         cls,
         dir_path: str,
         adata: Optional[AnnData] = None,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -288,7 +288,8 @@ class BaseModelClass(ABC):
             as AnnData is validated against the saved `scvi` setup dictionary.
             If None, will check for and load anndata saved with the model.
         use_gpu
-            Whether to load model on GPU.
+            Load model on default GPU if available (if None or True),
+            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
 
         Returns
         -------
@@ -300,9 +301,17 @@ class BaseModelClass(ABC):
         >>> vae.get_latent_representation()
         """
         load_adata = adata is None
-        if use_gpu is None:
-            use_gpu = torch.cuda.is_available()
-        map_location = torch.device("cpu") if use_gpu is False else None
+
+        if use_gpu is None or use_gpu is True:
+            use_gpu = (
+                torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
+            )
+            map_location = torch.device(use_gpu)
+        elif use_gpu is False:
+            map_location = torch.device("cpu")
+        elif isinstance(use_gpu, int) or isinstance(use_gpu, str):
+            map_location = torch.device(use_gpu)
+
         (
             scvi_setup_dict,
             attr_dict,
