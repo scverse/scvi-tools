@@ -56,6 +56,7 @@ pytest = {version = ">=4.4", optional = true}
 python = ">=3.6.2,<4.0"
 python-igraph = {version = "*", optional = true}
 pytorch-lightning = ">=1.2"
+readthedocs-sphinx-search = {version = "*", optional = true}
 rich = ">=9.1.0"
 scanpy = {version = ">=1.6", optional = true}
 scanpydoc = {version = ">=0.5", optional = true}
@@ -82,6 +83,7 @@ docs = [
   "sphinx-autodoc-typehints",
   "sphinx_copybutton",
   "sphinx_gallery",
+  "readthedocs-sphinx-search",
 ]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc"]
 
