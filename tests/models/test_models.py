@@ -25,13 +25,13 @@ def test_scvi(save_path):
     assert z.shape == (adata.shape[0], n_latent)
     assert len(model.history["elbo_train"]) == 1
     model.get_elbo()
-    model.get_marginal_ll()
+    model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()
     model.get_normalized_expression(transform_batch="batch_1")
 
     adata2 = synthetic_iid()
     model.get_elbo(adata2)
-    model.get_marginal_ll(adata2)
+    model.get_marginal_ll(adata2, n_mc_samples=3)
     model.get_reconstruction_error(adata2)
     latent = model.get_latent_representation(adata2, indices=[1, 2, 3])
     assert latent.shape == (3, n_latent)
@@ -154,7 +154,7 @@ def test_scvi_sparse(save_path):
     z = model.get_latent_representation()
     assert z.shape == (adata.shape[0], n_latent)
     model.get_elbo()
-    model.get_marginal_ll()
+    model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()
     model.get_normalized_expression()
     model.differential_expression(groupby="labels", group1="label_1")
@@ -361,7 +361,7 @@ def test_autozi():
         assert len(autozivae.history["elbo_validation"]) == 1
         autozivae.get_elbo(indices=autozivae.validation_indices)
         autozivae.get_reconstruction_error(indices=autozivae.validation_indices)
-        autozivae.get_marginal_ll(indices=autozivae.validation_indices)
+        autozivae.get_marginal_ll(indices=autozivae.validation_indices, n_mc_samples=3)
         autozivae.get_alphas_betas()
 
 
@@ -378,7 +378,7 @@ def test_totalvi(save_path):
     z = model.get_latent_representation()
     assert z.shape == (n_obs, n_latent)
     model.get_elbo()
-    model.get_marginal_ll()
+    model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()
     model.get_normalized_expression()
     model.get_normalized_expression(transform_batch=["batch_0", "batch_1"])
@@ -409,7 +409,7 @@ def test_totalvi(save_path):
     # model.get_likelihood_parameters()
 
     model.get_elbo(indices=model.validation_indices)
-    model.get_marginal_ll(indices=model.validation_indices)
+    model.get_marginal_ll(indices=model.validation_indices, n_mc_samples=3)
     model.get_reconstruction_error(indices=model.validation_indices)
 
     adata2 = synthetic_iid()
