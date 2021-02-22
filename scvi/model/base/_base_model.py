@@ -93,6 +93,15 @@ class BaseModelClass(ABC):
         return dl
 
     def to_device(self, device: Union[str, int]):
+        """Move model to device.
+
+        Parameters
+        ----------
+        device
+            Device to move model to. Options: 'cpu' for CPU, integer GPU index (eg. 0),
+            or 'cuda:X' where X is the GPU index (eg. 'cuda:0'). See torch.device for more info.
+        """
+
         my_device = torch.device(device)
         self.module.to(my_device)
 
