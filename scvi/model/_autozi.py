@@ -9,9 +9,9 @@ from torch.distributions import Beta, Normal
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.compose._training import UnsupervisedTrainingMixin
 from scvi.dataloaders import AnnDataLoader
 from scvi.lightning import TrainingPlan
+from scvi.model.base._training_mixin import UnsupervisedTrainingMixin
 from scvi.modules import AutoZIVAE
 
 from .base import BaseModelClass, VAEMixin

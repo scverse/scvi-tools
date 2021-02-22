@@ -4,10 +4,10 @@ import pandas as pd
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.compose._training import UnsupervisedTrainingMixin
 from scvi.dataloaders import AnnDataLoader
 from scvi.lightning import TrainingPlan
 from scvi.model._utils import _get_var_names_from_setup_anndata
+from scvi.model.base._training_mixin import UnsupervisedTrainingMixin
 from scvi.modules import LDVAE
 
 from .base import BaseModelClass, RNASeqMixin, VAEMixin
