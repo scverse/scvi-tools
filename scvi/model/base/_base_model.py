@@ -3,7 +3,7 @@ import logging
 import os
 import pickle
 from abc import ABC, abstractmethod
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import pyro
@@ -91,6 +91,10 @@ class BaseModelClass(ABC):
             **data_loader_kwargs,
         )
         return dl
+
+    def to_device(self, device: Union[str, int]):
+        my_device = torch.device(device)
+        self.module.to(my_device)
 
     def _train_test_val_split(
         self,
