@@ -330,7 +330,7 @@ def test_peakvi_online_update(save_path):
     single_pass_for_online_update(model3)
     grad = model3.module.z_encoder.encoder.fc_layers[0][0].weight.grad.cpu().numpy()
     # linear layer weight in encoder layer has non-zero grad
-    assert np.sum(grad[:, :-4]) != 0
+    assert np.count_nonzero(grad[:, :-4]) != 0
     grad = model3.module.z_decoder.px_decoder.fc_layers[0][0].weight.grad.cpu().numpy()
     # linear layer weight in decoder layer has non-zero grad
-    assert np.sum(grad[:, :-4]) != 0
+    assert np.count_nonzero(grad[:, :-4]) != 0
