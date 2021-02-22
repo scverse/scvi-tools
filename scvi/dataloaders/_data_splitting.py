@@ -1,12 +1,51 @@
+from math import ceil, floor
 from typing import Optional
 
 import numpy as np
 from anndata import AnnData
-from sklearn.model_selection._split import _validate_shuffle_split
 
 from scvi import _CONSTANTS, settings
 from scvi.dataloaders._ann_dataloader import AnnDataLoader
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
+
+
+def validate_data_split(
+    n_samples: int, train_size: float, validation_size: Optional[float] = None
+):
+    """
+    Check data splitting parameters and return n_train and n_val.
+
+    Parameters
+    ----------
+    n_samples
+        Number of samples to split
+    train_size
+        Size of train set. Need to be: 0 < train_size <= 1.
+    validation_size
+        Size of validation set. Need to be 0 <= validation_size < 1
+    """
+    if validation_size is None:
+        validation_size = float(1 - train_size)
+
+    if train_size > 1.0 or train_size <= 0.0:
+        raise ValueError("Invalid train_size. Must be: 0 < train_size <= 1")
+    if validation_size >= 1.0 or validation_size < 0.0:
+        raise ValueError("Invalid validation_size. Must be 0 <= validation_size < 1")
+    if (train_size + validation_size) > 1:
+        raise ValueError("train_size + validation_size must be between 0 and 1")
+
+    # n_val needs to be ceil because of loss of precision from 1-train_size
+    n_train = floor(train_size * n_samples)
+    n_val = ceil(validation_size * n_samples)
+
+    if n_train == 0:
+        raise ValueError(
+            "With n_samples={}, train_size={} and validation_size={}, the "
+            "resulting train set will be empty. Adjust any of the "
+            "aforementioned parameters.".format(n_samples, train_size, validation_size)
+        )
+
+    return n_train, n_val
 
 
 class DataSplitter:
@@ -27,27 +66,8 @@ class DataSplitter:
         self.train_idx, self.test_idx, self.val_idx = self.make_splits()
 
     def make_splits(self):
-        if self.train_size > 1.0 or self.train_size <= 0.0:
-            raise ValueError(
-                "train_size needs to be greater than 0 and less than or equal to 1"
-            )
-        if self.validation_size > 1.0 or self.validation_size <= 0.0:
-            raise ValueError(
-                "validation_size needs to be greater than 0 and less than or equal to 1"
-            )
-        try:
-            n = self.adata.n_obs
-            n_train, n_val = _validate_shuffle_split(
-                n, self.validation_size, self.train_size
-            )
-        except ValueError:
-            if self.train_size != 1.0:
-                raise ValueError(
-                    "Choice of train_size={} and validation_size={} not understood".format(
-                        self.train_size, self.validation_size
-                    )
-                )
-            n_train, n_val = n, 0
+        n = self.adata.n_obs
+        n_train, n_val = validate_data_split(n, self.train_size, self.validation_size)
         random_state = np.random.RandomState(seed=settings.seed)
         permutation = random_state.permutation(n)
         val_idx = permutation[:n_val]
@@ -145,36 +165,12 @@ class SemiSupervisedDataSplitter:
         self.train_idx, self.test_idx, self.val_idx = self.make_splits()
 
     def make_splits(self):
-        if self.train_size > 1.0 or self.train_size <= 0.0:
-            raise ValueError(
-                "train_size needs to be greater than 0 and less than or equal to 1"
-            )
-        if self.validation_size > 1.0 or self.validation_size <= 0.0:
-            raise ValueError(
-                "validation_size needs to be greater than 0 and less than or equal to 1"
-            )
-
         n_labeled_idx = len(self._labeled_indices)
         n_unlabeled_idx = len(self._unlabeled_indices)
 
-        def get_train_val_split(n_samples, test_size, train_size):
-            try:
-                n_train, n_val = _validate_shuffle_split(
-                    n_samples, test_size, train_size
-                )
-            except ValueError:
-                if train_size != 1.0 and n_samples != 1:
-                    raise ValueError(
-                        "Choice of train_size={} and validation_size={} not understood".format(
-                            train_size, test_size
-                        )
-                    )
-                n_train, n_val = n_samples, 0
-            return n_train, n_val
-
         if n_labeled_idx != 0:
-            n_labeled_train, n_labeled_val = get_train_val_split(
-                n_labeled_idx, self.validation_size, self.train_size
+            n_labeled_train, n_labeled_val = validate_data_split(
+                n_labeled_idx, self.train_size, self.validation_size
             )
             labeled_permutation = np.random.choice(
                 self._labeled_indices, len(self._labeled_indices), replace=False
@@ -190,8 +186,8 @@ class SemiSupervisedDataSplitter:
             labeled_idx_val = []
 
         if n_unlabeled_idx != 0:
-            n_unlabeled_train, n_unlabeled_val = get_train_val_split(
-                n_unlabeled_idx, self.validation_size, self.train_size
+            n_unlabeled_train, n_unlabeled_val = validate_data_split(
+                n_unlabeled_idx, self.train_size, self.validation_size
             )
             unlabeled_permutation = np.random.choice(
                 self._unlabeled_indices, len(self._unlabeled_indices)
