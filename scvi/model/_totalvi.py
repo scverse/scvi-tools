@@ -264,16 +264,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             **kwargs,
         )
         return runner()
-        # super().train(
-        #     max_epochs=max_epochs,
-        #     use_gpu=use_gpu,
-        #     train_size=train_size,
-        #     validation_size=validation_size,
-        #     batch_size=batch_size,
-        #     early_stopping=early_stopping,
-        #     plan_kwargs=plan_kwargs,
-        #     **kwargs,
-        # )
 
     @torch.no_grad()
     def get_latent_library_size(
