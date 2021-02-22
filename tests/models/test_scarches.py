@@ -169,10 +169,18 @@ def test_scanvi_online_update(save_path):
 
     # test classifier frozen
     class_query_weight = (
-        model2.module.classifier.classifier[0].fc_layers[0][0].weight.detach().numpy()
+        model2.module.classifier.classifier[0]
+        .fc_layers[0][0]
+        .weight.detach()
+        .cpu()
+        .numpy()
     )
     class_ref_weight = (
-        model.module.classifier.classifier[0].fc_layers[0][0].weight.detach().numpy()
+        model.module.classifier.classifier[0]
+        .fc_layers[0][0]
+        .weight.detach()
+        .cpu()
+        .numpy()
     )
     # weight decay makes difference
     np.testing.assert_allclose(class_query_weight, class_ref_weight, atol=1e-07)
@@ -183,10 +191,18 @@ def test_scanvi_online_update(save_path):
     model2._labeled_indices = []
     model2.train(max_epochs=1)
     class_query_weight = (
-        model2.module.classifier.classifier[0].fc_layers[0][0].weight.detach().numpy()
+        model2.module.classifier.classifier[0]
+        .fc_layers[0][0]
+        .weight.detach()
+        .cpu()
+        .numpy()
     )
     class_ref_weight = (
-        model.module.classifier.classifier[0].fc_layers[0][0].weight.detach().numpy()
+        model.module.classifier.classifier[0]
+        .fc_layers[0][0]
+        .weight.detach()
+        .cpu()
+        .numpy()
     )
     with pytest.raises(AssertionError):
         np.testing.assert_allclose(class_query_weight, class_ref_weight, atol=1e-07)
