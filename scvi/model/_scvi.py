@@ -5,7 +5,7 @@ from anndata import AnnData
 from scvi._compat import Literal
 from scvi.dataloaders import AnnDataLoader
 from scvi.lightning import TrainingPlan
-from scvi.model.base._training_mixin import UnsupervisedTrainingMixin
+from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.modules import VAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin

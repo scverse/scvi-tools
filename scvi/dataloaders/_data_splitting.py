@@ -5,7 +5,8 @@ from anndata import AnnData
 from sklearn.model_selection._split import _validate_shuffle_split
 
 from scvi import _CONSTANTS, settings
-from scvi.dataloaders import AnnDataLoader, SemiSupervisedDataLoader
+from scvi.dataloaders._ann_dataloader import AnnDataLoader
+from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 
 
 class DataSplitter:
