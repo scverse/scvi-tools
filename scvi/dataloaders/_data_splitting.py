@@ -90,7 +90,6 @@ class DataSplitter:
 
 class SemiSupervisedDataSplitter:
     """
-    #TODO docstring
     Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
 
     If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
@@ -110,7 +109,9 @@ class SemiSupervisedDataSplitter:
     n_samples_per_label
         Number of subsamples for each label class to sample per epoch
     **kwargs
-        Keyword args for `_make_data_loader()`
+        Keyword args for data loader. If adata has labeled data, data loader
+        class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
+        else data loader class is :class:`~scvi.dataloaders.AnnDataLoader`.
     """
 
     def __init__(

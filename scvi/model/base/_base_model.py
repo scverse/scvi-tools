@@ -197,8 +197,8 @@ class BaseModelClass(ABC):
         return user_params
 
     @abstractmethod
-    def train():
-        pass
+    def train(self):
+        """Trains the model"""
 
     def save(
         self,
