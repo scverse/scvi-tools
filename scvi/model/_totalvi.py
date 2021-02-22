@@ -12,7 +12,6 @@ from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
-from scvi.compose._training import TrainRunner
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import DataSplitter
@@ -22,6 +21,7 @@ from scvi.model._utils import (
     _get_var_names_from_setup_anndata,
     cite_seq_raw_counts_properties,
 )
+from scvi.model.base import TrainRunner
 from scvi.model.base._utils import _de_core
 from scvi.modules import TOTALVAE
 

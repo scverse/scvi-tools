@@ -9,7 +9,6 @@ from pandas.api.types import CategoricalDtype
 
 from scvi import _CONSTANTS  # , settings
 from scvi._compat import Literal
-from scvi.compose._training import TrainRunner
 from scvi.data._anndata import _make_obs_column_categorical
 from scvi.dataloaders import (
     AnnDataLoader,
@@ -18,10 +17,10 @@ from scvi.dataloaders import (
 )
 from scvi.lightning import SemiSupervisedTrainingPlan
 from scvi.lightning._callbacks import SubSampleLabels
-from scvi.model._scvi import SCVI
 from scvi.modules import SCANVAE
 
-from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
+from ._scvi import SCVI
+from .base import ArchesMixin, BaseModelClass, RNASeqMixin, TrainRunner, VAEMixin
 
 logger = logging.getLogger(__name__)
 

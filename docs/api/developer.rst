@@ -27,8 +27,8 @@ Architectures
    compose.Encoder
    compose.Decoder
 
-Module creation
-~~~~~~~~~~~~~~~~
+Module classes
+~~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: reference/
@@ -74,6 +74,7 @@ Model (Base)
     model.base.VAEMixin
     model.base.RNASeqMixin
     model.base.ArchesMixin
+    model.base.TrainRunner
 
 Modules
 -------
