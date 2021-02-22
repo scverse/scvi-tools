@@ -198,7 +198,7 @@ class BaseModelClass(ABC):
 
     @abstractmethod
     def train(self):
-        """Trains the model"""
+        """Trains the model."""
 
     def save(
         self,
