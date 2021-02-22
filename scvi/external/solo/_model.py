@@ -240,14 +240,6 @@ class SOLO(UnsupervisedTrainingMixin, BaseModelClass):
         )
         return runner()
 
-    def _set_training_plan(self, plan_class=None, plan_kwargs=None):
-        """Set the _training_plan attribute."""
-        if plan_class is None:
-            plan_class = self._plan_class
-
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-        self._training_plan = plan_class(self.module, **plan_kwargs)
-
     @torch.no_grad()
     def predict(self, soft: bool = True):
         """

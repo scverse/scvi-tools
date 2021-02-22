@@ -31,6 +31,10 @@ class DataSplitter:
             raise ValueError(
                 "train_size needs to be greater than 0 and less than or equal to 1"
             )
+        if self.validation_size > 1.0 or self.validation_size <= 0.0:
+            raise ValueError(
+                "validation_size needs to be greater than 0 and less than or equal to 1"
+            )
         try:
             n = self.adata.n_obs
             n_train, n_val = _validate_shuffle_split(
@@ -144,6 +148,10 @@ class SemiSupervisedDataSplitter:
         if self.train_size > 1.0 or self.train_size <= 0.0:
             raise ValueError(
                 "train_size needs to be greater than 0 and less than or equal to 1"
+            )
+        if self.validation_size > 1.0 or self.validation_size <= 0.0:
+            raise ValueError(
+                "validation_size needs to be greater than 0 and less than or equal to 1"
             )
 
         n_labeled_idx = len(self._labeled_indices)

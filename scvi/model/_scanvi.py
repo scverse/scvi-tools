@@ -7,7 +7,7 @@ import torch
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
-from scvi import _CONSTANTS  # , settings
+from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.data._anndata import _make_obs_column_categorical
 from scvi.dataloaders import (
