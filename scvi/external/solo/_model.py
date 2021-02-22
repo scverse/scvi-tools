@@ -11,8 +11,13 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from scvi import _CONSTANTS
 from scvi.compose import auto_move_data
+from scvi.compose._training import TrainRunner
 from scvi.data import get_from_registry, setup_anndata
+<<<<<<< HEAD
 from scvi.dataloaders import DataSplitter
+=======
+from scvi.dataloaders import AnnDataLoader, DataSplitter
+>>>>>>> solo
 from scvi.lightning import ClassifierTrainingPlan
 from scvi.model import SCVI
 from scvi.model.base import BaseModelClass, TrainRunner, UnsupervisedTrainingMixin
