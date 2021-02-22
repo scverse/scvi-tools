@@ -15,12 +15,15 @@ class DataSplitter:
         adata: AnnData,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
+        use_gpu: bool = False,
         **kwargs,
     ):
         self.adata = adata
         self.train_size = train_size
         self.validation_size = validation_size
         self.data_loader_kwargs = kwargs
+        self.use_gpu = use_gpu
+
         self.train_idx, self.test_idx, self.val_idx = self.make_splits()
 
     def make_splits(self):
@@ -53,10 +56,9 @@ class DataSplitter:
         if remake_splits:
             self.train_idx, self.test_idx, self.val_idx = self.make_splits()
 
-        # pin_memory = (
-        #     True if (settings.dl_pin_memory_gpu_training and use_gpu) else False
-        # )
-        pin_memory = None
+        pin_memory = (
+            True if (settings.dl_pin_memory_gpu_training and self.use_gpu) else False
+        )
 
         # do not remove drop_last=3, skips over small minibatches
         return (

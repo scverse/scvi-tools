@@ -3,8 +3,6 @@ import logging
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.dataloaders import AnnDataLoader
-from scvi.lightning import TrainingPlan
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.modules import VAE
 
@@ -120,11 +118,3 @@ class SCVI(
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())
-
-    @property
-    def _plan_class(self):
-        return TrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader

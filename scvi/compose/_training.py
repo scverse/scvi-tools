@@ -43,3 +43,4 @@ class TrainRunner:
             self.model_class.module.cuda()
 
         self.model_class.is_trained_ = True
+        self.model_class.trainer = self.trainer

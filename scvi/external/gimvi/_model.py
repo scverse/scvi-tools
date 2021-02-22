@@ -9,9 +9,9 @@ import torch
 from anndata import AnnData, read
 from torch.utils.data import DataLoader
 
-from scvi import _CONSTANTS, settings
+from scvi import _CONSTANTS
 from scvi.data import transfer_anndata_setup
-from scvi.dataloaders import AnnDataLoader
+from scvi.dataloaders import DataSplitter
 from scvi.lightning import Trainer
 from scvi.model._utils import _get_var_names_from_setup_anndata
 from scvi.model.base import BaseModelClass, VAEMixin
@@ -172,7 +172,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         else:
             use_gpu = use_gpu and torch.cuda.is_available()
         gpus = 1 if use_gpu else None
-        pin_memory = settings.dl_pin_memory_gpu_training and use_gpu
 
         self.trainer = Trainer(
             max_epochs=max_epochs,
@@ -182,13 +181,12 @@ class GIMVI(VAEMixin, BaseModelClass):
         self.train_indices_, self.test_indices_, self.validation_indices_ = [], [], []
         train_dls, test_dls, val_dls = [], [], []
         for i, ad in enumerate(self.adatas):
-            train, val, test = self._train_test_val_split(
+            train, val, test = DataSplitter(
                 ad,
                 train_size=train_size,
                 validation_size=validation_size,
-                pin_memory=pin_memory,
                 batch_size=batch_size,
-            )
+            )()
             train_dls.append(train)
             test_dls.append(test)
             val.mode = i
@@ -199,7 +197,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         train_dl = TrainDL(train_dls)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-        self._training_plan = self._plan_class(
+        self._training_plan = GIMVITrainingPlan(
             self.module,
             len(self.train_indices_),
             adversarial_classifier=True,
@@ -532,14 +530,6 @@ class GIMVI(VAEMixin, BaseModelClass):
             model.module.load_state_dict(torch.load(model_path, map_location=device))
         model.module.eval()
         return model
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
-
-    @property
-    def _plan_class(self):
-        return GIMVITrainingPlan
 
 
 class TrainDL(DataLoader):

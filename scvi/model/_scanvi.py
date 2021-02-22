@@ -234,14 +234,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         return remapped
 
-    @property
-    def _plan_class(self):
-        return SemiSupervisedTrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
-
     def predict(
         self,
         adata: Optional[AnnData] = None,

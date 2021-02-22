@@ -15,7 +15,7 @@ from scvi._utils import _doc_params
 from scvi.compose._training import TrainRunner
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.dataloaders import AnnDataLoader, DataSplitter
+from scvi.dataloaders import DataSplitter
 from scvi.lightning import AdversarialTrainingPlan
 from scvi.model._utils import (
     _get_batch_code_from_category,
@@ -1019,14 +1019,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             raise ValueError("No protein data found, please setup or transfer anndata")
 
         return adata
-
-    @property
-    def _plan_class(self):
-        return AdversarialTrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
 
     @torch.no_grad()
     def get_protein_background_mean(self, adata, indices, batch_size):

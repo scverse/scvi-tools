@@ -11,8 +11,6 @@ from scipy.sparse import csr_matrix, vstack
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
-from scvi.dataloaders import AnnDataLoader
-from scvi.lightning import TrainingPlan
 from scvi.lightning._callbacks import SaveBestState
 from scvi.model._utils import (
     _get_batch_code_from_category,
@@ -126,14 +124,6 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
-
-    @property
-    def _plan_class(self):
-        return TrainingPlan
 
     def train(
         self,

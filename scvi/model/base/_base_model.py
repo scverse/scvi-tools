@@ -17,7 +17,7 @@ from scvi.compose import PyroBaseModuleClass
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.lightning import PyroTrainingPlan
+from scvi.dataloaders import AnnDataLoader
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -44,6 +44,7 @@ class BaseModelClass(ABC):
         self.test_indices_ = None
         self.validation_indices_ = None
         self.history_ = None
+        self._data_loader_cls = AnnDataLoader
 
     def _make_data_loader(
         self,
@@ -90,30 +91,6 @@ class BaseModelClass(ABC):
         )
         return dl
 
-    def _train_test_val_split(
-        self,
-        adata: AnnData,
-        train_size: float = 0.9,
-        validation_size: Optional[float] = None,
-        **kwargs,
-    ):
-        """
-        Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
-
-        If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
-
-        Parameters
-        ----------
-        adata
-            Setup AnnData to be split into train, test, validation sets
-        train_size
-            float, or None (default is 0.9)
-        validation_size
-            float, or None (default is None)
-        **kwargs
-            Keyword args for `_make_data_loader()`
-        """
-
     def _validate_anndata(
         self, adata: Optional[AnnData] = None, copy_if_view: bool = True
     ):
@@ -146,16 +123,6 @@ class BaseModelClass(ABC):
             transfer_anndata_setup(self.scvi_setup_dict_, adata)
 
         return adata
-
-    @property
-    @abstractmethod
-    def _data_loader_cls(self):
-        pass
-
-    @property
-    @abstractmethod
-    def _plan_class(self):
-        pass
 
     @property
     def is_trained(self):
@@ -232,20 +199,6 @@ class BaseModelClass(ABC):
     @abstractmethod
     def train():
         pass
-
-    def _set_training_plan(self, plan_class, plan_kwargs):
-        """Set the _training_plan attribute."""
-        if plan_class is None:
-            plan_class = self._plan_class
-
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-
-        if plan_class != PyroTrainingPlan:
-            self._training_plan = plan_class(
-                self.module, len(self.train_indices_), **plan_kwargs
-            )
-        else:
-            self._training_plan = plan_class(self.module, **plan_kwargs)
 
     def save(
         self,

@@ -4,8 +4,6 @@ import pandas as pd
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.dataloaders import AnnDataLoader
-from scvi.lightning import TrainingPlan
 from scvi.model._utils import _get_var_names_from_setup_anndata
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.modules import LDVAE
@@ -109,14 +107,6 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         )
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())
-
-    @property
-    def _plan_class(self):
-        return TrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
 
     def get_loadings(self) -> pd.DataFrame:
         """

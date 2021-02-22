@@ -13,7 +13,7 @@ from scvi import _CONSTANTS
 from scvi.compose import auto_move_data
 from scvi.compose._training import TrainRunner
 from scvi.data import get_from_registry, setup_anndata
-from scvi.dataloaders import AnnDataLoader, DataSplitter
+from scvi.dataloaders import DataSplitter
 from scvi.lightning import ClassifierTrainingPlan
 from scvi.model import SCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
@@ -282,14 +282,6 @@ class SOLO(UnsupervisedTrainingMixin, BaseModelClass):
         # TODO: make it a dataframe with nice columns
 
         return y_pred
-
-    @property
-    def _plan_class(self):
-        return ClassifierTrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
 
 
 def _validate_scvi_model(scvi_model: SCVI):
