@@ -3,7 +3,8 @@ from typing import Optional
 import numpy as np
 import torch
 
-from scvi.compose._training import DataSplitter, TrainRunner
+from scvi.compose._training import TrainRunner
+from scvi.dataloaders import DataSplitter
 from scvi.lightning import TrainingPlan
 
 
