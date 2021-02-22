@@ -13,7 +13,7 @@ from scvi import _CONSTANTS
 from scvi.data import transfer_anndata_setup
 from scvi.dataloaders import DataSplitter
 from scvi.lightning import Trainer
-from scvi.model._utils import _get_var_names_from_setup_anndata
+from scvi.model._utils import _get_var_names_from_setup_anndata, parse_use_gpu_arg
 from scvi.model.base import BaseModelClass, VAEMixin
 
 from ._module import JVAE
@@ -164,16 +164,11 @@ class GIMVI(VAEMixin, BaseModelClass):
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
-        if use_gpu is None or use_gpu is True:
-            use_gpu = torch.cuda.current_device() if torch.cuda.is_available() else 0
-        elif use_gpu is False:
-            use_gpu = 0
-        elif isinstance(use_gpu, int):
-            use_gpu = [use_gpu]
+        gpus, device = parse_use_gpu_arg(use_gpu)
 
         self.trainer = Trainer(
             max_epochs=max_epochs,
-            gpus=use_gpu,
+            gpus=gpus,
             **kwargs,
         )
         self.train_indices_, self.test_indices_, self.validation_indices_ = [], [], []
@@ -215,9 +210,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             self.history_ = None
         self.module.eval()
 
-        if use_gpu != 0:
-            self.module.cuda()
-
+        self.to_device(device)
         self.is_trained_ = True
 
     def _make_scvi_dls(self, adatas: List[AnnData] = None, batch_size=128):

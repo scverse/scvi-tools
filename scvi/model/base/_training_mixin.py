@@ -1,10 +1,10 @@
 from typing import Optional, Union
 
 import numpy as np
-import torch
 
 from scvi.dataloaders import DataSplitter
 from scvi.lightning import TrainingPlan
+from scvi.model._utils import parse_use_gpu_arg
 
 from ._trainrunner import TrainRunner
 
@@ -48,12 +48,7 @@ class UnsupervisedTrainingMixin:
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
 
-        if use_gpu is None or use_gpu is True:
-            use_gpu = torch.cuda.current_device() if torch.cuda.is_available() else 0
-        elif use_gpu is False:
-            use_gpu = 0
-        elif isinstance(use_gpu, int):
-            use_gpu = [use_gpu]
+        gpus, device = parse_use_gpu_arg(use_gpu)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
@@ -71,7 +66,7 @@ class UnsupervisedTrainingMixin:
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            gpus=use_gpu,
+            gpus=gpus,
             **trainer_kwargs,
         )
         return runner()

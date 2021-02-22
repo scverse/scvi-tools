@@ -6,6 +6,7 @@ from anndata import AnnData
 
 from scvi.compose import FCLayers
 from scvi.data import transfer_anndata_setup
+from scvi.model._utils import parse_use_gpu_arg
 
 from ._base_model import BaseModelClass
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
@@ -62,16 +63,7 @@ class ArchesMixin:
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
         """
-        if use_gpu is None or use_gpu is True:
-            use_gpu = (
-                torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
-            )
-            map_location = torch.device(use_gpu)
-        elif use_gpu is False:
-            map_location = torch.device("cpu")
-        elif isinstance(use_gpu, int) or isinstance(use_gpu, str):
-            map_location = torch.device(use_gpu)
-
+        use_gpu, device = parse_use_gpu_arg(use_gpu)
         if isinstance(reference_model, str):
             (
                 scvi_setup_dict,
@@ -80,7 +72,7 @@ class ArchesMixin:
                 load_state_dict,
                 _,
             ) = _load_saved_files(
-                reference_model, load_adata=False, map_location=map_location
+                reference_model, load_adata=False, map_location=device
             )
         else:
             attr_dict = reference_model._get_user_attributes()
@@ -107,7 +99,7 @@ class ArchesMixin:
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
-        model.to_device(map_location)
+        model.to_device(device)
 
         # model tweaking
         new_state_dict = model.module.state_dict()

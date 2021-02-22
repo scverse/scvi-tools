@@ -18,6 +18,7 @@ from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import AnnDataLoader
+from scvi.model._utils import parse_use_gpu_arg
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -301,16 +302,7 @@ class BaseModelClass(ABC):
         >>> vae.get_latent_representation()
         """
         load_adata = adata is None
-
-        if use_gpu is None or use_gpu is True:
-            use_gpu = (
-                torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
-            )
-            map_location = torch.device(use_gpu)
-        elif use_gpu is False:
-            map_location = torch.device("cpu")
-        elif isinstance(use_gpu, int) or isinstance(use_gpu, str):
-            map_location = torch.device(use_gpu)
+        use_gpu, device = parse_use_gpu_arg(use_gpu)
 
         (
             scvi_setup_dict,
@@ -318,7 +310,7 @@ class BaseModelClass(ABC):
             var_names,
             model_state_dict,
             new_adata,
-        ) = _load_saved_files(dir_path, load_adata, map_location=map_location)
+        ) = _load_saved_files(dir_path, load_adata, map_location=device)
         adata = new_adata if new_adata is not None else adata
 
         _validate_var_names(adata, var_names)
@@ -341,9 +333,7 @@ class BaseModelClass(ABC):
             else:
                 raise err
 
-        if use_gpu:
-            model.module.cuda()
-
+        model.to_device(device)
         model.module.eval()
         model._validate_anndata(adata)
 
