@@ -19,7 +19,7 @@ class DataSplitter:
         **kwargs,
     ):
         self.adata = adata
-        self.train_size = train_size
+        self.train_size = float(train_size)
         self.validation_size = validation_size
         self.data_loader_kwargs = kwargs
         self.use_gpu = use_gpu
@@ -27,8 +27,7 @@ class DataSplitter:
         self.train_idx, self.test_idx, self.val_idx = self.make_splits()
 
     def make_splits(self):
-        train_size = float(self.train_size)
-        if train_size > 1.0 or train_size <= 0.0:
+        if self.train_size > 1.0 or self.train_size <= 0.0:
             raise ValueError(
                 "train_size needs to be greater than 0 and less than or equal to 1"
             )
@@ -38,7 +37,7 @@ class DataSplitter:
                 n, self.validation_size, self.train_size
             )
         except ValueError:
-            if train_size != 1.0:
+            if self.train_size != 1.0:
                 raise ValueError(
                     "Choice of train_size={} and validation_size={} not understood".format(
                         self.train_size, self.validation_size
