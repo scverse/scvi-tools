@@ -483,9 +483,6 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         # get the parameters for the class init signiture
         init_params = attr_dict.pop("init_params_")
-        import pdb
-
-        pdb.set_trace()
 
         # new saving and loading, enable backwards compatibility
         if "non_kwargs" in init_params.keys():
