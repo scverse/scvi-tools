@@ -93,7 +93,8 @@ class BaseModelClass(ABC):
         return dl
 
     def to_device(self, device: Union[str, int]):
-        """Move model to device.
+        """
+        Move model to device.
 
         Parameters
         ----------
