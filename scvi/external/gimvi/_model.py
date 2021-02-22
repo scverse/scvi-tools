@@ -483,6 +483,9 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         # get the parameters for the class init signiture
         init_params = attr_dict.pop("init_params_")
+        import pdb
+
+        pdb.set_trace()
 
         # new saving and loading, enable backwards compatibility
         if "non_kwargs" in init_params.keys():
@@ -492,7 +495,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
             # expand out kwargs
             kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
-
+        else:
             # grab all the parameters execept for kwargs (is a dict)
             non_kwargs = {
                 k: v for k, v in init_params.items() if not isinstance(v, dict)
@@ -504,18 +507,10 @@ class GIMVI(VAEMixin, BaseModelClass):
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
-        if use_gpu is None or use_gpu is True:
-            use_gpu = (
-                torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
-            )
-            map_location = torch.device(use_gpu)
-        elif use_gpu is False:
-            map_location = torch.device("cpu")
-        elif isinstance(use_gpu, int) or isinstance(use_gpu, str):
-            map_location = torch.device(use_gpu)
-
-        model.module.load_state_dict(torch.load(model_path, map_location=map_location))
+        _, device = parse_use_gpu_arg(use_gpu)
+        model.module.load_state_dict(torch.load(model_path, map_location=device))
         model.module.eval()
+        model.to_device(device)
         return model
 
 

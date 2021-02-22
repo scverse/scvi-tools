@@ -336,7 +336,6 @@ class BaseModelClass(ABC):
         model.to_device(device)
         model.module.eval()
         model._validate_anndata(adata)
-
         return model
 
     def __repr__(
