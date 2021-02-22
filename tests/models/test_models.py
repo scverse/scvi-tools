@@ -310,10 +310,6 @@ def test_data_splitter():
         ds = DataSplitter(a, train_size=1, validation_size=0.1)
         ds()
 
-    # test that error is thrown if train set is empty
-    with pytest.raises(ValueError):
-        ds = DataSplitter(a, train_size=0.00001)
-
 
 def test_semisupervised_data_splitter():
     a = synthetic_iid()

@@ -24,19 +24,19 @@ def validate_data_split(
     validation_size
         Size of validation set. Need to be 0 <= validation_size < 1
     """
-    if validation_size is None:
-        validation_size = float(1 - train_size)
-
     if train_size > 1.0 or train_size <= 0.0:
         raise ValueError("Invalid train_size. Must be: 0 < train_size <= 1")
-    if validation_size >= 1.0 or validation_size < 0.0:
-        raise ValueError("Invalid validation_size. Must be 0 <= validation_size < 1")
-    if (train_size + validation_size) > 1:
-        raise ValueError("train_size + validation_size must be between 0 and 1")
 
-    # n_val needs to be ceil because of loss of precision from 1-train_size
-    n_train = floor(train_size * n_samples)
-    n_val = ceil(validation_size * n_samples)
+    n_train = ceil(train_size * n_samples)
+
+    if validation_size is None:
+        n_val = n_samples - n_train
+    elif validation_size >= 1.0 or validation_size < 0.0:
+        raise ValueError("Invalid validation_size. Must be 0 <= validation_size < 1")
+    elif (train_size + validation_size) > 1:
+        raise ValueError("train_size + validation_size must be between 0 and 1")
+    else:
+        n_val = floor(n_samples * validation_size)
 
     if n_train == 0:
         raise ValueError(
