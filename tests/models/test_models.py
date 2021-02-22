@@ -396,7 +396,7 @@ def test_scanvi(save_path):
     a2 = scvi.data.synthetic_iid()
     scanvi_model = scvi.model.SCANVI.from_scvi_model(m, "label_0", adata=a2)
     scanvi_model = scvi.model.SCANVI.from_scvi_model(
-        m, "label_0", use_gpu=False, use_labels_groups=False
+        m, "label_0", use_labels_groups=False
     )
     scanvi_model.train(1)
 

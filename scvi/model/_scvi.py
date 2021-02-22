@@ -47,8 +47,6 @@ class SCVI(
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
-    use_gpu
-        Use the GPU or not.
     **model_kwargs
         Keyword args for :class:`~scvi.modules.VAE`
 
@@ -81,10 +79,9 @@ class SCVI(
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        use_gpu: bool = True,
         **model_kwargs,
     ):
-        super(SCVI, self).__init__(adata, use_gpu=use_gpu)
+        super(SCVI, self).__init__(adata)
 
         n_cats_per_cov = (
             self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]

@@ -45,7 +45,7 @@ def _load_saved_files(
     return scvi_setup_dict, attr_dict, var_names, model_state_dict, adata
 
 
-def _initialize_model(cls, adata, attr_dict, use_gpu):
+def _initialize_model(cls, adata, attr_dict):
     """Helper to initialize a model."""
     if "init_params_" not in attr_dict.keys():
         raise ValueError(
@@ -61,15 +61,9 @@ def _initialize_model(cls, adata, attr_dict, use_gpu):
         non_kwargs = init_params["non_kwargs"]
         kwargs = init_params["kwargs"]
 
-        # update use_gpu from the saved model
-        # we assume use_gpu is exposed and not a kwarg
-        non_kwargs["use_gpu"] = use_gpu
-
         # expand out kwargs
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
     else:
-        init_params["use_gpu"] = use_gpu
-
         # grab all the parameters execept for kwargs (is a dict)
         non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
         kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}

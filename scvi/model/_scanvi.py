@@ -58,8 +58,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
-    use_gpu
-        Use the GPU or not.
     **model_kwargs
         Keyword args for :class:`~scvi.modules.SCANVAE`
 
@@ -90,10 +88,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
-        use_gpu: bool = True,
         **model_kwargs,
     ):
-        super(SCANVI, self).__init__(adata, use_gpu=use_gpu)
+        super(SCANVI, self).__init__(adata)
         scanvae_model_kwargs = dict(model_kwargs)
 
         self.unlabeled_category_ = unlabeled_category
@@ -153,7 +150,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         scvi_model: SCVI,
         unlabeled_category: str,
         adata: Optional[AnnData] = None,
-        use_gpu: bool = None,
         **scanvi_kwargs,
     ):
         """
@@ -167,8 +163,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
         adata
             AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
-        use_gpu
-            Use the GPU or not.
         scanvi_kwargs
             kwargs for scanVI model
         """
@@ -177,8 +171,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         init_params = scvi_model.init_params_
         non_kwargs = init_params["non_kwargs"]
-        if use_gpu is not None:
-            non_kwargs["use_gpu"] = use_gpu
         if adata is None:
             adata = scvi_model.adata
 
@@ -297,7 +289,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
@@ -323,7 +315,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         batch_size
             Minibatch size to use during training.
         use_gpu
-            If `True`, use the GPU if available. Will override the use_gpu option when initializing model
+            Use default GPU if available (if None or True), or index of GPU to use (if int),
+            or name of GPU (if str), or use CPU (if False).
         plan_kwargs
             Keyword args for :class:`~scvi.lightning.SemiSupervisedTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -339,8 +332,13 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         plan_kwargs = {} if plan_kwargs is None else plan_kwargs
 
-        use_gpu = use_gpu if use_gpu is not None else self.use_gpu
-        gpus = 1 if use_gpu else 0
+        if use_gpu is None or use_gpu is True:
+            use_gpu = torch.cuda.current_device() if torch.cuda.is_available() else 0
+        elif use_gpu is False:
+            use_gpu = 0
+        elif isinstance(use_gpu, int):
+            use_gpu = [use_gpu]
+
         # pin_memory = (
         #     True if (settings.dl_pin_memory_gpu_training and use_gpu) else False
         # )
@@ -371,7 +369,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            gpus=gpus,
+            gpus=use_gpu,
             check_val_every_n_epoch=check_val_every_n_epoch,
             **trainer_kwargs,
         )

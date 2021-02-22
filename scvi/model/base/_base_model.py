@@ -3,7 +3,7 @@ import logging
 import os
 import pickle
 from abc import ABC, abstractmethod
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import pyro
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseModelClass(ABC):
-    def __init__(self, adata: Optional[AnnData] = None, use_gpu: Optional[bool] = None):
+    def __init__(self, adata: Optional[AnnData] = None):
         if adata is not None:
             if "_scvi" not in adata.uns.keys():
                 raise ValueError(
@@ -37,14 +37,25 @@ class BaseModelClass(ABC):
             self._validate_anndata(adata, copy_if_view=False)
 
         self.is_trained_ = False
-        cuda_avail = torch.cuda.is_available()
-        self.use_gpu = cuda_avail if use_gpu is None else (use_gpu and cuda_avail)
         self._model_summary_string = ""
         self.train_indices_ = None
         self.test_indices_ = None
         self.validation_indices_ = None
         self.history_ = None
         self._data_loader_cls = AnnDataLoader
+
+    def to_device(self, device: Union[str, int]):
+        """
+        Move model to device.
+
+        Parameters
+        ----------
+        device
+            Device to move model to. Options: 'cpu' for CPU, integer GPU index (eg. 0),
+            or 'cuda:X' where X is the GPU index (eg. 'cuda:0'). See torch.device for more info.
+        """
+        my_device = torch.device(device)
+        self.module.to(my_device)
 
     def _make_data_loader(
         self,
@@ -303,7 +314,7 @@ class BaseModelClass(ABC):
 
         _validate_var_names(adata, var_names)
         transfer_anndata_setup(scvi_setup_dict, adata)
-        model = _initialize_model(cls, adata, attr_dict, use_gpu)
+        model = _initialize_model(cls, adata, attr_dict)
 
         # set saved attrs for loaded model
         for attr, val in attr_dict.items():

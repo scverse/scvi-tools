@@ -1,5 +1,5 @@
 import logging
-from typing import Union
+from typing import Optional, Union
 
 import torch
 from anndata import AnnData
@@ -20,7 +20,7 @@ class ArchesMixin:
         adata: AnnData,
         reference_model: Union[str, BaseModelClass],
         inplace_subset_query_vars: bool = False,
-        use_gpu: bool = True,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         unfrozen: bool = False,
         freeze_dropout: bool = False,
         freeze_expression: bool = True,
@@ -45,7 +45,8 @@ class ArchesMixin:
             Whether to subset and rearrange query vars inplace based on vars used to
             train reference model.
         use_gpu
-            Whether to load model on GPU.
+            Load model on default GPU if available (if None or True),
+            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
         unfrozen
             Override all other freeze options for a fully unfrozen model
         freeze_dropout
@@ -61,10 +62,17 @@ class ArchesMixin:
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
         """
-        use_gpu = use_gpu and torch.cuda.is_available()
+        if use_gpu is None or use_gpu is True:
+            use_gpu = (
+                torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
+            )
+            map_location = torch.device(use_gpu)
+        elif use_gpu is False:
+            map_location = torch.device("cpu")
+        elif isinstance(use_gpu, int) or isinstance(use_gpu, str):
+            map_location = torch.device(use_gpu)
 
         if isinstance(reference_model, str):
-            map_location = torch.device("cuda") if use_gpu is True else None
             (
                 scvi_setup_dict,
                 attr_dict,
@@ -93,14 +101,13 @@ class ArchesMixin:
 
         transfer_anndata_setup(scvi_setup_dict, adata, extend_categories=True)
 
-        model = _initialize_model(cls, adata, attr_dict, use_gpu)
+        model = _initialize_model(cls, adata, attr_dict)
 
         # set saved attrs for loaded model
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
-        if use_gpu:
-            model.module.cuda()
+        model.to_device(map_location)
 
         # model tweaking
         new_state_dict = model.module.state_dict()
