@@ -11,9 +11,13 @@ Import scvi-tools as::
 .. currentmodule:: scvi
 
 Compose
-~~~~~~~
+-------
 
 .. currentmodule:: scvi
+
+
+Architectures
+~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: reference/
@@ -21,9 +25,21 @@ Compose
 
    compose.FCLayers
    compose.Encoder
+   compose.Decoder
+
+Module creation
+~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: reference/
+   :template: class_no_inherited.rst
+
    compose.LossRecorder
    compose.BaseModuleClass
    compose.PyroBaseModuleClass
+
+Functions
+~~~~~~~~~
 
 .. autosummary::
    :toctree: reference/
@@ -32,7 +48,7 @@ Compose
    compose.auto_move_data
 
 Distributions
-~~~~~~~~~~~~~
+-------------
 
 .. currentmodule:: scvi
 
@@ -46,7 +62,7 @@ Distributions
 
 
 Model (Base)
-~~~~~~~~~~~~
+------------
 
 .. currentmodule:: scvi
 
@@ -60,7 +76,7 @@ Model (Base)
     model.base.ArchesMixin
 
 Modules
-~~~~~~~
+-------
 
 .. currentmodule:: scvi
 
@@ -78,7 +94,7 @@ Modules
    modules.Classifier
 
 Data Loaders
-~~~~~~~~~~~~
+------------
 
 .. currentmodule:: scvi
 
@@ -90,9 +106,11 @@ Data Loaders
    dataloaders.AnnTorchDataset
    dataloaders.ConcatDataLoader
    dataloaders.SemiSupervisedDataLoader
+   dataloaders.DataSplitter
+   dataloaders.SemiSupervisedDataSplitter
 
 Lightning
-~~~~~~~~~
+---------
 
 .. currentmodule:: scvi
 
@@ -111,7 +129,7 @@ steps for modules like `TOTALVAE`, `SCANVAE`, etc.
    lightning.Trainer
 
 Utilities
-~~~~~~~~~
+---------
 
 .. currentmodule:: scvi
 
