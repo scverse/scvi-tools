@@ -11,8 +11,9 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from scvi import _CONSTANTS
 from scvi.compose import auto_move_data
+from scvi.compose._training import TrainRunner
 from scvi.data import get_from_registry, setup_anndata
-from scvi.dataloaders import AnnDataLoader
+from scvi.dataloaders import AnnDataLoader, DataSplitter
 from scvi.lightning import ClassifierTrainingPlan
 from scvi.model import SCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
@@ -211,17 +212,36 @@ class SOLO(UnsupervisedTrainingMixin, BaseModelClass):
                 kwargs["callbacks"] = early_stopping_callback
             kwargs["check_val_every_n_epoch"] = 1
 
-        super().train(
-            max_epochs=max_epochs,
-            use_gpu=use_gpu,
+        if max_epochs is None:
+            n_cells = self.adata.n_obs
+            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+
+        if use_gpu is None:
+            use_gpu = torch.cuda.is_available()
+        else:
+            use_gpu = use_gpu and torch.cuda.is_available()
+        gpus = 1 if use_gpu else None
+
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+
+        data_splitter = DataSplitter(
+            self.adata,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            plan_kwargs=plan_kwargs,
+        )
+        training_plan = ClassifierTrainingPlan(self.module, **plan_kwargs)
+        runner = TrainRunner(
+            self,
+            training_plan=training_plan,
+            data_splitter=data_splitter,
+            max_epochs=max_epochs,
+            gpus=gpus,
             **kwargs,
         )
+        return runner()
 
-    def _set_training_plan(self, plan_class, plan_kwargs):
+    def _set_training_plan(self, plan_class=None, plan_kwargs=None):
         """Set the _training_plan attribute."""
         if plan_class is None:
             plan_class = self._plan_class
