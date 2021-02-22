@@ -25,6 +25,7 @@ class TrainRunner:
         self.training_plan = training_plan
         self.data_splitter = data_splitter
         self.model_class = model_class
+        self.gpus = gpus
         self.trainer = Trainer(max_epochs=max_epochs, gpus=gpus, **trainer_kwargs)
 
     def __call__(self):
@@ -45,8 +46,8 @@ class TrainRunner:
 
         self.model_class.module.eval()
 
-        # if use_gpu:
-        #     self.module.cuda()
+        if self.gpus != 0:
+            self.model_class.module.cuda()
 
         self.model_class.is_trained_ = True
 
