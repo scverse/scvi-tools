@@ -58,6 +58,10 @@ class BaseModelClass(ABC):
         my_device = torch.device(device)
         self.module.to(my_device)
 
+    @property
+    def device(self):
+        return next(self.module.parameters()).device
+
     def _make_data_loader(
         self,
         adata: AnnData,

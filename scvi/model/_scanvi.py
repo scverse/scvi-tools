@@ -332,13 +332,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         plan_kwargs = {} if plan_kwargs is None else plan_kwargs
 
-        if use_gpu is None or use_gpu is True:
-            use_gpu = torch.cuda.current_device() if torch.cuda.is_available() else 0
-        elif use_gpu is False:
-            use_gpu = 0
-        elif isinstance(use_gpu, int):
-            use_gpu = [use_gpu]
-
         # pin_memory = (
         #     True if (settings.dl_pin_memory_gpu_training and use_gpu) else False
         # )
@@ -369,7 +362,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            gpus=use_gpu,
+            use_gpu=use_gpu,
             check_val_every_n_epoch=check_val_every_n_epoch,
             **trainer_kwargs,
         )

@@ -4,7 +4,6 @@ import numpy as np
 
 from scvi.dataloaders import DataSplitter
 from scvi.lightning import TrainingPlan
-from scvi.model._utils import parse_use_gpu_arg
 
 from ._trainrunner import TrainRunner
 
@@ -13,7 +12,7 @@ class UnsupervisedTrainingMixin:
     def train(
         self,
         max_epochs: Optional[int] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        use_gpu: optional[union[str, int, bool]] = none,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -48,8 +47,6 @@ class UnsupervisedTrainingMixin:
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
 
-        gpus, device = parse_use_gpu_arg(use_gpu)
-
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
         data_splitter = DataSplitter(
@@ -66,7 +63,7 @@ class UnsupervisedTrainingMixin:
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            gpus=gpus,
+            use_gpu=use_gpu,
             **trainer_kwargs,
         )
         return runner()

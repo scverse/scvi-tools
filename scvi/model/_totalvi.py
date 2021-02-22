@@ -20,7 +20,6 @@ from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
     cite_seq_raw_counts_properties,
-    parse_use_gpu_arg,
 )
 from scvi.model.base import TrainRunner
 from scvi.model.base._utils import _de_core
@@ -237,8 +236,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
 
-        gpus, device = parse_use_gpu_arg(use_gpu)
-
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
         data_splitter = DataSplitter(
@@ -255,7 +252,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            gpus=gpus,
+            use_gpu=use_gpu,
             **kwargs,
         )
         return runner()

@@ -16,7 +16,6 @@ from scvi.data import get_from_registry, setup_anndata
 from scvi.dataloaders import DataSplitter
 from scvi.lightning import ClassifierTrainingPlan
 from scvi.model import SCVI
-from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base import BaseModelClass, TrainRunner, UnsupervisedTrainingMixin
 from scvi.modules import Classifier
 
@@ -230,7 +229,7 @@ class SOLO(UnsupervisedTrainingMixin, BaseModelClass):
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            gpus=gpus,
+            use_gpu=use_gpu,
             **kwargs,
         )
         return runner()
