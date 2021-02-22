@@ -9,6 +9,7 @@ from torch.distributions import Beta, Normal
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
+from scvi.compose._training import UnsupervisedTrainingMixin
 from scvi.dataloaders import AnnDataLoader
 from scvi.lightning import TrainingPlan
 from scvi.modules import AutoZIVAE
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 # register buffer
 
 
-class AUTOZI(VAEMixin, BaseModelClass):
+class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     Automatic identification of ZI genes [Clivio19]_.
 

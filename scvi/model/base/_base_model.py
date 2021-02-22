@@ -185,6 +185,10 @@ class BaseModelClass(ABC):
     def validation_indices(self, value):
         self.validation_indices_ = value
 
+    @is_trained.setter
+    def is_trained(self, value):
+        self.is_trained_ = value
+
     @property
     def history(self):
         """Returns computed metrics during training."""

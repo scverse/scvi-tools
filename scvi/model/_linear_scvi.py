@@ -4,6 +4,7 @@ import pandas as pd
 from anndata import AnnData
 
 from scvi._compat import Literal
+from scvi.compose._training import UnsupervisedTrainingMixin
 from scvi.dataloaders import AnnDataLoader
 from scvi.lightning import TrainingPlan
 from scvi.model._utils import _get_var_names_from_setup_anndata
@@ -14,7 +15,7 @@ from .base import BaseModelClass, RNASeqMixin, VAEMixin
 logger = logging.getLogger(__name__)
 
 
-class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
+class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     Linearly-decoded VAE [Svensson20]_.
 
