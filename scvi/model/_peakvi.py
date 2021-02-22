@@ -19,6 +19,7 @@ from scvi.model._utils import (
     _get_var_names_from_setup_anndata,
     scatac_raw_counts_properties,
 )
+from scvi.model.base._training_mixin import UnsupervisedTrainingMixin
 from scvi.modules import PEAKVAE
 
 from .base import ArchesMixin, BaseModelClass, VAEMixin
@@ -27,7 +28,7 @@ from .base._utils import _de_core
 logger = logging.getLogger(__name__)
 
 
-class PEAKVI(ArchesMixin, VAEMixin, BaseModelClass):
+class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     PeakVI.
 
