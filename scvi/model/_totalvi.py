@@ -12,6 +12,7 @@ from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
+from scvi.compose._training import DataSplitter, TrainRunner
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import AnnDataLoader
@@ -232,16 +233,47 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             plan_kwargs.update(update_dict)
         else:
             plan_kwargs = update_dict
-        super().train(
-            max_epochs=max_epochs,
-            use_gpu=use_gpu,
+
+        if max_epochs is None:
+            n_cells = self.adata.n_obs
+            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+
+        if use_gpu is None:
+            use_gpu = torch.cuda.is_available()
+        else:
+            use_gpu = use_gpu and torch.cuda.is_available()
+        gpus = 1 if use_gpu else None
+
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+
+        data_splitter = DataSplitter(
+            self.adata,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            early_stopping=early_stopping,
-            plan_kwargs=plan_kwargs,
+        )
+        training_plan = AdversarialTrainingPlan(
+            self.module, len(data_splitter.train_idx), **plan_kwargs
+        )
+        runner = TrainRunner(
+            self,
+            training_plan=training_plan,
+            data_splitter=data_splitter,
+            max_epochs=max_epochs,
+            gpus=gpus,
             **kwargs,
         )
+        return runner()
+        # super().train(
+        #     max_epochs=max_epochs,
+        #     use_gpu=use_gpu,
+        #     train_size=train_size,
+        #     validation_size=validation_size,
+        #     batch_size=batch_size,
+        #     early_stopping=early_stopping,
+        #     plan_kwargs=plan_kwargs,
+        #     **kwargs,
+        # )
 
     @torch.no_grad()
     def get_latent_library_size(
