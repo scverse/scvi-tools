@@ -68,7 +68,10 @@ class BaseModelClass(ABC):
 
     @property
     def device(self):
-        return next(self.module.parameters()).device
+        device = list(set(p.device for p in self.parameters()))
+        if len(device) > 1:
+            raise RuntimeError("Model tensors on multiple devices.")
+        return device[0]
 
     def _make_data_loader(
         self,
