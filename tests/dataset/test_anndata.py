@@ -157,7 +157,6 @@ def test_setup_anndata():
         batch_key="batch",
         labels_key="labels",
         protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
     )
     np.testing.assert_array_equal(
         get_from_registry(adata, "batch_indices"),
@@ -173,7 +172,7 @@ def test_setup_anndata():
         adata.obsm["protein_expression"],
     )
     np.testing.assert_array_equal(
-        adata.uns["_scvi"]["protein_names"], adata.uns["protein_names"]
+        adata.uns["_scvi"]["protein_names"], adata.obsm["protein_expression"].columns
     )
 
     # test that error is thrown if its a view:
@@ -208,7 +207,6 @@ def test_setup_anndata():
     setup_anndata(
         adata,
         protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
     )
     np.testing.assert_array_equal(
         get_from_registry(adata, "batch_indices"), np.zeros((adata.shape[0], 1))
@@ -234,7 +232,6 @@ def test_extra_covariates():
         batch_key="batch",
         labels_key="labels",
         protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )
@@ -264,7 +261,6 @@ def test_anntorchdataset_getitem():
         batch_key="batch",
         labels_key="labels",
         protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
     )
     # check that we can successfully pass in a list of tensors to get
     tensors_to_get = ["batch_indices", "local_l_var"]

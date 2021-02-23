@@ -34,8 +34,9 @@ def _generate_synthetic(
 
     # Protein measurements
     p_data = np.random.negative_binomial(5, 0.3, size=(adata.shape[0], n_proteins))
-    adata.obsm["protein_expression"] = p_data
-    adata.uns["protein_names"] = np.arange(n_proteins).astype(str)
+    adata.obsm["protein_expression"] = pd.DataFrame(
+        index=adata.obs_names, data=p_data, columns=np.arange(n_proteins).astype(str)
+    )
     if run_setup_anndata:
         setup_anndata(
             adata,
