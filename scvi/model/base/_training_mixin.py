@@ -1,7 +1,6 @@
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
-import torch
 
 from scvi.dataloaders import DataSplitter
 from scvi.lightning import TrainingPlan
@@ -13,7 +12,7 @@ class UnsupervisedTrainingMixin:
     def train(
         self,
         max_epochs: Optional[int] = None,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -29,7 +28,8 @@ class UnsupervisedTrainingMixin:
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
         use_gpu
-            If `True`, use the GPU if available. Will override the use_gpu option when initializing model
+            Use default GPU if available (if None or True), or index of GPU to use (if int),
+            or name of GPU (if str), or use CPU (if False).
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -47,12 +47,6 @@ class UnsupervisedTrainingMixin:
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
 
-        if use_gpu is None:
-            use_gpu = torch.cuda.is_available()
-        else:
-            use_gpu = use_gpu and torch.cuda.is_available()
-        gpus = 1 if use_gpu else 0
-
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
         data_splitter = DataSplitter(
@@ -69,7 +63,7 @@ class UnsupervisedTrainingMixin:
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            gpus=gpus,
+            use_gpu=use_gpu,
             **trainer_kwargs,
         )
         return runner()

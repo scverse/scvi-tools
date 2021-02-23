@@ -7,6 +7,7 @@ from anndata import AnnData
 from scvi import _CONSTANTS, settings
 from scvi.dataloaders._ann_dataloader import AnnDataLoader
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
+from scvi.model._utils import parse_use_gpu_arg
 
 
 def validate_data_split(
@@ -107,8 +108,9 @@ class DataSplitter:
         if remake_splits:
             self.train_idx, self.test_idx, self.val_idx = self.make_splits()
 
+        gpus = parse_use_gpu_arg(self.use_gpu, return_device=False)
         pin_memory = (
-            True if (settings.dl_pin_memory_gpu_training and self.use_gpu) else False
+            True if (settings.dl_pin_memory_gpu_training and gpus != 0) else False
         )
 
         # do not remove drop_last=3, skips over small minibatches
@@ -180,6 +182,7 @@ class SemiSupervisedDataSplitter:
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         n_samples_per_label: Optional[int] = None,
+        use_gpu: bool = False,
         **kwargs,
     ):
         self.adata = adata
@@ -197,6 +200,7 @@ class SemiSupervisedDataSplitter:
         self._labeled_indices = np.argwhere(labels != unlabeled_category).ravel()
 
         self.data_loader_kwargs = kwargs
+        self.use_gpu = use_gpu
         self.train_idx, self.test_idx, self.val_idx = self.make_splits()
 
     def make_splits(self):
@@ -255,6 +259,11 @@ class SemiSupervisedDataSplitter:
         if remake_splits:
             self.train_idx, self.test_idx, self.val_idx = self.make_splits()
 
+        gpus = parse_use_gpu_arg(self.use_gpu, return_device=False)
+        pin_memory = (
+            True if (settings.dl_pin_memory_gpu_training and gpus != 0) else False
+        )
+
         if len(self._labeled_indices) != 0:
             data_loader_class = SemiSupervisedDataLoader
             dl_kwargs = {
@@ -272,6 +281,7 @@ class SemiSupervisedDataSplitter:
             indices=self.train_idx,
             shuffle=True,
             drop_last=3,
+            pin_memory=pin_memory,
             **dl_kwargs,
         )
         scanvi_val_dl = data_loader_class(
@@ -279,6 +289,7 @@ class SemiSupervisedDataSplitter:
             indices=self.val_idx,
             shuffle=True,
             drop_last=3,
+            pin_memory=pin_memory,
             **dl_kwargs,
         )
         scanvi_test_dl = data_loader_class(
@@ -286,6 +297,7 @@ class SemiSupervisedDataSplitter:
             indices=self.test_idx,
             shuffle=True,
             drop_last=3,
+            pin_memory=pin_memory,
             **dl_kwargs,
         )
 

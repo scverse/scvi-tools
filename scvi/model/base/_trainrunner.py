@@ -1,10 +1,11 @@
 import logging
-from typing import List, Union
+from typing import Optional, Union
 
 import pytorch_lightning as pl
 
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.lightning import Trainer
+from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base import BaseModelClass
 
 logger = logging.getLogger(__name__)
@@ -25,8 +26,9 @@ class TrainRunner:
         :class:`~scvi.dataloaders.DataSplitter`
     max_epochs
         max_epochs to train for
-    gpus
-        Which GPU to train on
+    use_gpu
+        Use default GPU if available (if None or True), or index of GPU to use (if int),
+        or name of GPU (if str), or use CPU (if False).
     trainer_kwargs
         Extra kwargs for :class:`~scvi.lightning.Trainer`
 
@@ -49,13 +51,15 @@ class TrainRunner:
         training_plan: pl.LightningModule,
         data_splitter: Union[SemiSupervisedDataSplitter, DataSplitter],
         max_epochs: int,
-        gpus: Union[List[int], str, int],
+        use_gpu: Optional[Union[str, int, bool]] = None,
         **trainer_kwargs,
     ):
         self.training_plan = training_plan
         self.data_splitter = data_splitter
         self.model = model
+        gpus, device = parse_use_gpu_arg(use_gpu)
         self.gpus = gpus
+        self.device = device
         self.trainer = Trainer(max_epochs=max_epochs, gpus=gpus, **trainer_kwargs)
 
     def __call__(self):
@@ -75,9 +79,6 @@ class TrainRunner:
             self.history_ = None
 
         self.model.module.eval()
-
-        if self.gpus != 0:
-            self.model.module.cuda()
-
         self.model.is_trained_ = True
+        self.model.to_device(self.device)
         self.model.trainer = self.trainer

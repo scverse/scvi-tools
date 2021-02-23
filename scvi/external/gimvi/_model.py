@@ -2,7 +2,7 @@ import logging
 import os
 import pickle
 from itertools import cycle
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import numpy as np
 import torch
@@ -13,7 +13,7 @@ from scvi import _CONSTANTS
 from scvi.data import transfer_anndata_setup
 from scvi.dataloaders import DataSplitter
 from scvi.lightning import Trainer
-from scvi.model._utils import _get_var_names_from_setup_anndata
+from scvi.model._utils import _get_var_names_from_setup_anndata, parse_use_gpu_arg
 from scvi.model.base import BaseModelClass, VAEMixin
 
 from ._module import JVAE
@@ -51,8 +51,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         List of bool of whether to model library size for adata_seq and adata_spatial.
     n_latent
         Dimensionality of the latent space.
-    use_gpu
-        Use the GPU or not.
     **model_kwargs
         Keyword args for :class:`~scvi.modules.JVAE`
 
@@ -79,11 +77,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         generative_distributions: List = ["zinb", "nb"],
         model_library_size: List = [True, False],
         n_latent: int = 10,
-        use_gpu: bool = True,
         **model_kwargs,
     ):
-        super(GIMVI, self).__init__(use_gpu=use_gpu)
-        self.use_gpu = use_gpu and torch.cuda.is_available()
+        super(GIMVI, self).__init__()
         self.adatas = [adata_seq, adata_spatial]
         self.scvi_setup_dicts_ = {
             "seq": adata_seq.uns["_scvi"],
@@ -133,7 +129,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     def train(
         self,
         max_epochs: int = 200,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         kappa: int = 5,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
@@ -151,7 +147,8 @@ class GIMVI(VAEMixin, BaseModelClass):
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
         use_gpu
-            If `True`, use the GPU if available. Will override the use_gpu option when initializing model
+            Use default GPU if available (if None or True), or index of GPU to use (if int),
+            or name of GPU (if str), or use CPU (if False).
         kappa
             Scaling parameter for the discriminator loss.
         train_size
@@ -167,11 +164,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         **kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
-        if use_gpu is None:
-            use_gpu = self.use_gpu
-        else:
-            use_gpu = use_gpu and torch.cuda.is_available()
-        gpus = 1 if use_gpu else 0
+        gpus, device = parse_use_gpu_arg(use_gpu)
 
         self.trainer = Trainer(
             max_epochs=max_epochs,
@@ -216,8 +209,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         except AttributeError:
             self.history_ = None
         self.module.eval()
-        if use_gpu:
-            self.module.cuda()
+
+        self.to_device(device)
         self.is_trained_ = True
 
     def _make_scvi_dls(self, adatas: List[AnnData] = None, batch_size=128):
@@ -414,7 +407,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         dir_path: str,
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -432,7 +425,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         dir_path
             Path to saved outputs.
         use_gpu
-            Whether to load model on GPU.
+            Load model on default GPU if available (if None or True),
+            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
 
         Returns
         -------
@@ -490,27 +484,15 @@ class GIMVI(VAEMixin, BaseModelClass):
         # get the parameters for the class init signiture
         init_params = attr_dict.pop("init_params_")
 
-        # update use_gpu from the saved model
-        if use_gpu is None:
-            use_gpu = torch.cuda.is_available()
-
-        init_params["use_gpu"] = use_gpu
-
         # new saving and loading, enable backwards compatibility
         if "non_kwargs" in init_params.keys():
             # grab all the parameters execept for kwargs (is a dict)
             non_kwargs = init_params["non_kwargs"]
             kwargs = init_params["kwargs"]
 
-            # update use_gpu from the saved model
-            # we assume use_gpu is exposed and not a kwarg
-            non_kwargs["use_gpu"] = use_gpu
-
             # expand out kwargs
             kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         else:
-            init_params["use_gpu"] = use_gpu
-
             # grab all the parameters execept for kwargs (is a dict)
             non_kwargs = {
                 k: v for k, v in init_params.items() if not isinstance(v, dict)
@@ -522,13 +504,10 @@ class GIMVI(VAEMixin, BaseModelClass):
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
-        if use_gpu:
-            model.module.load_state_dict(torch.load(model_path))
-            model.module.cuda()
-        else:
-            device = torch.device("cpu")
-            model.module.load_state_dict(torch.load(model_path, map_location=device))
+        _, device = parse_use_gpu_arg(use_gpu)
+        model.module.load_state_dict(torch.load(model_path, map_location=device))
         model.module.eval()
+        model.to_device(device)
         return model
 
 

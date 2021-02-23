@@ -3,7 +3,7 @@ import logging
 import os
 import pickle
 from abc import ABC, abstractmethod
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import pyro
@@ -18,6 +18,7 @@ from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import AnnDataLoader
+from scvi.model._utils import parse_use_gpu_arg
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseModelClass(ABC):
-    def __init__(self, adata: Optional[AnnData] = None, use_gpu: Optional[bool] = None):
+    def __init__(self, adata: Optional[AnnData] = None):
         if adata is not None:
             if "_scvi" not in adata.uns.keys():
                 raise ValueError(
@@ -37,14 +38,40 @@ class BaseModelClass(ABC):
             self._validate_anndata(adata, copy_if_view=False)
 
         self.is_trained_ = False
-        cuda_avail = torch.cuda.is_available()
-        self.use_gpu = cuda_avail if use_gpu is None else (use_gpu and cuda_avail)
         self._model_summary_string = ""
         self.train_indices_ = None
         self.test_indices_ = None
         self.validation_indices_ = None
         self.history_ = None
         self._data_loader_cls = AnnDataLoader
+
+    def to_device(self, device: Union[str, int]):
+        """
+        Move model to device.
+
+        Parameters
+        ----------
+        device
+            Device to move model to. Options: 'cpu' for CPU, integer GPU index (eg. 0),
+            or 'cuda:X' where X is the GPU index (eg. 'cuda:0'). See torch.device for more info.
+
+        Examples
+        --------
+        >>> adata = scvi.data.synthetic_iid()
+        >>> model = scvi.model.SCVI(adata)
+        >>> model.to_device('cpu')      # moves model to CPU
+        >>> model.to_device('cuda:0')   # moves model to GPU 0
+        >>> model.to_device(0)          # also moves model to GPU 0
+        """
+        my_device = torch.device(device)
+        self.module.to(my_device)
+
+    @property
+    def device(self):
+        device = list(set(p.device for p in self.module.parameters()))
+        if len(device) > 1:
+            raise RuntimeError("Model tensors on multiple devices.")
+        return device[0]
 
     def _make_data_loader(
         self,
@@ -262,7 +289,7 @@ class BaseModelClass(ABC):
         cls,
         dir_path: str,
         adata: Optional[AnnData] = None,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -277,7 +304,8 @@ class BaseModelClass(ABC):
             as AnnData is validated against the saved `scvi` setup dictionary.
             If None, will check for and load anndata saved with the model.
         use_gpu
-            Whether to load model on GPU.
+            Load model on default GPU if available (if None or True),
+            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
 
         Returns
         -------
@@ -289,21 +317,20 @@ class BaseModelClass(ABC):
         >>> vae.get_latent_representation()
         """
         load_adata = adata is None
-        if use_gpu is None:
-            use_gpu = torch.cuda.is_available()
-        map_location = torch.device("cpu") if use_gpu is False else None
+        use_gpu, device = parse_use_gpu_arg(use_gpu)
+
         (
             scvi_setup_dict,
             attr_dict,
             var_names,
             model_state_dict,
             new_adata,
-        ) = _load_saved_files(dir_path, load_adata, map_location=map_location)
+        ) = _load_saved_files(dir_path, load_adata, map_location=device)
         adata = new_adata if new_adata is not None else adata
 
         _validate_var_names(adata, var_names)
         transfer_anndata_setup(scvi_setup_dict, adata)
-        model = _initialize_model(cls, adata, attr_dict, use_gpu)
+        model = _initialize_model(cls, adata, attr_dict)
 
         # set saved attrs for loaded model
         for attr, val in attr_dict.items():
@@ -321,12 +348,9 @@ class BaseModelClass(ABC):
             else:
                 raise err
 
-        if use_gpu:
-            model.module.cuda()
-
+        model.to_device(device)
         model.module.eval()
         model._validate_anndata(adata)
-
         return model
 
     def __repr__(
