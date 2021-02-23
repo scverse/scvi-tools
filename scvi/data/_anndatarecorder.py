@@ -22,6 +22,13 @@ class AnnDataRecorder:
 
     Constructs the scvi-tools setup dictionary to be placed in
     `adata.uns["_scvi"]`.
+
+    Parameters
+    ----------
+    adata
+        AnnData object to be setup
+    setup_dict
+        Optional setup_dict object used for initialization
     """
 
     def __init__(self, adata: AnnData, setup_dict: Optional[dict] = None) -> None:
@@ -278,9 +285,8 @@ class AnnDataRecorder:
     def setup_x(self, layer: str):
         adata = self.adata
         if layer is not None:
-            assert (
-                layer in adata.layers.keys()
-            ), "{} is not a valid key in adata.layers".format(layer)
+            if layer not in adata.layers.keys():
+                raise KeyError("{} is not a valid key in adata.layers".format(layer))
             logger.info('Using data from adata.layers["{}"]'.format(layer))
             x_loc = "layers"
             x_key = layer
@@ -321,9 +327,8 @@ class AnnDataRecorder:
             Check and correct that data is CSR if sparse, and C_CONTIGUOUS
         """
         adata = self.adata
-        assert (
-            obsm_key in adata.obsm.keys()
-        ), "{} is not a valid key in adata.obsm".format(obsm_key)
+        if obsm_key not in adata.obsm.keys():
+            raise KeyError("{} is not a valid key in adata.obsm".format(obsm_key))
 
         self.add_to_data_registry(registry_key, "obsm", obsm_key)
         if check_data_format:
@@ -431,7 +436,8 @@ class AnnDataRecorder:
 
 
 def _assert_key_in_obs(adata, key):
-    assert key in adata.obs.keys(), "{} is not a valid key for in adata.obs".format(key)
+    if key not in adata.obs.keys():
+        raise KeyError("{} is not a valid key for in adata.obs".format(key))
 
 
 def _set_data_in_registry(adata, data, key):
