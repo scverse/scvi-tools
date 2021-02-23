@@ -49,6 +49,27 @@ def validate_data_split(
 
 
 class DataSplitter:
+    """
+    Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
+
+    If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
+
+    Parameters
+    ----------
+    adata
+        AnnData to split into train/test/val sets
+    train_size
+        float, or None (default is 0.9)
+    validation_size
+        float, or None (default is None)
+    use_gpu
+        Which GPU to use
+    **kwargs
+        Keyword args for data loader. If adata has labeled data, data loader
+        class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
+        else data loader class is :class:`~scvi.dataloaders.AnnDataLoader`.
+    """
+
     def __init__(
         self,
         adata: AnnData,
@@ -66,6 +87,7 @@ class DataSplitter:
         self.train_idx, self.test_idx, self.val_idx = self.make_splits()
 
     def make_splits(self):
+        """Split indices in train/test/val sets."""
         n = self.adata.n_obs
         n_train, n_val = validate_data_split(n, self.train_size, self.validation_size)
         random_state = np.random.RandomState(seed=settings.seed)
@@ -165,6 +187,7 @@ class SemiSupervisedDataSplitter:
         self.train_idx, self.test_idx, self.val_idx = self.make_splits()
 
     def make_splits(self):
+        """Split indices in train/test/val sets."""
         n_labeled_idx = len(self._labeled_indices)
         n_unlabeled_idx = len(self._unlabeled_indices)
 

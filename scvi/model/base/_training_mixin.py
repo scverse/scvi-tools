@@ -40,8 +40,6 @@ class UnsupervisedTrainingMixin:
         plan_kwargs
             Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        plan_class
-            Optional override to use a specific TrainingPlan-type class.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
         """
