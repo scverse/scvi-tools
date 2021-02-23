@@ -54,6 +54,14 @@ class BaseModelClass(ABC):
         device
             Device to move model to. Options: 'cpu' for CPU, integer GPU index (eg. 0),
             or 'cuda:X' where X is the GPU index (eg. 'cuda:0'). See torch.device for more info.
+
+        Examples
+        --------
+        >>> adata = scvi.data.synthetic_iid()
+        >>> model = scvi.model.SCVI(adata)
+        >>> model.to_device('cpu')      # moves model to CPU
+        >>> model.to_device('cuda:0')   # moves model to GPU 0
+        >>> model.to_device(0)          # also moves model to GPU 0
         """
         my_device = torch.device(device)
         self.module.to(my_device)
