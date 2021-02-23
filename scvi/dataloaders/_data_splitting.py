@@ -69,6 +69,12 @@ class DataSplitter:
         Keyword args for data loader. If adata has labeled data, data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
         else data loader class is :class:`~scvi.dataloaders.AnnDataLoader`.
+
+    Examples
+    --------
+    >>> adata = scvi.data.synthetic_iid()
+    >>> splitter = DataSplitter(adata)
+    >>> train_dl, val_dl, test_dl = splitter()
     """
 
     def __init__(
@@ -160,6 +166,13 @@ class SemiSupervisedDataSplitter:
         Keyword args for data loader. If adata has labeled data, data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
         else data loader class is :class:`~scvi.dataloaders.AnnDataLoader`.
+
+    Examples
+    --------
+    >>> adata = scvi.data.synthetic_iid()
+    >>> unknown_label = 'label_0'
+    >>> splitter = SemiSupervisedDataSplitter(adata, unknown_label)
+    >>> train_dl, val_dl, test_dl = splitter()
     """
 
     def __init__(
@@ -199,7 +212,8 @@ class SemiSupervisedDataSplitter:
             n_labeled_train, n_labeled_val = validate_data_split(
                 n_labeled_idx, self.train_size, self.validation_size
             )
-            labeled_permutation = np.random.choice(
+            rs = np.random.RandomState(seed=settings.seed)
+            labeled_permutation = rs.choice(
                 self._labeled_indices, len(self._labeled_indices), replace=False
             )
             labeled_idx_val = labeled_permutation[:n_labeled_val]
@@ -216,7 +230,8 @@ class SemiSupervisedDataSplitter:
             n_unlabeled_train, n_unlabeled_val = validate_data_split(
                 n_unlabeled_idx, self.train_size, self.validation_size
             )
-            unlabeled_permutation = np.random.choice(
+            rs = np.random.RandomState(seed=settings.seed)
+            unlabeled_permutation = rs.choice(
                 self._unlabeled_indices, len(self._unlabeled_indices)
             )
             unlabeled_idx_val = unlabeled_permutation[:n_unlabeled_val]

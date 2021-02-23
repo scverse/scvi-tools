@@ -16,7 +16,7 @@ from scvi.dataloaders import DataSplitter
 from scvi.lightning import ClassifierTrainingPlan
 from scvi.model import SCVI
 from scvi.model._utils import parse_use_gpu_arg
-from scvi.model.base import BaseModelClass, TrainRunner, UnsupervisedTrainingMixin
+from scvi.model.base import BaseModelClass, TrainRunner
 from scvi.modules import Classifier
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 LABELS_KEY = "_solo_doub_sim"
 
 
-class SOLO(UnsupervisedTrainingMixin, BaseModelClass):
+class SOLO(BaseModelClass):
     """
     Doublet detection in scRNA-seq [Bernstein19]_.
 
