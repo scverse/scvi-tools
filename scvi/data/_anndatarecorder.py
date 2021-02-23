@@ -24,21 +24,24 @@ class AnnDataRecorder:
     `adata.uns["_scvi"]`.
     """
 
-    def __init__(self, adata: AnnData) -> None:
+    def __init__(self, adata: AnnData, setup_dict: Optional[dict] = None) -> None:
         if adata.is_view:
             raise ValueError(
                 "Please run `adata = adata.copy()` or use the copy option in this function."
             )
         self.adata = adata
-        self.setup_dict = dict(
-            data_registry={},
-            summary_stats={},
-            scvi_version=scvi.__version__,
-            categorical_obsm_keys={},
-            continuous_obsm_keys={},
-        )
-        self.add_to_summary_stats("n_cells", self.adata.shape[0])
-        self.add_to_summary_stats("n_vars", self.adata.shape[1])
+        if setup_dict is None:
+            self.setup_dict = dict(
+                data_registry={},
+                summary_stats={},
+                scvi_version=scvi.__version__,
+                categorical_obsm_keys={},
+                continuous_obsm_keys={},
+            )
+            self.add_to_summary_stats("n_cells", self.adata.shape[0])
+            self.add_to_summary_stats("n_vars", self.adata.shape[1])
+        else:
+            self.setup_dict = setup_dict
 
     def set_setup_dict(self):
         self.adata.uns["_scvi"] = self.setup_dict.copy()

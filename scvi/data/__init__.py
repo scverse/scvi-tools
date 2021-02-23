@@ -6,6 +6,7 @@ from ._anndata import (
     transfer_anndata_setup,
     view_anndata_setup,
 )
+from ._anndatarecorder import AnnDataRecorder
 from ._datasets import (
     annotation_simulation,
     brainlarge_dataset,
@@ -31,6 +32,7 @@ from ._utils import get_from_registry
 
 __all__ = [
     "setup_anndata",
+    "AnnDataRecorder",
     "get_from_registry",
     "view_anndata_setup",
     "poisson_gene_selection",

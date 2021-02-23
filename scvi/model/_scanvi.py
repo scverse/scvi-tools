@@ -9,7 +9,7 @@ from pandas.api.types import CategoricalDtype
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.data._anndata import _make_obs_column_categorical
+from scvi.data import AnnDataRecorder
 from scvi.dataloaders import (
     AnnDataLoader,
     SemiSupervisedDataLoader,
@@ -203,8 +203,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             mapping[unlabeled_idx], mapping[-1] = mapping[-1], mapping[unlabeled_idx]
             cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
             # rerun setup for the batch column
-            _make_obs_column_categorical(
-                self.adata,
+            recorder = AnnDataRecorder(self.adata, self.adata.uns["_scvi"])
+            recorder._make_obs_column_categorical(
                 original_key,
                 "_scvi_labels",
                 categorical_dtype=cat_dtype,
