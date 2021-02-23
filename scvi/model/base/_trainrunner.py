@@ -26,8 +26,9 @@ class TrainRunner:
         :class:`~scvi.dataloaders.DataSplitter`
     max_epochs
         max_epochs to train for
-    gpus
-        Which GPU to train on
+    use_gpu
+        Use default GPU if available (if None or True), or index of GPU to use (if int),
+        or name of GPU (if str), or use CPU (if False).
     trainer_kwargs
         Extra kwargs for :class:`~scvi.lightning.Trainer`
     """
