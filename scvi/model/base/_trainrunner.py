@@ -29,6 +29,18 @@ class TrainRunner:
         Which GPU to train on
     trainer_kwargs
         Extra kwargs for :class:`~scvi.lightning.Trainer`
+
+    Examples
+    --------
+    >>> # Following code should be within a subclass of BaseModelClass
+    >>> data_splitter = DataSplitter(self.adata)
+    >>> training_plan = TrainingPlan(self.module, len(data_splitter.train_idx))
+    >>> runner = TrainRunner(
+    >>>     self,
+    >>>     training_plan=trianing_plan,
+    >>>     data_splitter=data_splitter,
+    >>>     max_epochs=max_epochs)
+    >>> runner()
     """
 
     def __init__(
