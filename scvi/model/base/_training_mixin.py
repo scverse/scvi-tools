@@ -38,7 +38,7 @@ class UnsupervisedTrainingMixin:
         batch_size
             Minibatch size to use during training.
         plan_kwargs
-            Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed to
+            Keyword args for :class:`~scvi.lightning.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.lightning.Trainer`.
