@@ -857,9 +857,11 @@ def _check_anndata_setup_equivalence(
     )
 
     # validate any extra categoricals
-    if "extra_categoricals" in _scvi_dict.keys():
-        target_dict = adata.uns["_scvi"]["extra_categoricals"]
-        source_dict = _scvi_dict["extra_categoricals"]
+    if "_scvi_extra_categoricals" in _scvi_dict["categorical_obsm_keys"].keys():
+        target_dict = adata.uns["_scvi"]["categorical_obsm_keys"][
+            "_scvi_extra_categoricals"
+        ]
+        source_dict = _scvi_dict["categorical_obsm_keys"]["_scvi_extra_categoricals"]
         # check that order of keys setup is same
         if not np.array_equal(target_dict["keys"], source_dict["keys"]):
             error_msg = (
@@ -869,16 +871,25 @@ def _check_anndata_setup_equivalence(
             )
             raise ValueError(error_msg.format(source_dict["keys"], target_dict["keys"]))
         # check mappings are equivalent
-        target_extra_cat_maps = adata.uns["_scvi"]["extra_categoricals"]["mappings"]
+        target_extra_cat_maps = adata.uns["_scvi"]["categorical_obsm_keys"][
+            "_scvi_extra_categoricals"
+        ]["mappings"]
         for key, val in source_dict["mappings"].items():
             target_map = target_extra_cat_maps[key]
             transfer_setup = transfer_setup or _needs_transfer(val, target_map, key)
     # validate any extra continuous covs
-    if "extra_continuous_keys" in _scvi_dict.keys():
-        if "extra_continuous_keys" not in adata.uns["_scvi"].keys():
+    if "_scvi_extra_continuous" in _scvi_dict["continuous_obsm_keys"].keys():
+        if (
+            "_scvi_extra_continuous"
+            not in adata.uns["_scvi"]["continuous_obsm_keys"].keys()
+        ):
             raise ValueError('extra_continuous_keys not in adata.uns["_scvi"]')
-        target_cont_keys = adata.uns["_scvi"]["extra_continuous_keys"]
-        source_cont_keys = _scvi_dict["extra_continuous_keys"]
+        target_cont_keys = adata.uns["_scvi"]["continuous_obsm_keys"][
+            "_scvi_extra_continuous"
+        ]["keys"]
+        source_cont_keys = _scvi_dict["continuous_obsm_keys"]["_scvi_extra_continuous"][
+            "keys"
+        ]
         n_keys = len(target_cont_keys)
         if np.sum(source_cont_keys == target_cont_keys) != n_keys:
             raise ValueError(
