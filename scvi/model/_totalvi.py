@@ -14,13 +14,14 @@ from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.dataloaders import AnnDataLoader
+from scvi.dataloaders import DataSplitter
 from scvi.lightning import AdversarialTrainingPlan
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
     cite_seq_raw_counts_properties,
 )
+from scvi.model.base import TrainRunner
 from scvi.model.base._utils import _de_core
 from scvi.modules import TOTALVAE
 
@@ -232,16 +233,37 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             plan_kwargs.update(update_dict)
         else:
             plan_kwargs = update_dict
-        super().train(
-            max_epochs=max_epochs,
-            use_gpu=use_gpu,
+
+        if max_epochs is None:
+            n_cells = self.adata.n_obs
+            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+
+        if use_gpu is None:
+            use_gpu = torch.cuda.is_available()
+        else:
+            use_gpu = use_gpu and torch.cuda.is_available()
+        gpus = 1 if use_gpu else 0
+
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+
+        data_splitter = DataSplitter(
+            self.adata,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            early_stopping=early_stopping,
-            plan_kwargs=plan_kwargs,
+        )
+        training_plan = AdversarialTrainingPlan(
+            self.module, len(data_splitter.train_idx), **plan_kwargs
+        )
+        runner = TrainRunner(
+            self,
+            training_plan=training_plan,
+            data_splitter=data_splitter,
+            max_epochs=max_epochs,
+            gpus=gpus,
             **kwargs,
         )
+        return runner()
 
     @torch.no_grad()
     def get_latent_library_size(
@@ -997,14 +1019,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             raise ValueError("No protein data found, please setup or transfer anndata")
 
         return adata
-
-    @property
-    def _plan_class(self):
-        return AdversarialTrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
 
     @torch.no_grad()
     def get_protein_background_mean(self, adata, indices, batch_size):
