@@ -16,7 +16,8 @@ Number = Union[int, float]
 
 
 def parse_use_gpu_arg(
-    use_gpu: Optional[Union[str, int, bool]] = None, return_device=True
+    use_gpu: Optional[Union[str, int, bool]] = None,
+    return_device=True,
 ):
     """
     Parses the use_gpu arg in codebase.
@@ -24,8 +25,8 @@ def parse_use_gpu_arg(
     Returned gpus are is compatible with PytorchLightning's gpus arg.
     If return_device is True, will also return the device.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     use_gpu
         Use default GPU if available (if None or True), or index of GPU to use (if int),
         or name of GPU (if str), or use CPU (if False).
