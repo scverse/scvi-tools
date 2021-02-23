@@ -42,7 +42,6 @@ def _generate_synthetic(
             batch_key="batch",
             labels_key="labels",
             protein_expression_obsm_key="protein_expression",
-            protein_names_uns_key="protein_names",
         )
 
     return adata

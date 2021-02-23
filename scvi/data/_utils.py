@@ -1,5 +1,5 @@
 import logging
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import anndata
 import numba
@@ -8,6 +8,55 @@ import pandas as pd
 import scipy.sparse as sp_sparse
 
 logger = logging.getLogger(__name__)
+
+
+def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
+    """
+    Returns the object in AnnData associated with the key in ``.uns['_scvi']['data_registry']``.
+
+    Parameters
+    ----------
+    adata
+        anndata object already setup with `scvi.data.setup_anndata()`
+    key
+        key of object to get from ``adata.uns['_scvi]['data_registry']``
+
+    Returns
+    -------
+    The requested data
+
+    Examples
+    --------
+    >>> import scvi
+    >>> adata = scvi.data.cortex()
+    >>> adata.uns['_scvi']['data_registry']
+    {'X': ['_X', None],
+    'batch_indices': ['obs', 'batch'],
+    'local_l_mean': ['obs', '_scvi_local_l_mean'],
+    'local_l_var': ['obs', '_scvi_local_l_var'],
+    'labels': ['obs', 'labels']}
+    >>> batch = get_from_registry(adata, "batch_indices")
+    >>> batch
+    array([[0],
+           [0],
+           [0],
+           ...,
+           [0],
+           [0],
+           [0]])
+    """
+    data_loc = adata.uns["_scvi"]["data_registry"][key]
+    attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
+
+    data = getattr(adata, attr_name)
+    if attr_key != "None":
+        if isinstance(data, pd.DataFrame):
+            data = data.loc[:, attr_key]
+        else:
+            data = data[attr_key]
+    if isinstance(data, pd.Series):
+        data = data.to_numpy().reshape(-1, 1)
+    return data
 
 
 def _compute_library_size(
@@ -58,11 +107,15 @@ def _compute_library_size_batch(
         anndata.AnnData if copy was True, else None
 
     """
-    if batch_key not in adata.obs_keys():
+    if batch_key is None:
+        batch_indices = [0] * adata.n_obs
+    elif batch_key is not None and batch_key in adata.obs_keys():
+        batch_indices = adata.obs[batch_key]
+    else:
         raise ValueError("batch_key not valid key in obs dataframe")
+
     local_means = np.zeros((adata.shape[0], 1))
     local_vars = np.zeros((adata.shape[0], 1))
-    batch_indices = adata.obs[batch_key]
     for i_batch in np.unique(batch_indices):
         idx_batch = np.squeeze(batch_indices == i_batch)
         if layer is not None:
@@ -113,7 +166,9 @@ def _check_is_counts(data):
 
 
 def _get_batch_mask_protein_data(
-    adata: anndata.AnnData, protein_expression_obsm_key: str, batch_key: str
+    adata: anndata.AnnData,
+    protein_expression_obsm_key: str,
+    batch_key: Optional[str] = None,
 ):
     """
     Returns a list with length number of batches where each entry is a mask.
@@ -123,7 +178,10 @@ def _get_batch_mask_protein_data(
     """
     pro_exp = adata.obsm[protein_expression_obsm_key]
     pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
-    batches = adata.obs[batch_key].values
+    try:
+        batches = adata.obs[batch_key].values
+    except KeyError:
+        batches = np.array([0] * adata.n_obs)
     batch_mask = {}
     for b in np.unique(batches):
         b_inds = np.where(batches.ravel() == b)[0]

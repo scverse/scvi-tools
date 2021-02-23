@@ -11,8 +11,7 @@ from scipy.sparse import isspmatrix
 import scvi
 from scvi import _CONSTANTS
 
-from ._anndata import get_from_registry
-from ._utils import _check_nonnegative_integers
+from ._utils import _check_nonnegative_integers, get_from_registry
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,10 @@ class AnnDataRecorder:
     """
 
     def __init__(self, adata: AnnData) -> None:
-
+        if adata.is_view:
+            raise ValueError(
+                "Please run `adata = adata.copy()` or use the copy option in this function."
+            )
         self.adata = adata
         self.setup_dict = dict(
             data_registry={}, summary_stats={}, scvi_version=scvi.__version__
@@ -34,8 +36,8 @@ class AnnDataRecorder:
         self.add_to_summary_stats("n_cells", self.adata.shape[0])
         self.add_to_summary_stats("n_vars", self.adata.shape[1])
 
-    def get_setup_dict(self):
-        return self.setup_dict
+    def set_setup_dict(self):
+        self.adata.uns["_scvi"] = self.setup_dict.copy()
 
     def setup_batch(
         self,
@@ -96,6 +98,7 @@ class AnnDataRecorder:
         registry_key: str,
         recorded_key: Optional[str] = None,
         default_same_cat: bool = False,
+        categorical_dtype: Optional[CategoricalDtype] = None,
     ):
         """
         Sets up a key in obs with categorical data.
@@ -116,13 +119,14 @@ class AnnDataRecorder:
             if recorded_key is None
             else recorded_key
         )
-        if setup_param_name is None and default_same_cat is True:
+        if obs_key is None and default_same_cat is True:
             logger.info(
                 "No {} inputted, assuming all cells are same category".format(
                     setup_param_name
                 )
             )
             self.adata.obs[recorded_key] = np.zeros(self.adata.shape[0], dtype=np.int64)
+            obs_key = recorded_key
         else:
             _assert_key_in_obs(self.adata, obs_key)
             logger.info(
@@ -131,9 +135,12 @@ class AnnDataRecorder:
                 )
             )
         recorded_key = self._make_obs_column_categorical(
-            column_key=obs_key, alternate_column_key=recorded_key
+            column_key=obs_key,
+            alternate_column_key=recorded_key,
+            categorical_dtype=categorical_dtype,
         )
         self.add_to_data_registry(registry_key, "obs", recorded_key)
+        self.set_setup_dict()
 
     def setup_continuous_obs_key(self):
         raise NotImplementedError
@@ -201,6 +208,7 @@ class AnnDataRecorder:
             "obsm",
             recorded_key,
         )
+        self.set_setup_dict()
 
     def setup_continuous_obs_key_iterable(
         self,
@@ -241,6 +249,7 @@ class AnnDataRecorder:
             "obsm",
             recorded_key,
         )
+        self.set_setup_dict()
 
     def setup_x(self, layer: str):
         adata = self.adata
@@ -269,6 +278,7 @@ class AnnDataRecorder:
             )
 
         self.add_to_data_registry(_CONSTANTS.X_KEY, x_loc, x_key)
+        self.set_setup_dict()
         self._verify_and_correct_data_format(_CONSTANTS.X_KEY)
 
     def setup_obsm_key(

@@ -10,13 +10,13 @@ import scipy.sparse as sparse
 import scvi
 from scvi import _CONSTANTS
 from scvi.data import (
+    get_from_registry,
     register_tensor_from_anndata,
     setup_anndata,
     synthetic_iid,
     transfer_anndata_setup,
     view_anndata_setup,
 )
-from scvi.data._anndata import get_from_registry
 from scvi.dataloaders import AnnTorchDataset
 
 

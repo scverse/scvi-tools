@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-from scvi.data._anndata import get_from_registry
+from scvi.data import get_from_registry
 
 logger = logging.getLogger(__name__)
 
