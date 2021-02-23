@@ -441,6 +441,8 @@ def _setup_protein_expression(recorder, protein_expression_obsm_key, batch_key):
             )
         )
     recorder.setup_obsm_key(protein_expression_obsm_key, _CONSTANTS.PROTEIN_EXP_KEY)
+    recorder.set_setup_dict()
+    recorder._verify_and_correct_data_format(_CONSTANTS.PROTEIN_EXP_KEY)
     logger.info(
         "Using protein expression from adata.obsm['{}']".format(
             protein_expression_obsm_key

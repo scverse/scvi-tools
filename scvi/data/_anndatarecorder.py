@@ -37,11 +37,27 @@ class AnnDataRecorder:
                 scvi_version=scvi.__version__,
                 categorical_obsm_keys={},
                 continuous_obsm_keys={},
+                categorical_mappings={},
             )
             self.add_to_summary_stats("n_cells", self.adata.shape[0])
             self.add_to_summary_stats("n_vars", self.adata.shape[1])
         else:
             self.setup_dict = setup_dict
+
+    @property
+    def categorical_mappings(self):
+        """Location with obs categorical key info."""
+        return self.setup_dict["categorical_mappings"]
+
+    @property
+    def categorical_obsm_keys(self):
+        """Location with obsm categorical key info."""
+        return self.setup_dict["categorical_obsm_keys"]
+
+    @property
+    def continuous_obsm_keys(self):
+        """Location with obsm continuous key info."""
+        return self.setup_dict["continuous_obsm_keys"]
 
     def set_setup_dict(self):
         self.adata.uns["_scvi"] = self.setup_dict.copy()
@@ -67,9 +83,7 @@ class AnnDataRecorder:
             recorded_key=recorded_key,
             default_same_cat=True,
         )
-        n_batch = len(
-            np.unique(self.setup_dict["categorical_mappings"][recorded_key]["mapping"])
-        )
+        n_batch = len(np.unique(self.categorical_mappings[recorded_key]["mapping"]))
         self.add_to_summary_stats("n_batch", n_batch)
 
     def setup_labels(
@@ -93,9 +107,7 @@ class AnnDataRecorder:
             recorded_key=recorded_key,
             default_same_cat=True,
         )
-        n_labels = len(
-            np.unique(self.setup_dict["categorical_mappings"][recorded_key]["mapping"])
-        )
+        n_labels = len(np.unique(self.categorical_mappings[recorded_key]["mapping"]))
         self.add_to_summary_stats("n_labels", n_labels)
 
     def setup_categorical_obs_key(
@@ -162,6 +174,9 @@ class AnnDataRecorder:
         """
         Setup obsm df for extra categorical covariates.
 
+        This helps setup a series of obs keys that will be loaded into
+        models as one tensor.
+
         Parameters
         ----------
         categorical_covariate_keys
@@ -179,7 +194,6 @@ class AnnDataRecorder:
             _assert_key_in_obs(adata, key)
 
         info_store = {}
-
         categories = {}
         df = pd.DataFrame(index=adata.obs_names)
         for key in categorical_covariate_keys:
@@ -208,7 +222,7 @@ class AnnDataRecorder:
             n_cats_per_key.append(len(store_cats[k]))
         info_store["n_cats_per_key"] = n_cats_per_key
 
-        self.setup_dict["categorical_obsm_keys"][recorded_key] = info_store
+        self.categorical_obsm_keys[recorded_key] = info_store
 
         self.add_to_data_registry(
             _CONSTANTS.CAT_COVS_KEY if registry_key is None else registry_key,
@@ -225,6 +239,9 @@ class AnnDataRecorder:
     ):
         """
         Setup obsm df for extra continuous covariates.
+
+        This helps setup a series of obs keys that will be loaded into
+        models as one tensor.
 
         Parameters
         ----------
@@ -250,7 +267,7 @@ class AnnDataRecorder:
         info_store["keys"] = adata.obsm[recorded_key].columns.to_numpy()
 
         # add info to setup dict
-        self.setup_dict["continuous_obsm_keys"][recorded_key] = info_store
+        self.continuous_obsm_keys[recorded_key] = info_store
         self.add_to_data_registry(
             _CONSTANTS.CONT_COVS_KEY if registry_key is None else registry_key,
             "obsm",
@@ -356,10 +373,7 @@ class AnnDataRecorder:
         store_dict = {
             alternate_column_key: {"original_key": column_key, "mapping": mapping}
         }
-        if "categorical_mappings" not in self.setup_dict.keys():
-            self.setup_dict.update({"categorical_mappings": store_dict})
-        else:
-            self.setup_dict["categorical_mappings"].update(store_dict)
+        self.categorical_mappings.update(store_dict)
 
         # make sure each category contains enough cells
         unique, counts = np.unique(
