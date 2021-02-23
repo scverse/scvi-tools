@@ -332,10 +332,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         plan_kwargs = {} if plan_kwargs is None else plan_kwargs
 
-        # pin_memory = (
-        #     True if (settings.dl_pin_memory_gpu_training and use_gpu) else False
-        # )
-
         # if we have labeled cells, we want to subsample labels each epoch
         sampler_callback = (
             [SubSampleLabels()] if len(self._labeled_indices) != 0 else []
@@ -348,6 +344,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             validation_size=validation_size,
             n_samples_per_label=n_samples_per_label,
             batch_size=batch_size,
+            use_gpu=use_gpu,
         )
         training_plan = SemiSupervisedTrainingPlan(
             self.module, len(data_splitter.train_idx), **plan_kwargs
