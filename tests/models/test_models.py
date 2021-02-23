@@ -553,7 +553,6 @@ def test_multiple_covariates(save_path):
         batch_key="batch",
         labels_key="labels",
         protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )

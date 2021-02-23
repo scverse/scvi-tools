@@ -150,7 +150,7 @@ def setup_anndata(
 
     if protein_expression_obsm_key is not None:
         protein_expression_obsm_key = _setup_protein_expression(
-            recorder, protein_expression_obsm_key, batch_key
+            recorder, protein_expression_obsm_key, "_scvi_batch"
         )
     else:
         recorder.add_to_summary_stats("n_proteins", 0)
@@ -499,7 +499,7 @@ def _setup_protein_expression(recorder, protein_expression_obsm_key, batch_key):
                 protein_expression_obsm_key
             )
         )
-        protein_names = list(adata.obsm[protein_expression_obsm_key].columns)
+        protein_names = np.asarray(adata.obsm[protein_expression_obsm_key].columns)
     else:
         logger.info("Generating sequential protein names")
         protein_names = np.arange(adata.obsm[protein_expression_obsm_key].shape[1])
@@ -515,7 +515,7 @@ def _setup_protein_expression(recorder, protein_expression_obsm_key, batch_key):
     # check if it's actually needed
     if np.sum([~b[1] for b in batch_mask.items()]) > 0:
         logger.info("Found batches with missing protein expression")
-        recorder.setup_dict["protein_names"]["totalvi_batch_mask"] = batch_mask
+        recorder.setup_dict["totalvi_batch_mask"] = batch_mask
     return protein_expression_obsm_key
 
 
@@ -841,6 +841,7 @@ def _check_anndata_setup_equivalence(
         "There are more {} categories in the data than were originally registered. "
         + "Please check your {} categories as well as adata.uns['_scvi']['categorical_mappings']."
     )
+    # TODO: iterate over all categorical mappings
     self_categoricals = _scvi_dict["categorical_mappings"]
     self_batch_mapping = self_categoricals["_scvi_batch"]["mapping"]
 
