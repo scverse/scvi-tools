@@ -19,7 +19,9 @@ def parse_use_gpu_arg(
     use_gpu: Optional[Union[str, int, bool]] = None, return_device=True
 ):
     """
-    Parses the use_gpu arg in codebase to be compaitible with PytorchLightning's gpus arg.
+    Parses the use_gpu arg in codebase.
+
+    Returned gpus are is compatible with PytorchLightning's gpus arg.
     If return_device is True, will also return the device.
 
     Parameters:
