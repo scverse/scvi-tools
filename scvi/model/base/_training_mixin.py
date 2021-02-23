@@ -12,7 +12,7 @@ class UnsupervisedTrainingMixin:
     def train(
         self,
         max_epochs: Optional[int] = None,
-        use_gpu: optional[union[str, int, bool]] = none,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
