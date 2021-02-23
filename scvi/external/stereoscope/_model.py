@@ -6,13 +6,11 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.data import register_tensor_from_anndata
-from scvi.dataloaders import AnnDataLoader
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
-from scvi.lightning import TrainingPlan
-from scvi.model.base import BaseModelClass
+from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 
 
-class RNAStereoscope(BaseModelClass):
+class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """
     Reimplementation of Stereoscope [Andersson20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
@@ -110,16 +108,8 @@ class RNAStereoscope(BaseModelClass):
             **kwargs,
         )
 
-    @property
-    def _plan_class(self):
-        return TrainingPlan
 
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
-
-
-class SpatialStereoscope(BaseModelClass):
+class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """
     Reimplementation of Stereoscope [Andersson20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
@@ -287,11 +277,3 @@ class SpatialStereoscope(BaseModelClass):
             plan_kwargs=plan_kwargs,
             **kwargs,
         )
-
-    @property
-    def _plan_class(self):
-        return TrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
