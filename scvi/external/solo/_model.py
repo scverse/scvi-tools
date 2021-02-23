@@ -210,12 +210,6 @@ class SOLO(BaseModelClass):
             else:
                 kwargs["callbacks"] = early_stopping_callback
             kwargs["check_val_every_n_epoch"] = 1
-        else:
-            kwargs["check_val_every_n_epoch"] = (
-                kwargs["check_val_every_n_epoch"]
-                if kwargs["check_val_every_n_epoch"] is not None
-                else np.inf
-            )
 
         super().train(
             max_epochs=max_epochs,
