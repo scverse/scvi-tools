@@ -31,7 +31,11 @@ class AnnDataRecorder:
             )
         self.adata = adata
         self.setup_dict = dict(
-            data_registry={}, summary_stats={}, scvi_version=scvi.__version__
+            data_registry={},
+            summary_stats={},
+            scvi_version=scvi.__version__,
+            categorical_obsm_keys={},
+            continuous_obsm_keys={},
         )
         self.add_to_summary_stats("n_cells", self.adata.shape[0])
         self.add_to_summary_stats("n_vars", self.adata.shape[1])

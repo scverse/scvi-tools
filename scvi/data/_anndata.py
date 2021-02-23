@@ -637,13 +637,6 @@ def view_anndata_setup(source: Union[anndata.AnnData, dict, str]):
 
     rich.print("Anndata setup with scvi-tools version {}.".format(version))
 
-    n_cat = 0
-    n_covs = 0
-    if "extra_categorical_mappings" in setup_dict.keys():
-        n_cat = len(setup_dict["extra_categoricals"]["mappings"])
-    if "extra_continuous_keys" in setup_dict.keys():
-        n_covs = len(setup_dict["extra_continuous_keys"])
-
     in_colab = "google.colab" in sys.modules
     force_jupyter = None if not in_colab else True
     console = Console(force_jupyter=force_jupyter)
@@ -660,8 +653,8 @@ def view_anndata_setup(source: Union[anndata.AnnData, dict, str]):
         "Labels": summary_stats["n_labels"],
         "Batches": summary_stats["n_batch"],
         "Proteins": summary_stats["n_proteins"],
-        "Extra Categorical Covariates": n_cat,
-        "Extra Continuous Covariates": n_covs,
+        "Extra Categorical Covariates": summary_stats["n_categorical_covs"],
+        "Extra Continuous Covariates": summary_stats["n_continuous_covs"],
     }
     for data, count in data_summary.items():
         t.add_row(data, str(count))
@@ -725,7 +718,9 @@ def _extra_categoricals_table(setup_dict: dict):
         no_wrap=True,
         overflow="fold",
     )
-    for key, mappings in setup_dict["extra_categoricals"]["mappings"].items():
+    for key, mappings in setup_dict["categorical_obsm_keys"][
+        "_scvi_extra_categoricals"
+    ]["mappings"].items():
         for i, mapping in enumerate(mappings):
             if i == 0:
                 t.add_row("adata.obs['{}']".format(key), str(mapping), str(i))
@@ -763,7 +758,7 @@ def _extra_continuous_table(adata: Optional[anndata.AnnData], setup_dict: dict):
                 "{:.20g} -> {:.20g}".format(min_val, max_val),
             )
     else:
-        for key in setup_dict["extra_continuous_keys"]:
+        for key in setup_dict["continuous_obsm_keys"]["_scvi_extra_continuous"]["keys"]:
             t.add_row("adata.obs['{}']".format(key))
     return t
 
