@@ -58,14 +58,14 @@ class TrainRunner:
         else:
             self.trainer.fit(self.training_plan, train_dl, val_dl)
         try:
-            self.model_class.history_ = self.trainer.logger.history
+            self.model.history_ = self.trainer.logger.history
         except AttributeError:
             self.history_ = None
 
         self.model.module.eval()
 
         if self.gpus != 0:
-            self.model_class.module.cuda()
+            self.model.module.cuda()
 
         self.model.is_trained_ = True
         self.model.trainer = self.trainer
