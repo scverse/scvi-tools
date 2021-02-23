@@ -413,10 +413,15 @@ def _transfer_protein_expression(_scvi_dict, target_recorder, batch_key):
                 )
             )
         else:
-            assert (
-                summary_stats["n_proteins"]
-                == adata_target.obsm[prev_protein_obsm_key].shape[1]
-            )
+            target_n_pros = adata_target.obsm[prev_protein_obsm_key].shape[1]
+            if summary_stats["n_proteins"] != target_n_pros:
+                raise ValueError(
+                    "Number of proteins unequal between source and target."
+                    + " Source: {}, Target: {}".format(
+                        summary_stats["n_proteins"], target_n_pros
+                    )
+                )
+
             protein_expression_obsm_key = prev_protein_obsm_key
 
             _setup_protein_expression(
@@ -424,6 +429,8 @@ def _transfer_protein_expression(_scvi_dict, target_recorder, batch_key):
             )
     else:
         protein_expression_obsm_key = None
+
+    return protein_expression_obsm_key
 
 
 def _make_obs_column_categorical(
@@ -499,7 +506,9 @@ def _setup_protein_expression(recorder, protein_expression_obsm_key, batch_key):
                 protein_expression_obsm_key
             )
         )
-        protein_names = np.asarray(adata.obsm[protein_expression_obsm_key].columns)
+        protein_names = np.asarray(
+            adata.obsm[protein_expression_obsm_key].columns.to_list()
+        )
     else:
         logger.info("Generating sequential protein names")
         protein_names = np.arange(adata.obsm[protein_expression_obsm_key].shape[1])
