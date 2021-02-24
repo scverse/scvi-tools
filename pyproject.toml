@@ -26,7 +26,7 @@ packages = [
   {include = "scvi"},
 ]
 readme = "README.md"
-version = "0.9.0-beta.0"
+version = "0.9.0-beta.1"
 
 [tool.poetry.dependencies]
 anndata = ">=0.7.5"
