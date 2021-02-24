@@ -215,6 +215,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             early_stopping_patience=50,
             plan_kwargs=plan_kwargs,
             check_val_every_n_epoch=check_val_every_n_epoch,
+            batch_size=batch_size,
             **kwargs,
         )
 
