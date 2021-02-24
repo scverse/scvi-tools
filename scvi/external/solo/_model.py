@@ -15,7 +15,6 @@ from scvi.data import get_from_registry, setup_anndata
 from scvi.dataloaders import DataSplitter
 from scvi.lightning import ClassifierTrainingPlan
 from scvi.model import SCVI
-from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base import BaseModelClass, TrainRunner
 from scvi.modules import Classifier
 
@@ -210,8 +209,6 @@ class SOLO(BaseModelClass):
                 kwargs["callbacks"] = early_stopping_callback
             kwargs["check_val_every_n_epoch"] = 1
 
-        gpus, device = parse_use_gpu_arg(use_gpu)
-
         if max_epochs is None:
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
@@ -223,6 +220,7 @@ class SOLO(BaseModelClass):
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
+            use_gpu=use_gpu,
         )
         training_plan = ClassifierTrainingPlan(self.module, **plan_kwargs)
         runner = TrainRunner(

@@ -135,7 +135,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
-        plan_class: Optional[None] = None,
         **kwargs,
     ):
         """
@@ -179,6 +178,7 @@ class GIMVI(VAEMixin, BaseModelClass):
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
+                use_gpu=use_gpu,
             )()
             train_dls.append(train)
             test_dls.append(test)
