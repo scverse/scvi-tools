@@ -1,4 +1,3 @@
-import pandas as pd
 import torch
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
@@ -28,19 +27,10 @@ class SimpleLogger(LightningLoggerBase):
                 return value.item()
             return value
 
-        if "epoch" in metrics.keys():
-            time_point = metrics.pop("epoch")
-            time_point_name = "epoch"
-        elif "step" in metrics.keys():
-            time_point = metrics.pop("step")
-            time_point_name = "step"
-        else:
-            raise ValueError("no timep point in metrics dict")
         for metric, value in metrics.items():
             if metric not in self._data:
-                self._data[metric] = pd.DataFrame(columns=[metric])
-                self._data[metric].index.name = time_point_name
-            self._data[metric].loc[time_point, metric] = _handle_value(value)
+                self._data[metric] = []
+            self._data[metric].append(_handle_value(value))
 
     @property
     def history(self):
