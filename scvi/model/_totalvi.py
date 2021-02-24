@@ -253,6 +253,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             data_splitter=data_splitter,
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            early_stopping=early_stopping,
             **kwargs,
         )
         return runner()
