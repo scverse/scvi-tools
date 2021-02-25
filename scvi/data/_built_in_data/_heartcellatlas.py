@@ -9,6 +9,7 @@ from scvi.data._built_in_data._download import _download
 def _load_heart_cell_atlas_subsampled(
     save_path: str = "data/",
     run_setup_anndata: bool = True,
+    remove_nuisance_clusters: bool = True,
 ):
     """
     Combined single cell and single nuclei RNA-Seq data of 485K cardiac cells with annotations.
@@ -22,6 +23,8 @@ def _load_heart_cell_atlas_subsampled(
         Location to use when saving/loading the data.
     run_setup_anndata
         If true, runs setup_anndata() on dataset before returning
+    remove_nuisance_clusters
+        Remove doublets and unsassigned cells
 
     Returns
     -------
@@ -40,6 +43,11 @@ def _load_heart_cell_atlas_subsampled(
     save_fn = "hca_subsampled_20k.h5ad"
     _download(url, save_path, save_fn)
     dataset = anndata.read_h5ad(os.path.join(save_path, save_fn))
+
+    if remove_nuisance_clusters:
+        remove = ["doublets", "NotAssigned"]
+        keep = [c not in remove for c in dataset.obs.cell_type.values]
+        dataset = dataset[keep, :].copy()
 
     if run_setup_anndata:
         setup_anndata(

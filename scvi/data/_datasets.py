@@ -637,6 +637,7 @@ def synthetic_iid(
 
 def heart_cell_atlas_subsampled(
     save_path: str = "data/",
+    remove_nuisance_clusters: bool = True,
     run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
     """
@@ -649,6 +650,8 @@ def heart_cell_atlas_subsampled(
     ----------
     save_path
         Location to use when saving/loading the data.
+    remove_nuisance_clusters
+        Remove doublets and unsassigned cells
     run_setup_anndata
         If true, runs setup_anndata() on dataset before returning
 
@@ -672,5 +675,6 @@ def heart_cell_atlas_subsampled(
     """
     return _load_heart_cell_atlas_subsampled(
         save_path=save_path,
+        remove_nuisance_clusters=remove_nuisance_clusters,
         run_setup_anndata=run_setup_anndata,
     )
