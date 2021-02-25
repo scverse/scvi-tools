@@ -3,23 +3,20 @@ import logging
 import numpy as np
 import pandas as pd
 import torch
-
 from anndata import AnnData
 
 import scvi
 from scvi import _CONSTANTS
 from scvi.data import register_tensor_from_anndata
-from scvi.dataloaders import AnnDataLoader
 from scvi.external.cellassign._module import CellAssignModule
-from scvi.lightning import TrainingPlan
-from scvi.model.base import BaseModelClass
+from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 
 logger = logging.getLogger(__name__)
 
 B = 10
 
 
-class CellAssign(BaseModelClass):
+class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     """
     Reimplementation of CellAssign for reference-based annotation [Zhang19]_.
 
@@ -50,10 +47,9 @@ class CellAssign(BaseModelClass):
         adata: AnnData,
         cell_type_markers: pd.DataFrame,
         size_factor_key: str,
-        use_gpu: bool = True,
         **model_kwargs,
     ):
-        super().__init__(adata, use_gpu=use_gpu)
+        super().__init__(adata)
         # check that genes are the same in cell_type_markers are present in the anndata
         # anndata may have more
         adata.var = adata.var.sort_index()
@@ -81,9 +77,7 @@ class CellAssign(BaseModelClass):
         col_means_normalized = torch.Tensor((col_means - col_means_mu) / col_means_std)
 
         # compute basis means for phi - shape (B)
-        basis_means = np.linspace(
-            np.min(x), np.max(x), B
-        )  # (B)
+        basis_means = np.linspace(np.min(x), np.max(x), B)  # (B)
 
         self.module = CellAssignModule(
             n_genes=self.n_genes,
@@ -107,7 +101,7 @@ class CellAssign(BaseModelClass):
     def predict(self) -> np.ndarray:
         """Predict soft cell type assignment probability for each cell."""
         adata = self._validate_anndata(None)
-        scdl = self._make_scvi_dl(adata=adata)
+        scdl = self._make_data_loader(adata=adata)
         predictions = []
         for tensors in scdl:
             generative_inputs = self.module._get_generative_input(tensors, None)
@@ -117,15 +111,3 @@ class CellAssign(BaseModelClass):
         return pd.DataFrame(
             np.array(torch.cat(predictions)), columns=self.cell_type_markers.columns
         )
-
-    @property
-    def _task_class(self):
-        return TrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
-
-    @property
-    def _plan_class(self):
-        return TrainingPlan
