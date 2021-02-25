@@ -14,6 +14,7 @@ from ._datasets import (
     cortex,
     dataset_10x,
     frontalcortex_dropseq,
+    heart_cell_atlas_subsampled,
     mouse_ob_dataset,
     pbmc_dataset,
     pbmcs_10x_cite_seq,
@@ -59,4 +60,5 @@ __all__ = [
     "read_loom",
     "read_text",
     "read_10x_atac",
+    "heart_cell_atlas_subsampled",
 ]
