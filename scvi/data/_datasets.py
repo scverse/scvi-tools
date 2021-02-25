@@ -656,6 +656,15 @@ def heart_cell_atlas_subsampled(
     -------
     AnnData
 
+    Notes
+    -----
+    The data were filtered using the following sequence::
+
+        >>> adata = anndata.read_h5ad(path_to_anndata)
+        >>> bdata = sc.pp.subsample(adata, n_obs=20000, copy=True)
+        >>> sc.pp.filter_genes(bdata, min_counts=3)
+        >>> bdata.write_h5ad(path, compression="gzip")
+
     Examples
     --------
     >>> import scvi
