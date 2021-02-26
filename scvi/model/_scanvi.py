@@ -169,10 +169,22 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if scvi_model.is_trained_ is False:
             logger.warning("Passed in scvi model hasn't been trained yet.")
 
+        scanvi_kwargs = dict(scanvi_kwargs)
         init_params = scvi_model.init_params_
         non_kwargs = init_params["non_kwargs"]
         kwargs = init_params["kwargs"]
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+        for k, v in {**non_kwargs, **kwargs}.items():
+            if k in scanvi_kwargs.keys():
+                logger.warning(
+                    "Ignoring param '{}' as it was already passed in to ".format(k)
+                    + "pretrained scvi model with value {}.".format(v)
+                )
+                del scanvi_kwargs[k]
+
+        if scvi_model.is_trained is False:
+            logger.warning("Transfering weights from untrained scvi model.")
+
         if adata is None:
             adata = scvi_model.adata
 
