@@ -18,6 +18,7 @@ Here we host some published datasets that are useful for benchmarking and testin
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    data.spleen_lymph_cite_seq
    data.heart_cell_atlas_subsampled
