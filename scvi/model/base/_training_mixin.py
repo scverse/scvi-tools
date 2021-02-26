@@ -16,7 +16,7 @@ class UnsupervisedTrainingMixin:
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
-        early_stopping: bool = True,
+        early_stopping: bool = False,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
