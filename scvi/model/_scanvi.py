@@ -76,6 +76,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     1. :doc:`/user_guide/notebooks/harmonization`
     2. :doc:`/user_guide/notebooks/scarches_scvi_tools`
+    3. :doc:`/user_guide/notebooks/seed_labeling`
     """
 
     def __init__(
