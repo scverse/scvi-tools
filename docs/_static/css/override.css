@@ -5,6 +5,10 @@
 https://github.com/streamlink/streamlink/blob/17a4088c38709123c0bcab4a150549bd16d19e07/docs/_static/styles/custom.css
 */
 
+dt:target, span.highlighted {
+    background-color: #f0f0f0;
+}
+
 code.docutils.literal.notranslate.xref, a code {
     background: transparent;
     font-weight: bold;
