@@ -182,9 +182,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 )
                 del scanvi_kwargs[k]
 
-        if scvi_model.is_trained is False:
-            logger.warning("Transfering weights from untrained scvi model.")
-
         if adata is None:
             adata = scvi_model.adata
 
