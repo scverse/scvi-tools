@@ -65,7 +65,7 @@ class UnsupervisedTrainingMixin:
         )
 
         es = "early_stopping"
-        trainer_kwargs[early_stopping] = (
+        trainer_kwargs[es] = (
             early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
         )
         runner = TrainRunner(
