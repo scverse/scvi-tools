@@ -170,12 +170,25 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if scvi_model.is_trained_ is False:
             logger.warning("Passed in scvi model hasn't been trained yet.")
 
+        scanvi_kwargs = dict(scanvi_kwargs)
         init_params = scvi_model.init_params_
         non_kwargs = init_params["non_kwargs"]
+        kwargs = init_params["kwargs"]
+        kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+        for k, v in {**non_kwargs, **kwargs}.items():
+            if k in scanvi_kwargs.keys():
+                logger.warning(
+                    "Ignoring param '{}' as it was already passed in to ".format(k)
+                    + "pretrained scvi model with value {}.".format(v)
+                )
+                del scanvi_kwargs[k]
+
         if adata is None:
             adata = scvi_model.adata
 
-        scanvi_model = cls(adata, unlabeled_category, **non_kwargs, **scanvi_kwargs)
+        scanvi_model = cls(
+            adata, unlabeled_category, **non_kwargs, **kwargs, **scanvi_kwargs
+        )
         scvi_state_dict = scvi_model.module.state_dict()
         scanvi_model.module.load_state_dict(scvi_state_dict, strict=False)
 
@@ -347,9 +360,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = SemiSupervisedTrainingPlan(
-            self.module, len(data_splitter.train_idx), **plan_kwargs
-        )
+        training_plan = SemiSupervisedTrainingPlan(self.module, **plan_kwargs)
         if "callbacks" in trainer_kwargs.keys():
             trainer_kwargs["callbacks"].concatenate(sampler_callback)
         else:
