@@ -44,6 +44,22 @@ class Trainer(pl.Trainer):
         Set it to -1 to run all batches in all validation dataloaders.
     weights_summary
         Prints a summary of the weights when training begins.
+    early_stopping
+        Whether to perform early stopping with respect to the validation set. This
+        automatically adds a :class:`~pytorch_lightning.callbacks.early_stopping.EarlyStopping`
+        instance. A custom instance can be passed by using the callbacks argument and
+        setting this to `False`.
+    early_stopping_monitor
+        Metric logged during validation set epoch. The available metrics will depend on
+        the training plan class used. We list the most common options here in the typing.
+    early_stopping_min_delta
+        Minimum change in the monitored quantity to qualify as an improvement,
+        i.e. an absolute change of less than min_delta, will count as no improvement.
+    early_stopping_patience
+        Number of validation epochs with no improvement after which training will be stopped.
+    early_stopping_mode
+            In 'min' mode, training will stop when the quantity monitored has stopped decreasing
+            and in 'max' mode it will stop when the quantity monitored has stopped increasing.
     progress_bar_refresh_rate
         How often to refresh progress bar (in steps). Value 0 disables progress bar.
     simple_progress_bar

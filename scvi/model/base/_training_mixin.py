@@ -16,6 +16,7 @@ class UnsupervisedTrainingMixin:
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
+        early_stopping: bool = True,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
@@ -37,6 +38,9 @@ class UnsupervisedTrainingMixin:
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         batch_size
             Minibatch size to use during training.
+        early_stopping
+            Perform early stopping. Additional arguments can be passed in `**kwargs`.
+            See :class:`~scvi.lightning.Trainer` for further options.
         plan_kwargs
             Keyword args for :class:`~scvi.lightning.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -58,6 +62,11 @@ class UnsupervisedTrainingMixin:
         )
         training_plan = TrainingPlan(
             self.module, len(data_splitter.train_idx), **plan_kwargs
+        )
+
+        es = "early_stopping"
+        trainer_kwargs[early_stopping] = (
+            early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
         )
         runner = TrainRunner(
             self,
