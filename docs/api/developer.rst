@@ -22,6 +22,7 @@ Architectures
 .. autosummary::
    :toctree: reference/
    :template: class_no_inherited.rst
+   :nosignatures:
 
    compose.FCLayers
    compose.Encoder
@@ -33,6 +34,7 @@ Module classes
 .. autosummary::
    :toctree: reference/
    :template: class_no_inherited.rst
+   :nosignatures:
 
    compose.LossRecorder
    compose.BaseModuleClass
@@ -43,6 +45,7 @@ Functions
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    compose.one_hot
    compose.auto_move_data
@@ -55,6 +58,7 @@ Distributions
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    distributions.NegativeBinomial
    distributions.NegativeBinomialMixture
@@ -69,6 +73,7 @@ Model (Base)
 
 .. autosummary::
     :toctree: reference/
+    :nosignatures:
 
     model.base.BaseModelClass
     model.base.VAEMixin
@@ -85,6 +90,7 @@ Modules
 .. autosummary::
    :toctree: reference/
    :template: class_no_inherited.rst
+   :nosignatures:
 
    modules.VAE
    modules.LDVAE
@@ -102,6 +108,7 @@ Data Loaders
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    dataloaders.AnnDataLoader
    dataloaders.AnnTorchDataset
@@ -122,6 +129,7 @@ steps for modules like `TOTALVAE`, `SCANVAE`, etc.
 .. autosummary::
    :toctree: reference/
    :template: class_no_inherited.rst
+   :nosignatures:
 
    lightning.TrainingPlan
    lightning.SemiSupervisedTrainingPlan
@@ -137,6 +145,7 @@ Utilities
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    utils.DifferentialComputation
    utils.track

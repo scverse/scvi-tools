@@ -19,6 +19,7 @@ Model
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    model.AUTOZI
    model.LinearSCVI
@@ -30,11 +31,12 @@ Model
 
 .. currentmodule:: scvi
 
-External
-~~~~~~~~
+External models
+~~~~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    external.GIMVI
    external.RNAStereoscope
@@ -53,6 +55,7 @@ Data loading
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    data.read_h5ad
    data.read_csv
@@ -68,6 +71,7 @@ Setting up an AnnData object is a prerequisite for running any ``scvi-tools`` mo
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    data.setup_anndata
    data.transfer_anndata_setup
@@ -90,6 +94,7 @@ Here we maintain a few package specific utilities for feature selection, etc.
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    data.poisson_gene_selection
    data.organize_cite_seq_10x
@@ -102,5 +107,6 @@ An instance of the :class:`~scvi._settings.ScviConfig` is available as ``scvi.se
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    _settings.ScviConfig
