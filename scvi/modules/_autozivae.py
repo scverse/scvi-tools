@@ -395,8 +395,8 @@ class AutoZIVAE(VAE):
         )
 
         kl_global = kl_divergence_bernoulli
-        kl_local_for_warmup = kl_divergence_l
-        kl_local_no_warmup = kl_divergence_z
+        kl_local_for_warmup = kl_divergence_z
+        kl_local_no_warmup = kl_divergence_l
 
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
         loss = n_obs * torch.mean(reconst_loss + weighted_kl_local) + kl_global
