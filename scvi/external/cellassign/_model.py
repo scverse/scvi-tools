@@ -25,7 +25,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     adata
         single-cell AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
     cell_type_markers
-        Binary marker gene matrix
+        Binary marker gene DataFrame of genes by cell types. Gene names corresponding to `adata.var_names`
+        should be in DataFrame index, and cell type labels the columns.
     use_gpu
         Use the GPU or not.
     **model_kwargs
@@ -37,8 +38,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     >>> marker_gene_mat = pd.read_csv(path_to_marker_gene_csv)
     >>> bdata = adata[:, adata.var.index.isin(marker_gene_mat.index)].copy()
     >>> scvi.data.setup_anndata(bdata)
-    >>> model = CellAssign(bdata, marker_gene_mat,size_factor_key='S')
-    >>> model.train(max_epochs=100, batch_size=1024)
+    >>> model = CellAssign(bdata, marker_gene_mat, size_factor_key='S')
+    >>> model.train()
     >>> predictions = model.predict(bdata)
     """
 
@@ -49,16 +50,13 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         size_factor_key: str,
         **model_kwargs,
     ):
-        super().__init__(adata)
-        # check that genes are the same in cell_type_markers are present in the anndata
-        # anndata may have more
-        adata.var = adata.var.sort_index()
-        cell_type_markers = cell_type_markers.sort_index()
-        if not adata.var.index.equals(cell_type_markers.index):
-            raise ValueError(
+        try:
+            cell_type_markers = cell_type_markers.loc[adata.var_names]
+        except KeyError:
+            raise KeyError(
                 "Anndata and cell type markers do not contain the same genes."
             )
-        cell_type_markers = cell_type_markers.loc[adata.var_names]
+        super().__init__(adata)
 
         register_tensor_from_anndata(adata, "_size_factor", "obs", size_factor_key)
 
