@@ -82,8 +82,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         self.module = CellAssignModule(
             n_genes=self.n_genes,
             rho=rho,
-            b_g_0=col_means_normalized,
             basis_means=basis_means,
+            b_g_0=col_means_normalized,
             n_batch=self.summary_stats["n_batch"],
             n_cats_per_cov=n_cats_per_cov,
             n_continuous_cov=self.summary_stats["n_continuous_covs"],

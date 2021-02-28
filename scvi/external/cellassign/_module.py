@@ -27,22 +27,25 @@ class CellAssignModule(BaseModuleClass):
         Number of input cell types
     rho
         Binary matrix of cell type markers
+    basis_means
+        Basis means numpy array
+    b_g_0
+        Base gene expression tensor. If None, use random b_g_0.
     n_batch
         Number of batches, if 0, no batch correction is performed.
     n_cats_per_cov
         Number of categories for each extra categorical covariate
     n_continuous_cov
-        Number of continuous covarites
+        Number of continuous covariates
     """
 
     def __init__(
         self,
         n_genes: int,
         rho: torch.Tensor,
-        b_g_0: torch.Tensor,
         basis_means: torch.Tensor,
+        b_g_0: torch.Tensor = None,
         n_batch: int = 0,
-        random_b_g_0: bool = False,
         n_cats_per_cov: Optional[Iterable[int]] = None,
         n_continuous_cov: int = 0,
     ):
@@ -53,9 +56,6 @@ class CellAssignModule(BaseModuleClass):
         self.n_cats_per_cov = n_cats_per_cov
         self.n_continuous_cov = n_continuous_cov
 
-        # this would be P in their code
-        # if it's zero, let's ignore
-        # though we do need the base expression intercept either way
         design_matrix_col_dim = n_batch + n_continuous_cov
         design_matrix_col_dim += 0 if n_cats_per_cov is None else sum(n_cats_per_cov)
         self.register_buffer("rho", rho)
@@ -65,7 +65,7 @@ class CellAssignModule(BaseModuleClass):
         dirichlet_concentration = torch.tensor([1e-2] * self.n_labels)
         self.register_buffer("dirichlet_concentration", dirichlet_concentration)
         self.shrinkage = True
-        if random_b_g_0:
+        if b_g_0 is None:
             self.b_g_0 = torch.nn.Parameter(torch.randn(n_genes))
         else:
             self.b_g_0 = torch.nn.Parameter(b_g_0)
@@ -91,7 +91,7 @@ class CellAssignModule(BaseModuleClass):
                 )
             )
 
-        self.log_a = torch.nn.Parameter(torch.zeros(B, dtype=torch.float64))
+        self.log_a = torch.nn.Parameter(torch.zeros(B))
 
         design_matrix_col_dim += 0 if n_cats_per_cov is None else sum(n_cats_per_cov)
         if design_matrix_col_dim == 0:
@@ -143,11 +143,9 @@ class CellAssignModule(BaseModuleClass):
         theta_log = F.log_softmax(self.theta_logit)  # (c)
 
         # compute mean of NegBin - shape (n_cells, n_genes, n_labels)
-        s = size_factor
-        n_cells = s.shape[0]
-        base_mean = torch.log(s)  # (n, 1)
-        base_mean_u = base_mean.unsqueeze(-1)  # (n, 1, 1)
-        base_mean_e = base_mean_u.expand(
+        n_cells = size_factor.shape[0]
+        base_mean = torch.log(size_factor)  # (n, 1)
+        base_mean = base_mean.unsqueeze(-1).expand(
             n_cells, self.n_genes, self.n_labels
         )  # (n, g, c)
 
@@ -155,56 +153,54 @@ class CellAssignModule(BaseModuleClass):
         # design_matrix has shape (n,p)
         if design_matrix is not None:
             covariates = torch.einsum("np,gp->gn", design_matrix, self.beta)  # (g, n)
-            covariates_u = torch.transpose(covariates, 0, 1).unsqueeze(-1)  # (n, g, 1)
-            covariates_e = covariates_u.expand(n_cells, self.n_genes, self.n_labels)
-            base_mean_e = base_mean_e + covariates_e
+            covariates = torch.transpose(covariates, 0, 1).unsqueeze(-1)  # (n, g, 1)
+            covariates = covariates.expand(n_cells, self.n_genes, self.n_labels)
+            base_mean = base_mean + covariates
 
         # base gene expression
-        b_g_0_e = self.b_g_0.unsqueeze(-1).expand(n_cells, self.n_genes, self.n_labels)
-
+        b_g_0 = self.b_g_0.unsqueeze(-1).expand(n_cells, self.n_genes, self.n_labels)
         delta_rho = delta * self.rho
-        delta_rho_e = delta_rho.expand(
+        delta_rho = delta_rho.expand(
             n_cells, self.n_genes, self.n_labels
         )  # (n, g, c)
-        log_mu_ngc = base_mean_e + delta_rho_e + b_g_0_e
+        log_mu_ngc = base_mean + delta_rho + b_g_0
         mu_ngc = torch.exp(log_mu_ngc)  # (n, g, c)
 
         # compute phi of NegBin - shape (n_cells, n_genes, n_labels)
         a = torch.exp(self.log_a)  # (B)
-        a_e = a.expand(n_cells, self.n_genes, self.n_labels, B)
+        a = a.expand(n_cells, self.n_genes, self.n_labels, B)
         b_init = 2 * ((self.basis_means[1] - self.basis_means[0]) ** 2)
         b = torch.exp(torch.ones(B, device=x.device) * (-torch.log(b_init)))  # (B)
-        b_e = b.expand(n_cells, self.n_genes, self.n_labels, B)
-        mu_ngc_u = mu_ngc.unsqueeze(-1)
-        mu_ngcb = mu_ngc_u.expand(
+        b = b.expand(n_cells, self.n_genes, self.n_labels, B)
+        mu_ngcb = mu_ngc.unsqueeze(-1).expand(
             n_cells, self.n_genes, self.n_labels, B
         )  # (n, g, c, B)
-        basis_means_e = self.basis_means.expand(
+        basis_means = self.basis_means.expand(
             n_cells, self.n_genes, self.n_labels, B
         )  # (n, g, c, B)
         phi = (  # (n, g, c)
-            torch.sum(a_e * torch.exp(-b_e * torch.square(mu_ngcb - basis_means_e)), 3)
+            torch.sum(a * torch.exp(-b * torch.square(mu_ngcb - basis_means)), 3)
             + LOWER_BOUND
         )
 
         # compute gamma
         nb_pdf = NegativeBinomial(mu=mu_ngc, theta=phi)
-        y_ = x.unsqueeze(-1).expand(n_cells, self.n_genes, self.n_labels)
-        y_log_prob_raw = nb_pdf.log_prob(y_)  # (n, g, c)
-        theta_log_e = theta_log.expand(n_cells, self.n_labels)
-        p_y_c = torch.sum(y_log_prob_raw, 1) + theta_log_e  # (n, c)
-        normalizer_over_c = torch.logsumexp(p_y_c, 1)
-        normalizer_over_c_e = normalizer_over_c.unsqueeze(-1).expand(
+        x_ = x.unsqueeze(-1).expand(n_cells, self.n_genes, self.n_labels)
+        x_log_prob_raw = nb_pdf.log_prob(x_)  # (n, g, c)
+        theta_log = theta_log.expand(n_cells, self.n_labels)
+        p_x_c = torch.sum(x_log_prob_raw, 1) + theta_log  # (n, c)
+        normalizer_over_c = torch.logsumexp(p_x_c, 1)
+        normalizer_over_c = normalizer_over_c.unsqueeze(-1).expand(
             n_cells, self.n_labels
         )
-        gamma = torch.exp(p_y_c - normalizer_over_c_e)  # (n, c)
+        gamma = torch.exp(p_x_c - normalizer_over_c)  # (n, c)
 
         return dict(
             mu=mu_ngc,
             phi=phi,
             gamma=gamma,
-            p_y_c=p_y_c,
-            s=s,
+            p_x_c=p_x_c,
+            s=size_factor,
         )
 
     def loss(
@@ -216,12 +212,12 @@ class CellAssignModule(BaseModuleClass):
     ):
         # generative_outputs is a dict of the return value from `generative(...)`
         # assume that `n_obs` is the number of training data points
-        p_y_c = generative_outputs["p_y_c"]
+        p_x_c = generative_outputs["p_x_c"]
         gamma = generative_outputs["gamma"]
 
         # compute Q
         # take mean of number of cells and multiply by n_obs (instead of summing n)
-        q_per_cell = torch.sum(gamma * -p_y_c, 1)
+        q_per_cell = torch.sum(gamma * -p_x_c, 1)
 
         # third term is log prob of prior terms in Q
         theta_log = F.log_softmax(self.theta_logit)
