@@ -76,11 +76,10 @@ class CellAssignModule(BaseModuleClass):
         self.theta_logit = torch.nn.Parameter(torch.randn(self.n_labels))
 
         # compute delta (cell type specific overexpression parameter)
-        self.delta_log_unclamped = torch.nn.Parameter(
+        # will be clamped by callback during training
+        self.delta_log = torch.nn.Parameter(
             torch.FloatTensor(self.n_genes, self.n_labels).uniform_(-2, 2)
         )
-        # will be clamped by callback during training
-        self.delta_log = self.delta_log_unclamped
 
         # shrinkage prior on delta
         if self.shrinkage:
