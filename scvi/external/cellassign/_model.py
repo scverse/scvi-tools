@@ -29,13 +29,14 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     ----------
     adata
         single-cell AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        The object should be subset to contain the same genes as the cell type marker dataframe.
     cell_type_markers
         Binary marker gene DataFrame of genes by cell types. Gene names corresponding to `adata.var_names`
-        should be in DataFrame index, and cell type labels the columns.
-    use_gpu
-        Use the GPU or not.
+        should be in DataFrame index, and cell type labels should be the columns.
+    size_factor_key
+        Key in `adata.obs` with continuous valued size factors.
     **model_kwargs
-        Keyword args for :class:`~scvi.external.CellAssignModels`
+        Keyword args for :class:`~scvi.external.cellassign.CellAssignModule`
 
     Examples
     --------
