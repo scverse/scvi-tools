@@ -96,7 +96,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         self.init_params_ = self._get_init_params(locals())
 
     @torch.no_grad()
-    def predict(self) -> np.ndarray:
+    def predict(self) -> pd.DataFrame:
         """Predict soft cell type assignment probability for each cell."""
         adata = self._validate_anndata(None)
         scdl = self._make_data_loader(adata=adata)

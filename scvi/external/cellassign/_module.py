@@ -31,6 +31,8 @@ class CellAssignModule(BaseModuleClass):
         Basis means numpy array
     b_g_0
         Base gene expression tensor. If None, use random b_g_0.
+    random_b_g_0
+        Override to enforce randomly initialized b_g_0.
     n_batch
         Number of batches, if 0, no batch correction is performed.
     n_cats_per_cov
@@ -45,6 +47,7 @@ class CellAssignModule(BaseModuleClass):
         rho: torch.Tensor,
         basis_means: torch.Tensor,
         b_g_0: torch.Tensor = None,
+        random_b_g_0: bool = False,
         n_batch: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
         n_continuous_cov: int = 0,
@@ -65,7 +68,7 @@ class CellAssignModule(BaseModuleClass):
         dirichlet_concentration = torch.tensor([1e-2] * self.n_labels)
         self.register_buffer("dirichlet_concentration", dirichlet_concentration)
         self.shrinkage = True
-        if b_g_0 is None:
+        if b_g_0 is None or random_b_g_0 is True:
             self.b_g_0 = torch.nn.Parameter(torch.randn(n_genes))
         else:
             self.b_g_0 = torch.nn.Parameter(b_g_0)
