@@ -1,0 +1,25 @@
+New in 0.9.0 (2020-03-03)
+-------------------------
+
+This release features our new software development kit for building new probabilistic models. Our hope is that others will be able to develop new models by importing scvi-tools into their own packages.
+
+Important changes
+~~~~~~~~~~~~~~~~~
+
+From the user perspective, there are only two API changes enumerated below. From the method developer perspective, the entire model backend has been revamped using PyTorch Lightning, and no old code will be compatible with this and future versions.
+
+The `train` method
+^^^^^^^^^^^^^^^^^^
+
+
+GPU handling
+^^^^^^^^^^^^
+
+Enhancements
+~~~~~~~~~~~~
+
+- Implementation of SOLO model for doublet detection
+- Cell assign
+- stereoscope
+- scanvi label subsampling description
+
