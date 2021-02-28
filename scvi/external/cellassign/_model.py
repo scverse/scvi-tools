@@ -122,7 +122,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
-        batch_size: int = 128,
+        batch_size: int = 1024,
         plan_kwargs: Optional[dict] = None,
         early_stopping: bool = True,
         early_stopping_patience: int = 30,
