@@ -125,7 +125,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         batch_size: int = 1024,
         plan_kwargs: Optional[dict] = None,
         early_stopping: bool = True,
-        early_stopping_patience: int = 30,
+        early_stopping_patience: int = 15,
         early_stopping_min_delta: float = 0.0,
         **kwargs,
     ):

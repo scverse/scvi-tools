@@ -29,9 +29,11 @@ class CellAssignModule(BaseModuleClass):
     basis_means
         Basis means numpy array
     b_g_0
-        Base gene expression tensor. If None, use random b_g_0.
+        Base gene expression tensor. If `None`, use randomly
+        initialized `b_g_0`.
     random_b_g_0
-        Override to enforce randomly initialized b_g_0.
+        Override to enforce randomly initialized `b_g_0`. If `True`, use
+        random default, if `False` defaults to `b_g_0`.
     n_batch
         Number of batches, if 0, no batch correction is performed.
     n_cats_per_cov
@@ -45,8 +47,8 @@ class CellAssignModule(BaseModuleClass):
         n_genes: int,
         rho: torch.Tensor,
         basis_means: torch.Tensor,
-        b_g_0: torch.Tensor = None,
-        random_b_g_0: bool = False,
+        b_g_0: Optional[torch.Tensor] = None,
+        random_b_g_0: bool = True,
         n_batch: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
         n_continuous_cov: int = 0,
