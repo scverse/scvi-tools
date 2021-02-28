@@ -10,9 +10,9 @@ from pyro.nn import PyroModule, PyroSample
 from pytorch_lightning.callbacks import Callback
 
 from scvi import _CONSTANTS
-from scvi.compose import PyroBaseModuleClass
 from scvi.data import synthetic_iid
 from scvi.dataloaders import AnnDataLoader
+from scvi.modules.base import PyroBaseModuleClass
 from scvi.train import PyroTrainingPlan, Trainer
 
 

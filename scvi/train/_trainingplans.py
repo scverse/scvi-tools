@@ -8,8 +8,9 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.compose import BaseModuleClass, PyroBaseModuleClass, one_hot
 from scvi.modules import Classifier
+from scvi.modules.base import BaseModuleClass, PyroBaseModuleClass
+from scvi.nn import one_hot
 
 
 class TrainingPlan(pl.LightningModule):

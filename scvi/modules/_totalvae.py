@@ -10,19 +10,13 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.compose import (
-    BaseModuleClass,
-    DecoderTOTALVI,
-    EncoderTOTALVI,
-    LossRecorder,
-    auto_move_data,
-    one_hot,
-)
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
     ZeroInflatedNegativeBinomial,
 )
+from scvi.modules.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.nn import DecoderTOTALVI, EncoderTOTALVI, one_hot
 
 torch.backends.cudnn.benchmark = True
 

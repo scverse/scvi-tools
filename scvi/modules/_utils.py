@@ -1,6 +1,6 @@
 import torch
 
-from scvi.compose import one_hot
+from scvi.nn import one_hot
 
 
 def iterate(obj, func):
