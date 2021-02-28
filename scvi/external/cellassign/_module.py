@@ -160,9 +160,7 @@ class CellAssignModule(BaseModuleClass):
         # base gene expression
         b_g_0 = self.b_g_0.unsqueeze(-1).expand(n_cells, self.n_genes, self.n_labels)
         delta_rho = delta * self.rho
-        delta_rho = delta_rho.expand(
-            n_cells, self.n_genes, self.n_labels
-        )  # (n, g, c)
+        delta_rho = delta_rho.expand(n_cells, self.n_genes, self.n_labels)  # (n, g, c)
         log_mu_ngc = base_mean + delta_rho + b_g_0
         mu_ngc = torch.exp(log_mu_ngc)  # (n, g, c)
 
