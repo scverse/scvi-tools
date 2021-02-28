@@ -82,17 +82,16 @@ class CellAssignModule(BaseModuleClass):
         )
 
         # shrinkage prior on delta
-        if self.shrinkage:
-            self.delta_log_mean = torch.nn.Parameter(
-                torch.zeros(
-                    1,
-                )
+        self.delta_log_mean = torch.nn.Parameter(
+            torch.zeros(
+                1,
             )
-            self.delta_log_variance = torch.nn.Parameter(
-                torch.ones(
-                    1,
-                )
+        )
+        self.delta_log_variance = torch.nn.Parameter(
+            torch.ones(
+                1,
             )
+        )
 
         self.log_a = torch.nn.Parameter(torch.zeros(B))
 
@@ -140,7 +139,7 @@ class CellAssignModule(BaseModuleClass):
     def generative(self, x, size_factor, design_matrix=None):
         # x has shape (n, g)
         delta = torch.exp(self.delta_log)  # (g, c)
-        theta_log = F.log_softmax(self.theta_logit)  # (c)
+        theta_log = F.log_softmax(self.theta_logit, dim=-1)  # (c)
 
         # compute mean of NegBin - shape (n_cells, n_genes, n_labels)
         n_cells = size_factor.shape[0]
@@ -218,18 +217,17 @@ class CellAssignModule(BaseModuleClass):
         q_per_cell = torch.sum(gamma * -p_x_c, 1)
 
         # third term is log prob of prior terms in Q
-        theta_log = F.log_softmax(self.theta_logit)
+        theta_log = F.log_softmax(self.theta_logit, dim=-1)
         theta_log_prior = Dirichlet(self.dirichlet_concentration)
         theta_log_prob = -theta_log_prior.log_prob(
             torch.exp(theta_log) + THETA_LOWER_BOUND
         )
         prior_log_prob = theta_log_prob
-        if self.shrinkage:
-            delta_log_prior = Normal(self.delta_log_mean, self.delta_log_variance)
-            delta_log_prob = torch.masked_select(
-                delta_log_prior.log_prob(self.delta_log), (self.rho > 0)
-            )
-            prior_log_prob += -torch.sum(delta_log_prob)
+        delta_log_prior = Normal(self.delta_log_mean, self.delta_log_variance)
+        delta_log_prob = torch.masked_select(
+            delta_log_prior.log_prob(self.delta_log), (self.rho > 0)
+        )
+        prior_log_prob += -torch.sum(delta_log_prob)
 
         loss = (torch.mean(q_per_cell) * n_obs + prior_log_prob) / n_obs
 
