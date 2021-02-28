@@ -87,8 +87,8 @@ class CellAssignModule(BaseModuleClass):
                 1,
             )
         )
-        self.delta_log_variance = torch.nn.Parameter(
-            torch.ones(
+        self.delta_log_log_scale = torch.nn.Parameter(
+            torch.zeros(
                 1,
             )
         )
@@ -223,7 +223,9 @@ class CellAssignModule(BaseModuleClass):
             torch.exp(theta_log) + THETA_LOWER_BOUND
         )
         prior_log_prob = theta_log_prob
-        delta_log_prior = Normal(self.delta_log_mean, self.delta_log_variance)
+        delta_log_prior = Normal(
+            self.delta_log_mean, self.delta_log_log_scale.exp().sqrt()
+        )
         delta_log_prob = torch.masked_select(
             delta_log_prior.log_prob(self.delta_log), (self.rho > 0)
         )
