@@ -4,9 +4,9 @@ from typing import Optional, Union
 import pytorch_lightning as pl
 
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
-from scvi.lightning import Trainer
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base import BaseModelClass
+from scvi.train import Trainer
 
 logger = logging.getLogger(__name__)
 

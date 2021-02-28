@@ -15,9 +15,9 @@ from scvi.dataloaders import (
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
-from scvi.lightning import SemiSupervisedTrainingPlan
-from scvi.lightning._callbacks import SubSampleLabels
 from scvi.modules import SCANVAE
+from scvi.train import SemiSupervisedTrainingPlan
+from scvi.train._callbacks import SubSampleLabels
 
 from ._scvi import SCVI
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, TrainRunner, VAEMixin

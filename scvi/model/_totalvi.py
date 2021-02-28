@@ -15,7 +15,6 @@ from scvi._utils import _doc_params
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import DataSplitter
-from scvi.lightning import AdversarialTrainingPlan
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
@@ -24,6 +23,7 @@ from scvi.model._utils import (
 from scvi.model.base import TrainRunner
 from scvi.model.base._utils import _de_core
 from scvi.modules import TOTALVAE
+from scvi.train import AdversarialTrainingPlan
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 

@@ -13,7 +13,7 @@ from scvi import _CONSTANTS
 from scvi.compose import PyroBaseModuleClass
 from scvi.data import synthetic_iid
 from scvi.dataloaders import AnnDataLoader
-from scvi.lightning import PyroTrainingPlan, Trainer
+from scvi.train import PyroTrainingPlan, Trainer
 
 
 class PyroJitGuideWarmup(Callback):

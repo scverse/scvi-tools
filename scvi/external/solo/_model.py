@@ -13,10 +13,10 @@ from scvi import _CONSTANTS
 from scvi.compose import auto_move_data
 from scvi.data import get_from_registry, setup_anndata
 from scvi.dataloaders import DataSplitter
-from scvi.lightning import ClassifierTrainingPlan
 from scvi.model import SCVI
 from scvi.model.base import BaseModelClass, TrainRunner
 from scvi.modules import Classifier
+from scvi.train import ClassifierTrainingPlan
 
 logger = logging.getLogger(__name__)
 

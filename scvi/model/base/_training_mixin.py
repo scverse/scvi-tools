@@ -3,7 +3,7 @@ from typing import Optional, Union
 import numpy as np
 
 from scvi.dataloaders import DataSplitter
-from scvi.lightning import TrainingPlan
+from scvi.train import TrainingPlan
 
 from ._trainrunner import TrainRunner
 

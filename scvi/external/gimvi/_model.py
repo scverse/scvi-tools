@@ -12,9 +12,9 @@ from torch.utils.data import DataLoader
 from scvi import _CONSTANTS
 from scvi.data import transfer_anndata_setup
 from scvi.dataloaders import DataSplitter
-from scvi.lightning import Trainer
 from scvi.model._utils import _get_var_names_from_setup_anndata, parse_use_gpu_arg
 from scvi.model.base import BaseModelClass, VAEMixin
+from scvi.train import Trainer
 
 from ._module import JVAE
 from ._task import GIMVITrainingPlan
