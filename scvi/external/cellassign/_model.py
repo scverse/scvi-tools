@@ -75,7 +75,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         )
 
         x = scvi.data.get_from_registry(adata, _CONSTANTS.X_KEY)
-        col_means = np.mean(x, 0)  # (g)
+        col_means = np.asarray(np.mean(x, 0)).ravel()  # (g)
         col_means_mu, col_means_std = np.mean(col_means), np.std(col_means)
         col_means_normalized = torch.Tensor((col_means - col_means_mu) / col_means_std)
 
