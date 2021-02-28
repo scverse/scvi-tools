@@ -38,6 +38,7 @@ External models
    :toctree: reference/
    :nosignatures:
 
+   external.CellAssign
    external.GIMVI
    external.RNAStereoscope
    external.SpatialStereoscope
