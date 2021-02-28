@@ -1,15 +1,20 @@
 import logging
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
+from pytorch_lightning.callbacks import Callback
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 import scvi
 from scvi import _CONSTANTS
 from scvi.data import register_tensor_from_anndata
+from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
-from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
+from scvi.lightning import TrainingPlan
+from scvi.model.base import BaseModelClass, TrainRunner, UnsupervisedTrainingMixin
 
 logger = logging.getLogger(__name__)
 
@@ -109,3 +114,110 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         return pd.DataFrame(
             np.array(torch.cat(predictions)), columns=self.cell_type_markers.columns
         )
+
+    def train(
+        self,
+        max_epochs: int = 400,
+        lr: float = 3e-3,
+        use_gpu: Optional[Union[str, int, bool]] = None,
+        train_size: float = 0.9,
+        validation_size: Optional[float] = None,
+        batch_size: int = 128,
+        plan_kwargs: Optional[dict] = None,
+        early_stopping: bool = True,
+        early_stopping_patience: int = 30,
+        early_stopping_min_delta: float = 0.0,
+        **kwargs,
+    ):
+        """
+        Trains the model.
+
+        Parameters
+        ----------
+        max_epochs
+            Number of epochs to train for
+        lr
+            Learning rate for optimization.
+        use_gpu
+            Use default GPU if available (if None or True), or index of GPU to use (if int),
+            or name of GPU (if str), or use CPU (if False).
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        validation_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        batch_size
+            Minibatch size to use during training.
+        plan_kwargs
+            Keyword args for :class:`~scvi.lightning.ClassifierTrainingPlan`. Keyword arguments passed to
+        early_stopping
+            Adds callback for early stopping on validation_loss
+        early_stopping_patience
+            Number of times early stopping metric can not improve over early_stopping_min_delta
+        early_stopping_min_delta
+            Threshold for counting an epoch torwards patience
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        **kwargs
+            Other keyword args for :class:`~scvi.lightning.Trainer`.
+        """
+        update_dict = {"lr": lr, "weight_decay": 1e-10}
+        if plan_kwargs is not None:
+            plan_kwargs.update(update_dict)
+        else:
+            plan_kwargs = update_dict
+
+        if "callbacks" in kwargs:
+            kwargs["callbacks"] += [ClampCallback()]
+        else:
+            kwargs["callbacks"] = [ClampCallback()]
+
+        if early_stopping:
+            early_stopping_callback = [
+                EarlyStopping(
+                    monitor="elbo_validation",
+                    min_delta=early_stopping_min_delta,
+                    patience=early_stopping_patience,
+                    mode="min",
+                )
+            ]
+            if "callbacks" in kwargs:
+                kwargs["callbacks"] += early_stopping_callback
+            else:
+                kwargs["callbacks"] = early_stopping_callback
+            kwargs["check_val_every_n_epoch"] = 1
+
+        if max_epochs is None:
+            n_cells = self.adata.n_obs
+            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+
+        data_splitter = DataSplitter(
+            self.adata,
+            train_size=train_size,
+            validation_size=validation_size,
+            batch_size=batch_size,
+            use_gpu=use_gpu,
+        )
+        training_plan = TrainingPlan(
+            self.module, len(data_splitter.train_idx), **plan_kwargs
+        )
+        runner = TrainRunner(
+            self,
+            training_plan=training_plan,
+            data_splitter=data_splitter,
+            max_epochs=max_epochs,
+            use_gpu=use_gpu,
+            **kwargs,
+        )
+        return runner()
+
+
+class ClampCallback(Callback):
+    def __init__(self):
+        super().__init__()
+
+    def on_batch_end(self, trainer, pl_module):
+        with torch.no_grad():
+            pl_module.module.delta_log.clamp_(np.log(pl_module.module.min_delta))
+        super().on_batch_end(trainer, pl_module)
