@@ -41,6 +41,10 @@ facilitate a broad number of tasks across many omics, including:
 -   [scArches](https://www.biorxiv.org/content/10.1101/2020.07.16.205997v1)
     for transfer learning from one single-cell atlas to a query dataset
     (currently supports scVI, scANVI and TotalVI).
+-   [CellAssign](https://www.nature.com/articles/s41592-019-0529-1) for
+    reference-based annotation of scRNA-seq data.
+-   [Solo](https://www.sciencedirect.com/science/article/pii/S2405471220301952) 
+    for doublet detection in scRNA-seq data.
 
 All these implementations have a high-level API that interacts with
 [scanpy](http://scanpy.readthedocs.io/), standard save/load functions,
@@ -57,6 +61,18 @@ lightning](https://www.pytorchlightning.ai/), and
 We recommend checking out the [skeleton
 repository](https://github.com/YosefLab/scvi-tools-skeleton), as a
 starting point for developing new models into scvi-tools.
+
+# Basic installation
+
+For conda, 
+```
+conda install scvi-tools -c bioconda -c conda-forge
+```
+and for pip,
+```
+pip install scvi-tools
+```
+Please be sure to install a version of [PyTorch](https://pytorch.org/) that is compatible with your GPU (if applicable).
 
 # Resources
 
