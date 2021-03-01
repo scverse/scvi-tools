@@ -26,8 +26,8 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     Examples
     --------
     >>> sc_adata = anndata.read_h5ad(path_to_sc_anndata)
-    >>> scvi.data.setup_anndata(sc_adata, label_key="labels")
-    >>> stereo = scvi.external.RNAStereoscope(sc_adata)
+    >>> scvi.data.setup_anndata(sc_adata, labels_key="labels")
+    >>> stereo = scvi.external.stereoscope.RNAStereoscope(sc_adata)
     >>> stereo.train()
     """
 
@@ -130,14 +130,14 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     Examples
     --------
     >>> sc_adata = anndata.read_h5ad(path_to_sc_anndata)
-    >>> scvi.data.setup_anndata(sc_adata, label_key="labels")
-    >>> sc_model = scvi.external.RNAStereoscope(sc_adata)
+    >>> scvi.data.setup_anndata(sc_adata, labels_key="labels")
+    >>> sc_model = scvi.external.stereoscope.RNAStereoscope(sc_adata)
     >>> sc_model.train()
     >>> st_adata = anndata.read_h5ad(path_to_st_anndata)
     >>> scvi.data.setup_anndata(st_adata)
-    >>> stereo = scvi.external.SpatialStereoscope.from_rna_model(st_adata, sc_model)
+    >>> stereo = scvi.external.stereoscope.SpatialStereoscope.from_rna_model(st_adata, sc_model)
     >>> stereo.train()
-    >>> st_adata.obs["deconv"] = stereo.get_proportions()
+    >>> st_adata.obsm["deconv"] = stereo.get_proportions()
 
     Notes
     -----
