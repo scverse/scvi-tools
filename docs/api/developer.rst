@@ -10,45 +10,16 @@ Import scvi-tools as::
 
 .. currentmodule:: scvi
 
-Compose
--------
+Architectures
+-------------
 
 .. currentmodule:: scvi
+   nn.FCLayers
+   nn.Encoder
+   nn.Decoder
+   nn.one_hot
+   nn.auto_move_data
 
-
-Architectures
-~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: reference/
-   :template: class_no_inherited.rst
-   :nosignatures:
-
-   compose.FCLayers
-   compose.Encoder
-   compose.Decoder
-
-Module classes
-~~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: reference/
-   :template: class_no_inherited.rst
-   :nosignatures:
-
-   compose.LossRecorder
-   compose.BaseModuleClass
-   compose.PyroBaseModuleClass
-
-Functions
-~~~~~~~~~
-
-.. autosummary::
-   :toctree: reference/
-   :nosignatures:
-
-   compose.one_hot
-   compose.auto_move_data
 
 Distributions
 -------------
@@ -79,7 +50,7 @@ Model (Base)
     model.base.VAEMixin
     model.base.RNASeqMixin
     model.base.ArchesMixin
-    model.base.TrainRunner
+
 
 Modules
 -------
@@ -89,7 +60,6 @@ Modules
 
 .. autosummary::
    :toctree: reference/
-   :template: class_no_inherited.rst
    :nosignatures:
 
    modules.VAE
@@ -99,6 +69,20 @@ Modules
    modules.JVAE
    modules.AutoZIVAE
    modules.Classifier
+
+Modules (Base)
+--------------
+
+.. currentmodule:: scvi
+
+
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   modules.base.LossRecorder
+   modules.base.BaseModuleClass
+   modules.base.PyroBaseModuleClass
 
 Data Loaders
 ------------
@@ -117,13 +101,13 @@ Data Loaders
    dataloaders.DataSplitter
    dataloaders.SemiSupervisedDataSplitter
 
-Lightning
----------
+Train
+-----
 
 .. currentmodule:: scvi
 
 
-PyTorch lightning is used to train our modules. TrainingPlans define train/test/val optimization
+TrainingPlans define train/test/val optimization
 steps for modules like `TOTALVAE`, `SCANVAE`, etc.
 
 .. autosummary::
@@ -131,11 +115,12 @@ steps for modules like `TOTALVAE`, `SCANVAE`, etc.
    :template: class_no_inherited.rst
    :nosignatures:
 
-   lightning.TrainingPlan
-   lightning.SemiSupervisedTrainingPlan
-   lightning.AdversarialTrainingPlan
-   lightning.PyroTrainingPlan
-   lightning.Trainer
+   train.TrainingPlan
+   train.SemiSupervisedTrainingPlan
+   train.AdversarialTrainingPlan
+   train.PyroTrainingPlan
+   train.Trainer
+   train.TrainRunner
 
 Utilities
 ---------
