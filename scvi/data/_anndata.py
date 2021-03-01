@@ -1205,7 +1205,7 @@ def _check_anndata_setup_equivalence(
         # check that order of keys setup is same
         if not np.array_equal(target_cont_keys["keys"], source_cont_keys["keys"]):
             raise ValueError(
-                error_msg.format(source_cont_keys["keys"], target_cont_keys["keys"])
+                error_msg.format(source_cont_keys, target_cont_keys)
             )
 
     return transfer_setup
