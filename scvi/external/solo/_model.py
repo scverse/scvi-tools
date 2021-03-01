@@ -14,8 +14,8 @@ from scvi.data import get_from_registry, setup_anndata
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
 from scvi.model.base import BaseModelClass
-from scvi.modules import Classifier
-from scvi.modules.base import auto_move_data
+from scvi.module import Classifier
+from scvi.module.base import auto_move_data
 from scvi.train import ClassifierTrainingPlan, TrainRunner
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class SOLO(BaseModelClass):
         Object should contain latent representation of real cells and doublets as `adata.X`.
         Object should also be registered, using `.X` and `labels_key="_solo_doub_sim"`.
     **classifier_kwargs
-        Keyword args for :class:`~scvi.modules.Classifier`
+        Keyword args for :class:`~scvi.module.Classifier`
 
     Examples
     --------

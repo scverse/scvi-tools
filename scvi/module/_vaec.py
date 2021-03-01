@@ -2,8 +2,8 @@ import torch
 from torch.distributions import Categorical, Normal
 from torch.distributions import kl_divergence as kl
 
-from scvi.modules import Classifier
-from scvi.modules._utils import broadcast_labels
+from scvi.module import Classifier
+from scvi.module._utils import broadcast_labels
 from scvi.nn import DecoderSCVI, Encoder
 
 from ._vae import VAE

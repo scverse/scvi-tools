@@ -10,7 +10,7 @@ from torch.distributions import Beta, Normal
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.model.base import UnsupervisedTrainingMixin
-from scvi.modules import AutoZIVAE
+from scvi.module import AutoZIVAE
 
 from .base import BaseModelClass, VAEMixin
 
@@ -68,7 +68,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         * ``'gene-label'`` - zero-inflation Bernoulli parameter can differ between different labels
         * ``'gene-cell'`` - zero-inflation Bernoulli parameter can differ for every gene in every cell
     **model_kwargs
-        Keyword args for :class:`~scvi.core.modules.AutoZIVAE`
+        Keyword args for :class:`~scvi.core.module.AutoZIVAE`
 
     Examples
     --------

@@ -21,7 +21,7 @@ from scvi.model._utils import (
     cite_seq_raw_counts_properties,
 )
 from scvi.model.base._utils import _de_core
-from scvi.modules import TOTALVAE
+from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
@@ -67,7 +67,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         100 cells per batch and averages the distributions. Note that even with this option set to `True`,
         this only initializes a parameter that is learned during inference. If `False`, randomly initializes.
     **model_kwargs
-        Keyword args for :class:`~scvi.modules.TOTALVAE`
+        Keyword args for :class:`~scvi.module.TOTALVAE`
 
     Examples
     --------

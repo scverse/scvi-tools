@@ -8,8 +8,8 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.modules import Classifier
-from scvi.modules.base import BaseModuleClass, PyroBaseModuleClass
+from scvi.module import Classifier
+from scvi.module.base import BaseModuleClass, PyroBaseModuleClass
 from scvi.nn import one_hot
 
 
@@ -591,7 +591,7 @@ class ClassifierTrainingPlan(pl.LightningModule):
     Parameters
     ----------
     classifier
-        A model instance from :class:`~scvi.modules.Classifier`.
+        A model instance from :class:`~scvi.module.Classifier`.
     lr
         Learning rate used for optimization.
     weight_decay

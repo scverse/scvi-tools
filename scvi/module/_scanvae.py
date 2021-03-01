@@ -8,7 +8,7 @@ from torch.nn import functional as F
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.modules.base import LossRecorder, auto_move_data
+from scvi.module.base import LossRecorder, auto_move_data
 from scvi.nn import Decoder, Encoder
 
 from ._classifier import Classifier
@@ -68,7 +68,7 @@ class SCANVAE(VAE):
     use_layer_norm
         Whether to use layer norm in layers
     **kwargs
-        Keyword args for :class:`~scvi.modules.VAE`
+        Keyword args for :class:`~scvi.module.VAE`
     """
 
     def __init__(

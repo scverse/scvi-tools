@@ -17,7 +17,7 @@ from scvi.model._utils import (
     scatac_raw_counts_properties,
 )
 from scvi.model.base import UnsupervisedTrainingMixin
-from scvi.modules import PEAKVAE
+from scvi.module import PEAKVAE
 from scvi.train._callbacks import SaveBestState
 
 from .base import ArchesMixin, BaseModelClass, VAEMixin

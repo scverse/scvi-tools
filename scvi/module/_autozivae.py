@@ -9,7 +9,7 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import _CONSTANTS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
-from scvi.modules.base import LossRecorder, auto_move_data
+from scvi.module.base import LossRecorder, auto_move_data
 from scvi.nn import one_hot
 
 from ._vae import VAE

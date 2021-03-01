@@ -15,7 +15,7 @@ from scvi.distributions import (
     NegativeBinomialMixture,
     ZeroInflatedNegativeBinomial,
 )
-from scvi.modules.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.nn import DecoderTOTALVI, EncoderTOTALVI, one_hot
 
 torch.backends.cudnn.benchmark = True

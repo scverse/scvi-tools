@@ -15,7 +15,7 @@ from scvi.dataloaders import (
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
-from scvi.modules import SCANVAE
+from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
 
@@ -59,7 +59,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
     **model_kwargs
-        Keyword args for :class:`~scvi.modules.SCANVAE`
+        Keyword args for :class:`~scvi.module.SCANVAE`
 
     Examples
     --------

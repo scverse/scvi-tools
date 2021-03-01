@@ -6,7 +6,7 @@ from torch.distributions import Normal, kl_divergence
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.modules.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.nn import Encoder, FCLayers
 
 

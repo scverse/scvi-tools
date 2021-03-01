@@ -6,8 +6,8 @@ from torch.distributions import Dirichlet, Normal
 
 from scvi import _CONSTANTS
 from scvi.distributions import NegativeBinomial
-from scvi.modules._utils import one_hot
-from scvi.modules.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module._utils import one_hot
+from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 
 LOWER_BOUND = 1e-10
 THETA_LOWER_BOUND = 1e-20

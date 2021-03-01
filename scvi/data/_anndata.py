@@ -962,7 +962,7 @@ def view_anndata_setup(source: Union[anndata.AnnData, dict, str]):
     if "extra_continuous_keys" in setup_dict.keys():
         n_covs = len(setup_dict["extra_continuous_keys"])
 
-    in_colab = "google.colab" in sys.modules
+    in_colab = "google.colab" in sys.module
     force_jupyter = None if not in_colab else True
     console = Console(force_jupyter=force_jupyter)
     t = rich.table.Table(title="Data Summary")

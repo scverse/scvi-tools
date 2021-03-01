@@ -224,7 +224,7 @@ class Encoder(nn.Module):
     distribution
         Distribution of z
     **kwargs
-        Keyword args for :class:`~scvi.modules._base.FCLayers`
+        Keyword args for :class:`~scvi.module._base.FCLayers`
     """
 
     def __init__(
@@ -475,7 +475,7 @@ class Decoder(nn.Module):
     dropout_rate
         Dropout rate to apply to each of the hidden layers
     kwargs
-        Keyword args for :class:`~scvi.modules._base.FCLayers`
+        Keyword args for :class:`~scvi.module._base.FCLayers`
     """
 
     def __init__(

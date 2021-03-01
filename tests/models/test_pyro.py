@@ -12,7 +12,7 @@ from pytorch_lightning.callbacks import Callback
 from scvi import _CONSTANTS
 from scvi.data import synthetic_iid
 from scvi.dataloaders import AnnDataLoader
-from scvi.modules.base import PyroBaseModuleClass
+from scvi.module.base import PyroBaseModuleClass
 from scvi.train import PyroTrainingPlan, Trainer
 
 

@@ -18,7 +18,7 @@ from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
-from scvi.modules.base import PyroBaseModuleClass
+from scvi.module.base import PyroBaseModuleClass
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
