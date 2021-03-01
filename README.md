@@ -58,6 +58,18 @@ We recommend checking out the [skeleton
 repository](https://github.com/YosefLab/scvi-tools-skeleton), as a
 starting point for developing new models into scvi-tools.
 
+# Basic installation
+
+For conda, 
+```
+conda install scvi-tools -c bioconda -c conda-forge
+```
+and for pip,
+```
+pip install scvi-tools
+```
+Please be sure to install a version of [PyTorch](https://pytorch.org/) that is compatible with your GPU (if applicable).
+
 # Resources
 
 -   Tutorials, API reference, and installation guides are available in
