@@ -5,6 +5,28 @@
 https://github.com/streamlink/streamlink/blob/17a4088c38709123c0bcab4a150549bd16d19e07/docs/_static/styles/custom.css
 */
 
+dt:target, span.highlighted {
+    background-color: #f0f0f0;
+}
+
+code.docutils.literal.notranslate.xref, a code {
+    background: transparent;
+    font-weight: bold;
+    color: inherit;
+}
+
+a > code {
+    color: inherit;
+}
+
+code.docutils.literal.notranslate {
+    background: #f8f9fb;
+    font-size: 87.5%;
+    border-radius: .2em;
+    color: #000000;
+    word-wrap: break-word;
+    padding: .1em .2em;
+}
 
 dl.citation > dt {
     float: left;
@@ -24,3 +46,42 @@ p.rubric {
     text-transform: none;
     font-weight: 500;
 }
+
+
+/* Getting started index page */
+
+.intro-card {
+    background: #fff;
+    border-radius: 0;
+    padding: 30px 10px 10px 10px;
+    margin: 10px 0px;
+  }
+
+  .intro-card .card-text {
+    margin: 20px 0px;
+    /*min-height: 150px; */
+  }
+
+  .custom-button {
+    background-color: #dcdcdc;
+    border: none;
+    color: #484848;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 0.9rem;
+    border-radius: 0.5rem;
+    max-width: 220px;
+    padding: 0.5rem 0rem;
+  }
+
+  .custom-button a {
+    color: #484848;
+    display: block;
+  }
+
+  .custom-button p {
+    margin-top: 0;
+    margin-bottom: 0rem;
+    color: #484848;
+  }

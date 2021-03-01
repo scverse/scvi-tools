@@ -11,14 +11,13 @@ from scipy.sparse import csr_matrix, vstack
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
-from scvi.dataloaders import AnnDataLoader
-from scvi.lightning import TrainingPlan
 from scvi.lightning._callbacks import SaveBestState
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
     scatac_raw_counts_properties,
 )
+from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.modules import PEAKVAE
 
 from .base import ArchesMixin, BaseModelClass, VAEMixin
@@ -27,7 +26,7 @@ from .base._utils import _de_core
 logger = logging.getLogger(__name__)
 
 
-class PEAKVI(ArchesMixin, VAEMixin, BaseModelClass):
+class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     PeakVI.
 
@@ -82,10 +81,9 @@ class PEAKVI(ArchesMixin, VAEMixin, BaseModelClass):
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
         deeply_inject_covariates: bool = False,
-        use_gpu: bool = True,
         **model_kwargs,
     ):
-        super(PEAKVI, self).__init__(adata, use_gpu=use_gpu)
+        super(PEAKVI, self).__init__(adata)
 
         n_cats_per_cov = (
             self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
@@ -126,19 +124,11 @@ class PEAKVI(ArchesMixin, VAEMixin, BaseModelClass):
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())
 
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
-
-    @property
-    def _plan_class(self):
-        return TrainingPlan
-
     def train(
         self,
         max_epochs: int = 500,
         lr: float = 1e-4,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -162,7 +152,8 @@ class PEAKVI(ArchesMixin, VAEMixin, BaseModelClass):
         lr
             Learning rate for optimization.
         use_gpu
-            If `True`, use the GPU if available.
+            Use default GPU if available (if None or True), or index of GPU to use (if int),
+            or name of GPU (if str), or use CPU (if False).
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -224,6 +215,7 @@ class PEAKVI(ArchesMixin, VAEMixin, BaseModelClass):
             early_stopping_patience=50,
             plan_kwargs=plan_kwargs,
             check_val_every_n_epoch=check_val_every_n_epoch,
+            batch_size=batch_size,
             **kwargs,
         )
 

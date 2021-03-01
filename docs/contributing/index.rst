@@ -34,7 +34,7 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     conda activate scvi-tools-dev
     # Enter the cloned repository
     cd scvi-tools
-    pip install -e .[dev,docs,tutorials]
+    pip install -e ".[dev,docs,tutorials]"
 
 4. **[Advanced users]** Install your local copy into a virtualenv with Poetry. Our preferred local installation method consists of using `pyenv-virtualenv` to create a virtualenv, and using `poetry` to create an editable local installation. If using this approach, please be sure to install `poetry` the `recommended <https://python-poetry.org/docs/#installation>`_ way. Once `poetry` is installed::
 

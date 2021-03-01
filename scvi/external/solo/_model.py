@@ -2,7 +2,7 @@ import io
 import logging
 import warnings
 from contextlib import redirect_stdout
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -12,10 +12,10 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from scvi import _CONSTANTS
 from scvi.compose import auto_move_data
 from scvi.data import get_from_registry, setup_anndata
-from scvi.dataloaders import AnnDataLoader
+from scvi.dataloaders import DataSplitter
 from scvi.lightning import ClassifierTrainingPlan
 from scvi.model import SCVI
-from scvi.model.base import BaseModelClass
+from scvi.model.base import BaseModelClass, TrainRunner
 from scvi.modules import Classifier
 
 logger = logging.getLogger(__name__)
@@ -37,8 +37,6 @@ class SOLO(BaseModelClass):
         AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
         Object should contain latent representation of real cells and doublets as `adata.X`.
         Object should also be registered, using `.X` and `labels_key="_solo_doub_sim"`.
-    use_gpu
-        Use the GPU or not.
     **classifier_kwargs
         Keyword args for :class:`~scvi.modules.Classifier`
 
@@ -56,12 +54,11 @@ class SOLO(BaseModelClass):
     def __init__(
         self,
         adata: AnnData,
-        use_gpu: bool = True,
         **model_kwargs,
     ):
         # TODO, catch user warning here and logger warning
         # about non count data
-        super().__init__(adata, use_gpu=use_gpu)
+        super().__init__(adata)
 
         self.module = Classifier(
             n_input=self.summary_stats["n_vars"],
@@ -148,7 +145,7 @@ class SOLO(BaseModelClass):
         self,
         max_epochs: int = 400,
         lr: float = 1e-3,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 1,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -168,7 +165,8 @@ class SOLO(BaseModelClass):
         lr
             Learning rate for optimization.
         use_gpu
-            If `True`, use the GPU if available.
+            Use default GPU if available (if None or True), or index of GPU to use (if int),
+            or name of GPU (if str), or use CPU (if False).
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -211,23 +209,29 @@ class SOLO(BaseModelClass):
                 kwargs["callbacks"] = early_stopping_callback
             kwargs["check_val_every_n_epoch"] = 1
 
-        super().train(
-            max_epochs=max_epochs,
-            use_gpu=use_gpu,
+        if max_epochs is None:
+            n_cells = self.adata.n_obs
+            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+
+        data_splitter = DataSplitter(
+            self.adata,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            plan_kwargs=plan_kwargs,
+            use_gpu=use_gpu,
+        )
+        training_plan = ClassifierTrainingPlan(self.module, **plan_kwargs)
+        runner = TrainRunner(
+            self,
+            training_plan=training_plan,
+            data_splitter=data_splitter,
+            max_epochs=max_epochs,
+            use_gpu=use_gpu,
             **kwargs,
         )
-
-    def _set_training_plan(self, plan_class, plan_kwargs):
-        """Set the _training_plan attribute."""
-        if plan_class is None:
-            plan_class = self._plan_class
-
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-        self._training_plan = plan_class(self.module, **plan_kwargs)
+        return runner()
 
     @torch.no_grad()
     def predict(self, soft: bool = True):
@@ -262,14 +266,6 @@ class SOLO(BaseModelClass):
         # TODO: make it a dataframe with nice columns
 
         return y_pred
-
-    @property
-    def _plan_class(self):
-        return ClassifierTrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
 
 
 def _validate_scvi_model(scvi_model: SCVI):

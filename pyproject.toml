@@ -10,14 +10,14 @@ classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
-  "Programming Language :: Python :: 3.6",
   "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
   "Operating System :: MacOS :: MacOS X",
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
-description = "Deep generative models for end-to-end analysis of single-cell omics data."
+description = "Deep probabilistic analysis of single-cell omics data."
 documentation = "https://scvi-tools.org"
 homepage = "https://github.com/YosefLab/scvi-tools"
 license = "BSD-3-Clause"
@@ -25,15 +25,14 @@ name = "scvi-tools"
 packages = [
   {include = "scvi"},
 ]
-readme = "README.rst"
-version = "0.9.0-alpha.2"
+readme = "README.md"
+version = "0.9.0-beta.1"
 
 [tool.poetry.dependencies]
 anndata = ">=0.7.5"
 black = {version = ">=20.8b1", optional = true}
 codecov = {version = ">=2.0.8", optional = true}
 flake8 = {version = ">=3.7.7", optional = true}
-furo = {version = ">=2020.12.30b24", optional = true}
 h5py = ">=2.9.0"
 importlib-metadata = {version = "^1.0", python = "<3.8"}
 ipython = {version = ">=7.20", optional = true, python = ">=3.7"}
@@ -51,9 +50,10 @@ numpy = ">=1.17.0"
 openpyxl = ">=3.0"
 pandas = ">=1.0"
 pre-commit = {version = ">=2.7.1", optional = true}
+pydata-sphinx-theme = {version = ">=0.4.3", optional = true}
 pyro-ppl = ">=1.1.0"
 pytest = {version = ">=4.4", optional = true}
-python = ">=3.6.2,<4.0"
+python = ">=3.7,<4.0"
 python-igraph = {version = "*", optional = true}
 pytorch-lightning = ">=1.2"
 rich = ">=9.1.0"
@@ -77,7 +77,7 @@ docs = [
   "nbsphinx",
   "nbsphinx-link",
   "ipython",
-  "furo",
+  "pydata-sphinx-theme",
   "typing_extensions",
   "sphinx-autodoc-typehints",
   "sphinx_copybutton",

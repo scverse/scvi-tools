@@ -14,13 +14,14 @@ from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.dataloaders import AnnDataLoader
+from scvi.dataloaders import DataSplitter
 from scvi.lightning import AdversarialTrainingPlan
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
     cite_seq_raw_counts_properties,
 )
+from scvi.model.base import TrainRunner
 from scvi.model.base._utils import _de_core
 from scvi.modules import TOTALVAE
 
@@ -66,8 +67,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Set the initialization of protein background prior empirically. This option fits a GMM for each of
         100 cells per batch and averages the distributions. Note that even with this option set to `True`,
         this only initializes a parameter that is learned during inference. If `False`, randomly initializes.
-    use_gpu
-        Use the GPU or not.
     **model_kwargs
         Keyword args for :class:`~scvi.modules.TOTALVAE`
 
@@ -101,10 +100,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         gene_likelihood: Literal["zinb", "nb"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
         empirical_protein_background_prior: bool = True,
-        use_gpu: Optional[bool] = None,
         **model_kwargs,
     ):
-        super(TOTALVI, self).__init__(adata, use_gpu=use_gpu)
+        super(TOTALVI, self).__init__(adata)
         if "totalvi_batch_mask" in self.scvi_setup_dict_.keys():
             batch_mask = self.scvi_setup_dict_["totalvi_batch_mask"]
         else:
@@ -151,7 +149,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         max_epochs: Optional[int] = 400,
         lr: float = 4e-3,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 256,
@@ -174,7 +172,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         lr
             Learning rate for optimization.
         use_gpu
-            If `True`, use the GPU if available.
+            Use default GPU if available (if None or True), or index of GPU to use (if int),
+            or name of GPU (if str), or use CPU (if False).
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -232,16 +231,33 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             plan_kwargs.update(update_dict)
         else:
             plan_kwargs = update_dict
-        super().train(
-            max_epochs=max_epochs,
-            use_gpu=use_gpu,
+
+        if max_epochs is None:
+            n_cells = self.adata.n_obs
+            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+
+        data_splitter = DataSplitter(
+            self.adata,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
+            use_gpu=use_gpu,
+        )
+        training_plan = AdversarialTrainingPlan(
+            self.module, len(data_splitter.train_idx), **plan_kwargs
+        )
+        runner = TrainRunner(
+            self,
+            training_plan=training_plan,
+            data_splitter=data_splitter,
+            max_epochs=max_epochs,
+            use_gpu=use_gpu,
             early_stopping=early_stopping,
-            plan_kwargs=plan_kwargs,
             **kwargs,
         )
+        return runner()
 
     @torch.no_grad()
     def get_latent_library_size(
@@ -997,14 +1013,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             raise ValueError("No protein data found, please setup or transfer anndata")
 
         return adata
-
-    @property
-    def _plan_class(self):
-        return AdversarialTrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
 
     @torch.no_grad()
     def get_protein_background_mean(self, adata, indices, batch_size):

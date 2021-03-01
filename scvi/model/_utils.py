@@ -1,10 +1,11 @@
 import logging
 from collections.abc import Iterable as IterableClass
-from typing import Dict, List, Sequence, Union
+from typing import Dict, List, Optional, Sequence, Union
 
 import anndata
 import numpy as np
 import scipy.sparse as sp_sparse
+import torch
 
 from scvi import _CONSTANTS
 from scvi.data import get_from_registry
@@ -12,6 +13,42 @@ from scvi.data import get_from_registry
 logger = logging.getLogger(__name__)
 
 Number = Union[int, float]
+
+
+def parse_use_gpu_arg(
+    use_gpu: Optional[Union[str, int, bool]] = None,
+    return_device=True,
+):
+    """
+    Parses the use_gpu arg in codebase.
+
+    Returned gpus are is compatible with PytorchLightning's gpus arg.
+    If return_device is True, will also return the device.
+
+    Parameters
+    ----------
+    use_gpu
+        Use default GPU if available (if None or True), or index of GPU to use (if int),
+        or name of GPU (if str), or use CPU (if False).
+    return_device
+        If True, will return the torch.device of use_gpu.
+    """
+    gpu_available = torch.cuda.is_available()
+    if (use_gpu is None and not gpu_available) or (use_gpu is False):
+        gpus = 0
+        device = torch.device("cpu")
+    elif (use_gpu is None and gpu_available) or (use_gpu is True):
+        current = torch.cuda.current_device()
+        device = torch.device(current)
+        gpus = [current]
+    elif isinstance(use_gpu, int) or isinstance(use_gpu, str):
+        device = torch.device(use_gpu)
+        gpus = [use_gpu]
+
+    if return_device:
+        return gpus, device
+    else:
+        return gpus
 
 
 def scrna_raw_counts_properties(

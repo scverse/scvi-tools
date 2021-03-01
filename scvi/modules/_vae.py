@@ -326,8 +326,8 @@ class VAE(BaseModuleClass):
 
         reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
 
-        kl_local_for_warmup = kl_divergence_l
-        kl_local_no_warmup = kl_divergence_z
+        kl_local_for_warmup = kl_divergence_z
+        kl_local_no_warmup = kl_divergence_l
 
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
 

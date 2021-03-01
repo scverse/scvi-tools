@@ -13,6 +13,7 @@ To download the tutorials:
 
 .. _forum: https://discourse.scvi-tools.org/
 
+
 Quick start
 -----------
 
@@ -30,6 +31,7 @@ Tutorials
 
    notebooks/totalVI
    notebooks/harmonization
+   notebooks/seed_labeling
    notebooks/linear_decoder
    notebooks/cite_scrna_integration_w_totalVI
    notebooks/scarches_scvi_tools

@@ -3,8 +3,7 @@ import logging
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.dataloaders import AnnDataLoader
-from scvi.lightning import TrainingPlan
+from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.modules import VAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
@@ -12,7 +11,9 @@ from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 logger = logging.getLogger(__name__)
 
 
-class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
+class SCVI(
+    RNASeqMixin, VAEMixin, ArchesMixin, UnsupervisedTrainingMixin, BaseModelClass
+):
     """
     single-cell Variational Inference [Lopez18]_.
 
@@ -46,8 +47,6 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
-    use_gpu
-        Use the GPU or not.
     **model_kwargs
         Keyword args for :class:`~scvi.modules.VAE`
 
@@ -80,10 +79,9 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        use_gpu: bool = True,
         **model_kwargs,
     ):
-        super(SCVI, self).__init__(adata, use_gpu=use_gpu)
+        super(SCVI, self).__init__(adata)
 
         n_cats_per_cov = (
             self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
@@ -117,11 +115,3 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())
-
-    @property
-    def _plan_class(self):
-        return TrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader

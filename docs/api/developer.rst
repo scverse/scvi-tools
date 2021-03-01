@@ -11,34 +11,54 @@ Import scvi-tools as::
 .. currentmodule:: scvi
 
 Compose
-~~~~~~~
+-------
 
 .. currentmodule:: scvi
+
+
+Architectures
+~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: reference/
    :template: class_no_inherited.rst
+   :nosignatures:
 
    compose.FCLayers
    compose.Encoder
+   compose.Decoder
+
+Module classes
+~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: reference/
+   :template: class_no_inherited.rst
+   :nosignatures:
+
    compose.LossRecorder
    compose.BaseModuleClass
    compose.PyroBaseModuleClass
 
+Functions
+~~~~~~~~~
+
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    compose.one_hot
    compose.auto_move_data
 
 Distributions
-~~~~~~~~~~~~~
+-------------
 
 .. currentmodule:: scvi
 
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    distributions.NegativeBinomial
    distributions.NegativeBinomialMixture
@@ -46,21 +66,23 @@ Distributions
 
 
 Model (Base)
-~~~~~~~~~~~~
+------------
 
 .. currentmodule:: scvi
 
 
 .. autosummary::
     :toctree: reference/
+    :nosignatures:
 
     model.base.BaseModelClass
     model.base.VAEMixin
     model.base.RNASeqMixin
     model.base.ArchesMixin
+    model.base.TrainRunner
 
 Modules
-~~~~~~~
+-------
 
 .. currentmodule:: scvi
 
@@ -68,6 +90,7 @@ Modules
 .. autosummary::
    :toctree: reference/
    :template: class_no_inherited.rst
+   :nosignatures:
 
    modules.VAE
    modules.LDVAE
@@ -78,21 +101,24 @@ Modules
    modules.Classifier
 
 Data Loaders
-~~~~~~~~~~~~
+------------
 
 .. currentmodule:: scvi
 
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    dataloaders.AnnDataLoader
    dataloaders.AnnTorchDataset
    dataloaders.ConcatDataLoader
    dataloaders.SemiSupervisedDataLoader
+   dataloaders.DataSplitter
+   dataloaders.SemiSupervisedDataSplitter
 
 Lightning
-~~~~~~~~~
+---------
 
 .. currentmodule:: scvi
 
@@ -103,6 +129,7 @@ steps for modules like `TOTALVAE`, `SCANVAE`, etc.
 .. autosummary::
    :toctree: reference/
    :template: class_no_inherited.rst
+   :nosignatures:
 
    lightning.TrainingPlan
    lightning.SemiSupervisedTrainingPlan
@@ -111,13 +138,14 @@ steps for modules like `TOTALVAE`, `SCANVAE`, etc.
    lightning.Trainer
 
 Utilities
-~~~~~~~~~
+---------
 
 .. currentmodule:: scvi
 
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    utils.DifferentialComputation
    utils.track

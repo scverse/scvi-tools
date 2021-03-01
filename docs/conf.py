@@ -128,7 +128,7 @@ todo_include_todos = False
 # -- Options for HTML output -------------------------------------------
 
 html_show_sourcelink = True
-html_theme = "furo"
+html_theme = "pydata_sphinx_theme"
 
 html_context = dict(
     # display_github=True,  # Integrate GitHub
@@ -142,39 +142,8 @@ html_title = "scvi-tools"
 html_logo = "_static/logo.png"
 
 html_theme_options = {
-    "sidebar_hide_name": True,
-    "light_css_variables": {
-        "color-brand-primary": "#003262",
-        "color-brand-content": "#2a5adf",
-        "sidebar-width": "30em",
-        "content-width": "70em",
-        "admonition-font-size": "var(--font-size--small)",
-        "admonition-title-font-size": "var(--font-size--normal)",
-    },
-    "dark_css_variables": {
-        "color-problematic": "#b30000",
-        "color-foreground-primary": "black",
-        "color-foreground-secondary": "#5a5c63",
-        "color-foreground-muted": "#72747e",
-        "color-foreground-border": "#878787",
-        "color-background-primary": "white",
-        "color-background-secondary": "#f8f9fb",
-        "color-background-hover": "#efeff4ff",
-        "color-background-hover--transparent": "#efeff400",
-        "color-background-border": "#eeebee",
-        "color-announcement-background": "#000000dd",
-        "color-announcement-text": "#eeebee",
-        "color-brand-primary": "#003262",
-        "color-brand-content": "#2a5adf",
-        "color-highlighted-background": "#ddeeff",
-        "color-highlighted-text": "var(--color-foreground-primary)",
-        "color-api-highlight-on-target": "#ffffcc",
-        "color-admonition-background": "transparent",
-        "sidebar-width": "30em",
-        "content-width": "70em",
-        "admonition-font-size": "var(--font-size--small)",
-        "admonition-title-font-size": "var(--font-size--normal)",
-    },
+    "github_url": "https://github.com/YosefLab/scvi-tools",
+    "twitter_url": "https://twitter.com/YosefLab",
 }
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -224,6 +193,7 @@ nbsphinx_thumbnails = {
     "user_guide/notebooks/cite_scrna_integration_w_totalVI": "_static/tutorials/cite_scrna.png",
     "user_guide/notebooks/scVI_DE_worm": "_static/tutorials/worm.png",
     "user_guide/notebooks/stereoscope_public_LV": "_static/tutorials/stereoscope.png",
+    "user_guide/notebooks/seed_labeling": "_static/tutorials/seed.png",
 }
 
 

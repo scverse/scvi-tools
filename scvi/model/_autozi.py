@@ -9,8 +9,7 @@ from torch.distributions import Beta, Normal
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.dataloaders import AnnDataLoader
-from scvi.lightning import TrainingPlan
+from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.modules import AutoZIVAE
 
 from .base import BaseModelClass, VAEMixin
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 # register buffer
 
 
-class AUTOZI(VAEMixin, BaseModelClass):
+class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     Automatic identification of ZI genes [Clivio19]_.
 
@@ -48,8 +47,6 @@ class AUTOZI(VAEMixin, BaseModelClass):
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
-    use_gpu
-        Use the GPU or not.
     alpha_prior
         Float denoting the alpha parameter of the prior Beta distribution of
         the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
@@ -97,14 +94,13 @@ class AUTOZI(VAEMixin, BaseModelClass):
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        use_gpu: bool = True,
         alpha_prior: Optional[float] = 0.5,
         beta_prior: Optional[float] = 0.5,
         minimal_dropout: float = 0.01,
         zero_inflation: str = "gene",
         **model_kwargs,
     ):
-        super(AUTOZI, self).__init__(adata, use_gpu=use_gpu)
+        super(AUTOZI, self).__init__(adata)
 
         self.module = AutoZIVAE(
             n_input=self.summary_stats["n_vars"],
@@ -255,11 +251,3 @@ class AUTOZI(VAEMixin, BaseModelClass):
         log_lkl = logsumexp(to_sum, dim=-1).item() - np.log(n_mc_samples)
         n_samples = len(scdl.indices)
         return log_lkl / n_samples
-
-    @property
-    def _plan_class(self):
-        return TrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
