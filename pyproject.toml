@@ -17,7 +17,7 @@ classifiers = [
   "Operating System :: POSIX :: Linux",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
-description = "Deep generative models for end-to-end analysis of single-cell omics data."
+description = "Deep probabilistic analysis of single-cell omics data."
 documentation = "https://scvi-tools.org"
 homepage = "https://github.com/YosefLab/scvi-tools"
 license = "BSD-3-Clause"
