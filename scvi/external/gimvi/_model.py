@@ -52,7 +52,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     n_latent
         Dimensionality of the latent space.
     **model_kwargs
-        Keyword args for :class:`~scvi.module.JVAE`
+        Keyword args for :class:`~scvi.external.gimvi.JVAE`
 
     Examples
     --------

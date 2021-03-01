@@ -21,7 +21,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     sc_adata
         single-cell AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
     **model_kwargs
-        Keyword args for :class:`~scvi.external.RNADeconv`
+        Keyword args for :class:`~scvi.external.stereoscope.RNADeconv`
 
     Examples
     --------
@@ -125,7 +125,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         how to reweight the minibatches for stochastic optimization. "n_obs" is the valid
         procedure, "minibatch" is the procedure implemented in Stereoscope.
     **model_kwargs
-        Keyword args for :class:`~scvi.external.SpatialDeconv`
+        Keyword args for :class:`~scvi.external.stereoscope.SpatialDeconv`
 
     Examples
     --------
