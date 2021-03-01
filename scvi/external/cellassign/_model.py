@@ -13,8 +13,8 @@ from scvi import _CONSTANTS
 from scvi.data import register_tensor_from_anndata
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
-from scvi.model.base import BaseModelClass, TrainRunner, UnsupervisedTrainingMixin
-from scvi.train import TrainingPlan
+from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
+from scvi.train import TrainingPlan, TrainRunner
 
 logger = logging.getLogger(__name__)
 

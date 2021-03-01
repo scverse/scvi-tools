@@ -6,6 +6,7 @@ from ._trainingplans import (
     SemiSupervisedTrainingPlan,
     TrainingPlan,
 )
+from ._trainrunner import TrainRunner
 
 __all__ = [
     "TrainingPlan",
@@ -14,4 +15,5 @@ __all__ = [
     "SemiSupervisedTrainingPlan",
     "AdversarialTrainingPlan",
     "ClassifierTrainingPlan",
+    "TrainRunner",
 ]

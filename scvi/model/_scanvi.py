@@ -16,11 +16,11 @@ from scvi.dataloaders import (
     SemiSupervisedDataSplitter,
 )
 from scvi.modules import SCANVAE
-from scvi.train import SemiSupervisedTrainingPlan
+from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
 
 from ._scvi import SCVI
-from .base import ArchesMixin, BaseModelClass, RNASeqMixin, TrainRunner, VAEMixin
+from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
 logger = logging.getLogger(__name__)
 

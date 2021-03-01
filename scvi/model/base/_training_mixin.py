@@ -3,9 +3,7 @@ from typing import Optional, Union
 import numpy as np
 
 from scvi.dataloaders import DataSplitter
-from scvi.train import TrainingPlan
-
-from ._trainrunner import TrainRunner
+from scvi.train import TrainingPlan, TrainRunner
 
 
 class UnsupervisedTrainingMixin:
