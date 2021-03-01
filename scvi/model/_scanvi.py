@@ -15,12 +15,12 @@ from scvi.dataloaders import (
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
-from scvi.lightning import SemiSupervisedTrainingPlan
-from scvi.lightning._callbacks import SubSampleLabels
-from scvi.modules import SCANVAE
+from scvi.module import SCANVAE
+from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
+from scvi.train._callbacks import SubSampleLabels
 
 from ._scvi import SCVI
-from .base import ArchesMixin, BaseModelClass, RNASeqMixin, TrainRunner, VAEMixin
+from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
     **model_kwargs
-        Keyword args for :class:`~scvi.modules.SCANVAE`
+        Keyword args for :class:`~scvi.module.SCANVAE`
 
     Examples
     --------
@@ -332,10 +332,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Use default GPU if available (if None or True), or index of GPU to use (if int),
             or name of GPU (if str), or use CPU (if False).
         plan_kwargs
-            Keyword args for :class:`~scvi.lightning.SemiSupervisedTrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.SemiSupervisedTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **trainer_kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
 
         if max_epochs is None:

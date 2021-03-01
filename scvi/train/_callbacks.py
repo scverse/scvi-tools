@@ -33,8 +33,8 @@ class SaveBestState(Callback):
 
     Examples
     --------
-    from scvi.lightning import Trainer
-    from scvi.lightning import SaveBestState
+    from scvi.train import Trainer
+    from scvi.train import SaveBestState
     """
 
     def __init__(

@@ -84,10 +84,10 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         batch_size
             Minibatch size to use during training.
         plan_kwargs
-            Keyword args for :class:`~scvi.lightning.TrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         update_dict = {
             "lr": lr,
@@ -248,10 +248,10 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         batch_size
             Minibatch size to use during training.
         plan_kwargs
-            Keyword args for :class:`~scvi.lightning.TrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         update_dict = {
             "lr": lr,

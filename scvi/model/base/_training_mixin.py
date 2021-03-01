@@ -3,9 +3,7 @@ from typing import Optional, Union
 import numpy as np
 
 from scvi.dataloaders import DataSplitter
-from scvi.lightning import TrainingPlan
-
-from ._trainrunner import TrainRunner
+from scvi.train import TrainingPlan, TrainRunner
 
 
 class UnsupervisedTrainingMixin:
@@ -40,12 +38,12 @@ class UnsupervisedTrainingMixin:
             Minibatch size to use during training.
         early_stopping
             Perform early stopping. Additional arguments can be passed in `**kwargs`.
-            See :class:`~scvi.lightning.Trainer` for further options.
+            See :class:`~scvi.train.Trainer` for further options.
         plan_kwargs
-            Keyword args for :class:`~scvi.lightning.TrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **trainer_kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
             n_cells = self.adata.n_obs

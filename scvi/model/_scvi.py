@@ -4,7 +4,7 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.model.base import UnsupervisedTrainingMixin
-from scvi.modules import VAE
+from scvi.module import VAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
@@ -48,7 +48,7 @@ class SCVI(
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     **model_kwargs
-        Keyword args for :class:`~scvi.modules.VAE`
+        Keyword args for :class:`~scvi.module.VAE`
 
     Examples
     --------

@@ -9,9 +9,7 @@ from ._base_components import (
     MultiDecoder,
     MultiEncoder,
 )
-from ._base_module import BaseModuleClass, LossRecorder, PyroBaseModuleClass
-from ._decorators import auto_move_data
-from ._utils import one_hot  # Do we want one_hot here?
+from ._utils import one_hot
 
 __all__ = [
     "FCLayers",
@@ -23,9 +21,5 @@ __all__ = [
     "LinearDecoderSCVI",
     "MultiEncoder",
     "MultiDecoder",
-    "LossRecorder",
-    "BaseModuleClass",
     "one_hot",
-    "auto_move_data",
-    "PyroBaseModuleClass",
 ]

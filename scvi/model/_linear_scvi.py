@@ -6,7 +6,7 @@ from anndata import AnnData
 from scvi._compat import Literal
 from scvi.model._utils import _get_var_names_from_setup_anndata
 from scvi.model.base import UnsupervisedTrainingMixin
-from scvi.modules import LDVAE
+from scvi.module import LDVAE
 
 from .base import BaseModelClass, RNASeqMixin, VAEMixin
 
@@ -48,7 +48,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     **model_kwargs
-        Keyword args for :class:`~scvi.modules.LDVAE`
+        Keyword args for :class:`~scvi.module.LDVAE`
 
     Examples
     --------

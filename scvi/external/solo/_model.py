@@ -10,13 +10,13 @@ from anndata import AnnData
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from scvi import _CONSTANTS
-from scvi.compose import auto_move_data
 from scvi.data import get_from_registry, setup_anndata
 from scvi.dataloaders import DataSplitter
-from scvi.lightning import ClassifierTrainingPlan
 from scvi.model import SCVI
-from scvi.model.base import BaseModelClass, TrainRunner
-from scvi.modules import Classifier
+from scvi.model.base import BaseModelClass
+from scvi.module import Classifier
+from scvi.module.base import auto_move_data
+from scvi.train import ClassifierTrainingPlan, TrainRunner
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class SOLO(BaseModelClass):
         Object should contain latent representation of real cells and doublets as `adata.X`.
         Object should also be registered, using `.X` and `labels_key="_solo_doub_sim"`.
     **classifier_kwargs
-        Keyword args for :class:`~scvi.modules.Classifier`
+        Keyword args for :class:`~scvi.module.Classifier`
 
     Examples
     --------
@@ -175,7 +175,7 @@ class SOLO(BaseModelClass):
         batch_size
             Minibatch size to use during training.
         plan_kwargs
-            Keyword args for :class:`~scvi.lightning.ClassifierTrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.ClassifierTrainingPlan`. Keyword arguments passed to
         early_stopping
             Adds callback for early stopping on validation_loss
         early_stopping_patience
@@ -184,7 +184,7 @@ class SOLO(BaseModelClass):
             Threshold for counting an epoch torwards patience
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         update_dict = {
             "lr": lr,

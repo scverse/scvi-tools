@@ -4,9 +4,9 @@ from typing import Optional, Union
 import pytorch_lightning as pl
 
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
-from scvi.lightning import Trainer
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base import BaseModelClass
+from scvi.train import Trainer
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class TrainRunner:
         Use default GPU if available (if None or True), or index of GPU to use (if int),
         or name of GPU (if str), or use CPU (if False).
     trainer_kwargs
-        Extra kwargs for :class:`~scvi.lightning.Trainer`
+        Extra kwargs for :class:`~scvi.train.Trainer`
 
     Examples
     --------

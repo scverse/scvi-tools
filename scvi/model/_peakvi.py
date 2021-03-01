@@ -11,14 +11,14 @@ from scipy.sparse import csr_matrix, vstack
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
-from scvi.lightning._callbacks import SaveBestState
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
     scatac_raw_counts_properties,
 )
 from scvi.model.base import UnsupervisedTrainingMixin
-from scvi.modules import PEAKVAE
+from scvi.module import PEAKVAE
+from scvi.train._callbacks import SaveBestState
 
 from .base import ArchesMixin, BaseModelClass, VAEMixin
 from .base._utils import _de_core
@@ -58,6 +58,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     deeply_inject_covariates
         Whether to deeply inject covariates into all layers of the decoder. If False (default),
         covairates will only be included in the input layer.
+    **model_kwargs
+        Keyword args for :class:`~scvi.module.PEAKVAE`
 
     Examples
     --------
@@ -181,10 +183,10 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Number of epochs to scale weight on KL divergences from 0 to 1.
             Overrides `n_steps_kl_warmup` when both are not `None`.
         plan_kwargs
-            Keyword args for :class:`~scvi.lightning.VAETask`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         update_dict = dict(
             lr=lr,

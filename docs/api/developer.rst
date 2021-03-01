@@ -10,50 +10,33 @@ Import scvi-tools as::
 
 .. currentmodule:: scvi
 
-Compose
--------
+
+Data Loaders
+------------
 
 .. currentmodule:: scvi
 
+DataLoaders for loading tensors from AnnData objects. DataSplitters for splitting data into train/test/val.
 
-Architectures
-~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: reference/
-   :template: class_no_inherited.rst
-   :nosignatures:
-
-   compose.FCLayers
-   compose.Encoder
-   compose.Decoder
-
-Module classes
-~~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: reference/
-   :template: class_no_inherited.rst
-   :nosignatures:
-
-   compose.LossRecorder
-   compose.BaseModuleClass
-   compose.PyroBaseModuleClass
-
-Functions
-~~~~~~~~~
 
 .. autosummary::
    :toctree: reference/
    :nosignatures:
 
-   compose.one_hot
-   compose.auto_move_data
+   dataloaders.AnnDataLoader
+   dataloaders.AnnTorchDataset
+   dataloaders.ConcatDataLoader
+   dataloaders.SemiSupervisedDataLoader
+   dataloaders.DataSplitter
+   dataloaders.SemiSupervisedDataSplitter
+
 
 Distributions
 -------------
 
 .. currentmodule:: scvi
+
+Parameterizable probability distributions.
 
 
 .. autosummary::
@@ -70,6 +53,7 @@ Model (Base)
 
 .. currentmodule:: scvi
 
+These classes should be used to construct user-facing model classes.
 
 .. autosummary::
     :toctree: reference/
@@ -79,69 +63,86 @@ Model (Base)
     model.base.VAEMixin
     model.base.RNASeqMixin
     model.base.ArchesMixin
-    model.base.TrainRunner
+    model.base.UnsupervisedTrainingMixin
 
-Modules
--------
+Module
+------
 
 .. currentmodule:: scvi
 
+Existing module classes with respective generative and inference procedures.
+
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   module.VAE
+   module.LDVAE
+   module.TOTALVAE
+   module.SCANVAE
+   module.JVAE
+   module.AutoZIVAE
+   module.Classifier
+
+Module (Base)
+-------------
+
+.. currentmodule:: scvi
+
+These classes should be used to construct module classes that define generative models and inference schemes.
+
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   module.base.LossRecorder
+   module.base.BaseModuleClass
+   module.base.PyroBaseModuleClass
+   module.base.auto_move_data
+   
+
+Neural networks
+---------------
+
+.. currentmodule:: scvi
+
+Basic neural network building blocks.
+
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+   
+   nn.FCLayers
+   nn.Encoder
+   nn.Decoder
+   nn.one_hot
+
+Train
+-----
+
+.. currentmodule:: scvi
+
+
+TrainingPlans define train/test/val optimization steps for modules.
 
 .. autosummary::
    :toctree: reference/
    :template: class_no_inherited.rst
    :nosignatures:
 
-   modules.VAE
-   modules.LDVAE
-   modules.TOTALVAE
-   modules.SCANVAE
-   modules.JVAE
-   modules.AutoZIVAE
-   modules.Classifier
-
-Data Loaders
-------------
-
-.. currentmodule:: scvi
-
-
-.. autosummary::
-   :toctree: reference/
-   :nosignatures:
-
-   dataloaders.AnnDataLoader
-   dataloaders.AnnTorchDataset
-   dataloaders.ConcatDataLoader
-   dataloaders.SemiSupervisedDataLoader
-   dataloaders.DataSplitter
-   dataloaders.SemiSupervisedDataSplitter
-
-Lightning
----------
-
-.. currentmodule:: scvi
-
-
-PyTorch lightning is used to train our modules. TrainingPlans define train/test/val optimization
-steps for modules like `TOTALVAE`, `SCANVAE`, etc.
-
-.. autosummary::
-   :toctree: reference/
-   :template: class_no_inherited.rst
-   :nosignatures:
-
-   lightning.TrainingPlan
-   lightning.SemiSupervisedTrainingPlan
-   lightning.AdversarialTrainingPlan
-   lightning.PyroTrainingPlan
-   lightning.Trainer
+   train.TrainingPlan
+   train.SemiSupervisedTrainingPlan
+   train.AdversarialTrainingPlan
+   train.PyroTrainingPlan
+   train.Trainer
+   train.TrainRunner
 
 Utilities
 ---------
 
 .. currentmodule:: scvi
 
+Utility functions used by scvi-tools.
 
 .. autosummary::
    :toctree: reference/

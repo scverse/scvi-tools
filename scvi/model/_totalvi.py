@@ -15,15 +15,14 @@ from scvi._utils import _doc_params
 from scvi.data import get_from_registry
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import DataSplitter
-from scvi.lightning import AdversarialTrainingPlan
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
     cite_seq_raw_counts_properties,
 )
-from scvi.model.base import TrainRunner
 from scvi.model.base._utils import _de_core
-from scvi.modules import TOTALVAE
+from scvi.module import TOTALVAE
+from scvi.train import AdversarialTrainingPlan, TrainRunner
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
@@ -68,7 +67,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         100 cells per batch and averages the distributions. Note that even with this option set to `True`,
         this only initializes a parameter that is learned during inference. If `False`, randomly initializes.
     **model_kwargs
-        Keyword args for :class:`~scvi.modules.TOTALVAE`
+        Keyword args for :class:`~scvi.module.TOTALVAE`
 
     Examples
     --------
@@ -201,10 +200,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             there are missing proteins in any of the batches. Defaults to `True` is missing proteins
             are detected.
         plan_kwargs
-            Keyword args for :class:`~scvi.lightning.AdversarialTrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.AdversarialTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if adversarial_classifier is None:
             imputation = (

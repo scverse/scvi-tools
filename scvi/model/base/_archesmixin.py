@@ -4,9 +4,9 @@ from typing import Optional, Union
 import torch
 from anndata import AnnData
 
-from scvi.compose import FCLayers
 from scvi.data import transfer_anndata_setup
 from scvi.model._utils import parse_use_gpu_arg
+from scvi.nn import FCLayers
 
 from ._base_model import BaseModelClass
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names

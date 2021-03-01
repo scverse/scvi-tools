@@ -12,9 +12,9 @@ from torch.utils.data import DataLoader
 from scvi import _CONSTANTS
 from scvi.data import transfer_anndata_setup
 from scvi.dataloaders import DataSplitter
-from scvi.lightning import Trainer
 from scvi.model._utils import _get_var_names_from_setup_anndata, parse_use_gpu_arg
 from scvi.model.base import BaseModelClass, VAEMixin
+from scvi.train import Trainer
 
 from ._module import JVAE
 from ._task import GIMVITrainingPlan
@@ -52,7 +52,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     n_latent
         Dimensionality of the latent space.
     **model_kwargs
-        Keyword args for :class:`~scvi.modules.JVAE`
+        Keyword args for :class:`~scvi.module.JVAE`
 
     Examples
     --------
@@ -161,7 +161,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         gpus, device = parse_use_gpu_arg(use_gpu)
 
