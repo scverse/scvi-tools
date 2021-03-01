@@ -16,6 +16,8 @@ Data Loaders
 
 .. currentmodule:: scvi
 
+DataLoaders for loading tensors from AnnData objects. DataSplitters for splitting data into train/test/val.
+
 
 .. autosummary::
    :toctree: reference/
@@ -33,6 +35,8 @@ Distributions
 -------------
 
 .. currentmodule:: scvi
+
+Parameterizable probability distributions.
 
 
 .. autosummary::
@@ -66,6 +70,8 @@ Modules
 
 .. currentmodule:: scvi
 
+Existing module classes with respective generative and inference procedures.
+
 .. autosummary::
    :toctree: reference/
    :nosignatures:
@@ -98,6 +104,10 @@ These classes should be used to construct module classes that define generative 
 Neural networks
 ---------------
 
+.. currentmodule:: scvi
+
+Basic neural network building blocks.
+
 .. autosummary::
    :toctree: reference/
    :nosignatures:
@@ -113,8 +123,7 @@ Train
 .. currentmodule:: scvi
 
 
-TrainingPlans define train/test/val optimization
-steps for modules like `TOTALVAE`, `SCANVAE`, etc.
+TrainingPlans define train/test/val optimization steps for modules.
 
 .. autosummary::
    :toctree: reference/
@@ -133,6 +142,7 @@ Utilities
 
 .. currentmodule:: scvi
 
+Utility functions used by scvi-tools.
 
 .. autosummary::
    :toctree: reference/
