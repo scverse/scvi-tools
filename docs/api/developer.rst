@@ -10,15 +10,23 @@ Import scvi-tools as::
 
 .. currentmodule:: scvi
 
-Architectures
--------------
+
+Data Loaders
+------------
 
 .. currentmodule:: scvi
-   nn.FCLayers
-   nn.Encoder
-   nn.Decoder
-   nn.one_hot
-   nn.auto_move_data
+
+
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   dataloaders.AnnDataLoader
+   dataloaders.AnnTorchDataset
+   dataloaders.ConcatDataLoader
+   dataloaders.SemiSupervisedDataLoader
+   dataloaders.DataSplitter
+   dataloaders.SemiSupervisedDataSplitter
 
 
 Distributions
@@ -41,6 +49,7 @@ Model (Base)
 
 .. currentmodule:: scvi
 
+These classes should be used to construct user-facing model classes.
 
 .. autosummary::
     :toctree: reference/
@@ -50,13 +59,12 @@ Model (Base)
     model.base.VAEMixin
     model.base.RNASeqMixin
     model.base.ArchesMixin
-
+    model.base.UnsupervisedTrainingMixin
 
 Modules
 -------
 
 .. currentmodule:: scvi
-
 
 .. autosummary::
    :toctree: reference/
@@ -75,6 +83,7 @@ Modules (Base)
 
 .. currentmodule:: scvi
 
+These classes should be used to construct module classes that define generative models and inference schemes.
 
 .. autosummary::
    :toctree: reference/
@@ -83,23 +92,20 @@ Modules (Base)
    modules.base.LossRecorder
    modules.base.BaseModuleClass
    modules.base.PyroBaseModuleClass
+   modules.base.auto_move_data
+   
 
-Data Loaders
-------------
-
-.. currentmodule:: scvi
-
+Neural networks
+---------------
 
 .. autosummary::
    :toctree: reference/
    :nosignatures:
-
-   dataloaders.AnnDataLoader
-   dataloaders.AnnTorchDataset
-   dataloaders.ConcatDataLoader
-   dataloaders.SemiSupervisedDataLoader
-   dataloaders.DataSplitter
-   dataloaders.SemiSupervisedDataSplitter
+   
+   nn.FCLayers
+   nn.Encoder
+   nn.Decoder
+   nn.one_hot
 
 Train
 -----
