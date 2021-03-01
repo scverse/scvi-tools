@@ -200,10 +200,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             there are missing proteins in any of the batches. Defaults to `True` is missing proteins
             are detected.
         plan_kwargs
-            Keyword args for :class:`~scvi.lightning.AdversarialTrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.AdversarialTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if adversarial_classifier is None:
             imputation = (

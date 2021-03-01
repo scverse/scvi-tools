@@ -68,7 +68,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         * ``'gene-label'`` - zero-inflation Bernoulli parameter can differ between different labels
         * ``'gene-cell'`` - zero-inflation Bernoulli parameter can differ for every gene in every cell
     **model_kwargs
-        Keyword args for :class:`~scvi.core.module.AutoZIVAE`
+        Keyword args for :class:`~scvi.module.AutoZIVAE`
 
     Examples
     --------

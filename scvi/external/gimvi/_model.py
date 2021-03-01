@@ -161,7 +161,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         gpus, device = parse_use_gpu_arg(use_gpu)
 

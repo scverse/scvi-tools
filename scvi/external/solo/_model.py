@@ -175,7 +175,7 @@ class SOLO(BaseModelClass):
         batch_size
             Minibatch size to use during training.
         plan_kwargs
-            Keyword args for :class:`~scvi.lightning.ClassifierTrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.ClassifierTrainingPlan`. Keyword arguments passed to
         early_stopping
             Adds callback for early stopping on validation_loss
         early_stopping_patience
@@ -184,7 +184,7 @@ class SOLO(BaseModelClass):
             Threshold for counting an epoch torwards patience
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         update_dict = {
             "lr": lr,

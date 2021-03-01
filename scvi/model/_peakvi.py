@@ -58,6 +58,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     deeply_inject_covariates
         Whether to deeply inject covariates into all layers of the decoder. If False (default),
         covairates will only be included in the input layer.
+    **model_kwargs
+        Keyword args for :class:`~scvi.module.PEAKVAE`
 
     Examples
     --------
@@ -181,10 +183,10 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Number of epochs to scale weight on KL divergences from 0 to 1.
             Overrides `n_steps_kl_warmup` when both are not `None`.
         plan_kwargs
-            Keyword args for :class:`~scvi.lightning.VAETask`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         update_dict = dict(
             lr=lr,

@@ -65,8 +65,8 @@ These classes should be used to construct user-facing model classes.
     model.base.ArchesMixin
     model.base.UnsupervisedTrainingMixin
 
-Modules
--------
+Module
+------
 
 .. currentmodule:: scvi
 
@@ -76,16 +76,16 @@ Existing module classes with respective generative and inference procedures.
    :toctree: reference/
    :nosignatures:
 
-   modules.VAE
-   modules.LDVAE
-   modules.TOTALVAE
-   modules.SCANVAE
-   modules.JVAE
-   modules.AutoZIVAE
-   modules.Classifier
+   module.VAE
+   module.LDVAE
+   module.TOTALVAE
+   module.SCANVAE
+   module.JVAE
+   module.AutoZIVAE
+   module.Classifier
 
-Modules (Base)
---------------
+Module (Base)
+-------------
 
 .. currentmodule:: scvi
 
@@ -95,10 +95,10 @@ These classes should be used to construct module classes that define generative 
    :toctree: reference/
    :nosignatures:
 
-   modules.base.LossRecorder
-   modules.base.BaseModuleClass
-   modules.base.PyroBaseModuleClass
-   modules.base.auto_move_data
+   module.base.LossRecorder
+   module.base.BaseModuleClass
+   module.base.PyroBaseModuleClass
+   module.base.auto_move_data
    
 
 Neural networks

@@ -30,7 +30,7 @@ class TrainRunner:
         Use default GPU if available (if None or True), or index of GPU to use (if int),
         or name of GPU (if str), or use CPU (if False).
     trainer_kwargs
-        Extra kwargs for :class:`~scvi.lightning.Trainer`
+        Extra kwargs for :class:`~scvi.train.Trainer`
 
     Examples
     --------
