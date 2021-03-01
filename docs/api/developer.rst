@@ -13,7 +13,10 @@ Import scvi-tools as::
 Architectures
 -------------
 
-.. currentmodule:: scvi
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+   
    nn.FCLayers
    nn.Encoder
    nn.Decoder
@@ -41,6 +44,7 @@ Model (Base)
 
 .. currentmodule:: scvi
 
+These classes should be used to construct user-facing model classes.
 
 .. autosummary::
     :toctree: reference/
@@ -50,13 +54,12 @@ Model (Base)
     model.base.VAEMixin
     model.base.RNASeqMixin
     model.base.ArchesMixin
-
+    model.base.UnsupervisedTrainingMixin
 
 Modules
 -------
 
 .. currentmodule:: scvi
-
 
 .. autosummary::
    :toctree: reference/
@@ -75,6 +78,7 @@ Modules (Base)
 
 .. currentmodule:: scvi
 
+These classes should be used to construct module classes that define generative models and inference schemes.
 
 .. autosummary::
    :toctree: reference/
