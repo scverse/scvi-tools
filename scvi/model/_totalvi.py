@@ -32,7 +32,7 @@ Number = TypeVar("Number", int, float)
 
 class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     """
-    total Variational Inference [GayosoSteier20]_.
+    total Variational Inference [GayosoSteier21]_.
 
     Parameters
     ----------
