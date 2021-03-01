@@ -10,8 +10,8 @@ classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
-  "Programming Language :: Python :: 3.6",
   "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
   "Operating System :: MacOS :: MacOS X",
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
@@ -53,7 +53,7 @@ pre-commit = {version = ">=2.7.1", optional = true}
 pydata-sphinx-theme = {version = ">=0.4.3", optional = true}
 pyro-ppl = ">=1.1.0"
 pytest = {version = ">=4.4", optional = true}
-python = ">=3.6.2,<4.0"
+python = ">=3.7,<4.0"
 python-igraph = {version = "*", optional = true}
 pytorch-lightning = ">=1.2"
 rich = ">=9.1.0"
