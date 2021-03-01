@@ -10,18 +10,23 @@ Import scvi-tools as::
 
 .. currentmodule:: scvi
 
-Architectures
--------------
+
+Data Loaders
+------------
+
+.. currentmodule:: scvi
+
 
 .. autosummary::
    :toctree: reference/
    :nosignatures:
-   
-   nn.FCLayers
-   nn.Encoder
-   nn.Decoder
-   nn.one_hot
-   nn.auto_move_data
+
+   dataloaders.AnnDataLoader
+   dataloaders.AnnTorchDataset
+   dataloaders.ConcatDataLoader
+   dataloaders.SemiSupervisedDataLoader
+   dataloaders.DataSplitter
+   dataloaders.SemiSupervisedDataSplitter
 
 
 Distributions
@@ -87,23 +92,20 @@ These classes should be used to construct module classes that define generative 
    modules.base.LossRecorder
    modules.base.BaseModuleClass
    modules.base.PyroBaseModuleClass
+   modules.base.auto_move_data
+   
 
-Data Loaders
-------------
-
-.. currentmodule:: scvi
-
+Neural networks
+---------------
 
 .. autosummary::
    :toctree: reference/
    :nosignatures:
-
-   dataloaders.AnnDataLoader
-   dataloaders.AnnTorchDataset
-   dataloaders.ConcatDataLoader
-   dataloaders.SemiSupervisedDataLoader
-   dataloaders.DataSplitter
-   dataloaders.SemiSupervisedDataSplitter
+   
+   nn.FCLayers
+   nn.Encoder
+   nn.Decoder
+   nn.one_hot
 
 Train
 -----
