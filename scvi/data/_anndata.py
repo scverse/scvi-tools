@@ -1204,9 +1204,7 @@ def _check_anndata_setup_equivalence(
         source_cont_keys = _scvi_dict["extra_continuous_keys"]
         # check that order of keys setup is same
         if not np.array_equal(target_cont_keys, source_cont_keys):
-            raise ValueError(
-                error_msg.format(source_cont_keys, target_cont_keys)
-            )
+            raise ValueError(error_msg.format(source_cont_keys, target_cont_keys))
 
     return transfer_setup
 
