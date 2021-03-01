@@ -20,7 +20,7 @@ class DifferentialComputation:
 
     This class takes a function from a model like `SCVI` or `TOTALVI` and takes outputs
     from this function with respect to the adata input and computed Bayes factors as
-    described in [Lopez18]_, [Xu20]_, or [Boyeau19]_.
+    described in [Lopez18]_, [Xu21]_, or [Boyeau19]_.
 
     Parameters
     ----------
