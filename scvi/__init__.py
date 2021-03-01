@@ -7,7 +7,7 @@ from ._constants import _CONSTANTS
 from ._settings import settings
 
 # this import needs to come after prior imports to prevent circular import
-from . import data, model
+from . import data, model, external
 
 # https://github.com/python-poetry/poetry/pull/2366#issuecomment-652418094
 # https://github.com/python-poetry/poetry/issues/144#issuecomment-623927302
@@ -21,4 +21,4 @@ __version__ = importlib_metadata.version(package_name)
 settings.verbosity = logging.INFO
 test_var = "test"
 
-__all__ = ["settings", "_CONSTANTS", "data", "model"]
+__all__ = ["settings", "_CONSTANTS", "data", "model", "external"]
