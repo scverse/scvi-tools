@@ -147,7 +147,7 @@ def test_scvi(save_path):
     m.get_normalized_expression(transform_batch=[0, 1])
 
     # test get_likelihood_parameters() when dispersion=='gene-cell'
-    model = SCVI(adata, dispersion="gene_cell")
+    model = SCVI(adata, dispersion="gene-cell")
     model.get_likelihood_parameters()
 
 
