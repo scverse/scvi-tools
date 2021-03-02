@@ -20,7 +20,12 @@ from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.module.base import PyroBaseModuleClass
 
-from ._utils import _initialize_model, _load_saved_files, _validate_var_names
+from ._utils import (
+    _attempt_backwards_compatible_load,
+    _initialize_model,
+    _load_saved_files,
+    _validate_var_names,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -348,6 +353,10 @@ class BaseModelClass(ABC):
                 pyro.clear_param_store()
                 model.module.load_state_dict(model_state_dict)
             else:
+                success = _attempt_backwards_compatible_load(
+                    model.module, model_state_dict
+                )
+            if success is not True:
                 raise err
 
         model.to_device(device)
