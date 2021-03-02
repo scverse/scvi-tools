@@ -535,7 +535,6 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
 
     def training_epoch_end(self, outputs):
         super().training_epoch_end(outputs)
-        log_classification_loss = False
         classifier_loss, total_labelled_tensors = 0, 0
 
         for tensors in outputs:
@@ -544,16 +543,14 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
                 total_labelled_tensors += n_labelled
                 classification_loss = tensors["classification_loss"]
                 classifier_loss += classification_loss * n_labelled
-                log_classification_loss = True
 
-        if log_classification_loss:
+        if total_labelled_tensors > 0:
             self.log(
                 "classification_loss_train", classifier_loss / total_labelled_tensors
             )
 
     def validation_epoch_end(self, outputs):
         super().validation_epoch_end(outputs)
-        log_classification_loss = False
         classifier_loss, total_labelled_tensors = 0, 0
 
         for tensors in outputs:
@@ -562,9 +559,8 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
                 total_labelled_tensors += n_labelled
                 classification_loss = tensors["classification_loss"]
                 classifier_loss += classification_loss * n_labelled
-                log_classification_loss = True
 
-        if log_classification_loss:
+        if total_labelled_tensors > 0:
             self.log(
                 "classification_loss_validation",
                 classifier_loss / total_labelled_tensors,
