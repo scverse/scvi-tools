@@ -491,13 +491,17 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         reconstruction_loss = scvi_losses.reconstruction_loss
-        return {
+        loss_dict = {
             "loss": loss,
             "reconstruction_loss_sum": reconstruction_loss.sum(),
             "kl_local_sum": scvi_losses.kl_local.sum(),
             "kl_global": scvi_losses.kl_global,
             "n_obs": reconstruction_loss.shape[0],
         }
+        if hasattr(scvi_losses, "classification_loss"):
+            loss_dict["classification_loss"] = scvi_losses.classification_loss
+            loss_dict["n_labelled_tensors"] = scvi_losses.n_labelled_tensors
+        return loss_dict
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
@@ -516,13 +520,55 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         reconstruction_loss = scvi_losses.reconstruction_loss
-        return {
+
+        loss_dict = {
             "loss": loss,
             "reconstruction_loss_sum": reconstruction_loss.sum(),
             "kl_local_sum": scvi_losses.kl_local.sum(),
             "kl_global": scvi_losses.kl_global,
             "n_obs": reconstruction_loss.shape[0],
         }
+        if hasattr(scvi_losses, "classification_loss"):
+            loss_dict["classification_loss"] = scvi_losses.classification_loss
+            loss_dict["n_labelled_tensors"] = scvi_losses.n_labelled_tensors
+        return loss_dict
+
+    def training_epoch_end(self, outputs):
+        super().training_epoch_end(outputs)
+        log_classification_loss = False
+        classifier_loss, total_labelled_tensors = 0, 0
+
+        for tensors in outputs:
+            if "classification_loss" in tensors.keys():
+                n_labelled = tensors["n_labelled_tensors"]
+                total_labelled_tensors += n_labelled
+                classification_loss = tensors["classification_loss"]
+                classifier_loss += classification_loss * n_labelled
+                log_classification_loss = True
+
+        if log_classification_loss:
+            self.log(
+                "classification_loss_train", classifier_loss / total_labelled_tensors
+            )
+
+    def validation_epoch_end(self, outputs):
+        super().validation_epoch_end(outputs)
+        log_classification_loss = False
+        classifier_loss, total_labelled_tensors = 0, 0
+
+        for tensors in outputs:
+            if "classification_loss" in tensors.keys():
+                n_labelled = tensors["n_labelled_tensors"]
+                total_labelled_tensors += n_labelled
+                classification_loss = tensors["classification_loss"]
+                classifier_loss += classification_loss * n_labelled
+                log_classification_loss = True
+
+        if log_classification_loss:
+            self.log(
+                "classification_loss_validation",
+                classifier_loss / total_labelled_tensors,
+            )
 
 
 class PyroTrainingPlan(pl.LightningModule):
