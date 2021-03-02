@@ -144,4 +144,9 @@ class Trainer(pl.Trainer):
             warnings.filterwarnings(
                 action="ignore", category=UserWarning, message="The dataloader,"
             )
+            warnings.filterwarnings(
+                action="ignore",
+                category=UserWarning,
+                message="you defined a validation_step but have no val_dataloader",
+            )
             super().fit(*args, **kwargs)
