@@ -478,9 +478,12 @@ class RNASeqMixin:
             px_dropout = generative_outputs["px_dropout"]
 
             n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
-            dispersion_list += [
-                np.repeat(np.array(px_r.cpu())[np.newaxis, :], n_batch, axis=0)
-            ]
+
+            px_r = np.array(px_r.cpu())
+            if len(px_r.shape) == 1:
+                dispersion_list += [np.repeat(px_r[np.newaxis, :], n_batch, axis=0)]
+            else:
+                dispersion_list += [px_r]
             mean_list += [np.array(px_rate.cpu())]
             dropout_list += [np.array(px_dropout.cpu())]
 
