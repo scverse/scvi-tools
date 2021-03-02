@@ -370,6 +370,7 @@ def test_scanvi(save_path):
     assert "elbo_train" in logged_keys
     assert "reconstruction_loss_train" in logged_keys
     assert "kl_local_train" in logged_keys
+    assert "classification_loss_validation" in logged_keys
     adata2 = synthetic_iid()
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3
