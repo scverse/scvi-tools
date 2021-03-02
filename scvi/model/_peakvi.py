@@ -351,6 +351,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         batchid2: Optional[Iterable[str]] = None,
         fdr_target: float = 0.05,
         two_sided: bool = True,
+        silent: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
         r"""
@@ -430,6 +431,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             fdr=fdr_target,
             change_fn=change_fn,
             m1_domain_fn=m1_domain_fn,
+            silent=silent,
             **kwargs,
         )
 

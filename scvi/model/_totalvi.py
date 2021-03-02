@@ -661,6 +661,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         scale_protein: bool = False,
         sample_protein_mixing: bool = False,
         include_protein_background: bool = False,
+        silent: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
         r"""
@@ -719,6 +720,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             delta,
             batch_correction,
             fdr_target,
+            silent,
             **kwargs,
         )
 
