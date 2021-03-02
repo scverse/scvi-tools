@@ -2,10 +2,10 @@ import logging
 from typing import Tuple, Union
 
 import anndata
-import numba
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
+from numba import boolean, float32, float64, int32, int64, vectorize
 
 logger = logging.getLogger(__name__)
 
@@ -100,16 +100,24 @@ def _check_nonnegative_integers(
     else:
         raise TypeError("data type not understood")
 
-    check = data[:10]
-    return _check_is_counts(check)
+    n = len(data)
+    inds = np.random.permutation(n)[:20]
+    check = data[inds]
+    return ~np.any(_is_not_count(check))
 
 
-@numba.njit(cache=True)
-def _check_is_counts(data):
-    for d in data.flat:
-        if d < 0 or d % 1 != 0:
-            return False
-    return True
+@vectorize(
+    [
+        boolean(int32),
+        boolean(int64),
+        boolean(float32),
+        boolean(float64),
+    ],
+    target="parallel",
+    cache=True,
+)
+def _is_not_count(d):
+    return d < 0 or d % 1 != 0
 
 
 def _get_batch_mask_protein_data(
