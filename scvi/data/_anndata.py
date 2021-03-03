@@ -354,6 +354,9 @@ def register_tensor_from_anndata(
         if adata_attr_name != "obs":
             raise ValueError("categorical handling only implemented for data in `.obs`")
 
+    if adata_alternate_key_name is None:
+        adata_alternate_key_name = adata_key_name + "_scvi"
+
     if is_categorical is True and adata_attr_name == "obs":
         adata_key_name = _make_obs_column_categorical(
             adata,
