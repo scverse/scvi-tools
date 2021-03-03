@@ -20,7 +20,6 @@ def identity(x):
 class FCLayers(nn.Module):
     """
     A helper class to build fully-connected layers for a neural network.
-
     Parameters
     ----------
     n_in
@@ -81,7 +80,7 @@ class FCLayers(nn.Module):
             collections.OrderedDict(
                 [
                     (
-                        "Layer_{}".format(i),
+                        "Layer {}".format(i),
                         nn.Sequential(
                             nn.Linear(
                                 n_in + cat_dim * self.inject_into_layer(i),
@@ -125,8 +124,6 @@ class FCLayers(nn.Module):
             return grad * 0
 
         for i, layers in enumerate(self.fc_layers):
-            # if i > 0 and not self.inject_covariates:
-            #     break
             for layer in layers:
                 if i == 0 and not hook_first_layer:
                     continue
