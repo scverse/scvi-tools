@@ -1,7 +1,6 @@
 import logging
 import os
 import pickle
-from collections import OrderedDict
 from collections.abc import Iterable as IterableClass
 from typing import Optional
 
@@ -84,20 +83,6 @@ def _validate_var_names(adata, source_var_names):
             "adata used to train the model. For valid results, the vars "
             "need to be the same and in the same order as the adata used to train the model."
         )
-
-
-def _attempt_backwards_compatible_load(module, model_state_dict):
-    # loading from 0.8 models
-    try:
-        new_model_state_dict = OrderedDict()
-        for key, value in model_state_dict.items():
-            new_key = key.replace(" ", "_")
-            new_model_state_dict.update({new_key: value})
-        module.load_state_dict(new_model_state_dict)
-    except RuntimeError:
-        return False
-
-    return True
 
 
 def _de_core(
