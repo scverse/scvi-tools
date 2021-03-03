@@ -156,16 +156,6 @@ html_show_sphinx = False
 nbsphinx_prolog = r"""
 .. raw:: html
 
-    <style>
-        .nbinput .prompt,
-        .nboutput .prompt {
-            display: none;
-        }
-        .nboutput .stderr{
-            display: none;
-        }
-    </style>
-
 {% set docname = env.doc2path(env.docname, base=None).split("/")[-1] %}
 
 .. raw:: html
