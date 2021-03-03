@@ -39,7 +39,7 @@ If you find a model useful for your research, please consider citing the corresp
 
 .. container:: custom-button
 
-    :doc:`To the user guide<user_guide/index>`
+    :doc:`To the user guide<user_guide/user>`
 
 .. raw:: html
 
@@ -68,12 +68,12 @@ If you find a model useful for your research, please consider citing the corresp
                 <img src="_static/code-24px.svg" class="card-img-top" alt="contribute to scvi-tools action icon" height="52">
                 <div class="card-body flex-fill">
                     <h5 class="card-title">Developer guide</h5>
-                    <p class="card-text">Want to improve scvi-tools? The contributing guidelines
-                    will guide you through the process.</p>
+                    <p class="card-text">Want to develop new models with scvi-tools? The developer guide
+                    will help you through the process.</p>
 
 .. container:: custom-button
 
-    :doc:`To the contributing guide<contributing/index>`
+    :doc:`To the developer guide<user_guide/developer>`
 
 .. raw:: html
 
@@ -89,7 +89,8 @@ If you find a model useful for your research, please consider citing the corresp
    :hidden:
 
    installation
-   user_guide/index
+   user_guide/user
+   user_guide/developer
    api/index
    release_notes/index
    references
