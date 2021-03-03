@@ -55,7 +55,7 @@ class DifferentialComputation:
 
         Two modes coexist:
 
-        - the `"vanilla"` mode follows protocol described in [Lopez18]_ and [Xu20]_
+        - the `"vanilla"` mode follows protocol described in [Lopez18]_ and [Xu21]_
         In this case, we perform hypothesis testing based on the hypotheses
 
         .. math::
