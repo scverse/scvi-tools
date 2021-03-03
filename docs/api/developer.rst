@@ -88,6 +88,22 @@ Existing module classes with respective generative and inference procedures.
    module.TOTALVAE
    module.VAE
 
+External module
+---------------
+
+.. currentmodule:: scvi
+
+Module classes in the external API with respective generative and inference procedures.
+
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   external.gimvi.JVAE
+   external.cellassign.CellAssignModule
+   external.stereoscope.RNADeconv
+   external.stereoscope.SpatialDeconv
+
 Module (Base)
 -------------
 
