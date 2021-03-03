@@ -14,6 +14,7 @@ Model development tutorials
 
 .. nbgallery::
 
+   notebooks/data_tutorial
    notebooks/module_user_guide
    notebooks/model_user_guide
 
