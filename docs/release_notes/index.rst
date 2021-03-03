@@ -28,3 +28,10 @@ Version 0.7
 
    v0.7.1
    v0.7.0
+
+Pre-Version 0.7
+-----------
+.. toctree::
+   :maxdepth: 2
+
+   pre_v0.7.0
