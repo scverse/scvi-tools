@@ -79,6 +79,8 @@ class LossRecorder:
 
 
 class BaseModuleClass(nn.Module):
+    """Abstract class for scvi-tools modules."""
+
     def __init__(
         self,
     ):
