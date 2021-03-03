@@ -53,5 +53,6 @@ Contributed tutorials
 
 .. nbgallery::
 
-   notebooks/stereoscope_public_LV
+   notebooks/scVI_DE_worm
+   notebooks/stereoscope_heart_LV_tutorial
 
