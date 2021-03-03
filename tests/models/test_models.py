@@ -232,7 +232,7 @@ def test_saving_and_loading(save_path):
 def test_backwards_compatible_loading(save_path):
     def download_080_models(save_path):
         file_path = (
-            "https://github.com/galenxing/scVI-data/raw/master/testing_models.tar.gz"
+            "https://github.com/yoseflab/scVI-data/raw/master/testing_models.tar.gz"
         )
         save_fn = "testing_models.tar.gz"
         _download(file_path, save_path, save_fn)
