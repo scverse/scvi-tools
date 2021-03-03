@@ -39,15 +39,6 @@ Tutorials
    notebooks/AutoZI_tutorial
 
 
-Model development tutorials
----------------------------
-
-.. nbgallery::
-
-   notebooks/module_user_guide
-   notebooks/model_user_guide
-
-
 Contributed tutorials
 ---------------------
 
