@@ -14,7 +14,7 @@ Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://gith
 [scvi-tools](https://scvi-tools.org/) (single-cell variational inference
 tools) is a package for probabilistic modeling of single-cell omics
 data, built on top of [PyTorch](https://pytorch.org) and
-[Anndata](https://anndata.readthedocs.io/en/latest/).
+[AnnData](https://anndata.readthedocs.io/en/latest/).
 
 # Available implementations of single-cell omics models
 
@@ -55,7 +55,7 @@ and support GPU acceleration.
 scvi-tools contains the building blocks to prototype novel probablistic
 models. These building blocks are powered by popular probabilistic and
 machine learning frameworks such as [PyTorch
-lightning](https://www.pytorchlightning.ai/), and
+Lightning](https://www.pytorchlightning.ai/), and
 [Pyro](https://pyro.ai/).
 
 We recommend checking out the [skeleton
