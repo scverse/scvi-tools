@@ -6,7 +6,7 @@ This release features our new software development kit for building new probabil
 Important changes
 ~~~~~~~~~~~~~~~~~
 
-From the user perspective, there are two package-wide API breaking changes and one :class:`~scvi.model.SCANVI` specific breaking change enumerated below. From the method developer perspective, the entire model backend has been revamped using PyTorch Lightning, and no old code will be compatible with this and future versions.
+From the user perspective, there are two package-wide API breaking changes and one :class:`~scvi.model.SCANVI` specific breaking change enumerated below. From the method developer perspective, the entire model backend has been revamped using PyTorch Lightning, and no old code will be compatible with this and future versions. Also, we dropped support for Python 3.6.
 
 Breaking change: The `train` method
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
