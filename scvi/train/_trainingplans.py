@@ -19,8 +19,8 @@ class TrainingPlan(pl.LightningModule):
 
     Parameters
     ----------
-    vae_model
-        A model instance from class ``BaseModuleClass``.
+    module
+        A module instance from class ``BaseModuleClass``.
     n_obs_training
         Number of observations in the training set.
     lr
@@ -51,13 +51,13 @@ class TrainingPlan(pl.LightningModule):
     lr_min
         Minimum learning rate allowed
     **loss_kwargs
-        Keyword args to pass to the loss method of the `vae_model`.
+        Keyword args to pass to the loss method of the `module`.
         `kl_weight` should not be passed here and is handled automatically.
     """
 
     def __init__(
         self,
-        vae_model: BaseModuleClass,
+        module: BaseModuleClass,
         n_obs_training: int,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
@@ -76,7 +76,7 @@ class TrainingPlan(pl.LightningModule):
         **loss_kwargs,
     ):
         super(TrainingPlan, self).__init__()
-        self.module = vae_model
+        self.module = module
         self.n_obs_training = n_obs_training
         self.lr = lr
         self.weight_decay = weight_decay
@@ -209,8 +209,8 @@ class AdversarialTrainingPlan(TrainingPlan):
 
     Parameters
     ----------
-    vae_model
-        A model instance from class ``BaseModuleClass``.
+    module
+        A module instance from class ``BaseModuleClass``.
     n_obs_training
         Number of observations in the training set.
     lr
@@ -243,13 +243,13 @@ class AdversarialTrainingPlan(TrainingPlan):
         By default, adversarial loss is scaled from 1 to 0 following opposite of
         kl warmup.
     **loss_kwargs
-        Keyword args to pass to the loss method of the `vae_model`.
+        Keyword args to pass to the loss method of the `module`.
         `kl_weight` should not be passed here and is handled automatically.
     """
 
     def __init__(
         self,
-        vae_model: BaseModuleClass,
+        module: BaseModuleClass,
         n_obs_training,
         lr=1e-3,
         weight_decay=1e-6,
@@ -268,7 +268,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         **loss_kwargs,
     ):
         super().__init__(
-            vae_model=vae_model,
+            module=module,
             n_obs_training=n_obs_training,
             lr=lr,
             weight_decay=weight_decay,
@@ -409,8 +409,8 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
 
     Parameters
     ----------
-    vae_model
-        A model instance from class ``BaseModuleClass``.
+    module
+        A module instance from class ``BaseModuleClass``.
     classification_ratio
         Weight of the classification_loss in loss function
     lr
@@ -435,13 +435,13 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     lr_scheduler_metric
         Which metric to track for learning rate reduction.
     **loss_kwargs
-        Keyword args to pass to the loss method of the `vae_model`.
+        Keyword args to pass to the loss method of the `module`.
         `kl_weight` should not be passed here and is handled automatically.
     """
 
     def __init__(
         self,
-        vae_model: BaseModuleClass,
+        module: BaseModuleClass,
         classification_ratio: int = 50,
         lr=1e-3,
         weight_decay=1e-6,
@@ -457,7 +457,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         **loss_kwargs,
     ):
         super(SemiSupervisedTrainingPlan, self).__init__(
-            vae_model=vae_model,
+            module=module,
             n_obs_training=1,  # no impact with choice
             lr=lr,
             weight_decay=weight_decay,
