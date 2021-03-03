@@ -88,6 +88,7 @@ Existing module classes with respective generative and inference procedures.
    module.TOTALVAE
    module.VAE
 
+
 External module
 ---------------
 
@@ -104,6 +105,7 @@ Module classes in the external API with respective generative and inference proc
    external.stereoscope.RNADeconv
    external.stereoscope.SpatialDeconv
 
+
 Module (Base)
 -------------
 
@@ -119,7 +121,7 @@ These classes should be used to construct module classes that define generative 
    module.base.PyroBaseModuleClass
    module.base.LossRecorder
    module.base.auto_move_data
-   
+
 
 Neural networks
 ---------------
@@ -131,11 +133,12 @@ Basic neural network building blocks.
 .. autosummary::
    :toctree: reference/
    :nosignatures:
-   
+
    nn.FCLayers
    nn.Encoder
    nn.Decoder
    nn.one_hot
+
 
 Train
 -----
@@ -156,6 +159,7 @@ TrainingPlans define train/test/val optimization steps for modules.
    train.Trainer
    train.TrainingPlan
    train.TrainRunner
+
 
 Utilities
 ---------
