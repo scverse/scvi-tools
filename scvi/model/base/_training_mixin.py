@@ -7,6 +7,8 @@ from scvi.train import TrainingPlan, TrainRunner
 
 
 class UnsupervisedTrainingMixin:
+    """General purpose unsupervised train method."""
+
     def train(
         self,
         max_epochs: Optional[int] = None,

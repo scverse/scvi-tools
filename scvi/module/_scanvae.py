@@ -20,7 +20,7 @@ class SCANVAE(VAE):
     """
     Single-cell annotation using variational inference.
 
-    This is an implementation of the scANVI model described in [Xu20]_,
+    This is an implementation of the scANVI model described in [Xu21]_,
     inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
 
     Parameters
@@ -211,8 +211,7 @@ class SCANVAE(VAE):
         y = labelled_dataset[_CONSTANTS.LABELS_KEY]
         batch_idx = labelled_dataset[_CONSTANTS.BATCH_KEY]
         classification_loss = F.cross_entropy(
-            self.classify(x, batch_idx),
-            y.view(-1).long(),
+            self.classify(x, batch_idx), y.view(-1).long()
         )
         return classification_loss
 
@@ -275,10 +274,22 @@ class SCANVAE(VAE):
                 "kl_divergence_l": kl_divergence_l,
             }
             if labelled_tensors is not None:
-                loss += (
-                    self.classification_loss(labelled_tensors) * classification_ratio
+                classifier_loss = self.classification_loss(labelled_tensors)
+                loss += classifier_loss * classification_ratio
+                return LossRecorder(
+                    loss,
+                    reconst_loss,
+                    kl_locals,
+                    kl_global=0.0,
+                    classification_loss=classifier_loss,
+                    n_labelled_tensors=labelled_tensors[_CONSTANTS.X_KEY].shape[0],
                 )
-            return LossRecorder(loss, reconst_loss, kl_locals, kl_global=0.0)
+            return LossRecorder(
+                loss,
+                reconst_loss,
+                kl_locals,
+                kl_global=0.0,
+            )
 
         probs = self.classifier(z1)
         reconst_loss += loss_z1_weight + (
@@ -297,5 +308,14 @@ class SCANVAE(VAE):
         loss = torch.mean(reconst_loss + kl_divergence * kl_weight)
 
         if labelled_tensors is not None:
-            loss += self.classification_loss(labelled_tensors) * classification_ratio
+            classifier_loss = self.classification_loss(labelled_tensors)
+            loss += classifier_loss * classification_ratio
+            return LossRecorder(
+                loss,
+                reconst_loss,
+                kl_divergence,
+                kl_global=0.0,
+                classification_loss=classifier_loss,
+                n_labelled_tensors=labelled_tensors[_CONSTANTS.X_KEY].shape[0],
+            )
         return LossRecorder(loss, reconst_loss, kl_divergence, kl_global=0.0)

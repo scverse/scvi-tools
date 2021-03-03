@@ -156,16 +156,6 @@ html_show_sphinx = False
 nbsphinx_prolog = r"""
 .. raw:: html
 
-    <style>
-        .nbinput .prompt,
-        .nboutput .prompt {
-            display: none;
-        }
-        .nboutput .stderr{
-            display: none;
-        }
-    </style>
-
 {% set docname = env.doc2path(env.docname, base=None).split("/")[-1] %}
 
 .. raw:: html
@@ -192,7 +182,7 @@ nbsphinx_thumbnails = {
     "user_guide/notebooks/scarches_scvi_tools": "_static/tutorials/scarches.png",
     "user_guide/notebooks/cite_scrna_integration_w_totalVI": "_static/tutorials/cite_scrna.png",
     "user_guide/notebooks/scVI_DE_worm": "_static/tutorials/worm.png",
-    "user_guide/notebooks/stereoscope_public_LV": "_static/tutorials/stereoscope.png",
+    "user_guide/notebooks/stereoscope_heart_LV_tutorial": "_static/tutorials/stereoscope.png",
     "user_guide/notebooks/seed_labeling": "_static/tutorials/seed.png",
 }
 

@@ -33,10 +33,11 @@ class LossRecorder:
 
     def __init__(
         self,
-        loss: torch.Tensor,
-        reconstruction_loss: torch.Tensor,
-        kl_local: torch.Tensor,
-        kl_global: torch.Tensor = torch.Tensor([0]),
+        loss: Union[Dict[str, torch.Tensor], torch.Tensor],
+        reconstruction_loss: Union[Dict[str, torch.Tensor], torch.Tensor],
+        kl_local: Union[Dict[str, torch.Tensor], torch.Tensor],
+        kl_global: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.Tensor([0]),
+        **kwargs,
     ):
         self._loss = loss if isinstance(loss, dict) else dict(loss=loss)
         self._reconstruction_loss = (
@@ -50,6 +51,8 @@ class LossRecorder:
         self._kl_global = (
             kl_global if isinstance(kl_global, dict) else dict(kl_global=kl_global)
         )
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     @staticmethod
     def _get_dict_sum(dictionary):
@@ -74,12 +77,10 @@ class LossRecorder:
     def kl_global(self) -> torch.Tensor:
         return self._get_dict_sum(self._kl_global)
 
-    @property
-    def elbo(self):
-        return
-
 
 class BaseModuleClass(nn.Module):
+    """Abstract class for scvi-tools modules."""
+
     def __init__(
         self,
     ):

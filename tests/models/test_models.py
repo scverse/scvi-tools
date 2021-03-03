@@ -146,6 +146,10 @@ def test_scvi(save_path):
     m.get_normalized_expression(transform_batch=1)
     m.get_normalized_expression(transform_batch=[0, 1])
 
+    # test get_likelihood_parameters() when dispersion=='gene-cell'
+    model = SCVI(adata, dispersion="gene-cell")
+    model.get_likelihood_parameters()
+
 
 def test_scvi_sparse(save_path):
     n_latent = 5
@@ -366,6 +370,7 @@ def test_scanvi(save_path):
     assert "elbo_train" in logged_keys
     assert "reconstruction_loss_train" in logged_keys
     assert "kl_local_train" in logged_keys
+    assert "classification_loss_validation" in logged_keys
     adata2 = synthetic_iid()
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3

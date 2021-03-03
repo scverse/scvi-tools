@@ -42,4 +42,6 @@ batchid2
     are decoded on each group in `group1` and `group2`, respectively.
 fdr_target
     Tag features as DE based on posterior expected false discovery rate.
+silent
+    If True, disables the progress bar. Default: False.
 """

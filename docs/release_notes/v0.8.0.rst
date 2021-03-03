@@ -5,7 +5,7 @@ Enhancements
 ~~~~~~~~~~~~
 
 Online updates of :class:`~scvi.model.SCVI`, :class:`~scvi.model.SCANVI`, and :class:`~scvi.model.TOTALVI` with the scArches method
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It is now possible to iteratively update these models with new samples, without altering the model for the "reference" population.
 Here we use the `scArches method <https://github.com/theislab/scarches>`_. For usage, please see the tutorial in the user guide.
@@ -38,7 +38,6 @@ Important changes
 - The default latent distribtuion for :class:`~scvi.model.TOTALVI` is now `"normal"`.
 - Autotune was removed from this release. We could not maintain the code given the new API changes and we will soon have alternative ways to tune hyperparameters.
 - Protein names during :func:`~scvi.data.setup_anndata` are now stored in `adata.uns["_scvi"]["protein_names"]`, instead of `adata.uns["scvi_protein_names"]`.
--
 
 Bug fixes
 ~~~~~~~~~

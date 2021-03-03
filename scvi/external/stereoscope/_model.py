@@ -143,7 +143,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/stereoscope_public_LV`
+    1. :doc:`/user_guide/notebooks/stereoscope_heart_LV_tutorial`
     """
 
     def __init__(
