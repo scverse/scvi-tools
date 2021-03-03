@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 
 class BaseModelClass(ABC):
+    """Abstract class for scvi-tools models."""
+
     def __init__(self, adata: Optional[AnnData] = None):
         if adata is not None:
             if "_scvi" not in adata.uns.keys():

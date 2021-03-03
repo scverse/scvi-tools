@@ -85,3 +85,36 @@ p.rubric {
     margin-bottom: 0rem;
     color: #484848;
   }
+
+
+
+  /* from https://github.com/dask/dask-sphinx-theme/blob/main/dask_sphinx_theme/static/css/nbsphinx.css */
+
+  .nbinput .prompt,
+  .nboutput .prompt {
+      display: none;
+  }
+  .nboutput .stderr{
+      display: none;
+  }
+
+  div.nblast.container {
+    padding-bottom: 5px;
+    padding-right: 0px;
+    padding-left: 0px;
+    margin-bottom: 10px;
+}
+
+div.nbinput.container, div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin-top: 0px;
+    margin-right: 0px;
+    margin-bottom: 5px;
+    margin-left: 0px;
+    padding-right: 0px;
+    padding-left: 0px;
+    padding-top: 0px
+    width: 100%;
+}

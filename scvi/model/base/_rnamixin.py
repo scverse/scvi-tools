@@ -25,6 +25,8 @@ Number = Union[int, float]
 
 
 class RNASeqMixin:
+    """General purpose methods for RNA-seq analysis."""
+
     @torch.no_grad()
     def get_normalized_expression(
         self,

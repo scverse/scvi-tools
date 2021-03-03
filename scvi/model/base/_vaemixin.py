@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class VAEMixin:
+    """Univseral VAE methods."""
+
     @torch.no_grad()
     def get_elbo(
         self,

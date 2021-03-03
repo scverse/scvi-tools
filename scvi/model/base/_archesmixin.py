@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class ArchesMixin:
+    """Universal scArches implementation."""
+
     @classmethod
     def load_query_data(
         cls,
