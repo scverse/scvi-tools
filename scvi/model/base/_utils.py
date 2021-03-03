@@ -68,6 +68,7 @@ def _initialize_model(cls, adata, attr_dict):
         non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
         kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+        non_kwargs.pop("use_cuda")
 
     model = cls(adata, **non_kwargs, **kwargs)
     return model
