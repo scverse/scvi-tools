@@ -957,7 +957,7 @@ def view_anndata_setup(source: Union[anndata.AnnData, dict, str]):
 
     n_cat = 0
     n_covs = 0
-    if "extra_categorical_mappings" in setup_dict.keys():
+    if "extra_categoricals" in setup_dict.keys():
         n_cat = len(setup_dict["extra_categoricals"]["mappings"])
     if "extra_continuous_keys" in setup_dict.keys():
         n_covs = len(setup_dict["extra_continuous_keys"])
