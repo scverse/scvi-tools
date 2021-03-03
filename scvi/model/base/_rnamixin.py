@@ -171,7 +171,7 @@ class RNASeqMixin:
         batchid1: Optional[Iterable[str]] = None,
         batchid2: Optional[Iterable[str]] = None,
         fdr_target: float = 0.05,
-        silent=False,
+        silent: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
         r"""

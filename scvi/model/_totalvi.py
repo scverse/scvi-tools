@@ -657,11 +657,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         batchid1: Optional[Iterable[str]] = None,
         batchid2: Optional[Iterable[str]] = None,
         fdr_target: float = 0.05,
+        silent: bool = False,
         protein_prior_count: float = 0.1,
         scale_protein: bool = False,
         sample_protein_mixing: bool = False,
         include_protein_background: bool = False,
-        silent: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
         r"""
