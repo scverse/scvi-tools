@@ -17,15 +17,15 @@ Breaking change: The `train` method
 
 Breaking change: GPU handling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-- `use_cuda` was removed from the init of each model and was not replaced by `use_gpu`. By default every model is intialized on CPU but can be moved to a device via `model.to_device()`. If a model is trained with `use_gpu=True` the model will remain on the GPU after training. 
-- When loading saved models, scvi-tools will always attempt to load the model on GPU unless otherwise specified. 
+- `use_cuda` was removed from the init of each model and was not replaced by `use_gpu`. By default every model is intialized on CPU but can be moved to a device via `model.to_device()`. If a model is trained with `use_gpu=True` the model will remain on the GPU after training.
+- When loading saved models, scvi-tools will always attempt to load the model on GPU unless otherwise specified.
 - We now support specifying which GPU device to use if there are multiple available GPUs.
 
 Breaking change: :class:`~scvi.model.SCANVI`
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 - :class:`~scvi.model.SCANVI` no longer pretrains an :class:`~scvi.model.SCVI` model by default. This functionality however is preserved via the new :func:`~scvi.model.SCANVI.from_scvi_model` method.
 - `n_epochs_unsupervised` and `n_epochs_semisupervised` have been removed from `train`. It has been replaced with `max_epochs` for semisupervised training.
-- `n_samples_per_label` is a new argument which will subsample the number of labelled training examples to train on per label each epoch. 
+- `n_samples_per_label` is a new argument which will subsample the number of labelled training examples to train on per label each epoch.
 
 
 New Model Implementations
