@@ -101,6 +101,7 @@ def _de_core(
     delta,
     batch_correction,
     fdr,
+    silent,
     **kwargs
 ):
     """Internal function for DE interface."""
@@ -135,6 +136,7 @@ def _de_core(
     for g1 in track(
         group1,
         description="DE...",
+        disable=silent,
     ):
         cell_idx1 = (adata.obs[groupby] == g1).to_numpy().ravel()
         if group2 is None:
