@@ -25,7 +25,7 @@ def pytest_collection_modifyitems(config, items):
     skip_internet = pytest.mark.skip(reason="need --internet-tests option to run")
     for item in items:
         # All tests marked with `pytest.mark.internet` get skipped unless
-        # `--run-internet` passed
+        # `--internet-tests` passed
         if not run_internet and ("internet" in item.keywords):
             item.add_marker(skip_internet)
 

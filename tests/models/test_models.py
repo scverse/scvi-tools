@@ -1,4 +1,5 @@
 import os
+import tarfile
 
 import numpy as np
 import pytest
@@ -6,6 +7,7 @@ from scipy.sparse import csr_matrix
 
 import scvi
 from scvi.data import setup_anndata, synthetic_iid, transfer_anndata_setup
+from scvi.data._built_in_data._download import _download
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
@@ -224,6 +226,29 @@ def test_saving_and_loading(save_path):
     p2 = model.predict()
     np.testing.assert_array_equal(p1, p2)
     assert model.is_trained is True
+
+
+@pytest.mark.internet
+def test_backwards_compatible_loading(save_path):
+    def download_080_models(save_path):
+        file_path = (
+            "https://github.com/galenxing/scVI-data/raw/master/testing_models.tar.gz"
+        )
+        save_fn = "testing_models.tar.gz"
+        _download(file_path, save_path, save_fn)
+        saved_file_path = os.path.join(save_path, save_fn)
+        tar = tarfile.open(saved_file_path, "r:gz")
+        tar.extractall(path=save_path)
+        tar.close()
+
+    download_080_models(save_path)
+    pretrained_scvi_path = os.path.join(save_path, "testing_models/080_scvi")
+    a = scvi.data.synthetic_iid()
+    m = scvi.model.SCVI.load(pretrained_scvi_path, a)
+    m.train(1)
+    pretrained_totalvi_path = os.path.join(save_path, "testing_models/080_totalvi")
+    m = scvi.model.TOTALVI.load(pretrained_totalvi_path, a)
+    m.train(1)
 
 
 def test_ann_dataloader():
