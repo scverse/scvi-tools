@@ -6,7 +6,7 @@ This release features our new software development kit for building new probabil
 Important changes
 ~~~~~~~~~~~~~~~~~
 
-From the user perspective, there are two package-wide API breaking changes and one :func:`~scvi.model.SCANVI` specific breaking change enumerated below. From the method developer perspective, the entire model backend has been revamped using PyTorch Lightning, and no old code will be compatible with this and future versions.
+From the user perspective, there are two package-wide API breaking changes and one :class:`~scvi.model.SCANVI` specific breaking change enumerated below. From the method developer perspective, the entire model backend has been revamped using PyTorch Lightning, and no old code will be compatible with this and future versions.
 
 Breaking change: The `train` method
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -21,9 +21,9 @@ Breaking change: GPU handling
 - When loading saved models, scvi-tools will always attempt to load the model on GPU unless otherwise specified. 
 - We now support specifying which GPU device to use if there are multiple available GPUs.
 
-Breaking change: :func:`~scvi.model.SCANVI`
-^^^^^^^^^^^^^^^^^^^^^^^
-- :func:`~scvi.model.SCANVI` no longer pretrains an :func:`~scvi.model.SCVI` model by default. This functionality however is preserved via the new :func:`~scvi.model.SCANVI.from_scvi_model` method.
+Breaking change: :class:`~scvi.model.SCANVI`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+- :class:`~scvi.model.SCANVI` no longer pretrains an :class:`~scvi.model.SCVI` model by default. This functionality however is preserved via the new :func:`~scvi.model.SCANVI.from_scvi_model` method.
 - `n_epochs_unsupervised` and `n_epochs_semisupervised` have been removed from `train`. It has been replaced with `max_epochs` for semisupervised training.
 - `n_samples_per_label` is a new argument which will subsample the number of labelled training examples to train on per label each epoch. 
 
@@ -39,15 +39,15 @@ New Model Implementations
 
 Enhancements
 ~~~~~~~~~~~~
-- :func:`~scvi.model.SCANVI` bug fixes (`#879`_)
-- :func:`~scvi.external.GIMVI` moved to external api (`#885`_)
-- :func:`~scvi.model.TOTALVI` and :func:`~scvi.model.SCANVI` now support multiple covariates (`#886`_)
+- :class:`~scvi.model.SCANVI` bug fixes (`#879`_)
+- :class:`~scvi.external.GIMVI` moved to external api (`#885`_)
+- :class:`~scvi.model.TOTALVI`, :class:`~scvi.model.SCVI`, and :class:`~scvi.model.SCANVI` now support multiple covariates (`#886`_)
 - Added callback for saving the best state of a model (`#887`_)
 - Option to disable progress bar (`#905`_)
 - load() documentation improvements (`#913`_)
 - updated tutorials, guides, documentation (`#924`_, `#925`_, `#929`_, `#934`_, `#947`_, `#971`_)
 - track is now public (`#938`_)
-- :func:`~scvi.model.SCANVI` now logs classficiation loss (`#966`_)
+- :class:`~scvi.model.SCANVI` now logs classficiation loss (`#966`_)
 - get_likelihood_parameter() bug (`#967`_)
 - model.history are now pandas DataFrames (`#949`_)
 
