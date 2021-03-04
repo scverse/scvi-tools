@@ -78,10 +78,6 @@ Existing module classes with respective generative and inference procedures.
 
    module.AutoZIVAE
    module.Classifier
-   external.gimvi.JVAE
-   external.cellassign.CellAssignModule
-   external.stereoscope.RNADeconv
-   external.stereoscope.SpatialDeconv
    module.LDVAE
    module.PEAKVI
    module.SCANVAE
