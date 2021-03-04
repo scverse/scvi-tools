@@ -26,8 +26,8 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    dataloaders.AnnDataLoader
    dataloaders.AnnTorchDataset
    dataloaders.ConcatDataLoader
-   dataloaders.SemiSupervisedDataLoader
    dataloaders.DataSplitter
+   dataloaders.SemiSupervisedDataLoader
    dataloaders.SemiSupervisedDataSplitter
 
 
@@ -76,13 +76,35 @@ Existing module classes with respective generative and inference procedures.
    :toctree: reference/
    :nosignatures:
 
-   module.VAE
-   module.LDVAE
-   module.TOTALVAE
-   module.SCANVAE
-   module.JVAE
    module.AutoZIVAE
    module.Classifier
+   external.gimvi.JVAE
+   external.cellassign.CellAssignModule
+   external.stereoscope.RNADeconv
+   external.stereoscope.SpatialDeconv
+   module.LDVAE
+   module.PEAKVI
+   module.SCANVAE
+   module.TOTALVAE
+   module.VAE
+
+
+External module
+---------------
+
+.. currentmodule:: scvi
+
+Module classes in the external API with respective generative and inference procedures.
+
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   external.gimvi.JVAE
+   external.cellassign.CellAssignModule
+   external.stereoscope.RNADeconv
+   external.stereoscope.SpatialDeconv
+
 
 Module (Base)
 -------------
@@ -95,11 +117,11 @@ These classes should be used to construct module classes that define generative 
    :toctree: reference/
    :nosignatures:
 
-   module.base.LossRecorder
    module.base.BaseModuleClass
    module.base.PyroBaseModuleClass
+   module.base.LossRecorder
    module.base.auto_move_data
-   
+
 
 Neural networks
 ---------------
@@ -111,11 +133,12 @@ Basic neural network building blocks.
 .. autosummary::
    :toctree: reference/
    :nosignatures:
-   
+
    nn.FCLayers
    nn.Encoder
    nn.Decoder
    nn.one_hot
+
 
 Train
 -----
@@ -130,12 +153,13 @@ TrainingPlans define train/test/val optimization steps for modules.
    :template: class_no_inherited.rst
    :nosignatures:
 
-   train.TrainingPlan
-   train.SemiSupervisedTrainingPlan
    train.AdversarialTrainingPlan
    train.PyroTrainingPlan
+   train.SemiSupervisedTrainingPlan
    train.Trainer
+   train.TrainingPlan
    train.TrainRunner
+
 
 Utilities
 ---------

@@ -20,6 +20,7 @@ def identity(x):
 class FCLayers(nn.Module):
     """
     A helper class to build fully-connected layers for a neural network.
+
     Parameters
     ----------
     n_in

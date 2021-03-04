@@ -54,7 +54,7 @@ class SOLO(BaseModelClass):
     def __init__(
         self,
         adata: AnnData,
-        **model_kwargs,
+        **classifier_kwargs,
     ):
         # TODO, catch user warning here and logger warning
         # about non count data
@@ -64,7 +64,7 @@ class SOLO(BaseModelClass):
             n_input=self.summary_stats["n_vars"],
             n_labels=2,
             logits=True,
-            **model_kwargs,
+            **classifier_kwargs,
         )
         self._model_summary_string = "Solo model"
         self.init_params_ = self._get_init_params(locals())
