@@ -145,6 +145,7 @@ class PEAKVAE(BaseModuleClass):
         latent_distribution: str = "normal",
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
+        **kwargs,
     ):
         super().__init__()
 
