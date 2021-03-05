@@ -192,7 +192,7 @@ def test_saving_and_loading(save_path):
     save_path = os.path.join(save_path, "tmp")
     adata = synthetic_iid()
 
-    for cls in [SCVI, LinearSCVI, TOTALVI]:
+    for cls in [SCVI, LinearSCVI, TOTALVI, PEAKVI]:
         print(cls)
         test_save_load_model(cls, adata, save_path)
 
