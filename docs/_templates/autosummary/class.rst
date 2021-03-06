@@ -5,6 +5,7 @@
 .. add toctree option to make autodoc generate the pages
 
 .. autoclass:: {{ objname }}
+   :show-inheritance:
 
    {% block attributes %}
    {% if attributes %}
