@@ -73,8 +73,16 @@ class BayesianRegressionModule(PyroBaseModuleClass):
     def __init__(self, in_features, out_features):
 
         super().__init__()
-        self.model = BayesianRegressionPyroModel(in_features, out_features)
-        self.guide = AutoDiagonalNormal(self.model)
+        self._model = BayesianRegressionPyroModel(in_features, out_features)
+        self._guide = AutoDiagonalNormal(self.model)
+
+    @property
+    def model(self):
+        return self._model
+
+    @property
+    def guide(self):
+        return self._guide
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):

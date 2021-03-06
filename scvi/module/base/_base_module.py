@@ -208,7 +208,8 @@ class PyroBaseModuleClass(nn.Module):
 
     There are two ways this class can be equipped with a model and a guide. First,
     `model` and `guide` can be class attributes that are :class:`~pyro.nn.PyroModule`
-    instances. Second, `model` and `guide` methods can be written (see Pyro scANVI example)
+    instances. The implemented `model` and `guide` class method can then return the (private) attributes.
+    Second, `model` and `guide` methods can be written directly (see Pyro scANVI example)
     https://pyro.ai/examples/scanvi.html
     """
 
@@ -232,6 +233,16 @@ class PyroBaseModuleClass(nn.Module):
         -------
         args and kwargs for the functions, args should be an Iterable and kwargs a dictionary.
         """
+
+    @property
+    @abstractmethod
+    def model(self):
+        pass
+
+    @property
+    @abstractmethod
+    def guide(self):
+        pass
 
     def create_predictive(
         self,
