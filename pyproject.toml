@@ -51,7 +51,7 @@ openpyxl = ">=3.0"
 pandas = ">=1.0"
 pre-commit = {version = ">=2.7.1", optional = true}
 pydata-sphinx-theme = {version = ">=0.4.3", optional = true}
-pyro-ppl = ">=1.1.0"
+pyro-ppl = ">=1.5.0"
 pytest = {version = ">=4.4", optional = true}
 python = ">=3.7,<4.0"
 python-igraph = {version = "*", optional = true}
