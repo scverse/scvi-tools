@@ -15,7 +15,7 @@ class LossRecorder:
 
     This class provides an organized way to record the model loss, as well as
     the components of the ELBO. This may also be used in MLE, MAP, EM methods.
-    The loss is used for backpropagation during infernce. The other parameters
+    The loss is used for backpropagation during inference. The other parameters
     are used for logging/early stopping during inference.
 
     Parameters
@@ -154,7 +154,7 @@ class BaseModuleClass(nn.Module):
         inference_outputs: Dict[str, torch.Tensor],
         **kwargs,
     ):
-        """Parse tensors dictionary for inference related values."""
+        """Parse tensors dictionary for generative related values."""
 
     @abstractmethod
     def inference(
@@ -168,6 +168,8 @@ class BaseModuleClass(nn.Module):
         In the case of variational inference, this function will perform steps related to
         computing variational distribution parameters. In a VAE, this will involve running
         data through encoder networks.
+
+        This function should return a dictionary with str keys and :class:`~torch.Tensor` values.
         """
 
     @abstractmethod
@@ -177,6 +179,8 @@ class BaseModuleClass(nn.Module):
 
         This function should return the parameters associated with the likelihood of the data.
         This is typically written as :math:`p(x|z)`.
+
+        This function should return a dictionary with str keys and :class:`~torch.Tensor` values.
         """
 
     @abstractmethod
@@ -186,6 +190,8 @@ class BaseModuleClass(nn.Module):
 
         This function uses the outputs of the inference and generative functions to compute
         a loss. This many optionally include other penalty terms, which should be computed here.
+
+        This function should return an object of type :class:`~scvi.module.base.LossRecorder`.
         """
 
     @abstractmethod

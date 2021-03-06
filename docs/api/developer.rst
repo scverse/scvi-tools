@@ -74,6 +74,7 @@ Existing module classes with respective generative and inference procedures.
 
 .. autosummary::
    :toctree: reference/
+   :template: class_no_inherited.rst
    :nosignatures:
 
    module.AutoZIVAE
@@ -94,6 +95,7 @@ Module classes in the external API with respective generative and inference proc
 
 .. autosummary::
    :toctree: reference/
+   :template: class_no_inherited.rst
    :nosignatures:
 
    external.gimvi.JVAE
@@ -111,6 +113,7 @@ These classes should be used to construct module classes that define generative 
 
 .. autosummary::
    :toctree: reference/
+   :template: class_no_inherited.rst
    :nosignatures:
 
    module.base.BaseModuleClass
@@ -128,6 +131,7 @@ Basic neural network building blocks.
 
 .. autosummary::
    :toctree: reference/
+   :template: class_no_inherited.rst
    :nosignatures:
 
    nn.FCLayers
