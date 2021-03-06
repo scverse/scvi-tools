@@ -65,7 +65,7 @@ sphinx = {version = ">=3.4", optional = true}
 sphinx-autodoc-typehints = {version = "*", optional = true}
 sphinx-gallery = {version = ">0.6", optional = true}
 sphinx_copybutton = {version = "*", optional = true}
-torch = ">=1.7.1"
+torch = ">=1.8.0"
 tqdm = ">=4.56.0"
 typing_extensions = {version = "*", python = "<3.8"}
 
