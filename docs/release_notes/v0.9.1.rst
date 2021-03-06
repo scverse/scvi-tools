@@ -1,0 +1,25 @@
+New in V.V.V (2021-MM-DD)
+-------------------------
+
+
+Changes
+~~~~~~~
+- Minimum Pyro version bumped (`#988`)
+- Improve docs clarity (`#989`)
+
+
+
+
+Contributors
+~~~~~~~~~~~~
+- `@adamgayoso`_
+- `@galenxing`_
+- `@romain-lopez`_
+
+.. _`@romain-lopez`: https://github.com/romain-lopez
+.. _`@galenxing`: https://github.com/galenxing
+.. _`@adamgayoso`: https://github.com/adamgayoso
+
+
+.. _`#988`: https://github.com/YosefLab/scvi-tools/pull/988
+.. _`#989`: https://github.com/YosefLab/scvi-tools/pull/989
