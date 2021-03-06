@@ -15,7 +15,7 @@ class LossRecorder:
 
     This class provides an organized way to record the model loss, as well as
     the components of the ELBO. This may also be used in MLE, MAP, EM methods.
-    The loss is used for backpropagation during infernce. The other parameters
+    The loss is used for backpropagation during inference. The other parameters
     are used for logging/early stopping during inference.
 
     Parameters
