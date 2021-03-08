@@ -4,6 +4,7 @@ New in V.V.V (2021-MM-DD)
 
 Changes
 ~~~~~~~
+- Update Pyro module backend to better enfore usage of `model` and `guide`, automate passing of number of training examples to Pyro modules (`#990`)
 - Minimum Pyro version bumped (`#988`)
 - Improve docs clarity (`#989`)
 
@@ -23,3 +24,4 @@ Contributors
 
 .. _`#988`: https://github.com/YosefLab/scvi-tools/pull/988
 .. _`#989`: https://github.com/YosefLab/scvi-tools/pull/989
+.. _`#990`: https://github.com/YosefLab/scvi-tools/pull/990
