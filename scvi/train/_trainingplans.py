@@ -582,6 +582,9 @@ class PyroTrainingPlan(pl.LightningModule):
     optim
         A Pyro optimizer, e.g., :class:`~pyro.optim.Adam`. If `None`,
         defaults to Adam optimizer with a learning rate of `1e-3`.
+    n_obs
+        Number of training examples. If not `None`, updates the `n_obs` attr
+        of the Pyro module's `model` and `guide`, if they exist.
     """
 
     def __init__(
@@ -589,9 +592,18 @@ class PyroTrainingPlan(pl.LightningModule):
         pyro_module: PyroBaseModuleClass,
         loss_fn: Optional[pyro.infer.ELBO] = None,
         optim: Optional[pyro.optim.PyroOptim] = None,
+        n_obs: Optional[int] = None,
     ):
         super().__init__()
         self.module = pyro_module
+        self.n_obs = n_obs
+
+        # important for scaling log prob in Pyro plates
+        if n_obs is not None:
+            if hasattr(self.module.model, "n_obs"):
+                setattr(self.module.model, "n_obs", n_obs)
+            if hasattr(self.module.guide, "n_obs"):
+                setattr(self.module.guide, "n_obs", n_obs)
 
         self.loss_fn = pyro.infer.Trace_ELBO() if loss_fn is None else loss_fn
         self.optim = pyro.optim.Adam({"lr": 1e-3}) if optim is None else optim

@@ -214,8 +214,15 @@ class PyroBaseModuleClass(nn.Module):
 
     There are two ways this class can be equipped with a model and a guide. First,
     `model` and `guide` can be class attributes that are :class:`~pyro.nn.PyroModule`
-    instances. Second, `model` and `guide` methods can be written (see Pyro scANVI example)
-    https://pyro.ai/examples/scanvi.html
+    instances. The implemented `model` and `guide` class method can then return the (private) attributes.
+    Second, `model` and `guide` methods can be written directly (see Pyro scANVI example)
+    https://pyro.ai/examples/scanvi.html.
+
+    The `model` and `guide` may also be equipped with `n_obs` attributes, which can be set
+    to `None` (e.g., `self.n_obs = None`). This attribute may be helpful in designating the
+    size of observation-specific Pyro plates. The value will be updated automatically by
+    :class:`~scvi.train.PyroTrainingPlan`, provided that it is given the number of training examples
+    upon initialization.
     """
 
     def __init__(self):
@@ -238,6 +245,16 @@ class PyroBaseModuleClass(nn.Module):
         -------
         args and kwargs for the functions, args should be an Iterable and kwargs a dictionary.
         """
+
+    @property
+    @abstractmethod
+    def model(self):
+        pass
+
+    @property
+    @abstractmethod
+    def guide(self):
+        pass
 
     def create_predictive(
         self,

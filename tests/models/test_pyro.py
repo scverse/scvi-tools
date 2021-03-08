@@ -44,6 +44,7 @@ class BayesianRegressionPyroModel(PyroModule):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
+        self.n_obs = None
 
         self.register_buffer("zero", torch.tensor(0.0))
         self.register_buffer("one", torch.tensor(1.0))
@@ -64,7 +65,7 @@ class BayesianRegressionPyroModel(PyroModule):
     def forward(self, x, y):
         sigma = pyro.sample("sigma", dist.Uniform(self.zero, self.ten))
         mean = self.linear(x).squeeze(-1)
-        with pyro.plate("data", x.shape[0]):
+        with pyro.plate("data", size=self.n_obs, subsample_size=x.shape[0]):
             pyro.sample("obs", dist.Normal(mean, sigma), obs=y)
         return mean
 
@@ -73,8 +74,16 @@ class BayesianRegressionModule(PyroBaseModuleClass):
     def __init__(self, in_features, out_features):
 
         super().__init__()
-        self.model = BayesianRegressionPyroModel(in_features, out_features)
-        self.guide = AutoDiagonalNormal(self.model)
+        self._model = BayesianRegressionPyroModel(in_features, out_features)
+        self._guide = AutoDiagonalNormal(self.model)
+
+    @property
+    def model(self):
+        return self._model
+
+    @property
+    def guide(self):
+        return self._guide
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
@@ -90,7 +99,7 @@ def test_pyro_bayesian_regression(save_path):
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     pyro.clear_param_store()
     model = BayesianRegressionModule(adata.shape[1], 1)
-    plan = PyroTrainingPlan(model)
+    plan = PyroTrainingPlan(model, n_obs=len(train_dl.indices))
     trainer = Trainer(
         gpus=use_gpu,
         max_epochs=2,
@@ -126,7 +135,7 @@ def test_pyro_bayesian_regression(save_path):
         new_model.load_state_dict(torch.load(model_save_path))
     except RuntimeError as err:
         if isinstance(new_model, PyroBaseModuleClass):
-            plan = PyroTrainingPlan(new_model)
+            plan = PyroTrainingPlan(new_model, n_obs=len(train_dl.indices))
             trainer = Trainer(
                 gpus=use_gpu,
                 max_steps=1,
@@ -151,7 +160,9 @@ def test_pyro_bayesian_regression_jit():
     pyro.clear_param_store()
     model = BayesianRegressionModule(adata.shape[1], 1)
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
-    plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
+    plan = PyroTrainingPlan(
+        model, loss_fn=pyro.infer.JitTrace_ELBO(), n_obs=len(train_dl.indices)
+    )
     trainer = Trainer(
         gpus=use_gpu, max_epochs=2, callbacks=[PyroJitGuideWarmup(train_dl)]
     )
