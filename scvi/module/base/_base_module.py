@@ -210,7 +210,13 @@ class PyroBaseModuleClass(nn.Module):
     `model` and `guide` can be class attributes that are :class:`~pyro.nn.PyroModule`
     instances. The implemented `model` and `guide` class method can then return the (private) attributes.
     Second, `model` and `guide` methods can be written directly (see Pyro scANVI example)
-    https://pyro.ai/examples/scanvi.html
+    https://pyro.ai/examples/scanvi.html.
+
+    The `model` and `guide` may also be equipped with `n_obs` attributes, which can be set
+    to `None` (e.g., `self.n_obs = None`). This attribute may be helpful in designating the
+    size of observation-specific Pyro plates. The value will be updated automatically by
+    :class:`~scvi.train.PyroTrainingPlan`, provided that it is given the number of training examples
+    upon initialization.
     """
 
     def __init__(self):
