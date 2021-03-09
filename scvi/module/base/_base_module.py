@@ -29,6 +29,8 @@ class LossRecorder:
         KL divergence associated with each observation in the minibatch.
     kl_global
         Global kl divergence term. Should be one dimensional with one value.
+    **kwargs
+        Set attributes for this LossRecorder object
     """
 
     def __init__(
