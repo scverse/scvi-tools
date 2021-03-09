@@ -1,4 +1,5 @@
 from ._callbacks import JaxModuleInit, LoudEarlyStopping, SaveBestState
+from ._callbacks import LoudEarlyStopping, SaveBestState
 from ._trainer import Trainer
 from ._trainingplans import (
     AdversarialTrainingPlan,
