@@ -36,8 +36,8 @@ class LossRecorder:
     def __init__(
         self,
         loss: Union[Dict[str, torch.Tensor], torch.Tensor],
-        reconstruction_loss: Union[Dict[str, torch.Tensor], torch.Tensor],
-        kl_local: Union[Dict[str, torch.Tensor], torch.Tensor],
+        reconstruction_loss: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.Tensor([0]),
+        kl_local: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.Tensor([0]),
         kl_global: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.Tensor([0]),
         **kwargs,
     ):
