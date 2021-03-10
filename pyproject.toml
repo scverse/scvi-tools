@@ -82,6 +82,7 @@ docs = [
   "sphinx-autodoc-typehints",
   "sphinx_copybutton",
   "sphinx_gallery",
+  "sphinx-tabs",
 ]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc"]
 
