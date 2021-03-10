@@ -1,12 +1,11 @@
-from pytorch_lightning import Callback
 from ray import tune
 from ray.tune import CLIReporter
-from ray.tune.schedulers import ASHAScheduler
 from ray.tune.integration.pytorch_lightning import TuneReportCallback
+from ray.tune.schedulers import ASHAScheduler
 
 
 class Autotune:
-    def __init__(self, adata, model, n_samples):
+    def __init__(self, adata, model, n_samples=10):
         self.adata = adata
         self.model = model
         self.n_samples = n_samples
