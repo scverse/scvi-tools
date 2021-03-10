@@ -110,6 +110,7 @@ class TrainingPlan(pl.LightningModule):
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         reconstruction_loss = scvi_loss.reconstruction_loss
         # pytorch lightning automatically backprops on "loss"
+        self.log("train_loss", scvi_loss.loss, on_epoch=True)
         return {
             "loss": scvi_loss.loss,
             "reconstruction_loss_sum": reconstruction_loss.sum(),
@@ -333,6 +334,7 @@ class AdversarialTrainingPlan(TrainingPlan):
                 loss += fool_loss * kappa
 
             reconstruction_loss = scvi_loss.reconstruction_loss
+            self.log("train_loss", loss, on_epoch=True)
             return {
                 "loss": loss,
                 "reconstruction_loss_sum": reconstruction_loss.sum(),
@@ -491,6 +493,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         reconstruction_loss = scvi_losses.reconstruction_loss
+        self.log("train_loss", loss, on_epoch=True)
         loss_dict = {
             "loss": loss,
             "reconstruction_loss_sum": reconstruction_loss.sum(),
