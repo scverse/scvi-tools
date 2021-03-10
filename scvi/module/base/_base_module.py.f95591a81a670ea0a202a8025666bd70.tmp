@@ -29,8 +29,6 @@ class LossRecorder:
         KL divergence associated with each observation in the minibatch.
     kl_global
         Global kl divergence term. Should be one dimensional with one value.
-    record_elbo
-        Records elbo at training step if true.
     **kwargs
         Additional metrics can be passed as keyword arguments and will
         be available as attributes of the object.
