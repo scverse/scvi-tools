@@ -117,12 +117,14 @@ class TrainingPlan(pl.LightningModule):
             "kl_local_sum": scvi_loss.kl_local.sum(),
             "kl_global": scvi_loss.kl_global,
             "n_obs": reconstruction_loss.shape[0],
+            "record_elbo": scvi_loss.record_elbo,
         }
 
     def training_epoch_end(self, outputs):
         n_obs, elbo, rec_loss, kl_local = 0, 0, 0, 0
         for tensors in outputs:
-            elbo += tensors["reconstruction_loss_sum"] + tensors["kl_local_sum"]
+            if "record_elbo" in tensors and tensors["record_elbo"]:
+                elbo += tensors["reconstruction_loss_sum"] + tensors["kl_local_sum"]
             rec_loss += tensors["reconstruction_loss_sum"]
             kl_local += tensors["kl_local_sum"]
             n_obs += tensors["n_obs"]
@@ -142,13 +144,15 @@ class TrainingPlan(pl.LightningModule):
             "kl_local_sum": scvi_loss.kl_local.sum(),
             "kl_global": scvi_loss.kl_global,
             "n_obs": reconstruction_loss.shape[0],
+            "record_elbo": scvi_loss.record_elbo,
         }
 
     def validation_epoch_end(self, outputs):
         """Aggregate validation step information."""
         n_obs, elbo, rec_loss, kl_local = 0, 0, 0, 0
         for tensors in outputs:
-            elbo += tensors["reconstruction_loss_sum"] + tensors["kl_local_sum"]
+            if "record_elbo" in tensors and tensors["record_elbo"]:
+                elbo += tensors["reconstruction_loss_sum"] + tensors["kl_local_sum"]
             rec_loss += tensors["reconstruction_loss_sum"]
             kl_local += tensors["kl_local_sum"]
             n_obs += tensors["n_obs"]
@@ -341,6 +345,7 @@ class AdversarialTrainingPlan(TrainingPlan):
                 "kl_local_sum": scvi_loss.kl_local.sum(),
                 "kl_global": scvi_loss.kl_global,
                 "n_obs": reconstruction_loss.shape[0],
+                "record_elbo": scvi_loss.record_elbo,
             }
 
         # train adversarial classifier
@@ -500,6 +505,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             "kl_local_sum": scvi_losses.kl_local.sum(),
             "kl_global": scvi_losses.kl_global,
             "n_obs": reconstruction_loss.shape[0],
+            "record_elbo": scvi_losses.record_elbo,
         }
         if hasattr(scvi_losses, "classification_loss"):
             loss_dict["classification_loss"] = scvi_losses.classification_loss
@@ -530,6 +536,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             "kl_local_sum": scvi_losses.kl_local.sum(),
             "kl_global": scvi_losses.kl_global,
             "n_obs": reconstruction_loss.shape[0],
+            "record_elbo": scvi_losses.record_elbo,
         }
         if hasattr(scvi_losses, "classification_loss"):
             loss_dict["classification_loss"] = scvi_losses.classification_loss
