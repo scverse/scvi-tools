@@ -34,6 +34,10 @@ class ScviConfig:
 
     >>> import logging
     >>> scvi.settings.verbosity = logging.INFO
+
+    To set the number of threads PyTorch will use
+
+    >>> scvi.settings.num_threads = 2
     """
 
     def __init__(
