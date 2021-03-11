@@ -56,6 +56,7 @@ class ScviConfig:
         self.logging_dir = logging_dir
         self.dl_num_workers = dl_num_workers
         self.dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
+        self._num_threads = None
 
     @property
     def batch_size(self) -> int:
@@ -107,6 +108,17 @@ class ScviConfig:
         self._logging_dir = Path(logging_dir).resolve()
 
     @property
+    def num_threads(self) -> None:
+        """Number of threads PyTorch will use."""
+        return self._num_threads
+
+    @num_threads.setter
+    def num_threads(self, num: int):
+        """Number of threads PyTorch will use."""
+        self._num_threads = num
+        torch.set_num_threads(num)
+
+    @property
     def progress_bar_style(self) -> str:
         """Library to use for progress bar."""
         return self._pbar_style
@@ -120,10 +132,6 @@ class ScviConfig:
     def seed(self) -> int:
         """Random seed for torch and numpy."""
         return self._seed
-
-    def set_num_threads(self, num: int):
-        """Sets number of threads torch will use to `num`."""
-        torch.set_num_threads(num)
 
     @seed.setter
     def seed(self, seed: int):
