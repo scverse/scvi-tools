@@ -34,6 +34,10 @@ class ScviConfig:
 
     >>> import logging
     >>> scvi.settings.verbosity = logging.INFO
+
+    To set the number of threads PyTorch will use
+
+    >>> scvi.settings.num_threads = 2
     """
 
     def __init__(
@@ -56,6 +60,7 @@ class ScviConfig:
         self.logging_dir = logging_dir
         self.dl_num_workers = dl_num_workers
         self.dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
+        self._num_threads = None
 
     @property
     def batch_size(self) -> int:
@@ -105,6 +110,17 @@ class ScviConfig:
     @logging_dir.setter
     def logging_dir(self, logging_dir: Union[str, Path]):
         self._logging_dir = Path(logging_dir).resolve()
+
+    @property
+    def num_threads(self) -> None:
+        """Number of threads PyTorch will use."""
+        return self._num_threads
+
+    @num_threads.setter
+    def num_threads(self, num: int):
+        """Number of threads PyTorch will use."""
+        self._num_threads = num
+        torch.set_num_threads(num)
 
     @property
     def progress_bar_style(self) -> str:
