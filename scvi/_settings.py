@@ -121,6 +121,10 @@ class ScviConfig:
         """Random seed for torch and numpy."""
         return self._seed
 
+    def set_num_threads(self, num: int):
+        """Sets number of threads torch will use to `num`."""
+        torch.set_num_threads(num)
+
     @seed.setter
     def seed(self, seed: int):
         """Random seed for torch and numpy."""
