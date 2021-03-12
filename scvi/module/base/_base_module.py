@@ -42,6 +42,7 @@ class LossRecorder:
         ] = torch.Tensor([0]),
         kl_local: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.Tensor([0]),
         kl_global: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.Tensor([0]),
+        record_elbo: bool = True,
         **kwargs,
     ):
         self._loss = loss if isinstance(loss, dict) else dict(loss=loss)
@@ -56,7 +57,7 @@ class LossRecorder:
         self._kl_global = (
             kl_global if isinstance(kl_global, dict) else dict(kl_global=kl_global)
         )
-        self.record_elbo = True
+        self.record_elbo = record_elbo
         for key, value in kwargs.items():
             setattr(self, key, value)
 
