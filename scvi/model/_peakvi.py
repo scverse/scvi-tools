@@ -83,6 +83,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
         deeply_inject_covariates: bool = False,
+        encode_covariates: bool = False,
         **model_kwargs,
     ):
         super(PEAKVI, self).__init__(adata)
@@ -109,11 +110,13 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             use_layer_norm=use_layer_norm,
             latent_distribution=latent_distribution,
             deeply_inject_covariates=deeply_inject_covariates,
+            encode_covariates=encode_covariates,
             **model_kwargs,
         )
         self._model_summary_string = (
             "PeakVI Model with params: \nn_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
-            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}"
+            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}, "
+            "encode_covariates: {}"
         ).format(
             self.module.n_hidden,
             self.module.n_latent,
@@ -122,6 +125,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             dropout_rate,
             latent_distribution,
             deeply_inject_covariates,
+            encode_covariates,
         )
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())
