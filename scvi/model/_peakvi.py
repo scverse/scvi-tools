@@ -440,9 +440,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         result = pd.DataFrame(
             {
                 "prob_da": result.proba_de,
-                "is_da_fdr_{}".format(fdr_target): result.loc[
-                    :, "is_de_fdr_{}".format(fdr_target)
-                ],
+                "is_da_fdr": result.loc[:, "is_de_fdr_{}".format(fdr_target)],
                 "bayes_factor": result.bayes_factor,
                 "effect_size": result.scale2 - result.scale1,
                 "emp_effect": result.emp_mean2 - result.emp_mean1,
@@ -452,6 +450,3 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 "emp_prob2": result.emp_mean2,
             },
         )
-        result.index = result.index.astype(int)
-        result.sort_index(inplace=True)
-        return result
