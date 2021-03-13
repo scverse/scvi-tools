@@ -252,6 +252,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self,
         adata: Optional[AnnData] = None,
         indices: Sequence[int] = None,
+        region_indices: Sequence[int] = None,
         transform_batch: Optional[Union[str, int]] = None,
         use_z_mean: bool = True,
         threshold: Optional[float] = None,
@@ -272,6 +273,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
+        region_indices
+            Indices of regions to use. if `None`, all regions are used.
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -323,6 +326,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if threshold:
                 p[p < threshold] = 0
                 p = csr_matrix(p.numpy())
+            if region_indices is not None:
+                p = p[:, region_indices]
             imputed.append(p)
 
         if threshold:  # imputed is a list of csr_matrix objects
