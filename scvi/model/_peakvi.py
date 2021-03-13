@@ -450,3 +450,4 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 "emp_prob2": result.emp_mean2,
             },
         )
+        return result.reindex(adata.var.index)
