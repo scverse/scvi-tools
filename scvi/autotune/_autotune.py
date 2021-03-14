@@ -1,8 +1,9 @@
+from typing import Optional
+
 from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.integration.pytorch_lightning import TuneReportCallback
 from ray.tune.schedulers import ASHAScheduler
-from typing import Optional
 
 """
 user needs to be able to set search space for model kwargs, trainer kwargs, training plan kwargs. 
