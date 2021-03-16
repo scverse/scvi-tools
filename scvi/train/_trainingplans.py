@@ -104,6 +104,10 @@ class TrainingPlan(pl.LightningModule):
         """Passthrough to `model.forward()`."""
         return self.module(*args, **kwargs)
 
+    def return_and_log_loss(self):
+        """Log loss and return dictionary of metrics."""
+        pass
+
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
