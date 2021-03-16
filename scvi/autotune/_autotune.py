@@ -1,62 +1,109 @@
-from typing import Optional
+import os
 
 from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.integration.pytorch_lightning import TuneReportCallback
-from ray.tune.schedulers import ASHAScheduler
-
-"""
-user needs to be able to set search space for model kwargs, trainer kwargs, training plan kwargs. 
-track validation metrics, as well as metrics after training that come from metric functions
-"""
 
 
 class Autotune:
+    """
+
+    Hyperparameter tuning for SCVI using Ray Tune.
+
+    Parameters
+    ----------
+    adata
+        AnnData object we will tune the model on.
+    model
+        Model from scvi.model we will tune.
+    training_metrics
+        Metrics to track during training.
+    metric_functions
+        For metrics calculated after training a model, like silhouette distance.
+    model_hyperparams
+        Config for the model hyperparameters https://docs.ray.io/en/master/tune/api_docs/search_space.html.
+    trainer_hyperparams
+        Config for the trainer hyperparameters https://docs.ray.io/en/master/tune/api_docs/search_space.html.
+    plan_hyperparams
+        Config for the training_plan hyperparameters https://docs.ray.io/en/master/tune/api_docs/search_space.html.
+    """
+
     def __init__(
         self,
         adata,
         model,
-        name: str = "scvi-experiment",
-        metric: str = "",
-        training_metrics: dict = None,
-        post_training_metric_functions: dict = None,
-        model_hyperparams: dict = None,
-        trainer_hyperparams: dict = None,
-        training_plan_hyperparams: dict = None,
-        search_alg: Searcher = None,
-        scheduler: TrialScheduler = None,
-        checkpoint_dir: str = "experiment-checkpoints"
+        training_metrics: list = ["elbo_validation"],
+        metric_functions: dict = {},
+        model_hyperparams: dict = {},
+        trainer_hyperparams: dict = {},
+        plan_hyperparams: dict = {},
+        num_epochs: int = 2,
     ):
-        if not training_metrics
-        
-        
-    def train_model_tune(self, config, adata, metrics):
-        _current_model = self.model(adata, **config)
-        _current_model.train(
-            check_val_every_n_epoch=1,
-            callbacks=[
-                TuneReportCallback(
-                    metrics,
-                    on="validation_end",
-                )
-            ],
-            max_epochs=2,  # remove this later
-        )
+        self.adata = adata
+        self.model = model
+        self.training_metrics = training_metrics
+        self.metric_functions = metric_functions
+        self.model_hyperparams = model_hyperparams
+        self.trainer_hyperparams = trainer_hyperparams
+        self.plan_hyperparams = plan_hyperparams
+        self.metrics = training_metrics + list(self.metric_functions.keys())
+        self.reporter = CLIReporter(metric_columns=self.metrics)
+        self.config = {}
+        for d in [model_hyperparams, trainer_hyperparams, plan_hyperparams]:
+            if d is not None:
+                self.config.update(d)
+        self.num_epochs = num_epochs
 
-    def run(self, metric, mode, name, num_samples):
+    def _scvi_trainable(self, config, checkpoint_dir=None):
+        model_config = {}
+        trainer_config = {}
+        plan_config = {}
+        for key in config:
+            if key in self.trainer_hyperparams:
+                model_config[key] = config[key]
+            elif key in self.trainer_hyperparams:
+                trainer_config[key] = config[key]
+            elif key in self.trainer_hyperparams:
+                plan_config[key] = config[key]
+
+        if checkpoint_dir:
+            _model = self.model.load(
+                os.path.join(checkpoint_dir, "checkpoint"), self.adata
+            )
+        else:
+            _model = self.model(self.adata, **model_config)
+
+        _model.train(
+            **trainer_config,
+            plan_kwargs=plan_config,
+            callbacks=[TuneReportCallback(metrics=self.metrics, on="validation_end")],
+            check_val_every_n_epoch=1,
+            max_epochs=self.num_epochs
+        )
+        for m in self.metric_functions:
+            f = self.metric_functions[m]
+            tune.report(**{m: f(_model)})
+        if checkpoint_dir:
+            _model.save(os.path.join(checkpoint_dir, "checkpoint"))
+
+    def run(
+        self,
+        metric,
+        scheduler,
+        mode="min",
+        name="scvi-experiment",
+        num_samples=10,
+    ):
         analysis = tune.run(
-            tune.with_parameters(
-                self.train_model_tune, adata=self.adata, metrics=self.metrics
-            ),
+            self._scvi_trainable,
             metric=metric,
-            mode="min",
+            mode=mode,
             config=self.config,
             num_samples=num_samples,
-            scheduler=self.scheduler,
+            scheduler=scheduler,
             progress_reporter=self.reporter,
             name=name,
         )
         best_config = analysis.best_config
         print("Best hyperparameters found were: ", best_config)
-
-        return self.model(self.adata, **best_config)
+        return best_config
