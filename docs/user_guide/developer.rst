@@ -39,7 +39,7 @@ Glossary
         either inherit :class:`~scvi.module.base.BaseModuleClass` or :class:`~scvi.module.base.PyroBaseModuleClass`.
         Consequently, a module can either be implemented with PyTorch alone, or Pyro. In the PyTorch only case, the
         generative process and inference scheme are implemented respectively in the `generative` and `inference` methods,
-        while the `loss` method computes the, e.g, ELBO in the case of variational inference.
+        while the `loss` method computes the loss, e.g, ELBO in the case of variational inference.
 
 .. tabs::
 
