@@ -78,7 +78,7 @@ class Autotune:
             plan_kwargs=plan_config,
             callbacks=[TuneReportCallback(metrics=self.metrics, on="validation_end")],
             check_val_every_n_epoch=1,
-            max_epochs=self.num_epochs
+            max_epochs=self.num_epochs,
         )
         for m in self.metric_functions:
             f = self.metric_functions[m]
@@ -93,7 +93,25 @@ class Autotune:
         mode="min",
         name="scvi-experiment",
         num_samples=10,
+        **kwargs,
     ):
+        """
+        Run hyper parameter tuning experiment.
+
+        Parameters
+        ----------
+        metric
+            Metric to optimize over in self.metrics or from self.training_funcs
+        scheduler
+            Ray tune scheduler for trials (e.g. ASHA).
+        mode
+            "min" or "max" to maximize or minimize the objective metric
+        name
+            Name of this experiment.
+        num_samples
+            Number of times to sample hyperparameters from the configuration space.
+
+        """
         analysis = tune.run(
             self._scvi_trainable,
             metric=metric,
