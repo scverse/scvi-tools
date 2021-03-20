@@ -27,7 +27,7 @@ Glossary
 
     .. tab:: Model
 
-        A model class is a user-facing object that contains the module as an attribute (i.e., ``self.module``).
+        A Model class inherits :class:`~scvi.model.base.BaseModelClass` and is the user-facing object for interacting with a module.
         The model has a `train` method that learns the parameters of the module, and also contains methods
         for users to retrieve information from the module, like the latent representation of cells in a VAE.
         Conventionally, the post-inference model methods should not store data into the AnnData object, but
@@ -46,11 +46,11 @@ Glossary
     .. tab:: TrainingPlan
 
 
-        The training plan is a PyTorch Lightning Module that is initializd with a scvi-tools module object.
+        The training plan is a PyTorch Lightning Module that is initialized with a scvi-tools module object.
         It configures the optimizers, defines the training step and validation step, and computes metrics to be
         recorded during training. The training step and validation step are functions that take data, run it through
         the model and return the loss, which will then be used to optimize the model parameters in the Trainer.
-        Overall, training plans can be used to develop complex inference schemes on top of modules.
+        Overall, custom training plans can be used to develop complex inference schemes on top of modules.
 
 
     .. tab:: Trainer
