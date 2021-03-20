@@ -1,4 +1,4 @@
-New in V.V.V (2021-MM-DD)
+New in 0.9.1 (2021-03-22)
 -------------------------
 
 
@@ -7,7 +7,9 @@ Changes
 - Update Pyro module backend to better enfore usage of `model` and `guide`, automate passing of number of training examples to Pyro modules (`#990`)
 - Minimum Pyro version bumped (`#988`)
 - Improve docs clarity (`#989`)
-
+- Add glossary to developer user guide (`#999`)
+- Add num threads config option to `scvi.settings` (`#1001`)
+- Add CellAssign tutorial (`#1004`)
 
 
 
@@ -15,13 +17,19 @@ Contributors
 ~~~~~~~~~~~~
 - `@adamgayoso`_
 - `@galenxing`_
-- `@romain-lopez`_
+- `@mjayasur`_
+- `@wukathy`_
 
-.. _`@romain-lopez`: https://github.com/romain-lopez
 .. _`@galenxing`: https://github.com/galenxing
 .. _`@adamgayoso`: https://github.com/adamgayoso
+.. _`@mjayasur`: https://github.com/mjayasur
+.. _`@wukathy`: https://github.com/wukathy
 
 
 .. _`#988`: https://github.com/YosefLab/scvi-tools/pull/988
 .. _`#989`: https://github.com/YosefLab/scvi-tools/pull/989
+.. _`#999`: https://github.com/YosefLab/scvi-tools/pull/999
 .. _`#990`: https://github.com/YosefLab/scvi-tools/pull/990
+.. _`#1001`: https://github.com/YosefLab/scvi-tools/pull/1001
+.. _`#1004`: https://github.com/YosefLab/scvi-tools/pull/1004
+
