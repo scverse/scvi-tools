@@ -157,7 +157,7 @@ html_show_sphinx = False
 nbsphinx_prolog = r"""
 .. raw:: html
 
-{% set docname = env.doc2path(env.docname, base=None).split("/")[-1] %}
+{{% set docname = env.doc2path(env.docname, base=None).split("/")[-1] %}}
 
 .. raw:: html
 
@@ -165,12 +165,14 @@ nbsphinx_prolog = r"""
     <p class="admonition-title">Note</p>
     <p>
       This page was generated from
-      <a class="reference external" href="https://github.com/yoseflab/scvi-tutorials/">{{ docname|e }}</a>.
+      <a class="reference external" href="https://github.com/yoseflab/scvi-tutorials/tree/{version}/">{{ docname|e }}</a>.
       Interactive online version:
-      <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/yoseflab/scvi_tutorials/blob/master/{{ docname|e }}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
+      <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/yoseflab/scvi_tutorials/blob/{version}/{{ docname|e }}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
     </p>
     </div>
-"""
+""".format(
+    version=version
+)
 nbsphinx_thumbnails = {
     "user_guide/notebooks/data_loading": "_static/tutorials/anndata.svg",
     "user_guide/notebooks/api_overview": "_static/tutorials/overview.svg",
