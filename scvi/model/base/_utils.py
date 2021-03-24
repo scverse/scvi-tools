@@ -10,8 +10,7 @@ import torch
 from anndata import read
 
 from scvi._compat import Literal
-from scvi._utils import track
-from scvi.utils import DifferentialComputation
+from scvi.utils import DifferentialComputation, track
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ def _load_saved_files(
     return scvi_setup_dict, attr_dict, var_names, model_state_dict, adata
 
 
-def _initialize_model(cls, adata, attr_dict, use_gpu):
+def _initialize_model(cls, adata, attr_dict):
     """Helper to initialize a model."""
     if "init_params_" not in attr_dict.keys():
         raise ValueError(
@@ -62,19 +61,14 @@ def _initialize_model(cls, adata, attr_dict, use_gpu):
         non_kwargs = init_params["non_kwargs"]
         kwargs = init_params["kwargs"]
 
-        # update use_gpu from the saved model
-        # we assume use_gpu is exposed and not a kwarg
-        non_kwargs["use_gpu"] = use_gpu
-
         # expand out kwargs
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
     else:
-        init_params["use_gpu"] = use_gpu
-
         # grab all the parameters execept for kwargs (is a dict)
         non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
         kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+        non_kwargs.pop("use_cuda")
 
     model = cls(adata, **non_kwargs, **kwargs)
     return model
@@ -108,6 +102,7 @@ def _de_core(
     delta,
     batch_correction,
     fdr,
+    silent,
     **kwargs
 ):
     """Internal function for DE interface."""
@@ -142,6 +137,7 @@ def _de_core(
     for g1 in track(
         group1,
         description="DE...",
+        disable=silent,
     ):
         cell_idx1 = (adata.obs[groupby] == g1).to_numpy().ravel()
         if group2 is None:

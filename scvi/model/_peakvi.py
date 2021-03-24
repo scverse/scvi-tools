@@ -11,23 +11,22 @@ from scipy.sparse import csr_matrix, vstack
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
-from scvi.dataloaders import AnnDataLoader
-from scvi.lightning import TrainingPlan
-from scvi.lightning._callbacks import SaveBestState
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
     scatac_raw_counts_properties,
 )
-from scvi.modules import PEAKVAE
+from scvi.model.base import UnsupervisedTrainingMixin
+from scvi.module import PEAKVAE
+from scvi.train._callbacks import SaveBestState
 
-from .base import BaseModelClass, VAEMixin
+from .base import ArchesMixin, BaseModelClass, VAEMixin
 from .base._utils import _de_core
 
 logger = logging.getLogger(__name__)
 
 
-class PEAKVI(VAEMixin, BaseModelClass):
+class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     PeakVI.
 
@@ -59,6 +58,8 @@ class PEAKVI(VAEMixin, BaseModelClass):
     deeply_inject_covariates
         Whether to deeply inject covariates into all layers of the decoder. If False (default),
         covairates will only be included in the input layer.
+    **model_kwargs
+        Keyword args for :class:`~scvi.module.PEAKVAE`
 
     Examples
     --------
@@ -82,10 +83,9 @@ class PEAKVI(VAEMixin, BaseModelClass):
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
         deeply_inject_covariates: bool = False,
-        use_gpu: bool = True,
         **model_kwargs,
     ):
-        super(PEAKVI, self).__init__(adata, use_gpu=use_gpu)
+        super(PEAKVI, self).__init__(adata)
 
         n_cats_per_cov = (
             self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
@@ -126,19 +126,11 @@ class PEAKVI(VAEMixin, BaseModelClass):
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())
 
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
-
-    @property
-    def _plan_class(self):
-        return TrainingPlan
-
     def train(
         self,
         max_epochs: int = 500,
         lr: float = 1e-4,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -162,7 +154,8 @@ class PEAKVI(VAEMixin, BaseModelClass):
         lr
             Learning rate for optimization.
         use_gpu
-            If `True`, use the GPU if available.
+            Use default GPU if available (if None or True), or index of GPU to use (if int),
+            or name of GPU (if str), or use CPU (if False).
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -190,10 +183,10 @@ class PEAKVI(VAEMixin, BaseModelClass):
             Number of epochs to scale weight on KL divergences from 0 to 1.
             Overrides `n_steps_kl_warmup` when both are not `None`.
         plan_kwargs
-            Keyword args for :class:`~scvi.lightning.VAETask`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         update_dict = dict(
             lr=lr,
@@ -224,6 +217,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
             early_stopping_patience=50,
             plan_kwargs=plan_kwargs,
             check_val_every_n_epoch=check_val_every_n_epoch,
+            batch_size=batch_size,
             **kwargs,
         )
 
@@ -235,7 +229,9 @@ class PEAKVI(VAEMixin, BaseModelClass):
         batch_size: int = 128,
     ):
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         library_sizes = []
         for tensors in scdl:
@@ -300,7 +296,9 @@ class PEAKVI(VAEMixin, BaseModelClass):
 
         """
         adata = self._validate_anndata(adata)
-        post = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        post = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
 
         if threshold is not None and (threshold < 0 or threshold > 1):
@@ -348,10 +346,12 @@ class PEAKVI(VAEMixin, BaseModelClass):
         mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.1,
         batch_size: Optional[int] = None,
+        all_stats: bool = True,
         batch_correction: bool = False,
         batchid1: Optional[Iterable[str]] = None,
         batchid2: Optional[Iterable[str]] = None,
         fdr_target: float = 0.05,
+        silent: bool = False,
         two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
@@ -421,7 +421,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
             group2=group2,
             idx1=idx1,
             idx2=idx2,
-            all_stats=True,
+            all_stats=all_stats,
             all_stats_fn=scatac_raw_counts_properties,
             col_names=col_names,
             mode=mode,
@@ -432,6 +432,7 @@ class PEAKVI(VAEMixin, BaseModelClass):
             fdr=fdr_target,
             change_fn=change_fn,
             m1_domain_fn=m1_domain_fn,
+            silent=silent,
             **kwargs,
         )
 

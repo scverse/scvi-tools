@@ -7,15 +7,15 @@ on:
   push:
     branches: [master]
   pull_request:
-    branches: [master, pytorch_lit]
+    branches: [master]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.7, 3.8, 3.9]
 
     steps:
     - uses: actions/checkout@v2
@@ -27,9 +27,9 @@ jobs:
       uses: actions/cache@v2
       with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          key: ${{ runner.os }}-pip-v1-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-pip-
+            ${{ runner.os }}-pip-v1-
     - name: Install dependencies
       run: |
         pip install pytest-cov
@@ -47,9 +47,12 @@ jobs:
       run: |
         pytest --cov-report=xml --cov=scvi --internet-tests
     - name: After success
-      env:
-        CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
       run: |
         codecov
         pip list
+    - name: Codacy upload
+      env:
+        CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
+      run: |
         bash <(curl -Ls https://coverage.codacy.com/get.sh) report -l Python -r coverage.xml
+      continue-on-error: true

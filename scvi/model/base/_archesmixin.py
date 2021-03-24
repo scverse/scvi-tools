@@ -1,11 +1,12 @@
 import logging
-from typing import Union
+from typing import Optional, Union
 
 import torch
 from anndata import AnnData
 
-from scvi.compose import FCLayers
 from scvi.data import transfer_anndata_setup
+from scvi.model._utils import parse_use_gpu_arg
+from scvi.nn import FCLayers
 
 from ._base_model import BaseModelClass
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
@@ -14,13 +15,15 @@ logger = logging.getLogger(__name__)
 
 
 class ArchesMixin:
+    """Universal scArches implementation."""
+
     @classmethod
     def load_query_data(
         cls,
         adata: AnnData,
         reference_model: Union[str, BaseModelClass],
         inplace_subset_query_vars: bool = False,
-        use_gpu: bool = True,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         unfrozen: bool = False,
         freeze_dropout: bool = False,
         freeze_expression: bool = True,
@@ -45,7 +48,8 @@ class ArchesMixin:
             Whether to subset and rearrange query vars inplace based on vars used to
             train reference model.
         use_gpu
-            Whether to load model on GPU.
+            Load model on default GPU if available (if None or True),
+            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
         unfrozen
             Override all other freeze options for a fully unfrozen model
         freeze_dropout
@@ -61,10 +65,8 @@ class ArchesMixin:
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
         """
-        use_gpu = use_gpu and torch.cuda.is_available()
-
+        use_gpu, device = parse_use_gpu_arg(use_gpu)
         if isinstance(reference_model, str):
-            map_location = torch.device("cuda") if use_gpu is True else None
             (
                 scvi_setup_dict,
                 attr_dict,
@@ -72,7 +74,7 @@ class ArchesMixin:
                 load_state_dict,
                 _,
             ) = _load_saved_files(
-                reference_model, load_adata=False, map_location=map_location
+                reference_model, load_adata=False, map_location=device
             )
         else:
             attr_dict = reference_model._get_user_attributes()
@@ -93,14 +95,13 @@ class ArchesMixin:
 
         transfer_anndata_setup(scvi_setup_dict, adata, extend_categories=True)
 
-        model = _initialize_model(cls, adata, attr_dict, use_gpu)
+        model = _initialize_model(cls, adata, attr_dict)
 
         # set saved attrs for loaded model
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
-        if use_gpu:
-            model.module.cuda()
+        model.to_device(device)
 
         # model tweaking
         new_state_dict = model.module.state_dict()

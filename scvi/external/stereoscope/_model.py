@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -6,13 +6,11 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.data import register_tensor_from_anndata
-from scvi.dataloaders import AnnDataLoader
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
-from scvi.lightning import TrainingPlan
-from scvi.model.base import BaseModelClass
+from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 
 
-class RNAStereoscope(BaseModelClass):
+class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """
     Reimplementation of Stereoscope [Andersson20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
@@ -22,26 +20,23 @@ class RNAStereoscope(BaseModelClass):
     ----------
     sc_adata
         single-cell AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
-    use_gpu
-        Use the GPU or not.
     **model_kwargs
-        Keyword args for :class:`~scvi.external.RNADeconv`
+        Keyword args for :class:`~scvi.external.stereoscope.RNADeconv`
 
     Examples
     --------
     >>> sc_adata = anndata.read_h5ad(path_to_sc_anndata)
-    >>> scvi.data.setup_anndata(sc_adata, label_key="labels")
-    >>> stereo = scvi.external.RNAStereoscope(sc_adata)
+    >>> scvi.data.setup_anndata(sc_adata, labels_key="labels")
+    >>> stereo = scvi.external.stereoscope.RNAStereoscope(sc_adata)
     >>> stereo.train()
     """
 
     def __init__(
         self,
         sc_adata: AnnData,
-        use_gpu: bool = True,
         **model_kwargs,
     ):
-        super(RNAStereoscope, self).__init__(sc_adata, use_gpu=use_gpu)
+        super(RNAStereoscope, self).__init__(sc_adata)
         self.n_genes = self.summary_stats["n_vars"]
         self.n_labels = self.summary_stats["n_labels"]
         # first we have the scRNA-seq model
@@ -62,7 +57,7 @@ class RNAStereoscope(BaseModelClass):
         self,
         max_epochs: int = 400,
         lr: float = 0.01,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 1,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -79,7 +74,8 @@ class RNAStereoscope(BaseModelClass):
         lr
             Learning rate for optimization.
         use_gpu
-            If `True`, use the GPU if available.
+            Use default GPU if available (if None or True), or index of GPU to use (if int),
+            or name of GPU (if str), or use CPU (if False).
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -88,10 +84,10 @@ class RNAStereoscope(BaseModelClass):
         batch_size
             Minibatch size to use during training.
         plan_kwargs
-            Keyword args for :class:`~scvi.lightning.TrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         update_dict = {
             "lr": lr,
@@ -110,16 +106,8 @@ class RNAStereoscope(BaseModelClass):
             **kwargs,
         )
 
-    @property
-    def _plan_class(self):
-        return TrainingPlan
 
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
-
-
-class SpatialStereoscope(BaseModelClass):
+class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """
     Reimplementation of Stereoscope [Andersson20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
@@ -133,31 +121,29 @@ class SpatialStereoscope(BaseModelClass):
         parameters of the model learned from the single-cell RNA seq data for deconvolution.
     cell_type_mapping
         numpy array mapping for the cell types used in the deconvolution
-    use_gpu
-        Use the GPU or not.
     prior_weight
         how to reweight the minibatches for stochastic optimization. "n_obs" is the valid
         procedure, "minibatch" is the procedure implemented in Stereoscope.
     **model_kwargs
-        Keyword args for :class:`~scvi.external.SpatialDeconv`
+        Keyword args for :class:`~scvi.external.stereoscope.SpatialDeconv`
 
     Examples
     --------
     >>> sc_adata = anndata.read_h5ad(path_to_sc_anndata)
-    >>> scvi.data.setup_anndata(sc_adata, label_key="labels")
-    >>> sc_model = scvi.external.RNAStereoscope(sc_adata)
+    >>> scvi.data.setup_anndata(sc_adata, labels_key="labels")
+    >>> sc_model = scvi.external.stereoscope.RNAStereoscope(sc_adata)
     >>> sc_model.train()
     >>> st_adata = anndata.read_h5ad(path_to_st_anndata)
     >>> scvi.data.setup_anndata(st_adata)
-    >>> stereo = scvi.external.SpatialStereoscope.from_rna_model(st_adata, sc_model)
+    >>> stereo = scvi.external.stereoscope.SpatialStereoscope.from_rna_model(st_adata, sc_model)
     >>> stereo.train()
-    >>> st_adata.obs["deconv"] = stereo.get_proportions()
+    >>> st_adata.obsm["deconv"] = stereo.get_proportions()
 
     Notes
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/stereoscope_public_LV`
+    1. :doc:`/user_guide/notebooks/stereoscope_heart_LV_tutorial`
     """
 
     def __init__(
@@ -165,13 +151,12 @@ class SpatialStereoscope(BaseModelClass):
         st_adata: AnnData,
         sc_params: Tuple[np.ndarray],
         cell_type_mapping: np.ndarray,
-        use_gpu: bool = True,
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
         **model_kwargs,
     ):
         st_adata.obs["_indices"] = np.arange(st_adata.n_obs)
         register_tensor_from_anndata(st_adata, "ind_x", "obs", "_indices")
-        super().__init__(st_adata, use_gpu=use_gpu)
+        super().__init__(st_adata)
         self.module = SpatialDeconv(
             n_spots=st_adata.n_obs,
             sc_params=sc_params,
@@ -191,7 +176,6 @@ class SpatialStereoscope(BaseModelClass):
         cls,
         st_adata: AnnData,
         sc_model: RNAStereoscope,
-        use_gpu: bool = True,
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
         **model_kwargs,
     ):
@@ -204,8 +188,6 @@ class SpatialStereoscope(BaseModelClass):
             registed anndata object
         sc_model
             trained RNADeconv model
-        use_gpu
-            Use the GPU or not.
         prior_weight
             how to reweight the minibatches for stochastic optimization. "n_obs" is the valid
             procedure, "minibatch" is the procedure implemented in Stereoscope.
@@ -218,7 +200,6 @@ class SpatialStereoscope(BaseModelClass):
             sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
                 "mapping"
             ],
-            use_gpu=use_gpu,
             prior_weight=prior_weight,
             **model_kwargs,
         )
@@ -247,7 +228,7 @@ class SpatialStereoscope(BaseModelClass):
         self,
         max_epochs: int = 400,
         lr: float = 0.01,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
         **kwargs,
@@ -262,14 +243,15 @@ class SpatialStereoscope(BaseModelClass):
         lr
             Learning rate for optimization.
         use_gpu
-            If `True`, use the GPU if available.
+            Use default GPU if available (if None or True), or index of GPU to use (if int),
+            or name of GPU (if str), or use CPU (if False).
         batch_size
             Minibatch size to use during training.
         plan_kwargs
-            Keyword args for :class:`~scvi.lightning.TrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
+            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         update_dict = {
             "lr": lr,
@@ -287,11 +269,3 @@ class SpatialStereoscope(BaseModelClass):
             plan_kwargs=plan_kwargs,
             **kwargs,
         )
-
-    @property
-    def _plan_class(self):
-        return TrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader

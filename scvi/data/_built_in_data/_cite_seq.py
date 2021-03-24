@@ -81,7 +81,7 @@ def _load_spleen_lymph_cite_seq(
     run_setup_anndata: bool = True,
 ):
     """
-    Immune cells from the murine spleen and lymph nodes [GayosoSteier20]_.
+    Immune cells from the murine spleen and lymph nodes [GayosoSteier21]_.
 
     This dataset was used throughout the totalVI manuscript, and named SLN-all.
 

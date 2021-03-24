@@ -88,9 +88,9 @@ def setup_anndata(
     copy: bool = False,
 ) -> Optional[anndata.AnnData]:
     """
-    Sets up :class:`~anndata.AnnData` object for `scvi` models.
+    Sets up :class:`~anndata.AnnData` object for models.
 
-    A mapping will be created between data fields used by `scvi` to their respective locations in adata.
+    A mapping will be created between data fields used by models to their respective locations in adata.
     This method will also compute the log mean and log variance per batch for the library size prior.
 
     None of the data in adata are modified. Only adds fields to adata.
@@ -113,9 +113,9 @@ def setup_anndata(
         key in `adata.uns` for protein names. If None, will use the column names of `adata.obsm[protein_expression_obsm_key]`
         if it is a DataFrame, else will assign sequential names to proteins. Only relevant but not required for :class:`~scvi.model.TOTALVI`.
     categorical_covariate_keys
-        keys in `adata.obs` that correspond to categorical data. Used in some `scvi` models.
+        keys in `adata.obs` that correspond to categorical data. Used in some models.
     continuous_covariate_keys
-        keys in `adata.obs` that correspond to continuous data. Used in some `scvi` models.
+        keys in `adata.obs` that correspond to continuous data. Used in some models.
     copy
         if `True`, a copy of adata is returned.
 
@@ -353,6 +353,9 @@ def register_tensor_from_anndata(
     if is_categorical is True:
         if adata_attr_name != "obs":
             raise ValueError("categorical handling only implemented for data in `.obs`")
+
+    if adata_alternate_key_name is None:
+        adata_alternate_key_name = adata_key_name + "_scvi"
 
     if is_categorical is True and adata_attr_name == "obs":
         adata_key_name = _make_obs_column_categorical(
@@ -957,7 +960,7 @@ def view_anndata_setup(source: Union[anndata.AnnData, dict, str]):
 
     n_cat = 0
     n_covs = 0
-    if "extra_categorical_mappings" in setup_dict.keys():
+    if "extra_categoricals" in setup_dict.keys():
         n_cat = len(setup_dict["extra_categoricals"]["mappings"])
     if "extra_continuous_keys" in setup_dict.keys():
         n_covs = len(setup_dict["extra_continuous_keys"])
@@ -1180,16 +1183,16 @@ def _check_anndata_setup_equivalence(
     )
 
     # validate any extra categoricals
+    error_msg = (
+        "Registered categorical key order mismatch between "
+        + "the anndata used to train and the anndata passed in."
+        + "Expected categories & order {}. Received {}.\n"
+    )
     if "extra_categoricals" in _scvi_dict.keys():
         target_dict = adata.uns["_scvi"]["extra_categoricals"]
         source_dict = _scvi_dict["extra_categoricals"]
         # check that order of keys setup is same
         if not np.array_equal(target_dict["keys"], source_dict["keys"]):
-            error_msg = (
-                "Registered categorical key order mismatch between "
-                + "the anndata used to train and the anndata passed in."
-                + "Expected categories & order {}. Received {}.\n"
-            )
             raise ValueError(error_msg.format(source_dict["keys"], target_dict["keys"]))
         # check mappings are equivalent
         target_extra_cat_maps = adata.uns["_scvi"]["extra_categoricals"]["mappings"]
@@ -1202,11 +1205,9 @@ def _check_anndata_setup_equivalence(
             raise ValueError('extra_continuous_keys not in adata.uns["_scvi"]')
         target_cont_keys = adata.uns["_scvi"]["extra_continuous_keys"]
         source_cont_keys = _scvi_dict["extra_continuous_keys"]
-        n_keys = len(target_cont_keys)
-        if np.sum(source_cont_keys == target_cont_keys) != n_keys:
-            raise ValueError(
-                "extra_continous_keys are not the same between source and target"
-            )
+        # check that order of keys setup is same
+        if not np.array_equal(target_cont_keys, source_cont_keys):
+            raise ValueError(error_msg.format(source_cont_keys, target_cont_keys))
 
     return transfer_setup
 

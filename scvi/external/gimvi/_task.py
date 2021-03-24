@@ -1,8 +1,8 @@
 import torch
 
 from scvi import _CONSTANTS
-from scvi.lightning import AdversarialTrainingPlan
-from scvi.modules import Classifier
+from scvi.module import Classifier
+from scvi.train import AdversarialTrainingPlan
 
 
 class GIMVITrainingPlan(AdversarialTrainingPlan):

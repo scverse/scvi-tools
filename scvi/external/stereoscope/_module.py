@@ -6,7 +6,7 @@ from torch.distributions import NegativeBinomial, Normal
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.compose import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 
 
 class RNADeconv(BaseModuleClass):

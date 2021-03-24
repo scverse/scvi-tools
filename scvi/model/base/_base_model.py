@@ -3,23 +3,22 @@ import logging
 import os
 import pickle
 from abc import ABC, abstractmethod
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import pyro
-import pytorch_lightning as pl
 import rich
 import torch
 from anndata import AnnData
 from rich.text import Text
-from sklearn.model_selection._split import _validate_shuffle_split
 
 from scvi import _CONSTANTS, settings
-from scvi.compose import PyroBaseModuleClass
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.lightning import PyroTrainingPlan, Trainer
+from scvi.dataloaders import AnnDataLoader
+from scvi.model._utils import parse_use_gpu_arg
+from scvi.module.base import PyroBaseModuleClass
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -27,7 +26,9 @@ logger = logging.getLogger(__name__)
 
 
 class BaseModelClass(ABC):
-    def __init__(self, adata: Optional[AnnData] = None, use_gpu: Optional[bool] = None):
+    """Abstract class for scvi-tools models."""
+
+    def __init__(self, adata: Optional[AnnData] = None):
         if adata is not None:
             if "_scvi" not in adata.uns.keys():
                 raise ValueError(
@@ -39,21 +40,48 @@ class BaseModelClass(ABC):
             self._validate_anndata(adata, copy_if_view=False)
 
         self.is_trained_ = False
-        cuda_avail = torch.cuda.is_available()
-        self.use_gpu = cuda_avail if use_gpu is None else (use_gpu and cuda_avail)
         self._model_summary_string = ""
         self.train_indices_ = None
         self.test_indices_ = None
         self.validation_indices_ = None
         self.history_ = None
+        self._data_loader_cls = AnnDataLoader
 
-    def _make_scvi_dl(
+    def to_device(self, device: Union[str, int]):
+        """
+        Move model to device.
+
+        Parameters
+        ----------
+        device
+            Device to move model to. Options: 'cpu' for CPU, integer GPU index (eg. 0),
+            or 'cuda:X' where X is the GPU index (eg. 'cuda:0'). See torch.device for more info.
+
+        Examples
+        --------
+        >>> adata = scvi.data.synthetic_iid()
+        >>> model = scvi.model.SCVI(adata)
+        >>> model.to_device('cpu')      # moves model to CPU
+        >>> model.to_device('cuda:0')   # moves model to GPU 0
+        >>> model.to_device(0)          # also moves model to GPU 0
+        """
+        my_device = torch.device(device)
+        self.module.to(my_device)
+
+    @property
+    def device(self):
+        device = list(set(p.device for p in self.module.parameters()))
+        if len(device) > 1:
+            raise RuntimeError("Model tensors on multiple devices.")
+        return device[0]
+
+    def _make_data_loader(
         self,
         adata: AnnData,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
         shuffle: bool = False,
-        scvi_dl_class=None,
+        data_loader_class=None,
         **data_loader_kwargs,
     ):
         """
@@ -77,13 +105,13 @@ class BaseModelClass(ABC):
             batch_size = settings.batch_size
         if indices is None:
             indices = np.arange(adata.n_obs)
-        if scvi_dl_class is None:
-            scvi_dl_class = self._data_loader_cls
+        if data_loader_class is None:
+            data_loader_class = self._data_loader_cls
 
         if "num_workers" not in data_loader_kwargs:
             data_loader_kwargs.update({"num_workers": settings.dl_num_workers})
 
-        dl = scvi_dl_class(
+        dl = data_loader_class(
             adata,
             shuffle=shuffle,
             indices=indices,
@@ -91,65 +119,6 @@ class BaseModelClass(ABC):
             **data_loader_kwargs,
         )
         return dl
-
-    def _train_test_val_split(
-        self,
-        adata: AnnData,
-        train_size: float = 0.9,
-        validation_size: Optional[float] = None,
-        **kwargs,
-    ):
-        """
-        Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
-
-        If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
-
-        Parameters
-        ----------
-        adata
-            Setup AnnData to be split into train, test, validation sets
-        train_size
-            float, or None (default is 0.9)
-        validation_size
-            float, or None (default is None)
-        **kwargs
-            Keyword args for `_make_scvi_dl()`
-        """
-        train_size = float(train_size)
-        if train_size > 1.0 or train_size <= 0.0:
-            raise ValueError(
-                "train_size needs to be greater than 0 and less than or equal to 1"
-            )
-
-        n = len(adata)
-        try:
-            n_train, n_val = _validate_shuffle_split(n, validation_size, train_size)
-        except ValueError:
-            if train_size != 1.0:
-                raise ValueError(
-                    "Choice of train_size={} and validation_size={} not understood".format(
-                        train_size, validation_size
-                    )
-                )
-            n_train, n_val = n, 0
-        random_state = np.random.RandomState(seed=settings.seed)
-        permutation = random_state.permutation(n)
-        indices_validation = permutation[:n_val]
-        indices_train = permutation[n_val : (n_val + n_train)]
-        indices_test = permutation[(n_val + n_train) :]
-
-        # do not remove drop_last=3, skips over small minibatches
-        return (
-            self._make_scvi_dl(
-                adata, indices=indices_train, shuffle=True, drop_last=3, **kwargs
-            ),
-            self._make_scvi_dl(
-                adata, indices=indices_validation, shuffle=True, drop_last=3, **kwargs
-            ),
-            self._make_scvi_dl(
-                adata, indices=indices_test, shuffle=True, drop_last=3, **kwargs
-            ),
-        )
 
     def _validate_anndata(
         self, adata: Optional[AnnData] = None, copy_if_view: bool = True
@@ -185,16 +154,6 @@ class BaseModelClass(ABC):
         return adata
 
     @property
-    @abstractmethod
-    def _data_loader_cls(self):
-        pass
-
-    @property
-    @abstractmethod
-    def _plan_class(self):
-        pass
-
-    @property
     def is_trained(self):
         return self.is_trained_
 
@@ -209,6 +168,22 @@ class BaseModelClass(ABC):
     @property
     def validation_indices(self):
         return self.validation_indices_
+
+    @train_indices.setter
+    def train_indices(self, value):
+        self.train_indices_ = value
+
+    @test_indices.setter
+    def test_indices(self, value):
+        self.test_indices_ = value
+
+    @validation_indices.setter
+    def validation_indices(self, value):
+        self.validation_indices_ = value
+
+    @is_trained.setter
+    def is_trained(self, value):
+        self.is_trained_ = value
 
     @property
     def history(self):
@@ -250,100 +225,9 @@ class BaseModelClass(ABC):
 
         return user_params
 
-    def train(
-        self,
-        max_epochs: Optional[int] = None,
-        use_gpu: Optional[bool] = None,
-        train_size: float = 0.9,
-        validation_size: Optional[float] = None,
-        batch_size: int = 128,
-        plan_kwargs: Optional[dict] = None,
-        plan_class: Optional[pl.LightningModule] = None,
-        **kwargs,
-    ):
-        """
-        Train the model.
-
-        Parameters
-        ----------
-        max_epochs
-            Number of passes through the dataset. If `None`, defaults to
-            `np.min([round((20000 / n_cells) * 400), 400])`
-        use_gpu
-            If `True`, use the GPU if available. Will override the use_gpu option when initializing model
-        train_size
-            Size of training set in the range [0.0, 1.0].
-        validation_size
-            Size of the test set. If `None`, defaults to 1 - `train_size`. If
-            `train_size + validation_size < 1`, the remaining cells belong to a test set.
-        batch_size
-            Minibatch size to use during training.
-        plan_kwargs
-            Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed to
-            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        plan_class
-            Optional override to use a specific TrainingPlan-type class.
-        **kwargs
-            Other keyword args for :class:`~scvi.lightning.Trainer`.
-        """
-        if use_gpu is None:
-            use_gpu = self.use_gpu
-        else:
-            use_gpu = use_gpu and torch.cuda.is_available()
-        gpus = 1 if use_gpu else None
-        pin_memory = (
-            True if (settings.dl_pin_memory_gpu_training and use_gpu) else False
-        )
-
-        if max_epochs is None:
-            n_cells = self.adata.n_obs
-            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
-
-        self.trainer = Trainer(
-            max_epochs=max_epochs,
-            gpus=gpus,
-            **kwargs,
-        )
-        train_dl, val_dl, test_dl = self._train_test_val_split(
-            self.adata,
-            train_size=train_size,
-            validation_size=validation_size,
-            pin_memory=pin_memory,
-            batch_size=batch_size,
-        )
-        self.train_indices_ = train_dl.indices
-        self.test_indices_ = test_dl.indices
-        self.validation_indices_ = val_dl.indices
-
-        self._set_training_plan(plan_class, plan_kwargs)
-
-        if train_size == 1.0:
-            # circumvent the empty data loader problem if all dataset used for training
-            self.trainer.fit(self._training_plan, train_dl)
-        else:
-            self.trainer.fit(self._training_plan, train_dl, val_dl)
-        try:
-            self.history_ = self.trainer.logger.history
-        except AttributeError:
-            self.history_ = None
-        self.module.eval()
-        if use_gpu:
-            self.module.cuda()
-        self.is_trained_ = True
-
-    def _set_training_plan(self, plan_class, plan_kwargs):
-        """Set the _training_plan attribute."""
-        if plan_class is None:
-            plan_class = self._plan_class
-
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-
-        if plan_class != PyroTrainingPlan:
-            self._training_plan = plan_class(
-                self.module, len(self.train_indices_), **plan_kwargs
-            )
-        else:
-            self._training_plan = plan_class(self.module, **plan_kwargs)
+    @abstractmethod
+    def train(self):
+        """Trains the model."""
 
     def save(
         self,
@@ -407,7 +291,7 @@ class BaseModelClass(ABC):
         cls,
         dir_path: str,
         adata: Optional[AnnData] = None,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -422,7 +306,8 @@ class BaseModelClass(ABC):
             as AnnData is validated against the saved `scvi` setup dictionary.
             If None, will check for and load anndata saved with the model.
         use_gpu
-            Whether to load model on GPU.
+            Load model on default GPU if available (if None or True),
+            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
 
         Returns
         -------
@@ -434,21 +319,20 @@ class BaseModelClass(ABC):
         >>> vae.get_latent_representation()
         """
         load_adata = adata is None
-        if use_gpu is None:
-            use_gpu = torch.cuda.is_available()
-        map_location = torch.device("cpu") if use_gpu is False else None
+        use_gpu, device = parse_use_gpu_arg(use_gpu)
+
         (
             scvi_setup_dict,
             attr_dict,
             var_names,
             model_state_dict,
             new_adata,
-        ) = _load_saved_files(dir_path, load_adata, map_location=map_location)
+        ) = _load_saved_files(dir_path, load_adata, map_location=device)
         adata = new_adata if new_adata is not None else adata
 
         _validate_var_names(adata, var_names)
         transfer_anndata_setup(scvi_setup_dict, adata)
-        model = _initialize_model(cls, adata, attr_dict, use_gpu)
+        model = _initialize_model(cls, adata, attr_dict)
 
         # set saved attrs for loaded model
         for attr, val in attr_dict.items():
@@ -466,12 +350,9 @@ class BaseModelClass(ABC):
             else:
                 raise err
 
-        if use_gpu:
-            model.module.cuda()
-
+        model.to_device(device)
         model.module.eval()
         model._validate_anndata(adata)
-
         return model
 
     def __repr__(

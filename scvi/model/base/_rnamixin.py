@@ -25,6 +25,8 @@ Number = Union[int, float]
 
 
 class RNASeqMixin:
+    """General purpose methods for RNA-seq analysis."""
+
     @torch.no_grad()
     def get_normalized_expression(
         self,
@@ -81,7 +83,9 @@ class RNASeqMixin:
         Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
 
@@ -167,6 +171,7 @@ class RNASeqMixin:
         batchid1: Optional[Iterable[str]] = None,
         batchid2: Optional[Iterable[str]] = None,
         fdr_target: float = 0.05,
+        silent: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
         r"""
@@ -210,6 +215,7 @@ class RNASeqMixin:
             delta,
             batch_correction,
             fdr_target,
+            silent,
             **kwargs,
         )
 
@@ -252,7 +258,9 @@ class RNASeqMixin:
             raise ValueError("Invalid gene_likelihood.")
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         if indices is None:
             indices = np.arange(adata.n_obs)
@@ -308,7 +316,9 @@ class RNASeqMixin:
         denoised_samples
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         data_loader_list = []
         for tensors in scdl:
@@ -453,7 +463,9 @@ class RNASeqMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         dropout_list = []
         mean_list = []
@@ -470,9 +482,12 @@ class RNASeqMixin:
             px_dropout = generative_outputs["px_dropout"]
 
             n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
-            dispersion_list += [
-                np.repeat(np.array(px_r.cpu())[np.newaxis, :], n_batch, axis=0)
-            ]
+
+            px_r = np.array(px_r.cpu())
+            if len(px_r.shape) == 1:
+                dispersion_list += [np.repeat(px_r[np.newaxis, :], n_batch, axis=0)]
+            else:
+                dispersion_list += [px_r]
             mean_list += [np.array(px_rate.cpu())]
             dropout_list += [np.array(px_dropout.cpu())]
 
@@ -522,7 +537,9 @@ class RNASeqMixin:
         if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         libraries = []
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)

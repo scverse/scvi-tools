@@ -10,35 +10,38 @@ Import scvi-tools as::
 
 .. currentmodule:: scvi
 
-Compose
-~~~~~~~
+
+Data Loaders
+------------
 
 .. currentmodule:: scvi
 
-.. autosummary::
-   :toctree: reference/
-   :template: class_no_inherited.rst
+DataLoaders for loading tensors from AnnData objects. DataSplitters for splitting data into train/test/val.
 
-   compose.FCLayers
-   compose.Encoder
-   compose.LossRecorder
-   compose.BaseModuleClass
-   compose.PyroBaseModuleClass
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
-   compose.one_hot
-   compose.auto_move_data
+   dataloaders.AnnDataLoader
+   dataloaders.AnnTorchDataset
+   dataloaders.ConcatDataLoader
+   dataloaders.DataSplitter
+   dataloaders.SemiSupervisedDataLoader
+   dataloaders.SemiSupervisedDataSplitter
+
 
 Distributions
-~~~~~~~~~~~~~
+-------------
 
 .. currentmodule:: scvi
+
+Parameterizable probability distributions.
 
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    distributions.NegativeBinomial
    distributions.NegativeBinomialMixture
@@ -46,77 +49,128 @@ Distributions
 
 
 Model (Base)
-~~~~~~~~~~~~
+------------
 
 .. currentmodule:: scvi
 
+These classes should be used to construct user-facing model classes.
 
 .. autosummary::
     :toctree: reference/
+    :nosignatures:
 
     model.base.BaseModelClass
     model.base.VAEMixin
     model.base.RNASeqMixin
     model.base.ArchesMixin
+    model.base.UnsupervisedTrainingMixin
 
-Modules
-~~~~~~~
+Module
+------
 
 .. currentmodule:: scvi
 
+Existing module classes with respective generative and inference procedures.
 
 .. autosummary::
    :toctree: reference/
    :template: class_no_inherited.rst
+   :nosignatures:
 
-   modules.VAE
-   modules.LDVAE
-   modules.TOTALVAE
-   modules.SCANVAE
-   modules.JVAE
-   modules.AutoZIVAE
-   modules.Classifier
-
-Data Loaders
-~~~~~~~~~~~~
-
-.. currentmodule:: scvi
+   module.AutoZIVAE
+   module.Classifier
+   module.LDVAE
+   module.PEAKVI
+   module.SCANVAE
+   module.TOTALVAE
+   module.VAE
 
 
-.. autosummary::
-   :toctree: reference/
-
-   dataloaders.AnnDataLoader
-   dataloaders.AnnTorchDataset
-   dataloaders.ConcatDataLoader
-   dataloaders.SemiSupervisedDataLoader
-
-Lightning
-~~~~~~~~~
+External module
+---------------
 
 .. currentmodule:: scvi
 
-
-PyTorch lightning is used to train our modules. TrainingPlans define train/test/val optimization
-steps for modules like `TOTALVAE`, `SCANVAE`, etc.
+Module classes in the external API with respective generative and inference procedures.
 
 .. autosummary::
    :toctree: reference/
    :template: class_no_inherited.rst
+   :nosignatures:
 
-   lightning.TrainingPlan
-   lightning.SemiSupervisedTrainingPlan
-   lightning.AdversarialTrainingPlan
-   lightning.PyroTrainingPlan
-   lightning.Trainer
+   external.gimvi.JVAE
+   external.cellassign.CellAssignModule
+   external.stereoscope.RNADeconv
+   external.stereoscope.SpatialDeconv
+
+
+Module (Base)
+-------------
+
+.. currentmodule:: scvi
+
+These classes should be used to construct module classes that define generative models and inference schemes.
+
+.. autosummary::
+   :toctree: reference/
+   :template: class_no_inherited.rst
+   :nosignatures:
+
+   module.base.BaseModuleClass
+   module.base.PyroBaseModuleClass
+   module.base.LossRecorder
+   module.base.auto_move_data
+
+
+Neural networks
+---------------
+
+.. currentmodule:: scvi
+
+Basic neural network building blocks.
+
+.. autosummary::
+   :toctree: reference/
+   :template: class_no_inherited.rst
+   :nosignatures:
+
+   nn.FCLayers
+   nn.Encoder
+   nn.Decoder
+   nn.one_hot
+
+
+Train
+-----
+
+.. currentmodule:: scvi
+
+
+TrainingPlans define train/test/val optimization steps for modules.
+
+.. autosummary::
+   :toctree: reference/
+   :template: class_no_inherited.rst
+   :nosignatures:
+
+   train.AdversarialTrainingPlan
+   train.PyroTrainingPlan
+   train.SemiSupervisedTrainingPlan
+   train.Trainer
+   train.TrainingPlan
+   train.TrainRunner
+
 
 Utilities
-~~~~~~~~~
+---------
 
 .. currentmodule:: scvi
 
+Utility functions used by scvi-tools.
 
 .. autosummary::
    :toctree: reference/
+   :nosignatures:
 
    utils.DifferentialComputation
+   utils.track

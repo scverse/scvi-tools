@@ -26,7 +26,6 @@ sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
 
 import scvi  # noqa
 
-
 # -- General configuration ---------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -50,19 +49,15 @@ extensions = [
     "scanpydoc.autosummary_generate_imported",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
     "sphinx_copybutton",
+    "sphinx_gallery.load_style",
+    "sphinx_tabs.tabs",
 ]
 
 # nbsphinx specific settings
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
 nbsphinx_execute = "never"
 
-# Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
-
-# The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-#
-# source_suffix = ['.rst', '.md']
 source_suffix = ".rst"
 
 # Generate the API documentation when building
@@ -77,36 +72,9 @@ napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this
-nbsphinx_prolog = r"""
-.. raw:: html
 
-    <style>
-        .nbinput .prompt,
-        .nboutput .prompt {
-            display: none;
-        }
-        .nboutput .stderr{
-            display: none;
-        }
-    </style>
-
-{% set docname = env.doc2path(env.docname, base=None).split("/")[-1] %}
-
-.. raw:: html
-
-    <div class="admonition note">
-    <p class="admonition-title">Note</p>
-    <p>
-      This page was generated from
-      <a class="reference external" href="https://github.com/yoseflab/scvi-tutorials/">{{ docname|e }}</a>.
-      Interactive online version:
-      <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/yoseflab/scvi_tutorials/blob/master/{{ docname|e }}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
-    </p>
-    </div>
-"""
 # The master toctree document.
 master_doc = "index"
-
 
 intersphinx_mapping = dict(
     anndata=("https://anndata.readthedocs.io/en/stable/", None),
@@ -122,9 +90,6 @@ intersphinx_mapping = dict(
     pytorch_lightning=("https://pytorch-lightning.readthedocs.io/en/stable/", None),
     pyro=("http://docs.pyro.ai/en/stable/", None),
 )
-qualname_overrides = {
-    "scvi.data.dataset.GeneExpressionDataset": "scvi.data.GeneExpressionDataset"
-}
 
 
 # General information about the project.
@@ -164,10 +129,7 @@ todo_include_todos = False
 # -- Options for HTML output -------------------------------------------
 
 html_show_sourcelink = True
-# html_sidebars = {
-#     "**": ["logo-text.html", "globaltoc.html", "localtoc.html", "searchbox.html"]
-# }
-html_theme = "furo"
+html_theme = "pydata_sphinx_theme"
 
 html_context = dict(
     # display_github=True,  # Integrate GitHub
@@ -178,120 +140,55 @@ html_context = dict(
 )
 # Set link name generated in the top bar.
 html_title = "scvi-tools"
-
 html_logo = "_static/logo.png"
 
-# Material theme options (see theme.conf for more information)
 html_theme_options = {
-    "sidebar_hide_name": True,
-    "light_css_variables": {
-        "color-brand-primary": "#003262",
-        "color-brand-content": "#2a5adf",
-        "sidebar-width": "30em",
-        "content-width": "70em",
-        "admonition-font-size": "var(--font-size--small)",
-        "admonition-title-font-size": "var(--font-size--normal)",
-    },
-    "dark_css_variables": {
-        "color-problematic": "#b30000",
-        "color-foreground-primary": "black",
-        "color-foreground-secondary": "#5a5c63",
-        "color-foreground-muted": "#72747e",
-        "color-foreground-border": "#878787",
-        "color-background-primary": "white",
-        "color-background-secondary": "#f8f9fb",
-        "color-background-hover": "#efeff4ff",
-        "color-background-hover--transparent": "#efeff400",
-        "color-background-border": "#eeebee",
-        "color-announcement-background": "#000000dd",
-        "color-announcement-text": "#eeebee",
-        "color-brand-primary": "#003262",
-        "color-brand-content": "#2a5adf",
-        "color-highlighted-background": "#ddeeff",
-        "color-highlighted-text": "var(--color-foreground-primary)",
-        "color-api-highlight-on-target": "#ffffcc",
-        "color-admonition-background": "transparent",
-        "sidebar-width": "30em",
-        "content-width": "70em",
-        "admonition-font-size": "var(--font-size--small)",
-        "admonition-title-font-size": "var(--font-size--normal)",
-    },
+    "github_url": "https://github.com/YosefLab/scvi-tools",
+    "twitter_url": "https://twitter.com/YosefLab",
 }
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-
-html_css_files = ["override.css"]
-
+html_css_files = ["css/override.css", "css/sphinx_gallery.css"]
 html_show_sphinx = False
+
+
+nbsphinx_prolog = r"""
+.. raw:: html
+
+{% set docname = env.doc2path(env.docname, base=None).split("/")[-1] %}
+
+.. raw:: html
+
+    <div class="admonition note">
+    <p class="admonition-title">Note</p>
+    <p>
+      This page was generated from
+      <a class="reference external" href="https://github.com/yoseflab/scvi-tutorials/">{{ docname|e }}</a>.
+      Interactive online version:
+      <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/yoseflab/scvi_tutorials/blob/master/{{ docname|e }}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
+    </p>
+    </div>
+"""
+nbsphinx_thumbnails = {
+    "user_guide/notebooks/data_loading": "_static/tutorials/anndata.svg",
+    "user_guide/notebooks/api_overview": "_static/tutorials/overview.svg",
+    "user_guide/notebooks/linear_decoder": "_static/tutorials/ldvae.svg",
+    "user_guide/notebooks/scvi_in_R": "_static/tutorials/Rlogo.png",
+    "user_guide/notebooks/harmonization": "_static/tutorials/scvi_batch.png",
+    "user_guide/notebooks/totalVI": "_static/tutorials/totalvi_cell.svg",
+    "user_guide/notebooks/AutoZI_tutorial": "_static/tutorials/history.png",
+    "user_guide/notebooks/gimvi_tutorial": "_static/tutorials/gimvi.png",
+    "user_guide/notebooks/scarches_scvi_tools": "_static/tutorials/scarches.png",
+    "user_guide/notebooks/cite_scrna_integration_w_totalVI": "_static/tutorials/cite_scrna.png",
+    "user_guide/notebooks/scVI_DE_worm": "_static/tutorials/worm.png",
+    "user_guide/notebooks/stereoscope_heart_LV_tutorial": "_static/tutorials/stereoscope.png",
+    "user_guide/notebooks/seed_labeling": "_static/tutorials/seed.png",
+    "user_guide/notebooks/cellassign_tutorial": "_static/tutorials/cellassign.png",
+}
 
 
 def setup(app):
     # https://github.com/pradyunsg/furo/issues/49
     app.config.pygments_dark_style = "default"
-
-
-# -- Options for HTMLHelp output ---------------------------------------
-
-# Output file base name for HTML help builder.
-htmlhelp_basename = "scvidoc"
-
-mathjax_config = {
-    "extensions": ["tex2jax.js"],
-    "jax": ["input/TeX", "output/HTML-CSS"],
-    "tex2jax": {
-        "inlineMath": [["$", "$"], ["\\(", "\\)"]],
-        "displayMath": [["$$", "$$"], ["\\[", "\\]"]],
-        "processEscapes": True,
-    },
-}
-
-# -- Options for LaTeX output ------------------------------------------
-
-latex_elements = {
-    # The paper size ('letterpaper' or 'a4paper').
-    #
-    # 'papersize': 'letterpaper',
-    # The font size ('10pt', '11pt' or '12pt').
-    #
-    # 'pointsize': '10pt',
-    # Additional stuff for the LaTeX preamble.
-    #
-    # 'preamble': '',
-    # Latex figure (float) alignment
-    #
-    # 'figure_align': 'htbp',
-}
-
-# Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title, author, documentclass
-# [howto, manual, or own class]).
-latex_documents = [
-    (master_doc, "scvi.tex", u"scvi Documentation", u"Romain Lopez", "manual")
-]
-
-
-# -- Options for manual page output ------------------------------------
-
-# One entry per manual page. List of tuples
-# (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "scvi", u"scVI Documentation", [author], 1)]
-
-
-# -- Options for Texinfo output ----------------------------------------
-
-# Grouping the document tree into Texinfo files. List of tuples
-# (source start file, target name, title, author,
-#  dir menu entry, description, category)
-texinfo_documents = [
-    (
-        master_doc,
-        "scvi",
-        u"scvi Documentation",
-        author,
-        "scvi",
-        "One line description of project.",
-        "Miscellaneous",
-    )
-]
