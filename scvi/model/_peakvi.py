@@ -141,6 +141,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         weight_decay: float = 1e-3,
         eps: float = 1e-08,
         early_stopping: bool = True,
+        early_stopping_patience: int = 50,
         save_best: bool = True,
         check_val_every_n_epoch: Optional[int] = None,
         n_steps_kl_warmup: Union[int, None] = None,
@@ -173,6 +174,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Optimizer eps
         early_stopping
             Whether to perform early stopping with respect to the validation set.
+        early_stopping_patience
+            How many epochs to wait for improvement before early stopping
         save_best
             Save the best model state with respect to the validation loss (default), or use the final
             state in the training procedure
@@ -218,7 +221,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             validation_size=validation_size,
             early_stopping=early_stopping,
             early_stopping_monitor="reconstruction_loss_validation",
-            early_stopping_patience=50,
+            early_stopping_patience=early_stopping_patience,
             plan_kwargs=plan_kwargs,
             check_val_every_n_epoch=check_val_every_n_epoch,
             batch_size=batch_size,
@@ -353,7 +356,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         mode: Literal["vanilla", "change"] = "change",
-        delta: float = 0.1,
+        delta: float = 0.05,
         batch_size: Optional[int] = None,
         all_stats: bool = True,
         batch_correction: bool = False,
