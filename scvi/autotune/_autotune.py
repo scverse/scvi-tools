@@ -1,8 +1,20 @@
-import os
-
+import torch
+from pytorch_lightning.callbacks import Callback
 from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.integration.pytorch_lightning import TuneReportCallback
+
+
+class ModelSave(Callback):
+    def __init__(self):
+        super()
+
+    def on_validation_epoch_end(self, trainer, pl_module, outputs=None):
+        if trainer.running_sanity_check:
+            return
+        step = f"epoch={trainer.current_epoch}-step={trainer.global_step}"
+        with tune.checkpoint_dir(step=step) as checkpoint_dir:
+            torch.save(pl_module.module.state_dict(), checkpoint_dir + "/checkpoint")
 
 
 class Autotune:
@@ -66,25 +78,17 @@ class Autotune:
             elif key in self.trainer_hyperparams:
                 plan_config[key] = config[key]
 
-        if checkpoint_dir:
-            _model = self.model.load(
-                os.path.join(checkpoint_dir, "checkpoint"), self.adata
-            )
-        else:
-            _model = self.model(self.adata, **model_config)
-
+        _model = self.model(self.adata, **model_config)
         _model.train(
             **trainer_config,
             plan_kwargs=plan_config,
-            callbacks=[TuneReportCallback(metrics=self.metrics, on="validation_end")],
+            callbacks=[
+                TuneReportCallback(metrics=self.metrics, on="validation_end"),
+                ModelSave(),
+            ],
             check_val_every_n_epoch=1,
             max_epochs=self.num_epochs,
         )
-        for m in self.metric_functions:
-            f = self.metric_functions[m]
-            tune.report(**{m: f(_model)})
-        if checkpoint_dir:
-            _model.save(os.path.join(checkpoint_dir, "checkpoint"))
 
     def run(
         self,
@@ -124,4 +128,18 @@ class Autotune:
         )
         best_config = analysis.best_config
         print("Best hyperparameters found were: ", best_config)
-        return best_config
+        # Get the checkpoint path of the best trial of the experiment
+        model_config = {}
+        trainer_config = {}
+        plan_config = {}
+        for key in best_config:
+            if key in self.trainer_hyperparams:
+                model_config[key] = best_config[key]
+            elif key in self.trainer_hyperparams:
+                trainer_config[key] = best_config[key]
+            elif key in self.trainer_hyperparams:
+                plan_config[key] = best_config[key]
+        best_checkpoint = analysis.best_checkpoint
+        best_model = self.model(self.adata, **model_config)
+        best_model.module.load_state_dict(torch.load(best_checkpoint + "checkpoint"))
+        return best_model
