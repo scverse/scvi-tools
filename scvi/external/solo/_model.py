@@ -54,6 +54,7 @@ class SOLO(BaseModelClass):
     >>> solo_batch_1.predict()
 
     Otherwise:
+
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.data.setup_anndata(adata)
     >>> vae = scvi.model.SCVI(adata)
@@ -61,6 +62,14 @@ class SOLO(BaseModelClass):
     >>> solo = scvi.external.SOLO.from_scvi_model(vae)
     >>> solo.train()
     >>> solo.predict()
+
+    Notes
+    -----
+    Solo should be trained on one lane of data at a time. An
+    :class:`~scvi.model.SCVI` instance that was trained with multiple
+    batches can be used as input, but Solo should be created and run
+    multiple times, each with a new `restrict_to_batch` in
+    :func:`~scvi.external.SOLO.from_scvi_model`.
     """
 
     def __init__(
@@ -108,13 +117,6 @@ class SOLO(BaseModelClass):
         Returns
         -------
         SOLO model
-
-        Notes
-        -----
-        Solo should be trained on one lane of data at a time. An
-        :class:`~scvi.model.SCVI` instance that was trained with multiple
-        batches can be used as input, but Solo should be created and run
-        multiple times, each with a new `restrict_to_batch`.
         """
         _validate_scvi_model(scvi_model, restrict_to_batch=restrict_to_batch)
         orig_adata = scvi_model.adata
