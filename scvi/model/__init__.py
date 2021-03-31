@@ -4,6 +4,7 @@ from ._peakvi import PEAKVI
 from ._scanvi import SCANVI
 from ._scvi import SCVI
 from ._totalvi import TOTALVI
+from ._condscvi import CondSCVI
 
 __all__ = [
     "SCVI",
@@ -12,4 +13,5 @@ __all__ = [
     "AUTOZI",
     "SCANVI",
     "PEAKVI",
+    "CondSCVI",
 ]

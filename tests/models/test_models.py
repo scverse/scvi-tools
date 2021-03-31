@@ -14,7 +14,7 @@ from scvi.dataloaders import (
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
-from scvi.model import AUTOZI, PEAKVI, SCANVI, SCVI, TOTALVI, LinearSCVI
+from scvi.model import AUTOZI, PEAKVI, SCANVI, SCVI, TOTALVI, LinearSCVI, CondSCVI
 
 
 def test_scvi(save_path):
@@ -623,3 +623,12 @@ def test_peakvi():
     vae.get_reconstruction_error(indices=vae.validation_indices)
     vae.get_latent_representation()
     vae.differential_accessibility(groupby="labels", group1="label_1")
+
+
+def test_condscvi(save_path):
+    dataset = synthetic_iid(n_labels=5)
+    model = CondSCVI(dataset)
+    model.train(1, train_size=1)
+    z = model.get_latent_representation()
+    model.get_vamp_prior(dataset)
+    model.generate_from_latent(z, np.ones((z.shape[0], 1)))

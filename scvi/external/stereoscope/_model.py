@@ -12,6 +12,7 @@ from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from torch.utils.data import TensorDataset, DataLoader
 import torch
 
+
 class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """
     Reimplementation of Stereoscope [Andersson20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
@@ -250,13 +251,20 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
 
-        dl = DataLoader(TensorDataset(torch.tensor(x, dtype=torch.float32), 
-                    torch.tensor(ind_x, dtype=torch.long), 
-                    torch.tensor(y, dtype=torch.long)), batch_size=128) # create your dataloader
+        dl = DataLoader(
+            TensorDataset(
+                torch.tensor(x, dtype=torch.float32),
+                torch.tensor(ind_x, dtype=torch.long),
+                torch.tensor(y, dtype=torch.long),
+            ),
+            batch_size=128,
+        )  # create your dataloader
 
         scale = []
         for tensors in dl:
-            px_scale = self.module.get_ct_specific_expression(tensors[0], tensors[1], tensors[2])
+            px_scale = self.module.get_ct_specific_expression(
+                tensors[0], tensors[1], tensors[2]
+            )
             scale += [px_scale.cpu()]
         return np.array(torch.cat(scale))
 
