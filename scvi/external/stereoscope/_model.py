@@ -9,6 +9,8 @@ from scvi.data import register_tensor_from_anndata
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 
+from torch.utils.data import TensorDataset, DataLoader
+import torch
 
 class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """
@@ -223,6 +225,40 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             columns=column_names,
             index=self.adata.obs.index,
         )
+
+    def get_scale_for_ct(
+        self,
+        x: Optional[np.ndarray] = None,
+        ind_x: Optional[np.ndarray] = None,
+        y: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
+        r"""
+        Return the scaled parameter of the NB for every cell in queried cell types.
+
+        Parameters
+        ----------
+        x
+            gene expression data
+        ind_x
+            indices
+        y
+            cell types
+        Returns
+        -------
+        gene_expression
+        """
+        if self.is_trained_ is False:
+            raise RuntimeError("Please train the model first.")
+
+        dl = DataLoader(TensorDataset(torch.tensor(x, dtype=torch.float32), 
+                    torch.tensor(ind_x, dtype=torch.long), 
+                    torch.tensor(y, dtype=torch.long)), batch_size=128) # create your dataloader
+
+        scale = []
+        for tensors in dl:
+            px_scale = self.module.get_ct_specific_expression(tensors[0], tensors[1], tensors[2])
+            scale += [px_scale.cpu()]
+        return np.array(torch.cat(scale))
 
     def train(
         self,
