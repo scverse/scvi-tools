@@ -1,7 +1,7 @@
 from pytorch_lightning.callbacks import Callback
 from ray import tune
 from ray.tune import CLIReporter
-from ray.tune.integration.pytorch_lightning import TuneReportCallback
+from ray.tune.integration.pytorch_lightning import TuneCallback
 
 
 class ModelSave(Callback):
@@ -15,6 +15,41 @@ class ModelSave(Callback):
         step = f"epoch={trainer.current_epoch}-step={trainer.global_step}"
         with tune.checkpoint_dir(step=step) as checkpoint_dir:
             self.model.save(checkpoint_dir + "/checkpoint")
+
+
+class _TuneReportMetricFunctionsCallback(TuneCallback):
+    def __init__(
+        self,
+        metrics=None,
+        metric_functions=None,
+        on="validation_end",
+        model=None,
+    ):
+        super(_TuneReportMetricFunctionsCallback, self).__init__(on)
+        if isinstance(metrics, str):
+            metrics = [metrics]
+        self._metrics = metrics
+        self._metric_functions = metric_functions
+        self._model = model
+
+    def _handle(self, trainer, pl_module):
+        # Don't report if just doing initial validation sanity checks.
+        if trainer.running_sanity_check:
+            return
+        if not self._metrics:
+            report_dict = {k: v.item() for k, v in trainer.callback_metrics.items()}
+        else:
+            report_dict = {}
+            for key in self._metrics:
+                if isinstance(self._metrics, dict):
+                    metric = self._metrics[key]
+                else:
+                    metric = key
+                report_dict[key] = trainer.callback_metrics[metric].item()
+        if self._metric_functions:
+            for key in self._metric_functions:
+                report_dict[key] = self._metric_functions[key](self._model)
+        tune.report(**report_dict)
 
 
 class Autotune:
@@ -58,8 +93,10 @@ class Autotune:
         self.model_hyperparams = model_hyperparams
         self.trainer_hyperparams = trainer_hyperparams
         self.plan_hyperparams = plan_hyperparams
-        self.metrics = training_metrics + list(self.metric_functions.keys())
-        self.reporter = CLIReporter(metric_columns=self.metrics)
+        self.metrics = training_metrics
+        self.reporter = CLIReporter(
+            metric_columns=training_metrics + list(self.metric_functions.keys())
+        )
         self.config = {}
         for d in [model_hyperparams, trainer_hyperparams, plan_hyperparams]:
             if d is not None:
@@ -83,8 +120,13 @@ class Autotune:
             **trainer_config,
             plan_kwargs=plan_config,
             callbacks=[
-                TuneReportCallback(metrics=self.metrics, on="validation_end"),
                 ModelSave(_model),
+                _TuneReportMetricFunctionsCallback(
+                    metrics=self.metrics,
+                    on="validation_end",
+                    model=_model,
+                    metric_functions=self.metric_functions,
+                ),
             ],
             check_val_every_n_epoch=1,
             max_epochs=self.num_epochs,
@@ -142,4 +184,4 @@ class Autotune:
         best_checkpoint = analysis.best_checkpoint
         best_model = self.model(self.adata, **model_config)
         best_model.load(adata=self.adata, dir_path=best_checkpoint + "checkpoint")
-        return best_model
+        return best_model, analysis
