@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, OrderedDict
+from typing import List, Optional, OrderedDict, Union
 
 import numpy as np
 import pandas as pd
@@ -9,16 +9,14 @@ from scipy.sparse import isspmatrix
 from torch.utils.data import DataLoader, TensorDataset
 
 from scvi.data import register_tensor_from_anndata
-from scvi.dataloaders import AnnDataLoader
-from scvi.lightning import TrainingPlan
 from scvi.model import CondSCVI
-from scvi.model.base import BaseModelClass
+from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
 
 logger = logging.getLogger(__name__)
 
 
-class DestVI(BaseModelClass):
+class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     """
     Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI).
 
@@ -29,7 +27,7 @@ class DestVI(BaseModelClass):
     st_adata
         spatial transcriptomics AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
     state_dict
-        state_dict from the CondSCVI model 
+        state_dict from the CondSCVI model
     use_gpu
         Use the GPU or not.
     **model_kwargs
@@ -57,12 +55,11 @@ class DestVI(BaseModelClass):
         n_latent: int,
         n_layers: int,
         n_hidden: int,
-        use_gpu: bool = True,
         **module_kwargs,
     ):
         st_adata.obs["_indices"] = np.arange(st_adata.n_obs)
         register_tensor_from_anndata(st_adata, "ind_x", "obs", "_indices")
-        super(DestVI, self).__init__(st_adata, use_gpu=use_gpu)
+        super(DestVI, self).__init__(st_adata)
         self.module = MRDeconv(
             n_spots=st_adata.n_obs,
             n_labels=cell_type_mapping.shape[0],
@@ -74,16 +71,14 @@ class DestVI(BaseModelClass):
             **module_kwargs,
         )
         self.cell_type_mapping = cell_type_mapping
-        self._model_summary_string = ("DestVI Model")
-        self.init_params_ = self._get_init_params(locals())  
-
+        self._model_summary_string = "DestVI Model"
+        self.init_params_ = self._get_init_params(locals())
 
     @classmethod
     def from_rna_model(
         cls,
         st_adata: AnnData,
         sc_model: CondSCVI,
-        use_gpu: bool = True,
         **model_kwargs,
     ):
         """
@@ -100,7 +95,11 @@ class DestVI(BaseModelClass):
         **model_kwargs
             Keyword args for :class:`~scvi.model.DestVI`
         """
-        state_dict = (sc_model.module.decoder.state_dict(), sc_model.module.px_decoder.state_dict(), sc_model.module.px_r.detach().cpu().numpy())
+        state_dict = (
+            sc_model.module.decoder.state_dict(),
+            sc_model.module.px_decoder.state_dict(),
+            sc_model.module.px_r.detach().cpu().numpy(),
+        )
 
         return cls(
             st_adata,
@@ -111,20 +110,12 @@ class DestVI(BaseModelClass):
             sc_model.module.n_latent,
             sc_model.module.n_layers,
             sc_model.module.n_hidden,
-            use_gpu=use_gpu,
             **model_kwargs,
         )
- 
 
-    @property
-    def _plan_class(self):
-        return TrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
-
-    def get_proportions(self, dataset: AnnData=None, keep_noise: bool=False) -> np.ndarray:
+    def get_proportions(
+        self, dataset: AnnData = None, keep_noise: bool = False
+    ) -> np.ndarray:
         """
         Returns the estimated cell type proportion for the spatial data.
 
@@ -145,7 +136,9 @@ class DestVI(BaseModelClass):
             data = dataset.X
             if isspmatrix(data):
                 data = data.A
-            dl = DataLoader(TensorDataset(torch.tensor(data, dtype=torch.float32)), batch_size=128) # create your dataloader
+            dl = DataLoader(
+                TensorDataset(torch.tensor(data, dtype=torch.float32)), batch_size=128
+            )  # create your dataloader
             prop_ = []
             for tensors in dl:
                 prop_local = self.module.get_proportions(x=tensors[0])
@@ -169,7 +162,9 @@ class DestVI(BaseModelClass):
             data = dataset.X
             if isspmatrix(dataset.X):
                 data = dataset.X.A
-            dl = DataLoader(TensorDataset(torch.tensor(data, dtype=torch.float32)), batch_size=128) # create your dataloader
+            dl = DataLoader(
+                TensorDataset(torch.tensor(data, dtype=torch.float32)), batch_size=128
+            )  # create your dataloader
             gamma_ = []
             for tensors in dl:
                 gamma_local = self.module.get_gamma(x=tensors[0])
@@ -179,7 +174,6 @@ class DestVI(BaseModelClass):
             data = self.module.get_gamma()
         return np.transpose(data, (2, 0, 1))
 
-    @torch.no_grad()
     def get_scale_for_ct(
         self,
         x: Optional[np.ndarray] = None,
@@ -205,12 +199,71 @@ class DestVI(BaseModelClass):
         if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
 
-        dl = DataLoader(TensorDataset(torch.tensor(x, dtype=torch.float32), 
-                    torch.tensor(ind_x, dtype=torch.long), 
-                    torch.tensor(y, dtype=torch.long)), batch_size=128) # create your dataloader
+        dl = DataLoader(
+            TensorDataset(
+                torch.tensor(x, dtype=torch.float32),
+                torch.tensor(ind_x, dtype=torch.long),
+                torch.tensor(y, dtype=torch.long),
+            ),
+            batch_size=128,
+        )  # create your dataloader
         scale = []
         for tensors in dl:
-            px_scale = self.module.get_ct_specific_expression(tensors[0], tensors[1], tensors[2])
+            px_scale = self.module.get_ct_specific_expression(
+                tensors[0], tensors[1], tensors[2]
+            )
             scale += [px_scale.cpu()]
         return np.array(torch.cat(scale))
-    
+
+    def train(
+        self,
+        max_epochs: int = 400,
+        lr: float = 0.01,
+        use_gpu: Optional[Union[str, int, bool]] = None,
+        train_size: float = 1,
+        validation_size: Optional[float] = None,
+        batch_size: int = 128,
+        plan_kwargs: Optional[dict] = None,
+        **kwargs,
+    ):
+        """
+        Trains the model using MAP inference.
+
+        Parameters
+        ----------
+        max_epochs
+            Number of epochs to train for
+        lr
+            Learning rate for optimization.
+        use_gpu
+            Use default GPU if available (if None or True), or index of GPU to use (if int),
+            or name of GPU (if str), or use CPU (if False).
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        validation_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        batch_size
+            Minibatch size to use during training.
+        plan_kwargs
+            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        **kwargs
+            Other keyword args for :class:`~scvi.train.Trainer`.
+        """
+        update_dict = {
+            "lr": lr,
+        }
+        if plan_kwargs is not None:
+            plan_kwargs.update(update_dict)
+        else:
+            plan_kwargs = update_dict
+        super().train(
+            max_epochs=max_epochs,
+            use_gpu=use_gpu,
+            train_size=train_size,
+            validation_size=validation_size,
+            batch_size=batch_size,
+            plan_kwargs=plan_kwargs,
+            **kwargs,
+        )

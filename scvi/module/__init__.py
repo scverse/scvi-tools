@@ -1,5 +1,6 @@
 from ._autozivae import AutoZIVAE
 from ._classifier import Classifier
+from ._mrdeconv import MRDeconv
 from ._peakvae import PEAKVAE
 from ._scanvae import SCANVAE
 from ._totalvae import TOTALVAE
@@ -15,4 +16,5 @@ __all__ = [
     "Classifier",
     "PEAKVAE",
     "VAEC",
+    "MRDeconv",
 ]

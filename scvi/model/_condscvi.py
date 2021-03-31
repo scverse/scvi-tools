@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -7,15 +7,18 @@ from anndata import AnnData
 from torch.utils.data import DataLoader, TensorDataset
 
 from scvi import _CONSTANTS
-from scvi.dataloaders import AnnDataLoader
-from scvi.lightning import TrainingPlan
-from scvi.model.base import BaseModelClass, RNASeqMixin, VAEMixin
+from scvi.model.base import (
+    BaseModelClass,
+    RNASeqMixin,
+    UnsupervisedTrainingMixin,
+    VAEMixin,
+)
 from scvi.module import VAEC
 
 logger = logging.getLogger(__name__)
 
 
-class CondSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
+class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     Conditional version of single-cell Variational Inference, used for hierarchical deconvolution of spatial transcriptomics data.
 
@@ -52,10 +55,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
         n_latent: int = 10,
         n_layers: int = 2,
         dropout_rate: float = 0.1,
-        use_gpu: bool = True,
         **module_kwargs,
     ):
-        super(CondSCVI, self).__init__(adata, use_gpu=use_gpu)
+        super(CondSCVI, self).__init__(adata)
 
         self.module = VAEC(
             n_input=self.summary_stats["n_vars"],
@@ -75,14 +77,6 @@ class CondSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
             dropout_rate,
         )
         self.init_params_ = self._get_init_params(locals())
-
-    @property
-    def _plan_class(self):
-        return TrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
 
     @torch.no_grad()
     def get_vamp_prior(
@@ -125,7 +119,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
                 np.where(adata.obs[key] == mapping[ct])[0], p
             )
             # get mean and variance from posterior
-            scdl = self._make_scvi_dl(adata=adata, indices=local_indices, batch_size=p)
+            scdl = self._make_data_loader(
+                adata=adata, indices=local_indices, batch_size=p
+            )
             mean = []
             var = []
             for tensors in scdl:
@@ -180,3 +176,56 @@ class CondSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
             )["px_scale"]
             rate += [px_rate.cpu()]
         return np.array(torch.cat(rate))
+
+    def train(
+        self,
+        max_epochs: int = 400,
+        lr: float = 0.01,
+        use_gpu: Optional[Union[str, int, bool]] = None,
+        train_size: float = 1,
+        validation_size: Optional[float] = None,
+        batch_size: int = 128,
+        plan_kwargs: Optional[dict] = None,
+        **kwargs,
+    ):
+        """
+        Trains the model using MAP inference.
+
+        Parameters
+        ----------
+        max_epochs
+            Number of epochs to train for
+        lr
+            Learning rate for optimization.
+        use_gpu
+            Use default GPU if available (if None or True), or index of GPU to use (if int),
+            or name of GPU (if str), or use CPU (if False).
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        validation_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        batch_size
+            Minibatch size to use during training.
+        plan_kwargs
+            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        **kwargs
+            Other keyword args for :class:`~scvi.train.Trainer`.
+        """
+        update_dict = {
+            "lr": lr,
+        }
+        if plan_kwargs is not None:
+            plan_kwargs.update(update_dict)
+        else:
+            plan_kwargs = update_dict
+        super().train(
+            max_epochs=max_epochs,
+            use_gpu=use_gpu,
+            train_size=train_size,
+            validation_size=validation_size,
+            batch_size=batch_size,
+            plan_kwargs=plan_kwargs,
+            **kwargs,
+        )

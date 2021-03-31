@@ -5,14 +5,9 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import _CONSTANTS
-from scvi.compose import (
-    BaseModuleClass,
-    Encoder,
-    FCLayers,
-    LossRecorder,
-    auto_move_data,
-)
 from scvi.distributions import NegativeBinomial
+from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.nn import Encoder, FCLayers
 
 torch.backends.cudnn.benchmark = True
 
