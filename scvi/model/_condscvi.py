@@ -1,16 +1,16 @@
 import logging
-import torch
-from anndata import AnnData
+from typing import Optional
 
 import numpy as np
-from typing import Optional
+import torch
+from anndata import AnnData
+from torch.utils.data import DataLoader, TensorDataset
+
+from scvi import _CONSTANTS
 from scvi.dataloaders import AnnDataLoader
 from scvi.lightning import TrainingPlan
-from scvi.module import VAEC
-from scvi import _CONSTANTS
-from torch.utils.data import TensorDataset, DataLoader
-
 from scvi.model.base import BaseModelClass, RNASeqMixin, VAEMixin
+from scvi.module import VAEC
 
 logger = logging.getLogger(__name__)
 

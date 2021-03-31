@@ -2,15 +2,14 @@ from typing import Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
+import torch
 from anndata import AnnData
+from torch.utils.data import DataLoader, TensorDataset
 
 from scvi._compat import Literal
 from scvi.data import register_tensor_from_anndata
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
-
-from torch.utils.data import TensorDataset, DataLoader
-import torch
 
 
 class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
