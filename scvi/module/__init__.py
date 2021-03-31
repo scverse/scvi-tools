@@ -6,4 +6,13 @@ from ._totalvae import TOTALVAE
 from ._vae import LDVAE, VAE
 from ._vaec import VAEC
 
-__all__ = ["VAE", "LDVAE", "TOTALVAE", "AutoZIVAE", "SCANVAE", "Classifier", "PEAKVAE", "VAEC"]
+__all__ = [
+    "VAE",
+    "LDVAE",
+    "TOTALVAE",
+    "AutoZIVAE",
+    "SCANVAE",
+    "Classifier",
+    "PEAKVAE",
+    "VAEC",
+]
