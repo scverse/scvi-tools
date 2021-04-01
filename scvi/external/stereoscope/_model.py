@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from torch.utils.data import DataLoader, TensorDataset
 
 from scvi._compat import Literal
 from scvi.data import register_tensor_from_anndata
@@ -217,6 +216,9 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         keep_noise
             whether to account for the noise term as a standalone cell type in the proportion estimate.
         """
+        if self.is_trained_ is False:
+            raise RuntimeError("Please train the model first.")
+
         column_names = self.cell_type_mapping
         if keep_noise:
             column_names = column_names.append("noise_term")
@@ -228,44 +230,23 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
 
     def get_scale_for_ct(
         self,
-        x: Optional[np.ndarray] = None,
-        ind_x: Optional[np.ndarray] = None,
         y: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         r"""
-        Return the scaled parameter of the NB for every cell in queried cell types.
+        Return the scaled parameter of the NB for the list of cell type provided.
 
         Parameters
         ----------
-        x
-            gene expression data
-        ind_x
-            indices
         y
-            cell types
+            numpy array containing the list of cell types
         Returns
         -------
         gene_expression
         """
         if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
-
-        dl = DataLoader(
-            TensorDataset(
-                torch.tensor(x, dtype=torch.float32),
-                torch.tensor(ind_x, dtype=torch.long),
-                torch.tensor(y, dtype=torch.long),
-            ),
-            batch_size=128,
-        )  # create your dataloader
-
-        scale = []
-        for tensors in dl:
-            px_scale = self.module.get_ct_specific_expression(
-                tensors[0], tensors[1], tensors[2]
-            )
-            scale += [px_scale.cpu()]
-        return np.array(torch.cat(scale))
+        px_scale = self.module.get_ct_specific_expression(torch.tensor(y))
+        return np.array(px_scale.cpu())
 
     def train(
         self,

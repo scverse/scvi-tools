@@ -1,4 +1,4 @@
-from typing import List, OrderedDict
+from typing import OrderedDict
 
 import numpy as np
 import torch
@@ -25,8 +25,6 @@ class MRDeconv(BaseModuleClass):
         Number of input spots
     n_labels
         Number of cell types
-    sc_state_dict
-        Tuple of dictionnaries containing the parameters for the decoder of CondSCVI and the dispersion parameter
     n_hidden
         Number of neurons in the hidden layers
     n_layers
@@ -35,21 +33,31 @@ class MRDeconv(BaseModuleClass):
         Number of dimensions used in the latent variables
     n_genes
         Number of genes used in the decoder
+    decoder_state_dict
+        state_dict from the decoder of the CondSCVI model
+    px_decoder_state_dict
+        state_dict from the px_decoder of the CondSCVI model
+    px_r
+        parameters for the px_r tensor in the CondSCVI model
     mean_vprior
         Mean parameter for each component in the empirical prior over the latent space
     var_vprior
         Diagonal variance parameter for each component in the empirical prior over the latent space
+    amortization
+        which of the latent variables to amortize inference over (gamma, proportions, both or none)
     """
 
     def __init__(
         self,
         n_spots: int,
         n_labels: int,
-        sc_state_dict: List[OrderedDict],
         n_hidden: int,
         n_layers: int,
         n_latent: int,
         n_genes: int,
+        decoder_state_dict: OrderedDict,
+        px_decoder_state_dict: OrderedDict,
+        px_r: np.ndarray,
         mean_vprior: np.ndarray = None,
         var_vprior: np.ndarray = None,
         amortization: Literal["none", "latent", "proportion", "both"] = "latent",
@@ -76,13 +84,13 @@ class MRDeconv(BaseModuleClass):
             torch.nn.Linear(n_hidden, n_genes), torch.nn.Softplus()
         )
         # don't compute gradient for those parameters
-        self.decoder.load_state_dict(sc_state_dict[0])
+        self.decoder.load_state_dict(decoder_state_dict)
         for param in self.decoder.parameters():
             param.requires_grad = False
-        self.px_decoder.load_state_dict(sc_state_dict[1])
+        self.px_decoder.load_state_dict(px_decoder_state_dict)
         for param in self.px_decoder.parameters():
             param.requires_grad = False
-        self.register_buffer("px_o", torch.tensor(sc_state_dict[2]))
+        self.register_buffer("px_o", torch.tensor(px_r))
 
         # cell_type specific factor loadings
         self.V = torch.nn.Parameter(torch.randn(self.n_labels + 1, self.n_spots))
@@ -93,7 +101,6 @@ class MRDeconv(BaseModuleClass):
         )
 
         if mean_vprior is not None:
-            print("USING VAMP PRIOR")
             self.p = mean_vprior.shape[1]
             self.register_buffer("mean_vprior", torch.tensor(mean_vprior))
             self.register_buffer("var_vprior", torch.tensor(var_vprior))
@@ -127,44 +134,6 @@ class MRDeconv(BaseModuleClass):
             dropout_rate=0.1,
         )
 
-    @torch.no_grad()
-    @auto_move_data
-    def get_proportions(self, x=None, keep_noise=False) -> np.ndarray:
-        """Returns the loadings."""
-        if self.amortization in ["both", "proportion"]:
-            # get estimated unadjusted proportions
-            res = torch.nn.functional.softplus(self.V_encoder(x))
-        else:
-            res = (
-                torch.nn.functional.softplus(self.V).cpu().numpy().T
-            )  # n_spots, n_labels + 1
-        # remove dummy cell type proportion values
-        if not keep_noise:
-            res = res[:, :-1]
-        # normalize to obtain adjusted proportions
-        res = res / res.sum(axis=1).reshape(-1, 1)
-        return res
-
-    @torch.no_grad()
-    @auto_move_data
-    def get_gamma(self, x: torch.Tensor = None) -> torch.Tensor:
-        """
-        Returns the loadings.
-
-        Returns
-        -------
-        type
-            tensor
-        """
-        # get estimated unadjusted proportions
-        if self.amortization in ["latent", "both"]:
-            gamma = self.gamma_encoder(x)
-            return torch.transpose(gamma, 0, 1).reshape(
-                (self.n_latent, self.n_labels, -1)
-            )  # n_latent, n_labels, minibatch
-        else:
-            return self.gamma.cpu().numpy()  # (n_latent, n_labels, n_spots)
-
     def _get_inference_input(self, tensors):
         # we perform MAP here, so we just need to subsample the variables
         return {}
@@ -183,7 +152,7 @@ class MRDeconv(BaseModuleClass):
     @auto_move_data
     def generative(self, x, ind_x):
         """Build the deconvolution model for every cell in the minibatch."""
-        M = x.shape[0]
+        m = x.shape[0]
         library = torch.sum(x, dim=1, keepdim=True)
         # setup all non-linearities
         beta = torch.nn.functional.softplus(self.beta)  # n_genes
@@ -214,16 +183,16 @@ class MRDeconv(BaseModuleClass):
             (-1, self.n_latent)
         )  # minibatch_size * n_labels, n_latent
         enum_label = (
-            torch.arange(0, self.n_labels).repeat((M)).view((-1, 1))
+            torch.arange(0, self.n_labels).repeat((m)).view((-1, 1))
         )  # minibatch_size * n_labels, 1
         h = self.decoder(gamma_reshape, enum_label.to(x.device))
         px_rate = self.px_decoder(h).reshape(
-            (M, self.n_labels, -1)
+            (m, self.n_labels, -1)
         )  # (minibatch, n_labels, n_genes)
 
         # add the dummy cell type
-        eps = eps.repeat((M, 1)).view(
-            M, 1, -1
+        eps = eps.repeat((m, 1)).view(
+            m, 1, -1
         )  # (M, 1, n_genes) <- this is the dummy cell type
 
         # account for gene specific bias and add noise
@@ -302,26 +271,66 @@ class MRDeconv(BaseModuleClass):
         n_samples=1,
         library_size=1,
     ):
-        raise NotImplementedError("No sampling method for Stereoscope")
+        raise NotImplementedError("No sampling method for DestVI")
 
     @torch.no_grad()
     @auto_move_data
-    def get_ct_specific_expression(self, x=None, ind_x=None, y=None):
+    def get_proportions(self, x=None, keep_noise=False) -> np.ndarray:
+        """Returns the loadings."""
+        if self.amortization in ["both", "proportion"]:
+            # get estimated unadjusted proportions
+            res = torch.nn.functional.softplus(self.V_encoder(x))
+        else:
+            res = (
+                torch.nn.functional.softplus(self.V).cpu().numpy().T
+            )  # n_spots, n_labels + 1
+        # remove dummy cell type proportion values
+        if not keep_noise:
+            res = res[:, :-1]
+        # normalize to obtain adjusted proportions
+        res = res / res.sum(axis=1).reshape(-1, 1)
+        return res
+
+    @torch.no_grad()
+    @auto_move_data
+    def get_gamma(self, x: torch.Tensor = None) -> torch.Tensor:
+        """
+        Returns the loadings.
+
+        Returns
+        -------
+        type
+            tensor
+        """
+        # get estimated unadjusted proportions
+        if self.amortization in ["latent", "both"]:
+            gamma = self.gamma_encoder(x)
+            return torch.transpose(gamma, 0, 1).reshape(
+                (self.n_latent, self.n_labels, -1)
+            )  # n_latent, n_labels, minibatch
+        else:
+            return self.gamma.cpu().numpy()  # (n_latent, n_labels, n_spots)
+
+    @torch.no_grad()
+    @auto_move_data
+    def get_ct_specific_expression(
+        self, x: torch.Tensor = None, ind_x: torch.Tensor = None, y: int = None
+    ):
         """
         Returns cell type specific gene expression at the queried spots.
 
         Parameters
         ----------
         x
-            data
+            tensor of data
         ind_x
-            indices
+            tensor of indices
         y
-            cell types
+            integer for cell types
         """
         # cell-type specific gene expression, shape (minibatch, celltype, gene).
         beta = torch.nn.functional.softplus(self.beta)  # n_genes
-
+        y_torch = y * torch.ones_like(ind_x)
         # obtain the relevant gammas
         if self.amortization in ["both", "latent"]:
             x_ = torch.log(1 + x)
@@ -335,9 +344,9 @@ class MRDeconv(BaseModuleClass):
 
         # calculate cell type specific expression
         gamma_select = gamma_ind[
-            :, y[:, 0], torch.arange(ind_x.shape[0])
+            :, y_torch[:, 0], torch.arange(ind_x.shape[0])
         ].T  # minibatch_size, n_latent
-        h = self.decoder(gamma_select, y)
+        h = self.decoder(gamma_select, y_torch)
         px_scale = self.px_decoder(h)  # (minibatch, n_genes)
         px_ct = torch.exp(self.px_o).unsqueeze(0) * beta.unsqueeze(0) * px_scale
         return px_ct  # shape (minibatch, genes)

@@ -4,7 +4,6 @@ from typing import Optional, Union
 import numpy as np
 import torch
 from anndata import AnnData
-from torch.utils.data import DataLoader, TensorDataset
 
 from scvi import _CONSTANTS
 from scvi.model.base import (
@@ -34,9 +33,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         Number of hidden layers used for encoder and decoder NNs.
     dropout_rate
         Dropout rate for the encoder neural networks.
-    use_gpu
-        Use the GPU or not.
-    **model_kwargs
+    **module_kwargs
         Keyword args for :class:`~scvi.modules.VAEC`
 
     Examples
@@ -111,8 +108,12 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             (self.summary_stats["n_labels"], p, self.module.n_latent)
         )
         var_vprior = np.zeros((self.summary_stats["n_labels"], p, self.module.n_latent))
-        key = adata.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["original_key"]
-        mapping = adata.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"]
+        key = self.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
+            "original_key"
+        ]
+        mapping = self.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
+            "mapping"
+        ]
         for ct in range(self.summary_stats["n_labels"]):
             # pick p cells
             local_indices = np.random.choice(
@@ -137,45 +138,6 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             )
 
         return mean_vprior, var_vprior
-
-    @torch.no_grad()
-    def generate_from_latent(
-        self,
-        z: Optional[np.ndarray] = None,
-        labels: Optional[np.ndarray] = None,
-        batch_size: Optional[int] = None,
-    ) -> np.ndarray:
-        r"""
-        Return the scaled parameter of the NB for every cell.
-
-        Parameters
-        ----------
-        z
-            Numpy array with latent space
-        labels
-            Numpy array with labels
-        batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-
-        Returns
-        -------
-        gene_expression
-        """
-        if self.is_trained_ is False:
-            raise RuntimeError("Please train the model first.")
-
-        dl = DataLoader(
-            TensorDataset(torch.tensor(z), torch.tensor(labels, dtype=torch.long)),
-            batch_size=128,
-        )  # create your dataloader
-
-        rate = []
-        for tensors in dl:
-            px_rate = self.module.generative(
-                tensors[0], torch.ones((tensors[0].shape[0], 1)), tensors[1]
-            )["px_scale"]
-            rate += [px_rate.cpu()]
-        return np.array(torch.cat(rate))
 
     def train(
         self,

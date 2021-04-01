@@ -638,9 +638,8 @@ def test_condscvi(save_path):
     dataset = synthetic_iid(n_labels=5)
     model = CondSCVI(dataset)
     model.train(1, train_size=1)
-    z = model.get_latent_representation()
+    model.get_latent_representation()
     model.get_vamp_prior(dataset)
-    model.generate_from_latent(z, np.ones((z.shape[0], 1)))
 
 
 def test_destvi(save_path):
@@ -651,18 +650,18 @@ def test_destvi(save_path):
     dataset = synthetic_iid(n_labels=n_labels)
     sc_model = CondSCVI(dataset, n_latent=n_latent, n_layers=n_layers)
     sc_model.train(1, train_size=1)
-    z = sc_model.get_latent_representation()
-    sc_model.get_vamp_prior(dataset)
-
-    z = np.random.random_sample((100, n_latent)).astype(np.float32)
-    labels = np.zeros((100, 1), np.long)
-    sc_model.generate_from_latent(z, labels)
+    sc_model.get_latent_representation()
+    mean_vprior, var_vprior = sc_model.get_vamp_prior(dataset, p=100)
 
     # step 2 learn destVI with multiple amortization scheme
 
     for amor_scheme in ["both", "none", "proportion", "latent"]:
         spatial_model = DestVI.from_rna_model(
-            dataset, sc_model, amortization=amor_scheme
+            dataset,
+            sc_model,
+            amortization=amor_scheme,
+            mean_vprior=mean_vprior,
+            var_vprior=var_vprior,
         )
         spatial_model.train(max_epochs=1)
         assert not np.isnan(spatial_model.history["elbo_train"].values[0][0])
@@ -674,7 +673,7 @@ def test_destvi(save_path):
             n_labels,
         )
 
-        x = dataset.X[:50]
-        ind_x = np.arange(50)[:, np.newaxis].astype(np.long)
-        y = np.zeros((50, 1), np.long)
-        assert spatial_model.get_scale_for_ct(x, ind_x, y).shape == (50, dataset.n_vars)
+        assert spatial_model.get_scale_for_ct(dataset[:50], 0).shape == (
+            50,
+            dataset.n_vars,
+        )

@@ -1,12 +1,10 @@
 import logging
-from typing import List, Optional, OrderedDict, Union
+from typing import Optional, OrderedDict, Union
 
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from scipy.sparse import isspmatrix
-from torch.utils.data import DataLoader, TensorDataset
 
 from scvi.data import register_tensor_from_anndata
 from scvi.model import CondSCVI
@@ -22,15 +20,23 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
 
     Parameters
     ----------
-    adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
     st_adata
         spatial transcriptomics AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
-    state_dict
-        state_dict from the CondSCVI model
-    use_gpu
-        Use the GPU or not.
-    **model_kwargs
+    cell_type_mapping
+        mapping between numerals and cell type labels
+    decoder_state_dict
+        state_dict from the decoder of the CondSCVI model
+    px_decoder_state_dict
+        state_dict from the px_decoder of the CondSCVI model
+    px_r
+        parameters for the px_r tensor in the CondSCVI model
+    n_hidden
+        Number of nodes per hidden layer.
+    n_latent
+        Dimensionality of the latent space.
+    n_layers
+        Number of hidden layers used for encoder and decoder NNs.
+    **module_kwargs
         Keyword args for :class:`~scvi.modules.MRDeconv`
 
     Examples
@@ -51,10 +57,12 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         st_adata: AnnData,
         cell_type_mapping: np.ndarray,
-        sc_state_dict: List[OrderedDict],
+        decoder_state_dict: OrderedDict,
+        px_decoder_state_dict: OrderedDict,
+        px_r: np.ndarray,
+        n_hidden: int,
         n_latent: int,
         n_layers: int,
-        n_hidden: int,
         **module_kwargs,
     ):
         st_adata.obs["_indices"] = np.arange(st_adata.n_obs)
@@ -63,7 +71,9 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         self.module = MRDeconv(
             n_spots=st_adata.n_obs,
             n_labels=cell_type_mapping.shape[0],
-            sc_state_dict=sc_state_dict,
+            decoder_state_dict=decoder_state_dict,
+            px_decoder_state_dict=px_decoder_state_dict,
+            px_r=px_r,
             n_genes=st_adata.n_vars,
             n_latent=n_latent,
             n_layers=n_layers,
@@ -95,26 +105,26 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         **model_kwargs
             Keyword args for :class:`~scvi.model.DestVI`
         """
-        state_dict = (
-            sc_model.module.decoder.state_dict(),
-            sc_model.module.px_decoder.state_dict(),
-            sc_model.module.px_r.detach().cpu().numpy(),
-        )
+        decoder_state_dict = sc_model.module.decoder.state_dict()
+        px_decoder_state_dict = sc_model.module.px_decoder.state_dict()
+        px_r = sc_model.module.px_r.detach().cpu().numpy()
 
         return cls(
             st_adata,
             sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
                 "mapping"
             ],
-            state_dict,
+            decoder_state_dict,
+            px_decoder_state_dict,
+            px_r,
+            sc_model.module.n_hidden,
             sc_model.module.n_latent,
             sc_model.module.n_layers,
-            sc_model.module.n_hidden,
             **model_kwargs,
         )
 
     def get_proportions(
-        self, dataset: AnnData = None, keep_noise: bool = False
+        self, adata: AnnData = None, keep_noise: bool = False
     ) -> np.ndarray:
         """
         Returns the estimated cell type proportion for the spatial data.
@@ -123,74 +133,82 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
-        dataset
+        adata
             the anndata to loop through (used only if amortization)
         keep_noise
             whether to account for the noise term as a standalone cell type in the proportion estimate.
         """
+        if self.is_trained_ is False:
+            raise RuntimeError("Please train the model first.")
+
+        adata = self._validate_anndata(adata)
+
         column_names = self.cell_type_mapping
         if keep_noise:
             column_names = np.append(column_names, "noise_term")
 
         if self.module.amortization in ["both", "proportion"]:
-            data = dataset.X
-            if isspmatrix(data):
-                data = data.A
-            dl = DataLoader(
-                TensorDataset(torch.tensor(data, dtype=torch.float32)), batch_size=128
-            )  # create your dataloader
+            stdl = self._make_data_loader(adata=adata)
             prop_ = []
-            for tensors in dl:
-                prop_local = self.module.get_proportions(x=tensors[0])
+            for tensors in stdl:
+                generative_inputs = self.module._get_generative_input(tensors, None)
+                prop_local = self.module.get_proportions(
+                    x=generative_inputs["x"], keep_noise=keep_noise
+                )
                 prop_ += [prop_local.cpu()]
             data = np.array(torch.cat(prop_))
         else:
+            logger.info(
+                "No amortization for proportions, ignoring adata and returning results for the full data"
+            )
             data = self.module.get_proportions(keep_noise=keep_noise)
+
         return pd.DataFrame(
             data=data,
             columns=column_names,
             index=self.adata.obs.index,
         )
 
-    def get_gamma(self, dataset=None) -> np.ndarray:
+    def get_gamma(self, adata=None) -> np.ndarray:
         """
         Returns the estimated cell-type specific latent space for the spatial data.
 
         Shape is n_cells x n_latent x n_labels.
         """
+        if self.is_trained_ is False:
+            raise RuntimeError("Please train the model first.")
+
+        adata = self._validate_anndata(adata)
+
         if self.module.amortization in ["both", "latent"]:
-            data = dataset.X
-            if isspmatrix(dataset.X):
-                data = dataset.X.A
-            dl = DataLoader(
-                TensorDataset(torch.tensor(data, dtype=torch.float32)), batch_size=128
-            )  # create your dataloader
+            stdl = self._make_data_loader(adata=adata)
             gamma_ = []
-            for tensors in dl:
-                gamma_local = self.module.get_gamma(x=tensors[0])
+            for tensors in stdl:
+                generative_inputs = self.module._get_generative_input(tensors, None)
+                gamma_local = self.module.get_gamma(x=generative_inputs["x"])
                 gamma_ += [gamma_local.cpu()]
             data = np.array(torch.cat(gamma_, dim=-1))
         else:
+            logger.info(
+                "No amortization for latent values, ignoring adata and returning results for the full data"
+            )
             data = self.module.get_gamma()
         return np.transpose(data, (2, 0, 1))
 
     def get_scale_for_ct(
         self,
-        x: Optional[np.ndarray] = None,
-        ind_x: Optional[np.ndarray] = None,
-        y: Optional[np.ndarray] = None,
+        adata: AnnData,
+        y: int,
     ) -> np.ndarray:
         r"""
-        Return the scaled parameter of the NB for every cell in queried cell types.
+        Return the scaled parameter of the NB for every spot in queried cell types.
 
         Parameters
         ----------
-        x
-            gene expression data
-        ind_x
-            indices
+        adata
+            slice of the dataset of interest
         y
-            cell types
+            cell type of interest
 
         Returns
         -------
@@ -199,19 +217,14 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
 
-        dl = DataLoader(
-            TensorDataset(
-                torch.tensor(x, dtype=torch.float32),
-                torch.tensor(ind_x, dtype=torch.long),
-                torch.tensor(y, dtype=torch.long),
-            ),
-            batch_size=128,
-        )  # create your dataloader
+        adata = self._validate_anndata(adata)
+        stdl = self._make_data_loader(adata)
+
         scale = []
-        for tensors in dl:
-            px_scale = self.module.get_ct_specific_expression(
-                tensors[0], tensors[1], tensors[2]
-            )
+        for tensors in stdl:
+            generative_inputs = self.module._get_generative_input(tensors, None)
+            x, ind_x = generative_inputs["x"], generative_inputs["ind_x"]
+            px_scale = self.module.get_ct_specific_expression(x, ind_x, y)
             scale += [px_scale.cpu()]
         return np.array(torch.cat(scale))
 

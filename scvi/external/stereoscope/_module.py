@@ -249,16 +249,12 @@ class SpatialDeconv(BaseModuleClass):
 
     @torch.no_grad()
     @auto_move_data
-    def get_ct_specific_expression(self, x, ind_x, y):
+    def get_ct_specific_expression(self, y):
         """
         Returns cell type specific gene expression at the queried spots.
 
         Parameters
         ----------
-        x
-            data
-        ind_x
-            indices
         y
             cell types
         """
