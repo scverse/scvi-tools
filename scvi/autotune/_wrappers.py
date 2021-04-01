@@ -10,12 +10,14 @@ def tune_scvi(adata):
         "elbo_validation",
         "reconstruction_loss_validation",
     ]
+    metric_functions = {"marginal_ll": lambda model: model.get_marginal_ll()}
     model_config = {"dropout_rate": loguniform(1e-4, 1e-1)}
     plan_config = {"lr": loguniform(1e-4, 1e-1)}
     num_epochs = 2
     tuner = Autotune(
         adata,
         SCVI,
+        metric_functions=metric_functions,
         training_metrics=metrics,
         model_hyperparams=model_config,
         plan_hyperparams=plan_config,

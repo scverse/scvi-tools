@@ -1,13 +1,16 @@
 from random import randint
 
-import scanpy as sc
 from ray.tune import loguniform
 from ray.tune.schedulers import ASHAScheduler
-from sklearn.metrics import silhouette_score
 
-from scvi.autotune import Autotune
+from scvi.autotune import Autotune, silhouette_metric, tune_scvi
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
+
+
+def test_tune_scvi():
+    adata = synthetic_iid()
+    tune_scvi(adata)
 
 
 def test_autotune():
@@ -53,17 +56,6 @@ def test_metric_function_dummy():
 
 
 def test_silhouette():
-    def silhouette_metric(model):
-        model.is_trained_ = True
-        latent = model.get_latent_representation()
-        model.is_trained_ = False
-        adata.obsm["X_scVI"] = latent
-        sc.pp.neighbors(adata, use_rep="X_scVI")
-        sc.tl.leiden(adata, key_added="leiden_scVI", resolution=0.5)
-        return silhouette_score(
-            adata.obsm["X_scVI"],
-            adata.obs["leiden_scVI"],
-        )
 
     adata = synthetic_iid()
 
