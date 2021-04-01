@@ -207,11 +207,11 @@ class VAEC(BaseModuleClass):
             tensor with shape (n_cells, n_genes, n_samples)
         """
         inference_kwargs = dict(n_samples=n_samples)
-        inference_outputs, generative_outputs, = self.forward(
+        generative_outputs = self.forward(
             tensors,
             inference_kwargs=inference_kwargs,
             compute_loss=False,
-        )
+        )[1]
 
         px_r = generative_outputs["px_r"]
         px_rate = generative_outputs["px_rate"]
