@@ -24,27 +24,38 @@ facilitate a broad number of tasks across many omics, including:
 -   [scVI](https://rdcu.be/bdHYQ) for analysis of single-cell RNA-seq
     data, as well as its improved differential expression
     [framework](https://www.biorxiv.org/content/biorxiv/early/2019/10/04/794289.full.pdf).
+
 -   [scANVI](https://www.biorxiv.org/content/biorxiv/early/2019/01/29/532895.full.pdf)
     for cell annotation of scRNA-seq data using semi-labeled examples.
+
 -   [totalVI](https://www.biorxiv.org/content/10.1101/2020.05.08.083337v1.full.pdf)
     for analysis of CITE-seq data.
+
 -   [gimVI](https://arxiv.org/pdf/1905.02269.pdf) for imputation of
     missing genes in spatial transcriptomics from scRNA-seq data.
+
 -   [AutoZI](https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf)
     for assessing gene-specific levels of zero-inflation in scRNA-seq
     data.
+
 -   [LDVAE](https://www.biorxiv.org/content/10.1101/737601v1.full.pdf)
     for an interpretable linear factor model version of scVI.
+
 -   [Stereoscope](https://www.nature.com/articles/s42003-020-01247-y)
     for deconvolution of spatial transcriptomics data.
+
 -   destVI for multi-resolution deconvolution 
     of spatial transcriptomics data.
+
 -   peakVI for analysis of scATAC-seq data.
+
 -   [scArches](https://www.biorxiv.org/content/10.1101/2020.07.16.205997v1)
     for transfer learning from one single-cell atlas to a query dataset
     (currently supports scVI, scANVI and TotalVI).
+
 -   [CellAssign](https://www.nature.com/articles/s41592-019-0529-1) for
     reference-based annotation of scRNA-seq data.
+    
 -   [Solo](https://www.sciencedirect.com/science/article/pii/S2405471220301952) 
     for doublet detection in scRNA-seq data.
 
