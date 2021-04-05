@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, OrderedDict, Union
+from typing import Dict, Optional, OrderedDict, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI).
+    Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI). Most users will use the alternate constructor (see example).
 
     Parameters
     ----------
@@ -44,10 +44,9 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     >>> sc_adata = anndata.read_h5ad(path_to_scRNA_anndata)
     >>> scvi.data.setup_anndata(sc_adata)
     >>> sc_model = scvi.CondSCVI(sc_adata)
-    >>> mean_vprior, var_vprior = sc_model.get_vamp_prior(sc_adata, p=100)
     >>> st_adata = anndata.read_h5ad(path_to_ST_anndata)
     >>> scvi.data.setup_anndata(st_adata)
-    >>> spatial_model = DestVI.from_rna_model(st_adata, sc_model, mean_vprior=mean_vprior, var_vprior=var_vprior)
+    >>> spatial_model = DestVI.from_rna_model(st_adata, sc_model)
     >>> spatial_model.train(max_epochs=2000)
     >>> st_adata.obsm["proportions"] = spatial_model.get_proportions(st_adata)
     >>> gamma = spatial_model.get_gamma(st_adata)
@@ -89,7 +88,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         cls,
         st_adata: AnnData,
         sc_model: CondSCVI,
-        **model_kwargs,
+        vamp_prior_p: int = 50,
+        **module_kwargs,
     ):
         """
         Alternate constructor for exploiting a pre-trained model on RNA-seq data.
@@ -100,32 +100,45 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             registed anndata object
         sc_model
             trained CondSCVI model
-        use_gpu
-            Use the GPU or not.
+        vamp_prior_p
+            number of mixture parameter for VampPrior calculations
         **model_kwargs
             Keyword args for :class:`~scvi.model.DestVI`
         """
         decoder_state_dict = sc_model.module.decoder.state_dict()
         px_decoder_state_dict = sc_model.module.px_decoder.state_dict()
         px_r = sc_model.module.px_r.detach().cpu().numpy()
+        mapping = sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
+            "mapping"
+        ]
+        if vamp_prior_p is None:
+            mean_vprior = None
+            var_vprior = None
+        else:
+            mean_vprior, var_vprior = sc_model.get_vamp_prior(
+                sc_model.adata, p=vamp_prior_p
+            )
 
         return cls(
             st_adata,
-            sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
-                "mapping"
-            ],
+            mapping,
             decoder_state_dict,
             px_decoder_state_dict,
             px_r,
             sc_model.module.n_hidden,
             sc_model.module.n_latent,
             sc_model.module.n_layers,
-            **model_kwargs,
+            mean_vprior=mean_vprior,
+            var_vprior=var_vprior,
+            **module_kwargs,
         )
 
     def get_proportions(
-        self, adata: AnnData = None, keep_noise: bool = False
-    ) -> np.ndarray:
+        self,
+        keep_noise: bool = False,
+        indices: Optional[Sequence[int]] = None,
+        batch_size: Optional[int] = None,
+    ) -> pd.DataFrame:
         """
         Returns the estimated cell type proportion for the spatial data.
 
@@ -133,22 +146,27 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
-        adata
-            the anndata to loop through (used only if amortization)
         keep_noise
             whether to account for the noise term as a standalone cell type in the proportion estimate.
+        indices
+            Indices of cells in adata to use. Only used if amortization. If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model. Only used if amortization. Defaults to `scvi.settings.batch_size`.
         """
         if self.is_trained_ is False:
-            raise RuntimeError("Please train the model first.")
-
-        adata = self._validate_anndata(adata)
+            logger.warning(
+                "Trying to query inferred values from an untrained model. Please train the model first."
+            )
 
         column_names = self.cell_type_mapping
+        index_names = self.adata.obs.index
         if keep_noise:
             column_names = np.append(column_names, "noise_term")
 
         if self.module.amortization in ["both", "proportion"]:
-            stdl = self._make_data_loader(adata=adata)
+            stdl = self._make_data_loader(
+                adata=self.adata, indices=indices, batch_size=batch_size
+            )
             prop_ = []
             for tensors in stdl:
                 generative_inputs = self.module._get_generative_input(tensors, None)
@@ -157,69 +175,112 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 )
                 prop_ += [prop_local.cpu()]
             data = np.array(torch.cat(prop_))
+            if indices:
+                index_names = index_names[indices]
         else:
-            logger.info(
-                "No amortization for proportions, ignoring adata and returning results for the full data"
-            )
+            if indices is not None:
+                logger.info(
+                    "No amortization for proportions, ignoring indices and returning results for the full data"
+                )
             data = self.module.get_proportions(keep_noise=keep_noise)
 
         return pd.DataFrame(
             data=data,
             columns=column_names,
-            index=self.adata.obs.index,
+            index=index_names,
         )
 
-    def get_gamma(self, adata=None) -> np.ndarray:
+    def get_gamma(
+        self,
+        indices: Optional[Sequence[int]] = None,
+        batch_size: Optional[int] = None,
+        return_numpy: bool = False,
+    ) -> Dict[str, pd.DataFrame]:
         """
         Returns the estimated cell-type specific latent space for the spatial data.
 
-        Shape is n_cells x n_latent x n_labels.
+        Parameters
+        ----------
+        indices
+            Indices of cells in adata to use. Only used if amortization. If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model. Only used if amortization. Defaults to `scvi.settings.batch_size`.
+        return_numpy
+            if activated, will return a numpy array of shape is n_spots x n_latent x n_labels.
         """
         if self.is_trained_ is False:
-            raise RuntimeError("Please train the model first.")
+            logger.warning(
+                "Trying to query inferred values from an untrained model. Please train the model first."
+            )
 
-        adata = self._validate_anndata(adata)
+        column_names = np.arange(self.module.n_latent)
+        index_names = self.adata.obs.index
 
         if self.module.amortization in ["both", "latent"]:
-            stdl = self._make_data_loader(adata=adata)
+            stdl = self._make_data_loader(
+                adata=self.adata, indices=indices, batch_size=batch_size
+            )
             gamma_ = []
             for tensors in stdl:
                 generative_inputs = self.module._get_generative_input(tensors, None)
                 gamma_local = self.module.get_gamma(x=generative_inputs["x"])
                 gamma_ += [gamma_local.cpu()]
             data = np.array(torch.cat(gamma_, dim=-1))
+            if indices is not None:
+                index_names = index_names[indices]
         else:
-            logger.info(
-                "No amortization for latent values, ignoring adata and returning results for the full data"
-            )
+            if indices is not None:
+                logger.info(
+                    "No amortization for latent values, ignoring adata and returning results for the full data"
+                )
             data = self.module.get_gamma()
-        return np.transpose(data, (2, 0, 1))
+
+        data = np.transpose(data, (2, 0, 1))
+        res = {}
+        for i, ct in enumerate(self.cell_type_mapping):
+            res[ct] = pd.DataFrame(
+                data=data[:, :, i], columns=column_names, index=index_names
+            )
+
+        if return_numpy:
+            return data
+
+        return res
 
     def get_scale_for_ct(
         self,
-        adata: AnnData,
-        y: int,
-    ) -> np.ndarray:
+        indices: Sequence[int],
+        label: str,
+        batch_size: Optional[int] = None,
+    ) -> pd.DataFrame:
         r"""
         Return the scaled parameter of the NB for every spot in queried cell types.
 
         Parameters
         ----------
-        adata
-            slice of the dataset of interest
-        y
+        indices
+            Indices of cells in self.adata to use. If `None`, all cells are used.
+        label
             cell type of interest
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
 
         Returns
         -------
-        gene_expression
+        Pandas dataframe of gene_expression
         """
         if self.is_trained_ is False:
-            raise RuntimeError("Please train the model first.")
+            logger.warning(
+                "Trying to query inferred values from an untrained model. Please train the model first."
+            )
 
-        adata = self._validate_anndata(adata)
-        stdl = self._make_data_loader(adata)
+        if label not in self.cell_type_mapping:
+            raise ValueError("Unknown cell type")
+        y = np.where(label == self.cell_type_mapping)[0][0]
 
+        stdl = self._make_data_loader(
+            self.adata, indices=indices, batch_size=batch_size
+        )
         scale = []
         for tensors in stdl:
             generative_inputs = self.module._get_generative_input(tensors, None)
@@ -233,7 +294,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         max_epochs: int = 400,
         lr: float = 0.01,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        train_size: float = 1,
+        train_size: float = 1.0,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,

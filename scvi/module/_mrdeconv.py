@@ -118,7 +118,7 @@ class MRDeconv(BaseModuleClass):
             FCLayers(
                 n_in=self.n_genes,
                 n_out=n_hidden,
-                n_cat_list=[],
+                n_cat_list=None,
                 n_layers=2,
                 n_hidden=n_hidden,
                 dropout_rate=0.1,

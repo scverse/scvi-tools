@@ -100,7 +100,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             (n_labels, p, 3) array
         """
         if self.is_trained_ is False:
-            raise RuntimeError("Please train the model first.")
+            logger.warning(
+                "Trying to query inferred values from an untrained model. Please train the model first."
+            )
 
         adata = self._validate_anndata(adata)
 

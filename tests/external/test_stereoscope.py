@@ -29,5 +29,5 @@ def test_stereoscope(save_path):
     st_model.get_proportions()
 
     # try imputation code
-    y = np.zeros((50, 1), np.long)
+    y = np.array(50 * ["label_0"])
     st_model.get_scale_for_ct(y)

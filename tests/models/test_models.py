@@ -650,8 +650,6 @@ def test_destvi(save_path):
     dataset = synthetic_iid(n_labels=n_labels)
     sc_model = CondSCVI(dataset, n_latent=n_latent, n_layers=n_layers)
     sc_model.train(1, train_size=1)
-    sc_model.get_latent_representation()
-    mean_vprior, var_vprior = sc_model.get_vamp_prior(dataset, p=100)
 
     # step 2 learn destVI with multiple amortization scheme
 
@@ -660,20 +658,18 @@ def test_destvi(save_path):
             dataset,
             sc_model,
             amortization=amor_scheme,
-            mean_vprior=mean_vprior,
-            var_vprior=var_vprior,
         )
         spatial_model.train(max_epochs=1)
         assert not np.isnan(spatial_model.history["elbo_train"].values[0][0])
 
-        assert spatial_model.get_proportions(dataset).shape == (dataset.n_obs, n_labels)
-        assert spatial_model.get_gamma(dataset).shape == (
+        assert spatial_model.get_proportions().shape == (dataset.n_obs, n_labels)
+        assert spatial_model.get_gamma(return_numpy=True).shape == (
             dataset.n_obs,
             n_latent,
             n_labels,
         )
 
-        assert spatial_model.get_scale_for_ct(dataset[:50], 0).shape == (
+        assert spatial_model.get_scale_for_ct(np.arange(50), "label_0").shape == (
             50,
             dataset.n_vars,
         )

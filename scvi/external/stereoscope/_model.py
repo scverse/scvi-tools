@@ -1,3 +1,4 @@
+import logging
 from typing import Optional, Tuple, Union
 
 import numpy as np
@@ -9,6 +10,8 @@ from scvi._compat import Literal
 from scvi.data import register_tensor_from_anndata
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
+
+logger = logging.getLogger(__name__)
 
 
 class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
@@ -205,7 +208,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             **model_kwargs,
         )
 
-    def get_proportions(self, keep_noise=False) -> np.ndarray:
+    def get_proportions(self, keep_noise=False) -> pd.DataFrame:
         """
         Returns the estimated cell type proportion for the spatial data.
 
@@ -217,7 +220,9 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             whether to account for the noise term as a standalone cell type in the proportion estimate.
         """
         if self.is_trained_ is False:
-            raise RuntimeError("Please train the model first.")
+            logger.warning(
+                "Trying to query inferred values from an untrained model. Please train the model first."
+            )
 
         column_names = self.cell_type_mapping
         if keep_noise:
@@ -230,7 +235,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
 
     def get_scale_for_ct(
         self,
-        y: Optional[np.ndarray] = None,
+        y: np.ndarray,
     ) -> np.ndarray:
         r"""
         Return the scaled parameter of the NB for the list of cell type provided.
@@ -244,8 +249,15 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         gene_expression
         """
         if self.is_trained_ is False:
-            raise RuntimeError("Please train the model first.")
-        px_scale = self.module.get_ct_specific_expression(torch.tensor(y))
+            logger.warning(
+                "Trying to query inferred values from an untrained model. Please train the model first."
+            )
+        ind_y = np.array([np.where(ct == self.cell_type_mapping)[0][0] for ct in y])
+        if ind_y.shape != y.shape:
+            raise ValueError(
+                "Incorrect shape after matching cell types to reference mapping. Please check cell type query."
+            )
+        px_scale = self.module.get_ct_specific_expression(torch.tensor(ind_y)[:, None])
         return np.array(px_scale.cpu())
 
     def train(
