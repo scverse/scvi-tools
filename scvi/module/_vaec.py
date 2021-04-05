@@ -42,7 +42,7 @@ class VAEC(BaseModuleClass):
         n_input: int,
         n_labels: int = 0,
         n_hidden: int = 128,
-        n_latent: int = 10,
+        n_latent: int = 5,
         n_layers: int = 2,
         dropout_rate: float = 0.1,
         log_variational: bool = True,
