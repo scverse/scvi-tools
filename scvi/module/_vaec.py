@@ -46,7 +46,7 @@ class VAEC(BaseModuleClass):
         n_layers: int = 2,
         dropout_rate: float = 0.1,
         log_variational: bool = True,
-        **model_kwargs,
+        **module_kwargs,
     ):
         super().__init__()
         self.dispersion = "gene"
@@ -92,8 +92,8 @@ class VAEC(BaseModuleClass):
             torch.nn.Linear(n_hidden, n_input), torch.nn.Softplus()
         )
 
-        if "ct_weight" in model_kwargs:
-            ct_weight = torch.tensor(model_kwargs["ct_weight"], dtype=torch.float32)
+        if "ct_weight" in module_kwargs:
+            ct_weight = torch.tensor(module_kwargs["ct_weight"], dtype=torch.float32)
         else:
             ct_weight = torch.ones((self.n_labels,), dtype=torch.float32)
         self.register_buffer("ct_weight", ct_weight)
