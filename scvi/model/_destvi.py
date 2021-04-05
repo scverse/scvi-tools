@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Dict, Optional, OrderedDict, Sequence, Union
 
 import numpy as np
@@ -154,7 +155,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             Minibatch size for data loading into model. Only used if amortization. Defaults to `scvi.settings.batch_size`.
         """
         if self.is_trained_ is False:
-            logger.warning(
+            warnings.warn(
                 "Trying to query inferred values from an untrained model. Please train the model first."
             )
 
@@ -195,7 +196,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
         return_numpy: bool = False,
-    ) -> Dict[str, pd.DataFrame]:
+    ) -> Union[np.ndarray, Dict[str, pd.DataFrame]]:
         """
         Returns the estimated cell-type specific latent space for the spatial data.
 
@@ -209,7 +210,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             if activated, will return a numpy array of shape is n_spots x n_latent x n_labels.
         """
         if self.is_trained_ is False:
-            logger.warning(
+            warnings.warn(
                 "Trying to query inferred values from an untrained model. Please train the model first."
             )
 
@@ -236,21 +237,20 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             data = self.module.get_gamma()
 
         data = np.transpose(data, (2, 0, 1))
-        res = {}
-        for i, ct in enumerate(self.cell_type_mapping):
-            res[ct] = pd.DataFrame(
-                data=data[:, :, i], columns=column_names, index=index_names
-            )
-
         if return_numpy:
             return data
-
-        return res
+        else:
+            res = {}
+            for i, ct in enumerate(self.cell_type_mapping):
+                res[ct] = pd.DataFrame(
+                    data=data[:, :, i], columns=column_names, index=index_names
+                )
+            return res
 
     def get_scale_for_ct(
         self,
-        indices: Sequence[int],
         label: str,
+        indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
     ) -> pd.DataFrame:
         r"""
@@ -258,10 +258,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
-        indices
-            Indices of cells in self.adata to use. If `None`, all cells are used.
         label
             cell type of interest
+        indices
+            Indices of cells in self.adata to use. If `None`, all cells are used.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
 
@@ -270,7 +270,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Pandas dataframe of gene_expression
         """
         if self.is_trained_ is False:
-            logger.warning(
+            warnings.warn(
                 "Trying to query inferred values from an untrained model. Please train the model first."
             )
 
@@ -287,7 +287,13 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             x, ind_x = generative_inputs["x"], generative_inputs["ind_x"]
             px_scale = self.module.get_ct_specific_expression(x, ind_x, y)
             scale += [px_scale.cpu()]
-        return np.array(torch.cat(scale))
+
+        data = np.array(torch.cat(scale))
+        column_names = self.adata.var.index
+        index_names = self.adata.obs.index
+        if indices is not None:
+            index_names = index_names[indices]
+        return pd.DataFrame(data=data, columns=column_names, index=index_names)
 
     def train(
         self,

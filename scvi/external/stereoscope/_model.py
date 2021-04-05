@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Optional, Tuple, Union
 
 import numpy as np
@@ -220,7 +221,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             whether to account for the noise term as a standalone cell type in the proportion estimate.
         """
         if self.is_trained_ is False:
-            logger.warning(
+            warnings.warn(
                 "Trying to query inferred values from an untrained model. Please train the model first."
             )
 
@@ -238,7 +239,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         y: np.ndarray,
     ) -> np.ndarray:
         r"""
-        Return the scaled parameter of the NB for the list of cell type provided.
+        Calculate the cell type specific expression.
 
         Parameters
         ----------
@@ -249,7 +250,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         gene_expression
         """
         if self.is_trained_ is False:
-            logger.warning(
+            warnings.warn(
                 "Trying to query inferred values from an untrained model. Please train the model first."
             )
         ind_y = np.array([np.where(ct == self.cell_type_mapping)[0][0] for ct in y])

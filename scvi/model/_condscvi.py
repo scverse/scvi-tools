@@ -16,6 +16,8 @@ from scvi.module import VAEC
 
 logger = logging.getLogger(__name__)
 
+import warnings
+
 
 class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
@@ -100,7 +102,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             (n_labels, p, 3) array
         """
         if self.is_trained_ is False:
-            logger.warning(
+            warnings.warn(
                 "Trying to query inferred values from an untrained model. Please train the model first."
             )
 

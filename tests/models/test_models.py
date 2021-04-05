@@ -669,7 +669,7 @@ def test_destvi(save_path):
             n_labels,
         )
 
-        assert spatial_model.get_scale_for_ct(np.arange(50), "label_0").shape == (
+        assert spatial_model.get_scale_for_ct("label_0", np.arange(50)).shape == (
             50,
             dataset.n_vars,
         )
