@@ -1,0 +1,20 @@
+New in 0.10.0 (2021-04-05)
+-------------------------
+
+
+Changes
+~~~~~~~
+- Add DestVI to the codebase (`#1011`)
+
+
+
+Contributors
+~~~~~~~~~~~~
+- `@adamgayoso`_
+- `@romain-lopez`_
+
+.. _`@adamgayoso`: https://github.com/adamgayoso
+.. _`@romain-lopez`: https://github.com/romain-lopez
+
+
+.. _`#1011`: https://github.com/YosefLab/scvi-tools/pull/1011
