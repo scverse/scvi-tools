@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Optional, Union
 
 import numpy as np
@@ -15,8 +16,6 @@ from scvi.model.base import (
 from scvi.module import VAEC
 
 logger = logging.getLogger(__name__)
-
-import warnings
 
 
 class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
