@@ -301,7 +301,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             else:
                 library = outputs["library_gene"]
             libraries += [library.cpu()]
-        return np.array(torch.cat(libraries))
+        return torch.cat(libraries).numpy()
 
     @torch.no_grad()
     def get_normalized_expression(
@@ -1025,7 +1025,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for tensors in scdl:
             _, inference_outputs, _ = self.module.forward(tensors)
             b_mean = inference_outputs["py_"]["rate_back"]
-            background_mean += [np.array(b_mean.cpu())]
+            background_mean += [b_mean.cpu().numpy()]
         return np.concatenate(background_mean)
 
 
