@@ -175,7 +175,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                     x=generative_inputs["x"], keep_noise=keep_noise
                 )
                 prop_ += [prop_local.cpu()]
-            data = np.array(torch.cat(prop_))
+            data = torch.cat(prop_).numpy()
             if indices:
                 index_names = index_names[indices]
         else:
@@ -226,7 +226,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 generative_inputs = self.module._get_generative_input(tensors, None)
                 gamma_local = self.module.get_gamma(x=generative_inputs["x"])
                 gamma_ += [gamma_local.cpu()]
-            data = np.array(torch.cat(gamma_, dim=-1))
+            data = torch.cat(gamma_, dim=-1).numpy()
             if indices is not None:
                 index_names = index_names[indices]
         else:
@@ -288,7 +288,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             px_scale = self.module.get_ct_specific_expression(x, ind_x, y)
             scale += [px_scale.cpu()]
 
-        data = np.array(torch.cat(scale))
+        data = torch.cat(scale).numpy()
         column_names = self.adata.var.index
         index_names = self.adata.obs.index
         if indices is not None:
@@ -303,6 +303,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         train_size: float = 1.0,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
+        n_epochs_kl_warmup: int = 50,
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
@@ -325,6 +326,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         batch_size
             Minibatch size to use during training.
+        n_epochs_kl_warmup
+            number of epochs needed to reach unit kl weight in the elbo
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -333,6 +336,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         """
         update_dict = {
             "lr": lr,
+            "n_epochs_kl_warmup": n_epochs_kl_warmup,
         }
         if plan_kwargs is not None:
             plan_kwargs.update(update_dict)

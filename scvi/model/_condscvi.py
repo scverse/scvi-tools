@@ -34,6 +34,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         Number of hidden layers used for encoder and decoder NNs.
     dropout_rate
         Dropout rate for the encoder neural networks.
+    weight_obs
+        Whether to reweight observations by their inverse proportion (useful for lowly abundant cell types)
     **module_kwargs
         Keyword args for :class:`~scvi.modules.VAEC`
 
@@ -53,13 +55,24 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         n_latent: int = 5,
         n_layers: int = 2,
         dropout_rate: float = 0.1,
+        weight_obs: bool = False,
         **module_kwargs,
     ):
         super(CondSCVI, self).__init__(adata)
 
+        n_labels = self.summary_stats["n_labels"]
+        n_vars = self.summary_stats["n_vars"]
+        if weight_obs:
+            ct_counts = adata.obs["_scvi_labels"].value_counts()[range(n_labels)].values
+            ct_prop = ct_counts / np.sum(ct_counts)
+            ct_prop[ct_prop < 0.05] = 0.05
+            ct_prop = ct_prop / np.sum(ct_prop)
+            ct_weight = 1.0 / ct_prop
+            module_kwargs.update({"ct_weight": ct_weight})
+
         self.module = VAEC(
-            n_input=self.summary_stats["n_vars"],
-            n_labels=self.summary_stats["n_labels"],
+            n_input=n_vars,
+            n_labels=n_labels,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
@@ -67,13 +80,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             **module_kwargs,
         )
         self._model_summary_string = (
-            "Conditional SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: {}"
-        ).format(
-            n_hidden,
-            n_latent,
-            n_layers,
-            dropout_rate,
-        )
+            "Conditional SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: {}, weight_obs: {}"
+        ).format(n_hidden, n_latent, n_layers, dropout_rate, weight_obs)
         self.init_params_ = self._get_init_params(locals())
 
     @torch.no_grad()

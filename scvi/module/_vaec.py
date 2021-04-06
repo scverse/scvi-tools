@@ -46,6 +46,7 @@ class VAEC(BaseModuleClass):
         n_layers: int = 2,
         dropout_rate: float = 0.1,
         log_variational: bool = True,
+        ct_weight: np.ndarray = None,
         **module_kwargs,
     ):
         super().__init__()
@@ -92,7 +93,7 @@ class VAEC(BaseModuleClass):
             torch.nn.Linear(n_hidden, n_input), torch.nn.Softplus()
         )
 
-        if "ct_weight" in module_kwargs:
+        if ct_weight is not None:
             ct_weight = torch.tensor(module_kwargs["ct_weight"], dtype=torch.float32)
         else:
             ct_weight = torch.ones((self.n_labels,), dtype=torch.float32)
