@@ -298,7 +298,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     def train(
         self,
         max_epochs: int = 400,
-        lr: float = 0.01,
+        lr: float = 0.005,
         use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 1.0,
         validation_size: Optional[float] = None,
