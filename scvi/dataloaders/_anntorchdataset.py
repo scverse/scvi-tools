@@ -6,6 +6,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import torch
+from anndata._core.sparse_dataset import SparseDataset
 from torch.utils.data import Dataset
 
 from scvi.data._anndata import get_from_registry
@@ -98,7 +99,7 @@ class AnnTorchDataset(Dataset):
         for key, dtype in self.attributes_and_types.items():
             data = self.data[key]
             # for backed anndata
-            if isinstance(data, h5py.Dataset):
+            if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
                 # need to sort idxs for h5py datasets
                 if hasattr(idx, "shape"):
                     argsort = np.argsort(idx)

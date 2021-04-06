@@ -6,6 +6,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
+from anndata._core.sparse_dataset import SparseDataset
 from numba import boolean, float32, float64, int32, int64, vectorize
 
 logger = logging.getLogger(__name__)
@@ -94,7 +95,7 @@ def _check_nonnegative_integers(
     """Approximately checks values of data to ensure it is count data."""
 
     # for backed anndata
-    if isinstance(data, h5py.Dataset):
+    if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
         data = data[:100]
 
     if isinstance(data, np.ndarray):
