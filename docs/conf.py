@@ -188,6 +188,7 @@ nbsphinx_thumbnails = {
     "user_guide/notebooks/stereoscope_heart_LV_tutorial": "_static/tutorials/stereoscope.png",
     "user_guide/notebooks/seed_labeling": "_static/tutorials/seed.png",
     "user_guide/notebooks/cellassign_tutorial": "_static/tutorials/cellassign.png",
+    "user_guide/notebooks/DestVI_tutorial": "_static/tutorials/destvi.png",
 }
 
 
