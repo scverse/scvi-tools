@@ -403,3 +403,7 @@ def test_backed_anndata(save_path):
     adata.write_h5ad(path)
     adata = anndata.read_h5ad(path, backed="r+")
     setup_anndata(adata, batch_key="batch")
+
+    # test get item
+    bd = AnnTorchDataset(adata)
+    bd[np.arange(adata.n_obs)]
