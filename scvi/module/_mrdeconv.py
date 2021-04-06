@@ -279,7 +279,8 @@ class MRDeconv(BaseModuleClass):
         """Returns the loadings."""
         if self.amortization in ["both", "proportion"]:
             # get estimated unadjusted proportions
-            res = torch.nn.functional.softplus(self.V_encoder(x))
+            x_ = torch.log(1 + x)
+            res = torch.nn.functional.softplus(self.V_encoder(x_))
         else:
             res = (
                 torch.nn.functional.softplus(self.V).cpu().numpy().T
@@ -304,7 +305,8 @@ class MRDeconv(BaseModuleClass):
         """
         # get estimated unadjusted proportions
         if self.amortization in ["latent", "both"]:
-            gamma = self.gamma_encoder(x)
+            x_ = torch.log(1 + x)
+            gamma = self.gamma_encoder(x_)
             return torch.transpose(gamma, 0, 1).reshape(
                 (self.n_latent, self.n_labels, -1)
             )  # n_latent, n_labels, minibatch
