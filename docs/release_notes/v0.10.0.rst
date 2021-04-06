@@ -4,12 +4,12 @@ New in 0.10.0 (2021-04-DD)
 
 Changes
 ~~~~~~~
-- Add DestVI to the codebase (`#1011`)
-- Versioned tutorial links (`#1005`)
-- Remove old VAEC (`#1006`)
-- Use `.numpy()` to convert torch tensors to numpy ndarrays (`#1016`)
-- Support backed AnnData (`#1017`), just load anndata with `scvi.data.read_h5ad(path, backed='r+')`
-- Solo interface enhancements (`#1009`)
+- Add DestVI to the codebase (`#1011`_)
+- Versioned tutorial links (`#1005`_)
+- Remove old VAEC (`#1006`_)
+- Use `.numpy()` to convert torch tensors to numpy ndarrays (`#1016`_)
+- Support backed AnnData (`#1017`_), just load anndata with ``scvi.data.read_h5ad(path, backed='r+')``
+- Solo interface enhancements (`#1009`_)
 
 
 Contributors
