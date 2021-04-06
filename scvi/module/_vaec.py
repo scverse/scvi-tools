@@ -94,7 +94,7 @@ class VAEC(BaseModuleClass):
         )
 
         if ct_weight is not None:
-            ct_weight = torch.tensor(module_kwargs["ct_weight"], dtype=torch.float32)
+            ct_weight = torch.tensor(ct_weight, dtype=torch.float32)
         else:
             ct_weight = torch.ones((self.n_labels,), dtype=torch.float32)
         self.register_buffer("ct_weight", ct_weight)

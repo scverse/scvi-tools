@@ -641,6 +641,11 @@ def test_condscvi(save_path):
     model.get_latent_representation()
     model.get_vamp_prior(dataset)
 
+    model = CondSCVI(dataset, weight_obs=True)
+    model.train(1, train_size=1)
+    model.get_latent_representation()
+    model.get_vamp_prior(dataset)
+
 
 def test_destvi(save_path):
     # Step1 learn CondSCVI
