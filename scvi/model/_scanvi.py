@@ -279,7 +279,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 pred = pred.argmax(dim=1)
             y_pred.append(pred.detach().cpu())
 
-        y_pred = np.array(torch.cat(y_pred))
+        y_pred = torch.cat(y_pred).numpy()
         if not soft:
             predictions = []
             for p in y_pred:

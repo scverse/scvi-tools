@@ -483,13 +483,13 @@ class RNASeqMixin:
 
             n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
 
-            px_r = np.array(px_r.cpu())
+            px_r = px_r.cpu().numpy()
             if len(px_r.shape) == 1:
                 dispersion_list += [np.repeat(px_r[np.newaxis, :], n_batch, axis=0)]
             else:
                 dispersion_list += [px_r]
-            mean_list += [np.array(px_rate.cpu())]
-            dropout_list += [np.array(px_dropout.cpu())]
+            mean_list += [px_rate.cpu().numpy()]
+            dropout_list += [px_dropout.cpu().numpy()]
 
         dropout = np.concatenate(dropout_list)
         means = np.concatenate(mean_list)
@@ -553,4 +553,4 @@ class RNASeqMixin:
             else:
                 library = torch.distributions.LogNormal(ql_m, ql_v.sqrt()).mean
             libraries += [library.cpu()]
-        return np.array(torch.cat(libraries))
+        return torch.cat(libraries).numpy()
