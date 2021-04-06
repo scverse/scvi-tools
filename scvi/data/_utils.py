@@ -2,6 +2,7 @@ import logging
 from typing import Tuple, Union
 
 import anndata
+import h5py
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
@@ -88,9 +89,14 @@ def _compute_library_size_batch(
 
 
 def _check_nonnegative_integers(
-    data: Union[pd.DataFrame, np.ndarray, sp_sparse.spmatrix]
+    data: Union[pd.DataFrame, np.ndarray, sp_sparse.spmatrix, h5py.Dataset]
 ):
     """Approximately checks values of data to ensure it is count data."""
+
+    # for backed anndata
+    if isinstance(data, h5py.Dataset):
+        data = data[:100]
+
     if isinstance(data, np.ndarray):
         data = data
     elif issubclass(type(data), sp_sparse.spmatrix):
@@ -102,7 +108,7 @@ def _check_nonnegative_integers(
 
     n = len(data)
     inds = np.random.permutation(n)[:20]
-    check = data[inds]
+    check = data.flat[inds]
     return ~np.any(_is_not_count(check))
 
 

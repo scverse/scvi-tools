@@ -1,6 +1,7 @@
 import os
 import tarfile
 
+import anndata
 import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
@@ -249,6 +250,21 @@ def test_backwards_compatible_loading(save_path):
     pretrained_totalvi_path = os.path.join(save_path, "testing_models/080_totalvi")
     m = scvi.model.TOTALVI.load(pretrained_totalvi_path, a)
     m.train(1)
+
+
+def test_backed_anndata_scvi(save_path):
+    adata = scvi.data.synthetic_iid()
+    path = os.path.join(save_path, "test_data.h5ad")
+    adata.write_h5ad(path)
+    adata = anndata.read_h5ad(path, backed="r+")
+    setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata, n_latent=5)
+    model.train(1, train_size=0.5)
+    assert model.is_trained is True
+    z = model.get_latent_representation()
+    assert z.shape == (adata.shape[0], 5)
+    model.get_elbo()
 
 
 def test_ann_dataloader():

@@ -395,3 +395,11 @@ def test_saving(save_path):
     )
     adata.write(save_path)
     anndata.read(save_path)
+
+
+def test_backed_anndata(save_path):
+    adata = scvi.data.synthetic_iid()
+    path = os.path.join(save_path, "test_data.h5ad")
+    adata.write_h5ad(path)
+    adata = anndata.read_h5ad(path, backed="r+")
+    setup_anndata(adata, batch_key="batch")
