@@ -14,7 +14,16 @@ from scvi.dataloaders import (
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
-from scvi.model import AUTOZI, PEAKVI, SCANVI, SCVI, TOTALVI, LinearSCVI
+from scvi.model import (
+    AUTOZI,
+    PEAKVI,
+    SCANVI,
+    SCVI,
+    TOTALVI,
+    CondSCVI,
+    DestVI,
+    LinearSCVI,
+)
 
 
 def test_scvi(save_path):
@@ -623,3 +632,49 @@ def test_peakvi():
     vae.get_reconstruction_error(indices=vae.validation_indices)
     vae.get_latent_representation()
     vae.differential_accessibility(groupby="labels", group1="label_1")
+
+
+def test_condscvi(save_path):
+    dataset = synthetic_iid(n_labels=5)
+    model = CondSCVI(dataset)
+    model.train(1, train_size=1)
+    model.get_latent_representation()
+    model.get_vamp_prior(dataset)
+
+    model = CondSCVI(dataset, weight_obs=True)
+    model.train(1, train_size=1)
+    model.get_latent_representation()
+    model.get_vamp_prior(dataset)
+
+
+def test_destvi(save_path):
+    # Step1 learn CondSCVI
+    n_latent = 2
+    n_labels = 5
+    n_layers = 2
+    dataset = synthetic_iid(n_labels=n_labels)
+    sc_model = CondSCVI(dataset, n_latent=n_latent, n_layers=n_layers)
+    sc_model.train(1, train_size=1)
+
+    # step 2 learn destVI with multiple amortization scheme
+
+    for amor_scheme in ["both", "none", "proportion", "latent"]:
+        spatial_model = DestVI.from_rna_model(
+            dataset,
+            sc_model,
+            amortization=amor_scheme,
+        )
+        spatial_model.train(max_epochs=1)
+        assert not np.isnan(spatial_model.history["elbo_train"].values[0][0])
+
+        assert spatial_model.get_proportions().shape == (dataset.n_obs, n_labels)
+        assert spatial_model.get_gamma(return_numpy=True).shape == (
+            dataset.n_obs,
+            n_latent,
+            n_labels,
+        )
+
+        assert spatial_model.get_scale_for_ct("label_0", np.arange(50)).shape == (
+            50,
+            dataset.n_vars,
+        )

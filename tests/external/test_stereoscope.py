@@ -27,3 +27,7 @@ def test_stereoscope(save_path):
     st_model.save(save_path, overwrite=True, save_anndata=True)
     st_model = SpatialStereoscope.load(save_path)
     st_model.get_proportions()
+
+    # try imputation code
+    y = np.array(50 * ["label_0"])
+    st_model.get_scale_for_ct(y)
