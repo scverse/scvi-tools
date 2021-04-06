@@ -93,7 +93,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         **module_kwargs,
     ):
         """
-        Alternate constructor for exploiting a pre-trained model on RNA-seq data.
+        Alternate constructor for exploiting a pre-trained model on a RNA-seq dataset.
 
         Parameters
         ----------
