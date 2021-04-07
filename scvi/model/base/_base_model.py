@@ -2,6 +2,7 @@ import inspect
 import logging
 import os
 import pickle
+import warnings
 from abc import ABC, abstractmethod
 from typing import Optional, Sequence, Union
 
@@ -9,7 +10,6 @@ import numpy as np
 import pyro
 import rich
 import torch
-import warnings
 from anndata import AnnData
 from rich.text import Text
 

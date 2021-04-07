@@ -1,9 +1,9 @@
 import logging
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
-import warnings
 from anndata import AnnData
 
 from scvi.data import setup_anndata

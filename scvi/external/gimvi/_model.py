@@ -1,12 +1,12 @@
 import logging
 import os
 import pickle
+import warnings
 from itertools import cycle
 from typing import List, Optional, Union
 
 import numpy as np
 import torch
-import warnings
 from anndata import AnnData, read
 from torch.utils.data import DataLoader
 

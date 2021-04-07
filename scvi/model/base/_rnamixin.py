@@ -1,11 +1,11 @@
 import logging
+import warnings
 from functools import partial
 from typing import Dict, Iterable, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
 import torch
-import warnings
 from anndata import AnnData
 
 from scvi import _CONSTANTS
