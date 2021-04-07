@@ -6,6 +6,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
+import warnings
 from anndata._core.sparse_dataset import SparseDataset
 from numba import boolean, float32, float64, int32, int64, vectorize
 

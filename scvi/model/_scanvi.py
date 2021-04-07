@@ -4,6 +4,7 @@ from typing import Optional, Sequence, Union
 import numpy as np
 import pandas as pd
 import torch
+import warnings
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 

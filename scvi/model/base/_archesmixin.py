@@ -2,6 +2,7 @@ import logging
 from typing import Optional, Union
 
 import torch
+import warnings
 from anndata import AnnData
 
 from scvi.data import transfer_anndata_setup

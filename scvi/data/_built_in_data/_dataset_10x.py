@@ -5,6 +5,7 @@ import tarfile
 from typing import Tuple
 
 import numpy as np
+import warnings
 
 from scvi.data._built_in_data._download import _download
 

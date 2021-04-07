@@ -9,6 +9,7 @@ import numpy as np
 import pyro
 import rich
 import torch
+import warnings
 from anndata import AnnData
 from rich.text import Text
 
