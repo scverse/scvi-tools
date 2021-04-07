@@ -50,6 +50,7 @@ extensions = [
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
     "sphinx_copybutton",
     "sphinx_gallery.load_style",
+    "sphinx_tabs.tabs",
 ]
 
 # nbsphinx specific settings
@@ -156,7 +157,7 @@ html_show_sphinx = False
 nbsphinx_prolog = r"""
 .. raw:: html
 
-{% set docname = env.doc2path(env.docname, base=None).split("/")[-1] %}
+{{% set docname = env.doc2path(env.docname, base=None).split("/")[-1] %}}
 
 .. raw:: html
 
@@ -164,12 +165,14 @@ nbsphinx_prolog = r"""
     <p class="admonition-title">Note</p>
     <p>
       This page was generated from
-      <a class="reference external" href="https://github.com/yoseflab/scvi-tutorials/">{{ docname|e }}</a>.
+      <a class="reference external" href="https://github.com/yoseflab/scvi-tutorials/tree/{version}/">{docname}</a>.
       Interactive online version:
-      <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/yoseflab/scvi_tutorials/blob/master/{{ docname|e }}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
+      <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/yoseflab/scvi_tutorials/blob/{version}/{docname}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
     </p>
     </div>
-"""
+""".format(
+    version=version, docname="{{ docname|e }}"
+)
 nbsphinx_thumbnails = {
     "user_guide/notebooks/data_loading": "_static/tutorials/anndata.svg",
     "user_guide/notebooks/api_overview": "_static/tutorials/overview.svg",
@@ -184,6 +187,8 @@ nbsphinx_thumbnails = {
     "user_guide/notebooks/scVI_DE_worm": "_static/tutorials/worm.png",
     "user_guide/notebooks/stereoscope_heart_LV_tutorial": "_static/tutorials/stereoscope.png",
     "user_guide/notebooks/seed_labeling": "_static/tutorials/seed.png",
+    "user_guide/notebooks/cellassign_tutorial": "_static/tutorials/cellassign.png",
+    "user_guide/notebooks/DestVI_tutorial": "_static/tutorials/destvi.png",
 }
 
 

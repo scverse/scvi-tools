@@ -1,170 +1,228 @@
+# -*- coding: utf-8 -*-
+import numpy as np
 import torch
-from torch.distributions import Categorical, Normal
+from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
-from scvi.module import Classifier
-from scvi.module._utils import broadcast_labels
-from scvi.nn import DecoderSCVI, Encoder
+from scvi import _CONSTANTS
+from scvi.distributions import NegativeBinomial
+from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.nn import Encoder, FCLayers
 
-from ._vae import VAE
+torch.backends.cudnn.benchmark = True
 
 
-class VAEC(VAE):
-    r"""
-    A semi-supervised Variational auto-encoder model - inspired from M2 model.
+# Conditional VAE model
+class VAEC(BaseModuleClass):
+    """
+    Conditional Variational auto-encoder model.
 
-    Described in (https://arxiv.org/pdf/1406.5298.pdf)
+    This is an implementation of the CondSCVI model
 
     Parameters
     ----------
-    n_input :
+    n_input
         Number of input genes
-    n_batch :
-        Number of batches
-    n_labels :
+    n_labels
         Number of labels
-    n_hidden :
+    n_hidden
         Number of nodes per hidden layer
-    n_latent :
+    n_latent
         Dimensionality of the latent space
-    n_layers :
+    n_layers
         Number of hidden layers used for encoder and decoder NNs
-    dropout_rate :
-        Dropout rate for neural networks
-    dispersion :
-        One of the following
-
-        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
-        * ``'gene-batch'`` - dispersion can differ between different batches
-        * ``'gene-label'`` - dispersion can differ between different labels
-        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
-    log_variational :
+    dropout_rate
+        Dropout rate for the encoder neural network
+    log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
-    gene_likelihood :
-        One of
-
-        * ``'nb'`` - Negative binomial distribution
-        * ``'zinb'`` - Zero-inflated negative binomial distribution
-    y_prior :
-        If None, initialized to uniform probability over cell types
-
-    Examples
-    --------
-    >>> gene_dataset = CortexDataset()
-    >>> vaec = VAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-    ... n_labels=gene_dataset.n_labels)
-
-    >>> gene_dataset = SyntheticDataset(n_labels=3)
-    >>> vaec = VAEC(gene_dataset.nb_genes, n_batch=gene_dataset.n_batches * False,
-    ... n_labels=3, y_prior=torch.tensor([[0.1,0.5,0.4]]))
-
     """
 
     def __init__(
         self,
-        n_input,
-        n_batch,
-        n_labels,
-        n_hidden=128,
-        n_latent=10,
-        n_layers=1,
-        dropout_rate=0.1,
-        y_prior=None,
-        dispersion="gene",
-        log_variational=True,
-        gene_likelihood="zinb",
+        n_input: int,
+        n_labels: int = 0,
+        n_hidden: int = 128,
+        n_latent: int = 5,
+        n_layers: int = 2,
+        dropout_rate: float = 0.1,
+        log_variational: bool = True,
+        ct_weight: np.ndarray = None,
+        **module_kwargs,
     ):
-        super().__init__(
-            n_input,
-            n_batch,
-            n_labels,
-            n_hidden=n_hidden,
-            n_latent=n_latent,
-            n_layers=n_layers,
-            dropout_rate=dropout_rate,
-            dispersion=dispersion,
-            log_variational=log_variational,
-            gene_likelihood=gene_likelihood,
-            use_observed_lib_size=False,
-        )
+        super().__init__()
+        self.dispersion = "gene"
+        self.n_latent = n_latent
+        self.n_layers = n_layers
+        self.n_hidden = n_hidden
+        self.log_variational = log_variational
+        self.gene_likelihood = "nb"
+        self.latent_distribution = "normal"
+        # Automatically deactivate if useless
+        self.n_batch = 0
+        self.n_labels = n_labels
 
+        # gene dispersion
+        self.px_r = torch.nn.Parameter(torch.randn(n_input))
+
+        # z encoder goes from the n_input-dimensional data to an n_latent-d
         self.z_encoder = Encoder(
             n_input,
             n_latent,
-            n_cat_list=[n_batch, n_labels],
-            n_hidden=n_hidden,
+            n_cat_list=[n_labels],
             n_layers=n_layers,
+            n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            inject_covariates=True,
+            use_batch_norm=False,
+            use_layer_norm=True,
         )
-        self.decoder = DecoderSCVI(
-            n_latent,
-            n_input,
-            n_cat_list=[n_batch, n_labels],
+
+        # decoder goes from n_latent-dimensional space to n_input-d data
+        self.decoder = FCLayers(
+            n_in=n_latent,
+            n_out=n_hidden,
+            n_cat_list=[n_labels],
             n_layers=n_layers,
             n_hidden=n_hidden,
+            dropout_rate=0,
+            inject_covariates=True,
+            use_batch_norm=False,
+            use_layer_norm=True,
+        )
+        self.px_decoder = torch.nn.Sequential(
+            torch.nn.Linear(n_hidden, n_input), torch.nn.Softplus()
         )
 
-        self.y_prior = torch.nn.Parameter(
-            y_prior
-            if y_prior is not None
-            else (1 / n_labels) * torch.ones(1, n_labels),
-            requires_grad=False,
+        if ct_weight is not None:
+            ct_weight = torch.tensor(ct_weight, dtype=torch.float32)
+        else:
+            ct_weight = torch.ones((self.n_labels,), dtype=torch.float32)
+        self.register_buffer("ct_weight", ct_weight)
+
+    def _get_inference_input(self, tensors):
+        x = tensors[_CONSTANTS.X_KEY]
+        y = tensors[_CONSTANTS.LABELS_KEY]
+
+        input_dict = dict(
+            x=x,
+            y=y,
         )
+        return input_dict
 
-        self.classifier = Classifier(
-            n_input, n_hidden, n_labels, n_layers=n_layers, dropout_rate=dropout_rate
-        )
+    def _get_generative_input(self, tensors, inference_outputs):
+        z = inference_outputs["z"]
+        library = inference_outputs["library"]
+        y = tensors[_CONSTANTS.LABELS_KEY]
 
-    def classify(self, x, batch_index=None):
-        x = torch.log(1 + x)
-        return self.classifier(x)
+        input_dict = {
+            "z": z,
+            "library": library,
+            "y": y,
+        }
+        return input_dict
 
-    def forward(self, x, local_l_mean, local_l_var, batch_index=None, y=None):
-        is_labelled = False if y is None else True
+    @auto_move_data
+    def inference(self, x, y, n_samples=1):
+        """
+        High level inference method.
 
-        # Prepare for sampling
-        x_ = torch.log(1 + x)
-        ql_m, ql_v, library = self.l_encoder(x_, batch_index)
+        Runs the inference (encoder) model.
+        """
+        x_ = x
+        library = torch.log(x.sum(1)).unsqueeze(1)
+        if self.log_variational:
+            x_ = torch.log(1 + x_)
 
-        # Enumerate choices of label
-        ys, xs, library_s, batch_index_s = broadcast_labels(
-            y, x, library, batch_index, n_broadcast=self.n_labels
-        )
+        qz_m, qz_v, z = self.z_encoder(x_, y)
 
-        # Sampling
-        outputs = self.inference(xs, batch_index_s, ys)
-        px_r = outputs["px_r"]
-        px_rate = outputs["px_rate"]
-        px_dropout = outputs["px_dropout"]
-        qz_m = outputs["qz_m"]
-        qz_v = outputs["qz_v"]
-        reconst_loss = self.get_reconstruction_loss(xs, px_rate, px_r, px_dropout)
+        if n_samples > 1:
+            qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
+            qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
+            # when z is normal, untran_z == z
+            untran_z = Normal(qz_m, qz_v.sqrt()).sample()
+            z = self.z_encoder.z_transformation(untran_z)
+            library = library.unsqueeze(0).expand(
+                (n_samples, library.size(0), library.size(1))
+            )
 
-        # KL Divergence
+        outputs = dict(z=z, qz_m=qz_m, qz_v=qz_v, library=library)
+        return outputs
+
+    @auto_move_data
+    def generative(self, z, library, y):
+        """Runs the generative model."""
+        h = self.decoder(z, y)
+        px_scale = self.px_decoder(h)
+        px_rate = library * px_scale
+
+        return dict(px_scale=px_scale, px_r=self.px_r, px_rate=px_rate)
+
+    def loss(
+        self,
+        tensors,
+        inference_outputs,
+        generative_outputs,
+        kl_weight: float = 1.0,
+    ):
+        x = tensors[_CONSTANTS.X_KEY]
+        y = tensors[_CONSTANTS.LABELS_KEY]
+        qz_m = inference_outputs["qz_m"]
+        qz_v = inference_outputs["qz_v"]
+        px_rate = generative_outputs["px_rate"]
+        px_r = generative_outputs["px_r"]
+
         mean = torch.zeros_like(qz_m)
         scale = torch.ones_like(qz_v)
 
         kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
             dim=1
         )
-        kl_divergence_l = kl(
-            Normal(ql_m, torch.sqrt(ql_v)),
-            Normal(local_l_mean, torch.sqrt(local_l_var)),
-        ).sum(dim=1)
 
-        if is_labelled:
-            return reconst_loss, kl_divergence_z + kl_divergence_l, 0.0
+        reconst_loss = -NegativeBinomial(px_rate, logits=px_r).log_prob(x).sum(-1)
+        scaling_factor = self.ct_weight[y.long()[:, 0]]
+        loss = torch.mean(scaling_factor * (reconst_loss + kl_weight * kl_divergence_z))
 
-        reconst_loss = reconst_loss.view(self.n_labels, -1)
+        return LossRecorder(loss, reconst_loss, kl_divergence_z, 0.0)
 
-        probs = self.classifier(x_)
-        reconst_loss = (reconst_loss.t() * probs).sum(dim=1)
+    @torch.no_grad()
+    def sample(
+        self,
+        tensors,
+        n_samples=1,
+    ) -> np.ndarray:
+        r"""
+        Generate observation samples from the posterior predictive distribution.
 
-        kl_divergence = (kl_divergence_z.view(self.n_labels, -1).t() * probs).sum(dim=1)
-        kl_divergence += kl(
-            Categorical(probs=probs),
-            Categorical(probs=self.y_prior.repeat(probs.size(0), 1)),
-        )
-        kl_divergence += kl_divergence_l
+        The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
 
-        return reconst_loss, kl_divergence, 0.0
+        Parameters
+        ----------
+        tensors
+            Tensors dict
+        n_samples
+            Number of required samples for each cell
+
+        Returns
+        -------
+        x_new : :py:class:`torch.Tensor`
+            tensor with shape (n_cells, n_genes, n_samples)
+        """
+        inference_kwargs = dict(n_samples=n_samples)
+        generative_outputs = self.forward(
+            tensors,
+            inference_kwargs=inference_kwargs,
+            compute_loss=False,
+        )[1]
+
+        px_r = generative_outputs["px_r"]
+        px_rate = generative_outputs["px_rate"]
+
+        dist = NegativeBinomial(px_rate, logits=px_r)
+        if n_samples > 1:
+            exprs = dist.sample().permute(
+                [1, 2, 0]
+            )  # Shape : (n_cells_batch, n_genes, n_samples)
+        else:
+            exprs = dist.sample()
+
+        return exprs.cpu()
