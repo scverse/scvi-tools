@@ -97,7 +97,7 @@ class RNASeqMixin:
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
-                logger.warning(
+                warnings.warn(
                     "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
                 )
             return_numpy = True

@@ -89,7 +89,7 @@ class ArchesMixin:
         _validate_var_names(adata, var_names)
 
         if scvi_setup_dict["scvi_version"] < "0.8":
-            logger.warning(
+            warnings.warn(
                 "Query integration should be performed using models trained with version >= 0.8"
             )
 

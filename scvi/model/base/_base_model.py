@@ -143,7 +143,7 @@ class BaseModelClass(ABC):
             get_from_registry(adata, _CONSTANTS.X_KEY)
         )
         if not is_nonneg_int:
-            logger.warning(
+            warnings.warn(
                 "Make sure the registered X field in anndata contains unnormalized count data."
             )
 
