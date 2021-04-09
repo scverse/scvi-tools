@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Optional, Sequence, Union
 
 import numpy as np
@@ -168,7 +169,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             kwargs for scanVI model
         """
         if scvi_model.is_trained_ is False:
-            logger.warning("Passed in scvi model hasn't been trained yet.")
+            warnings.warn("Passed in scvi model hasn't been trained yet.")
 
         scanvi_kwargs = dict(scanvi_kwargs)
         init_params = scvi_model.init_params_
@@ -177,7 +178,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         for k, v in {**non_kwargs, **kwargs}.items():
             if k in scanvi_kwargs.keys():
-                logger.warning(
+                warnings.warn(
                     "Ignoring param '{}' as it was already passed in to ".format(k)
                     + "pretrained scvi model with value {}.".format(v)
                 )

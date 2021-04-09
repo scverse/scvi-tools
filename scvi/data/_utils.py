@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Tuple, Union
 
 import anndata
@@ -18,7 +19,7 @@ def _compute_library_size(
     sum_counts = data.sum(axis=1)
     masked_log_sum = np.ma.log(sum_counts)
     if np.ma.is_masked(masked_log_sum):
-        logger.warning(
+        warnings.warn(
             "This dataset has some empty cells, this might fail inference."
             "Data should be filtered with `scanpy.pp.filter_cells()`"
         )

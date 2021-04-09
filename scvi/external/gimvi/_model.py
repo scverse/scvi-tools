@@ -1,6 +1,7 @@
 import logging
 import os
 import pickle
+import warnings
 from itertools import cycle
 from typing import List, Optional, Union
 
@@ -468,7 +469,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             saved_var_names = var_names[i]
             user_var_names = adata.var_names.astype(str)
             if not np.array_equal(saved_var_names, user_var_names):
-                logger.warning(
+                warnings.warn(
                     "var_names for adata passed in does not match var_names of "
                     "adata used to train the model. For valid results, the vars "
                     "need to be the same and in the same order as the adata used to train the model."
