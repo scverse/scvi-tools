@@ -104,10 +104,6 @@ class TrainingPlan(pl.LightningModule):
         """Passthrough to `model.forward()`."""
         return self.module(*args, **kwargs)
 
-    def return_and_log_loss(self):
-        """Log loss and return dictionary of metrics."""
-        pass
-
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
@@ -141,6 +137,7 @@ class TrainingPlan(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         reconstruction_loss = scvi_loss.reconstruction_loss
+        self.log("validation_loss", scvi_loss.loss, on_epoch=True)
         return {
             "reconstruction_loss_sum": reconstruction_loss.sum(),
             "kl_local_sum": scvi_loss.kl_local.sum(),
@@ -527,7 +524,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         reconstruction_loss = scvi_losses.reconstruction_loss
-
+        self.log("validation_loss", loss, on_epoch=True)
         loss_dict = {
             "loss": loss,
             "reconstruction_loss_sum": reconstruction_loss.sum(),
