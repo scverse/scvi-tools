@@ -4,6 +4,7 @@ import tarfile
 import anndata
 import numpy as np
 import pytest
+from pytorch_lightning.callbacks import GPUStatsMonitor
 from scipy.sparse import csr_matrix
 
 import scvi
@@ -161,6 +162,13 @@ def test_scvi(save_path):
     # test get_likelihood_parameters() when dispersion=='gene-cell'
     model = SCVI(adata, dispersion="gene-cell")
     model.get_likelihood_parameters()
+
+    # test train callbacks work
+    a = synthetic_iid()
+    m = scvi.model.SCVI(a)
+    gpu_stats = GPUStatsMonitor()
+    m.train(callbacks=[gpu_stats], max_epochs=1, log_every_n_steps=1)
+    assert "gpu_id: 0/utilization.gpu (%)" in m.history.keys()
 
 
 def test_scvi_sparse(save_path):
