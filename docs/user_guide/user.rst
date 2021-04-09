@@ -39,6 +39,7 @@ Tutorials
    notebooks/AutoZI_tutorial
    notebooks/cellassign_tutorial
    notebooks/DestVI_tutorial
+   notebooks/PeakVI
 
 
 Contributed tutorials
