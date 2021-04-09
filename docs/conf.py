@@ -189,6 +189,7 @@ nbsphinx_thumbnails = {
     "user_guide/notebooks/seed_labeling": "_static/tutorials/seed.png",
     "user_guide/notebooks/cellassign_tutorial": "_static/tutorials/cellassign.png",
     "user_guide/notebooks/DestVI_tutorial": "_static/tutorials/destvi.png",
+    "user_guide/notebooks/PeakVI": "_static/tutorials/peakvi.png",
 }
 
 
