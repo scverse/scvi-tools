@@ -69,6 +69,9 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
             self.m_g_gene_level_prior["mean"] / self.m_g_gene_level_prior["sd"] ** 2
         )
         # self.m_g_mean_var = torch.tensor(self.m_g_gene_level_prior["mean_var_ratio"])
+        self.register_buffer(
+            "m_g_mean_var", torch.tensor(self.m_g_gene_level_prior["mean_var_ratio"])
+        )
         # self.m_g_shape = torch.tensor(self.m_g_shape)
         # self.m_g_rate = torch.tensor(self.m_g_rate)
 
@@ -87,13 +90,14 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         #    cell_number_prior[k] = np.array(cell_number_prior[k]).reshape((1, 1))
         self.cell_number_prior = cell_number_prior
 
-        device = torch.device("cuda")
-        self.cell_state_mat = cell_state_mat
-        # self.register_buffer("cell_state", torch.tensor(cell_state_mat.T))
-        self.cell_state = torch.tensor(cell_state_mat.T).to(device)
-        # self.register_buffer("ones", torch.ones((1, 1)))
-        self.ones = torch.ones((1, 1)).to(device)
-        self.ones_n_comb_1_1 = torch.ones([self.n_comb, 1, 1]).to(device)
+        # device = torch.device("cuda")
+        # self.cell_state_mat = cell_state_mat
+        self.register_buffer("cell_state", torch.tensor(cell_state_mat.T))
+        # self.cell_state = torch.tensor(cell_state_mat.T).to(device)
+        self.register_buffer("ones", torch.ones((1, 1)))
+        # self.ones = torch.ones((1, 1)).to(device)
+        self.register_buffer("ones_n_comb_1_1", torch.ones([self.n_comb, 1, 1]))
+        # self.ones_n_comb_1_1 = torch.ones([self.n_comb, 1, 1]).to(device)
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
@@ -141,18 +145,16 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         m_g_alpha_hyp = pyro.sample(
             "m_g_alpha_hyp",
             dist.Gamma(
-                self.ones
-                * self.m_g_shape
-                * self.m_g_gene_level_prior["mean_var_ratio"],
-                self.ones * self.m_g_gene_level_prior["mean_var_ratio"],
+                self.ones * self.m_g_shape * self.m_g_mean_var,
+                self.ones * self.m_g_mean_var,
             ),
         )
 
         m_g_beta_hyp = pyro.sample(
             "m_g_beta_hyp",
             dist.Gamma(
-                self.ones * self.m_g_rate * self.m_g_gene_level_prior["mean_var_ratio"],
-                self.ones * self.m_g_gene_level_prior["mean_var_ratio"],
+                self.ones * self.m_g_rate * self.m_g_mean_var,
+                self.ones * self.m_g_mean_var,
             ),
         )
         with var_axis:
