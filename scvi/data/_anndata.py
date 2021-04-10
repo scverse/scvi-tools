@@ -298,7 +298,7 @@ def _verify_and_correct_data_format(adata, data_registry):
     for k in keys:
         data = get_from_registry(adata, k)
         if isspmatrix(data) and (data.getformat() != "csr"):
-            logger.warning(
+            warnings.warn(
                 "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast before model initialization."
             )
         elif isinstance(data, np.ndarray) and (data.flags["C_CONTIGUOUS"] is False):
@@ -1229,7 +1229,7 @@ def _needs_transfer(mapping1, mapping2, category):
         needs_transfer = False
     elif _is_similar_mapping(mapping1, mapping2):
         needs_transfer = True
-        logger.warning(warning_msg.format(category, mapping1, mapping2))
+        warnings.warn(warning_msg.format(category, mapping1, mapping2))
     else:
         raise ValueError(error_msg.format(category, mapping1, mapping2))
     return needs_transfer

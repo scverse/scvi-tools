@@ -2,9 +2,11 @@ import logging
 from typing import Dict, List, Union
 
 import anndata
+import h5py
 import numpy as np
 import pandas as pd
 import torch
+from anndata._core.sparse_dataset import SparseDataset
 from torch.utils.data import Dataset
 
 from scvi.data._anndata import get_from_registry
@@ -96,6 +98,20 @@ class AnnTorchDataset(Dataset):
         data_numpy = {}
         for key, dtype in self.attributes_and_types.items():
             data = self.data[key]
+            # for backed anndata
+            if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
+                # need to sort idxs for h5py datasets
+                if hasattr(idx, "shape"):
+                    argsort = np.argsort(idx)
+                else:
+                    argsort = idx
+                data = data[idx[argsort]]
+                # now unsort
+                i = np.empty_like(argsort)
+                i[argsort] = np.arange(argsort.size)
+                # this unsorts it
+                idx = i
+
             if isinstance(data, np.ndarray):
                 data_numpy[key] = data[idx].astype(dtype)
             elif isinstance(data, pd.DataFrame):

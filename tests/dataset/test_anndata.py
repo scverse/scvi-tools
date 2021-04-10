@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import scipy.sparse as sparse
+from scipy.sparse.csr import csr_matrix
 
 import scvi
 from scvi import _CONSTANTS
@@ -395,3 +396,27 @@ def test_saving(save_path):
     )
     adata.write(save_path)
     anndata.read(save_path)
+
+
+def test_backed_anndata(save_path):
+    adata = scvi.data.synthetic_iid()
+    path = os.path.join(save_path, "test_data.h5ad")
+    adata.write_h5ad(path)
+    adata = anndata.read_h5ad(path, backed="r+")
+    setup_anndata(adata, batch_key="batch")
+
+    # test get item
+    bd = AnnTorchDataset(adata)
+    bd[np.arange(adata.n_obs)]
+
+    # sparse
+    adata = scvi.data.synthetic_iid()
+    adata.X = csr_matrix(adata.X)
+    path = os.path.join(save_path, "test_data2.h5ad")
+    adata.write_h5ad(path)
+    adata = anndata.read_h5ad(path, backed="r+")
+    setup_anndata(adata, batch_key="batch")
+
+    # test get item
+    bd = AnnTorchDataset(adata)
+    bd[np.arange(adata.n_obs)]

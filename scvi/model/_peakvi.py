@@ -83,6 +83,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
         deeply_inject_covariates: bool = False,
+        encode_covariates: bool = False,
         **model_kwargs,
     ):
         super(PEAKVI, self).__init__(adata)
@@ -109,11 +110,13 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             use_layer_norm=use_layer_norm,
             latent_distribution=latent_distribution,
             deeply_inject_covariates=deeply_inject_covariates,
+            encode_covariates=encode_covariates,
             **model_kwargs,
         )
         self._model_summary_string = (
             "PeakVI Model with params: \nn_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
-            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}"
+            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}, "
+            "encode_covariates: {}"
         ).format(
             self.module.n_hidden,
             self.module.n_latent,
@@ -122,6 +125,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             dropout_rate,
             latent_distribution,
             deeply_inject_covariates,
+            encode_covariates,
         )
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())
@@ -137,6 +141,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         weight_decay: float = 1e-3,
         eps: float = 1e-08,
         early_stopping: bool = True,
+        early_stopping_patience: int = 50,
         save_best: bool = True,
         check_val_every_n_epoch: Optional[int] = None,
         n_steps_kl_warmup: Union[int, None] = None,
@@ -169,6 +174,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Optimizer eps
         early_stopping
             Whether to perform early stopping with respect to the validation set.
+        early_stopping_patience
+            How many epochs to wait for improvement before early stopping
         save_best
             Save the best model state with respect to the validation loss (default), or use the final
             state in the training procedure
@@ -214,7 +221,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             validation_size=validation_size,
             early_stopping=early_stopping,
             early_stopping_monitor="reconstruction_loss_validation",
-            early_stopping_patience=50,
+            early_stopping_patience=early_stopping_patience,
             plan_kwargs=plan_kwargs,
             check_val_every_n_epoch=check_val_every_n_epoch,
             batch_size=batch_size,
@@ -252,6 +259,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self,
         adata: Optional[AnnData] = None,
         indices: Sequence[int] = None,
+        region_indices: Sequence[int] = None,
         transform_batch: Optional[Union[str, int]] = None,
         use_z_mean: bool = True,
         threshold: Optional[float] = None,
@@ -272,6 +280,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
+        region_indices
+            Indices of regions to use. if `None`, all regions are used.
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -323,6 +333,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if threshold:
                 p[p < threshold] = 0
                 p = csr_matrix(p.numpy())
+            if region_indices is not None:
+                p = p[:, region_indices]
             imputed.append(p)
 
         if threshold:  # imputed is a list of csr_matrix objects
@@ -344,7 +356,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
         mode: Literal["vanilla", "change"] = "change",
-        delta: float = 0.1,
+        delta: float = 0.05,
         batch_size: Optional[int] = None,
         all_stats: bool = True,
         batch_correction: bool = False,
@@ -440,9 +452,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         result = pd.DataFrame(
             {
                 "prob_da": result.proba_de,
-                "is_da_fdr_{}".format(fdr_target): result.loc[
-                    :, "is_de_fdr_{}".format(fdr_target)
-                ],
+                "is_da_fdr": result.loc[:, "is_de_fdr_{}".format(fdr_target)],
                 "bayes_factor": result.bayes_factor,
                 "effect_size": result.scale2 - result.scale1,
                 "emp_effect": result.emp_mean2 - result.emp_mean1,
@@ -452,6 +462,4 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 "emp_prob2": result.emp_mean2,
             },
         )
-        result.index = result.index.astype(int)
-        result.sort_index(inplace=True)
-        return result
+        return result.reindex(adata.var.index)

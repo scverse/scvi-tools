@@ -2,9 +2,10 @@ import io
 import logging
 import warnings
 from contextlib import redirect_stdout
-from typing import Optional, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
+import pandas as pd
 import torch
 from anndata import AnnData
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
@@ -42,6 +43,18 @@ class SOLO(BaseModelClass):
 
     Examples
     --------
+    In the case of scVI trained with multiple batches:
+
+    >>> adata = anndata.read_h5ad(path_to_anndata)
+    >>> scvi.data.setup_anndata(adata, batch_key="batch")
+    >>> vae = scvi.model.SCVI(adata)
+    >>> vae.train()
+    >>> solo_batch_1 = scvi.external.SOLO.from_scvi_model(vae, restrict_to_batch="batch 1")
+    >>> solo_batch_1.train()
+    >>> solo_batch_1.predict()
+
+    Otherwise:
+
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.data.setup_anndata(adata)
     >>> vae = scvi.model.SCVI(adata)
@@ -49,6 +62,14 @@ class SOLO(BaseModelClass):
     >>> solo = scvi.external.SOLO.from_scvi_model(vae)
     >>> solo.train()
     >>> solo.predict()
+
+    Notes
+    -----
+    Solo should be trained on one lane of data at a time. An
+    :class:`~scvi.model.SCVI` instance that was trained with multiple
+    batches can be used as input, but Solo should be created and run
+    multiple times, each with a new `restrict_to_batch` in
+    :func:`~scvi.external.SOLO.from_scvi_model`.
     """
 
     def __init__(
@@ -70,42 +91,86 @@ class SOLO(BaseModelClass):
         self.init_params_ = self._get_init_params(locals())
 
     @classmethod
-    def from_scvi_model(cls, scvi_model: SCVI, adata: Optional[AnnData] = None):
+    def from_scvi_model(
+        cls,
+        scvi_model: SCVI,
+        adata: Optional[AnnData] = None,
+        restrict_to_batch: Optional[str] = None,
+    ):
         """
         Instantiate a SOLO model from an scvi model.
 
         Parameters
         ----------
         scvi_model
-            Pre-trained model of :class:`~scvi.model.SCVI`. This model
-            should have been trained on data comprising one lane. The
+            Pre-trained model of :class:`~scvi.model.SCVI`. The
             adata object used to initialize this model should have only
-            been setup with count data, i.e., no `batch_key`,
-            `labels_key`, etc.
+            been setup with count data, and optionally a `batch_key`;
+            i.e., no extra covariates or labels, etc.
         adata
             Optional anndata to use that is compatible with scvi_model.
+        restrict_to_batch
+            Batch category in `batch_key` used to setup adata for scvi_model
+            to restrict Solo model to. This allows to train a Solo model on
+            one batch of a scvi_model that was trained on multiple batches.
 
         Returns
         -------
         SOLO model
         """
-        _validate_scvi_model(scvi_model)
-        doublet_adata = cls.create_doublets(scvi_model.adata)
+        _validate_scvi_model(scvi_model, restrict_to_batch=restrict_to_batch)
+        orig_adata = scvi_model.adata
+        orig_batch_key = scvi_model.scvi_setup_dict_["categorical_mappings"][
+            "_scvi_batch"
+        ]["original_key"]
+
+        if restrict_to_batch is not None:
+            batch_mask = orig_adata.obs[orig_batch_key] == restrict_to_batch
+            if np.sum(batch_mask) == 0:
+                raise ValueError(
+                    "Batch category given to restrict_to_batch not found.\n"
+                    + "Available categories: {}".format(
+                        orig_adata.obs[orig_batch_key].astype("category").cat.categories
+                    )
+                )
+            # indices in adata with restrict_to_batch category
+            batch_indices = np.where(batch_mask)[0]
+        else:
+            # use all indices
+            batch_indices = None
+
+        # anndata with only generated doublets
+        doublet_adata = cls.create_doublets(orig_adata, indices=batch_indices)
+        # if scvi wasn't trained with batch correction having the
+        # zeros here does nothing.
+        doublet_adata.obs[orig_batch_key] = (
+            restrict_to_batch if restrict_to_batch is not None else 0
+        )
 
         # if model is using observed lib size, needs to get lib sample
         # which is just observed lib size on log scale
         give_mean_lib = not scvi_model.module.use_observed_lib_size
 
         # get latent representations and make input anndata
-        latent_rep = scvi_model.get_latent_representation()
-        lib_size = scvi_model.get_latent_library_size(give_mean=give_mean_lib)
+        latent_rep = scvi_model.get_latent_representation(
+            orig_adata, indices=batch_indices
+        )
+        lib_size = scvi_model.get_latent_library_size(
+            orig_adata, indices=batch_indices, give_mean=give_mean_lib
+        )
         latent_adata = AnnData(np.concatenate([latent_rep, lib_size], axis=1))
         latent_adata.obs[LABELS_KEY] = "singlet"
+        orig_obs_names = orig_adata.obs_names
+        latent_adata.obs_names = (
+            orig_obs_names[batch_indices]
+            if batch_indices is not None
+            else orig_obs_names
+        )
 
         logger.info("Creating doublets, preparing SOLO model.")
         f = io.StringIO()
         with redirect_stdout(f):
-            setup_anndata(doublet_adata)
+            setup_anndata(doublet_adata, batch_key=orig_batch_key)
             doublet_latent_rep = scvi_model.get_latent_representation(doublet_adata)
             doublet_lib_size = scvi_model.get_latent_library_size(
                 doublet_adata, give_mean=give_mean_lib
@@ -121,16 +186,35 @@ class SOLO(BaseModelClass):
 
     @staticmethod
     def create_doublets(
-        adata: AnnData, seed: int = 1, doublet_ratio: int = 2
+        adata: AnnData,
+        indices: Optional[Sequence[int]] = None,
+        seed: int = 1,
+        doublet_ratio: int = 2,
     ) -> AnnData:
-        """Simulate doublets."""
-        num_doublets = doublet_ratio * adata.n_obs
+        """Simulate doublets.
+
+        Parameters
+        ----------
+        adata
+            AnnData object setup with :func:`~scvi.data.setup_anndata`.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        seed
+            Seed for reproducibility
+        doublet_ratio
+            Ratio of generated doublets to produce relative to number of
+            cells in adata or length of indices, if not `None`.
+        """
+        n_obs = adata.n_obs if indices is None else len(indices)
+        num_doublets = doublet_ratio * n_obs
 
         # counts can be in many locations, this uses where it was registered in setup
         x = get_from_registry(adata, _CONSTANTS.X_KEY)
+        if indices is not None:
+            x = x[indices]
 
-        # TODO: needs a random state so it's reproducible
-        parent_inds = np.random.choice(adata.n_obs, size=(num_doublets, 2))
+        random_state = np.random.RandomState(seed=seed)
+        parent_inds = random_state.choice(n_obs, size=(num_doublets, 2))
         doublets = x[parent_inds[:, 0]] + x[parent_inds[:, 1]]
 
         doublets_ad = AnnData(doublets)
@@ -234,7 +318,7 @@ class SOLO(BaseModelClass):
         return runner()
 
     @torch.no_grad()
-    def predict(self, soft: bool = True):
+    def predict(self, soft: bool = True) -> pd.DataFrame:
         """
         Return doublet predictions.
 
@@ -242,6 +326,10 @@ class SOLO(BaseModelClass):
         ----------
         soft
             Return probabilities instead of class label
+
+        Returns
+        -------
+        DataFrame with prediction, index corresponding to cell barcode.
         """
         adata = self._validate_anndata(None)
 
@@ -257,20 +345,29 @@ class SOLO(BaseModelClass):
         for _, tensors in enumerate(scdl):
             x = tensors[_CONSTANTS.X_KEY]
             pred = auto_forward(self.module, x)
-            if not soft:
-                pred = pred.argmax(dim=1)
             y_pred.append(pred.cpu())
 
         y_pred = torch.cat(y_pred).numpy()
 
-        # TODO: make it a dataframe with nice columns
+        label = self.adata.obs["_solo_doub_sim"].values.ravel()
+        singlet_mask = label == "singlet"
+        preds = y_pred[singlet_mask]
+        cols = self.adata.uns["_scvi"]["categorical_mappings"]["_scvi_labels"][
+            "mapping"
+        ]
+        preds_df = pd.DataFrame(
+            preds, columns=cols, index=self.adata.obs_names[singlet_mask]
+        )
 
-        return y_pred
+        if soft:
+            preds_df = preds_df.idxmax(axis=1)
+
+        return preds_df
 
 
-def _validate_scvi_model(scvi_model: SCVI):
-    if scvi_model.summary_stats["n_batch"] > 1:
+def _validate_scvi_model(scvi_model: SCVI, restrict_to_batch: str):
+    if scvi_model.summary_stats["n_batch"] > 1 and restrict_to_batch is None:
         warnings.warn(
-            "The SCVI model should only be trained on one lane of data. Performance may suffer.",
+            "Solo should only be trained on one lane of data using `restrict_to_batch`. Performance may suffer.",
             UserWarning,
         )
