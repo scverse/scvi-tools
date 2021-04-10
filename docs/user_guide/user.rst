@@ -37,6 +37,9 @@ Tutorials
    notebooks/scarches_scvi_tools
    notebooks/gimvi_tutorial
    notebooks/AutoZI_tutorial
+   notebooks/cellassign_tutorial
+   notebooks/DestVI_tutorial
+   notebooks/PeakVI
 
 
 Contributed tutorials

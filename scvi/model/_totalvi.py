@@ -1,4 +1,5 @@
 import logging
+import warnings
 from collections.abc import Iterable as IterableClass
 from functools import partial
 from typing import Dict, Iterable, Optional, Sequence, Tuple, TypeVar, Union
@@ -301,7 +302,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             else:
                 library = outputs["library_gene"]
             libraries += [library.cpu()]
-        return np.array(torch.cat(libraries))
+        return torch.cat(libraries).numpy()
 
     @torch.no_grad()
     def get_normalized_expression(
@@ -397,7 +398,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
-                logger.warning(
+                warnings.warn(
                     "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
                 )
             return_numpy = True
@@ -555,7 +556,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
-                logger.warning(
+                warnings.warn(
                     "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
                 )
             return_numpy = True
@@ -1007,7 +1008,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 raise ValueError(error_msg.format("proteins"))
             is_nonneg_int = _check_nonnegative_integers(pro_exp)
             if not is_nonneg_int:
-                logger.warning(
+                warnings.warn(
                     "Make sure the registered protein expression in anndata contains unnormalized count data."
                 )
         else:
@@ -1025,7 +1026,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for tensors in scdl:
             _, inference_outputs, _ = self.module.forward(tensors)
             b_mean = inference_outputs["py_"]["rate_back"]
-            background_mean += [np.array(b_mean.cpu())]
+            background_mean += [b_mean.cpu().numpy()]
         return np.concatenate(background_mean)
 
 

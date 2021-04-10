@@ -80,10 +80,12 @@ Existing module classes with respective generative and inference procedures.
    module.AutoZIVAE
    module.Classifier
    module.LDVAE
+   module.MRDeconv
    module.PEAKVI
    module.SCANVAE
    module.TOTALVAE
    module.VAE
+   module.VAEC
 
 
 External module

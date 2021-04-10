@@ -128,7 +128,7 @@ $ poetry version preversion # possible: major / minor / patch
 $ poetry build
 $ poetry publish
 
-This will upload `scvi-tools` to PyPi
+This will upload `scvi-tools` to PyPi. Also be sure to add a tag corresponding to the new version number on the tutorials repo, as the tagged repo is used for the Colab links.
 
 
 Instructions on Uploading to conda

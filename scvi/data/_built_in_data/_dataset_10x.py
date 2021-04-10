@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 import tarfile
+import warnings
 from typing import Tuple
 
 import numpy as np
@@ -92,9 +93,9 @@ def _load_dataset_10x(
     # form data url and filename unless manual override
     if dataset_name is not None:
         if url is not None:
-            logger.warning("dataset_name provided, manual url is disregarded.")
+            warnings.warn("dataset_name provided, manual url is disregarded.")
         if filename is not None:
-            logger.warning("dataset_name provided, manual filename is disregarded.")
+            warnings.warn("dataset_name provided, manual filename is disregarded.")
         group = dataset_to_group[dataset_name]
         url_skeleton = group_to_url_skeleton[group]
 

@@ -1,4 +1,6 @@
 from ._autozi import AUTOZI
+from ._condscvi import CondSCVI
+from ._destvi import DestVI
 from ._linear_scvi import LinearSCVI
 from ._peakvi import PEAKVI
 from ._scanvi import SCANVI
@@ -12,4 +14,6 @@ __all__ = [
     "AUTOZI",
     "SCANVI",
     "PEAKVI",
+    "CondSCVI",
+    "DestVI",
 ]
