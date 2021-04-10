@@ -9,9 +9,12 @@ from pyro.nn import PyroModule
 from tqdm.auto import tqdm
 
 from scvi import _CONSTANTS
-from scvi.compose import PyroBaseModuleClass
+
+# from scvi.train import PyroTrainingPlan, Trainer
 from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_logits
-from scvi.nn import one_hot
+from scvi.module.base import PyroBaseModuleClass
+
+# from scvi.nn import one_hot
 
 
 class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
@@ -65,9 +68,9 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         self.m_g_rate = (
             self.m_g_gene_level_prior["mean"] / self.m_g_gene_level_prior["sd"] ** 2
         )
-        self.m_g_mean_var = torch.tensor(self.m_g_gene_level_prior["mean_var_ratio"])
-        self.m_g_shape = torch.tensor(self.m_g_shape)
-        self.m_g_rate = torch.tensor(self.m_g_rate)
+        # self.m_g_mean_var = torch.tensor(self.m_g_gene_level_prior["mean_var_ratio"])
+        # self.m_g_shape = torch.tensor(self.m_g_shape)
+        # self.m_g_rate = torch.tensor(self.m_g_rate)
 
         self.alpha_g_phi_hyp_prior = alpha_g_phi_hyp_prior
         self.w_sf_mean_var_ratio = w_sf_mean_var_ratio
@@ -84,11 +87,13 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         #    cell_number_prior[k] = np.array(cell_number_prior[k]).reshape((1, 1))
         self.cell_number_prior = cell_number_prior
 
+        device = torch.device("cuda")
         self.cell_state_mat = cell_state_mat
         # self.register_buffer("cell_state", torch.tensor(cell_state_mat.T))
-        self.cell_state = torch.tensor(cell_state_mat.T)
+        self.cell_state = torch.tensor(cell_state_mat.T).to(device)
         # self.register_buffer("ones", torch.ones((1, 1)))
-        self.ones = torch.ones((1, 1))
+        self.ones = torch.ones((1, 1)).to(device)
+        self.ones_n_comb_1_1 = torch.ones([self.n_comb, 1, 1]).to(device)
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
@@ -120,7 +125,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
 
     def forward(self, x_data, idx, batch_index):
 
-        obs2sample = one_hot(batch_index, self.n_exper)
+        obs2sample = batch_index  # one_hot(batch_index, self.n_exper)
 
         (
             obs_axis,
@@ -136,14 +141,18 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         m_g_alpha_hyp = pyro.sample(
             "m_g_alpha_hyp",
             dist.Gamma(
-                self.ones * self.m_g_shape * self.m_g_mean_var, self.m_g_mean_var
+                self.ones
+                * self.m_g_shape
+                * self.m_g_gene_level_prior["mean_var_ratio"],
+                self.ones * self.m_g_gene_level_prior["mean_var_ratio"],
             ),
         )
 
         m_g_beta_hyp = pyro.sample(
             "m_g_beta_hyp",
             dist.Gamma(
-                self.ones * self.m_g_rate * self.m_g_mean_var, self.m_g_mean_var
+                self.ones * self.m_g_rate * self.m_g_gene_level_prior["mean_var_ratio"],
+                self.ones * self.m_g_gene_level_prior["mean_var_ratio"],
             ),
         )
         with var_axis:
@@ -155,7 +164,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         with obs_axis:
             n_s_cells_per_location = pyro.sample(
                 "n_s_cells_per_location",
-                pyro.Gamma(
+                dist.Gamma(
                     self.ones
                     * self.cell_number_prior["N_cells_per_location"]
                     * self.cell_number_prior["N_cells_mean_var_ratio"],
@@ -165,7 +174,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
 
             y_s_combs_per_location = pyro.sample(
                 "y_s_combs_per_location",
-                pyro.Gamma(
+                dist.Gamma(
                     self.ones
                     * self.cell_number_prior["Y_combs_per_location"]
                     * self.cell_number_prior["Y_combs_mean_var_ratio"],
@@ -176,17 +185,15 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         with combination_axis, obs_axis:
             shape = y_s_combs_per_location / self.n_comb
             rate = (
-                torch.ones([self.n_comb, 1, 1])
-                / n_s_cells_per_location
-                * y_s_combs_per_location
+                self.ones_n_comb_1_1 / n_s_cells_per_location * y_s_combs_per_location
             )
             z_sr_combs_factors = pyro.sample(
-                "z_sr_combs_factors", pyro.Gamma(shape, rate)
+                "z_sr_combs_factors", dist.Gamma(shape, rate)
             )  # (n_comb, n_obs, 1)
         with combination_axis:
             k_r_factors_per_combs = pyro.sample(
                 "k_r_factors_per_combs",
-                pyro.Gamma(
+                dist.Gamma(
                     self.ones
                     * self.cell_number_prior["factors_per_combs"]
                     * self.cell_number_prior["A_factors_mean_var_ratio"],
@@ -198,7 +205,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
 
         with factor_axis, combination_axis:
             x_fr_comb2fact = pyro.sample(
-                "x_fr_comb2fact", pyro.Gamma(c2f_shape, k_r_factors_per_combs)
+                "x_fr_comb2fact", dist.Gamma(c2f_shape, k_r_factors_per_combs)
             )  # (self.n_comb, 1, self.n_fact)
 
         with obs_axis, factor_axis:
@@ -309,12 +316,20 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
         super().__init__()
         self.hist = []
 
-        self.model = LocationModelLinearDependentWMultiExperimentModel(**kwargs)
-        self.guide = AutoNormal(
-            self.model.forward,
+        self._model = LocationModelLinearDependentWMultiExperimentModel(**kwargs)
+        self._guide = AutoNormal(
+            self.model,
             init_loc_fn=init_to_mean,
             create_plates=self.model.create_plates,
         )
+
+    @property
+    def model(self):
+        return self._model
+
+    @property
+    def guide(self):
+        return self._guide
 
     def _train_full_data(self, x_data, obs2sample, n_epochs=20000, lr=0.002):
 
@@ -325,11 +340,13 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
         x_data = torch.tensor(x_data).to(device)
         obs2sample = torch.tensor(obs2sample).to(device)
 
+        self.to(device)
+
         pyro.clear_param_store()
         self.guide(x_data, idx, obs2sample)
 
         svi = SVI(
-            self.model.forward,
+            self.model,
             self.guide,
             optim.ClippedAdam({"lr": lr, "clip_norm": 200}),
             loss=Trace_ELBO(),
