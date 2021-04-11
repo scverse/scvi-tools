@@ -61,17 +61,25 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
 
         # compute hyperparameters from mean and sd
         self.m_g_gene_level_prior = m_g_gene_level_prior
-        self.m_g_shape = (
-            self.m_g_gene_level_prior["mean"] ** 2
-            / self.m_g_gene_level_prior["sd"] ** 2
+        self.register_buffer(
+            "m_g_shape",
+            torch.tensor(
+                (self.m_g_gene_level_prior["mean"] ** 2)
+                / (self.m_g_gene_level_prior["sd"] ** 2)
+            ),
         )
-        self.m_g_rate = (
-            self.m_g_gene_level_prior["mean"] / self.m_g_gene_level_prior["sd"] ** 2
+        self.register_buffer(
+            "m_g_rate",
+            torch.tensor(
+                self.m_g_gene_level_prior["mean"]
+                / (self.m_g_gene_level_prior["sd"] ** 2)
+            ),
         )
         # self.m_g_mean_var = torch.tensor(self.m_g_gene_level_prior["mean_var_ratio"])
         self.register_buffer(
             "m_g_mean_var", torch.tensor(self.m_g_gene_level_prior["mean_var_ratio"])
         )
+        self.register_buffer("eps", torch.tensor(1e-8))
         # self.m_g_shape = torch.tensor(self.m_g_shape)
         # self.m_g_rate = torch.tensor(self.m_g_rate)
 
@@ -145,16 +153,16 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         m_g_alpha_hyp = pyro.sample(
             "m_g_alpha_hyp",
             dist.Gamma(
-                self.ones * self.m_g_shape * self.m_g_mean_var,
-                self.ones * self.m_g_mean_var,
+                self.m_g_shape * self.m_g_mean_var,
+                self.m_g_mean_var,
             ),
         )
 
         m_g_beta_hyp = pyro.sample(
             "m_g_beta_hyp",
             dist.Gamma(
-                self.ones * self.m_g_rate * self.m_g_mean_var,
-                self.ones * self.m_g_mean_var,
+                self.m_g_rate * self.m_g_mean_var,
+                self.m_g_mean_var,
             ),
         )
         with var_axis:
@@ -168,8 +176,10 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
                 "n_s_cells_per_location",
                 dist.Gamma(
                     self.ones
-                    * self.cell_number_prior["N_cells_per_location"]
-                    * self.cell_number_prior["N_cells_mean_var_ratio"],
+                    * (
+                        self.cell_number_prior["N_cells_per_location"]
+                        * self.cell_number_prior["N_cells_mean_var_ratio"]
+                    ),
                     self.ones * self.cell_number_prior["N_cells_mean_var_ratio"],
                 ),
             )
@@ -178,16 +188,18 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
                 "y_s_combs_per_location",
                 dist.Gamma(
                     self.ones
-                    * self.cell_number_prior["Y_combs_per_location"]
-                    * self.cell_number_prior["Y_combs_mean_var_ratio"],
+                    * (
+                        self.cell_number_prior["Y_combs_per_location"]
+                        * self.cell_number_prior["Y_combs_mean_var_ratio"]
+                    ),
                     self.ones * self.cell_number_prior["Y_combs_mean_var_ratio"],
                 ),
             )
 
         with combination_axis, obs_axis:
             shape = y_s_combs_per_location / self.n_comb
-            rate = (
-                self.ones_n_comb_1_1 / n_s_cells_per_location * y_s_combs_per_location
+            rate = self.ones_n_comb_1_1 / (
+                n_s_cells_per_location / y_s_combs_per_location
             )
             z_sr_combs_factors = pyro.sample(
                 "z_sr_combs_factors", dist.Gamma(shape, rate)
@@ -197,8 +209,10 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
                 "k_r_factors_per_combs",
                 dist.Gamma(
                     self.ones
-                    * self.cell_number_prior["factors_per_combs"]
-                    * self.cell_number_prior["A_factors_mean_var_ratio"],
+                    * (
+                        self.cell_number_prior["factors_per_combs"]
+                        * self.cell_number_prior["A_factors_mean_var_ratio"]
+                    ),
                     self.ones * self.cell_number_prior["A_factors_mean_var_ratio"],
                 ),
             )  # self.n_comb, 1, 1)
@@ -277,7 +291,9 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         mu = (w_sf @ self.cell_state) * m_g + (obs2sample @ s_g_gene_add) + l_s_add
         theta = obs2sample @ (self.ones / alpha_g_inverse.pow(2))
         # convert mean and overdispersion to total count and logits
-        total_count, logits = _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-8)
+        total_count, logits = _convert_mean_disp_to_counts_logits(
+            mu, theta, eps=self.eps
+        )
 
         # =====================DATA likelihood ======================= #
         # Likelihood (sampling distribution) of data_target & add overdispersion via NegativeBinomial
