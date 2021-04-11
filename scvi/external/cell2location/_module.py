@@ -152,18 +152,12 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
 
         m_g_alpha_hyp = pyro.sample(
             "m_g_alpha_hyp",
-            dist.Gamma(
-                self.m_g_shape * self.m_g_mean_var,
-                self.m_g_mean_var,
-            ),
+            dist.Gamma(self.m_g_shape * self.m_g_mean_var, self.m_g_mean_var),
         )
 
         m_g_beta_hyp = pyro.sample(
             "m_g_beta_hyp",
-            dist.Gamma(
-                self.m_g_rate * self.m_g_mean_var,
-                self.m_g_mean_var,
-            ),
+            dist.Gamma(self.m_g_rate * self.m_g_mean_var, self.m_g_mean_var),
         )
         with var_axis:
             m_g = pyro.sample("m_g", dist.Gamma(m_g_alpha_hyp, m_g_beta_hyp))
