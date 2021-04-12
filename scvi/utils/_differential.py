@@ -388,9 +388,11 @@ class DifferentialComputation:
         px_scales = []
         batch_ids = []
         for batch_idx in batchid:
-            idx = np.random.choice(np.arange(self.adata.shape[0])[selection], n_samples)
+            # TODO: must find a way to remove this
+            # idx = np.random.choice(np.arange(self.adata.shape[0])[selection], n_samples)
+            idx_selected = np.arange(self.adata.shape[0])[selection]
             px_scales.append(
-                self.model_fn(self.adata, indices=idx, transform_batch=batch_idx)
+                self.model_fn(self.adata, indices=idx_selected, transform_batch=batch_idx, n_samples_overall=n_samples)
             )
             batch_idx = batch_idx if batch_idx is not None else np.nan
             batch_ids.append([batch_idx] * px_scales[-1].shape[0])
@@ -401,6 +403,39 @@ class DifferentialComputation:
         if give_mean:
             px_scales = px_scales.mean(0)
         return dict(scale=px_scales, batch=batch_ids)
+
+
+# def autodelta(lfc_point_estimates, coef=0.6, min_thres=0.3):
+#     # delta = gmm_fit(lfc.mean(0), mode_coeff=mode_coeff, min_thres=min_thres)
+#     pass
+
+
+# def auto_pseudocounts(scales_a, scales_b, offset=None):
+#     """Determines pseudocount offset to shrink
+#     LFCs asssociated with non-expressed genes to zero.
+
+#     :param scales_a: Scales in first population
+#     :param scales_b: Scales in second population
+#     :param offset: Optional user-defined offset, defaults to None.
+#     """    
+#     if offset is not None:
+#         res = offset
+#     else:
+#         max_scales_a = scales_a.max(0).values
+#         max_scales_b = scales_b.max(0).values
+#         if where_zero_a.sum() >= 1:
+#             artefact_scales_a = max_scales_a[where_zero_a].numpy()
+#             eps_a = np.percentile(artefact_scales_a, q=90)
+#         else:
+#             eps_a = 1e-10
+
+#         if where_zero_b.sum() >= 1:
+#             artefact_scales_b = max_scales_b[where_zero_b].numpy()
+#             eps_b = np.percentile(artefact_scales_b, q=90)
+#         else:
+#             eps_b = 1e-10
+#         res = np.maximum(eps_a, eps_b)
+#     return res
 
 
 def pairs_sampler(

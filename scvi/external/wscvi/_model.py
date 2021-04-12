@@ -6,6 +6,7 @@ from typing import Optional
 
 import torch
 import torch.nn
+import numpy as np
 from torch.distributions import Normal, Categorical
 from anndata import AnnData
 
@@ -17,9 +18,9 @@ from scvi.model.base import (
     RNASeqMixin,
     UnsupervisedTrainingMixin,
     VAEMixin,
-    # auto_move_data,
 )
 from scvi.utils import track
+from scvi.model._utils import _get_batch_code_from_category
 
 
 logger = logging.getLogger(__name__)
@@ -76,13 +77,15 @@ class WSCVI(
         self.init_params_ = self._get_init_params(locals())
 
     @torch.no_grad()
-    def get_population_scales(
+    def get_population_expression(
         self,
         adata=None,
         indices=None,
         n_samples: int = 25,
+        n_samples_overall: int = None,
         batch_size: int = 64,
-        transform_batch: Optional[int] = None,
+        transform_batch: Optional[str] = None,
+        return_numpy: Optional[bool] = False,
     ):
         """Returns scales and latent variable in a given subpopulation characterized by `indices`
         using importance sampling
@@ -90,15 +93,25 @@ class WSCVI(
         :param adata: Anndata to use, defaults to None
         :param indices: Indices of the subpopulation, defaults to None
         :param n_samples: Number of posterior samples per cell, defaults to 25
+        :param n_samples_overall: Number of posterior samples to use in total, defaults to None.
+        If provided, this parameter overrides `n_samples`.
         :param batch_size: Batch size of the data loader, defaults to 64
         :param transform_batch: Batch to use, defaults to None
+        :return_numpy: Whether numpy should be returned
         """
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )
+        n_cells = scdl.indices.shape[0]
 
-        inference_outs = self._inference_loop(scdl, n_samples, transform_batch)
+        if n_samples_overall is not None:
+            n_samples_per_cell = int(np.ceil(n_samples_overall / n_cells))
+        else:
+            n_samples_per_cell = n_samples
+            n_samples_overall = n_samples_per_cell * n_cells
+
+        inference_outs = self._inference_loop(scdl, n_samples_per_cell, transform_batch)
         log_px_zs = inference_outs["log_px_zs"]
         log_qz = inference_outs["log_qz"]
         log_pz = inference_outs["log_pz"]
@@ -111,16 +124,21 @@ class WSCVI(
         log_target = log_pz + log_mixture - log_Q
         importance_weight = log_target - log_Q
         log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
-        n_samples = log_probs.shape[0]
         indices = (
-            Categorical(logits=log_probs.unsqueeze(0)).sample((n_samples,)).squeeze(-1)
+            Categorical(logits=log_probs.unsqueeze(0))
+            .sample((n_samples_overall,))
+            .squeeze(-1)
         )
-        return dict(
-            h=hs[indices],
-            z=zs[indices],
-        )
+        # return dict(
+        #     h=hs[indices],
+        #     z=zs[indices],
+        # )
+        res = hs[indices]
+        if return_numpy:
+            res = res.numpy()
+        return res
 
-    def _inference_loop(self, scdl, n_samples: int, transform_batch: int = None):
+    def _inference_loop(self, scdl, n_samples: int, transform_batch: str = None):
         """Returns population wide unweighted posterior samples, as well as
         variational posterior densities and likelihoods for each samples and each
         cell.
@@ -129,6 +147,8 @@ class WSCVI(
         :param n_samples: Number of samples per cell
         :param transform_batch: Batch of use, defaults to None
         """
+        transform_batch = _get_batch_code_from_category(self.adata, transform_batch)[0]
+
         n_cells = scdl.indices.shape[0]
         if self.module.use_observed_lib_size:
             lib_key = "library"

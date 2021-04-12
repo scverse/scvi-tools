@@ -36,6 +36,7 @@ class RNASeqMixin:
         gene_list: Optional[Sequence[str]] = None,
         library_size: Union[float, Literal["latent"]] = 1,
         n_samples: int = 1,
+        n_samples_overall: int = None,
         batch_size: Optional[int] = None,
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
@@ -83,8 +84,12 @@ class RNASeqMixin:
         Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+        if n_samples_overall is not None:
+            idx = np.random.choice(indices, n_samples)
         scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
+            adata=adata, indices=idx, batch_size=batch_size
         )
 
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
@@ -101,8 +106,6 @@ class RNASeqMixin:
                     "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
                 )
             return_numpy = True
-        if indices is None:
-            indices = np.arange(adata.n_obs)
         if library_size == "latent":
             generative_output_key = "px_rate"
             scaling = 1
@@ -147,7 +150,7 @@ class RNASeqMixin:
             return pd.DataFrame(
                 exprs,
                 columns=adata.var_names[gene_mask],
-                index=adata.obs_names[indices],
+                index=adata.obs_names[idx],
             )
         else:
             return exprs

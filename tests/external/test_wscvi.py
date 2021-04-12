@@ -1,5 +1,9 @@
+import numpy as np
+
 from scvi.external.wscvi import WVAE, WSCVI
 from scvi.data import synthetic_iid
+from scvi.utils import DifferentialComputation
+from functools import partial
 
 
 def test_wscvi():
@@ -19,7 +23,15 @@ def test_wscvi():
     assert outs["log_px_zs"].shape == outs["log_qz"].shape
     assert outs["log_px_zs"].shape == (25 * n_cells, n_cells)
 
-    # Overall 
-    outs = model.get_population_scales(
+    # Overall scale sampling
+    outs = model.get_population_expression(
         indices=idx
     )
+
+    # Differential expression
+    model_fn = partial(model.get_population_expression, return_numpy=True)
+    dc = DifferentialComputation(model_fn=model_fn, adata=adata)
+    cell_idx1 = np.asarray(adata.obs.labels == "label_1")
+    cell_idx2 = ~cell_idx1
+
+    dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=True)
