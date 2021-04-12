@@ -145,6 +145,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             gene_likelihood,
         )
         self.init_params_ = self._get_init_params(locals())
+        self.was_pretrained = False
 
     @classmethod
     def from_scvi_model(
@@ -192,6 +193,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
         scvi_state_dict = scvi_model.module.state_dict()
         scanvi_model.module.load_state_dict(scvi_state_dict, strict=False)
+        scanvi_model.was_pretrained = True
 
         return scanvi_model
 
@@ -342,6 +344,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if max_epochs is None:
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+
+        if self.was_pretrained:
+            max_epochs = int(np.min([10, np.max([2, round(max_epochs / 3.0)])]))
 
         logger.info("Training for {} epochs.".format(max_epochs))
 
