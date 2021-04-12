@@ -52,7 +52,7 @@ class WVAE(VAE):
         n_layers: int = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate: float = 0.1,
+        dropout_rate: float = 0.0,
         dispersion: str = "gene",
         log_variational: bool = True,
         gene_likelihood: str = "nb",
@@ -63,33 +63,33 @@ class WVAE(VAE):
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_observed_lib_size: bool = False,
         std_activation: Literal["exp", "softplus"] = "softplus",
-        ):
-            super().__init__(
-                n_input=n_input,
-                n_batch=n_batch,
-                n_labels=n_labels,
-                n_hidden=n_hidden,
-                n_latent=n_latent,
-                n_layers=n_layers,
-                n_continuous_cov=n_continuous_cov,
-                n_cats_per_cov=n_cats_per_cov,
-                dropout_rate=dropout_rate,
-                dispersion=dispersion,
-                log_variational=log_variational,
-                gene_likelihood=gene_likelihood,
-                latent_distribution=latent_distribution,
-                encode_covariates=encode_covariates,
-                deeply_inject_covariates=deeply_inject_covariates,
-                use_batch_norm=use_batch_norm,
-                use_layer_norm=use_layer_norm,
-                use_observed_lib_size=use_observed_lib_size,
-                std_activation=std_activation,
-            )
-            self.n_particles = n_particles
-            self.loss_type = loss_type
+    ):
+        super().__init__(
+            n_input=n_input,
+            n_batch=n_batch,
+            n_labels=n_labels,
+            n_hidden=n_hidden,
+            n_latent=n_latent,
+            n_layers=n_layers,
+            n_continuous_cov=n_continuous_cov,
+            n_cats_per_cov=n_cats_per_cov,
+            dropout_rate=dropout_rate,
+            dispersion=dispersion,
+            log_variational=log_variational,
+            gene_likelihood=gene_likelihood,
+            latent_distribution=latent_distribution,
+            encode_covariates=encode_covariates,
+            deeply_inject_covariates=deeply_inject_covariates,
+            use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
+            use_observed_lib_size=use_observed_lib_size,
+            std_activation=std_activation,
+        )
+        self.n_particles = n_particles
+        self.loss_type = loss_type
 
     def _get_inference_input(self, tensors):
-        res =  super()._get_inference_input(tensors)
+        res = super()._get_inference_input(tensors)
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
         local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
         res["local_l_mean"] = local_l_mean
@@ -140,7 +140,7 @@ class WVAE(VAE):
         ql_m, ql_v, _ = self.l_encoder(encoder_input, batch_index, *categorical_input)
 
         zdist = Normal(qz_m, qz_v.sqrt())
-        untran_z = zdist.sample(n_samples)
+        untran_z = zdist.rsample(n_samples)
         log_qz = zdist.log_prob(untran_z).sum(-1)
         z = self.z_encoder.z_transformation(untran_z)
         zmean = torch.zeros_like(z)
@@ -148,15 +148,12 @@ class WVAE(VAE):
         log_pz = Normal(zmean, zstd).log_prob(z).sum(-1)
 
         if self.use_observed_lib_size:
-            # library = library.unsqueeze(0).expand(
-            #     (n_samples, library.size(0), library.size(1))
-            # )
             log_ql = 0.0
             log_pl = 0.0
             point_library = library
         else:
             ldist = Normal(ql_m, ql_v.sqrt())
-            library = ldist.sample(n_samples)
+            library = ldist.rsample(n_samples)
             log_ql = ldist.log_prob(library).sum(-1)
             log_pl = (
                 Normal(local_l_mean, torch.sqrt(local_l_var)).log_prob(library).sum(-1)
@@ -180,11 +177,23 @@ class WVAE(VAE):
 
     @auto_move_data
     def generative(
-        self, z, library, batch_index, x, cont_covs=None, cat_covs=None, y=None, transform_batch=None,
+        self,
+        z,
+        library,
+        batch_index,
+        x,
+        cont_covs=None,
+        cat_covs=None,
+        y=None,
+        transform_batch=None,
     ):
         """Runs the generative model."""
         decoder_input = z if cont_covs is None else torch.cat([z, cont_covs], dim=-1)
-        _batch_index = transform_batch * torch.ones_like(batch_index) if transform_batch is not None else batch_index
+        _batch_index = (
+            transform_batch * torch.ones_like(batch_index)
+            if transform_batch is not None
+            else batch_index
+        )
 
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
@@ -230,12 +239,16 @@ class WVAE(VAE):
         log_ratios = log_p_joint - log_var
         assert log_ratios.ndim == 2
         if self.loss_type == "ELBO":
-            loss =  -log_ratios.mean()
+            loss = -log_ratios.mean()
         elif self.loss_type == "IWELBO":
-            loss = -(torch.softmax(log_ratios, dim=0).detach() * log_ratios).sum(dim=0).mean()
+            loss = (
+                -(torch.softmax(log_ratios, dim=0).detach() * log_ratios)
+                .sum(dim=0)
+                .mean()
+            )
         else:
             raise ValueError("Unknown loss type {}".format(self.loss_type))
-        reconst_loss = log_px_latents.mean(0)
-        kl_local = torch.tensor(0.)
-        kl_global = torch.tensor(0.)
+        reconst_loss = -log_px_latents.mean(0)
+        kl_local = torch.tensor(0.0)
+        kl_global = torch.tensor(0.0)
         return LossRecorder(loss, reconst_loss, kl_local, kl_global)

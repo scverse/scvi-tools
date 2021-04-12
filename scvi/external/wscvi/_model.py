@@ -35,7 +35,7 @@ class WSCVI(
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
-        dropout_rate: float = 0.1,
+        dropout_rate: float = 0.0,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
