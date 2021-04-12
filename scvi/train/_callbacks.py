@@ -82,7 +82,7 @@ class SaveBestState(Callback):
         logs = trainer.callback_metrics
         self.epochs_since_last_check += 1
 
-        if self.epochs_since_last_check >= self.period:
+        if trainer.current_epoch > 0 and self.epochs_since_last_check >= self.period:
             self.epochs_since_last_check = 0
             current = logs.get(self.monitor)
 
@@ -104,6 +104,9 @@ class SaveBestState(Callback):
                             f"\nEpoch {trainer.current_epoch:05d}: {self.monitor} reached."
                             f" Module best state updated."
                         )
+
+    def on_train_start(self, trainer, pl_module):
+        self.best_module_state = deepcopy(pl_module.module.state_dict())
 
     def on_train_end(self, trainer, pl_module):
         pl_module.module.load_state_dict(self.best_module_state)
