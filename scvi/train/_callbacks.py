@@ -105,5 +105,8 @@ class SaveBestState(Callback):
                             f" Module best state updated."
                         )
 
+    def on_train_start(self, trainer, pl_module):
+        self.best_module_state = deepcopy(pl_module.module.state_dict())
+
     def on_train_end(self, trainer, pl_module):
         pl_module.module.load_state_dict(self.best_module_state)
