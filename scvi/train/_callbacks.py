@@ -86,7 +86,7 @@ class SaveBestState(Callback):
             self.epochs_since_last_check = 0
             current = logs.get(self.monitor)
 
-            if current is None:
+            if trainer.current_epoch > 0 and current is None:
                 warnings.warn(
                     f"Can save best module state only with {self.monitor} available,"
                     " skipping.",
