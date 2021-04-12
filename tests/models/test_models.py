@@ -4,7 +4,7 @@ import tarfile
 import anndata
 import numpy as np
 import pytest
-from pytorch_lightning.callbacks import GPUStatsMonitor
+from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 
 import scvi
@@ -166,9 +166,14 @@ def test_scvi(save_path):
     # test train callbacks work
     a = synthetic_iid()
     m = scvi.model.SCVI(a)
-    gpu_stats = GPUStatsMonitor()
-    m.train(callbacks=[gpu_stats], max_epochs=1, log_every_n_steps=1)
-    assert "gpu_id: 0/utilization.gpu (%)" in m.history.keys()
+    lr_monitor = LearningRateMonitor()
+    m.train(
+        callbacks=[lr_monitor],
+        max_epochs=10,
+        log_every_n_steps=1,
+        plan_kwargs={"reduce_lr_on_plateau": True},
+    )
+    assert "lr-Adam" in m.history.keys()
 
 
 def test_scvi_sparse(save_path):
