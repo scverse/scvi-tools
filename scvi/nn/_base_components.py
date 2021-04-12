@@ -235,6 +235,7 @@ class Encoder(nn.Module):
         dropout_rate: float = 0.1,
         distribution: str = "normal",
         var_eps: float = 1e-4,
+        std_activation: str = "exp",
         **kwargs,
     ):
         super().__init__()
@@ -257,6 +258,13 @@ class Encoder(nn.Module):
             self.z_transformation = nn.Softmax(dim=-1)
         else:
             self.z_transformation = identity
+
+        if std_activation == "exp":
+            self.std_activation = torch.exp
+        elif std_activation == "softplus":
+            self.std_activation = nn.Softplus()
+        else:
+            raise ValueError("Activation function {} not recognized".format(std_activation))
 
     def forward(self, x: torch.Tensor, *cat_list: int):
         r"""
@@ -282,7 +290,7 @@ class Encoder(nn.Module):
         # Parameters for latent distribution
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
-        q_v = torch.exp(self.var_encoder(q)) + self.var_eps
+        q_v = self.std_activation(self.var_encoder(q)) + self.var_eps
         latent = self.z_transformation(reparameterize_gaussian(q_m, q_v))
         return q_m, q_v, latent
 

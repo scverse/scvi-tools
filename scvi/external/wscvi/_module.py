@@ -62,6 +62,7 @@ class WVAE(VAE):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_observed_lib_size: bool = False,
+        std_activation: Literal["exp", "softplus"] = "softplus",
         ):
             super().__init__(
                 n_input=n_input,
@@ -82,42 +83,10 @@ class WVAE(VAE):
                 use_batch_norm=use_batch_norm,
                 use_layer_norm=use_layer_norm,
                 use_observed_lib_size=use_observed_lib_size,
+                std_activation=std_activation,
             )
-
-            n_input_encoder = n_input + n_continuous_cov * encode_covariates
-            cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
-            encoder_cat_list = cat_list if encode_covariates else None
-            use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
-            use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
-
-            # Only differences with VAE
-            # Maybe worth to at least generalize custom encoder to lighten this part
             self.n_particles = n_particles
             self.loss_type = loss_type
-            self.z_encoder = CustomEncoder(
-                n_input=n_input_encoder,
-                n_output=n_latent,
-                n_cat_list=encoder_cat_list,
-                n_layers=n_layers,
-                n_hidden=n_hidden,
-                dropout_rate=dropout_rate,
-                distribution=latent_distribution,
-                inject_covariates=deeply_inject_covariates,
-                use_batch_norm=use_batch_norm_encoder,
-                use_layer_norm=use_layer_norm_encoder,
-            )
-            # l encoder goes from n_input-dimensional data to 1-d library size
-            self.l_encoder = CustomEncoder(
-                n_input=n_input_encoder,
-                n_output=1,
-                n_layers=1,
-                n_cat_list=encoder_cat_list,
-                n_hidden=n_hidden,
-                dropout_rate=dropout_rate,
-                inject_covariates=deeply_inject_covariates,
-                use_batch_norm=use_batch_norm_encoder,
-                use_layer_norm=use_layer_norm_encoder,
-            )
 
     def _get_inference_input(self, tensors):
         res =  super()._get_inference_input(tensors)
@@ -167,10 +136,6 @@ class WVAE(VAE):
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = tuple()
-        # qz_m, qz_v, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
-        # ql_m, ql_v, library_encoded = self.l_encoder(
-        #     encoder_input, batch_index, *categorical_input
-        # )
         qz_m, qz_v, _ = self.z_encoder(encoder_input, batch_index, *categorical_input)
         ql_m, ql_v, _ = self.l_encoder(encoder_input, batch_index, *categorical_input)
 
@@ -183,11 +148,12 @@ class WVAE(VAE):
         log_pz = Normal(zmean, zstd).log_prob(z).sum(-1)
 
         if self.use_observed_lib_size:
-            library = library.unsqueeze(0).expand(
-                (n_samples, library.size(0), library.size(1))
-            )
+            # library = library.unsqueeze(0).expand(
+            #     (n_samples, library.size(0), library.size(1))
+            # )
             log_ql = 0.0
             log_pl = 0.0
+            point_library = library
         else:
             ldist = Normal(ql_m, ql_v.sqrt())
             library = ldist.sample(n_samples)
@@ -195,6 +161,7 @@ class WVAE(VAE):
             log_pl = (
                 Normal(local_l_mean, torch.sqrt(local_l_var)).log_prob(library).sum(-1)
             )
+            point_library = ql_m
 
         outputs = dict(
             z=z,
@@ -207,28 +174,31 @@ class WVAE(VAE):
             log_qz=log_qz,
             log_pz=log_pz,
             log_pl=log_pl,
+            point_library=point_library,
         )
         return outputs
 
     @auto_move_data
     def generative(
-        self, z, library, batch_index, x, cont_covs=None, cat_covs=None, y=None
+        self, z, library, batch_index, x, cont_covs=None, cat_covs=None, y=None, transform_batch=None,
     ):
         """Runs the generative model."""
         decoder_input = z if cont_covs is None else torch.cat([z, cont_covs], dim=-1)
+        _batch_index = transform_batch * torch.ones_like(batch_index) if transform_batch is not None else batch_index
+
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = tuple()
         px_scale, px_r, px_rate, px_dropout = self.decoder(
-            self.dispersion, decoder_input, library, batch_index, *categorical_input, y
+            self.dispersion, decoder_input, library, _batch_index, *categorical_input, y
         )
         if self.dispersion == "gene-label":
             px_r = F.linear(
                 one_hot(y, self.n_labels), self.px_r
             )  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+            px_r = F.linear(one_hot(_batch_index, self.n_batch), self.px_r)
         elif self.dispersion == "gene":
             px_r = self.px_r
 
@@ -269,18 +239,3 @@ class WVAE(VAE):
         kl_local = torch.tensor(0.)
         kl_global = torch.tensor(0.)
         return LossRecorder(loss, reconst_loss, kl_local, kl_global)
-
-class CustomEncoder(Encoder):
-    """
-    Custom encoder using softplus activation for the std instead of the exponential as it showed increased stability
-    """
-
-    def __init__(self, **encoder_kwargs):
-        super().__init__(**encoder_kwargs)
-
-    def forward(self, x: torch.Tensor, *cat_list: int):
-        q = self.encoder(x, *cat_list)
-        q_m = self.mean_encoder(q)
-        q_v = nn.Softplus()(self.var_encoder(q))
-        latent = self.z_transformation(reparameterize_gaussian(q_m, q_v))
-        return q_m, q_v, latent
