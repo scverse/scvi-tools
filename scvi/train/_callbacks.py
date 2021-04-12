@@ -82,11 +82,11 @@ class SaveBestState(Callback):
         logs = trainer.callback_metrics
         self.epochs_since_last_check += 1
 
-        if self.epochs_since_last_check >= self.period:
+        if trainer.current_epoch > 0 and self.epochs_since_last_check >= self.period:
             self.epochs_since_last_check = 0
             current = logs.get(self.monitor)
 
-            if trainer.current_epoch > 0 and current is None:
+            if current is None:
                 warnings.warn(
                     f"Can save best module state only with {self.monitor} available,"
                     " skipping.",
