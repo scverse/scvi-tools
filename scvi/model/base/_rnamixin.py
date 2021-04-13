@@ -84,13 +84,12 @@ class RNASeqMixin:
         Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
-        idx = indices
         if indices is None:
-            idx = np.arange(adata.n_obs)
+            indices = np.arange(adata.n_obs)
         if n_samples_overall is not None:
-            idx = np.random.choice(indices, n_samples)
+            indices = np.random.choice(indices, n_samples_overall)
         scdl = self._make_data_loader(
-            adata=adata, indices=idx, batch_size=batch_size
+            adata=adata, indices=indices, batch_size=batch_size
         )
 
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
@@ -151,7 +150,7 @@ class RNASeqMixin:
             return pd.DataFrame(
                 exprs,
                 columns=adata.var_names[gene_mask],
-                index=adata.obs_names[idx],
+                index=adata.obs_names[indices],
             )
         else:
             return exprs

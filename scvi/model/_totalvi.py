@@ -308,6 +308,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         adata=None,
         indices=None,
+        n_samples_overall: Optional[int] = None,
         transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         gene_list: Optional[Sequence[str]] = None,
         protein_list: Optional[Sequence[str]] = None,
@@ -333,6 +334,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
+        n_samples_overall
+            Number of samples to use in total
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -378,6 +381,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
         """
         adata = self._validate_anndata(adata)
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+        if n_samples_overall is not None:
+            indices = np.random.choice(indices, n_samples_overall)
         post = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )
@@ -615,6 +622,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         adata=None,
         indices=None,
+        n_samples_overall=None,
         transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         scale_protein=False,
         batch_size: Optional[int] = None,
@@ -625,6 +633,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         rna, protein = self.get_normalized_expression(
             adata=adata,
             indices=indices,
+            n_samples_overall=n_samples_overall,
             transform_batch=transform_batch,
             return_numpy=True,
             n_samples=1,

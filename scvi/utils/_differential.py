@@ -49,6 +49,7 @@ class DifferentialComputation:
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
+        eps: float = 1e-8,
         cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
     ) -> Dict[str, np.ndarray]:
         r"""
@@ -166,7 +167,6 @@ class DifferentialComputation:
         #         "Differential expression requires a Posterior object created with all indices."
         #     )
 
-        eps = 1e-8  # used for numerical stability
         # Normalized means sampling for both populations
         scales_batches_1 = self.scale_sampler(
             selection=idx1,
@@ -237,6 +237,18 @@ class DifferentialComputation:
                 m_permutation=m_permutation,
             )
 
+        # Adding pseudocounts to the scales
+        if eps is None:
+            logger.debug("Estimating pseudocounts offet from the data")
+            where_zero_a = np.max(self.adata[idx1], 0) == 0
+            where_zero_b = np.max(self.adata[idx2], 0) == 0
+            eps = estimate_pseudocounts_offset(
+                scales_a=scales_1,
+                scales_b=scales_2,
+                where_zero_a=where_zero_a,
+                where_zero_b=where_zero_b,
+            )
+
         # Core of function: hypotheses testing based on the posterior samples we obtained above
         if mode == "vanilla":
             logger.debug("Differential expression using vanilla mode")
@@ -255,7 +267,7 @@ class DifferentialComputation:
 
             # step 1: Construct the change function
             def lfc(x, y):
-                return np.log2(x) - np.log2(y)
+                return np.log2(x + eps) - np.log2(y + eps)
 
             if change_fn == "log-fold" or change_fn is None:
                 change_fn = lfc
@@ -264,10 +276,14 @@ class DifferentialComputation:
 
             # step2: Construct the DE area function
             if m1_domain_fn is None:
-                delta = delta if delta is not None else 0.5
 
                 def m1_domain_fn(samples):
-                    return np.abs(samples) >= delta
+                    delta_ = (
+                        delta
+                        if delta is not None
+                        else estimate_delta(lfc_means=samples.mean(0))
+                    )
+                    return np.abs(samples) >= delta_
 
             change_fn_specs = inspect.getfullargspec(change_fn)
             domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
@@ -416,6 +432,7 @@ def estimate_delta(lfc_means: List[np.ndarray], coef=0.6, min_thres=0.3):
     :param coef: Tunable hyperparameter to choose the threshold based on estimated modes, defaults to 0.6
     :param min_thres: Minimum returned threshold value, defaults to 0.3
     """
+    logger.debug("Estimating delta from effect size samples")
     assert lfc_means.ndim == 1
     gmm = GaussianMixture(n_components=3)
     gmm.fit(lfc_means[:, None])
@@ -440,8 +457,12 @@ def estimate_pseudocounts_offset(
     :param where_zero_b: mask where no observed counts
     """
 
-    max_scales_a = scales_a.max(0).values
-    max_scales_b = scales_b.max(0).values
+    max_scales_a = np.max(scales_a, 0).values
+    max_scales_b = np.max(scales_b, 0).values
+    assert max_scales_a.shape == where_zero_a.shape
+    assert max_scales_b.shape == where_zero_b.shape
+    assert where_zero_a.shape == where_zero_b.shape
+
     if where_zero_a.sum() >= 1:
         artefact_scales_a = max_scales_a[where_zero_a].numpy()
         eps_a = np.percentile(artefact_scales_a, q=90)

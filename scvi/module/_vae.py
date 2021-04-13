@@ -211,7 +211,15 @@ class VAE(BaseModuleClass):
         return input_dict
 
     @auto_move_data
-    def inference(self, x, batch_index, cont_covs=None, cat_covs=None, n_samples=1):
+    def inference(
+        self,
+        x,
+        batch_index,
+        cont_covs=None,
+        cat_covs=None,
+        n_samples=1,
+        return_densities=False,
+    ):
         """
         High level inference method.
 
@@ -240,26 +248,36 @@ class VAE(BaseModuleClass):
             library = library_encoded
 
         if n_samples > 1:
-            qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
-            qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
-            # when z is normal, untran_z == z
-            untran_z = Normal(qz_m, qz_v.sqrt()).sample()
+            untran_z = Normal(qz_m, qz_v.sqrt()).sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
-            ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
-            ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
             if self.use_observed_lib_size:
                 library = library.unsqueeze(0).expand(
                     (n_samples, library.size(0), library.size(1))
                 )
             else:
-                library = Normal(ql_m, ql_v.sqrt()).sample()
-
+                library = Normal(ql_m, ql_v.sqrt()).sample((n_samples,))
         outputs = dict(z=z, qz_m=qz_m, qz_v=qz_v, ql_m=ql_m, ql_v=ql_v, library=library)
+        if return_densities:
+            log_ql = (
+                0.0
+                if self.use_observed_lib_size
+                else Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(-1)
+            )
+            log_qz = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(-1)
+            outputs["log_ql"] = log_ql
+            outputs["log_qz"] = log_qz
         return outputs
 
     @auto_move_data
     def generative(
-        self, z, library, batch_index, cont_covs=None, cat_covs=None, y=None
+        self,
+        z,
+        library,
+        batch_index,
+        cont_covs=None,
+        cat_covs=None,
+        y=None,
+        return_densities=False,
     ):
         """Runs the generative model."""
         # TODO: refactor forward function to not rely on y
@@ -282,9 +300,27 @@ class VAE(BaseModuleClass):
 
         px_r = torch.exp(px_r)
 
-        return dict(
+        outputs = dict(
             px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
         )
+        if return_densities:
+            # TODO: Find a way to include library sizes
+            # log_pl = (
+            #     0.0
+            #     if self.use_observed_lib_size
+            #     else Normal(local_l_mean, torch.sqrt(local_l_var))
+            #     .log_prob(library)
+            #     .sum(-1)
+            # )
+            # outputs["log_pl"] = log_pl
+
+            log_px_latents = -self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
+            zmean = torch.zeros_like(z)
+            zstd = torch.ones_like(z)
+            log_pz = Normal(zmean, zstd).log_prob(z).sum(-1)
+            outputs["log_px_latents"] = log_px_latents
+            outputs["log_pz"] = log_pz
+        return outputs
 
     def loss(
         self,
