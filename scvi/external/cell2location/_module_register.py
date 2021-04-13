@@ -21,18 +21,18 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
     def __init__(
         self,
         n_obs,
-        n_var,
-        n_fact,
+        n_vars,
+        n_factors,
         n_exper,
         cell_state_mat,
         batch_size=None,
-        n_comb: int = 50,
+        n_groups: int = 50,
         m_g_gene_level_prior={"mean": 1 / 2, "sd": 1 / 4},
         m_g_gene_level_var_prior={"mean_var_ratio": 1.0},
         cell_number_prior={
             "N_cells_per_location": 8.0,
             "A_factors_per_location": 7.0,
-            "Y_combs_per_location": 7.0,
+            "Y_groups_per_location": 7.0,
         },
         cell_number_var_prior={
             "N_cells_mean_var_ratio": 1.0,
@@ -46,11 +46,11 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         super().__init__()
 
         self.n_obs = n_obs
-        self.n_var = n_var
-        self.n_fact = n_fact
+        self.n_vars = n_vars
+        self.n_factors = n_factors
         self.n_exper = n_exper
         self.batch_size = batch_size
-        self.n_comb = n_comb
+        self.n_groups = n_groups
 
         for k in m_g_gene_level_var_prior.keys():
             m_g_gene_level_prior[k] = m_g_gene_level_var_prior[k]
@@ -60,9 +60,9 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         self.gene_add_alpha_hyp_prior = gene_add_alpha_hyp_prior
         self.gene_add_mean_hyp_prior = gene_add_mean_hyp_prior
 
-        cell_number_prior["factors_per_combs"] = (
+        cell_number_prior["factors_per_groups"] = (
             cell_number_prior["A_factors_per_location"]
-            / cell_number_prior["Y_combs_per_location"]
+            / cell_number_prior["Y_groups_per_location"]
         )
         for k in cell_number_var_prior.keys():
             cell_number_prior[k] = cell_number_var_prior[k]
@@ -97,12 +97,12 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
             torch.tensor(self.cell_number_prior["N_cells_per_location"]),
         )
         self.register_buffer(
-            "factors_per_combs",
-            torch.tensor(self.cell_number_prior["factors_per_combs"]),
+            "factors_per_groups",
+            torch.tensor(self.cell_number_prior["factors_per_groups"]),
         )
         self.register_buffer(
-            "Y_combs_per_location",
-            torch.tensor(self.cell_number_prior["Y_combs_per_location"]),
+            "Y_groups_per_location",
+            torch.tensor(self.cell_number_prior["Y_groups_per_location"]),
         )
         self.register_buffer(
             "N_cells_mean_var_ratio",
@@ -138,11 +138,11 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
             "w_sf_mean_var_ratio_tensor", torch.tensor(self.w_sf_mean_var_ratio)
         )
 
-        self.register_buffer("n_fact_tensor", torch.tensor(self.n_fact))
-        self.register_buffer("n_comb_tensor", torch.tensor(self.n_comb))
+        self.register_buffer("n_factors_tensor", torch.tensor(self.n_factors))
+        self.register_buffer("n_groups_tensor", torch.tensor(self.n_groups))
 
         self.register_buffer("ones", torch.ones((1, 1)))
-        self.register_buffer("ones_n_comb_1_1", torch.ones([self.n_comb, 1, 1]))
+        self.register_buffer("ones_1_n_groups", torch.ones((1, self.n_groups)))
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
@@ -164,25 +164,13 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
                 subsample_size=self.batch_size,
                 subsample=idx,
             )
-        return [
-            obs_axis,
-            pyro.plate("var_axis", self.n_var, dim=-1),
-            pyro.plate("factor_axis", self.n_fact, dim=-1),
-            pyro.plate("combination_axis", self.n_comb, dim=-3),
-            pyro.plate("experim_axis", self.n_exper, dim=-2),
-        ]
+        return [obs_axis]
 
-    def forward(self, x_data, idx, batch_index):
+    def forward(self, x_data, idx, obs2sample):
 
-        obs2sample = batch_index  # one_hot(batch_index, self.n_exper)
+        # obs2sample = batch_index  # one_hot(batch_index, self.n_exper)
 
-        (
-            obs_axis,
-            var_axis,
-            factor_axis,
-            combination_axis,
-            experim_axis,
-        ) = self.create_plates(x_data, idx, batch_index)
+        (obs_axis,) = self.create_plates(x_data, idx, obs2sample)
 
         # =====================Gene expression level scaling m_g======================= #
         # Explains difference in sensitivity for each gene between single cell and spatial technology
@@ -196,8 +184,13 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
             "m_g_beta_hyp",
             dist.Gamma(self.m_g_rate * self.m_g_mean_var, self.m_g_mean_var),
         )
-        with var_axis:
-            m_g = pyro.sample("m_g", dist.Gamma(m_g_alpha_hyp, m_g_beta_hyp))
+
+        m_g = pyro.sample(
+            "m_g",
+            dist.Gamma(m_g_alpha_hyp, m_g_beta_hyp)
+            .expand([1, self.n_vars])
+            .to_event(2),
+        )
 
         # =====================Cell abundances w_sf======================= #
         # factorisation prior on w_sf models similarity in locations
@@ -211,40 +204,47 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
                 ),
             )
 
-            y_s_combs_per_location = pyro.sample(
-                "y_s_combs_per_location",
-                dist.Gamma(self.Y_combs_per_location, self.ones),
+            y_s_groups_per_location = pyro.sample(
+                "y_s_groups_per_location",
+                dist.Gamma(self.Y_groups_per_location, self.ones),
             )
 
-        with combination_axis, obs_axis:
-            shape = y_s_combs_per_location / self.n_comb_tensor
-            rate = self.ones_n_comb_1_1 / (
-                n_s_cells_per_location / y_s_combs_per_location
-            )
-            z_sr_combs_factors = pyro.sample(
-                "z_sr_combs_factors", dist.Gamma(shape, rate)
-            )  # (n_comb, n_obs, 1)
-        with combination_axis:
-            k_r_factors_per_combs = pyro.sample(
-                "k_r_factors_per_combs", dist.Gamma(self.factors_per_combs, self.ones)
-            )  # self.n_comb, 1, 1)
+        # cell group loadings
+        shape = self.ones_1_n_groups * y_s_groups_per_location / self.n_groups_tensor
+        rate = self.ones_1_n_groups / (n_s_cells_per_location / y_s_groups_per_location)
+        with obs_axis:
+            z_sr_groups_factors = pyro.sample(
+                "z_sr_groups_factors",
+                dist.Gamma(
+                    shape, rate
+                ),  # .to_event(1)#.expand([self.n_groups]).to_event(1)
+            )  # (n_obs, n_groups)
 
-            c2f_shape = k_r_factors_per_combs / self.n_fact_tensor
+        k_r_factors_per_groups = pyro.sample(
+            "k_r_factors_per_groups",
+            dist.Gamma(self.factors_per_groups, self.ones)
+            .expand([self.n_groups, 1])
+            .to_event(2),
+        )  # (self.n_groups, 1)
 
-        with factor_axis, combination_axis:
-            x_fr_comb2fact = pyro.sample(
-                "x_fr_comb2fact", dist.Gamma(c2f_shape, k_r_factors_per_combs)
-            )  # (self.n_comb, 1, self.n_fact)
+        c2f_shape = k_r_factors_per_groups / self.n_factors_tensor
 
-        with obs_axis, factor_axis:
-            w_sf_mu = z_sr_combs_factors.squeeze(-1).T @ x_fr_comb2fact.squeeze(-2)
+        x_fr_group2fact = pyro.sample(
+            "x_fr_group2fact",
+            dist.Gamma(c2f_shape, k_r_factors_per_groups)
+            .expand([self.n_groups, self.n_factors])
+            .to_event(2),
+        )  # (self.n_groups, self.n_factors)
+
+        with obs_axis:
+            w_sf_mu = z_sr_groups_factors @ x_fr_group2fact
             w_sf = pyro.sample(
                 "w_sf",
                 dist.Gamma(
                     w_sf_mu * self.w_sf_mean_var_ratio_tensor,
                     self.w_sf_mean_var_ratio_tensor,
                 ),
-            )  # (self.n_obs, self.n_fact)
+            )  # (self.n_obs, self.n_factors)
 
         # =====================Location-specific additive component======================= #
         l_s_add_alpha = pyro.sample("l_s_add_alpha", dist.Gamma(self.ones, self.ones))
@@ -264,25 +264,29 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
                 self.gene_add_alpha_hyp_prior_alpha, self.gene_add_alpha_hyp_prior_beta
             ),
         )
-        with experim_axis:
-            s_g_gene_add_mean = pyro.sample(
-                "s_g_gene_add_mean",
-                dist.Gamma(
-                    self.gene_add_mean_hyp_prior_alpha,
-                    self.gene_add_mean_hyp_prior_beta,
-                ),
+        s_g_gene_add_mean = pyro.sample(
+            "s_g_gene_add_mean",
+            dist.Gamma(
+                self.gene_add_mean_hyp_prior_alpha,
+                self.gene_add_mean_hyp_prior_beta,
             )
-            s_g_gene_add_alpha_e_inv = pyro.sample(
-                "s_g_gene_add_alpha_e_inv", dist.Exponential(s_g_gene_add_alpha_hyp)
-            )
-            s_g_gene_add_alpha_e = self.ones / torch.pow(s_g_gene_add_alpha_e_inv, 2)
-        with experim_axis, var_axis:
-            s_g_gene_add = pyro.sample(
-                "s_g_gene_add",
-                dist.Gamma(
-                    s_g_gene_add_alpha_e, s_g_gene_add_alpha_e / s_g_gene_add_mean
-                ),
-            )
+            .expand([self.n_exper, 1])
+            .to_event(2),
+        )  # (self.n_exper)
+        s_g_gene_add_alpha_e_inv = pyro.sample(
+            "s_g_gene_add_alpha_e_inv",
+            dist.Exponential(s_g_gene_add_alpha_hyp)
+            .expand([self.n_exper, 1])
+            .to_event(2),
+        )  # (self.n_exper)
+        s_g_gene_add_alpha_e = self.ones / s_g_gene_add_alpha_e_inv.pow(2)
+
+        s_g_gene_add = pyro.sample(
+            "s_g_gene_add",
+            dist.Gamma(s_g_gene_add_alpha_e, s_g_gene_add_alpha_e / s_g_gene_add_mean)
+            .expand([self.n_exper, self.n_vars])
+            .to_event(2),
+        )  # (self.n_exper, n_vars)
 
         # =====================Gene-specific overdispersion ======================= #
         alpha_g_phi_hyp = pyro.sample(
@@ -291,10 +295,12 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
                 self.alpha_g_phi_hyp_prior_alpha, self.alpha_g_phi_hyp_prior_beta
             ),
         )
-        with experim_axis, var_axis:
-            alpha_g_inverse = pyro.sample(
-                "alpha_g_inverse", dist.Exponential(alpha_g_phi_hyp)
-            )  # (self.n_exper, self.n_var)
+        alpha_g_inverse = pyro.sample(
+            "alpha_g_inverse",
+            dist.Exponential(alpha_g_phi_hyp)
+            .expand([self.n_exper, self.n_vars])
+            .to_event(2),
+        )  # (self.n_exper, self.n_vars)
 
         # =====================Expected expression ======================= #
         # expected expression
@@ -307,7 +313,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
 
         # =====================DATA likelihood ======================= #
         # Likelihood (sampling distribution) of data_target & add overdispersion via NegativeBinomial
-        with obs_axis, var_axis:
+        with obs_axis:
             pyro.sample(
                 "data_target",
                 dist.NegativeBinomial(total_count=total_count, logits=logits),
