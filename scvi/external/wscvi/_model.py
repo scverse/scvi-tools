@@ -261,8 +261,8 @@ class WSCVI(
                 )
                 log_joint = (
                     generative_outputs["log_px_latents"]
-                    + inference_outputs["log_pz"]
-                    + inference_outputs["log_pl"]
+                    + generative_outputs["log_pz"]
+                    + generative_outputs["log_pl"]
                 )
                 log_q = inference_outputs["log_ql"] + inference_outputs["log_qz"]
                 log_ratios = log_joint - log_q

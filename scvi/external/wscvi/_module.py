@@ -88,17 +88,13 @@ class WVAE(VAE):
         self.n_particles = n_particles
         self.loss_type = loss_type
 
-    def _get_inference_input(self, tensors):
-        res = super()._get_inference_input(tensors)
+    def _get_generative_input(self, tensors, inference_outputs):
+        res = super()._get_generative_input(tensors, inference_outputs)
+        x = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
         local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
         res["local_l_mean"] = local_l_mean
         res["local_l_var"] = local_l_var
-        return res
-
-    def _get_generative_input(self, tensors, inference_outputs):
-        res = super()._get_generative_input(tensors, inference_outputs)
-        x = tensors[_CONSTANTS.X_KEY]
         res["x"] = x
         return res
 
@@ -109,8 +105,6 @@ class WVAE(VAE):
         batch_index,
         cont_covs=None,
         cat_covs=None,
-        local_l_mean=None,
-        local_l_var=None,
         n_samples=None,
     ):
         """
@@ -143,21 +137,14 @@ class WVAE(VAE):
         untran_z = zdist.rsample(n_samples)
         log_qz = zdist.log_prob(untran_z).sum(-1)
         z = self.z_encoder.z_transformation(untran_z)
-        zmean = torch.zeros_like(z)
-        zstd = torch.ones_like(z)
-        log_pz = Normal(zmean, zstd).log_prob(z).sum(-1)
 
         if self.use_observed_lib_size:
             log_ql = 0.0
-            log_pl = 0.0
             point_library = library
         else:
             ldist = Normal(ql_m, ql_v.sqrt())
             library = ldist.rsample(n_samples)
             log_ql = ldist.log_prob(library).sum(-1)
-            log_pl = (
-                Normal(local_l_mean, torch.sqrt(local_l_var)).log_prob(library).sum(-1)
-            )
             point_library = ql_m
 
         outputs = dict(
@@ -169,8 +156,6 @@ class WVAE(VAE):
             library=library,
             log_ql=log_ql,
             log_qz=log_qz,
-            log_pz=log_pz,
-            log_pl=log_pl,
             point_library=point_library,
         )
         return outputs
@@ -182,6 +167,8 @@ class WVAE(VAE):
         library,
         batch_index,
         x,
+        local_l_mean=None,
+        local_l_var=None,
         cont_covs=None,
         cat_covs=None,
         y=None,
@@ -219,6 +206,17 @@ class WVAE(VAE):
             px_r = self.px_r
 
         px_r = torch.exp(px_r)
+
+        zmean = torch.zeros_like(z)
+        zstd = torch.ones_like(z)
+        log_pz = Normal(zmean, zstd).log_prob(z).sum(-1)
+        if self.use_observed_lib_size:
+            log_pl = 0.0
+        else:
+            log_pl = (
+                Normal(local_l_mean, torch.sqrt(local_l_var)).log_prob(library).sum(-1)
+            )
+
         log_px_latents = -self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
 
         return dict(
@@ -226,7 +224,9 @@ class WVAE(VAE):
             px_r=px_r,
             px_rate=px_rate,
             px_dropout=px_dropout,
+            log_pl=log_pl,
             log_px_latents=log_px_latents,
+            log_pz=log_pz,
         )
 
     def loss(
@@ -237,10 +237,11 @@ class WVAE(VAE):
         kl_weight: float = 1.0,
     ):
         log_px_latents = generative_outputs["log_px_latents"]
+        log_pz = generative_outputs["log_pz"]
+        log_pl = generative_outputs["log_pl"]
+
         log_ql = inference_outputs["log_ql"]
         log_qz = inference_outputs["log_qz"]
-        log_pz = inference_outputs["log_pz"]
-        log_pl = inference_outputs["log_pl"]
         log_p_joint = log_px_latents + log_pz + log_pl
         log_var = log_ql + log_qz
         log_ratios = log_p_joint - log_var
