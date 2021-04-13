@@ -29,13 +29,18 @@ class LossRecorder:
         KL divergence associated with each observation in the minibatch.
     kl_global
         Global kl divergence term. Should be one dimensional with one value.
+    **kwargs
+        Additional metrics can be passed as keyword arguments and will
+        be available as attributes of the object.
     """
 
     def __init__(
         self,
         loss: Union[Dict[str, torch.Tensor], torch.Tensor],
-        reconstruction_loss: Union[Dict[str, torch.Tensor], torch.Tensor],
-        kl_local: Union[Dict[str, torch.Tensor], torch.Tensor],
+        reconstruction_loss: Union[
+            Dict[str, torch.Tensor], torch.Tensor
+        ] = torch.Tensor([0]),
+        kl_local: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.Tensor([0]),
         kl_global: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.Tensor([0]),
         **kwargs,
     ):
