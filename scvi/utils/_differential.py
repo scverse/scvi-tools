@@ -4,6 +4,7 @@ import warnings
 from typing import Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
+from sklearn.mixture import GaussianMixture
 import pandas as pd
 import torch
 
@@ -388,11 +389,14 @@ class DifferentialComputation:
         px_scales = []
         batch_ids = []
         for batch_idx in batchid:
-            # TODO: must find a way to remove this
-            # idx = np.random.choice(np.arange(self.adata.shape[0])[selection], n_samples)
             idx_selected = np.arange(self.adata.shape[0])[selection]
             px_scales.append(
-                self.model_fn(self.adata, indices=idx_selected, transform_batch=batch_idx, n_samples_overall=n_samples)
+                self.model_fn(
+                    self.adata,
+                    indices=idx_selected,
+                    transform_batch=batch_idx,
+                    n_samples_overall=n_samples,
+                )
             )
             batch_idx = batch_idx if batch_idx is not None else np.nan
             batch_ids.append([batch_idx] * px_scales[-1].shape[0])
@@ -405,37 +409,52 @@ class DifferentialComputation:
         return dict(scale=px_scales, batch=batch_ids)
 
 
-# def autodelta(lfc_point_estimates, coef=0.6, min_thres=0.3):
-#     # delta = gmm_fit(lfc.mean(0), mode_coeff=mode_coeff, min_thres=min_thres)
-#     pass
+def estimate_delta(lfc_means: List[np.ndarray], coef=0.6, min_thres=0.3):
+    """Computes a threshold LFC value based on means of LFCs.
+
+    :param lfc_means: LFC means for each gene, should be 1d.
+    :param coef: Tunable hyperparameter to choose the threshold based on estimated modes, defaults to 0.6
+    :param min_thres: Minimum returned threshold value, defaults to 0.3
+    """
+    assert lfc_means.ndim == 1
+    gmm = GaussianMixture(n_components=3)
+    gmm.fit(lfc_means[:, None])
+    vals = np.sort(gmm.means_.squeeze())
+    res = coef * np.abs(vals[[0, -1]]).mean()
+    res = np.maximum(min_thres, res)
+    return res
 
 
-# def auto_pseudocounts(scales_a, scales_b, offset=None):
-#     """Determines pseudocount offset to shrink
-#     LFCs asssociated with non-expressed genes to zero.
+def estimate_pseudocounts_offset(
+    scales_a: List[np.ndarray],
+    scales_b: List[np.ndarray],
+    where_zero_a: List[np.ndarray],
+    where_zero_b: List[np.ndarray],
+):
+    """Determines pseudocount offset to shrink
+    LFCs asssociated with non-expressed genes to zero.
 
-#     :param scales_a: Scales in first population
-#     :param scales_b: Scales in second population
-#     :param offset: Optional user-defined offset, defaults to None.
-#     """    
-#     if offset is not None:
-#         res = offset
-#     else:
-#         max_scales_a = scales_a.max(0).values
-#         max_scales_b = scales_b.max(0).values
-#         if where_zero_a.sum() >= 1:
-#             artefact_scales_a = max_scales_a[where_zero_a].numpy()
-#             eps_a = np.percentile(artefact_scales_a, q=90)
-#         else:
-#             eps_a = 1e-10
+    :param scales_a: Scales in first population
+    :param scales_b: Scales in second population
+    :param where_zero_a: mask where no observed counts
+    :param where_zero_b: mask where no observed counts
+    """
 
-#         if where_zero_b.sum() >= 1:
-#             artefact_scales_b = max_scales_b[where_zero_b].numpy()
-#             eps_b = np.percentile(artefact_scales_b, q=90)
-#         else:
-#             eps_b = 1e-10
-#         res = np.maximum(eps_a, eps_b)
-#     return res
+    max_scales_a = scales_a.max(0).values
+    max_scales_b = scales_b.max(0).values
+    if where_zero_a.sum() >= 1:
+        artefact_scales_a = max_scales_a[where_zero_a].numpy()
+        eps_a = np.percentile(artefact_scales_a, q=90)
+    else:
+        eps_a = 1e-10
+
+    if where_zero_b.sum() >= 1:
+        artefact_scales_b = max_scales_b[where_zero_b].numpy()
+        eps_b = np.percentile(artefact_scales_b, q=90)
+    else:
+        eps_b = 1e-10
+    res = np.maximum(eps_a, eps_b)
+    return res
 
 
 def pairs_sampler(

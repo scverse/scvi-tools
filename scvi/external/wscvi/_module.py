@@ -188,7 +188,14 @@ class WVAE(VAE):
         transform_batch=None,
     ):
         """Runs the generative model."""
-        decoder_input = z if cont_covs is None else torch.cat([z, cont_covs], dim=-1)
+        assert z.ndim == 3
+        decoder_input = z
+        if cont_covs is not None:
+            n_samples = z.shape[0]
+            n_obs, n_cont = cont_covs.shape
+            cont_covs_ = cont_covs.unsqueeze(0).expand(n_samples, n_obs, n_cont)
+            decoder_input = torch.cat([z, cont_covs_], dim=-1)
+
         _batch_index = (
             transform_batch * torch.ones_like(batch_index)
             if transform_batch is not None

@@ -84,8 +84,9 @@ class RNASeqMixin:
         Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
+        idx = indices
         if indices is None:
-            indices = np.arange(adata.n_obs)
+            idx = np.arange(adata.n_obs)
         if n_samples_overall is not None:
             idx = np.random.choice(indices, n_samples)
         scdl = self._make_data_loader(
