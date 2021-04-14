@@ -1,11 +1,16 @@
 import numpy as np
+import pandas as pd
 import pyro
 import pyro.distributions as dist
 import pyro.optim as optim
 import torch
+from pyro.distributions import constraints
+from pyro.distributions.transforms import SoftplusTransform
 from pyro.infer import SVI, Trace_ELBO
 from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule
+from scipy.sparse import csr_matrix
+from torch.distributions import biject_to, transform_to
 from tqdm.auto import tqdm
 
 from scvi import _CONSTANTS
@@ -13,8 +18,41 @@ from scvi import _CONSTANTS
 # from scvi.train import PyroTrainingPlan, Trainer
 from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_logits
 from scvi.module.base import PyroBaseModuleClass
+from scvi.nn import one_hot
 
-# from scvi.nn import one_hot
+
+@biject_to.register(constraints.positive)
+@transform_to.register(constraints.positive)
+def _transform_to_positive(constraint):
+    return SoftplusTransform()
+
+
+def get_cluster_averages(adata_ref, cluster_col):
+    """
+    :param adata_ref: AnnData object of reference single-cell dataset
+    :param cluster_col: Name of adata_ref.obs column containing cluster labels
+    :returns: pd.DataFrame of cluster average expression of each gene
+    """
+    if not adata_ref.raw:
+        raise ValueError("AnnData object has no raw data")
+    if sum(adata_ref.obs.columns == cluster_col) != 1:
+        raise ValueError("cluster_col is absent in adata_ref.obs or not unique")
+
+    all_clusters = np.unique(adata_ref.obs[cluster_col])
+    averages_mat = np.zeros((1, adata_ref.raw.X.shape[1]))
+
+    for c in all_clusters:
+        sparse_subset = csr_matrix(
+            adata_ref.raw.X[np.isin(adata_ref.obs[cluster_col], c), :]
+        )
+        aver = sparse_subset.mean(0)
+        averages_mat = np.concatenate((averages_mat, aver))
+    averages_mat = averages_mat[1:, :].T
+    averages_df = pd.DataFrame(
+        data=averages_mat, index=adata_ref.raw.var_names, columns=all_clusters
+    )
+
+    return averages_df
 
 
 class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
@@ -23,7 +61,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         n_obs,
         n_vars,
         n_factors,
-        n_exper,
+        n_batch,
         cell_state_mat,
         batch_size=None,
         n_groups: int = 50,
@@ -48,7 +86,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         self.n_obs = n_obs
         self.n_vars = n_vars
         self.n_factors = n_factors
-        self.n_exper = n_exper
+        self.n_batch = n_batch
         self.batch_size = batch_size
         self.n_groups = n_groups
 
@@ -155,22 +193,22 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
 
         if self.batch_size is None:
             # to support training on full data
-            obs_axis = pyro.plate("obs_axis", self.n_obs, dim=-2)
+            obs_plate = pyro.plate("obs_plate", self.n_obs, dim=-2)
         else:
-            obs_axis = pyro.plate(
-                "obs_axis",
+            obs_plate = pyro.plate(
+                "obs_plate",
                 self.n_obs,
                 dim=-2,
                 subsample_size=self.batch_size,
                 subsample=idx,
             )
-        return [obs_axis]
+        return obs_plate
 
-    def forward(self, x_data, idx, obs2sample):
+    def forward(self, x_data, idx, batch_index):
 
-        # obs2sample = batch_index  # one_hot(batch_index, self.n_exper)
+        obs2sample = one_hot(batch_index, self.n_batch)
 
-        (obs_axis,) = self.create_plates(x_data, idx, obs2sample)
+        obs_plate = self.create_plates(x_data, idx, batch_index)
 
         # =====================Gene expression level scaling m_g======================= #
         # Explains difference in sensitivity for each gene between single cell and spatial technology
@@ -195,7 +233,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         # =====================Cell abundances w_sf======================= #
         # factorisation prior on w_sf models similarity in locations
         # across cell types f and reflects the absolute scale of w_sf
-        with obs_axis:
+        with obs_plate:
             n_s_cells_per_location = pyro.sample(
                 "n_s_cells_per_location",
                 dist.Gamma(
@@ -212,7 +250,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         # cell group loadings
         shape = self.ones_1_n_groups * y_s_groups_per_location / self.n_groups_tensor
         rate = self.ones_1_n_groups / (n_s_cells_per_location / y_s_groups_per_location)
-        with obs_axis:
+        with obs_plate:
             z_sr_groups_factors = pyro.sample(
                 "z_sr_groups_factors",
                 dist.Gamma(
@@ -236,7 +274,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
             .to_event(2),
         )  # (self.n_groups, self.n_factors)
 
-        with obs_axis:
+        with obs_plate:
             w_sf_mu = z_sr_groups_factors @ x_fr_group2fact
             w_sf = pyro.sample(
                 "w_sf",
@@ -250,7 +288,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         l_s_add_alpha = pyro.sample("l_s_add_alpha", dist.Gamma(self.ones, self.ones))
         l_s_add_beta = pyro.sample("l_s_add_beta", dist.Gamma(self.ones, self.ones))
 
-        with obs_axis:
+        with obs_plate:
             l_s_add = pyro.sample(
                 "l_s_add", dist.Gamma(l_s_add_alpha, l_s_add_beta)
             )  # (self.n_obs, 1)
@@ -270,23 +308,23 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
                 self.gene_add_mean_hyp_prior_alpha,
                 self.gene_add_mean_hyp_prior_beta,
             )
-            .expand([self.n_exper, 1])
+            .expand([self.n_batch, 1])
             .to_event(2),
-        )  # (self.n_exper)
+        )  # (self.n_batch)
         s_g_gene_add_alpha_e_inv = pyro.sample(
             "s_g_gene_add_alpha_e_inv",
             dist.Exponential(s_g_gene_add_alpha_hyp)
-            .expand([self.n_exper, 1])
+            .expand([self.n_batch, 1])
             .to_event(2),
-        )  # (self.n_exper)
+        )  # (self.n_batch)
         s_g_gene_add_alpha_e = self.ones / s_g_gene_add_alpha_e_inv.pow(2)
 
         s_g_gene_add = pyro.sample(
             "s_g_gene_add",
             dist.Gamma(s_g_gene_add_alpha_e, s_g_gene_add_alpha_e / s_g_gene_add_mean)
-            .expand([self.n_exper, self.n_vars])
+            .expand([self.n_batch, self.n_vars])
             .to_event(2),
-        )  # (self.n_exper, n_vars)
+        )  # (self.n_batch, n_vars)
 
         # =====================Gene-specific overdispersion ======================= #
         alpha_g_phi_hyp = pyro.sample(
@@ -298,9 +336,9 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         alpha_g_inverse = pyro.sample(
             "alpha_g_inverse",
             dist.Exponential(alpha_g_phi_hyp)
-            .expand([self.n_exper, self.n_vars])
+            .expand([self.n_batch, self.n_vars])
             .to_event(2),
-        )  # (self.n_exper, self.n_vars)
+        )  # (self.n_batch, self.n_vars)
 
         # =====================Expected expression ======================= #
         # expected expression
@@ -313,7 +351,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
 
         # =====================DATA likelihood ======================= #
         # Likelihood (sampling distribution) of data_target & add overdispersion via NegativeBinomial
-        with obs_axis:
+        with obs_plate:
             pyro.sample(
                 "data_target",
                 dist.NegativeBinomial(total_count=total_count, logits=logits),
@@ -365,19 +403,19 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
     def guide(self):
         return self._guide
 
-    def _train_full_data(self, x_data, obs2sample, n_epochs=20000, lr=0.002):
+    def _train_full_data(self, x_data, batch_index, n_epochs=20000, lr=0.002):
 
         idx = np.arange(x_data.shape[0]).astype("int64")
 
         device = torch.device("cuda")
         idx = torch.tensor(idx).to(device)
         x_data = torch.tensor(x_data).to(device)
-        obs2sample = torch.tensor(obs2sample).to(device)
+        batch_index = torch.tensor(batch_index).to(device)
 
         self.to(device)
 
         pyro.clear_param_store()
-        self.guide(x_data, idx, obs2sample)
+        self.guide(x_data, idx, batch_index)
 
         svi = SVI(
             self.model,
@@ -390,7 +428,7 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
         hist = []
         for it in iter_iterator:
 
-            loss = svi.step(x_data, idx, obs2sample)
+            loss = svi.step(x_data, idx, batch_index)
             iter_iterator.set_description(
                 "Epoch " + "{:d}".format(it) + ", -ELBO: " + "{:.4e}".format(loss)
             )
