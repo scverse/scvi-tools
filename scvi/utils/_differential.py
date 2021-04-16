@@ -6,6 +6,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Union
 import numpy as np
 from sklearn.mixture import GaussianMixture
 import pandas as pd
+from scipy.sparse import issparse
 import torch
 
 from scvi._compat import Literal
@@ -240,15 +241,15 @@ class DifferentialComputation:
         # Adding pseudocounts to the scales
         if eps is None:
             logger.debug("Estimating pseudocounts offet from the data")
-            where_zero_a = np.max(self.adata[idx1].X, 0) == 0
-            where_zero_b = np.max(self.adata[idx2].X, 0) == 0
+            where_zero_a = densify(np.max(self.adata[idx1].X, 0)) == 0
+            where_zero_b = densify(np.max(self.adata[idx2].X, 0)) == 0
             eps = estimate_pseudocounts_offset(
                 scales_a=scales_1,
                 scales_b=scales_2,
                 where_zero_a=where_zero_a,
                 where_zero_b=where_zero_b,
             )
-
+        logger.debug("Using epsilon ~ {}".format(eps))
         # Core of function: hypotheses testing based on the posterior samples we obtained above
         if mode == "vanilla":
             logger.debug("Differential expression using vanilla mode")
@@ -283,6 +284,7 @@ class DifferentialComputation:
                         if delta is not None
                         else estimate_delta(lfc_means=samples.mean(0))
                     )
+                    logger.debug("Using delta ~ {:.2f}".format(delta_))
                     return np.abs(samples) >= delta_
 
             change_fn_specs = inspect.getfullargspec(change_fn)
@@ -652,3 +654,9 @@ def save_cluster_xlsx(
     for i, x in enumerate(cluster_names):
         de_results[i].to_excel(writer, sheet_name=str(x))
     writer.close()
+
+
+def densify(arr):
+    if issparse(arr):
+        return np.asarray(arr.todense()).squeeze()
+    return arr
