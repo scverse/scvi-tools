@@ -446,7 +446,7 @@ def transfer_anndata_setup(
         source_cat_dict = _scvi_dict["extra_categoricals"]["mappings"].copy()
         # extend categories
         if extend_categories:
-            for key, mapping in source_cat_dict:
+            for key, mapping in source_cat_dict.items():
                 for c in np.unique(adata_target.obs[key]):
                     if c not in mapping:
                         mapping = np.concatenate([mapping, [c]])
