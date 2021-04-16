@@ -240,8 +240,8 @@ class DifferentialComputation:
         # Adding pseudocounts to the scales
         if eps is None:
             logger.debug("Estimating pseudocounts offet from the data")
-            where_zero_a = np.max(self.adata[idx1], 0) == 0
-            where_zero_b = np.max(self.adata[idx2], 0) == 0
+            where_zero_a = np.max(self.adata[idx1].X, 0) == 0
+            where_zero_b = np.max(self.adata[idx2].X, 0) == 0
             eps = estimate_pseudocounts_offset(
                 scales_a=scales_1,
                 scales_b=scales_2,

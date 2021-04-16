@@ -53,6 +53,7 @@ def test_scvi_new_de():
     cell_idx2 = ~cell_idx1
 
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=True)
+    dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=True, eps=None, delta=None)
 
 
 def test_wscvi():
