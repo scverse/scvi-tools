@@ -266,6 +266,7 @@ class VAE(BaseModuleClass):
             log_qz = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(-1)
             outputs["log_ql"] = log_ql
             outputs["log_qz"] = log_qz
+            outputs["log_qjoint"] = log_ql + log_qz
         return outputs
 
     @auto_move_data
@@ -277,7 +278,6 @@ class VAE(BaseModuleClass):
         cont_covs=None,
         cat_covs=None,
         y=None,
-        return_densities=False,
     ):
         """Runs the generative model."""
         # TODO: refactor forward function to not rely on y
@@ -303,23 +303,6 @@ class VAE(BaseModuleClass):
         outputs = dict(
             px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
         )
-        if return_densities:
-            # TODO: Find a way to include library sizes
-            # log_pl = (
-            #     0.0
-            #     if self.use_observed_lib_size
-            #     else Normal(local_l_mean, torch.sqrt(local_l_var))
-            #     .log_prob(library)
-            #     .sum(-1)
-            # )
-            # outputs["log_pl"] = log_pl
-
-            log_px_latents = -self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
-            zmean = torch.zeros_like(z)
-            zstd = torch.ones_like(z)
-            log_pz = Normal(zmean, zstd).log_prob(z).sum(-1)
-            outputs["log_px_latents"] = log_px_latents
-            outputs["log_pz"] = log_pz
         return outputs
 
     def loss(
@@ -454,42 +437,66 @@ class VAE(BaseModuleClass):
 
     @torch.no_grad()
     @auto_move_data
-    def marginal_ll(self, tensors, n_mc_samples):
-        sample_batch = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
-
-        to_sum = torch.zeros(sample_batch.size()[0], n_mc_samples)
-
-        for i in range(n_mc_samples):
-            # Distribution parameters and sampled variables
-            inference_outputs, generative_outputs, losses = self.forward(tensors)
-            qz_m = inference_outputs["qz_m"]
-            qz_v = inference_outputs["qz_v"]
-            z = inference_outputs["z"]
-            ql_m = inference_outputs["ql_m"]
-            ql_v = inference_outputs["ql_v"]
-            library = inference_outputs["library"]
-
-            # Reconstruction Loss
-            reconst_loss = losses.reconstruction_loss
-
-            # Log-probabilities
-            p_l = Normal(local_l_mean, local_l_var.sqrt()).log_prob(library).sum(dim=-1)
-            p_z = (
-                Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v))
-                .log_prob(z)
-                .sum(dim=-1)
+    def marginal_ll(self, tensors, n_mc_samples, n_samples_per_pass=25):
+        """Returns the log evidence using n_nc_samples. In order to speed up computing,
+        n_samples_per_pass samples are used in each forward pass.
+        Increasing this value can speed up the computation but might also cause
+        numerical overflows
+        """
+        n_passes = int(n_mc_samples // n_samples_per_pass)
+        if n_passes == 0:
+            n_passes = 1
+            n_samples_per_pass = n_mc_samples
+        to_sum = []
+        for _ in range(n_passes):
+            inference_outputs = self.inference(
+                **self._get_inference_input(tensors),
+                return_densities=True,
+                n_samples=n_samples_per_pass
             )
-            p_x_zl = -reconst_loss
-            q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
-            q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
-
-            to_sum[:, i] = p_z + p_l + p_x_zl - q_z_x - q_l_x
-
-        batch_log_lkl = logsumexp(to_sum, dim=-1) - np.log(n_mc_samples)
+            generative_outputs = self.generative_evaluate(tensors, inference_outputs)
+            to_sum.append(
+                generative_outputs["log_pjoint"].cpu()
+                - inference_outputs["log_qjoint"].cpu()
+            )
+        to_sum = torch.cat(to_sum, 0)
+        # shape (n_mc_samples, n_cells)
+        batch_log_lkl = logsumexp(to_sum, dim=0) - np.log(to_sum.shape[0])
         log_lkl = torch.sum(batch_log_lkl).item()
         return log_lkl
+
+    @auto_move_data
+    def generative_evaluate(self, tensors, inference_outputs):
+        """Extension of the generative method, that also
+        returns estimations for the joint density, that is required 
+        for marginal likelihood estimation and other tasks
+        """
+        gen_inputs = self._get_generative_input(tensors, inference_outputs)
+        gen_outputs = self.generative(**gen_inputs)
+        z = inference_outputs["z"]
+        x = tensors[_CONSTANTS.X_KEY]
+        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
+        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+        log_px_latents = -self.get_reconstruction_loss(
+            x, gen_outputs["px_rate"], gen_outputs["px_r"], gen_outputs["px_dropout"]
+        )
+        zmean = torch.zeros_like(z)
+        zstd = torch.ones_like(z)
+        log_pz = Normal(zmean, zstd).log_prob(z).sum(-1)
+        if not self.use_observed_lib_size:
+            log_pl = Normal(local_l_mean, torch.sqrt(local_l_var)).log_prob(
+                inference_outputs["library"]
+            ).sum(-1)
+        else:
+            log_pl = 0.0
+        log_pjoint = log_px_latents + log_pz + log_pl
+        return dict(
+            px_scale=gen_outputs["px_scale"],
+            log_px_latents=log_px_latents,
+            log_pz=log_pz,
+            log_pl=log_pl,
+            log_pjoint=log_pjoint,
+        )
 
 
 class LDVAE(VAE):

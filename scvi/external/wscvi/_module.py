@@ -106,6 +106,7 @@ class WVAE(VAE):
         cont_covs=None,
         cat_covs=None,
         n_samples=None,
+        return_densities=True,
     ):
         """
         High level inference method.
@@ -146,7 +147,7 @@ class WVAE(VAE):
             library = ldist.rsample(n_samples)
             log_ql = ldist.log_prob(library).sum(-1)
             point_library = ql_m
-
+        log_qjoint = log_ql + log_qz
         outputs = dict(
             z=z,
             qz_m=qz_m,
@@ -156,6 +157,7 @@ class WVAE(VAE):
             library=library,
             log_ql=log_ql,
             log_qz=log_qz,
+            log_qjoint=log_qjoint,
             point_library=point_library,
         )
         return outputs
@@ -172,7 +174,7 @@ class WVAE(VAE):
         cont_covs=None,
         cat_covs=None,
         y=None,
-        transform_batch=None,
+        return_densities=True,
     ):
         """Runs the generative model."""
         assert z.ndim == 3
@@ -183,25 +185,19 @@ class WVAE(VAE):
             cont_covs_ = cont_covs.unsqueeze(0).expand(n_samples, n_obs, n_cont)
             decoder_input = torch.cat([z, cont_covs_], dim=-1)
 
-        _batch_index = (
-            transform_batch * torch.ones_like(batch_index)
-            if transform_batch is not None
-            else batch_index
-        )
-
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = tuple()
         px_scale, px_r, px_rate, px_dropout = self.decoder(
-            self.dispersion, decoder_input, library, _batch_index, *categorical_input, y
+            self.dispersion, decoder_input, library, batch_index, *categorical_input, y
         )
         if self.dispersion == "gene-label":
             px_r = F.linear(
                 one_hot(y, self.n_labels), self.px_r
             )  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
-            px_r = F.linear(one_hot(_batch_index, self.n_batch), self.px_r)
+            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
         elif self.dispersion == "gene":
             px_r = self.px_r
 
@@ -218,7 +214,7 @@ class WVAE(VAE):
             )
 
         log_px_latents = -self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
-
+        log_pjoint = log_px_latents + log_pz + log_pl
         return dict(
             px_scale=px_scale,
             px_r=px_r,
@@ -227,7 +223,14 @@ class WVAE(VAE):
             log_pl=log_pl,
             log_px_latents=log_px_latents,
             log_pz=log_pz,
+            log_pjoint=log_pjoint,
         )
+
+    def generative_evaluate(self, tensors, inference_outputs):
+        gen_ins = self._get_generative_input(
+            tensors=tensors, inference_outputs=inference_outputs
+        )
+        return self.generative(**gen_ins)
 
     def loss(
         self,
@@ -236,15 +239,7 @@ class WVAE(VAE):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
-        log_px_latents = generative_outputs["log_px_latents"]
-        log_pz = generative_outputs["log_pz"]
-        log_pl = generative_outputs["log_pl"]
-
-        log_ql = inference_outputs["log_ql"]
-        log_qz = inference_outputs["log_qz"]
-        log_p_joint = log_px_latents + log_pz + log_pl
-        log_var = log_ql + log_qz
-        log_ratios = log_p_joint - log_var
+        log_ratios = generative_outputs["log_pjoint"] - inference_outputs["log_qjoint"]
         assert log_ratios.ndim == 2
         if self.loss_type == "ELBO":
             loss = -log_ratios.mean()
@@ -256,7 +251,7 @@ class WVAE(VAE):
             )
         else:
             raise ValueError("Unknown loss type {}".format(self.loss_type))
-        reconst_loss = -log_px_latents.mean(0)
+        reconst_loss = -generative_outputs["log_px_latents"].mean(0)
         kl_local = torch.tensor(0.0)
         kl_global = torch.tensor(0.0)
         return LossRecorder(loss, reconst_loss, kl_local, kl_global)

@@ -457,20 +457,20 @@ def estimate_pseudocounts_offset(
     :param where_zero_b: mask where no observed counts
     """
 
-    max_scales_a = np.max(scales_a, 0).values
-    max_scales_b = np.max(scales_b, 0).values
+    max_scales_a = np.max(scales_a, 0)
+    max_scales_b = np.max(scales_b, 0)
     assert max_scales_a.shape == where_zero_a.shape
     assert max_scales_b.shape == where_zero_b.shape
     assert where_zero_a.shape == where_zero_b.shape
 
     if where_zero_a.sum() >= 1:
-        artefact_scales_a = max_scales_a[where_zero_a].numpy()
+        artefact_scales_a = max_scales_a[where_zero_a]
         eps_a = np.percentile(artefact_scales_a, q=90)
     else:
         eps_a = 1e-10
 
     if where_zero_b.sum() >= 1:
-        artefact_scales_b = max_scales_b[where_zero_b].numpy()
+        artefact_scales_b = max_scales_b[where_zero_b]
         eps_b = np.percentile(artefact_scales_b, q=90)
     else:
         eps_b = 1e-10

@@ -3,6 +3,7 @@ from ._base_model import BaseModelClass
 from ._rnamixin import RNASeqMixin
 from ._training_mixin import UnsupervisedTrainingMixin
 from ._vaemixin import VAEMixin
+from ._demixin import DEMixin
 
 __all__ = [
     "ArchesMixin",
@@ -10,4 +11,5 @@ __all__ = [
     "RNASeqMixin",
     "VAEMixin",
     "UnsupervisedTrainingMixin",
+    "DEMixin",
 ]

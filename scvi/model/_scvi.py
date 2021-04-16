@@ -6,13 +6,18 @@ from scvi._compat import Literal
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import VAE
 
-from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
+from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin, DEMixin
 
 logger = logging.getLogger(__name__)
 
 
 class SCVI(
-    RNASeqMixin, VAEMixin, ArchesMixin, UnsupervisedTrainingMixin, BaseModelClass
+    RNASeqMixin,
+    VAEMixin,
+    ArchesMixin,
+    UnsupervisedTrainingMixin,
+    DEMixin,
+    BaseModelClass,
 ):
     """
     single-cell Variational Inference [Lopez18]_.
