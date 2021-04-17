@@ -119,6 +119,7 @@ class Autotune:
             scheduler=scheduler,
             progress_reporter=self.reporter,
             name=name,
+            **kwargs,
         )
         best_config = analysis.best_config
         print("Best hyperparameters found were: ", best_config)
