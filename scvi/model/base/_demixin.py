@@ -1,5 +1,6 @@
 from functools import partial
 from typing import Dict, Iterable, Optional, Sequence, Union
+import logging
 
 import numpy as np
 import pandas as pd
@@ -16,6 +17,9 @@ from scvi.model._utils import (
 )
 from scvi.model.base._utils import _de_core
 from scvi.utils import track
+
+
+logger = logging.getLogger(__name__)
 
 
 class DEMixin:
@@ -155,6 +159,7 @@ class DEMixin:
         log_target = log_pz + log_mixture - log_Q
         importance_weight = log_target - log_Q
         log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
+        logger.debug("ESS: {}".format(1 / (log_probs **2).sum().item()))
         indices = (
             Categorical(logits=log_probs.unsqueeze(0))
             .sample((n_samples_overall,))
