@@ -204,6 +204,18 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
             )
         return obs_plate
 
+    def list_obs_plate_vars(self):
+        """List variables that belong to observation/minibatch plate
+        and the number of dimensions in non-plate axis"""
+
+        return {
+            "n_s_cells_per_location": 1,
+            "y_s_groups_per_location": 1,
+            "z_sr_groups_factors": self.n_groups,
+            "w_sf": self.n_factors,
+            "l_s_add": 1,
+        }
+
     def forward(self, x_data, idx, batch_index):
 
         obs2sample = one_hot(batch_index, self.n_batch)
