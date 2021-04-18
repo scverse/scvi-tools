@@ -5,12 +5,16 @@ New in 0.10.0 (2021-04-DD)
 Changes
 ~~~~~~~
 - PeakVI minor enhancements to differential accessibility and fix scArches support (`#1019`_)
+- New default SCANVI max epochs if loaded with pretrained SCVI model (`#1025`_), restores old `<v0.9` behavior.
 - Add DestVI to the codebase (`#1011`_)
 - Versioned tutorial links (`#1005`_)
 - Remove old VAEC (`#1006`_)
 - Use `.numpy()` to convert torch tensors to numpy ndarrays (`#1016`_)
 - Support backed AnnData (`#1017`_), just load anndata with ``scvi.data.read_h5ad(path, backed='r+')``
 - Solo interface enhancements (`#1009`_)
+- Updated README (`#1028`_)
+- Use Python warnings instead of logger warnings (`#1021`_)
+- Fix `SaveBestState` warning (`#1024`_)
 
 
 Contributors
@@ -18,10 +22,13 @@ Contributors
 - `@adamgayoso`_
 - `@romain-lopez`_
 - `@talashuach`_
+- `@mjayasur`_
+- `@wukathy`_
 
 .. _`@adamgayoso`: https://github.com/adamgayoso
 .. _`@romain-lopez`: https://github.com/romain-lopez
 .. _`@mjayasur`: https://github.com/mjayasur
+.. _`@wukathy`: https://github.com/wukathy
 .. _`@talashuach`: https://github.com/talashuach
 
 .. _`#1009`: https://github.com/YosefLab/scvi-tools/pull/1009
@@ -31,3 +38,8 @@ Contributors
 .. _`#1006`: https://github.com/YosefLab/scvi-tools/pull/1006
 .. _`#1016`: https://github.com/YosefLab/scvi-tools/pull/1016
 .. _`#1019`: https://github.com/YosefLab/scvi-tools/pull/1019
+.. _`#1021`: https://github.com/YosefLab/scvi-tools/pull/1021
+.. _`#1024`: https://github.com/YosefLab/scvi-tools/pull/1025
+.. _`#1025`: https://github.com/YosefLab/scvi-tools/pull/1025
+.. _`#1028`: https://github.com/YosefLab/scvi-tools/pull/1028
+
