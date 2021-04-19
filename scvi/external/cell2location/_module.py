@@ -2,18 +2,16 @@ import numpy as np
 import pandas as pd
 import pyro
 import pyro.distributions as dist
-import pyro.optim as optim
 import torch
 from pyro.distributions import constraints
 from pyro.distributions.transforms import SoftplusTransform
-from pyro.infer import SVI, Trace_ELBO
 from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule
 from scipy.sparse import csr_matrix
 from torch.distributions import biject_to, transform_to
-from tqdm.auto import tqdm
 
 from scvi import _CONSTANTS
+from scvi.data._anndata import get_from_registry
 
 # from scvi.train import PyroTrainingPlan, Trainer
 from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_logits
@@ -67,14 +65,10 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         n_groups: int = 50,
         m_g_gene_level_prior={"mean": 1 / 2, "sd": 1 / 4},
         m_g_gene_level_var_prior={"mean_var_ratio": 1.0},
-        cell_number_prior={
-            "N_cells_per_location": 8.0,
-            "A_factors_per_location": 7.0,
-            "Y_groups_per_location": 7.0,
-        },
-        cell_number_var_prior={
-            "N_cells_mean_var_ratio": 1.0,
-        },
+        N_cells_per_location=8.0,
+        A_factors_per_location=7.0,
+        Y_groups_per_location=7.0,
+        N_cells_mean_var_ratio=1.0,
         alpha_g_phi_hyp_prior={"alpha": 9.0, "beta": 3.0},
         gene_add_alpha_hyp_prior={"alpha": 9.0, "beta": 3.0},
         gene_add_mean_hyp_prior={"alpha": 1.0, "beta": 100.0},
@@ -98,13 +92,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         self.gene_add_alpha_hyp_prior = gene_add_alpha_hyp_prior
         self.gene_add_mean_hyp_prior = gene_add_mean_hyp_prior
 
-        cell_number_prior["factors_per_groups"] = (
-            cell_number_prior["A_factors_per_location"]
-            / cell_number_prior["Y_groups_per_location"]
-        )
-        for k in cell_number_var_prior.keys():
-            cell_number_prior[k] = cell_number_var_prior[k]
-        self.cell_number_prior = cell_number_prior
+        factors_per_groups = A_factors_per_location / Y_groups_per_location
 
         # compute hyperparameters from mean and sd
         self.m_g_gene_level_prior = m_g_gene_level_prior
@@ -130,21 +118,13 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         self.cell_state_mat = cell_state_mat
         self.register_buffer("cell_state", torch.tensor(cell_state_mat.T))
 
+        self.register_buffer("N_cells_per_location", torch.tensor(N_cells_per_location))
+        self.register_buffer("factors_per_groups", torch.tensor(factors_per_groups))
         self.register_buffer(
-            "N_cells_per_location",
-            torch.tensor(self.cell_number_prior["N_cells_per_location"]),
+            "Y_groups_per_location", torch.tensor(Y_groups_per_location)
         )
         self.register_buffer(
-            "factors_per_groups",
-            torch.tensor(self.cell_number_prior["factors_per_groups"]),
-        )
-        self.register_buffer(
-            "Y_groups_per_location",
-            torch.tensor(self.cell_number_prior["Y_groups_per_location"]),
-        )
-        self.register_buffer(
-            "N_cells_mean_var_ratio",
-            torch.tensor(self.cell_number_prior["N_cells_mean_var_ratio"]),
+            "N_cells_mean_var_ratio", torch.tensor(N_cells_mean_var_ratio)
         )
 
         self.register_buffer(
@@ -188,6 +168,16 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         ind_x = tensor_dict["ind_x"].long().squeeze()
         batch_index = tensor_dict[_CONSTANTS.BATCH_KEY]
         return (x_data, ind_x, batch_index), {}
+
+    def _get_fn_args_full_data(self, adata):
+        self.register_buffer(
+            "x_data", torch.tensor(get_from_registry(adata, _CONSTANTS.X_KEY))
+        )
+        self.register_buffer("ind_x", torch.tensor(get_from_registry(adata, "ind_x")))
+        self.register_buffer(
+            "batch_index", torch.tensor(get_from_registry(adata, _CONSTANTS.BATCH_KEY))
+        )
+        return (self.x_data, self.ind_x, self.batch_index), {}
 
     def create_plates(self, x_data, idx, batch_index):
 
@@ -394,7 +384,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         )
 
 
-class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
+class Cell2locationModule(PyroBaseModuleClass):
     def __init__(self, **kwargs):
 
         super().__init__()
@@ -414,39 +404,3 @@ class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
     @property
     def guide(self):
         return self._guide
-
-    def _train_full_data(self, x_data, batch_index, n_epochs=20000, lr=0.002):
-
-        idx = np.arange(x_data.shape[0]).astype("int64")
-
-        device = torch.device("cuda")
-        idx = torch.tensor(idx).to(device)
-        x_data = torch.tensor(x_data).to(device)
-        batch_index = torch.tensor(batch_index).to(device)
-
-        self.to(device)
-
-        pyro.clear_param_store()
-        self.guide(x_data, idx, batch_index)
-
-        svi = SVI(
-            self.model,
-            self.guide,
-            optim.ClippedAdam({"lr": lr, "clip_norm": 200}),
-            loss=Trace_ELBO(),
-        )
-
-        iter_iterator = tqdm(range(n_epochs))
-        hist = []
-        for it in iter_iterator:
-
-            loss = svi.step(x_data, idx, batch_index)
-            iter_iterator.set_description(
-                "Epoch " + "{:d}".format(it) + ", -ELBO: " + "{:.4e}".format(loss)
-            )
-            hist.append(loss)
-
-            if it % 500 == 0:
-                torch.cuda.empty_cache()
-
-        self.hist = hist

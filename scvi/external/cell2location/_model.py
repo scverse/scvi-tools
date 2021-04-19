@@ -1,15 +1,90 @@
 import numpy as np
 import pandas as pd
-from _base import PltExportMixin, TrainSampleMixin
 from anndata import AnnData
+from scipy.sparse import csr_matrix
 
-# from scvi.data import register_tensor_from_anndata
-from scvi.external.cell2location._module import Cell2locationModule
+import scvi
 from scvi.model.base import BaseModelClass
+
+from ._base import PltExportMixin, TrainSampleMixin
+from ._module import Cell2locationModule
+
+
+def setup_anndata(adata, cell_state_df, **kwargs):
+    """Setup anndata for reference-based decomposition:
+
+    1) subset adata and cell_state_df to common variables
+    2) add necesary information to adata.uns['_scvi']
+
+    :param **kwargs: arguments for `scvi.data.setup_anndata`
+    """
+
+    intersect = np.intersect1d(cell_state_df.index, adata.var_names)
+    cell_state_df = cell_state_df.loc[intersect, :]
+    adata = adata[:, intersect]
+    adata.varm["cell_state"] = cell_state_df.values
+
+    scvi.data.setup_anndata(adata, **kwargs)
+
+    adata.uns["_scvi"]["summary_stats"]["n_obs"] = adata.n_obs
+
+    # add cell type number and names
+    adata.uns["_scvi"]["summary_stats"]["n_factors"] = cell_state_df.shape[1]
+    adata.uns["_scvi"]["categorical_mappings"]["_scvi_factors"] = {
+        "varm_key": "cell_state",
+        "mapping": cell_state_df.columns.values,
+    }
+
+    # add index for each cell (provided to pyro plate for correct minibatching
+    adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
+    adata.uns["_scvi"]["data_registry"]["ind_x"] = {
+        "attr_name": "obs",
+        "attr_key": "_indices",
+    }
+
+    return adata
+
+
+def compute_cluster_averages(adata, labels, use_raw=True, layer=None):
+    """
+    :param adata: AnnData object of reference single-cell dataset
+    :param labels: Name of adata.obs column containing cluster labels
+    :returns: pd.DataFrame of cluster average expression of each gene
+    """
+
+    if layer is not None:
+        x = adata.layers["layer"]
+        var_names = adata.var_names
+    else:
+        if not use_raw:
+            x = adata.X
+            var_names = adata.var_names
+        else:
+            if not adata.raw:
+                raise ValueError(
+                    "AnnData object has no raw data, change `use_raw=True, layer=None` or fix your object"
+                )
+            x = adata.raw.X
+            var_names = adata.raw.var_names
+
+    if sum(adata.obs.columns == labels) != 1:
+        raise ValueError("cluster_col is absent in adata_ref.obs or not unique")
+
+    all_clusters = np.unique(adata.obs[labels])
+    averages_mat = np.zeros((1, x.shape[1]))
+
+    for c in all_clusters:
+        sparse_subset = csr_matrix(x[np.isin(adata.obs[labels], c), :])
+        aver = sparse_subset.mean(0)
+        averages_mat = np.concatenate((averages_mat, aver))
+    averages_mat = averages_mat[1:, :].T
+    averages_df = pd.DataFrame(data=averages_mat, index=var_names, columns=all_clusters)
+
+    return averages_df
 
 
 class Cell2locationPltExportMixin:
-    def sample2df(self, node_name="w_sf"):
+    def _sample2df(self, node_name="w_sf"):
         r"""Export spatial cell abundance as Pandas data frames.
 
         :param node_name: name of the model parameter to be exported
@@ -54,7 +129,7 @@ class Cell2locationPltExportMixin:
         """
 
         if self.spot_factors_df is None:
-            self.sample2df()
+            self._sample2df()
 
         # add cell factors to adata
         adata.obs[self.w_sf_df.columns] = self.w_sf_df.loc[adata.obs.index, :]
@@ -69,58 +144,9 @@ class Cell2locationPltExportMixin:
         return adata
 
 
-class Cell2locationBaseModelClass(
+class Cell2location(
     BaseModelClass, TrainSampleMixin, PltExportMixin, Cell2locationPltExportMixin
 ):
-    """
-    Reimplementation of cell2location [Kleshchevnikov20]_ model. Cell2locationBaseModelClass.
-
-    https://github.com/BayraktarLab/cell2location
-
-    Parameters
-    ----------
-    sc_adata
-        single-cell AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
-    use_gpu
-        Use the GPU or not.
-    **model_kwargs
-        Keyword args for :class:`~scvi.external.cell2location...`
-
-    Examples
-    --------
-    >>>
-    """
-
-    def __init__(
-        self,
-        adata: AnnData,
-        cell_state_df: pd.DataFrame,
-        var_names_read=None,
-        sample_id=None,
-        use_gpu: bool = True,
-        batch_size: int = 1024,
-        **model_kwargs,
-    ):
-
-        intersect = np.intersect1d(cell_state_df.index, adata.var_names)
-        cell_state_df = cell_state_df.loc[intersect, :]
-        adata = adata[:, intersect]
-        adata.varm["cell_state_varm"] = cell_state_df.values
-
-        super().__init__(
-            adata,
-            n_fact=cell_state_df.shape[1],
-            var_names_read=var_names_read,
-            fact_names=cell_state_df.columns,
-            sample_id=sample_id,
-            use_gpu=use_gpu,
-            batch_size=batch_size,
-        )
-
-        self.cell_state_df = cell_state_df
-
-
-class Cell2location(Cell2locationBaseModelClass):
     """
     Reimplementation of cell2location [Kleshchevnikov20]_ model. User-end model class.
 
@@ -143,35 +169,27 @@ class Cell2location(Cell2locationBaseModelClass):
     def __init__(
         self,
         adata: AnnData,
-        cell_state_df: pd.DataFrame,
-        var_names_read=None,
-        sample_id=None,
-        module=None,
+        batch_size=None,
         use_gpu: bool = True,
-        batch_size: int = 2048,
+        module=None,
         **model_kwargs,
     ):
 
-        super(Cell2location, self).__init__(
-            adata=adata,
-            cell_state_df=cell_state_df,
-            var_names_read=var_names_read,
-            sample_id=sample_id,
-            use_gpu=use_gpu,
-            batch_size=batch_size,
-        )
+        super().__init__(adata, use_gpu=use_gpu)
 
         if module is None:
             module = Cell2locationModule
 
-        self.scvi_setup_dict_
-
         self.module = module(
-            n_obs=self.n_obs,
-            n_var=self.n_var,
-            n_fact=self.n_fact,
-            n_exper=self.n_exper,
-            batch_size=self.batch_size,
-            cell_state_mat=self.cell_state_df.values,
+            n_obs=self.summary_stats["n_obs"],
+            n_var=self.summary_stats["n_vars"],
+            n_factors=self.summary_stats["n_factors"],
+            n_exper=self.summary_stats["n_batch"],
+            batch_size=batch_size,
+            cell_state_mat=self.adata.varm[
+                self.scvi_setup_dict_["categorical_mappings"]["_scvi_factors"][
+                    "varm_key"
+                ]
+            ],
             **model_kwargs,
         )

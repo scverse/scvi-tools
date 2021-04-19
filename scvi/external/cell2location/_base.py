@@ -4,11 +4,13 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pyro
-from pyro.infer import Predictive
+import torch
+from pyro.infer import SVI, Predictive
 from tqdm.auto import tqdm
 
 from scvi.dataloaders import AnnDataLoader
-from scvi.lightning import PyroTrainingPlan
+from scvi.model._utils import parse_use_gpu_arg
+from scvi.train import PyroTrainingPlan
 
 
 class TrainSampleMixin:
@@ -39,15 +41,45 @@ class TrainSampleMixin:
     def _data_loader_cls(self):
         return AnnDataLoader
 
-    def train(
+    def _train_full_data(self, max_epochs, use_gpu, plan_kwargs):
+
+        args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
+        gpus, device = parse_use_gpu_arg(use_gpu)
+        self.to_device(device)
+
+        pyro.clear_param_store()
+        self.module.guide(*args, **kwargs)
+
+        svi = SVI(
+            self.module.model,
+            self.module.guide,
+            plan_kwargs["optim"],
+            loss=plan_kwargs["loss_fn"],
+        )
+
+        iter_iterator = tqdm(range(max_epochs))
+        hist = []
+        for it in iter_iterator:
+
+            loss = svi.step(*args, **kwargs)
+            iter_iterator.set_description(
+                "Epoch " + "{:d}".format(it) + ", -ELBO: " + "{:.4e}".format(loss)
+            )
+            hist.append(loss)
+
+            if it % 500 == 0:
+                torch.cuda.empty_cache()
+
+        self.hist = hist
+
+    def _train(
         self,
         max_epochs: Optional[int] = None,
         use_gpu: Optional[bool] = None,
         train_size: float = 1,
         validation_size: Optional[float] = None,
-        batch_size: Optional[int] = None,
-        lr: float = 0.001,
-        total_grad_norm_constraint: float = 200,
+        lr: float = 0.005,
+        clip_norm: float = 200,
         **kwargs,
     ):
 
@@ -57,23 +89,29 @@ class TrainSampleMixin:
                 {
                     "lr": lr,
                     # limit the gradient step from becoming too large
-                    "clip_norm": total_grad_norm_constraint,
+                    "clip_norm": clip_norm,
                 }
             ),
         }
 
-        if batch_size is None:
-            batch_size = self.batch_size
+        batch_size = self.module.model.batch_size
 
-        super().train(
-            max_epochs=max_epochs,
-            use_gpu=use_gpu,
-            train_size=train_size,
-            validation_size=validation_size,
-            batch_size=batch_size,
-            plan_kwargs=plan_kwargs,
-            plan_class=PyroTrainingPlan,
-        )
+        if batch_size is None:
+            # train using full data (faster for small datasets)
+            self._train_full_data(
+                max_epochs=max_epochs, use_gpu=use_gpu, plan_kwargs=plan_kwargs
+            )
+        else:
+            # standard training using minibatches
+            super().train(
+                max_epochs=max_epochs,
+                use_gpu=use_gpu,
+                train_size=train_size,
+                validation_size=validation_size,
+                batch_size=batch_size,
+                plan_kwargs=plan_kwargs,
+                plan_class=PyroTrainingPlan,
+            )
 
     def _sample_node(self, node, num_samples_batch: int = 10):
 
