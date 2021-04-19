@@ -64,15 +64,16 @@ def test_wscvi():
     )
 
     # Checking that function output shapes make sense
-    idx = adata.obs.labels.values == "label_0"
-    n_cells = idx.sum()
+    idx = np.where(adata.obs.labels.values == "label_0")[0]
+    n_cells = len(idx)
     scdl = model._make_data_loader(adata=adata, indices=idx, batch_size=128)
     outs = model._inference_loop(scdl, n_samples=25)
     assert outs["log_px_zs"].shape == outs["log_qz"].shape
     assert outs["log_px_zs"].shape == (25 * n_cells, n_cells)
 
     # Overall scale sampling
-    outs = model.get_population_expression(indices=idx)
+    outs = model.get_population_expression(indices=idx, do_filter_cells=False)
+    outs = model.get_population_expression(indices=idx, do_filter_cells=True)
 
     # Differential expression
     model_fn = partial(model.get_population_expression, return_numpy=True)

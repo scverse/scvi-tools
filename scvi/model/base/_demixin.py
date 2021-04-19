@@ -7,6 +7,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 from torch.distributions import Categorical, Normal
+from sklearn.covariance import EllipticEnvelope
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
@@ -95,8 +96,6 @@ class DEMixin:
 
         return result
 
-
-
     @torch.no_grad()
     def get_population_expression(
         self,
@@ -105,6 +104,7 @@ class DEMixin:
         n_samples: int = 25,
         n_samples_overall: int = None,
         batch_size: int = 64,
+        do_filter_cells: bool = True,
         transform_batch: Optional[str] = None,
         return_numpy: Optional[bool] = False,
     ):
@@ -132,6 +132,15 @@ class DEMixin:
             indices_ = indices[observed_batches == transform_batch_val]
         else:
             indices_ = indices
+
+        assert indices_ is not None
+        if do_filter_cells:
+            indices_ = self.filter_cells(
+                adata=adata,
+                indices=indices_,
+                batch_size=batch_size,
+            )
+
         scdl = self._make_data_loader(
             adata=adata, indices=indices_, batch_size=batch_size
         )
@@ -273,3 +282,28 @@ class DEMixin:
             )
         _log_px_zs = torch.cat(_log_px_zs, 1)
         return _log_px_zs
+
+    def filter_cells(self, adata, indices, batch_size: int):
+        """Filter outlier cells indexed by indices
+
+        :param adata: Considered anndata
+        :param indices: Cell indices
+        :param batch_size: Batch size
+        """    
+        qz_m = self.get_latent_representation(
+            adata,
+            indices=indices,
+            give_mean=True,
+            batch_size=batch_size,
+        )
+        assert qz_m.ndim == 2
+        assert qz_m.shape[0] == len(indices)
+        try:
+            idx_filt = EllipticEnvelope().fit_predict(qz_m)
+        except ValueError:
+            logger.warning("Could not properly estimate Cov!, using all samples")
+            idx_filt = np.ones(qz_m.shape[0], dtype=bool)
+        if (idx_filt == 1).sum() <= 1:
+            idx_filt = np.ones(qz_m.shape[0])
+        indices = indices[idx_filt]
+        return indices
