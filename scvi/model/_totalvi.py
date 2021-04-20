@@ -67,6 +67,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Set the initialization of protein background prior empirically. This option fits a GMM for each of
         100 cells per batch and averages the distributions. Note that even with this option set to `True`,
         this only initializes a parameter that is learned during inference. If `False`, randomly initializes.
+        The default (`None`), sets this to `True` if greater than 10 proteins are used.
     **model_kwargs
         Keyword args for :class:`~scvi.module.TOTALVAE`
 
@@ -99,7 +100,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         ] = "protein",
         gene_likelihood: Literal["zinb", "nb"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        empirical_protein_background_prior: bool = True,
+        empirical_protein_background_prior: Optional[bool] = None,
         **model_kwargs,
     ):
         super(TOTALVI, self).__init__(adata)
@@ -107,7 +108,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             batch_mask = self.scvi_setup_dict_["totalvi_batch_mask"]
         else:
             batch_mask = None
-        if empirical_protein_background_prior:
+        emp_prior = (
+            empirical_protein_background_prior
+            if empirical_protein_background_prior is not None
+            else (self.summary_stats["n_proteins"] > 10)
+        )
+        if emp_prior:
             prior_mean, prior_scale = _get_totalvi_protein_priors(adata)
         else:
             prior_mean, prior_scale = None, None
