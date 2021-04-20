@@ -1,9 +1,11 @@
-import numpy as np
 from functools import partial
 
-from scvi.external.wscvi import WVAE, WSCVI
-from scvi.model import SCVI
+import numpy as np
+import torch
+
 from scvi.data import synthetic_iid
+from scvi.external.wscvi import WSCVI, WVAE
+from scvi.model import SCVI
 from scvi.utils import DifferentialComputation
 from scvi.utils._differential import estimate_delta, estimate_pseudocounts_offset
 
@@ -53,7 +55,20 @@ def test_scvi_new_de():
     cell_idx2 = ~cell_idx1
 
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=True)
-    dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=True, eps=None, delta=None)
+    dc.get_bayes_factors(
+        cell_idx1, cell_idx2, mode="change", use_permutation=True, eps=None, delta=None
+    )
+
+    marg_kwargs = dict(
+        adata=adata,
+        n_mc_samples=10,
+    )
+    for idx in [None, np.arange(10)]:
+        marg_kwargs["indices"] = idx
+        log_px = model.get_marginal_ll(observation_specific=True, **marg_kwargs)
+        assert isinstance(log_px, torch.Tensor) and len(log_px) > 1
+        log_px = model.get_marginal_ll(observation_specific=False, **marg_kwargs)
+        assert np.isscalar(log_px)
 
 
 def test_wscvi():

@@ -633,7 +633,7 @@ class TOTALVAE(BaseModuleClass):
 
     @torch.no_grad()
     @auto_move_data
-    def marginal_ll(self, tensors, n_mc_samples):
+    def marginal_ll(self, tensors, n_mc_samples, observation_specific: bool = False):
         x = tensors[_CONSTANTS.X_KEY]
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
         local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
@@ -679,5 +679,6 @@ class TOTALVAE(BaseModuleClass):
             )
 
         batch_log_lkl = torch.logsumexp(to_sum, dim=-1) - np.log(n_mc_samples)
-        log_lkl = torch.sum(batch_log_lkl).item()
+        if not observation_specific:
+            log_lkl = torch.sum(batch_log_lkl).item()
         return log_lkl

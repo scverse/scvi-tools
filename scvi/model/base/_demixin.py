@@ -29,6 +29,7 @@ class DEMixin:
     This however requires some additional structure on the
     module's (e.g., VAE) methods and associate signatures
     """
+
     def lvm_de(
         self,
         adata: Optional[AnnData] = None,
@@ -162,13 +163,18 @@ class DEMixin:
             adata=adata,
             indices=indices_,
             n_mc_samples=5000,
+            observation_specific=True,
         )
+        assert log_px.ndim == 1
+        assert log_px_zs.ndim == 2
+        assert log_qz.ndim == 2
+        assert log_pz.ndim == 1
         log_mixture = torch.logsumexp(log_px_zs - log_px, dim=-1)
         log_Q = torch.logsumexp(log_qz, dim=-1)
         log_target = log_pz + log_mixture - log_Q
         importance_weight = log_target - log_Q
         log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
-        logger.debug("ESS: {}".format(1 / (log_probs **2).sum().item()))
+        logger.debug("ESS: {}".format(1 / (log_probs ** 2).sum().item()))
         indices = (
             Categorical(logits=log_probs.unsqueeze(0))
             .sample((n_samples_overall,))
@@ -289,7 +295,7 @@ class DEMixin:
         :param adata: Considered anndata
         :param indices: Cell indices
         :param batch_size: Batch size
-        """    
+        """
         qz_m = self.get_latent_representation(
             adata,
             indices=indices,

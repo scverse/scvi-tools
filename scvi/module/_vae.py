@@ -437,7 +437,7 @@ class VAE(BaseModuleClass):
 
     @torch.no_grad()
     @auto_move_data
-    def marginal_ll(self, tensors, n_mc_samples, n_samples_per_pass=25):
+    def marginal_ll(self, tensors, n_mc_samples, n_samples_per_pass=25, observation_specific: bool = False):
         """Returns the log evidence using n_nc_samples. In order to speed up computing,
         n_samples_per_pass samples are used in each forward pass.
         Increasing this value can speed up the computation but might also cause
@@ -461,8 +461,9 @@ class VAE(BaseModuleClass):
             )
         to_sum = torch.cat(to_sum, 0)
         # shape (n_mc_samples, n_cells)
-        batch_log_lkl = logsumexp(to_sum, dim=0) - np.log(to_sum.shape[0])
-        log_lkl = torch.sum(batch_log_lkl).item()
+        log_lkl = logsumexp(to_sum, dim=0) - np.log(to_sum.shape[0])
+        if not observation_specific:
+            log_lkl = torch.sum(log_lkl).item()
         return log_lkl
 
     @auto_move_data
