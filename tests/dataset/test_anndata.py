@@ -246,6 +246,38 @@ def test_extra_covariates():
     pd.testing.assert_frame_equal(df1, df2)
 
 
+def test_extra_covariates_transfer():
+    adata = synthetic_iid()
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    bdata = synthetic_iid()
+    bdata.obs["cont1"] = np.random.normal(size=(bdata.shape[0],))
+    bdata.obs["cont2"] = np.random.normal(size=(bdata.shape[0],))
+    bdata.obs["cat1"] = 0
+    bdata.obs["cat2"] = 1
+
+    transfer_anndata_setup(adata_source=adata, adata_target=bdata)
+
+    # give it a new category
+    del bdata.uns["_scvi"]
+    bdata.obs["cat1"] = 6
+    transfer_anndata_setup(
+        adata_source=adata, adata_target=bdata, extend_categories=True
+    )
+    assert bdata.uns["_scvi"]["extra_categoricals"]["mappings"][-1] == 6
+
+
 def test_register_tensor_from_anndata():
     adata = synthetic_iid()
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
