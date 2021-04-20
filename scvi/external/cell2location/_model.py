@@ -4,10 +4,11 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix
 
 import scvi
-from scvi.model.base import BaseModelClass
 
 from ._base import PltExportMixin, TrainSampleMixin
 from ._module import Cell2locationModule
+
+# from scvi.model.base import BaseModelClass
 
 
 def setup_anndata(adata, cell_state_df, **kwargs):
@@ -144,9 +145,7 @@ class Cell2locationPltExportMixin:
         return adata
 
 
-class Cell2location(
-    BaseModelClass, TrainSampleMixin, PltExportMixin, Cell2locationPltExportMixin
-):
+class Cell2location(TrainSampleMixin, PltExportMixin, Cell2locationPltExportMixin):
     """
     Reimplementation of cell2location [Kleshchevnikov20]_ model. User-end model class.
 
@@ -181,9 +180,9 @@ class Cell2location(
 
         self.module = module(
             n_obs=self.summary_stats["n_obs"],
-            n_var=self.summary_stats["n_vars"],
+            n_vars=self.summary_stats["n_vars"],
             n_factors=self.summary_stats["n_factors"],
-            n_exper=self.summary_stats["n_batch"],
+            n_batch=self.summary_stats["n_batch"],
             batch_size=batch_size,
             cell_state_mat=self.adata.varm[
                 self.scvi_setup_dict_["categorical_mappings"]["_scvi_factors"][

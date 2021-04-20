@@ -7,7 +7,7 @@ from pyro.distributions import constraints
 from pyro.distributions.transforms import SoftplusTransform
 from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, issparse
 from torch.distributions import biject_to, transform_to
 
 from scvi import _CONSTANTS
@@ -170,9 +170,10 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         return (x_data, ind_x, batch_index), {}
 
     def _get_fn_args_full_data(self, adata):
-        self.register_buffer(
-            "x_data", torch.tensor(get_from_registry(adata, _CONSTANTS.X_KEY))
-        )
+        x_data = get_from_registry(adata, _CONSTANTS.X_KEY)
+        if issparse(x_data):
+            x_data = np.array(x_data.toarray())
+        self.register_buffer("x_data", torch.tensor(x_data))
         self.register_buffer("ind_x", torch.tensor(get_from_registry(adata, "ind_x")))
         self.register_buffer(
             "batch_index", torch.tensor(get_from_registry(adata, _CONSTANTS.BATCH_KEY))
@@ -396,6 +397,8 @@ class Cell2locationModule(PyroBaseModuleClass):
             init_loc_fn=init_to_mean,
             create_plates=self.model.create_plates,
         )
+
+        self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
 
     @property
     def model(self):

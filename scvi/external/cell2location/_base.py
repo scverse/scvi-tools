@@ -8,12 +8,12 @@ import torch
 from pyro.infer import SVI, Predictive
 from tqdm.auto import tqdm
 
-from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
+from scvi.model.base import BaseModelClass
 from scvi.train import PyroTrainingPlan
 
 
-class TrainSampleMixin:
+class TrainSampleMixin(BaseModelClass):
     """
     Reimplementation of cell2location [Kleshchevnikov20]_ model. This mixin class provides useful methods.
 
@@ -36,10 +36,6 @@ class TrainSampleMixin:
     @property
     def _plan_class(self):
         return PyroTrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
 
     def _train_full_data(self, max_epochs, use_gpu, plan_kwargs):
 
@@ -72,7 +68,7 @@ class TrainSampleMixin:
 
         self.hist = hist
 
-    def _train(
+    def train(
         self,
         max_epochs: Optional[int] = None,
         use_gpu: Optional[bool] = None,
