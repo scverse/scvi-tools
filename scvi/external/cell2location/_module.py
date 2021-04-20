@@ -189,7 +189,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
                 "obs_plate",
                 self.n_obs,
                 dim=-2,
-                subsample_size=self.batch_size,
+                subsample_size=x_data.shape[0],
                 subsample=idx,
             )
         return obs_plate
