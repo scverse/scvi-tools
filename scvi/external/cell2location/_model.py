@@ -170,12 +170,11 @@ class Cell2location(
         self,
         adata: AnnData,
         batch_size=None,
-        use_gpu: bool = True,
         module=None,
         **model_kwargs,
     ):
 
-        super().__init__(adata, use_gpu=use_gpu)
+        super().__init__(adata)
 
         if module is None:
             module = Cell2locationModule
