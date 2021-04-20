@@ -9,11 +9,10 @@ from pyro.infer import SVI, Predictive
 from tqdm.auto import tqdm
 
 from scvi.model._utils import parse_use_gpu_arg
-from scvi.model.base import BaseModelClass
 from scvi.train import PyroTrainingPlan
 
 
-class TrainSampleMixin(BaseModelClass):
+class Cell2locationTrainSampleMixin:
     """
     Reimplementation of cell2location [Kleshchevnikov20]_ model. This mixin class provides useful methods.
 
@@ -71,6 +70,9 @@ class TrainSampleMixin(BaseModelClass):
 
         self.hist = hist
 
+    def _train_minibatch(self, max_epochs, use_gpu, plan_kwargs):
+        pass
+
     def train(
         self,
         max_epochs: Optional[int] = None,
@@ -102,6 +104,7 @@ class TrainSampleMixin(BaseModelClass):
             )
         else:
             # standard training using minibatches
+            print(super().train)
             super().train(
                 max_epochs=max_epochs,
                 use_gpu=use_gpu,
