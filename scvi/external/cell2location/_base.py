@@ -8,8 +8,9 @@ import torch
 from pyro.infer import SVI, Predictive
 from tqdm.auto import tqdm
 
+from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
-from scvi.train import PyroTrainingPlan
+from scvi.train import PyroTrainingPlan, Trainer
 
 
 class Cell2locationTrainSampleMixin:
@@ -70,8 +71,36 @@ class Cell2locationTrainSampleMixin:
 
         self.hist = hist
 
-    def _train_minibatch(self, max_epochs, use_gpu, plan_kwargs):
-        pass
+    def _train_minibatch(
+        self,
+        max_epochs,
+        use_gpu,
+        plan_kwargs,
+        trainer_kwargs,
+        early_stopping: bool = False,
+    ):
+
+        gpus, device = parse_use_gpu_arg(use_gpu)
+        if max_epochs is None:
+            n_obs = self.adata.n_obs
+            max_epochs = np.min([round((20000 / n_obs) * 400), 400])
+
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        trainer_kwargs = trainer_kwargs if isinstance(trainer_kwargs, dict) else dict()
+
+        batch_size = self.module.model.batch_size
+        train_dl = AnnDataLoader(self.adata, shuffle=True, batch_size=batch_size)
+
+        plan = PyroTrainingPlan(
+            self.module, **plan_kwargs  # n_obs=len(train_dl.indices),
+        )
+        es = "early_stopping"
+        trainer_kwargs[es] = (
+            early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
+        )
+        trainer = Trainer(gpus=gpus, max_epochs=max_epochs, **trainer_kwargs)
+        trainer.fit(plan, train_dl)
+        self.module.to(device)
 
     def train(
         self,
@@ -81,7 +110,8 @@ class Cell2locationTrainSampleMixin:
         validation_size: Optional[float] = None,
         lr: float = 0.005,
         clip_norm: float = 200,
-        **kwargs,
+        trainer_kwargs: Optional[dict] = None,
+        early_stopping: bool = False,
     ):
 
         plan_kwargs = {
@@ -104,15 +134,12 @@ class Cell2locationTrainSampleMixin:
             )
         else:
             # standard training using minibatches
-            print(super().train)
-            super().train(
+            self._train_minibatch(
                 max_epochs=max_epochs,
                 use_gpu=use_gpu,
-                train_size=train_size,
-                validation_size=validation_size,
-                batch_size=batch_size,
                 plan_kwargs=plan_kwargs,
-                plan_class=PyroTrainingPlan,
+                trainer_kwargs=trainer_kwargs,
+                early_stopping=early_stopping,
             )
 
     def _sample_node(self, node, num_samples_batch: int = 10):
