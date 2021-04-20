@@ -23,7 +23,7 @@ def setup_anndata(adata, cell_state_df, **kwargs):
     intersect = np.intersect1d(cell_state_df.index, adata.var_names)
     cell_state_df = cell_state_df.loc[intersect, :]
     adata = adata[:, intersect]
-    adata.varm["cell_state"] = cell_state_df.values
+    adata.varm["cell_state"] = cell_state_df.values.astype("float32")
 
     scvi.data.setup_anndata(adata, **kwargs)
 

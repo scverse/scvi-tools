@@ -41,6 +41,9 @@ class TrainSampleMixin(BaseModelClass):
 
         args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
         gpus, device = parse_use_gpu_arg(use_gpu)
+
+        args = [a.to(device) for a in args]
+        kwargs = {k: v.to(device) for k, v in kwargs.items()}
         self.to_device(device)
 
         pyro.clear_param_store()

@@ -173,12 +173,10 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         x_data = get_from_registry(adata, _CONSTANTS.X_KEY)
         if issparse(x_data):
             x_data = np.array(x_data.toarray())
-        self.register_buffer("x_data", torch.tensor(x_data))
-        self.register_buffer("ind_x", torch.tensor(get_from_registry(adata, "ind_x")))
-        self.register_buffer(
-            "batch_index", torch.tensor(get_from_registry(adata, _CONSTANTS.BATCH_KEY))
-        )
-        return (self.x_data, self.ind_x, self.batch_index), {}
+        x_data = torch.tensor(x_data.astype("float32"))
+        ind_x = torch.tensor(get_from_registry(adata, "ind_x"))
+        batch_index = torch.tensor(get_from_registry(adata, _CONSTANTS.BATCH_KEY))
+        return (x_data, ind_x, batch_index), {}
 
     def create_plates(self, x_data, idx, batch_index):
 
