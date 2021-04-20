@@ -275,7 +275,7 @@ def test_extra_covariates_transfer():
     transfer_anndata_setup(
         adata_source=adata, adata_target=bdata, extend_categories=True
     )
-    assert bdata.uns["_scvi"]["extra_categoricals"]["mappings"][-1] == 6
+    assert bdata.uns["_scvi"]["extra_categoricals"]["mappings"]["cat1"][-1] == 6
 
 
 def test_register_tensor_from_anndata():
