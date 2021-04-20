@@ -15,6 +15,7 @@ Changes
 - Updated README (`#1028`_)
 - Use Python warnings instead of logger warnings (`#1021`_)
 - Fix `SaveBestState` warning (`#1024`_)
+- Change totalVI protein background default to `False` is fewer than 10 proteins used (`#1034`_)
 
 
 Contributors
@@ -42,4 +43,6 @@ Contributors
 .. _`#1024`: https://github.com/YosefLab/scvi-tools/pull/1025
 .. _`#1025`: https://github.com/YosefLab/scvi-tools/pull/1025
 .. _`#1028`: https://github.com/YosefLab/scvi-tools/pull/1028
+.. _`#1034`: https://github.com/YosefLab/scvi-tools/pull/1034
+
 
