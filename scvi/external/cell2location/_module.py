@@ -179,19 +179,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         return (x_data, ind_x, batch_index), {}
 
     def create_plates(self, x_data, idx, batch_index):
-
-        if self.batch_size is None:
-            # to support training on full data
-            obs_plate = pyro.plate("obs_plate", self.n_obs, dim=-2)
-        else:
-            obs_plate = pyro.plate(
-                "obs_plate",
-                self.n_obs,
-                dim=-2,
-                subsample_size=x_data.shape[0],
-                subsample=idx,
-            )
-        return obs_plate
+        return pyro.plate("obs_plate", size=self.n_obs, dim=-2, subsample=idx)
 
     def list_obs_plate_vars(self):
         """List variables that belong to observation/minibatch plate
