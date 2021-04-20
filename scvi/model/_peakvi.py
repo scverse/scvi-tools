@@ -67,6 +67,12 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     >>> scvi.dataset.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.model.PEAKVI(adata)
     >>> vae.train()
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/user_guide/notebooks/PeakVI`
     """
 
     def __init__(
