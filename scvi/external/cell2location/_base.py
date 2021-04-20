@@ -69,7 +69,7 @@ class Cell2locationTrainSampleMixin:
             if it % 500 == 0:
                 torch.cuda.empty_cache()
 
-        self.hist = hist
+        self.module.history_ = hist
 
     def _train_minibatch(
         self,
@@ -101,6 +101,11 @@ class Cell2locationTrainSampleMixin:
         trainer = Trainer(gpus=gpus, max_epochs=max_epochs, **trainer_kwargs)
         trainer.fit(plan, train_dl)
         self.module.to(device)
+
+        try:
+            self.module.history_ = trainer.logger.history
+        except AttributeError:
+            self.history_ = None
 
     def train(
         self,
