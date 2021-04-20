@@ -79,7 +79,7 @@ class VAEMixin:
         if hasattr(self.module, "marginal_ll"):
             log_lkl = 0
             for tensors in scdl:
-                log_lkl = self.module.marginal_ll(tensors, n_mc_samples=n_mc_samples)
+                log_lkl += self.module.marginal_ll(tensors, n_mc_samples=n_mc_samples)
         else:
             raise NotImplementedError(
                 "marginal_ll is not implemented for current model. "
