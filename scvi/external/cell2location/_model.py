@@ -30,7 +30,7 @@ def setup_anndata(adata, cell_state_df, **kwargs):
 
     # add cell type number and names
     adata.uns["_scvi"]["summary_stats"]["n_factors"] = cell_state_df.shape[1]
-    adata.uns["_scvi"]["categorical_mappings"]["_scvi_factors"] = {
+    adata.uns["_scvi"]["_scvi_factors"] = {
         "varm_key": "cell_state",
         "mapping": cell_state_df.columns.values,
     }
@@ -176,7 +176,6 @@ class Cell2location(
         module=None,
         **model_kwargs,
     ):
-
         super().__init__(adata)
 
         if module is None:
@@ -189,9 +188,9 @@ class Cell2location(
             n_batch=self.summary_stats["n_batch"],
             batch_size=batch_size,
             cell_state_mat=self.adata.varm[
-                self.scvi_setup_dict_["categorical_mappings"]["_scvi_factors"][
-                    "varm_key"
-                ]
+                self.scvi_setup_dict_["_scvi_factors"]["varm_key"]
             ],
             **model_kwargs,
         )
+        self._model_summary_string = f'scVI-cell2location Model with the following params: \nn_factors: {self.summary_stats["n_factors"]} \nn_batch: {self.summary_stats["n_batch"]} '
+        self.init_params_ = self._get_init_params(locals())
