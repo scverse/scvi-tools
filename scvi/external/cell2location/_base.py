@@ -80,6 +80,7 @@ class Cell2locationTrainSampleMixin:
         early_stopping: bool = False,
     ):
 
+        pyro.clear_param_store()
         gpus, device = parse_use_gpu_arg(use_gpu)
         if max_epochs is None:
             n_obs = self.adata.n_obs
