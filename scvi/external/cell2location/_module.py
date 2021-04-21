@@ -186,11 +186,15 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         and the number of dimensions in non-plate axis"""
 
         return {
-            "n_s_cells_per_location": 1,
-            "y_s_groups_per_location": 1,
-            "z_sr_groups_factors": self.n_groups,
-            "w_sf": self.n_factors,
-            "l_s_add": 1,
+            "name": "obs_plate",
+            "in": ["x_data"],
+            "sites": {
+                "n_s_cells_per_location": 1,
+                "y_s_groups_per_location": 1,
+                "z_sr_groups_factors": self.n_groups,
+                "w_sf": self.n_factors,
+                "l_s_add": 1,
+            },
         }
 
     def forward(self, x_data, idx, batch_index):
@@ -373,7 +377,6 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
 
 class Cell2locationModule(PyroBaseModuleClass):
     def __init__(self, **kwargs):
-
         super().__init__()
         self.hist = []
 
