@@ -1,11 +1,10 @@
-New in 0.10.0 (2021-04-DD)
--------------------------
+New in 0.10.0 (2021-04-20)
+--------------------------
 
 
 Changes
 ~~~~~~~
 - PeakVI minor enhancements to differential accessibility and fix scArches support (`#1019`_)
-- New default SCANVI max epochs if loaded with pretrained SCVI model (`#1025`_), restores old `<v0.9` behavior.
 - Add DestVI to the codebase (`#1011`_)
 - Versioned tutorial links (`#1005`_)
 - Remove old VAEC (`#1006`_)
@@ -14,7 +13,14 @@ Changes
 - Solo interface enhancements (`#1009`_)
 - Updated README (`#1028`_)
 - Use Python warnings instead of logger warnings (`#1021`_)
+- Change totalVI protein background default to `False` is fewer than 10 proteins used (`#1034`_)
+
+Bug fixes
+~~~~~~~~~
 - Fix `SaveBestState` warning (`#1024`_)
+- New default SCANVI max epochs if loaded with pretrained SCVI model (`#1025`_), restores old `<v0.9` behavior.
+- Fix marginal log likelihood computation, which was only being computed on final minibatch of a dataloader. This bug was introduced in the `0.9.X` versions (`#1033`_).
+- Fix bug where extra categoricals were not properly extended in :func:`~scvi.data.transfer_anndata_setup` (`#1030`_).
 
 
 Contributors
@@ -24,12 +30,18 @@ Contributors
 - `@talashuach`_
 - `@mjayasur`_
 - `@wukathy`_
+- `@PierreBoyeau`_
+- `@morris-frank`_
+
 
 .. _`@adamgayoso`: https://github.com/adamgayoso
 .. _`@romain-lopez`: https://github.com/romain-lopez
 .. _`@mjayasur`: https://github.com/mjayasur
 .. _`@wukathy`: https://github.com/wukathy
 .. _`@talashuach`: https://github.com/talashuach
+.. _`@PierreBoyeau`: https://github.com/PierreBoyeau
+.. _`@morris-frank`: https://github.com/morris-frank
+
 
 .. _`#1009`: https://github.com/YosefLab/scvi-tools/pull/1009
 .. _`#1017`: https://github.com/YosefLab/scvi-tools/pull/1017
@@ -42,4 +54,8 @@ Contributors
 .. _`#1024`: https://github.com/YosefLab/scvi-tools/pull/1025
 .. _`#1025`: https://github.com/YosefLab/scvi-tools/pull/1025
 .. _`#1028`: https://github.com/YosefLab/scvi-tools/pull/1028
+.. _`#1030`: https://github.com/YosefLab/scvi-tools/pull/1033
+.. _`#1033`: https://github.com/YosefLab/scvi-tools/pull/1033
+.. _`#1034`: https://github.com/YosefLab/scvi-tools/pull/1034
+
 

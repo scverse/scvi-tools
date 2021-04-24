@@ -4,12 +4,12 @@ New in 0.9.1 (2021-03-20)
 
 Changes
 ~~~~~~~
-- Update Pyro module backend to better enfore usage of `model` and `guide`, automate passing of number of training examples to Pyro modules (`#990`)
-- Minimum Pyro version bumped (`#988`)
-- Improve docs clarity (`#989`)
-- Add glossary to developer user guide (`#999`)
-- Add num threads config option to `scvi.settings` (`#1001`)
-- Add CellAssign tutorial (`#1004`)
+- Update Pyro module backend to better enfore usage of `model` and `guide`, automate passing of number of training examples to Pyro modules (`#990`_)
+- Minimum Pyro version bumped (`#988`_)
+- Improve docs clarity (`#989`_)
+- Add glossary to developer user guide (`#999`_)
+- Add num threads config option to `scvi.settings` (`#1001`_)
+- Add CellAssign tutorial (`#1004`_)
 
 
 

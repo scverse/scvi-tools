@@ -51,6 +51,12 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     >>> spatial_model.train(max_epochs=2000)
     >>> st_adata.obsm["proportions"] = spatial_model.get_proportions(st_adata)
     >>> gamma = spatial_model.get_gamma(st_adata)
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/user_guide/notebooks/DestVI_tutorial`
     """
 
     def __init__(
