@@ -124,6 +124,8 @@ class VAE(BaseModuleClass):
                 "{}.format(self.dispersion)"
             )
 
+        self.px_dropout = torch.nn.Parameter(torch.randn(n_input, n_batch))
+
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
         use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
@@ -278,6 +280,8 @@ class VAE(BaseModuleClass):
             px_r = self.px_r
 
         px_r = torch.exp(px_r)
+
+        px_dropout = F.linear(one_hot(batch_index, self.n_batch), self.px_dropout)
 
         return dict(
             px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
