@@ -8,9 +8,15 @@ from pyro.distributions import constraints
 from pyro.distributions.transforms import SoftplusTransform
 from pyro.distributions.util import sum_rightmost
 from pyro.infer.autoguide import AutoGuide
+from pyro.infer.autoguide.utils import helpful_support_errors
+from pyro.nn import PyroModule
 from torch.distributions import biject_to, transform_to
 
 from scvi.nn import FCLayers
+
+
+class FCLayersPyro(FCLayers, PyroModule):
+    pass
 
 
 @biject_to.register(constraints.positive)
@@ -38,13 +44,11 @@ class AutoNormalEncoder(AutoGuide):
     ):
 
         encoder_kwargs = encoder_kwargs if isinstance(encoder_kwargs, dict) else dict()
-        model = pyro.poutine.block(
-            model, expose=list(amortised_plate_sites["sites"].keys())
-        )
 
         super().__init__(model, create_plates=create_plates)
         self.amortised_plate_sites = amortised_plate_sites
 
+        self.softplus = SoftplusTransform()
         # create encoder NN
         n_out = (
             np.sum(
@@ -55,34 +59,63 @@ class AutoNormalEncoder(AutoGuide):
             )
             * 2
         )
-        self.encoder = FCLayers(n_in=n_in, n_out=n_out, **encoder_kwargs)
+        self.encoder = FCLayersPyro(n_in=n_in, n_out=n_out, **encoder_kwargs)
         # create indices for loc and scales of each site
         counter = 0
         self.indices = dict()
         for site, n_dim in amortised_plate_sites["sites"].items():
             self.indices[site] = {
-                "locs": torch.tensor(np.arange(counter, counter + n_dim))
-                .long()
-                .squeeze(),
-                "scales": torch.tensor(np.arange(counter + n_dim, counter + n_dim * 2))
-                .long()
-                .squeeze(),
+                "locs": np.arange(counter, counter + n_dim),
+                "scales": np.arange(counter + n_dim, counter + n_dim * 2),
             }
             counter += n_dim * 2
 
+    def _setup_prototype(self, *args, **kwargs):
+
+        super()._setup_prototype(*args, **kwargs)
+
+        self._event_dims = {}
+        self._cond_indep_stacks = {}
+
+        # Initialize guide params
+        for name, site in self.prototype_trace.iter_stochastic_nodes():
+            # Collect unconstrained event_dims, which may differ from constrained event_dims.
+            with helpful_support_errors(site):
+                init_loc = (
+                    biject_to(site["fn"].support).inv(site["value"].detach()).detach()
+                )
+            event_dim = site["fn"].event_dim + init_loc.dim() - site["value"].dim()
+            self._event_dims[name] = event_dim
+
+            # Collect independence contexts.
+            self._cond_indep_stacks[name] = site["cond_indep_stack"]
+
     def _get_loc_and_scale(self, name, encoded_latent):
 
-        ind_locs = self.indices[name]["locs"]
-        ind_scales = self.indices[name]["scales"]
+        ind_locs = (
+            torch.tensor(self.indices[name]["locs"], device=encoded_latent.device)
+            .long()
+            .squeeze()
+        )
+        ind_scales = (
+            torch.tensor(self.indices[name]["scales"], device=encoded_latent.device)
+            .long()
+            .squeeze()
+        )
 
-        return encoded_latent[ind_locs].T, encoded_latent[ind_scales].T
+        locs = torch.index_select(encoded_latent, -1, ind_locs)
+        scales = self.softplus(torch.index_select(encoded_latent, -1, ind_scales) - 2)
+
+        return locs, scales
 
     def encode(self, *args, **kwargs):
         in_names = self.amortised_plate_sites["in"]
         x_in = [
             kwargs[in_name] if in_name in kwargs.keys() else args[i]
-            for in_name, i in enumerate(in_names)
+            for i, in_name in enumerate(in_names)
         ]
+        # apply log1p
+        x_in = [torch.log1p(x) for x in x_in]
         return self.encoder(*x_in)
 
     def forward(self, *args, **kwargs):

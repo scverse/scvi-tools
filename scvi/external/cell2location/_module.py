@@ -5,7 +5,7 @@ import pyro.distributions as dist
 import torch
 from pyro.distributions import constraints
 from pyro.distributions.transforms import SoftplusTransform
-from pyro.infer.autoguide import AutoNormal, init_to_mean
+from pyro.infer.autoguide import AutoGuideList, AutoNormal, init_to_mean
 from pyro.nn import PyroModule
 from scipy.sparse import csr_matrix, issparse
 from torch.distributions import biject_to, transform_to
@@ -17,6 +17,8 @@ from scvi.data._anndata import get_from_registry
 from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_logits
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import one_hot
+
+from .autoguide import AutoNormalEncoder
 
 
 @biject_to.register(constraints.positive)
@@ -385,6 +387,46 @@ class Cell2locationModule(PyroBaseModuleClass):
             self.model,
             init_loc_fn=init_to_mean,
             create_plates=self.model.create_plates,
+        )
+
+        self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
+
+    @property
+    def model(self):
+        return self._model
+
+    @property
+    def guide(self):
+        return self._guide
+
+
+class Cell2locationNNModule(PyroBaseModuleClass):
+    def __init__(self, encoder_kwargs=None, **kwargs):
+        super().__init__()
+        self.hist = []
+
+        self._model = LocationModelLinearDependentWMultiExperimentModel(**kwargs)
+
+        encoder_kwargs = encoder_kwargs if isinstance(encoder_kwargs, dict) else dict()
+        amortised_vars = self.model.list_obs_plate_vars()
+        self._guide = AutoGuideList(self.model, create_plates=self.model.create_plates)
+        self._guide.append(
+            AutoNormal(
+                pyro.poutine.block(
+                    self.model, hide=list(amortised_vars["sites"].keys())
+                ),
+                init_loc_fn=init_to_mean,
+            )
+        )
+        self._guide.append(
+            AutoNormalEncoder(
+                pyro.poutine.block(
+                    self.model, expose=list(amortised_vars["sites"].keys())
+                ),
+                amortised_plate_sites=amortised_vars,
+                n_in=self.model.n_vars,
+                encoder_kwargs=encoder_kwargs,
+            )
         )
 
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
