@@ -378,56 +378,63 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
 
 
 class Cell2locationModule(PyroBaseModuleClass):
-    def __init__(self, **kwargs):
-        super().__init__()
-        self.hist = []
+    def __init__(self, amortised: bool = False, encoder_kwargs=None, **kwargs):
+        """
+        Estimating cell abundance by reference-based decomposition of spatial data (Cell2location module).
+        Supports multiple model architectures.
 
-        self._model = LocationModelLinearDependentWMultiExperimentModel(**kwargs)
-        self._guide = AutoNormal(
-            self.model,
-            init_loc_fn=init_to_mean,
-            create_plates=self.model.create_plates,
-        )
-
-        self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
-
-    @property
-    def model(self):
-        return self._model
-
-    @property
-    def guide(self):
-        return self._guide
-
-
-class Cell2locationNNModule(PyroBaseModuleClass):
-    def __init__(self, encoder_kwargs=None, **kwargs):
+        Parameters
+        ----------
+        amortised
+            boolean, use a Neural Network to approximate posterior distribution of location-specific (local) parameters?
+        encoder_kwargs
+            arguments for Neural Network construction (scvi.nn.FCLayers)
+        kwargs
+            arguments for specific model class - e.g. number of genes, values of the prior distribution
+        """
         super().__init__()
         self.hist = []
 
         self._model = LocationModelLinearDependentWMultiExperimentModel(**kwargs)
 
-        encoder_kwargs = encoder_kwargs if isinstance(encoder_kwargs, dict) else dict()
-        amortised_vars = self.model.list_obs_plate_vars()
-        self._guide = AutoGuideList(self.model, create_plates=self.model.create_plates)
-        self._guide.append(
-            AutoNormal(
-                pyro.poutine.block(
-                    self.model, hide=list(amortised_vars["sites"].keys())
-                ),
+        if not amortised:
+            self._guide = AutoNormal(
+                self.model,
                 init_loc_fn=init_to_mean,
+                create_plates=self.model.create_plates,
             )
-        )
-        self._guide.append(
-            AutoNormalEncoder(
-                pyro.poutine.block(
-                    self.model, expose=list(amortised_vars["sites"].keys())
-                ),
-                amortised_plate_sites=amortised_vars,
-                n_in=self.model.n_vars,
-                encoder_kwargs=encoder_kwargs,
+        else:
+            encoder_kwargs = (
+                encoder_kwargs if isinstance(encoder_kwargs, dict) else dict()
             )
-        )
+            n_hidden = (
+                encoder_kwargs["n_hidden"]
+                if "n_hidden" in encoder_kwargs.keys()
+                else 128
+            )
+            amortised_vars = self.model.list_obs_plate_vars()
+            self._guide = AutoGuideList(
+                self.model, create_plates=self.model.create_plates
+            )
+            self._guide.append(
+                AutoNormal(
+                    pyro.poutine.block(
+                        self.model, hide=list(amortised_vars["sites"].keys())
+                    ),
+                    init_loc_fn=init_to_mean,
+                )
+            )
+            self._guide.append(
+                AutoNormalEncoder(
+                    pyro.poutine.block(
+                        self.model, expose=list(amortised_vars["sites"].keys())
+                    ),
+                    amortised_plate_sites=amortised_vars,
+                    n_in=self.model.n_vars,
+                    n_hidden=n_hidden,
+                    encoder_kwargs=encoder_kwargs,
+                )
+            )
 
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
 

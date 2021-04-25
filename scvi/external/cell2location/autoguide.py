@@ -40,7 +40,7 @@ class AutoNormalEncoder(AutoGuide):
         model,
         amortised_plate_sites,
         n_in,
-        n_hidden=200,
+        n_hidden=128,
         init_param=0,
         data_transform=torch.log1p,
         encoder_kwargs=None,
