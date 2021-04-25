@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyro
 import torch
+from pyro import poutine
 from pyro.infer import SVI, Predictive
 from tqdm.auto import tqdm
 
@@ -147,6 +148,96 @@ class Cell2locationTrainSampleMixin:
                 trainer_kwargs=trainer_kwargs,
                 early_stopping=early_stopping,
             )
+
+    def posterior_median(self, use_gpu=True):
+
+        gpus, device = parse_use_gpu_arg(use_gpu)
+
+        train_dl = AnnDataLoader(
+            self.adata, shuffle=False, batch_size=self.module.model.batch_size
+        )
+
+        # samples local parameters
+        i = 0
+        for tensor_dict in train_dl:
+            if i == 0:
+                args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+                args = [a.to(device) for a in args]
+                kwargs = {k: v.to(device) for k, v in kwargs.items()}
+
+                means = self.module.guide.median(*args, **kwargs)
+                means = {
+                    k: means[k].cpu().detach().numpy()
+                    for k in means.keys()
+                    if k in self.module.model.list_obs_plate_vars()["sites"]
+                }
+
+                # find plate dimension
+                trace = poutine.trace(self.module.model).get_trace(*args, **kwargs)
+                # print(trace.nodes[self.module.model.list_obs_plate_vars()['name']])
+                obs_plate = {
+                    name: site["cond_indep_stack"][0].dim
+                    for name, site in trace.nodes.items()
+                    if site["type"] == "sample"
+                    if any(
+                        f.name == self.module.model.list_obs_plate_vars()["name"]
+                        for f in site["cond_indep_stack"]
+                    )
+                }
+
+            else:
+                args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+                args = [a.to(device) for a in args]
+                kwargs = {k: v.to(device) for k, v in kwargs.items()}
+
+                means_ = self.module.guide.median(*args, **kwargs)
+                means_ = {
+                    k: means_[k].cpu().detach().numpy()
+                    for k in means_.keys()
+                    if k in self.module.model.list_obs_plate_vars()["sites"]
+                }
+                means = {
+                    k: np.concatenate(
+                        [means[k], means_[k]], axis=list(obs_plate.values())[0]
+                    )
+                    for k in means.keys()
+                }
+            i += 1
+
+        # samples global parameters
+        i = 0
+        for tensor_dict in train_dl:
+            if i == 0:
+                args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+                args = [a.to(device) for a in args]
+                kwargs = {k: v.to(device) for k, v in kwargs.items()}
+
+                global_means = self.module.guide.median(*args, **kwargs)
+                global_means = {
+                    k: global_means[k].cpu().detach().numpy()
+                    for k in global_means.keys()
+                    if k not in self.module.model.list_obs_plate_vars()["sites"]
+                }
+            i += 1
+
+        for k in global_means.keys():
+            means[k] = global_means[k]
+
+        self.module.to(device)
+
+        return means
+
+    def posterior_median_full_data(self, use_gpu=True):
+
+        args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
+        gpus, device = parse_use_gpu_arg(use_gpu)
+        args = [a.to(device) for a in args]
+        kwargs = {k: v.to(device) for k, v in kwargs.items()}
+
+        means = self.module.guide.median(*args, **kwargs)
+        means = {k: means[k].cpu().detach().numpy() for k in means.keys()}
+
+        return means
 
     def _sample_node(self, node, num_samples_batch: int = 10):
 
