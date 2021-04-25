@@ -1,6 +1,7 @@
 import os
 import tarfile
 
+from torch.nn import Softplus
 import anndata
 import numpy as np
 import pytest
@@ -32,6 +33,9 @@ def test_scvi(save_path):
     n_latent = 5
     adata = synthetic_iid()
     model = SCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    model = SCVI(adata, n_latent=n_latent, var_activation=Softplus())
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # tests __repr__

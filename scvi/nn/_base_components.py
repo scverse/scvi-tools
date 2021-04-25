@@ -1,5 +1,5 @@
 import collections
-from typing import Iterable, List
+from typing import Callable, Iterable, List, Optional
 
 import torch
 from torch import nn as nn
@@ -235,6 +235,7 @@ class Encoder(nn.Module):
         dropout_rate: float = 0.1,
         distribution: str = "normal",
         var_eps: float = 1e-4,
+        var_activation: Optional[Callable] = None,
         **kwargs,
     ):
         super().__init__()
@@ -257,6 +258,12 @@ class Encoder(nn.Module):
             self.z_transformation = nn.Softmax(dim=-1)
         else:
             self.z_transformation = identity
+
+        self.var_activation = (
+            lambda x: torch.exp(x + self.var_eps)
+            if var_activation is None
+            else var_activation
+        )
 
     def forward(self, x: torch.Tensor, *cat_list: int):
         r"""
@@ -282,7 +289,7 @@ class Encoder(nn.Module):
         # Parameters for latent distribution
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
-        q_v = torch.exp(self.var_encoder(q)) + self.var_eps
+        q_v = self.var_activation(self.var_encoder(q))
         latent = self.z_transformation(reparameterize_gaussian(q_m, q_v))
         return q_m, q_v, latent
 
