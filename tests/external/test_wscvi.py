@@ -82,7 +82,7 @@ def test_wscvi():
     idx = np.where(adata.obs.labels.values == "label_0")[0]
     n_cells = len(idx)
     scdl = model._make_data_loader(adata=adata, indices=idx, batch_size=128)
-    outs = model._inference_loop(scdl, n_samples=25)
+    outs = model._inference_loop(adata=adata, indices=idx, n_samples=25, batch_size=64)
     assert outs["log_px_zs"].shape == outs["log_qz"].shape
     assert outs["log_px_zs"].shape == (25 * n_cells, n_cells)
 

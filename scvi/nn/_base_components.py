@@ -260,11 +260,13 @@ class Encoder(nn.Module):
             self.z_transformation = identity
 
         if std_activation == "exp":
-            self.std_activation = torch.exp
+            self.std_activation = lambda x: torch.exp(x + self.var_eps)
         elif std_activation == "softplus":
             self.std_activation = nn.Softplus()
         else:
-            raise ValueError("Activation function {} not recognized".format(std_activation))
+            raise ValueError(
+                "Activation function {} not recognized".format(std_activation)
+            )
 
     def forward(self, x: torch.Tensor, *cat_list: int):
         r"""
@@ -290,7 +292,7 @@ class Encoder(nn.Module):
         # Parameters for latent distribution
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
-        q_v = self.std_activation(self.var_encoder(q)) + self.var_eps
+        q_v = self.std_activation(self.var_encoder(q))
         latent = self.z_transformation(reparameterize_gaussian(q_m, q_v))
         return q_m, q_v, latent
 

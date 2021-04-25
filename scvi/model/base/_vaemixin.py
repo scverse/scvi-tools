@@ -82,7 +82,7 @@ class VAEMixin:
         if indices is None:
             indices = np.arange(adata.n_obs)
         scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
+            adata=adata, indices=indices, batch_size=batch_size, shuffle=False,
         )
         if hasattr(self.module, "marginal_ll"):
             log_lkl = []
@@ -97,8 +97,6 @@ class VAEMixin:
                 "marginal_ll is not implemented for current model. "
                 "Please raise an issue on github if you need it."
             )
-        n_samples = len(indices)
-        return log_lkl / n_samples
 
     @torch.no_grad()
     def get_reconstruction_error(

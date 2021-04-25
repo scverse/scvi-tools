@@ -116,6 +116,12 @@ def _de_core(
     if not isinstance(group1, IterableClass) or isinstance(group1, str):
         group1 = [group1]
 
+    if (groupby is None) and (group1 is not None):
+        assert idx1 is None and idx2 is None
+        obs = adata.obs
+        idx1 = obs.index.isin(obs.query(group1).index).values
+        idx2 = obs.index.isin(obs.query(group2).index).values
+
     # make a temp obs key using indices
     temp_key = None
     if idx1 is not None:

@@ -2,6 +2,7 @@ from functools import partial
 from typing import Dict, Iterable, Optional, Sequence, Union
 import logging
 
+import re
 import numpy as np
 import pandas as pd
 import torch
@@ -97,6 +98,62 @@ class DEMixin:
 
         return result
 
+    def parse_query(self, query, adata):
+        """Parse query.
+        The query should have a form of the type
+            cond1 ~ cond2 | subcondition
+
+        The three elements `cond1`, `cond2`, and `subcondition`
+        represent desired combinations of columns of the adata.obs
+        dataframe. In particular, if `cell_type` is the column name for annotations,
+        the query
+            cell_type=A ~ cell_type=B
+        or equivalenty
+            cell_type=A ~ =B
+        compares subpopulations A and B.
+
+        Specifying "rest" or "all" for cond2 will perform one vs all comparisons
+
+        This framework also handles more complex conditions.
+
+        This function returns all comparisons of interest of the form
+
+
+            cell_type@(B, C, D)
+            cell_type + oxygen
+
+        :param query: string representation
+        :param adata: Used anndataset
+        """
+
+        def _parse_group(condt):
+            # condt_ = condt.strip()
+            # if "=" in condt:
+            #     obs_key, obs_val = condt_.split("=")
+            #     obs_val = re.findall(r"'(.*?)'", obs_val)
+            #     assert len(obs_val) == 1
+            #     # obs_vals
+
+            # elif "@" in condt:
+            #     obs_key, obs_vals = condt_.split("@")
+            #     obs_vals = re.findall(r"'(.*?)'", obs_vals)
+            # else:
+            #     obs_key =
+            pass
+
+        cond1, cond2_sub = query.split("~")
+        cond2_sub_split = cond2_sub.split("|")
+        if len(cond2_sub_split) == 1:
+            cond2 = cond2_sub_split[0]
+            sub = None
+        elif len(cond2_sub_split) == 2:
+            cond2, sub = cond2_sub_split
+        else:
+            raise ValueError("Character | appearing more than once")
+        groups1 = _parse_group(
+            cond1,
+        )
+
     @torch.no_grad()
     def get_population_expression(
         self,
@@ -121,6 +178,7 @@ class DEMixin:
         :param transform_batch: Batch to use, defaults to None
         :return_numpy: Whether numpy should be returned
         """
+        # Step 1: Determine effective indices to use
         adata = self._validate_anndata(adata)
         if transform_batch is not None:
             adata_key = self.scvi_setup_dict_["data_registry"]["batch_indices"][
@@ -133,7 +191,6 @@ class DEMixin:
             indices_ = indices[observed_batches == transform_batch_val]
         else:
             indices_ = indices
-
         assert indices_ is not None
         if do_filter_cells:
             indices_ = self.filter_cells(
@@ -142,54 +199,43 @@ class DEMixin:
                 batch_size=batch_size,
             )
 
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices_, batch_size=batch_size
-        )
-        n_cells = scdl.indices.shape[0]
-
+        # Step 2A: Determine number of samples to generate per cell
+        n_cells = indices_.shape[0]
         if n_samples_overall is not None:
-            n_samples_per_cell = int(np.ceil(n_samples_overall / n_cells))
+            n_samples_per_cell = int(1 + np.ceil(n_samples_overall / n_cells))
         else:
             n_samples_per_cell = n_samples
             n_samples_overall = n_samples_per_cell * n_cells
+        n_samples_per_cell = np.minimum(n_samples_per_cell, 200)
+        # Step 2B: Determine number of cell chunks
+        # Because of the quadratic complexity we split cells in smaller chunks when
+        # the cell population is too big
+        # This ensures that the method remains scalable when looking at very large cell populations
+        n_cell_chunks = int(np.ceil(n_cells / 500))
+        np.random.shuffle(indices_)
+        cell_chunks = np.array_split(indices_, n_cell_chunks)
 
-        inference_outs = self._inference_loop(scdl, n_samples_per_cell)
-        log_px_zs = inference_outs["log_px_zs"]
-        log_qz = inference_outs["log_qz"]
-        log_pz = inference_outs["log_pz"]
-        hs = inference_outs["hs"]
-
-        log_px = self.get_marginal_ll(
-            adata=adata,
-            indices=indices_,
-            n_mc_samples=5000,
-            observation_specific=True,
-        )
-        assert log_px.ndim == 1
-        assert log_px_zs.ndim == 2
-        assert log_qz.ndim == 2
-        assert log_pz.ndim == 1
-        log_mixture = torch.logsumexp(log_px_zs - log_px, dim=-1)
-        log_Q = torch.logsumexp(log_qz, dim=-1)
-        log_target = log_pz + log_mixture - log_Q
-        importance_weight = log_target - log_Q
-        log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
-        logger.debug("ESS: {}".format(1 / (log_probs ** 2).sum().item()))
-        indices = (
-            Categorical(logits=log_probs.unsqueeze(0))
-            .sample((n_samples_overall,))
-            .squeeze(-1)
-        )
-        res = hs[indices]
-        if return_numpy:
-            res = res.numpy()
+        # res = self._inference_loop(scdl, n_samples_per_cell)["hs_weighted"]
+        res = []
+        for chunk in cell_chunks:
+            res.append(
+                self._inference_loop(
+                    adata=adata,
+                    indices=chunk,
+                    n_samples=n_samples_per_cell,
+                    batch_size=batch_size,
+                )["hs_weighted"].numpy()
+            )
+        res = np.concatenate(res, 0)
         return res
 
     @torch.no_grad()
     def _inference_loop(
         self,
-        scdl,
+        adata,
+        indices,
         n_samples: int,
+        batch_size=64,
         # transform_batch: str = None
     ):
         """Returns population wide unweighted posterior samples, as well as
@@ -200,13 +246,17 @@ class DEMixin:
         :param n_samples: Number of samples per cell
         :param transform_batch: Batch of use, defaults to None
         """
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size, shuffle=False
+        )
+
         n_cells = scdl.indices.shape[0]
         zs = []
         qzs_m = []
         qzs_v = []
         hs = []
         log_px_zs = []
-        for tensors in track(scdl, description="Iterating over cells ..."):
+        for tensors in scdl:
             inference_outputs, generative_outputs, = self.module.forward(
                 tensors,
                 inference_kwargs=dict(n_samples=n_samples, return_densities=True),
@@ -238,12 +288,40 @@ class DEMixin:
             .sum(-1)
             .squeeze()
         )
+
+        log_px = self.get_marginal_ll(
+            adata=adata,
+            indices=indices,
+            n_mc_samples=5000,
+            observation_specific=True,
+        )
+
+        importance_weight = torch.logsumexp(
+            log_pz.unsqueeze(1)
+            + log_px_zs
+            - log_px
+            - torch.logsumexp(log_qz, 1, keepdims=True),
+            dim=1,
+        )
+        log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
+        ws = log_probs.exp()
+        logger.debug("ESS: {}".format(1 / (ws ** 2).sum().item()))
+        n_samples_overall = ws.shape[0]
+        windices = (
+            Categorical(logits=log_probs.unsqueeze(0))
+            .sample((n_samples_overall,))
+            .squeeze(-1)
+        )
+
         return dict(
             log_px_zs=log_px_zs,
             log_qz=log_qz,
             log_pz=log_pz,
+            log_probs=log_probs,
+            probs=ws,
             zs=zs,
             hs=hs,
+            hs_weighted=hs[windices],
             qzs_m=qzs_m,
             qzs_v=qzs_v,
         )
@@ -271,7 +349,7 @@ class DEMixin:
             _inf_inputs = self.module._get_inference_input(_tensors)
             _n_cells = _inf_inputs["batch_index"].shape[0]
 
-            __z = _z.expand(_n_samples_loop, _n_cells, self.module.n_latent)
+            _z_reshaped = _z.expand(_n_samples_loop, _n_cells, self.module.n_latent)
 
             point_library = (
                 self.module.inference(**_inf_inputs, return_densities=True)[lib_key]
@@ -279,7 +357,7 @@ class DEMixin:
                 .expand(_n_samples_loop, _n_cells, 1)
             )
 
-            inference_outputs["z"] = __z.to()
+            inference_outputs["z"] = _z_reshaped.to()
             inference_outputs["library"] = point_library.to()
             _log_px_zs.append(
                 self.module.generative_evaluate(
