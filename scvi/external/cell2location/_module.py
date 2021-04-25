@@ -189,7 +189,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
 
         return {
             "name": "obs_plate",
-            "in": ["x_data"],
+            "in": [0],
             "sites": {
                 "n_s_cells_per_location": 1,
                 "y_s_groups_per_location": 1,
