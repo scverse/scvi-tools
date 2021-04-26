@@ -13,11 +13,19 @@ group2
     If `None`, compare each group in `group1` to the union of the rest of the groups
     in `groupby`. If a group identifier, compare with respect to this group.
 idx1
-    Boolean mask or indices for `group1`. `idx1` and `idx2` can be used as an alternative
-    to the AnnData keys. If `idx1` is not `None`, this option overrides `group1`
+    `idx1` and `idx2` can be used as an alternative
+    to the AnnData keys.
+    Custom identifier for `group1` that can be of three sorts:
+    a boolean mask, indices, or a string.
+    If it is a string, then it will query indices that
+    verifies conditions on `adata.obs`, as described in
+    .. link: https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html
+    If `idx1` is not `None`, this option overrides `group1`
     and `group2`.
 idx2
-    Boolean mask or indices for `group2`. By default, includes all cells not specified in
+    Custom identifier for `group2` that has the same
+    properties than `idx1`.
+    By default, includes all cells not specified in
     `idx1`.
 mode
     Method for differential expression. See user guide for full explanation.

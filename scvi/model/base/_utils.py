@@ -100,7 +100,6 @@ def _construct_obs(
         Can be of three types. First, it can corresponds to a boolean mask that
         has the same shape as adata. It can also corresponds to a list of indices.
         Last, it can correspond to string query of adata.obs columns.
-
     idx2
         Same as above
     adata
