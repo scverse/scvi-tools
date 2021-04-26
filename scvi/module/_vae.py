@@ -96,7 +96,7 @@ class VAE(BaseModuleClass):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_observed_lib_size: bool = True,
-        var_activation: Optional[Callable] = None,
+        var_activation: Optional[Callable] = torch.exp,
     ):
         super().__init__()
         self.dispersion = dispersion
