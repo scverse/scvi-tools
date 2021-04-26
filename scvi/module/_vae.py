@@ -76,6 +76,7 @@ class VAE(BaseModuleClass):
         Use observed library size for RNA as scaling factor in mean of conditional distribution
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
+        When `None`, defaults to `torch.exp`.
     """
 
     def __init__(
@@ -98,7 +99,7 @@ class VAE(BaseModuleClass):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_observed_lib_size: bool = True,
-        var_activation: Optional[Callable] = torch.exp,
+        var_activation: Optional[Callable] = None,
     ):
         super().__init__()
         self.dispersion = dispersion

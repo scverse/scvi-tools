@@ -226,6 +226,7 @@ class Encoder(nn.Module):
         used for numerical stability
     var_activation
         Callable used to ensure positivity of the variance.
+        When `None`, defaults to `torch.exp`.
     **kwargs
         Keyword args for :class:`~scvi.module._base.FCLayers`
     """
@@ -240,7 +241,7 @@ class Encoder(nn.Module):
         dropout_rate: float = 0.1,
         distribution: str = "normal",
         var_eps: float = 1e-4,
-        var_activation: Optional[Callable] = torch.exp,
+        var_activation: Optional[Callable] = None,
         **kwargs,
     ):
         super().__init__()
@@ -263,7 +264,7 @@ class Encoder(nn.Module):
             self.z_transformation = nn.Softmax(dim=-1)
         else:
             self.z_transformation = identity
-        self.var_activation = var_activation
+        self.var_activation = torch.exp if var_activation is None else var_activation
 
     def forward(self, x: torch.Tensor, *cat_list: int):
         r"""
