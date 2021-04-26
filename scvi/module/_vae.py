@@ -74,6 +74,8 @@ class VAE(BaseModuleClass):
         Whether to use layer norm in layers
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
+    var_activation
+        Callable used to ensure positivity of the variational distributions' variance.
     """
 
     def __init__(
