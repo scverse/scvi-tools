@@ -1,3 +1,6 @@
+# from typing import Dict, List,
+from typing import Optional
+
 from ray import tune
 from ray.tune import CLIReporter
 
@@ -31,11 +34,11 @@ class Autotune:
         self,
         adata,
         model,
-        training_metrics: list = ["elbo_validation"],
-        metric_functions: dict = {},
-        model_hyperparams: dict = {},
-        trainer_hyperparams: dict = {},
-        plan_hyperparams: dict = {},
+        training_metrics: Optional[list] = None,
+        metric_functions: Optional[dict] = None,
+        model_hyperparams: Optional[dict] = None,
+        trainer_hyperparams: Optional[dict] = None,
+        plan_hyperparams: Optional[dict] = None,
         num_epochs: int = 2,
     ):
         self.adata = adata
@@ -55,7 +58,7 @@ class Autotune:
                 self.config.update(d)
         self.num_epochs = num_epochs
 
-    def _scvi_trainable(self, config, checkpoint_dir=None):
+    def _trainable(self, config, checkpoint_dir=None):
         model_config = {}
         trainer_config = {}
         plan_config = {}
@@ -94,7 +97,7 @@ class Autotune:
         **kwargs,
     ):
         """
-        Run hyper parameter tuning experiment.
+        Wrapper for `tune.run`. Runs hyper parameter tuning experiment.
 
         Parameters
         ----------
@@ -108,10 +111,16 @@ class Autotune:
             Name of this experiment.
         num_samples
             Number of times to sample hyperparameters from the configuration space.
+        **kwargs
+            Additional arguments for `tune.run`
+
+        Returns
+        -------
+        A tuple with the best model object and tune Analysis object
 
         """
         analysis = tune.run(
-            self._scvi_trainable,
+            self._trainable,
             metric=metric,
             mode=mode,
             config=self.config,
