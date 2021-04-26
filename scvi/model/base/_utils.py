@@ -3,7 +3,7 @@ import os
 import pickle
 import warnings
 from collections.abc import Iterable as IterableClass
-from typing import Optional, List, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
