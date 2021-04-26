@@ -91,8 +91,7 @@ def _construct_obs(
     idx2: Union[List[bool], np.ndarray, str],
     adata,
 ):
-    """
-    Construct an array used for masking
+    """Construct an array used for masking
     to compare observations characterized by idx1, idx2
 
     Parameters
