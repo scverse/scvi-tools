@@ -6,6 +6,7 @@ import pytest
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
 from scvi.utils import DifferentialComputation
+from scvi.model.base._utils import _construct_obs
 
 
 def test_differential_computation(save_path):
@@ -48,6 +49,21 @@ def test_differential_computation(save_path):
     # test view
     model.differential_expression(
         adata[adata.obs["labels"] == "label_1"], groupby="batch"
+    )
+
+    # Test query features
+    obs_col, group1, _, = _construct_obs(
+        idx1="(labels == 'label_1') & (batch == 'batch_1')", idx2=None, adata=adata
+    )
+    assert (
+        (obs_col == group1).sum()
+        == adata.obs.loc[lambda x: (x.labels == "label_1") & (x.batch == "batch_1")].shape[0]
+    )
+    model.differential_expression(
+        idx1="labels == 'label_1'",
+    )
+    model.differential_expression(
+        idx1="labels == 'label_1'", idx2="(labels == 'label_2') & (batch == 'batch_1')"
     )
 
     # test that ints as group work
