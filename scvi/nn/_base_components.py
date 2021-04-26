@@ -221,6 +221,11 @@ class Encoder(nn.Module):
         Dropout rate to apply to each of the hidden layers
     distribution
         Distribution of z
+    var_eps
+        Minimum value for the variance;
+        used for numerical stability
+    var_activation
+        Callable used to ensure positivity of the variance.
     **kwargs
         Keyword args for :class:`~scvi.module._base.FCLayers`
     """
