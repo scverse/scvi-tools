@@ -6,6 +6,40 @@ import pytest
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
 from scvi.utils import DifferentialComputation
+from scvi.utils._differential import estimate_delta, estimate_pseudocounts_offset
+
+
+def test_features():
+    a = np.random.randn(
+        100,
+    )
+    b = 3 + np.random.randn(
+        100,
+    )
+    c = -3 + np.random.randn(
+        100,
+    )
+    alls = np.concatenate([a, b, c])
+    delta = estimate_delta(alls)
+    assert delta >= 0.4 * 3
+    assert delta <= 6
+
+    scales_a = np.random.rand(100, 50)
+    where_zero_a = np.zeros(50, dtype=bool)
+    where_zero_a[:10] = True
+    scales_a[:, :10] = 1e-6
+
+    scales_b = np.random.rand(100, 50)
+    where_zero_b = np.zeros(50, dtype=bool)
+    where_zero_b[-10:] = True
+    scales_b[:, -10:] = 1e-7
+    offset = estimate_pseudocounts_offset(
+        scales_a=scales_a,
+        scales_b=scales_b,
+        where_zero_a=where_zero_a,
+        where_zero_b=where_zero_b,
+    )
+    assert offset <= 1e-6
 
 
 def test_differential_computation(save_path):

@@ -6,6 +6,8 @@ from typing import Callable, Dict, List, Optional, Sequence, Union
 import numpy as np
 import pandas as pd
 import torch
+from scipy.sparse import issparse
+from sklearn.mixture import GaussianMixture
 
 from scvi._compat import Literal
 
@@ -48,6 +50,7 @@ class DifferentialComputation:
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
+        eps: float = 1e-8,
         cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
     ) -> Dict[str, np.ndarray]:
         r"""
@@ -165,7 +168,6 @@ class DifferentialComputation:
         #         "Differential expression requires a Posterior object created with all indices."
         #     )
 
-        eps = 1e-8  # used for numerical stability
         # Normalized means sampling for both populations
         scales_batches_1 = self.scale_sampler(
             selection=idx1,
@@ -236,6 +238,18 @@ class DifferentialComputation:
                 m_permutation=m_permutation,
             )
 
+        # Adding pseudocounts to the scales
+        if eps is None:
+            logger.debug("Estimating pseudocounts offet from the data")
+            where_zero_a = densify(np.max(self.adata[idx1].X, 0)) == 0
+            where_zero_b = densify(np.max(self.adata[idx2].X, 0)) == 0
+            eps = estimate_pseudocounts_offset(
+                scales_a=scales_1,
+                scales_b=scales_2,
+                where_zero_a=where_zero_a,
+                where_zero_b=where_zero_b,
+            )
+        logger.debug("Using epsilon ~ {}".format(eps))
         # Core of function: hypotheses testing based on the posterior samples we obtained above
         if mode == "vanilla":
             logger.debug("Differential expression using vanilla mode")
@@ -254,7 +268,7 @@ class DifferentialComputation:
 
             # step 1: Construct the change function
             def lfc(x, y):
-                return np.log2(x) - np.log2(y)
+                return np.log2(x + eps) - np.log2(y + eps)
 
             if change_fn == "log-fold" or change_fn is None:
                 change_fn = lfc
@@ -263,10 +277,15 @@ class DifferentialComputation:
 
             # step2: Construct the DE area function
             if m1_domain_fn is None:
-                delta = delta if delta is not None else 0.5
 
                 def m1_domain_fn(samples):
-                    return np.abs(samples) >= delta
+                    delta_ = (
+                        delta
+                        if delta is not None
+                        else estimate_delta(lfc_means=samples.mean(0))
+                    )
+                    logger.debug("Using delta ~ {:.2f}".format(delta_))
+                    return np.abs(samples) >= delta_
 
             change_fn_specs = inspect.getfullargspec(change_fn)
             domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
@@ -401,6 +420,70 @@ class DifferentialComputation:
         if give_mean:
             px_scales = px_scales.mean(0)
         return dict(scale=px_scales, batch=batch_ids)
+
+
+def estimate_delta(lfc_means: List[np.ndarray], coef=0.6, min_thres=0.3):
+    """Computes a threshold LFC value based on means of LFCs.
+
+    Parameters
+    ----------
+    lfc_means
+        LFC means for each gene, should be 1d.
+    coef
+        Tunable hyperparameter to choose the threshold based on estimated modes, defaults to 0.6
+    min_thres
+        Minimum returned threshold value, defaults to 0.3
+    """
+    logger.debug("Estimating delta from effect size samples")
+    assert lfc_means.ndim == 1
+    gmm = GaussianMixture(n_components=3)
+    gmm.fit(lfc_means[:, None])
+    vals = np.sort(gmm.means_.squeeze())
+    res = coef * np.abs(vals[[0, -1]]).mean()
+    res = np.maximum(min_thres, res)
+    return res
+
+
+def estimate_pseudocounts_offset(
+    scales_a: List[np.ndarray],
+    scales_b: List[np.ndarray],
+    where_zero_a: List[np.ndarray],
+    where_zero_b: List[np.ndarray],
+):
+    """Determines pseudocount offset to shrink
+    LFCs asssociated with non-expressed genes to zero.
+
+    Parameters
+    ----------
+    scales_a
+        Scales in first population
+    scales_b
+        Scales in second population
+    where_zero_a
+        mask where no observed counts
+    where_zero_b
+        mask where no observed counts
+    """
+
+    max_scales_a = np.max(scales_a, 0)
+    max_scales_b = np.max(scales_b, 0)
+    assert max_scales_a.shape == where_zero_a.shape
+    assert max_scales_b.shape == where_zero_b.shape
+    assert where_zero_a.shape == where_zero_b.shape
+
+    if where_zero_a.sum() >= 1:
+        artefact_scales_a = max_scales_a[where_zero_a]
+        eps_a = np.percentile(artefact_scales_a, q=90)
+    else:
+        eps_a = 1e-10
+
+    if where_zero_b.sum() >= 1:
+        artefact_scales_b = max_scales_b[where_zero_b]
+        eps_b = np.percentile(artefact_scales_b, q=90)
+    else:
+        eps_b = 1e-10
+    res = np.maximum(eps_a, eps_b)
+    return res
 
 
 def pairs_sampler(
@@ -577,3 +660,9 @@ def save_cluster_xlsx(
     for i, x in enumerate(cluster_names):
         de_results[i].to_excel(writer, sheet_name=str(x))
     writer.close()
+
+
+def densify(arr):
+    if issparse(arr):
+        return np.asarray(arr.todense()).squeeze()
+    return arr
