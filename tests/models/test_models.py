@@ -1,12 +1,12 @@
 import os
 import tarfile
 
-from torch.nn import Softplus
 import anndata
 import numpy as np
 import pytest
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
+from torch.nn import Softplus
 
 import scvi
 from scvi.data import setup_anndata, synthetic_iid, transfer_anndata_setup
