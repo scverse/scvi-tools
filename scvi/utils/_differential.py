@@ -50,7 +50,7 @@ class DifferentialComputation:
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
-        eps: float = 1e-8,
+        eps: float = 0.0,
         cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
     ) -> Dict[str, np.ndarray]:
         r"""
