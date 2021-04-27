@@ -266,15 +266,6 @@ class Encoder(nn.Module):
             self.z_transformation = identity
         self.var_activation = torch.exp if var_activation is None else var_activation
 
-        if std_activation == "exp":
-            self.std_activation = lambda x: torch.exp(x + self.var_eps)
-        elif std_activation == "softplus":
-            self.std_activation = nn.Softplus()
-        else:
-            raise ValueError(
-                "Activation function {} not recognized".format(std_activation)
-            )
-
     def forward(self, x: torch.Tensor, *cat_list: int):
         r"""
         The forward computation for a single sample.
