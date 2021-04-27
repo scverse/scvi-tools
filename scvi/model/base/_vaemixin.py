@@ -71,10 +71,10 @@ class VAEMixin:
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         observation_specific
-            whether to return the mean marginal 
+            whether to return the mean marginal
             .. math::
-            \sum_i p(x_i) 
-            or the vector 
+            \sum_i p(x_i)
+            or the vector
             .. math::
             \{p(x_i)\}_i
         """
@@ -82,12 +82,21 @@ class VAEMixin:
         if indices is None:
             indices = np.arange(adata.n_obs)
         scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size, shuffle=False,
+            adata=adata,
+            indices=indices,
+            batch_size=batch_size,
+            shuffle=False,
         )
         if hasattr(self.module, "marginal_ll"):
             log_lkl = []
             for tensors in scdl:
-                log_lkl.append(self.module.marginal_ll(tensors, n_mc_samples=n_mc_samples, observation_specific=observation_specific))
+                log_lkl.append(
+                    self.module.marginal_ll(
+                        tensors,
+                        n_mc_samples=n_mc_samples,
+                        observation_specific=observation_specific,
+                    )
+                )
             if observation_specific:
                 return torch.cat(log_lkl, 0)
             else:

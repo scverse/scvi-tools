@@ -6,7 +6,7 @@ from scvi._compat import Literal
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import VAE
 
-from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin, DEMixin
+from .base import ArchesMixin, BaseModelClass, DEMixin, RNASeqMixin, VAEMixin
 
 logger = logging.getLogger(__name__)
 

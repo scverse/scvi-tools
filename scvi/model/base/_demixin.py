@@ -1,16 +1,14 @@
-from functools import partial
-from typing import Dict, Iterable, Optional, Sequence, Union
 import logging
+from functools import partial
+from typing import Iterable, Optional, Sequence, Union
 
-import re
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from torch.distributions import Categorical, Normal
 from sklearn.covariance import EllipticEnvelope
+from torch.distributions import Categorical, Normal
 
-from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.model._utils import (
     _get_batch_code_from_category,
@@ -18,8 +16,6 @@ from scvi.model._utils import (
     scrna_raw_counts_properties,
 )
 from scvi.model.base._utils import _de_core
-from scvi.utils import track
-
 
 logger = logging.getLogger(__name__)
 
@@ -97,62 +93,6 @@ class DEMixin:
         )
 
         return result
-
-    def parse_query(self, query, adata):
-        """Parse query.
-        The query should have a form of the type
-            cond1 ~ cond2 | subcondition
-
-        The three elements `cond1`, `cond2`, and `subcondition`
-        represent desired combinations of columns of the adata.obs
-        dataframe. In particular, if `cell_type` is the column name for annotations,
-        the query
-            cell_type=A ~ cell_type=B
-        or equivalenty
-            cell_type=A ~ =B
-        compares subpopulations A and B.
-
-        Specifying "rest" or "all" for cond2 will perform one vs all comparisons
-
-        This framework also handles more complex conditions.
-
-        This function returns all comparisons of interest of the form
-
-
-            cell_type@(B, C, D)
-            cell_type + oxygen
-
-        :param query: string representation
-        :param adata: Used anndataset
-        """
-
-        def _parse_group(condt):
-            # condt_ = condt.strip()
-            # if "=" in condt:
-            #     obs_key, obs_val = condt_.split("=")
-            #     obs_val = re.findall(r"'(.*?)'", obs_val)
-            #     assert len(obs_val) == 1
-            #     # obs_vals
-
-            # elif "@" in condt:
-            #     obs_key, obs_vals = condt_.split("@")
-            #     obs_vals = re.findall(r"'(.*?)'", obs_vals)
-            # else:
-            #     obs_key =
-            pass
-
-        cond1, cond2_sub = query.split("~")
-        cond2_sub_split = cond2_sub.split("|")
-        if len(cond2_sub_split) == 1:
-            cond2 = cond2_sub_split[0]
-            sub = None
-        elif len(cond2_sub_split) == 2:
-            cond2, sub = cond2_sub_split
-        else:
-            raise ValueError("Character | appearing more than once")
-        groups1 = _parse_group(
-            cond1,
-        )
 
     @torch.no_grad()
     def get_population_expression(

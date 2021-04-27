@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from scvi.data import synthetic_iid
-from scvi.external.wscvi import WSCVI, WVAE
+from scvi.external.wscvi import WSCVI
 from scvi.model import SCVI
 from scvi.utils import DifferentialComputation
 from scvi.utils._differential import estimate_delta, estimate_pseudocounts_offset
@@ -81,7 +81,7 @@ def test_wscvi():
     # Checking that function output shapes make sense
     idx = np.where(adata.obs.labels.values == "label_0")[0]
     n_cells = len(idx)
-    scdl = model._make_data_loader(adata=adata, indices=idx, batch_size=128)
+    model._make_data_loader(adata=adata, indices=idx, batch_size=128)
     outs = model._inference_loop(adata=adata, indices=idx, n_samples=25, batch_size=64)
     assert outs["log_px_zs"].shape == outs["log_qz"].shape
     assert outs["log_px_zs"].shape == (25 * n_cells, n_cells)

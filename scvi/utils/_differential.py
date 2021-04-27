@@ -4,10 +4,10 @@ import warnings
 from typing import Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
-from sklearn.mixture import GaussianMixture
 import pandas as pd
-from scipy.sparse import issparse
 import torch
+from scipy.sparse import issparse
+from sklearn.mixture import GaussianMixture
 
 from scvi._compat import Literal
 

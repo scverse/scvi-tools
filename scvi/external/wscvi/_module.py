@@ -6,7 +6,7 @@ Simplify init as it is too complex just because of the softplus thing
 
 So far:
 in VAE
-- Simplify multi sampling parts 
+- Simplify multi sampling parts
 - Option to use Encoder with  softplus
 
 In WVAE:
@@ -24,15 +24,14 @@ and I want to evaluate the log ratios
 from typing import Iterable, Optional
 
 import torch
-from torch.distributions import Normal
 import torch.nn.functional as F
-import torch.nn as nn
+from torch.distributions import Normal
 
-from scvi._compat import Literal
 from scvi import _CONSTANTS
+from scvi._compat import Literal
 from scvi.module import VAE
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
-from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
+from scvi.module.base import LossRecorder, auto_move_data
+from scvi.nn import one_hot
 
 
 def reparameterize_gaussian(mu, var):

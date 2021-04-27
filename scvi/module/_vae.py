@@ -440,7 +440,13 @@ class VAE(BaseModuleClass):
 
     @torch.no_grad()
     @auto_move_data
-    def marginal_ll(self, tensors, n_mc_samples, n_samples_per_pass=25, observation_specific: bool = False):
+    def marginal_ll(
+        self,
+        tensors,
+        n_mc_samples,
+        n_samples_per_pass=25,
+        observation_specific: bool = False,
+    ):
         """Returns the log evidence using n_nc_samples. In order to speed up computing,
         n_samples_per_pass samples are used in each forward pass.
         Increasing this value can speed up the computation but might also cause
@@ -472,7 +478,7 @@ class VAE(BaseModuleClass):
     @auto_move_data
     def generative_evaluate(self, tensors, inference_outputs):
         """Extension of the generative method, that also
-        returns estimations for the joint density, that is required 
+        returns estimations for the joint density, that is required
         for marginal likelihood estimation and other tasks
         """
         gen_inputs = self._get_generative_input(tensors, inference_outputs)
@@ -488,9 +494,11 @@ class VAE(BaseModuleClass):
         zstd = torch.ones_like(z)
         log_pz = Normal(zmean, zstd).log_prob(z).sum(-1)
         if not self.use_observed_lib_size:
-            log_pl = Normal(local_l_mean, torch.sqrt(local_l_var)).log_prob(
-                inference_outputs["library"]
-            ).sum(-1)
+            log_pl = (
+                Normal(local_l_mean, torch.sqrt(local_l_var))
+                .log_prob(inference_outputs["library"])
+                .sum(-1)
+            )
         else:
             log_pl = 0.0
         log_pjoint = log_px_latents + log_pz + log_pl

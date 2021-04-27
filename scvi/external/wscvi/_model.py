@@ -3,8 +3,6 @@
 
 import logging
 
-import torch
-import torch.nn
 from anndata import AnnData
 
 from scvi._compat import Literal
@@ -12,12 +10,11 @@ from scvi.external.wscvi._module import WVAE
 from scvi.model.base import (
     ArchesMixin,
     BaseModelClass,
+    DEMixin,
     RNASeqMixin,
     UnsupervisedTrainingMixin,
     VAEMixin,
-    DEMixin,
 )
-
 
 logger = logging.getLogger(__name__)
 
