@@ -77,6 +77,7 @@ def test_wscvi():
     model.train(
         max_epochs=5,
     )
+    obs = adata.obs
 
     # Checking that function output shapes make sense
     idx = np.where(adata.obs.labels.values == "label_0")[0]
@@ -108,5 +109,11 @@ def test_wscvi():
 
     model.lvm_de(
         idx1="(labels == 'label_1') & (_scvi_batch == 1)",
+        batch_correction=True,
+    )
+
+    model.lvm_de(
+        adata=adata[obs._scvi_batch == 1],
+        groupby="labels",
         batch_correction=True,
     )
