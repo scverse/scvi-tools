@@ -56,12 +56,20 @@ def test_differential_computation(save_path):
     cell_idx2 = ~cell_idx1
 
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="vanilla", use_permutation=True)
-    dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=False)
-    dc.get_bayes_factors(
+    res = dc.get_bayes_factors(
+        cell_idx1, cell_idx2, mode="change", use_permutation=False
+    )
+    assert (res["delta"] == 0.5) and (res["pseudocounts"] == 0.0)
+    res = dc.get_bayes_factors(
         cell_idx1, cell_idx2, mode="change", use_permutation=False, delta=None
     )
     dc.get_bayes_factors(
-        cell_idx1, cell_idx2, mode="change", use_permutation=False, delta=None, eps=None
+        cell_idx1,
+        cell_idx2,
+        mode="change",
+        use_permutation=False,
+        delta=None,
+        pseudocounts=None,
     )
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", cred_interval_lvls=[0.75])
 

@@ -50,7 +50,7 @@ class DifferentialComputation:
         change_fn: Optional[Union[str, Callable]] = None,
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
-        eps: float = 0.0,
+        pseudocounts: Union[float, None] = 0.0,
         cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
     ) -> Dict[str, np.ndarray]:
         r"""
@@ -154,6 +154,11 @@ class DifferentialComputation:
             specific case of region inducing differential expression.
             In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce differential expression
             (LFC case)
+            If the provided value is None, then a proper threshold is determined
+            from the distribution of LFCs accross genes.
+        pseudocounts
+            pseudocount offset used for the mode `change`.
+            When None, observations from non-expressed genes are used to estimate its value.
         cred_interval_lvls
             List of credible interval levels to compute for the posterior
             LFC distribution
@@ -167,7 +172,7 @@ class DifferentialComputation:
         #     warnings.warn(
         #         "Differential expression requires a Posterior object created with all indices."
         #     )
-
+        eps = 1e-8
         # Normalized means sampling for both populations
         scales_batches_1 = self.scale_sampler(
             selection=idx1,
@@ -239,17 +244,17 @@ class DifferentialComputation:
             )
 
         # Adding pseudocounts to the scales
-        if eps is None:
+        if pseudocounts is None:
             logger.debug("Estimating pseudocounts offet from the data")
             where_zero_a = densify(np.max(self.adata[idx1].X, 0)) == 0
             where_zero_b = densify(np.max(self.adata[idx2].X, 0)) == 0
-            eps = estimate_pseudocounts_offset(
+            pseudocounts = estimate_pseudocounts_offset(
                 scales_a=scales_1,
                 scales_b=scales_2,
                 where_zero_a=where_zero_a,
                 where_zero_b=where_zero_b,
             )
-        logger.debug("Using epsilon ~ {}".format(eps))
+        logger.debug("Using pseudocounts ~ {}".format(pseudocounts))
         # Core of function: hypotheses testing based on the posterior samples we obtained above
         if mode == "vanilla":
             logger.debug("Differential expression using vanilla mode")
@@ -268,7 +273,7 @@ class DifferentialComputation:
 
             # step 1: Construct the change function
             def lfc(x, y):
-                return np.log2(x + eps) - np.log2(y + eps)
+                return np.log2(x + pseudocounts) - np.log2(y + pseudocounts)
 
             if change_fn == "log-fold" or change_fn is None:
                 change_fn = lfc
@@ -296,6 +301,11 @@ class DifferentialComputation:
             try:
                 change_distribution = change_fn(scales_1, scales_2)
                 is_de = m1_domain_fn(change_distribution)
+                delta_ = (
+                    estimate_delta(lfc_means=change_distribution.mean(0))
+                    if delta is None
+                    else delta
+                )
             except TypeError:
                 raise TypeError(
                     "change_fn or m1_domain_fn have has wrong properties."
@@ -317,6 +327,8 @@ class DifferentialComputation:
                 bayes_factor=np.log(proba_m1 + eps) - np.log(1.0 - proba_m1 + eps),
                 scale1=px_scale_mean1,
                 scale2=px_scale_mean2,
+                pseudocounts=pseudocounts,
+                delta=delta_,
                 **change_distribution_props,
             )
         else:
@@ -449,6 +461,7 @@ def estimate_pseudocounts_offset(
     scales_b: List[np.ndarray],
     where_zero_a: List[np.ndarray],
     where_zero_b: List[np.ndarray],
+    percentile: Optional[float] = 0.9,
 ):
     """Determines pseudocount offset to shrink
     LFCs asssociated with non-expressed genes to zero.
@@ -473,13 +486,13 @@ def estimate_pseudocounts_offset(
 
     if where_zero_a.sum() >= 1:
         artefact_scales_a = max_scales_a[where_zero_a]
-        eps_a = np.percentile(artefact_scales_a, q=90)
+        eps_a = np.percentile(artefact_scales_a, q=percentile)
     else:
         eps_a = 1e-10
 
     if where_zero_b.sum() >= 1:
         artefact_scales_b = max_scales_b[where_zero_b]
-        eps_b = np.percentile(artefact_scales_b, q=90)
+        eps_b = np.percentile(artefact_scales_b, q=percentile)
     else:
         eps_b = 1e-10
     res = np.maximum(eps_a, eps_b)
