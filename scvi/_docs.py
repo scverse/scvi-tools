@@ -14,7 +14,7 @@ group2
     in `groupby`. If a group identifier, compare with respect to this group.
 idx1
     `idx1` and `idx2` can be used as an alternative to the AnnData keys.
-    Custom identifier for `group1` that can be of three sorts: (1) a boolean mask, 
+    Custom identifier for `group1` that can be of three sorts: (1) a boolean mask,
     (2) indices, or (3) a string. If it is a string, then it will query indices that
     verifies conditions on `adata.obs`, as described in :func:`~pandas.DataFrame.query`
     If `idx1` is not `None`, this option overrides `group1`
