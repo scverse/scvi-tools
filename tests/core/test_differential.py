@@ -21,8 +21,9 @@ def test_features():
     )
     alls = np.concatenate([a, b, c])
     delta = estimate_delta(alls)
-    assert delta >= 0.4 * 3
-    assert delta <= 6
+    expected_range = (delta >= 0.4 * 3) and (delta <= 6)
+    if not expected_range:
+        raise ValueError("The effect-size threshold was not properly estimated.")
 
     scales_a = np.random.rand(100, 50)
     where_zero_a = np.zeros(50, dtype=bool)
@@ -39,7 +40,9 @@ def test_features():
         where_zero_a=where_zero_a,
         where_zero_b=where_zero_b,
     )
-    assert offset <= 1e-6
+    expected_off_range = offset <= 1e-6
+    if not expected_off_range:
+        raise ValueError("The pseudocount offsset was not properly estimated.")
 
 
 def test_differential_computation(save_path):

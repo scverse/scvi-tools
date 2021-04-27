@@ -447,7 +447,8 @@ def estimate_delta(lfc_means: List[np.ndarray], coef=0.6, min_thres=0.3):
         Minimum returned threshold value, defaults to 0.3
     """
     logger.debug("Estimating delta from effect size samples")
-    assert lfc_means.ndim == 1
+    if lfc_means.ndim >= 2:
+        raise ValueError("lfc_means should be 1-dimensional of shape: (n_genes,).")
     gmm = GaussianMixture(n_components=3)
     gmm.fit(lfc_means[:, None])
     vals = np.sort(gmm.means_.squeeze())
@@ -480,10 +481,14 @@ def estimate_pseudocounts_offset(
 
     max_scales_a = np.max(scales_a, 0)
     max_scales_b = np.max(scales_b, 0)
-    assert max_scales_a.shape == where_zero_a.shape
-    assert max_scales_b.shape == where_zero_b.shape
-    assert where_zero_a.shape == where_zero_b.shape
-
+    asserts = (
+        (max_scales_a.shape == where_zero_a.shape)
+        and (max_scales_b.shape == where_zero_b.shape)
+    ) and (where_zero_a.shape == where_zero_b.shape)
+    if not asserts:
+        raise ValueError(
+            "Dimension mismatch between scales and/or masks to compute the pseudocounts offset."
+        )
     if where_zero_a.sum() >= 1:
         artefact_scales_a = max_scales_a[where_zero_a]
         eps_a = np.percentile(artefact_scales_a, q=percentile)
