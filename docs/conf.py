@@ -36,13 +36,13 @@ needs_sphinx = "3.4"  # Nicer param docs
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
     "nbsphinx",
     "nbsphinx_link",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",  # needs to be after napoleon
-    "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
     "scanpydoc.elegant_typehints",
     "scanpydoc.definition_list_typed_field",
