@@ -93,6 +93,7 @@ def _prepare_obs(
 ):
     """
     Construct an array used for masking.
+
     Given population identifiers `idx1` and potentially `idx2`,
     this function creates an array `obs_col` that identifies both populations
     for observations contained in `adata`.

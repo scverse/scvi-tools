@@ -1,0 +1,27 @@
+New in 0.11.0 (2021-04-28)
+--------------------------
+
+Changes
+~~~~~~~
+- Includes new optional variance parameterization for the `Encoder` module (`#1037`_).
+- Provides new way to select subpopulations for DE using Pandas queries (`#1041`_).
+- Optional pseudocounts and automatic effect-size threshold for DE in the change mode (`#1043`_).
+
+
+Contributors
+~~~~~~~~~~~~
+- `@adamgayoso`_
+- `@romain-lopez`_
+- `@PierreBoyeau`_
+
+
+.. _`@adamgayoso`: https://github.com/adamgayoso
+.. _`@romain-lopez`: https://github.com/romain-lopez
+.. _`@PierreBoyeau`: https://github.com/PierreBoyeau
+
+
+.. _`#1037`: https://github.com/YosefLab/scvi-tools/pull/1037
+.. _`#1041`: https://github.com/YosefLab/scvi-tools/pull/1041
+.. _`#1043`: https://github.com/YosefLab/scvi-tools/pull/1043
+
+
