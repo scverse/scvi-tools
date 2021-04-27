@@ -95,5 +95,18 @@ def test_wscvi():
     dc = DifferentialComputation(model_fn=model_fn, adata=adata)
     cell_idx1 = np.asarray(adata.obs.labels == "label_1")
     cell_idx2 = ~cell_idx1
-
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=True)
+    dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=True)
+    model.lvm_de(
+        idx1="labels == 'label_1'",
+        batch_correction=True,
+    )
+    model.lvm_de(
+        idx1="labels == 'label_1'",
+        batch_correction=False,
+    )
+
+    model.lvm_de(
+        idx1="(labels == 'label_1') & (_scvi_batch == 1)",
+        batch_correction=True,
+    )

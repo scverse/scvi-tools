@@ -89,6 +89,7 @@ class DEMixin:
             fdr_target,
             silent,
             eps=eps,
+            use_permutation=True,
             **kwargs,
         )
 
@@ -105,6 +106,7 @@ class DEMixin:
         do_filter_cells: bool = True,
         transform_batch: Optional[str] = None,
         return_numpy: Optional[bool] = False,
+        max_chunks=None,
     ):
         """Returns scales and latent variable in a given subpopulation characterized by `indices`
         using importance sampling
@@ -131,7 +133,9 @@ class DEMixin:
             indices_ = indices[observed_batches == transform_batch_val]
         else:
             indices_ = indices
-        assert indices_ is not None
+        if len(indices_) == 0:
+            n_genes = adata.n_vars
+            return np.array([]).reshape((0, n_genes))
         if do_filter_cells:
             indices_ = self.filter_cells(
                 adata=adata,
@@ -139,21 +143,24 @@ class DEMixin:
                 batch_size=batch_size,
             )
 
-        # Step 2A: Determine number of samples to generate per cell
+        # Determine number of cell chunks
+        # Because of the quadratic complexity we split cells in smaller chunks when
+        # the cell population is too big
+        # This ensures that the method remains scalable when looking at very large cell populations
         n_cells = indices_.shape[0]
+        n_cell_chunks = int(np.ceil(n_cells / 500))
+        np.random.shuffle(indices_)
+        cell_chunks = np.array_split(indices_, n_cell_chunks)[:max_chunks]
+
+        # Determine number of samples to generate per cell
         if n_samples_overall is not None:
-            n_samples_per_cell = int(1 + np.ceil(n_samples_overall / n_cells))
+            n_samples_per_cell = int(
+                1 + np.ceil((n_samples_overall / n_cells) / len(cell_chunks))
+            )
         else:
             n_samples_per_cell = n_samples
             n_samples_overall = n_samples_per_cell * n_cells
         n_samples_per_cell = np.minimum(n_samples_per_cell, 200)
-        # Step 2B: Determine number of cell chunks
-        # Because of the quadratic complexity we split cells in smaller chunks when
-        # the cell population is too big
-        # This ensures that the method remains scalable when looking at very large cell populations
-        n_cell_chunks = int(np.ceil(n_cells / 500))
-        np.random.shuffle(indices_)
-        cell_chunks = np.array_split(indices_, n_cell_chunks)
 
         # res = self._inference_loop(scdl, n_samples_per_cell)["hs_weighted"]
         res = []
@@ -167,6 +174,9 @@ class DEMixin:
                 )["hs_weighted"].numpy()
             )
         res = np.concatenate(res, 0)
+        idx = np.arange(len(res))
+        idx = np.random.choice(idx, size=n_samples, replace=True)
+        res = res[idx]
         return res
 
     @torch.no_grad()
