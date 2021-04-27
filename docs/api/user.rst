@@ -22,11 +22,14 @@ Model
    :nosignatures:
 
    model.AUTOZI
+   model.CondSCVI
+   model.DestVI
    model.LinearSCVI
    model.PEAKVI
    model.SCANVI
    model.SCVI
    model.TOTALVI
+
 
 
 .. currentmodule:: scvi

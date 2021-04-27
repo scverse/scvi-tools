@@ -1,4 +1,5 @@
 import logging
+import warnings
 from collections.abc import Iterable as IterableClass
 from functools import partial
 from typing import Dict, Iterable, Optional, Sequence, Tuple, TypeVar, Union
@@ -66,6 +67,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Set the initialization of protein background prior empirically. This option fits a GMM for each of
         100 cells per batch and averages the distributions. Note that even with this option set to `True`,
         this only initializes a parameter that is learned during inference. If `False`, randomly initializes.
+        The default (`None`), sets this to `True` if greater than 10 proteins are used.
     **model_kwargs
         Keyword args for :class:`~scvi.module.TOTALVAE`
 
@@ -98,7 +100,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         ] = "protein",
         gene_likelihood: Literal["zinb", "nb"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        empirical_protein_background_prior: bool = True,
+        empirical_protein_background_prior: Optional[bool] = None,
         **model_kwargs,
     ):
         super(TOTALVI, self).__init__(adata)
@@ -106,7 +108,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             batch_mask = self.scvi_setup_dict_["totalvi_batch_mask"]
         else:
             batch_mask = None
-        if empirical_protein_background_prior:
+        emp_prior = (
+            empirical_protein_background_prior
+            if empirical_protein_background_prior is not None
+            else (self.summary_stats["n_proteins"] > 10)
+        )
+        if emp_prior:
             prior_mean, prior_scale = _get_totalvi_protein_priors(adata)
         else:
             prior_mean, prior_scale = None, None
@@ -301,7 +308,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             else:
                 library = outputs["library_gene"]
             libraries += [library.cpu()]
-        return np.array(torch.cat(libraries))
+        return torch.cat(libraries).numpy()
 
     @torch.no_grad()
     def get_normalized_expression(
@@ -404,7 +411,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
-                logger.warning(
+                warnings.warn(
                     "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
                 )
             return_numpy = True
@@ -562,7 +569,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
-                logger.warning(
+                warnings.warn(
                     "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
                 )
             return_numpy = True
@@ -1016,7 +1023,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 raise ValueError(error_msg.format("proteins"))
             is_nonneg_int = _check_nonnegative_integers(pro_exp)
             if not is_nonneg_int:
-                logger.warning(
+                warnings.warn(
                     "Make sure the registered protein expression in anndata contains unnormalized count data."
                 )
         else:
@@ -1034,7 +1041,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for tensors in scdl:
             _, inference_outputs, _ = self.module.forward(tensors)
             b_mean = inference_outputs["py_"]["rate_back"]
-            background_mean += [np.array(b_mean.cpu())]
+            background_mean += [b_mean.cpu().numpy()]
         return np.concatenate(background_mean)
 
 

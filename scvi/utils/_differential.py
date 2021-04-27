@@ -164,7 +164,7 @@ class DifferentialComputation:
 
         """
         # if not np.array_equal(self.indices, np.arange(len(self.dataset))):
-        #     logger.warning(
+        #     warnings.warn(
         #         "Differential expression requires a Posterior object created with all indices."
         #     )
 

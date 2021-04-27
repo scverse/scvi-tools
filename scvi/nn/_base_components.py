@@ -1,5 +1,5 @@
 import collections
-from typing import Iterable, List
+from typing import Callable, Iterable, List, Optional
 
 import torch
 from torch import nn as nn
@@ -221,6 +221,12 @@ class Encoder(nn.Module):
         Dropout rate to apply to each of the hidden layers
     distribution
         Distribution of z
+    var_eps
+        Minimum value for the variance;
+        used for numerical stability
+    var_activation
+        Callable used to ensure positivity of the variance.
+        When `None`, defaults to `torch.exp`.
     **kwargs
         Keyword args for :class:`~scvi.module._base.FCLayers`
     """
@@ -235,7 +241,7 @@ class Encoder(nn.Module):
         dropout_rate: float = 0.1,
         distribution: str = "normal",
         var_eps: float = 1e-4,
-        std_activation: str = "exp",
+        var_activation: Optional[Callable] = None,
         **kwargs,
     ):
         super().__init__()
@@ -258,6 +264,7 @@ class Encoder(nn.Module):
             self.z_transformation = nn.Softmax(dim=-1)
         else:
             self.z_transformation = identity
+        self.var_activation = torch.exp if var_activation is None else var_activation
 
         if std_activation == "exp":
             self.std_activation = lambda x: torch.exp(x + self.var_eps)
@@ -292,7 +299,7 @@ class Encoder(nn.Module):
         # Parameters for latent distribution
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
-        q_v = self.std_activation(self.var_encoder(q))
+        q_v = self.var_activation(self.var_encoder(q)) + self.var_eps
         latent = self.z_transformation(reparameterize_gaussian(q_m, q_v))
         return q_m, q_v, latent
 

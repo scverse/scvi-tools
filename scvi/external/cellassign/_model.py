@@ -113,7 +113,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             gamma = outputs["gamma"]
             predictions += [gamma.cpu()]
         return pd.DataFrame(
-            np.array(torch.cat(predictions)), columns=self.cell_type_markers.columns
+            torch.cat(predictions).numpy(), columns=self.cell_type_markers.columns
         )
 
     def train(

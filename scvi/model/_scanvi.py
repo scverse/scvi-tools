@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Optional, Sequence, Union
 
 import numpy as np
@@ -144,6 +145,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             gene_likelihood,
         )
         self.init_params_ = self._get_init_params(locals())
+        self.was_pretrained = False
 
     @classmethod
     def from_scvi_model(
@@ -168,7 +170,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             kwargs for scanVI model
         """
         if scvi_model.is_trained_ is False:
-            logger.warning("Passed in scvi model hasn't been trained yet.")
+            warnings.warn("Passed in scvi model hasn't been trained yet.")
 
         scanvi_kwargs = dict(scanvi_kwargs)
         init_params = scvi_model.init_params_
@@ -177,7 +179,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         for k, v in {**non_kwargs, **kwargs}.items():
             if k in scanvi_kwargs.keys():
-                logger.warning(
+                warnings.warn(
                     "Ignoring param '{}' as it was already passed in to ".format(k)
                     + "pretrained scvi model with value {}.".format(v)
                 )
@@ -191,6 +193,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
         scvi_state_dict = scvi_model.module.state_dict()
         scanvi_model.module.load_state_dict(scvi_state_dict, strict=False)
+        scanvi_model.was_pretrained = True
 
         return scanvi_model
 
@@ -279,7 +282,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 pred = pred.argmax(dim=1)
             y_pred.append(pred.detach().cpu())
 
-        y_pred = np.array(torch.cat(y_pred))
+        y_pred = torch.cat(y_pred).numpy()
         if not soft:
             predictions = []
             for p in y_pred:
@@ -341,6 +344,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if max_epochs is None:
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+
+        if self.was_pretrained:
+            max_epochs = int(np.min([10, np.max([2, round(max_epochs / 3.0)])]))
 
         logger.info("Training for {} epochs.".format(max_epochs))
 

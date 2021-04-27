@@ -37,7 +37,9 @@ facilitate a broad number of tasks across many omics, including:
     for an interpretable linear factor model version of scVI.
 -   [Stereoscope](https://www.nature.com/articles/s42003-020-01247-y)
     for deconvolution of spatial transcriptomics data.
--   peakVI for analysis of ATAC-seq data.
+-   DestVI for multi-resolution deconvolution 
+    of spatial transcriptomics data.
+-   peakVI for analysis of scATAC-seq data.
 -   [scArches](https://www.biorxiv.org/content/10.1101/2020.07.16.205997v1)
     for transfer learning from one single-cell atlas to a query dataset
     (currently supports scVI, scANVI and TotalVI).
@@ -50,16 +52,16 @@ All these implementations have a high-level API that interacts with
 [scanpy](http://scanpy.readthedocs.io/), standard save/load functions,
 and support GPU acceleration.
 
-# Fast prototyping of novel probabilistic models
+# Rapid development of novel probabilistic models
 
-scvi-tools contains the building blocks to prototype novel probablistic
+scvi-tools contains the building blocks to develop and deploy novel probablistic
 models. These building blocks are powered by popular probabilistic and
 machine learning frameworks such as [PyTorch
-Lightning](https://www.pytorchlightning.ai/), and
+Lightning](https://www.pytorchlightning.ai/) and
 [Pyro](https://pyro.ai/).
 
 We recommend checking out the [skeleton
-repository](https://github.com/YosefLab/scvi-tools-skeleton), as a
+repository](https://github.com/YosefLab/scvi-tools-skeleton) as a
 starting point for developing new models into scvi-tools.
 
 # Basic installation

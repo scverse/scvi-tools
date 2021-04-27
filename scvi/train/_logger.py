@@ -35,7 +35,8 @@ class SimpleLogger(LightningLoggerBase):
             time_point = metrics.pop("step")
             time_point_name = "step"
         else:
-            raise ValueError("no timep point in metrics dict")
+            time_point = step
+            time_point_name = "step"
         for metric, value in metrics.items():
             if metric not in self._data:
                 self._data[metric] = pd.DataFrame(columns=[metric])

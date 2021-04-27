@@ -1,5 +1,6 @@
 import logging
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -136,7 +137,7 @@ def _load_loom(path_to_file: str, gene_names_attribute_name: str = "Gene") -> An
     dataset = loompy.connect(path_to_file)
     select = dataset[:, :].sum(axis=0) > 0  # Take out cells that don't express any gene
     if not all(select):
-        logger.warning("Removing empty cells")
+        warnings.warn("Removing empty cells")
 
     var_dict, obs_dict, uns_dict, obsm_dict = {}, {}, {}, {}
     for row_key in dataset.ra:

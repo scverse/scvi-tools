@@ -1,9 +1,12 @@
 import os
 import tarfile
 
+import anndata
 import numpy as np
 import pytest
+from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
+from torch.nn import Softplus
 
 import scvi
 from scvi.data import setup_anndata, synthetic_iid, transfer_anndata_setup
@@ -14,13 +17,25 @@ from scvi.dataloaders import (
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
-from scvi.model import AUTOZI, PEAKVI, SCANVI, SCVI, TOTALVI, LinearSCVI
+from scvi.model import (
+    AUTOZI,
+    PEAKVI,
+    SCANVI,
+    SCVI,
+    TOTALVI,
+    CondSCVI,
+    DestVI,
+    LinearSCVI,
+)
 
 
 def test_scvi(save_path):
     n_latent = 5
     adata = synthetic_iid()
     model = SCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    model = SCVI(adata, n_latent=n_latent, var_activation=Softplus())
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # tests __repr__
@@ -152,6 +167,18 @@ def test_scvi(save_path):
     model = SCVI(adata, dispersion="gene-cell")
     model.get_likelihood_parameters()
 
+    # test train callbacks work
+    a = synthetic_iid()
+    m = scvi.model.SCVI(a)
+    lr_monitor = LearningRateMonitor()
+    m.train(
+        callbacks=[lr_monitor],
+        max_epochs=10,
+        log_every_n_steps=1,
+        plan_kwargs={"reduce_lr_on_plateau": True},
+    )
+    assert "lr-Adam" in m.history.keys()
+
 
 def test_scvi_sparse(save_path):
     n_latent = 5
@@ -249,6 +276,21 @@ def test_backwards_compatible_loading(save_path):
     pretrained_totalvi_path = os.path.join(save_path, "testing_models/080_totalvi")
     m = scvi.model.TOTALVI.load(pretrained_totalvi_path, a)
     m.train(1)
+
+
+def test_backed_anndata_scvi(save_path):
+    adata = scvi.data.synthetic_iid()
+    path = os.path.join(save_path, "test_data.h5ad")
+    adata.write_h5ad(path)
+    adata = anndata.read_h5ad(path, backed="r+")
+    setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata, n_latent=5)
+    model.train(1, train_size=0.5)
+    assert model.is_trained is True
+    z = model.get_latent_representation()
+    assert z.shape == (adata.shape[0], 5)
+    model.get_elbo()
 
 
 def test_ann_dataloader():
@@ -623,3 +665,49 @@ def test_peakvi():
     vae.get_reconstruction_error(indices=vae.validation_indices)
     vae.get_latent_representation()
     vae.differential_accessibility(groupby="labels", group1="label_1")
+
+
+def test_condscvi(save_path):
+    dataset = synthetic_iid(n_labels=5)
+    model = CondSCVI(dataset)
+    model.train(1, train_size=1)
+    model.get_latent_representation()
+    model.get_vamp_prior(dataset)
+
+    model = CondSCVI(dataset, weight_obs=True)
+    model.train(1, train_size=1)
+    model.get_latent_representation()
+    model.get_vamp_prior(dataset)
+
+
+def test_destvi(save_path):
+    # Step1 learn CondSCVI
+    n_latent = 2
+    n_labels = 5
+    n_layers = 2
+    dataset = synthetic_iid(n_labels=n_labels)
+    sc_model = CondSCVI(dataset, n_latent=n_latent, n_layers=n_layers)
+    sc_model.train(1, train_size=1)
+
+    # step 2 learn destVI with multiple amortization scheme
+
+    for amor_scheme in ["both", "none", "proportion", "latent"]:
+        spatial_model = DestVI.from_rna_model(
+            dataset,
+            sc_model,
+            amortization=amor_scheme,
+        )
+        spatial_model.train(max_epochs=1)
+        assert not np.isnan(spatial_model.history["elbo_train"].values[0][0])
+
+        assert spatial_model.get_proportions().shape == (dataset.n_obs, n_labels)
+        assert spatial_model.get_gamma(return_numpy=True).shape == (
+            dataset.n_obs,
+            n_latent,
+            n_labels,
+        )
+
+        assert spatial_model.get_scale_for_ct("label_0", np.arange(50)).shape == (
+            50,
+            dataset.n_vars,
+        )
