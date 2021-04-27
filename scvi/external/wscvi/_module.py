@@ -61,7 +61,7 @@ class WVAE(VAE):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_observed_lib_size: bool = False,
-        std_activation: Literal["exp", "softplus"] = "softplus",
+        var_activation: Optional[Callable] = None,
     ):
         super().__init__(
             n_input=n_input,
@@ -82,7 +82,7 @@ class WVAE(VAE):
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
             use_observed_lib_size=use_observed_lib_size,
-            std_activation=std_activation,
+            var_activation=var_activation,
         )
         self.n_particles = n_particles
         self.loss_type = loss_type
