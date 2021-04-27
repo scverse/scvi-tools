@@ -21,7 +21,7 @@ and I want to evaluate the log ratios
 """
 
 
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 import torch
 import torch.nn.functional as F
