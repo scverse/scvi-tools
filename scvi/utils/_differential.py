@@ -462,8 +462,10 @@ def estimate_pseudocounts_offset(
     where_zero_b: List[np.ndarray],
     percentile: Optional[float] = 0.9,
 ):
-    """Determines pseudocount offset to shrink
-    LFCs asssociated with non-expressed genes to zero.
+    """
+    Determines pseudocount offset.
+    
+    This shrinks LFCs asssociated with non-expressed genes to zero.
 
     Parameters
     ----------
