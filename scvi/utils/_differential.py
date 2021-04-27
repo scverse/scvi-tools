@@ -465,7 +465,7 @@ def estimate_pseudocounts_offset(
 ):
     """
     Determines pseudocount offset.
-    
+
     This shrinks LFCs asssociated with non-expressed genes to zero.
 
     Parameters
