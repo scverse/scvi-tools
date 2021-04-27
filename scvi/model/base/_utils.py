@@ -3,12 +3,12 @@ import os
 import pickle
 import warnings
 from collections.abc import Iterable as IterableClass
-from typing import Optional
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import read
+from anndata import AnnData, read
 
 from scvi._compat import Literal
 from scvi.utils import DifferentialComputation, track
@@ -86,6 +86,53 @@ def _validate_var_names(adata, source_var_names):
         )
 
 
+def _prepare_obs(
+    idx1: Union[List[bool], np.ndarray, str],
+    idx2: Union[List[bool], np.ndarray, str],
+    adata: AnnData,
+):
+    """
+    Construct an array used for masking.
+    Given population identifiers `idx1` and potentially `idx2`,
+    this function creates an array `obs_col` that identifies both populations
+    for observations contained in `adata`.
+    In particular, `obs_col` will take values `group1` (resp. `group2`)
+    for `idx1` (resp `idx2`).
+
+    Parameters
+    ----------
+    idx1
+        Can be of three types. First, it can corresponds to a boolean mask that
+        has the same shape as adata. It can also corresponds to a list of indices.
+        Last, it can correspond to string query of adata.obs columns.
+    idx2
+        Same as above
+    adata
+        Anndata
+    """
+
+    def ravel_idx(my_idx, obs_df):
+        return (
+            obs_df.index.isin(obs_df.query(my_idx).index)
+            if isinstance(my_idx, str)
+            else np.asarray(my_idx).ravel()
+        )
+
+    obs_df = adata.obs
+    idx1 = ravel_idx(idx1, obs_df)
+    g1_key = "one"
+    obs_col = np.array(["None"] * adata.shape[0], dtype=str)
+    obs_col[idx1] = g1_key
+    group1 = [g1_key]
+    group2 = None if idx2 is None else "two"
+    if idx2 is not None:
+        idx2 = ravel_idx(idx2, obs_df)
+        obs_col[idx2] = group2
+    if (obs_col[idx1].shape[0] == 0) or (obs_col[idx2].shape[0] == 0):
+        raise ValueError("One of idx1 or idx2 has size zero.")
+    return obs_col, group1, group2
+
+
 def _de_core(
     adata,
     model_fn,
@@ -126,18 +173,10 @@ def _de_core(
     # make a temp obs key using indices
     temp_key = None
     if idx1 is not None:
-        idx1 = np.asarray(idx1).ravel()
-        g1_key = "one"
-        obs_col = np.array(["None"] * adata.shape[0], dtype=str)
-        obs_col[idx1] = g1_key
-        group2 = None if idx2 is None else "two"
-        if idx2 is not None:
-            idx2 = np.asarray(idx2).ravel()
-            obs_col[idx2] = group2
+        obs_col, group1, group2 = _prepare_obs(idx1, idx2, adata)
         temp_key = "_scvi_temp_de"
         adata.obs[temp_key] = obs_col
         groupby = temp_key
-        group1 = [g1_key]
 
     df_results = []
     dc = DifferentialComputation(model_fn, adata)
