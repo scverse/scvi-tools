@@ -153,8 +153,7 @@ class DifferentialComputation:
         delta
             specific case of region inducing differential expression.
             In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce differential expression
-            (LFC case)
-            If the provided value is None, then a proper threshold is determined
+            (LFC case). If the provided value is `None`, then a proper threshold is determined
             from the distribution of LFCs accross genes.
         pseudocounts
             pseudocount offset used for the mode `change`.
@@ -464,8 +463,10 @@ def estimate_pseudocounts_offset(
     where_zero_b: List[np.ndarray],
     percentile: Optional[float] = 0.9,
 ):
-    """Determines pseudocount offset to shrink
-    LFCs asssociated with non-expressed genes to zero.
+    """
+    Determines pseudocount offset.
+    
+    This shrinks LFCs asssociated with non-expressed genes to zero.
 
     Parameters
     ----------
