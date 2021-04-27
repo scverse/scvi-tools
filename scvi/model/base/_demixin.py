@@ -45,6 +45,8 @@ class DEMixin:
         fdr_target: float = 0.05,
         silent: bool = False,
         eps: float = None,
+        n_cells_per_chunk: Optional[int] = 500,
+        max_chunks: Optional[int] = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""
@@ -69,6 +71,8 @@ class DEMixin:
             self.get_population_expression,
             return_numpy=True,
             batch_size=batch_size,
+            n_cells_per_chunk=n_cells_per_chunk,
+            max_chunks=max_chunks,
         )
         result = _de_core(
             adata,
@@ -106,7 +110,8 @@ class DEMixin:
         do_filter_cells: bool = True,
         transform_batch: Optional[str] = None,
         return_numpy: Optional[bool] = False,
-        max_chunks=None,
+        n_cells_per_chunk: Optional[int] = 500,
+        max_chunks: Optional[int] = None,
     ):
         """Returns scales and latent variable in a given subpopulation characterized by `indices`
         using importance sampling
@@ -148,7 +153,7 @@ class DEMixin:
         # the cell population is too big
         # This ensures that the method remains scalable when looking at very large cell populations
         n_cells = indices_.shape[0]
-        n_cell_chunks = int(np.ceil(n_cells / 500))
+        n_cell_chunks = int(np.ceil(n_cells / n_cells_per_chunk))
         np.random.shuffle(indices_)
         cell_chunks = np.array_split(indices_, n_cell_chunks)[:max_chunks]
 
@@ -173,6 +178,7 @@ class DEMixin:
                     batch_size=batch_size,
                 )["hs_weighted"].numpy()
             )
+            logger.debug(res[-1].shape)
         res = np.concatenate(res, 0)
         idx = np.arange(len(res))
         idx = np.random.choice(idx, size=n_samples, replace=True)
@@ -185,6 +191,7 @@ class DEMixin:
         adata,
         indices,
         n_samples: int,
+        marginal_n_samples_per_pass=25,
         batch_size=64,
         # transform_batch: str = None
     ):
@@ -243,6 +250,8 @@ class DEMixin:
             adata=adata,
             indices=indices,
             n_mc_samples=5000,
+            n_samples_per_pass=marginal_n_samples_per_pass,
+            batch_size=batch_size,
             observation_specific=True,
         )
 

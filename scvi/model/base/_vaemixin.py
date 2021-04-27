@@ -50,6 +50,7 @@ class VAEMixin:
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         n_mc_samples: int = 1000,
+        n_samples_per_pass: int = 25,
         batch_size: Optional[int] = None,
         observation_specific: Optional[bool] = False,
     ) -> Union[torch.Tensor, float]:
@@ -94,6 +95,7 @@ class VAEMixin:
                     self.module.marginal_ll(
                         tensors,
                         n_mc_samples=n_mc_samples,
+                        n_samples_per_pass=n_samples_per_pass,
                         observation_specific=observation_specific,
                     )
                 )
