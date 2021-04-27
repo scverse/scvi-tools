@@ -5,7 +5,7 @@ import pytest
 
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
-from scvi.model.base._utils import _construct_obs
+from scvi.model.base._utils import _prepare_obs
 from scvi.utils import DifferentialComputation
 
 
@@ -52,7 +52,7 @@ def test_differential_computation(save_path):
     )
 
     # Test query features
-    obs_col, group1, _, = _construct_obs(
+    obs_col, group1, _, = _prepare_obs(
         idx1="(labels == 'label_1') & (batch == 'batch_1')", idx2=None, adata=adata
     )
     assert (obs_col == group1).sum() == adata.obs.loc[

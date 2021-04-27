@@ -8,7 +8,7 @@ from typing import List, Optional, Union
 import numpy as np
 import pandas as pd
 import torch
-from anndata import read
+from anndata import AnnData, read
 
 from scvi._compat import Literal
 from scvi.utils import DifferentialComputation, track
@@ -86,13 +86,18 @@ def _validate_var_names(adata, source_var_names):
         )
 
 
-def _construct_obs(
+def _prepare_obs(
     idx1: Union[List[bool], np.ndarray, str],
     idx2: Union[List[bool], np.ndarray, str],
-    adata,
+    adata: AnnData,
 ):
     """
     Construct an array used for masking.
+    Given population identifiers `idx1` and potentially `idx2`,
+    this function creates an array `obs_col` that identifies both populations
+    for observations contained in `adata`.
+    In particular, `obs_col` will take values `group1` (resp. `group2`)
+    for `idx1` (resp `idx2`).
 
     Parameters
     ----------
@@ -162,7 +167,7 @@ def _de_core(
     # make a temp obs key using indices
     temp_key = None
     if idx1 is not None:
-        obs_col, group1, group2 = _construct_obs(idx1, idx2, adata)
+        obs_col, group1, group2 = _prepare_obs(idx1, idx2, adata)
         temp_key = "_scvi_temp_de"
         adata.obs[temp_key] = obs_col
         groupby = temp_key

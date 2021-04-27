@@ -24,7 +24,7 @@ idx1
     and `group2`.
 idx2
     Custom identifier for `group2` that has the same
-    properties than `idx1`.
+    properties as `idx1`.
     By default, includes all cells not specified in
     `idx1`.
 mode
