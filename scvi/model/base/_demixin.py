@@ -18,6 +18,7 @@ from scvi.model._utils import (
 from scvi.model.base._utils import _de_core
 
 logger = logging.getLogger(__name__)
+Number = Union[int, float]
 
 
 class DEMixin:
@@ -102,13 +103,13 @@ class DEMixin:
     @torch.no_grad()
     def get_population_expression(
         self,
-        adata=None,
-        indices=None,
+        adata: Optional[AnnData] =None,
+        indices: Optional[Sequence[int]]=None,
         n_samples: int = 25,
         n_samples_overall: int = None,
-        batch_size: int = 64,
+        batch_size: Optional[int] = 64,
         do_filter_cells: bool = True,
-        transform_batch: Optional[str] = None,
+        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         return_numpy: Optional[bool] = False,
         marginal_n_samples_per_pass: int = 500,
         n_cells_per_chunk: Optional[int] = 500,
@@ -156,15 +157,15 @@ class DEMixin:
         n_cell_chunks = int(np.ceil(n_cells / n_cells_per_chunk))
         np.random.shuffle(indices_)
         cell_chunks = np.array_split(indices_, n_cell_chunks)[:max_chunks]
-
+        n_cells_used = np.concatenate(cell_chunks).shape[0]
         # Determine number of samples to generate per cell
         if n_samples_overall is not None:
             n_samples_per_cell = int(
-                1 + np.ceil((n_samples_overall / n_cells) / len(cell_chunks))
+                1 + np.ceil(n_samples_overall / n_cells_used)
             )
         else:
             n_samples_per_cell = n_samples
-            n_samples_overall = n_samples_per_cell * n_cells
+            n_samples_overall = n_samples_per_cell * n_cells_used
         n_samples_per_cell = np.minimum(n_samples_per_cell, 200)
 
         # res = self._inference_loop(scdl, n_samples_per_cell)["hs_weighted"]
@@ -182,7 +183,7 @@ class DEMixin:
             logger.debug(res[-1].shape)
         res = np.concatenate(res, 0)
         idx = np.arange(len(res))
-        idx = np.random.choice(idx, size=n_samples, replace=True)
+        idx = np.random.choice(idx, size=n_samples_overall, replace=True)
         res = res[idx]
         return res
 
