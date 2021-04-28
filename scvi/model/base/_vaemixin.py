@@ -148,6 +148,7 @@ class VAEMixin:
         give_mean: bool = True,
         mc_samples: int = 5000,
         batch_size: Optional[int] = None,
+        _adata = None,
     ) -> np.ndarray:
         r"""
         Return the latent representation for each cell.
@@ -177,7 +178,7 @@ class VAEMixin:
         if self.is_trained_ is False:
             raise RuntimeError("Please train the model first.")
 
-        adata = self._validate_anndata(adata)
+        adata = _adata if _adata is not None else self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )

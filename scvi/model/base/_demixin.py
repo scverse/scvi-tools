@@ -46,8 +46,7 @@ class DEMixin:
         fdr_target: float = 0.05,
         silent: bool = False,
         eps: float = None,
-        n_cells_per_chunk: Optional[int] = 500,
-        max_chunks: Optional[int] = None,
+        fn_kwargs: dict = dict(),
         **kwargs,
     ) -> pd.DataFrame:
         r"""
@@ -72,8 +71,7 @@ class DEMixin:
             self.get_population_expression,
             return_numpy=True,
             batch_size=batch_size,
-            n_cells_per_chunk=n_cells_per_chunk,
-            max_chunks=max_chunks,
+            **fn_kwargs,
         )
         result = _de_core(
             adata,
@@ -103,8 +101,8 @@ class DEMixin:
     @torch.no_grad()
     def get_population_expression(
         self,
-        adata: Optional[AnnData] =None,
-        indices: Optional[Sequence[int]]=None,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
         n_samples: int = 25,
         n_samples_overall: int = None,
         batch_size: Optional[int] = 64,
@@ -112,6 +110,7 @@ class DEMixin:
         transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         return_numpy: Optional[bool] = False,
         marginal_n_samples_per_pass: int = 500,
+        n_mc_samples_px: int = 5000,
         n_cells_per_chunk: Optional[int] = 500,
         max_chunks: Optional[int] = None,
     ):
@@ -128,7 +127,7 @@ class DEMixin:
         :return_numpy: Whether numpy should be returned
         """
         # Step 1: Determine effective indices to use
-        adata = self._validate_anndata(adata)
+        # adata = self._validate_anndata(adata)
         if transform_batch is not None:
             adata_key = self.scvi_setup_dict_["data_registry"]["batch_indices"][
                 "attr_key"
@@ -154,15 +153,14 @@ class DEMixin:
         # the cell population is too big
         # This ensures that the method remains scalable when looking at very large cell populations
         n_cells = indices_.shape[0]
+        logger.debug("n cells {}".format(n_cells))
         n_cell_chunks = int(np.ceil(n_cells / n_cells_per_chunk))
         np.random.shuffle(indices_)
         cell_chunks = np.array_split(indices_, n_cell_chunks)[:max_chunks]
         n_cells_used = np.concatenate(cell_chunks).shape[0]
         # Determine number of samples to generate per cell
         if n_samples_overall is not None:
-            n_samples_per_cell = int(
-                1 + np.ceil(n_samples_overall / n_cells_used)
-            )
+            n_samples_per_cell = int(1 + np.ceil(n_samples_overall / n_cells_used))
         else:
             n_samples_per_cell = n_samples
             n_samples_overall = n_samples_per_cell * n_cells_used
@@ -171,6 +169,7 @@ class DEMixin:
         # res = self._inference_loop(scdl, n_samples_per_cell)["hs_weighted"]
         res = []
         for chunk in cell_chunks:
+            logger.debug("n cells chunk {}".format(chunk.shape[0]))
             res.append(
                 self._inference_loop(
                     adata=adata,
@@ -178,6 +177,7 @@ class DEMixin:
                     n_samples=n_samples_per_cell,
                     batch_size=batch_size,
                     marginal_n_samples_per_pass=marginal_n_samples_per_pass,
+                    n_mc_samples_px=n_mc_samples_px,
                 )["hs_weighted"].numpy()
             )
             logger.debug(res[-1].shape)
@@ -336,7 +336,7 @@ class DEMixin:
         :param batch_size: Batch size
         """
         qz_m = self.get_latent_representation(
-            adata,
+            _adata=adata,
             indices=indices,
             give_mean=True,
             batch_size=batch_size,
@@ -349,6 +349,9 @@ class DEMixin:
             logger.warning("Could not properly estimate Cov!, using all samples")
             idx_filt = np.ones(qz_m.shape[0], dtype=bool)
         if (idx_filt == 1).sum() <= 1:
-            idx_filt = np.ones(qz_m.shape[0])
-        indices = indices[idx_filt]
+            idx_filt = np.ones(qz_m.shape[0], dtype=bool)
+        try:
+            indices = indices[idx_filt]
+        except IndexError:
+            raise IndexError((idx_filt))
         return indices

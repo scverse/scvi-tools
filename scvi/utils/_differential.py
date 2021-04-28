@@ -201,6 +201,11 @@ class DifferentialComputation:
             n_samples_per_batch = (
                 m_permutation // n_batches if m_permutation is not None else None
             )
+            logger.debug(
+                "Using {} samples per batch for pair matching".format(
+                    n_samples_per_batch
+                )
+            )
             scales_1 = []
             scales_2 = []
             for batch_val in set(batchid1_vals):
@@ -388,6 +393,8 @@ class DifferentialComputation:
                 "n_samples and n_samples_per_cell were provided. Ignoring n_samples_per_cell"
             )
         n_samples = int(n_samples / len(batchid))
+        logger.debug("Using {} samples per batch in sampling".format(n_samples))
+        logger.debug("Using {} samples in total".format(int(n_samples * len(batchid))))
         if n_samples == 0:
             warnings.warn(
                 "very small sample size, please consider increasing `n_samples`"
