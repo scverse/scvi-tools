@@ -465,11 +465,9 @@ class VAE(BaseModuleClass):
             )
             generative_outputs = self.generative_evaluate(tensors, inference_outputs)
             to_sum.append(
-                generative_outputs["log_pjoint"].cpu()
-                - inference_outputs["log_qjoint"].cpu()
+                (generative_outputs["log_pjoint"] - inference_outputs["log_qjoint"])
             )
-        to_sum = torch.cat(to_sum, 0)
-        # shape (n_mc_samples, n_cells)
+        to_sum = torch.cat(to_sum, 0).cpu()
         log_lkl = logsumexp(to_sum, dim=0) - np.log(to_sum.shape[0])
         if not observation_specific:
             log_lkl = torch.sum(log_lkl).item()

@@ -53,6 +53,7 @@ class VAEMixin:
         n_samples_per_pass: int = 25,
         batch_size: Optional[int] = None,
         observation_specific: Optional[bool] = False,
+        _adata: Optional[AnnData] = None,
     ) -> Union[torch.Tensor, float]:
         """
         Return the marginal LL for the data.
@@ -79,7 +80,7 @@ class VAEMixin:
             .. math::
             \{p(x_i)\}_i
         """
-        adata = self._validate_anndata(adata)
+        adata = _adata if _adata is not None else self._validate_anndata(adata)
         if indices is None:
             indices = np.arange(adata.n_obs)
         scdl = self._make_data_loader(

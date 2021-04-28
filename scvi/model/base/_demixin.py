@@ -110,6 +110,7 @@ class DEMixin:
         do_filter_cells: bool = True,
         transform_batch: Optional[str] = None,
         return_numpy: Optional[bool] = False,
+        marginal_n_samples_per_pass: int = 500,
         n_cells_per_chunk: Optional[int] = 500,
         max_chunks: Optional[int] = None,
     ):
@@ -147,7 +148,6 @@ class DEMixin:
                 indices=indices_,
                 batch_size=batch_size,
             )
-
         # Determine number of cell chunks
         # Because of the quadratic complexity we split cells in smaller chunks when
         # the cell population is too big
@@ -176,6 +176,7 @@ class DEMixin:
                     indices=chunk,
                     n_samples=n_samples_per_cell,
                     batch_size=batch_size,
+                    marginal_n_samples_per_pass=marginal_n_samples_per_pass,
                 )["hs_weighted"].numpy()
             )
             logger.debug(res[-1].shape)
@@ -191,7 +192,8 @@ class DEMixin:
         adata,
         indices,
         n_samples: int,
-        marginal_n_samples_per_pass=25,
+        marginal_n_samples_per_pass=500,
+        n_mc_samples_px=5000,
         batch_size=64,
         # transform_batch: str = None
     ):
@@ -247,9 +249,9 @@ class DEMixin:
         )
 
         log_px = self.get_marginal_ll(
-            adata=adata,
+            _adata=adata,
             indices=indices,
-            n_mc_samples=5000,
+            n_mc_samples=n_mc_samples_px,
             n_samples_per_pass=marginal_n_samples_per_pass,
             batch_size=batch_size,
             observation_specific=True,
@@ -271,7 +273,6 @@ class DEMixin:
             .sample((n_samples_overall,))
             .squeeze(-1)
         )
-
         return dict(
             log_px_zs=log_px_zs,
             log_qz=log_qz,
