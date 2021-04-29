@@ -3,7 +3,11 @@ import pandas as pd
 import pyro
 import pyro.distributions as dist
 import torch
+
+# import scvi
 from pyro.distributions import constraints
+
+# from pyro.distributions.torch_distribution import TorchDistributionMixin
 from pyro.distributions.transforms import SoftplusTransform
 from pyro.infer.autoguide import AutoGuideList, AutoNormal, init_to_mean
 from pyro.nn import PyroModule
@@ -15,6 +19,8 @@ from scvi.data._anndata import get_from_registry
 
 # from scvi.train import PyroTrainingPlan, Trainer
 from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_logits
+
+# from scvi.distributions._negative_binomial import NegativeBinomial as ScVINegativeBinomial
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import one_hot
 
@@ -25,6 +31,10 @@ from .autoguide import AutoNormalEncoder
 @transform_to.register(constraints.positive)
 def _transform_to_positive(constraint):
     return SoftplusTransform()
+
+
+# class NegativeBinomial(TorchDistributionMixin, ScVINegativeBinomial):
+#    pass
 
 
 def get_cluster_averages(adata_ref, cluster_col):
@@ -184,12 +194,14 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         return pyro.plate("obs_plate", size=self.n_obs, dim=-2, subsample=idx)
 
     def list_obs_plate_vars(self):
-        """List variables that belong to observation/minibatch plate
-        and the number of dimensions in non-plate axis"""
+        """Create a dictionary with the name of observation/minibatch plate,
+        indexes of model args to provide to encoder,
+        variable names that belong to the observation plate
+        and the number of dimensions in non-plate axis of each variable"""
 
         return {
             "name": "obs_plate",
-            "in": [0],
+            "in": [0],  # expression data + (optional) batch index
             "sites": {
                 "n_s_cells_per_location": 1,
                 "y_s_groups_per_location": 1,
@@ -350,6 +362,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
             pyro.sample(
                 "data_target",
                 dist.NegativeBinomial(total_count=total_count, logits=logits),
+                # NegativeBinomial(mu=mu, theta=theta),
                 obs=x_data,
             )
 
@@ -396,6 +409,7 @@ class Cell2locationModule(PyroBaseModuleClass):
         self.hist = []
 
         self._model = LocationModelLinearDependentWMultiExperimentModel(**kwargs)
+        self._amortised = amortised
 
         if not amortised:
             self._guide = AutoNormal(
@@ -410,7 +424,7 @@ class Cell2locationModule(PyroBaseModuleClass):
             n_hidden = (
                 encoder_kwargs["n_hidden"]
                 if "n_hidden" in encoder_kwargs.keys()
-                else 128
+                else 200
             )
             amortised_vars = self.model.list_obs_plate_vars()
             self._guide = AutoGuideList(
@@ -445,3 +459,7 @@ class Cell2locationModule(PyroBaseModuleClass):
     @property
     def guide(self):
         return self._guide
+
+    @property
+    def is_amortised(self):
+        return self._amortised
