@@ -16,22 +16,12 @@ from scvi.train import PyroTrainingPlan, Trainer
 
 class Cell2locationTrainSampleMixin:
     """
-    Reimplementation of cell2location [Kleshchevnikov20]_ model. This mixin class provides useful methods.
+    Reimplementation of cell2location [Kleshchevnikov20]_ model. This mixin class provides methods for:
 
-    https://github.com/BayraktarLab/cell2location
+    - training models using minibatches (standard scVI interface) and using full data (copies data to GPU only once).
+    - computing median and quantiles of the posterior distribution using both direct and amortised inference
+    - generating samples from posterior distribution
 
-    Parameters
-    ----------
-    sc_adata
-        single-cell AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
-    use_gpu
-        Use the GPU or not.
-    **model_kwargs
-        Keyword args for :class:`~scvi.external.cell2location...`
-
-    Examples
-    --------
-    >>>
     """
 
     @property
@@ -39,6 +29,23 @@ class Cell2locationTrainSampleMixin:
         return PyroTrainingPlan
 
     def _train_full_data(self, max_epochs, use_gpu, plan_kwargs):
+        """
+        Private method for training using full data.
+
+        Parameters
+        ----------
+        max_epochs
+            Number of training epochs / iterations
+        use_gpu
+            Bool, use gpu?
+        plan_kwargs
+            Training plan arguments such as optim and loss_fn
+
+        Returns
+        -------
+        ELBO history in self.module.history_
+
+        """
 
         args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
         gpus, device = parse_use_gpu_arg(use_gpu)
@@ -71,6 +78,7 @@ class Cell2locationTrainSampleMixin:
                 torch.cuda.empty_cache()
 
         self.module.history_ = hist
+        self.module.is_trained_ = True
 
     def _train_minibatch(
         self,
@@ -80,6 +88,27 @@ class Cell2locationTrainSampleMixin:
         trainer_kwargs,
         early_stopping: bool = False,
     ):
+        """
+        Private method for training using minibatches (scVI interface and pytorch lightning).
+
+        Parameters
+        ----------
+        max_epochs
+            Number of training epochs / iterations
+        use_gpu
+            Bool, use gpu?
+        plan_kwargs
+            Training plan arguments such as optim and loss_fn
+        trainer_kwargs
+            Arguments for scvi.train.Trainer.
+        early_stopping
+            Bool, use early stopping? (not tested)
+
+        Returns
+        -------
+        ELBO history in self.module.history_
+
+        """
 
         pyro.clear_param_store()
         gpus, device = parse_use_gpu_arg(use_gpu)
@@ -113,13 +142,35 @@ class Cell2locationTrainSampleMixin:
         self,
         max_epochs: Optional[int] = None,
         use_gpu: Optional[bool] = None,
-        train_size: float = 1,
-        validation_size: Optional[float] = None,
-        lr: float = 0.005,
+        lr: float = 0.01,
         clip_norm: float = 200,
         trainer_kwargs: Optional[dict] = None,
         early_stopping: bool = False,
     ):
+        """
+        Train the model.
+
+        Parameters
+        ----------
+        max_epochs
+            Number of training epochs / iterations
+        use_gpu
+            Bool, use gpu?
+        lr
+            Learning rate.
+        clip_norm
+            Gradient clipping norm (useful for preventing exploding gradients,
+            which can lead to impossible values and NaN loss).
+        trainer_kwargs
+            Training plan arguments for scvi.train.PyroTrainingPlan (Excluding optim and loss_fn)
+        early_stopping
+            Bool, use early stopping? (not tested)
+
+        Returns
+        -------
+        ELBO history in self.module.history_
+
+        """
 
         plan_kwargs = {
             "loss_fn": pyro.infer.Trace_ELBO(),
@@ -149,7 +200,24 @@ class Cell2locationTrainSampleMixin:
                 early_stopping=early_stopping,
             )
 
-    def posterior_median(self, use_gpu=True):
+    def _posterior_median_amortised(self, use_gpu: bool = True):
+        """
+        Compute median of the posterior distribution of each parameter, separating local (minibatch) variable
+        and global variables, which is necessary when performing amortised inference.
+
+        Note for developers: requires model class method which lists observation/minibatch plate
+        variables (self.module.model.list_obs_plate_vars()).
+
+        Parameters
+        ----------
+        use_gpu
+            Bool, use gpu?
+
+        Returns
+        -------
+        dictionary {variable_name: posterior median}
+
+        """
 
         gpus, device = parse_use_gpu_arg(use_gpu)
 
@@ -157,7 +225,7 @@ class Cell2locationTrainSampleMixin:
             self.adata, shuffle=False, batch_size=self.module.model.batch_size
         )
 
-        # samples local parameters
+        # sample local parameters
         i = 0
         for tensor_dict in train_dl:
             if i == 0:
@@ -204,7 +272,7 @@ class Cell2locationTrainSampleMixin:
                 }
             i += 1
 
-        # samples global parameters
+        # sample global parameters
         i = 0
         for tensor_dict in train_dl:
             if i == 0:
@@ -227,7 +295,20 @@ class Cell2locationTrainSampleMixin:
 
         return means
 
-    def posterior_median_full_data(self, use_gpu=True):
+    def _posterior_median(self, use_gpu: bool = True):
+        """
+        Compute median of the posterior distribution of each parameter pyro models trained without amortised inference.
+
+        Parameters
+        ----------
+        use_gpu
+            Bool, use gpu?
+
+        Returns
+        -------
+        dictionary {variable_name: posterior median}
+
+        """
 
         args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
         gpus, device = parse_use_gpu_arg(use_gpu)
@@ -238,6 +319,24 @@ class Cell2locationTrainSampleMixin:
         means = {k: means[k].cpu().detach().numpy() for k in means.keys()}
 
         return means
+
+    def posterior_median(self, use_gpu: bool = True):
+        """
+        Compute median of the posterior distribution of each parameter.
+
+        Parameters
+        ----------
+        use_gpu
+
+        Returns
+        -------
+
+        """
+
+        if self.module.is_amortised:
+            return self._posterior_median_amortised(use_gpu=use_gpu)
+        else:
+            return self._posterior_median(self, use_gpu=use_gpu)
 
     def _sample_node(self, node, num_samples_batch: int = 10):
 
