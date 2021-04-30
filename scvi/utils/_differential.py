@@ -434,7 +434,8 @@ class DifferentialComputation:
 
 
 def estimate_delta(lfc_means: List[np.ndarray], coef=0.6, min_thres=0.3):
-    """Computes a threshold LFC value based on means of LFCs.
+    """
+    Computes a threshold LFC value based on means of LFCs.
 
     Parameters
     ----------
