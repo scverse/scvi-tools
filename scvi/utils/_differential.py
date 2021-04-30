@@ -480,7 +480,6 @@ def estimate_pseudocounts_offset(
     where_zero_b
         mask where no observed counts
     """
-
     max_scales_a = np.max(scales_a, 0)
     max_scales_b = np.max(scales_b, 0)
     asserts = (
