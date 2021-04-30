@@ -40,8 +40,9 @@ class AutoNormalEncoder(AutoGuide):
         model,
         amortised_plate_sites,
         n_in,
-        n_hidden=128,
+        n_hidden=200,
         init_param=0,
+        init_param_scale=1 / 50,
         data_transform=torch.log1p,
         encoder_kwargs=None,
         create_plates=None,
@@ -66,6 +67,7 @@ class AutoNormalEncoder(AutoGuide):
         )
         self.n_hidden = n_hidden
         self.encoder = FCLayersPyro(n_in=n_in, n_out=self.n_hidden, **encoder_kwargs)
+        self.init_param_scale = init_param_scale
 
         self.data_transform = data_transform
 
@@ -97,7 +99,8 @@ class AutoNormalEncoder(AutoGuide):
             #                          torch.full(param_dim, 1. / np.sqrt(self.n_hidden)),
             #                          device=site["value"].device)
             init_param = np.random.normal(
-                np.zeros(param_dim), np.ones(param_dim) / np.sqrt(self.n_hidden)
+                np.zeros(param_dim),
+                (np.ones(param_dim) * self.init_param_scale) / np.sqrt(self.n_hidden),
             ).astype("float32")
             _deep_setattr(
                 self.locs,
@@ -109,7 +112,8 @@ class AutoNormalEncoder(AutoGuide):
                 ),
             )
             init_param = np.random.normal(
-                np.zeros(param_dim), np.ones(param_dim) / np.sqrt(self.n_hidden)
+                np.zeros(param_dim),
+                (np.ones(param_dim) * self.init_param_scale) / np.sqrt(self.n_hidden),
             ).astype("float32")
             _deep_setattr(
                 self.scales,
