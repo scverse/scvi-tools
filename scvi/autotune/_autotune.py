@@ -1,8 +1,10 @@
-# from typing import Dict, List,
 from typing import Optional
 
+import anndata
 from ray import tune
 from ray.tune import CLIReporter
+from ray.tune.schedulers import ASHAScheduler
+from ray.tune.schedulers.trial_scheduler import TrialScheduler
 
 from ._callbacks import ModelSave, _TuneReportMetricFunctionsCallback
 
@@ -32,7 +34,7 @@ class Autotune:
 
     def __init__(
         self,
-        adata,
+        adata: anndata.AnnData,
         model,
         training_metrics: Optional[list] = None,
         metric_functions: Optional[dict] = None,
@@ -89,11 +91,11 @@ class Autotune:
 
     def run(
         self,
-        metric,
-        scheduler,
-        mode="min",
-        name="scvi-experiment",
-        num_samples=10,
+        metric: str = None,
+        scheduler: TrialScheduler = None,
+        mode: str = "min",
+        name: str = "scvi-experiment",
+        num_samples: int = 10,
         **kwargs,
     ):
         """
@@ -119,6 +121,9 @@ class Autotune:
         A tuple with the best model object and tune Analysis object
 
         """
+        if not scheduler:
+            scheduler = ASHAScheduler(max_t=2, grace_period=1, reduction_factor=2)
+
         analysis = tune.run(
             self._trainable,
             metric=metric,
