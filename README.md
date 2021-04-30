@@ -96,7 +96,6 @@ If you used scvi-tools in your research, please consider citing
 @article{Gayoso2021scvitools,
 	author = {Gayoso, Adam and Lopez, Romain and Xing, Galen and Boyeau, Pierre and Wu, Katherine and Jayasuriya, Michael and Mehlman, Edouard and Langevin, Maxime and Liu, Yining and Samaran, Jules and Misrachi, Gabriel and Nazaret, Achille and Clivio, Oscar and Xu, Chenling and Ashuach, Tal and Lotfollahi, Mohammad and Svensson, Valentine and da Veiga Beltrame, Eduardo and Talavera-Lopez, Carlos and Pachter, Lior and Theis, Fabian J and Streets, Aaron and Jordan, Michael I and Regier, Jeffrey and Yosef, Nir},
 	title = {scvi-tools: a library for deep probabilistic analysis of single-cell omics data},
-	elocation-id = {2021.04.28.441833},
 	year = {2021},
 	doi = {10.1101/2021.04.28.441833},
 	publisher = {Cold Spring Harbor Laboratory},
