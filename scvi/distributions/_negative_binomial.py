@@ -64,7 +64,9 @@ def log_zinb_positive(
     return res
 
 
-def log_nb_positive(x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, eps=1e-8, is_sparse=False):
+def log_nb_positive(
+    x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, eps=1e-8, is_sparse=False
+):
     """
     Log likelihood (scalar) of a minibatch according to a nb model.
 
@@ -102,7 +104,11 @@ def log_nb_positive(x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, eps=
         )
         zero_x = x[x <= 0]
         res_zero = zero_x * (torch.log(mu + eps) - log_theta_mu_eps)
-        return torch.zeros_like(x).masked_scatter(x > 0, res).masked_scatter(x <= 0, res_zero)
+        return (
+            torch.zeros_like(x)
+            .masked_scatter(x > 0, res)
+            .masked_scatter(x <= 0, res_zero)
+        )
 
     res = (
         theta * (torch.log(theta + eps) - log_theta_mu_eps)
@@ -345,7 +351,9 @@ class NegativeBinomial(Distribution):
                     UserWarning,
                 )
 
-        return log_nb_positive(value, mu=self.mu, theta=self.theta, eps=self._eps, is_sparse=self.is_sparse)
+        return log_nb_positive(
+            value, mu=self.mu, theta=self.theta, eps=self._eps, is_sparse=self.is_sparse
+        )
 
     def _gamma(self):
         return _gamma(self.theta, self.mu)
