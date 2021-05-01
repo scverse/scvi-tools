@@ -95,19 +95,16 @@ def log_nb_positive(
 
     if is_sparse:
         nonzero_x = x[x > 0]
-        res = (
+        terms_for_nonzero = (
             theta * (torch.log(theta + eps) - log_theta_mu_eps)
             + nonzero_x * (torch.log(mu + eps) - log_theta_mu_eps)
             + torch.lgamma(nonzero_x + theta)
             - torch.lgamma(theta)
             - torch.lgamma(nonzero_x + 1)
         )
-        zero_x = x[x <= 0]
-        res_zero = zero_x * (torch.log(mu + eps) - log_theta_mu_eps)
+        terms_for_all = theta * (torch.log(theta + eps) - log_theta_mu_eps)
         return (
-            torch.zeros_like(x)
-            .masked_scatter(x > 0, res)
-            .masked_scatter(x <= 0, res_zero)
+            torch.zeros_like(x).masked_scatter(x > 0, terms_for_nonzero) + terms_for_all
         )
 
     res = (
