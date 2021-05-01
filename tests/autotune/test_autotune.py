@@ -10,7 +10,7 @@ from scvi.model import SCVI
 
 def test_tune_scvi():
     adata = synthetic_iid()
-    tune_scvi(adata)
+    tune_scvi(adata, 2)
 
 
 def test_autotune():

@@ -36,11 +36,11 @@ class Autotune:
         self,
         adata: anndata.AnnData,
         model,
-        training_metrics: Optional[list] = None,
-        metric_functions: Optional[dict] = None,
-        model_hyperparams: Optional[dict] = None,
-        trainer_hyperparams: Optional[dict] = None,
-        plan_hyperparams: Optional[dict] = None,
+        training_metrics: Optional[list] = [],
+        metric_functions: Optional[dict] = {},
+        model_hyperparams: Optional[dict] = {},
+        trainer_hyperparams: Optional[dict] = {},
+        plan_hyperparams: Optional[dict] = {},
         num_epochs: int = 2,
     ):
         self.adata = adata
