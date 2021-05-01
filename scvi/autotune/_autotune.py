@@ -5,6 +5,8 @@ from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.schedulers.trial_scheduler import TrialScheduler
+from ray.tune.suggest.hyperopt import HyperOptSearch
+from ray.tune.suggest.search import SearchAlgorithm
 
 from ._callbacks import ModelSave, _TuneReportMetricFunctionsCallback
 
@@ -103,20 +105,24 @@ class Autotune:
         self,
         metric: str = None,
         scheduler: TrialScheduler = None,
+        search_alg: SearchAlgorithm = None,
         mode: str = "min",
         name: str = "scvi-experiment",
         num_samples: int = 10,
         **kwargs,
     ):
         """
-        Wrapper for `tune.run`. Runs hyper parameter tuning experiment.
+        Wrapper for `tune.run`. Searches for the configuration of model, trainer, and training_plan
+        hyperparameters that minimize or maximize the provided metric.
 
         Parameters
         ----------
         metric
             Metric to optimize over in self.metrics or from self.training_funcs
         scheduler
-            Ray tune scheduler for trials (e.g. ASHA).
+            Ray tune scheduler for trials defaults to ASHA.
+        search_alg
+            Search algorithm from `tune.suggest`, defaults to hyperopt.
         mode
             "min" or "max" to maximize or minimize the objective metric
         name
@@ -133,6 +139,9 @@ class Autotune:
         """
         if not scheduler:
             scheduler = ASHAScheduler(max_t=2, grace_period=1, reduction_factor=2)
+
+        if not search_alg:
+            search_alg = HyperOptSearch()
 
         analysis = tune.run(
             self._trainable,
