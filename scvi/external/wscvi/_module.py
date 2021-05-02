@@ -242,6 +242,9 @@ class WVAE(VAE):
         assert log_ratios.ndim == 2
         if self.loss_type == "ELBO":
             loss = -log_ratios.mean()
+
+        # log_ratio = (log_px_zl + log_pz + log_pl) - (log_qz_x + log_ql_x)
+        #     obj = -(torch.softmax(log_ratio, dim=0).detach() * log_ratio).sum(dim=0)
         elif self.loss_type == "IWELBO":
             loss = (
                 -(torch.softmax(log_ratios, dim=0).detach() * log_ratios)
