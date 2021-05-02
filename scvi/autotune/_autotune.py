@@ -1,6 +1,7 @@
 from typing import Optional
 
 import anndata
+import torch
 from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.schedulers import ASHAScheduler
@@ -109,6 +110,7 @@ class Autotune:
         mode: str = "min",
         name: str = "scvi-experiment",
         num_samples: int = 10,
+        resources_per_trial: Optional[dict] = None,
         **kwargs,
     ):
         """
@@ -143,6 +145,12 @@ class Autotune:
         if not search_alg:
             search_alg = HyperOptSearch()
 
+        if not resources_per_trial:
+            if torch.cuda.is_available():
+                resources_per_trial = {"cpu": 1, "gpu": 1}
+            else:
+                resources_per_trial = {"cpu": 1}
+
         analysis = tune.run(
             self._trainable,
             metric=metric,
@@ -152,6 +160,7 @@ class Autotune:
             scheduler=scheduler,
             progress_reporter=self.reporter,
             name=name,
+            resources_per_trial=resources_per_trial,
             **kwargs,
         )
         best_config = analysis.best_config
