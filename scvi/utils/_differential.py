@@ -437,7 +437,8 @@ class DifferentialComputation:
 
 
 def estimate_delta(lfc_means: List[np.ndarray], coef=0.6, min_thres=0.3):
-    """Computes a threshold LFC value based on means of LFCs.
+    """
+    Computes a threshold LFC value based on means of LFCs.
 
     Parameters
     ----------
@@ -482,7 +483,6 @@ def estimate_pseudocounts_offset(
     where_zero_b
         mask where no observed counts
     """
-
     max_scales_a = np.max(scales_a, 0)
     max_scales_b = np.max(scales_b, 0)
     asserts = (
