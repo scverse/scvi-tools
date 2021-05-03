@@ -42,7 +42,7 @@ def test_features():
     )
     expected_off_range = offset <= 1e-6
     if not expected_off_range:
-        raise ValueError("The pseudocount offsset was not properly estimated.")
+        raise ValueError("The pseudocount offset was not properly estimated.")
 
 
 def test_differential_computation(save_path):

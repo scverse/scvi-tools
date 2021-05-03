@@ -9,7 +9,9 @@ import torch
 from scipy.sparse import issparse
 from sklearn.mixture import GaussianMixture
 
+from scvi import _CONSTANTS
 from scvi._compat import Literal
+from scvi.data import get_from_registry
 
 logger = logging.getLogger(__name__)
 
@@ -245,8 +247,9 @@ class DifferentialComputation:
         # Adding pseudocounts to the scales
         if pseudocounts is None:
             logger.debug("Estimating pseudocounts offet from the data")
-            where_zero_a = densify(np.max(self.adata[idx1].X, 0)) == 0
-            where_zero_b = densify(np.max(self.adata[idx2].X, 0)) == 0
+            x = get_from_registry(self.adata, _CONSTANTS.X_KEY)
+            where_zero_a = densify(np.max(x[idx1], 0)) == 0
+            where_zero_b = densify(np.max(x[idx2], 0)) == 0
             pseudocounts = estimate_pseudocounts_offset(
                 scales_a=scales_1,
                 scales_b=scales_2,
