@@ -391,7 +391,13 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
 
 
 class Cell2locationModule(PyroBaseModuleClass):
-    def __init__(self, amortised: bool = False, encoder_kwargs=None, **kwargs):
+    def __init__(
+        self,
+        amortised: bool = False,
+        encoder_kwargs=None,
+        data_transform="log1p",
+        **kwargs
+    ):
         """
         Estimating cell abundance by reference-based decomposition of spatial data (Cell2location module).
         Supports multiple model architectures.
@@ -438,14 +444,24 @@ class Cell2locationModule(PyroBaseModuleClass):
                     init_loc_fn=init_to_mean,
                 )
             )
+            if isinstance(data_transform, np.ndarray):
+                self.register_buffer(
+                    "gene_clusters", torch.tensor(data_transform.astype("float32"))
+                )
+                n_in = self.model.n_vars + data_transform.shape[1]
+                data_transform = self.data_transform_clusters()
+            if data_transform == "log1p":
+                data_transform = torch.log1p
+                n_in = self.model.n_vars
             self._guide.append(
                 AutoNormalEncoder(
                     pyro.poutine.block(
                         self.model, expose=list(amortised_vars["sites"].keys())
                     ),
                     amortised_plate_sites=amortised_vars,
-                    n_in=self.model.n_vars,
+                    n_in=n_in,
                     n_hidden=n_hidden,
+                    data_transform=data_transform,
                     encoder_kwargs=encoder_kwargs,
                 )
             )
@@ -463,3 +479,9 @@ class Cell2locationModule(PyroBaseModuleClass):
     @property
     def is_amortised(self):
         return self._amortised
+
+    def data_transform_clusters(self):
+        def _data_transform(x):
+            return torch.log1p(torch.cat([x, x @ self.gene_clusters], dim=1))
+
+        return _data_transform
