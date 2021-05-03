@@ -39,7 +39,7 @@ facilitate a broad number of tasks across many omics, including:
     for deconvolution of spatial transcriptomics data.
 -   DestVI for multi-resolution deconvolution 
     of spatial transcriptomics data.
--   peakVI for analysis of scATAC-seq data.
+-   [peakVI](https://www.biorxiv.org/content/10.1101/2021.04.29.442020v1) for analysis of scATAC-seq data.
 -   [scArches](https://www.biorxiv.org/content/10.1101/2020.07.16.205997v1)
     for transfer learning from one single-cell atlas to a query dataset
     (currently supports scVI, scANVI and TotalVI).
