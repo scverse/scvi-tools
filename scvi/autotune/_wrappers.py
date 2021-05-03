@@ -40,6 +40,7 @@ def tune_scvi(adata: anndata.AnnData, n_epochs):
         training_metrics=metrics,
         model_hyperparams=model_config,
         plan_hyperparams=plan_config,
+        num_epochs=n_epochs,
     )
     asha_scheduler = ASHAScheduler(max_t=n_epochs, grace_period=1, reduction_factor=2)
     return tuner.run(
