@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
-    PeakVI.
+    Peak Variational Inference [Ashuach21]_
 
     Parameters
     ----------

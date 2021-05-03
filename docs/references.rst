@@ -1,5 +1,8 @@
 References
 ----------
+.. [Ashuach21] Tal Ashauch, Daniel A Reidenbach, Adam Gayoso, Nir Yosef (2021),
+   *PeakVI: A Deep Generative Model for Single Cell Chromatin Accessibility Analysis*,
+   `biorxiv <https://www.biorxiv.org/content/10.1101/2021.04.29.442020v1>`__.
 
 .. [GayosoSteier21] Adam Gayoso*, Zoë Steier*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2021),
    *Joint probabilistic modeling of single-cell multi-omic data with totalVI*,
