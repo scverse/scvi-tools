@@ -450,9 +450,32 @@ class Cell2locationModule(PyroBaseModuleClass):
                 )
                 n_in = self.model.n_vars + data_transform.shape[1]
                 data_transform = self.data_transform_clusters()
-            if data_transform == "log1p":
+            elif data_transform == "log1p":
                 data_transform = torch.log1p
                 n_in = self.model.n_vars
+            elif (
+                isinstance(data_transform, dict)
+                and "var_std" in list(data_transform.keys())
+                and "var_mean" in list(data_transform.keys())
+            ):
+                n_in = self.model.n_vars
+                self.register_buffer(
+                    "var_mean",
+                    torch.tensor(
+                        data_transform["var_mean"].astype("float32").reshape((1, n_in))
+                    ),
+                )
+                self.register_buffer(
+                    "var_std",
+                    torch.tensor(
+                        data_transform["var_std"].astype("float32").reshape((1, n_in))
+                    ),
+                )
+                data_transform = self.data_transform_scale()
+            else:
+                data_transform = data_transform
+                n_in = self.model.n_vars
+
             self._guide.append(
                 AutoNormalEncoder(
                     pyro.poutine.block(
@@ -483,5 +506,12 @@ class Cell2locationModule(PyroBaseModuleClass):
     def data_transform_clusters(self):
         def _data_transform(x):
             return torch.log1p(torch.cat([x, x @ self.gene_clusters], dim=1))
+
+        return _data_transform
+
+    def data_transform_scale(self):
+        def _data_transform(x):
+            # return (x - self.var_mean) / self.var_std
+            return x / self.var_std
 
         return _data_transform
