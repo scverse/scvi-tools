@@ -221,6 +221,8 @@ class Cell2locationTrainSampleMixin:
 
         gpus, device = parse_use_gpu_arg(use_gpu)
 
+        self.module.eval()
+
         train_dl = AnnDataLoader(
             self.adata, shuffle=False, batch_size=self.module.model.batch_size
         )
@@ -309,6 +311,8 @@ class Cell2locationTrainSampleMixin:
         dictionary {variable_name: posterior median}
 
         """
+
+        self.module.eval()
 
         args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
         gpus, device = parse_use_gpu_arg(use_gpu)
