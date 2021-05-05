@@ -1,5 +1,12 @@
 References
 ----------
+.. [Gayoso21] Adam Gayoso*, Romain Lopez*, Galen Xing*, Pierre Boyeau, Katherine Wu, Michael Jayasuriya, Edouard Mehlman, Maxime Langevin, Yining Liu, Jules Samaran, Gabriel Misrachi, Achille Nazaret, Oscar Clivio, Chenling Xu, Tal Ashuach, Mohammad Lotfollahi, Valentine Svensson, Eduardo da Veiga Beltrame, Carlos Talavera-Lopez, Lior Pachter, Fabian J. Theis, Aaron Streets, Michael I. Jordan, Jeffrey Regier, Nir Yosef. (2021),
+   *scvi-tools: a library for deep probabilistic analysis of single-cell omics data*,
+   `biorxiv <https://www.biorxiv.org/content/10.1101/2021.04.28.441833v1>`__.
+
+.. [Ashuach21] Tal Ashauch, Daniel A Reidenbach, Adam Gayoso, Nir Yosef (2021),
+   *PeakVI: A Deep Generative Model for Single Cell Chromatin Accessibility Analysis*,
+   `biorxiv <https://www.biorxiv.org/content/10.1101/2021.04.29.442020v1>`__.
 
 .. [GayosoSteier21] Adam Gayoso*, Zoë Steier*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2021),
    *Joint probabilistic modeling of single-cell multi-omic data with totalVI*,
@@ -8,7 +15,7 @@ References
 .. [Xu21] Chenling Xu*, Romain Lopez*, Edouard Mehlman*, Jeffrey Regier, Michael I. Jordan, Nir Yosef (2021),
    *Probabilistic harmonization and annotation of single-cell transcriptomics data with deep generative models*,
    `Molecular Systems Biology <https://www.embopress.org/doi/full/10.15252/msb.20209620>`__.
-   
+
 .. [Andersson20] Alma Andersson, Joseph Bergenstråhle, Michaela Asp, Ludvig Bergenstråhle, Aleksandra Jurek, José Fernández Navarro & Joakim Lundeberg (2020),
    *Single-cell and spatial transcriptomics enables probabilistic inference of cell type topography*,
    `Communications Biology <https://www.nature.com/articles/s42003-020-01247-y>`__.
@@ -32,7 +39,7 @@ References
 .. [Lopez19] Romain Lopez*, Achille Nazaret*, Maxime Langevin*, Jules Samaran*, Jeffrey Regier*, Michael I. Jordan, Nir Yosef (2019),
    *A joint model of unpaired data from scRNA-seq and spatial transcriptomics for imputing missing gene expression measurements*,
    `ICML Workshop on Computational Biology <https://arxiv.org/pdf/1905.02269.pdf>`__.
-   
+
 .. [Bernstein19] Nicholas J. Bernstein, , Nicole L. Fong, Irene Lam, Margaret A. Roy, David G. Hendrickson, and David R. Kelley (2020),
     *Solo: doublet identification in single-cell RNA-Seq via semi-supervised deep learning*,
     `Cell Systems <https://www.sciencedirect.com/science/article/pii/S2405471220301952>`__.
