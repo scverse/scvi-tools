@@ -83,6 +83,7 @@ class Cell2locationTrainSampleMixin:
     def _train_minibatch(
         self,
         max_epochs,
+        max_steps,
         use_gpu,
         plan_kwargs,
         trainer_kwargs,
@@ -95,6 +96,8 @@ class Cell2locationTrainSampleMixin:
         ----------
         max_epochs
             Number of training epochs / iterations
+        max_steps
+            Number of training steps
         use_gpu
             Bool, use gpu?
         plan_kwargs
@@ -129,7 +132,9 @@ class Cell2locationTrainSampleMixin:
         trainer_kwargs[es] = (
             early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
         )
-        trainer = Trainer(gpus=gpus, max_epochs=max_epochs, **trainer_kwargs)
+        trainer = Trainer(
+            gpus=gpus, max_epochs=max_epochs, max_steps=max_steps, **trainer_kwargs
+        )
         trainer.fit(plan, train_dl)
         self.module.to(device)
 
@@ -138,9 +143,12 @@ class Cell2locationTrainSampleMixin:
         except AttributeError:
             self.history_ = None
 
+        self.module.is_trained_ = True
+
     def train(
         self,
         max_epochs: Optional[int] = None,
+        max_steps: Optional[int] = None,
         use_gpu: Optional[bool] = None,
         lr: float = 0.01,
         clip_norm: float = 200,
@@ -154,6 +162,8 @@ class Cell2locationTrainSampleMixin:
         ----------
         max_epochs
             Number of training epochs / iterations
+        max_steps
+            Number of training steps
         use_gpu
             Bool, use gpu?
         lr
@@ -194,6 +204,7 @@ class Cell2locationTrainSampleMixin:
             # standard training using minibatches
             self._train_minibatch(
                 max_epochs=max_epochs,
+                max_steps=max_steps,
                 use_gpu=use_gpu,
                 plan_kwargs=plan_kwargs,
                 trainer_kwargs=trainer_kwargs,

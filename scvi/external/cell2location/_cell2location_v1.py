@@ -10,39 +10,23 @@ from ._base import Cell2locationTrainSampleMixin, PltExportMixin
 from ._module import Cell2locationModule
 
 
-def setup_anndata(adata, cell_state_df, **kwargs):
-    """Setup anndata for reference-based decomposition:
-
-    1) subset adata and cell_state_df to common variables
-    2) add necesary information to adata.uns['_scvi']
-
-    :param **kwargs: arguments for `scvi.data.setup_anndata`
+def intersect_var(adata, cell_state_df):
     """
+    Subset adata and cell_state_df to common variables (rows in cell_state_df).
 
+    Parameters
+    ----------
+    adata
+        anndata object
+    cell_state_df
+        pd.DataFrame with variables (genes) in rows and cell types/factors/covariates in columns.
+
+    Returns
+    -------
+
+    """
     intersect = np.intersect1d(cell_state_df.index, adata.var_names)
-    cell_state_df = cell_state_df.loc[intersect, :]
-    adata = adata[:, intersect]
-    adata.varm["cell_state"] = cell_state_df.values.astype("float32")
-
-    scvi.data.setup_anndata(adata, **kwargs)
-
-    adata.uns["_scvi"]["summary_stats"]["n_obs"] = adata.n_obs
-
-    # add cell type number and names
-    adata.uns["_scvi"]["summary_stats"]["n_factors"] = cell_state_df.shape[1]
-    adata.uns["_scvi"]["_scvi_factors"] = {
-        "varm_key": "cell_state",
-        "mapping": cell_state_df.columns.values,
-    }
-
-    # add index for each cell (provided to pyro plate for correct minibatching
-    adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
-    adata.uns["_scvi"]["data_registry"]["ind_x"] = {
-        "attr_name": "obs",
-        "attr_key": "_indices",
-    }
-
-    return adata
+    return adata[:, intersect].copy(), cell_state_df.loc[intersect, :].copy()
 
 
 def compute_cluster_averages(adata, labels, use_raw=True, layer=None):
@@ -89,7 +73,7 @@ class Cell2locationPltExportMixin:
 
         :param node_name: name of the model parameter to be exported
         :return: 4 Pandas dataframes added to model object:
-            .spot_factors_df, .spot_factors_sd, .spot_factors_q05, .spot_factors_q95
+            .w_sf_df, .w_sf_sd, .w_sf_q05, .w_sf_q95
         """
 
         if len(self.samples) == 0:
@@ -172,25 +156,38 @@ class Cell2location(
     def __init__(
         self,
         adata: AnnData,
+        cell_state_df: pd.DataFrame,
         batch_size=None,
         module=None,
         **model_kwargs,
     ):
+
+        # add index for each cell (provided to pyro plate for correct minibatching)
+        adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
+        scvi.data.register_tensor_from_anndata(
+            adata,
+            registry_key="ind_x",
+            adata_attr_name="obs",
+            adata_key_name="_indices",
+        )
+
         super().__init__(adata)
 
         if module is None:
             module = Cell2locationModule
 
+        self.cell_state_df_ = cell_state_df
+        self.n_factors_ = cell_state_df.shape[1]
+        self.n_factors_names_ = cell_state_df.columns.values
+
         self.module = module(
-            n_obs=self.summary_stats["n_obs"],
+            n_obs=self.summary_stats["n_cells"],
             n_vars=self.summary_stats["n_vars"],
-            n_factors=self.summary_stats["n_factors"],
+            n_factors=self.n_factors_,
             n_batch=self.summary_stats["n_batch"],
             batch_size=batch_size,
-            cell_state_mat=self.adata.varm[
-                self.scvi_setup_dict_["_scvi_factors"]["varm_key"]
-            ],
+            cell_state_mat=self.cell_state_df_.values.astype("float32"),
             **model_kwargs,
         )
-        self._model_summary_string = f'scVI-cell2location Model with the following params: \nn_factors: {self.summary_stats["n_factors"]} \nn_batch: {self.summary_stats["n_batch"]} '
+        self._model_summary_string = f'scVI-cell2location Model with the following params: \nn_factors: {self.n_factors_} \nn_batch: {self.summary_stats["n_batch"]} '
         self.init_params_ = self._get_init_params(locals())

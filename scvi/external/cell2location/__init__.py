@@ -1,3 +1,3 @@
-from ._model import Cell2location, compute_cluster_averages, setup_anndata
+from ._cell2location_v1 import Cell2location, compute_cluster_averages, intersect_var
 
-__all__ = ["Cell2location", "setup_anndata", "compute_cluster_averages"]
+__all__ = ["Cell2location", "intersect_var", "compute_cluster_averages"]
