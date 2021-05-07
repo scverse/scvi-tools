@@ -29,7 +29,7 @@ def parse_use_gpu_arg(
     ----------
     use_gpu
         Use default GPU if available (if None or True), or index of GPU to use (if int),
-        or name of GPU (if str), or use CPU (if False).
+        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
     return_device
         If True, will return the torch.device of use_gpu.
     """
@@ -41,9 +41,15 @@ def parse_use_gpu_arg(
         current = torch.cuda.current_device()
         device = torch.device(current)
         gpus = [current]
-    elif isinstance(use_gpu, int) or isinstance(use_gpu, str):
+    elif isinstance(use_gpu, int):
         device = torch.device(use_gpu)
         gpus = [use_gpu]
+    elif isinstance(use_gpu, str):
+        device = torch.device(use_gpu)
+        # changes "cuda:0" to "0,"
+        gpus = use_gpu.split(":")[-1] + ","
+    else:
+        raise ValueError("use_gpu argument not understood.")
 
     if return_device:
         return gpus, device
