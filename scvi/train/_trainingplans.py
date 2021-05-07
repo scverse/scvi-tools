@@ -627,7 +627,7 @@ class PyroTrainingPlan(pl.LightningModule):
         """Passthrough to `model.forward()`."""
         return self.module(*args, **kwargs)
 
-    def training_step(self, batch, batch_idx, optimizer_idx=0):
+    def training_step(self, batch, batch_idx):
         args, kwargs = self.module._get_fn_args_from_batch(batch)
         loss = self.svi.step(*args, **kwargs)
         self.log("train_loss", loss, prog_bar=True, on_epoch=True)

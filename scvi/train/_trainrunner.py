@@ -28,7 +28,7 @@ class TrainRunner:
         max_epochs to train for
     use_gpu
         Use default GPU if available (if None or True), or index of GPU to use (if int),
-        or name of GPU (if str), or use CPU (if False).
+        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
     trainer_kwargs
         Extra kwargs for :class:`~scvi.train.Trainer`
 
@@ -82,3 +82,4 @@ class TrainRunner:
         self.model.is_trained_ = True
         self.model.to_device(self.device)
         self.model.trainer = self.trainer
+        self.model.train_device_ = self.device

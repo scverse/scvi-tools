@@ -47,6 +47,7 @@ class BaseModelClass(ABC):
         self.validation_indices_ = None
         self.history_ = None
         self._data_loader_cls = AnnDataLoader
+        self.train_device_ = None
 
     def to_device(self, device: Union[str, int]):
         """
