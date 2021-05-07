@@ -25,7 +25,7 @@ def tune_scvi(adata: anndata.AnnData, n_epochs):
         "elbo_validation",
         "reconstruction_loss_validation",
     ]
-    metric_functions = {"marginal_ll": lambda model: model.get_marginal_ll()}
+    metric_functions = {}
     model_config = {
         "dropout_rate": loguniform(1e-4, 1e-1),
         "n_layers": choice([i for i in range(1, 5)]),
