@@ -66,7 +66,9 @@ def test_zinb_distribution():
         mu=mu, theta=theta, validate_args=True, is_sparse=True
     )
 
-    assert torch.eq(dist2.log_prob(x), dist2_sparse.log_prob(x)).all()
+    np.testing.assert_allclose(
+        dist2.log_prob(x).numpy(), dist2_sparse.log_prob(x).numpy(), 1e-4
+    )
 
     with pytest.raises(ValueError):
         ZeroInflatedNegativeBinomial(
