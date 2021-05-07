@@ -99,7 +99,8 @@ def log_nb_positive(
         nonzero_x = x[mask]
         nonzero_mu = mu[mask]
         nonzero_log_theta_mu_eps = log_theta_mu_eps[mask]
-        nonzero_theta = theta[mask]
+        nonzero_theta, _ = torch.broadcast_tensors(theta, x)
+        nonzero_theta = nonzero_theta[mask]
         terms_for_nonzero = (
             nonzero_x * (torch.log(nonzero_mu + eps) - nonzero_log_theta_mu_eps)
             + torch.lgamma(nonzero_x + nonzero_theta)
