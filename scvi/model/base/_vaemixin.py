@@ -160,7 +160,8 @@ class VAEMixin:
                 f"""Model trained with {self.train_device_} but currently on {self.device}. You may experience
                  reproducibility issues: https://github.com/YosefLab/scvi-tools/issues/1048.
                  This is expected behavior: https://github.com/pytorch/pytorch/issues/38219.
-                 Use model.to_device('{self.train_device_}') to move model back."""
+                 Move the model back to the train device for reproducibility
+                 model.to_device('{self.train_device_}')"""
             )
 
         adata = self._validate_anndata(adata)
