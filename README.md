@@ -39,7 +39,7 @@ facilitate a broad number of tasks across many omics, including:
     for deconvolution of spatial transcriptomics data.
 -   DestVI for multi-resolution deconvolution 
     of spatial transcriptomics data.
--   peakVI for analysis of scATAC-seq data.
+-   [peakVI](https://www.biorxiv.org/content/10.1101/2021.04.29.442020v1) for analysis of scATAC-seq data.
 -   [scArches](https://www.biorxiv.org/content/10.1101/2020.07.16.205997v1)
     for transfer learning from one single-cell atlas to a query dataset
     (currently supports scVI, scANVI and TotalVI).
@@ -87,3 +87,20 @@ Please be sure to install a version of [PyTorch](https://pytorch.org/) that is c
     guide](https://docs.scvi-tools.org/en/stable/contributing/index.html).
 -   If you find a model useful for your research, please consider citing
     the corresponding publication (linked above).
+
+# Reference
+
+If you used scvi-tools in your research, please consider citing
+
+```
+@article{Gayoso2021scvitools,
+	author = {Gayoso, Adam and Lopez, Romain and Xing, Galen and Boyeau, Pierre and Wu, Katherine and Jayasuriya, Michael and Mehlman, Edouard and Langevin, Maxime and Liu, Yining and Samaran, Jules and Misrachi, Gabriel and Nazaret, Achille and Clivio, Oscar and Xu, Chenling and Ashuach, Tal and Lotfollahi, Mohammad and Svensson, Valentine and da Veiga Beltrame, Eduardo and Talavera-Lopez, Carlos and Pachter, Lior and Theis, Fabian J and Streets, Aaron and Jordan, Michael I and Regier, Jeffrey and Yosef, Nir},
+	title = {scvi-tools: a library for deep probabilistic analysis of single-cell omics data},
+	year = {2021},
+	doi = {10.1101/2021.04.28.441833},
+	publisher = {Cold Spring Harbor Laboratory},
+	URL = {https://www.biorxiv.org/content/early/2021/04/29/2021.04.28.441833},
+	eprint = {https://www.biorxiv.org/content/early/2021/04/29/2021.04.28.441833.full.pdf},
+	journal = {bioRxiv}
+}
+```

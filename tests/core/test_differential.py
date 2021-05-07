@@ -5,7 +5,45 @@ import pytest
 
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
+from scvi.model.base._utils import _prepare_obs
 from scvi.utils import DifferentialComputation
+from scvi.utils._differential import estimate_delta, estimate_pseudocounts_offset
+
+
+def test_features():
+    a = np.random.randn(
+        100,
+    )
+    b = 3 + np.random.randn(
+        100,
+    )
+    c = -3 + np.random.randn(
+        100,
+    )
+    alls = np.concatenate([a, b, c])
+    delta = estimate_delta(alls)
+    expected_range = (delta >= 0.4 * 3) and (delta <= 6)
+    if not expected_range:
+        raise ValueError("The effect-size threshold was not properly estimated.")
+
+    scales_a = np.random.rand(100, 50)
+    where_zero_a = np.zeros(50, dtype=bool)
+    where_zero_a[:10] = True
+    scales_a[:, :10] = 1e-6
+
+    scales_b = np.random.rand(100, 50)
+    where_zero_b = np.zeros(50, dtype=bool)
+    where_zero_b[-10:] = True
+    scales_b[:, -10:] = 1e-7
+    offset = estimate_pseudocounts_offset(
+        scales_a=scales_a,
+        scales_b=scales_b,
+        where_zero_a=where_zero_a,
+        where_zero_b=where_zero_b,
+    )
+    expected_off_range = offset <= 1e-6
+    if not expected_off_range:
+        raise ValueError("The pseudocount offset was not properly estimated.")
 
 
 def test_differential_computation(save_path):
@@ -22,7 +60,21 @@ def test_differential_computation(save_path):
     cell_idx2 = ~cell_idx1
 
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="vanilla", use_permutation=True)
-    dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=False)
+    res = dc.get_bayes_factors(
+        cell_idx1, cell_idx2, mode="change", use_permutation=False
+    )
+    assert (res["delta"] == 0.5) and (res["pseudocounts"] == 0.0)
+    res = dc.get_bayes_factors(
+        cell_idx1, cell_idx2, mode="change", use_permutation=False, delta=None
+    )
+    dc.get_bayes_factors(
+        cell_idx1,
+        cell_idx2,
+        mode="change",
+        use_permutation=False,
+        delta=None,
+        pseudocounts=None,
+    )
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", cred_interval_lvls=[0.75])
 
     delta = 0.5
@@ -48,6 +100,20 @@ def test_differential_computation(save_path):
     # test view
     model.differential_expression(
         adata[adata.obs["labels"] == "label_1"], groupby="batch"
+    )
+
+    # Test query features
+    obs_col, group1, _, = _prepare_obs(
+        idx1="(labels == 'label_1') & (batch == 'batch_1')", idx2=None, adata=adata
+    )
+    assert (obs_col == group1).sum() == adata.obs.loc[
+        lambda x: (x.labels == "label_1") & (x.batch == "batch_1")
+    ].shape[0]
+    model.differential_expression(
+        idx1="labels == 'label_1'",
+    )
+    model.differential_expression(
+        idx1="labels == 'label_1'", idx2="(labels == 'label_2') & (batch == 'batch_1')"
     )
 
     # test that ints as group work
