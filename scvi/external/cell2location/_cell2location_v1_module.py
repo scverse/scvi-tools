@@ -83,7 +83,10 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         N_cells_mean_var_ratio=1.0,
         alpha_g_phi_hyp_prior={"alpha": 9.0, "beta": 3.0},
         gene_add_alpha_hyp_prior={"alpha": 9.0, "beta": 3.0},
-        gene_add_mean_hyp_prior={"alpha": 1.0, "beta": 100.0},
+        gene_add_mean_hyp_prior={
+            "alpha": 1.0,
+            "beta": 100.0,
+        },  # TODO initialise as average of empty droplets
         w_sf_mean_var_ratio=5.0,
     ):
 
@@ -394,6 +397,7 @@ class Cell2locationModule(PyroBaseModuleClass):
     def __init__(
         self,
         amortised: bool = False,
+        single_encoder: bool = True,
         encoder_kwargs=None,
         data_transform="log1p",
         **kwargs
@@ -490,6 +494,7 @@ class Cell2locationModule(PyroBaseModuleClass):
                     n_hidden=n_hidden,
                     data_transform=data_transform,
                     encoder_kwargs=encoder_kwargs,
+                    single_encoder=single_encoder,
                 )
             )
 

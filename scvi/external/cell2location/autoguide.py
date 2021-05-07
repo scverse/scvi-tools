@@ -60,24 +60,28 @@ class AutoNormalEncoder(AutoGuide):
     def __init__(
         self,
         model,
-        amortised_plate_sites,
-        n_in,
-        n_hidden=200,
+        amortised_plate_sites: dict,
+        n_in: int,
+        n_hidden: int = 200,
         init_param=0,
-        init_param_scale=1 / 50,
+        init_param_scale: float = 1 / 50,
         data_transform=torch.log1p,
         encoder_kwargs=None,
         create_plates=None,
+        single_encoder: bool = True,
     ):
-
-        encoder_kwargs = encoder_kwargs if isinstance(encoder_kwargs, dict) else dict()
-        encoder_kwargs["n_hidden"] = n_hidden
 
         super().__init__(model, create_plates=create_plates)
         self.amortised_plate_sites = amortised_plate_sites
+        self.single_encoder = single_encoder
 
         self.softplus = SoftplusTransform()
-        # create encoder NN
+
+        encoder_kwargs = encoder_kwargs if isinstance(encoder_kwargs, dict) else dict()
+        encoder_kwargs["n_hidden"] = n_hidden
+        self.encoder_kwargs = encoder_kwargs
+
+        self.n_in = n_in
         self.n_out = (
             np.sum(
                 [
@@ -88,9 +92,13 @@ class AutoNormalEncoder(AutoGuide):
             * 2
         )
         self.n_hidden = n_hidden
-        self.encoder = FCLayersPyro(n_in=n_in, n_out=self.n_hidden, **encoder_kwargs)
-        self.init_param_scale = init_param_scale
+        if self.single_encoder:
+            # create a single encoder NN
+            self.encoder = FCLayersPyro(
+                n_in=self.n_in, n_out=self.n_hidden, **self.encoder_kwargs
+            )
 
+        self.init_param_scale = init_param_scale
         self.data_transform = data_transform
 
     def _setup_prototype(self, *args, **kwargs):
@@ -101,6 +109,10 @@ class AutoNormalEncoder(AutoGuide):
         self._cond_indep_stacks = {}
         self.locs = PyroModule()
         self.scales = PyroModule()
+
+        if not self.single_encoder:
+            # create module class for collecting multiple encoder NN
+            self.encoder = PyroModule()
 
         # Initialize guide params
         for name, site in self.prototype_trace.iter_stochastic_nodes():
@@ -133,6 +145,7 @@ class AutoNormalEncoder(AutoGuide):
                     )
                 ),
             )
+
             init_param = np.random.normal(
                 np.zeros(param_dim),
                 (np.ones(param_dim) * self.init_param_scale) / np.sqrt(self.n_hidden),
@@ -147,10 +160,23 @@ class AutoNormalEncoder(AutoGuide):
                 ),
             )
 
+            if not self.single_encoder:
+                _deep_setattr(
+                    self.encoder,
+                    name,
+                    FCLayersPyro(
+                        n_in=self.n_in, n_out=self.n_hidden, **self.encoder_kwargs
+                    ).to(site["value"].device),
+                )
+
     def _get_loc_and_scale(self, name, encoded_hidden):
 
         linear_locs = _deep_getattr(self.locs, name)
         linear_scales = _deep_getattr(self.scales, name)
+
+        if not self.single_encoder:
+            # when using multiple encoders extract hidden layer for this parameter
+            encoded_hidden = encoded_hidden[name]
 
         locs = encoded_hidden @ linear_locs
         scales = self.softplus((encoded_hidden @ linear_scales) - 2)
@@ -162,7 +188,16 @@ class AutoNormalEncoder(AutoGuide):
         x_in = [kwargs[i] if i in kwargs.keys() else args[i] for i in in_names]
         # apply data_transform
         x_in = [self.data_transform(x) for x in x_in]
-        return self.encoder(*x_in)
+        # when there are multiple encoders get then and apply encode data
+        if not self.single_encoder:
+            res = {
+                name: _deep_getattr(self.encoder, name)(*x_in)
+                for name, site in self.prototype_trace.iter_stochastic_nodes()
+            }
+        else:
+            # encode with a single encoder
+            res = self.encoder(*x_in)
+        return res
 
     def forward(self, *args, **kwargs):
         """

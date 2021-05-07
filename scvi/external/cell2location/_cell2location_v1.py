@@ -7,7 +7,7 @@ import scvi
 from scvi.model.base import BaseModelClass
 
 from ._base import Cell2locationTrainSampleMixin, PltExportMixin
-from ._module import Cell2locationModule
+from ._cell2location_v1_module import Cell2locationModule
 
 
 def intersect_var(adata, cell_state_df):
@@ -178,7 +178,7 @@ class Cell2location(
 
         self.cell_state_df_ = cell_state_df
         self.n_factors_ = cell_state_df.shape[1]
-        self.n_factors_names_ = cell_state_df.columns.values
+        self.factor_names_ = cell_state_df.columns.values
 
         self.module = module(
             n_obs=self.summary_stats["n_cells"],
