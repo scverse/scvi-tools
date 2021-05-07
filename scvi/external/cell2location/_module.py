@@ -9,7 +9,7 @@ from pyro.distributions import constraints
 
 # from pyro.distributions.torch_distribution import TorchDistributionMixin
 from pyro.distributions.transforms import SoftplusTransform
-from pyro.infer.autoguide import AutoGuideList, AutoNormal, init_to_mean
+from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule
 from scipy.sparse import csr_matrix, issparse
 from torch.distributions import biject_to, transform_to
@@ -24,7 +24,7 @@ from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_l
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import one_hot
 
-from .autoguide import AutoNormalEncoder
+from .autoguide import AutoGuideList, AutoNormalEncoder
 
 
 @biject_to.register(constraints.positive)
@@ -445,12 +445,14 @@ class Cell2locationModule(PyroBaseModuleClass):
                 )
             )
             if isinstance(data_transform, np.ndarray):
+                # add extra info about gene clusters to the network
                 self.register_buffer(
                     "gene_clusters", torch.tensor(data_transform.astype("float32"))
                 )
                 n_in = self.model.n_vars + data_transform.shape[1]
                 data_transform = self.data_transform_clusters()
             elif data_transform == "log1p":
+                # use simple log1p transform
                 data_transform = torch.log1p
                 n_in = self.model.n_vars
             elif (
@@ -458,6 +460,7 @@ class Cell2locationModule(PyroBaseModuleClass):
                 and "var_std" in list(data_transform.keys())
                 and "var_mean" in list(data_transform.keys())
             ):
+                # use data transform by scaling
                 n_in = self.model.n_vars
                 self.register_buffer(
                     "var_mean",
@@ -473,6 +476,7 @@ class Cell2locationModule(PyroBaseModuleClass):
                 )
                 data_transform = self.data_transform_scale()
             else:
+                # use custom data transform
                 data_transform = data_transform
                 n_in = self.model.n_vars
 

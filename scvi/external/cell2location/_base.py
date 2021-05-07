@@ -79,6 +79,8 @@ class Cell2locationTrainSampleMixin:
 
         self.module.history_ = hist
         self.module.is_trained_ = True
+        self.history_ = hist
+        self.is_trained_ = True
 
     def _train_minibatch(
         self,
@@ -140,10 +142,12 @@ class Cell2locationTrainSampleMixin:
 
         try:
             self.module.history_ = trainer.logger.history
+            self.history_ = trainer.logger.history
         except AttributeError:
             self.history_ = None
 
         self.module.is_trained_ = True
+        self.is_trained_ = True
 
     def train(
         self,
@@ -211,7 +215,7 @@ class Cell2locationTrainSampleMixin:
                 early_stopping=early_stopping,
             )
 
-    def _posterior_median_amortised(self, use_gpu: bool = True):
+    def _posterior_quantile_amortised(self, q: float = 0.5, use_gpu: bool = True):
         """
         Compute median of the posterior distribution of each parameter, separating local (minibatch) variable
         and global variables, which is necessary when performing amortised inference.
@@ -221,6 +225,8 @@ class Cell2locationTrainSampleMixin:
 
         Parameters
         ----------
+        q
+            quantile to compute
         use_gpu
             Bool, use gpu?
 
@@ -246,7 +252,7 @@ class Cell2locationTrainSampleMixin:
                 args = [a.to(device) for a in args]
                 kwargs = {k: v.to(device) for k, v in kwargs.items()}
 
-                means = self.module.guide.median(*args, **kwargs)
+                means = self.module.guide.quantiles([q], *args, **kwargs)
                 means = {
                     k: means[k].cpu().detach().numpy()
                     for k in means.keys()
@@ -271,7 +277,7 @@ class Cell2locationTrainSampleMixin:
                 args = [a.to(device) for a in args]
                 kwargs = {k: v.to(device) for k, v in kwargs.items()}
 
-                means_ = self.module.guide.median(*args, **kwargs)
+                means_ = self.module.guide.quantiles([q], *args, **kwargs)
                 means_ = {
                     k: means_[k].cpu().detach().numpy()
                     for k in means_.keys()
@@ -293,7 +299,7 @@ class Cell2locationTrainSampleMixin:
                 args = [a.to(device) for a in args]
                 kwargs = {k: v.to(device) for k, v in kwargs.items()}
 
-                global_means = self.module.guide.median(*args, **kwargs)
+                global_means = self.module.guide.quantiles([q], *args, **kwargs)
                 global_means = {
                     k: global_means[k].cpu().detach().numpy()
                     for k in global_means.keys()
@@ -308,12 +314,14 @@ class Cell2locationTrainSampleMixin:
 
         return means
 
-    def _posterior_median(self, use_gpu: bool = True):
+    def _posterior_quantile(self, q: float = 0.5, use_gpu: bool = True):
         """
         Compute median of the posterior distribution of each parameter pyro models trained without amortised inference.
 
         Parameters
         ----------
+        q
+            quantile to compute
         use_gpu
             Bool, use gpu?
 
@@ -330,17 +338,19 @@ class Cell2locationTrainSampleMixin:
         args = [a.to(device) for a in args]
         kwargs = {k: v.to(device) for k, v in kwargs.items()}
 
-        means = self.module.guide.median(*args, **kwargs)
+        means = self.module.guide.quantiles([q], *args, **kwargs)
         means = {k: means[k].cpu().detach().numpy() for k in means.keys()}
 
         return means
 
-    def posterior_median(self, use_gpu: bool = True):
+    def posterior_quantile(self, q: float = 0.5, use_gpu: bool = True):
         """
         Compute median of the posterior distribution of each parameter.
 
         Parameters
         ----------
+        q
+            quantile to compute
         use_gpu
 
         Returns
@@ -349,9 +359,9 @@ class Cell2locationTrainSampleMixin:
         """
 
         if self.module.is_amortised:
-            return self._posterior_median_amortised(use_gpu=use_gpu)
+            return self._posterior_quantile_amortised(q=q, use_gpu=use_gpu)
         else:
-            return self._posterior_median(self, use_gpu=use_gpu)
+            return self._posterior_quantile(q=q, use_gpu=use_gpu)
 
     def _sample_node(self, node, num_samples_batch: int = 10):
 
