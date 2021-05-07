@@ -1,5 +1,6 @@
 import warnings
 from typing import Optional, Tuple, Union
+import pdb
 
 import torch
 import torch.nn.functional as F
@@ -98,7 +99,7 @@ def log_nb_positive(
         nonzero_x = x[mask]
         nonzero_mu = mu[mask]
         nonzero_log_theta_mu_eps = log_theta_mu_eps[mask]
-        nonzero_theta, _, _ = torch.broadcast_tensors(theta, x, x > 0)
+        nonzero_theta = theta[mask]
         terms_for_nonzero = (
             nonzero_x * (torch.log(nonzero_mu + eps) - nonzero_log_theta_mu_eps)
             + torch.lgamma(nonzero_x + nonzero_theta)
