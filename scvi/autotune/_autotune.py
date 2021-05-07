@@ -143,7 +143,7 @@ class Autotune:
             scheduler = ASHAScheduler(max_t=2, grace_period=1, reduction_factor=2)
 
         if not search_alg:
-            search_alg = HyperOptSearch()
+            search_alg = HyperOptSearch(space=self.config, mode=mode, metric=metric)
 
         if not resources_per_trial:
             if torch.cuda.is_available():
