@@ -158,6 +158,7 @@ class Autotune:
             config=self.config,
             num_samples=num_samples,
             scheduler=scheduler,
+            search_alg=search_alg,
             progress_reporter=self.reporter,
             name=name,
             resources_per_trial=resources_per_trial,
