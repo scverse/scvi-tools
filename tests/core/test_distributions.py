@@ -62,6 +62,14 @@ def test_zinb_distribution():
     assert dist1.log_prob(x).shape == size
     assert dist2.log_prob(x).shape == size
 
+    dist2_sparse = NegativeBinomial(
+        mu=mu, theta=theta, validate_args=True, is_sparse=True
+    )
+
+    np.testing.assert_allclose(
+        dist2.log_prob(x).numpy(), dist2_sparse.log_prob(x).numpy(), 1e-4
+    )
+
     with pytest.raises(ValueError):
         ZeroInflatedNegativeBinomial(
             mu=-mu, theta=theta, zi_logits=pi, validate_args=True

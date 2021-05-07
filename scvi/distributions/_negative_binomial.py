@@ -64,7 +64,9 @@ def log_zinb_positive(
     return res
 
 
-def log_nb_positive(x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, eps=1e-8):
+def log_nb_positive(
+    x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, eps=1e-8, is_sparse=False
+):
     """
     Log likelihood (scalar) of a minibatch according to a nb model.
 
@@ -91,6 +93,24 @@ def log_nb_positive(x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, eps=
 
     log_theta_mu_eps = torch.log(theta + mu + eps)
 
+    if is_sparse:
+        mask = x > 0
+        nonzero_x = x[mask]
+        nonzero_mu = mu[mask]
+        nonzero_log_theta_mu_eps = log_theta_mu_eps[mask]
+        nonzero_theta, _ = torch.broadcast_tensors(theta, x)
+        nonzero_theta = nonzero_theta[mask]
+        terms_for_nonzero = (
+            nonzero_x * (torch.log(nonzero_mu + eps) - nonzero_log_theta_mu_eps)
+            + torch.lgamma(nonzero_x + nonzero_theta)
+            - torch.lgamma(nonzero_theta)
+            - torch.lgamma(nonzero_x + 1)
+        )
+        terms_for_all = theta * (torch.log(theta + eps) - log_theta_mu_eps)
+        return (
+            torch.zeros_like(x).masked_scatter(mask, terms_for_nonzero) + terms_for_all
+        )
+
     res = (
         theta * (torch.log(theta + eps) - log_theta_mu_eps)
         + x * (torch.log(mu + eps) - log_theta_mu_eps)
@@ -98,7 +118,6 @@ def log_nb_positive(x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, eps=
         - torch.lgamma(theta)
         - torch.lgamma(x + 1)
     )
-
     return res
 
 
@@ -276,8 +295,10 @@ class NegativeBinomial(Distribution):
         logits: Optional[torch.Tensor] = None,
         mu: Optional[torch.Tensor] = None,
         theta: Optional[torch.Tensor] = None,
+        is_sparse: bool = False,
         validate_args: bool = False,
     ):
+        self.is_sparse = is_sparse
         self._eps = 1e-8
         if (mu is None) == (total_count is None):
             raise ValueError(
@@ -331,7 +352,9 @@ class NegativeBinomial(Distribution):
                     UserWarning,
                 )
 
-        return log_nb_positive(value, mu=self.mu, theta=self.theta, eps=self._eps)
+        return log_nb_positive(
+            value, mu=self.mu, theta=self.theta, eps=self._eps, is_sparse=self.is_sparse
+        )
 
     def _gamma(self):
         return _gamma(self.theta, self.mu)
