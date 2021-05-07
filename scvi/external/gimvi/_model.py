@@ -148,7 +148,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             `np.min([round((20000 / n_cells) * 400), 400])`
         use_gpu
             Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str), or use CPU (if False).
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
         kappa
             Scaling parameter for the discriminator loss.
         train_size
