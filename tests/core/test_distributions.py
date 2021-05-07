@@ -62,6 +62,8 @@ def test_zinb_distribution():
     assert dist1.log_prob(x).shape == size
     assert dist2.log_prob(x).shape == size
 
+    # test sparse component
+    x[0, :] = 0.0
     dist2_sparse = NegativeBinomial(
         mu=mu, theta=theta, validate_args=True, is_sparse=True
     )
