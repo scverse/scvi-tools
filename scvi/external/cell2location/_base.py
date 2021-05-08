@@ -181,19 +181,11 @@ class Cell2locationTrainSampleMixin:
         clip_norm,
         module_names=["encoder", "hidden2locs", "hidden2scales"],
     ):
-        # detect variables in autoencoding guide
-        if autoencoding_lr is not None:
-            all_param_list = np.array(list(self.module.state_dict().keys()))
-            ind = np.zeros(len(all_param_list)).astype(bool)
-            for n in module_names:
-                ind = ind | np.array([n in i for i in all_param_list]).astype(bool)
-            param_list = all_param_list[ind]
-        else:
-            param_list = []
-
         # create function which fetches different lr for autoencoding guide
         def optim_param(module_name, param_name):
-            if module_name + "." + param_name in param_list:
+            # detect variables in autoencoding guide
+            if np.any([n in module_name + "." + param_name for n in module_names]):
+                print("selected " + module_name + "." + param_name)
                 return {
                     "lr": autoencoding_lr,
                     # limit the gradient step from becoming too large
