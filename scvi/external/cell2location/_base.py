@@ -185,7 +185,6 @@ class Cell2locationTrainSampleMixin:
         def optim_param(module_name, param_name):
             # detect variables in autoencoding guide
             if np.any([n in module_name + "." + param_name for n in module_names]):
-                print("selected " + module_name + "." + param_name)
                 return {
                     "lr": autoencoding_lr,
                     # limit the gradient step from becoming too large
