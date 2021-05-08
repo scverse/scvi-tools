@@ -3,6 +3,7 @@ from typing import Optional
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import pyro
 import torch
 from pyro import poutine
@@ -36,6 +37,7 @@ class Cell2locationTrainSampleMixin:
         lr: float = 0.01,
         autoencoding_lr: Optional[float] = None,
         clip_norm: float = 200,
+        continue_training: bool = True,
     ):
         """
         Private method for training using full data.
@@ -48,6 +50,8 @@ class Cell2locationTrainSampleMixin:
             Bool, use gpu?
         plan_kwargs
             Training plan arguments such as optim and loss_fn
+        continue_training
+            When the model is already trained, should calling .train() continue training? (False = restart training)
 
         Returns
         -------
@@ -62,7 +66,9 @@ class Cell2locationTrainSampleMixin:
         kwargs = {k: v.to(device) for k, v in kwargs.items()}
         self.to_device(device)
 
-        pyro.clear_param_store()
+        if not continue_training or not self.is_trained_:
+            # models share param store, make sure it is cleared before training
+            pyro.clear_param_store()
         # initialise guide params (warmup)
         self.module.guide(*args, **kwargs)
 
@@ -87,6 +93,9 @@ class Cell2locationTrainSampleMixin:
             if it % 500 == 0:
                 torch.cuda.empty_cache()
 
+        if continue_training and self.is_trained_:
+            # add ELBO listory
+            hist = self.module.history_ + hist
         self.module.history_ = hist
         self.module.is_trained_ = True
         self.history_ = hist
@@ -103,6 +112,7 @@ class Cell2locationTrainSampleMixin:
         autoencoding_lr: Optional[float] = None,
         clip_norm: float = 200,
         early_stopping: bool = False,
+        continue_training: bool = True,
     ):
         """
         Private method for training using minibatches (scVI interface and pytorch lightning).
@@ -121,6 +131,8 @@ class Cell2locationTrainSampleMixin:
             Arguments for scvi.train.Trainer.
         early_stopping
             Bool, use early stopping? (not tested)
+        continue_training
+            When the model is already trained, should calling .train() continue training? (False = restart training)
 
         Returns
         -------
@@ -128,7 +140,10 @@ class Cell2locationTrainSampleMixin:
 
         """
 
-        pyro.clear_param_store()
+        if not continue_training or not self.is_trained_:
+            # models share param store, make sure it is cleared before training
+            pyro.clear_param_store()
+
         gpus, device = parse_use_gpu_arg(use_gpu)
         if max_epochs is None:
             n_obs = self.adata.n_obs
@@ -166,8 +181,20 @@ class Cell2locationTrainSampleMixin:
         self.module.to(device)
 
         try:
-            self.module.history_ = trainer.logger.history
-            self.history_ = trainer.logger.history
+            if continue_training and self.is_trained_:
+                # add ELBO listory
+                index = range(
+                    len(self.module.history_),
+                    len(self.module.history_)
+                    + len(trainer.logger.history["train_loss_epoch"]),
+                )
+                trainer.logger.history["train_loss_epoch"].index = index
+                self.module.history_ = pd.concat(
+                    [self.module.history_, trainer.logger.history["train_loss_epoch"]]
+                )
+            else:
+                self.module.history_ = trainer.logger.history["train_loss_epoch"]
+            self.history_ = self.module.history_
         except AttributeError:
             self.history_ = None
 
@@ -184,7 +211,9 @@ class Cell2locationTrainSampleMixin:
         # create function which fetches different lr for autoencoding guide
         def optim_param(module_name, param_name):
             # detect variables in autoencoding guide
-            if np.any([n in module_name + "." + param_name for n in module_names]):
+            if autoencoding_lr is not None and np.any(
+                [n in module_name + "." + param_name for n in module_names]
+            ):
                 return {
                     "lr": autoencoding_lr,
                     # limit the gradient step from becoming too large
