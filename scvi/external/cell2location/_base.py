@@ -28,7 +28,15 @@ class Cell2locationTrainSampleMixin:
     def _plan_class(self):
         return PyroTrainingPlan
 
-    def _train_full_data(self, max_epochs, use_gpu, plan_kwargs):
+    def _train_full_data(
+        self,
+        max_epochs: Optional[int] = None,
+        use_gpu: bool = False,
+        plan_kwargs: Optional[dict] = None,
+        lr: float = 0.01,
+        autoencoding_lr: Optional[float] = None,
+        clip_norm: float = 200,
+    ):
         """
         Private method for training using full data.
 
@@ -55,12 +63,14 @@ class Cell2locationTrainSampleMixin:
         self.to_device(device)
 
         pyro.clear_param_store()
+        # initialise guide params (warmup)
         self.module.guide(*args, **kwargs)
 
         svi = SVI(
             self.module.model,
             self.module.guide,
-            plan_kwargs["optim"],
+            # select optimiser, optionally choosing different lr for autoencoding guide
+            pyro.optim.ClippedAdam(self._optim_param(lr, autoencoding_lr, clip_norm)),
             loss=plan_kwargs["loss_fn"],
         )
 
@@ -84,11 +94,14 @@ class Cell2locationTrainSampleMixin:
 
     def _train_minibatch(
         self,
-        max_epochs,
-        max_steps,
-        use_gpu,
-        plan_kwargs,
-        trainer_kwargs,
+        max_epochs: Optional[int] = None,
+        max_steps: Optional[int] = None,
+        use_gpu: bool = False,
+        plan_kwargs: Optional[dict] = None,
+        trainer_kwargs: Optional[dict] = None,
+        lr: float = 0.01,
+        autoencoding_lr: Optional[float] = None,
+        clip_norm: float = 200,
         early_stopping: bool = False,
     ):
         """
@@ -125,11 +138,23 @@ class Cell2locationTrainSampleMixin:
         trainer_kwargs = trainer_kwargs if isinstance(trainer_kwargs, dict) else dict()
 
         batch_size = self.module.model.batch_size
+        # initialise guide params (warmup)
         train_dl = AnnDataLoader(self.adata, shuffle=True, batch_size=batch_size)
-
-        plan = PyroTrainingPlan(
-            self.module, **plan_kwargs  # n_obs=len(train_dl.indices),
+        for tensor_dict in train_dl:
+            args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+            args = [a.to(device) for a in args]
+            kwargs = {k: v.to(device) for k, v in kwargs.items()}
+            self.to_device(device)
+            self.module.guide(*args, **kwargs)
+            break
+        # select optimiser, optionally choosing different lr for autoencoding guide (requires initialised guide)
+        plan_kwargs["optim"] = pyro.optim.ClippedAdam(
+            self._optim_param(lr, autoencoding_lr, clip_norm)
         )
+
+        # create data loader for training
+        train_dl = AnnDataLoader(self.adata, shuffle=True, batch_size=batch_size)
+        plan = PyroTrainingPlan(self.module, **plan_kwargs)
         es = "early_stopping"
         trainer_kwargs[es] = (
             early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
@@ -149,17 +174,38 @@ class Cell2locationTrainSampleMixin:
         self.module.is_trained_ = True
         self.is_trained_ = True
 
-    def train(
-        self,
-        max_epochs: Optional[int] = None,
-        max_steps: Optional[int] = None,
-        use_gpu: Optional[bool] = None,
-        lr: float = 0.01,
-        autoencoding_lr: Optional[float] = None,
-        clip_norm: float = 200,
-        trainer_kwargs: Optional[dict] = None,
-        early_stopping: bool = False,
-    ):
+    def _optim_param(self, lr, autoencoding_lr, clip_norm, module_names=["encoder"]):
+        # detect variables in autoencoding guide
+        if autoencoding_lr is not None:
+            all_param_list = np.array(list(self.module.state_dict().keys()))
+            ind = np.zeros(len(all_param_list)).astype(bool)
+            for n in module_names:
+                ind = ind | np.array([n in i for i in all_param_list]).astype(bool)
+            param_list = all_param_list[ind]
+            print(all_param_list)
+        else:
+            param_list = []
+        print(param_list)
+
+        # create function which fetches different lr for autoencoding guide
+        def optim_param(module_name, param_name):
+            if module_name + "." + param_name in param_list:
+                print(module_name + "." + param_name)
+                return {
+                    "lr": autoencoding_lr,
+                    # limit the gradient step from becoming too large
+                    "clip_norm": clip_norm,
+                }
+            else:
+                return {
+                    "lr": lr,
+                    # limit the gradient step from becoming too large
+                    "clip_norm": clip_norm,
+                }
+
+        return optim_param
+
+    def train(self, **kwargs):
         """
         Train the model.
 
@@ -189,57 +235,16 @@ class Cell2locationTrainSampleMixin:
 
         """
 
-        def optim_param(module_name, param_name):
-
-            if autoencoding_lr is not None:
-                param_list = [
-                    f"AutoGuideList.1.{i}"
-                    for i in list(self.module.guide[1].state_dict().keys())
-                ]
-            else:
-                param_list = []
-
-            if module_name + "." + param_name in param_list:
-                return {
-                    "lr": autoencoding_lr,
-                    # limit the gradient step from becoming too large
-                    "clip_norm": clip_norm,
-                }
-            else:
-                return {
-                    "lr": lr,
-                    # limit the gradient step from becoming too large
-                    "clip_norm": clip_norm,
-                }
-
-        # optim_param = {
-        #        "lr": lr,
-        #        # limit the gradient step from becoming too large
-        #        "clip_norm": clip_norm
-        #    }
-
-        plan_kwargs = {
-            "loss_fn": pyro.infer.Trace_ELBO(),
-            "optim": pyro.optim.ClippedAdam(optim_param),
-        }
+        plan_kwargs = {"loss_fn": pyro.infer.Trace_ELBO()}
 
         batch_size = self.module.model.batch_size
 
         if batch_size is None:
             # train using full data (faster for small datasets)
-            self._train_full_data(
-                max_epochs=max_epochs, use_gpu=use_gpu, plan_kwargs=plan_kwargs
-            )
+            self._train_full_data(plan_kwargs=plan_kwargs, **kwargs)
         else:
             # standard training using minibatches
-            self._train_minibatch(
-                max_epochs=max_epochs,
-                max_steps=max_steps,
-                use_gpu=use_gpu,
-                plan_kwargs=plan_kwargs,
-                trainer_kwargs=trainer_kwargs,
-                early_stopping=early_stopping,
-            )
+            self._train_minibatch(plan_kwargs=plan_kwargs, **kwargs)
 
     def _posterior_quantile_amortised(self, q: float = 0.5, use_gpu: bool = True):
         """
