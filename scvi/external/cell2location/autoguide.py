@@ -107,8 +107,8 @@ class AutoNormalEncoder(AutoGuide):
 
         self._event_dims = {}
         self._cond_indep_stacks = {}
-        self.locs = PyroModule()
-        self.scales = PyroModule()
+        self.hidden2locs = PyroModule()
+        self.hidden2scales = PyroModule()
 
         if not self.single_encoder:
             # create module class for collecting multiple encoder NN
@@ -137,7 +137,7 @@ class AutoNormalEncoder(AutoGuide):
                 (np.ones(param_dim) * self.init_param_scale) / np.sqrt(self.n_hidden),
             ).astype("float32")
             _deep_setattr(
-                self.locs,
+                self.hidden2locs,
                 name,
                 PyroParam(
                     torch.tensor(
@@ -151,7 +151,7 @@ class AutoNormalEncoder(AutoGuide):
                 (np.ones(param_dim) * self.init_param_scale) / np.sqrt(self.n_hidden),
             ).astype("float32")
             _deep_setattr(
-                self.scales,
+                self.hidden2scales,
                 name,
                 PyroParam(
                     torch.tensor(
@@ -171,8 +171,8 @@ class AutoNormalEncoder(AutoGuide):
 
     def _get_loc_and_scale(self, name, encoded_hidden):
 
-        linear_locs = _deep_getattr(self.locs, name)
-        linear_scales = _deep_getattr(self.scales, name)
+        linear_locs = _deep_getattr(self.hidden2locs, name)
+        linear_scales = _deep_getattr(self.hidden2scales, name)
 
         if not self.single_encoder:
             # when using multiple encoders extract hidden layer for this parameter
