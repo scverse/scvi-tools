@@ -48,14 +48,6 @@ def _transform_to_positive(constraint):
     return SoftplusTransform()
 
 
-# sample global parameters automatically
-#        auto_guide_kwargs = auto_guide_kwargs if isinstance(auto_guide_kwargs, dict) else dict()
-#        self.auto_guide = AutoNormal(
-#            pyro.poutine.block(model, hide=list(amortised_plate_sites['sites'].keys())),
-#            **auto_guide_kwargs
-#        )
-
-
 class AutoNormalEncoder(AutoGuide):
     def __init__(
         self,
@@ -66,6 +58,7 @@ class AutoNormalEncoder(AutoGuide):
         init_param=0,
         init_param_scale: float = 1 / 50,
         data_transform=torch.log1p,
+        encoder_class=FCLayersPyro,
         encoder_kwargs=None,
         create_plates=None,
         single_encoder: bool = True,
@@ -92,9 +85,10 @@ class AutoNormalEncoder(AutoGuide):
             * 2
         )
         self.n_hidden = n_hidden
+        self.encoder_class = encoder_class
         if self.single_encoder:
             # create a single encoder NN
-            self.encoder = FCLayersPyro(
+            self.encoder = encoder_class(
                 n_in=self.n_in, n_out=self.n_hidden, **self.encoder_kwargs
             )
 
@@ -164,7 +158,7 @@ class AutoNormalEncoder(AutoGuide):
                 _deep_setattr(
                     self.encoder,
                     name,
-                    FCLayersPyro(
+                    self.encoder_class(
                         n_in=self.n_in, n_out=self.n_hidden, **self.encoder_kwargs
                     ).to(site["value"].device),
                 )
