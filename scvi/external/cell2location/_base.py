@@ -155,6 +155,7 @@ class Cell2locationTrainSampleMixin:
         max_steps: Optional[int] = None,
         use_gpu: Optional[bool] = None,
         lr: float = 0.01,
+        autoencoding_lr: Optional[float] = None,
         clip_norm: float = 200,
         trainer_kwargs: Optional[dict] = None,
         early_stopping: bool = False,
@@ -172,6 +173,8 @@ class Cell2locationTrainSampleMixin:
             Bool, use gpu?
         lr
             Learning rate.
+        autoencoding_lr
+            Optional, a separate learning rate for encoder network.
         clip_norm
             Gradient clipping norm (useful for preventing exploding gradients,
             which can lead to impossible values and NaN loss).
@@ -186,15 +189,38 @@ class Cell2locationTrainSampleMixin:
 
         """
 
-        plan_kwargs = {
-            "loss_fn": pyro.infer.Trace_ELBO(),
-            "optim": pyro.optim.ClippedAdam(
-                {
+        def optim_param(module_name, param_name):
+
+            if autoencoding_lr is not None:
+                param_list = [
+                    f"AutoGuideList.1.{i}"
+                    for i in list(self.module.guide[1].state_dict().keys())
+                ]
+            else:
+                param_list = []
+
+            if module_name + "." + param_name in param_list:
+                return {
+                    "lr": autoencoding_lr,
+                    # limit the gradient step from becoming too large
+                    "clip_norm": clip_norm,
+                }
+            else:
+                return {
                     "lr": lr,
                     # limit the gradient step from becoming too large
                     "clip_norm": clip_norm,
                 }
-            ),
+
+        # optim_param = {
+        #        "lr": lr,
+        #        # limit the gradient step from becoming too large
+        #        "clip_norm": clip_norm
+        #    }
+
+        plan_kwargs = {
+            "loss_fn": pyro.infer.Trace_ELBO(),
+            "optim": pyro.optim.ClippedAdam(optim_param),
         }
 
         batch_size = self.module.model.batch_size
