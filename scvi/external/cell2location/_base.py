@@ -7,7 +7,7 @@ import pandas as pd
 import pyro
 import torch
 from pyro import poutine
-from pyro.infer import SVI, Predictive
+from pyro.infer import SVI
 from tqdm.auto import tqdm
 
 from scvi.dataloaders import AnnDataLoader
@@ -305,6 +305,7 @@ class Cell2locationTrainSampleMixin:
                 args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
                 args = [a.to(device) for a in args]
                 kwargs = {k: v.to(device) for k, v in kwargs.items()}
+                self.to_device(device)
 
                 means = self.module.guide.quantiles([q], *args, **kwargs)
                 means = {
@@ -330,6 +331,7 @@ class Cell2locationTrainSampleMixin:
                 args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
                 args = [a.to(device) for a in args]
                 kwargs = {k: v.to(device) for k, v in kwargs.items()}
+                self.to_device(device)
 
                 means_ = self.module.guide.quantiles([q], *args, **kwargs)
                 means_ = {
@@ -346,20 +348,19 @@ class Cell2locationTrainSampleMixin:
             i += 1
 
         # sample global parameters
-        i = 0
         for tensor_dict in train_dl:
-            if i == 0:
-                args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
-                args = [a.to(device) for a in args]
-                kwargs = {k: v.to(device) for k, v in kwargs.items()}
+            args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+            args = [a.to(device) for a in args]
+            kwargs = {k: v.to(device) for k, v in kwargs.items()}
+            self.to_device(device)
 
-                global_means = self.module.guide.quantiles([q], *args, **kwargs)
-                global_means = {
-                    k: global_means[k].cpu().detach().numpy()
-                    for k in global_means.keys()
-                    if k not in self.module.model.list_obs_plate_vars()["sites"]
-                }
-            i += 1
+            global_means = self.module.guide.quantiles([q], *args, **kwargs)
+            global_means = {
+                k: global_means[k].cpu().detach().numpy()
+                for k in global_means.keys()
+                if k not in self.module.model.list_obs_plate_vars()["sites"]
+            }
+            break
 
         for k in global_means.keys():
             means[k] = global_means[k]
@@ -386,11 +387,24 @@ class Cell2locationTrainSampleMixin:
         """
 
         self.module.eval()
-
-        args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
         gpus, device = parse_use_gpu_arg(use_gpu)
-        args = [a.to(device) for a in args]
-        kwargs = {k: v.to(device) for k, v in kwargs.items()}
+
+        if self.module.model.batch_size is None:
+            args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
+            args = [a.to(device) for a in args]
+            kwargs = {k: v.to(device) for k, v in kwargs.items()}
+            self.to_device(device)
+        else:
+            train_dl = AnnDataLoader(
+                self.adata, shuffle=False, batch_size=self.module.model.batch_size
+            )
+            # sample global parameters
+            for tensor_dict in train_dl:
+                args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+                args = [a.to(device) for a in args]
+                kwargs = {k: v.to(device) for k, v in kwargs.items()}
+                self.to_device(device)
+                break
 
         means = self.module.guide.quantiles([q], *args, **kwargs)
         means = {k: means[k].cpu().detach().numpy() for k in means.keys()}
@@ -417,85 +431,190 @@ class Cell2locationTrainSampleMixin:
         else:
             return self._posterior_quantile(q=q, use_gpu=use_gpu)
 
-    def _sample_node(self, node, num_samples_batch: int = 10):
+    def _get_one_posterior_sample(
+        self,
+        args,
+        kwargs,
+        return_sites: Optional[list] = None,
+        sample_observed: bool = False,
+    ):
 
-        self.module.batch_size = self.adata.n_obs
+        guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
+        model_trace = poutine.trace(
+            poutine.replay(self.module.model, guide_trace)
+        ).get_trace(*args, **kwargs)
 
-        args, kwargs = self.module._get_fn_args_for_predictive(self.adata)
-
-        if self.use_gpu is True:
-            self.module.cuda()
-
-        predictive = Predictive(
-            self.module.model, guide=self.module.guide, num_samples=num_samples_batch
-        )
-
-        post_samples = {
-            k: v.detach().cpu().numpy()
-            for k, v in predictive(*args, **kwargs).items()
-            if k == node
+        sample = {
+            name: site["value"].detach().cpu().numpy()
+            for name, site in model_trace.nodes.items()
+            if (
+                (site["type"] == "sample")
+                and ((return_sites is None) or (name in return_sites))
+                and ((not site.get("is_observed", True)) or sample_observed)
+                and not isinstance(
+                    site.get("fn", None), poutine.subsample_messenger._Subsample
+                )
+            )
         }
 
-        return post_samples[node]
+        return sample
 
-    def sample_node(self, node, n_sampl_batches, num_samples_batch: int = 10, suff=""):
+    def _get_posterior_samples(
+        self,
+        args,
+        kwargs,
+        num_samples: int = 1000,
+        return_sites: Optional[list] = None,
+        sample_observed: bool = False,
+    ):
 
-        # sample first batch
-        self.samples[node + suff] = self._sample_node(
-            node, num_samples_batch=num_samples_batch
+        samples = self._get_one_posterior_sample(
+            args, kwargs, return_sites=return_sites, sample_observed=sample_observed
         )
+        samples = {k: [v] for k, v in samples.items()}
 
-        for it in tqdm(range(n_sampl_batches - 1)):
-            # sample remaining batches
-            post_node = self._sample_node(node, num_samples_batch=num_samples_batch)
-
-            # concatenate batches
-            self.samples[node + suff] = np.concatenate(
-                (self.samples[node + suff], post_node), axis=0
+        for _ in tqdm(range(1, num_samples)):
+            # generate new sample
+            samples_ = self._get_one_posterior_sample(
+                args, kwargs, return_sites=return_sites, sample_observed=sample_observed
             )
 
-        # compute mean across samples
-        self.samples[node + suff] = self.samples[node + suff].mean(0)
+            # add new sample
+            samples = {k: samples[k] + [samples_[k]] for k in samples.keys()}
 
-    def _sample_all(self, num_samples_batch: int = 10):
+        return {k: np.array(v) for k, v in samples.items()}
 
-        self.module.batch_size = self.adata.n_obs
+    def _posterior_samples(self, use_gpu: bool = True, **sample_kwargs):
 
-        args, kwargs = self.module._get_fn_args_for_predictive(self.adata)
+        self.module.eval()
+        gpus, device = parse_use_gpu_arg(use_gpu)
 
-        if self.use_gpu is True:
-            self.module.cuda()
+        if self.module.model.batch_size is None:
+            args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
+            args = [a.to(device) for a in args]
+            kwargs = {k: v.to(device) for k, v in kwargs.items()}
+            self.to_device(device)
+        else:
+            train_dl = AnnDataLoader(
+                self.adata, shuffle=False, batch_size=self.module.model.batch_size
+            )
+            # sample global parameters
+            for tensor_dict in train_dl:
+                args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+                args = [a.to(device) for a in args]
+                kwargs = {k: v.to(device) for k, v in kwargs.items()}
+                self.to_device(device)
+                break
 
-        predictive = Predictive(
-            self.module.model, guide=self.module.guide, num_samples=num_samples_batch
+        samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
+
+        return samples
+
+    def _posterior_samples_amortised(self, use_gpu: bool = True, **sample_kwargs):
+        """
+        Compute median of the posterior distribution of each parameter, separating local (minibatch) variable
+        and global variables, which is necessary when performing amortised inference.
+
+        Note for developers: requires model class method which lists observation/minibatch plate
+        variables (self.module.model.list_obs_plate_vars()).
+
+        Parameters
+        ----------
+        q
+            quantile to compute
+        use_gpu
+            Bool, use gpu?
+
+        Returns
+        -------
+        dictionary {variable_name: posterior median}
+
+        """
+
+        gpus, device = parse_use_gpu_arg(use_gpu)
+
+        self.module.eval()
+
+        train_dl = AnnDataLoader(
+            self.adata, shuffle=False, batch_size=self.module.model.batch_size
         )
+        # sample local parameters
+        i = 0
+        for tensor_dict in train_dl:
+            if i == 0:
+                args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+                args = [a.to(device) for a in args]
+                kwargs = {k: v.to(device) for k, v in kwargs.items()}
+                self.to_device(device)
 
-        post_samples = {
-            k: v.detach().cpu().numpy() for k, v in predictive(*args, **kwargs).items()
-        }
-
-        return post_samples
-
-    def sample_all(self, n_sampl_batches, num_samples_batch: int = 10):
-
-        self.adata.uns["mod"] = {}
-
-        # sample first batch
-        self.adata.uns["mod"]["post_samples"] = self._sample_all(
-            num_samples_batch=num_samples_batch
-        )
-
-        for it in tqdm(range(n_sampl_batches - 1)):
-            # sample remaining batches
-            post_samples = self._sample_all(num_samples_batch=num_samples_batch)
-
-            # concatenate batches
-            self.adata.uns["mod"]["post_samples"] = {
-                k: np.concatenate(
-                    (self.adata.uns["mod"]["post_samples"][k], post_samples[k]), axis=0
+                samples = self._get_posterior_samples(
+                    args,
+                    kwargs,
+                    return_sites=self.module.model.list_obs_plate_vars()["sites"],
+                    **sample_kwargs
                 )
-                for k in post_samples.keys()
-            }
+
+                # find plate dimension
+                trace = poutine.trace(self.module.model).get_trace(*args, **kwargs)
+                obs_plate = {
+                    name: site["cond_indep_stack"][0].dim
+                    for name, site in trace.nodes.items()
+                    if site["type"] == "sample"
+                    if any(
+                        f.name == self.module.model.list_obs_plate_vars()["name"]
+                        for f in site["cond_indep_stack"]
+                    )
+                }
+
+            else:
+                args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+                args = [a.to(device) for a in args]
+                kwargs = {k: v.to(device) for k, v in kwargs.items()}
+                self.to_device(device)
+
+                samples_ = self._get_posterior_samples(
+                    args,
+                    kwargs,
+                    return_sites=self.module.model.list_obs_plate_vars()["sites"],
+                    **sample_kwargs
+                )
+                samples = {
+                    k: [
+                        np.concatenate(
+                            [samples[k][i], samples_[k][i]],
+                            axis=list(obs_plate.values())[0],
+                        )
+                        for i in range(len(samples[k]))
+                    ]
+                    for k in samples.keys()
+                }
+            i += 1
+
+        # sample global parameters
+        i = 0
+        for tensor_dict in train_dl:
+            if i == 0:
+                args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+                args = [a.to(device) for a in args]
+                kwargs = {k: v.to(device) for k, v in kwargs.items()}
+                self.to_device(device)
+
+                global_samples = self._get_posterior_samples(
+                    args, kwargs, **sample_kwargs
+                )
+                global_samples = {
+                    k: global_samples[k]
+                    for k in global_samples.keys()
+                    if k not in self.module.model.list_obs_plate_vars()["sites"]
+                }
+            i += 1
+
+        for k in global_samples.keys():
+            samples[k] = global_samples[k]
+
+        self.module.to(device)
+
+        return samples
 
     def sample_posterior(
         self,
