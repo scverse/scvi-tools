@@ -448,12 +448,19 @@ class Cell2locationTrainSampleMixin:
             name: site["value"].detach().cpu().numpy()
             for name, site in model_trace.nodes.items()
             if (
-                (site["type"] == "sample")
-                and ((return_sites is None) or (name in return_sites))
-                and ((not site.get("is_observed", True)) or sample_observed)
+                (site["type"] == "sample")  # sample statement
+                and (
+                    (return_sites is None) or (name in return_sites)
+                )  # selected in return_sites list
+                and (
+                    (
+                        (not site.get("is_observed", True)) or sample_observed
+                    )  # don't save observed
+                    or (site.get("infer", False).get("_deterministic", False))
+                )  # unless it is deterministic
                 and not isinstance(
                     site.get("fn", None), poutine.subsample_messenger._Subsample
-                )
+                )  # don't save plates
             )
         }
 
@@ -465,18 +472,18 @@ class Cell2locationTrainSampleMixin:
         kwargs,
         num_samples: int = 1000,
         return_sites: Optional[list] = None,
-        sample_observed: bool = False,
+        return_observed: bool = False,
     ):
 
         samples = self._get_one_posterior_sample(
-            args, kwargs, return_sites=return_sites, sample_observed=sample_observed
+            args, kwargs, return_sites=return_sites, sample_observed=return_observed
         )
         samples = {k: [v] for k, v in samples.items()}
 
         for _ in tqdm(range(1, num_samples)):
             # generate new sample
             samples_ = self._get_one_posterior_sample(
-                args, kwargs, return_sites=return_sites, sample_observed=sample_observed
+                args, kwargs, return_sites=return_sites, sample_observed=return_observed
             )
 
             # add new sample
@@ -484,50 +491,44 @@ class Cell2locationTrainSampleMixin:
 
         return {k: np.array(v) for k, v in samples.items()}
 
-    def _posterior_samples(self, use_gpu: bool = True, **sample_kwargs):
+    def _posterior_samples_full_data(self, use_gpu: bool = True, **sample_kwargs):
 
         self.module.eval()
         gpus, device = parse_use_gpu_arg(use_gpu)
 
-        if self.module.model.batch_size is None:
-            args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
-            args = [a.to(device) for a in args]
-            kwargs = {k: v.to(device) for k, v in kwargs.items()}
-            self.to_device(device)
-        else:
-            train_dl = AnnDataLoader(
-                self.adata, shuffle=False, batch_size=self.module.model.batch_size
-            )
-            # sample global parameters
-            for tensor_dict in train_dl:
-                args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
-                args = [a.to(device) for a in args]
-                kwargs = {k: v.to(device) for k, v in kwargs.items()}
-                self.to_device(device)
-                break
+        args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
+        args = [a.to(device) for a in args]
+        kwargs = {k: v.to(device) for k, v in kwargs.items()}
+        self.to_device(device)
 
         samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
 
         return samples
 
-    def _posterior_samples_amortised(self, use_gpu: bool = True, **sample_kwargs):
+    def _posterior_samples_minibatch(self, use_gpu: bool = True, **sample_kwargs):
         """
-        Compute median of the posterior distribution of each parameter, separating local (minibatch) variable
-        and global variables, which is necessary when performing amortised inference.
+        Generate samples of the posterior distribution of each parameter, separating local (minibatch) variables
+        and global variables, which is necessary when performing minibatch inference.
 
         Note for developers: requires model class method which lists observation/minibatch plate
         variables (self.module.model.list_obs_plate_vars()).
 
         Parameters
         ----------
-        q
-            quantile to compute
         use_gpu
             Bool, use gpu?
+        sample_kwargs
+            arguments to _get_posterior_samples (see below)
+        num_samples
+            number of samples to generate
+        return_sites
+            list of site/variable names to be sampled (all by default)
+        return_observed
+            return observed sites/variables?
 
         Returns
         -------
-        dictionary {variable_name: posterior median}
+        dictionary {variable_name: array with samples in 0 dimension}
 
         """
 
@@ -547,11 +548,29 @@ class Cell2locationTrainSampleMixin:
                 kwargs = {k: v.to(device) for k, v in kwargs.items()}
                 self.to_device(device)
 
+                sample_kwargs_obs_plate = sample_kwargs.copy()
+                if "return_sites" in sample_kwargs.keys():
+                    # check whether any
+                    return_sites = np.array(sample_kwargs["return_sites"])
+                    return_sites = return_sites[
+                        np.isin(
+                            return_sites,
+                            list(
+                                self.module.model.list_obs_plate_vars()["sites"].keys()
+                            ),
+                        )
+                    ]
+                    if len(return_sites) == 0:
+                        sample_kwargs_obs_plate["return_sites"] = [return_sites]
+                    else:
+                        sample_kwargs_obs_plate["return_sites"] = list(return_sites)
+                else:
+                    sample_kwargs_obs_plate["return_sites"] = list(
+                        self.module.model.list_obs_plate_vars()["sites"].keys()
+                    )
+
                 samples = self._get_posterior_samples(
-                    args,
-                    kwargs,
-                    return_sites=self.module.model.list_obs_plate_vars()["sites"],
-                    **sample_kwargs
+                    args, kwargs, **sample_kwargs_obs_plate
                 )
 
                 # find plate dimension
@@ -573,19 +592,18 @@ class Cell2locationTrainSampleMixin:
                 self.to_device(device)
 
                 samples_ = self._get_posterior_samples(
-                    args,
-                    kwargs,
-                    return_sites=self.module.model.list_obs_plate_vars()["sites"],
-                    **sample_kwargs
+                    args, kwargs, **sample_kwargs_obs_plate
                 )
                 samples = {
-                    k: [
-                        np.concatenate(
-                            [samples[k][i], samples_[k][i]],
-                            axis=list(obs_plate.values())[0],
-                        )
-                        for i in range(len(samples[k]))
-                    ]
+                    k: np.array(
+                        [
+                            np.concatenate(
+                                [samples[k][i], samples_[k][i]],
+                                axis=list(obs_plate.values())[0],
+                            )
+                            for i in range(len(samples[k]))
+                        ]
+                    )
                     for k in samples.keys()
                 }
             i += 1
@@ -618,10 +636,11 @@ class Cell2locationTrainSampleMixin:
 
     def sample_posterior(
         self,
-        node="all",
-        n_samples: int = 1000,
-        num_samples_batch: int = 10,
-        save_samples=False,
+        site="all",
+        num_samples: int = 1000,
+        use_gpu: bool = False,
+        sample_kwargs=None,
+        save_samples: bool = False,
     ):
         r"""Sample posterior distribution of parameters - either all or single parameter
         :param node: pyro parameter to sample (e.g. default "all", self.spot_factors)
@@ -633,16 +652,22 @@ class Cell2locationTrainSampleMixin:
         Optional dictionary of all samples contains parameters as numpy arrays of shape ``(n_samples, ...)``
         """
 
-        self.n_samples = n_samples
-        self.n_sampl_batches = int(np.ceil(n_samples / num_samples_batch))
-        self.num_samples_batch = num_samples_batch
+        self.num_samples = num_samples
+        sample_kwargs = sample_kwargs if isinstance(sample_kwargs, dict) else dict()
+        sample_kwargs["num_samples"] = num_samples
 
-        if node == "all":
-            # Sample all parameters - might use a lot of GPU memory
-
-            self.sample_all(
-                self.n_sampl_batches, num_samples_batch=self.num_samples_batch
-            )
+        if site == "all":
+            # Sample all parameters
+            if self.module.model.batch_size is None:
+                samples = self._posterior_samples_full_data(
+                    use_gpu=use_gpu, **sample_kwargs
+                )
+                return samples
+            else:
+                samples = self._posterior_samples_minibatch(
+                    use_gpu=use_gpu, **sample_kwargs
+                )
+                return samples
 
             self.param_names = list(self.adata.uns["mod"]["post_samples"].keys())
 
@@ -668,7 +693,7 @@ class Cell2locationTrainSampleMixin:
 
         else:
             self.sample_node(
-                node, self.n_sampl_batches, batch_size=self.num_samples_batch, suff=""
+                site, self.n_sampl_batches, batch_size=self.num_samples_batch, suff=""
             )
 
 
