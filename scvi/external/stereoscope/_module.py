@@ -66,7 +66,12 @@ class RNADeconv(BaseModuleClass):
             list of tensor
         """
         avg_batch_factor = torch.mean(torch.exp(self.B), dim=1, keepdim=True)
-        batch_corrected_W = torch.nn.functional.softplus(self.W) * avg_batch_factor
+        batch_corrected_W_softplus = (
+            torch.nn.functional.softplus(self.W) * avg_batch_factor
+        )
+        batch_corrected_W = torch.log(
+            torch.exp(batch_corrected_W_softplus) - 1
+        )  # invert softplus
         return batch_corrected_W.cpu().numpy(), self.px_o.cpu().numpy()
 
     def _get_inference_input(self, tensors):
