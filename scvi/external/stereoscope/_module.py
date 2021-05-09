@@ -22,6 +22,8 @@ class RNADeconv(BaseModuleClass):
         Number of input genes
     n_labels
         Number of input cell types
+    n_batch
+        Number of input batch types
     **model_kwargs
         Additional kwargs
     """
@@ -30,17 +32,22 @@ class RNADeconv(BaseModuleClass):
         self,
         n_genes: int,
         n_labels: int,
+        n_batch: int,
         **model_kwargs,
     ):
         super().__init__()
         self.n_genes = n_genes
         self.n_labels = n_labels
+        self.n_batch = n_batch
 
         # logit param for negative binomial
         self.px_o = torch.nn.Parameter(torch.randn(self.n_genes))
         self.W = torch.nn.Parameter(
             torch.randn(self.n_genes, self.n_labels)
         )  # n_genes, n_cell types
+        self.B = torch.nn.Parameter(
+            torch.randn(self.n_genes, self.n_batch)
+        )  # n_genes, n_batch types
 
         if "ct_weight" in model_kwargs:
             ct_weight = torch.tensor(model_kwargs["ct_prop"], dtype=torch.float32)
@@ -58,7 +65,11 @@ class RNADeconv(BaseModuleClass):
         type
             list of tensor
         """
-        return self.W.cpu().numpy(), self.px_o.cpu().numpy()
+        avg_batch_factor = (
+            torch.sum(torch.exp(self.B), dim=1, keepdim=True) / self.n_batch
+        )
+        batch_corrected_W = self.W * avg_batch_factor
+        return batch_corrected_W.cpu().numpy(), self.px_o.cpu().numpy()
 
     def _get_inference_input(self, tensors):
         # we perform MAP here, so there is nothing to infer
@@ -67,8 +78,9 @@ class RNADeconv(BaseModuleClass):
     def _get_generative_input(self, tensors, inference_outputs):
         x = tensors[_CONSTANTS.X_KEY]
         y = tensors[_CONSTANTS.LABELS_KEY]
+        batch = tensors[_CONSTANTS.BATCH_KEY]
 
-        input_dict = dict(x=x, y=y)
+        input_dict = dict(x=x, y=y, batch=batch)
         return input_dict
 
     @auto_move_data
@@ -76,13 +88,14 @@ class RNADeconv(BaseModuleClass):
         return {}
 
     @auto_move_data
-    def generative(self, x, y):
+    def generative(self, x, y, batch):
         """Simply build the negative binomial parameters for every cell in the minibatch."""
         px_scale = torch.nn.functional.softplus(self.W)[
             :, y.long()[:, 0]
         ].T  # cells per gene
+        batch_factor = torch.exp(self.B)[:, batch.long()[:, 0]].T  # cells per gene
         library = torch.sum(x, dim=1, keepdim=True)
-        px_rate = library * px_scale
+        px_rate = library * batch_factor * px_scale
         scaling_factor = self.ct_weight[y.long()[:, 0]]
 
         return dict(
@@ -106,9 +119,16 @@ class RNADeconv(BaseModuleClass):
         scaling_factor = generative_outputs["scaling_factor"]
 
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
-        loss = torch.mean(scaling_factor * reconst_loss)
+        # prior likelihood
+        mean = torch.zeros_like(self.B)
+        scale = torch.ones_like(self.B)
+        neg_log_likelihood_prior = -Normal(mean, scale).log_prob(self.B).sum()
 
-        return LossRecorder(loss, reconst_loss, torch.zeros((1,)), 0.0)
+        loss = torch.mean(scaling_factor * reconst_loss) + neg_log_likelihood_prior
+
+        return LossRecorder(
+            loss, reconst_loss, torch.zeros((1,)), neg_log_likelihood_prior
+        )
 
     @torch.no_grad()
     def sample(
