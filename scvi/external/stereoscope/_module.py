@@ -68,7 +68,7 @@ class RNADeconv(BaseModuleClass):
         avg_batch_factor = (
             torch.sum(torch.exp(self.B), dim=1, keepdim=True) / self.n_batch
         )
-        batch_corrected_W = self.W * avg_batch_factor
+        batch_corrected_W = torch.nn.functional.softplus(self.W) * avg_batch_factor
         return batch_corrected_W.cpu().numpy(), self.px_o.cpu().numpy()
 
     def _get_inference_input(self, tensors):
