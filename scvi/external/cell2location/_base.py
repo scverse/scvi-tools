@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional
 
 import matplotlib
@@ -438,6 +439,20 @@ class Cell2locationTrainSampleMixin:
         return_sites: Optional[list] = None,
         sample_observed: bool = False,
     ):
+        """Get one sample from posterior distribution.
+
+        Parameters
+        ----------
+        args
+            arguments to model and guide
+        kwargs
+            arguments to model and guide
+
+        Returns
+        -------
+        Dictionary with a sample for each variable
+
+        """
 
         guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
         model_trace = poutine.trace(
@@ -473,14 +488,37 @@ class Cell2locationTrainSampleMixin:
         num_samples: int = 1000,
         return_sites: Optional[list] = None,
         return_observed: bool = False,
+        show_progress: bool = True,
     ):
+        """
+        Get many samples from posterior distribution.
+
+        Parameters
+        ----------
+        args
+            arguments to model and guide
+        kwargs
+            arguments to model and guide
+        show_progress
+            show progress bar
+
+        Returns
+        -------
+        Dictionary with array of samples for each variable
+        dictionary {variable_name: [array with samples in 0 dimension]}
+
+        """
 
         samples = self._get_one_posterior_sample(
             args, kwargs, return_sites=return_sites, sample_observed=return_observed
         )
         samples = {k: [v] for k, v in samples.items()}
 
-        for _ in tqdm(range(1, num_samples)):
+        for _ in tqdm(
+            range(1, num_samples),
+            disable=not show_progress,
+            desc="Sampling global variables, sample: ",
+        ):
             # generate new sample
             samples_ = self._get_one_posterior_sample(
                 args, kwargs, return_sites=return_sites, sample_observed=return_observed
@@ -492,6 +530,19 @@ class Cell2locationTrainSampleMixin:
         return {k: np.array(v) for k, v in samples.items()}
 
     def _posterior_samples_full_data(self, use_gpu: bool = True, **sample_kwargs):
+        """
+        Generate samples from posterior distribution using all data
+
+        Parameters
+        ----------
+        sample_kwargs
+            arguments to _get_posterior_samples
+
+        Returns
+        -------
+        dictionary {variable_name: [array with samples in 0 dimension]}
+
+        """
 
         self.module.eval()
         gpus, device = parse_use_gpu_arg(use_gpu)
@@ -517,18 +568,10 @@ class Cell2locationTrainSampleMixin:
         ----------
         use_gpu
             Bool, use gpu?
-        sample_kwargs
-            arguments to _get_posterior_samples (see below)
-        num_samples
-            number of samples to generate
-        return_sites
-            list of site/variable names to be sampled (all by default)
-        return_observed
-            return observed sites/variables?
 
         Returns
         -------
-        dictionary {variable_name: array with samples in 0 dimension}
+        dictionary {variable_name: [array with samples in 0 dimension]}
 
         """
 
@@ -541,72 +584,77 @@ class Cell2locationTrainSampleMixin:
         )
         # sample local parameters
         i = 0
-        for tensor_dict in train_dl:
-            if i == 0:
-                args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
-                args = [a.to(device) for a in args]
-                kwargs = {k: v.to(device) for k, v in kwargs.items()}
-                self.to_device(device)
+        with tqdm(train_dl, desc="Sampling local variables, batch: ") as tqdm_dl:
+            for tensor_dict in tqdm_dl:
+                if i == 0:
+                    args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+                    args = [a.to(device) for a in args]
+                    kwargs = {k: v.to(device) for k, v in kwargs.items()}
+                    self.to_device(device)
 
-                sample_kwargs_obs_plate = sample_kwargs.copy()
-                if "return_sites" in sample_kwargs.keys():
-                    # check whether any
-                    return_sites = np.array(sample_kwargs["return_sites"])
-                    return_sites = return_sites[
-                        np.isin(
-                            return_sites,
-                            list(
-                                self.module.model.list_obs_plate_vars()["sites"].keys()
-                            ),
-                        )
-                    ]
-                    if len(return_sites) == 0:
-                        sample_kwargs_obs_plate["return_sites"] = [return_sites]
-                    else:
-                        sample_kwargs_obs_plate["return_sites"] = list(return_sites)
-                else:
-                    sample_kwargs_obs_plate["return_sites"] = list(
-                        self.module.model.list_obs_plate_vars()["sites"].keys()
-                    )
-
-                samples = self._get_posterior_samples(
-                    args, kwargs, **sample_kwargs_obs_plate
-                )
-
-                # find plate dimension
-                trace = poutine.trace(self.module.model).get_trace(*args, **kwargs)
-                obs_plate = {
-                    name: site["cond_indep_stack"][0].dim
-                    for name, site in trace.nodes.items()
-                    if site["type"] == "sample"
-                    if any(
-                        f.name == self.module.model.list_obs_plate_vars()["name"]
-                        for f in site["cond_indep_stack"]
-                    )
-                }
-
-            else:
-                args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
-                args = [a.to(device) for a in args]
-                kwargs = {k: v.to(device) for k, v in kwargs.items()}
-                self.to_device(device)
-
-                samples_ = self._get_posterior_samples(
-                    args, kwargs, **sample_kwargs_obs_plate
-                )
-                samples = {
-                    k: np.array(
-                        [
-                            np.concatenate(
-                                [samples[k][i], samples_[k][i]],
-                                axis=list(obs_plate.values())[0],
+                    # check whether any variable requested in return_sites are in obs_plate
+                    sample_kwargs_obs_plate = sample_kwargs.copy()
+                    if ("return_sites" in sample_kwargs.keys()) and (
+                        sample_kwargs["return_sites"] is not None
+                    ):
+                        return_sites = np.array(sample_kwargs["return_sites"])
+                        return_sites = return_sites[
+                            np.isin(
+                                return_sites,
+                                list(
+                                    self.module.model.list_obs_plate_vars()[
+                                        "sites"
+                                    ].keys()
+                                ),
                             )
-                            for i in range(len(samples[k]))
                         ]
+                        if len(return_sites) == 0:
+                            sample_kwargs_obs_plate["return_sites"] = [return_sites]
+                        else:
+                            sample_kwargs_obs_plate["return_sites"] = list(return_sites)
+                    else:
+                        sample_kwargs_obs_plate["return_sites"] = list(
+                            self.module.model.list_obs_plate_vars()["sites"].keys()
+                        )
+                    sample_kwargs_obs_plate["show_progress"] = False
+                    samples = self._get_posterior_samples(
+                        args, kwargs, **sample_kwargs_obs_plate
                     )
-                    for k in samples.keys()
-                }
-            i += 1
+
+                    # find plate dimension
+                    trace = poutine.trace(self.module.model).get_trace(*args, **kwargs)
+                    obs_plate = {
+                        name: site["cond_indep_stack"][0].dim
+                        for name, site in trace.nodes.items()
+                        if site["type"] == "sample"
+                        if any(
+                            f.name == self.module.model.list_obs_plate_vars()["name"]
+                            for f in site["cond_indep_stack"]
+                        )
+                    }
+
+                else:
+                    args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+                    args = [a.to(device) for a in args]
+                    kwargs = {k: v.to(device) for k, v in kwargs.items()}
+                    self.to_device(device)
+
+                    samples_ = self._get_posterior_samples(
+                        args, kwargs, **sample_kwargs_obs_plate
+                    )
+                    samples = {
+                        k: np.array(
+                            [
+                                np.concatenate(
+                                    [samples[k][i], samples_[k][i]],
+                                    axis=list(obs_plate.values())[0],
+                                )
+                                for i in range(len(samples[k]))
+                            ]
+                        )
+                        for k in samples.keys()
+                    }
+                i += 1
 
         # sample global parameters
         i = 0
@@ -636,145 +684,142 @@ class Cell2locationTrainSampleMixin:
 
     def sample_posterior(
         self,
-        site="all",
         num_samples: int = 1000,
+        return_sites: Optional[list] = None,
         use_gpu: bool = False,
         sample_kwargs=None,
-        save_samples: bool = False,
+        return_samples: bool = False,
     ):
-        r"""Sample posterior distribution of parameters - either all or single parameter
-        :param node: pyro parameter to sample (e.g. default "all", self.spot_factors)
-        :param n_samples: number of posterior samples to generate (1000 is recommended, reduce if you get GPU memory error)
-        :param save_samples: save samples in addition to sample mean, 5% quantile, SD.
-        :param return_samples: return summarised samples in addition to saving them in `self.samples`
-        :param mean_field_slot: string, which mean_field slot to sample? 'init_1' by default
-        :return: nothing, a dictionary of dictionaries (mean, 5% quantile, SD, optionally all samples) with numpy arrays for each variables is added to self.adata.uns['mod'].
-        Optional dictionary of all samples contains parameters as numpy arrays of shape ``(n_samples, ...)``
+        """
+        Generate samples from posterior distribution for each parameter
+
+        Parameters
+        ----------
+        num_samples
+            number of posterior samples to generate.
+        return_sites
+            get samples for pyro model variable, default is all variables, otherwise list variable names).
+        use_gpu
+            Use gpu?
+        sample_kwargs
+            dictionary with arguments to _get_posterior_samples (see below):
+            return_observed
+                return observed sites/variables?
+        return_samples
+            return samples in addition to sample mean, 5%/95% quantile and SD?
+
+        Returns
+        -------
+        Posterior distribution samples, a dictionary for each of (mean, 5% quantile, SD, optionally all samples),
+            containing dictionaries for each variable with numpy arrays.
+        Dictionary of all samples contains samples for each variable as numpy arrays of shape ``(n_samples, ...)``
+
         """
 
-        self.num_samples = num_samples
         sample_kwargs = sample_kwargs if isinstance(sample_kwargs, dict) else dict()
         sample_kwargs["num_samples"] = num_samples
+        sample_kwargs["return_sites"] = return_sites
 
-        if site == "all":
-            # Sample all parameters
-            if self.module.model.batch_size is None:
-                samples = self._posterior_samples_full_data(
-                    use_gpu=use_gpu, **sample_kwargs
-                )
-                return samples
-            else:
-                samples = self._posterior_samples_minibatch(
-                    use_gpu=use_gpu, **sample_kwargs
-                )
-                return samples
-
-            self.param_names = list(self.adata.uns["mod"]["post_samples"].keys())
-
-            self.adata.uns["mod"]["post_sample_means"] = {
-                v: self.adata.uns["mod"]["post_samples"][v].mean(axis=0)
-                for v in self.param_names
-            }
-            self.adata.uns["mod"]["post_sample_q05"] = {
-                v: np.quantile(self.adata.uns["mod"]["post_samples"][v], 0.05, axis=0)
-                for v in self.param_names
-            }
-            self.adata.uns["mod"]["post_sample_q95"] = {
-                v: np.quantile(self.adata.uns["mod"]["post_samples"][v], 0.95, axis=0)
-                for v in self.param_names
-            }
-            self.adata.uns["mod"]["post_sample_sds"] = {
-                v: self.adata.uns["mod"]["post_samples"][v].std(axis=0)
-                for v in self.param_names
-            }
-
-            if not save_samples:
-                del self.adata.uns["mod"]["post_samples"]
-
-        else:
-            self.sample_node(
-                site, self.n_sampl_batches, batch_size=self.num_samples_batch, suff=""
+        if self.module.model.batch_size is None:
+            # sample using full data
+            samples = self._posterior_samples_full_data(
+                use_gpu=use_gpu, **sample_kwargs
             )
+        else:
+            # sample using minibatches
+            samples = self._posterior_samples_minibatch(
+                use_gpu=use_gpu, **sample_kwargs
+            )
+
+        param_names = list(samples.keys())
+        results = dict()
+        if return_samples:
+            results["posterior_samples"] = samples
+
+        results["post_sample_means"] = {v: samples[v].mean(axis=0) for v in param_names}
+        results["post_sample_q05"] = self.posterior_quantile(q=0.05, use_gpu=use_gpu)
+        results["post_sample_q95"] = self.posterior_quantile(q=0.95, use_gpu=use_gpu)
+        results["post_sample_sds"] = {v: samples[v].std(axis=0) for v in param_names}
+
+        return results
 
 
 class PltExportMixin:
-    def plot_posterior_mu_vs_data(self, mu_node_name="mu", data_node="X_data"):
-        r"""Plot expected value of the model (e.g. mean of poisson distribution)
+    @staticmethod
+    def plot_posterior_mu_vs_data(mu, data):
+        r"""Plot expected value of the model (e.g. mean of NB distribution) vs observed data
 
-        :param mu_node_name: name of the object slot containing expected value
-        :param data_node: name of the object slot containing data
+        :param mu: expected value
+        :param data: data value
         """
 
-        if type(mu_node_name) is str:
-            mu = getattr(self, mu_node_name)
-        else:
-            mu = mu_node_name
-
-        if type(data_node) is str:
-            data_node = getattr(self, data_node)
-
         plt.hist2d(
-            np.log10(data_node.flatten() + 1),
+            np.log10(data.flatten() + 1),
             np.log10(mu.flatten() + 1),
             bins=50,
             norm=matplotlib.colors.LogNorm(),
         )
         plt.gca().set_aspect("equal", adjustable="box")
-        plt.xlabel("Data, log10(nUMI)")
-        plt.ylabel("Posterior sample, log10(nUMI)")
-        plt.title("UMI counts (all cell, all genes)")
+        plt.xlabel("Data, log10")
+        plt.ylabel("Posterior expected value, log10")
         plt.tight_layout()
 
-    def plot_history(
-        self, iter_start=0, iter_end=-1, history_key=None, log_y=True, ax=None
-    ):
+    def plot_history(self, iter_start=0, iter_end=-1, ax=None):
         r"""Plot training history
 
-        :param iter_start: omit initial iterations from the plot
-        :param iter_end: omit last iterations from the plot
-        """
+        Parameters
+        ----------
+        iter_start
+            omit initial iterations from the plot
+        iter_end
+            omit last iterations from the plot
+        ax
+            matplotlib axis
 
+        """
         if ax is None:
             ax = plt
             ax.set_xlabel = plt.xlabel
             ax.set_ylabel = plt.ylabel
+        if iter_end == -1:
+            iter_end = len(self.history_)
 
-        if history_key is None:
-            history_key = self.history.keys()
+        ax.plot(
+            self.history_.index[iter_start:iter_end],
+            np.array(self.history_.values.flatten())[iter_start:iter_end],
+            label="train",
+        )
+        ax.legend()
+        ax.xlim(0, len(self.history_))
+        ax.set_xlabel("Training epochs")
+        ax.set_ylabel("-ELBO loss")
+        plt.tight_layout()
 
-        if type(history_key) == str:
-            history_key = [history_key]
+    def export2adata(self, samples):
+        r"""
+        Export key model variable and samples
 
-        for i in history_key:
+        Parameters
+        ----------
+        samples
+            dictionary with posterior mean, 5%/95% quantiles, SD, samples, generated by `.sample_posterior()`
 
-            if iter_end == -1:
-                iter_end = np.array(self.history[i]).flatten().shape[0]
-
-            y = np.array(self.history[i]).flatten()[iter_start:iter_end]
-            if log_y:
-                y = np.log10(y)
-            ax.plot(np.arange(iter_start, iter_end), y, label="train")
-            ax.set_xlabel("Training epochs")
-            ax.set_ylabel("Reconstruction accuracy (-ELBO loss)")
-            ax.legend()
-            plt.tight_layout()
-
-    def export2adata(self, adata, slot_name="mod"):
-        r"""Add posterior mean and sd for all parameters to unstructured data `adata.uns['mod']`.
-
-        :param adata: anndata object
+        Returns
+        -------
+        updated dictionary with additional details which can be saved to `adata.uns['mod']`.
         """
         # add factor filter and samples of all parameters to unstructured data
-        adata.uns[slot_name] = {}
+        results = {
+            "model_name": str(self.module.__class__.__name__),
+            "date": str(date.today()),
+            "factor_filter": list(getattr(self, "factor_filter", None)),
+            "factor_names": list(self.factor_names_),
+            "var_names": self.adata.var_names.tolist(),
+            "obs_names": self.adata.obs_names.tolist(),
+            "post_sample_means": samples["post_sample_means"],
+            "post_sample_sds": samples["post_sample_sds"],
+            "post_sample_q05": samples["post_sample_q05"],
+            "post_sample_q95": samples["post_sample_q95"],
+        }
 
-        adata.uns[slot_name]["mod_name"] = str(self.module.__class__.__name__)
-        adata.uns[slot_name]["fact_filt"] = self.fact_filt
-        adata.uns[slot_name]["fact_names"] = self.fact_names.tolist()
-        adata.uns[slot_name]["var_names"] = self.var_names.tolist()
-        adata.uns[slot_name]["obs_names"] = self.obs_names.tolist()
-        adata.uns[slot_name]["post_sample_means"] = self.samples["post_sample_means"]
-        adata.uns[slot_name]["post_sample_sds"] = self.samples["post_sample_sds"]
-        adata.uns[slot_name]["post_sample_q05"] = self.samples["post_sample_q05"]
-        adata.uns[slot_name]["post_sample_q95"] = self.samples["post_sample_q95"]
-
-        return adata
+        return results
