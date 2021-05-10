@@ -812,7 +812,7 @@ class PltExportMixin:
         results = {
             "model_name": str(self.module.__class__.__name__),
             "date": str(date.today()),
-            "factor_filter": list(getattr(self, "factor_filter", None)),
+            "factor_filter": list(getattr(self, "factor_filter", [])),
             "factor_names": list(self.factor_names_),
             "var_names": self.adata.var_names.tolist(),
             "obs_names": self.adata.obs_names.tolist(),

@@ -373,24 +373,20 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         mRNA = w_sf * (self.cell_state * m_g).sum(-1)
         pyro.deterministic("u_sf_mRNA_factors", mRNA)
 
-    def compute_expected(self, obs2sample):
+    def compute_expected(self, samples, adata):
         r"""Compute expected expression of each gene in each location. Useful for evaluating how well
         the model learned expression pattern of all genes in the data.
         """
-        self.mu = (
-            np.dot(self.samples["post_sample_means"]["w_sf"], self.cell_state_mat.T)
-            * self.samples["post_sample_means"]["m_g"]
-            + np.dot(obs2sample, self.samples["post_sample_means"]["s_g_gene_add"])
-            + self.samples["post_sample_means"]["l_s_add"]
+        obs2sample = get_from_registry(adata, _CONSTANTS.BATCH_KEY)
+        obs2sample = pd.get_dummies(obs2sample.flatten())
+        mu = (
+            np.dot(samples["w_sf"], self.cell_state_mat.T) * samples["m_g"]
+            + np.dot(obs2sample, samples["s_g_gene_add"])
+            + samples["l_s_add"]
         )
-        self.alpha = np.dot(
-            obs2sample,
-            1
-            / (
-                self.samples["post_sample_means"]["alpha_g_inverse"]
-                * self.samples["post_sample_means"]["alpha_g_inverse"]
-            ),
-        )
+        alpha = np.dot(obs2sample, 1 / np.power(samples["alpha_g_inverse"], 2))
+
+        return {"mu": mu, "alpha": alpha}
 
 
 class Cell2locationModule(PyroBaseModuleClass):
