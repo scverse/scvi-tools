@@ -49,6 +49,21 @@ def _transform_to_positive(constraint):
 
 
 class AutoNormalEncoder(AutoGuide):
+    """
+    AutoNormal posterior approximation for amortised inference,
+      where mean and sd of the posterior distributions are approximated using a neural network:
+      mean, sd = encoderNN(input data).
+
+    The class supports single encoder for all parameters as well as one encoder per parameter.
+    The output of encoder network is treated as a hidden layer, mean and sd are a linear function of hidden layer nodes,
+    sd is transformed to positive scale using softplus. Data is log-transformed on input.
+
+    This class requires `amortised_plate_sites` dictionary with details about amortised variables (see below).
+
+    Guide will have the same call signature as the model, so any argument to the model can be used for encoding as
+    annotated in `amortised_plate_sites`, but it does not have to be the same as observed data in the model.
+    """
+
     def __init__(
         self,
         model,
@@ -63,6 +78,48 @@ class AutoNormalEncoder(AutoGuide):
         create_plates=None,
         single_encoder: bool = True,
     ):
+        """
+
+        Parameters
+        ----------
+        model
+            Pyro model
+        amortised_plate_sites
+            Dictionary with amortised plate details:
+             the name of observation/minibatch plate,
+             indexes of model args to provide to encoder,
+             variable names that belong to the observation plate
+             and the number of dimensions in non-plate axis of each variable - such as:
+             {
+                 "name": "obs_plate",
+                 "in": [0],  # expression data + (optional) batch index ([0, 2])
+                 "sites": {
+                     "n_s_cells_per_location": 1,
+                     "y_s_groups_per_location": 1,
+                     "z_sr_groups_factors": self.n_groups,
+                     "w_sf": self.n_factors,
+                     "l_s_add": 1,
+                 }
+             }
+        n_in
+            Number of input dimensions (for encoder_class).
+        n_hidden
+            Number of hidden nodes in each layer, including final layer.
+        init_param
+            Not implemented yet - initial values for amortised variables.
+        init_param_scale
+            How to scale/normalise initial values for weights converting hidden layers to mean and sd.
+        data_transform
+            Function to use for transforming data before passing it to encoder network.
+        encoder_class
+            Class for defining encoder network.
+        encoder_kwargs
+            Keyword arguments for encoder_class.
+        create_plates
+            Function for creating plates
+        single_encoder
+            Use single encoder for all variables (True) or one encoder per variable (False).
+        """
 
         super().__init__(model, create_plates=create_plates)
         self.amortised_plate_sites = amortised_plate_sites
@@ -164,6 +221,16 @@ class AutoNormalEncoder(AutoGuide):
                 )
 
     def _get_loc_and_scale(self, name, encoded_hidden):
+        """
+        Get mean (loc) and sd (scale) of the posterior distribution, as a linear function of encoder hidden layer.
+        Parameters
+        ----------
+        name
+            variable name
+        encoded_hidden
+            tensor when `single_encoder==True` and dictionary of tensors for each site when `single_encoder=False`
+
+        """
 
         linear_locs = _deep_getattr(self.hidden2locs, name)
         linear_scales = _deep_getattr(self.hidden2scales, name)
@@ -178,11 +245,22 @@ class AutoNormalEncoder(AutoGuide):
         return locs, scales
 
     def encode(self, *args, **kwargs):
+        """
+        Apply encoder network to input data to obtain hidden layer encoding.
+        Parameters
+        ----------
+        args
+            Pyro model args
+        kwargs
+            Pyro model kwargs
+        -------
+
+        """
         in_names = self.amortised_plate_sites["in"]
         x_in = [kwargs[i] if i in kwargs.keys() else args[i] for i in in_names]
         # apply data_transform
         x_in = [self.data_transform(x) for x in x_in]
-        # when there are multiple encoders get then and apply encode data
+        # when there are multiple encoders fetch encoders and encode data
         if not self.single_encoder:
             res = {
                 name: _deep_getattr(self.encoder, name)(*x_in)
