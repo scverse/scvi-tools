@@ -91,6 +91,7 @@ class SCVI(
         self.module = VAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
+            n_labels=self.summary_stats["n_labels"],
             n_continuous_cov=self.summary_stats["n_continuous_covs"],
             n_cats_per_cov=n_cats_per_cov,
             n_hidden=n_hidden,
