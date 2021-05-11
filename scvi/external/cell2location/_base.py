@@ -986,26 +986,26 @@ class PltExportMixin:
 
         results = dict()
 
-        results["mean_" + name_prefix + site_name] = pd.DataFrame.from_records(
-            samples["post_sample_means"][site_name],
+        results["mean_" + name_prefix + site_name] = pd.DataFrame(
+            samples["post_sample_means"].get(site_name, None),
             index=self.adata.obs_names,
             columns=["mean_" + name_prefix + site_name + i for i in self.factor_names_],
         )
 
-        results["sd_" + name_prefix + site_name] = pd.DataFrame.from_records(
-            samples["post_sample_sds"][site_name],
+        results["sd_" + name_prefix + site_name] = pd.DataFrame(
+            samples["post_sample_sds"].get(site_name, None),
             index=self.adata.obs_names,
             columns=["sd_" + name_prefix + site_name + i for i in self.factor_names_],
         )
 
-        results["q05_" + name_prefix + site_name] = pd.DataFrame.from_records(
-            samples["post_sample_q05"][site_name],
+        results["q05_" + name_prefix + site_name] = pd.DataFrame(
+            samples["post_sample_q05"].get(site_name, None),
             index=self.adata.obs_names,
             columns=["q05_" + name_prefix + site_name + i for i in self.factor_names_],
         )
 
-        results["q95_" + name_prefix + site_name] = pd.DataFrame.from_records(
-            samples["post_sample_q95"][site_name],
+        results["q95_" + name_prefix + site_name] = pd.DataFrame(
+            samples["post_sample_q95"].get(site_name, None),
             index=self.adata.obs_names,
             columns=["q95_" + name_prefix + site_name + i for i in self.factor_names_],
         )
@@ -1033,28 +1033,28 @@ class PltExportMixin:
 
         results = dict()
 
-        results["mean_" + name_prefix + site_name] = pd.DataFrame.from_records(
-            samples["post_sample_means"][site_name].T,
-            index=self.adata.var_names,
-            columns=["mean_" + name_prefix + site_name + i for i in self.factor_names_],
-        )
+        results["mean_" + name_prefix + site_name] = pd.DataFrame(
+            samples["post_sample_means"].get(site_name, None),
+            columns=self.adata.var_names,
+            index=["mean_" + name_prefix + site_name + i for i in self.factor_names_],
+        ).T
 
-        results["sd_" + name_prefix + site_name] = pd.DataFrame.from_records(
-            samples["post_sample_sds"][site_name].T,
-            index=self.adata.var_names,
-            columns=["sd_" + name_prefix + site_name + i for i in self.factor_names_],
-        )
+        results["sd_" + name_prefix + site_name] = pd.DataFrame(
+            samples["post_sample_sds"].get(site_name, None),
+            columns=self.adata.var_names,
+            index=["sd_" + name_prefix + site_name + i for i in self.factor_names_],
+        ).T
 
-        results["q05_" + name_prefix + site_name] = pd.DataFrame.from_records(
-            samples["post_sample_q05"][site_name].T,
-            index=self.adata.var_names,
-            columns=["q05_" + name_prefix + site_name + i for i in self.factor_names_],
-        )
+        results["q05_" + name_prefix + site_name] = pd.DataFrame(
+            samples["post_sample_q05"].get(site_name, None),
+            columns=self.adata.var_names,
+            index=["q05_" + name_prefix + site_name + i for i in self.factor_names_],
+        ).T
 
-        results["q95_" + name_prefix + site_name] = pd.DataFrame.from_records(
-            samples["post_sample_q95"][site_name].T,
-            index=self.adata.var_names,
-            columns=["q95_" + name_prefix + site_name + i for i in self.factor_names_],
-        )
+        results["q95_" + name_prefix + site_name] = pd.DataFrame(
+            samples["post_sample_q95"].get(site_name, None),
+            columns=self.adata.var_names,
+            index=["q95_" + name_prefix + site_name + i for i in self.factor_names_],
+        ).T
 
         return results
