@@ -9,14 +9,151 @@ import pyro
 import torch
 from pyro import poutine
 from pyro.infer import SVI
+from pyro.infer.autoguide import AutoNormal, init_to_mean
 from tqdm.auto import tqdm
 
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
+from scvi.module.base import PyroBaseModuleClass
 from scvi.train import PyroTrainingPlan, Trainer
 
+from .autoguide import AutoGuideList, AutoNormalEncoder
 
-class Cell2locationTrainSampleMixin:
+
+class Cell2locationBaseModule(PyroBaseModuleClass):
+    def __init__(
+        self,
+        model,
+        amortised: bool = False,
+        single_encoder: bool = True,
+        encoder_kwargs=None,
+        data_transform="log1p",
+        **kwargs
+    ):
+        """
+        Module class which defines AutoGuide given model. Supports multiple model architectures.
+
+        Parameters
+        ----------
+        amortised
+            boolean, use a Neural Network to approximate posterior distribution of location-specific (local) parameters?
+        encoder_kwargs
+            arguments for Neural Network construction (scvi.nn.FCLayers)
+        kwargs
+            arguments for specific model class - e.g. number of genes, values of the prior distribution
+        """
+        super().__init__()
+        self.hist = []
+
+        self._model = model(**kwargs)
+        self._amortised = amortised
+
+        if not amortised:
+            self._guide = AutoNormal(
+                self.model,
+                init_loc_fn=init_to_mean,
+                create_plates=self.model.create_plates,
+            )
+        else:
+            encoder_kwargs = (
+                encoder_kwargs if isinstance(encoder_kwargs, dict) else dict()
+            )
+            n_hidden = (
+                encoder_kwargs["n_hidden"]
+                if "n_hidden" in encoder_kwargs.keys()
+                else 200
+            )
+            amortised_vars = self.model.list_obs_plate_vars()
+            self._guide = AutoGuideList(
+                self.model, create_plates=self.model.create_plates
+            )
+            self._guide.append(
+                AutoNormal(
+                    pyro.poutine.block(
+                        self.model, hide=list(amortised_vars["sites"].keys())
+                    ),
+                    init_loc_fn=init_to_mean,
+                )
+            )
+            if isinstance(data_transform, np.ndarray):
+                # add extra info about gene clusters to the network
+                self.register_buffer(
+                    "gene_clusters", torch.tensor(data_transform.astype("float32"))
+                )
+                n_in = self.model.n_vars + data_transform.shape[1]
+                data_transform = self.data_transform_clusters()
+            elif data_transform == "log1p":
+                # use simple log1p transform
+                data_transform = torch.log1p
+                n_in = self.model.n_vars
+            elif (
+                isinstance(data_transform, dict)
+                and "var_std" in list(data_transform.keys())
+                and "var_mean" in list(data_transform.keys())
+            ):
+                # use data transform by scaling
+                n_in = self.model.n_vars
+                self.register_buffer(
+                    "var_mean",
+                    torch.tensor(
+                        data_transform["var_mean"].astype("float32").reshape((1, n_in))
+                    ),
+                )
+                self.register_buffer(
+                    "var_std",
+                    torch.tensor(
+                        data_transform["var_std"].astype("float32").reshape((1, n_in))
+                    ),
+                )
+                data_transform = self.data_transform_scale()
+            else:
+                # use custom data transform
+                data_transform = data_transform
+                n_in = self.model.n_vars
+
+            self._guide.append(
+                AutoNormalEncoder(
+                    pyro.poutine.block(
+                        self.model, expose=list(amortised_vars["sites"].keys())
+                    ),
+                    amortised_plate_sites=amortised_vars,
+                    n_in=n_in,
+                    n_hidden=n_hidden,
+                    data_transform=data_transform,
+                    encoder_kwargs=encoder_kwargs,
+                    single_encoder=single_encoder,
+                )
+            )
+
+        self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
+
+    @property
+    def model(self):
+        return self._model
+
+    @property
+    def guide(self):
+        return self._guide
+
+    @property
+    def is_amortised(self):
+        return self._amortised
+
+    def data_transform_clusters(self):
+        def _data_transform(x):
+            return torch.log1p(torch.cat([x, x @ self.gene_clusters], dim=1))
+
+        return _data_transform
+
+    def data_transform_scale(self):
+        def _data_transform(x):
+            # return (x - self.var_mean) / self.var_std
+            return x / self.var_std
+
+        return _data_transform
+
+
+class TrainSampleMixin:
     """
     Reimplementation of cell2location [Kleshchevnikov20]_ model. This mixin class provides methods for:
 
@@ -821,5 +958,103 @@ class PltExportMixin:
             "post_sample_q05": samples["post_sample_q05"],
             "post_sample_q95": samples["post_sample_q95"],
         }
+
+        return results
+
+    def sample2df_obs(
+        self,
+        samples: dict,
+        site_name: str = "w_sf",
+        name_prefix: str = "cell_abundance_",
+    ):
+        """Export posterior distribution summary for observation-specific parameters
+        (e.g. spatial cell abundance) as Pandas data frames
+        (means, 5%/95% quantiles and sd of posterior distribution).
+
+        Parameters
+        ----------
+        samples
+            dictionary with posterior mean, 5%/95% quantiles, SD, samples, generated by `.sample_posterior()`
+        site_name
+            name of the model parameter to be exported
+
+        Returns
+        -------
+        list with 4 Pandas data frames corresponding to means, 5%/95% quantiles and sd of posterior distribution
+
+        """
+
+        results = dict()
+
+        results["mean_" + name_prefix + site_name] = pd.DataFrame.from_records(
+            samples["post_sample_means"][site_name],
+            index=self.adata.obs_names,
+            columns=["mean_" + name_prefix + site_name + i for i in self.factor_names_],
+        )
+
+        results["sd_" + name_prefix + site_name] = pd.DataFrame.from_records(
+            samples["post_sample_sds"][site_name],
+            index=self.adata.obs_names,
+            columns=["sd_" + name_prefix + site_name + i for i in self.factor_names_],
+        )
+
+        results["q05_" + name_prefix + site_name] = pd.DataFrame.from_records(
+            samples["post_sample_q05"][site_name],
+            index=self.adata.obs_names,
+            columns=["q05_" + name_prefix + site_name + i for i in self.factor_names_],
+        )
+
+        results["q95_" + name_prefix + site_name] = pd.DataFrame.from_records(
+            samples["post_sample_q95"][site_name],
+            index=self.adata.obs_names,
+            columns=["q95_" + name_prefix + site_name + i for i in self.factor_names_],
+        )
+
+        return results
+
+    def sample2df_vars(
+        self, samples: dict, site_name: str = "gene_factors", name_prefix: str = ""
+    ):
+        """Export posterior distribution summary for variable-specific parameters as Pandas data frames
+        (means, 5%/95% quantiles and sd of posterior distribution).
+
+        Parameters
+        ----------
+        samples
+            dictionary with posterior mean, 5%/95% quantiles, SD, samples, generated by `.sample_posterior()`
+        site_name
+            name of the model parameter to be exported
+
+        Returns
+        -------
+        list with 4 Pandas data frames corresponding to means, 5%/95% quantiles and sd of posterior distribution
+
+        """
+
+        results = dict()
+
+        results["mean_" + name_prefix + site_name] = pd.DataFrame.from_records(
+            samples["post_sample_means"][site_name].T,
+            index=self.adata.var_names,
+            columns=["mean_" + name_prefix + site_name + i for i in self.factor_names_],
+        )
+
+        results["sd_" + name_prefix + site_name] = pd.DataFrame.from_records(
+            samples["post_sample_sds"][site_name].T,
+            index=self.adata.var_names,
+            columns=["sd_" + name_prefix + site_name + i for i in self.factor_names_],
+        )
+
+        results["q05_" + name_prefix + site_name] = pd.DataFrame.from_records(
+            samples["post_sample_q05"][site_name].T,
+            index=self.adata.var_names,
+            columns=["q05_" + name_prefix + site_name + i for i in self.factor_names_],
+        )
+
+        results["q95_" + name_prefix + site_name] = pd.DataFrame.from_records(
+            samples["post_sample_q95"][site_name].T,
+            index=self.adata.var_names,
+            columns=["q95_" + name_prefix + site_name + i for i in self.factor_names_],
+        )
 
         return results

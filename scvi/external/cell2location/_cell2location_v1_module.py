@@ -6,25 +6,15 @@ import torch
 
 # import scvi
 from pyro.distributions import constraints
-
-# from pyro.distributions.torch_distribution import TorchDistributionMixin
 from pyro.distributions.transforms import SoftplusTransform
-from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule
-from scipy.sparse import csr_matrix, issparse
+from scipy.sparse import issparse
 from torch.distributions import biject_to, transform_to
 
 from scvi import _CONSTANTS
 from scvi.data._anndata import get_from_registry
-
-# from scvi.train import PyroTrainingPlan, Trainer
 from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_logits
-
-# from scvi.distributions._negative_binomial import NegativeBinomial as ScVINegativeBinomial
-from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import one_hot
-
-from .autoguide import AutoGuideList, AutoNormalEncoder
 
 
 @biject_to.register(constraints.positive)
@@ -35,34 +25,6 @@ def _transform_to_positive(constraint):
 
 # class NegativeBinomial(TorchDistributionMixin, ScVINegativeBinomial):
 #    pass
-
-
-def get_cluster_averages(adata_ref, cluster_col):
-    """
-    :param adata_ref: AnnData object of reference single-cell dataset
-    :param cluster_col: Name of adata_ref.obs column containing cluster labels
-    :returns: pd.DataFrame of cluster average expression of each gene
-    """
-    if not adata_ref.raw:
-        raise ValueError("AnnData object has no raw data")
-    if sum(adata_ref.obs.columns == cluster_col) != 1:
-        raise ValueError("cluster_col is absent in adata_ref.obs or not unique")
-
-    all_clusters = np.unique(adata_ref.obs[cluster_col])
-    averages_mat = np.zeros((1, adata_ref.raw.X.shape[1]))
-
-    for c in all_clusters:
-        sparse_subset = csr_matrix(
-            adata_ref.raw.X[np.isin(adata_ref.obs[cluster_col], c), :]
-        )
-        aver = sparse_subset.mean(0)
-        averages_mat = np.concatenate((averages_mat, aver))
-    averages_mat = averages_mat[1:, :].T
-    averages_df = pd.DataFrame(
-        data=averages_mat, index=adata_ref.raw.var_names, columns=all_clusters
-    )
-
-    return averages_df
 
 
 class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
@@ -86,7 +48,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         gene_add_mean_hyp_prior={
             "alpha": 1.0,
             "beta": 100.0,
-        },  # TODO initialise as average of empty droplets
+        },  # TODO initialise as average of empty locations
         w_sf_mean_var_ratio=5.0,
     ):
 
@@ -128,7 +90,6 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         self.register_buffer(
             "m_g_mean_var", torch.tensor(self.m_g_gene_level_prior["mean_var_ratio"])
         )
-        self.register_buffer("eps", torch.tensor(1e-8))
 
         self.cell_state_mat = cell_state_mat
         self.register_buffer("cell_state", torch.tensor(cell_state_mat.T))
@@ -176,6 +137,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
 
         self.register_buffer("ones", torch.ones((1, 1)))
         self.register_buffer("ones_1_n_groups", torch.ones((1, self.n_groups)))
+        self.register_buffer("eps", torch.tensor(1e-8))
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
@@ -387,136 +349,3 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         alpha = np.dot(obs2sample, 1 / np.power(samples["alpha_g_inverse"], 2))
 
         return {"mu": mu, "alpha": alpha}
-
-
-class Cell2locationModule(PyroBaseModuleClass):
-    def __init__(
-        self,
-        amortised: bool = False,
-        single_encoder: bool = True,
-        encoder_kwargs=None,
-        data_transform="log1p",
-        **kwargs
-    ):
-        """
-        Estimating cell abundance by reference-based decomposition of spatial data (Cell2location module).
-        Supports multiple model architectures.
-
-        Parameters
-        ----------
-        amortised
-            boolean, use a Neural Network to approximate posterior distribution of location-specific (local) parameters?
-        encoder_kwargs
-            arguments for Neural Network construction (scvi.nn.FCLayers)
-        kwargs
-            arguments for specific model class - e.g. number of genes, values of the prior distribution
-        """
-        super().__init__()
-        self.hist = []
-
-        self._model = LocationModelLinearDependentWMultiExperimentModel(**kwargs)
-        self._amortised = amortised
-
-        if not amortised:
-            self._guide = AutoNormal(
-                self.model,
-                init_loc_fn=init_to_mean,
-                create_plates=self.model.create_plates,
-            )
-        else:
-            encoder_kwargs = (
-                encoder_kwargs if isinstance(encoder_kwargs, dict) else dict()
-            )
-            n_hidden = (
-                encoder_kwargs["n_hidden"]
-                if "n_hidden" in encoder_kwargs.keys()
-                else 200
-            )
-            amortised_vars = self.model.list_obs_plate_vars()
-            self._guide = AutoGuideList(
-                self.model, create_plates=self.model.create_plates
-            )
-            self._guide.append(
-                AutoNormal(
-                    pyro.poutine.block(
-                        self.model, hide=list(amortised_vars["sites"].keys())
-                    ),
-                    init_loc_fn=init_to_mean,
-                )
-            )
-            if isinstance(data_transform, np.ndarray):
-                # add extra info about gene clusters to the network
-                self.register_buffer(
-                    "gene_clusters", torch.tensor(data_transform.astype("float32"))
-                )
-                n_in = self.model.n_vars + data_transform.shape[1]
-                data_transform = self.data_transform_clusters()
-            elif data_transform == "log1p":
-                # use simple log1p transform
-                data_transform = torch.log1p
-                n_in = self.model.n_vars
-            elif (
-                isinstance(data_transform, dict)
-                and "var_std" in list(data_transform.keys())
-                and "var_mean" in list(data_transform.keys())
-            ):
-                # use data transform by scaling
-                n_in = self.model.n_vars
-                self.register_buffer(
-                    "var_mean",
-                    torch.tensor(
-                        data_transform["var_mean"].astype("float32").reshape((1, n_in))
-                    ),
-                )
-                self.register_buffer(
-                    "var_std",
-                    torch.tensor(
-                        data_transform["var_std"].astype("float32").reshape((1, n_in))
-                    ),
-                )
-                data_transform = self.data_transform_scale()
-            else:
-                # use custom data transform
-                data_transform = data_transform
-                n_in = self.model.n_vars
-
-            self._guide.append(
-                AutoNormalEncoder(
-                    pyro.poutine.block(
-                        self.model, expose=list(amortised_vars["sites"].keys())
-                    ),
-                    amortised_plate_sites=amortised_vars,
-                    n_in=n_in,
-                    n_hidden=n_hidden,
-                    data_transform=data_transform,
-                    encoder_kwargs=encoder_kwargs,
-                    single_encoder=single_encoder,
-                )
-            )
-
-        self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
-
-    @property
-    def model(self):
-        return self._model
-
-    @property
-    def guide(self):
-        return self._guide
-
-    @property
-    def is_amortised(self):
-        return self._amortised
-
-    def data_transform_clusters(self):
-        def _data_transform(x):
-            return torch.log1p(torch.cat([x, x @ self.gene_clusters], dim=1))
-
-        return _data_transform
-
-    def data_transform_scale(self):
-        def _data_transform(x):
-            # return (x - self.var_mean) / self.var_std
-            return x / self.var_std
-
-        return _data_transform
