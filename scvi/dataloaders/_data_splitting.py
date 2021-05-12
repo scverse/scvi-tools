@@ -430,5 +430,5 @@ class _DeviceBackedDataset(Dataset):
         return return_dict
 
     def __len__(self):
-        for key, value in self.data.items():
+        for _, value in self.data.items():
             return len(value)
