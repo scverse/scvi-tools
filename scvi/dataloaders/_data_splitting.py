@@ -75,7 +75,8 @@ class DataSplitter(pl.LightningDataModule):
     --------
     >>> adata = scvi.data.synthetic_iid()
     >>> splitter = DataSplitter(adata)
-    >>> train_dl, val_dl, test_dl = splitter()
+    >>> splitter.setup()
+    >>> train_dl = splitter.train_dataloader()
     """
 
     def __init__(
@@ -175,7 +176,8 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     >>> adata = scvi.data.synthetic_iid()
     >>> unknown_label = 'label_0'
     >>> splitter = SemiSupervisedDataSplitter(adata, unknown_label)
-    >>> train_dl, val_dl, test_dl = splitter()
+    >>> splitter.setup()
+    >>> train_dl = splitter.train_dataloader()
     """
 
     def __init__(
