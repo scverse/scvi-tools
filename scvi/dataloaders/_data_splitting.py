@@ -1,12 +1,14 @@
 from math import ceil, floor
-from typing import Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 import pytorch_lightning as pl
+import torch
 from anndata import AnnData
+from torch.utils.data import DataLoader, Dataset
 
 from scvi import _CONSTANTS, settings
-from scvi.dataloaders._ann_dataloader import AnnDataLoader
+from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 
@@ -104,7 +106,7 @@ class DataSplitter(pl.LightningDataModule):
         self.train_idx = permutation[n_val : (n_val + n_train)]
         self.test_idx = permutation[(n_val + n_train) :]
 
-        gpus = parse_use_gpu_arg(self.use_gpu, return_device=False)
+        gpus, self.device = parse_use_gpu_arg(self.use_gpu, return_device=True)
         self.pin_memory = (
             True if (settings.dl_pin_memory_gpu_training and gpus != 0) else False
         )
@@ -311,3 +313,116 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             )
         else:
             pass
+
+
+class DeviceBackedDataSplitter(pl.LightningDataModule):
+    """
+    Creates loaders for data that is already on device, e.g., GPU.
+
+    If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
+
+    Parameters
+    ----------
+    adata
+        AnnData to split into train/test/val sets
+    train_size
+        float, or None (default is 0.9)
+    validation_size
+        float, or None (default is None)
+    use_gpu
+        Which GPU to use
+    shuffle
+        if ``True``, shuffles indices before sampling
+    batch_size
+        batch size of each iteration. If `None`, do not minibatch
+
+    Examples
+    --------
+    >>> adata = scvi.data.synthetic_iid()
+    >>> splitter = DeviceBackedDataSplitter(adata)
+    >>> splitter.setup()
+    >>> train_dl = splitter.train_dataloader()
+    """
+
+    def __init__(
+        self,
+        adata: AnnData,
+        train_size: float = 1.0,
+        validation_size: Optional[float] = None,
+        use_gpu: bool = False,
+        shuffle: bool = False,
+        batch_size: Optional[int] = None,
+        **kwargs,
+    ):
+        super().__init__(
+            adata=adata,
+            train_size=train_size,
+            validation_size=validation_size,
+            use_gpu=use_gpu,
+            **kwargs,
+        )
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+
+    def setup(self, stage: Optional[str] = None):
+        super().setup()
+
+        self.train_tensor_dict = self._get_tensor_dict(
+            self.train_idx, device=self.device
+        )
+        self.test_tensor_dict = self._get_tensor_dict(self.test_idx, device=self.device)
+        self.val_tensor_dict = self._get_tensor_dict(self.val_idx, device=self.device)
+
+    def _get_tensor_dict(self, indices, device):
+        if len(indices) is not None and len(indices) > 0:
+            dl = AnnDataLoader(
+                self.adata,
+                indices=indices,
+                shuffle=False,
+                pin_memory=self.pin_memory,
+                **self.data_loader_kwargs,
+            )
+            # will only have one minibatch
+            for batch in dl:
+                tensor_dict = batch
+
+            for k, v in tensor_dict.items():
+                tensor_dict[k] = v.to(device)
+
+            return tensor_dict
+        else:
+            return None
+
+    def _make_dataloader(self, tensor_dict: Dict[str, torch.Tensor]):
+        if tensor_dict is None:
+            return None
+        dataset = _DeviceBackedDataset(tensor_dict)
+        indices = np.arange(len(dataset))
+        bs = self.batch_size if self.batch_size is not None else len(indices)
+        sampler = BatchSampler(shuffle=self.shuffle, indices=indices, batch_size=bs)
+        return DataLoader(dataset, sampler=sampler, batch_size=None)
+
+    def train_dataloader(self):
+        return self._make_dataloader(self.train_tensor_dict)
+
+    def test_dataloader(self):
+        return self._make_dataloader(self.test_tensor_dict)
+
+    def val_dataloader(self):
+        return self._make_dataloader(self.val_tensor_dict)
+
+
+class _DeviceBackedDataset(Dataset):
+    def __init__(self, tensor_dict: Dict[str, torch.Tensor]):
+        self.data = tensor_dict
+
+    def __getitem__(self, idx: List[int]) -> Dict[str, torch.Tensor]:
+        return_dict = {}
+        for key, value in self.data.items():
+            return_dict[key] = value[idx]
+
+        return return_dict
+
+    def __len__(self):
+        for key, value in self.data.items():
+            return len(value)
