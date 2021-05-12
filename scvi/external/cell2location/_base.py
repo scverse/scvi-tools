@@ -280,7 +280,7 @@ class TrainSampleMixin:
         trainer_kwargs = trainer_kwargs if isinstance(trainer_kwargs, dict) else dict()
         optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
 
-        batch_size = self.module.model.batch_size
+        batch_size = self.batch_size
         # select optimiser, optionally choosing different lr for different parameters
         plan_kwargs["optim"] = pyro.optim.ClippedAdam(
             self._optim_param(lr, **optim_kwargs)
@@ -383,7 +383,7 @@ class TrainSampleMixin:
 
         plan_kwargs = {"loss_fn": pyro.infer.Trace_ELBO()}
 
-        batch_size = self.module.model.batch_size
+        batch_size = self.batch_size
 
         if batch_size is None:
             # train using full data (faster for small datasets)
@@ -417,9 +417,7 @@ class TrainSampleMixin:
 
         self.module.eval()
 
-        train_dl = AnnDataLoader(
-            self.adata, shuffle=False, batch_size=self.module.model.batch_size
-        )
+        train_dl = AnnDataLoader(self.adata, shuffle=False, batch_size=self.batch_size)
 
         # sample local parameters
         i = 0
@@ -512,14 +510,14 @@ class TrainSampleMixin:
         self.module.eval()
         gpus, device = parse_use_gpu_arg(use_gpu)
 
-        if self.module.model.batch_size is None:
+        if self.batch_size is None:
             args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
             args = [a.to(device) for a in args]
             kwargs = {k: v.to(device) for k, v in kwargs.items()}
             self.to_device(device)
         else:
             train_dl = AnnDataLoader(
-                self.adata, shuffle=False, batch_size=self.module.model.batch_size
+                self.adata, shuffle=False, batch_size=self.batch_size
             )
             # sample global parameters
             for tensor_dict in train_dl:
@@ -701,9 +699,7 @@ class TrainSampleMixin:
 
         self.module.eval()
 
-        train_dl = AnnDataLoader(
-            self.adata, shuffle=False, batch_size=self.module.model.batch_size
-        )
+        train_dl = AnnDataLoader(self.adata, shuffle=False, batch_size=self.batch_size)
         # sample local parameters
         i = 0
         with tqdm(train_dl, desc="Sampling local variables, batch: ") as tqdm_dl:
@@ -842,7 +838,7 @@ class TrainSampleMixin:
         sample_kwargs["num_samples"] = num_samples
         sample_kwargs["return_sites"] = return_sites
 
-        if self.module.model.batch_size is None:
+        if self.batch_size is None:
             # sample using full data
             samples = self._posterior_samples_full_data(
                 use_gpu=use_gpu, **sample_kwargs

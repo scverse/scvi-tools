@@ -67,13 +67,14 @@ class Cell2location(TrainSampleMixin, BaseModelClass, PltExportMixin):
         self.n_factors_ = cell_state_df.shape[1]
         self.factor_names_ = cell_state_df.columns.values
 
+        self.batch_size = batch_size
+
         self.module = Cell2locationBaseModule(
             model=model_class,
             n_obs=self.summary_stats["n_cells"],
             n_vars=self.summary_stats["n_vars"],
             n_factors=self.n_factors_,
             n_batch=self.summary_stats["n_batch"],
-            batch_size=batch_size,
             cell_state_mat=self.cell_state_df_.values.astype("float32"),
             **model_kwargs,
         )

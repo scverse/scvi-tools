@@ -508,6 +508,7 @@ class RegressionModel(TrainSampleMixin, BaseModelClass, PltExportMixin):
         if model_class is None:
             model_class = RegressionBackgroundDetectionTechModule
 
+        self.batch_size = batch_size
         self.n_factors_ = self.summary_stats["n_labels"]
         self.factor_names_ = self.adata.uns["_scvi"]["categorical_mappings"][
             "_scvi_labels"
@@ -519,7 +520,6 @@ class RegressionModel(TrainSampleMixin, BaseModelClass, PltExportMixin):
             n_vars=self.summary_stats["n_vars"],
             n_factors=self.n_factors_,
             n_batch=self.summary_stats["n_batch"],
-            batch_size=batch_size,
             **model_kwargs,
         )
         self._model_summary_string = f'RegressionBackgroundDetectionTech model with the following params: \nn_factors: {self.n_factors_} \nn_batch: {self.summary_stats["n_batch"]} '

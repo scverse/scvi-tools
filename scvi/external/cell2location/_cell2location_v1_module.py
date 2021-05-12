@@ -83,7 +83,6 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         n_factors,
         n_batch,
         cell_state_mat,
-        batch_size=None,
         n_groups: int = 50,
         m_g_gene_level_prior={"mean": 1 / 2, "sd": 1 / 4},
         m_g_gene_level_var_prior={"mean_var_ratio": 1.0},
@@ -106,7 +105,6 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         self.n_vars = n_vars
         self.n_factors = n_factors
         self.n_batch = n_batch
-        self.batch_size = batch_size
         self.n_groups = n_groups
 
         for k in m_g_gene_level_var_prior.keys():
