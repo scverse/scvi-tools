@@ -2,6 +2,7 @@ from math import ceil, floor
 from typing import Optional
 
 import numpy as np
+import pytorch_lightning as pl
 from anndata import AnnData
 
 from scvi import _CONSTANTS, settings
@@ -49,7 +50,7 @@ def validate_data_split(
     return n_train, n_val
 
 
-class DataSplitter:
+class DataSplitter(pl.LightningDataModule):
     """
     Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
 
@@ -85,64 +86,66 @@ class DataSplitter:
         use_gpu: bool = False,
         **kwargs,
     ):
+        super().__init__()
         self.adata = adata
         self.train_size = float(train_size)
         self.validation_size = validation_size
         self.data_loader_kwargs = kwargs
         self.use_gpu = use_gpu
 
-        self.train_idx, self.test_idx, self.val_idx = self.make_splits()
-
-    def make_splits(self):
+    def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""
         n = self.adata.n_obs
         n_train, n_val = validate_data_split(n, self.train_size, self.validation_size)
         random_state = np.random.RandomState(seed=settings.seed)
         permutation = random_state.permutation(n)
-        val_idx = permutation[:n_val]
-        train_idx = permutation[n_val : (n_val + n_train)]
-        test_idx = permutation[(n_val + n_train) :]
-        return train_idx, test_idx, val_idx
-
-    def __call__(self, remake_splits=False):
-        if remake_splits:
-            self.train_idx, self.test_idx, self.val_idx = self.make_splits()
+        self.val_idx = permutation[:n_val]
+        self.train_idx = permutation[n_val : (n_val + n_train)]
+        self.test_idx = permutation[(n_val + n_train) :]
 
         gpus = parse_use_gpu_arg(self.use_gpu, return_device=False)
-        pin_memory = (
+        self.pin_memory = (
             True if (settings.dl_pin_memory_gpu_training and gpus != 0) else False
         )
 
-        # do not remove drop_last=3, skips over small minibatches
-        return (
-            AnnDataLoader(
-                self.adata,
-                indices=self.train_idx,
-                shuffle=True,
-                drop_last=3,
-                pin_memory=pin_memory,
-                **self.data_loader_kwargs,
-            ),
-            AnnDataLoader(
+    def train_dataloader(self):
+        return AnnDataLoader(
+            self.adata,
+            indices=self.train_idx,
+            shuffle=True,
+            drop_last=3,
+            pin_memory=self.pin_memory,
+            **self.data_loader_kwargs,
+        )
+
+    def val_dataloader(self):
+        if len(self.val_idx) > 0:
+            return AnnDataLoader(
                 self.adata,
                 indices=self.val_idx,
                 shuffle=True,
                 drop_last=3,
-                pin_memory=pin_memory,
+                pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
-            ),
-            AnnDataLoader(
+            )
+        else:
+            pass
+
+    def test_dataloader(self):
+        if len(self.test_idx) > 0:
+            return AnnDataLoader(
                 self.adata,
                 indices=self.test_idx,
                 shuffle=True,
                 drop_last=3,
-                pin_memory=pin_memory,
+                pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
-            ),
-        )
+            )
+        else:
+            pass
 
 
-class SemiSupervisedDataSplitter:
+class SemiSupervisedDataSplitter(pl.LightningDataModule):
     """
     Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
 
@@ -185,6 +188,7 @@ class SemiSupervisedDataSplitter:
         use_gpu: bool = False,
         **kwargs,
     ):
+        super().__init__()
         self.adata = adata
         self.unlabeled_category = unlabeled_category
         self.train_size = float(train_size)
@@ -201,9 +205,8 @@ class SemiSupervisedDataSplitter:
 
         self.data_loader_kwargs = kwargs
         self.use_gpu = use_gpu
-        self.train_idx, self.test_idx, self.val_idx = self.make_splits()
 
-    def make_splits(self):
+    def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""
         n_labeled_idx = len(self._labeled_indices)
         n_unlabeled_idx = len(self._unlabeled_indices)
@@ -250,55 +253,59 @@ class SemiSupervisedDataSplitter:
         indices_val = np.concatenate((labeled_idx_val, unlabeled_idx_val))
         indices_test = np.concatenate((labeled_idx_test, unlabeled_idx_test))
 
-        indices_train = indices_train.astype(int)
-        indices_val = indices_val.astype(int)
-        indices_test = indices_test.astype(int)
-        return indices_train, indices_test, indices_val
-
-    def __call__(self, remake_splits=False):
-        if remake_splits:
-            self.train_idx, self.test_idx, self.val_idx = self.make_splits()
+        self.train_idx = indices_train.astype(int)
+        self.val_idx = indices_val.astype(int)
+        self.test_idx = indices_test.astype(int)
 
         gpus = parse_use_gpu_arg(self.use_gpu, return_device=False)
-        pin_memory = (
+        self.pin_memory = (
             True if (settings.dl_pin_memory_gpu_training and gpus != 0) else False
         )
 
         if len(self._labeled_indices) != 0:
-            data_loader_class = SemiSupervisedDataLoader
+            self.data_loader_class = SemiSupervisedDataLoader
             dl_kwargs = {
                 "unlabeled_category": self.unlabeled_category,
                 "n_samples_per_label": self.n_samples_per_label,
             }
         else:
-            data_loader_class = AnnDataLoader
+            self.data_loader_class = AnnDataLoader
             dl_kwargs = {}
 
-        dl_kwargs.update(self.data_loader_kwargs)
+        self.data_loader_kwargs.update(dl_kwargs)
 
-        scanvi_train_dl = data_loader_class(
+    def train_dataloader(self):
+        return self.data_loader_class(
             self.adata,
             indices=self.train_idx,
             shuffle=True,
             drop_last=3,
-            pin_memory=pin_memory,
-            **dl_kwargs,
-        )
-        scanvi_val_dl = data_loader_class(
-            self.adata,
-            indices=self.val_idx,
-            shuffle=True,
-            drop_last=3,
-            pin_memory=pin_memory,
-            **dl_kwargs,
-        )
-        scanvi_test_dl = data_loader_class(
-            self.adata,
-            indices=self.test_idx,
-            shuffle=True,
-            drop_last=3,
-            pin_memory=pin_memory,
-            **dl_kwargs,
+            pin_memory=self.pin_memory,
+            **self.data_loader_kwargs,
         )
 
-        return scanvi_train_dl, scanvi_val_dl, scanvi_test_dl
+    def val_dataloader(self):
+        if len(self.val_idx) > 0:
+            return self.data_loader_class(
+                self.adata,
+                indices=self.val_idx,
+                shuffle=True,
+                drop_last=3,
+                pin_memory=self.pin_memory,
+                **self.data_loader_kwargs,
+            )
+        else:
+            pass
+
+    def test_dataloader(self):
+        if len(self.test_idx) > 0:
+            return self.data_loader_class(
+                self.adata,
+                indices=self.test_idx,
+                shuffle=True,
+                drop_last=3,
+                pin_memory=self.pin_memory,
+                **self.data_loader_kwargs,
+            )
+        else:
+            pass

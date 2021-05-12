@@ -200,6 +200,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
+        data_splitter.setup()
         training_plan = TrainingPlan(
             self.module, len(data_splitter.train_idx), **plan_kwargs
         )

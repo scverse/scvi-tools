@@ -251,6 +251,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
+        data_splitter.setup()
         training_plan = AdversarialTrainingPlan(
             self.module, len(data_splitter.train_idx), **plan_kwargs
         )

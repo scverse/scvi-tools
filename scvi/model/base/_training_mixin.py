@@ -60,6 +60,9 @@ class UnsupervisedTrainingMixin:
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
+        # secondary call in trainer fit will be a no-op
+        # sets the train_idx attr
+        data_splitter.setup()
         training_plan = TrainingPlan(
             self.module, len(data_splitter.train_idx), **plan_kwargs
         )
