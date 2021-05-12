@@ -149,7 +149,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
     def _get_fn_args_full_data(self, adata):
         x_data = get_from_registry(adata, _CONSTANTS.X_KEY)
         if issparse(x_data):
-            x_data = np.array(x_data.toarray())
+            x_data = np.asarray(x_data.toarray())
         x_data = torch.tensor(x_data.astype("float32"))
         ind_x = torch.tensor(get_from_registry(adata, "ind_x"))
         batch_index = torch.tensor(get_from_registry(adata, _CONSTANTS.BATCH_KEY))
