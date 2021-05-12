@@ -25,11 +25,13 @@ from scvi.train import PyroTrainingPlan, Trainer
 
 
 class BayesianRegressionPyroModel(PyroModule):
-    def __init__(self, in_features, out_features, n_obs):
+    def __init__(self, in_features, out_features, n_obs, per_cell_weight=False):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.n_obs = n_obs
+
+        self.per_cell_weight = per_cell_weight
 
         self.register_buffer("zero", torch.tensor(0.0))
         self.register_buffer("one", torch.tensor(1.0))
@@ -48,7 +50,7 @@ class BayesianRegressionPyroModel(PyroModule):
         )
 
     def create_plates(self, x, y, ind_x):
-        return pyro.plate("data", size=self.n_obs, dim=-2, subsample=ind_x)
+        return pyro.plate("obs_plate", size=self.n_obs, dim=-2, subsample=ind_x)
 
     def list_obs_plate_vars(self):
         """Create a dictionary with the name of observation/minibatch plate,
@@ -59,7 +61,7 @@ class BayesianRegressionPyroModel(PyroModule):
         return {
             "name": "obs_plate",
             "in": [0],  # index for expression data
-            "sites": {},
+            "sites": {"per_cell_weights": 1},
         }
 
     @staticmethod
@@ -84,7 +86,16 @@ class BayesianRegressionPyroModel(PyroModule):
         obs_plate = self.create_plates(x, y, ind_x)
 
         sigma = pyro.sample("sigma", dist.Exponential(self.one))
+
         mean = self.linear(x).squeeze(-1)
+
+        if self.per_cell_weight:
+            with obs_plate:
+                per_cell_weights = pyro.sample(
+                    "per_cell_weights", dist.Normal(self.zero, self.one)
+                )
+                mean = mean + per_cell_weights.squeeze(-1)
+
         with obs_plate:
             pyro.sample("obs", dist.Normal(mean, sigma), obs=y)
         return mean
@@ -114,6 +125,7 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
         self,
         adata: AnnData,
         batch_size=None,
+        per_cell_weight=False,
     ):
         # add index for each cell (provided to pyro plate for correct minibatching)
         adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
@@ -128,7 +140,10 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
 
         self.batch_size = batch_size
         self.module = BayesianRegressionModule(
-            in_features=adata.shape[1], out_features=1, n_obs=adata.n_obs
+            in_features=adata.shape[1],
+            out_features=1,
+            n_obs=adata.n_obs,
+            per_cell_weight=per_cell_weight,
         )
         self._model_summary_string = "BayesianRegressionModel"
         self.init_params_ = self._get_init_params(locals())
@@ -180,7 +195,9 @@ def test_pyro_bayesian_regression(save_path):
     torch.save(model.state_dict(), model_save_path)
 
     pyro.clear_param_store()
-    new_model = BayesianRegressionModule(adata.shape[1], 1)
+    new_model = BayesianRegressionModule(
+        in_features=adata.shape[1], out_features=1, n_obs=adata.n_obs
+    )
     # run model one step to get autoguide params
     try:
         new_model.load_state_dict(torch.load(model_save_path))
@@ -275,3 +292,23 @@ def test_pyro_bayesian_train_sample_mixin_full_data():
     samples = mod.sample_posterior(num_samples=10, use_gpu=use_gpu, return_samples=True)
 
     assert len(samples["posterior_samples"]["sigma"]) == 10
+
+
+def test_pyro_bayesian_train_sample_mixin_with_local():
+    use_gpu = torch.cuda.is_available()
+    adata = synthetic_iid()
+    mod = BayesianRegressionModel(adata, batch_size=128, per_cell_weight=True)
+    mod.train(max_epochs=2, lr=0.01, use_gpu=use_gpu)
+
+    # 100 features, 1 for sigma, 1 for bias
+    # assert list(mod.module.guide.parameters())[0].shape[0] == 102
+
+    # test posterior sampling
+    samples = mod.sample_posterior(num_samples=10, use_gpu=use_gpu, return_samples=True)
+
+    assert len(samples["posterior_samples"]["sigma"]) == 10
+    assert samples["posterior_samples"]["per_cell_weights"].shape == (
+        10,
+        adata.n_obs,
+        1,
+    )
