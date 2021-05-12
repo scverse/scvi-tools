@@ -15,45 +15,27 @@ from tqdm.auto import tqdm
 
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
-from scvi.module.base import PyroBaseModuleClass
 from scvi.train import PyroTrainingPlan, Trainer
 
 from .autoguide import AutoGuideList, AutoNormalEncoder
 
 
-class Cell2locationBaseModule(PyroBaseModuleClass):
-    def __init__(
+class AutoGuideMixinModule:
+    def _create_autoguide(
         self,
         model,
-        amortised: bool = False,
-        single_encoder: bool = True,
-        encoder_kwargs=None,
-        data_transform="log1p",
-        **kwargs
+        amortised,
+        encoder_kwargs,
+        data_transform,
+        single_encoder,
+        init_loc_fn=init_to_mean,
     ):
-        """
-        Module class which defines AutoGuide given model. Supports multiple model architectures.
-
-        Parameters
-        ----------
-        amortised
-            boolean, use a Neural Network to approximate posterior distribution of location-specific (local) parameters?
-        encoder_kwargs
-            arguments for Neural Network construction (scvi.nn.FCLayers)
-        kwargs
-            arguments for specific model class - e.g. number of genes, values of the prior distribution
-        """
-        super().__init__()
-        self.hist = []
-
-        self._model = model(**kwargs)
-        self._amortised = amortised
 
         if not amortised:
-            self._guide = AutoNormal(
-                self.model,
+            _guide = AutoNormal(
+                model,
                 init_loc_fn=init_to_mean,
-                create_plates=self.model.create_plates,
+                create_plates=model.create_plates,
             )
         else:
             encoder_kwargs = (
@@ -64,16 +46,14 @@ class Cell2locationBaseModule(PyroBaseModuleClass):
                 if "n_hidden" in encoder_kwargs.keys()
                 else 200
             )
-            amortised_vars = self.model.list_obs_plate_vars()
-            self._guide = AutoGuideList(
-                self.model, create_plates=self.model.create_plates
-            )
-            self._guide.append(
+            amortised_vars = model.list_obs_plate_vars()
+            _guide = AutoGuideList(model, create_plates=model.create_plates)
+            _guide.append(
                 AutoNormal(
                     pyro.poutine.block(
-                        self.model, hide=list(amortised_vars["sites"].keys())
+                        model, hide=list(amortised_vars["sites"].keys())
                     ),
-                    init_loc_fn=init_to_mean,
+                    init_loc_fn=init_loc_fn,
                 )
             )
             if isinstance(data_transform, np.ndarray):
@@ -81,7 +61,7 @@ class Cell2locationBaseModule(PyroBaseModuleClass):
                 self.register_buffer(
                     "gene_clusters", torch.tensor(data_transform.astype("float32"))
                 )
-                n_in = self.model.n_vars + data_transform.shape[1]
+                n_in = model.n_vars + data_transform.shape[1]
                 data_transform = self.data_transform_clusters()
             elif data_transform == "log1p":
                 # use simple log1p transform
@@ -93,7 +73,7 @@ class Cell2locationBaseModule(PyroBaseModuleClass):
                 and "var_mean" in list(data_transform.keys())
             ):
                 # use data transform by scaling
-                n_in = self.model.n_vars
+                n_in = model.n_vars
                 self.register_buffer(
                     "var_mean",
                     torch.tensor(
@@ -110,12 +90,12 @@ class Cell2locationBaseModule(PyroBaseModuleClass):
             else:
                 # use custom data transform
                 data_transform = data_transform
-                n_in = self.model.n_vars
+                n_in = model.n_vars
 
-            self._guide.append(
+            _guide.append(
                 AutoNormalEncoder(
                     pyro.poutine.block(
-                        self.model, expose=list(amortised_vars["sites"].keys())
+                        model, expose=list(amortised_vars["sites"].keys())
                     ),
                     amortised_plate_sites=amortised_vars,
                     n_in=n_in,
@@ -125,28 +105,15 @@ class Cell2locationBaseModule(PyroBaseModuleClass):
                     single_encoder=single_encoder,
                 )
             )
+            return _guide
 
-        self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
-
-    @property
-    def model(self):
-        return self._model
-
-    @property
-    def guide(self):
-        return self._guide
-
-    @property
-    def is_amortised(self):
-        return self._amortised
-
-    def data_transform_clusters(self):
+    def _data_transform_clusters(self):
         def _data_transform(x):
             return torch.log1p(torch.cat([x, x @ self.gene_clusters], dim=1))
 
         return _data_transform
 
-    def data_transform_scale(self):
+    def _data_transform_scale(self):
         def _data_transform(x):
             # return (x - self.var_mean) / self.var_std
             return x / self.var_std

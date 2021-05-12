@@ -6,6 +6,7 @@ import torch
 from anndata import AnnData
 from pyro.distributions import constraints
 from pyro.distributions.transforms import SoftplusTransform
+from pyro.infer.autoguide import init_to_mean
 from pyro.nn import PyroModule
 from scipy.sparse import csr_matrix, issparse
 from torch.distributions import biject_to, transform_to
@@ -15,9 +16,10 @@ from scvi import _CONSTANTS
 from scvi.data._anndata import get_from_registry
 from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_logits
 from scvi.model.base import BaseModelClass
+from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import one_hot
 
-from ._base import Cell2locationBaseModule, PltExportMixin, TrainSampleMixin
+from ._base import AutoGuideMixinModule, PltExportMixin, TrainSampleMixin
 
 
 def compute_cluster_averages(adata, labels, use_raw=True, layer=None):
@@ -412,6 +414,58 @@ class RegressionBackgroundDetectionTechModule(PyroModule):
         None
 
 
+class RegressionBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
+    def __init__(
+        self,
+        model,
+        amortised: bool = False,
+        single_encoder: bool = True,
+        encoder_kwargs=None,
+        data_transform="log1p",
+        **kwargs,
+    ):
+        """
+        Module class which defines AutoGuide given model. Supports multiple model architectures.
+
+        Parameters
+        ----------
+        amortised
+            boolean, use a Neural Network to approximate posterior distribution of location-specific (local) parameters?
+        encoder_kwargs
+            arguments for Neural Network construction (scvi.nn.FCLayers)
+        kwargs
+            arguments for specific model class - e.g. number of genes, values of the prior distribution
+        """
+        super().__init__()
+        self.hist = []
+
+        self._model = model(**kwargs)
+        self._amortised = amortised
+
+        self._guide = self._create_autoguide(
+            model=self.model,
+            amortised=self.is_amortised,
+            encoder_kwargs=encoder_kwargs,
+            data_transform=data_transform,
+            single_encoder=single_encoder,
+            init_loc_fn=init_to_mean,
+        )
+
+        self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
+
+    @property
+    def model(self):
+        return self._model
+
+    @property
+    def guide(self):
+        return self._guide
+
+    @property
+    def is_amortised(self):
+        return self._amortised
+
+
 class RegressionModel(TrainSampleMixin, BaseModelClass, PltExportMixin):
     """
     Model which estimates per cluster average mRNA count account for batch effects. User-end model class.
@@ -437,7 +491,7 @@ class RegressionModel(TrainSampleMixin, BaseModelClass, PltExportMixin):
         self,
         adata: AnnData,
         batch_size=None,
-        model=None,
+        model_class=None,
         **model_kwargs,
     ):
         # add index for each cell (provided to pyro plate for correct minibatching)
@@ -451,16 +505,16 @@ class RegressionModel(TrainSampleMixin, BaseModelClass, PltExportMixin):
 
         super().__init__(adata)
 
-        if model is None:
-            model = RegressionBackgroundDetectionTechModule
+        if model_class is None:
+            model_class = RegressionBackgroundDetectionTechModule
 
         self.n_factors_ = self.summary_stats["n_labels"]
         self.factor_names_ = self.adata.uns["_scvi"]["categorical_mappings"][
             "_scvi_labels"
         ]["mapping"]
 
-        self.module = Cell2locationBaseModule(
-            model=model,
+        self.module = RegressionBaseModule(
+            model=model_class,
             n_obs=self.summary_stats["n_cells"],
             n_vars=self.summary_stats["n_vars"],
             n_factors=self.n_factors_,
@@ -468,5 +522,5 @@ class RegressionModel(TrainSampleMixin, BaseModelClass, PltExportMixin):
             batch_size=batch_size,
             **model_kwargs,
         )
-        self._model_summary_string = f'RegressionBackgroundDetectionTech with the following params: \nn_factors: {self.n_factors_} \nn_batch: {self.summary_stats["n_batch"]} '
+        self._model_summary_string = f'RegressionBackgroundDetectionTech model with the following params: \nn_factors: {self.n_factors_} \nn_batch: {self.summary_stats["n_batch"]} '
         self.init_params_ = self._get_init_params(locals())

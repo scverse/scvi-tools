@@ -5,8 +5,11 @@ from anndata import AnnData
 import scvi
 from scvi.model.base import BaseModelClass
 
-from ._base import Cell2locationBaseModule, PltExportMixin, TrainSampleMixin
-from ._cell2location_v1_module import LocationModelLinearDependentWMultiExperimentModel
+from ._base import PltExportMixin, TrainSampleMixin
+from ._cell2location_v1_module import (
+    Cell2locationBaseModule,
+    LocationModelLinearDependentWMultiExperimentModel,
+)
 
 
 class Cell2location(TrainSampleMixin, BaseModelClass, PltExportMixin):

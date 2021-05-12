@@ -7,6 +7,7 @@ import torch
 # import scvi
 from pyro.distributions import constraints
 from pyro.distributions.transforms import SoftplusTransform
+from pyro.infer.autoguide import init_to_mean
 from pyro.nn import PyroModule
 from scipy.sparse import issparse
 from torch.distributions import biject_to, transform_to
@@ -14,7 +15,10 @@ from torch.distributions import biject_to, transform_to
 from scvi import _CONSTANTS
 from scvi.data._anndata import get_from_registry
 from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_logits
+from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import one_hot
+
+from ._base import AutoGuideMixinModule
 
 
 @biject_to.register(constraints.positive)
@@ -393,3 +397,55 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         alpha = np.dot(obs2sample, 1 / np.power(samples["alpha_g_inverse"], 2))
 
         return {"mu": mu, "alpha": alpha}
+
+
+class Cell2locationBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
+    def __init__(
+        self,
+        model,
+        amortised: bool = False,
+        single_encoder: bool = True,
+        encoder_kwargs=None,
+        data_transform="log1p",
+        **kwargs
+    ):
+        """
+        Module class which defines AutoGuide given model. Supports multiple model architectures.
+
+        Parameters
+        ----------
+        amortised
+            boolean, use a Neural Network to approximate posterior distribution of location-specific (local) parameters?
+        encoder_kwargs
+            arguments for Neural Network construction (scvi.nn.FCLayers)
+        kwargs
+            arguments for specific model class - e.g. number of genes, values of the prior distribution
+        """
+        super().__init__()
+        self.hist = []
+
+        self._model = model(**kwargs)
+        self._amortised = amortised
+
+        self._guide = self._create_autoguide(
+            model=self.model,
+            amortised=self.is_amortised,
+            encoder_kwargs=encoder_kwargs,
+            data_transform=data_transform,
+            single_encoder=single_encoder,
+            init_loc_fn=init_to_mean,
+        )
+
+        self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
+
+    @property
+    def model(self):
+        return self._model
+
+    @property
+    def guide(self):
+        return self._guide
+
+    @property
+    def is_amortised(self):
+        return self._amortised
