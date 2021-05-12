@@ -1,7 +1,5 @@
 import logging
-from typing import Union
-
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -58,8 +56,7 @@ class PyroSviTrainMixin:
         use_gpu: bool = False,
         plan_kwargs: Optional[dict] = None,
         lr: float = 0.01,
-        autoencoding_lr: Optional[float] = None,
-        clip_norm: float = 200,
+        optim_kwargs: Optional[dict] = None,
         continue_training: bool = True,
     ):
         """
@@ -84,6 +81,7 @@ class PyroSviTrainMixin:
 
         args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
         gpus, device = parse_use_gpu_arg(use_gpu)
+        optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
 
         args = [a.to(device) for a in args]
         kwargs = {k: v.to(device) for k, v in kwargs.items()}
@@ -99,7 +97,7 @@ class PyroSviTrainMixin:
             self.module.model,
             self.module.guide,
             # select optimiser, optionally choosing different lr for autoencoding guide
-            pyro.optim.ClippedAdam(self._optim_param(lr, autoencoding_lr, clip_norm)),
+            pyro.optim.ClippedAdam(self._optim_param(lr, **optim_kwargs)),
             loss=plan_kwargs["loss_fn"],
         )
 
@@ -177,7 +175,7 @@ class PyroSviTrainMixin:
         trainer_kwargs = trainer_kwargs if isinstance(trainer_kwargs, dict) else dict()
         optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
 
-        batch_size = self.module.model.batch_size
+        batch_size = self.batch_size
         # select optimiser, optionally choosing different lr for different parameters
         plan_kwargs["optim"] = pyro.optim.ClippedAdam(
             self._optim_param(lr, **optim_kwargs)
@@ -264,7 +262,7 @@ class PyroSviTrainMixin:
 
         plan_kwargs = {"loss_fn": pyro.infer.Trace_ELBO()}
 
-        batch_size = self.module.model.batch_size
+        batch_size = self.batch_size
 
         if batch_size is None:
             # train using full data (faster for small datasets)
@@ -428,9 +426,7 @@ class PyroSampleMixin:
 
         self.module.eval()
 
-        train_dl = AnnDataLoader(
-            self.adata, shuffle=False, batch_size=self.module.model.batch_size
-        )
+        train_dl = AnnDataLoader(self.adata, shuffle=False, batch_size=self.batch_size)
         # sample local parameters
         i = 0
         with tqdm(train_dl, desc="Sampling local variables, batch: ") as tqdm_dl:
@@ -569,7 +565,7 @@ class PyroSampleMixin:
         sample_kwargs["num_samples"] = num_samples
         sample_kwargs["return_sites"] = return_sites
 
-        if self.module.model.batch_size is None:
+        if self.batch_size is None:
             # sample using full data
             samples = self._posterior_samples_full_data(
                 use_gpu=use_gpu, **sample_kwargs
@@ -586,8 +582,12 @@ class PyroSampleMixin:
             results["posterior_samples"] = samples
 
         results["post_sample_means"] = {v: samples[v].mean(axis=0) for v in param_names}
-        results["post_sample_q05"] = self.posterior_quantile(q=0.05, use_gpu=use_gpu)
-        results["post_sample_q95"] = self.posterior_quantile(q=0.95, use_gpu=use_gpu)
+        results["post_sample_q05"] = {
+            v: np.quantile(samples[v], 0.05, axis=0) for v in param_names
+        }
+        results["post_sample_q95"] = {
+            v: np.quantile(samples[v], 0.95, axis=0) for v in param_names
+        }
         results["post_sample_sds"] = {v: samples[v].std(axis=0) for v in param_names}
 
         return results
