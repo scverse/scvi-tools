@@ -14,6 +14,7 @@ from scvi.data._built_in_data._download import _download
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
+    DeviceBackedDataSplitter,
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
@@ -27,6 +28,7 @@ from scvi.model import (
     DestVI,
     LinearSCVI,
 )
+from scvi.train import TrainingPlan, TrainRunner
 
 
 def test_scvi(save_path):
@@ -388,6 +390,27 @@ def test_data_splitter():
         ds.setup()
         ds.train_dataloader()
         ds.val_dataloader()
+
+
+def test_device_backed_data_splitter():
+    a = synthetic_iid()
+    # test leaving validataion_size empty works
+    ds = DeviceBackedDataSplitter(a, train_size=1.0, use_gpu=None)
+    ds.setup()
+    train_dl = ds.train_dataloader()
+    ds.val_dataloader()
+    assert len(next(iter(train_dl))["X"]) == a.shape[0]
+
+    model = SCVI(a, n_latent=5)
+    training_plan = TrainingPlan(model.module, len(ds.train_idx))
+    runner = TrainRunner(
+        model,
+        training_plan=training_plan,
+        data_splitter=ds,
+        max_epochs=1,
+        use_gpu=None,
+    )
+    runner()
 
 
 def test_semisupervised_data_splitter():

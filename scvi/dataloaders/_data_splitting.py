@@ -67,7 +67,8 @@ class DataSplitter(pl.LightningDataModule):
     validation_size
         float, or None (default is None)
     use_gpu
-        Which GPU to use
+        Use default GPU if available (if None or True), or index of GPU to use (if int),
+        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
     **kwargs
         Keyword args for data loader. If adata has labeled data, data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
@@ -168,6 +169,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         float, or None (default is None)
     n_samples_per_label
         Number of subsamples for each label class to sample per epoch
+    use_gpu
+        Use default GPU if available (if None or True), or index of GPU to use (if int),
+        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
     **kwargs
         Keyword args for data loader. If adata has labeled data, data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
@@ -315,7 +319,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             pass
 
 
-class DeviceBackedDataSplitter(pl.LightningDataModule):
+class DeviceBackedDataSplitter(DataSplitter):
     """
     Creates loaders for data that is already on device, e.g., GPU.
 
@@ -330,7 +334,8 @@ class DeviceBackedDataSplitter(pl.LightningDataModule):
     validation_size
         float, or None (default is None)
     use_gpu
-        Which GPU to use
+        Use default GPU if available (if None or True), or index of GPU to use (if int),
+        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
     shuffle
         if ``True``, shuffles indices before sampling
     batch_size
@@ -378,6 +383,7 @@ class DeviceBackedDataSplitter(pl.LightningDataModule):
             dl = AnnDataLoader(
                 self.adata,
                 indices=indices,
+                batch_size=len(indices),
                 shuffle=False,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
