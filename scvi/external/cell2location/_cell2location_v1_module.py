@@ -28,6 +28,50 @@ def _transform_to_positive(constraint):
 
 
 class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
+    """
+    Cell2location models the elements of :math:`D` as Negative Binomial distributed,
+    given an unobserved gene expression level (rate) :math:`mu` and a gene- and batch-specific
+    over-dispersion parameter :math:`\alpha_{e,g}` which accounts for unexplained variance:
+
+    .. math::
+        D_{s,g} \sim \mathtt{NB}(\mu_{s,g}, \alpha_{e,g})
+
+    The expression level of genes :math:`\mu_{s,g}` in the mRNA count space is modelled
+    as a linear function of expression signatures of reference cell types :math:`g_{f,g}`:
+
+    .. math::
+        \mu_{s,g} = m_{g} \left (\sum_{f} {w_{s,f} \: g_{f,g}} \right) + l_s + s_{e,g}
+
+    Here, :math:`w_{s,f}` denotes regression weight of each reference signature :math:`f` at location :math:`s`,
+      which can be interpreted as the expected number of cells at location :math:`s`
+      that express reference signature :math:`f`;
+    :math:`g_{f,g}` denotes the reference signatures of cell types :math:`f` of each gene :math:`g`,
+      `cell_state_df` input ;
+    :math:`m_{g}` denotes a gene-specific scaling parameter which adjusts for global differences in sensitivity
+      between technologies (platform effect);
+    :math:`l_{s}` and :math:`s_{e,g}` are additive components that account for gene- and location-specific shift,
+      such as due to contaminating or free-floating RNA.
+
+    To account for the similarity of location patterns across cell types, :math:`w_{s,f}` is modelled using
+    another layer  of decomposition (factorization) using :math:`r={1, .., R}` groups of cell types,
+    that can be interpreted as cellular compartments or tissue zones. Unless stated otherwise, R is set to 50.
+
+    Corresponding graphical model can be found in supplementary methods:
+    https://www.biorxiv.org/content/10.1101/2020.11.15.378125v1.supplementary-material
+
+    Approximate Variational Inference is used to estimate the posterior distribution of all model parameters.
+
+    Estimation of absolute cell abundance `w_{s,f}` is guided using informed prior on the number of cells
+    (argument called `N_cells_per_location`). It is a tissue-level global estimate, which can be derived from histology
+    images (H&E or DAPI), ideally paired to the spatial expression data or at least representing the same tissue type.
+    This parameter can be estimated by manually counting nuclei in a 10-20 locations in the histology image
+    (e.g. using 10X Loupe browser), and computing the average cell abundance.
+    An appropriate setting of this prior is essential to inform the estimation of absolute cell type abundance values,
+    however, the model is robust to a range of similar values.
+    In settings where suitable histology images are not available, the size of capture regions relative to
+    the expected size of cells can be used to estimate `N_cells_per_location`.
+    """
+
     def __init__(
         self,
         n_obs,

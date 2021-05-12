@@ -9,25 +9,6 @@ from ._base import Cell2locationBaseModule, PltExportMixin, TrainSampleMixin
 from ._cell2location_v1_module import LocationModelLinearDependentWMultiExperimentModel
 
 
-def intersect_var(adata, cell_state_df):
-    """
-    Subset adata and cell_state_df to common variables (rows in cell_state_df).
-
-    Parameters
-    ----------
-    adata
-        anndata object
-    cell_state_df
-        pd.DataFrame with variables (genes) in rows and cell types/factors/covariates in columns.
-
-    Returns
-    -------
-
-    """
-    intersect = np.intersect1d(cell_state_df.index, adata.var_names)
-    return adata[:, intersect].copy(), cell_state_df.loc[intersect, :].copy()
-
-
 class Cell2location(TrainSampleMixin, BaseModelClass, PltExportMixin):
     """
     Reimplementation of cell2location [Kleshchevnikov20]_ model. User-end model class.
@@ -39,7 +20,7 @@ class Cell2location(TrainSampleMixin, BaseModelClass, PltExportMixin):
     adata
         spatial AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
     cell_state_df
-        pd.DataFrame with reference expression signatures
+        pd.DataFrame with reference expression signatures for each gene (rows) in each cell type/population (columns).
     use_gpu
         Use the GPU?
     **model_kwargs
@@ -56,9 +37,15 @@ class Cell2location(TrainSampleMixin, BaseModelClass, PltExportMixin):
         adata: AnnData,
         cell_state_df: pd.DataFrame,
         batch_size=None,
-        model=None,
+        model_class=None,
         **model_kwargs,
     ):
+
+        if not np.all(adata.var_names == cell_state_df.index):
+            raise ValueError(
+                "adata.var_names should match cell_state_df.index, find interecting variables/genes first"
+            )
+
         # add index for each cell (provided to pyro plate for correct minibatching)
         adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
         scvi.data.register_tensor_from_anndata(
@@ -70,15 +57,15 @@ class Cell2location(TrainSampleMixin, BaseModelClass, PltExportMixin):
 
         super().__init__(adata)
 
-        if model is None:
-            model = LocationModelLinearDependentWMultiExperimentModel
+        if model_class is None:
+            model_class = LocationModelLinearDependentWMultiExperimentModel
 
         self.cell_state_df_ = cell_state_df
         self.n_factors_ = cell_state_df.shape[1]
         self.factor_names_ = cell_state_df.columns.values
 
         self.module = Cell2locationBaseModule(
-            model=model,
+            model=model_class,
             n_obs=self.summary_stats["n_cells"],
             n_vars=self.summary_stats["n_vars"],
             n_factors=self.n_factors_,
@@ -87,5 +74,5 @@ class Cell2location(TrainSampleMixin, BaseModelClass, PltExportMixin):
             cell_state_mat=self.cell_state_df_.values.astype("float32"),
             **model_kwargs,
         )
-        self._model_summary_string = f'scVI-cell2location Model with the following params: \nn_factors: {self.n_factors_} \nn_batch: {self.summary_stats["n_batch"]} '
+        self._model_summary_string = f'cell2location model with the following params: \nn_factors: {self.n_factors_} \nn_batch: {self.summary_stats["n_batch"]} '
         self.init_params_ = self._get_init_params(locals())
