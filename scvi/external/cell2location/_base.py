@@ -10,6 +10,7 @@ import torch
 from pyro import poutine
 from pyro.infer import SVI
 from pyro.infer.autoguide import AutoNormal, init_to_mean
+from pytorch_lightning.callbacks import Callback
 from tqdm.auto import tqdm
 
 from scvi.dataloaders import AnnDataLoader
@@ -153,6 +154,26 @@ class Cell2locationBaseModule(PyroBaseModuleClass):
         return _data_transform
 
 
+class PyroJitGuideWarmup(Callback):
+    def __init__(self, train_dl) -> None:
+        super().__init__()
+        self.dl = train_dl
+
+    def on_train_start(self, trainer, pl_module):
+        """
+        Way to warmup Pyro Guide in an automated way.
+        Also device agnostic.
+        """
+
+        # warmup guide for JIT
+        pyro_guide = pl_module.module.guide
+        for tensors in self.dl:
+            tens = {k: t.to(pl_module.device) for k, t in tensors.items()}
+            args, kwargs = pl_module.module._get_fn_args_from_batch(tens)
+            pyro_guide(*args, **kwargs)
+            break
+
+
 class TrainSampleMixin:
     """
     Reimplementation of cell2location [Kleshchevnikov20]_ model. This mixin class provides methods for:
@@ -247,8 +268,7 @@ class TrainSampleMixin:
         plan_kwargs: Optional[dict] = None,
         trainer_kwargs: Optional[dict] = None,
         lr: float = 0.01,
-        autoencoding_lr: Optional[float] = None,
-        clip_norm: float = 200,
+        optim_kwargs: Optional[dict] = None,
         early_stopping: bool = False,
         continue_training: bool = True,
     ):
@@ -267,6 +287,8 @@ class TrainSampleMixin:
             Training plan arguments such as optim and loss_fn
         trainer_kwargs
             Arguments for scvi.train.Trainer.
+        optim_kwargs
+            optimiser creation arguments to  such as autoencoding_lr, clip_norm, module_names
         early_stopping
             Bool, use early stopping? (not tested)
         continue_training
@@ -289,20 +311,12 @@ class TrainSampleMixin:
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
         trainer_kwargs = trainer_kwargs if isinstance(trainer_kwargs, dict) else dict()
+        optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
 
         batch_size = self.module.model.batch_size
-        # initialise guide params (warmup)
-        train_dl = AnnDataLoader(self.adata, shuffle=True, batch_size=batch_size)
-        for tensor_dict in train_dl:
-            args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
-            args = [a.to(device) for a in args]
-            kwargs = {k: v.to(device) for k, v in kwargs.items()}
-            self.to_device(device)
-            self.module.guide(*args, **kwargs)
-            break
-        # select optimiser, optionally choosing different lr for autoencoding guide (requires initialised guide)
+        # select optimiser, optionally choosing different lr for different parameters
         plan_kwargs["optim"] = pyro.optim.ClippedAdam(
-            self._optim_param(lr, autoencoding_lr, clip_norm)
+            self._optim_param(lr, **optim_kwargs)
         )
 
         # create data loader for training
@@ -313,7 +327,11 @@ class TrainSampleMixin:
             early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
         )
         trainer = Trainer(
-            gpus=gpus, max_epochs=max_epochs, max_steps=max_steps, **trainer_kwargs
+            gpus=gpus,
+            max_epochs=max_epochs,
+            max_steps=max_steps,
+            callbacks=[PyroJitGuideWarmup(train_dl)],
+            **trainer_kwargs
         )
         trainer.fit(plan, train_dl)
         self.module.to(device)
@@ -341,10 +359,10 @@ class TrainSampleMixin:
 
     def _optim_param(
         self,
-        lr,
-        autoencoding_lr,
-        clip_norm,
-        module_names=["encoder", "hidden2locs", "hidden2scales"],
+        lr: float = 0.01,
+        autoencoding_lr: float = None,
+        clip_norm: float = 200,
+        module_names: list = ["encoder", "hidden2locs", "hidden2scales"],
     ):
         # create function which fetches different lr for autoencoding guide
         def optim_param(module_name, param_name):
