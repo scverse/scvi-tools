@@ -3,16 +3,17 @@ import logging
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.dataloaders import AnnDataLoader
-from scvi.lightning import TrainingPlan
-from scvi.modules import VAE
+from scvi.model.base import UnsupervisedTrainingMixin
+from scvi.module import VAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
 logger = logging.getLogger(__name__)
 
 
-class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
+class SCVI(
+    RNASeqMixin, VAEMixin, ArchesMixin, UnsupervisedTrainingMixin, BaseModelClass
+):
     """
     single-cell Variational Inference [Lopez18]_.
 
@@ -46,10 +47,8 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
-    use_gpu
-        Use the GPU or not.
     **model_kwargs
-        Keyword args for :class:`~scvi.modules.VAE`
+        Keyword args for :class:`~scvi.module.VAE`
 
     Examples
     --------
@@ -59,6 +58,15 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     >>> adata.obsm["X_normalized_scVI"] = vae.get_normalized_expression()
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/user_guide/notebooks/api_overview`
+    2. :doc:`/user_guide/notebooks/harmonization`
+    3. :doc:`/user_guide/notebooks/scarches_scvi_tools`
+    4. :doc:`/user_guide/notebooks/scvi_in_R`
     """
 
     def __init__(
@@ -71,10 +79,9 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        use_gpu: bool = True,
         **model_kwargs,
     ):
-        super(SCVI, self).__init__(adata, use_gpu=use_gpu)
+        super(SCVI, self).__init__(adata)
 
         n_cats_per_cov = (
             self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
@@ -84,6 +91,7 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.module = VAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
+            n_labels=self.summary_stats["n_labels"],
             n_continuous_cov=self.summary_stats["n_continuous_covs"],
             n_cats_per_cov=n_cats_per_cov,
             n_hidden=n_hidden,
@@ -108,11 +116,3 @@ class SCVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())
-
-    @property
-    def _plan_class(self):
-        return TrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader

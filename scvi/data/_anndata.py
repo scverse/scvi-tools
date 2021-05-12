@@ -9,6 +9,7 @@ import anndata
 import numpy as np
 import pandas as pd
 import rich
+from anndata._core.anndata import AnnData
 from pandas.api.types import CategoricalDtype
 from rich.console import Console
 from scipy.sparse import isspmatrix
@@ -87,9 +88,9 @@ def setup_anndata(
     copy: bool = False,
 ) -> Optional[anndata.AnnData]:
     """
-    Sets up :class:`~anndata.AnnData` object for `scvi` models.
+    Sets up :class:`~anndata.AnnData` object for models.
 
-    A mapping will be created between data fields used by `scvi` to their respective locations in adata.
+    A mapping will be created between data fields used by models to their respective locations in adata.
     This method will also compute the log mean and log variance per batch for the library size prior.
 
     None of the data in adata are modified. Only adds fields to adata.
@@ -112,9 +113,9 @@ def setup_anndata(
         key in `adata.uns` for protein names. If None, will use the column names of `adata.obsm[protein_expression_obsm_key]`
         if it is a DataFrame, else will assign sequential names to proteins. Only relevant but not required for :class:`~scvi.model.TOTALVI`.
     categorical_covariate_keys
-        keys in `adata.obs` that correspond to categorical data. Used in some `scvi` models.
+        keys in `adata.obs` that correspond to categorical data. Used in some models.
     continuous_covariate_keys
-        keys in `adata.obs` that correspond to continuous data. Used in some `scvi` models.
+        keys in `adata.obs` that correspond to continuous data. Used in some models.
     copy
         if `True`, a copy of adata is returned.
 
@@ -297,7 +298,7 @@ def _verify_and_correct_data_format(adata, data_registry):
     for k in keys:
         data = get_from_registry(adata, k)
         if isspmatrix(data) and (data.getformat() != "csr"):
-            logger.warning(
+            warnings.warn(
                 "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast before model initialization."
             )
         elif isinstance(data, np.ndarray) and (data.flags["C_CONTIGUOUS"] is False):
@@ -352,6 +353,9 @@ def register_tensor_from_anndata(
     if is_categorical is True:
         if adata_attr_name != "obs":
             raise ValueError("categorical handling only implemented for data in `.obs`")
+
+    if adata_alternate_key_name is None:
+        adata_alternate_key_name = adata_key_name + "_scvi"
 
     if is_categorical is True and adata_attr_name == "obs":
         adata_key_name = _make_obs_column_categorical(
@@ -442,7 +446,7 @@ def transfer_anndata_setup(
         source_cat_dict = _scvi_dict["extra_categoricals"]["mappings"].copy()
         # extend categories
         if extend_categories:
-            for key, mapping in source_cat_dict:
+            for key, mapping in source_cat_dict.items():
                 for c in np.unique(adata_target.obs[key]):
                     if c not in mapping:
                         mapping = np.concatenate([mapping, [c]])
@@ -956,7 +960,7 @@ def view_anndata_setup(source: Union[anndata.AnnData, dict, str]):
 
     n_cat = 0
     n_covs = 0
-    if "extra_categorical_mappings" in setup_dict.keys():
+    if "extra_categoricals" in setup_dict.keys():
         n_cat = len(setup_dict["extra_categoricals"]["mappings"])
     if "extra_continuous_keys" in setup_dict.keys():
         n_covs = len(setup_dict["extra_continuous_keys"])
@@ -1127,7 +1131,9 @@ def _categorical_mappings_table(title: str, scvi_column: str, mappings: dict):
     return t
 
 
-def _check_anndata_setup_equivalence(adata_source, adata_target):
+def _check_anndata_setup_equivalence(
+    adata_source: Union[AnnData, dict], adata_target: AnnData
+) -> bool:
     """
     Checks if target setup is equivalent to source.
 
@@ -1137,6 +1143,10 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
         Either AnnData already setup or scvi_setup_dict as the source
     adata_target
         Target AnnData to check setup equivalence
+
+    Returns
+    -------
+    Whether the adata_target should be run through `transfer_anndata_setup`
     """
     if isinstance(adata_source, anndata.AnnData):
         _scvi_dict = adata_source.uns["_scvi"]
@@ -1173,16 +1183,16 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
     )
 
     # validate any extra categoricals
+    error_msg = (
+        "Registered categorical key order mismatch between "
+        + "the anndata used to train and the anndata passed in."
+        + "Expected categories & order {}. Received {}.\n"
+    )
     if "extra_categoricals" in _scvi_dict.keys():
         target_dict = adata.uns["_scvi"]["extra_categoricals"]
         source_dict = _scvi_dict["extra_categoricals"]
         # check that order of keys setup is same
         if not np.array_equal(target_dict["keys"], source_dict["keys"]):
-            error_msg = (
-                "Registered categorical key order mismatch between "
-                + "the anndata used to train and the anndata passed in."
-                + "Expected categories & order {}. Received {}.\n"
-            )
             raise ValueError(error_msg.format(source_dict["keys"], target_dict["keys"]))
         # check mappings are equivalent
         target_extra_cat_maps = adata.uns["_scvi"]["extra_categoricals"]["mappings"]
@@ -1195,13 +1205,11 @@ def _check_anndata_setup_equivalence(adata_source, adata_target):
             raise ValueError('extra_continuous_keys not in adata.uns["_scvi"]')
         target_cont_keys = adata.uns["_scvi"]["extra_continuous_keys"]
         source_cont_keys = _scvi_dict["extra_continuous_keys"]
-        n_keys = len(target_cont_keys)
-        if np.sum(source_cont_keys == target_cont_keys) != n_keys:
-            raise ValueError(
-                "extra_continous_keys are not the same between source and target"
-            )
-    if transfer_setup:
-        transfer_anndata_setup(adata_source, adata_target)
+        # check that order of keys setup is same
+        if not np.array_equal(target_cont_keys, source_cont_keys):
+            raise ValueError(error_msg.format(source_cont_keys, target_cont_keys))
+
+    return transfer_setup
 
 
 def _needs_transfer(mapping1, mapping2, category):
@@ -1221,7 +1229,7 @@ def _needs_transfer(mapping1, mapping2, category):
         needs_transfer = False
     elif _is_similar_mapping(mapping1, mapping2):
         needs_transfer = True
-        logger.warning(warning_msg.format(category, mapping1, mapping2))
+        warnings.warn(warning_msg.format(category, mapping1, mapping2))
     else:
         raise ValueError(error_msg.format(category, mapping1, mapping2))
     return needs_transfer

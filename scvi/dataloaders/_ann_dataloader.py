@@ -1,13 +1,13 @@
 import copy
 import logging
-from typing import Optional
+from typing import Optional, Union
 
 import anndata
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from scvi.data._anntorchdataset import AnnTorchDataset
+from ._anntorchdataset import AnnTorchDataset
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,10 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         batch size of each iteration
     shuffle
         if ``True``, shuffles indices before sampling
-
+    drop_last
+        if int, drops the last batch if its length is less than drop_last.
+        if drop_last == True, drops last non-full batch.
+        if drop_last == False, iterate over all batches.
     """
 
     def __init__(
@@ -32,18 +35,37 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         indices: np.ndarray,
         batch_size: int,
         shuffle: bool,
-        drop_last: bool = False,
+        drop_last: Union[bool, int] = False,
     ):
         self.indices = indices
         self.n_obs = len(indices)
         self.batch_size = batch_size
         self.shuffle = shuffle
 
+        if drop_last > batch_size:
+            raise ValueError(
+                "drop_last can't be greater than batch_size. "
+                + "drop_last is {} but batch_size is {}.".format(drop_last, batch_size)
+            )
+
+        last_batch_len = self.n_obs % self.batch_size
+        if (drop_last is True) or (last_batch_len < drop_last):
+            drop_last_n = last_batch_len
+        elif (drop_last is False) or (last_batch_len >= drop_last):
+            drop_last_n = 0
+        else:
+            raise ValueError("Invalid input for drop_last param. Must be bool or int.")
+
+        self.drop_last_n = drop_last_n
+
     def __iter__(self):
         if self.shuffle is True:
-            idx = torch.randperm(len(self.indices)).tolist()
+            idx = torch.randperm(self.n_obs).tolist()
         else:
-            idx = torch.arange(len(self.indices)).tolist()
+            idx = torch.arange(self.n_obs).tolist()
+
+        if self.drop_last_n != 0:
+            idx = idx[: -self.drop_last_n]
 
         data_iter = iter(
             [
@@ -56,14 +78,16 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
     def __len__(self):
         from math import ceil
 
-        length = ceil(self.n_obs / self.batch_size)
-
+        if self.drop_last_n != 0:
+            length = self.n_obs // self.batch_size
+        else:
+            length = ceil(self.n_obs / self.batch_size)
         return length
 
 
 class AnnDataLoader(DataLoader):
     """
-    Scvi Data Loader for loading tensors from AnnData objects.
+    DataLoader for loading tensors from AnnData objects.
 
     Parameters
     ----------
@@ -90,6 +114,7 @@ class AnnDataLoader(DataLoader):
         indices=None,
         batch_size=128,
         data_and_attributes: Optional[dict] = None,
+        drop_last: Union[bool, int] = False,
         **data_loader_kwargs,
     ):
 
@@ -111,6 +136,7 @@ class AnnDataLoader(DataLoader):
         sampler_kwargs = {
             "batch_size": batch_size,
             "shuffle": shuffle,
+            "drop_last": drop_last,
         }
 
         if indices is None:

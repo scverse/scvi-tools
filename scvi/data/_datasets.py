@@ -10,6 +10,7 @@ from ._built_in_data._cite_seq import (
 from ._built_in_data._cortex import _load_cortex
 from ._built_in_data._csv import _load_breast_cancer_dataset, _load_mouse_ob_dataset
 from ._built_in_data._dataset_10x import _load_dataset_10x
+from ._built_in_data._heartcellatlas import _load_heart_cell_atlas_subsampled
 from ._built_in_data._loom import (
     _load_annotation_simulation,
     _load_frontalcortex_dropseq,
@@ -470,7 +471,7 @@ def spleen_lymph_cite_seq(
     run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
     """
-    Immune cells from the murine spleen and lymph nodes [GayosoSteier20]_.
+    Immune cells from the murine spleen and lymph nodes [GayosoSteier21]_.
 
     This dataset was used throughout the totalVI manuscript, and named SLN-all.
 
@@ -630,5 +631,50 @@ def synthetic_iid(
         n_proteins=n_proteins,
         n_batches=n_batches,
         n_labels=n_labels,
+        run_setup_anndata=run_setup_anndata,
+    )
+
+
+def heart_cell_atlas_subsampled(
+    save_path: str = "data/",
+    remove_nuisance_clusters: bool = True,
+    run_setup_anndata: bool = True,
+) -> anndata.AnnData:
+    """
+    Combined single cell and single nuclei RNA-Seq data of 485K cardiac cells with annotations.
+
+    Dataset was filtered down randomly to 20k cells using :func:`~scanpy.pp.subsample`. The original
+    data can be downloaded from https://www.heartcellatlas.org/#DataSources.
+
+    Parameters
+    ----------
+    save_path
+        Location to use when saving/loading the data.
+    remove_nuisance_clusters
+        Remove doublets and unsassigned cells
+    run_setup_anndata
+        If true, runs setup_anndata() on dataset before returning
+
+    Returns
+    -------
+    AnnData
+
+    Notes
+    -----
+    The data were filtered using the following sequence::
+
+        >>> adata = anndata.read_h5ad(path_to_anndata)
+        >>> bdata = sc.pp.subsample(adata, n_obs=20000, copy=True)
+        >>> sc.pp.filter_genes(bdata, min_counts=3)
+        >>> bdata.write_h5ad(path, compression="gzip")
+
+    Examples
+    --------
+    >>> import scvi
+    >>> adata = scvi.data.heart_cell_atlas_subsampled()
+    """
+    return _load_heart_cell_atlas_subsampled(
+        save_path=save_path,
+        remove_nuisance_clusters=remove_nuisance_clusters,
         run_setup_anndata=run_setup_anndata,
     )

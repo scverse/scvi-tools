@@ -1,15 +1,16 @@
 import os
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 import pytest
 
 import scvi
-from scvi.data import synthetic_iid, setup_anndata
-from scvi.model import SCVI, SCANVI, TOTALVI
+from scvi.data import setup_anndata, synthetic_iid
+from scvi.model import PEAKVI, SCANVI, SCVI, TOTALVI
 
 
 def single_pass_for_online_update(model):
-    dl = model._make_scvi_dl(model.adata, indices=range(0, 10))
+    dl = model._make_data_loader(model.adata, indices=range(0, 10))
     for i_batch, tensors in enumerate(dl):
         _, _, scvi_loss = model.module(tensors)
     scvi_loss.loss.backward()
@@ -88,6 +89,9 @@ def test_scvi_online_update(save_path):
     assert np.sum(grad[:, :-4]) == 0
     # categorical part has non-zero grad
     assert np.sum(grad[:, -4:]) != 0
+    grad = model2.module.decoder.px_decoder.fc_layers[0][0].weight.grad.cpu().numpy()
+    # linear layer weight in decoder layer has non-zero grad
+    assert np.sum(grad[:, :-4]) == 0
 
     # do not freeze expression
     model3 = SCVI.load_query_data(
@@ -165,10 +169,18 @@ def test_scanvi_online_update(save_path):
 
     # test classifier frozen
     class_query_weight = (
-        model2.module.classifier.classifier[0].fc_layers[0][0].weight.detach().numpy()
+        model2.module.classifier.classifier[0]
+        .fc_layers[0][0]
+        .weight.detach()
+        .cpu()
+        .numpy()
     )
     class_ref_weight = (
-        model.module.classifier.classifier[0].fc_layers[0][0].weight.detach().numpy()
+        model.module.classifier.classifier[0]
+        .fc_layers[0][0]
+        .weight.detach()
+        .cpu()
+        .numpy()
     )
     # weight decay makes difference
     np.testing.assert_allclose(class_query_weight, class_ref_weight, atol=1e-07)
@@ -179,10 +191,18 @@ def test_scanvi_online_update(save_path):
     model2._labeled_indices = []
     model2.train(max_epochs=1)
     class_query_weight = (
-        model2.module.classifier.classifier[0].fc_layers[0][0].weight.detach().numpy()
+        model2.module.classifier.classifier[0]
+        .fc_layers[0][0]
+        .weight.detach()
+        .cpu()
+        .numpy()
     )
     class_ref_weight = (
-        model.module.classifier.classifier[0].fc_layers[0][0].weight.detach().numpy()
+        model.module.classifier.classifier[0]
+        .fc_layers[0][0]
+        .weight.detach()
+        .cpu()
+        .numpy()
     )
     with pytest.raises(AssertionError):
         np.testing.assert_allclose(class_query_weight, class_ref_weight, atol=1e-07)
@@ -192,7 +212,7 @@ def test_scanvi_online_update(save_path):
     ref = a[a.obs["labels"] != "label_2"].copy()  # only has labels 0 and 1
     scvi.data.setup_anndata(ref, batch_key="batch", labels_key="labels")
     m = SCANVI(ref, "label_2")
-    m.train(1, 1)
+    m.train(max_epochs=1)
     m.save(save_path, overwrite=True)
     query = a[a.obs["labels"] != "label_0"].copy()
     query = scvi.data.synthetic_iid()  # has labels 0 and 2. 2 is unknown
@@ -231,3 +251,86 @@ def test_totalvi_online_update(save_path):
     model3.module.protein_batch_mask[3]
     model3.train(max_epochs=1)
     model3.get_latent_representation()
+
+
+def test_peakvi_online_update(save_path):
+    n_latent = 5
+    adata1 = synthetic_iid()
+    model = PEAKVI(adata1, n_latent=n_latent)
+    model.train(1, save_best=False)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    # also test subset var option
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+
+    model2 = PEAKVI.load_query_data(adata2, dir_path)
+    model2.train(max_epochs=1, weight_decay=0.0, save_best=False)
+    model2.get_latent_representation()
+
+    # encoder linear layer equal for peak features
+    one = (
+        model.module.z_encoder.encoder.fc_layers[0][0]
+        .weight.detach()
+        .cpu()
+        .numpy()[:, : adata1.shape[1]]
+    )
+    two = (
+        model2.module.z_encoder.encoder.fc_layers[0][0]
+        .weight.detach()
+        .cpu()
+        .numpy()[:, : adata1.shape[1]]
+    )
+    np.testing.assert_equal(one, two)
+    assert (
+        np.sum(
+            model2.module.z_encoder.encoder.fc_layers[0][0]
+            .weight.grad.cpu()
+            .numpy()[:, : adata1.shape[1]]
+        )
+        == 0
+    )
+
+    # test options
+    adata1 = synthetic_iid()
+    model = PEAKVI(
+        adata1,
+        n_latent=n_latent,
+        encode_covariates=True,
+    )
+    model.train(1, check_val_every_n_epoch=1, save_best=False)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+
+    model2 = PEAKVI.load_query_data(adata2, dir_path, freeze_expression=True)
+    model2.train(max_epochs=1, weight_decay=0.0, save_best=False)
+    # deactivate no grad decorator
+    model2.get_latent_representation()
+    # pytorch lightning zeros the grad, so this will get a grad to inspect
+    single_pass_for_online_update(model2)
+    grad = model2.module.z_encoder.encoder.fc_layers[0][0].weight.grad.cpu().numpy()
+    # expression part has zero grad
+    assert np.sum(grad[:, :-4]) == 0
+    # categorical part has non-zero grad
+    assert np.count_nonzero(grad[:, -4:]) > 0
+
+    # do not freeze expression
+    model3 = PEAKVI.load_query_data(
+        adata2,
+        dir_path,
+        freeze_expression=False,
+        freeze_decoder_first_layer=False,
+    )
+    model3.train(max_epochs=1, save_best=False, weight_decay=0.0)
+    model3.get_latent_representation()
+    single_pass_for_online_update(model3)
+    grad = model3.module.z_encoder.encoder.fc_layers[0][0].weight.grad.cpu().numpy()
+    # linear layer weight in encoder layer has non-zero grad
+    assert np.count_nonzero(grad[:, :-4]) != 0
+    grad = model3.module.z_decoder.px_decoder.fc_layers[0][0].weight.grad.cpu().numpy()
+    # linear layer weight in decoder layer has non-zero grad
+    assert np.count_nonzero(grad[:, :-4]) != 0

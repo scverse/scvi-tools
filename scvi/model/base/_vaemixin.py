@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Dict, Optional, Sequence, Union
 
 import numpy as np
@@ -12,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class VAEMixin:
+    """Univseral VAE methods."""
+
     @torch.no_grad()
     def get_elbo(
         self,
@@ -36,7 +39,9 @@ class VAEMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         elbo = compute_elbo(self.module, scdl)
         return -elbo
 
@@ -69,11 +74,13 @@ class VAEMixin:
         adata = self._validate_anndata(adata)
         if indices is None:
             indices = np.arange(adata.n_obs)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         if hasattr(self.module, "marginal_ll"):
             log_lkl = 0
             for tensors in scdl:
-                log_lkl = self.module.marginal_ll(tensors, n_mc_samples=n_mc_samples)
+                log_lkl += self.module.marginal_ll(tensors, n_mc_samples=n_mc_samples)
         else:
             raise NotImplementedError(
                 "marginal_ll is not implemented for current model. "
@@ -106,7 +113,9 @@ class VAEMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         reconstruction_error = compute_reconstruction_error(self.module, scdl)
         return reconstruction_error
 
@@ -145,10 +154,20 @@ class VAEMixin:
             Low-dimensional representation for each cell
         """
         if self.is_trained_ is False:
-            raise RuntimeError("Please train the model first.")
+            warnings.warn("Model hasn't been trained yet, results will be random.")
+        elif self.device.type != self.train_device_.type:
+            warnings.warn(
+                f"""Model trained with {self.train_device_} but currently on {self.device}. You may experience
+                 reproducibility issues: https://github.com/YosefLab/scvi-tools/issues/1048.
+                 This is expected behavior: https://github.com/pytorch/pytorch/issues/38219.
+                 Move the model back to the train device for reproducibility
+                 model.to_device('{self.train_device_}')"""
+            )
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_scvi_dl(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         latent = []
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)
@@ -167,4 +186,4 @@ class VAEMixin:
                     z = qz_m
 
             latent += [z.cpu()]
-        return np.array(torch.cat(latent))
+        return torch.cat(latent).numpy()

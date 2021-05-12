@@ -4,17 +4,16 @@ import pandas as pd
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.dataloaders import AnnDataLoader
-from scvi.lightning import TrainingPlan
 from scvi.model._utils import _get_var_names_from_setup_anndata
-from scvi.modules import LDVAE
+from scvi.model.base import UnsupervisedTrainingMixin
+from scvi.module import LDVAE
 
 from .base import BaseModelClass, RNASeqMixin, VAEMixin
 
 logger = logging.getLogger(__name__)
 
 
-class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
+class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     Linearly-decoded VAE [Svensson20]_.
 
@@ -48,10 +47,8 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
-    use_gpu
-        Use the GPU or not.
     **model_kwargs
-        Keyword args for :class:`~scvi.modules.LDVAE`
+        Keyword args for :class:`~scvi.module.LDVAE`
 
     Examples
     --------
@@ -60,6 +57,12 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
     >>> vae = scvi.model.LinearSCVI(adata)
     >>> vae.train()
     >>> adata.var["loadings"] = vae.get_loadings()
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/user_guide/notebooks/linear_decoder`
     """
 
     def __init__(
@@ -72,10 +75,9 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        use_gpu: bool = True,
         **model_kwargs,
     ):
-        super(LinearSCVI, self).__init__(adata, use_gpu=use_gpu)
+        super(LinearSCVI, self).__init__(adata)
         self.module = LDVAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=self.summary_stats["n_batch"],
@@ -102,14 +104,6 @@ class LinearSCVI(RNASeqMixin, VAEMixin, BaseModelClass):
         )
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())
-
-    @property
-    def _plan_class(self):
-        return TrainingPlan
-
-    @property
-    def _data_loader_cls(self):
-        return AnnDataLoader
 
     def get_loadings(self) -> pd.DataFrame:
         """

@@ -1,19 +1,41 @@
 import os
+import tarfile
+
+import anndata
 import numpy as np
 import pytest
+from pytorch_lightning.callbacks import LearningRateMonitor
+from scipy.sparse import csr_matrix
+from torch.nn import Softplus
 
 import scvi
-from scvi.data import synthetic_iid, transfer_anndata_setup, setup_anndata
-from scvi.model import SCVI, SCANVI, TOTALVI, LinearSCVI, AUTOZI, PEAKVI
-from scvi.dataloaders import SemiSupervisedDataLoader
-
-from scipy.sparse import csr_matrix
+from scvi.data import setup_anndata, synthetic_iid, transfer_anndata_setup
+from scvi.data._built_in_data._download import _download
+from scvi.dataloaders import (
+    AnnDataLoader,
+    DataSplitter,
+    SemiSupervisedDataLoader,
+    SemiSupervisedDataSplitter,
+)
+from scvi.model import (
+    AUTOZI,
+    PEAKVI,
+    SCANVI,
+    SCVI,
+    TOTALVI,
+    CondSCVI,
+    DestVI,
+    LinearSCVI,
+)
 
 
 def test_scvi(save_path):
     n_latent = 5
     adata = synthetic_iid()
     model = SCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    model = SCVI(adata, n_latent=n_latent, var_activation=Softplus())
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # tests __repr__
@@ -24,13 +46,13 @@ def test_scvi(save_path):
     assert z.shape == (adata.shape[0], n_latent)
     assert len(model.history["elbo_train"]) == 1
     model.get_elbo()
-    model.get_marginal_ll()
+    model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()
     model.get_normalized_expression(transform_batch="batch_1")
 
     adata2 = synthetic_iid()
     model.get_elbo(adata2)
-    model.get_marginal_ll(adata2)
+    model.get_marginal_ll(adata2, n_mc_samples=3)
     model.get_reconstruction_error(adata2)
     latent = model.get_latent_representation(adata2, indices=[1, 2, 3])
     assert latent.shape == (3, n_latent)
@@ -141,6 +163,22 @@ def test_scvi(save_path):
     m.get_normalized_expression(transform_batch=1)
     m.get_normalized_expression(transform_batch=[0, 1])
 
+    # test get_likelihood_parameters() when dispersion=='gene-cell'
+    model = SCVI(adata, dispersion="gene-cell")
+    model.get_likelihood_parameters()
+
+    # test train callbacks work
+    a = synthetic_iid()
+    m = scvi.model.SCVI(a)
+    lr_monitor = LearningRateMonitor()
+    m.train(
+        callbacks=[lr_monitor],
+        max_epochs=10,
+        log_every_n_steps=1,
+        plan_kwargs={"reduce_lr_on_plateau": True},
+    )
+    assert "lr-Adam" in m.history.keys()
+
 
 def test_scvi_sparse(save_path):
     n_latent = 5
@@ -153,7 +191,7 @@ def test_scvi_sparse(save_path):
     z = model.get_latent_representation()
     assert z.shape == (adata.shape[0], n_latent)
     model.get_elbo()
-    model.get_marginal_ll()
+    model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()
     model.get_normalized_expression()
     model.differential_expression(groupby="labels", group1="label_1")
@@ -181,7 +219,7 @@ def test_saving_and_loading(save_path):
     save_path = os.path.join(save_path, "tmp")
     adata = synthetic_iid()
 
-    for cls in [SCVI, LinearSCVI, TOTALVI]:
+    for cls in [SCVI, LinearSCVI, TOTALVI, PEAKVI]:
         print(cls)
         test_save_load_model(cls, adata, save_path)
 
@@ -217,6 +255,63 @@ def test_saving_and_loading(save_path):
     assert model.is_trained is True
 
 
+@pytest.mark.internet
+def test_backwards_compatible_loading(save_path):
+    def download_080_models(save_path):
+        file_path = (
+            "https://github.com/yoseflab/scVI-data/raw/master/testing_models.tar.gz"
+        )
+        save_fn = "testing_models.tar.gz"
+        _download(file_path, save_path, save_fn)
+        saved_file_path = os.path.join(save_path, save_fn)
+        tar = tarfile.open(saved_file_path, "r:gz")
+        tar.extractall(path=save_path)
+        tar.close()
+
+    download_080_models(save_path)
+    pretrained_scvi_path = os.path.join(save_path, "testing_models/080_scvi")
+    a = scvi.data.synthetic_iid()
+    m = scvi.model.SCVI.load(pretrained_scvi_path, a)
+    m.train(1)
+    pretrained_totalvi_path = os.path.join(save_path, "testing_models/080_totalvi")
+    m = scvi.model.TOTALVI.load(pretrained_totalvi_path, a)
+    m.train(1)
+
+
+def test_backed_anndata_scvi(save_path):
+    adata = scvi.data.synthetic_iid()
+    path = os.path.join(save_path, "test_data.h5ad")
+    adata.write_h5ad(path)
+    adata = anndata.read_h5ad(path, backed="r+")
+    setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata, n_latent=5)
+    model.train(1, train_size=0.5)
+    assert model.is_trained is True
+    z = model.get_latent_representation()
+    assert z.shape == (adata.shape[0], 5)
+    model.get_elbo()
+
+
+def test_ann_dataloader():
+    a = scvi.data.synthetic_iid()
+
+    # test that batch sampler drops the last batch if it has less than 3 cells
+    assert a.n_obs == 400
+    adl = AnnDataLoader(a, batch_size=397, drop_last=3)
+    assert len(adl) == 2
+    for i, x in enumerate(adl):
+        pass
+    assert i == 1
+    adl = AnnDataLoader(a, batch_size=398, drop_last=3)
+    assert len(adl) == 1
+    for i, x in enumerate(adl):
+        pass
+    assert i == 0
+    with pytest.raises(ValueError):
+        AnnDataLoader(a, batch_size=1, drop_last=2)
+
+
 def test_semisupervised_dataloader():
     # test label resampling
     n_samples_per_label = 10
@@ -237,6 +332,100 @@ def test_semisupervised_dataloader():
     assert np.sum(labeled_dl_idx == resampled_labeled_dl_idx) != len(labeled_dl_idx)
 
 
+def test_data_splitter():
+    a = synthetic_iid()
+    # test leaving validataion_size empty works
+    ds = DataSplitter(a, train_size=0.4)
+    # check the number of indices
+    train_dl, val_dl, test_dl = ds()
+    n_train_idx = len(train_dl.indices)
+    n_validation_idx = len(val_dl.indices)
+    n_test_idx = len(test_dl.indices)
+
+    assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
+    assert np.isclose(n_train_idx / a.n_obs, 0.4)
+    assert np.isclose(n_validation_idx / a.n_obs, 0.6)
+    assert np.isclose(n_test_idx / a.n_obs, 0)
+
+    # test test size
+    ds = DataSplitter(a, train_size=0.4, validation_size=0.3)
+    # check the number of indices
+    train_dl, val_dl, test_dl = ds()
+    n_train_idx = len(train_dl.indices)
+    n_validation_idx = len(val_dl.indices)
+    n_test_idx = len(test_dl.indices)
+
+    assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
+    assert np.isclose(n_train_idx / a.n_obs, 0.4)
+    assert np.isclose(n_validation_idx / a.n_obs, 0.3)
+    assert np.isclose(n_test_idx / a.n_obs, 0.3)
+
+    # test that 0 < train_size <= 1
+    with pytest.raises(ValueError):
+        ds = DataSplitter(a, train_size=2)
+        ds()
+    with pytest.raises(ValueError):
+        ds = DataSplitter(a, train_size=-2)
+        ds()
+
+    # test that 0 <= validation_size < 1
+    with pytest.raises(ValueError):
+        ds = DataSplitter(a, train_size=0.1, validation_size=1)
+        ds()
+    with pytest.raises(ValueError):
+        ds = DataSplitter(a, train_size=0.1, validation_size=-1)
+        ds()
+
+    # test that train_size + validation_size <= 1
+    with pytest.raises(ValueError):
+        ds = DataSplitter(a, train_size=1, validation_size=0.1)
+        ds()
+
+
+def test_semisupervised_data_splitter():
+    a = synthetic_iid()
+    ds = SemiSupervisedDataSplitter(a, "asdf")
+    # check the number of indices
+    train_dl, val_dl, test_dl = ds()
+    n_train_idx = len(train_dl.indices)
+    n_validation_idx = len(val_dl.indices)
+    n_test_idx = len(test_dl.indices)
+
+    assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
+    assert np.isclose(n_train_idx / a.n_obs, 0.9)
+    assert np.isclose(n_validation_idx / a.n_obs, 0.1)
+    assert np.isclose(n_test_idx / a.n_obs, 0)
+
+    # test mix of labeled and unlabeled data
+    unknown_label = "label_0"
+    ds = SemiSupervisedDataSplitter(a, unknown_label)
+    train_dl, val_dl, test_dl = ds()
+
+    # check the number of indices
+    n_train_idx = len(train_dl.indices)
+    n_validation_idx = len(val_dl.indices)
+    n_test_idx = len(test_dl.indices)
+    assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
+    assert np.isclose(n_train_idx / a.n_obs, 0.9, rtol=0.05)
+    assert np.isclose(n_validation_idx / a.n_obs, 0.1, rtol=0.05)
+    assert np.isclose(n_test_idx / a.n_obs, 0, rtol=0.05)
+
+    # check that training indices have proper mix of labeled and unlabeled data
+    labelled_idx = np.where(a.obs["labels"] != unknown_label)[0]
+    unlabelled_idx = np.where(a.obs["labels"] == unknown_label)[0]
+    # labeled training idx
+    labeled_train_idx = [i for i in train_dl.indices if i in labelled_idx]
+    # unlabeled training idx
+    unlabeled_train_idx = [i for i in train_dl.indices if i in unlabelled_idx]
+    n_labeled_idx = len(labelled_idx)
+    n_unlabeled_idx = len(unlabelled_idx)
+    # labeled vs unlabeled ratio in adata
+    adata_ratio = n_unlabeled_idx / n_labeled_idx
+    # labeled vs unlabeled ratio in train set
+    train_ratio = len(unlabeled_train_idx) / len(labeled_train_idx)
+    assert np.isclose(adata_ratio, train_ratio, atol=0.05)
+
+
 def test_scanvi(save_path):
     adata = synthetic_iid()
     model = SCANVI(adata, "label_0", n_latent=10)
@@ -248,6 +437,7 @@ def test_scanvi(save_path):
     assert "elbo_train" in logged_keys
     assert "reconstruction_loss_train" in logged_keys
     assert "kl_local_train" in logged_keys
+    assert "classification_loss_validation" in logged_keys
     adata2 = synthetic_iid()
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3
@@ -265,44 +455,22 @@ def test_scanvi(save_path):
     m = scvi.model.SCANVI(a, unknown_label)
     m.train(1)
 
-    # check the number of indices
-    n_train_idx = len(m.train_indices)
-    n_validation_idx = len(m.validation_indices)
-    n_test_idx = len(m.test_indices)
-    assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
-    assert np.isclose(n_train_idx / a.n_obs, 0.9)
-    assert np.isclose(n_validation_idx / a.n_obs, 0.1)
-    assert np.isclose(n_test_idx / a.n_obs, 0)
-
     # test mix of labeled and unlabeled data
     unknown_label = "label_0"
     a = scvi.data.synthetic_iid()
     scvi.data.setup_anndata(a, batch_key="batch", labels_key="labels")
     m = scvi.model.SCANVI(a, unknown_label)
     m.train(1, train_size=0.9)
-    # check the number of indices
-    n_train_idx = len(m.train_indices)
-    n_validation_idx = len(m.validation_indices)
-    n_test_idx = len(m.test_indices)
-    assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
-    assert np.isclose(n_train_idx / a.n_obs, 0.9, rtol=0.05)
-    assert np.isclose(n_validation_idx / a.n_obs, 0.1, rtol=0.05)
-    assert np.isclose(n_test_idx / a.n_obs, 0, rtol=0.05)
 
-    # check that training indices have proper mix of labeled and unlabeled data
-    labelled_idx = np.where(a.obs["labels"] != unknown_label)[0]
-    unlabelled_idx = np.where(a.obs["labels"] == unknown_label)[0]
-    # labeled training idx
-    labeled_train_idx = [i for i in m.train_indices if i in labelled_idx]
-    # unlabeled training idx
-    unlabeled_train_idx = [i for i in m.train_indices if i in unlabelled_idx]
-    n_labeled_idx = len(m._labeled_indices)
-    n_unlabeled_idx = len(m._unlabeled_indices)
-    # labeled vs unlabeled ratio in adata
-    adata_ratio = n_unlabeled_idx / n_labeled_idx
-    # labeled vs unlabeled ratio in train set
-    train_ratio = len(unlabeled_train_idx) / len(labeled_train_idx)
-    assert np.isclose(adata_ratio, train_ratio, atol=0.05)
+    # test from_scvi_model
+    a = scvi.data.synthetic_iid()
+    m = scvi.model.SCVI(a, use_observed_lib_size=False)
+    a2 = scvi.data.synthetic_iid()
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(m, "label_0", adata=a2)
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(
+        m, "label_0", use_labels_groups=False
+    )
+    scanvi_model.train(1)
 
 
 def test_linear_scvi(save_path):
@@ -331,7 +499,7 @@ def test_autozi():
         assert len(autozivae.history["elbo_validation"]) == 1
         autozivae.get_elbo(indices=autozivae.validation_indices)
         autozivae.get_reconstruction_error(indices=autozivae.validation_indices)
-        autozivae.get_marginal_ll(indices=autozivae.validation_indices)
+        autozivae.get_marginal_ll(indices=autozivae.validation_indices, n_mc_samples=3)
         autozivae.get_alphas_betas()
 
 
@@ -348,7 +516,7 @@ def test_totalvi(save_path):
     z = model.get_latent_representation()
     assert z.shape == (n_obs, n_latent)
     model.get_elbo()
-    model.get_marginal_ll()
+    model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()
     model.get_normalized_expression()
     model.get_normalized_expression(transform_batch=["batch_0", "batch_1"])
@@ -379,7 +547,7 @@ def test_totalvi(save_path):
     # model.get_likelihood_parameters()
 
     model.get_elbo(indices=model.validation_indices)
-    model.get_marginal_ll(indices=model.validation_indices)
+    model.get_marginal_ll(indices=model.validation_indices, n_mc_samples=3)
     model.get_reconstruction_error(indices=model.validation_indices)
 
     adata2 = synthetic_iid()
@@ -497,3 +665,49 @@ def test_peakvi():
     vae.get_reconstruction_error(indices=vae.validation_indices)
     vae.get_latent_representation()
     vae.differential_accessibility(groupby="labels", group1="label_1")
+
+
+def test_condscvi(save_path):
+    dataset = synthetic_iid(n_labels=5)
+    model = CondSCVI(dataset)
+    model.train(1, train_size=1)
+    model.get_latent_representation()
+    model.get_vamp_prior(dataset)
+
+    model = CondSCVI(dataset, weight_obs=True)
+    model.train(1, train_size=1)
+    model.get_latent_representation()
+    model.get_vamp_prior(dataset)
+
+
+def test_destvi(save_path):
+    # Step1 learn CondSCVI
+    n_latent = 2
+    n_labels = 5
+    n_layers = 2
+    dataset = synthetic_iid(n_labels=n_labels)
+    sc_model = CondSCVI(dataset, n_latent=n_latent, n_layers=n_layers)
+    sc_model.train(1, train_size=1)
+
+    # step 2 learn destVI with multiple amortization scheme
+
+    for amor_scheme in ["both", "none", "proportion", "latent"]:
+        spatial_model = DestVI.from_rna_model(
+            dataset,
+            sc_model,
+            amortization=amor_scheme,
+        )
+        spatial_model.train(max_epochs=1)
+        assert not np.isnan(spatial_model.history["elbo_train"].values[0][0])
+
+        assert spatial_model.get_proportions().shape == (dataset.n_obs, n_labels)
+        assert spatial_model.get_gamma(return_numpy=True).shape == (
+            dataset.n_obs,
+            n_latent,
+            n_labels,
+        )
+
+        assert spatial_model.get_scale_for_ct("label_0", np.arange(50)).shape == (
+            50,
+            dataset.n_vars,
+        )

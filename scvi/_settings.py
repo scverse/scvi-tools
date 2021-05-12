@@ -9,7 +9,6 @@ from rich.logging import RichHandler
 
 from ._compat import Literal
 
-logger = logging.getLogger(__name__)
 scvi_logger = logging.getLogger("scvi")
 
 
@@ -19,8 +18,26 @@ class ScviConfig:
 
     Examples
     --------
-    >>> import scvi
+    To set the seed
+
     >>> scvi.settings.seed = 1
+
+    To set the batch size for functions like `SCVI.get_latent_representation`
+
+    >>> scvi.settings.batch_size = 1024
+
+    To set the progress bar style, choose one of "rich", "tqdm"
+
+    >>> scvi.settings.progress_bar_style = "rich"
+
+    To set the verbosity
+
+    >>> import logging
+    >>> scvi.settings.verbosity = logging.INFO
+
+    To set the number of threads PyTorch will use
+
+    >>> scvi.settings.num_threads = 2
     """
 
     def __init__(
@@ -43,6 +60,7 @@ class ScviConfig:
         self.logging_dir = logging_dir
         self.dl_num_workers = dl_num_workers
         self.dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
+        self._num_threads = None
 
     @property
     def batch_size(self) -> int:
@@ -94,6 +112,17 @@ class ScviConfig:
         self._logging_dir = Path(logging_dir).resolve()
 
     @property
+    def num_threads(self) -> None:
+        """Number of threads PyTorch will use."""
+        return self._num_threads
+
+    @num_threads.setter
+    def num_threads(self, num: int):
+        """Number of threads PyTorch will use."""
+        self._num_threads = num
+        torch.set_num_threads(num)
+
+    @property
     def progress_bar_style(self) -> str:
         """Library to use for progress bar."""
         return self._pbar_style
@@ -127,23 +156,19 @@ class ScviConfig:
         """
         Sets logging configuration for scvi based on chosen level of verbosity.
 
-        Sets "scvi" logging level to `level`
         If "scvi" logger has no StreamHandler, add one.
         Else, set its level to `level`.
+
+        Parameters
+        ----------
+        level
+            Sets "scvi" logging level to `level`
+        force_terminal
+            Rich logging option, set to False if piping to file output.
         """
         self._verbosity = level
         scvi_logger.setLevel(level)
-        has_streamhandler = False
-        for handler in scvi_logger.handlers:
-            if isinstance(handler, RichHandler):
-                handler.setLevel(level)
-                logger.info(
-                    "'scvi' logger already has a StreamHandler, set its level to {}.".format(
-                        level
-                    )
-                )
-                has_streamhandler = True
-        if not has_streamhandler:
+        if len(scvi_logger.handlers) == 0:
             console = Console(force_terminal=True)
             if console.is_jupyter is True:
                 console.is_jupyter = False
@@ -151,7 +176,20 @@ class ScviConfig:
             formatter = logging.Formatter("%(message)s")
             ch.setFormatter(formatter)
             scvi_logger.addHandler(ch)
-            logger.debug("Added StreamHandler with custom formatter to 'scvi' logger.")
+        else:
+            scvi_logger.setLevel(level)
+
+    def reset_logging_handler(self):
+        """
+        Resets "scvi" log handler to a basic RichHandler().
+
+        This is useful if piping outputs to a file.
+        """
+        scvi_logger.removeHandler(scvi_logger.handlers[0])
+        ch = RichHandler(show_path=False, show_time=False)
+        formatter = logging.Formatter("%(message)s")
+        ch.setFormatter(formatter)
+        scvi_logger.addHandler(ch)
 
 
 settings = ScviConfig()

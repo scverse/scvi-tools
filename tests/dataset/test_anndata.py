@@ -1,23 +1,24 @@
-import numpy as np
 import os
 import random
-import pandas as pd
-import scipy.sparse as sparse
 
 import anndata
+import numpy as np
+import pandas as pd
 import pytest
-import scvi
+import scipy.sparse as sparse
+from scipy.sparse.csr import csr_matrix
 
-from scvi.data._anntorchdataset import AnnTorchDataset
-from scvi.data import synthetic_iid
+import scvi
+from scvi import _CONSTANTS
 from scvi.data import (
-    setup_anndata,
-    transfer_anndata_setup,
     register_tensor_from_anndata,
+    setup_anndata,
+    synthetic_iid,
+    transfer_anndata_setup,
     view_anndata_setup,
 )
-from scvi import _CONSTANTS
 from scvi.data._anndata import get_from_registry
+from scvi.dataloaders import AnnTorchDataset
 
 
 def test_transfer_anndata_setup():
@@ -245,6 +246,38 @@ def test_extra_covariates():
     pd.testing.assert_frame_equal(df1, df2)
 
 
+def test_extra_covariates_transfer():
+    adata = synthetic_iid()
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    bdata = synthetic_iid()
+    bdata.obs["cont1"] = np.random.normal(size=(bdata.shape[0],))
+    bdata.obs["cont2"] = np.random.normal(size=(bdata.shape[0],))
+    bdata.obs["cat1"] = 0
+    bdata.obs["cat2"] = 1
+
+    transfer_anndata_setup(adata_source=adata, adata_target=bdata)
+
+    # give it a new category
+    del bdata.uns["_scvi"]
+    bdata.obs["cat1"] = 6
+    transfer_anndata_setup(
+        adata_source=adata, adata_target=bdata, extend_categories=True
+    )
+    assert bdata.uns["_scvi"]["extra_categoricals"]["mappings"]["cat1"][-1] == 6
+
+
 def test_register_tensor_from_anndata():
     adata = synthetic_iid()
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
@@ -395,3 +428,27 @@ def test_saving(save_path):
     )
     adata.write(save_path)
     anndata.read(save_path)
+
+
+def test_backed_anndata(save_path):
+    adata = scvi.data.synthetic_iid()
+    path = os.path.join(save_path, "test_data.h5ad")
+    adata.write_h5ad(path)
+    adata = anndata.read_h5ad(path, backed="r+")
+    setup_anndata(adata, batch_key="batch")
+
+    # test get item
+    bd = AnnTorchDataset(adata)
+    bd[np.arange(adata.n_obs)]
+
+    # sparse
+    adata = scvi.data.synthetic_iid()
+    adata.X = csr_matrix(adata.X)
+    path = os.path.join(save_path, "test_data2.h5ad")
+    adata.write_h5ad(path)
+    adata = anndata.read_h5ad(path, backed="r+")
+    setup_anndata(adata, batch_key="batch")
+
+    # test get item
+    bd = AnnTorchDataset(adata)
+    bd[np.arange(adata.n_obs)]

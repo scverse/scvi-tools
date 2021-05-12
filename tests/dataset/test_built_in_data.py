@@ -1,7 +1,9 @@
+from unittest import TestCase
+
+import pytest
+
 import scvi
 
-from unittest import TestCase
-import pytest
 from .utils import unsupervised_training_one_epoch
 
 
@@ -97,3 +99,8 @@ class TestCsvDataset(TestCase):
 def test_download_spleen_lymph_data(save_path):
     scvi.data.spleen_lymph_cite_seq(save_path=save_path)
     scvi.data.spleen_lymph_cite_seq(save_path=save_path, protein_join="outer")
+
+
+@pytest.mark.internet
+def test_download_heart_cell_atlas(save_path):
+    scvi.data.heart_cell_atlas_subsampled(save_path=save_path)

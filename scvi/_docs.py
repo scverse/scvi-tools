@@ -13,11 +13,16 @@ group2
     If `None`, compare each group in `group1` to the union of the rest of the groups
     in `groupby`. If a group identifier, compare with respect to this group.
 idx1
-    Boolean mask or indices for `group1`. `idx1` and `idx2` can be used as an alternative
-    to the AnnData keys. If `idx1` is not `None`, this option overrides `group1`
+    `idx1` and `idx2` can be used as an alternative to the AnnData keys.
+    Custom identifier for `group1` that can be of three sorts: (1) a boolean mask,
+    (2) indices, or (3) a string. If it is a string, then it will query indices that
+    verifies conditions on `adata.obs`, as described in :meth:`pandas.DataFrame.query`
+    If `idx1` is not `None`, this option overrides `group1`
     and `group2`.
 idx2
-    Boolean mask or indices for `group2`. By default, includes all cells not specified in
+    Custom identifier for `group2` that has the same
+    properties as `idx1`.
+    By default, includes all cells not specified in
     `idx1`.
 mode
     Method for differential expression. See user guide for full explanation.
@@ -42,4 +47,6 @@ batchid2
     are decoded on each group in `group1` and `group2`, respectively.
 fdr_target
     Tag features as DE based on posterior expected false discovery rate.
+silent
+    If True, disables the progress bar. Default: False.
 """
