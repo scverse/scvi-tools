@@ -136,6 +136,7 @@ class DEMixin:
             transform_batch_val = _get_batch_code_from_category(adata, transform_batch)[
                 0
             ]
+            assert indices.shape == observed_batches.shape
             indices_ = indices[observed_batches == transform_batch_val]
         else:
             indices_ = indices
@@ -154,6 +155,7 @@ class DEMixin:
         # This ensures that the method remains scalable when looking at very large cell populations
         n_cells = indices_.shape[0]
         logger.debug("n cells {}".format(n_cells))
+        logger.debug(indices_)
         n_cell_chunks = int(np.ceil(n_cells / n_cells_per_chunk))
         np.random.shuffle(indices_)
         cell_chunks = np.array_split(indices_, n_cell_chunks)[:max_chunks]
@@ -222,21 +224,21 @@ class DEMixin:
                 inference_kwargs=dict(n_samples=n_samples, return_densities=True),
                 compute_loss=False,
             )
-            z = inference_outputs["z"].cpu()
+            z = inference_outputs["z"].reshape(-1, self.module.n_latent).cpu()
+            h = generative_outputs["px_scale"]
+            n_genes = h.shape[-1]
+            h = h.reshape(-1, n_genes).cpu()
+
             zs.append(z)
             qzs_m.append(inference_outputs["qz_m"].cpu())
             qzs_v.append(inference_outputs["qz_v"].cpu())
-            hs.append(generative_outputs["px_scale"].cpu())
+            hs.append(h)
 
             _log_px_zs = self._evaluate_likelihood(scdl, inference_outputs)
             log_px_zs.append(_log_px_zs)
         log_px_zs = torch.cat(log_px_zs, 0)
-        zs = torch.cat(zs, dim=1)  # shape n_samples, n_cells, n_latent
-        zs = zs.reshape(n_cells * n_samples, self.module.n_latent)
-
-        hs = torch.cat(hs, dim=1)
-        n_genes = hs.shape[-1]
-        hs = hs.reshape(n_cells * n_samples, n_genes)
+        zs = torch.cat(zs, dim=0)  # shape n_samples, n_cells, n_latent
+        hs = torch.cat(hs, dim=0)
         qzs_m = torch.cat(qzs_m, dim=0)
         qzs_v = torch.cat(qzs_v, dim=0)
 
@@ -265,9 +267,14 @@ class DEMixin:
             - torch.logsumexp(log_qz, 1, keepdims=True),
             dim=1,
         )
+        # importance_weight = log_pz + torch.logsumexp(
+        #     log_px_zs - log_px - torch.logsumexp(log_qz, 1, keepdims=True), -1
+        # )
+
         log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
         ws = log_probs.exp()
-        logger.debug("ESS: {}".format(1 / (ws ** 2).sum().item()))
+        # log_probs = importance_weight
+        # ws = nn.Softmax()(importance_weight)
         n_samples_overall = ws.shape[0]
         windices = (
             Categorical(logits=log_probs.unsqueeze(0))
@@ -318,8 +325,8 @@ class DEMixin:
                 .expand(_n_samples_loop, _n_cells, 1)
             )
 
-            inference_outputs["z"] = _z_reshaped.to()
-            inference_outputs["library"] = point_library.to()
+            inference_outputs["z"] = _z_reshaped
+            inference_outputs["library"] = point_library
             _log_px_zs.append(
                 self.module.generative_evaluate(
                     tensors=_tensors, inference_outputs=inference_outputs
@@ -345,6 +352,7 @@ class DEMixin:
         assert qz_m.shape[0] == len(indices)
         try:
             idx_filt = EllipticEnvelope().fit_predict(qz_m)
+            idx_filt = idx_filt == 1
         except ValueError:
             logger.warning("Could not properly estimate Cov!, using all samples")
             idx_filt = np.ones(qz_m.shape[0], dtype=bool)

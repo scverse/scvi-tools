@@ -88,8 +88,12 @@ def test_wscvi():
     assert outs["log_px_zs"].shape == (25 * n_cells, n_cells)
 
     # Overall scale sampling
-    outs = model.get_population_expression(indices=idx, do_filter_cells=False)
-    outs = model.get_population_expression(indices=idx, do_filter_cells=True)
+    outs = model.get_population_expression(
+        adata=adata, indices=idx, do_filter_cells=False
+    )
+    outs = model.get_population_expression(
+        adata=adata, indices=idx, do_filter_cells=True
+    )
 
     # Differential expression
     model_fn = partial(model.get_population_expression, return_numpy=True)

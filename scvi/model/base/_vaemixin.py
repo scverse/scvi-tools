@@ -148,7 +148,7 @@ class VAEMixin:
         give_mean: bool = True,
         mc_samples: int = 5000,
         batch_size: Optional[int] = None,
-        _adata = None,
+        _adata=None,
     ) -> np.ndarray:
         r"""
         Return the latent representation for each cell.
