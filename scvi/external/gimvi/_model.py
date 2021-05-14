@@ -195,7 +195,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
         self._training_plan = GIMVITrainingPlan(
             self.module,
-            len(self.train_indices_),
             adversarial_classifier=True,
             scale_adversarial_loss=kappa,
             **plan_kwargs,

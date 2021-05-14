@@ -68,6 +68,8 @@ class TrainRunner:
         self.model.test_indices = self.data_splitter.test_idx
         self.model.validation_indices = self.data_splitter.val_idx
 
+        self.training_plan.n_obs_training = len(self.model.train_indices)
+
         self.trainer.fit(self.training_plan, self.data_splitter)
         try:
             self.model.history_ = self.trainer.logger.history
