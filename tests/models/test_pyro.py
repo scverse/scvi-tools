@@ -25,11 +25,11 @@ from scvi.train import PyroTrainingPlan, Trainer
 
 
 class BayesianRegressionPyroModel(PyroModule):
-    def __init__(self, in_features, out_features, n_obs, per_cell_weight=False):
+    def __init__(self, in_features, out_features, per_cell_weight=False):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.n_obs = n_obs
+        self.n_obs = None
 
         self.per_cell_weight = per_cell_weight
 
@@ -50,6 +50,8 @@ class BayesianRegressionPyroModel(PyroModule):
         )
 
     def create_plates(self, x, y, ind_x):
+        """Function for creating plates is needed when using AutoGuides
+        and should have the same call signature as model"""
         return pyro.plate("obs_plate", size=self.n_obs, dim=-2, subsample=ind_x)
 
     def list_obs_plate_vars(self):
@@ -142,7 +144,6 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
         self.module = BayesianRegressionModule(
             in_features=adata.shape[1],
             out_features=1,
-            n_obs=adata.n_obs,
             per_cell_weight=per_cell_weight,
         )
         self._model_summary_string = "BayesianRegressionModel"
@@ -162,9 +163,7 @@ def test_pyro_bayesian_regression(save_path):
     )
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     pyro.clear_param_store()
-    model = BayesianRegressionModule(
-        in_features=adata.shape[1], out_features=1, n_obs=adata.n_obs
-    )
+    model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     plan = PyroTrainingPlan(model, n_obs=len(train_dl.indices))
     trainer = Trainer(
         gpus=use_gpu,
@@ -195,9 +194,7 @@ def test_pyro_bayesian_regression(save_path):
     torch.save(model.state_dict(), model_save_path)
 
     pyro.clear_param_store()
-    new_model = BayesianRegressionModule(
-        in_features=adata.shape[1], out_features=1, n_obs=adata.n_obs
-    )
+    new_model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     # run model one step to get autoguide params
     try:
         new_model.load_state_dict(torch.load(model_save_path))
@@ -234,9 +231,7 @@ def test_pyro_bayesian_regression_jit():
     )
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     pyro.clear_param_store()
-    model = BayesianRegressionModule(
-        in_features=adata.shape[1], out_features=1, n_obs=adata.n_obs
-    )
+    model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     plan = PyroTrainingPlan(
         model, loss_fn=pyro.infer.JitTrace_ELBO(), n_obs=len(train_dl.indices)

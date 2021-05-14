@@ -8,11 +8,11 @@ import torch
 from pyro import poutine
 from pyro.infer import SVI
 from pytorch_lightning.callbacks import Callback
-from tqdm.auto import tqdm
 
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.train import PyroTrainingPlan, Trainer
+from scvi.utils import track
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +45,6 @@ class PyroSviTrainMixin:
 
     - training models using minibatches and using full data (copies data to GPU only once).
     """
-
-    @property
-    def _plan_class(self):
-        return PyroTrainingPlan
 
     def _train_full_data(
         self,
@@ -87,6 +83,11 @@ class PyroSviTrainMixin:
         kwargs = {k: v.to(device) for k, v in kwargs.items()}
         self.to_device(device)
 
+        if hasattr(self.module.model, "n_obs"):
+            setattr(self.module.model, "n_obs", self.adata.n_obs)
+        if hasattr(self.module.guide, "n_obs"):
+            setattr(self.module.guide, "n_obs", self.adata.n_obs)
+
         if not continue_training or not self.is_trained_:
             # models share param store, make sure it is cleared before training
             pyro.clear_param_store()
@@ -101,7 +102,10 @@ class PyroSviTrainMixin:
             loss=plan_kwargs["loss_fn"],
         )
 
-        iter_iterator = tqdm(range(max_epochs))
+        iter_iterator = track(
+            range(max_epochs),
+            style="tqdm",
+        )
         hist = []
         for it in iter_iterator:
 
@@ -172,6 +176,7 @@ class PyroSviTrainMixin:
             max_epochs = np.min([round((20000 / n_obs) * 400), 400])
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        plan_kwargs["n_obs"] = self.adata.n_obs
         trainer_kwargs = trainer_kwargs if isinstance(trainer_kwargs, dict) else dict()
         optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
 
@@ -192,7 +197,7 @@ class PyroSviTrainMixin:
             gpus=gpus,
             max_epochs=max_epochs,
             max_steps=max_steps,
-            callbacks=[PyroJitGuideWarmup(train_dl)],
+            # callbacks=[PyroJitGuideWarmup(train_dl)],
             **trainer_kwargs
         )
         trainer.fit(plan, train_dl)
@@ -279,6 +284,7 @@ class PyroSampleMixin:
     - generating samples from posterior distribution using minibatches and full data
     """
 
+    @torch.no_grad()
     def _get_one_posterior_sample(
         self,
         args,
@@ -307,7 +313,7 @@ class PyroSampleMixin:
         ).get_trace(*args, **kwargs)
 
         sample = {
-            name: site["value"].detach().cpu().numpy()
+            name: site["value"].cpu().numpy()
             for name, site in model_trace.nodes.items()
             if (
                 (site["type"] == "sample")  # sample statement
@@ -317,7 +323,7 @@ class PyroSampleMixin:
                 and (
                     (
                         (not site.get("is_observed", True)) or sample_observed
-                    )  # don't save observed
+                    )  # don't save observed unless requested
                     or (site.get("infer", False).get("_deterministic", False))
                 )  # unless it is deterministic
                 and not isinstance(
@@ -361,11 +367,13 @@ class PyroSampleMixin:
         )
         samples = {k: [v] for k, v in samples.items()}
 
-        for _ in tqdm(
+        for _ in track(
             range(1, num_samples),
+            style="tqdm",
+            description="Sampling global variables, sample: ",
             disable=not show_progress,
-            desc="Sampling global variables, sample: ",
         ):
+
             # generate new sample
             samples_ = self._get_one_posterior_sample(
                 args, kwargs, return_sites=return_sites, sample_observed=return_observed
@@ -403,6 +411,36 @@ class PyroSampleMixin:
 
         return samples
 
+    def _check_obs_plate_return_sites(self, sample_kwargs):
+        # check whether any variable requested in return_sites are in obs_plate
+        obs_plate_sites = list(self.module.model.list_obs_plate_vars()["sites"].keys())
+        if ("return_sites" in sample_kwargs.keys()) and (
+            sample_kwargs["return_sites"] is not None
+        ):
+            return_sites = np.array(sample_kwargs["return_sites"])
+            return_sites = return_sites[np.isin(return_sites, obs_plate_sites)]
+            if len(return_sites) == 0:
+                return [return_sites]
+            else:
+                return list(return_sites)
+        else:
+            return obs_plate_sites
+
+    def _find_plate_dimension(self, args, kwargs):
+
+        # find plate dimension
+        trace = poutine.trace(self.module.model).get_trace(*args, **kwargs)
+        obs_plate = {
+            name: site["cond_indep_stack"][0].dim
+            for name, site in trace.nodes.items()
+            if site["type"] == "sample"
+            if any(
+                f.name == self.module.model.list_obs_plate_vars()["name"]
+                for f in site["cond_indep_stack"]
+            )
+        }
+        return obs_plate
+
     def _posterior_samples_minibatch(self, use_gpu: bool = True, **sample_kwargs):
         """
         Generate samples of the posterior distribution of each parameter, separating local (minibatch) variables
@@ -429,96 +467,63 @@ class PyroSampleMixin:
         train_dl = AnnDataLoader(self.adata, shuffle=False, batch_size=self.batch_size)
         # sample local parameters
         i = 0
-        with tqdm(train_dl, desc="Sampling local variables, batch: ") as tqdm_dl:
-            for tensor_dict in tqdm_dl:
-                if i == 0:
-                    args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
-                    args = [a.to(device) for a in args]
-                    kwargs = {k: v.to(device) for k, v in kwargs.items()}
-                    self.to_device(device)
+        for tensor_dict in track(
+            train_dl,
+            style="tqdm",
+            description="Sampling local variables, batch: ",
+        ):
+            args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+            args = [a.to(device) for a in args]
+            kwargs = {k: v.to(device) for k, v in kwargs.items()}
+            self.to_device(device)
 
-                    # check whether any variable requested in return_sites are in obs_plate
-                    sample_kwargs_obs_plate = sample_kwargs.copy()
-                    if ("return_sites" in sample_kwargs.keys()) and (
-                        sample_kwargs["return_sites"] is not None
-                    ):
-                        return_sites = np.array(sample_kwargs["return_sites"])
-                        return_sites = return_sites[
-                            np.isin(
-                                return_sites,
-                                list(
-                                    self.module.model.list_obs_plate_vars()[
-                                        "sites"
-                                    ].keys()
-                                ),
-                            )
-                        ]
-                        if len(return_sites) == 0:
-                            sample_kwargs_obs_plate["return_sites"] = [return_sites]
-                        else:
-                            sample_kwargs_obs_plate["return_sites"] = list(return_sites)
-                    else:
-                        sample_kwargs_obs_plate["return_sites"] = list(
-                            self.module.model.list_obs_plate_vars()["sites"].keys()
-                        )
-                    sample_kwargs_obs_plate["show_progress"] = False
-                    samples = self._get_posterior_samples(
-                        args, kwargs, **sample_kwargs_obs_plate
-                    )
-
-                    # find plate dimension
-                    trace = poutine.trace(self.module.model).get_trace(*args, **kwargs)
-                    obs_plate = {
-                        name: site["cond_indep_stack"][0].dim
-                        for name, site in trace.nodes.items()
-                        if site["type"] == "sample"
-                        if any(
-                            f.name == self.module.model.list_obs_plate_vars()["name"]
-                            for f in site["cond_indep_stack"]
-                        )
-                    }
-
-                else:
-                    args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
-                    args = [a.to(device) for a in args]
-                    kwargs = {k: v.to(device) for k, v in kwargs.items()}
-                    self.to_device(device)
-
-                    samples_ = self._get_posterior_samples(
-                        args, kwargs, **sample_kwargs_obs_plate
-                    )
-                    samples = {
-                        k: np.array(
-                            [
-                                np.concatenate(
-                                    [samples[k][i], samples_[k][i]],
-                                    axis=list(obs_plate.values())[0],
-                                )
-                                for i in range(len(samples[k]))
-                            ]
-                        )
-                        for k in samples.keys()
-                    }
-                i += 1
-
-        # sample global parameters
-        i = 0
-        for tensor_dict in train_dl:
             if i == 0:
-                args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
-                args = [a.to(device) for a in args]
-                kwargs = {k: v.to(device) for k, v in kwargs.items()}
-                self.to_device(device)
-
-                global_samples = self._get_posterior_samples(
-                    args, kwargs, **sample_kwargs
+                sample_kwargs_obs_plate = sample_kwargs.copy()
+                sample_kwargs_obs_plate[
+                    "return_sites"
+                ] = self._check_obs_plate_return_sites(sample_kwargs)
+                sample_kwargs_obs_plate["show_progress"] = False
+                obs_plate = self._find_plate_dimension(args, kwargs)
+                obs_plate_dim = list(obs_plate.values())[0]
+                samples = self._get_posterior_samples(
+                    args, kwargs, **sample_kwargs_obs_plate
                 )
-                global_samples = {
-                    k: global_samples[k]
-                    for k in global_samples.keys()
-                    if k not in self.module.model.list_obs_plate_vars()["sites"]
+            else:
+                samples_ = self._get_posterior_samples(
+                    args, kwargs, **sample_kwargs_obs_plate
+                )
+
+                samples = {
+                    k: np.array(
+                        [
+                            np.concatenate(
+                                [samples[k][j], samples_[k][j]],
+                                axis=obs_plate_dim,
+                            )
+                            for j in range(
+                                len(samples[k])
+                            )  # for each sample (in 0 dimension
+                        ]
+                    )
+                    for k in samples.keys()  # for each variable
                 }
             i += 1
+
+        # sample global parameters
+        for tensor_dict in train_dl:
+            args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+            args = [a.to(device) for a in args]
+            kwargs = {k: v.to(device) for k, v in kwargs.items()}
+            self.to_device(device)
+
+            global_samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
+            global_samples = {
+                k: v
+                for k, v in global_samples.items()
+                if k
+                not in list(self.module.model.list_obs_plate_vars()["sites"].keys())
+            }
+            break
 
         for k in global_samples.keys():
             samples[k] = global_samples[k]
