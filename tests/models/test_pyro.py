@@ -55,14 +55,19 @@ class BayesianRegressionPyroModel(PyroModule):
         return pyro.plate("obs_plate", size=self.n_obs, dim=-2, subsample=ind_x)
 
     def list_obs_plate_vars(self):
-        """Create a dictionary with the name of observation/minibatch plate,
-        indexes of model args to provide to encoder,
-        variable names that belong to the observation plate
-        and the number of dimensions in non-plate axis of each variable"""
+        """Create a dictionary with:
+        1. "name" - the name of observation/minibatch plate;
+        2. "in" - indexes of model args to provide to encoder network when using amortised inference;
+        3. "sites" - dictionary with
+            keys - names of variables that belong to the observation plate (used to recognise
+             and merge posterior samples for minibatch variables)
+            values - the dimensions in non-plate axis of each variable (used to construct output
+             layer of encoder network when using amortised inference)
+        """
 
         return {
             "name": "obs_plate",
-            "in": [0],  # index for expression data
+            "in": [0],  # model args index for expression data
             "sites": {"per_cell_weights": 1},
         }
 
@@ -263,7 +268,7 @@ def test_pyro_bayesian_train_sample_mixin():
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
     mod = BayesianRegressionModel(adata, batch_size=128)
-    mod.train(max_epochs=2, lr=0.01, use_gpu=use_gpu)
+    mod.train(max_epochs=2, plan_kwargs={"optim_kwargs": {"lr": 0.01}}, use_gpu=use_gpu)
 
     # 100 features, 1 for sigma, 1 for bias
     # assert list(mod.module.guide.parameters())[0].shape[0] == 102
@@ -278,7 +283,7 @@ def test_pyro_bayesian_train_sample_mixin_full_data():
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
     mod = BayesianRegressionModel(adata, batch_size=None)
-    mod.train(max_epochs=2, lr=0.01, use_gpu=use_gpu)
+    mod.train(max_epochs=2, plan_kwargs={"optim_kwargs": {"lr": 0.01}}, use_gpu=use_gpu)
 
     # 100 features, 1 for sigma, 1 for bias
     # assert list(mod.module.guide.parameters())[0].shape[0] == 102
@@ -293,7 +298,12 @@ def test_pyro_bayesian_train_sample_mixin_with_local():
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
     mod = BayesianRegressionModel(adata, batch_size=128, per_cell_weight=True)
-    mod.train(max_epochs=2, lr=0.01, use_gpu=use_gpu)
+    mod.train(
+        max_epochs=2,
+        plan_kwargs={"optim_kwargs": {"lr": 0.01}},
+        train_size=1,  # does not work when there is a validation set.
+        use_gpu=use_gpu,
+    )
 
     # 100 features, 1 for sigma, 1 for bias
     # assert list(mod.module.guide.parameters())[0].shape[0] == 102
