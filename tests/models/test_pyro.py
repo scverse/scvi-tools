@@ -246,8 +246,11 @@ def test_pyro_bayesian_regression_jit():
     )
     trainer.fit(plan, train_dl)
 
-    # 100 features, 1 for sigma, 1 for bias
-    # assert list(model.guide.parameters())[0].shape[0] == 102
+    # 100 features
+    assert list(model.guide.state_dict()["locs.linear.weight_unconstrained"].shape) == [
+        1,
+        100,
+    ]
 
     if use_gpu == 1:
         model.cuda()
@@ -270,8 +273,10 @@ def test_pyro_bayesian_train_sample_mixin():
     mod = BayesianRegressionModel(adata, batch_size=128)
     mod.train(max_epochs=2, plan_kwargs={"optim_kwargs": {"lr": 0.01}}, use_gpu=use_gpu)
 
-    # 100 features, 1 for sigma, 1 for bias
-    # assert list(mod.module.guide.parameters())[0].shape[0] == 102
+    # 100 features
+    assert list(
+        mod.module.guide.state_dict()["locs.linear.weight_unconstrained"].shape
+    ) == [1, 100]
 
     # test posterior sampling
     samples = mod.sample_posterior(num_samples=10, use_gpu=use_gpu, return_samples=True)
@@ -285,8 +290,10 @@ def test_pyro_bayesian_train_sample_mixin_full_data():
     mod = BayesianRegressionModel(adata, batch_size=None)
     mod.train(max_epochs=2, plan_kwargs={"optim_kwargs": {"lr": 0.01}}, use_gpu=use_gpu)
 
-    # 100 features, 1 for sigma, 1 for bias
-    # assert list(mod.module.guide.parameters())[0].shape[0] == 102
+    # 100 features
+    assert list(
+        mod.module.guide.state_dict()["locs.linear.weight_unconstrained"].shape
+    ) == [1, 100]
 
     # test posterior sampling
     samples = mod.sample_posterior(num_samples=10, use_gpu=use_gpu, return_samples=True)
@@ -305,8 +312,10 @@ def test_pyro_bayesian_train_sample_mixin_with_local():
         use_gpu=use_gpu,
     )
 
-    # 100 features, 1 for sigma, 1 for bias
-    # assert list(mod.module.guide.parameters())[0].shape[0] == 102
+    # 100
+    assert list(
+        mod.module.guide.state_dict()["locs.linear.weight_unconstrained"].shape
+    ) == [1, 100]
 
     # test posterior sampling
     samples = mod.sample_posterior(num_samples=10, use_gpu=use_gpu, return_samples=True)
