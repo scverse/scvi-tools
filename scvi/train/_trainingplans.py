@@ -97,7 +97,8 @@ class TrainingPlan(pl.LightningModule):
 
     @property
     def n_obs_training(self):
-        """Number of observations in the training set.
+        """
+        Number of observations in the training set.
 
         This will update the loss kwargs for loss rescaling.
         """
@@ -620,7 +621,8 @@ class PyroTrainingPlan(pl.LightningModule):
 
     @property
     def n_obs_training(self):
-        """Number of training examples.
+        """
+        Number of training examples.
 
         If not `None`, updates the `n_obs` attr
         of the Pyro module's `model` and `guide`, if they exist.
