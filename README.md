@@ -37,7 +37,7 @@ facilitate a broad number of tasks across many omics, including:
     for an interpretable linear factor model version of scVI.
 -   [Stereoscope](https://www.nature.com/articles/s42003-020-01247-y)
     for deconvolution of spatial transcriptomics data.
--   DestVI for multi-resolution deconvolution 
+-   [DestVI](https://www.biorxiv.org/content/10.1101/2021.05.10.443517v1) for multi-resolution deconvolution 
     of spatial transcriptomics data.
 -   [peakVI](https://www.biorxiv.org/content/10.1101/2021.04.29.442020v1) for analysis of scATAC-seq data.
 -   [scArches](https://www.biorxiv.org/content/10.1101/2020.07.16.205997v1)
