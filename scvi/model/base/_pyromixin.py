@@ -87,13 +87,23 @@ class PyroSviTrainMixin:
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
-        data_splitter = DataSplitter(
-            self.adata,
-            train_size=train_size,
-            validation_size=validation_size,
-            batch_size=batch_size,
-            use_gpu=use_gpu,
-        )
+        if batch_size is None:
+            # use data splitter which moves data to GPU once
+            data_splitter = DataSplitter(
+                self.adata,
+                train_size=train_size,
+                validation_size=validation_size,
+                batch_size=batch_size,
+                use_gpu=use_gpu,
+            )
+        else:
+            data_splitter = DataSplitter(
+                self.adata,
+                train_size=train_size,
+                validation_size=validation_size,
+                batch_size=batch_size,
+                use_gpu=use_gpu,
+            )
         training_plan = PyroTrainingPlan(pyro_module=self.module, **plan_kwargs)
 
         es = "early_stopping"
@@ -218,33 +228,6 @@ class PyroSampleMixin:
 
         return {k: np.array(v) for k, v in samples.items()}
 
-    def _posterior_samples_full_data(self, use_gpu: bool = True, **sample_kwargs):
-        """
-        Generate samples from posterior distribution using all data
-
-        Parameters
-        ----------
-        sample_kwargs
-            arguments to _get_posterior_samples
-
-        Returns
-        -------
-        dictionary {variable_name: [array with samples in 0 dimension]}
-
-        """
-
-        self.module.eval()
-        gpus, device = parse_use_gpu_arg(use_gpu)
-
-        args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
-        args = [a.to(device) for a in args]
-        kwargs = {k: v.to(device) for k, v in kwargs.items()}
-        self.to_device(device)
-
-        samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
-
-        return samples
-
     def _check_obs_plate_return_sites(self, sample_kwargs):
         # check whether any variable requested in return_sites are in obs_plate
         obs_plate_sites = list(self.module.model.list_obs_plate_vars()["sites"].keys())
@@ -296,9 +279,11 @@ class PyroSampleMixin:
 
         gpus, device = parse_use_gpu_arg(use_gpu)
 
-        self.module.eval()
-
-        train_dl = AnnDataLoader(self.adata, shuffle=False, batch_size=self.batch_size)
+        if self.batch_size is None:
+            batch_size = self.adata.n_obs
+        else:
+            batch_size = self.batch_size
+        train_dl = AnnDataLoader(self.adata, shuffle=False, batch_size=batch_size)
         # sample local parameters
         i = 0
         for tensor_dict in track(
@@ -376,6 +361,7 @@ class PyroSampleMixin:
     ):
         """
         Generate samples from posterior distribution for each parameter
+        and compute mean, 5%/95% quantiles, standard deviation.
 
         Parameters
         ----------
@@ -394,9 +380,13 @@ class PyroSampleMixin:
 
         Returns
         -------
-        Posterior distribution samples, a dictionary for each of (mean, 5% quantile, SD, optionally all samples),
-            containing dictionaries for each variable with numpy arrays.
-        Dictionary of all samples contains samples for each variable as numpy arrays of shape ``(n_samples, ...)``
+        Posterior distribution samples, a dictionary with elements as follows,
+         containing dictionaries of numpy arrays for each variable:
+            post_sample_means - mean of the distribution for each variable;
+            post_sample_q05 - 5% quantile;
+            post_sample_q95 - 95% quantile;
+            post_sample_sds - standard deviation
+            posterior_samples - samples for each variable as numpy arrays of shape `(n_samples, ...)` (Optional)
 
         """
 
@@ -404,16 +394,8 @@ class PyroSampleMixin:
         sample_kwargs["num_samples"] = num_samples
         sample_kwargs["return_sites"] = return_sites
 
-        if self.batch_size is None:
-            # sample using full data
-            samples = self._posterior_samples_full_data(
-                use_gpu=use_gpu, **sample_kwargs
-            )
-        else:
-            # sample using minibatches
-            samples = self._posterior_samples_minibatch(
-                use_gpu=use_gpu, **sample_kwargs
-            )
+        # sample using minibatches (if full data, data is moved to GPU only once anyway)
+        samples = self._posterior_samples_minibatch(use_gpu=use_gpu, **sample_kwargs)
 
         param_names = list(samples.keys())
         results = dict()

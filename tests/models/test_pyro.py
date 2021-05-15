@@ -240,6 +240,10 @@ def test_pyro_bayesian_regression_jit():
         1,
         100,
     ]
+    # 1 bias
+    assert list(model.guide.state_dict()["locs.linear.bias_unconstrained"].shape) == [
+        1,
+    ]
 
     if use_gpu == 1:
         model.cuda()
