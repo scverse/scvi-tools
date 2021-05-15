@@ -329,20 +329,18 @@ class PyroSampleMixin:
             i += 1
 
         # sample global parameters
-        for tensor_dict in train_dl:
-            args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
-            args = [a.to(device) for a in args]
-            kwargs = {k: v.to(device) for k, v in kwargs.items()}
-            self.to_device(device)
+        tensor_dict = next(iter(train_dl))
+        args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
+        args = [a.to(device) for a in args]
+        kwargs = {k: v.to(device) for k, v in kwargs.items()}
+        self.to_device(device)
 
-            global_samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
-            global_samples = {
-                k: v
-                for k, v in global_samples.items()
-                if k
-                not in list(self.module.model.list_obs_plate_vars()["sites"].keys())
-            }
-            break
+        global_samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
+        global_samples = {
+            k: v
+            for k, v in global_samples.items()
+            if k not in list(self.module.model.list_obs_plate_vars()["sites"].keys())
+        }
 
         for k in global_samples.keys():
             samples[k] = global_samples[k]
