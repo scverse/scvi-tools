@@ -156,4 +156,9 @@ class Trainer(pl.Trainer):
                 category=UserWarning,
                 message="One of given dataloaders is None and it will be skipped",
             )
+            warnings.filterwarnings(
+                action="ignore",
+                category=UserWarning,
+                message="`LightningModule.configure_optimizers` returned `None`",
+            )
             super().fit(*args, **kwargs)
