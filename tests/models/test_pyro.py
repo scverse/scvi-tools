@@ -8,11 +8,9 @@ import torch.nn as nn
 from anndata import AnnData
 from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule, PyroSample
-from scipy.sparse import issparse
 
 from scvi import _CONSTANTS
 from scvi.data import register_tensor_from_anndata, synthetic_iid
-from scvi.data._anndata import get_from_registry
 from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import (
     BaseModelClass,
@@ -76,16 +74,6 @@ class BayesianRegressionPyroModel(PyroModule):
         x = tensor_dict[_CONSTANTS.X_KEY]
         y = tensor_dict[_CONSTANTS.LABELS_KEY]
         ind_x = tensor_dict["ind_x"].long().squeeze()
-        return (x, y, ind_x), {}
-
-    @staticmethod
-    def _get_fn_args_full_data(adata):
-        x = get_from_registry(adata, _CONSTANTS.X_KEY)
-        if issparse(x):
-            x = np.asarray(x.toarray())
-        x = torch.tensor(x.astype("float32"))
-        ind_x = torch.tensor(get_from_registry(adata, "ind_x"))
-        y = torch.tensor(get_from_registry(adata, _CONSTANTS.LABELS_KEY))
         return (x, y, ind_x), {}
 
     def forward(self, x, y, ind_x):
@@ -168,7 +156,7 @@ def test_pyro_bayesian_regression(save_path):
     )
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     pyro.clear_param_store()
-    model = BayesianRegressionModule(adata.shape[1], 1)
+    model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     plan = PyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(

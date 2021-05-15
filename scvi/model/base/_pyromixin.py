@@ -2,16 +2,13 @@ import logging
 from typing import Optional, Union
 
 import numpy as np
-import pandas as pd
-import pyro
 import torch
 from pyro import poutine
-from pyro.infer import SVI
 from pytorch_lightning.callbacks import Callback
 
 from scvi.dataloaders import AnnDataLoader, DataSplitter
 from scvi.model._utils import parse_use_gpu_arg
-from scvi.train import PyroTrainingPlan, Trainer, TrainRunner
+from scvi.train import PyroTrainingPlan, TrainRunner
 from scvi.utils import track
 
 logger = logging.getLogger(__name__)
@@ -97,9 +94,7 @@ class PyroSviTrainMixin:
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = PyroTrainingPlan(
-            pyro_module=self.module, n_obs=len(data_splitter.train_idx), **plan_kwargs
-        )
+        training_plan = PyroTrainingPlan(pyro_module=self.module, **plan_kwargs)
 
         es = "early_stopping"
         trainer_kwargs[es] = (
@@ -114,236 +109,6 @@ class PyroSviTrainMixin:
             **trainer_kwargs,
         )
         return runner()
-
-    def _train_full_data(
-        self,
-        max_epochs: Optional[int] = None,
-        use_gpu: bool = False,
-        plan_kwargs: Optional[dict] = None,
-        lr: float = 0.01,
-        optim_kwargs: Optional[dict] = None,
-        continue_training: bool = True,
-    ):
-        """
-        Private method for training using full data.
-
-        Parameters
-        ----------
-        max_epochs
-            Number of training epochs / iterations
-        use_gpu
-            Bool, use gpu?
-        plan_kwargs
-            Training plan arguments such as optim and loss_fn
-        continue_training
-            When the model is already trained, should calling .train() continue training? (False = restart training)
-
-        Returns
-        -------
-        ELBO history in self.module.history_
-
-        """
-
-        args, kwargs = self.module.model._get_fn_args_full_data(self.adata)
-        gpus, device = parse_use_gpu_arg(use_gpu)
-        optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
-
-        args = [a.to(device) for a in args]
-        kwargs = {k: v.to(device) for k, v in kwargs.items()}
-        self.to_device(device)
-
-        if hasattr(self.module.model, "n_obs"):
-            setattr(self.module.model, "n_obs", self.adata.n_obs)
-        if hasattr(self.module.guide, "n_obs"):
-            setattr(self.module.guide, "n_obs", self.adata.n_obs)
-
-        if not continue_training or not self.is_trained_:
-            # models share param store, make sure it is cleared before training
-            pyro.clear_param_store()
-        # initialise guide params (warmup)
-        self.module.guide(*args, **kwargs)
-
-        svi = SVI(
-            self.module.model,
-            self.module.guide,
-            # select optimiser, optionally choosing different lr for autoencoding guide
-            pyro.optim.ClippedAdam(self._optim_param(lr, **optim_kwargs)),
-            loss=plan_kwargs["loss_fn"],
-        )
-
-        iter_iterator = track(
-            range(max_epochs),
-            style="tqdm",
-        )
-        hist = []
-        for it in iter_iterator:
-
-            loss = svi.step(*args, **kwargs)
-            iter_iterator.set_description(
-                "Epoch " + "{:d}".format(it) + ", -ELBO: " + "{:.4e}".format(loss)
-            )
-            hist.append(loss)
-
-            if it % 500 == 0:
-                torch.cuda.empty_cache()
-
-        if continue_training and self.is_trained_:
-            # add ELBO listory
-            hist = self.module.history_ + hist
-        self.module.history_ = hist
-        self.module.is_trained_ = True
-        self.history_ = hist
-        self.is_trained_ = True
-
-    def _train_minibatch(
-        self,
-        max_epochs: Optional[int] = None,
-        max_steps: Optional[int] = None,
-        use_gpu: bool = False,
-        plan_kwargs: Optional[dict] = None,
-        trainer_kwargs: Optional[dict] = None,
-        lr: float = 0.01,
-        optim_kwargs: Optional[dict] = None,
-        early_stopping: bool = False,
-        continue_training: bool = True,
-    ):
-        """
-        Private method for training using minibatches (scVI interface and pytorch lightning).
-
-        Parameters
-        ----------
-        max_epochs
-            Number of training epochs / iterations
-        max_steps
-            Number of training steps
-        use_gpu
-            Bool, use gpu?
-        plan_kwargs
-            Training plan arguments such as optim and loss_fn
-        trainer_kwargs
-            Arguments for scvi.train.Trainer.
-        optim_kwargs
-            optimiser creation arguments to  such as autoencoding_lr, clip_norm, module_names
-        early_stopping
-            Bool, use early stopping? (not tested)
-        continue_training
-            When the model is already trained, should calling .train() continue training? (False = restart training)
-
-        Returns
-        -------
-        ELBO history in self.module.history_
-
-        """
-
-        if not continue_training or not self.is_trained_:
-            # models share param store, make sure it is cleared before training
-            pyro.clear_param_store()
-
-        gpus, device = parse_use_gpu_arg(use_gpu)
-        if max_epochs is None:
-            n_obs = self.adata.n_obs
-            max_epochs = np.min([round((20000 / n_obs) * 400), 400])
-
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-        plan_kwargs["n_obs"] = self.adata.n_obs
-        trainer_kwargs = trainer_kwargs if isinstance(trainer_kwargs, dict) else dict()
-        optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
-
-        batch_size = self.batch_size
-        # select optimiser, optionally choosing different lr for different parameters
-        plan_kwargs["optim"] = pyro.optim.ClippedAdam(
-            self._optim_param(lr, **optim_kwargs)
-        )
-
-        # create data loader for training
-        train_dl = AnnDataLoader(self.adata, shuffle=True, batch_size=batch_size)
-        plan = PyroTrainingPlan(self.module, **plan_kwargs)
-        es = "early_stopping"
-        trainer_kwargs[es] = (
-            early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
-        )
-        trainer = Trainer(
-            gpus=gpus,
-            max_epochs=max_epochs,
-            max_steps=max_steps,
-            # callbacks=[PyroJitGuideWarmup(train_dl)],
-            **trainer_kwargs,
-        )
-        trainer.fit(plan, train_dl)
-        self.module.to(device)
-
-        try:
-            if continue_training and self.is_trained_:
-                # add ELBO listory
-                index = range(
-                    len(self.module.history_),
-                    len(self.module.history_)
-                    + len(trainer.logger.history["train_loss_epoch"]),
-                )
-                trainer.logger.history["train_loss_epoch"].index = index
-                self.module.history_ = pd.concat(
-                    [self.module.history_, trainer.logger.history["train_loss_epoch"]]
-                )
-            else:
-                self.module.history_ = trainer.logger.history["train_loss_epoch"]
-            self.history_ = self.module.history_
-        except AttributeError:
-            self.history_ = None
-
-        self.module.is_trained_ = True
-        self.is_trained_ = True
-
-    def _optim_param(self, lr: float = 0.01, clip_norm: float = 200):
-        # create function which fetches different lr for different parameters
-        def optim_param(module_name, param_name):
-            return {
-                "lr": lr,
-                # limit the gradient step from becoming too large
-                "clip_norm": clip_norm,
-            }
-
-        return optim_param
-
-    def train_v2(self, **kwargs):
-        """
-        Train the model.
-
-        Parameters
-        ----------
-        max_epochs
-            Number of training epochs / iterations
-        max_steps
-            Number of training steps
-        use_gpu
-            Bool, use gpu?
-        lr
-            Learning rate.
-        autoencoding_lr
-            Optional, a separate learning rate for encoder network.
-        clip_norm
-            Gradient clipping norm (useful for preventing exploding gradients,
-            which can lead to impossible values and NaN loss).
-        trainer_kwargs
-            Training plan arguments for scvi.train.PyroTrainingPlan (Excluding optim and loss_fn)
-        early_stopping
-            Bool, use early stopping? (not tested)
-
-        Returns
-        -------
-        ELBO history in self.module.history_
-
-        """
-
-        plan_kwargs = {"loss_fn": pyro.infer.Trace_ELBO()}
-
-        batch_size = self.batch_size
-
-        if batch_size is None:
-            # train using full data (faster for small datasets)
-            self._train_full_data(plan_kwargs=plan_kwargs, **kwargs)
-        else:
-            # standard training using minibatches
-            self._train_minibatch(plan_kwargs=plan_kwargs, **kwargs)
 
 
 class PyroSampleMixin:
