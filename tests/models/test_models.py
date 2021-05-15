@@ -14,6 +14,7 @@ from scvi.data._built_in_data._download import _download
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
+    DeviceBackedDataSplitter,
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
@@ -27,6 +28,7 @@ from scvi.model import (
     DestVI,
     LinearSCVI,
 )
+from scvi.train import TrainingPlan, TrainRunner
 
 
 def test_scvi(save_path):
@@ -336,11 +338,12 @@ def test_data_splitter():
     a = synthetic_iid()
     # test leaving validataion_size empty works
     ds = DataSplitter(a, train_size=0.4)
+    ds.setup()
     # check the number of indices
-    train_dl, val_dl, test_dl = ds()
-    n_train_idx = len(train_dl.indices)
-    n_validation_idx = len(val_dl.indices)
-    n_test_idx = len(test_dl.indices)
+    _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
+    n_train_idx = len(ds.train_idx)
+    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
+    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
 
     assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
     assert np.isclose(n_train_idx / a.n_obs, 0.4)
@@ -349,11 +352,12 @@ def test_data_splitter():
 
     # test test size
     ds = DataSplitter(a, train_size=0.4, validation_size=0.3)
+    ds.setup()
     # check the number of indices
-    train_dl, val_dl, test_dl = ds()
-    n_train_idx = len(train_dl.indices)
-    n_validation_idx = len(val_dl.indices)
-    n_test_idx = len(test_dl.indices)
+    _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
+    n_train_idx = len(ds.train_idx)
+    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
+    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
 
     assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
     assert np.isclose(n_train_idx / a.n_obs, 0.4)
@@ -363,33 +367,61 @@ def test_data_splitter():
     # test that 0 < train_size <= 1
     with pytest.raises(ValueError):
         ds = DataSplitter(a, train_size=2)
-        ds()
+        ds.setup()
+        ds.train_dataloader()
     with pytest.raises(ValueError):
         ds = DataSplitter(a, train_size=-2)
-        ds()
+        ds.setup()
+        ds.train_dataloader()
 
     # test that 0 <= validation_size < 1
     with pytest.raises(ValueError):
         ds = DataSplitter(a, train_size=0.1, validation_size=1)
-        ds()
+        ds.setup()
+        ds.val_dataloader()
     with pytest.raises(ValueError):
         ds = DataSplitter(a, train_size=0.1, validation_size=-1)
-        ds()
+        ds.setup()
+        ds.val_dataloader()
 
     # test that train_size + validation_size <= 1
     with pytest.raises(ValueError):
         ds = DataSplitter(a, train_size=1, validation_size=0.1)
-        ds()
+        ds.setup()
+        ds.train_dataloader()
+        ds.val_dataloader()
+
+
+def test_device_backed_data_splitter():
+    a = synthetic_iid()
+    # test leaving validataion_size empty works
+    ds = DeviceBackedDataSplitter(a, train_size=1.0, use_gpu=None)
+    ds.setup()
+    train_dl = ds.train_dataloader()
+    ds.val_dataloader()
+    assert len(next(iter(train_dl))["X"]) == a.shape[0]
+
+    model = SCVI(a, n_latent=5)
+    training_plan = TrainingPlan(model.module, len(ds.train_idx))
+    runner = TrainRunner(
+        model,
+        training_plan=training_plan,
+        data_splitter=ds,
+        max_epochs=1,
+        use_gpu=None,
+    )
+    runner()
 
 
 def test_semisupervised_data_splitter():
     a = synthetic_iid()
     ds = SemiSupervisedDataSplitter(a, "asdf")
+    ds.setup()
     # check the number of indices
-    train_dl, val_dl, test_dl = ds()
-    n_train_idx = len(train_dl.indices)
-    n_validation_idx = len(val_dl.indices)
-    n_test_idx = len(test_dl.indices)
+    _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
+    n_train_idx = len(ds.train_idx)
+    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
+    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
 
     assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
     assert np.isclose(n_train_idx / a.n_obs, 0.9)
@@ -399,12 +431,13 @@ def test_semisupervised_data_splitter():
     # test mix of labeled and unlabeled data
     unknown_label = "label_0"
     ds = SemiSupervisedDataSplitter(a, unknown_label)
-    train_dl, val_dl, test_dl = ds()
+    ds.setup()
+    _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
 
     # check the number of indices
-    n_train_idx = len(train_dl.indices)
-    n_validation_idx = len(val_dl.indices)
-    n_test_idx = len(test_dl.indices)
+    n_train_idx = len(ds.train_idx)
+    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
+    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
     assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
     assert np.isclose(n_train_idx / a.n_obs, 0.9, rtol=0.05)
     assert np.isclose(n_validation_idx / a.n_obs, 0.1, rtol=0.05)
@@ -414,9 +447,9 @@ def test_semisupervised_data_splitter():
     labelled_idx = np.where(a.obs["labels"] != unknown_label)[0]
     unlabelled_idx = np.where(a.obs["labels"] == unknown_label)[0]
     # labeled training idx
-    labeled_train_idx = [i for i in train_dl.indices if i in labelled_idx]
+    labeled_train_idx = [i for i in ds.train_idx if i in labelled_idx]
     # unlabeled training idx
-    unlabeled_train_idx = [i for i in train_dl.indices if i in unlabelled_idx]
+    unlabeled_train_idx = [i for i in ds.train_idx if i in unlabelled_idx]
     n_labeled_idx = len(labelled_idx)
     n_unlabeled_idx = len(unlabelled_idx)
     # labeled vs unlabeled ratio in adata

@@ -63,16 +63,14 @@ class TrainRunner:
         self.trainer = Trainer(max_epochs=max_epochs, gpus=gpus, **trainer_kwargs)
 
     def __call__(self):
-        train_dl, val_dl, test_dl = self.data_splitter()
-        self.model.train_indices = train_dl.indices
-        self.model.test_indices = test_dl.indices
-        self.model.validation_indices = val_dl.indices
+        self.data_splitter.setup()
+        self.model.train_indices = self.data_splitter.train_idx
+        self.model.test_indices = self.data_splitter.test_idx
+        self.model.validation_indices = self.data_splitter.val_idx
 
-        if len(val_dl.indices) == 0:
-            # circumvent the empty data loader problem if all dataset used for training
-            self.trainer.fit(self.training_plan, train_dl)
-        else:
-            self.trainer.fit(self.training_plan, train_dl, val_dl)
+        self.training_plan.n_obs_training = len(self.model.train_indices)
+
+        self.trainer.fit(self.training_plan, self.data_splitter)
         try:
             self.model.history_ = self.trainer.logger.history
         except AttributeError:

@@ -174,26 +174,27 @@ class GIMVI(VAEMixin, BaseModelClass):
         self.train_indices_, self.test_indices_, self.validation_indices_ = [], [], []
         train_dls, test_dls, val_dls = [], [], []
         for i, ad in enumerate(self.adatas):
-            train, val, test = DataSplitter(
+            ds = DataSplitter(
                 ad,
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
                 use_gpu=use_gpu,
-            )()
-            train_dls.append(train)
-            test_dls.append(test)
-            val.mode = i
+            )
+            ds.setup()
+            train_dls.append(ds.train_dataloader())
+            test_dls.append(ds.test_dataloader())
+            val = ds.val_dataloader()
             val_dls.append(val)
-            self.train_indices_.append(train.indices)
-            self.test_indices_.append(test.indices)
-            self.validation_indices_.append(val.indices)
+            val.mode = i
+            self.train_indices_.append(ds.train_idx)
+            self.test_indices_.append(ds.test_idx)
+            self.validation_indices_.append(ds.val_idx)
         train_dl = TrainDL(train_dls)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
         self._training_plan = GIMVITrainingPlan(
             self.module,
-            len(self.train_indices_),
             adversarial_classifier=True,
             scale_adversarial_loss=kappa,
             **plan_kwargs,
