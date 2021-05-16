@@ -80,7 +80,7 @@ def _transform_to_positive(constraint):
     return SoftplusTransform()
 
 
-class RegressionBackgroundDetectionTechModule(PyroModule):
+class RegressionBackgroundDetectionTechPyroModel(PyroModule):
     """
     Given cell type annotation for each cell, the corresponding reference cell type signatures :math:`g_{f,g}`,
     which represent the average mRNA count of each gene `g` in each cell type `f={1, .., F}`,
@@ -504,7 +504,7 @@ class RegressionModel(
         super().__init__(adata)
 
         if model_class is None:
-            model_class = RegressionBackgroundDetectionTechModule
+            model_class = RegressionBackgroundDetectionTechPyroModel
 
         self.n_factors_ = self.summary_stats["n_labels"]
         self.factor_names_ = self.adata.uns["_scvi"]["categorical_mappings"][
