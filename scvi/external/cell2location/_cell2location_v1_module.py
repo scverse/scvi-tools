@@ -205,10 +205,15 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         return pyro.plate("obs_plate", size=self.n_obs, dim=-2, subsample=idx)
 
     def list_obs_plate_vars(self):
-        """Create a dictionary with the name of observation/minibatch plate,
-        indexes of model args to provide to encoder,
-        variable names that belong to the observation plate
-        and the number of dimensions in non-plate axis of each variable"""
+        """Create a dictionary with:
+        1. "name" - the name of observation/minibatch plate;
+        2. "in" - indexes of model args to provide to encoder network when using amortised inference;
+        3. "sites" - dictionary with
+            keys - names of variables that belong to the observation plate (used to recognise
+             and merge posterior samples for minibatch variables)
+            values - the dimensions in non-plate axis of each variable (used to construct output
+             layer of encoder network when using amortised inference)
+        """
 
         return {
             "name": "obs_plate",
