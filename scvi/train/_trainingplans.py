@@ -600,13 +600,27 @@ class PyroTrainingPlan(pl.LightningModule):
         pyro_module: PyroBaseModuleClass,
         loss_fn: Optional[pyro.infer.ELBO] = None,
         optim: Optional[pyro.optim.PyroOptim] = None,
+        n_obs: Optional[int] = None,
+        optim_kwargs: Optional[dict] = None,
     ):
         super().__init__()
         self.module = pyro_module
         self._n_obs_training = None
 
+        optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
+        optim_kwargs["lr"] = (
+            optim_kwargs["lr"] if "lr" in list(optim_kwargs.keys()) else 1e-3
+        )
+        optim_kwargs["clip_norm"] = (
+            optim_kwargs["clip_norm"]
+            if "clip_norm" in list(optim_kwargs.keys())
+            else 200
+        )
+
         self.loss_fn = pyro.infer.Trace_ELBO() if loss_fn is None else loss_fn
-        self.optim = pyro.optim.Adam({"lr": 1e-3}) if optim is None else optim
+        self.optim = (
+            pyro.optim.ClippedAdam(optim_args=optim_kwargs) if optim is None else optim
+        )
 
         self.automatic_optimization = False
         self.pyro_guide = self.module.guide
