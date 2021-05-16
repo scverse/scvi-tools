@@ -1,6 +1,9 @@
+from typing import Optional
+
 import numpy as np
 import pandas as pd
 from anndata import AnnData
+from pyro.nn import PyroModule
 
 import scvi
 from scvi.model.base import BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
@@ -41,7 +44,7 @@ class Cell2location(
         self,
         adata: AnnData,
         cell_state_df: pd.DataFrame,
-        model_class=None,
+        model_class: Optional[PyroModule] = None,
         **model_kwargs,
     ):
 
@@ -79,3 +82,66 @@ class Cell2location(
         )
         self._model_summary_string = f'cell2location model with the following params: \nn_factors: {self.n_factors_} \nn_batch: {self.summary_stats["n_batch"]} '
         self.init_params_ = self._get_init_params(locals())
+
+    def export_posterior(
+        self,
+        adata,
+        sample_kwargs: Optional[dict] = None,
+        export_slot: str = "mod",
+        add_to_obsm: list = ["means", "sds", "q05", "q95"],
+    ):
+        """
+        Summarise posterior distribution and export results (cell abundance) to anndata object:
+        1. adata.obsm: Estimated cell abundance as pd.DataFrames for each posterior distribution summary `add_to_obsm`,
+            posterior mean, sd, 5% and 95% quantiles (['means', 'sds', 'q05', 'q95']).
+            If export to adata.obsm fails with error, results are saved to adata.obs instead.
+        2. adata.uns: Posterior of all parameters, model name, date,
+            cell type names ('factor_names'), obs and var names.
+
+        Parameters
+        ----------
+        adata
+            anndata object where results should be saved
+        sample_kwargs
+            arguments for self.sample_posterior (generating and summarising posterior samples), namely:
+                num_samples - number of samples to use (Default = 1000).
+                batch_size - data batch size (keep low enough to fit on GPU, default 2048).
+                use_gpu - use gpu for generating samples?
+        export_slot
+            adata.uns slot where to export results
+        add_to_obsm
+            posterior distribution summary to export in adata.obsm (['means', 'sds', 'q05', 'q95']).
+        Returns
+        -------
+
+        """
+
+        sample_kwargs = sample_kwargs if isinstance(sample_kwargs, dict) else dict()
+
+        # generate samples from posterior distributions for all parameters
+        # and compute mean, 5%/95% quantiles and standard deviation
+        self.samples = self.sample_posterior(**sample_kwargs)
+
+        # export posterior distribution summary for all parameters and
+        # annotation (model, date, var, obs and cell type names) to anndata object
+        adata.uns[export_slot] = self._export2adata(self.samples)
+
+        # add estimated cell abundance as dataframe to obsm in anndata
+        # first convert np.arrays to pd.DataFrames with cell type and observation names
+        # data frames contain mean, 5%/95% quantiles and standard deviation, denoted by a prefix
+        for k in add_to_obsm:
+            sample_df = self.sample2df_obs(
+                self.samples,
+                site_name="w_sf",
+                summary_name=k,
+                name_prefix="cell_abundance",
+            )
+            try:
+                adata.obsm[f"{k}_cell_abundance_w_sf"] = sample_df.loc[
+                    adata.obs.index, :
+                ]
+            except ValueError:
+                # Catching weird error with obsm: `ValueError: value.index does not match parent’s axis 1 names`
+                adata.obs[sample_df.columns] = sample_df.loc[adata.obs.index, :]
+
+        return adata

@@ -9,7 +9,6 @@ from pyro.distributions import constraints
 from pyro.distributions.transforms import SoftplusTransform
 from pyro.infer.autoguide import init_to_mean
 from pyro.nn import PyroModule
-from scipy.sparse import issparse
 from torch.distributions import biject_to, transform_to
 
 from scvi import _CONSTANTS
@@ -190,15 +189,6 @@ class LocationModelLinearDependentWMultiExperimentPyroModel(PyroModule):
         x_data = tensor_dict[_CONSTANTS.X_KEY]
         ind_x = tensor_dict["ind_x"].long().squeeze()
         batch_index = tensor_dict[_CONSTANTS.BATCH_KEY]
-        return (x_data, ind_x, batch_index), {}
-
-    def _get_fn_args_full_data(self, adata):
-        x_data = get_from_registry(adata, _CONSTANTS.X_KEY)
-        if issparse(x_data):
-            x_data = np.asarray(x_data.toarray())
-        x_data = torch.tensor(x_data.astype("float32"))
-        ind_x = torch.tensor(get_from_registry(adata, "ind_x"))
-        batch_index = torch.tensor(get_from_registry(adata, _CONSTANTS.BATCH_KEY))
         return (x_data, ind_x, batch_index), {}
 
     def create_plates(self, x_data, idx, batch_index):
@@ -386,20 +376,24 @@ class LocationModelLinearDependentWMultiExperimentPyroModel(PyroModule):
         mRNA = w_sf * (self.cell_state * m_g).sum(-1)
         pyro.deterministic("u_sf_mRNA_factors", mRNA)
 
-    def compute_expected(self, samples, adata):
+    def compute_expected(self, samples, adata, ind_x=None):
         r"""Compute expected expression of each gene in each location. Useful for evaluating how well
         the model learned expression pattern of all genes in the data.
         """
+        if ind_x is None:
+            ind_x = np.arange(adata.n_obs).astype(int)
+        else:
+            ind_x = ind_x.astype(int)
         obs2sample = get_from_registry(adata, _CONSTANTS.BATCH_KEY)
-        obs2sample = pd.get_dummies(obs2sample.flatten())
+        obs2sample = pd.get_dummies(obs2sample.flatten()).values[ind_x, :]
         mu = (
-            np.dot(samples["w_sf"], self.cell_state_mat.T) * samples["m_g"]
+            np.dot(samples["w_sf"][ind_x, :], self.cell_state_mat.T) * samples["m_g"]
             + np.dot(obs2sample, samples["s_g_gene_add"])
-            + samples["l_s_add"]
+            + samples["l_s_add"][ind_x, :]
         )
         alpha = np.dot(obs2sample, 1 / np.power(samples["alpha_g_inverse"], 2))
 
-        return {"mu": mu, "alpha": alpha}
+        return {"mu": mu, "alpha": alpha, "ind_x": ind_x}
 
 
 class Cell2locationBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
