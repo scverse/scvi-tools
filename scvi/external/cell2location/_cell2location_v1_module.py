@@ -31,7 +31,7 @@ def _transform_to_positive(constraint):
 #    pass
 
 
-class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
+class LocationModelLinearDependentWMultiExperimentPyroModel(PyroModule):
     """
     Cell2location models the elements of :math:`D` as Negative Binomial distributed,
     given an unobserved gene expression level (rate) :math:`mu` and a gene- and batch-specific

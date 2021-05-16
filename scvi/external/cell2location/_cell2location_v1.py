@@ -8,7 +8,7 @@ from scvi.model.base import BaseModelClass
 from ._base import PltExportMixin, TrainSampleMixin
 from ._cell2location_v1_module import (
     Cell2locationBaseModule,
-    LocationModelLinearDependentWMultiExperimentModel,
+    LocationModelLinearDependentWMultiExperimentPyroModel,
 )
 
 
@@ -61,7 +61,7 @@ class Cell2location(TrainSampleMixin, BaseModelClass, PltExportMixin):
         super().__init__(adata)
 
         if model_class is None:
-            model_class = LocationModelLinearDependentWMultiExperimentModel
+            model_class = LocationModelLinearDependentWMultiExperimentPyroModel
 
         self.cell_state_df_ = cell_state_df
         self.n_factors_ = cell_state_df.shape[1]
