@@ -15,11 +15,11 @@ import scvi
 from scvi import _CONSTANTS
 from scvi.data._anndata import get_from_registry
 from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_logits
-from scvi.model.base import BaseModelClass
+from scvi.model.base import BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import one_hot
 
-from ._base import AutoGuideMixinModule, PltExportMixin, TrainSampleMixin
+from ._base import AutoGuideMixinModule, PltExportMixin, QuantileMixin
 
 
 def compute_cluster_averages(adata, labels, use_raw=True, layer=None):
@@ -114,7 +114,6 @@ class RegressionBackgroundDetectionTechModule(PyroModule):
         n_factors,
         n_batch,
         n_tech=None,
-        batch_size=None,
         alpha_g_phi_hyp_prior={"alpha": 9.0, "beta": 3.0},
         gene_add_alpha_hyp_prior={"alpha": 9.0, "beta": 3.0},
         gene_add_mean_hyp_prior={
@@ -134,7 +133,6 @@ class RegressionBackgroundDetectionTechModule(PyroModule):
         n_factors
         n_batch
         n_tech
-        batch_size
         alpha_g_phi_hyp_prior
         gene_add_alpha_hyp_prior
         gene_add_mean_hyp_prior
@@ -151,7 +149,6 @@ class RegressionBackgroundDetectionTechModule(PyroModule):
         self.n_factors = n_factors
         self.n_batch = n_batch
         self.n_tech = n_tech
-        self.batch_size = batch_size
 
         self.alpha_g_phi_hyp_prior = alpha_g_phi_hyp_prior
         self.gene_add_alpha_hyp_prior = gene_add_alpha_hyp_prior
@@ -466,7 +463,9 @@ class RegressionBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
         return self._amortised
 
 
-class RegressionModel(TrainSampleMixin, BaseModelClass, PltExportMixin):
+class RegressionModel(
+    QuantileMixin, PyroSampleMixin, PyroSviTrainMixin, PltExportMixin, BaseModelClass
+):
     """
     Model which estimates per cluster average mRNA count account for batch effects. User-end model class.
 
@@ -490,7 +489,6 @@ class RegressionModel(TrainSampleMixin, BaseModelClass, PltExportMixin):
     def __init__(
         self,
         adata: AnnData,
-        batch_size=None,
         model_class=None,
         **model_kwargs,
     ):
@@ -508,7 +506,6 @@ class RegressionModel(TrainSampleMixin, BaseModelClass, PltExportMixin):
         if model_class is None:
             model_class = RegressionBackgroundDetectionTechModule
 
-        self.batch_size = batch_size
         self.n_factors_ = self.summary_stats["n_labels"]
         self.factor_names_ = self.adata.uns["_scvi"]["categorical_mappings"][
             "_scvi_labels"

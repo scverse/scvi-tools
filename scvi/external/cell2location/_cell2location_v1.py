@@ -3,16 +3,18 @@ import pandas as pd
 from anndata import AnnData
 
 import scvi
-from scvi.model.base import BaseModelClass
+from scvi.model.base import BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
 
-from ._base import PltExportMixin, TrainSampleMixin
+from ._base import PltExportMixin, QuantileMixin
 from ._cell2location_v1_module import (
     Cell2locationBaseModule,
     LocationModelLinearDependentWMultiExperimentPyroModel,
 )
 
 
-class Cell2location(TrainSampleMixin, BaseModelClass, PltExportMixin):
+class Cell2location(
+    QuantileMixin, PyroSampleMixin, PyroSviTrainMixin, PltExportMixin, BaseModelClass
+):
     """
     Reimplementation of cell2location [Kleshchevnikov20]_ model. User-end model class.
 
@@ -39,7 +41,6 @@ class Cell2location(TrainSampleMixin, BaseModelClass, PltExportMixin):
         self,
         adata: AnnData,
         cell_state_df: pd.DataFrame,
-        batch_size=None,
         model_class=None,
         **model_kwargs,
     ):
@@ -66,8 +67,6 @@ class Cell2location(TrainSampleMixin, BaseModelClass, PltExportMixin):
         self.cell_state_df_ = cell_state_df
         self.n_factors_ = cell_state_df.shape[1]
         self.factor_names_ = cell_state_df.columns.values
-
-        self.batch_size = batch_size
 
         self.module = Cell2locationBaseModule(
             model=model_class,
