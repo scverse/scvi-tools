@@ -6,7 +6,7 @@ import torch
 from pyro import poutine
 from pytorch_lightning.callbacks import Callback
 
-from scvi.dataloaders import AnnDataLoader, DataSplitter
+from scvi.dataloaders import AnnDataLoader, DataSplitter, DeviceBackedDataSplitter
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.train import PyroTrainingPlan, TrainRunner
 from scvi.utils import track
@@ -89,7 +89,7 @@ class PyroSviTrainMixin:
 
         if batch_size is None:
             # use data splitter which moves data to GPU once
-            data_splitter = DataSplitter(
+            data_splitter = DeviceBackedDataSplitter(
                 self.adata,
                 train_size=train_size,
                 validation_size=validation_size,
@@ -258,7 +258,9 @@ class PyroSampleMixin:
         }
         return obs_plate
 
-    def _posterior_samples_minibatch(self, use_gpu: bool = True, **sample_kwargs):
+    def _posterior_samples_minibatch(
+        self, use_gpu: bool = True, batch_size: int = 128, **sample_kwargs
+    ):
         """
         Generate samples of the posterior distribution of each parameter, separating local (minibatch) variables
         and global variables, which is necessary when performing minibatch inference.
@@ -279,10 +281,8 @@ class PyroSampleMixin:
 
         gpus, device = parse_use_gpu_arg(use_gpu)
 
-        if self.batch_size is None:
+        if batch_size is None:
             batch_size = self.adata.n_obs
-        else:
-            batch_size = self.batch_size
         train_dl = AnnDataLoader(self.adata, shuffle=False, batch_size=batch_size)
         # sample local parameters
         i = 0
@@ -354,6 +354,7 @@ class PyroSampleMixin:
         num_samples: int = 1000,
         return_sites: Optional[list] = None,
         use_gpu: bool = False,
+        batch_size: int = 128,
         sample_kwargs=None,
         return_samples: bool = False,
     ):
@@ -393,7 +394,9 @@ class PyroSampleMixin:
         sample_kwargs["return_sites"] = return_sites
 
         # sample using minibatches (if full data, data is moved to GPU only once anyway)
-        samples = self._posterior_samples_minibatch(use_gpu=use_gpu, **sample_kwargs)
+        samples = self._posterior_samples_minibatch(
+            use_gpu=use_gpu, batch_size=batch_size, **sample_kwargs
+        )
 
         param_names = list(samples.keys())
         results = dict()

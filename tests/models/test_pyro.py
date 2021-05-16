@@ -119,7 +119,6 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
     def __init__(
         self,
         adata: AnnData,
-        batch_size=None,
         per_cell_weight=False,
     ):
         # add index for each cell (provided to pyro plate for correct minibatching)
@@ -133,7 +132,6 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
 
         super().__init__(adata)
 
-        self.batch_size = batch_size
         self.module = BayesianRegressionModule(
             in_features=adata.shape[1],
             out_features=1,
@@ -263,8 +261,13 @@ def test_pyro_bayesian_regression_jit():
 def test_pyro_bayesian_train_sample_mixin():
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
-    mod = BayesianRegressionModel(adata, batch_size=128)
-    mod.train(max_epochs=2, plan_kwargs={"optim_kwargs": {"lr": 0.01}}, use_gpu=use_gpu)
+    mod = BayesianRegressionModel(adata)
+    mod.train(
+        max_epochs=2,
+        batch_size=128,
+        plan_kwargs={"optim_kwargs": {"lr": 0.01}},
+        use_gpu=use_gpu,
+    )
 
     # 100 features
     assert list(
@@ -272,7 +275,9 @@ def test_pyro_bayesian_train_sample_mixin():
     ) == [1, 100]
 
     # test posterior sampling
-    samples = mod.sample_posterior(num_samples=10, use_gpu=use_gpu, return_samples=True)
+    samples = mod.sample_posterior(
+        num_samples=10, use_gpu=use_gpu, batch_size=128, return_samples=True
+    )
 
     assert len(samples["posterior_samples"]["sigma"]) == 10
 
@@ -280,8 +285,13 @@ def test_pyro_bayesian_train_sample_mixin():
 def test_pyro_bayesian_train_sample_mixin_full_data():
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
-    mod = BayesianRegressionModel(adata, batch_size=None)
-    mod.train(max_epochs=2, plan_kwargs={"optim_kwargs": {"lr": 0.01}}, use_gpu=use_gpu)
+    mod = BayesianRegressionModel(adata)
+    mod.train(
+        max_epochs=2,
+        batch_size=None,
+        plan_kwargs={"optim_kwargs": {"lr": 0.01}},
+        use_gpu=use_gpu,
+    )
 
     # 100 features
     assert list(
@@ -289,7 +299,9 @@ def test_pyro_bayesian_train_sample_mixin_full_data():
     ) == [1, 100]
 
     # test posterior sampling
-    samples = mod.sample_posterior(num_samples=10, use_gpu=use_gpu, return_samples=True)
+    samples = mod.sample_posterior(
+        num_samples=10, use_gpu=use_gpu, batch_size=None, return_samples=True
+    )
 
     assert len(samples["posterior_samples"]["sigma"]) == 10
 
@@ -297,9 +309,10 @@ def test_pyro_bayesian_train_sample_mixin_full_data():
 def test_pyro_bayesian_train_sample_mixin_with_local():
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
-    mod = BayesianRegressionModel(adata, batch_size=128, per_cell_weight=True)
+    mod = BayesianRegressionModel(adata, per_cell_weight=True)
     mod.train(
         max_epochs=2,
+        batch_size=128,
         plan_kwargs={"optim_kwargs": {"lr": 0.01}},
         train_size=1,  # does not work when there is a validation set.
         use_gpu=use_gpu,
@@ -311,7 +324,39 @@ def test_pyro_bayesian_train_sample_mixin_with_local():
     ) == [1, 100]
 
     # test posterior sampling
-    samples = mod.sample_posterior(num_samples=10, use_gpu=use_gpu, return_samples=True)
+    samples = mod.sample_posterior(
+        num_samples=10, use_gpu=use_gpu, batch_size=128, return_samples=True
+    )
+
+    assert len(samples["posterior_samples"]["sigma"]) == 10
+    assert samples["posterior_samples"]["per_cell_weights"].shape == (
+        10,
+        adata.n_obs,
+        1,
+    )
+
+
+def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
+    use_gpu = torch.cuda.is_available()
+    adata = synthetic_iid()
+    mod = BayesianRegressionModel(adata, per_cell_weight=True)
+    mod.train(
+        max_epochs=2,
+        batch_size=None,
+        plan_kwargs={"optim_kwargs": {"lr": 0.01}},
+        train_size=1,  # does not work when there is a validation set.
+        use_gpu=use_gpu,
+    )
+
+    # 100
+    assert list(
+        mod.module.guide.state_dict()["locs.linear.weight_unconstrained"].shape
+    ) == [1, 100]
+
+    # test posterior sampling
+    samples = mod.sample_posterior(
+        num_samples=10, use_gpu=use_gpu, batch_size=None, return_samples=True
+    )
 
     assert len(samples["posterior_samples"]["sigma"]) == 10
     assert samples["posterior_samples"]["per_cell_weights"].shape == (
