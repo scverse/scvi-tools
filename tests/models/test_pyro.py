@@ -99,7 +99,8 @@ def test_pyro_bayesian_regression(save_path):
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     pyro.clear_param_store()
     model = BayesianRegressionModule(adata.shape[1], 1)
-    plan = PyroTrainingPlan(model, n_obs=len(train_dl.indices))
+    plan = PyroTrainingPlan(model)
+    plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
         gpus=use_gpu,
         max_epochs=2,
@@ -135,7 +136,8 @@ def test_pyro_bayesian_regression(save_path):
         new_model.load_state_dict(torch.load(model_save_path))
     except RuntimeError as err:
         if isinstance(new_model, PyroBaseModuleClass):
-            plan = PyroTrainingPlan(new_model, n_obs=len(train_dl.indices))
+            plan = PyroTrainingPlan(new_model)
+            plan.n_obs_training = len(train_dl.indices)
             trainer = Trainer(
                 gpus=use_gpu,
                 max_steps=1,
@@ -160,9 +162,8 @@ def test_pyro_bayesian_regression_jit():
     pyro.clear_param_store()
     model = BayesianRegressionModule(adata.shape[1], 1)
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
-    plan = PyroTrainingPlan(
-        model, loss_fn=pyro.infer.JitTrace_ELBO(), n_obs=len(train_dl.indices)
-    )
+    plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
+    plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
         gpus=use_gpu, max_epochs=2, callbacks=[PyroJitGuideWarmup(train_dl)]
     )

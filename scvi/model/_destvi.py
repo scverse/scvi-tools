@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI). Most users will use the alternate constructor (see example).
+    Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) [Lopez21]_.. Most users will use the alternate constructor (see example).
 
     Parameters
     ----------

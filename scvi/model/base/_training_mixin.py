@@ -60,9 +60,7 @@ class UnsupervisedTrainingMixin:
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = TrainingPlan(
-            self.module, len(data_splitter.train_idx), **plan_kwargs
-        )
+        training_plan = TrainingPlan(self.module, **plan_kwargs)
 
         es = "early_stopping"
         trainer_kwargs[es] = (
