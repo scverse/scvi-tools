@@ -11,7 +11,6 @@ from anndata import AnnData
 from pyro import clear_param_store
 from pyro.distributions import constraints
 from pyro.distributions.transforms import SoftplusTransform
-from pyro.infer.autoguide import init_to_mean
 from pyro.nn import PyroModule
 from scipy.sparse import csr_matrix
 from torch.distributions import biject_to, transform_to
@@ -24,7 +23,7 @@ from scvi.model.base import BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import one_hot
 
-from ._base import AutoGuideMixinModule, PltExportMixin, QuantileMixin
+from ._base import AutoGuideMixinModule, PltExportMixin, QuantileMixin, init_to_value
 
 
 def compute_cluster_averages(adata, labels, use_raw=True, layer=None):
@@ -127,7 +126,7 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
         },
         detection_hyp_prior={"alpha": 200.0, "mean_alpha": 1.0, "mean_beta": 1.0},
         gene_tech_prior={"mean": 1, "alpha": 200},
-        init_vals=None,
+        init_vals: Optional[dict] = None,
     ):
         """
 
@@ -143,7 +142,6 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
         gene_add_mean_hyp_prior
         detection_hyp_prior
         gene_tech_prior
-        use_average_as_initial_value
         """
 
         ############# Initialise parameters ################
@@ -162,7 +160,9 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
         self.gene_tech_prior = gene_tech_prior
 
         if (init_vals is not None) & (type(init_vals) is dict):
-            self.init_vals = init_vals
+            self.np_init_vals = init_vals
+            for k in init_vals.keys():
+                self.register_buffer(f"init_val_{k}", torch.tensor(init_vals[k]))
 
         self.register_buffer(
             "detection_hyp_prior_alpha",
@@ -444,7 +444,7 @@ class RegressionBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
             encoder_kwargs=encoder_kwargs,
             data_transform=data_transform,
             single_encoder=single_encoder,
-            init_loc_fn=init_to_mean,
+            init_loc_fn=init_to_value,
         )
 
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
@@ -460,6 +460,14 @@ class RegressionBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
     @property
     def is_amortised(self):
         return self._amortised
+
+    def init_to_value(self, site):
+
+        init_vals = {
+            k: getattr(self.model, f"init_val_{k}")
+            for k in self.model.np_init_vals.keys()
+        }
+        return init_to_value(site=site, values=init_vals)
 
 
 class RegressionModel(
@@ -489,6 +497,7 @@ class RegressionModel(
         self,
         adata: AnnData,
         model_class=None,
+        use_average_as_initial: bool = True,
         **model_kwargs,
     ):
         # in case any other model was created before that shares the same parameter names.
@@ -512,6 +521,14 @@ class RegressionModel(
         self.factor_names_ = self.adata.uns["_scvi"]["categorical_mappings"][
             "_scvi_labels"
         ]["mapping"]
+
+        # use per class average as initial value
+        if use_average_as_initial:
+            # compute cluster average expression
+            aver = self._compute_cluster_averages(key="_scvi_labels")
+            model_kwargs["init_vals"] = {
+                "per_cluster_mu_fg": aver.values.T.astype("float32")
+            }
 
         self.module = RegressionBaseModule(
             model=model_class,

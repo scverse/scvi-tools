@@ -1,4 +1,5 @@
 from datetime import date
+from functools import partial
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -18,6 +19,15 @@ from scvi.model._utils import parse_use_gpu_arg
 from .autoguide import AutoGuideList, AutoNormalEncoder
 
 
+def init_to_value(site=None, values={}):
+    if site is None:
+        return partial(init_to_value, values=values)
+    if site["name"] in values:
+        return values[site["name"]]
+    else:
+        return init_to_mean(site)
+
+
 class AutoGuideMixinModule:
     def _create_autoguide(
         self,
@@ -32,7 +42,7 @@ class AutoGuideMixinModule:
         if not amortised:
             _guide = AutoNormal(
                 model,
-                init_loc_fn=init_to_mean,
+                init_loc_fn=init_loc_fn,
                 create_plates=model.create_plates,
             )
         else:
