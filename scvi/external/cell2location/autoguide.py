@@ -180,14 +180,10 @@ class AutoNormalEncoder(AutoGuide):
 
             # add linear layer for locs and scales
             param_dim = (self.n_hidden, self.amortised_plate_sites["sites"][name])
-            init_param = torch.normal(
-                torch.full(size=param_dim, fill_value=0.0, device=site["value"].device),
-                torch.full(
-                    size=param_dim,
-                    fill_value=(1 * self.init_param_scale) / np.sqrt(self.n_hidden),
-                    device=site["value"].device,
-                ),
-            )
+            init_param = np.random.normal(
+                np.zeros(param_dim),
+                (np.ones(param_dim) * self.init_param_scale) / np.sqrt(self.n_hidden),
+            ).astype("float32")
             _deep_setattr(
                 self.hidden2locs,
                 name,
@@ -198,14 +194,10 @@ class AutoNormalEncoder(AutoGuide):
                 ),
             )
 
-            init_param = torch.normal(
-                torch.full(size=param_dim, fill_value=0.0, device=site["value"].device),
-                torch.full(
-                    size=param_dim,
-                    fill_value=(1 * self.init_param_scale) / np.sqrt(self.n_hidden),
-                    device=site["value"].device,
-                ),
-            )
+            init_param = np.random.normal(
+                np.zeros(param_dim),
+                (np.ones(param_dim) * self.init_param_scale) / np.sqrt(self.n_hidden),
+            ).astype("float32")
             _deep_setattr(
                 self.hidden2scales,
                 name,
