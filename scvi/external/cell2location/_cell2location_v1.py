@@ -6,6 +6,8 @@ from anndata import AnnData
 from pyro.nn import PyroModule
 
 import scvi
+from scvi import _CONSTANTS
+from scvi.data._anndata import get_from_registry
 from scvi.model.base import BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
 
 from ._base import PltExportMixin, QuantileMixin
@@ -70,6 +72,15 @@ class Cell2location(
         self.cell_state_df_ = cell_state_df
         self.n_factors_ = cell_state_df.shape[1]
         self.factor_names_ = cell_state_df.columns.values
+
+        # compute expected change in sensitivity (m_g in V1 or y_s in V2)
+        sc_total = cell_state_df.sum(0).mean()
+        sp_total = get_from_registry(self.adata, _CONSTANTS.X_KEY).sum(1).mean()
+        get_from_registry(adata, _CONSTANTS.BATCH_KEY)
+        self.detection_mean_ = (
+            sp_total / model_kwargs.get("N_cells_per_location", 1)
+        ) / sc_total
+        model_kwargs["detection_mean"] = self.detection_mean_
 
         self.module = Cell2locationBaseModule(
             model=model_class,
