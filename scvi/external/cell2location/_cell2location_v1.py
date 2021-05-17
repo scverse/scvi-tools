@@ -3,6 +3,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from anndata import AnnData
+from pyro import clear_param_store
 from pyro.nn import PyroModule
 
 import scvi
@@ -49,6 +50,8 @@ class Cell2location(
         model_class: Optional[PyroModule] = None,
         **model_kwargs,
     ):
+        # in case any other model was created before that shares the same parameter names.
+        clear_param_store()
 
         if not np.all(adata.var_names == cell_state_df.index):
             raise ValueError(
