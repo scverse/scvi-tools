@@ -420,7 +420,7 @@ class PltExportMixin:
         summary_name
             posterior distribution summary to return ['means', 'sds', 'q05', 'q95']
         name_prefix
-            prefix to add to column names (f'{summary_name}_{name_prefix}_{site_name}_{self.factor_names_}')
+            prefix to add to column names (f'{summary_name}{name_prefix}_{site_name}_{self.factor_names_}')
 
         Returns
         -------
@@ -432,7 +432,7 @@ class PltExportMixin:
             samples[f"post_sample_{summary_name}"].get(site_name, None),
             index=self.adata.obs_names,
             columns=[
-                f"{summary_name}_{name_prefix}_{site_name}_{i}"
+                f"{summary_name}{name_prefix}_{site_name}_{i}"
                 for i in self.factor_names_
             ],
         )
@@ -456,7 +456,7 @@ class PltExportMixin:
         summary_name
             posterior distribution summary to return ('means', 'sds', 'q05', 'q95')
         name_prefix
-            prefix to add to column names (f'{summary_name}_{name_prefix}_{site_name}_{self.factor_names_}')
+            prefix to add to column names (f'{summary_name}{name_prefix}_{site_name}_{self.factor_names_}')
 
         Returns
         -------
@@ -468,7 +468,7 @@ class PltExportMixin:
             samples[f"post_sample_{summary_name}"].get(site_name, None),
             columns=self.adata.var_names,
             index=[
-                f"{summary_name}_{name_prefix}_{site_name}_{i}" + i
+                f"{summary_name}{name_prefix}_{site_name}_{i}"
                 for i in self.factor_names_
             ],
         ).T
