@@ -6,6 +6,7 @@ import pyro.distributions as dist
 import torch
 import torch.nn as nn
 from anndata import AnnData
+from pyro import clear_param_store
 from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule, PyroSample
 
@@ -121,6 +122,9 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
         adata: AnnData,
         per_cell_weight=False,
     ):
+        # in case any other model was created before that shares the same parameter names.
+        clear_param_store()
+
         # add index for each cell (provided to pyro plate for correct minibatching)
         adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
         register_tensor_from_anndata(
