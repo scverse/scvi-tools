@@ -24,6 +24,7 @@ class PyroJitGuideWarmup(Callback):
     def on_train_start(self, trainer, pl_module):
         """
         Way to warmup Pyro Guide in an automated way.
+
         Also device agnostic.
         """
 
