@@ -1,14 +1,19 @@
+from typing import Optional
+
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pyro
 import pyro.distributions as dist
 import torch
 from anndata import AnnData
+from pyro import clear_param_store
 from pyro.distributions import constraints
 from pyro.distributions.transforms import SoftplusTransform
 from pyro.infer.autoguide import init_to_mean
 from pyro.nn import PyroModule
-from scipy.sparse import csr_matrix, issparse
+from scipy.sparse import csr_matrix
 from torch.distributions import biject_to, transform_to
 
 import scvi
@@ -217,16 +222,6 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
         label_index = tensor_dict[_CONSTANTS.LABELS_KEY]
         return (x_data, ind_x, batch_index, label_index), {}
 
-    def _get_fn_args_full_data(self, adata):
-        x_data = get_from_registry(adata, _CONSTANTS.X_KEY)
-        if issparse(x_data):
-            x_data = np.array(x_data.toarray())
-        x_data = torch.tensor(x_data.astype("float32"))
-        ind_x = torch.tensor(get_from_registry(adata, "ind_x"))
-        batch_index = torch.tensor(get_from_registry(adata, _CONSTANTS.BATCH_KEY))
-        label_index = torch.tensor(get_from_registry(adata, _CONSTANTS.LABELS_KEY))
-        return (x_data, ind_x, batch_index, label_index), {}
-
     def create_plates(self, x_data, idx, batch_index, label_index):
         return pyro.plate("obs_plate", size=self.n_obs, dim=-2, subsample=idx)
 
@@ -363,21 +358,25 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
             )
 
     # =====================Other functions======================= #
-    def compute_expected(self, samples, adata):
+    def compute_expected(self, samples, adata, ind_x=None):
         r"""Compute expected expression of each gene in each cell. Useful for evaluating how well
         the model learned expression pattern of all genes in the data.
         """
+        if ind_x is None:
+            ind_x = np.arange(adata.n_obs).astype(int)
+        else:
+            ind_x = ind_x.astype(int)
         obs2sample = get_from_registry(adata, _CONSTANTS.BATCH_KEY)
-        obs2sample = pd.get_dummies(obs2sample.flatten())
+        obs2sample = pd.get_dummies(obs2sample.flatten()).values[ind_x, :]
         obs2label = get_from_registry(adata, _CONSTANTS.LABELS_KEY)
-        obs2label = pd.get_dummies(obs2label.flatten())
+        obs2label = pd.get_dummies(obs2label.flatten()).values[ind_x, :]
 
         alpha = 1 / np.power(samples["alpha_g_inverse"], 2)
 
         mu = (
             np.dot(obs2label, samples["per_cluster_mu_fg"])
             + np.dot(obs2sample, samples["s_g_gene_add"])
-        ) * samples["detection_y_c"]
+        ) * samples["detection_y_c"][ind_x, :]
         if self.n_tech is not None:
             mu = mu * samples["detection_tech_gene_tg"]
 
@@ -492,6 +491,9 @@ class RegressionModel(
         model_class=None,
         **model_kwargs,
     ):
+        # in case any other model was created before that shares the same parameter names.
+        clear_param_store()
+
         # add index for each cell (provided to pyro plate for correct minibatching)
         adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
         scvi.data.register_tensor_from_anndata(
@@ -521,3 +523,141 @@ class RegressionModel(
         )
         self._model_summary_string = f'RegressionBackgroundDetectionTech model with the following params: \nn_factors: {self.n_factors_} \nn_batch: {self.summary_stats["n_batch"]} '
         self.init_params_ = self._get_init_params(locals())
+
+    def _compute_cluster_averages(self, key="_scvi_labels"):
+        """
+        Compute average per cluster (key='_scvi_labels') or per batch (key='_scvi_batch').
+
+        Returns
+        -------
+        pd.DataFrame with variables in rows and labels in columns
+        """
+        # find cell label column
+        label_col = self.adata.uns["_scvi"]["categorical_mappings"][key]["original_key"]
+
+        # find data slot
+        x_dict = self.adata.uns["_scvi"]["data_registry"]["X"]
+        if x_dict["attr_name"] == "X":
+            use_raw = False
+        else:
+            use_raw = True
+        if x_dict["attr_name"] == "layers":
+            layer = x_dict["attr_key"]
+        else:
+            layer = None
+
+        # compute mean expression of each gene in each cluster/batch
+        aver = compute_cluster_averages(
+            self.adata, labels=label_col, use_raw=use_raw, layer=layer
+        )
+
+        return aver
+
+    def export_posterior(
+        self,
+        adata,
+        sample_kwargs: Optional[dict] = None,
+        export_slot: str = "mod",
+        add_to_varm: list = ["means", "sds", "q05", "q95"],
+        scale_average_detection: bool = True,
+    ):
+        """
+        Summarise posterior distribution and export results (cell abundance) to anndata object:
+        1. adata.obsm: Estimated references expression signatures (average mRNA count in each cell type),
+            as pd.DataFrames for each posterior distribution summary `add_to_varm`,
+            posterior mean, sd, 5% and 95% quantiles (['means', 'sds', 'q05', 'q95']).
+            If export to adata.varm fails with error, results are saved to adata.var instead.
+        2. adata.uns: Posterior of all parameters, model name, date,
+            cell type names ('factor_names'), obs and var names.
+
+        Parameters
+        ----------
+        adata
+            anndata object where results should be saved
+        sample_kwargs
+            arguments for self.sample_posterior (generating and summarising posterior samples), namely:
+                num_samples - number of samples to use (Default = 1000).
+                batch_size - data batch size (keep low enough to fit on GPU, default 2048).
+                use_gpu - use gpu for generating samples?
+        export_slot
+            adata.uns slot where to export results
+        add_to_varm
+            posterior distribution summary to export in adata.varm (['means', 'sds', 'q05', 'q95']).
+        Returns
+        -------
+
+        """
+
+        sample_kwargs = sample_kwargs if isinstance(sample_kwargs, dict) else dict()
+
+        # generate samples from posterior distributions for all parameters
+        # and compute mean, 5%/95% quantiles and standard deviation
+        self.samples = self.sample_posterior(**sample_kwargs)
+
+        # export posterior distribution summary for all parameters and
+        # annotation (model, date, var, obs and cell type names) to anndata object
+        adata.uns[export_slot] = self._export2adata(self.samples)
+
+        # export estimated expression in each cluster
+        # first convert np.arrays to pd.DataFrames with cell type and observation names
+        # data frames contain mean, 5%/95% quantiles and standard deviation, denoted by a prefix
+        for k in add_to_varm:
+            sample_df = self.sample2df_vars(
+                self.samples,
+                site_name="per_cluster_mu_fg",
+                summary_name=k,
+                name_prefix="",
+            )
+            if scale_average_detection and (
+                "detection_y_c" in list(self.samples[f"post_sample_{k}"].keys())
+            ):
+                sample_df = (
+                    sample_df * self.samples[f"post_sample_{k}"]["detection_y_c"].mean()
+                )
+            try:
+                adata.varm[f"{k}_per_cluster_mu_fg"] = sample_df.loc[adata.var.index, :]
+            except ValueError:
+                # Catching weird error with obsm: `ValueError: value.index does not match parent’s axis 1 names`
+                adata.var[sample_df.columns] = sample_df.loc[adata.var.index, :]
+
+        return adata
+
+    def plot_QC(self, summary_name: str = "means", use_n_obs: int = 1000):
+        """
+        Show quality control plots:
+        1. Reconstruction accuracy to assess if there are any issues with model training.
+            The plot should be roughly diagonal, strong deviations signal problems that need to be investigated.
+            Plotting is slow because expected value of mRNA count needs to be computed from model parameters. Random
+            observations are used to speed up computation.
+
+        2. Estimated reference expression signatures (accounting for batch effect)
+            compared to average expression in each cluster. We expect the signatures to be different
+            from average when batch effects are present, however, when this plot is very different from
+            a perfect diagonal, such as very low values on Y-axis, non-zero density everywhere)
+            it indicates problems with signature estimation.
+
+        Parameters
+        ----------
+        summary_name
+            posterior distribution summary to use ('means', 'sds', 'q05', 'q95')
+
+        Returns
+        -------
+
+        """
+
+        super().plot_QC(summary_name=summary_name, use_n_obs=use_n_obs)
+        plt.show()
+
+        inf_aver = self.samples[f"post_sample_{summary_name}"]["per_cluster_mu_fg"].T
+        aver = self._compute_cluster_averages(key="_scvi_labels")
+
+        plt.hist2d(
+            np.log10(aver.values.flatten() + 1),
+            np.log10(inf_aver.flatten() + 1),
+            bins=50,
+            norm=matplotlib.colors.LogNorm(),
+        )
+        plt.xlabel("Mean expression for every gene in every cluster")
+        plt.ylabel("Estimated expression for every gene in every cluster")
+        plt.show()
