@@ -96,6 +96,7 @@ class SOLO(BaseModelClass):
         scvi_model: SCVI,
         adata: Optional[AnnData] = None,
         restrict_to_batch: Optional[str] = None,
+        doublet_ratio: int = 2,
     ):
         """
         Instantiate a SOLO model from an scvi model.
@@ -140,7 +141,8 @@ class SOLO(BaseModelClass):
             batch_indices = None
 
         # anndata with only generated doublets
-        doublet_adata = cls.create_doublets(orig_adata, indices=batch_indices)
+        doublet_adata = cls.create_doublets(orig_adata, indices=batch_indices,
+                                            doublet_ratio=doublet_ratio)
         # if scvi wasn't trained with batch correction having the
         # zeros here does nothing.
         doublet_adata.obs[orig_batch_key] = (
@@ -189,7 +191,6 @@ class SOLO(BaseModelClass):
         adata: AnnData,
         indices: Optional[Sequence[int]] = None,
         seed: int = 1,
-        doublet_ratio: int = 2,
     ) -> AnnData:
         """Simulate doublets.
 
@@ -359,7 +360,7 @@ class SOLO(BaseModelClass):
             preds, columns=cols, index=self.adata.obs_names[singlet_mask]
         )
 
-        if soft:
+        if not soft:
             preds_df = preds_df.idxmax(axis=1)
 
         return preds_df
