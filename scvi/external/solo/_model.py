@@ -141,8 +141,9 @@ class SOLO(BaseModelClass):
             batch_indices = None
 
         # anndata with only generated doublets
-        doublet_adata = cls.create_doublets(orig_adata, indices=batch_indices,
-                                            doublet_ratio=doublet_ratio)
+        doublet_adata = cls.create_doublets(
+            orig_adata, indices=batch_indices, doublet_ratio=doublet_ratio
+        )
         # if scvi wasn't trained with batch correction having the
         # zeros here does nothing.
         doublet_adata.obs[orig_batch_key] = (
@@ -189,6 +190,7 @@ class SOLO(BaseModelClass):
     @staticmethod
     def create_doublets(
         adata: AnnData,
+        doublet_ratio: int,
         indices: Optional[Sequence[int]] = None,
         seed: int = 1,
     ) -> AnnData:
@@ -198,13 +200,13 @@ class SOLO(BaseModelClass):
         ----------
         adata
             AnnData object setup with :func:`~scvi.data.setup_anndata`.
+        doublet_ratio
+            Ratio of generated doublets to produce relative to number of
+            cells in adata or length of indices, if not `None`.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         seed
             Seed for reproducibility
-        doublet_ratio
-            Ratio of generated doublets to produce relative to number of
-            cells in adata or length of indices, if not `None`.
         """
         n_obs = adata.n_obs if indices is None else len(indices)
         num_doublets = doublet_ratio * n_obs
