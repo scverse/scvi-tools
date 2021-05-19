@@ -113,7 +113,7 @@ class AutoGuideMixinModule:
                     single_encoder=single_encoder,
                 )
             )
-            return _guide
+        return _guide
 
     def _data_transform_clusters(self):
         def _data_transform(x):
