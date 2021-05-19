@@ -45,7 +45,7 @@ class DEMixin:
         batchid2: Optional[Iterable[str]] = None,
         fdr_target: float = 0.05,
         silent: bool = False,
-        eps: float = None,
+        pseudocounts: float = None,
         fn_kwargs: dict = dict(),
         **kwargs,
     ) -> pd.DataFrame:
@@ -91,7 +91,7 @@ class DEMixin:
             batch_correction,
             fdr_target,
             silent,
-            eps=eps,
+            pseudocounts=pseudocounts,
             use_permutation=True,
             **kwargs,
         )
@@ -212,7 +212,6 @@ class DEMixin:
             adata=adata, indices=indices, batch_size=batch_size, shuffle=False
         )
 
-        n_cells = scdl.indices.shape[0]
         zs = []
         qzs_m = []
         qzs_v = []
