@@ -97,7 +97,6 @@ class VAEMixin:
                     self.module.marginal_ll(
                         tensors,
                         n_mc_samples=n_mc_samples,
-                        n_samples_per_pass=n_samples_per_pass,
                         observation_specific=observation_specific,
                     )
                 )
