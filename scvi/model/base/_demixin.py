@@ -166,7 +166,7 @@ class DEMixin:
         else:
             n_samples_per_cell = n_samples
             n_samples_overall = n_samples_per_cell * n_cells_used
-        n_samples_per_cell = np.minimum(n_samples_per_cell, 200)
+        n_samples_per_cell = np.minimum(n_samples_per_cell, 100)
 
         # res = self._inference_loop(scdl, n_samples_per_cell)["hs_weighted"]
         res = []

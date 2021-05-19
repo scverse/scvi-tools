@@ -24,6 +24,7 @@ and I want to evaluate the log ratios
 from typing import Callable, Iterable, Optional
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 
@@ -46,7 +47,7 @@ class WVAE(VAE):
         n_labels: int = 0,
         n_hidden: int = 128,
         n_latent: int = 10,
-        n_particles: int = 1,
+        n_particles: int = 25,
         loss_type: Literal["IWELBO", "ELBO"] = "IWELBO",
         n_layers: int = 1,
         n_continuous_cov: int = 0,
@@ -61,7 +62,7 @@ class WVAE(VAE):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_observed_lib_size: bool = False,
-        var_activation: Optional[Callable] = None,
+        var_activation: Optional[Callable] = nn.Softplus(),
     ):
         super().__init__(
             n_input=n_input,
