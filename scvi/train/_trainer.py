@@ -7,6 +7,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import LightningLoggerBase
 
+import scvi.train
 from scvi import settings
 from scvi._compat import Literal
 
@@ -156,9 +157,10 @@ class Trainer(pl.Trainer):
                 category=UserWarning,
                 message="One of given dataloaders is None and it will be skipped",
             )
-            warnings.filterwarnings(
-                action="ignore",
-                category=UserWarning,
-                message="`LightningModule.configure_optimizers` returned `None`",
-            )
+            if isinstance(args[0], scvi.train.PyroTrainingPlan):
+                warnings.filterwarnings(
+                    action="ignore",
+                    category=UserWarning,
+                    message="`LightningModule.configure_optimizers` returned `None`",
+                )
             super().fit(*args, **kwargs)
