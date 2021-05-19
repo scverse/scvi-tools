@@ -96,6 +96,7 @@ class SOLO(BaseModelClass):
         scvi_model: SCVI,
         adata: Optional[AnnData] = None,
         restrict_to_batch: Optional[str] = None,
+        doublet_ratio: int = 2,
     ):
         """
         Instantiate a SOLO model from an scvi model.
@@ -113,6 +114,9 @@ class SOLO(BaseModelClass):
             Batch category in `batch_key` used to setup adata for scvi_model
             to restrict Solo model to. This allows to train a Solo model on
             one batch of a scvi_model that was trained on multiple batches.
+        doublet_ratio
+            Ratio of generated doublets to produce relative to number of
+            cells in adata or length of indices, if not `None`.
 
         Returns
         -------
@@ -140,7 +144,9 @@ class SOLO(BaseModelClass):
             batch_indices = None
 
         # anndata with only generated doublets
-        doublet_adata = cls.create_doublets(orig_adata, indices=batch_indices)
+        doublet_adata = cls.create_doublets(
+            orig_adata, indices=batch_indices, doublet_ratio=doublet_ratio
+        )
         # if scvi wasn't trained with batch correction having the
         # zeros here does nothing.
         doublet_adata.obs[orig_batch_key] = (
@@ -187,9 +193,9 @@ class SOLO(BaseModelClass):
     @staticmethod
     def create_doublets(
         adata: AnnData,
+        doublet_ratio: int,
         indices: Optional[Sequence[int]] = None,
         seed: int = 1,
-        doublet_ratio: int = 2,
     ) -> AnnData:
         """Simulate doublets.
 
@@ -197,13 +203,13 @@ class SOLO(BaseModelClass):
         ----------
         adata
             AnnData object setup with :func:`~scvi.data.setup_anndata`.
+        doublet_ratio
+            Ratio of generated doublets to produce relative to number of
+            cells in adata or length of indices, if not `None`.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         seed
             Seed for reproducibility
-        doublet_ratio
-            Ratio of generated doublets to produce relative to number of
-            cells in adata or length of indices, if not `None`.
         """
         n_obs = adata.n_obs if indices is None else len(indices)
         num_doublets = doublet_ratio * n_obs
@@ -359,7 +365,7 @@ class SOLO(BaseModelClass):
             preds, columns=cols, index=self.adata.obs_names[singlet_mask]
         )
 
-        if soft:
+        if not soft:
             preds_df = preds_df.idxmax(axis=1)
 
         return preds_df
