@@ -80,6 +80,8 @@ class VAEMixin:
             or the vector
             .. math::
             \{p(x_i)\}_i
+        _adata
+            Already valided anndata (used to save time associated with self._validate_anndata)
         """
         adata = _adata if _adata is not None else self._validate_anndata(adata)
         if indices is None:

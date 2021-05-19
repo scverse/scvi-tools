@@ -40,6 +40,8 @@ def reparameterize_gaussian(mu, var):
 
 
 class WVAE(VAE):
+    """scVI base module using log-ratios for training."""
+
     def __init__(
         self,
         n_input: int,
@@ -55,7 +57,6 @@ class WVAE(VAE):
         dropout_rate: float = 0.0,
         dispersion: str = "gene",
         log_variational: bool = True,
-        gene_likelihood: str = "nb",
         latent_distribution: str = "normal",
         encode_covariates: bool = False,
         deeply_inject_covariates: bool = True,
@@ -76,7 +77,7 @@ class WVAE(VAE):
             dropout_rate=dropout_rate,
             dispersion=dispersion,
             log_variational=log_variational,
-            gene_likelihood=gene_likelihood,
+            gene_likelihood="nb",
             latent_distribution=latent_distribution,
             encode_covariates=encode_covariates,
             deeply_inject_covariates=deeply_inject_covariates,

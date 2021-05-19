@@ -35,7 +35,6 @@ class WSCVI(
         n_layers: int = 1,
         dropout_rate: float = 0.0,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
-        gene_likelihood: Literal["zinb", "nb", "poisson"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
         **model_kwargs,
     ):
@@ -56,7 +55,6 @@ class WSCVI(
             n_layers=n_layers,
             dropout_rate=dropout_rate,
             dispersion=dispersion,
-            gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
             **model_kwargs,
         )
@@ -69,7 +67,7 @@ class WSCVI(
             n_layers,
             dropout_rate,
             dispersion,
-            gene_likelihood,
+            "nb",
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())

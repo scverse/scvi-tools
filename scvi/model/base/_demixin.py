@@ -50,9 +50,7 @@ class DEMixin:
         **kwargs,
     ) -> pd.DataFrame:
         r"""
-        A unified method for differential expression analysis.
-
-        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
+        A unified method for differential expression analysis using lvm-DE.
 
         Parameters
         ----------
@@ -114,17 +112,48 @@ class DEMixin:
         n_cells_per_chunk: Optional[int] = 500,
         max_chunks: Optional[int] = None,
     ):
-        """Returns scales and latent variable in a given subpopulation characterized by `indices`
-        using importance sampling
+        """Computes importance-weighted expression levels within a subpopulation.
 
-        :param adata: Anndata to use, defaults to None
-        :param indices: Indices of the subpopulation, defaults to None
-        :param n_samples: Number of posterior samples per cell, defaults to 25
-        :param n_samples_overall: Number of posterior samples to use in total, defaults to None.
-        If provided, this parameter overrides `n_samples`.
-        :param batch_size: Batch size of the data loader, defaults to 64
-        :param transform_batch: Batch to use, defaults to None
-        :return_numpy: Whether numpy should be returned
+        There are three majors steps to obtain the expression levels.
+        A first optional step consists in filtering out outlier cells, using the cells' latent representation.
+        Next, we infer how the data should be split to compute expression levels.
+        In particular, if the considered subpopulation is big, we divide the indices
+        into K chunks
+
+        Finally, we compute importance-weighted expression levels within each chunk, in `_inference_loop`,
+        which we then concatenate and return.
+
+        Parameters
+        ----------
+        adata : Optional[AnnData], optional
+            Anndata to use, defaults to None, by default None
+        indices : Optional[Sequence[int]], optional
+            Indices of the subpopulation, by default None
+        n_samples : int, optional
+            Indices of the subpopulation, by default 25
+        n_samples_overall : int, optional
+            Indices of the subpopulation, by default None
+        batch_size : Optional[int], optional
+            Batch size of the data loader, by default 64
+        do_filter_cells : bool, optional
+            Whether cells should be filtered using outlier detection, by default True
+        transform_batch : Optional[Sequence[Union[Number, str]]], optional
+            Batch to use, by default None
+        return_numpy : Optional[bool], optional
+             Whether numpy should be returned, by default False
+        marginal_n_samples_per_pass : int, optional
+            Number of samples per pass to compute the marginal likelihood, by default 500
+        n_mc_samples_px : int, optional
+            Number of overall samples per cell used to compute the marginal likelihood, by default 5000
+        n_cells_per_chunk : Optional[int], optional
+            Number of cells to use in each minibatch, by default 500
+        max_chunks : Optional[int], optional
+            Maximum number of chunks to use, by default None
+
+        Returns
+        -------
+        Sequence
+            Importance weighted expression levels of shaoe (Number of samples, number of genes)
         """
         # Step 1: Determine effective indices to use
         # adata = self._validate_anndata(adata)
@@ -149,6 +178,8 @@ class DEMixin:
                 indices=indices_,
                 batch_size=batch_size,
             )
+
+        # Step 2.
         # Determine number of cell chunks
         # Because of the quadratic complexity we split cells in smaller chunks when
         # the cell population is too big
@@ -168,7 +199,7 @@ class DEMixin:
             n_samples_overall = n_samples_per_cell * n_cells_used
         n_samples_per_cell = np.minimum(n_samples_per_cell, 100)
 
-        # res = self._inference_loop(scdl, n_samples_per_cell)["hs_weighted"]
+        # Step 3
         res = []
         for chunk in cell_chunks:
             logger.debug("n cells chunk {}".format(chunk.shape[0]))
@@ -192,22 +223,45 @@ class DEMixin:
     @torch.no_grad()
     def _inference_loop(
         self,
-        adata,
-        indices,
+        adata: AnnData,
+        indices: Sequence,
         n_samples: int,
         marginal_n_samples_per_pass=500,
         n_mc_samples_px=5000,
         batch_size=64,
-        # transform_batch: str = None
     ):
-        """Returns population wide unweighted posterior samples, as well as
+        """Returns gene normalized expression samples, as well as
         variational posterior densities and likelihoods for each samples and each
         cell.
 
-        :param scdl: Dataloader over subpopulation of interest
-        :param n_samples: Number of samples per cell
-        :param transform_batch: Batch of use, defaults to None
+        The functioning of the method is a follows.
+        For each cell of the dataset, we sample `n_samples` posterior samples.
+        We then compute the likelihood of each sample and FOR EACH CELL, using
+        `_evaluate_likelihood`.
+        After concatenating likelihoods and samples, we derive overall
+        importance weights and importance weighted expression levels.
+
+        Parameters
+        ----------
+        adata : AnnData
+            Considered anndataset
+        indices : Sequence
+            Indices of the subpopulation
+        n_samples : int
+            Number of posterior samples per cell
+        marginal_n_samples_per_pass : int, optional
+            Number of samples per pass to compute the marginal likelihood, by default 500
+        n_mc_samples_px : int, optional
+            Number of overall samples per cell used to compute the marginal likelihood, by default 5000
+        batch_size : int, optional
+            Number of cells per minibatch, by default 64
+
+        Returns
+        -------
+        dict
+            Containing expression levels, z samples as well as associated densities
         """
+
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size, shuffle=False
         )
@@ -298,11 +352,21 @@ class DEMixin:
         """Computes p(x \mid z), q(z \mid x) as well as p(z) for
         each cell x contained in `scdl` and predetermined
         posterior samples $z$ in `inference_outputs`.
-        These quantities are necessary to evalute subpopulation-wide importance weights
+        These quantities are necessary to evalute subpopulation-wide importance weights.
 
-        :param scdl: Dataset containing cells of interest
-        :param inference_outputs: Inference outputs containing the considered samples
+        Parameters
+        ----------
+        scdl : DataLoader
+             Dataset containing cells of interest
+        inference_outputs : dict
+            Output of module containing the latent variables z of interest
+
+        Returns
+        -------
+        Sequence
+            Likelihoods of shape (number of cells, number of posterior samples)
         """
+
         z_samples = inference_outputs["z"]
         if self.module.use_observed_lib_size:
             lib_key = "library"
@@ -334,12 +398,22 @@ class DEMixin:
         _log_px_zs = torch.cat(_log_px_zs, 1)
         return _log_px_zs
 
-    def filter_cells(self, adata, indices, batch_size: int):
-        """Filter outlier cells indexed by indices
+    def filter_cells(self, adata: AnnData, indices: Sequence, batch_size: int):
+        """Filter outlier cells indexed by indices.
 
-        :param adata: Considered anndata
-        :param indices: Cell indices
-        :param batch_size: Batch size
+        Parameters
+        ----------
+        adata : Anndata
+            Anndata containing the observations.
+        indices : Sequence
+            Indices characterizing the considered subpopulation.
+        batch_size : int
+            Batch-size to use to compute the latent representation.
+
+        Returns
+        -------
+        Sequence
+            Indices to keep for differential expression
         """
         qz_m = self.get_latent_representation(
             _adata=adata,
