@@ -112,11 +112,11 @@ class PyroSviTrainMixin:
             early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
         )
 
-        if "callbacks" not in trainer_kwargs.keys():
-            trainer_kwargs["callbacks"] = []
-        trainer_kwargs["callbacks"].append(
-            PyroJitGuideWarmup(data_splitter.train_dataloader())
-        )
+        # if "callbacks" not in trainer_kwargs.keys():
+        #    trainer_kwargs["callbacks"] = []
+        # trainer_kwargs["callbacks"].append(
+        #    PyroJitGuideWarmup(data_splitter.train_dataloader())
+        # )
 
         runner = TrainRunner(
             self,
