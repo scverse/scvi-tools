@@ -114,6 +114,9 @@ class SOLO(BaseModelClass):
             Batch category in `batch_key` used to setup adata for scvi_model
             to restrict Solo model to. This allows to train a Solo model on
             one batch of a scvi_model that was trained on multiple batches.
+        doublet_ratio
+            Ratio of generated doublets to produce relative to number of
+            cells in adata or length of indices, if not `None`.
 
         Returns
         -------
