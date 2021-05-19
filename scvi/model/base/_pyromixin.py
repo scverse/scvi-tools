@@ -24,6 +24,7 @@ class PyroJitGuideWarmup(Callback):
     def on_train_start(self, trainer, pl_module):
         """
         Way to warmup Pyro Guide in an automated way.
+
         Also device agnostic.
         """
 
@@ -71,7 +72,7 @@ class PyroSviTrainMixin:
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         batch_size
-            Minibatch size to use during training.
+            Minibatch size to use during training. If `None`, no minibatching occurs and all data is copied to device (e.g., GPU).
         early_stopping
             Perform early stopping. Additional arguments can be passed in `**kwargs`.
             See :class:`~scvi.train.Trainer` for further options.
