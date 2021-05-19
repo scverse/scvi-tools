@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI). Most users will use the alternate constructor (see example).
+    Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) [Lopez21]_.. Most users will use the alternate constructor (see example).
 
     Parameters
     ----------
@@ -324,7 +324,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             Learning rate for optimization.
         use_gpu
             Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str), or use CPU (if False).
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size

@@ -47,6 +47,7 @@ class BaseModelClass(ABC):
         self.validation_indices_ = None
         self.history_ = None
         self._data_loader_cls = AnnDataLoader
+        self.train_device_ = None
 
     def to_device(self, device: Union[str, int]):
         """
@@ -254,7 +255,7 @@ class BaseModelClass(ABC):
         save_anndata
             If True, also saves the anndata
         anndata_write_kwargs
-            Kwargs for :func:`~anndata.AnnData.write`
+            Kwargs for :meth:`~anndata.AnnData.write`
         """
         # get all the user attributes
         user_attributes = self._get_user_attributes()

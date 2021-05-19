@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Dict, Optional, Sequence, Union
 
 import numpy as np
@@ -176,7 +177,15 @@ class VAEMixin:
             Low-dimensional representation for each cell
         """
         if self.is_trained_ is False:
-            raise RuntimeError("Please train the model first.")
+            warnings.warn("Model hasn't been trained yet, results will be random.")
+        elif self.device.type != self.train_device_.type:
+            warnings.warn(
+                f"""Model trained with {self.train_device_} but currently on {self.device}. You may experience
+                 reproducibility issues: https://github.com/YosefLab/scvi-tools/issues/1048.
+                 This is expected behavior: https://github.com/pytorch/pytorch/issues/38219.
+                 Move the model back to the train device for reproducibility
+                 model.to_device('{self.train_device_}')"""
+            )
 
         adata = _adata if _adata is not None else self._validate_anndata(adata)
         scdl = self._make_data_loader(

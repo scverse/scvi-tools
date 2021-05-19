@@ -1,0 +1,27 @@
+New in 0.10.1 (2021-05-04)
+--------------------------
+
+Changes
+~~~~~~~
+- Includes new optional variance parameterization for the `Encoder` module (`#1037`_).
+- Provides new way to select subpopulations for DE using Pandas queries (`#1041`_).
+- Update reference to peakVI (`#1046`_).
+- Pin Pytorch Lightning version to <1.3
+
+Contributors
+~~~~~~~~~~~~
+- `@adamgayoso`_
+- `@PierreBoyeau`_
+- `@talashuach`_
+
+
+.. _`@adamgayoso`: https://github.com/adamgayoso
+.. _`@PierreBoyeau`: https://github.com/PierreBoyeau
+.. _`@talashuach`: https://github.com/talashuach
+
+
+.. _`#1037`: https://github.com/YosefLab/scvi-tools/pull/1037
+.. _`#1041`: https://github.com/YosefLab/scvi-tools/pull/1041
+.. _`#1046`: https://github.com/YosefLab/scvi-tools/pull/1046
+
+
