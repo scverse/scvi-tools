@@ -372,6 +372,15 @@ class DeviceBackedDataSplitter(DataSplitter):
     def setup(self, stage: Optional[str] = None):
         super().setup()
 
+        if self.shuffle is False:
+            self.train_idx = np.sort(self.train_idx)
+            self.val_idx = (
+                np.sort(self.val_idx) if len(self.val_idx) > 0 else self.val_idx
+            )
+            self.test_idx = (
+                np.sort(self.test_idx) if len(self.test_idx) > 0 else self.test_idx
+            )
+
         self.train_tensor_dict = self._get_tensor_dict(
             self.train_idx, device=self.device
         )
