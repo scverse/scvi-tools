@@ -176,6 +176,7 @@ def test_scvi(save_path):
     m.train(
         callbacks=[lr_monitor],
         max_epochs=10,
+        check_val_every_n_epoch=1,
         log_every_n_steps=1,
         plan_kwargs={"reduce_lr_on_plateau": True},
     )
@@ -399,7 +400,9 @@ def test_device_backed_data_splitter():
     ds.setup()
     train_dl = ds.train_dataloader()
     ds.val_dataloader()
-    assert len(next(iter(train_dl))["X"]) == a.shape[0]
+    loaded_x = next(iter(train_dl))["X"]
+    assert len(loaded_x) == a.shape[0]
+    np.testing.assert_array_equal(loaded_x.cpu().numpy(), a.X)
 
     model = SCVI(a, n_latent=5)
     training_plan = TrainingPlan(model.module, len(ds.train_idx))
