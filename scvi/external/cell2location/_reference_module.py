@@ -688,7 +688,12 @@ class RegressionModel(
 
         return adata
 
-    def plot_QC(self, summary_name: str = "means", use_n_obs: int = 1000):
+    def plot_QC(
+        self,
+        summary_name: str = "means",
+        use_n_obs: int = 1000,
+        scale_average_detection: bool = True,
+    ):
         """
         Show quality control plots:
         1. Reconstruction accuracy to assess if there are any issues with model training.
@@ -716,6 +721,13 @@ class RegressionModel(
         plt.show()
 
         inf_aver = self.samples[f"post_sample_{summary_name}"]["per_cluster_mu_fg"].T
+        if scale_average_detection and (
+            "detection_y_c" in list(self.samples[f"post_sample_{summary_name}"].keys())
+        ):
+            inf_aver = (
+                inf_aver
+                * self.samples[f"post_sample_{summary_name}"]["detection_y_c"].mean()
+            )
         aver = self._compute_cluster_averages(key="_scvi_labels")
 
         plt.hist2d(
