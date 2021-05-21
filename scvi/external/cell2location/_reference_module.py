@@ -117,7 +117,7 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
         n_vars,
         n_factors,
         n_batch,
-        n_tech=None,
+        n_extra_categoricals=None,
         alpha_g_phi_hyp_prior={"alpha": 9.0, "beta": 3.0},
         gene_add_alpha_hyp_prior={"alpha": 9.0, "beta": 3.0},
         gene_add_mean_hyp_prior={
@@ -136,7 +136,7 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
         n_vars
         n_factors
         n_batch
-        n_tech
+        n_extra_categoricals
         alpha_g_phi_hyp_prior
         gene_add_alpha_hyp_prior
         gene_add_mean_hyp_prior
@@ -151,7 +151,7 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
         self.n_vars = n_vars
         self.n_factors = n_factors
         self.n_batch = n_batch
-        self.n_tech = n_tech
+        self.n_extra_categoricals = n_extra_categoricals
 
         self.alpha_g_phi_hyp_prior = alpha_g_phi_hyp_prior
         self.gene_add_alpha_hyp_prior = gene_add_alpha_hyp_prior
@@ -220,9 +220,10 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
         ind_x = tensor_dict["ind_x"].long().squeeze()
         batch_index = tensor_dict[_CONSTANTS.BATCH_KEY]
         label_index = tensor_dict[_CONSTANTS.LABELS_KEY]
-        return (x_data, ind_x, batch_index, label_index), {}
+        extra_categoricals = tensor_dict[_CONSTANTS.CAT_COVS_KEY]
+        return (x_data, ind_x, batch_index, label_index, extra_categoricals), {}
 
-    def create_plates(self, x_data, idx, batch_index, label_index):
+    def create_plates(self, x_data, idx, batch_index, label_index, extra_categoricals):
         return pyro.plate("obs_plate", size=self.n_obs, dim=-2, subsample=idx)
 
     def list_obs_plate_vars(self):
@@ -239,11 +240,29 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
             },
         }
 
-    def forward(self, x_data, idx, batch_index, label_index):
+    def forward(self, x_data, idx, batch_index, label_index, extra_categoricals):
 
         obs2sample = one_hot(batch_index, self.n_batch)
         obs2label = one_hot(label_index, self.n_factors)
-        obs_plate = self.create_plates(x_data, idx, batch_index, label_index)
+        if self.n_extra_categoricals is not None:
+            obs2extra_categoricals = torch.cat(
+                [
+                    one_hot(
+                        extra_categoricals[:, i].view((extra_categoricals.shape[0], 1)),
+                        n_cat,
+                    )
+                    for i, n_cat in enumerate(self.n_extra_categoricals)
+                ],
+                dim=1,
+            )
+            # print(extra_categoricals[[0, 5, 10, 25, 160], :])
+            # print(obs2extra_categoricals[[0, 5, 10, 25, 160], :])
+            # obs2extra_categoricals = one_hot(extra_categoricals, np.sum(self.n_extra_categoricals))
+            # print(obs2extra_categoricals[[0, 5, 10, 25, 160], :])
+
+        obs_plate = self.create_plates(
+            x_data, idx, batch_index, label_index, extra_categoricals
+        )
 
         # =====================Per-cluster average mRNA count ======================= #
         # \mu_{f,g}
@@ -255,15 +274,16 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
         )
 
         # =====================Gene-specific multiplicative component ======================= #
-        # `y_{t, g}` per gene multiplicative effect that explains the difference in sensitivity betweeen genes
-        if self.n_tech is not None:
+        # `y_{t, g}` per gene multiplicative effect that explains the difference
+        # in sensitivity between genes in each technology or covariate effect
+        if self.n_extra_categoricals is not None:
             detection_tech_gene_tg = pyro.sample(
                 "detection_tech_gene_tg",
                 dist.Gamma(
                     self.ones * self.gene_tech_prior_alpha,
                     self.ones * self.gene_tech_prior_beta,
                 )
-                .expand([self.n_tech, self.n_vars])
+                .expand([np.sum(self.n_extra_categoricals), self.n_vars])
                 .to_event(2),
             )
 
@@ -341,8 +361,9 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
             obs2label @ per_cluster_mu_fg  # contaminating RNA
             + obs2sample @ s_g_gene_add
         ) * detection_y_c  # cell-specific normalisation
-        if self.n_tech is not None:
-            mu_biol = mu_biol * detection_tech_gene_tg  # gene-specific normalisation
+        if self.n_extra_categoricals is not None:
+            # gene-specific normalisation for covatiates
+            mu_biol = mu_biol * (obs2extra_categoricals @ detection_tech_gene_tg)
         total_count, logits = _convert_mean_disp_to_counts_logits(
             mu_biol, alpha, eps=self.eps
         )
@@ -370,6 +391,15 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
         obs2sample = pd.get_dummies(obs2sample.flatten()).values[ind_x, :]
         obs2label = get_from_registry(adata, _CONSTANTS.LABELS_KEY)
         obs2label = pd.get_dummies(obs2label.flatten()).values[ind_x, :]
+        if self.n_extra_categoricals is not None:
+            extra_categoricals = get_from_registry(adata, _CONSTANTS.CAT_COVS_KEY)
+            obs2extra_categoricals = np.concatenate(
+                [
+                    pd.get_dummies(extra_categoricals.iloc[ind_x, i])
+                    for i, n_cat in enumerate(self.n_extra_categoricals)
+                ],
+                axis=1,
+            )
 
         alpha = 1 / np.power(samples["alpha_g_inverse"], 2)
 
@@ -377,8 +407,8 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
             np.dot(obs2label, samples["per_cluster_mu_fg"])
             + np.dot(obs2sample, samples["s_g_gene_add"])
         ) * samples["detection_y_c"][ind_x, :]
-        if self.n_tech is not None:
-            mu = mu * samples["detection_tech_gene_tg"]
+        if self.n_extra_categoricals is not None:
+            mu = mu * np.dot(obs2extra_categoricals, samples["detection_tech_gene_tg"])
 
         return {"mu": mu, "alpha": alpha}
 
@@ -391,6 +421,15 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
         obs2sample = pd.get_dummies(obs2sample.flatten())
         obs2label = get_from_registry(adata, _CONSTANTS.LABELS_KEY)
         obs2label = pd.get_dummies(obs2label.flatten())
+        if self.n_extra_categoricals is not None:
+            extra_categoricals = get_from_registry(adata, _CONSTANTS.CAT_COVS_KEY)
+            obs2extra_categoricals = np.concatenate(
+                [
+                    pd.get_dummies(extra_categoricals.iloc[:, i])
+                    for i, n_cat in enumerate(self.n_extra_categoricals)
+                ],
+                axis=1,
+            )
 
         alpha = 1 / np.power(samples["alpha_g_inverse"], 2)
 
@@ -400,8 +439,10 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
             )
             + np.dot(obs2sample[cell_ind, :], samples["s_g_gene_add"])
         ) * samples["detection_y_c"]
-        if self.n_tech is not None:
-            mu = mu * samples["detection_tech_gene_tg"]
+        if self.n_extra_categoricals is not None:
+            mu = mu * np.dot(
+                obs2extra_categoricals[cell_ind, :], samples["detection_tech_gene_tg"]
+            )
 
         return {"mu": mu, "alpha": alpha}
 
@@ -517,10 +558,18 @@ class RegressionModel(
         if model_class is None:
             model_class = RegressionBackgroundDetectionTechPyroModel
 
+        # annotations for cell types
         self.n_factors_ = self.summary_stats["n_labels"]
         self.factor_names_ = self.adata.uns["_scvi"]["categorical_mappings"][
             "_scvi_labels"
         ]["mapping"]
+        # annotations for extra categorical covariates
+        if "extra_categoricals" in self.adata.uns["_scvi"].keys():
+            self.extra_categoricals_ = self.adata.uns["_scvi"]["extra_categoricals"]
+            self.n_extra_categoricals_ = self.adata.uns["_scvi"]["extra_categoricals"][
+                "n_cats_per_key"
+            ]
+            model_kwargs["n_extra_categoricals"] = self.n_extra_categoricals_
 
         # use per class average as initial value
         if use_average_as_initial:
