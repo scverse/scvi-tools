@@ -10,9 +10,15 @@ Changes
 - Add DestVI reference (`#1060`_).
 - Add PeakVI links to README (`#1046`_).
 - Automatic delta and eps computation in differential expression (`#1043`_).
+- Allow doublet ratio parameter to be changed for used in SOLO (`#1066`_).
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+These breaking changes do not affect the user API; though will impact model developers.
+
 - Use PyTorch Lightning data modules for :class:`scvi.dataloaders.DataSplitter` (`#1061`_). This induces a breaking change in the way the data splitter is used. It is no longer callable and now has a `setup` method. See :class:`~scvi.train.TrainRunner` and its source code, which is straightforward.
 - No longer require training plans to be initialized with `n_obs_training` argument (`#1061`_). `n_obs_training` is now a property that can be set before actual training to rescale the loss.
-- Allow doublet ratio parameter to be changed for used in SOLO (`#1066`_).
+- Log Pyro loss as `train_elbo` and sum over steps (`#1071`_)
 
 Contributors
 ~~~~~~~~~~~~
@@ -25,6 +31,7 @@ Contributors
 
 .. _`@cataclysmus`: https://github.com/cataclysmus
 .. _`@adamgayoso`: https://github.com/adamgayoso
+.. _`@romain-lopez`: https://github.com/romain-lopez
 .. _`@PierreBoyeau`: https://github.com/PierreBoyeau
 .. _`@talashuach`: https://github.com/talashuach
 .. _`@njbernstein`: https://github.com/njbernstein
@@ -36,5 +43,6 @@ Contributors
 .. _`#1061`: https://github.com/YosefLab/scvi-tools/pull/1061
 .. _`#1046`: https://github.com/YosefLab/scvi-tools/pull/1046
 .. _`#1066`: https://github.com/YosefLab/scvi-tools/pull/1066
+.. _`#1071`: https://github.com/YosefLab/scvi-tools/pull/1071
 
 
