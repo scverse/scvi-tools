@@ -55,7 +55,9 @@ class BayesianRegressionPyroModel(PyroModule):
         return pyro.plate("obs_plate", size=self.n_obs, dim=-2, subsample=ind_x)
 
     def list_obs_plate_vars(self):
-        """Create a dictionary with:
+        """Model annotation for minibatch training with pyro plate.
+
+        A dictionary with:
         1. "name" - the name of observation/minibatch plate;
         2. "in" - indexes of model args to provide to encoder network when using amortised inference;
         3. "sites" - dictionary with
@@ -64,7 +66,6 @@ class BayesianRegressionPyroModel(PyroModule):
             values - the dimensions in non-plate axis of each variable (used to construct output
              layer of encoder network when using amortised inference)
         """
-
         return {
             "name": "obs_plate",
             "in": [0],  # model args index for expression data
@@ -115,6 +116,10 @@ class BayesianRegressionModule(PyroBaseModuleClass):
     @property
     def guide(self):
         return self._guide
+
+    @property
+    def list_obs_plate_vars(self):
+        return self.model.list_obs_plate_vars()
 
 
 class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass):

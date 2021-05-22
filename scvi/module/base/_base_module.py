@@ -261,6 +261,21 @@ class PyroBaseModuleClass(nn.Module):
     def guide(self):
         pass
 
+    @property
+    def list_obs_plate_vars(self):
+        """Model annotation for minibatch training with pyro plate.
+
+        A dictionary with:
+        1. "name" - the name of observation/minibatch plate;
+        2. "in" - indexes of model args to provide to encoder network when using amortised inference;
+        3. "sites" - dictionary with
+            keys - names of variables that belong to the observation plate (used to recognise
+             and merge posterior samples for minibatch variables)
+            values - the dimensions in non-plate axis of each variable (used to construct output
+             layer of encoder network when using amortised inference)
+        """
+        return {"name": "", "in": [], "sites": {}}
+
     def create_predictive(
         self,
         model: Optional[Callable] = None,

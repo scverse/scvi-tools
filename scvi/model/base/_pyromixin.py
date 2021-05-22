@@ -236,9 +236,15 @@ class PyroSampleMixin:
 
         return {k: np.array(v) for k, v in samples.items()}
 
+    def _get_obs_plate_sites(self):
+        # get a list of observation/minibatch plate sites
+        return list(self.module.list_obs_plate_vars["sites"].keys())
+
     def _check_obs_plate_return_sites(self, sample_kwargs):
+
+        obs_plate_sites = self._get_obs_plate_sites()
+
         # check whether any variable requested in return_sites are in obs_plate
-        obs_plate_sites = list(self.module.model.list_obs_plate_vars()["sites"].keys())
         if ("return_sites" in sample_kwargs.keys()) and (
             sample_kwargs["return_sites"] is not None
         ):
@@ -253,18 +259,18 @@ class PyroSampleMixin:
 
     def _find_plate_dimension(self, args, kwargs):
 
+        plate_name = self.module.list_obs_plate_vars["name"]
+
         # find plate dimension
         trace = poutine.trace(self.module.model).get_trace(*args, **kwargs)
         obs_plate = {
             name: site["cond_indep_stack"][0].dim
             for name, site in trace.nodes.items()
             if site["type"] == "sample"
-            if any(
-                f.name == self.module.model.list_obs_plate_vars()["name"]
-                for f in site["cond_indep_stack"]
-            )
+            if any(f.name == plate_name for f in site["cond_indep_stack"])
         }
-        return obs_plate
+
+        return list(obs_plate.values())[0]
 
     def _posterior_samples_minibatch(
         self, use_gpu: bool = True, batch_size: int = 128, **sample_kwargs
@@ -272,9 +278,6 @@ class PyroSampleMixin:
         """
         Generate samples of the posterior distribution of each parameter, separating local (minibatch) variables
         and global variables, which is necessary when performing minibatch inference.
-
-        Note for developers: requires model class method which lists observation/minibatch plate
-        variables (self.module.model.list_obs_plate_vars()).
 
         Parameters
         ----------
@@ -285,7 +288,15 @@ class PyroSampleMixin:
         -------
         dictionary {variable_name: [array with samples in 0 dimension]}
 
+        Notes
+        -----
+        Note for developers: requires scVI module property (a dictionary, self.module.list_obs_plate_vars) which lists
+        observation/minibatch plate name and variables.
+        This dictionary can be returned by model class method self.module.model.list_obs_plate_vars().
+
         """
+
+        samples = dict()
 
         gpus, device = parse_use_gpu_arg(use_gpu)
 
@@ -310,8 +321,10 @@ class PyroSampleMixin:
                     "return_sites"
                 ] = self._check_obs_plate_return_sites(sample_kwargs)
                 sample_kwargs_obs_plate["show_progress"] = False
-                obs_plate = self._find_plate_dimension(args, kwargs)
-                obs_plate_dim = list(obs_plate.values())[0]
+                if len(sample_kwargs_obs_plate["return_sites"]) == 0:
+                    # if no local variables - don't sample
+                    break
+                obs_plate_dim = self._find_plate_dimension(args, kwargs)
                 samples = self._get_posterior_samples(
                     args, kwargs, **sample_kwargs_obs_plate
                 )
@@ -347,7 +360,7 @@ class PyroSampleMixin:
         global_samples = {
             k: v
             for k, v in global_samples.items()
-            if k not in list(self.module.model.list_obs_plate_vars()["sites"].keys())
+            if k not in self._get_obs_plate_sites()
         }
 
         for k in global_samples.keys():
