@@ -1,6 +1,5 @@
 import os
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pyro
 import pyro.distributions as dist
@@ -290,12 +289,6 @@ def test_pyro_bayesian_train_sample_mixin():
     )
 
     assert len(samples["posterior_samples"]["sigma"]) == 10
-
-    plt.plot(
-        mod.history_["elbo_train"].index,
-        mod.history_["elbo_train"].values.flatten(),
-        label="elbo_train",
-    )
 
 
 def test_pyro_bayesian_train_sample_mixin_full_data():
