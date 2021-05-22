@@ -107,7 +107,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlph
             "alpha": 1.0,
             "beta": 100.0,
         },  # TODO initialise as average of empty locations
-        detection_hyp_prior={"alpha": 200.0, "mean_alpha": 1.0},
+        detection_hyp_prior={"alpha": 500.0, "mean_alpha": 1.0},
         w_sf_mean_var_ratio=5.0,
     ):
 
@@ -283,10 +283,11 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlph
             dist.Exponential(m_g_alpha_hyp).expand([1, 1]).to_event(2),
         )  # (1, 1)
         m_g_alpha_e = self.ones / m_g_alpha_e_inv.pow(2)
+        # m_g_alpha_e = self.m_g_alpha_hyp_alpha / self.m_g_alpha_hyp_beta
 
         m_g = pyro.sample(
             "m_g",
-            dist.Gamma(m_g_alpha_e, m_g_alpha_e / m_g_mean)
+            dist.Gamma(m_g_alpha_e, m_g_alpha_e / m_g_mean)  # self.m_g_mu_hyp)
             .expand([1, self.n_vars])
             .to_event(2),
         )  # (1, n_vars)

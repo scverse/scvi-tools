@@ -37,6 +37,7 @@ class AutoGuideMixinModule:
         data_transform,
         single_encoder,
         init_loc_fn=init_to_mean,
+        n_cat_list: list = [],
     ):
 
         if not amortised:
@@ -100,6 +101,8 @@ class AutoGuideMixinModule:
                 data_transform = data_transform
                 n_in = model.n_vars
 
+            if len(amortised_vars["in"]) == 2:
+                encoder_kwargs["n_cat_list"] = n_cat_list
             _guide.append(
                 AutoNormalEncoder(
                     pyro.poutine.block(

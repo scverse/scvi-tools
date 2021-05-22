@@ -432,6 +432,7 @@ class Cell2locationBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
             data_transform=data_transform,
             single_encoder=single_encoder,
             init_loc_fn=init_to_mean,
+            n_cat_list=[kwargs["n_batch"]],
         )
 
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
@@ -443,6 +444,10 @@ class Cell2locationBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
     @property
     def guide(self):
         return self._guide
+
+    @property
+    def list_obs_plate_vars(self):
+        return self.model.list_obs_plate_vars()
 
     @property
     def is_amortised(self):
