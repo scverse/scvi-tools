@@ -276,6 +276,8 @@ class PyroSampleMixin:
         self, use_gpu: bool = True, batch_size: int = 128, **sample_kwargs
     ):
         """
+        Generate samples of the posterior distribution in minibatches
+
         Generate samples of the posterior distribution of each parameter, separating local (minibatch) variables
         and global variables, which is necessary when performing minibatch inference.
 
@@ -290,9 +292,11 @@ class PyroSampleMixin:
 
         Notes
         -----
-        Note for developers: requires scVI module property (a dictionary, self.module.list_obs_plate_vars) which lists
-        observation/minibatch plate name and variables.
-        This dictionary can be returned by model class method self.module.model.list_obs_plate_vars().
+        Note for developers: requires scVI module property (a dictionary, self.module.list_obs_plate_vars)
+        which lists observation/minibatch plate name and variables.
+        See PyroBaseModuleClass.list_obs_plate_vars for details.
+        This dictionary can be returned by model class method self.module.model.list_obs_plate_vars()
+        to keep all model-specific variables in one place.
 
         """
 
