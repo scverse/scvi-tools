@@ -55,7 +55,7 @@ class AutoGuideMixinModule:
                 if "n_hidden" in encoder_kwargs.keys()
                 else 200
             )
-            amortised_vars = model.list_obs_plate_vars()
+            amortised_vars = self.list_obs_plate_vars
             _guide = AutoGuideList(model, create_plates=model.create_plates)
             _guide.append(
                 AutoNormal(
@@ -101,7 +101,7 @@ class AutoGuideMixinModule:
                 data_transform = data_transform
                 n_in = model.n_vars
 
-            if len(amortised_vars["in"]) == 2:
+            if len(amortised_vars["in"]) >= 2:
                 encoder_kwargs["n_cat_list"] = n_cat_list
             _guide.append(
                 AutoNormalEncoder(

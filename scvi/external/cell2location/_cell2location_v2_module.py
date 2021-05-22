@@ -249,7 +249,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlph
 
         return {
             "name": "obs_plate",
-            "in": [0],  # expression data + (optional) batch index
+            "in": [0, 2],  # expression data + (optional) batch index
             "sites": {
                 "n_s_cells_per_location": 1,
                 "y_s_groups_per_location": 1,
