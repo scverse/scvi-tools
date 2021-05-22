@@ -236,7 +236,13 @@ class PyroSampleMixin:
 
         return {k: np.array(v) for k, v in samples.items()}
 
-    def _get_obs_plate_return_sites(self, sample_kwargs, obs_plate_sites):
+    def _get_obs_plate_sites(self):
+        # get a list of observation/minibatch plate sites
+        return list(self.module.list_obs_plate_vars["sites"].keys())
+
+    def _check_obs_plate_return_sites(self, sample_kwargs):
+
+        obs_plate_sites = self._get_obs_plate_sites()
 
         # check whether any variable requested in return_sites are in obs_plate
         if ("return_sites" in sample_kwargs.keys()) and (
@@ -251,7 +257,7 @@ class PyroSampleMixin:
         else:
             return obs_plate_sites
 
-    def _get_obs_plate_sites(self, args, kwargs):
+    def _find_plate_dimension(self, args, kwargs):
 
         plate_name = self.module.list_obs_plate_vars["name"]
 
@@ -264,7 +270,7 @@ class PyroSampleMixin:
             if any(f.name == plate_name for f in site["cond_indep_stack"])
         }
 
-        return obs_plate
+        return list(obs_plate.values())[0]
 
     def _posterior_samples_minibatch(
         self, use_gpu: bool = True, batch_size: int = 128, **sample_kwargs
@@ -314,20 +320,15 @@ class PyroSampleMixin:
             self.to_device(device)
 
             if i == 0:
-                obs_plate_sites = self._get_obs_plate_sites(args, kwargs)
-                if len(obs_plate_sites) == 0:
-                    # if no local variables - don't sample
-                    break
-                obs_plate_dim = list(obs_plate_sites.values())[0]
-
                 sample_kwargs_obs_plate = sample_kwargs.copy()
                 sample_kwargs_obs_plate[
                     "return_sites"
-                ] = self._get_obs_plate_return_sites(
-                    sample_kwargs, list(obs_plate_sites.keys())
-                )
+                ] = self._check_obs_plate_return_sites(sample_kwargs)
                 sample_kwargs_obs_plate["show_progress"] = False
-
+                if len(sample_kwargs_obs_plate["return_sites"]) == 0:
+                    # if no local variables - don't sample
+                    break
+                obs_plate_dim = self._find_plate_dimension(args, kwargs)
                 samples = self._get_posterior_samples(
                     args, kwargs, **sample_kwargs_obs_plate
                 )
@@ -363,7 +364,7 @@ class PyroSampleMixin:
         global_samples = {
             k: v
             for k, v in global_samples.items()
-            if k not in list(obs_plate_sites.keys())
+            if k not in self._get_obs_plate_sites()
         }
 
         for k in global_samples.keys():
