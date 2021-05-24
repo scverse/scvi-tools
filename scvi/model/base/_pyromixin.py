@@ -404,6 +404,7 @@ class PyroSampleMixin:
         batch_size: int = 128,
         sample_kwargs=None,
         return_samples: bool = False,
+        summary_fun: Optional[dict] = None,
     ):
         """
         Summarise posterior distribution.
@@ -415,7 +416,7 @@ class PyroSampleMixin:
         ----------
         num_samples
             number of posterior samples to generate.
-        return_sites
+        return_site
             get samples for pyro model variable, default is all variables, otherwise list variable names).
         use_gpu
             Load model on default GPU if available (if None or True),
@@ -426,6 +427,9 @@ class PyroSampleMixin:
                 return observed sites/variables?
         return_samples
             return samples in addition to sample mean, 5%/95% quantile and SD?
+        summary_fun
+             a dict in the form {"means": np.mean, "std": np.std} which specifies posterior distribution
+             summaries to compute and which names to use.
 
         Returns
         -------
@@ -453,13 +457,16 @@ class PyroSampleMixin:
         if return_samples:
             results["posterior_samples"] = samples
 
-        results["post_sample_means"] = {v: samples[v].mean(axis=0) for v in param_names}
-        results["post_sample_q05"] = {
-            v: np.quantile(samples[v], 0.05, axis=0) for v in param_names
-        }
-        results["post_sample_q95"] = {
-            v: np.quantile(samples[v], 0.95, axis=0) for v in param_names
-        }
-        results["post_sample_sds"] = {v: samples[v].std(axis=0) for v in param_names}
+        if summary_fun is None:
+            summary_fun = {
+                "means": np.mean,
+                "sts": np.std,
+                "q05": lambda x, axis: np.quantile(x, 0.05, axis=axis),
+                "q95": lambda x, axis: np.quantile(x, 0.95, axis=axis),
+            }
+        for k, fun in summary_fun.items():
+            results[f"post_sample_{k}"] = {
+                v: fun(samples[v], axis=0) for v in param_names
+            }
 
         return results
