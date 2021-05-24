@@ -234,7 +234,6 @@ def test_pyro_bayesian_regression_jit():
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     pyro.clear_param_store()
     model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
-    train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
