@@ -12,6 +12,7 @@ from scvi._compat import Literal
 
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
+from ._trainingplans import PyroTrainingPlan
 
 
 class Trainer(pl.Trainer):
@@ -156,4 +157,10 @@ class Trainer(pl.Trainer):
                 category=UserWarning,
                 message="One of given dataloaders is None and it will be skipped",
             )
+            if isinstance(args[0], PyroTrainingPlan):
+                warnings.filterwarnings(
+                    action="ignore",
+                    category=UserWarning,
+                    message="`LightningModule.configure_optimizers` returned `None`",
+                )
             super().fit(*args, **kwargs)
