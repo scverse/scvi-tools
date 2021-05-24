@@ -85,8 +85,8 @@ class ProgressBar(ProgressBarBase):
             current % self.refresh_rate == 0 or current == total
         )
 
-    def on_train_epoch_end(self, trainer, pl_module, outputs):
-        super().on_train_epoch_end(trainer, pl_module, outputs)
+    def on_train_epoch_end(self, trainer, pl_module, unused=None):
+        super().on_train_epoch_end(trainer, pl_module, unused=unused)
         if self._should_update(self.trainer.current_epoch, self.trainer.max_epochs):
             self.main_progress_bar.update()
             self.main_progress_bar.set_postfix(trainer.progress_bar_dict)

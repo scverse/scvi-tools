@@ -335,13 +335,24 @@ class TOTALVAE(BaseModuleClass):
 
     @auto_move_data
     def generative(
-        self, z, library_gene, batch_index, label, cont_covs=None, cat_covs=None
-    ):
+        self,
+        z: torch.Tensor,
+        library_gene: torch.Tensor,
+        batch_index: torch.Tensor,
+        label: torch.Tensor,
+        cont_covs=None,
+        cat_covs=None,
+        transform_batch: Optional[int] = None,
+    ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
         decoder_input = z if cont_covs is None else torch.cat([z, cont_covs], dim=-1)
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = tuple()
+
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
         px_, py_, log_pro_back_mean = self.decoder(
             decoder_input, library_gene, batch_index, *categorical_input
         )
@@ -380,7 +391,6 @@ class TOTALVAE(BaseModuleClass):
         batch_index: Optional[torch.Tensor] = None,
         label: Optional[torch.Tensor] = None,
         n_samples=1,
-        transform_batch: Optional[int] = None,
         cont_covs=None,
         cat_covs=None,
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
@@ -412,8 +422,6 @@ class TOTALVAE(BaseModuleClass):
             tensor of cell-types labels with shape (batch_size, n_labels)
         n_samples
             Number of samples to sample from approximate posterior
-        transform_batch
-            If not None, will override batch_index
         cont_covs
             Continuous covariates to condition on
         cat_covs
@@ -489,9 +497,6 @@ class TOTALVAE(BaseModuleClass):
             py_back_alpha_prior = self.background_pro_alpha
             py_back_beta_prior = torch.exp(self.background_pro_log_beta)
         self.back_mean_prior = Normal(py_back_alpha_prior, py_back_beta_prior)
-
-        if transform_batch is not None:
-            batch_index = torch.ones_like(batch_index) * transform_batch
 
         return dict(
             qz_m=qz_m,

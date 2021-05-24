@@ -424,13 +424,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 px_scale = torch.stack(n_samples * [px_scale])
                 py_scale = torch.stack(n_samples * [py_scale])
             for b in transform_batch:
-                if b is not None:
-                    batch_indices = tensors[_CONSTANTS.BATCH_KEY]
-                    tensors[_CONSTANTS.BATCH_KEY] = torch.ones_like(batch_indices) * b
+                generative_kwargs = dict(transform_batch=b)
                 inference_kwargs = dict(n_samples=n_samples)
-                inference_outputs, generative_outputs = self.module.forward(
+                _, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
+                    generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
                 if library_size == "latent":
@@ -578,13 +577,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
             for b in transform_batch:
-                if b is not None:
-                    batch_indices = tensors[_CONSTANTS.BATCH_KEY]
-                    tensors[_CONSTANTS.BATCH_KEY] = torch.ones_like(batch_indices) * b
+                generative_kwargs = dict(transform_batch=b)
                 inference_kwargs = dict(n_samples=n_samples)
-                inference_outputs, generative_outputs = self.module.forward(
+                _, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
+                    generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
                 py_mixing += torch.sigmoid(generative_outputs["py_"]["mixing"])[
@@ -841,16 +839,13 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             x = tensors[_CONSTANTS.X_KEY]
             y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
 
-            if transform_batch is not None:
-                batch_indices = tensors[_CONSTANTS.BATCH_KEY]
-                tensors[_CONSTANTS.BATCH_KEY] = (
-                    torch.ones_like(batch_indices) * transform_batch
-                )
+            generative_kwargs = dict(transform_batch=transform_batch)
             inference_kwargs = dict(n_samples=n_samples)
             with torch.no_grad():
                 inference_outputs, generative_outputs, = self.module.forward(
                     tensors,
                     inference_kwargs=inference_kwargs,
+                    generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
             px_ = generative_outputs["px_"]
