@@ -64,6 +64,9 @@ These classes should be used to construct user-facing model classes.
     model.base.RNASeqMixin
     model.base.ArchesMixin
     model.base.UnsupervisedTrainingMixin
+    model.base.PyroSviTrainMixin
+    model.base.PyroSampleMixin
+    model.base.PyroJitGuideWarmup
 
 Module
 ------

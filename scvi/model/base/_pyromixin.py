@@ -18,6 +18,12 @@ Number = Union[int, float]
 
 class PyroJitGuideWarmup(Callback):
     def __init__(self, train_dl) -> None:
+        """
+        A callback to warmup a Pyro guide.
+
+        This helps initialize all the relevant parameters by running
+        one minibatch through the Pyro model.
+        """
         super().__init__()
         self.dl = train_dl
 
