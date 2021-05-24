@@ -39,7 +39,7 @@ class PyroJitGuideWarmup(Callback):
 
 class PyroSviTrainMixin:
     """
-    Mixin class for training Pyro models
+    Mixin class for training Pyro models.
 
     Training using minibatches and using full data (copies data to GPU only once).
     """
@@ -138,7 +138,7 @@ class PyroSviTrainMixin:
 
 class PyroSampleMixin:
     """
-    Mixin class for generating samples from posterior distribution
+    Mixin class for generating samples from posterior distribution.
 
     Works using both minibatches and full data.
     """
@@ -246,7 +246,7 @@ class PyroSampleMixin:
 
     def _get_obs_plate_return_sites(self, sample_kwargs, obs_plate_sites):
         """
-        Check sample_kwargs["return_sites"] for overlap with observation/minibatch plate sites
+        Check sample_kwargs["return_sites"] for overlap with observation/minibatch plate sites.
         """
 
         # check whether any variable requested in return_sites are in obs_plate
@@ -264,7 +264,7 @@ class PyroSampleMixin:
 
     def _get_obs_plate_sites(self, args, kwargs):
         """
-        Automatically guess which model sites belong to observation/minibatch plate
+        Automatically guess which model sites belong to observation/minibatch plate.
 
         This function requires minibatch plate name specified in `self.module.list_obs_plate_vars["name"]`.
 
@@ -298,7 +298,7 @@ class PyroSampleMixin:
         self, use_gpu: bool = None, batch_size: int = 128, **sample_kwargs
     ):
         """
-        Generate samples of the posterior distribution in minibatches
+        Generate samples of the posterior distribution in minibatches.
 
         Generate samples of the posterior distribution of each parameter, separating local (minibatch) variables
         and global variables, which is necessary when performing minibatch inference.
@@ -406,7 +406,7 @@ class PyroSampleMixin:
         return_samples: bool = False,
     ):
         """
-        Summarise posterior distribution
+        Summarise posterior distribution.
 
         Generate samples from posterior distribution for each parameter
         and compute mean, 5%/95% quantiles, standard deviation.
