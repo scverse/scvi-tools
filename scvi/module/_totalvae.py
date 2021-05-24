@@ -391,7 +391,6 @@ class TOTALVAE(BaseModuleClass):
         batch_index: Optional[torch.Tensor] = None,
         label: Optional[torch.Tensor] = None,
         n_samples=1,
-        transform_batch: Optional[int] = None,
         cont_covs=None,
         cat_covs=None,
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
@@ -423,8 +422,6 @@ class TOTALVAE(BaseModuleClass):
             tensor of cell-types labels with shape (batch_size, n_labels)
         n_samples
             Number of samples to sample from approximate posterior
-        transform_batch
-            If not None, will override batch_index
         cont_covs
             Continuous covariates to condition on
         cat_covs
