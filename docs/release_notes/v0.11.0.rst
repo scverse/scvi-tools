@@ -14,7 +14,7 @@ Changes
 
 Bug fixes
 ~~~~~~~~~
-- Fix an issue where `transform_batch` options in :class`~scvi.model.TOTALVI` was accidentally altering the batch encoding in the encoder, which leads to poor results (`#1072`_). This bug was introduced in version 0.9.0.
+- Fix an issue where `transform_batch` options in :class:`~scvi.model.TOTALVI` was accidentally altering the batch encoding in the encoder, which leads to poor results (`#1072`_). This bug was introduced in version 0.9.0.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
