@@ -39,9 +39,9 @@ class PyroJitGuideWarmup(Callback):
 
 class PyroSviTrainMixin:
     """
-    This mixin class provides methods for:
+    Mixin class for training Pyro models
 
-    - training models using minibatches and using full data (copies data to GPU only once).
+    Training using minibatches and using full data (copies data to GPU only once).
     """
 
     def train(
@@ -138,9 +138,9 @@ class PyroSviTrainMixin:
 
 class PyroSampleMixin:
     """
-    This mixin class provides methods for:
+    Mixin class for generating samples from posterior distribution
 
-    - generating samples from posterior distribution using minibatches and full data
+    Works using both minibatches and full data.
     """
 
     @torch.no_grad()
@@ -151,7 +151,8 @@ class PyroSampleMixin:
         return_sites: Optional[list] = None,
         sample_observed: bool = False,
     ):
-        """Get one sample from posterior distribution.
+        """
+        Get one sample from posterior distribution.
 
         Parameters
         ----------
@@ -203,7 +204,7 @@ class PyroSampleMixin:
         show_progress: bool = True,
     ):
         """
-        Get many samples from posterior distribution.
+        Get many (num_samples=N) samples from posterior distribution.
 
         Parameters
         ----------
@@ -244,6 +245,9 @@ class PyroSampleMixin:
         return {k: np.array(v) for k, v in samples.items()}
 
     def _get_obs_plate_return_sites(self, sample_kwargs, obs_plate_sites):
+        """
+        Check sample_kwargs["return_sites"] for overlap with observation/minibatch plate sites
+        """
 
         # check whether any variable requested in return_sites are in obs_plate
         if ("return_sites" in sample_kwargs.keys()) and (
@@ -259,6 +263,23 @@ class PyroSampleMixin:
             return obs_plate_sites
 
     def _get_obs_plate_sites(self, args, kwargs):
+        """
+        Automatically guess which model sites belong to observation/minibatch plate
+
+        This function requires minibatch plate name specified in `self.module.list_obs_plate_vars["name"]`.
+
+        Parameters
+        ----------
+        args
+            Arguments to the model.
+        kwargs
+            Keyword arguments to the model.
+
+        Returns
+        -------
+        Dictionary with keys corresponding to site names and values to plate dimension.
+
+        """
 
         plate_name = self.module.list_obs_plate_vars["name"]
 
@@ -385,6 +406,8 @@ class PyroSampleMixin:
         return_samples: bool = False,
     ):
         """
+        Summarise posterior distribution
+
         Generate samples from posterior distribution for each parameter
         and compute mean, 5%/95% quantiles, standard deviation.
 
