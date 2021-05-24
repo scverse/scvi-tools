@@ -279,7 +279,8 @@ class PyroSampleMixin:
         Parameters
         ----------
         use_gpu
-            Bool, use gpu?
+            Load model on default GPU if available (if None or True),
+            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
 
         Returns
         -------
@@ -394,7 +395,8 @@ class PyroSampleMixin:
         return_sites
             get samples for pyro model variable, default is all variables, otherwise list variable names).
         use_gpu
-            Use gpu?
+            Load model on default GPU if available (if None or True),
+            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
         sample_kwargs
             dictionary with arguments to _get_posterior_samples (see below):
             return_observed
