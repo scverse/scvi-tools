@@ -52,6 +52,7 @@ class PyroSviTrainMixin:
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         early_stopping: bool = False,
+        lr: Optional[float] = None,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
@@ -76,6 +77,9 @@ class PyroSviTrainMixin:
         early_stopping
             Perform early stopping. Additional arguments can be passed in `**kwargs`.
             See :class:`~scvi.train.Trainer` for further options.
+        lr
+            Optimiser learning rate (default optimiser is Pyro ClippedAdam).
+            Specifying optimiser via plan_kwargs overrides this choice of lr.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -87,6 +91,8 @@ class PyroSviTrainMixin:
             max_epochs = np.min([round((20000 / n_obs) * 1000), 1000])
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        if lr is not None and "optim" not in plan_kwargs.keys():
+            plan_kwargs.update({"optim_kwargs": {"lr": lr}})
 
         if batch_size is None:
             # use data splitter which moves data to GPU once
