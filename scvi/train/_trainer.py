@@ -9,10 +9,10 @@ from pytorch_lightning.loggers import LightningLoggerBase
 
 from scvi import settings
 from scvi._compat import Literal
-from scvi.train import PyroTrainingPlan
 
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
+from ._trainingplans import PyroTrainingPlan
 
 
 class Trainer(pl.Trainer):
