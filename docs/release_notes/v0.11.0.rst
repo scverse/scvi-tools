@@ -1,4 +1,4 @@
-New in 0.11.0 (2021-05-DD)
+New in 0.11.0 (2021-05-23)
 --------------------------
 
 From the user perspective, this release features the new differential expression functionality (to be described in a manuscript). For now, it is accessible from :func:`~scvi.model.SCVI.differential_expression`. From the developer perspective, we made changes with respect to :class:`scvi.dataloaders.DataSplitter` and surrounding the Pyro backend. Finally, we also made changes to adapt our code to PyTorch Lightning version 1.3.
