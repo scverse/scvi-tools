@@ -325,7 +325,7 @@ class SOLO(BaseModelClass):
 
     @torch.no_grad()
     def predict(
-        self, soft: bool = True, only_experimental_data: bool = True
+        self, soft: bool = True, include_simulated_doublets: bool = True
     ) -> pd.DataFrame:
         """
         Return doublet predictions.
@@ -334,9 +334,8 @@ class SOLO(BaseModelClass):
         ----------
         soft
             Return probabilities instead of class label
-        only_experimental_data
-            Only return probabilities for your experimental data if false will
-            return doublet scores for simulated doublets as well.
+        include_simulated_doublets
+            Return probabilities for simulated doublets as well.
         Returns
         -------
         DataFrame with prediction, index corresponding to cell barcode.
@@ -360,17 +359,15 @@ class SOLO(BaseModelClass):
         y_pred = torch.cat(y_pred).numpy()
 
         label = self.adata.obs["_solo_doub_sim"].values.ravel()
-        singlet_mask = label == "singlet"
-        if only_experimental_data:
-            preds = y_pred[singlet_mask]
-        else:
-            preds = y_pred
+        mask = label == "singlet" if not include_simulated_doublets else slice(None)
+
+        preds = y_pred[mask]
 
         cols = self.adata.uns["_scvi"]["categorical_mappings"]["_scvi_labels"][
             "mapping"
         ]
         preds_df = pd.DataFrame(
-            preds, columns=cols, index=self.adata.obs_names[singlet_mask]
+            preds, columns=cols, index=self.adata.obs_names[mask]
         )
 
         if not soft:
