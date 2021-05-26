@@ -324,7 +324,9 @@ class SOLO(BaseModelClass):
         return runner()
 
     @torch.no_grad()
-    def predict(self, soft: bool = True, only_experimental_data: bool = True) -> pd.DataFrame:
+    def predict(
+        self, soft: bool = True, only_experimental_data: bool = True
+    ) -> pd.DataFrame:
         """
         Return doublet predictions.
 
@@ -361,7 +363,7 @@ class SOLO(BaseModelClass):
         singlet_mask = label == "singlet"
         if only_experimental_data:
             preds = y_pred[singlet_mask]
-        else;
+        else:
             preds = y_pred
 
         cols = self.adata.uns["_scvi"]["categorical_mappings"]["_scvi_labels"][
