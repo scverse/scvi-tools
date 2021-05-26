@@ -366,9 +366,7 @@ class SOLO(BaseModelClass):
         cols = self.adata.uns["_scvi"]["categorical_mappings"]["_scvi_labels"][
             "mapping"
         ]
-        preds_df = pd.DataFrame(
-            preds, columns=cols, index=self.adata.obs_names[mask]
-        )
+        preds_df = pd.DataFrame(preds, columns=cols, index=self.adata.obs_names[mask])
 
         if not soft:
             preds_df = preds_df.idxmax(axis=1)
