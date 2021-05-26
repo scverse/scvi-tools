@@ -170,7 +170,7 @@ class SOLO(BaseModelClass):
         lib_size = scvi_model.get_latent_library_size(
             adata, indices=batch_indices, give_mean=give_mean_lib
         )
-        latent_adata = AnnData(np.concatenate([latent_rep, lib_size], axis=1))
+        latent_adata = AnnData(np.concatenate([latent_rep, np.log(lib_size)], axis=1))
         latent_adata.obs[LABELS_KEY] = "singlet"
         orig_obs_names = adata.obs_names
         latent_adata.obs_names = (
