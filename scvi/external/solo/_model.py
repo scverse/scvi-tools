@@ -325,7 +325,7 @@ class SOLO(BaseModelClass):
 
     @torch.no_grad()
     def predict(
-        self, soft: bool = True, include_simulated_doublets: bool = True
+        self, soft: bool = True, include_simulated_doublets: bool = False
     ) -> pd.DataFrame:
         """
         Return doublet predictions.
