@@ -345,8 +345,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
 
-        if self.was_pretrained:
-            max_epochs = int(np.min([10, np.max([2, round(max_epochs / 3.0)])]))
+            if self.was_pretrained:
+                max_epochs = int(np.min([10, np.max([2, round(max_epochs / 3.0)])]))
 
         logger.info("Training for {} epochs.".format(max_epochs))
 
