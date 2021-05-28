@@ -553,7 +553,7 @@ class RNASeqMixin:
             ql_v = outputs["ql_v"]
             library = outputs["library"]
             if give_mean is False:
-                library = library
+                library = torch.exp(library)
             else:
                 library = torch.distributions.LogNormal(ql_m, ql_v.sqrt()).mean
             libraries += [library.cpu()]
