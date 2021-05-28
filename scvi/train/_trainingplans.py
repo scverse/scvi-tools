@@ -594,7 +594,7 @@ class PyroTrainingPlan(pl.LightningModule):
         A Pyro optimizer, e.g., :class:`~pyro.optim.Adam`. If `None`,
         defaults to Adam optimizer with a learning rate of `1e-3`.
     optim_kwargs
-        Keyword arguments for default optimiser (pyro.optim.ClippedAdam).
+        Keyword arguments for default optimiser :class:`pyro.optim.ClippedAdam`.
     """
 
     def __init__(
