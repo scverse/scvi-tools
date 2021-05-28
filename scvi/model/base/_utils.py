@@ -210,6 +210,7 @@ def _de_core(
             )
         if idx1 is None:
             g2 = "Rest" if group2 is None else group2
+            res["comparison"] = "{} vs {}".format(g1, g2)
             res["group1"] = g1
             res["group2"] = g2
         df_results.append(res)
