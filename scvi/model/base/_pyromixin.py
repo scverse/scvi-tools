@@ -436,7 +436,7 @@ class PyroSampleMixin:
             95% quantile of the posterior distribution for each variable;
         post_sample_q05: Dict[str, np.array]
             Standard deviation of the posterior distribution for each variable;
-        posterior_samples: Dict[str, np.array]
+        posterior_samples: Optional[Dict[str, np.array]]
             Posterior distribution samples for each variable as numpy arrays of shape `(n_samples, ...)` (Optional).
 
         Notes
