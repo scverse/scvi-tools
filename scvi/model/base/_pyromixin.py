@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Union
+from typing import Callable, Dict, Optional, Union
 
 import numpy as np
 import torch
@@ -316,14 +316,6 @@ class PyroSampleMixin:
         Returns
         -------
         dictionary {variable_name: [array with samples in 0 dimension]}
-
-        Notes
-        -----
-        Note for developers: requires overwritten :func:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` method.
-        which lists observation/minibatch plate name and variables.
-        See :func:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` for details of the variables it should contain.
-        This dictionary can be returned by model class method `self.module.model.list_obs_plate_vars()`
-        to keep all model-specific variables in one place.
         """
 
         samples = dict()
@@ -407,7 +399,7 @@ class PyroSampleMixin:
         batch_size: Optional[int] = None,
         return_observed: bool = False,
         return_samples: bool = False,
-        summary_fun: Optional[dict] = None,
+        summary_fun: Optional[Dict[str, Callable]] = None,
     ):
         """
         Summarise posterior distribution.
@@ -432,17 +424,26 @@ class PyroSampleMixin:
             Return samples in addition to sample mean, 5%/95% quantile and SD?
         summary_fun
              a dict in the form {"means": np.mean, "std": np.std} which specifies posterior distribution
-             summaries to compute and which names to use.
+             summaries to compute and which names to use. See below for default returns.
 
         Returns
         -------
-        Posterior distribution samples, a dictionary with elements as follows,
-        containing dictionaries of numpy arrays for each variable:
+        Dict[str, Dict[str, np.array]]
+            Posterior distribution samples, a dictionary with elements as follows,
+            containing dictionaries of numpy arrays for each variable:
             post_sample_means - mean of the distribution for each variable;
             post_sample_q05 - 5% quantile;
             post_sample_q95 - 95% quantile;
-            post_sample_sds - standard deviation
-            posterior_samples - samples for each variable as numpy arrays of shape `(n_samples, ...)` (Optional)
+            post_sample_sds - standard deviation;
+            posterior_samples - samples for each variable as numpy arrays of shape `(n_samples, ...)` (Optional).
+
+        Notes
+        -----
+        Note for developers: requires overwritten :func:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` method.
+        which lists observation/minibatch plate name and variables.
+        See :func:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` for details of the variables it should contain.
+        This dictionary can be returned by model class method `self.module.model.list_obs_plate_vars()`
+        to keep all model-specific variables in one place.
         """
 
         # sample using minibatches (if full data, data is moved to GPU only once anyway)
