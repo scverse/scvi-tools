@@ -217,7 +217,7 @@ class PyroSampleMixin:
         args
             arguments to model and guide
         kwargs
-            arguments to model and guide
+            keyword arguments to model and guide
         show_progress
             show progress bar
 
@@ -299,7 +299,7 @@ class PyroSampleMixin:
         return obs_plate
 
     def _posterior_samples_minibatch(
-        self, use_gpu: bool = None, batch_size: int = 128, **sample_kwargs
+        self, use_gpu: bool = None, batch_size: Optional[int] = None, **sample_kwargs
     ):
         """
         Generate samples of the posterior distribution in minibatches.
@@ -312,6 +312,8 @@ class PyroSampleMixin:
         use_gpu
             Load model on default GPU if available (if None or True),
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
 
         Returns
         -------
@@ -404,7 +406,7 @@ class PyroSampleMixin:
         num_samples: int = 1000,
         return_sites: Optional[list] = None,
         use_gpu: bool = None,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
         sample_kwargs=None,
         return_samples: bool = False,
         summary_fun: Optional[dict] = None,
@@ -424,6 +426,8 @@ class PyroSampleMixin:
         use_gpu
             Load model on default GPU if available (if None or True),
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         sample_kwargs
             dictionary with arguments to _get_posterior_samples (see below):
             return_observed
@@ -437,7 +441,7 @@ class PyroSampleMixin:
         Returns
         -------
         Posterior distribution samples, a dictionary with elements as follows,
-         containing dictionaries of numpy arrays for each variable:
+        containing dictionaries of numpy arrays for each variable:
             post_sample_means - mean of the distribution for each variable;
             post_sample_q05 - 5% quantile;
             post_sample_q95 - 95% quantile;
