@@ -591,10 +591,10 @@ class PyroTrainingPlan(pl.LightningModule):
         A Pyro loss. Should be a subclass of :class:`~pyro.infer.ELBO`.
         If `None`, defaults to :class:`~pyro.infer.Trace_ELBO`.
     optim
-        A Pyro optimizer, e.g., :class:`~pyro.optim.Adam`. If `None`,
-        defaults to Adam optimizer with a learning rate of `1e-3`.
+        A Pyro optimizer instance, e.g., :class:`~pyro.optim.Adam`. If `None`,
+        defaults to ClippedAdam optimizer with a learning rate of `1e-3` and `clip_norm` of `200`.
     optim_kwargs
-        Keyword arguments for default optimiser :class:`pyro.optim.ClippedAdam`.
+        Keyword arguments for **default** optimiser :class:`pyro.optim.ClippedAdam`.
     """
 
     def __init__(

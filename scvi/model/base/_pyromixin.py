@@ -6,6 +6,7 @@ import torch
 from pyro import poutine
 from pytorch_lightning.callbacks import Callback
 
+from scvi import settings
 from scvi.dataloaders import AnnDataLoader, DataSplitter, DeviceBackedDataSplitter
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.train import PyroTrainingPlan, TrainRunner
@@ -170,7 +171,6 @@ class PyroSampleMixin:
         Returns
         -------
         Dictionary with a sample for each variable
-
         """
 
         guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
@@ -225,7 +225,6 @@ class PyroSampleMixin:
         -------
         Dictionary with array of samples for each variable
         dictionary {variable_name: [array with samples in 0 dimension]}
-
         """
 
         samples = self._get_one_posterior_sample(
@@ -284,7 +283,6 @@ class PyroSampleMixin:
         Returns
         -------
         Dictionary with keys corresponding to site names and values to plate dimension.
-
         """
 
         plate_name = self.module.list_obs_plate_vars["name"]
@@ -326,15 +324,14 @@ class PyroSampleMixin:
         See :func:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` for details of the variables it should contain.
         This dictionary can be returned by model class method `self.module.model.list_obs_plate_vars()`
         to keep all model-specific variables in one place.
-
         """
 
         samples = dict()
 
         gpus, device = parse_use_gpu_arg(use_gpu)
 
-        if batch_size is None:
-            batch_size = self.adata.n_obs
+        batch_size = batch_size if batch_size is not None else settings.batch_size
+
         train_dl = AnnDataLoader(self.adata, shuffle=False, batch_size=batch_size)
         # sample local parameters
         i = 0
@@ -446,7 +443,6 @@ class PyroSampleMixin:
             post_sample_q95 - 95% quantile;
             post_sample_sds - standard deviation
             posterior_samples - samples for each variable as numpy arrays of shape `(n_samples, ...)` (Optional)
-
         """
 
         sample_kwargs = sample_kwargs if isinstance(sample_kwargs, dict) else dict()
