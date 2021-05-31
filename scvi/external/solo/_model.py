@@ -11,7 +11,7 @@ from anndata import AnnData
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from scvi import _CONSTANTS
-from scvi.data import get_from_registry, setup_anndata
+from scvi.data import get_from_registry, setup_anndata, transfer_anndata_setup
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
 from scvi.model.base import BaseModelClass
@@ -97,6 +97,7 @@ class SOLO(BaseModelClass):
         adata: Optional[AnnData] = None,
         restrict_to_batch: Optional[str] = None,
         doublet_ratio: int = 2,
+        **classifier_kwargs,
     ):
         """
         Instantiate a SOLO model from an scvi model.
@@ -117,6 +118,8 @@ class SOLO(BaseModelClass):
         doublet_ratio
             Ratio of generated doublets to produce relative to number of
             cells in adata or length of indices, if not `None`.
+        **classifier_kwargs
+            Keyword args for :class:`~scvi.module.Classifier`
 
         Returns
         -------
@@ -128,13 +131,18 @@ class SOLO(BaseModelClass):
             "_scvi_batch"
         ]["original_key"]
 
+        if adata is not None:
+            transfer_anndata_setup(orig_adata, adata)
+        else:
+            adata = orig_adata
+
         if restrict_to_batch is not None:
-            batch_mask = orig_adata.obs[orig_batch_key] == restrict_to_batch
+            batch_mask = adata.obs[orig_batch_key] == restrict_to_batch
             if np.sum(batch_mask) == 0:
                 raise ValueError(
                     "Batch category given to restrict_to_batch not found.\n"
                     + "Available categories: {}".format(
-                        orig_adata.obs[orig_batch_key].astype("category").cat.categories
+                        adata.obs[orig_batch_key].astype("category").cat.categories
                     )
                 )
             # indices in adata with restrict_to_batch category
@@ -145,7 +153,7 @@ class SOLO(BaseModelClass):
 
         # anndata with only generated doublets
         doublet_adata = cls.create_doublets(
-            orig_adata, indices=batch_indices, doublet_ratio=doublet_ratio
+            adata, indices=batch_indices, doublet_ratio=doublet_ratio
         )
         # if scvi wasn't trained with batch correction having the
         # zeros here does nothing.
@@ -158,15 +166,13 @@ class SOLO(BaseModelClass):
         give_mean_lib = not scvi_model.module.use_observed_lib_size
 
         # get latent representations and make input anndata
-        latent_rep = scvi_model.get_latent_representation(
-            orig_adata, indices=batch_indices
-        )
+        latent_rep = scvi_model.get_latent_representation(adata, indices=batch_indices)
         lib_size = scvi_model.get_latent_library_size(
-            orig_adata, indices=batch_indices, give_mean=give_mean_lib
+            adata, indices=batch_indices, give_mean=give_mean_lib
         )
-        latent_adata = AnnData(np.concatenate([latent_rep, lib_size], axis=1))
+        latent_adata = AnnData(np.concatenate([latent_rep, np.log(lib_size)], axis=1))
         latent_adata.obs[LABELS_KEY] = "singlet"
-        orig_obs_names = orig_adata.obs_names
+        orig_obs_names = adata.obs_names
         latent_adata.obs_names = (
             orig_obs_names[batch_indices]
             if batch_indices is not None
@@ -188,7 +194,7 @@ class SOLO(BaseModelClass):
 
             full_adata = latent_adata.concatenate(doublet_adata)
             setup_anndata(full_adata, labels_key=LABELS_KEY)
-        return cls(full_adata)
+        return cls(full_adata, **classifier_kwargs)
 
     @staticmethod
     def create_doublets(
@@ -324,7 +330,9 @@ class SOLO(BaseModelClass):
         return runner()
 
     @torch.no_grad()
-    def predict(self, soft: bool = True) -> pd.DataFrame:
+    def predict(
+        self, soft: bool = True, include_simulated_doublets: bool = False
+    ) -> pd.DataFrame:
         """
         Return doublet predictions.
 
@@ -332,7 +340,8 @@ class SOLO(BaseModelClass):
         ----------
         soft
             Return probabilities instead of class label
-
+        include_simulated_doublets
+            Return probabilities for simulated doublets as well.
         Returns
         -------
         DataFrame with prediction, index corresponding to cell barcode.
@@ -356,14 +365,14 @@ class SOLO(BaseModelClass):
         y_pred = torch.cat(y_pred).numpy()
 
         label = self.adata.obs["_solo_doub_sim"].values.ravel()
-        singlet_mask = label == "singlet"
-        preds = y_pred[singlet_mask]
+        mask = label == "singlet" if not include_simulated_doublets else slice(None)
+
+        preds = y_pred[mask]
+
         cols = self.adata.uns["_scvi"]["categorical_mappings"]["_scvi_labels"][
             "mapping"
         ]
-        preds_df = pd.DataFrame(
-            preds, columns=cols, index=self.adata.obs_names[singlet_mask]
-        )
+        preds_df = pd.DataFrame(preds, columns=cols, index=self.adata.obs_names[mask])
 
         if not soft:
             preds_df = preds_df.idxmax(axis=1)

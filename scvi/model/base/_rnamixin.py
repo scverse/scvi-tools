@@ -1,3 +1,4 @@
+import inspect
 import logging
 import warnings
 from functools import partial
@@ -27,6 +28,14 @@ Number = Union[int, float]
 
 class RNASeqMixin:
     """General purpose methods for RNA-seq analysis."""
+
+    def _get_transform_batch_gen_kwargs(self, batch):
+        if "transform_batch" in inspect.signature(self.module.generative).parameters:
+            return dict(transform_batch=batch)
+        else:
+            raise NotImplementedError(
+                "Transforming batches is not implemented for this model."
+            )
 
     @torch.no_grad()
     def get_normalized_expression(
@@ -115,15 +124,12 @@ class RNASeqMixin:
         for tensors in scdl:
             per_batch_exprs = []
             for batch in transform_batch:
-                if batch is not None:
-                    batch_indices = tensors[_CONSTANTS.BATCH_KEY]
-                    tensors[_CONSTANTS.BATCH_KEY] = (
-                        torch.ones_like(batch_indices) * batch
-                    )
+                generative_kwargs = self._get_transform_batch_gen_kwargs(batch)
                 inference_kwargs = dict(n_samples=n_samples)
                 _, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
+                    generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
                 output = generative_outputs[generative_output_key]
@@ -324,15 +330,12 @@ class RNASeqMixin:
         data_loader_list = []
         for tensors in scdl:
             x = tensors[_CONSTANTS.X_KEY]
-            if transform_batch is not None:
-                batch_indices = tensors[_CONSTANTS.BATCH_KEY]
-                tensors[_CONSTANTS.BATCH_KEY] = (
-                    torch.ones_like(batch_indices) * transform_batch
-                )
+            generative_kwargs = self._get_transform_batch_gen_kwargs(transform_batch)
             inference_kwargs = dict(n_samples=n_samples)
             _, generative_outputs = self.module.forward(
                 tensors=tensors,
                 inference_kwargs=inference_kwargs,
+                generative_kwargs=generative_kwargs,
                 compute_loss=False,
             )
             px_scale = generative_outputs["px_scale"]
@@ -550,7 +553,7 @@ class RNASeqMixin:
             ql_v = outputs["ql_v"]
             library = outputs["library"]
             if give_mean is False:
-                library = library
+                library = torch.exp(library)
             else:
                 library = torch.distributions.LogNormal(ql_m, ql_v.sqrt()).mean
             libraries += [library.cpu()]
