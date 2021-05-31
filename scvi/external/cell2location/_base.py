@@ -369,17 +369,15 @@ class PltExportMixin:
             ax.set_xlabel = plt.xlabel
             ax.set_ylabel = plt.ylabel
         if iter_end == -1:
-            iter_end = len(self.history_["train_loss_epoch"])
+            iter_end = len(self.history_["elbo_train"])
 
         ax.plot(
-            self.history_["train_loss_epoch"].index[iter_start:iter_end],
-            np.array(self.history_["train_loss_epoch"].values.flatten())[
-                iter_start:iter_end
-            ],
+            self.history_["elbo_train"].index[iter_start:iter_end],
+            np.array(self.history_["elbo_train"].values.flatten())[iter_start:iter_end],
             label="train",
         )
         ax.legend()
-        ax.xlim(0, len(self.history_["train_loss_epoch"]))
+        ax.xlim(0, len(self.history_["elbo_train"]))
         ax.set_xlabel("Training epochs")
         ax.set_ylabel("-ELBO loss")
         plt.tight_layout()
