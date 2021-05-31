@@ -1,6 +1,5 @@
 import os
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pyro
 import pyro.distributions as dist
@@ -235,7 +234,6 @@ def test_pyro_bayesian_regression_jit():
     train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     pyro.clear_param_store()
     model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
-    train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
     plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
@@ -275,37 +273,7 @@ def test_pyro_bayesian_train_sample_mixin():
     mod.train(
         max_epochs=2,
         batch_size=128,
-        plan_kwargs={"optim_kwargs": {"lr": 0.01}},
-        use_gpu=use_gpu,
-    )
-
-    # 100 features
-    assert list(
-        mod.module.guide.state_dict()["locs.linear.weight_unconstrained"].shape
-    ) == [1, 100]
-
-    # test posterior sampling
-    samples = mod.sample_posterior(
-        num_samples=10, use_gpu=use_gpu, batch_size=128, return_samples=True
-    )
-
-    assert len(samples["posterior_samples"]["sigma"]) == 10
-
-    plt.plot(
-        mod.history_["elbo_train"].index,
-        mod.history_["elbo_train"].values.flatten(),
-        label="elbo_train",
-    )
-
-
-def test_pyro_bayesian_train_sample_mixin_full_data():
-    use_gpu = torch.cuda.is_available()
-    adata = synthetic_iid()
-    mod = BayesianRegressionModel(adata)
-    mod.train(
-        max_epochs=2,
-        batch_size=None,
-        plan_kwargs={"optim_kwargs": {"lr": 0.01}},
+        lr=0.01,
         use_gpu=use_gpu,
     )
 
@@ -322,6 +290,30 @@ def test_pyro_bayesian_train_sample_mixin_full_data():
     assert len(samples["posterior_samples"]["sigma"]) == 10
 
 
+def test_pyro_bayesian_train_sample_mixin_full_data():
+    use_gpu = torch.cuda.is_available()
+    adata = synthetic_iid()
+    mod = BayesianRegressionModel(adata)
+    mod.train(
+        max_epochs=2,
+        batch_size=None,
+        lr=0.01,
+        use_gpu=use_gpu,
+    )
+
+    # 100 features
+    assert list(
+        mod.module.guide.state_dict()["locs.linear.weight_unconstrained"].shape
+    ) == [1, 100]
+
+    # test posterior sampling
+    samples = mod.sample_posterior(
+        num_samples=10, use_gpu=use_gpu, batch_size=adata.n_obs, return_samples=True
+    )
+
+    assert len(samples["posterior_samples"]["sigma"]) == 10
+
+
 def test_pyro_bayesian_train_sample_mixin_with_local():
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
@@ -329,7 +321,7 @@ def test_pyro_bayesian_train_sample_mixin_with_local():
     mod.train(
         max_epochs=2,
         batch_size=128,
-        plan_kwargs={"optim_kwargs": {"lr": 0.01}},
+        lr=0.01,
         train_size=1,  # does not work when there is a validation set.
         use_gpu=use_gpu,
     )
@@ -341,7 +333,7 @@ def test_pyro_bayesian_train_sample_mixin_with_local():
 
     # test posterior sampling
     samples = mod.sample_posterior(
-        num_samples=10, use_gpu=use_gpu, batch_size=128, return_samples=True
+        num_samples=10, use_gpu=use_gpu, batch_size=None, return_samples=True
     )
 
     assert len(samples["posterior_samples"]["sigma"]) == 10
@@ -359,7 +351,7 @@ def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
     mod.train(
         max_epochs=2,
         batch_size=None,
-        plan_kwargs={"optim_kwargs": {"lr": 0.01}},
+        lr=0.01,
         train_size=1,  # does not work when there is a validation set.
         use_gpu=use_gpu,
     )
@@ -371,7 +363,7 @@ def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
 
     # test posterior sampling
     samples = mod.sample_posterior(
-        num_samples=10, use_gpu=use_gpu, batch_size=None, return_samples=True
+        num_samples=10, use_gpu=use_gpu, batch_size=adata.n_obs, return_samples=True
     )
 
     assert len(samples["posterior_samples"]["sigma"]) == 10

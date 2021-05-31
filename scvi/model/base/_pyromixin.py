@@ -1,11 +1,12 @@
 import logging
-from typing import Optional, Union
+from typing import Callable, Dict, Optional, Union
 
 import numpy as np
 import torch
 from pyro import poutine
 from pytorch_lightning.callbacks import Callback
 
+from scvi import settings
 from scvi.dataloaders import AnnDataLoader, DataSplitter, DeviceBackedDataSplitter
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.train import PyroTrainingPlan, TrainRunner
@@ -18,6 +19,12 @@ Number = Union[int, float]
 
 class PyroJitGuideWarmup(Callback):
     def __init__(self, train_dl) -> None:
+        """
+        A callback to warmup a Pyro guide.
+
+        This helps initialize all the relevant parameters by running
+        one minibatch through the Pyro model.
+        """
         super().__init__()
         self.dl = train_dl
 
@@ -39,9 +46,9 @@ class PyroJitGuideWarmup(Callback):
 
 class PyroSviTrainMixin:
     """
-    This mixin class provides methods for:
+    Mixin class for training Pyro models.
 
-    - training models using minibatches and using full data (copies data to GPU only once).
+    Training using minibatches and using full data (copies data to GPU only once).
     """
 
     def train(
@@ -52,6 +59,7 @@ class PyroSviTrainMixin:
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         early_stopping: bool = False,
+        lr: Optional[float] = None,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
@@ -76,6 +84,9 @@ class PyroSviTrainMixin:
         early_stopping
             Perform early stopping. Additional arguments can be passed in `**kwargs`.
             See :class:`~scvi.train.Trainer` for further options.
+        lr
+            Optimiser learning rate (default optimiser is Pyro ClippedAdam).
+            Specifying optimiser via plan_kwargs overrides this choice of lr.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -87,6 +98,8 @@ class PyroSviTrainMixin:
             max_epochs = np.min([round((20000 / n_obs) * 1000), 1000])
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        if lr is not None and "optim" not in plan_kwargs.keys():
+            plan_kwargs.update({"optim_kwargs": {"lr": lr}})
 
         if batch_size is None:
             # use data splitter which moves data to GPU once
@@ -112,11 +125,12 @@ class PyroSviTrainMixin:
             early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
         )
 
-        # if "callbacks" not in trainer_kwargs.keys():
-        #    trainer_kwargs["callbacks"] = []
-        # trainer_kwargs["callbacks"].append(
-        #    PyroJitGuideWarmup(data_splitter.train_dataloader())
-        # )
+        data_splitter.setup()
+        if "callbacks" not in trainer_kwargs.keys():
+            trainer_kwargs["callbacks"] = []
+        trainer_kwargs["callbacks"].append(
+            PyroJitGuideWarmup(data_splitter.train_dataloader())
+        )
 
         runner = TrainRunner(
             self,
@@ -131,9 +145,9 @@ class PyroSviTrainMixin:
 
 class PyroSampleMixin:
     """
-    This mixin class provides methods for:
+    Mixin class for generating samples from posterior distribution.
 
-    - generating samples from posterior distribution using minibatches and full data
+    Works using both minibatches and full data.
     """
 
     @torch.no_grad()
@@ -144,7 +158,8 @@ class PyroSampleMixin:
         return_sites: Optional[list] = None,
         sample_observed: bool = False,
     ):
-        """Get one sample from posterior distribution.
+        """
+        Get one sample from posterior distribution.
 
         Parameters
         ----------
@@ -156,7 +171,6 @@ class PyroSampleMixin:
         Returns
         -------
         Dictionary with a sample for each variable
-
         """
 
         guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
@@ -196,14 +210,14 @@ class PyroSampleMixin:
         show_progress: bool = True,
     ):
         """
-        Get many samples from posterior distribution.
+        Get many (num_samples=N) samples from posterior distribution.
 
         Parameters
         ----------
         args
             arguments to model and guide
         kwargs
-            arguments to model and guide
+            keyword arguments to model and guide
         show_progress
             show progress bar
 
@@ -211,7 +225,6 @@ class PyroSampleMixin:
         -------
         Dictionary with array of samples for each variable
         dictionary {variable_name: [array with samples in 0 dimension]}
-
         """
 
         samples = self._get_one_posterior_sample(
@@ -236,13 +249,14 @@ class PyroSampleMixin:
 
         return {k: np.array(v) for k, v in samples.items()}
 
-    def _get_obs_plate_return_sites(self, sample_kwargs, obs_plate_sites):
+    def _get_obs_plate_return_sites(self, return_sites, obs_plate_sites):
+        """
+        Check return_sites for overlap with observation/minibatch plate sites.
+        """
 
         # check whether any variable requested in return_sites are in obs_plate
-        if ("return_sites" in sample_kwargs.keys()) and (
-            sample_kwargs["return_sites"] is not None
-        ):
-            return_sites = np.array(sample_kwargs["return_sites"])
+        if return_sites is not None:
+            return_sites = np.array(return_sites)
             return_sites = return_sites[np.isin(return_sites, obs_plate_sites)]
             if len(return_sites) == 0:
                 return [return_sites]
@@ -252,6 +266,22 @@ class PyroSampleMixin:
             return obs_plate_sites
 
     def _get_obs_plate_sites(self, args, kwargs):
+        """
+        Automatically guess which model sites belong to observation/minibatch plate.
+
+        This function requires minibatch plate name specified in `self.module.list_obs_plate_vars["name"]`.
+
+        Parameters
+        ----------
+        args
+            Arguments to the model.
+        kwargs
+            Keyword arguments to the model.
+
+        Returns
+        -------
+        Dictionary with keys corresponding to site names and values to plate dimension.
+        """
 
         plate_name = self.module.list_obs_plate_vars["name"]
 
@@ -267,10 +297,10 @@ class PyroSampleMixin:
         return obs_plate
 
     def _posterior_samples_minibatch(
-        self, use_gpu: bool = True, batch_size: int = 128, **sample_kwargs
+        self, use_gpu: bool = None, batch_size: Optional[int] = None, **sample_kwargs
     ):
         """
-        Generate samples of the posterior distribution in minibatches
+        Generate samples of the posterior distribution in minibatches.
 
         Generate samples of the posterior distribution of each parameter, separating local (minibatch) variables
         and global variables, which is necessary when performing minibatch inference.
@@ -278,28 +308,22 @@ class PyroSampleMixin:
         Parameters
         ----------
         use_gpu
-            Bool, use gpu?
+            Load model on default GPU if available (if None or True),
+            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
 
         Returns
         -------
         dictionary {variable_name: [array with samples in 0 dimension]}
-
-        Notes
-        -----
-        Note for developers: requires scVI module property (a dictionary, self.module.list_obs_plate_vars)
-        which lists observation/minibatch plate name and variables.
-        See PyroBaseModuleClass.list_obs_plate_vars for details.
-        This dictionary can be returned by model class method self.module.model.list_obs_plate_vars()
-        to keep all model-specific variables in one place.
-
         """
 
         samples = dict()
 
         gpus, device = parse_use_gpu_arg(use_gpu)
 
-        if batch_size is None:
-            batch_size = self.adata.n_obs
+        batch_size = batch_size if batch_size is not None else settings.batch_size
+
         train_dl = AnnDataLoader(self.adata, shuffle=False, batch_size=batch_size)
         # sample local parameters
         i = 0
@@ -324,7 +348,7 @@ class PyroSampleMixin:
                 sample_kwargs_obs_plate[
                     "return_sites"
                 ] = self._get_obs_plate_return_sites(
-                    sample_kwargs, list(obs_plate_sites.keys())
+                    sample_kwargs["return_sites"], list(obs_plate_sites.keys())
                 )
                 sample_kwargs_obs_plate["show_progress"] = False
 
@@ -353,12 +377,6 @@ class PyroSampleMixin:
             i += 1
 
         # sample global parameters
-        tensor_dict = next(iter(train_dl))
-        args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
-        args = [a.to(device) for a in args]
-        kwargs = {k: v.to(device) for k, v in kwargs.items()}
-        self.to_device(device)
-
         global_samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
         global_samples = {
             k: v
@@ -377,49 +395,64 @@ class PyroSampleMixin:
         self,
         num_samples: int = 1000,
         return_sites: Optional[list] = None,
-        use_gpu: bool = False,
-        batch_size: int = 128,
-        sample_kwargs=None,
+        use_gpu: bool = None,
+        batch_size: Optional[int] = None,
+        return_observed: bool = False,
         return_samples: bool = False,
+        summary_fun: Optional[Dict[str, Callable]] = None,
     ):
         """
+        Summarise posterior distribution.
+
         Generate samples from posterior distribution for each parameter
         and compute mean, 5%/95% quantiles, standard deviation.
 
         Parameters
         ----------
         num_samples
-            number of posterior samples to generate.
-        return_sites
-            get samples for pyro model variable, default is all variables, otherwise list variable names).
+            Number of posterior samples to generate.
+        return_site
+            List of variables for which to generate posterior samples, defaults to all variables.
         use_gpu
-            Use gpu?
-        sample_kwargs
-            dictionary with arguments to _get_posterior_samples (see below):
-            return_observed
-                return observed sites/variables?
+            Load model on default GPU if available (if None or True),
+            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_observed
+            Return observed sites/variables? Observed count matrix can be very large so not returned by default.
         return_samples
-            return samples in addition to sample mean, 5%/95% quantile and SD?
+            Return samples in addition to sample mean, 5%/95% quantile and SD?
+        summary_fun
+             a dict in the form {"means": np.mean, "std": np.std} which specifies posterior distribution
+             summaries to compute and which names to use. See below for default returns.
 
         Returns
         -------
-        Posterior distribution samples, a dictionary with elements as follows,
-         containing dictionaries of numpy arrays for each variable:
+        Dict[str, Dict[str, np.array]]
+            Posterior distribution samples, a dictionary with elements as follows,
+            containing dictionaries of numpy arrays for each variable:
             post_sample_means - mean of the distribution for each variable;
             post_sample_q05 - 5% quantile;
             post_sample_q95 - 95% quantile;
-            post_sample_sds - standard deviation
-            posterior_samples - samples for each variable as numpy arrays of shape `(n_samples, ...)` (Optional)
+            post_sample_sds - standard deviation;
+            posterior_samples - samples for each variable as numpy arrays of shape `(n_samples, ...)` (Optional).
 
+        Notes
+        -----
+        Note for developers: requires overwritten :func:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` method.
+        which lists observation/minibatch plate name and variables.
+        See :func:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` for details of the variables it should contain.
+        This dictionary can be returned by model class method `self.module.model.list_obs_plate_vars()`
+        to keep all model-specific variables in one place.
         """
-
-        sample_kwargs = sample_kwargs if isinstance(sample_kwargs, dict) else dict()
-        sample_kwargs["num_samples"] = num_samples
-        sample_kwargs["return_sites"] = return_sites
 
         # sample using minibatches (if full data, data is moved to GPU only once anyway)
         samples = self._posterior_samples_minibatch(
-            use_gpu=use_gpu, batch_size=batch_size, **sample_kwargs
+            use_gpu=use_gpu,
+            batch_size=batch_size,
+            num_samples=num_samples,
+            return_sites=return_sites,
+            return_observed=return_observed,
         )
 
         param_names = list(samples.keys())
@@ -427,13 +460,16 @@ class PyroSampleMixin:
         if return_samples:
             results["posterior_samples"] = samples
 
-        results["post_sample_means"] = {v: samples[v].mean(axis=0) for v in param_names}
-        results["post_sample_q05"] = {
-            v: np.quantile(samples[v], 0.05, axis=0) for v in param_names
-        }
-        results["post_sample_q95"] = {
-            v: np.quantile(samples[v], 0.95, axis=0) for v in param_names
-        }
-        results["post_sample_sds"] = {v: samples[v].std(axis=0) for v in param_names}
+        if summary_fun is None:
+            summary_fun = {
+                "means": np.mean,
+                "sts": np.std,
+                "q05": lambda x, axis: np.quantile(x, 0.05, axis=axis),
+                "q95": lambda x, axis: np.quantile(x, 0.95, axis=axis),
+            }
+        for k, fun in summary_fun.items():
+            results[f"post_sample_{k}"] = {
+                v: fun(samples[v], axis=0) for v in param_names
+            }
 
         return results
