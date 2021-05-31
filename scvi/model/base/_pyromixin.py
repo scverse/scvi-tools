@@ -249,16 +249,14 @@ class PyroSampleMixin:
 
         return {k: np.array(v) for k, v in samples.items()}
 
-    def _get_obs_plate_return_sites(self, sample_kwargs, obs_plate_sites):
+    def _get_obs_plate_return_sites(self, return_sites, obs_plate_sites):
         """
-        Check sample_kwargs["return_sites"] for overlap with observation/minibatch plate sites.
+        Check return_sites for overlap with observation/minibatch plate sites.
         """
 
         # check whether any variable requested in return_sites are in obs_plate
-        if ("return_sites" in sample_kwargs.keys()) and (
-            sample_kwargs["return_sites"] is not None
-        ):
-            return_sites = np.array(sample_kwargs["return_sites"])
+        if return_sites is not None:
+            return_sites = np.array(return_sites)
             return_sites = return_sites[np.isin(return_sites, obs_plate_sites)]
             if len(return_sites) == 0:
                 return [return_sites]
@@ -358,7 +356,7 @@ class PyroSampleMixin:
                 sample_kwargs_obs_plate[
                     "return_sites"
                 ] = self._get_obs_plate_return_sites(
-                    sample_kwargs, list(obs_plate_sites.keys())
+                    sample_kwargs["return_sites"], list(obs_plate_sites.keys())
                 )
                 sample_kwargs_obs_plate["show_progress"] = False
 
@@ -407,7 +405,7 @@ class PyroSampleMixin:
         return_sites: Optional[list] = None,
         use_gpu: bool = None,
         batch_size: Optional[int] = None,
-        sample_kwargs=None,
+        return_observed: bool = False,
         return_samples: bool = False,
         summary_fun: Optional[dict] = None,
     ):
@@ -420,20 +418,18 @@ class PyroSampleMixin:
         Parameters
         ----------
         num_samples
-            number of posterior samples to generate.
+            Number of posterior samples to generate.
         return_site
-            get samples for pyro model variable, default is all variables, otherwise list variable names).
+            List of variables for which to generate posterior samples, defaults to all variables.
         use_gpu
             Load model on default GPU if available (if None or True),
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-        sample_kwargs
-            dictionary with arguments to _get_posterior_samples (see below):
-            return_observed
-                return observed sites/variables?
+        return_observed
+            Return observed sites/variables? Observed count matrix can be very large so not returned by default.
         return_samples
-            return samples in addition to sample mean, 5%/95% quantile and SD?
+            Return samples in addition to sample mean, 5%/95% quantile and SD?
         summary_fun
              a dict in the form {"means": np.mean, "std": np.std} which specifies posterior distribution
              summaries to compute and which names to use.
@@ -449,13 +445,13 @@ class PyroSampleMixin:
             posterior_samples - samples for each variable as numpy arrays of shape `(n_samples, ...)` (Optional)
         """
 
-        sample_kwargs = sample_kwargs if isinstance(sample_kwargs, dict) else dict()
-        sample_kwargs["num_samples"] = num_samples
-        sample_kwargs["return_sites"] = return_sites
-
         # sample using minibatches (if full data, data is moved to GPU only once anyway)
         samples = self._posterior_samples_minibatch(
-            use_gpu=use_gpu, batch_size=batch_size, **sample_kwargs
+            use_gpu=use_gpu,
+            batch_size=batch_size,
+            num_samples=num_samples,
+            return_sites=return_sites,
+            return_observed=return_observed,
         )
 
         param_names = list(samples.keys())
