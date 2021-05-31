@@ -428,14 +428,16 @@ class PyroSampleMixin:
 
         Returns
         -------
-        Dict[str, Dict[str, np.array]]
-            Posterior distribution samples, a dictionary with elements as follows,
-            containing dictionaries of numpy arrays for each variable:
-            1) post_sample_means - mean of the distribution for each variable;
-            2) post_sample_q05 - 5% quantile;
-            3) post_sample_q95 - 95% quantile;
-            4) post_sample_sds - standard deviation;
-            5) posterior_samples - samples for each variable as numpy arrays of shape `(n_samples, ...)` (Optional).
+        post_sample_means: Dict[str, np.array]
+            Mean of the posterior distribution for each variable, a dictionary of numpy arrays for each variable;
+        post_sample_q05: Dict[str, np.array]
+            5% quantile of the posterior distribution for each variable;
+        post_sample_q05: Dict[str, np.array]
+            95% quantile of the posterior distribution for each variable;
+        post_sample_q05: Dict[str, np.array]
+            Standard deviation of the posterior distribution for each variable;
+        posterior_samples: Dict[str, np.array]
+            Posterior distribution samples for each variable as numpy arrays of shape `(n_samples, ...)` (Optional).
 
         Notes
         -----
