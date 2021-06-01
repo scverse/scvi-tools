@@ -188,7 +188,7 @@ class SOLO(BaseModelClass):
                 doublet_adata, give_mean=give_mean_lib
             )
             doublet_adata = AnnData(
-                np.concatenate([doublet_latent_rep, doublet_lib_size], axis=1)
+                np.concatenate([doublet_latent_rep, np.log(doublet_lib_size)], axis=1)
             )
             doublet_adata.obs[LABELS_KEY] = "doublet"
 
