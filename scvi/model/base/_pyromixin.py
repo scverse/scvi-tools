@@ -465,7 +465,7 @@ class PyroSampleMixin:
         if summary_fun is None:
             summary_fun = {
                 "means": np.mean,
-                "sts": np.std,
+                "stds": np.std,
                 "q05": lambda x, axis: np.quantile(x, 0.05, axis=axis),
                 "q95": lambda x, axis: np.quantile(x, 0.95, axis=axis),
             }
