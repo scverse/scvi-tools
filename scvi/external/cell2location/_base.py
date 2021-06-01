@@ -404,7 +404,7 @@ class PltExportMixin:
             "var_names": self.adata.var_names.tolist(),
             "obs_names": self.adata.obs_names.tolist(),
             "post_sample_means": samples["post_sample_means"],
-            "post_sample_sds": samples["post_sample_sds"],
+            "post_sample_stds": samples["post_sample_stds"],
             "post_sample_q05": samples["post_sample_q05"],
             "post_sample_q95": samples["post_sample_q95"],
         }
@@ -429,7 +429,7 @@ class PltExportMixin:
         site_name
             name of the model parameter to be exported
         summary_name
-            posterior distribution summary to return ['means', 'sds', 'q05', 'q95']
+            posterior distribution summary to return ['means', 'stds', 'q05', 'q95']
         name_prefix
             prefix to add to column names (f'{summary_name}{name_prefix}_{site_name}_{self.factor_names_}')
 
@@ -465,7 +465,7 @@ class PltExportMixin:
         site_name
             name of the model parameter to be exported
         summary_name
-            posterior distribution summary to return ('means', 'sds', 'q05', 'q95')
+            posterior distribution summary to return ('means', 'stds', 'q05', 'q95')
         name_prefix
             prefix to add to column names (f'{summary_name}{name_prefix}_{site_name}_{self.factor_names_}')
 
@@ -495,7 +495,7 @@ class PltExportMixin:
         Parameters
         ----------
         summary_name
-            posterior distribution summary to use ('means', 'sds', 'q05', 'q95')
+            posterior distribution summary to use ('means', 'stds', 'q05', 'q95')
 
         Returns
         -------

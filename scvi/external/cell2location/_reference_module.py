@@ -628,14 +628,14 @@ class RegressionModel(
         adata,
         sample_kwargs: Optional[dict] = None,
         export_slot: str = "mod",
-        add_to_varm: list = ["means", "sds", "q05", "q95"],
+        add_to_varm: list = ["means", "stds", "q05", "q95"],
         scale_average_detection: bool = True,
     ):
         """
         Summarise posterior distribution and export results (cell abundance) to anndata object:
         1. adata.obsm: Estimated references expression signatures (average mRNA count in each cell type),
             as pd.DataFrames for each posterior distribution summary `add_to_varm`,
-            posterior mean, sd, 5% and 95% quantiles (['means', 'sds', 'q05', 'q95']).
+            posterior mean, sd, 5% and 95% quantiles (['means', 'stds', 'q05', 'q95']).
             If export to adata.varm fails with error, results are saved to adata.var instead.
         2. adata.uns: Posterior of all parameters, model name, date,
             cell type names ('factor_names'), obs and var names.
@@ -652,7 +652,7 @@ class RegressionModel(
         export_slot
             adata.uns slot where to export results
         add_to_varm
-            posterior distribution summary to export in adata.varm (['means', 'sds', 'q05', 'q95']).
+            posterior distribution summary to export in adata.varm (['means', 'stds', 'q05', 'q95']).
         Returns
         -------
 
@@ -714,7 +714,7 @@ class RegressionModel(
         Parameters
         ----------
         summary_name
-            posterior distribution summary to use ('means', 'sds', 'q05', 'q95')
+            posterior distribution summary to use ('means', 'stds', 'q05', 'q95')
 
         Returns
         -------
