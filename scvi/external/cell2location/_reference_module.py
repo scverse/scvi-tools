@@ -502,6 +502,10 @@ class RegressionBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
     def is_amortised(self):
         return self._amortised
 
+    @property
+    def list_obs_plate_vars(self):
+        return self.model.list_obs_plate_vars()
+
     def init_to_value(self, site):
 
         init_vals = {
