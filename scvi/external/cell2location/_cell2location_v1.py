@@ -102,12 +102,12 @@ class Cell2location(
         adata,
         sample_kwargs: Optional[dict] = None,
         export_slot: str = "mod",
-        add_to_obsm: list = ["means", "sds", "q05", "q95"],
+        add_to_obsm: list = ["means", "stds", "q05", "q95"],
     ):
         """
         Summarise posterior distribution and export results (cell abundance) to anndata object:
         1. adata.obsm: Estimated cell abundance as pd.DataFrames for each posterior distribution summary `add_to_obsm`,
-            posterior mean, sd, 5% and 95% quantiles (['means', 'sds', 'q05', 'q95']).
+            posterior mean, sd, 5% and 95% quantiles (['means', 'stds', 'q05', 'q95']).
             If export to adata.obsm fails with error, results are saved to adata.obs instead.
         2. adata.uns: Posterior of all parameters, model name, date,
             cell type names ('factor_names'), obs and var names.
@@ -124,7 +124,7 @@ class Cell2location(
         export_slot
             adata.uns slot where to export results
         add_to_obsm
-            posterior distribution summary to export in adata.obsm (['means', 'sds', 'q05', 'q95']).
+            posterior distribution summary to export in adata.obsm (['means', 'stds', 'q05', 'q95']).
         Returns
         -------
 
