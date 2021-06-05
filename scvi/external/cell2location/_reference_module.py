@@ -206,13 +206,28 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
 
     ############# Define the model ################
     @staticmethod
-    def _get_fn_args_from_batch(tensor_dict):
+    def _get_fn_args_from_batch_no_cat(tensor_dict):
+        x_data = tensor_dict[_CONSTANTS.X_KEY]
+        ind_x = tensor_dict["ind_x"].long().squeeze()
+        batch_index = tensor_dict[_CONSTANTS.BATCH_KEY]
+        label_index = tensor_dict[_CONSTANTS.LABELS_KEY]
+        return (x_data, ind_x, batch_index, label_index, label_index), {}
+
+    @staticmethod
+    def _get_fn_args_from_batch_cat(tensor_dict):
         x_data = tensor_dict[_CONSTANTS.X_KEY]
         ind_x = tensor_dict["ind_x"].long().squeeze()
         batch_index = tensor_dict[_CONSTANTS.BATCH_KEY]
         label_index = tensor_dict[_CONSTANTS.LABELS_KEY]
         extra_categoricals = tensor_dict[_CONSTANTS.CAT_COVS_KEY]
         return (x_data, ind_x, batch_index, label_index, extra_categoricals), {}
+
+    @property
+    def _get_fn_args_from_batch(self):
+        if self.n_extra_categoricals is not None:
+            return self._get_fn_args_from_batch_cat
+        else:
+            return self._get_fn_args_from_batch_no_cat
 
     def create_plates(self, x_data, idx, batch_index, label_index, extra_categoricals):
         return pyro.plate("obs_plate", size=self.n_obs, dim=-2, subsample=idx)
