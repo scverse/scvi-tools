@@ -4,7 +4,6 @@ import numpy as np
 import pyro
 import pyro.distributions as dist
 import torch
-from pyro.distributions import constraints
 from pyro.distributions.transforms import SoftplusTransform
 from pyro.distributions.util import sum_rightmost
 from pyro.infer.autoguide import AutoGuide
@@ -12,7 +11,7 @@ from pyro.infer.autoguide import AutoGuideList as PyroAutoGuideList
 from pyro.infer.autoguide.guides import _deep_getattr, _deep_setattr
 from pyro.infer.autoguide.utils import helpful_support_errors
 from pyro.nn import PyroModule, PyroParam
-from torch.distributions import biject_to, transform_to
+from torch.distributions import biject_to
 
 from scvi.nn import FCLayers
 
@@ -40,12 +39,6 @@ class AutoGuideList(PyroAutoGuideList):
         for part in self:
             result.update(part.quantiles(quantiles, *args, **kwargs))
         return result
-
-
-@biject_to.register(constraints.positive)
-@transform_to.register(constraints.positive)
-def _transform_to_positive(constraint):
-    return SoftplusTransform()
 
 
 class AutoNormalEncoder(AutoGuide):

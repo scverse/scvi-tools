@@ -3,13 +3,8 @@ import pandas as pd
 import pyro
 import pyro.distributions as dist
 import torch
-
-# import scvi
-from pyro.distributions import constraints
-from pyro.distributions.transforms import SoftplusTransform
 from pyro.infer.autoguide import init_to_mean
 from pyro.nn import PyroModule
-from torch.distributions import biject_to, transform_to
 
 from scvi import _CONSTANTS
 from scvi.data._anndata import get_from_registry
@@ -18,13 +13,6 @@ from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import one_hot
 
 from ._base import AutoGuideMixinModule
-
-
-@biject_to.register(constraints.positive)
-@transform_to.register(constraints.positive)
-def _transform_to_positive(constraint):
-    return SoftplusTransform()
-
 
 # class NegativeBinomial(TorchDistributionMixin, ScVINegativeBinomial):
 #    pass

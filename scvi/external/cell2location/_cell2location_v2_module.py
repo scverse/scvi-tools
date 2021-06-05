@@ -3,22 +3,12 @@ import pandas as pd
 import pyro
 import pyro.distributions as dist
 import torch
-from pyro.distributions import constraints
-from pyro.distributions.transforms import SoftplusTransform
 from pyro.nn import PyroModule
-from torch.distributions import biject_to, transform_to
 
 from scvi import _CONSTANTS
 from scvi.data._anndata import get_from_registry
 from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_logits
 from scvi.nn import one_hot
-
-
-@biject_to.register(constraints.positive)
-@transform_to.register(constraints.positive)
-def _transform_to_positive(constraint):
-    return SoftplusTransform()
-
 
 # class NegativeBinomial(TorchDistributionMixin, ScVINegativeBinomial):
 #    pass
@@ -107,7 +97,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlph
             "alpha": 1.0,
             "beta": 100.0,
         },  # TODO initialise as average of empty locations
-        detection_hyp_prior={"alpha": 500.0, "mean_alpha": 1.0},
+        detection_hyp_prior={"alpha": 200.0, "mean_alpha": 1.0},
         w_sf_mean_var_ratio=5.0,
     ):
 

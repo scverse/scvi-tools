@@ -9,11 +9,8 @@ import pyro.distributions as dist
 import torch
 from anndata import AnnData
 from pyro import clear_param_store
-from pyro.distributions import constraints
-from pyro.distributions.transforms import SoftplusTransform
 from pyro.nn import PyroModule
 from scipy.sparse import csr_matrix
-from torch.distributions import biject_to, transform_to
 
 import scvi
 from scvi import _CONSTANTS
@@ -76,12 +73,6 @@ def compute_cluster_averages(adata, labels, use_raw=True, layer=None):
     averages_df = pd.DataFrame(data=averages_mat, index=var_names, columns=all_clusters)
 
     return averages_df
-
-
-@biject_to.register(constraints.positive)
-@transform_to.register(constraints.positive)
-def _transform_to_positive(constraint):
-    return SoftplusTransform()
 
 
 class RegressionBackgroundDetectionTechPyroModel(PyroModule):
