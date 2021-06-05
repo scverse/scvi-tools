@@ -1,4 +1,5 @@
 from contextlib import ExitStack  # python 3
+from copy import deepcopy
 
 import numpy as np
 import pyro
@@ -11,6 +12,7 @@ from pyro.infer.autoguide import AutoGuideList as PyroAutoGuideList
 from pyro.infer.autoguide.guides import _deep_getattr, _deep_setattr
 from pyro.infer.autoguide.utils import helpful_support_errors
 from pyro.nn import PyroModule, PyroParam
+from pyro.nn.module import to_pyro_module_
 from torch.distributions import biject_to
 
 from scvi.nn import FCLayers
@@ -68,6 +70,7 @@ class AutoNormalEncoder(AutoGuide):
         data_transform=torch.log1p,
         encoder_class=FCLayersPyro,
         encoder_kwargs=None,
+        encoder_instance: torch.nn.Module = None,
         create_plates=None,
         single_encoder: bool = True,
     ):
@@ -108,6 +111,8 @@ class AutoNormalEncoder(AutoGuide):
             Class for defining encoder network.
         encoder_kwargs
             Keyword arguments for encoder_class.
+        encoder_instance
+            Encoder network instance, overrides class input and the input instance is copied with deepcopy.
         create_plates
             Function for creating plates
         single_encoder
@@ -136,11 +141,17 @@ class AutoNormalEncoder(AutoGuide):
         )
         self.n_hidden = n_hidden
         self.encoder_class = encoder_class
+        self.encoder_instance = encoder_instance
         if self.single_encoder:
             # create a single encoder NN
-            self.encoder = encoder_class(
-                n_in=self.n_in, n_out=self.n_hidden, **self.encoder_kwargs
-            )
+            if encoder_instance is not None:
+                self.encoder = deepcopy(encoder_instance)
+                # convert to pyro module
+                to_pyro_module_(self.encoder)
+            else:
+                self.encoder = encoder_class(
+                    n_in=self.n_in, n_out=self.n_hidden, **self.encoder_kwargs
+                )
 
         self.init_param_scale = init_param_scale
         self.data_transform = data_transform
@@ -202,13 +213,26 @@ class AutoNormalEncoder(AutoGuide):
             )
 
             if not self.single_encoder:
-                _deep_setattr(
-                    self.encoder,
-                    name,
-                    self.encoder_class(
-                        n_in=self.n_in, n_out=self.n_hidden, **self.encoder_kwargs
-                    ).to(site["value"].device),
-                )
+                # create multiple encoders
+                if self.encoder_instance is not None:
+                    # copy instances
+                    encoder_ = deepcopy(self.encoder_instance).to(site["value"].device)
+                    # convert to pyro module
+                    to_pyro_module_(encoder_)
+                    _deep_setattr(
+                        self.encoder,
+                        name,
+                        encoder_,
+                    )
+                else:
+                    # create instances
+                    _deep_setattr(
+                        self.encoder,
+                        name,
+                        self.encoder_class(
+                            n_in=self.n_in, n_out=self.n_hidden, **self.encoder_kwargs
+                        ).to(site["value"].device),
+                    )
 
     def _get_loc_and_scale(self, name, encoded_hidden):
         """

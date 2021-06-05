@@ -38,6 +38,7 @@ class AutoGuideMixinModule:
         single_encoder,
         init_loc_fn=init_to_mean,
         n_cat_list: list = [],
+        encoder_instance=None,
     ):
 
         if not amortised:
@@ -114,6 +115,7 @@ class AutoGuideMixinModule:
                     data_transform=data_transform,
                     encoder_kwargs=encoder_kwargs,
                     single_encoder=single_encoder,
+                    encoder_instance=encoder_instance,
                 )
             )
         return _guide
