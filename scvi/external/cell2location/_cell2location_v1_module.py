@@ -8,7 +8,6 @@ from pyro.nn import PyroModule
 
 from scvi import _CONSTANTS
 from scvi.data._anndata import get_from_registry
-from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_logits
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import one_hot
 
@@ -345,19 +344,19 @@ class LocationModelLinearDependentWMultiExperimentPyroModel(PyroModule):
         # =====================Expected expression ======================= #
         # expected expression
         mu = (w_sf @ self.cell_state) * m_g + (obs2sample @ s_g_gene_add) + l_s_add
-        theta = obs2sample @ (self.ones / alpha_g_inverse.pow(2))
+        alpha = obs2sample @ (self.ones / alpha_g_inverse.pow(2))
         # convert mean and overdispersion to total count and logits
-        total_count, logits = _convert_mean_disp_to_counts_logits(
-            mu, theta, eps=self.eps
-        )
+        # total_count, logits = _convert_mean_disp_to_counts_logits(
+        #    mu, alpha, eps=self.eps
+        # )
 
         # =====================DATA likelihood ======================= #
         # Likelihood (sampling distribution) of data_target & add overdispersion via NegativeBinomial
         with obs_plate:
             pyro.sample(
                 "data_target",
-                dist.NegativeBinomial(total_count=total_count, logits=logits),
-                # NegativeBinomial(mu=mu, theta=theta),
+                dist.GammaPoisson(concentration=alpha, rate=alpha / mu),
+                # dist.NegativeBinomial(total_count=total_count, logits=logits),
                 obs=x_data,
             )
 

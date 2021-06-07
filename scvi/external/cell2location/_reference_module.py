@@ -15,7 +15,6 @@ from scipy.sparse import csr_matrix
 import scvi
 from scvi import _CONSTANTS
 from scvi.data._anndata import get_from_registry
-from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_logits
 from scvi.model.base import BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import one_hot
@@ -363,24 +362,24 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
         # overdispersion
         alpha = self.ones / alpha_g_inverse.pow(2)
         # biological expression
-        mu_biol = (
+        mu = (
             obs2label @ per_cluster_mu_fg  # contaminating RNA
             + obs2sample @ s_g_gene_add
         ) * detection_y_c  # cell-specific normalisation
         if self.n_extra_categoricals is not None:
             # gene-specific normalisation for covatiates
-            mu_biol = mu_biol * (obs2extra_categoricals @ detection_tech_gene_tg)
-        total_count, logits = _convert_mean_disp_to_counts_logits(
-            mu_biol, alpha, eps=self.eps
-        )
+            mu = mu * (obs2extra_categoricals @ detection_tech_gene_tg)
+        # total_count, logits = _convert_mean_disp_to_counts_logits(
+        #    mu, alpha, eps=self.eps
+        # )
 
         # =====================DATA likelihood ======================= #
         # Likelihood (sampling distribution) of data_target & add overdispersion via NegativeBinomial
         with obs_plate:
             pyro.sample(
                 "data_target",
-                dist.NegativeBinomial(total_count=total_count, logits=logits),
-                # NegativeBinomial(mu=mu_biol, theta=alpha_biol),
+                dist.GammaPoisson(concentration=alpha, rate=alpha / mu),
+                # dist.NegativeBinomial(total_count=total_count, logits=logits),
                 obs=x_data,
             )
 
