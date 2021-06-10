@@ -67,7 +67,6 @@ class AutoNormalEncoder(AutoGuide):
         n_hidden: int = 200,
         init_param=0,
         init_param_scale: float = 1 / 50,
-        data_transform=torch.log1p,
         encoder_class=FCLayersPyro,
         encoder_kwargs=None,
         encoder_instance: torch.nn.Module = None,
@@ -88,7 +87,8 @@ class AutoNormalEncoder(AutoGuide):
              and the number of dimensions in non-plate axis of each variable - such as:
              {
                  "name": "obs_plate",
-                 "in": [0],  # expression data + (optional) batch index ([0, 2])
+                 "input": [0],  # expression data + (optional) batch index ([0, 2])
+                 "input_transform": [torch.log1p], # how to transform input data before passing to NN
                  "sites": {
                      "n_s_cells_per_location": 1,
                      "y_s_groups_per_location": 1,
@@ -105,7 +105,7 @@ class AutoNormalEncoder(AutoGuide):
             Not implemented yet - initial values for amortised variables.
         init_param_scale
             How to scale/normalise initial values for weights converting hidden layers to mean and sd.
-        data_transform
+        input_transform
             Function to use for transforming data before passing it to encoder network.
         encoder_class
             Class for defining encoder network.
@@ -154,7 +154,6 @@ class AutoNormalEncoder(AutoGuide):
                 )
 
         self.init_param_scale = init_param_scale
-        self.data_transform = data_transform
 
     def _setup_prototype(self, *args, **kwargs):
 
@@ -270,10 +269,11 @@ class AutoNormalEncoder(AutoGuide):
         -------
 
         """
-        in_names = self.amortised_plate_sites["in"]
+        in_names = self.amortised_plate_sites["input"]
         x_in = [kwargs[i] if i in kwargs.keys() else args[i] for i in in_names]
-        # apply data_transform
-        x_in = [self.data_transform(x) for x in x_in]
+        # apply data transform before passing to NN
+        in_transforms = self.amortised_plate_sites["input_transform"]
+        x_in = [in_transforms[i](x) for i, x in enumerate(x_in)]
         # when there are multiple encoders fetch encoders and encode data
         if not self.single_encoder:
             res = {
