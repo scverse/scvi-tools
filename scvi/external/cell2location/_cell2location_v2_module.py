@@ -228,7 +228,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlph
     def list_obs_plate_vars(self):
         """Create a dictionary with:
         1. "name" - the name of observation/minibatch plate;
-        2. "in" - indexes of model args to provide to encoder network when using amortised inference;
+        2. "input" - indexes of model args to provide to encoder network when using amortised inference;
         3. "sites" - dictionary with
             keys - names of variables that belong to the observation plate (used to recognise
              and merge posterior samples for minibatch variables)
@@ -238,7 +238,11 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlph
 
         return {
             "name": "obs_plate",
-            "in": [0, 2],  # expression data + (optional) batch index
+            "input": [0, 2],  # expression data + (optional) batch index
+            "input_transform": [
+                torch.log1p,
+                lambda x: x,
+            ],  # how to transform input data before passing to NN
             "sites": {
                 "n_s_cells_per_location": 1,
                 "y_s_groups_per_location": 1,

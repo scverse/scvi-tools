@@ -239,7 +239,10 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
 
         return {
             "name": "obs_plate",
-            "in": [0],  # expression data + (optional) batch index
+            "input": [0],  # expression data + (optional) batch index
+            "input_transform": [
+                torch.log1p
+            ],  # how to transform input data before passing to NN
             "sites": {
                 "detection_y_c": 1,
             },

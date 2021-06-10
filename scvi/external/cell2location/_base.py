@@ -102,8 +102,9 @@ class AutoGuideMixinModule:
                 data_transform = data_transform
                 n_in = model.n_vars
 
-            if len(amortised_vars["in"]) >= 2:
+            if len(amortised_vars["input"]) >= 2:
                 encoder_kwargs["n_cat_list"] = n_cat_list
+            amortised_vars["input_transform"][0] = data_transform
             _guide.append(
                 AutoNormalEncoder(
                     pyro.poutine.block(
@@ -112,7 +113,6 @@ class AutoGuideMixinModule:
                     amortised_plate_sites=amortised_vars,
                     n_in=n_in,
                     n_hidden=n_hidden,
-                    data_transform=data_transform,
                     encoder_kwargs=encoder_kwargs,
                     single_encoder=single_encoder,
                     encoder_instance=encoder_instance,
