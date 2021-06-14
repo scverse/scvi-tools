@@ -22,7 +22,9 @@ Number = Union[int, float]
 
 
 class DEMixin:
-    """Universal implementation for using
+    """DE module relying on Importance-sampling.
+
+    Mixin for using
     importance-weighted DE content.
     This however requires some additional structure on the
     module's (e.g., VAE) methods and associate signatures
@@ -46,7 +48,7 @@ class DEMixin:
         fdr_target: float = 0.05,
         silent: bool = False,
         pseudocounts: float = None,
-        fn_kwargs: dict = dict(),
+        fn_kwargs: Optional[dict] = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""
@@ -63,7 +65,7 @@ class DEMixin:
         Differential expression DataFrame.
         """
         adata = self._validate_anndata(adata)
-
+        fn_kwargs = dict() if fn_kwargs is None else fn_kwargs
         col_names = _get_var_names_from_setup_anndata(adata)
         model_fn = partial(
             self.get_population_expression,
@@ -112,7 +114,8 @@ class DEMixin:
         n_cells_per_chunk: Optional[int] = 500,
         max_chunks: Optional[int] = None,
     ):
-        """Computes importance-weighted expression levels within a subpopulation.
+        """
+        Computes importance-weighted expression levels within a subpopulation.
 
         There are three majors steps to obtain the expression levels.
         A first optional step consists in filtering out outlier cells, using the cells' latent representation.
@@ -165,7 +168,8 @@ class DEMixin:
             transform_batch_val = _get_batch_code_from_category(adata, transform_batch)[
                 0
             ]
-            assert indices.shape == observed_batches.shape
+            if indices.shape != observed_batches.shape:
+                raise ValueError("Discrepancy between # of indices and # of batches")
             indices_ = indices[observed_batches == transform_batch_val]
         else:
             indices_ = indices
@@ -230,7 +234,9 @@ class DEMixin:
         n_mc_samples_px=5000,
         batch_size=64,
     ):
-        """Returns gene normalized expression samples, as well as
+        """Obtain gene expression and densities.
+
+        Computes gene normalized expression samples, as well as
         variational posterior densities and likelihoods for each samples and each
         cell.
 
@@ -349,7 +355,9 @@ class DEMixin:
 
     @torch.no_grad()
     def _evaluate_likelihood(self, scdl, inference_outputs):
-        """Computes p(x \mid z), q(z \mid x) as well as p(z) for
+        """Derive required likelihoods
+
+        Computes p(x \mid z), q(z \mid x) as well as p(z) for
         each cell x contained in `scdl` and predetermined
         posterior samples $z$ in `inference_outputs`.
         These quantities are necessary to evalute subpopulation-wide importance weights.
@@ -399,7 +407,8 @@ class DEMixin:
         return _log_px_zs
 
     def filter_cells(self, adata: AnnData, indices: Sequence, batch_size: int):
-        """Filter outlier cells indexed by indices.
+        """
+        Filter outlier cells indexed by indices.
 
         Parameters
         ----------
@@ -421,8 +430,8 @@ class DEMixin:
             give_mean=True,
             batch_size=batch_size,
         )
-        assert qz_m.ndim == 2
-        assert qz_m.shape[0] == len(indices)
+        if (qz_m.ndim != 2) or (qz_m.shape[0] != len(indices)):
+            raise ValueError("Dimension mismatch of variational density means")
         try:
             idx_filt = EllipticEnvelope().fit_predict(qz_m)
             idx_filt = idx_filt == 1

@@ -452,7 +452,9 @@ class VAE(BaseModuleClass):
         n_samples_per_pass=25,
         observation_specific: bool = False,
     ):
-        """Returns the log evidence using n_nc_samples. In order to speed up computing,
+        """Computes marginal likelihood.
+
+        Returns the log evidence using n_nc_samples. In order to speed up computing,
         n_samples_per_pass samples are used in each forward pass.
         Increasing this value can speed up the computation but might also cause
         numerical overflows
@@ -480,7 +482,9 @@ class VAE(BaseModuleClass):
 
     @auto_move_data
     def generative_evaluate(self, tensors, inference_outputs):
-        """Extension of the generative method, that also
+        """Performs a decoding step and derive densities.
+
+        Extension of the generative method, that also
         returns estimations for the joint density, that is required
         for marginal likelihood estimation and other tasks
         """
