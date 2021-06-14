@@ -80,4 +80,3 @@ class TrainRunner:
         self.model.is_trained_ = True
         self.model.to_device(self.device)
         self.model.trainer = self.trainer
-        self.model.train_device_ = self.device
