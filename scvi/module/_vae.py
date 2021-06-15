@@ -452,7 +452,8 @@ class VAE(BaseModuleClass):
         n_samples_per_pass=25,
         observation_specific: bool = False,
     ):
-        """Computes marginal likelihood.
+        """
+        Computes marginal likelihood.
 
         Returns the log evidence using n_nc_samples. In order to speed up computing,
         n_samples_per_pass samples are used in each forward pass.
@@ -482,7 +483,8 @@ class VAE(BaseModuleClass):
 
     @auto_move_data
     def generative_evaluate(self, tensors, inference_outputs):
-        """Performs a decoding step and derive densities.
+        """
+        Performs a decoding step and derive densities.
 
         Extension of the generative method, that also
         returns estimations for the joint density, that is required

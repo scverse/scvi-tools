@@ -10,6 +10,8 @@ from sklearn.covariance import EllipticEnvelope
 from torch.distributions import Categorical, Normal
 
 from scvi._compat import Literal
+from scvi._docs import doc_differential_expression
+from scvi._utils import _doc_params
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
@@ -22,7 +24,8 @@ Number = Union[int, float]
 
 
 class DEMixin:
-    """DE module relying on Importance-sampling.
+    """
+    DE module relying on Importance-sampling.
 
     Mixin for using
     importance-weighted DE content.
@@ -30,6 +33,9 @@ class DEMixin:
     module's (e.g., VAE) methods and associate signatures
     """
 
+    @_doc_params(
+        doc_differential_expression=doc_differential_expression,
+    )
     def lvm_de(
         self,
         adata: Optional[AnnData] = None,
@@ -234,7 +240,8 @@ class DEMixin:
         n_mc_samples_px=5000,
         batch_size=64,
     ):
-        """Obtain gene expression and densities.
+        """
+        Obtain gene expression and densities.
 
         Computes gene normalized expression samples, as well as
         variational posterior densities and likelihoods for each samples and each
@@ -267,7 +274,6 @@ class DEMixin:
         dict
             Containing expression levels, z samples as well as associated densities
         """
-
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size, shuffle=False
         )
@@ -355,7 +361,8 @@ class DEMixin:
 
     @torch.no_grad()
     def _evaluate_likelihood(self, scdl, inference_outputs):
-        """Derive required likelihoods
+        """
+        Derive required likelihoods
 
         Computes p(x \mid z), q(z \mid x) as well as p(z) for
         each cell x contained in `scdl` and predetermined
@@ -374,7 +381,6 @@ class DEMixin:
         Sequence
             Likelihoods of shape (number of cells, number of posterior samples)
         """
-
         z_samples = inference_outputs["z"]
         if self.module.use_observed_lib_size:
             lib_key = "library"
