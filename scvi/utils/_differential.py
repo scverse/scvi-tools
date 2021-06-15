@@ -207,6 +207,11 @@ class DifferentialComputation:
             n_samples_per_batch = (
                 m_permutation // n_batches if m_permutation is not None else None
             )
+            logger.debug(
+                "Using {} samples per batch for pair matching".format(
+                    n_samples_per_batch
+                )
+            )
             scales_1 = []
             scales_2 = []
             for batch_val in set(batchid1_vals):
@@ -421,9 +426,14 @@ class DifferentialComputation:
         px_scales = []
         batch_ids = []
         for batch_idx in batchid:
-            idx = np.random.choice(np.arange(self.adata.shape[0])[selection], n_samples)
+            idx_selected = np.arange(self.adata.shape[0])[selection]
             px_scales.append(
-                self.model_fn(self.adata, indices=idx, transform_batch=batch_idx)
+                self.model_fn(
+                    self.adata,
+                    indices=idx_selected,
+                    transform_batch=batch_idx,
+                    n_samples_overall=n_samples,
+                )
             )
             batch_idx = batch_idx if batch_idx is not None else np.nan
             batch_ids.append([batch_idx] * px_scales[-1].shape[0])
