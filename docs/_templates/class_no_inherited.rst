@@ -13,7 +13,7 @@
 
 
    .. autosummary::
-   :toctree: .
+      :toctree: .
     {% for item in attributes %}
         {%- if item not in inherited_members%}
             ~{{ fullname }}.{{ item }}
