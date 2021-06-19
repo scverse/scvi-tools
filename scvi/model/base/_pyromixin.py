@@ -18,13 +18,14 @@ Number = Union[int, float]
 
 
 class PyroJitGuideWarmup(Callback):
-    def __init__(self, train_dl) -> None:
-        """
-        A callback to warmup a Pyro guide.
+    """
+    A callback to warmup a Pyro guide.
 
-        This helps initialize all the relevant parameters by running
-        one minibatch through the Pyro model.
-        """
+    This helps initialize all the relevant parameters by running
+    one minibatch through the Pyro model.
+    """
+
+    def __init__(self, train_dl: AnnDataLoader) -> None:
         super().__init__()
         self.dl = train_dl
 
@@ -80,12 +81,13 @@ class PyroSviTrainMixin:
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         batch_size
-            Minibatch size to use during training. If `None`, no minibatching occurs and all data is copied to device (e.g., GPU).
+            Minibatch size to use during training. If `None`, no minibatching occurs and all
+            data is copied to device (e.g., GPU).
         early_stopping
             Perform early stopping. Additional arguments can be passed in `**kwargs`.
             See :class:`~scvi.train.Trainer` for further options.
         lr
-            Optimiser learning rate (default optimiser is Pyro ClippedAdam).
+            Optimiser learning rate (default optimiser is :class:`~pyro.optim.ClippedAdam`).
             Specifying optimiser via plan_kwargs overrides this choice of lr.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
@@ -428,15 +430,15 @@ class PyroSampleMixin:
 
         Returns
         -------
-        post_sample_means: Dict[str, np.array]
+        post_sample_means: Dict[str, :class:`np.ndarray`]
             Mean of the posterior distribution for each variable, a dictionary of numpy arrays for each variable;
-        post_sample_q05: Dict[str, np.array]
+        post_sample_q05: Dict[str, :class:`np.ndarray`]
             5% quantile of the posterior distribution for each variable;
-        post_sample_q05: Dict[str, np.array]
+        post_sample_q05: Dict[str, :class:`np.ndarray`]
             95% quantile of the posterior distribution for each variable;
-        post_sample_q05: Dict[str, np.array]
+        post_sample_q05: Dict[str, :class:`np.ndarray`]
             Standard deviation of the posterior distribution for each variable;
-        posterior_samples: Optional[Dict[str, np.array]]
+        posterior_samples: Optional[Dict[str, :class:`np.ndarray`]]
             Posterior distribution samples for each variable as numpy arrays of shape `(n_samples, ...)` (Optional).
 
         Notes
