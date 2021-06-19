@@ -173,7 +173,6 @@ class PyroSampleMixin:
         -------
         Dictionary with a sample for each variable
         """
-
         guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
         model_trace = poutine.trace(
             poutine.replay(self.module.model, guide_trace)
