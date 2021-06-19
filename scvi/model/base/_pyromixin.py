@@ -35,7 +35,6 @@ class PyroJitGuideWarmup(Callback):
 
         Also device agnostic.
         """
-
         # warmup guide for JIT
         pyro_guide = pl_module.module.guide
         for tensors in self.dl:
@@ -322,7 +321,7 @@ class PyroSampleMixin:
 
         samples = dict()
 
-        gpus, device = parse_use_gpu_arg(use_gpu)
+        _, device = parse_use_gpu_arg(use_gpu)
 
         batch_size = batch_size if batch_size is not None else settings.batch_size
 

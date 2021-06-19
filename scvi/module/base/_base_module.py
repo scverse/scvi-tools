@@ -263,7 +263,8 @@ class PyroBaseModuleClass(nn.Module):
 
     @property
     def list_obs_plate_vars(self):
-        """Model annotation for minibatch training with pyro plate.
+        """
+        Model annotation for minibatch training with pyro plate.
 
         A dictionary with:
         1. "name" - the name of observation/minibatch plate;
