@@ -11,6 +11,17 @@
    {% if methods %}
    .. rubric:: Methods
 
+
+   .. autosummary::
+   :toctree: .
+    {% for item in attributes %}
+        {%- if item not in inherited_members%}
+            ~{{ fullname }}.{{ item }}
+        {%- endif -%}
+    {%- endfor %}
+    {% endif %}
+    {% endblock %}
+
    .. autosummary::
       :toctree: .
    {% for item in methods %}

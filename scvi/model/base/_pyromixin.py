@@ -441,10 +441,10 @@ class PyroSampleMixin:
 
         Notes
         -----
-        Note for developers: requires overwritten :func:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` method.
+        Note for developers: requires overwritten :attr:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` property.
         which lists observation/minibatch plate name and variables.
-        See :func:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` for details of the variables it should contain.
-        This dictionary can be returned by model class method `self.module.model.list_obs_plate_vars()`
+        See :attr:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` for details of the variables it should contain.
+        This dictionary can be returned by model class property `self.module.model.list_obs_plate_vars`
         to keep all model-specific variables in one place.
         """
 
