@@ -663,8 +663,11 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def training_epoch_end(self, outputs):
         elbo = 0
+        n = 0
         for out in outputs:
             elbo += out["loss"]
+            n += 1
+        elbo /= n
         self.log("elbo_train", elbo, prog_bar=True)
 
     def configure_optimizers(self):
