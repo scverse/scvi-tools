@@ -7,10 +7,9 @@
 .. autoclass:: {{ objname }}
    :show-inheritance:
 
-   {% block methods %}
-   {% if methods %}
-   .. rubric:: Methods
-
+   {% block attributes %}
+   {% if attributes %}
+   .. rubric:: Attributes
 
    .. autosummary::
       :toctree: .
@@ -21,6 +20,11 @@
     {%- endfor %}
     {% endif %}
     {% endblock %}
+
+
+   {% block methods %}
+   {% if methods %}
+   .. rubric:: Methods
 
    .. autosummary::
       :toctree: .
