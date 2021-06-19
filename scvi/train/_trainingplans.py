@@ -585,14 +585,16 @@ class PyroTrainingPlan(pl.LightningModule):
     Parameters
     ----------
     pyro_module
-        An instance of :class:`~scvi.compose.PyroBaseModuleClass`. This object
+        An instance of :class:`~scvi.module.base.PyroBaseModuleClass`. This object
         should have callable `model` and `guide` attributes or methods.
     loss_fn
         A Pyro loss. Should be a subclass of :class:`~pyro.infer.ELBO`.
         If `None`, defaults to :class:`~pyro.infer.Trace_ELBO`.
     optim
-        A Pyro optimizer, e.g., :class:`~pyro.optim.Adam`. If `None`,
-        defaults to Adam optimizer with a learning rate of `1e-3`.
+        A Pyro optimizer instance, e.g., :class:`~pyro.optim.Adam`. If `None`,
+        defaults to ClippedAdam optimizer with a learning rate of `1e-3` and `clip_norm` of `200`.
+    optim_kwargs
+        Keyword arguments for **default** optimiser :class:`pyro.optim.ClippedAdam`.
     """
 
     def __init__(
@@ -600,13 +602,22 @@ class PyroTrainingPlan(pl.LightningModule):
         pyro_module: PyroBaseModuleClass,
         loss_fn: Optional[pyro.infer.ELBO] = None,
         optim: Optional[pyro.optim.PyroOptim] = None,
+        optim_kwargs: Optional[dict] = None,
     ):
         super().__init__()
         self.module = pyro_module
         self._n_obs_training = None
 
+        optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
+        if "lr" not in optim_kwargs.keys():
+            optim_kwargs.update({"lr": 1e-3})
+        if "clip_norm" not in optim_kwargs.keys():
+            optim_kwargs.update({"clip_norm": 200})
+
         self.loss_fn = pyro.infer.Trace_ELBO() if loss_fn is None else loss_fn
-        self.optim = pyro.optim.Adam({"lr": 1e-3}) if optim is None else optim
+        self.optim = (
+            pyro.optim.ClippedAdam(optim_args=optim_kwargs) if optim is None else optim
+        )
 
         self.automatic_optimization = False
         self.pyro_guide = self.module.guide
@@ -652,8 +663,11 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def training_epoch_end(self, outputs):
         elbo = 0
+        n = 0
         for out in outputs:
             elbo += out["loss"]
+            n += 1
+        elbo /= n
         self.log("elbo_train", elbo, prog_bar=True)
 
     def configure_optimizers(self):

@@ -99,6 +99,8 @@ class BaseModelClass(ABC):
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         shuffle
             Whether observations are shuffled each iteration though
+        data_loader_class
+            Class to use for data loader
         data_loader_kwargs
             Kwargs to the class-specific data loader class
         """
@@ -344,8 +346,10 @@ class BaseModelClass(ABC):
             model.module.load_state_dict(model_state_dict)
         except RuntimeError as err:
             if isinstance(model.module, PyroBaseModuleClass):
+                old_history = model.history_
                 logger.info("Preparing underlying module for load")
                 model.train(max_steps=1)
+                model.history_ = old_history
                 pyro.clear_param_store()
                 model.module.load_state_dict(model_state_dict)
             else:
