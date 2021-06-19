@@ -56,6 +56,13 @@ class AutoGuideMixinModule:
                 if "n_hidden" in encoder_kwargs.keys()
                 else 200
             )
+            init_param_scale = (
+                encoder_kwargs["init_param_scale"]
+                if "init_param_scale" in encoder_kwargs.keys()
+                else 1 / 50
+            )
+            if "init_param_scale" in encoder_kwargs.keys():
+                del encoder_kwargs["init_param_scale"]
             amortised_vars = self.list_obs_plate_vars
             _guide = AutoGuideList(model, create_plates=model.create_plates)
             _guide.append(
@@ -113,6 +120,7 @@ class AutoGuideMixinModule:
                     amortised_plate_sites=amortised_vars,
                     n_in=n_in,
                     n_hidden=n_hidden,
+                    init_param_scale=init_param_scale,
                     encoder_kwargs=encoder_kwargs,
                     single_encoder=single_encoder,
                     encoder_instance=encoder_instance,
