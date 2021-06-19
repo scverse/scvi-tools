@@ -49,12 +49,16 @@ class BayesianRegressionPyroModel(PyroModule):
         )
 
     def create_plates(self, x, y, ind_x):
-        """Function for creating plates is needed when using AutoGuides
-        and should have the same call signature as model"""
+        """
+        Function for creating plates is needed when using AutoGuides.
+
+        Should have the same call signature as model.
+        """
         return pyro.plate("obs_plate", size=self.n_obs, dim=-2, subsample=ind_x)
 
     def list_obs_plate_vars(self):
-        """Model annotation for minibatch training with pyro plate.
+        """
+        Model annotation for minibatch training with pyro plate.
 
         A dictionary with:
         1. "name" - the name of observation/minibatch plate;

@@ -99,6 +99,8 @@ class BaseModelClass(ABC):
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         shuffle
             Whether observations are shuffled each iteration though
+        data_loader_class
+            Class to use for data loader
         data_loader_kwargs
             Kwargs to the class-specific data loader class
         """

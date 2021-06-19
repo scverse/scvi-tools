@@ -226,7 +226,6 @@ class PyroSampleMixin:
         Dictionary with array of samples for each variable
         dictionary {variable_name: [array with samples in 0 dimension]}
         """
-
         samples = self._get_one_posterior_sample(
             args, kwargs, return_sites=return_sites, sample_observed=return_observed
         )
@@ -250,10 +249,7 @@ class PyroSampleMixin:
         return {k: np.array(v) for k, v in samples.items()}
 
     def _get_obs_plate_return_sites(self, return_sites, obs_plate_sites):
-        """
-        Check return_sites for overlap with observation/minibatch plate sites.
-        """
-
+        """Check return_sites for overlap with observation/minibatch plate sites."""
         # check whether any variable requested in return_sites are in obs_plate
         if return_sites is not None:
             return_sites = np.array(return_sites)
@@ -282,7 +278,6 @@ class PyroSampleMixin:
         -------
         Dictionary with keys corresponding to site names and values to plate dimension.
         """
-
         plate_name = self.module.list_obs_plate_vars["name"]
 
         # find plate dimension
@@ -317,7 +312,6 @@ class PyroSampleMixin:
         -------
         dictionary {variable_name: [array with samples in 0 dimension]}
         """
-
         samples = dict()
 
         _, device = parse_use_gpu_arg(use_gpu)
@@ -447,7 +441,6 @@ class PyroSampleMixin:
         This dictionary can be returned by model class property `self.module.model.list_obs_plate_vars`
         to keep all model-specific variables in one place.
         """
-
         # sample using minibatches (if full data, data is moved to GPU only once anyway)
         samples = self._posterior_samples_minibatch(
             use_gpu=use_gpu,
