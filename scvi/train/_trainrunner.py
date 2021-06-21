@@ -1,6 +1,9 @@
 import logging
+import warnings
 from typing import Optional, Union
 
+import numpy as np
+import pandas as pd
 import pytorch_lightning as pl
 
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
@@ -71,12 +74,38 @@ class TrainRunner:
         self.training_plan.n_obs_training = len(self.model.train_indices)
 
         self.trainer.fit(self.training_plan, self.data_splitter)
-        try:
-            self.model.history_ = self.trainer.logger.history
-        except AttributeError:
-            self.history_ = None
+        self._update_history()
 
         self.model.module.eval()
         self.model.is_trained_ = True
         self.model.to_device(self.device)
         self.model.trainer = self.trainer
+
+    def _update_history(self):
+        # model is being further trained
+        if self.model.history_ is not None:
+            # if not using the default logger (e.g., tensorboard)
+            if not isinstance(self.model.history_, dict):
+                warnings.warn(
+                    "Training history cannot be updated. Replacing old history with new history."
+                )
+                if hasattr(self.model, "history_"):
+                    self.model.history_ = self.trainer.logger.history
+                return
+            else:
+                new_history = self.trainer.logger.history
+                for key, val in self.model.history_.items():
+                    prev_len = len(val)
+                    new_len = len(new_history[key])
+                    index = np.arange(prev_len, prev_len + new_len)
+                    new_history[key].index = index
+                    self.model.history_[key] = pd.concat(
+                        [
+                            val,
+                            new_history[key],
+                        ]
+                    )
+        else:
+            # set history_ attribute if it exists
+            if hasattr(self.model, "history_"):
+                self.model.history_ = self.trainer.logger.history
