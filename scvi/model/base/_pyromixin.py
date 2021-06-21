@@ -249,7 +249,7 @@ class PyroSampleMixin:
         return {k: np.array(v) for k, v in samples.items()}
 
     def _get_obs_plate_return_sites(self, return_sites, obs_plate_sites):
-      """Check return_sites for overlap with observation/minibatch plate sites."""
+        """Check return_sites for overlap with observation/minibatch plate sites."""
         # check whether any variable requested in return_sites are in obs_plate
         if return_sites is not None:
             return_sites = np.array(return_sites)
