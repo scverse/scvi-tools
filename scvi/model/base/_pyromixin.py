@@ -18,13 +18,14 @@ Number = Union[int, float]
 
 
 class PyroJitGuideWarmup(Callback):
-    def __init__(self, train_dl) -> None:
-        """
-        A callback to warmup a Pyro guide.
+    """
+    A callback to warmup a Pyro guide.
 
-        This helps initialize all the relevant parameters by running
-        one minibatch through the Pyro model.
-        """
+    This helps initialize all the relevant parameters by running
+    one minibatch through the Pyro model.
+    """
+
+    def __init__(self, train_dl: AnnDataLoader) -> None:
         super().__init__()
         self.dl = train_dl
 
@@ -34,7 +35,6 @@ class PyroJitGuideWarmup(Callback):
 
         Also device agnostic.
         """
-
         # warmup guide for JIT
         pyro_guide = pl_module.module.guide
         for tensors in self.dl:
@@ -80,12 +80,13 @@ class PyroSviTrainMixin:
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         batch_size
-            Minibatch size to use during training. If `None`, no minibatching occurs and all data is copied to device (e.g., GPU).
+            Minibatch size to use during training. If `None`, no minibatching occurs and all
+            data is copied to device (e.g., GPU).
         early_stopping
             Perform early stopping. Additional arguments can be passed in `**kwargs`.
             See :class:`~scvi.train.Trainer` for further options.
         lr
-            Optimiser learning rate (default optimiser is Pyro ClippedAdam).
+            Optimiser learning rate (default optimiser is :class:`~pyro.optim.ClippedAdam`).
             Specifying optimiser via plan_kwargs overrides this choice of lr.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
@@ -172,7 +173,6 @@ class PyroSampleMixin:
         -------
         Dictionary with a sample for each variable
         """
-
         guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
         model_trace = poutine.trace(
             poutine.replay(self.module.model, guide_trace)
@@ -226,7 +226,6 @@ class PyroSampleMixin:
         Dictionary with array of samples for each variable
         dictionary {variable_name: [array with samples in 0 dimension]}
         """
-
         samples = self._get_one_posterior_sample(
             args, kwargs, return_sites=return_sites, sample_observed=return_observed
         )
@@ -250,10 +249,7 @@ class PyroSampleMixin:
         return {k: np.array(v) for k, v in samples.items()}
 
     def _get_obs_plate_return_sites(self, return_sites, obs_plate_sites):
-        """
-        Check return_sites for overlap with observation/minibatch plate sites.
-        """
-
+      """Check return_sites for overlap with observation/minibatch plate sites."""
         # check whether any variable requested in return_sites are in obs_plate
         if return_sites is not None:
             return_sites = np.array(return_sites)
@@ -282,7 +278,6 @@ class PyroSampleMixin:
         -------
         Dictionary with keys corresponding to site names and values to plate dimension.
         """
-
         plate_name = self.module.list_obs_plate_vars["name"]
 
         # find plate dimension
@@ -317,10 +312,9 @@ class PyroSampleMixin:
         -------
         dictionary {variable_name: [array with samples in 0 dimension]}
         """
-
         samples = dict()
 
-        gpus, device = parse_use_gpu_arg(use_gpu)
+        _, device = parse_use_gpu_arg(use_gpu)
 
         batch_size = batch_size if batch_size is not None else settings.batch_size
 
@@ -428,26 +422,25 @@ class PyroSampleMixin:
 
         Returns
         -------
-        post_sample_means: Dict[str, np.array]
+        post_sample_means: Dict[str, :class:`np.ndarray`]
             Mean of the posterior distribution for each variable, a dictionary of numpy arrays for each variable;
-        post_sample_q05: Dict[str, np.array]
+        post_sample_q05: Dict[str, :class:`np.ndarray`]
             5% quantile of the posterior distribution for each variable;
-        post_sample_q05: Dict[str, np.array]
+        post_sample_q05: Dict[str, :class:`np.ndarray`]
             95% quantile of the posterior distribution for each variable;
-        post_sample_q05: Dict[str, np.array]
+        post_sample_q05: Dict[str, :class:`np.ndarray`]
             Standard deviation of the posterior distribution for each variable;
-        posterior_samples: Optional[Dict[str, np.array]]
+        posterior_samples: Optional[Dict[str, :class:`np.ndarray`]]
             Posterior distribution samples for each variable as numpy arrays of shape `(n_samples, ...)` (Optional).
 
         Notes
         -----
-        Note for developers: requires overwritten :func:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` method.
+        Note for developers: requires overwritten :attr:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` property.
         which lists observation/minibatch plate name and variables.
-        See :func:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` for details of the variables it should contain.
-        This dictionary can be returned by model class method `self.module.model.list_obs_plate_vars()`
+        See :attr:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` for details of the variables it should contain.
+        This dictionary can be returned by model class property `self.module.model.list_obs_plate_vars`
         to keep all model-specific variables in one place.
         """
-
         # sample using minibatches (if full data, data is moved to GPU only once anyway)
         samples = self._posterior_samples_minibatch(
             use_gpu=use_gpu,

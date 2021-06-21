@@ -585,7 +585,7 @@ class PyroTrainingPlan(pl.LightningModule):
     Parameters
     ----------
     pyro_module
-        An instance of :class:`~scvi.compose.PyroBaseModuleClass`. This object
+        An instance of :class:`~scvi.module.base.PyroBaseModuleClass`. This object
         should have callable `model` and `guide` attributes or methods.
     loss_fn
         A Pyro loss. Should be a subclass of :class:`~pyro.infer.ELBO`.
@@ -663,8 +663,11 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def training_epoch_end(self, outputs):
         elbo = 0
+        n = 0
         for out in outputs:
             elbo += out["loss"]
+            n += 1
+        elbo /= n
         self.log("elbo_train", elbo, prog_bar=True)
 
     def configure_optimizers(self):
