@@ -493,7 +493,7 @@ class RegressionBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
             encoder_kwargs=encoder_kwargs,
             data_transform=data_transform,
             single_encoder=single_encoder,
-            init_loc_fn=init_to_value,
+            init_loc_fn=self.init_to_value,
         )
 
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
