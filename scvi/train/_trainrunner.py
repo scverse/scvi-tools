@@ -95,6 +95,9 @@ class TrainRunner:
             else:
                 new_history = self.trainer.logger.history
                 for key, val in self.model.history_.items():
+                    # e.g., no validation loss due to training params
+                    if key not in new_history:
+                        continue
                     prev_len = len(val)
                     new_len = len(new_history[key])
                     index = np.arange(prev_len, prev_len + new_len)
