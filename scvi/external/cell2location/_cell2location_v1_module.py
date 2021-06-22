@@ -7,6 +7,7 @@ from pyro.infer.autoguide import init_to_mean
 from pyro.nn import PyroModule
 
 from scvi import _CONSTANTS
+from scvi._compat import Literal
 from scvi.data._anndata import get_from_registry
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import one_hot
@@ -393,7 +394,7 @@ class Cell2locationBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
         self,
         model,
         amortised: bool = False,
-        single_encoder: bool = True,
+        encoder_mode: Literal["single", "multiple", "single-multiple"] = "single",
         encoder_kwargs=None,
         data_transform="log1p",
         **kwargs
@@ -405,6 +406,9 @@ class Cell2locationBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
         ----------
         amortised
             boolean, use a Neural Network to approximate posterior distribution of location-specific (local) parameters?
+        encoder_mode
+            Use single encoder for all variables ("single"), one encoder per variable ("multiple")
+            or a single encoder in the first step and multiple encoders in the second step ("single-multiple").
         encoder_kwargs
             arguments for Neural Network construction (scvi.nn.FCLayers)
         kwargs
@@ -421,7 +425,7 @@ class Cell2locationBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
             amortised=self.is_amortised,
             encoder_kwargs=encoder_kwargs,
             data_transform=data_transform,
-            single_encoder=single_encoder,
+            encoder_mode=encoder_mode,
             init_loc_fn=init_to_mean,
             n_cat_list=[kwargs["n_batch"]],
         )

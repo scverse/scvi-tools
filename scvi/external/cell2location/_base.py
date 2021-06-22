@@ -35,7 +35,7 @@ class AutoGuideMixinModule:
         amortised,
         encoder_kwargs,
         data_transform,
-        single_encoder,
+        encoder_mode,
         init_loc_fn=init_to_mean,
         n_cat_list: list = [],
         encoder_instance=None,
@@ -122,7 +122,7 @@ class AutoGuideMixinModule:
                     n_hidden=n_hidden,
                     init_param_scale=init_param_scale,
                     encoder_kwargs=encoder_kwargs,
-                    single_encoder=single_encoder,
+                    encoder_mode=encoder_mode,
                     encoder_instance=encoder_instance,
                 )
             )
