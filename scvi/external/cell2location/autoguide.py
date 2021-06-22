@@ -15,6 +15,7 @@ from pyro.nn import PyroModule, PyroParam
 from pyro.nn.module import to_pyro_module_
 from torch.distributions import biject_to
 
+from scvi._compat import Literal
 from scvi.nn import FCLayers
 
 
@@ -67,11 +68,13 @@ class AutoNormalEncoder(AutoGuide):
         n_hidden: int = 200,
         init_param=0,
         init_param_scale: float = 1 / 50,
+        scales_offset: float = -2,
         encoder_class=FCLayersPyro,
         encoder_kwargs=None,
+        multi_encoder_kwargs=None,
         encoder_instance: torch.nn.Module = None,
         create_plates=None,
-        single_encoder: bool = True,
+        encoder_mode: Literal["single", "multiple", "single-multiple"] = "single",
     ):
         """
 
@@ -105,31 +108,37 @@ class AutoNormalEncoder(AutoGuide):
             Not implemented yet - initial values for amortised variables.
         init_param_scale
             How to scale/normalise initial values for weights converting hidden layers to mean and sd.
-        input_transform
-            Function to use for transforming data before passing it to encoder network.
         encoder_class
             Class for defining encoder network.
         encoder_kwargs
             Keyword arguments for encoder_class.
+        multi_encoder_kwargs
+            Optional separate keyword arguments for encoder_class, useful when encoder_mode == "single-multiple".
         encoder_instance
             Encoder network instance, overrides class input and the input instance is copied with deepcopy.
         create_plates
             Function for creating plates
-        single_encoder
-            Use single encoder for all variables (True) or one encoder per variable (False).
+        encoder_mode
+            Use single encoder for all variables ("single"), one encoder per variable ("multiple")
+            or a single encoder in the first step and multiple encoders in the second step ("single-multiple").
         """
 
         super().__init__(model, create_plates=create_plates)
         self.amortised_plate_sites = amortised_plate_sites
-        self.single_encoder = single_encoder
+        self.encoder_mode = encoder_mode
+        self.scales_offset = scales_offset
 
         self.softplus = SoftplusTransform()
 
         encoder_kwargs = encoder_kwargs if isinstance(encoder_kwargs, dict) else dict()
         encoder_kwargs["n_hidden"] = n_hidden
         self.encoder_kwargs = encoder_kwargs
+        if multi_encoder_kwargs is None:
+            multi_encoder_kwargs = deepcopy(encoder_kwargs)
+        self.multi_encoder_kwargs = multi_encoder_kwargs
 
-        self.n_in = n_in
+        self.single_n_in = n_in
+        self.multiple_n_in = n_in
         self.n_out = (
             np.sum(
                 [
@@ -142,16 +151,18 @@ class AutoNormalEncoder(AutoGuide):
         self.n_hidden = n_hidden
         self.encoder_class = encoder_class
         self.encoder_instance = encoder_instance
-        if self.single_encoder:
+        if "single" in self.encoder_mode:
             # create a single encoder NN
             if encoder_instance is not None:
-                self.encoder = deepcopy(encoder_instance)
+                self.one_encoder = deepcopy(encoder_instance)
                 # convert to pyro module
-                to_pyro_module_(self.encoder)
+                to_pyro_module_(self.one_encoder)
             else:
-                self.encoder = encoder_class(
-                    n_in=self.n_in, n_out=self.n_hidden, **self.encoder_kwargs
+                self.one_encoder = encoder_class(
+                    n_in=self.single_n_in, n_out=self.n_hidden, **self.encoder_kwargs
                 )
+            if "multiple" in self.encoder_mode:
+                self.multiple_n_in = self.n_hidden
 
         self.init_param_scale = init_param_scale
 
@@ -164,9 +175,9 @@ class AutoNormalEncoder(AutoGuide):
         self.hidden2locs = PyroModule()
         self.hidden2scales = PyroModule()
 
-        if not self.single_encoder:
-            # create module class for collecting multiple encoder NN
-            self.encoder = PyroModule()
+        if "multiple" in self.encoder_mode:
+            # create module for collecting multiple encoder NN
+            self.multiple_encoders = PyroModule()
 
         # Initialize guide params
         for name, site in self.prototype_trace.iter_stochastic_nodes():
@@ -211,7 +222,7 @@ class AutoNormalEncoder(AutoGuide):
                 ),
             )
 
-            if not self.single_encoder:
+            if "multiple" in self.encoder_mode:
                 # create multiple encoders
                 if self.encoder_instance is not None:
                     # copy instances
@@ -219,17 +230,19 @@ class AutoNormalEncoder(AutoGuide):
                     # convert to pyro module
                     to_pyro_module_(encoder_)
                     _deep_setattr(
-                        self.encoder,
+                        self.multiple_encoders,
                         name,
                         encoder_,
                     )
                 else:
                     # create instances
                     _deep_setattr(
-                        self.encoder,
+                        self.multiple_encoders,
                         name,
                         self.encoder_class(
-                            n_in=self.n_in, n_out=self.n_hidden, **self.encoder_kwargs
+                            n_in=self.multiple_n_in,
+                            n_out=self.n_hidden,
+                            **self.multi_encoder_kwargs
                         ).to(site["value"].device),
                     )
 
@@ -241,19 +254,20 @@ class AutoNormalEncoder(AutoGuide):
         name
             variable name
         encoded_hidden
-            tensor when `single_encoder==True` and dictionary of tensors for each site when `single_encoder=False`
+            tensor when `encoder_mode == "single"`
+            and dictionary of tensors for each site when `encoder_mode == "multiple"`
 
         """
 
         linear_locs = _deep_getattr(self.hidden2locs, name)
         linear_scales = _deep_getattr(self.hidden2scales, name)
 
-        if not self.single_encoder:
+        if "multiple" in self.encoder_mode:
             # when using multiple encoders extract hidden layer for this parameter
             encoded_hidden = encoded_hidden[name]
 
         locs = encoded_hidden @ linear_locs
-        scales = self.softplus((encoded_hidden @ linear_scales) - 2)
+        scales = self.softplus((encoded_hidden @ linear_scales) - self.scales_offset)
 
         return locs, scales
 
@@ -274,15 +288,22 @@ class AutoNormalEncoder(AutoGuide):
         # apply data transform before passing to NN
         in_transforms = self.amortised_plate_sites["input_transform"]
         x_in = [in_transforms[i](x) for i, x in enumerate(x_in)]
-        # when there are multiple encoders fetch encoders and encode data
-        if not self.single_encoder:
+        if "single" in self.encoder_mode:
+            # encode with a single encoder
+            res = self.one_encoder(*x_in)
+            if "multiple" in self.encoder_mode:
+                # when there is a second layer of multiple encoders fetch encoders and encode data
+                x_in[0] = res
+                res = {
+                    name: _deep_getattr(self.multiple_encoders, name)(*x_in)
+                    for name, site in self.prototype_trace.iter_stochastic_nodes()
+                }
+        else:
+            # when there are multiple encoders fetch encoders and encode data
             res = {
-                name: _deep_getattr(self.encoder, name)(*x_in)
+                name: _deep_getattr(self.multiple_encoders, name)(*x_in)
                 for name, site in self.prototype_trace.iter_stochastic_nodes()
             }
-        else:
-            # encode with a single encoder
-            res = self.encoder(*x_in)
         return res
 
     def forward(self, *args, **kwargs):
