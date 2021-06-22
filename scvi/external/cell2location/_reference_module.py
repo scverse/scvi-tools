@@ -588,7 +588,7 @@ class RegressionModel(
             # compute cluster average expression
             aver = self._compute_cluster_averages(key="_scvi_labels")
             model_kwargs["init_vals"] = {
-                "per_cluster_mu_fg": aver.values.T.astype("float32")
+                "per_cluster_mu_fg": aver.values.T.astype("float32") + 0.0001
             }
 
         self.module = RegressionBaseModule(
