@@ -176,6 +176,7 @@ class BaseModuleClass(nn.Module):
 
         This function should return a dictionary with str keys and :class:`~torch.Tensor` values.
         """
+        pass
 
     @abstractmethod
     def generative(self, *args, **kwargs) -> dict:
@@ -187,6 +188,7 @@ class BaseModuleClass(nn.Module):
 
         This function should return a dictionary with str keys and :class:`~torch.Tensor` values.
         """
+        pass
 
     @abstractmethod
     def loss(self, *args, **kwargs) -> LossRecorder:
@@ -198,10 +200,12 @@ class BaseModuleClass(nn.Module):
 
         This function should return an object of type :class:`~scvi.module.base.LossRecorder`.
         """
+        pass
 
     @abstractmethod
     def sample(self, *args, **kwargs):
         """Generate samples from the learned model."""
+        pass
 
 
 def _get_dict_if_none(param):
@@ -261,6 +265,22 @@ class PyroBaseModuleClass(nn.Module):
     def guide(self):
         pass
 
+    @property
+    def list_obs_plate_vars(self):
+        """
+        Model annotation for minibatch training with pyro plate.
+
+        A dictionary with:
+        1. "name" - the name of observation/minibatch plate;
+        2. "in" - indexes of model args to provide to encoder network when using amortised inference;
+        3. "sites" - dictionary with
+            keys - names of variables that belong to the observation plate (used to recognise
+             and merge posterior samples for minibatch variables)
+            values - the dimensions in non-plate axis of each variable (used to construct output
+             layer of encoder network when using amortised inference)
+        """
+        return {"name": "", "in": [], "sites": {}}
+
     def create_predictive(
         self,
         model: Optional[Callable] = None,
@@ -294,7 +314,6 @@ class PyroBaseModuleClass(nn.Module):
             in an outermost `plate` messenger. Note that this requires that the model has
             all batch dims correctly annotated via :class:`~pyro.plate`. Default is `False`.
         """
-
         if model is None:
             model = self.model
         if guide is None:
