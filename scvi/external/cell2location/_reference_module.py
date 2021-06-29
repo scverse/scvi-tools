@@ -240,9 +240,10 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
 
         return {
             "name": "obs_plate",
-            "input": [0],  # expression data + (optional) batch index
+            "input": [0, 2],  # expression data + (optional) batch index
             "input_transform": [
-                torch.log1p
+                torch.log1p,
+                lambda x: x,
             ],  # how to transform input data before passing to NN
             "sites": {
                 "detection_y_c": 1,
@@ -498,6 +499,7 @@ class RegressionBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
             data_transform=data_transform,
             encoder_mode=encoder_mode,
             init_loc_fn=self.init_to_value,
+            n_cat_list=[kwargs["n_batch"]],
         )
 
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
@@ -520,10 +522,13 @@ class RegressionBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
 
     def init_to_value(self, site):
 
-        init_vals = {
-            k: getattr(self.model, f"init_val_{k}")
-            for k in self.model.np_init_vals.keys()
-        }
+        if getattr(self.model, "np_init_vals", None) is not None:
+            init_vals = {
+                k: getattr(self.model, f"init_val_{k}")
+                for k in self.model.np_init_vals.keys()
+            }
+        else:
+            init_vals = dict()
         return init_to_value(site=site, values=init_vals)
 
 
