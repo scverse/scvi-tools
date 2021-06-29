@@ -84,8 +84,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlph
         cell_state_mat,
         n_groups: int = 50,
         detection_mean=1 / 2,
-        m_g_gene_level_prior={"mean": 1, "alpha_mean": 3, "alpha_sd": 1},
-        m_g_gene_level_var_prior={"mean_var_ratio": 1.0},
+        m_g_gene_level_prior={"mean_var_ratio": 1.0, "alpha_mean": 3.0},
         N_cells_per_location=8.0,
         A_factors_per_location=7.0,
         Y_groups_per_location=7.0,
@@ -95,8 +94,8 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlph
         gene_add_mean_hyp_prior={
             "alpha": 1.0,
             "beta": 100.0,
-        },  # TODO initialise as average of empty locations
-        detection_hyp_prior={"alpha": 200.0, "mean_alpha": 1.0},
+        },
+        detection_hyp_prior={"alpha": 200.0, "mean": 1.0, "mean_alpha": 10.0},
         w_sf_mean_var_ratio=5.0,
     ):
 
@@ -108,14 +107,13 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlph
         self.n_batch = n_batch
         self.n_groups = n_groups
 
-        for k in m_g_gene_level_var_prior.keys():
-            m_g_gene_level_prior[k] = m_g_gene_level_var_prior[k]
+        m_g_gene_level_prior["mean"] = detection_mean
+        self.m_g_gene_level_prior = m_g_gene_level_prior
 
         self.alpha_g_phi_hyp_prior = alpha_g_phi_hyp_prior
         self.w_sf_mean_var_ratio = w_sf_mean_var_ratio
         self.gene_add_alpha_hyp_prior = gene_add_alpha_hyp_prior
         self.gene_add_mean_hyp_prior = gene_add_mean_hyp_prior
-        detection_hyp_prior["mean_mean"] = detection_mean
         self.detection_hyp_prior = detection_hyp_prior
 
         factors_per_groups = A_factors_per_location / Y_groups_per_location
@@ -132,39 +130,21 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlph
             "detection_mean_hyp_prior_beta",
             torch.tensor(
                 self.detection_hyp_prior["mean_alpha"]
-                / self.detection_hyp_prior["mean_mean"]
+                / self.detection_hyp_prior["mean"]
             ),
         )
 
         # compute hyperparameters from mean and sd
-        self.m_g_gene_level_prior = m_g_gene_level_prior
         self.register_buffer(
             "m_g_mu_hyp", torch.tensor(self.m_g_gene_level_prior["mean"])
         )
         self.register_buffer(
-            "m_g_mu_alpha_hyp",
-            torch.tensor(
-                (self.m_g_gene_level_prior["mean"] ** 2)
-                / (
-                    self.m_g_gene_level_prior["mean"]
-                    / self.m_g_gene_level_prior["mean_var_ratio"]
-                )
-            ),
+            "m_g_mu_mean_var_ratio_hyp",
+            torch.tensor(self.m_g_gene_level_prior["mean_var_ratio"]),
         )
 
         self.register_buffer(
-            "m_g_alpha_hyp_alpha",
-            torch.tensor(
-                self.m_g_gene_level_prior["alpha_mean"] ** 2
-                / (self.m_g_gene_level_prior["alpha_sd"] ** 2)
-            ),
-        )
-        self.register_buffer(
-            "m_g_alpha_hyp_beta",
-            torch.tensor(
-                self.m_g_gene_level_prior["alpha_mean"]
-                / (self.m_g_gene_level_prior["alpha_sd"] ** 2)
-            ),
+            "m_g_alpha_hyp_mean", torch.tensor(self.m_g_gene_level_prior["alpha_mean"])
         )
 
         self.cell_state_mat = cell_state_mat
@@ -262,21 +242,19 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlph
         # Explains difference in sensitivity for each gene between single cell and spatial technology
         m_g_mean = pyro.sample(
             "m_g_mean",
-            dist.Gamma(self.m_g_mu_alpha_hyp, self.m_g_mu_alpha_hyp / self.m_g_mu_hyp)
+            dist.Gamma(
+                self.m_g_mu_mean_var_ratio_hyp * self.m_g_mu_hyp,
+                self.m_g_mu_mean_var_ratio_hyp,
+            )
             .expand([1, 1])
             .to_event(2),
         )  # (1, 1)
 
-        m_g_alpha_hyp = pyro.sample(
-            "m_g_alpha_hyp",
-            dist.Gamma(self.m_g_alpha_hyp_alpha, self.m_g_alpha_hyp_beta),
-        )
         m_g_alpha_e_inv = pyro.sample(
             "m_g_alpha_e_inv",
-            dist.Exponential(m_g_alpha_hyp).expand([1, 1]).to_event(2),
+            dist.Exponential(self.m_g_alpha_hyp_mean).expand([1, 1]).to_event(2),
         )  # (1, 1)
         m_g_alpha_e = self.ones / m_g_alpha_e_inv.pow(2)
-        # m_g_alpha_e = self.m_g_alpha_hyp_alpha / self.m_g_alpha_hyp_beta
 
         m_g = pyro.sample(
             "m_g",
