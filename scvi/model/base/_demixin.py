@@ -237,9 +237,9 @@ class DEMixin:
         adata: AnnData,
         indices: Sequence,
         n_samples: int,
-        marginal_n_samples_per_pass=500,
-        n_mc_samples_px=5000,
-        batch_size=64,
+        marginal_n_samples_per_pass: int = 500,
+        n_mc_samples_px: int = 5000,
+        batch_size: int = 64,
     ):
         """
         Obtain gene expression and densities.
