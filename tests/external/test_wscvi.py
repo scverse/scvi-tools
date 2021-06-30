@@ -94,10 +94,10 @@ def test_wscvi():
 
     # Overall scale sampling
     outs = model.get_population_expression(
-        adata=adata, indices=idx, do_filter_cells=False
+        adata=adata, indices=idx, filter_cells=False
     )
     outs = model.get_population_expression(
-        adata=adata, indices=idx, do_filter_cells=True
+        adata=adata, indices=idx, filter_cells=True
     )
 
     # Differential expression

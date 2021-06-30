@@ -112,7 +112,7 @@ class DEMixin:
         n_samples: int = 25,
         n_samples_overall: int = None,
         batch_size: Optional[int] = 64,
-        do_filter_cells: bool = True,
+        filter_cells: bool = True,
         transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         return_numpy: Optional[bool] = False,
         marginal_n_samples_per_pass: int = 500,
@@ -144,7 +144,7 @@ class DEMixin:
             Indices of the subpopulation, by default None
         batch_size : Optional[int], optional
             Batch size of the data loader, by default 64
-        do_filter_cells : bool, optional
+        filter_cells : bool, optional
             Whether cells should be filtered using outlier detection, by default True
         transform_batch : Optional[Sequence[Union[Number, str]]], optional
             Batch to use, by default None
@@ -182,7 +182,7 @@ class DEMixin:
         if len(indices_) == 0:
             n_genes = adata.n_vars
             return np.array([]).reshape((0, n_genes))
-        if do_filter_cells:
+        if filter_cells:
             indices_ = self.filter_cells(
                 adata=adata,
                 indices=indices_,
