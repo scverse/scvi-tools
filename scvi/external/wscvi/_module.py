@@ -1,26 +1,3 @@
-"""
-This is a proof of concept to identify the simplest way to incorporate IW flavors to SCVI
-TODO:
-Simplify inference, generative and just work on the loss?
-Simplify init as it is too complex just because of the softplus thing
-
-So far:
-in VAE
-- Simplify multi sampling parts
-- Option to use Encoder with  softplus
-
-In WVAE:
-simple init
-custom loss where all the log densities are computed in a separate function
-custom training to be able to play with n_samples of generative/inference
-
-Remaining interrogation:
-Where/how should I code the cross evaluation part
-i.e., I have x, z in some dataloader
-and I want to evaluate the log ratios
-"""
-
-
 from typing import Callable, Iterable, Optional
 
 import torch

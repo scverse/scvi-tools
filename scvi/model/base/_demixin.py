@@ -119,7 +119,7 @@ class DEMixin:
         n_mc_samples_px: int = 5000,
         n_cells_per_chunk: Optional[int] = 500,
         max_chunks: Optional[int] = None,
-    ):
+    ) -> np.ndarray:
         """
         Computes importance-weighted expression levels within a subpopulation.
 
@@ -134,34 +134,34 @@ class DEMixin:
 
         Parameters
         ----------
-        adata : Optional[AnnData], optional
+        adata
             Anndata to use, defaults to None, by default None
-        indices : Optional[Sequence[int]], optional
+        indices
             Indices of the subpopulation, by default None
-        n_samples : int, optional
+        n_samples
             Indices of the subpopulation, by default 25
-        n_samples_overall : int, optional
+        n_samples_overall
             Indices of the subpopulation, by default None
-        batch_size : Optional[int], optional
+        batch_size
             Batch size of the data loader, by default 64
-        filter_cells : bool, optional
+        filter_cells
             Whether cells should be filtered using outlier detection, by default True
-        transform_batch : Optional[Sequence[Union[Number, str]]], optional
+        transform_batch
             Batch to use, by default None
-        return_numpy : Optional[bool], optional
+        return_numpy
              Whether numpy should be returned, by default False
-        marginal_n_samples_per_pass : int, optional
+        marginal_n_samples_per_pass
             Number of samples per pass to compute the marginal likelihood, by default 500
-        n_mc_samples_px : int, optional
+        n_mc_samples_px
             Number of overall samples per cell used to compute the marginal likelihood, by default 5000
-        n_cells_per_chunk : Optional[int], optional
+        n_cells_per_chunk
             Number of cells to use in each minibatch, by default 500
-        max_chunks : Optional[int], optional
+        max_chunks
             Maximum number of chunks to use, by default None
 
         Returns
         -------
-        Sequence
+        res
             Importance weighted expression levels of shaoe (Number of samples, number of genes)
         """
         # Step 1: Determine effective indices to use
@@ -240,7 +240,7 @@ class DEMixin:
         marginal_n_samples_per_pass: int = 500,
         n_mc_samples_px: int = 5000,
         batch_size: int = 64,
-    ):
+    ) -> dict:
         """
         Obtain gene expression and densities.
 
@@ -257,17 +257,17 @@ class DEMixin:
 
         Parameters
         ----------
-        adata : AnnData
+        adata
             Considered anndataset
-        indices : Sequence
+        indices
             Indices of the subpopulation
-        n_samples : int
+        n_samples
             Number of posterior samples per cell
-        marginal_n_samples_per_pass : int, optional
+        marginal_n_samples_per_pass
             Number of samples per pass to compute the marginal likelihood, by default 500
-        n_mc_samples_px : int, optional
+        n_mc_samples_px
             Number of overall samples per cell used to compute the marginal likelihood, by default 5000
-        batch_size : int, optional
+        batch_size
             Number of cells per minibatch, by default 64
 
         Returns
@@ -356,7 +356,7 @@ class DEMixin:
         )
 
     @torch.no_grad()
-    def _evaluate_likelihood(self, scdl, inference_outputs):
+    def _evaluate_likelihood(self, scdl, inference_outputs) -> torch.Tensor:
         """
         Derive required likelihoods
 
@@ -367,14 +367,14 @@ class DEMixin:
 
         Parameters
         ----------
-        scdl : DataLoader
+        scdl
              Dataset containing cells of interest
-        inference_outputs : dict
+        inference_outputs
             Output of module containing the latent variables z of interest
 
         Returns
         -------
-        Sequence
+        indices
             Likelihoods of shape (number of cells, number of posterior samples)
         """
         z_samples = inference_outputs["z"]
@@ -408,22 +408,24 @@ class DEMixin:
         _log_px_zs = torch.cat(_log_px_zs, 1)
         return _log_px_zs
 
-    def filter_cells(self, adata: AnnData, indices: Sequence, batch_size: int):
+    def filter_cells(
+        self, adata: AnnData, indices: Sequence, batch_size: int
+    ) -> Sequence:
         """
         Filter outlier cells indexed by indices.
 
         Parameters
         ----------
-        adata : Anndata
+        adata
             Anndata containing the observations.
-        indices : Sequence
+        indices
             Indices characterizing the considered subpopulation.
-        batch_size : int
+        batch_size
             Batch-size to use to compute the latent representation.
 
         Returns
         -------
-        Sequence
+        indices
             Indices to keep for differential expression
         """
         qz_m = self.get_latent_representation(
