@@ -12,8 +12,8 @@ from scvi.data._anndata import get_from_registry
 from scvi.model.base import BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
 
 from ._base import PltExportMixin, QuantileMixin
-from ._cell2location_v1_module import (
-    Cell2locationBaseModule,
+from ._cell2location_v1_module import Cell2locationBaseModule
+from ._cell2location_v2_module import (
     LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlphaPyroModel,
 )
 
