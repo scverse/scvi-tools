@@ -198,6 +198,7 @@ class DEMixin:
         logger.debug("n cells {}".format(n_cells))
         logger.debug(indices_)
         n_cell_chunks = int(np.ceil(n_cells / n_cells_per_chunk))
+        np.random.seed(0)
         np.random.shuffle(indices_)
         cell_chunks = np.array_split(indices_, n_cell_chunks)[:max_chunks]
         n_cells_used = np.concatenate(cell_chunks).shape[0]
@@ -332,14 +333,9 @@ class DEMixin:
             - torch.logsumexp(log_qz, 1, keepdims=True),
             dim=1,
         )
-        # importance_weight = log_pz + torch.logsumexp(
-        #     log_px_zs - log_px - torch.logsumexp(log_qz, 1, keepdims=True), -1
-        # )
 
         log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
         ws = log_probs.exp()
-        # log_probs = importance_weight
-        # ws = nn.Softmax()(importance_weight)
         n_samples_overall = ws.shape[0]
         windices = (
             Categorical(logits=log_probs.unsqueeze(0))
