@@ -14,7 +14,7 @@ from scvi.model.base import BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
 from ._base import PltExportMixin, QuantileMixin
 from ._cell2location_v1_module import (
     Cell2locationBaseModule,
-    LocationModelLinearDependentWMultiExperimentPyroModel,
+    LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlphaPyroModel,
 )
 
 
@@ -70,7 +70,7 @@ class Cell2location(
         super().__init__(adata)
 
         if model_class is None:
-            model_class = LocationModelLinearDependentWMultiExperimentPyroModel
+            model_class = LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlphaPyroModel
 
         self.cell_state_df_ = cell_state_df
         self.n_factors_ = cell_state_df.shape[1]
