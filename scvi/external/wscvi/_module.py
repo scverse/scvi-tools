@@ -227,7 +227,31 @@ class WVAE(VAE):
             log_pjoint=log_pjoint,
         )
 
-    def generative_evaluate(self, tensors, inference_outputs):
+    def generative_evaluate(self, tensors: dict, inference_outputs: dict):
+        """Runs generative method with custom inference outputs
+
+        More particularly, this method easily evaluate :math:`p(x \mid z, l)`
+        for arbitrary latent values.
+
+        Parameters
+        ----------
+        tensors :
+            dataloader iterable characterizing observations for the
+            considered cells (inputs for `_get_generative_input` and `_get_inference_input`)
+        inference_outputs :
+            Latent variables, either the output of some call to `inference`, or arbitrary
+            values for `z` and `l` contained in a dictionary
+
+        Examples
+        --------
+        >>> z = Normal(torch.zeros(batch_size, 10), torch.ones(batch_size, 10)).sample((100,))
+        >>> l = Normal(local_l_mean, local_l_var.sqrt()).sample((100,))
+        >>> model.generative_evaluate(tensors, inference_outputs=dict(z=z, library=l))
+
+        Returns
+        -------
+            `generative` outputs
+        """
         gen_ins = self._get_generative_input(
             tensors=tensors, inference_outputs=inference_outputs
         )
