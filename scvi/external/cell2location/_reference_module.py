@@ -750,6 +750,7 @@ class RegressionModel(
                 * self.samples[f"post_sample_{summary_name}"]["detection_y_c"].mean()
             )
         aver = self._compute_cluster_averages(key="_scvi_labels")
+        aver = aver[self.factor_names_]
 
         plt.hist2d(
             np.log10(aver.values.flatten() + 1),
