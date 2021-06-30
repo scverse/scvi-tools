@@ -45,7 +45,7 @@ def compute_cluster_averages(adata, labels, use_raw=True, layer=None):
     """
 
     if layer is not None:
-        x = adata.layers["layer"]
+        x = adata.layers[layer]
         var_names = adata.var_names
     else:
         if not use_raw:
