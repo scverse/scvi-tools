@@ -119,6 +119,7 @@ class DEMixin:
         n_mc_samples_px: int = 5000,
         n_cells_per_chunk: Optional[int] = 500,
         max_chunks: Optional[int] = None,
+        normalized_expression_key: str = "px_scale",
     ) -> np.ndarray:
         """
         Computes importance-weighted expression levels within a subpopulation.
@@ -158,6 +159,8 @@ class DEMixin:
             Number of cells to use in each minibatch, by default 500
         max_chunks
             Maximum number of chunks to use, by default None
+        normalized_expression_key
+            Key associated to the normalized expression level in the model
 
         Returns
         -------
@@ -222,6 +225,7 @@ class DEMixin:
                     batch_size=batch_size,
                     marginal_n_samples_per_pass=marginal_n_samples_per_pass,
                     n_mc_samples_px=n_mc_samples_px,
+                    normalized_expression_key=normalized_expression_key,
                 )["hs_weighted"].numpy()
             )
             logger.debug(res[-1].shape)
@@ -240,6 +244,7 @@ class DEMixin:
         marginal_n_samples_per_pass: int = 500,
         n_mc_samples_px: int = 5000,
         batch_size: int = 64,
+        normalized_expression_key: str = "px_scale",
     ) -> dict:
         """
         Obtain gene expression and densities.
@@ -269,6 +274,8 @@ class DEMixin:
             Number of overall samples per cell used to compute the marginal likelihood, by default 5000
         batch_size
             Number of cells per minibatch, by default 64
+        normalized_expression_key
+            Key associated to the normalized expression level in the model
 
         Returns
         -------
@@ -291,7 +298,7 @@ class DEMixin:
                 compute_loss=False,
             )
             z = inference_outputs["z"].reshape(-1, self.module.n_latent).cpu()
-            h = generative_outputs["px_scale"]
+            h = generative_outputs[normalized_expression_key]
             n_genes = h.shape[-1]
             h = h.reshape(-1, n_genes).cpu()
 
