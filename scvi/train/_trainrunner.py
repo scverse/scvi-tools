@@ -111,5 +111,4 @@ class TrainRunner:
                     self.model.history_[key].index.name = val.index.name
         else:
             # set history_ attribute if it exists
-            if hasattr(self.model, "history_"):
-                self.model.history_ = self.trainer.logger.history
+            self.model.history_ = self.trainer.logger.history
