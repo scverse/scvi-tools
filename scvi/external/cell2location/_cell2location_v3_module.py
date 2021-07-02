@@ -13,7 +13,7 @@ from scvi.nn import one_hot
 #    pass
 
 
-class LocationModelLinearDependentWMultiExperimentLocationBackgroundNorm2GeneAlphaPyroModel(
+class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGeneAlphaPyroModel(
     PyroModule
 ):
     """
@@ -71,7 +71,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNorm2GeneAlp
     where y_e is unknown/latent average detection efficiency in each batch/experiment:
 
     .. math::
-        y_e ~ Gamma(1, 1)
+        y_e ~ Gamma(10, 10 / tech diff)
 
     """
 
@@ -84,7 +84,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNorm2GeneAlp
         cell_state_mat,
         n_groups: int = 50,
         detection_mean=1 / 2,
-        m_g_gene_level_prior={"mean_var_ratio": 1.0, "alpha_mean": 3.0},
+        m_g_gene_level_prior={"mean": 1, "mean_var_ratio": 1.0, "alpha_mean": 3.0},
         N_cells_per_location=8.0,
         A_factors_per_location=7.0,
         Y_groups_per_location=7.0,
@@ -95,7 +95,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNorm2GeneAlp
             "alpha": 1.0,
             "beta": 100.0,
         },
-        detection_hyp_prior={"alpha": 200.0, "mean": 1.0, "mean_alpha": 10.0},
+        detection_hyp_prior={"alpha": 200.0, "mean_alpha": 10.0},
         w_sf_mean_var_ratio=5.0,
     ):
 
@@ -107,13 +107,13 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNorm2GeneAlp
         self.n_batch = n_batch
         self.n_groups = n_groups
 
-        m_g_gene_level_prior["mean"] = detection_mean
         self.m_g_gene_level_prior = m_g_gene_level_prior
 
         self.alpha_g_phi_hyp_prior = alpha_g_phi_hyp_prior
         self.w_sf_mean_var_ratio = w_sf_mean_var_ratio
         self.gene_add_alpha_hyp_prior = gene_add_alpha_hyp_prior
         self.gene_add_mean_hyp_prior = gene_add_mean_hyp_prior
+        detection_hyp_prior["mean"] = detection_mean
         self.detection_hyp_prior = detection_hyp_prior
 
         factors_per_groups = A_factors_per_location / Y_groups_per_location
