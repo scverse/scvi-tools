@@ -89,8 +89,7 @@ class TrainRunner:
                 warnings.warn(
                     "Training history cannot be updated. Replacing old history with new history."
                 )
-                if hasattr(self.model, "history_"):
-                    self.model.history_ = self.trainer.logger.history
+                self.model.history_ = self.trainer.logger.history
                 return
             else:
                 new_history = self.trainer.logger.history
