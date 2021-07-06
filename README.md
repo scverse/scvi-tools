@@ -37,7 +37,7 @@ facilitate a broad number of tasks across many omics, including:
     for an interpretable linear factor model version of scVI.
 -   [Stereoscope](https://www.nature.com/articles/s42003-020-01247-y)
     for deconvolution of spatial transcriptomics data.
--   [DestVI](https://www.biorxiv.org/content/10.1101/2021.05.10.443517v1) for multi-resolution deconvolution 
+-   [DestVI](https://www.biorxiv.org/content/10.1101/2021.05.10.443517v1) for multi-resolution deconvolution
     of spatial transcriptomics data.
 -   [peakVI](https://www.biorxiv.org/content/10.1101/2021.04.29.442020v1) for analysis of scATAC-seq data.
 -   [scArches](https://www.biorxiv.org/content/10.1101/2020.07.16.205997v1)
@@ -45,7 +45,7 @@ facilitate a broad number of tasks across many omics, including:
     (currently supports scVI, scANVI and TotalVI).
 -   [CellAssign](https://www.nature.com/articles/s41592-019-0529-1) for
     reference-based annotation of scRNA-seq data.
--   [Solo](https://www.sciencedirect.com/science/article/pii/S2405471220301952) 
+-   [Solo](https://www.sciencedirect.com/science/article/pii/S2405471220301952)
     for doublet detection in scRNA-seq data.
 
 All these implementations have a high-level API that interacts with
@@ -66,7 +66,7 @@ starting point for developing new models into scvi-tools.
 
 # Basic installation
 
-For conda, 
+For conda,
 ```
 conda install scvi-tools -c bioconda -c conda-forge
 ```
@@ -82,7 +82,7 @@ Please be sure to install a version of [PyTorch](https://pytorch.org/) that is c
     the [documentation](https://docs.scvi-tools.org/).
 -   For discussion of usage, checkout out our
     [forum](https://discourse.scvi-tools.org).
--   Please use the issues here to submit bug reports.
+-   Please use the [issues](https://github.com/YosefLab/scvi-tools/issues) to submit bug reports.
 -   If you\'d like to contribute, check out our [contributing
     guide](https://docs.scvi-tools.org/en/stable/contributing/index.html).
 -   If you find a model useful for your research, please consider citing
