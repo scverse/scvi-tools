@@ -66,12 +66,12 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
     the mean sensitivity for each batch :math:`y_e`:
 
     .. math::
-        y_s ~ Gamma(200, 200 / y_e)
+        y_s ~ Gamma(detection_alpha, detection_alpha / y_e)
 
     where y_e is unknown/latent average detection efficiency in each batch/experiment:
 
     .. math::
-        y_e ~ Gamma(10, 10 / tech diff)
+        y_e ~ Gamma(10, 10 / detection_mean)
 
     """
 
@@ -84,6 +84,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
         cell_state_mat,
         n_groups: int = 50,
         detection_mean=1 / 2,
+        detection_alpha=200.0,
         m_g_gene_level_prior={"mean": 1, "mean_var_ratio": 1.0, "alpha_mean": 3.0},
         N_cells_per_location=8.0,
         A_factors_per_location=7.0,
@@ -95,7 +96,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
             "alpha": 1.0,
             "beta": 100.0,
         },
-        detection_hyp_prior={"alpha": 200.0, "mean_alpha": 10.0},
+        detection_hyp_prior={"mean_alpha": 10.0},
         w_sf_mean_var_ratio=5.0,
     ):
 
@@ -114,6 +115,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
         self.gene_add_alpha_hyp_prior = gene_add_alpha_hyp_prior
         self.gene_add_mean_hyp_prior = gene_add_mean_hyp_prior
         detection_hyp_prior["mean"] = detection_mean
+        detection_hyp_prior["alpha"] = detection_alpha
         self.detection_hyp_prior = detection_hyp_prior
 
         factors_per_groups = A_factors_per_location / Y_groups_per_location
@@ -193,6 +195,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
 
         self.register_buffer("ones", torch.ones((1, 1)))
         self.register_buffer("ones_1_n_groups", torch.ones((1, self.n_groups)))
+        self.register_buffer("ones_n_batch_1", torch.ones((self.n_batch, 1)))
         self.register_buffer("eps", torch.tensor(1e-8))
 
     @staticmethod
@@ -328,14 +331,18 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
             .expand([self.n_batch, 1])
             .to_event(2),
         )
+        detection_hyp_prior_alpha = pyro.deterministic(
+            "detection_hyp_prior_alpha",
+            self.ones_n_batch_1 * self.detection_hyp_prior_alpha,
+        )
 
-        beta = (self.ones * self.detection_hyp_prior_alpha) / (
+        beta = (obs2sample @ detection_hyp_prior_alpha) / (
             obs2sample @ detection_mean_y_e
         )
         with obs_plate:
             detection_y_s = pyro.sample(
                 "detection_y_s",
-                dist.Gamma(self.ones * self.detection_hyp_prior_alpha, beta),
+                dist.Gamma(obs2sample @ detection_hyp_prior_alpha, beta),
             )  # (self.n_obs, 1)
 
         # =====================Gene-specific additive component ======================= #
