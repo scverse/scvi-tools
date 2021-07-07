@@ -88,7 +88,7 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
     .. math::
         D_{c,g} \sim \mathtt{NB}(alpha=\alpha_{g}, mu=\mu_{c,g})
     .. math::
-        \mu_{c,g} = (\mu_{f,g} + s_{e,g}) * y_c * y_{t,g}
+        \mu_{c,g} = (\mu_{f,g} + s_{e,g}) * y_e * y_{t,g}
 
     Which is equivalent to:
 
@@ -96,8 +96,7 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
         D_{c,g} \sim \mathtt{Poisson}(\mathtt{Gamma}(\alpha_{f,g}, \alpha_{f,g} / \mu_{c,g}))
 
     Here, :math:`\mu_{f,g}` denotes average mRNA count in each cell type :math:`f` for each gene :math:`g`;
-    :math:`y_c` denotes normalisation for each cell :math:`c` with a prior mean for each experiment :math:`e`,
-        to account for RNA capture, sequencing depth.
+    :math:`y_c` denotes normalisation for each experiment :math:`e` to account for  sequencing depth.
     :math:`y_{t,g}` denotes per gene :math:`g` detection efficiency normalisation for each technology :math:`t`
 
     """
@@ -115,7 +114,7 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
             "alpha": 1.0,
             "beta": 100.0,
         },
-        detection_hyp_prior={"alpha": 200.0, "mean_alpha": 1.0, "mean_beta": 1.0},
+        detection_hyp_prior={"mean_alpha": 1.0, "mean_beta": 1.0},
         gene_tech_prior={"mean": 1, "alpha": 200},
         init_vals: Optional[dict] = None,
     ):
@@ -155,10 +154,6 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
             for k in init_vals.keys():
                 self.register_buffer(f"init_val_{k}", torch.tensor(init_vals[k]))
 
-        self.register_buffer(
-            "detection_hyp_prior_alpha",
-            torch.tensor(self.detection_hyp_prior["alpha"]),
-        )
         self.register_buffer(
             "detection_mean_hyp_prior_alpha",
             torch.tensor(self.detection_hyp_prior["mean_alpha"]),
@@ -240,14 +235,9 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
 
         return {
             "name": "obs_plate",
-            "input": [0, 2],  # expression data + (optional) batch index
-            "input_transform": [
-                torch.log1p,
-                lambda x: x,
-            ],  # how to transform input data before passing to NN
-            "sites": {
-                "detection_y_c": 1,
-            },
+            "input": [],  # expression data + (optional) batch index
+            "input_transform": [],  # how to transform input data before passing to NN
+            "sites": {},
         }
 
     def forward(self, x_data, idx, batch_index, label_index, extra_categoricals):
@@ -265,10 +255,6 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
                 ],
                 dim=1,
             )
-            # print(extra_categoricals[[0, 5, 10, 25, 160], :])
-            # print(obs2extra_categoricals[[0, 5, 10, 25, 160], :])
-            # obs2extra_categoricals = one_hot(extra_categoricals, np.sum(self.n_extra_categoricals))
-            # print(obs2extra_categoricals[[0, 5, 10, 25, 160], :])
 
         obs_plate = self.create_plates(
             x_data, idx, batch_index, label_index, extra_categoricals
@@ -308,15 +294,7 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
             .expand([self.n_batch, 1])
             .to_event(2),
         )
-
-        beta = (self.ones * self.detection_hyp_prior_alpha) / (
-            obs2sample @ detection_mean_y_e
-        )
-        with obs_plate:
-            detection_y_c = pyro.sample(
-                "detection_y_c",
-                dist.Gamma(self.ones * self.detection_hyp_prior_alpha, beta),
-            )  # (self.n_obs, 1)
+        detection_y_c = obs2sample @ detection_mean_y_e  # (self.n_obs, 1)
 
         # =====================Gene-specific additive component ======================= #
         # s_{e,g} accounting for background, free-floating RNA
@@ -416,7 +394,9 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
         mu = (
             np.dot(obs2label, samples["per_cluster_mu_fg"])
             + np.dot(obs2sample, samples["s_g_gene_add"])
-        ) * samples["detection_y_c"][ind_x, :]
+        ) * np.dot(
+            obs2sample, samples["detection_mean_y_e"]
+        )  # samples["detection_y_c"][ind_x, :]
         if self.n_extra_categoricals is not None:
             mu = mu * np.dot(obs2extra_categoricals, samples["detection_tech_gene_tg"])
 
@@ -448,7 +428,9 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
                 obs2label[cell_ind, fact_ind], samples["per_cluster_mu_fg"][fact_ind, :]
             )
             + np.dot(obs2sample[cell_ind, :], samples["s_g_gene_add"])
-        ) * samples["detection_y_c"]
+        ) * np.dot(
+            obs2sample, samples["detection_mean_y_e"]
+        )  # samples["detection_y_c"]
         if self.n_extra_categoricals is not None:
             mu = mu * np.dot(
                 obs2extra_categoricals[cell_ind, :], samples["detection_tech_gene_tg"]
