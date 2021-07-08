@@ -102,24 +102,32 @@ def test_wscvi():
     cell_idx2 = ~cell_idx1
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=True)
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=True)
-    model.lvm_de(
+    model.differential_expression(
         idx1="labels == 'label_1'",
         batch_correction=True,
+        importance_sampling=True,
+        delta=None,
     )
     if adata.uns["_scvi"].get("_requires_validation", True):
         raise ValueError("anndata should not require validation at this point")
-    model.lvm_de(
+    model.differential_expression(
         idx1="labels == 'label_1'",
         batch_correction=False,
+        importance_sampling=True,
+        delta=None,
     )
 
-    model.lvm_de(
+    model.differential_expression(
         idx1="(labels == 'label_1') & (_scvi_batch == 1)",
         batch_correction=True,
+        importance_sampling=True,
+        delta=None,
     )
 
-    model.lvm_de(
+    model.differential_expression(
         adata=adata[adata.obs._scvi_batch == 1],
         groupby="labels",
         batch_correction=True,
+        importance_sampling=True,
+        delta=None,
     )

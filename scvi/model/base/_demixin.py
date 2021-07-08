@@ -36,16 +36,16 @@ class DEMixin:
     @_doc_params(
         doc_differential_expression=doc_differential_expression,
     )
-    def lvm_de(
+    def differential_expression(
         self,
         adata: Optional[AnnData] = None,
         groupby: Optional[str] = None,
         group1: Optional[Iterable[str]] = None,
         group2: Optional[str] = None,
-        idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
-        idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
+        idx1: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
+        idx2: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
         mode: Literal["vanilla", "change"] = "change",
-        delta: float = None,
+        delta: float = 0.25,
         batch_size: Optional[int] = None,
         all_stats: bool = True,
         batch_correction: bool = False,
@@ -53,12 +53,17 @@ class DEMixin:
         batchid2: Optional[Iterable[str]] = None,
         fdr_target: float = 0.05,
         silent: bool = False,
-        pseudocounts: float = None,
+        pseudocounts: float = 0.0,
         fn_kwargs: Optional[dict] = None,
+        importance_sampling: Optional[bool] = False,
         **kwargs,
     ) -> pd.DataFrame:
         r"""
-        A unified method for differential expression analysis using lvm-DE.
+        A unified method for differential expression analysis.
+
+        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
+        When using the change method, uses either the plugin estimator
+        or importance sampling for improved FDR control.
 
         Parameters
         ----------
@@ -74,12 +79,21 @@ class DEMixin:
         adata.uns["_scvi"]["_requires_validation"] = False
         fn_kwargs = dict() if fn_kwargs is None else fn_kwargs
         col_names = _get_var_names_from_setup_anndata(adata)
-        model_fn = partial(
-            self.get_population_expression,
-            return_numpy=True,
-            batch_size=batch_size,
-            **fn_kwargs,
-        )
+        if importance_sampling:
+            model_fn = partial(
+                self.get_population_expression,
+                return_numpy=True,
+                batch_size=batch_size,
+                **fn_kwargs,
+            )
+        else:
+            model_fn = partial(
+                self.get_normalized_expression,
+                return_numpy=True,
+                n_samples=1,
+                batch_size=batch_size,
+            )
+
         result = _de_core(
             adata,
             model_fn,
@@ -366,7 +380,7 @@ class DEMixin:
     @torch.no_grad()
     def _evaluate_likelihood(self, scdl, inference_outputs) -> torch.Tensor:
         r"""
-        Derive required likelihoods
+        Derive required likelihoods.
 
         Computes :math:`p(x \mid z)`, :math:`q(z \mid x)` as well as :math:`p(z)` for
         each cell :math:`x` contained in `scdl` and predetermined
