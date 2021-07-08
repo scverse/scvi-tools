@@ -54,7 +54,7 @@ class VAEMixin:
         batch_size: Optional[int] = None,
         observation_specific: Optional[bool] = False,
     ) -> Union[torch.Tensor, float]:
-        """
+        r"""
         Return the marginal LL for the data.
 
         The computation here is a biased estimator of the marginal log likelihood of the data.
