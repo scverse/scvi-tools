@@ -82,7 +82,6 @@ def test_wscvi():
     model.train(
         max_epochs=5,
     )
-    obs = adata.obs
 
     # Checking that function output shapes make sense
     idx = np.where(adata.obs.labels.values == "label_0")[0]
