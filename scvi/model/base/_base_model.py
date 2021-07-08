@@ -142,6 +142,10 @@ class BaseModelClass(ABC):
                 + "attempting to transfer anndata setup"
             )
             transfer_anndata_setup(self.scvi_setup_dict_, adata)
+        validate_annd = adata.uns["_scvi"].get("_requires_validation", True)
+        if not validate_annd:
+            logger.info("Input adata already validated, skipping `_validate_anndata`")
+            return adata
         is_nonneg_int = _check_nonnegative_integers(
             get_from_registry(adata, _CONSTANTS.X_KEY)
         )

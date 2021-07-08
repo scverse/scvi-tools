@@ -71,6 +71,7 @@ class DEMixin:
         Differential expression DataFrame.
         """
         adata = self._validate_anndata(adata)
+        adata.uns["_scvi"]["_requires_validation"] = False
         fn_kwargs = dict() if fn_kwargs is None else fn_kwargs
         col_names = _get_var_names_from_setup_anndata(adata)
         model_fn = partial(
@@ -325,7 +326,7 @@ class DEMixin:
         )
 
         log_px = self.get_marginal_ll(
-            _adata=adata,
+            adata=adata,
             indices=indices,
             n_mc_samples=n_mc_samples_px,
             n_samples_per_pass=marginal_n_samples_per_pass,
@@ -436,7 +437,7 @@ class DEMixin:
             Indices to keep for differential expression
         """
         qz_m = self.get_latent_representation(
-            _adata=adata,
+            adata=adata,
             indices=indices,
             give_mean=True,
             batch_size=batch_size,
