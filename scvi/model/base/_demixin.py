@@ -365,12 +365,12 @@ class DEMixin:
 
     @torch.no_grad()
     def _evaluate_likelihood(self, scdl, inference_outputs) -> torch.Tensor:
-        """
+        r"""
         Derive required likelihoods
 
-        Computes p(x \mid z), q(z \mid x) as well as p(z) for
-        each cell x contained in `scdl` and predetermined
-        posterior samples $z$ in `inference_outputs`.
+        Computes :math:`p(x \mid z)`, :math:`q(z \mid x)` as well as :math:`p(z)` for
+        each cell :math:`x` contained in `scdl` and predetermined
+        posterior samples :math:`z` in `inference_outputs`.
         These quantities are necessary to evalute subpopulation-wide importance weights.
 
         Parameters
