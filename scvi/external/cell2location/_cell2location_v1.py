@@ -48,6 +48,7 @@ class Cell2location(
         adata: AnnData,
         cell_state_df: pd.DataFrame,
         model_class: Optional[PyroModule] = None,
+        detection_mean_per_sample: bool = False,
         **model_kwargs,
     ):
         # in case any other model was created before that shares the same parameter names.
@@ -76,19 +77,32 @@ class Cell2location(
         self.n_factors_ = cell_state_df.shape[1]
         self.factor_names_ = cell_state_df.columns.values
 
-        # compute expected change in sensitivity (m_g in V1 and y_s in V2)
-        sc_total = cell_state_df.sum(0).mean()
-        sp_total = get_from_registry(self.adata, _CONSTANTS.X_KEY).sum(1)
-        batch = get_from_registry(self.adata, _CONSTANTS.BATCH_KEY).flatten()
-        sp_total = np.array(
-            [sp_total[batch == b].mean() for b in range(self.summary_stats["n_batch"])]
-        )
-        self.detection_mean_ = (
-            sp_total / model_kwargs.get("N_cells_per_location", 1)
-        ) / sc_total
-        model_kwargs["detection_mean"] = self.detection_mean_.reshape(
-            (self.summary_stats["n_batch"], 1)
-        ).astype("float32")
+        if not detection_mean_per_sample:
+            # compute expected change in sensitivity (m_g in V1 or y_s in V2)
+            sc_total = cell_state_df.sum(0).mean()
+            sp_total = get_from_registry(self.adata, _CONSTANTS.X_KEY).sum(1).mean()
+            get_from_registry(adata, _CONSTANTS.BATCH_KEY)
+            self.detection_mean_ = (
+                sp_total / model_kwargs.get("N_cells_per_location", 1)
+            ) / sc_total
+            model_kwargs["detection_mean"] = self.detection_mean_
+        else:
+            # compute expected change in sensitivity (m_g in V1 and y_s in V2)
+            sc_total = cell_state_df.sum(0).mean()
+            sp_total = get_from_registry(self.adata, _CONSTANTS.X_KEY).sum(1)
+            batch = get_from_registry(self.adata, _CONSTANTS.BATCH_KEY).flatten()
+            sp_total = np.array(
+                [
+                    sp_total[batch == b].mean()
+                    for b in range(self.summary_stats["n_batch"])
+                ]
+            )
+            self.detection_mean_ = (
+                sp_total / model_kwargs.get("N_cells_per_location", 1)
+            ) / sc_total
+            model_kwargs["detection_mean"] = self.detection_mean_.reshape(
+                (self.summary_stats["n_batch"], 1)
+            ).astype("float32")
 
         detection_alpha = model_kwargs.get("detection_alpha", None)
         if detection_alpha is not None:
