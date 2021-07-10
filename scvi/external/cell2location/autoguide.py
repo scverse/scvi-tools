@@ -65,7 +65,7 @@ class AutoNormalEncoder(AutoGuide):
         model,
         amortised_plate_sites: dict,
         n_in: int,
-        n_hidden: int = 200,
+        n_hidden: dict = None,
         init_param=0,
         init_param_scale: float = 1 / 50,
         scales_offset: float = -2,
@@ -130,12 +130,22 @@ class AutoNormalEncoder(AutoGuide):
 
         self.softplus = SoftplusTransform()
 
+        if n_hidden is None:
+            n_hidden = {"single": 200, "multiple": 200}
+        else:
+            if isinstance(n_hidden, int):
+                n_hidden = {"single": n_hidden, "multiple": n_hidden}
+            elif not isinstance(n_hidden, dict):
+                raise ValueError("n_hidden must be either in or dict")
+
         encoder_kwargs = encoder_kwargs if isinstance(encoder_kwargs, dict) else dict()
-        encoder_kwargs["n_hidden"] = n_hidden
+        encoder_kwargs["n_hidden"] = n_hidden["single"]
         self.encoder_kwargs = encoder_kwargs
         if multi_encoder_kwargs is None:
             multi_encoder_kwargs = deepcopy(encoder_kwargs)
         self.multi_encoder_kwargs = multi_encoder_kwargs
+        if "multiple" in n_hidden.keys():
+            self.multi_encoder_kwargs["n_hidden"] = n_hidden["multiple"]
 
         self.single_n_in = n_in
         self.multiple_n_in = n_in
@@ -159,10 +169,12 @@ class AutoNormalEncoder(AutoGuide):
                 to_pyro_module_(self.one_encoder)
             else:
                 self.one_encoder = encoder_class(
-                    n_in=self.single_n_in, n_out=self.n_hidden, **self.encoder_kwargs
+                    n_in=self.single_n_in,
+                    n_out=self.n_hidden["single"],
+                    **self.encoder_kwargs
                 )
             if "multiple" in self.encoder_mode:
-                self.multiple_n_in = self.n_hidden
+                self.multiple_n_in = self.n_hidden["single"]
 
         self.init_param_scale = init_param_scale
 
@@ -192,11 +204,19 @@ class AutoNormalEncoder(AutoGuide):
             # Collect independence contexts.
             self._cond_indep_stacks[name] = site["cond_indep_stack"]
 
+            # determine the number of hidden layers
+            if "multiple" in self.encoder_mode:
+                if "multiple" in self.n_hidden.keys():
+                    n_hidden = self.n_hidden["multiple"]
+                else:
+                    n_hidden = self.n_hidden[name]
+            elif "single" in self.encoder_mode:
+                n_hidden = self.n_hidden["single"]
             # add linear layer for locs and scales
-            param_dim = (self.n_hidden, self.amortised_plate_sites["sites"][name])
+            param_dim = (n_hidden, self.amortised_plate_sites["sites"][name])
             init_param = np.random.normal(
                 np.zeros(param_dim),
-                (np.ones(param_dim) * self.init_param_scale) / np.sqrt(self.n_hidden),
+                (np.ones(param_dim) * self.init_param_scale) / np.sqrt(n_hidden),
             ).astype("float32")
             _deep_setattr(
                 self.hidden2locs,
@@ -210,7 +230,7 @@ class AutoNormalEncoder(AutoGuide):
 
             init_param = np.random.normal(
                 np.zeros(param_dim),
-                (np.ones(param_dim) * self.init_param_scale) / np.sqrt(self.n_hidden),
+                (np.ones(param_dim) * self.init_param_scale) / np.sqrt(n_hidden),
             ).astype("float32")
             _deep_setattr(
                 self.hidden2scales,
@@ -241,7 +261,7 @@ class AutoNormalEncoder(AutoGuide):
                         name,
                         self.encoder_class(
                             n_in=self.multiple_n_in,
-                            n_out=self.n_hidden,
+                            n_out=n_hidden,
                             **self.multi_encoder_kwargs
                         ).to(site["value"].device),
                     )
