@@ -5,8 +5,8 @@ This release adds features for tighter integration with Pyro for model developme
 
 Enchancements
 ~~~~~~~~~~~~~
-- Add :class:`model.base.PyroSampleMixin` for easier posterior sampling with Pyro (`#1059`_).
-- Add :class:`model.base.PyroSviTrainMixin` for automated training of Pyro models (`#1059`_).
+- Add :class:`scvi.model.base.PyroSampleMixin` for easier posterior sampling with Pyro (`#1059`_).
+- Add :class:`scvi.model.base.PyroSviTrainMixin` for automated training of Pyro models (`#1059`_).
 - Ability to pass kwargs to :class:`~scvi.module.Classifier` when using :class:`~scvi.external.SOLO` (`#1078`_).
 - Ability to get doublet predictions for simulated doublets in :class:`~scvi.external.SOLO` (`#1076`_).
 - Add "comparison" column to differential expression results (`#1074`_).
