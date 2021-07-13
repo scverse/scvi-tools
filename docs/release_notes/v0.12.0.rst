@@ -10,6 +10,7 @@ Enchancements
 - Ability to pass kwargs to :class:`~scvi.module.Classifier` when using :class:`~scvi.external.SOLO` (`#1078`_).
 - Ability to get doublet predictions for simulated doublets in :class:`~scvi.external.SOLO` (`#1076`_).
 - Add "comparison" column to differential expression results (`#1074`_).
+- Clarify :class:`~scvi.external.CellAssign` size factor usage. See class docstring.
 
 Changes
 ~~~~~~~
