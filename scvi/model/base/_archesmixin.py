@@ -1,5 +1,6 @@
 import logging
 import warnings
+from copy import deepcopy
 from typing import Optional, Union
 
 import torch
@@ -82,14 +83,14 @@ class ArchesMixin:
             attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
             scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
             var_names = reference_model.adata.var_names
-            load_state_dict = reference_model.module.state_dict().copy()
+            load_state_dict = deepcopy(reference_model.module.state_dict())
 
         if inplace_subset_query_vars:
             logger.debug("Subsetting query vars to reference vars.")
             adata._inplace_subset_var(var_names)
         _validate_var_names(adata, var_names)
 
-        if scvi_setup_dict["scvi_version"] < "0.8":
+        if float(scvi_setup_dict["scvi_version"]) < 0.8:
             warnings.warn(
                 "Query integration should be performed using models trained with version >= 0.8"
             )
