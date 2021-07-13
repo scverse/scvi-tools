@@ -16,6 +16,7 @@ Changes
 - Update minimum Python version to `3.7.2` (`#1082`_).
 - Use pandas read pickle function for pbmc dataset metadata loading (`#1099`_).
 - Adds `n_samples_overall` parameter to functions for denoised expression/accesibility/etc. This is used in during differential expression (`#1090`_).
+- Ignore configure optimizers warning when training Pyro-based models (`#1064`_).
 
 Bug fixes
 ~~~~~~~~~
@@ -32,13 +33,13 @@ None!
 
 Contributors
 ~~~~~~~~~~~~
+- `@vitkl`_
 - `@adamgayoso`_
 - `@galenxing`_
 - `@PierreBoyeau`_
 - `@Munfred`_
 - `@njbernstein`_
-- `@vitkl`_
-
+- `@mjayasur`_
 
 .. _`@Munfred`: https://github.com/Munfred
 .. _`@adamgayoso`: https://github.com/adamgayoso
@@ -46,9 +47,11 @@ Contributors
 .. _`@PierreBoyeau`: https://github.com/PierreBoyeau
 .. _`@njbernstein`: https://github.com/njbernstein
 .. _`@vitkl`: https://github.com/vitkl
+.. _`@mjayasur`: https://github.com/mjayasur
 
 
 .. _`#1059`: https://github.com/YosefLab/scvi-tools/pull/1059
+.. _`#1064`: https://github.com/YosefLab/scvi-tools/pull/1064
 .. _`#1074`: https://github.com/YosefLab/scvi-tools/pull/1074
 .. _`#1076`: https://github.com/YosefLab/scvi-tools/pull/1076
 .. _`#1079`: https://github.com/YosefLab/scvi-tools/pull/1079
