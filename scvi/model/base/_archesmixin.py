@@ -90,7 +90,8 @@ class ArchesMixin:
             adata._inplace_subset_var(var_names)
         _validate_var_names(adata, var_names)
 
-        if float(scvi_setup_dict["scvi_version"]) < 0.8:
+        version_split = scvi_setup_dict["scvi_version"].split(".")
+        if version_split[1] < "8" and version_split[0] == "0":
             warnings.warn(
                 "Query integration should be performed using models trained with version >= 0.8"
             )
