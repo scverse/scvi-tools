@@ -39,6 +39,7 @@ def test_scvi(save_path):
 
     model = SCVI(adata, n_latent=n_latent, var_activation=Softplus())
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # tests __repr__
     print(model)
@@ -46,7 +47,7 @@ def test_scvi(save_path):
     assert model.is_trained is True
     z = model.get_latent_representation()
     assert z.shape == (adata.shape[0], n_latent)
-    assert len(model.history["elbo_train"]) == 1
+    assert len(model.history["elbo_train"]) == 2
     model.get_elbo()
     model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()
