@@ -3,6 +3,7 @@ import tarfile
 
 import anndata
 import numpy as np
+import pandas as pd
 import pytest
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
@@ -479,7 +480,8 @@ def test_scanvi(save_path):
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3
     model.predict()
-    model.predict(adata2, soft=True)
+    df = model.predict(adata2, soft=True)
+    assert isinstance(df, pd.DataFrame)
     model.predict(adata2, soft=True, indices=[1, 2, 3])
     model.get_normalized_expression(adata2)
     model.differential_expression(groupby="labels", group1="label_1")

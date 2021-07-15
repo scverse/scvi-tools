@@ -25,6 +25,7 @@ Bug fixes
 - Fix issue where anndata setup with a layer led to errors in :class:`~scvi.external.SOLO` (`#1098`_).
 - Fix `adata` parameter of :func:`scvi.external.SOLO.from_scvi_model`, which previously did nothing (`#1078`_).
 - Fix default `max_epochs` of :class:`~scvi.model.SCANVI` when initializing using pre-trained model of :class:`~scvi.model.SCVI` (`#1079`_).
+- Fix bug in `predict()` function of :class:`~scvi.model.SCANVI`, which only occurred for soft predictions (`#1100`_).
 
 
 
@@ -62,5 +63,5 @@ Contributors
 .. _`#1090`: https://github.com/YosefLab/scvi-tools/pull/1090
 .. _`#1098`: https://github.com/YosefLab/scvi-tools/pull/1098
 .. _`#1099`: https://github.com/YosefLab/scvi-tools/pull/1099
-
+.. _`#1100`: https://github.com/YosefLab/scvi-tools/pull/1100
 
