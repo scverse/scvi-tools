@@ -592,9 +592,9 @@ class PyroTrainingPlan(pl.LightningModule):
         If `None`, defaults to :class:`~pyro.infer.Trace_ELBO`.
     optim
         A Pyro optimizer instance, e.g., :class:`~pyro.optim.Adam`. If `None`,
-        defaults to ClippedAdam optimizer with a learning rate of `1e-3` and `clip_norm` of `200`.
+        defaults to :class:`pyro.optim.Adam` optimizer with a learning rate of `1e-3`.
     optim_kwargs
-        Keyword arguments for **default** optimiser :class:`pyro.optim.ClippedAdam`.
+        Keyword arguments for **default** optimiser :class:`pyro.optim.Adam`.
     """
 
     def __init__(
@@ -611,12 +611,10 @@ class PyroTrainingPlan(pl.LightningModule):
         optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
         if "lr" not in optim_kwargs.keys():
             optim_kwargs.update({"lr": 1e-3})
-        if "clip_norm" not in optim_kwargs.keys():
-            optim_kwargs.update({"clip_norm": 200})
 
         self.loss_fn = pyro.infer.Trace_ELBO() if loss_fn is None else loss_fn
         self.optim = (
-            pyro.optim.ClippedAdam(optim_args=optim_kwargs) if optim is None else optim
+            pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
         )
 
         self.automatic_optimization = False
