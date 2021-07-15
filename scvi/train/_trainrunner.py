@@ -83,13 +83,13 @@ class TrainRunner:
 
     def _update_history(self):
         # model is being further trained
-        if self.model.history_ is not None:
+        # this was set to true during first training session
+        if self.model.is_trained_ is True:
             # if not using the default logger (e.g., tensorboard)
             if not isinstance(self.model.history_, dict):
                 warnings.warn(
-                    "Training history cannot be updated. Replacing old history with new history."
+                    "Training history cannot be updated. Logger can be accessed from model.trainer.logger"
                 )
-                self.model.history_ = self.trainer.logger.history
                 return
             else:
                 new_history = self.trainer.logger.history
@@ -110,4 +110,8 @@ class TrainRunner:
                     self.model.history_[key].index.name = val.index.name
         else:
             # set history_ attribute if it exists
-            self.model.history_ = self.trainer.logger.history
+            # other pytorch lightning loggers might not have history attr
+            try:
+                self.model.history_ = self.trainer.logger.history
+            except AttributeError:
+                self.history_ = None
