@@ -3,6 +3,7 @@ import tarfile
 
 import anndata
 import numpy as np
+import pandas as pd
 import pytest
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
@@ -39,6 +40,7 @@ def test_scvi(save_path):
 
     model = SCVI(adata, n_latent=n_latent, var_activation=Softplus())
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # tests __repr__
     print(model)
@@ -46,7 +48,7 @@ def test_scvi(save_path):
     assert model.is_trained is True
     z = model.get_latent_representation()
     assert z.shape == (adata.shape[0], n_latent)
-    assert len(model.history["elbo_train"]) == 1
+    assert len(model.history["elbo_train"]) == 2
     model.get_elbo()
     model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()
@@ -478,7 +480,8 @@ def test_scanvi(save_path):
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3
     model.predict()
-    model.predict(adata2, soft=True)
+    df = model.predict(adata2, soft=True)
+    assert isinstance(df, pd.DataFrame)
     model.predict(adata2, soft=True, indices=[1, 2, 3])
     model.get_normalized_expression(adata2)
     model.differential_expression(groupby="labels", group1="label_1")

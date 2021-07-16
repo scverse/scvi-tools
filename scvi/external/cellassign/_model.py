@@ -41,12 +41,19 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     Examples
     --------
     >>> adata = scvi.data.read_h5ad(path_to_anndata)
+    >>> library_size = adata.X.sum(1)
+    >>> adata.obs["size_factor"] = library_size / np.mean(library_size)
     >>> marker_gene_mat = pd.read_csv(path_to_marker_gene_csv)
     >>> bdata = adata[:, adata.var.index.isin(marker_gene_mat.index)].copy()
     >>> scvi.data.setup_anndata(bdata)
-    >>> model = CellAssign(bdata, marker_gene_mat, size_factor_key='S')
+    >>> model = CellAssign(bdata, marker_gene_mat, size_factor_key='size_factor')
     >>> model.train()
     >>> predictions = model.predict(bdata)
+
+    Notes
+    -----
+    Size factors in the R implementation of CellAssign are computed using scran. An approximate approach
+    computes the sum of UMI counts (library size) over all genes and divides by the mean library size.
     """
 
     def __init__(

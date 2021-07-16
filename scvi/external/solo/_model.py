@@ -235,6 +235,15 @@ class SOLO(BaseModelClass):
             "sim_doublet_{}".format(i) for i in range(num_doublets)
         ]
 
+        # if adata setup with a layer, need to add layer to doublets adata
+        data_registry = adata.uns["_scvi"]["data_registry"]
+        x_loc = data_registry[_CONSTANTS.X_KEY]["attr_name"]
+        layer = (
+            data_registry[_CONSTANTS.X_KEY]["attr_key"] if x_loc == "layers" else None
+        )
+        if layer is not None:
+            doublets_ad.layers[layer] = doublets
+
         return doublets_ad
 
     def train(

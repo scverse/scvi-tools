@@ -296,7 +296,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 columns=self._label_mapping[:n_labels],
                 index=adata.obs_names[indices],
             )
-            return y_pred
+            return pred
 
     def train(
         self,
