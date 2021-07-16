@@ -103,7 +103,18 @@ class AutoNormalEncoder(AutoGuide):
         n_in
             Number of input dimensions (for encoder_class).
         n_hidden
-            Number of hidden nodes in each layer, including final layer.
+            Number of hidden nodes in each layer, one of 3 options:
+            1. Integer denoting the number of hidden nodes
+            2. Dictionary with {"single": 200, "multiple": 200} denoting the number of hidden nodes for each `encoder_mode` (See below)
+            3. Allowing different number of hidden nodes for each model site. Dictionary with the number of hidden nodes for single encode mode and each model site:
+            {
+                     "single": 200
+                     "n_s_cells_per_location": 5,
+                     "y_s_groups_per_location": 5,
+                     "z_sr_groups_factors": 128,
+                     "w_sf": 128,
+                     "l_s_add": 5,
+            }
         init_param
             Not implemented yet - initial values for amortised variables.
         init_param_scale
