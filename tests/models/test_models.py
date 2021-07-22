@@ -3,6 +3,7 @@ import tarfile
 
 import anndata
 import numpy as np
+import pandas as pd
 import pytest
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
@@ -14,6 +15,7 @@ from scvi.data._built_in_data._download import _download
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
+    DeviceBackedDataSplitter,
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
@@ -27,6 +29,7 @@ from scvi.model import (
     DestVI,
     LinearSCVI,
 )
+from scvi.train import TrainingPlan, TrainRunner
 
 
 def test_scvi(save_path):
@@ -37,6 +40,7 @@ def test_scvi(save_path):
 
     model = SCVI(adata, n_latent=n_latent, var_activation=Softplus())
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # tests __repr__
     print(model)
@@ -44,7 +48,7 @@ def test_scvi(save_path):
     assert model.is_trained is True
     z = model.get_latent_representation()
     assert z.shape == (adata.shape[0], n_latent)
-    assert len(model.history["elbo_train"]) == 1
+    assert len(model.history["elbo_train"]) == 2
     model.get_elbo()
     model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()
@@ -174,6 +178,7 @@ def test_scvi(save_path):
     m.train(
         callbacks=[lr_monitor],
         max_epochs=10,
+        check_val_every_n_epoch=1,
         log_every_n_steps=1,
         plan_kwargs={"reduce_lr_on_plateau": True},
     )
@@ -336,11 +341,12 @@ def test_data_splitter():
     a = synthetic_iid()
     # test leaving validataion_size empty works
     ds = DataSplitter(a, train_size=0.4)
+    ds.setup()
     # check the number of indices
-    train_dl, val_dl, test_dl = ds()
-    n_train_idx = len(train_dl.indices)
-    n_validation_idx = len(val_dl.indices)
-    n_test_idx = len(test_dl.indices)
+    _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
+    n_train_idx = len(ds.train_idx)
+    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
+    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
 
     assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
     assert np.isclose(n_train_idx / a.n_obs, 0.4)
@@ -349,11 +355,12 @@ def test_data_splitter():
 
     # test test size
     ds = DataSplitter(a, train_size=0.4, validation_size=0.3)
+    ds.setup()
     # check the number of indices
-    train_dl, val_dl, test_dl = ds()
-    n_train_idx = len(train_dl.indices)
-    n_validation_idx = len(val_dl.indices)
-    n_test_idx = len(test_dl.indices)
+    _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
+    n_train_idx = len(ds.train_idx)
+    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
+    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
 
     assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
     assert np.isclose(n_train_idx / a.n_obs, 0.4)
@@ -363,33 +370,63 @@ def test_data_splitter():
     # test that 0 < train_size <= 1
     with pytest.raises(ValueError):
         ds = DataSplitter(a, train_size=2)
-        ds()
+        ds.setup()
+        ds.train_dataloader()
     with pytest.raises(ValueError):
         ds = DataSplitter(a, train_size=-2)
-        ds()
+        ds.setup()
+        ds.train_dataloader()
 
     # test that 0 <= validation_size < 1
     with pytest.raises(ValueError):
         ds = DataSplitter(a, train_size=0.1, validation_size=1)
-        ds()
+        ds.setup()
+        ds.val_dataloader()
     with pytest.raises(ValueError):
         ds = DataSplitter(a, train_size=0.1, validation_size=-1)
-        ds()
+        ds.setup()
+        ds.val_dataloader()
 
     # test that train_size + validation_size <= 1
     with pytest.raises(ValueError):
         ds = DataSplitter(a, train_size=1, validation_size=0.1)
-        ds()
+        ds.setup()
+        ds.train_dataloader()
+        ds.val_dataloader()
+
+
+def test_device_backed_data_splitter():
+    a = synthetic_iid()
+    # test leaving validataion_size empty works
+    ds = DeviceBackedDataSplitter(a, train_size=1.0, use_gpu=None)
+    ds.setup()
+    train_dl = ds.train_dataloader()
+    ds.val_dataloader()
+    loaded_x = next(iter(train_dl))["X"]
+    assert len(loaded_x) == a.shape[0]
+    np.testing.assert_array_equal(loaded_x.cpu().numpy(), a.X)
+
+    model = SCVI(a, n_latent=5)
+    training_plan = TrainingPlan(model.module, len(ds.train_idx))
+    runner = TrainRunner(
+        model,
+        training_plan=training_plan,
+        data_splitter=ds,
+        max_epochs=1,
+        use_gpu=None,
+    )
+    runner()
 
 
 def test_semisupervised_data_splitter():
     a = synthetic_iid()
     ds = SemiSupervisedDataSplitter(a, "asdf")
+    ds.setup()
     # check the number of indices
-    train_dl, val_dl, test_dl = ds()
-    n_train_idx = len(train_dl.indices)
-    n_validation_idx = len(val_dl.indices)
-    n_test_idx = len(test_dl.indices)
+    _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
+    n_train_idx = len(ds.train_idx)
+    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
+    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
 
     assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
     assert np.isclose(n_train_idx / a.n_obs, 0.9)
@@ -399,12 +436,13 @@ def test_semisupervised_data_splitter():
     # test mix of labeled and unlabeled data
     unknown_label = "label_0"
     ds = SemiSupervisedDataSplitter(a, unknown_label)
-    train_dl, val_dl, test_dl = ds()
+    ds.setup()
+    _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
 
     # check the number of indices
-    n_train_idx = len(train_dl.indices)
-    n_validation_idx = len(val_dl.indices)
-    n_test_idx = len(test_dl.indices)
+    n_train_idx = len(ds.train_idx)
+    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
+    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
     assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
     assert np.isclose(n_train_idx / a.n_obs, 0.9, rtol=0.05)
     assert np.isclose(n_validation_idx / a.n_obs, 0.1, rtol=0.05)
@@ -414,9 +452,9 @@ def test_semisupervised_data_splitter():
     labelled_idx = np.where(a.obs["labels"] != unknown_label)[0]
     unlabelled_idx = np.where(a.obs["labels"] == unknown_label)[0]
     # labeled training idx
-    labeled_train_idx = [i for i in train_dl.indices if i in labelled_idx]
+    labeled_train_idx = [i for i in ds.train_idx if i in labelled_idx]
     # unlabeled training idx
-    unlabeled_train_idx = [i for i in train_dl.indices if i in unlabelled_idx]
+    unlabeled_train_idx = [i for i in ds.train_idx if i in unlabelled_idx]
     n_labeled_idx = len(labelled_idx)
     n_unlabeled_idx = len(unlabelled_idx)
     # labeled vs unlabeled ratio in adata
@@ -442,7 +480,8 @@ def test_scanvi(save_path):
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3
     model.predict()
-    model.predict(adata2, soft=True)
+    df = model.predict(adata2, soft=True)
+    assert isinstance(df, pd.DataFrame)
     model.predict(adata2, soft=True, indices=[1, 2, 3])
     model.get_normalized_expression(adata2)
     model.differential_expression(groupby="labels", group1="label_1")

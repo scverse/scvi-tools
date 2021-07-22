@@ -1,3 +1,4 @@
+import sys
 import warnings
 from typing import Optional, Union
 
@@ -11,6 +12,7 @@ from scvi._compat import Literal
 
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
+from ._trainingplans import PyroTrainingPlan
 
 
 class Trainer(pl.Trainer):
@@ -113,7 +115,8 @@ class Trainer(pl.Trainer):
             check_val_every_n_epoch = (
                 check_val_every_n_epoch
                 if check_val_every_n_epoch is not None
-                else np.inf
+                # needs to be an integer, np.inf does not work
+                else sys.maxsize
             )
 
         if simple_progress_bar:
@@ -149,4 +152,15 @@ class Trainer(pl.Trainer):
                 category=UserWarning,
                 message="you defined a validation_step but have no val_dataloader",
             )
+            warnings.filterwarnings(
+                action="ignore",
+                category=UserWarning,
+                message="One of given dataloaders is None and it will be skipped",
+            )
+            if isinstance(args[0], PyroTrainingPlan):
+                warnings.filterwarnings(
+                    action="ignore",
+                    category=UserWarning,
+                    message="`LightningModule.configure_optimizers` returned `None`",
+                )
             super().fit(*args, **kwargs)

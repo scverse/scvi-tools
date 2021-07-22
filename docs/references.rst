@@ -1,5 +1,10 @@
 References
 ----------
+
+.. [Lopez21] Romain Lopez*, Baoguo Li*, Hadas Keren-Shaul*, Pierre Boyeau, Merav Kedmi, David Pilzer, Adam Jelinski, Eyal David, Allon Wagner, Yoseph Addadi, Michael I Jordan, Ido Amit, Nir Yosef. (2021),
+   *Multi-resolution deconvolution of spatial transcriptomics data reveals continuous patterns of inflammation*,
+   `biorxiv <https://www.biorxiv.org/content/10.1101/2021.04.28.441833v1>`__.
+   
 .. [Gayoso21] Adam Gayoso*, Romain Lopez*, Galen Xing*, Pierre Boyeau, Katherine Wu, Michael Jayasuriya, Edouard Mehlman, Maxime Langevin, Yining Liu, Jules Samaran, Gabriel Misrachi, Achille Nazaret, Oscar Clivio, Chenling Xu, Tal Ashuach, Mohammad Lotfollahi, Valentine Svensson, Eduardo da Veiga Beltrame, Carlos Talavera-Lopez, Lior Pachter, Fabian J. Theis, Aaron Streets, Michael I. Jordan, Jeffrey Regier, Nir Yosef. (2021),
    *scvi-tools: a library for deep probabilistic analysis of single-cell omics data*,
    `biorxiv <https://www.biorxiv.org/content/10.1101/2021.04.28.441833v1>`__.

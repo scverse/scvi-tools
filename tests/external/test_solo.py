@@ -15,11 +15,18 @@ def test_solo(save_path):
     assert "validation_loss" in solo.history.keys()
     solo.predict()
 
+    bdata = synthetic_iid(run_setup_anndata=False)
+    solo = SOLO.from_scvi_model(model, bdata)
+    solo.train(1, check_val_every_n_epoch=1, train_size=0.9)
+    assert "validation_loss" in solo.history.keys()
+    solo.predict()
+
 
 def test_solo_multiple_batch(save_path):
     n_latent = 5
     adata = synthetic_iid()
-    setup_anndata(adata, batch_key="batch")
+    adata.layers["my_layer"] = adata.X.copy()
+    setup_anndata(adata, layer="my_layer", batch_key="batch")
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 

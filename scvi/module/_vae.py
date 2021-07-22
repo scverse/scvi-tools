@@ -262,7 +262,14 @@ class VAE(BaseModuleClass):
 
     @auto_move_data
     def generative(
-        self, z, library, batch_index, cont_covs=None, cat_covs=None, y=None
+        self,
+        z,
+        library,
+        batch_index,
+        cont_covs=None,
+        cat_covs=None,
+        y=None,
+        transform_batch=None,
     ):
         """Runs the generative model."""
         # TODO: refactor forward function to not rely on y
@@ -271,6 +278,10 @@ class VAE(BaseModuleClass):
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = tuple()
+
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
         px_scale, px_r, px_rate, px_dropout = self.decoder(
             self.dispersion, decoder_input, library, batch_index, *categorical_input, y
         )

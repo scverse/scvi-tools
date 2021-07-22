@@ -41,12 +41,19 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     Examples
     --------
     >>> adata = scvi.data.read_h5ad(path_to_anndata)
+    >>> library_size = adata.X.sum(1)
+    >>> adata.obs["size_factor"] = library_size / np.mean(library_size)
     >>> marker_gene_mat = pd.read_csv(path_to_marker_gene_csv)
     >>> bdata = adata[:, adata.var.index.isin(marker_gene_mat.index)].copy()
     >>> scvi.data.setup_anndata(bdata)
-    >>> model = CellAssign(bdata, marker_gene_mat, size_factor_key='S')
+    >>> model = CellAssign(bdata, marker_gene_mat, size_factor_key='size_factor')
     >>> model.train()
     >>> predictions = model.predict(bdata)
+
+    Notes
+    -----
+    Size factors in the R implementation of CellAssign are computed using scran. An approximate approach
+    computes the sum of UMI counts (library size) over all genes and divides by the mean library size.
     """
 
     def __init__(
@@ -141,7 +148,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             Learning rate for optimization.
         use_gpu
             Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str), or use CPU (if False).
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -200,9 +207,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = TrainingPlan(
-            self.module, len(data_splitter.train_idx), **plan_kwargs
-        )
+        training_plan = TrainingPlan(self.module, **plan_kwargs)
         runner = TrainRunner(
             self,
             training_plan=training_plan,

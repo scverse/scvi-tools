@@ -1,5 +1,4 @@
 import os
-import pickle
 from typing import List
 
 import anndata
@@ -65,9 +64,7 @@ def _load_pbmc_dataset(
         _download(urls[i], save_path, save_fns[i])
 
     de_metadata = pd.read_csv(os.path.join(save_path, "gene_info_pbmc.csv"), sep=",")
-    pbmc_metadata = pickle.load(
-        open(os.path.join(save_path, "pbmc_metadata.pickle"), "rb")
-    )
+    pbmc_metadata = pd.read_pickle(os.path.join(save_path, "pbmc_metadata.pickle"))
     pbmc8k = _load_dataset_10x(
         "pbmc8k",
         save_path=save_path,

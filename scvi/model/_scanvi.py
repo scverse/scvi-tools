@@ -296,7 +296,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 columns=self._label_mapping[:n_labels],
                 index=adata.obs_names[indices],
             )
-            return y_pred
+            return pred
 
     def train(
         self,
@@ -333,7 +333,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Minibatch size to use during training.
         use_gpu
             Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str), or use CPU (if False).
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
         plan_kwargs
             Keyword args for :class:`~scvi.train.SemiSupervisedTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -345,8 +345,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
 
-        if self.was_pretrained:
-            max_epochs = int(np.min([10, np.max([2, round(max_epochs / 3.0)])]))
+            if self.was_pretrained:
+                max_epochs = int(np.min([10, np.max([2, round(max_epochs / 3.0)])]))
 
         logger.info("Training for {} epochs.".format(max_epochs))
 

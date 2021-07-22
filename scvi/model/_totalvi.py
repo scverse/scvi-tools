@@ -179,7 +179,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Learning rate for optimization.
         use_gpu
             Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str), or use CPU (if False).
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -251,9 +251,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = AdversarialTrainingPlan(
-            self.module, len(data_splitter.train_idx), **plan_kwargs
-        )
+        training_plan = AdversarialTrainingPlan(self.module, **plan_kwargs)
         runner = TrainRunner(
             self,
             training_plan=training_plan,
@@ -315,6 +313,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         adata=None,
         indices=None,
+        n_samples_overall: Optional[int] = None,
         transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         gene_list: Optional[Sequence[str]] = None,
         protein_list: Optional[Sequence[str]] = None,
@@ -340,6 +339,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
+        n_samples_overall
+            Number of samples to use in total
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -385,6 +386,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
         """
         adata = self._validate_anndata(adata)
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+        if n_samples_overall is not None:
+            indices = np.random.choice(indices, n_samples_overall)
         post = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )
@@ -426,13 +431,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 px_scale = torch.stack(n_samples * [px_scale])
                 py_scale = torch.stack(n_samples * [py_scale])
             for b in transform_batch:
-                if b is not None:
-                    batch_indices = tensors[_CONSTANTS.BATCH_KEY]
-                    tensors[_CONSTANTS.BATCH_KEY] = torch.ones_like(batch_indices) * b
+                generative_kwargs = dict(transform_batch=b)
                 inference_kwargs = dict(n_samples=n_samples)
-                inference_outputs, generative_outputs = self.module.forward(
+                _, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
+                    generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
                 if library_size == "latent":
@@ -580,13 +584,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
             for b in transform_batch:
-                if b is not None:
-                    batch_indices = tensors[_CONSTANTS.BATCH_KEY]
-                    tensors[_CONSTANTS.BATCH_KEY] = torch.ones_like(batch_indices) * b
+                generative_kwargs = dict(transform_batch=b)
                 inference_kwargs = dict(n_samples=n_samples)
-                inference_outputs, generative_outputs = self.module.forward(
+                _, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
+                    generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
                 py_mixing += torch.sigmoid(generative_outputs["py_"]["mixing"])[
@@ -622,6 +625,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         adata=None,
         indices=None,
+        n_samples_overall=None,
         transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         scale_protein=False,
         batch_size: Optional[int] = None,
@@ -632,6 +636,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         rna, protein = self.get_normalized_expression(
             adata=adata,
             indices=indices,
+            n_samples_overall=n_samples_overall,
             transform_batch=transform_batch,
             return_numpy=True,
             n_samples=1,
@@ -843,16 +848,13 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             x = tensors[_CONSTANTS.X_KEY]
             y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
 
-            if transform_batch is not None:
-                batch_indices = tensors[_CONSTANTS.BATCH_KEY]
-                tensors[_CONSTANTS.BATCH_KEY] = (
-                    torch.ones_like(batch_indices) * transform_batch
-                )
+            generative_kwargs = dict(transform_batch=transform_batch)
             inference_kwargs = dict(n_samples=n_samples)
             with torch.no_grad():
                 inference_outputs, generative_outputs, = self.module.forward(
                     tensors,
                     inference_kwargs=inference_kwargs,
+                    generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
             px_ = generative_outputs["px_"]
