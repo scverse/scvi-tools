@@ -80,7 +80,7 @@ Please be sure to install a version of [PyTorch](https://pytorch.org/) that is c
 
 -   Tutorials, API reference, and installation guides are available in
     the [documentation](https://docs.scvi-tools.org/).
--   For discussion of usage, checkout out our
+-   For discussion of usage, check out our
     [forum](https://discourse.scvi-tools.org).
 -   Please use the [issues](https://github.com/YosefLab/scvi-tools/issues) to submit bug reports.
 -   If you\'d like to contribute, check out our [contributing
