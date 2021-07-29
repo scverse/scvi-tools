@@ -655,7 +655,8 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         args, kwargs = self.module._get_fn_args_from_batch(batch)
-        loss = self.svi.step(*args, **kwargs)
+        # pytorch lightning requires a Tensor object for loss
+        loss = torch.Tensor([self.svi.step(*args, **kwargs)])
 
         return {"loss": loss}
 
