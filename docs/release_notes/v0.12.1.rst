@@ -19,6 +19,6 @@ Contributors
 .. _`@galenxing`: https://github.com/galenxing
 
 
-.. _`#1059`: https://github.com/YosefLab/scvi-tools/pull/1104
+.. _`#1104`: https://github.com/YosefLab/scvi-tools/pull/1104
 
 
