@@ -89,7 +89,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
         m_g_gene_level_prior={"mean": 1, "mean_var_ratio": 1.0, "alpha_mean": 3.0},
         N_cells_per_location=8.0,
         A_factors_per_location=7.0,
-        Y_groups_per_location=7.0,
+        B_groups_per_location=7.0,
         N_cells_mean_var_ratio=1.0,
         alpha_g_phi_hyp_prior={"alpha": 9.0, "beta": 3.0},
         gene_add_alpha_hyp_prior={"alpha": 9.0, "beta": 3.0},
@@ -119,7 +119,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
         detection_hyp_prior["alpha"] = detection_alpha
         self.detection_hyp_prior = detection_hyp_prior
 
-        factors_per_groups = A_factors_per_location / Y_groups_per_location
+        factors_per_groups = A_factors_per_location / B_groups_per_location
 
         self.register_buffer(
             "detection_hyp_prior_alpha",
@@ -156,7 +156,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
         self.register_buffer("N_cells_per_location", torch.tensor(N_cells_per_location))
         self.register_buffer("factors_per_groups", torch.tensor(factors_per_groups))
         self.register_buffer(
-            "Y_groups_per_location", torch.tensor(Y_groups_per_location)
+            "B_groups_per_location", torch.tensor(B_groups_per_location)
         )
         self.register_buffer(
             "N_cells_mean_var_ratio", torch.tensor(N_cells_mean_var_ratio)
@@ -229,7 +229,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
             ],  # how to transform input data before passing to NN
             "sites": {
                 "n_s_cells_per_location": 1,
-                "y_s_groups_per_location": 1,
+                "b_s_groups_per_location": 1,
                 "z_sr_groups_factors": self.n_groups,
                 "w_sf": self.n_factors,
                 "detection_y_s": 1,
@@ -279,14 +279,14 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
                 ),
             )
 
-            y_s_groups_per_location = pyro.sample(
-                "y_s_groups_per_location",
-                dist.Gamma(self.Y_groups_per_location, self.ones),
+            b_s_groups_per_location = pyro.sample(
+                "b_s_groups_per_location",
+                dist.Gamma(self.B_groups_per_location, self.ones),
             )
 
         # cell group loadings
-        shape = self.ones_1_n_groups * y_s_groups_per_location / self.n_groups_tensor
-        rate = self.ones_1_n_groups / (n_s_cells_per_location / y_s_groups_per_location)
+        shape = self.ones_1_n_groups * b_s_groups_per_location / self.n_groups_tensor
+        rate = self.ones_1_n_groups / (n_s_cells_per_location / b_s_groups_per_location)
         with obs_plate:
             z_sr_groups_factors = pyro.sample(
                 "z_sr_groups_factors",
