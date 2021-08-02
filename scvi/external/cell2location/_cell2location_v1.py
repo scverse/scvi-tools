@@ -49,6 +49,7 @@ class Cell2location(
         cell_state_df: pd.DataFrame,
         model_class: Optional[PyroModule] = None,
         detection_mean_per_sample: bool = False,
+        detection_mean_correction: float = 1.0,
         **model_kwargs,
     ):
         # in case any other model was created before that shares the same parameter names.
@@ -85,6 +86,7 @@ class Cell2location(
             self.detection_mean_ = (
                 sp_total / model_kwargs.get("N_cells_per_location", 1)
             ) / sc_total
+            self.detection_mean_ = self.detection_mean_ * detection_mean_correction
             model_kwargs["detection_mean"] = self.detection_mean_
         else:
             # compute expected change in sensitivity (m_g in V1 and y_s in V2)
@@ -100,6 +102,7 @@ class Cell2location(
             self.detection_mean_ = (
                 sp_total / model_kwargs.get("N_cells_per_location", 1)
             ) / sc_total
+            self.detection_mean_ = self.detection_mean_ * detection_mean_correction
             model_kwargs["detection_mean"] = self.detection_mean_.reshape(
                 (self.summary_stats["n_batch"], 1)
             ).astype("float32")
