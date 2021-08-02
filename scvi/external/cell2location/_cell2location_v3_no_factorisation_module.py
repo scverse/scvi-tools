@@ -277,7 +277,7 @@ class LocationModelMultiExperimentLocationBackgroundNormLevelGeneAlphaPyroModel(
         )
 
         # cell group loadings
-        shape = self.ones_1_n_factors * a_factors_per_location / self.n_groups_tensor
+        shape = self.ones_1_n_factors * a_factors_per_location / self.n_factors_tensor
         rate = self.ones_1_n_factors / (n_cells_per_location / a_factors_per_location)
 
         with obs_plate:
