@@ -2,8 +2,8 @@ User guide
 ===========
 
 
-Single-cell RNA-sequencing analysis
-------------------------------------
+scRNA-seq analysis
+--------------------
 
 scvi-tools hosts implementations of the following models:
 
@@ -25,7 +25,21 @@ scvi-tools hosts implementations of the following models:
     models/cellassign
 
 
-External models
-----------------
+CITE-seq analysis
+-----------------
+
+.. list-table::
+   :widths: 35 100
+   :header-rows: 1
+
+   * - Model
+     - Tasks
+   * - totalVI [GayosoSteier21]_
+     - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, protein imputation, imputation, normalization of other cell- and sample-level confounding factors
+
+.. toctree::
+    :maxdepth: 2
+
+    models/totalvi
 
 
