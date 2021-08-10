@@ -37,9 +37,9 @@ Generative process
 ========================
 
 .. figure:: figures/scvi_annotated_graphical_model.png
+   :class: img-fluid
    :align: center
    :alt: scVI graphical model
-   :scale: 75
 
 
 Inference
