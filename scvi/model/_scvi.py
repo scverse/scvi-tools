@@ -63,10 +63,10 @@ class SCVI(
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/api_overview`
-    2. :doc:`/user_guide/notebooks/harmonization`
-    3. :doc:`/user_guide/notebooks/scarches_scvi_tools`
-    4. :doc:`/user_guide/notebooks/scvi_in_R`
+    1. :doc:`/tutorials/notebooks/api_overview`
+    2. :doc:`/tutorials/notebooks/harmonization`
+    3. :doc:`/tutorials/notebooks/scarches_scvi_tools`
+    4. :doc:`/tutorials/notebooks/scvi_in_R`
     """
 
     def __init__(
