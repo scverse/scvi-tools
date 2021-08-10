@@ -7,7 +7,7 @@ Single-cell RNA-sequencing analysis
 
 scvi-tools hosts implementations of the following models:
 
-.. list-table:: Title
+.. list-table:: Overview of scRNA-seq models
    :widths: 35 100
    :header-rows: 1
 
