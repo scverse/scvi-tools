@@ -89,8 +89,8 @@ If you find a model useful for your research, please consider citing the corresp
    :hidden:
 
    installation
-   user_guide/user
-   user_guide/developer
+   tutorials/index
+   user_guide/index
    api/index
    release_notes/index
    references
