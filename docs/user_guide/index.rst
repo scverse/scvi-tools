@@ -21,6 +21,7 @@ scvi-tools hosts implementations of the following models:
 .. toctree::
     :maxdepth: 2
 
+    models/scvi
     models/cellassign
 
 
