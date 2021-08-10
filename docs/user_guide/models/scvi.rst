@@ -15,7 +15,7 @@ The disadvantages of scVI include:
 
     + Effectively requires a GPU for fast inference.
 
-    + Latent space is not interpretable, like that of a linear method.
+    + Latent space is not interpretable, unlike that of a linear method.
 
 
 .. topic:: Tutorials:
@@ -29,7 +29,7 @@ The disadvantages of scVI include:
 Preliminaries
 ==============
 scVI takes as input a scRNA-seq gene expression matrix :math:`X` with :math:`N` cells and :math:`G` genes.
-Additionally, a design matrix :math:`D` containing :math:`p` observed covariates, such as day, donor, etc, is an optional input.
+Additionally, a design matrix :math:`S` containing :math:`p` observed covariates, such as day, donor, etc, is an optional input.
 
 
 

@@ -17,20 +17,19 @@ The disadvantages of totalVI include:
 
     + Difficult to understand the balance between RNA and protein data in the low-dimensional representation of cells.
 
-
 .. topic:: Tutorials:
 
- - :doc:`/user_guide/notebooks/totalVI`
- - :doc:`/user_guide/notebooks/cite_scrna_integration_w_totalVI`
- - :doc:`/user_guide/notebooks/scarches_scvi_tools`
+ - :doc:`/tutorials/notebooks/totalVI`
+ - :doc:`/tutorials/notebooks/cite_scrna_integration_w_totalVI`
+ - :doc:`/tutorials/notebooks/scarches_scvi_tools`
 
 
 Preliminaries
 ==============
 totalVI takes as input a scRNA-seq gene expression matrix :math:`X` with :math:`N` cells and :math:`G` genes
-along with a paired matrix of protein abundance, also of :math:`N` cells, but with :math:`T` proteins.
-Thus, for each cell, we observe RNA and protein information.
-Additionally, a design matrix :math:`D` containing :math:`p` observed covariates, such as day, donor, etc, is an optional input.
+along with a paired matrix of protein abundance :math:`Y`, also of :math:`N` cells, but with :math:`T` proteins.
+Thus, for each cell, we observe both RNA and protein information.
+Additionally, a design matrix :math:`S` containing :math:`p` observed covariates, such as day, donor, etc, is an optional input.
 
 
 
@@ -40,7 +39,9 @@ Generative process
 .. figure:: figures/totalvi_graphical_model.svg
    :class: img-fluid
    :align: center
-   :alt: scVI graphical model
+   :alt: totalVI graphical model
+
+
 
 
 Inference
@@ -52,6 +53,19 @@ Tasks
 
 Dimensionality reduction
 -------------------------
+For dimensionality reduction, we by default return the mean of the approximate posterior :math:`q_\eta(z_n \mid C_n)`.
+This is achieved using the method::
+
+    >>> latent = model.get_latent_representation()
+    >>> adata.obsm["X_totalvi"] = latent
+
+Users may also return samples from this distribution, as opposed to the mean by passing the argument `give_mean=False`.
+The latent representation can be used to create a nearest neighbor graph with scanpy with::
+
+    >>> import scanpy as sc
+    >>> sc.pp.neighbors(adata, use_rep="X_totalvi")
+    >>> adata.obsp["distances"]
+
 
 Normalization and denoising of expression
 ------------------------------------------
