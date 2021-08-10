@@ -131,6 +131,20 @@ The parameters of the expected joint log likelihood (:math:`\pi, \delta, \beta, 
 in the original implementation [#ref2]_, using the Adam optimizer [#ref3]_, except that now an optimization step corresponds to data from one minibatch. Following the original implementation, we
 also clamped :math:`\delta > 2`. We also added early stopping with respect to the log likelihood of a held-out validation set.
 
+Tasks
+=====
+
+Cell type prediction
+---------------------
+
+The primary task of CellAssign is to predict cell types for each cell. This is accomplised by::
+
+    >>> model = CellAssign(adata, marker_gene_matrix, size_factor_key='size_factor')
+    >>> model.train()
+    >>> predictions = model.predict(adata)
+
+where `predictions` stores :math:`\gamma_{nc}` for each cell :math:`n` and cell type :math:`c`.
+
 
 Implementation details
 ======================
