@@ -30,7 +30,7 @@ Preliminaries
 ==============
 CellAssign takes as input a scRNA-seq gene expression matrix :math:`X` with :math:`N` cells and :math:`G` genes
 along with a cell-type marker matrix :math:`\rho` which is a binary matrix of :math:`G` genes by :math:`C` cell types
-denoting if a gene is a marker of a particular cell type. A size factor $s$ for each cell may also
+denoting if a gene is a marker of a particular cell type. A size factor :math:`s` for each cell may also
 be provided as input, otherwise it is computed empirically as the total unique molecular identifier
 count of a cell. Additionally, a design matrix :math:`D` containing :math:`p` observed covariates,
 such as day, donor, etc, is an optional input.
@@ -136,11 +136,15 @@ Implementation details
 ======================
 
 The logic implementing CellAssign can be found in :class:`scvi.external.cellassign.CellAssignModule`.
-The implementation uses the same variable names as the math. CellAssign is a bit unique in that all the core logic
-is implemented in :func:`scvi.external.cellassign.CellAssignModule.generative`. In this method, the E step is taken
-and the log likelihood :math:`\log p(X \mid \beta, a, \bar{\delta}, \sigma^2, z_n=c)` is computed for all cell types.
-In :func:`scvi.external.cellassign.CellAssignModule.loss` the full expected log likelihood is computed, as well as
-the penalities corresponding to the priors on :math:`\pi` and :math:`\delta`.
+The implementation uses the same variable names as the math.
+
+    + The core logic is implemented in :func:`scvi.external.cellassign.CellAssignModule.generative`. In this method, the E step is taken
+    and the log likelihood :math:`\log p(X \mid \beta, a, \bar{\delta}, \sigma^2, z_n=c)` is computed for all cell types.
+
+    + In :func:`scvi.external.cellassign.CellAssignModule.loss` the full expected log likelihood is computed, as well as
+    the penalities corresponding to the priors on :math:`\pi` and :math:`\delta`.
+
+    + CellAssign uses the standard :class:`~scvi.train.TrainingPlan`.
 
 .. topic:: References:
 
