@@ -122,7 +122,7 @@ Notably, in scvi-tools we compute this expected joint log likelihood using a min
 
     \sum_{n=1}^{N}\sum_{c=1}^{C}\gamma_{nc}\sum_{g=1}^{G}\log p(x_{ng}|z_n = c) \approx \frac{N}{M}\sum_{m=1}^M\sum_{c=1}^{C}\gamma_{nc}\sum_{g=1}^{G}\log p(x_{\tau(m)g}|z_n = c) \tag{10}
 
-for a minibatch of $M<N$ cells, where $\tau$ is a function describing a permutation of the data indices $\{1, 2, ..., N\}$.
+for a minibatch of $M<N$ cells, where :math:`\tau` is a function describing a permutation of the data indices $\{1, 2, ..., N\}$.
 
 M step
 -------
