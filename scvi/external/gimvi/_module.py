@@ -470,7 +470,7 @@ class JVAE(BaseModuleClass):
             kl_divergence_l = torch.zeros_like(kl_divergence_z)
 
         kl_local = kl_divergence_l + kl_divergence_z
-        kl_global = 0.0
+        kl_global = torch.tensor(0.0)
 
         loss = torch.mean(reconstruction_loss + kl_weight * kl_local) * x.size(0)
 
