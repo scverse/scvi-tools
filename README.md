@@ -68,7 +68,7 @@ starting point for developing new models into scvi-tools.
 
 For conda,
 ```
-conda install scvi-tools -c bioconda -c conda-forge
+conda install scvi-tools -c conda-forge
 ```
 and for pip,
 ```
