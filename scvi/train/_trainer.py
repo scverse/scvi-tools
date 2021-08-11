@@ -69,6 +69,8 @@ class Trainer(pl.Trainer):
     logger
         A valid pytorch lightning logger. Defaults to a simple dictionary logger.
         If `True`, defaults to the default pytorch lightning logger.
+    log_every_n_steps
+        How often to log within steps. This does not affect epoch-level logging.
     **kwargs
         Other keyword args for :class:`~pytorch_lightning.trainer.Trainer`
     """
@@ -94,7 +96,8 @@ class Trainer(pl.Trainer):
         progress_bar_refresh_rate: int = 1,
         simple_progress_bar: bool = True,
         logger: Union[Optional[LightningLoggerBase], bool] = None,
-        **kwargs
+        log_every_n_steps: int = 10,
+        **kwargs,
     ):
         if default_root_dir is None:
             default_root_dir = settings.logging_dir
@@ -138,6 +141,7 @@ class Trainer(pl.Trainer):
             weights_summary=weights_summary,
             logger=logger,
             progress_bar_refresh_rate=progress_bar_refresh_rate,
+            log_every_n_steps=log_every_n_steps,
             **kwargs,
         )
 
