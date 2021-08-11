@@ -2,7 +2,6 @@ import logging
 
 from pytorch_lightning.callbacks import ProgressBarBase
 
-from scvi import settings
 from scvi.utils import track
 
 logger = logging.getLogger(__name__)
