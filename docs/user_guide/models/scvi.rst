@@ -30,27 +30,109 @@ Preliminaries
 ==============
 scVI takes as input a scRNA-seq gene expression matrix :math:`X` with :math:`N` cells and :math:`G` genes.
 Additionally, a design matrix :math:`S` containing :math:`p` observed covariates, such as day, donor, etc, is an optional input.
+While :math:`S` can include both categorical covariates and continuous covariates, in the following, we assume it contains only one
+categorical covariate with :math:`K` categories, which represents the common case of having multiple batches of data.
 
 
 
 Generative process
 ========================
 
+scVI posits that the observed UMI counts for cell :math:`n` and gene :math:`g`, :math:`x_{ng}`, are generated
+by the following process:
+
+.. math::
+   :nowrap:
+
+   \begin{align}
+    z_n &\sim {\mathrm{Normal}}\left( {0,I} \right) \\
+    \ell_n &\sim \mathrm{LogNormal}\left( \ell _\mu ,\ell _\sigma ^2 \right) \\
+    \rho _n &= f_w\left( z_n, s_n \right) \\
+    \pi_{ng} &= f_h^g(z_n, s_n) \\
+    x_{ng} &\sim \mathrm{ZeroInflatedNegativeBinomial}(\ell_n \rho_n, \theta_g, \pi_{ng})
+    \end{align}
+
+Succintly, the gene expression for each gene depends on a latent variable :math:`z_n` that is cell-specific.
+While by default the data are generated from a ZeroInflatedNegativeBinomial distribution parameterized by its mean, inverse dispersion, and non-zero-inflation probability, respectively,
+users can pass ``gene_likelihood = "negative_binomial"`` to :class:`~scvi.model.SCVI`, for example, to use a simpler NegativeBinomial distribution.
+
+scVI uses two neural networks:
+
+.. math::
+   :nowrap:
+
+   \begin{align}
+      f_w(z_n, s_n) &: \mathbb{R}^{d} \times \{0, 1\}^K \to \Delta^{G-1}   \tag{1} \\
+      f_h(z_n, s_n) &: \mathbb{R}^d \times \{0, 1\}^K \to (0, 1)^T \tag{3}
+   \end{align}
+
+which respectively decode the denoised gene expression and non-zero-inflation probability.
+
+This generative process is also summarized in the following graphical model:
+
 .. figure:: figures/scvi_annotated_graphical_model.png
    :class: img-fluid
    :align: center
    :alt: scVI graphical model
 
+   scVI graphical model.
+
+The latent variables, along with their description are summarized in the following table:
+
+.. list-table::
+   :widths: 20 90 15
+   :header-rows: 1
+
+   * - Latent variable
+     - Description
+     - Code variable (if different)
+   * - :math:`z_n \in \mathbb{R}^d`
+     - Low-dimensional representation capturing joint state of a cell
+     - N/A
+   * - :math:`\rho_n \in \Delta^{G-1}`
+     - Denoised/normalized gene expression,
+     - ``px_scale``
+   * - :math:`\ell_n \in (0, \infty)`
+     - Library size for RNA. Here it is modeled as a latent variable, but the recent default for scVI is to treat library size as observed, equal to the total RNA UMI count of a cell. This can be controlled by passing ``use_observed_lib_size=False`` to :class:`~scvi.model.SCVI`.
+     - N/A
+   * - :math:`\theta_g \in (0, \infty)`
+     - Inverse dispersion for negative binomial. This can be set to be gene/batch specific for example (and would thus be :math:`\theta_{kg}`), by passing ``dispersion="gene-batch"`` during model intialization.
+     - ``px_r``
 
 Inference
 ========================
 
+scVI uses variational inference, and specifically auto-encoding variational bayes (LINK TO AEVB TUTORIAL), to learn both the model parameters (the
+neural network params, dispersion params, etc.), and an approximate posterior distribution with the following factorization:
+
+ .. math::
+    :nowrap:
+
+    \begin{align}
+       q_\eta(z_n, \ell_n \mid x_n, s_n) :=
+       q_\eta(z_n \mid x_n, s_n)q_\eta(\ell_n \mid x_n, s_n).
+    \end{align}
+
+Here :math:`\eta` is a set of parameters corresponding to inference neural networks, which we do not describe in detail here,
+but are described in the scVI paper.
 
 Tasks
 =====
 
 Dimensionality reduction
 -------------------------
+For dimensionality reduction, we by default return the mean of the approximate posterior :math:`q_\eta(z_n \mid x_n, s_n)`.
+This is achieved using the method::
+
+    >>> latent = model.get_latent_representation()
+    >>> adata.obsm["X_scvi"] = latent
+
+Users may also return samples from this distribution, as opposed to the mean by passing the argument `give_mean=False`.
+The latent representation can be used to create a nearest neighbor graph with scanpy with::
+
+    >>> import scanpy as sc
+    >>> sc.pp.neighbors(adata, use_rep="X_scvi")
+    >>> adata.obsp["distances"]
 
 Normalization and denoising of expression
 ------------------------------------------
