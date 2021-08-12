@@ -86,7 +86,7 @@ with the interpretation of each variable being
      - Denoised/normalized gene expression,
      - ``px_["scale"]``
    * - :math:`\alpha_n \in [1, \infty)^T`
-     - Foreground scaling factor for proteins, identifies the mixture distribution
+     - Foreground scaling factor for proteins, identifies the mixture distribution (see below)
      - ``py_["rate_fore"]``
    * - :math:`\pi_n \in (0, 1)^T`
      - Probability of background for each protein
@@ -124,8 +124,23 @@ and records the mean and variance of the component with smaller mean, aggregatin
 which then forces a random Initialization.
 
 Inference
-========================
+==========
 
+totalVI uses variational inference, and specifically auto-encoding variational bayes [#ref2]_, to learn both the model parameters (the
+neural network params, dispersion params), and an approximate posterior distribution with the following factorization:
+
+ .. math::
+    :nowrap:
+
+    \begin{align}
+       q_\eta(\beta_n, z_n, l_n \mid x_n, y_n, s_n) :=
+       q_\eta(\beta_n \mid z_n,s_n)q_\eta(z_n \mid x_n, y_n,s_n)q_\eta(l_n \mid x_n, y_n, s_n).
+    \end{align}
+
+Here :math:`\eta` is a set of parameters corresponding to inference neural networks, which we do not describe in detail here,
+but are described in the totalVI paper [#ref1]_. totalVI can also handle missing proteins (i.e., a dataset comprised of
+multiple batches, where each batch potentially has a different antibody panel, or no protein data at all).
+We refer the reader to the original publication for these details.
 
 Tasks
 =====
@@ -162,4 +177,5 @@ Data simulation
    .. [#ref1] Adam Gayoso*, Zoë Steier*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2021),
         *Joint probabilistic modeling of single-cell multi-omic data with totalVI*,
         `Nature Methods <https://www.nature.com/articles/s41592-020-01050-x>`__.
+   .. [#ref2] Kingma, D. P. & Welling, M. *Auto-Encoding variational Bayes* in International Conference on Learning Representations (2014).
 
