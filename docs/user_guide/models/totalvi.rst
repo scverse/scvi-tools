@@ -73,12 +73,12 @@ First, for each cell :math:`n`,
 with the interpretation of each variable being
 
 .. list-table::
-   :widths: 15 100 15
+   :widths: 20 90 15
    :header-rows: 1
 
-   * - Variable
+   * - Latent variable
      - Description
-     - Code var
+     - Code variable (if different)
    * - :math:`z_n \in \mathbb{R}^d`
      - Low-dimensional representation capturing joint state of a cell
      - N/A
@@ -120,7 +120,8 @@ Integrating out :math:`v_{nt}` yields a negative binomial mixture conditional di
 Furthermore, :math:`\beta_{nt}` represents background protein signal due to ambient antibodies or non-specific antibody binding.
 The prior parameters :math:`c_t` and :math:`d_t` are unfortunately called ``background_pro_alpha`` and ``background_pro_log_beta`` in the code.
 They are learned parameters during infererence, but are initialized through a procedure that fits a two-component Gaussian mixture model for each cell
-and records the mean and variance of the component with smaller mean, aggregating across all cells. This can be disabled by setting ``empirical_protein_background_prior=False``.
+and records the mean and variance of the component with smaller mean, aggregating across all cells. This can be disabled by setting ``empirical_protein_background_prior=False``,
+which then forces a random Initialization.
 
 Inference
 ========================
