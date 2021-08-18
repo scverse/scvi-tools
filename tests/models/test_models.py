@@ -28,6 +28,7 @@ from scvi.model import (
     CondSCVI,
     DestVI,
     LinearSCVI,
+    MULTIVI,
 )
 from scvi.train import TrainingPlan, TrainRunner
 
@@ -750,3 +751,26 @@ def test_destvi(save_path):
             50,
             dataset.n_vars,
         )
+
+
+def test_multivi():
+    data = synthetic_iid()
+    vae = MULTIVI(
+        data,
+        n_genes=50,
+        n_regions=50,
+    )
+    vae.train(1, save_best=False)
+    vae.train(1, adversarial_mixing=False)
+    vae.train(3)
+    vae.get_elbo(indices=vae.validation_indices)
+    vae.get_accessibility_estimates()
+    vae.get_accessibility_estimates(normalize_cells=True)
+    vae.get_accessibility_estimates(normalize_regions=True)
+    vae.get_normalized_expression()
+    vae.get_library_size_factors()
+    vae.get_region_factors()
+    vae.get_reconstruction_error(indices=vae.validation_indices)
+    vae.get_latent_representation()
+    vae.differential_accessibility(groupby="labels", group1="label_1")
+    vae.differential_expression(groupby="labels", group1="label_1")

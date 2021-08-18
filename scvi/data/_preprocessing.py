@@ -2,6 +2,7 @@ import logging
 from typing import Optional
 
 import anndata
+from anndata._core.anndata import AnnData
 import numpy as np
 import pandas as pd
 import torch
@@ -275,3 +276,82 @@ def organize_cite_seq_10x(adata: anndata.AnnData, copy: bool = False):
 
     if copy:
         return adata
+
+
+def organize_multiome_anndatas(
+    multi_anndata: anndata.AnnData,
+    rna_anndata: Optional[anndata.AnnData] = None,
+    atac_anndata: Optional[anndata.AnnData] = None,
+    modality_key: str = "modality",
+):
+    """
+    Concatenate multiomic and single-modality input anndata objects.
+    These anndata objects should already have been preprocessed so that both single-modality
+    objects use a subset of the features used bu the multiome object. The feature names (index of
+    `.var`) should match between the objects.
+
+    Parameters
+    ----------
+    multi_anndata
+        AnnData object with Multiome data (Gene Expression and Choromatin Accessibility)
+    rna_anndata
+        AnnData object with gene expression data
+    atac_anndata
+        AnnData object with chromatin accessibility data
+    modality_key
+        The key to add to the resulting AnnData `.obs`, indicating the modality each cell originated
+        from. Default is "modality".
+
+    Returns
+    -------
+    An AnnData object with all cells in the input objects
+    """
+
+    res_anndata = multi_anndata.copy()
+
+    modality_ann = ["paired"] * multi_anndata.shape[0]
+    obs_names = list(multi_anndata.obs.index.values)
+
+    expression_features = np.array([])
+    accessibility_features = np.array([])
+
+    if rna_anndata is not None:
+        expression_features = np.intersect1d(
+            rna_anndata.var.index.values, multi_anndata.var.index.values
+        )
+        if not len(expression_features) > 0:
+            raise ValueError("No shared features between Multiomic and RNA AnnDatas.")
+
+        rna_anndata = rna_anndata[:, expression_features]
+        res_anndata = res_anndata.concatenate(
+            rna_anndata, join="outer", batch_key=modality_key
+        )
+
+        modality_ann += ["expression"] * rna_anndata.shape[0]
+        obs_names += list(rna_anndata.obs.index.values)
+
+    if atac_anndata is not None:
+        accessibility_features = np.intersect1d(
+            atac_anndata.var.index.values, multi_anndata.var.index.values
+        )
+        if not len(accessibility_features) > 0:
+            raise ValueError("No shared features between Multiomic and ATAC AnnDatas.")
+
+        atac_anndata = atac_anndata[:, accessibility_features]
+        res_anndata = res_anndata.concatenate(
+            atac_anndata, join="outer", batch_key=modality_key
+        )
+
+        modality_ann += ["accessibility"] * atac_anndata.shape[0]
+        obs_names += list(atac_anndata.obs.index.values)
+
+    # set .obs stuff
+    res_anndata.obs[modality_key] = modality_ann
+    res_anndata.obs.index = (
+        pd.Series(obs_names) + "_" + res_anndata.obs[modality_key].values
+    )
+
+    # keep the feature order as the original order in the multiomic anndata
+    res_anndata = res_anndata[:, multi_anndata.var.index.values]
+    res_anndata.var = multi_anndata.var.copy()
+    return res_anndata.copy()

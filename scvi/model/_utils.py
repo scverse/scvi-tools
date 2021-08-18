@@ -61,6 +61,7 @@ def scrna_raw_counts_properties(
     adata: anndata.AnnData,
     idx1: Union[List[int], np.ndarray],
     idx2: Union[List[int], np.ndarray],
+    var_idx: Optional[Union[List[int], np.ndarray]] = None,
 ) -> Dict[str, np.ndarray]:
     """
     Computes and returns some statistics on the raw counts of two sub-populations.
@@ -73,6 +74,8 @@ def scrna_raw_counts_properties(
         subset of indices describing the first population.
     idx2
         subset of indices describing the second population.
+    var_idx
+        subset of variables to extract properties from. if None, all variables are used.
 
     Returns
     -------
@@ -83,6 +86,10 @@ def scrna_raw_counts_properties(
     data = get_from_registry(adata, _CONSTANTS.X_KEY)
     data1 = data[idx1]
     data2 = data[idx2]
+    if var_idx is not None:
+        data1 = data1[:, var_idx]
+        data2 = data2[:, var_idx]
+
     mean1 = np.asarray((data1).mean(axis=0)).ravel()
     mean2 = np.asarray((data2).mean(axis=0)).ravel()
     nonz1 = np.asarray((data1 != 0).mean(axis=0)).ravel()
@@ -165,6 +172,7 @@ def scatac_raw_counts_properties(
     adata: anndata.AnnData,
     idx1: Union[List[int], np.ndarray],
     idx2: Union[List[int], np.ndarray],
+    var_idx: Optional[Union[List[int], np.ndarray]] = None,
 ) -> Dict[str, np.ndarray]:
     """
     Computes and returns some statistics on the raw counts of two sub-populations.
@@ -177,6 +185,8 @@ def scatac_raw_counts_properties(
         subset of indices describing the first population.
     idx2
         subset of indices describing the second population.
+    var_idx
+        subset of variables to extract properties from. if None, all variables are used.
 
     Returns
     -------
@@ -186,6 +196,9 @@ def scatac_raw_counts_properties(
     data = get_from_registry(adata, _CONSTANTS.X_KEY)
     data1 = data[idx1]
     data2 = data[idx2]
+    if var_idx is not None:
+        data1 = data1[:, var_idx]
+        data2 = data2[:, var_idx]
     mean1 = np.asarray((data1 > 0).mean(axis=0)).ravel()
     mean2 = np.asarray((data2 > 0).mean(axis=0)).ravel()
     properties = dict(emp_mean1=mean1, emp_mean2=mean2, emp_effect=(mean1 - mean2))
