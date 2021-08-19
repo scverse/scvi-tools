@@ -161,7 +161,14 @@ nbsphinx_prolog = r"""
 
 .. raw:: html
 
-    <div class="admonition note">
+    <style>
+        p {{
+            margin-bottom: 0;
+        }}
+    </style>
+
+.. raw:: html
+
     <p class="admonition-title">Note</p>
     <p>
       This page was generated from
