@@ -115,7 +115,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         fully_paired: bool = False,
         **model_kwargs,
     ):
-        super(MULTIVI, self).__init__(adata)
+        super().__init__(adata)
 
         n_cats_per_cov = (
             self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
