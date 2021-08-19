@@ -146,7 +146,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self._model_summary_string = (
             "MultiVI Model with INPUTS: n_genes:{}, n_regions:{}\n"
             "n_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
-            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}"
+            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}, "
             "gene_likelihood: {}"
         ).format(
             n_genes,
@@ -263,9 +263,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = AdversarialTrainingPlan(
-            self.module, len(data_splitter.train_idx), **plan_kwargs
-        )
+        training_plan = AdversarialTrainingPlan(self.module, **plan_kwargs)
         runner = TrainRunner(
             self,
             training_plan=training_plan,
