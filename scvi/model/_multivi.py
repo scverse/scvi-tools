@@ -361,6 +361,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self,
         adata: Optional[AnnData] = None,
         indices: Sequence[int] = None,
+        n_samples_overall: Optional[int] = None,
         region_indices: Sequence[int] = None,
         transform_batch: Optional[Union[str, int]] = None,
         use_z_mean: bool = True,
@@ -370,6 +371,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         batch_size: int = 128,
     ) -> Union[np.ndarray, csr_matrix]:
         adata = self._validate_anndata(adata)
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+        if n_samples_overall is not None:
+            indices = np.random.choice(indices, n_samples_overall)
         post = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )
@@ -413,6 +418,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
+        n_samples_overall: Optional[int] = None,
         transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         gene_list: Optional[Sequence[str]] = None,
         use_z_mean: bool = True,
@@ -461,7 +467,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
-        # adata = adata[]
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+        if n_samples_overall is not None:
+            indices = np.random.choice(indices, n_samples_overall)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )
@@ -473,9 +482,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         else:
             all_genes = _get_var_names_from_setup_anndata(adata)
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
-
-        if indices is None:
-            indices = np.arange(adata.n_obs)
 
         exprs = []
         for tensors in scdl:
