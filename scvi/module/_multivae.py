@@ -397,7 +397,6 @@ class MULTIVAE(BaseModuleClass):
         use_z_mean=False,
     ):
         """Runs the generative model."""
-
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
@@ -522,7 +521,8 @@ class MULTIVAE(BaseModuleClass):
             dim=-1
         )
 
-    def _mix_modalities(self, x_paired, x_expr, x_acc, mask_expr, mask_acc):
+    @staticmethod
+    def _mix_modalities(x_paired, x_expr, x_acc, mask_expr, mask_acc):
         x = torch.where(mask_expr.T, x_expr.T, x_acc.T).T
         x = torch.where(torch.logical_and(mask_acc, mask_expr), x_paired.T, x.T).T
         return x

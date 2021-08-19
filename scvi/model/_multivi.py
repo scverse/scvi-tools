@@ -73,7 +73,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Keyword args for :class:`~scvi.module.PEAKVAE`
 
     Notes
-    --------
+    -----
     * the model assumes that the features are organized so that all expression features are
     consequtive, followed by all accessibility features. For example, if the data has 100 genes
     and 250 genomic regions, the model assumes that the first 100 features are genes, and the

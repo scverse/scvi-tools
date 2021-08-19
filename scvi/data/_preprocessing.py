@@ -2,7 +2,6 @@ import logging
 from typing import Optional
 
 import anndata
-from anndata._core.anndata import AnnData
 import numpy as np
 import pandas as pd
 import torch
@@ -306,7 +305,6 @@ def organize_multiome_anndatas(
     -------
     An AnnData object with all cells in the input objects
     """
-
     res_anndata = multi_anndata.copy()
 
     modality_ann = ["paired"] * multi_anndata.shape[0]

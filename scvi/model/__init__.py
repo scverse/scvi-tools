@@ -17,5 +17,5 @@ __all__ = [
     "PEAKVI",
     "CondSCVI",
     "DestVI",
-    "MultiVI",
+    "MULTIVI",
 ]

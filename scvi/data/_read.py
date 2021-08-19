@@ -53,7 +53,6 @@ def read_10x_multiome(base_path: Union[str, Path]) -> AnnData:
     base_path
         Path to directory with matrix, barcodes file, etc.
     """
-
     data = mmread(os.path.join(base_path, "matrix.mtx")).transpose()
 
     features = pd.read_csv(
