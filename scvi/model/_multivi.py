@@ -5,7 +5,6 @@ from typing import Iterable, Optional, Sequence, Union
 import numpy as np
 import pandas as pd
 import torch
-from torch.distributions import Normal
 from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
 from torch.distributions import Normal
