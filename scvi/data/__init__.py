@@ -29,8 +29,8 @@ from ._datasets import (
 )
 from ._preprocessing import (
     organize_cite_seq_10x,
-    poisson_gene_selection,
     organize_multiome_anndatas,
+    poisson_gene_selection,
 )
 from ._read import read_10x_atac, read_10x_multiome
 

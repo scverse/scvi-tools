@@ -21,6 +21,7 @@ from scvi.dataloaders import (
 )
 from scvi.model import (
     AUTOZI,
+    MULTIVI,
     PEAKVI,
     SCANVI,
     SCVI,
@@ -28,7 +29,6 @@ from scvi.model import (
     CondSCVI,
     DestVI,
     LinearSCVI,
-    MULTIVI,
 )
 from scvi.train import TrainingPlan, TrainRunner
 

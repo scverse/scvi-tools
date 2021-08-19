@@ -1,12 +1,12 @@
 from ._autozivae import AutoZIVAE
 from ._classifier import Classifier
 from ._mrdeconv import MRDeconv
+from ._multivae import MULTIVAE
 from ._peakvae import PEAKVAE
 from ._scanvae import SCANVAE
 from ._totalvae import TOTALVAE
 from ._vae import LDVAE, VAE
 from ._vaec import VAEC
-from ._multivae import MULTIVAE
 
 __all__ = [
     "VAE",

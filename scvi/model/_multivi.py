@@ -8,10 +8,13 @@ import torch
 from torch.distributions import Normal
 from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
+from torch.distributions import Normal
 
+from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
+from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
@@ -20,10 +23,8 @@ from scvi.model._utils import (
 )
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import MULTIVAE
-from scvi.train._callbacks import SaveBestState
 from scvi.train import AdversarialTrainingPlan, TrainRunner
-from scvi.dataloaders import DataSplitter
-from scvi import _CONSTANTS
+from scvi.train._callbacks import SaveBestState
 
 from .base import BaseModelClass, VAEMixin
 from .base._utils import _de_core
@@ -186,6 +187,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     ):
         """
         Trains the model using amortized variational inference.
+
         Parameters
         ----------
         max_epochs
