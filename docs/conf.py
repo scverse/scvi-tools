@@ -165,9 +165,6 @@ nbsphinx_prolog = r"""
         p {{
             margin-bottom: 0.5rem;
         }}
-        .nblast.container {{
-            margin-bottom: 0.5rem !important;
-        }}
     </style>
 
 .. raw:: html
