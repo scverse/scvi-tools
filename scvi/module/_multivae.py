@@ -82,14 +82,14 @@ class MULTIVAE(BaseModuleClass):
         One of the following
         * ``'encoder'`` - use batch normalization in the encoder only
         * ``'decoder'`` - use batch normalization in the decoder only
-        * ``'none'`` - do not use batch normalization 
+        * ``'none'`` - do not use batch normalization
         * ``'both'`` - use batch normalization in both the encoder and decoder
     use_layer_norm
         One of the following
         * ``'encoder'`` - use layer normalization in the encoder only
         * ``'decoder'`` - use layer normalization in the decoder only
         * ``'none'`` - do not use layer normalization
-        * ``'both'`` - use layer normalization in both the encoder and decoder 
+        * ``'both'`` - use layer normalization in both the encoder and decoder
     latent_distribution
         which latent distribution to use, options are
         * ``'normal'`` - Normal distribution
@@ -382,10 +382,7 @@ class MULTIVAE(BaseModuleClass):
             cat_covs=cat_covs,
             libsize_expr=libsize_expr,
             labels=labels,
-        ){
-            
-        }
-
+        )
         return input_dict
 
     @auto_move_data

@@ -582,12 +582,18 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
 
         # TODO check if change_fn in kwargs and raise error if so
-        change_fn = lambda a, b: a - b
+        def change_fn(a, b):
+            return a - b
 
         if two_sided:
-            m1_domain_fn = lambda samples: np.abs(samples) >= delta
+
+            def m1_domain_fn(samples):
+                return np.abs(samples) >= delta
+
         else:
-            m1_domain_fn = lambda samples: samples >= delta
+
+            def m1_domain_fn(samples):
+                return samples >= delta
 
         all_stats_fn = partial(
             scatac_raw_counts_properties,
