@@ -526,6 +526,7 @@ class MULTIVAE(BaseModuleClass):
     def _mix_modalities(x_paired, x_expr, x_acc, mask_expr, mask_acc):
         """
         Mixes modality-specific vectors according to the modality masks.
+
         in positions where both `mask_expr` and `mask_acc` are True (corresponding to cell
         for which both expression and accessibility data is available), values from `x_paired`
         will be used. If only `mask_expr` is True, use values from `x_expr`, and if only
