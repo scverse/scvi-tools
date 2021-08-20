@@ -481,7 +481,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             gene_mask = slice(None)
         else:
             all_genes = _get_var_names_from_setup_anndata(adata)
-            gene_mask = [True if gene in gene_list else False for gene in all_genes]
+            gene_mask = [gene in gene_list for gene in all_genes]
 
         exprs = []
         for tensors in scdl:
