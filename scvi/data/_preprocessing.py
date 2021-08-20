@@ -310,35 +310,24 @@ def organize_multiome_anndatas(
     modality_ann = ["paired"] * multi_anndata.shape[0]
     obs_names = list(multi_anndata.obs.index.values)
 
-    expression_features = np.array([])
-    accessibility_features = np.array([])
+    def _concat_anndata(multi_anndata, other):
+        shared_features = np.intersect1d(
+            other.var.index.values, multi_anndata.var.index.values
+        )
+        if not len(shared_features) > 0:
+            raise ValueError("No shared features between Multiome and other AnnData.")
+
+        other = other[:, shared_features]
+        return multi_anndata.concatenate(other, join="outer", batch_key=modality_key)
 
     if rna_anndata is not None:
-        expression_features = np.intersect1d(
-            rna_anndata.var.index.values, multi_anndata.var.index.values
-        )
-        if not len(expression_features) > 0:
-            raise ValueError("No shared features between Multiomic and RNA AnnDatas.")
-
-        rna_anndata = rna_anndata[:, expression_features]
-        res_anndata = res_anndata.concatenate(
-            rna_anndata, join="outer", batch_key=modality_key
-        )
+        res_anndata = _concat_anndata(res_anndata, rna_anndata)
 
         modality_ann += ["expression"] * rna_anndata.shape[0]
         obs_names += list(rna_anndata.obs.index.values)
 
     if atac_anndata is not None:
-        accessibility_features = np.intersect1d(
-            atac_anndata.var.index.values, multi_anndata.var.index.values
-        )
-        if not len(accessibility_features) > 0:
-            raise ValueError("No shared features between Multiomic and ATAC AnnDatas.")
-
-        atac_anndata = atac_anndata[:, accessibility_features]
-        res_anndata = res_anndata.concatenate(
-            atac_anndata, join="outer", batch_key=modality_key
-        )
+        res_anndata = _concat_anndata(res_anndata, atac_anndata)
 
         modality_ann += ["accessibility"] * atac_anndata.shape[0]
         obs_names += list(atac_anndata.obs.index.values)
