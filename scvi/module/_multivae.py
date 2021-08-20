@@ -524,6 +524,29 @@ class MULTIVAE(BaseModuleClass):
 
     @staticmethod
     def _mix_modalities(x_paired, x_expr, x_acc, mask_expr, mask_acc):
+        """
+        Mixes modality-specific vectors according to the modality masks.
+        in positions where both `mask_expr` and `mask_acc` are True (corresponding to cell
+        for which both expression and accessibility data is available), values from `x_paired`
+        will be used. If only `mask_expr` is True, use values from `x_expr`, and if only
+        `mask_acc` is True, use values from `x_acc`.
+
+        Parameters
+        ----------
+        x_paired
+            the values for paired cells (both modalities available), will be used in
+            positions where both `mask_expr` and `mask_acc` are True.
+        x_expr
+            the values for expression-only cells, will be used in positions where
+            only `mask_expr` is True.
+        x_acc
+            the values for accessibility-only cells, will be used on positions where
+            only `mask_acc` is True.
+        mask_expr
+            the expression mask, indicating which cells have expression data
+        mask_acc
+            the accessibility mask, indicating which cells have accessibility data
+        """
         x = torch.where(mask_expr.T, x_expr.T, x_acc.T).T
         x = torch.where(torch.logical_and(mask_acc, mask_expr), x_paired.T, x.T).T
         return x
