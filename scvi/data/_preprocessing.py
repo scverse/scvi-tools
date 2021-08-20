@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, Union
 
 import anndata
 import numpy as np
@@ -26,7 +26,7 @@ def poisson_gene_selection(
     silent: bool = False,
     minibatch_size: int = 5000,
     **kwargs,
-):
+) -> Union[None, pd.DataFrame]:
     """
     Rank and select genes based on the enrichment of zero counts.
 
@@ -230,7 +230,9 @@ def poisson_gene_selection(
         return df
 
 
-def organize_cite_seq_10x(adata: anndata.AnnData, copy: bool = False):
+def organize_cite_seq_10x(
+    adata: anndata.AnnData, copy: bool = False
+) -> Union[None, anndata.AnnData]:
     """
     Organize anndata object loaded from 10x for scvi models.
 
@@ -282,17 +284,17 @@ def organize_multiome_anndatas(
     rna_anndata: Optional[anndata.AnnData] = None,
     atac_anndata: Optional[anndata.AnnData] = None,
     modality_key: str = "modality",
-):
+) -> anndata.AnnData:
     """
-    Concatenate multiomic and single-modality input anndata objects.
+    Concatenate multiome and single-modality input anndata objects.
     These anndata objects should already have been preprocessed so that both single-modality
-    objects use a subset of the features used bu the multiome object. The feature names (index of
+    objects use a subset of the features used in the multiome object. The feature names (index of
     `.var`) should match between the objects.
 
     Parameters
     ----------
     multi_anndata
-        AnnData object with Multiome data (Gene Expression and Choromatin Accessibility)
+        AnnData object with Multiome data (Gene Expression and Chromatin Accessibility)
     rna_anndata
         AnnData object with gene expression data
     atac_anndata
@@ -300,6 +302,11 @@ def organize_multiome_anndatas(
     modality_key
         The key to add to the resulting AnnData `.obs`, indicating the modality each cell originated
         from. Default is "modality".
+
+    Notes
+    -----
+    Features that exist in either rna_anndata or atac_anndata but do not exist in multi_anndata will
+    be discarded.
 
     Returns
     -------

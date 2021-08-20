@@ -61,7 +61,7 @@ class MULTIVAE(BaseModuleClass):
         Number of labels, if 0, all cells are assumed to have the same label
     gene_likelihood
         The distribution to use for gene expression data. One of the following
-        * ``'zinb'`` - (default) Zero-Inflated Negative Binomial
+        * ``'zinb'`` - Zero-Inflated Negative Binomial
         * ``'nb'`` - Negative Binomial
         * ``'poisson'`` - Poisson
     n_hidden
@@ -82,23 +82,23 @@ class MULTIVAE(BaseModuleClass):
         One of the following
         * ``'encoder'`` - use batch normalization in the encoder only
         * ``'decoder'`` - use batch normalization in the decoder only
-        * ``'none'`` - do not use batch normalization (default)
+        * ``'none'`` - do not use batch normalization 
         * ``'both'`` - use batch normalization in both the encoder and decoder
     use_layer_norm
         One of the following
         * ``'encoder'`` - use layer normalization in the encoder only
         * ``'decoder'`` - use layer normalization in the decoder only
         * ``'none'`` - do not use layer normalization
-        * ``'both'`` - use layer normalization in both the encoder and decoder (default)
+        * ``'both'`` - use layer normalization in both the encoder and decoder 
     latent_distribution
         which latent distribution to use, options are
-        * ``'normal'`` - Normal distribution (default)
+        * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     deeply_inject_covariates
-        Whether to deeply inject covariates into all layers of the decoder. If False (default),
-        covairates will only be included in the input layer.
+        Whether to deeply inject covariates into all layers of the decoder. If False,
+        covariates will only be included in the input layer.
     encode_covariates
-        If True, include covariates in the input to the encoder. False by default.
+        If True, include covariates in the input to the encoder.
     """
 
     ## TODO: replace n_input_regions and n_input_genes with a gene/region mask (we don't dictate which comes forst or that they're even contiguous)
@@ -225,7 +225,7 @@ class MULTIVAE(BaseModuleClass):
         ## expression dispersion parameters
         self.px_r = torch.nn.Parameter(torch.randn(n_input_genes))
 
-        ## library size encoder
+        ## expression library size encoder
         self.l_encoder_expression = LibrarySizeEncoder(
             n_input_encoder_exp,
             n_cat_list=encoder_cat_list,
@@ -236,6 +236,7 @@ class MULTIVAE(BaseModuleClass):
             deep_inject_covariates=self.deeply_inject_covariates,
         )
 
+        ## accessibility library size encoder
         self.l_encoder_accessibility = DecoderPeakVI(
             n_input=n_input_encoder_acc,
             n_output=1,
@@ -373,14 +374,16 @@ class MULTIVAE(BaseModuleClass):
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
 
-        input_dict = {
-            "z": z,
-            "qz_m": qz_m,
-            "batch_index": batch_index,
-            "cont_covs": cont_covs,
-            "cat_covs": cat_covs,
-            "libsize_expr": libsize_expr,
-            "labels": labels,
+        input_dict = dict(
+            z=z,
+            qz_m=qz_m,
+            batch_index=batch_index,
+            cont_covs=cont_covs,
+            cat_covs=cat_covs,
+            libsize_expr=libsize_expr,
+            labels=labels,
+        ){
+            
         }
 
         return input_dict

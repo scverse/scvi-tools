@@ -41,9 +41,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     adata
         AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
     n_genes
-        The number of gene expression features (genes)
+        The number of gene expression features (genes).
     n_regions
-        The number of accessibility features (genomic regions)
+        The number of accessibility features (genomic regions).
     n_hidden
         Number of nodes per hidden layer. If `None`, defaults to square root
         of number of regions.
@@ -55,18 +55,18 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     n_layers_decoder
         Number of hidden layers used for decoder NNs.
     dropout_rate
-        Dropout rate for neural networks
+        Dropout rate for neural networks.
     model_depth
-        Model sequencing depth / library size (default: True)
+        Model sequencing depth / library size.
     region_factors
-        Include region-specific factors in the model (default: True)
+        Include region-specific factors in the model.
     latent_distribution
         One of
-        * ``'normal'`` - Normal distribution (Default)
+        * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     deeply_inject_covariates
-        Whether to deeply inject covariates into all layers of the decoder. If False (default),
-        covairates will only be included in the input layer.
+        Whether to deeply inject covariates into all layers of the decoder. If False,
+        covariates will only be included in the input layer.
     fully_paired
         allows the simplification of the model if the data is fully paired. Currently ignored.
     **model_kwargs
@@ -74,12 +74,12 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
     Notes
     -----
-    * the model assumes that the features are organized so that all expression features are
-    consequtive, followed by all accessibility features. For example, if the data has 100 genes
+    * The model assumes that the features are organized so that all expression features are
+    consecutive, followed by all accessibility features. For example, if the data has 100 genes
     and 250 genomic regions, the model assumes that the first 100 features are genes, and the
     next 250 are the regions.
 
-    * the main batch annotation, specified in the `scvi.data.setup_anndata`, should correspond to
+    * The main batch annotation, specified in the `scvi.data.setup_anndata`, should correspond to
     the modality each cell originated from. This allows the model to focus mixing efforts, using
     an adversarial component, on mixing the modalities. Other covariates can be specified using
     the `categorical_covariate_keys` argument.
@@ -178,8 +178,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         early_stopping: bool = True,
         save_best: bool = True,
         check_val_every_n_epoch: Optional[int] = None,
-        n_steps_kl_warmup: Union[int, None] = None,
-        n_epochs_kl_warmup: Union[int, None] = 50,
+        n_steps_kl_warmup: Optional[int] = None,
+        n_epochs_kl_warmup: Optional[int] = 50,
         adversarial_mixing: bool = True,
         plan_kwargs: Optional[dict] = None,
         **kwargs,
@@ -210,7 +210,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         early_stopping
             Whether to perform early stopping with respect to the validation set.
         save_best
-            Save the best model state with respect to the validation loss (default), or use the final
+            Save the best model state with respect to the validation loss, or use the final
             state in the training procedure
         check_val_every_n_epoch
             Check val every n train epochs. By default, val is not checked, unless `early_stopping` is `True`.
@@ -223,7 +223,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Number of epochs to scale weight on KL divergences from 0 to 1.
             Overrides `n_steps_kl_warmup` when both are not `None`.
         adversarial_mixing
-            Wether to use adversarial training to penalize the model for umbalanced mixing of modalities.
+            Whether to use adversarial training to penalize the model for umbalanced mixing of modalities.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -453,7 +453,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             This allows gene expression levels to be interpreted on a common scale of relevant
             magnitude. If set to `"latent"`, use the latent libary size.
         use_z_mean
-            If True (default), use the mean of the latent distribution, otherwise sample from it
+            If True, use the mean of the latent distribution, otherwise sample from it
         n_samples
             Number of posterior samples to use for estimation.
         batch_size
@@ -582,18 +582,12 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
 
         # TODO check if change_fn in kwargs and raise error if so
-        def change_fn(a, b):
-            return a - b
+        change_fn = lambda a, b: a - b
 
         if two_sided:
-
-            def m1_domain_fn(samples):
-                return np.abs(samples) >= delta
-
+            m1_domain_fn = lambda samples: np.abs(samples) >= delta
         else:
-
-            def m1_domain_fn(samples):
-                return samples >= delta
+            m1_domain_fn = lambda samples: samples >= delta
 
         all_stats_fn = partial(
             scatac_raw_counts_properties,
