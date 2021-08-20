@@ -34,8 +34,10 @@ logger = logging.getLogger(__name__)
 
 class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
-    MultiVI integrates partially- and fully-paired multiomic data (expression + accessibility).
-    [AshuachGabitto21]_
+    Integration of multi-modal and single-modality data. [AshuachGabitto21]_
+
+    MultiVI is used to integrate multiomic datasets with single-modality (expression
+    or accessibility) datasets.
 
     Parameters
     ----------
