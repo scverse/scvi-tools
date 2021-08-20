@@ -75,18 +75,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     **model_kwargs
         Keyword args for :class:`~scvi.module.PEAKVAE`
 
-    Notes
-    -----
-    * The model assumes that the features are organized so that all expression features are
-       consecutive, followed by all accessibility features. For example, if the data has 100 genes
-       and 250 genomic regions, the model assumes that the first 100 features are genes, and the
-       next 250 are the regions.
-
-    * The main batch annotation, specified in the `scvi.data.setup_anndata`, should correspond to
-       the modality each cell originated from. This allows the model to focus mixing efforts, using
-       an adversarial component, on mixing the modalities. Other covariates can be specified using
-       the `categorical_covariate_keys` argument.
-
     Examples
     --------
     >>> adata_rna = anndata.read_h5ad(path_to_rna_anndata)
@@ -96,6 +84,18 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     >>> scvi.data.setup_anndata(adata_mvi, batch_key="modality")
     >>> vae = scvi.model.MULTIVI(adata_mvi)
     >>> vae.train()
+
+    Notes
+    ------
+    * The model assumes that the features are organized so that all expression features are
+       consecutive, followed by all accessibility features. For example, if the data has 100 genes
+       and 250 genomic regions, the model assumes that the first 100 features are genes, and the
+       next 250 are the regions.
+
+    * The main batch annotation, specified in the `scvi.data.setup_anndata`, should correspond to
+       the modality each cell originated from. This allows the model to focus mixing efforts, using
+       an adversarial component, on mixing the modalities. Other covariates can be specified using
+       the `categorical_covariate_keys` argument.
     """
 
     def __init__(
