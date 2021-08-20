@@ -115,7 +115,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         fully_paired: bool = False,
         **model_kwargs,
     ):
-        super(MULTIVI, self).__init__(adata)
+        super().__init__(adata)
 
         n_cats_per_cov = (
             self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
@@ -481,7 +481,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             gene_mask = slice(None)
         else:
             all_genes = _get_var_names_from_setup_anndata(adata)
-            gene_mask = [True if gene in gene_list else False for gene in all_genes]
+            gene_mask = [gene in gene_list for gene in all_genes]
 
         exprs = []
         for tensors in scdl:
@@ -621,7 +621,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         result = pd.DataFrame(
             {
                 "prob_da": result.proba_de,
-                "is_da_fdr": result.loc[:, "is_de_fdr_{}".format(fdr_target)],
+                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"],
                 "bayes_factor": result.bayes_factor,
                 "effect_size": result.scale2 - result.scale1,
                 "emp_effect": result.emp_mean2 - result.emp_mean1,
