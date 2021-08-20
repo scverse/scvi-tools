@@ -428,8 +428,9 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormGeneAlph
             )
 
         # =====================Compute mRNA count from each factor in locations  ======================= #
-        mRNA = w_sf * (self.cell_state * m_g).sum(-1)
-        pyro.deterministic("u_sf_mRNA_factors", mRNA)
+        with obs_plate:
+            mRNA = w_sf * (self.cell_state * m_g).sum(-1)
+            pyro.deterministic("u_sf_mRNA_factors", mRNA)
 
     def compute_expected(self, samples, adata, ind_x=None):
         r"""Compute expected expression of each gene in each location. Useful for evaluating how well
