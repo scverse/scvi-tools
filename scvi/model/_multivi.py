@@ -34,7 +34,8 @@ logger = logging.getLogger(__name__)
 
 class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
-    MultiVI handles partially- or fully-paired multiomic data (expression + accessibility).
+    MultiVI integrates partially- and fully-paired multiomic data (expression + accessibility).
+    [AshuachGabitto21]_
 
     Parameters
     ----------

@@ -84,7 +84,8 @@ Existing module classes with respective generative and inference procedures.
    module.Classifier
    module.LDVAE
    module.MRDeconv
-   module.PEAKVI
+   module.PEAKVAE
+   module.MULTIVAE
    module.SCANVAE
    module.TOTALVAE
    module.VAE

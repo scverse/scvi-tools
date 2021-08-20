@@ -13,6 +13,10 @@ References
    *PeakVI: A Deep Generative Model for Single Cell Chromatin Accessibility Analysis*,
    `biorxiv <https://www.biorxiv.org/content/10.1101/2021.04.29.442020v1>`__.
 
+.. [AshuachGabitto21] Tal Ashauch*, Mariano I Gabitto*, Michael I Jordan, Nir Yosef (2021),
+   *MultiVI: deep generative model for the integration of multi-modal data*,
+   `biorxiv <https://www.biorxiv.org/content/10.1101/2021.08.20.457057v1>`__.
+
 .. [GayosoSteier21] Adam Gayoso*, Zoë Steier*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2021),
    *Joint probabilistic modeling of single-cell multi-omic data with totalVI*,
    `Nature Methods <https://www.nature.com/articles/s41592-020-01050-x>`__.
