@@ -370,6 +370,15 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
     def compute_expected(self, samples, adata, ind_x=None):
         r"""Compute expected expression of each gene in each cell. Useful for evaluating how well
         the model learned expression pattern of all genes in the data.
+
+        Parameters
+        ----------
+        samples
+            dictionary with values of the posterior
+        adata
+            registered anndata
+        ind_x
+            indices of cells to use (to reduce data size)
         """
         if ind_x is None:
             ind_x = np.arange(adata.n_obs).astype(int)
@@ -405,7 +414,19 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
     def compute_expected_subset(self, samples, adata, fact_ind, cell_ind):
         r"""Compute expected expression of each gene in each cell that comes from
         a subset of factors (cell types) or cells.
+
         Useful for evaluating how well the model learned expression pattern of all genes in the data.
+
+        Parameters
+        ----------
+        samples
+            dictionary with values of the posterior
+        adata
+            registered anndata
+        fact_ind
+            indices of factors/cell types to use
+        cell_ind
+            indices of cells to use
         """
         obs2sample = get_from_registry(adata, _CONSTANTS.BATCH_KEY)
         obs2sample = pd.get_dummies(obs2sample.flatten())
@@ -438,9 +459,45 @@ class RegressionBackgroundDetectionTechPyroModel(PyroModule):
 
         return {"mu": mu, "alpha": alpha}
 
-    def normalise_by_sample_scaling(self):
-        r"""Normalise expression data by inferred technical variables (compute pearson residuals)."""
-        None
+    def normalise(self, samples, adata):
+        r"""Normalise expression data by estimated technical variables.
+
+        Parameters
+        ----------
+        samples
+            dictionary with values of the posterior
+        adata
+            registered anndata
+
+        """
+        obs2sample = get_from_registry(adata, _CONSTANTS.BATCH_KEY)
+        obs2sample = pd.get_dummies(obs2sample.flatten())
+        if self.n_extra_categoricals is not None:
+            extra_categoricals = get_from_registry(adata, _CONSTANTS.CAT_COVS_KEY)
+            obs2extra_categoricals = np.concatenate(
+                [
+                    pd.get_dummies(extra_categoricals.iloc[:, i])
+                    for i, n_cat in enumerate(self.n_extra_categoricals)
+                ],
+                axis=1,
+            )
+        # get counts matrix
+        corrected = get_from_registry(adata, _CONSTANTS.X_KEY)
+        # normalise per-sample scaling
+        corrected = corrected / np.dot(obs2sample, samples["detection_mean_y_e"])
+        # normalise per gene effects
+        if self.n_extra_categoricals is not None:
+            corrected = corrected / np.dot(
+                obs2extra_categoricals, samples["detection_tech_gene_tg"]
+            )
+
+        # remove additive sample effects
+        corrected = corrected - np.dot(obs2sample, samples["s_g_gene_add"])
+
+        # set minimum value to 0 for each gene (a hack to avoid negative values)
+        corrected = corrected - corrected.min()
+
+        return corrected
 
 
 class RegressionBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
