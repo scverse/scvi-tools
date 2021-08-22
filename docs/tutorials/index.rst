@@ -40,6 +40,7 @@ User tutorials
    notebooks/cellassign_tutorial
    notebooks/DestVI_tutorial
    notebooks/PeakVI
+   notebooks/MultiVI_tutorial
 
 
 Contributed tutorials
