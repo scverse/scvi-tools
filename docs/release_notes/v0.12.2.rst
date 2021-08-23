@@ -1,0 +1,26 @@
+New in 0.12.1 (2021-08-11)
+--------------------------
+
+Changes
+~~~~~~~
+- Updated `OrderedDict` typing import to support all Python 3.7 versions (`#1114`_).
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+None!
+
+Contributors
+~~~~~~~~~~~~
+- `@adamgayoso`_
+- `@galenxing`_
+- `@jjhong922`_
+
+.. _`@adamgayoso`: https://github.com/adamgayoso
+.. _`@galenxing`: https://github.com/galenxing
+.. _`@jjhong922`: https://github.com/jjhong922
+
+
+.. _`#1114`: https://github.com/YosefLab/scvi-tools/pull/1114
+
+
