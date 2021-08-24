@@ -64,7 +64,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.dataset.setup_anndata(adata, batch_key="batch")
+    >>> scvi.data.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.model.PEAKVI(adata)
     >>> vae.train()
 

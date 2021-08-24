@@ -224,8 +224,6 @@ class AdversarialTrainingPlan(TrainingPlan):
     ----------
     module
         A module instance from class ``BaseModuleClass``.
-    n_obs_training
-        Number of observations in the training set.
     lr
         Learning rate used for optimization :class:`~torch.optim.Adam`.
     weight_decay
