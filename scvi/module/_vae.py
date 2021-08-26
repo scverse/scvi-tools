@@ -273,12 +273,11 @@ class VAE(BaseModuleClass):
             categorical_input = tuple()
         qz_m, qz_v, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
 
-        ql_params = {}
+        ql_m, ql_v = None, None
         if not self.use_observed_lib_size:
             ql_m, ql_v, library_encoded = self.l_encoder(
                 encoder_input, batch_index, *categorical_input
             )
-            ql_params.update(ql_m=ql_m, ql_v=ql_v)
             library = library_encoded
 
         if n_samples > 1:
@@ -296,7 +295,7 @@ class VAE(BaseModuleClass):
                 ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
                 library = Normal(ql_m, ql_v.sqrt()).sample()
 
-        outputs = dict(z=z, qz_m=qz_m, qz_v=qz_v, library=library, **ql_params)
+        outputs = dict(z=z, qz_m=qz_m, qz_v=qz_v, ql_m=ql_m, ql_v=ql_v, library=library)
         return outputs
 
     @auto_move_data

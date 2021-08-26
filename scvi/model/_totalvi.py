@@ -295,7 +295,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
-        if self.is_trained_ is False:
+        if not self.is_trained_:
             raise RuntimeError("Please train the model first.")
 
         adata = self._validate_anndata(adata)
@@ -306,9 +306,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for tensors in post:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
-            ql_m = outputs["ql_m"]
-            ql_v = outputs["ql_v"]
-            if give_mean is True:
+            if give_mean:
+                ql_m = outputs["ql_m"]
+                ql_v = outputs["ql_v"]
+                if ql_m is None or ql_v is None:
+                    raise RuntimeError(
+                        "The module for this model does not compute the posterior distribution "
+                        "for the library size. Set `give_mean` to False to use the observed library size instead."
+                    )
                 library = torch.exp(ql_m + 0.5 * ql_v)
             else:
                 library = outputs["library_gene"]

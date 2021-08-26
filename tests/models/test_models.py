@@ -552,7 +552,7 @@ def test_totalvi(save_path):
     n_proteins = adata.obsm["protein_expression"].shape[1]
     n_latent = 10
 
-    model = TOTALVI(adata, n_latent=n_latent)
+    model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
     model.train(1, train_size=0.5)
     assert model.is_trained is True
     z = model.get_latent_representation()
