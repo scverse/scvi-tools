@@ -20,6 +20,7 @@ from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
     cite_seq_raw_counts_properties,
+    _init_library_size,
 )
 from scvi.model.base._utils import _de_core
 from scvi.module import TOTALVAE
@@ -123,6 +124,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if "extra_categoricals" in self.scvi_setup_dict_
             else None
         )
+
+        n_batch = self.summary_stats["n_batch"]
+        library_log_means, library_log_vars = _init_library_size(adata, n_batch)
+
         self.module = TOTALVAE(
             n_input_genes=self.summary_stats["n_vars"],
             n_input_proteins=self.summary_stats["n_proteins"],
@@ -137,6 +142,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             protein_batch_mask=batch_mask,
             protein_background_prior_mean=prior_mean,
             protein_background_prior_scale=prior_scale,
+            library_log_means=library_log_means,
+            library_log_vars=library_log_vars,
             **model_kwargs,
         )
         self._model_summary_string = (

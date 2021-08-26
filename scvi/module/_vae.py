@@ -73,7 +73,7 @@ class VAE(BaseModuleClass):
     use_layer_norm
         Whether to use layer norm in layers
     use_observed_lib_size
-        Use observed library size for RNA as scaling factor in mean of conditional distribution.
+        Use observed library size for RNA as scaling factor in mean of conditional distribution
     library_log_means
         1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
@@ -332,7 +332,7 @@ class VAE(BaseModuleClass):
         kl_weight: float = 1.0,
     ):
         x = tensors[_CONSTANTS.X_KEY]
-        batch_indices = tensors[_CONSTANTS.BATCH_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
         qz_m = inference_outputs["qz_m"]
         qz_v = inference_outputs["qz_v"]
@@ -350,10 +350,10 @@ class VAE(BaseModuleClass):
             ql_v = inference_outputs["ql_v"]
             n_batch = self.library_log_means.shape[1]
             local_library_log_means = F.linear(
-                one_hot(batch_indices, n_batch), self.library_log_means
+                one_hot(batch_index, n_batch), self.library_log_means
             )
             local_library_log_vars = F.linear(
-                one_hot(batch_indices, n_batch), self.library_log_vars
+                one_hot(batch_index, n_batch), self.library_log_vars
             )
 
             kl_divergence_l = kl(
@@ -463,7 +463,7 @@ class VAE(BaseModuleClass):
     @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
         sample_batch = tensors[_CONSTANTS.X_KEY]
-        batch_indices = tensors[_CONSTANTS.BATCH_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
         to_sum = torch.zeros(sample_batch.size()[0], n_mc_samples)
 
@@ -494,10 +494,10 @@ class VAE(BaseModuleClass):
             if not self.use_observed_lib_size:
                 n_batch = self.library_log_means.shape[1]
                 local_library_log_means = F.linear(
-                    one_hot(batch_indices, n_batch), self.library_log_means
+                    one_hot(batch_index, n_batch), self.library_log_means
                 )
                 local_library_log_vars = F.linear(
-                    one_hot(batch_indices, n_batch), self.library_log_vars
+                    one_hot(batch_index, n_batch), self.library_log_vars
                 )
                 p_l = (
                     Normal(local_library_log_means, local_library_log_vars.sqrt())
@@ -537,10 +537,6 @@ class LDVAE(VAE):
     ----------
     n_input
         Number of input genes
-    library_log_means
-        1 x n_batch array of means of the log library sizes. Parameterizes prior on library size.
-    library_log_vars
-        1 x n_batch array of variances of the log library sizes. Parameterizes prior on library size.
     n_batch
         Number of batches
     n_labels
@@ -576,8 +572,6 @@ class LDVAE(VAE):
     def __init__(
         self,
         n_input: int,
-        library_log_means: np.ndarray,
-        library_log_vars: np.ndarray,
         n_batch: int = 0,
         n_labels: int = 0,
         n_hidden: int = 128,
@@ -590,6 +584,7 @@ class LDVAE(VAE):
         use_batch_norm: bool = True,
         bias: bool = False,
         latent_distribution: str = "normal",
+        **vae_kwargs,
     ):
         super().__init__(
             n_input=n_input,
@@ -604,8 +599,7 @@ class LDVAE(VAE):
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
             use_observed_lib_size=False,
-            library_log_means=library_log_means,
-            library_log_vars=library_log_vars,
+            **vae_kwargs,
         )
         self.use_batch_norm = use_batch_norm
         self.z_encoder = Encoder(

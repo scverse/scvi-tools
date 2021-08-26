@@ -84,6 +84,12 @@ class TOTALVAE(BaseModuleClass):
         Array of proteins by batches, the prior initialization for the protein background scale (log scale)
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
+    library_log_means
+        1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
+        not using observed library size.
+    library_log_vars
+        1 x n_batch array of variances of the log library sizes. Parameterizes prior on library size if
+        not using observed library size.
     """
 
     def __init__(
@@ -110,6 +116,8 @@ class TOTALVAE(BaseModuleClass):
         protein_background_prior_mean: Optional[np.ndarray] = None,
         protein_background_prior_scale: Optional[np.ndarray] = None,
         use_observed_lib_size: bool = True,
+        library_log_means: Optional[np.ndarray] = None,
+        library_log_vars: Optional[np.ndarray] = None,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
     ):
@@ -125,8 +133,21 @@ class TOTALVAE(BaseModuleClass):
         self.protein_dispersion = protein_dispersion
         self.latent_distribution = latent_distribution
         self.protein_batch_mask = protein_batch_mask
-        self.use_observed_lib_size = use_observed_lib_size
         self.encode_covariates = encode_covariates
+        self.use_observed_lib_size = use_observed_lib_size
+        if not self.use_observed_lib_size:
+            if library_log_means is None or library_log_means is None:
+                raise ValueError(
+                    "If not using observed_lib_size, "
+                    "must provide library_log_means and library_log_vars."
+                )
+
+            self.register_buffer(
+                "library_log_means", torch.from_numpy(library_log_means).float()
+            )
+            self.register_buffer(
+                "library_log_vars", torch.from_numpy(library_log_vars).float()
+            )
 
         # parameters for prior on rate_back (background protein mean)
         if protein_background_prior_mean is None:
@@ -528,12 +549,6 @@ class TOTALVAE(BaseModuleClass):
             tensor of values with shape ``(batch_size, n_input_genes)``
         y
             tensor of values with shape ``(batch_size, n_input_proteins)``
-        local_l_mean_gene
-            tensor of means of the prior distribution of latent variable l
-            with shape ``(batch_size, 1)````
-        local_l_var_gene
-            tensor of variancess of the prior distribution of latent variable l
-            with shape ``(batch_size, 1)``
         batch_index
             array that indicates which batch the cells belong to with shape ``batch_size``
         label
@@ -553,8 +568,6 @@ class TOTALVAE(BaseModuleClass):
 
         x = tensors[_CONSTANTS.X_KEY]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        local_l_mean_gene = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var_gene = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
         y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
 
         if self.protein_batch_mask is not None:
@@ -575,9 +588,16 @@ class TOTALVAE(BaseModuleClass):
         # KL Divergence
         kl_div_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(0, 1)).sum(dim=1)
         if not self.use_observed_lib_size:
+            n_batch = self.library_log_means.shape[1]
+            local_library_log_means = F.linear(
+                one_hot(batch_index, n_batch), self.library_log_means
+            )
+            local_library_log_vars = F.linear(
+                one_hot(batch_index, n_batch), self.library_log_vars
+            )
             kl_div_l_gene = kl(
                 Normal(ql_m, torch.sqrt(ql_v)),
-                Normal(local_l_mean_gene, torch.sqrt(local_l_var_gene)),
+                Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
             ).sum(dim=1)
         else:
             kl_div_l_gene = 0.0
@@ -640,8 +660,7 @@ class TOTALVAE(BaseModuleClass):
     @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
         x = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
         to_sum = torch.zeros(x.size()[0], n_mc_samples)
 
         for i in range(n_mc_samples):
@@ -664,8 +683,15 @@ class TOTALVAE(BaseModuleClass):
             reconst_loss_protein = reconst_loss["reconst_loss_protein"]
 
             # Log-probabilities
+            n_batch = self.library_log_means.shape[1]
+            local_library_log_means = F.linear(
+                one_hot(batch_index, n_batch), self.library_log_means
+            )
+            local_library_log_vars = F.linear(
+                one_hot(batch_index, n_batch), self.library_log_vars
+            )
             p_l_gene = (
-                Normal(local_l_mean, local_l_var.sqrt())
+                Normal(local_library_log_means, local_library_log_vars.sqrt())
                 .log_prob(log_library)
                 .sum(dim=-1)
             )
